@@ -622,7 +622,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
-  const scanHref = appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
@@ -863,7 +862,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
             </details>
             <div class="me-filter-group me-filter-group-actions">
               <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens"><span aria-hidden="true">🔍</span>${escapeHtml(copy.crossLensLabel)}</a>
-              <a class="me-cross-chip" href="${escapeHtml(scanHref)}" data-kpi-action="map:cross-scan"><span aria-hidden="true">📡</span>${escapeHtml(copy.crossScanLabel)}</a>
               <a class="me-cross-chip" href="${escapeHtml(notesHref)}" data-kpi-action="map:cross-notes"><span aria-hidden="true">📖</span>${escapeHtml(copy.crossNotesLabel)}</a>
               <button type="button" class="me-share-btn" id="me-share-state">${escapeHtml(copy.shareLabel)}</button>
             </div>
@@ -1045,7 +1043,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
-  var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang))};
   ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
@@ -1630,11 +1627,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderPlaceActions() {
-    // No observation context — only Record / Lens / Scan make sense.
+    // No observation context — take the user to act now or review their own notes.
     return '<div class="me-bottom-actions">' +
       '<a class="btn btn-solid" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
-      '<a class="inline-link" href="' + SCAN_HREF + '">' + escapeHtml(COPY.bottomSheetScan) + '</a>' +
+      '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
       '</div>';
   }
 

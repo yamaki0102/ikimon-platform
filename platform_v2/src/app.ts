@@ -129,7 +129,7 @@ function buildLandingRootHtml(
       title: copy.tools.scan.title,
       body: copy.tools.scan.body,
       ctaLabel: copy.tools.scan.cta,
-      href: "/scan",
+      href: "/map",
       badge: copy.tools.scan.badge,
     })}
   </div>`;
@@ -162,14 +162,21 @@ function buildLandingRootHtml(
     ${toolCardsHtml}
   </section>`;
 
+  const fieldLoopStepsHtml = `<div class="field-loop-grid">${fieldLoop.steps
+    .map((step) => `<div class="card field-loop-card"><div class="card-body"><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.body)}</p></div></div>`)
+    .join("")}</div>`;
+
   const fieldLoopSectionHtml = `<section class="section field-loop-section" aria-labelledby="field-loop-heading">
-    <div class="field-loop-copy">
-      <div class="eyebrow">${escapeHtml(fieldLoop.eyebrow)}</div>
-      <h2 id="field-loop-heading">${escapeHtml(fieldLoop.title)}</h2>
-      <p>${escapeHtml(fieldLoop.lead)}</p>
-      <div class="actions" style="margin-top:20px">
-        <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/learn/field-loop"), lang))}">${escapeHtml(fieldLoop.primaryCta)}</a>
+    <div class="field-loop-shell">
+      <div class="field-loop-copy">
+        <div class="eyebrow">${escapeHtml(fieldLoop.eyebrow)}</div>
+        <h2 id="field-loop-heading">${escapeHtml(fieldLoop.title)}</h2>
+        <p>${escapeHtml(fieldLoop.lead)}</p>
+        <div class="actions" style="margin-top:20px">
+          <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/about"), lang))}">${escapeHtml(fieldLoop.primaryCta)}</a>
+        </div>
       </div>
+      ${fieldLoopStepsHtml}
     </div>
   </section>`;
 
@@ -192,26 +199,22 @@ function buildLandingRootHtml(
     MAP_MINI_STYLES,
     FIELD_NOTE_MAIN_STYLES,
     OFFICIAL_NOTICE_CARD_STYLES,
-    QUICK_NAV_STYLES,
-    TODAY_HABIT_STYLES,
-    REVISIT_FLOW_STYLES,
+  QUICK_NAV_STYLES,
+  TODAY_HABIT_STYLES,
+  REVISIT_FLOW_STYLES,
     COMMUNITY_METER_STYLES,
     MENTOR_STRIP_STYLES,
     DEMO_LOGIN_BANNER_STYLES,
     `
   .quick-nav-inner { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: none; }
   .field-loop-section { position: relative; overflow: hidden; }
-  .field-loop-shell { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .95fr); gap: 18px; align-items: stretch; }
-  .field-loop-copy, .field-loop-principles { border-radius: 28px; padding: 26px; }
+  .field-loop-shell { display: grid; gap: 18px; }
+  .field-loop-copy { border-radius: 28px; padding: 26px; }
   .field-loop-copy { background: radial-gradient(circle at top left, rgba(16,185,129,.18), transparent 44%), linear-gradient(180deg, #f8fffc 0%, #effaf4 100%); border: 1px solid rgba(16,185,129,.16); }
   .field-loop-copy h2 { margin-top: 8px; font-size: clamp(26px, 3vw, 38px); line-height: 1.18; letter-spacing: -.03em; }
   .field-loop-copy p { max-width: 58ch; }
   .field-loop-boundary-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
   .field-loop-boundary-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; }
-  .field-loop-principles { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); color: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.08); }
-  .field-loop-principles .eyebrow { color: rgba(167,243,208,.92); }
-  .field-loop-principle-list { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 12px; }
-  .field-loop-principle-list li { margin: 0; }
   .field-loop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
   .field-loop-card { min-height: 100%; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(15,23,42,.08); }
   .field-loop-card h3 { margin: 0 0 10px; font-size: 17px; line-height: 1.35; letter-spacing: -.02em; }
@@ -230,21 +233,41 @@ function buildLandingRootHtml(
   }
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+  .hero-panel.is-light.is-center { padding: clamp(60px, 7vw, 92px) clamp(28px, 5vw, 76px) clamp(48px, 6vw, 64px); }
+  .hero-panel.is-light.is-center .hero-copy { max-width: 100%; }
+  .hero-panel.is-light.is-center .hero-copy h1 {
+    max-width: min(13.5ch, 100%);
+    font-size: clamp(46px, 6.2vw, 82px);
+    line-height: 1.08;
+    letter-spacing: -.055em;
+    text-wrap: balance;
+  }
+  .hero-panel.is-light.is-center .hero-copy p {
+    max-width: min(30em, 100%);
+    font-size: clamp(18px, 1.85vw, 24px);
+    line-height: 1.82;
+  }
+  .hero-panel.is-light.is-center .hero-copy .actions { margin-top: 34px; }
+  .hero-panel.is-light.is-center .hero-copy .hero-emphasis { display: inline-block; }
   .landing-hero-promise-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
   .landing-hero-promise-chip { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; box-shadow: 0 10px 22px rgba(15,23,42,.05); }
   @media (max-width: 860px) {
-    .field-loop-shell { grid-template-columns: 1fr; }
     .field-loop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .fn-main-head { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
     .fn-main-head-actions { align-items: flex-start; min-width: 0; width: 100%; }
     .fn-grid, .fn-grid-compact { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .hero-panel.is-light.is-center { padding: 56px 24px 42px; }
+    .hero-panel.is-light.is-center .hero-copy h1 { max-width: 11ch; font-size: clamp(38px, 8.5vw, 62px); }
+    .hero-panel.is-light.is-center .hero-copy p { max-width: 24em; font-size: 17px; }
   }
   @media (max-width: 720px) {
     .tool-card-grid { grid-template-columns: 1fr; }
-    .field-loop-copy, .field-loop-principles { padding: 22px; }
+    .field-loop-copy { padding: 22px; }
     .field-loop-grid { grid-template-columns: 1fr; }
     .landing-tools .section-header,
     .landing-map .section-header { flex-direction: column; align-items: flex-start; }
+    .hero-panel.is-light.is-center .hero-copy h1 { max-width: 9.5ch; line-height: 1.12; }
+    .hero-panel.is-light.is-center .hero-copy p { max-width: 22em; line-height: 1.78; }
   }
   @media (max-width: 640px) {
     .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -1,4 +1,79 @@
-import { buildAppStrings } from "../content/index.js";
+import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import type { AppStrings } from "./strings.js";
 
-export const ja: AppStrings = buildAppStrings("ja");
+export const ja: AppStrings = {
+  landing: {
+    title: "ikimon — ENJOY NATURE | 近くの自然が、もっと楽しくなる",
+    heroEyebrow: "ENJOY NATURE",
+    heroHeading: "いつもの散歩が、<br><span class=\"hero-emphasis\">冒険になる。</span>",
+    heroHeadingPlain: "いつもの散歩が、冒険になる。",
+    heroLead: "道端の花の名前がわかると、世界の解像度が変わる。歩いて、見つけて、記録しよう。自然が前よりわかると、また歩きたくなる。",
+    heroPromiseChips: [
+      "自然の解像度が上がる",
+      "また歩きたくなる",
+      "場所への愛着が育つ",
+      JA_PUBLIC_SHARED_COPY.ai.short,
+    ],
+    numberLocale: "ja-JP",
+    statLabelTemplate: (obs, species) => `${obs} 件の観察 · ${species} 種`,
+    actionPrimaryLoggedIn: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
+    actionPrimaryGuest: JA_PUBLIC_SHARED_COPY.cta.startObservation,
+    actionSecondary: JA_PUBLIC_SHARED_COPY.cta.openMap,
+    toolSectionEyebrow: "楽しみ方は 2 つ",
+    toolSectionTitle: "その場で調べるか、次に歩く場所を探すか",
+    toolSectionLead: "気になったものをその場で確かめる入口と、今日どこを歩くか決める入口です。どちらも、あとで記録を残しやすくするためにあります。",
+    tools: {
+      lens: {
+        eyebrow: "その場で調べる",
+        title: "気になったものを、その場で確かめる",
+        body: "カメラを向けると、AI が候補と見分けるヒントを返します。ここで決めきるより、その場の気づきを逃さず記録につなげるための入口です。",
+        cta: JA_PUBLIC_SHARED_COPY.cta.openGuide,
+        badge: "AI hint",
+      },
+      scan: {
+        eyebrow: "探索マップ",
+        title: "今日どこを歩くか、地図から決める",
+        body: "近くでも旅先でも、いま行く理由とまた行きたくなる理由を探します。場所の偏りや季節の違いから、次の 1 件につながる場所を見つける入口です。",
+        cta: JA_PUBLIC_SHARED_COPY.cta.openScan,
+        badge: "map",
+      },
+    },
+    mapSectionEyebrow: "探索マップ",
+    mapSectionTitle: "また歩きたくなる場所を、地図で見つける",
+    mapSectionLead: "近くの散歩道にも、旅先の寄り道にも、次に歩く理由があります。地図は、どこで何が見つかっているかをやさしく読み、次の 1 歩を決める入口です。",
+    mapCta: JA_PUBLIC_SHARED_COPY.cta.openMap,
+    mapEmpty: "まだ地図に載せる観察がありません",
+    bizEyebrow: JA_PUBLIC_SHARED_COPY.business.eyebrow,
+    bizTitle: JA_PUBLIC_SHARED_COPY.business.title,
+    bizBody: JA_PUBLIC_SHARED_COPY.business.body,
+    bizCta: JA_PUBLIC_SHARED_COPY.business.cta,
+    footerNote: "歩いて、見つけて、ノートに残す。",
+  },
+  fieldLoop: {
+    eyebrow: "使い方",
+    title: "見つける。調べる。残す。だれかの役に立つ。",
+    lead: "気になったものを見つけて、その場で確かめて、場所つきで残す。続けるほど、近くの自然が前より分かり、記録は研究や保全にもつながっていきます。",
+    primaryCta: "この考え方を見る",
+    secondaryCta: JA_PUBLIC_SHARED_COPY.cta.openScan,
+    loopTitle: "4 steps",
+    principleTitle: "こだわり",
+    boundaryTitle: "言葉の約束",
+    steps: [
+      { title: "1. 見つける", body: "散歩中でも旅先でも、気になったものをまず見つける。" },
+      { title: "2. 調べる", body: "AI の候補と見分けるヒントを使って、その場の気づきを深くする。" },
+      { title: "3. 残す", body: "場所・時刻・写真・ひとことを、あとで見返せる記録にする。" },
+      { title: "4. 役に立つ", body: "積み重なった記録が、地域の見え方や研究・保全の手がかりになる。" },
+    ],
+    principles: [
+      "楽しさを入口にする。",
+      "分からないままでも残せるようにする。",
+      "場所の文脈ごと記録する。",
+      "記録が次の観察につながるようにする。",
+    ],
+    boundaries: [
+      "AI は候補提示まで",
+      "不在は努力量とセットで",
+      "強い主張は確認つきだけ",
+    ],
+  },
+};

@@ -13,11 +13,10 @@ test("field loop page ja renders the reader-facing definition without external p
     assert.equal(response.statusCode, 200);
     const body = response.body;
     assert.match(body, /フィールドループとは/);
-    assert.match(body, /なぜ循環で考えるのか/);
-    assert.match(body, /なぜ 1 件で言い切らないのか/);
-    assert.match(body, /同じ場所に戻ると何が増えるのか/);
-    assert.match(body, /AI はどこで補助するのか/);
-    assert.match(body, /次にどう使うか/);
+    assert.match(body, /粗い衛星/);
+    assert.match(body, /知の基盤/);
+    assert.match(body, /循環/);
+    assert.match(body, /市民の一致/);
     assert.doesNotMatch(body, /iNaturalist/i);
     assert.doesNotMatch(body, /いきものログ/);
     assert.doesNotMatch(body, /eBird/i);
@@ -25,51 +24,13 @@ test("field loop page ja renders the reader-facing definition without external p
     assert.doesNotMatch(body, /このページについて/);
     assert.doesNotMatch(body, /このページの前提/);
     assert.doesNotMatch(body, /市民同定は価値があるが/);
-    assert.match(body, /また見る理由/);
+    assert.ok((body.match(/https:\/\/doi\.org\//g) ?? []).length >= 10);
   } finally {
     await app.close();
   }
 });
 
-test("authority policy page ja explains each trust stage in plain language", async () => {
-  const app = buildApp();
-  try {
-    const response = await app.inject({
-      method: "GET",
-      url: "/learn/authority-policy?lang=ja",
-    });
-
-    assert.equal(response.statusCode, 200);
-    assert.match(response.body, /AI の候補、みんなの見立て、任された人の確認、公開前判断/);
-    assert.match(response.body, /なぜ段階を分けるのか/);
-    assert.match(response.body, /どこで慎重になるか/);
-    assert.match(response.body, /ふだん使うときはどう読めばよいか/);
-    assert.match(response.body, /だれが「任された人」になるのか/);
-    assert.doesNotMatch(response.body, /authority-backed/i);
-  } finally {
-    await app.close();
-  }
-});
-
-test("methodology page ja explains the boundary between recording and overclaiming", async () => {
-  const app = buildApp();
-  try {
-    const response = await app.inject({
-      method: "GET",
-      url: "/learn/methodology?lang=ja",
-    });
-
-    assert.equal(response.statusCode, 200);
-    assert.match(response.body, /場所を残す理由/);
-    assert.match(response.body, /公開範囲をどう分けるのか/);
-    assert.match(response.body, /使う人が最初に気にすべきこと/);
-    assert.match(response.body, /見ていないことを言い切らない理由/);
-  } finally {
-    await app.close();
-  }
-});
-
-test("about page explains the service in reader-facing terms and sends readers to the learn hub", async () => {
+test("about page sends readers to the learn hub", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -78,10 +39,9 @@ test("about page explains the service in reader-facing terms and sends readers t
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /だれのためのサービスか/);
-    assert.match(response.body, /また見る理由/);
-    assert.match(response.body, /使い方と考え方を見る/);
-    assert.match(response.body, /\/learn/);
+    assert.match(response.body, /使い方を見る/);
+    assert.match(response.body, /研究と信頼性を見る/);
+    assert.match(response.body, /\/learn\/methodology/);
   } finally {
     await app.close();
   }
@@ -96,11 +56,37 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /はじめてならこの順番/);
-    assert.match(response.body, /名前が分からないときの基本/);
-    assert.match(response.body, /迷ったら、まず次の 3 ページで全体をつかんでください/);
-    assert.match(response.body, /学校、地域団体、観察会、地域学習で使えるかを見たい場合/);
+    assert.match(response.body, /まず読むページ/);
+    assert.match(response.body, /研究・データ・信頼性について/);
     assert.match(response.body, /更新を見る/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("legacy public explainer routes redirect to their canonical destinations", async () => {
+  const app = buildApp();
+  try {
+    const scan = await app.inject({ method: "GET", url: "/scan?lang=ja" });
+    assert.equal(scan.statusCode, 308);
+    assert.equal(scan.headers.location, "/map?lang=ja");
+
+    const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
+    assert.equal(authority.statusCode, 308);
+    assert.equal(authority.headers.location, "/learn/methodology?lang=ja");
+  } finally {
+    await app.close();
+  }
+});
+
+test("learn methodology carries the merged trust and research framing", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/learn/methodology?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /同定の信頼レーン/);
+    assert.match(response.body, /quick capture と survey の違い/);
+    assert.match(response.body, /言いすぎないための線引き/);
   } finally {
     await app.close();
   }

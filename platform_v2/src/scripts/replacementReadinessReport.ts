@@ -19,7 +19,7 @@ const ENDPOINTS: string[] = [
   "/map",
   "/learn",
   "/learn/field-loop?lang=ja",
-  "/learn/authority-policy?lang=ja",
+  "/learn/methodology?lang=ja",
   "/learn/glossary?lang=ja",
   "/learn/methodology?lang=ja",
   "/faq?lang=ja",

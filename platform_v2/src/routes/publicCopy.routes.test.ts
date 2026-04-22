@@ -7,7 +7,6 @@ const shallowJaRoutes = [
   "/?lang=ja",
   "/notes?lang=ja",
   "/lens?lang=ja",
-  "/scan?lang=ja",
   "/map?lang=ja",
   "/about?lang=ja",
   "/faq?lang=ja",
@@ -18,12 +17,13 @@ test("shallow public ja routes avoid internal jargon", async () => {
   const app = buildApp();
   try {
     for (const url of shallowJaRoutes) {
-      const response = await app.inject({ method: "GET", url });
+      const response = await app.inject({ method: "GET", url, headers: { accept: "text/html" } });
       assert.equal(response.statusCode, 200, `${url} should render`);
+      const visibleBody = response.body.replace(/href="[^"]+"/g, 'href=""');
       for (const jargon of JA_PUBLIC_INTERNAL_JARGON) {
-        assert.doesNotMatch(response.body, new RegExp(jargon, "i"), `${url} should not include ${jargon}`);
+        assert.doesNotMatch(visibleBody, new RegExp(jargon, "i"), `${url} should not include ${jargon}`);
       }
-      assert.doesNotMatch(response.body, /AI が自動で(決め|確定)/, `${url} should keep AI as a hint`);
+      assert.doesNotMatch(visibleBody, /AI が自動で(決め|確定)/, `${url} should keep AI as a hint`);
     }
   } finally {
     await app.close();
@@ -35,9 +35,8 @@ test("general and group-help pages use the updated ja entry copy", async () => {
   try {
     const about = await app.inject({ method: "GET", url: "/about?lang=ja" });
     assert.equal(about.statusCode, 200);
-    assert.match(about.body, /ikimon は何を残すサービスか/);
-    assert.match(about.body, /AIはヒント役/);
-    assert.match(about.body, /使い方と考え方を見る/);
+    assert.match(about.body, /自然を楽しむ入口から始める/);
+    assert.match(about.body, /研究と信頼性を見る/);
 
     const business = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
     assert.equal(business.statusCode, 200);
@@ -57,36 +56,14 @@ test("general and group-help pages use the updated ja entry copy", async () => {
   }
 });
 
-test("faq page answers beginner and group setup questions in plain language", async () => {
+test("home hero and how-it-works copy match the canonical ja surface", async () => {
   const app = buildApp();
   try {
-    const faq = await app.inject({ method: "GET", url: "/faq?lang=ja" });
-    assert.equal(faq.statusCode, 200);
-    assert.match(faq.body, /1件だけでも意味がありますか？/);
-    assert.match(faq.body, /旅先の記録にも向いていますか？/);
-    assert.match(faq.body, /まずは「どこで始めたいか」/);
-  } finally {
-    await app.close();
-  }
-});
-
-test("learn explanation pages keep the updated ja depth promises", async () => {
-  const app = buildApp();
-  try {
-    const fieldLoop = await app.inject({ method: "GET", url: "/learn/field-loop?lang=ja" });
-    assert.equal(fieldLoop.statusCode, 200);
-    assert.match(fieldLoop.body, /なぜ 1 件で言い切らないのか/);
-    assert.match(fieldLoop.body, /同じ場所に戻ると何が増えるのか/);
-
-    const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
-    assert.equal(authority.statusCode, 200);
-    assert.match(authority.body, /どこで慎重になるか/);
-    assert.match(authority.body, /ふだん使うときはどう読めばよいか/);
-
-    const methodology = await app.inject({ method: "GET", url: "/learn/methodology?lang=ja" });
-    assert.equal(methodology.statusCode, 200);
-    assert.match(methodology.body, /場所を残す理由/);
-    assert.match(methodology.body, /見ていないことを言い切らない理由/);
+    const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /ENJOY NATURE/);
+    assert.match(response.body, /見つける。調べる。残す。だれかの役に立つ。/);
+    assert.doesNotMatch(response.body, /フィールドループ/);
   } finally {
     await app.close();
   }
@@ -97,9 +74,9 @@ test("contact page renders content-backed form copy", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/contact?lang=ja" });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /ご用件/);
+    assert.match(response.body, /カテゴリ/);
     assert.match(response.body, /送信する/);
-    assert.match(response.body, /メールアドレス/);
+    assert.match(response.body, /受付番号/);
   } finally {
     await app.close();
   }

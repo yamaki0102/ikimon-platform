@@ -27,6 +27,6 @@ test("build copies content files into dist and the built loader can read them", 
   assert.equal(existsSync(distAboutMarkdown), true);
 
   const builtModule = await import(`${pathToFileURL(join(platformRootPath, "dist", "content", "index.js")).href}?t=${Date.now()}`);
-  assert.equal(builtModule.getShortCopy("ja", "public", "landing.title"), "ikimon — 見つけたものを、場所つきで残す");
-  assert.match(builtModule.renderLongformPage("ja", "about"), /何を残すサービスか/);
+  assert.equal(builtModule.getShortCopy("ja", "public", "landing.title"), "ikimon — ENJOY NATURE | 近くの自然が、もっと楽しくなる");
+  assert.match(builtModule.renderLongformPage("ja", "about"), /近くの自然から始める理由/);
 });

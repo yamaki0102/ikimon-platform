@@ -2640,7 +2640,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "確認権限の申請にはサインインが必要です。",
           `<p style="margin:0 0 12px">自分が継続して見ている分類群について、根拠を添えて申請できます。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -2659,7 +2659,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">自分の申請</div>
               <h2>担当分類群の確認権限を申請する</h2>
             </div>
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>
           </div>
           <p class="meta">観察会、ウェビナー、論文、図鑑などの学習証跡を添えて、担当したい分類群を申請します。証跡だけで自動付与はされず、既存の担当者または運営が確認します。</p>
           <form id="authority-recommendation-form" class="stack" style="margin-top:14px">
@@ -2686,7 +2686,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <label class="stack"><span style="font-weight:700">補足メモ</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どこで学び、何を手がかりに見分けているか"></textarea></label>
             <div class="actions">
               <button class="btn" type="submit">申請する</button>
-              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の全文を読む</a>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の全文を読む</a>
             </div>
           </form>
           <div id="authority-recommendation-status" class="list" style="margin-top:14px"><div class="row"><div>入力できます。</div></div></div>
@@ -2764,7 +2764,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "この画面は、確認権限が付与されている人向けです。",
           `<p style="margin:0 0 12px">レビュー待ち一覧や確認レーンを開けるのは、運営権限を持つ人か、分類群ごとの確認権限を持つ人だけです。制度の考え方と申請の流れは説明ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -2801,7 +2801,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : `<div class="meta">表示中の一覧は、あなたに付与された分類群に当てはまる観察だけです。</div>`;
     const manageAuthorityAction = access.canManageAll
       ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理を見る</a>`
-      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
+      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
@@ -2933,7 +2933,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "この画面は、確認権限が付与されている人向けです。",
           `<p style="margin:0 0 12px">申請を承認したり差し戻したりできるのは、同じ分類群の確認権限を持つ人、または運営権限を持つ人だけです。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -2962,7 +2962,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">現在の担当範囲</div>
               <h2 style="margin:6px 0 0">解決できる分類群</h2>
             </div>
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>
           </div>
           ${renderAuthoritySummaryChips(access.activeAuthorities)}
           <div class="meta">${access.canManageAll ? "運営権限がある場合は、すべての申請待ちを確認できます。" : "自分の確認範囲に一致する申請だけが表示されます。"}</div>
@@ -3125,7 +3125,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "監査記録は運営権限を持つ人だけが見られます。",
           `<p style="margin:0 0 12px">付与、取消し、更新の履歴は一般公開せず、運営が追跡できる画面にまとめています。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理へ戻る</a>
           </div>`,
         ),
@@ -3156,7 +3156,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">絞り込み</div>
               <h2>付与と変更の記録を追う</h2>
             </div>
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>
           </div>
           <form class="stack" method="get" action="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}" style="margin-top:14px">
             <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
@@ -3213,7 +3213,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "権限管理は運営権限を持つ人だけが使えます。",
           `<p style="margin:0 0 12px">付与、取消し、根拠追加は運営権限を持つアカウントだけが実行できます。制度の考え方は公開ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">専門確認へ戻る</a>
           </div>`,
         ),
@@ -3385,7 +3385,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "この画面は、確認権限を持つ人向けです。",
           `<p style="margin:0 0 12px">確認待ち一覧は、運営または担当分類群を持つ人だけが見られます。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -3405,7 +3405,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : `<div class="meta">ここには、あなたの担当分類群に当てはまる観察だけが表示されます。</div>`;
     const manageAuthorityAction = access.canManageAll
       ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理を見る</a>`
-      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
+      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
@@ -3628,44 +3628,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <section class="section">${renderPublicRouteCardGrid(lensPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
       <section class="section">${renderPublicRouteCardGrid(lensPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
       footerNote: lensPageCopy.footerNote,
-    });
-  });
-
-  /* -------------------------------------------------------------- */
-  /* Field Scan entry (/scan) — marketing + CTA into map/explore    */
-  /* -------------------------------------------------------------- */
-  app.get("/scan", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const scanPageCopy = getShortCopy<any>(lang, "public", "read.scan");
-    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
-
-    reply.type("text/html; charset=utf-8");
-    return renderSiteDocument({
-      basePath,
-      title: scanPageCopy.title,
-      activeNav: scanPageCopy.activeNav,
-      lang,
-      hero: {
-        eyebrow: scanPageCopy.hero.eyebrow,
-        heading: scanPageCopy.hero.heading,
-        headingHtml: scanPageCopy.hero.heading,
-        lead: scanPageCopy.hero.lead,
-        tone: "light",
-        align: "center",
-        actions: [
-          { href: "/map", label: sharedCopy.cta.openMap },
-          { href: "/notes", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
-        ],
-      },
-      body: `<section class="section">
-        <div class="list">
-          ${scanPageCopy.steps.map((step: { title: string; body: string }) => `<div class="row"><div><strong>${escapeHtml(step.title)}</strong><div class="meta">${escapeHtml(step.body)}</div></div></div>`).join("")}
-        </div>
-      </section>
-      <section class="section">${renderPublicRouteCardGrid(scanPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
-      <section class="section">${renderPublicRouteCardGrid(scanPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
-      footerNote: scanPageCopy.footerNote,
     });
   });
 
