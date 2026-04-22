@@ -64,6 +64,8 @@ test("home hero and how-it-works copy match the canonical ja surface", async () 
     assert.match(response.body, /ENJOY NATURE/);
     assert.match(response.body, /見つける。調べる。残す。だれかの役に立つ。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
+    assert.match(response.body, /site-header-main/);
+    assert.match(response.body, /site-header-utility-desktop/);
   } finally {
     await app.close();
   }

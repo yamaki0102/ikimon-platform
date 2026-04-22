@@ -145,18 +145,22 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: 
 
   return `<header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
-        <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="ikimon icon" /></span>
-        <span>
-          <strong>ikimon</strong>
-          <small>${escapeHtml(copy.brandTagline)}</small>
-        </span>
-      </a>
-      <nav class="site-nav site-nav-desktop">${navLinks}</nav>
-      ${desktopSearch}
-      <div class="site-header-actions site-header-actions-desktop">
-        ${desktopLangSwitch}
-        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+      <div class="site-header-main">
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+          <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="ikimon icon" /></span>
+          <span class="brand-copy">
+            <strong>ikimon</strong>
+            <small>${escapeHtml(copy.brandTagline)}</small>
+          </span>
+        </a>
+        <nav class="site-nav site-nav-desktop">${navLinks}</nav>
+      </div>
+      <div class="site-header-utility site-header-utility-desktop">
+        ${desktopSearch}
+        <div class="site-header-actions site-header-actions-desktop">
+          ${desktopLangSwitch}
+          <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        </div>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
@@ -354,17 +358,44 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     }
     .md-hidden { display: none; }
     .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); background: rgba(249,255,254,.9); border-bottom: 1px solid rgba(0,0,0,.04); }
-    .site-header-inner { max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
-    .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 220px; }
+    .site-header-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+    }
+    .site-header-main {
+      display: flex;
+      align-items: center;
+      gap: clamp(18px, 2vw, 34px);
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; flex: 0 1 auto; }
+    .brand-copy { min-width: 0; }
     .brand-mark { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 10px 24px rgba(15,23,42,.08); background: white; }
     .brand-mark img { width: 100%; height: 100%; display: block; }
     .brand strong { display: block; font-size: 15px; font-weight: 900; }
-    .brand small { display: block; margin-top: 2px; color: var(--muted); }
+    .brand small { display: block; margin-top: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .site-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .site-nav-link { display: inline-flex; align-items: center; min-height: 44px; padding: 11px 10px; border-radius: 10px; background: transparent; border: 0; font-weight: 700; font-size: 14px; color: #475569; }
+    .site-nav-desktop { flex: 1 1 auto; min-width: 0; gap: 8px; flex-wrap: nowrap; }
+    .site-nav-link { display: inline-flex; align-items: center; min-height: 44px; padding: 11px 10px; border-radius: 10px; background: transparent; border: 0; font-weight: 700; font-size: 14px; color: #475569; white-space: nowrap; }
     .site-nav-link:hover { background: rgba(15,23,42,.04); }
     .site-nav-link.is-active { color: #0f172a; background: rgba(16,185,129,.08); }
+    .site-header-utility {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
     .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .site-header-actions-desktop { flex-wrap: nowrap; }
     .site-header-actions-mobile { display: none; }
     .site-record-link { white-space: nowrap; }
     .site-search {
@@ -379,6 +410,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       box-shadow: 0 6px 14px rgba(15,23,42,.04);
       flex: 1 1 200px;
       max-width: 280px;
+    }
+    .site-search-desktop {
+      flex: 0 1 clamp(200px, 18vw, 320px);
+      min-width: 180px;
+      max-width: clamp(200px, 18vw, 320px);
     }
     .site-search-icon { font-size: 14px; opacity: .7; }
     .site-search-input {
@@ -424,6 +460,166 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .site-mobile-menu { display: none; }
     .site-mobile-menu-toggle { list-style: none; }
     .site-mobile-menu-toggle::-webkit-details-marker { display: none; }
+    @media (max-width: 1260px) {
+      .site-header-inner { padding-inline: 18px; gap: 14px; }
+      .site-header-main { gap: 18px; }
+      .site-nav-desktop { gap: 4px; }
+      .site-nav-link { padding-inline: 8px; font-size: 13px; }
+      .site-search-desktop {
+        min-width: 164px;
+        max-width: 220px;
+        flex-basis: 220px;
+      }
+      .lang-switch-link {
+        min-width: 40px;
+        min-height: 40px;
+        padding-inline: 10px;
+      }
+    }
+    @media (max-width: 1120px) {
+      .brand small { display: none; }
+      .site-header-main { gap: 14px; }
+      .site-search-desktop {
+        min-width: 150px;
+        max-width: 190px;
+        flex-basis: 190px;
+      }
+      .site-record-link { padding-inline: 14px; }
+    }
+    @media (max-width: 980px) {
+      .site-header-inner {
+        padding: 10px 14px;
+        gap: 12px;
+        flex-wrap: nowrap;
+        align-items: center;
+      }
+      .brand {
+        min-width: 0;
+        flex: 1 1 auto;
+        gap: 10px;
+      }
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+      }
+      .brand strong { font-size: 14px; }
+      .brand small { display: none; }
+      .site-header-main {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .site-nav-desktop,
+      .site-header-utility-desktop { display: none; }
+      .site-header-actions-mobile {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 8px;
+      }
+      .site-record-link {
+        min-height: 40px;
+        padding: 10px 14px;
+        font-size: 13px;
+        box-shadow: 0 8px 18px rgba(14,165,233,.15);
+      }
+      .site-mobile-menu {
+        position: relative;
+        display: block;
+      }
+      .site-mobile-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,.28);
+        background: rgba(255,255,255,.94);
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 8px 18px rgba(15,23,42,.06);
+      }
+      .site-mobile-menu-icon,
+      .site-mobile-menu-icon::before,
+      .site-mobile-menu-icon::after {
+        display: block;
+        width: 14px;
+        height: 2px;
+        border-radius: 999px;
+        background: currentColor;
+        transition: transform .16s ease, opacity .16s ease;
+      }
+      .site-mobile-menu-icon {
+        position: relative;
+      }
+      .site-mobile-menu-icon::before,
+      .site-mobile-menu-icon::after {
+        content: "";
+        position: absolute;
+        left: 0;
+      }
+      .site-mobile-menu-icon::before { top: -5px; }
+      .site-mobile-menu-icon::after { top: 5px; }
+      .site-mobile-menu[open] .site-mobile-menu-toggle {
+        background: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+      }
+      .site-mobile-menu[open] .site-mobile-menu-icon {
+        transform: rotate(45deg);
+      }
+      .site-mobile-menu[open] .site-mobile-menu-icon::before {
+        transform: rotate(90deg);
+        top: 0;
+      }
+      .site-mobile-menu[open] .site-mobile-menu-icon::after {
+        opacity: 0;
+      }
+      .site-mobile-menu-panel {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(340px, calc(100vw - 28px));
+        padding: 14px;
+        border-radius: 24px;
+        border: 1px solid rgba(148,163,184,.22);
+        background: rgba(255,255,255,.98);
+        box-shadow: 0 24px 48px rgba(15,23,42,.18);
+        display: grid;
+        gap: 12px;
+      }
+      .site-search-mobile {
+        display: inline-flex;
+        width: 100%;
+        max-width: none;
+        min-height: 42px;
+        padding: 4px 12px;
+      }
+      .site-nav-mobile {
+        display: grid;
+        gap: 8px;
+      }
+      .site-nav-mobile .site-nav-link {
+        justify-content: flex-start;
+        width: 100%;
+        min-height: 42px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(15,23,42,.04);
+      }
+      .site-mobile-menu-meta {
+        display: flex;
+        justify-content: flex-start;
+      }
+      .lang-switch-mobile {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+    }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 999px; font-weight: 800; border: 1px solid transparent; }
     .btn-solid { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 10px 24px rgba(14,165,233,.18); }
     .btn-solid-on-light { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 12px 26px rgba(14,165,233,.18); }
