@@ -132,7 +132,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
 
   const grantedResponse = await reviewerPage.goto("/specialist/id-workbench?lane=expert-lane", { waitUntil: "domcontentloaded" });
   expect(grantedResponse?.status()).toBe(200);
-  await expect(reviewerPage.getByRole("heading", { name: "任された人の確認" })).toBeVisible();
+  await expect(reviewerPage.getByRole("heading", { name: "専門確認レーン" })).toBeVisible();
 
   adminPage.once("dialog", async (dialog) => {
     await dialog.accept("playwright revoke");
