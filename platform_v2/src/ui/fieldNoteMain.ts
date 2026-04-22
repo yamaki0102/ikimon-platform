@@ -38,7 +38,7 @@ const mainCopy: Record<SiteLang, MainCopy> = {
   ja: {
     eyebrow: "あなたのノート",
     heading: "見つけたことを、あとで見返せる",
-    lead: "歩いて見つけたことを 1 冊のノートに残します。読み返すたび、同じ道が少し違って見えてきます。",
+    lead: "歩いて見つけたことを、場所つきのノートとして残します。あとで同じ場所を見返したり、前回との違いを比べたりするための入口です。",
     myNotebookLabel: "最近の記録",
     myNotebookEmpty: "まだ何も書かれていません。最初の 1 件を残すと、ここから積み上がります。",
     myPlacesLabel: "よく歩く場所",
@@ -49,7 +49,7 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     ambientLabel: "同じ場所を歩いている人",
     ambientEmpty: "まだ誰も書いていません。あなたが 1 件目になれます。",
     seeMore: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
-    hypothesisLabel: "この場所で見てみる",
+    hypothesisLabel: "この場所で気にして見る",
     hypothesisLoading: "現在地を読み解き中…",
     hypothesisChecksLabel: "現地で確かめる",
     hypothesisCapturesLabel: "撮るなら",

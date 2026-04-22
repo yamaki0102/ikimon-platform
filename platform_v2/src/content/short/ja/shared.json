@@ -5,7 +5,7 @@
       "startObservation": "観察を始める",
       "openNotebook": "ノートを見る",
       "openMap": "マップを見る",
-      "readFaq": "FAQを見る",
+      "readFaq": "よくある質問を見る",
       "openGuide": "その場で調べる",
       "openScan": "次の場所を探す",
       "openAbout": "このサービスについて見る",
@@ -15,25 +15,25 @@
     "labels": {
       "notebook": "ノート",
       "hint": "ヒント",
-      "revisit": "また行きたくなる理由",
+      "revisit": "また見る理由",
       "groupHelp": "団体相談",
-      "groupHelpLong": "地域で使いたい方へ"
+      "groupHelpLong": "学校・地域で使いたい方へ"
     },
     "ai": {
-      "short": "AI はヒント役。決めるのは人です。",
-      "support": "AI は候補を出し、見分けるヒントを返します。名前を自動で決めることはしません。",
-      "supportLong": "AI は候補と見分けるヒントを返します。記録の主役は人の観察です。"
+      "short": "AI は候補と見分け方のヒントを出します。決めるのは人です。",
+      "support": "AI は候補を出し、次にどこを見ればよいかを返します。名前を自動で確定する仕組みではありません。",
+      "supportLong": "AI は観察の補助です。候補、見分け方、次に撮るとよい写真を返しますが、最終判断は人が行います。"
     },
     "business": {
       "nav": "団体相談",
-      "eyebrow": "地域で使いたい方へ",
+      "eyebrow": "学校・地域で使いたい方へ",
       "title": "学校や地域で始めたいときの相談窓口",
-      "body": "法人・団体向けは、専用画面を売る前に、どこでどう始めるかを一緒に整える入口です。",
+      "body": "個人利用の延長で小さく始める前提で、対象場所、最初の導線、相談の進め方を整理する入口です。",
       "cta": "団体相談を見る"
     }
   },
   "shell": {
-    "brandTagline": "近くの自然が、ちょっとおもしろくなる",
+    "brandTagline": "近くで見つけたものを、あとで見返せる。",
     "skipToContent": "本文へスキップ",
     "searchPlaceholder": "生きものや場所を探す",
     "searchLabel": "サイト内検索",
@@ -46,28 +46,28 @@
     },
     "record": "記録する",
     "footer": {
-      "tagline": "歩いて見つけた自然を、あとで見返せる形に残す。",
-      "start": "はじめる",
+      "tagline": "散歩や旅先で見つけたものを、場所つきで残すためのサービスです。",
+      "start": "使う",
       "startLinks": {
         "discover": "みつける",
         "record": "記録する",
         "places": "ノートを見る"
       },
-      "learn": "読む",
+      "learn": "知る",
       "learnLinks": {
-        "guides": "使い方を見る",
+        "guides": "使い方と考え方",
         "about": "ikimon について",
         "faq": "よくある質問",
-        "updates": "アップデート"
+        "updates": "更新履歴"
       },
-      "trust": "安心と案内",
+      "trust": "案内とルール",
       "trustLinks": {
         "business": "団体相談",
         "contact": "お問い合わせ",
         "terms": "利用規約",
-        "privacy": "プライバシー"
+        "privacy": "プライバシーポリシー"
       },
-      "copyright": "© 2024-2026 ikimon Project.",
+      "copyright": "© 2024-2026 ikimon",
       "revisit": ""
     }
   },
@@ -82,8 +82,8 @@
     }
   },
   "footerNotes": {
-    "landing": "歩いて、見つけて、ノートに残す。",
-    "public": "歩いて見つけた自然を、あとで見返せる形に残す。",
-    "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
+    "landing": "見つけたものを、場所つきで残す。",
+    "public": "あとで見返せる形で、観察を残す。",
+    "qa": "staging で画面全体の導線と見た目を確認するときの補助メモです。"
   }
 }

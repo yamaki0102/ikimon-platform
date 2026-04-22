@@ -1,83 +1,85 @@
 {
   "qaSiteMap": {
-    "title": "サイトマップ (運用向け) | ikimon",
+    "title": "QA サイトマップ | ikimon",
+    "cardEyebrow": "確認導線",
+    "openLabel": "開く",
     "hero": {
-      "eyebrow": "staging qa",
-      "heading": "ページ遷移と確認面を、1枚で把握する。",
-      "lead": "本番リハーサル前の人間確認用マップです。デザイン確認だけでなく、どの導線がどこへ繋がるか、どこが 401 や JSON になるかまで staging 上で一巡できます。",
+      "eyebrow": "staging 確認用",
+      "heading": "どこを見ればよいかを、1 画面で整理する",
+      "lead": "staging で人が確認するときの導線一覧です。公開面、専門確認面、運用面を混ぜずに順番に見られるようにしています。",
       "actions": [
-        { "href": "/", "label": "Preview top" },
-        { "href": "/record", "label": "Start at record", "variant": "secondary" },
-        { "href": "/for-business", "label": "Check business", "variant": "secondary" }
+        { "href": "/", "label": "トップを見る" },
+        { "href": "/record", "label": "記録画面から始める", "variant": "secondary" },
+        { "href": "/for-business", "label": "団体相談を見る", "variant": "secondary" }
       ]
     },
     "sections": [
       {
-        "eyebrow": "flow 1",
-        "title": "Core User Journey",
-        "lead": "記録して、詳細を見て、プロフィールと explore で再訪理由を確認する主導線。",
+        "eyebrow": "導線 1",
+        "title": "個人向けの基本導線",
+        "lead": "記録する、詳細を見る、ノートで見返す、地図で次を決める、という基本の流れです。",
         "cards": [
-          { "href": "/record", "label": "Record", "note": "staging user 付きで観察追加を確認。" },
-          { "href": "/explore", "label": "Observation Detail", "note": "fixture がない場合でも explore へ退避できる。" },
-          { "href": "/home", "label": "Home", "note": "My places と recent observations を確認。" },
-          { "href": "/profile", "label": "Profile", "note": "同じ user の places と observations を確認。" },
-          { "href": "/explore", "label": "Explore", "note": "municipality と recent observations を横断で確認。" }
+          { "href": "/record", "label": "記録する", "note": "写真、場所、ひとことで 1 件残せるかを見る。" },
+          { "href": "/explore", "label": "記録の詳細", "note": "写真、場所、同定候補の表示が崩れていないかを見る。" },
+          { "href": "/home", "label": "ホーム", "note": "最近の記録、近くの記録、次の導線が分かるかを見る。" },
+          { "href": "/profile", "label": "プロフィール", "note": "自分の記録と場所のまとまりが読めるかを見る。" },
+          { "href": "/explore", "label": "みつける", "note": "どこで何が見つかっているかを探せるかを見る。" }
         ],
-        "note": "推奨確認順: Record → Observation Detail → Home → Profile → Explore"
+        "note": "推奨順: 記録する → 記録の詳細 → ホーム → プロフィール → みつける"
       },
       {
-        "eyebrow": "flow 2",
-        "title": "Public / Trust / Business",
-        "lead": "公開面の印象と、business 導線が old PHP URL に落ちず v2 で閉じるかを見る。",
+        "eyebrow": "導線 2",
+        "title": "公開説明と団体相談",
+        "lead": "個人向けの説明が先に立ち、団体相談が裏方導線として収まっているかを確認します。",
         "cards": [
-          { "href": "/about", "label": "About", "note": "サービスの主語と CTA を確認。" },
-          { "href": "/faq", "label": "FAQ", "note": "個人利用・公開・団体相談の FAQ を確認。" },
-          { "href": "/privacy", "label": "Privacy", "note": "trust page の最低限表示を確認。" },
-          { "href": "/terms", "label": "Terms", "note": "利用条件の最低限表示を確認。" },
-          { "href": "/contact", "label": "Contact", "note": "contact から団体相談へ繋がるか確認。" },
-          { "href": "/for-business", "label": "For Business", "note": "business の親ページ。pricing / demo / status / apply へ分岐。" },
-          { "href": "/for-business/pricing", "label": "Pricing", "note": "小さく始める方針が読めるか確認。" },
-          { "href": "/for-business/demo", "label": "Demo", "note": "Explore / Record / Learn の導線を確認。" },
-          { "href": "/for-business/status", "label": "Status", "note": "readiness 用語に寄らず現状説明できているか確認。" },
-          { "href": "/for-business/apply", "label": "Apply", "note": "導入相談の固定面を確認。" }
+          { "href": "/about", "label": "ikimon について", "note": "何のサービスか、AI の役割、また見る理由が伝わるかを見る。" },
+          { "href": "/faq", "label": "よくある質問", "note": "初学者の疑問に正面から答えているかを見る。" },
+          { "href": "/privacy", "label": "プライバシー", "note": "何を預かり、どこまで公開するかが読めるかを見る。" },
+          { "href": "/terms", "label": "利用規約", "note": "基本ルールと禁止事項が誤読なく読めるかを見る。" },
+          { "href": "/contact", "label": "お問い合わせ", "note": "何を相談できるか、何を送ればよいかが分かるかを見る。" },
+          { "href": "/for-business", "label": "団体相談", "note": "個人向け導線を邪魔せず、相談入口として収まっているかを見る。" },
+          { "href": "/for-business/pricing", "label": "無料で始める範囲", "note": "無料で始める範囲と相談が必要な範囲が読めるかを見る。" },
+          { "href": "/for-business/demo", "label": "公開画面で確認できること", "note": "営業用の別画面に逃げず、実画面で説明できているかを見る。" },
+          { "href": "/for-business/status", "label": "決まっていること", "note": "最初から約束していることと、相談で決めることが分かれているかを見る。" },
+          { "href": "/for-business/apply", "label": "相談前に送ってほしいこと", "note": "相談を始める前に必要な情報が整理されているかを見る。" }
         ],
-        "note": "redirect check: /about.php, /for-business.php, /for-business/apply.php が v2 path に寄るか確認。"
+        "note": "旧 URL も確認: /about.php, /for-business.php, /for-business/apply.php が v2 に転送されること。"
       },
       {
-        "eyebrow": "flow 3",
-        "title": "Specialist Review",
-        "lead": "thin entry ではなく、review read/action が v2 側で回るかを見る。",
+        "eyebrow": "導線 3",
+        "title": "専門確認の導線",
+        "lead": "専門確認に関わる導線が日本語で読めて、各画面の役割が混ざっていないかを確認します。",
         "cards": [
-          { "href": "/specialist/id-workbench", "label": "ID Workbench", "note": "default lane の queue と action form を確認。" },
-          { "href": "/specialist/id-workbench?lane=public-claim", "label": "Public Claim Lane", "note": "public claim 用 lane 表示を確認。" },
-          { "href": "/specialist/id-workbench?lane=expert-lane", "label": "Expert Lane", "note": "expert lane の queue と action を確認。" },
-          { "href": "/specialist/review-queue", "label": "Review Queue", "note": "review sample と approve / reject / note を確認。" }
+          { "href": "/specialist/id-workbench", "label": "確認レーン", "note": "通常の確認レーンで、一覧と操作の役割が分かるかを見る。" },
+          { "href": "/specialist/id-workbench?lane=public-claim", "label": "公開前の確認", "note": "公開前の確認として別レーンになっているかを見る。" },
+          { "href": "/specialist/id-workbench?lane=expert-lane", "label": "任された人の確認", "note": "担当分類群の確認レーンとして読めるかを見る。" },
+          { "href": "/specialist/review-queue", "label": "レビュー待ち", "note": "確認待ち一覧と最小操作が分かるかを見る。" }
         ],
-        "note": "旧 URL の /id_workbench.php と /review_queue.php も redirect 確認対象。"
+        "note": "旧 URL の /id_workbench.php と /review_queue.php も転送確認対象です。"
       },
       {
-        "eyebrow": "flow 4",
-        "title": "Ops / Release Gate",
-        "lead": "人間のデザイン確認と、切替前判定面を混ぜずに見る。",
+        "eyebrow": "導線 4",
+        "title": "運用確認",
+        "lead": "公開面の見た目確認と、運用上の健康状態確認を分けて見るための最後の導線です。",
         "cards": [
-          { "href": "/ops/readiness", "label": "Ops Readiness", "note": "near_ready と drift だけ確認。" },
-          { "href": "/healthz", "label": "Health", "note": "service health endpoint の確認。" }
+          { "href": "/ops/readiness", "label": "運用状態", "note": "切替に関わる主要ステータスが読めるかを見る。" },
+          { "href": "/healthz", "label": "ヘルスチェック", "note": "最低限の稼働確認が返るかを見る。" }
         ],
-        "note": "ブラウザ確認はこの page map と public/core/specialist を優先し、JSON endpoint は最後に health/readiness だけ見れば十分。"
+        "note": "公開面を見たあとに、最後に /ops/readiness と /healthz だけ確認すれば十分です。"
       }
     ],
     "checklist": {
-      "eyebrow": "checklist",
-      "title": "人間確認で見るべきこと",
-      "lead": "MECE に漏れなく、リハーサル前に潰すべき観点だけ絞る。",
+      "eyebrow": "確認項目",
+      "title": "人が見るときの確認項目",
+      "lead": "見た目の崩れだけでなく、画面の役割と次の一歩が取れるかを確認します。",
       "items": [
-        { "title": "Visual", "body": "hero・card・button の崩れ、英日混在、CTA 密度、モバイル幅での詰まり。" },
-        { "title": "Transition", "body": "主要導線が 200 / redirect / 401 の想定どおりか。迷子導線や dead end がないか。" },
-        { "title": "State", "body": "userId あり/なし、occurrence あり/なしで説明不足や壊れ方が雑でないか。" },
-        { "title": "Legacy drift", "body": "旧 PHP URL が v2 に寄るか。公開導線から PHP surface に着地しないか。" },
-        { "title": "Release gate", "body": "最後に /ops/readiness と /healthz を見て、デザイン確認と運用確認を切り分ける。" }
+        { "title": "画面の役割", "body": "3 秒以内に、何のページか、誰向けか、次に何をするかが分かるか。" },
+        { "title": "文言", "body": "英語ラベルや内部語が表に出ていないか。AI が万能に見える言い方になっていないか。" },
+        { "title": "導線", "body": "主要導線が 200 / 転送 / 403 の想定どおりに動くか。迷子導線や行き止まりがないか。" },
+        { "title": "状態差", "body": "ログインあり・なし、データあり・なしで、壊れ方や説明不足が雑でないか。" },
+        { "title": "運用面", "body": "公開面の確認が終わってから、最後に運用状態とヘルスチェックを分けて見る。" }
       ]
     },
-    "footerNote": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
+    "footerNote": "staging で人が画面の役割と導線を確認するための一覧。"
   }
 }

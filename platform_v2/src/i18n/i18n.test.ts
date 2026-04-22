@@ -4,7 +4,7 @@ import { formatStatLabel, getStrings } from "./index.js";
 
 test("ja returns the canonical dictionary", () => {
   const s = getStrings("ja");
-  assert.strictEqual(s.landing.title, "ikimon — 歩いて、見つけて、ノートに残す");
+  assert.strictEqual(s.landing.title, "ikimon — 見つけたものを、場所つきで残す");
   assert.strictEqual(s.fieldLoop.eyebrow, "ikimon の使い方");
 });
 

@@ -13,7 +13,7 @@ export type OfficialNoticeRenderCopy = {
 
 const COPY: Record<SiteLang, OfficialNoticeRenderCopy> = {
   ja: {
-    eyebrow: "自治体 notice",
+    eyebrow: "自治体からのお知らせ",
     updatedLabel: "更新",
     whatLabel: "何が起きているか",
     whyLabel: "この場所で関係する理由",

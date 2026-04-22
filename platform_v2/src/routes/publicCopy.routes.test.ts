@@ -35,14 +35,14 @@ test("general and group-help pages use the updated ja entry copy", async () => {
   try {
     const about = await app.inject({ method: "GET", url: "/about?lang=ja" });
     assert.equal(about.statusCode, 200);
-    assert.match(about.body, /いつもの散歩が、また来たい理由に変わる/);
-    assert.match(about.body, /FAQを見る/);
-    assert.match(about.body, /読み返せる記録/);
+    assert.match(about.body, /ikimon は何を残すサービスか/);
+    assert.match(about.body, /AIはヒント役/);
+    assert.match(about.body, /使い方と考え方を見る/);
 
     const business = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
     assert.equal(business.statusCode, 200);
     assert.match(business.body, /学校や地域で始めたいときの相談窓口/);
-    assert.match(business.body, /連携の始め方を見る/);
+    assert.match(business.body, /お問い合わせする/);
 
     const businessDemo = await app.inject({ method: "GET", url: "/for-business/demo?lang=ja" });
     assert.equal(businessDemo.statusCode, 200);
@@ -62,7 +62,7 @@ test("faq page answers beginner and group setup questions in plain language", as
   try {
     const faq = await app.inject({ method: "GET", url: "/faq?lang=ja" });
     assert.equal(faq.statusCode, 200);
-    assert.match(faq.body, /1 件だけでも意味がありますか？/);
+    assert.match(faq.body, /1件だけでも意味がありますか？/);
     assert.match(faq.body, /旅先の記録にも向いていますか？/);
     assert.match(faq.body, /まずは「どこで始めたいか」/);
   } finally {
@@ -80,7 +80,7 @@ test("learn explanation pages keep the updated ja depth promises", async () => {
 
     const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
     assert.equal(authority.statusCode, 200);
-    assert.match(authority.body, /どこで慎重さが必要になるのか/);
+    assert.match(authority.body, /どこで慎重になるか/);
     assert.match(authority.body, /ふだん使うときはどう読めばよいか/);
 
     const methodology = await app.inject({ method: "GET", url: "/learn/methodology?lang=ja" });
@@ -97,9 +97,9 @@ test("contact page renders content-backed form copy", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/contact?lang=ja" });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /カテゴリ/);
+    assert.match(response.body, /ご用件/);
     assert.match(response.body, /送信する/);
-    assert.match(response.body, /受付番号/);
+    assert.match(response.body, /メールアドレス/);
   } finally {
     await app.close();
   }

@@ -1,83 +1,83 @@
 {
   "authorityRecommendations": {
     "hero": {
-      "eyebrow": "市民から専門候補へ",
-      "heading": "Authority Recommendations",
-      "lead": "自分が任せられる分類群を申請し、証跡を積み上げるための画面です。",
+      "eyebrow": "専門確認の申請",
+      "heading": "任せられる分類群を申請する",
+      "lead": "自分が継続して見ている分類群について、根拠を添えて申請する画面です。誰に何を任せるかがあとで追えるよう、申請と判断を分けて残します。",
       "actions": [
-        { "href": "/learn/authority-policy", "label": "制度の説明" },
-        { "href": "/specialist/recommendations", "label": "推薦待ちを見る", "variant": "secondary" }
+        { "href": "/learn/authority-policy", "label": "制度を見る" },
+        { "href": "/specialist/recommendations", "label": "申請一覧を見る", "variant": "secondary" }
       ]
     }
   },
   "idWorkbench": {
     "hero": {
-      "eyebrow": "専門家向け",
+      "eyebrow": "専門確認",
       "default": {
-        "heading": "同定ワークベンチ",
-        "lead": "分類群の担当権限を持つ確認者が、自分の担当範囲で同定を進める作業画面です。"
+        "heading": "確認レーン",
+        "lead": "任された分類群について、候補名、理由、証拠を見ながら確認を進める作業画面です。ここでは、一気に確定させるより、何を確認して何を保留にしたかを残します。"
       },
       "publicClaim": {
-        "heading": "公開主張レーン",
-        "lead": "任された人の確認を、最終的な公開前提の主張に進めるレーンです。ここでの承認だけが、研究・公開の候補に進みます。"
+        "heading": "公開前の確認",
+        "lead": "外に出す前に、どこまで言い切れるかを確かめるレーンです。公開判断に進めるか、まだ保留にするかを慎重に残します。"
       },
       "expertLane": {
-        "heading": "専門確認レーン",
-        "lead": "分類群の担当権限を持つ確認者が、公開前の確定レビューを付与するレーンです。"
+        "heading": "任された人の確認",
+        "lead": "担当分類群を持つ確認者が、候補名と根拠を見ながら確認するレーンです。あとで見返したときに判断の流れが追えることを優先します。"
       },
       "actions": [
-        { "href": "/learn/authority-policy", "label": "制度の説明" },
-        { "href": "/specialist/id-workbench?lane=public-claim", "label": "公開同定" },
-        { "href": "/specialist/id-workbench?lane=expert-lane", "label": "専門確認", "variant": "secondary" },
-        { "href": "/specialist/review-queue", "label": "レビュー待ち", "variant": "secondary" }
+        { "href": "/learn/authority-policy", "label": "制度を見る" },
+        { "href": "/specialist/id-workbench?lane=public-claim", "label": "公開前の確認" },
+        { "href": "/specialist/id-workbench?lane=expert-lane", "label": "任された人の確認", "variant": "secondary" },
+        { "href": "/specialist/review-queue", "label": "レビュー待ちを見る", "variant": "secondary" }
       ]
     }
   },
   "recommendations": {
     "hero": {
-      "eyebrow": "専門家向け",
-      "heading": "Specialist Recommendations",
-      "lead": "authority 候補の推薦待ちを確認し、grant か reject を判断するための画面です。",
+      "eyebrow": "申請一覧",
+      "heading": "申請中の分類群を確認する",
+      "lead": "専門確認の申請を一覧で見て、付与するか、差し戻すかを判断する画面です。誰が何を申請し、何を根拠にしたかをここで確認します。",
       "actions": [
-        { "href": "/learn/authority-policy", "label": "制度の説明" },
-        { "href": "/specialist/authority-admin", "label": "Authority admin", "variant": "secondary" }
+        { "href": "/learn/authority-policy", "label": "制度を見る" },
+        { "href": "/specialist/authority-admin", "label": "権限管理を見る", "variant": "secondary" }
       ]
     }
   },
   "authorityAudit": {
     "hero": {
-      "eyebrow": "運営者向け",
-      "heading": "Authority Audit",
-      "lead": "推薦・付与・取消し・根拠追加のログを追う監査画面です。",
+      "eyebrow": "監査記録",
+      "heading": "付与と変更の記録を見る",
+      "lead": "付与、取消し、根拠追加の履歴を追う画面です。後から見ても、だれが何を変えたかが分かるようにしています。",
       "actions": [
-        { "href": "/learn/authority-policy", "label": "制度の説明" },
-        { "href": "/specialist/authority-admin", "label": "Authority admin", "variant": "secondary" }
+        { "href": "/learn/authority-policy", "label": "制度を見る" },
+        { "href": "/specialist/authority-admin", "label": "権限管理を見る", "variant": "secondary" }
       ]
     }
   },
   "authorityAdmin": {
     "hero": {
-      "eyebrow": "運営者向け",
-      "heading": "Authority Admin",
-      "lead": "分類群ごとの reviewer authority を付与・取消し、根拠 evidence を追記する最小管理画面です。",
+      "eyebrow": "権限管理",
+      "heading": "分類群ごとの確認権限を管理する",
+      "lead": "だれにどの分類群の確認を任せるかを付与・取消しする画面です。根拠と理由を残し、あとで判断経緯が追えることを優先します。",
       "actions": [
-        { "href": "/learn/authority-policy", "label": "制度の説明" },
-        { "href": "/specialist/authority-audit", "label": "Audit", "variant": "secondary" },
-        { "href": "/specialist/id-workbench?lane=expert-lane", "label": "専門確認へ戻る" },
-        { "href": "/specialist/review-queue", "label": "レビュー待ち", "variant": "secondary" }
+        { "href": "/learn/authority-policy", "label": "制度を見る" },
+        { "href": "/specialist/authority-audit", "label": "監査記録を見る", "variant": "secondary" },
+        { "href": "/specialist/id-workbench?lane=expert-lane", "label": "任された人の確認へ戻る" },
+        { "href": "/specialist/review-queue", "label": "レビュー待ちを見る", "variant": "secondary" }
       ]
     }
   },
   "reviewQueue": {
     "hero": {
-      "eyebrow": "専門家向け",
-      "heading": "レビュー待ちの観察",
-      "lead": "広く振り分け用の確認待ちリストです。あなたの担当権限に一致する観察だけを開き、承認した内容は「通常」「任された人の確認」「運営の判断」として保存されます。",
+      "eyebrow": "レビュー待ち",
+      "heading": "確認待ちの観察を見る",
+      "lead": "まず見るべき観察を拾い、どこまで進めるかを判断する入口です。見えるのは、自分の権限に合う観察だけです。",
       "actions": [
-        { "href": "/learn/authority-policy", "label": "制度の説明" },
-        { "href": "/specialist/id-workbench?lane=expert-lane", "label": "専門確認" },
-        { "href": "/specialist/id-workbench?lane=public-claim", "label": "公開同定", "variant": "secondary" },
-        { "href": "/specialist/recommendations", "label": "推薦待ち", "variant": "secondary" }
+        { "href": "/learn/authority-policy", "label": "制度を見る" },
+        { "href": "/specialist/id-workbench?lane=expert-lane", "label": "任された人の確認" },
+        { "href": "/specialist/id-workbench?lane=public-claim", "label": "公開前の確認", "variant": "secondary" },
+        { "href": "/specialist/recommendations", "label": "申請一覧を見る", "variant": "secondary" }
       ]
     }
   }
