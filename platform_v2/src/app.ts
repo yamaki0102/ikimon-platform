@@ -230,6 +230,22 @@ function buildLandingRootHtml(
   }
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+  .hero-panel.is-light.is-center { padding: clamp(60px, 7vw, 92px) clamp(28px, 5vw, 76px) clamp(48px, 6vw, 64px); }
+  .hero-panel.is-light.is-center .hero-copy { max-width: 100%; }
+  .hero-panel.is-light.is-center .hero-copy h1 {
+    max-width: min(13.5ch, 100%);
+    font-size: clamp(46px, 6.2vw, 82px);
+    line-height: 1.08;
+    letter-spacing: -.055em;
+    text-wrap: balance;
+  }
+  .hero-panel.is-light.is-center .hero-copy p {
+    max-width: min(30em, 100%);
+    font-size: clamp(18px, 1.85vw, 24px);
+    line-height: 1.82;
+  }
+  .hero-panel.is-light.is-center .hero-copy .actions { margin-top: 34px; }
+  .hero-panel.is-light.is-center .hero-copy .hero-emphasis { display: inline-block; }
   .landing-hero-promise-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
   .landing-hero-promise-chip { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; box-shadow: 0 10px 22px rgba(15,23,42,.05); }
   @media (max-width: 860px) {
@@ -238,6 +254,9 @@ function buildLandingRootHtml(
     .fn-main-head { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
     .fn-main-head-actions { align-items: flex-start; min-width: 0; width: 100%; }
     .fn-grid, .fn-grid-compact { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .hero-panel.is-light.is-center { padding: 56px 24px 42px; }
+    .hero-panel.is-light.is-center .hero-copy h1 { max-width: 11ch; font-size: clamp(38px, 8.5vw, 62px); }
+    .hero-panel.is-light.is-center .hero-copy p { max-width: 24em; font-size: 17px; }
   }
   @media (max-width: 720px) {
     .tool-card-grid { grid-template-columns: 1fr; }
@@ -245,6 +264,8 @@ function buildLandingRootHtml(
     .field-loop-grid { grid-template-columns: 1fr; }
     .landing-tools .section-header,
     .landing-map .section-header { flex-direction: column; align-items: flex-start; }
+    .hero-panel.is-light.is-center .hero-copy h1 { max-width: 9.5ch; line-height: 1.12; }
+    .hero-panel.is-light.is-center .hero-copy p { max-width: 22em; line-height: 1.78; }
   }
   @media (max-width: 640px) {
     .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
