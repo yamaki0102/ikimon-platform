@@ -1,0 +1,59 @@
+{
+  "title": "解説ガイド一覧 | ikimon",
+  "eyebrow": "解説ガイド",
+  "heading": "解説ガイド一覧",
+  "lead": "自然と社会、健康と学び、そして「同じような場所や構図の1枚にどんな価値があるか」を、具体例から読めるように整理しています。",
+  "activeNavKey": "Learn",
+  "inlineLink": {
+    "label": "ikimonについて読む",
+    "href": "/about"
+  },
+  "cards": [
+    {
+      "title": "いつもの散歩道で見えてくること",
+      "body": "同じ道でも、季節や時間で何が変わるのか。身近な場所の1枚が持つ意味を解説します。"
+    },
+    {
+      "title": "旅先や別の来訪者とつながる記録",
+      "body": "違う人が違うタイミングで同じ場所を撮ることに、なぜ価値があるのかを整理します。"
+    },
+    {
+      "title": "組織導入と分析",
+      "body": "自治体・学校・企業での導入観点、指標、運用設計を確認できます。",
+      "href": "/for-business",
+      "label": "法人向けを見る"
+    }
+  ],
+  "rows": [
+    {
+      "title": "同定の考え方",
+      "body": "断定しない理由、次に見るべきポイント、そしてAIがどこまでヒント役に徹するか。",
+      "actionHref": "/learn/identification-basics",
+      "actionLabel": "読む"
+    },
+    {
+      "title": "ikimonの想い",
+      "body": "同じ場所の1枚、旅先で残す1枚、そして押しつけない継続設計の考え方をまとめています。",
+      "actionHref": "/about",
+      "actionLabel": "読む"
+    },
+    {
+      "title": "方針と公開の考え方",
+      "body": "データ方針、位置情報の扱い、公開の前提と限界をまとめています。",
+      "actionHref": "/learn/methodology",
+      "actionLabel": "方針を見る"
+    },
+    {
+      "title": "更新履歴",
+      "body": "機能追加を単なる更新履歴ではなく、観察体験の温度感がどう整ってきたかとして整理しています。",
+      "actionHref": "/learn/updates",
+      "actionLabel": "更新を見る"
+    },
+    {
+      "title": "組織導入と分析",
+      "body": "市民向けの動機づけとは分けて、継続比較とレポートの導線を法人向けに整理しています。",
+      "actionHref": "/for-business",
+      "actionLabel": "法人向けを見る"
+    }
+  ]
+}
