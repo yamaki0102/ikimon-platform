@@ -13,8 +13,8 @@ test("field loop page ja renders the reader-facing definition without external p
     assert.equal(response.statusCode, 200);
     const body = response.body;
     assert.match(body, /フィールドループとは/);
-    assert.match(body, /粗い衛星/);
-    assert.match(body, /知の基盤/);
+    assert.match(body, /広い文脈/);
+    assert.match(body, /音や衛星/);
     assert.match(body, /循環/);
     assert.match(body, /市民の一致/);
     assert.doesNotMatch(body, /iNaturalist/i);
@@ -86,6 +86,7 @@ test("learn methodology carries the merged trust and research framing", async ()
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /同定の信頼レーン/);
     assert.match(response.body, /quick capture と survey の違い/);
+    assert.match(response.body, /音や衛星、地形/);
     assert.match(response.body, /言いすぎないための線引き/);
   } finally {
     await app.close();

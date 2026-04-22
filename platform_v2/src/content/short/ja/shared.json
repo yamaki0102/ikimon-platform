@@ -20,9 +20,9 @@
       "groupHelpLong": "地域で使いたい方へ"
     },
     "ai": {
-      "short": "AI はヒント役。決めるのは人です。",
-      "support": "AI は候補を出し、見分けるヒントを返します。名前を自動で決めることはしません。",
-      "supportLong": "AI は候補と見分けるヒントを返します。記録の主役は人の観察です。"
+      "short": "AI は気づきと周囲の情報を整理する。",
+      "support": "AI は候補だけでなく、画像・場所・季節など周囲の手がかりを整理します。強い確定は確認レーンで扱います。",
+      "supportLong": "AI は人が楽しめるように周囲の情報を束ねて整理します。これから音や衛星など広い情報も重ねていく前提で伸ばします."
     },
     "business": {
       "nav": "団体相談",
@@ -46,7 +46,7 @@
     },
     "record": "記録する",
     "footer": {
-      "tagline": "歩いて見つけた自然を、あとで見返せる形に残す。",
+      "tagline": "歩いて見つけた自然を、AI と一緒に少しずつひらく。",
       "start": "はじめる",
       "startLinks": {
         "discover": "みつける",
@@ -77,13 +77,13 @@
       "notes": "ノートを見る",
       "record": "記録する",
       "lens": "その場で調べる",
-      "scan": "次の場所を探す",
+      "scan": "探索マップ",
       "map": "マップを見る"
     }
   },
   "footerNotes": {
-    "landing": "歩いて、見つけて、ノートに残す。",
-    "public": "歩いて見つけた自然を、あとで見返せる形に残す。",
+    "landing": "歩いて、見つけて、AI とひらく。",
+    "public": "歩いて見つけた自然を、AI と一緒にひらいていく。",
     "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
   }
 }
