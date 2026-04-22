@@ -22,11 +22,14 @@ test("build copies content files into dist and the built loader can read them", 
 
   const distPublicJson = join(platformRootPath, "dist", "content", "short", "ja", "public.json");
   const distAboutMarkdown = join(platformRootPath, "dist", "content", "longform", "ja", "about.md");
+  const distUpdatesMarkdown = join(platformRootPath, "dist", "content", "longform", "ja", "learn-updates.md");
 
   assert.equal(existsSync(distPublicJson), true);
   assert.equal(existsSync(distAboutMarkdown), true);
+  assert.equal(existsSync(distUpdatesMarkdown), true);
 
   const builtModule = await import(`${pathToFileURL(join(platformRootPath, "dist", "content", "index.js")).href}?t=${Date.now()}`);
   assert.equal(builtModule.getShortCopy("ja", "public", "landing.title"), "ikimon — ENJOY NATURE | 近くの自然が、もっと楽しくなる");
   assert.match(builtModule.renderLongformPage("ja", "about"), /近くの自然から始める理由/);
+  assert.match(builtModule.renderLongformPage("ja", "learn-updates"), /2025-11-01/);
 });
