@@ -21,7 +21,7 @@ BEGIN
           AND has_table_privilege(rolname, 'place_conditions', 'INSERT')
     LOOP
         EXECUTE format(
-            'GRANT INSERT, UPDATE, DELETE ON TABLE monitoring_plots, monitoring_plot_visits TO %I',
+            'GRANT ALL PRIVILEGES ON TABLE monitoring_plots, monitoring_plot_visits TO %I',
             role_name
         );
     END LOOP;
