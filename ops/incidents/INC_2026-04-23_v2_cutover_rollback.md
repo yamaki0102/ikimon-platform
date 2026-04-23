@@ -248,7 +248,7 @@ bootstrap import で取り込まれず全 0 行。
 **残タスク (明日以降の independent issue)**:
 - obs card UI の「近くで見つかっているもの」グリッドにユーザー情報/日付表示（`app.ts` の
   landing renderer 500行超を弄る、深夜リスク大のため延期）
-- observation 詳細ページの画像クリック/複数枚切替のバグ調査
+- observation 詳細ページの画像クリック/複数枚切替のバグ調査（詳細は 2026-04-24 00:25 追補）
 
 ## 2026-04-24 00:05 追補 — ゴミデータ purge (案A)
 

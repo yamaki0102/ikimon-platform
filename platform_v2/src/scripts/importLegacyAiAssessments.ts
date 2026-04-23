@@ -51,7 +51,7 @@ type AiAssessment = {
   next_step_text?: string;
   next_step?: string;
   stop_reason?: string;
-  fun_fact?: string;
+  fun_fact?: string | { body?: string; search_keyword?: string };
   observer_boost?: string;
   similar_taxa?: unknown[];
   diagnostic_features_seen?: unknown[];
@@ -62,6 +62,16 @@ type AiAssessment = {
   geographic_context?: string;
   seasonal_context?: string;
 };
+
+/** legacy fun_fact は dict ({body, search_keyword}) で格納される場合があるので body だけ取り出す */
+function extractFunFact(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "body" in value) {
+    const body = (value as { body?: unknown }).body;
+    return typeof body === "string" ? body : "";
+  }
+  return "";
+}
 
 const DATA_ROOT = (process.env.LEGACY_DATA_ROOT ?? "/var/www/ikimon.life/repo/upload_package/data") + "/observations";
 
@@ -165,7 +175,7 @@ async function main(): Promise<void> {
             a.simple_summary ?? a["short_summary" as keyof AiAssessment] ?? "",
             a.observer_boost ?? "",
             a.next_step_text ?? a.next_step ?? "",
-            a.stop_reason ?? "", a.fun_fact ?? "",
+            a.stop_reason ?? "", extractFunFact(a.fun_fact),
             JSON.stringify(a.diagnostic_features_seen ?? a.diagnostic_features ?? []),
             JSON.stringify(a.missing_evidence ?? []),
             JSON.stringify(a.similar_taxa ?? []),
