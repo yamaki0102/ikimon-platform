@@ -143,6 +143,36 @@ cat /var/www/ikimon.life/data/users.json | python3 -c "import sys,json; d=json.l
 
 ---
 
+## 3.5 v2 service env (LEGACY_*) を path B に統一
+
+**⚠ 2026-04-23 23:15 追記**: v2 は photo/audio 配信で `process.env.LEGACY_UPLOADS_ROOT`
+を使う（`platform_v2/src/routes/legacyAssets.ts:102` 等）。env 未設定だと `/thumb/md/...`
+が 404 を返し、観察カードの photo が表示されない。
+
+```bash
+# staging v2: /etc/ikimon/staging-v2.env に追加
+cat >> /etc/ikimon/staging-v2.env <<EOF
+LEGACY_DATA_ROOT=/var/www/ikimon.life/repo/upload_package/data
+LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/repo/upload_package/public_html
+LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/repo/upload_package/public_html/uploads
+EOF
+systemctl restart ikimon-v2-staging.service
+
+# production v2: pm2 set で個別更新 (path A の古い値を置換)
+pm2 set ikimon-v2-production-api:LEGACY_DATA_ROOT /var/www/ikimon.life/repo/upload_package/data
+pm2 set ikimon-v2-production-api:LEGACY_PUBLIC_ROOT /var/www/ikimon.life/repo/upload_package/public_html
+pm2 set ikimon-v2-production-api:LEGACY_UPLOADS_ROOT /var/www/ikimon.life/repo/upload_package/public_html/uploads
+pm2 restart ikimon-v2-production-api  # --update-env は shell env 汚染ポイントなので付けない
+```
+
+検証:
+```bash
+# サンプル UUID で thumb 配信確認
+UUID=$(ls /var/www/ikimon.life/repo/upload_package/public_html/uploads/photos/ | head -1)
+curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:3200/thumb/md/photos/${UUID}/photo_0.webp"
+# 期待: 200
+```
+
 ## 4. `/ops/readiness` で gates + counts を最終確認
 
 ```bash

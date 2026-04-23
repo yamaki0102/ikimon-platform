@@ -183,6 +183,25 @@ path B で再 bootstrap した後、`user_69be85c688371`（Nats さんの second
 `orphanUsersFromObservations` で後者を補完しているが、display_name が空のため
 フィードでは user_id がそのまま出る。後日 merge が必要。
 
+## 2026-04-23 23:15 追補 — 写真配信 404 の発見と修正
+
+staging `/` の観察カードが全て「写真なし」表示になっていた。原因:
+
+- v2 の `/thumb/:preset/*` route (`legacyAssets.ts`) は `loadConfig().legacyUploadsRoot`
+  = `process.env.LEGACY_UPLOADS_ROOT` を使う
+- **staging v2 service env に `LEGACY_*` 全て未設定** → `legacyUploadsRoot` undefined
+  → thumb 配信が 404
+- **本番 v2 pm2 env は `LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/public_html/uploads`**
+  = path A（空 dir）を指していた → 本番 cutover 後も同じ 404 問題が発生する状態だった
+
+修正:
+- `/etc/ikimon/staging-v2.env` に LEGACY_DATA_ROOT / PUBLIC_ROOT / UPLOADS_ROOT を追加 → restart
+- `pm2 set ikimon-v2-production-api:LEGACY_*` で本番側も path B (`/var/www/ikimon.life/repo/upload_package/...`) に更新 → restart
+
+検証:
+- サンプル UUID で thumb 200 / 100KB webp 配信確認（staging + production）
+- staging `/` に 6 obs cards 分の photo_0.webp が含まれて表示
+
 ## Follow-up Issues (ユーザーから指摘、別途対応)
 
 cutover rollback 後の staging 確認で、YAMAKI から以下 4 件の UX/バグ指摘あり。本 INC
