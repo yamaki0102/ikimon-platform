@@ -280,8 +280,8 @@ done
 
 ## Section C: API エンドポイント差分
 
-本番 188 endpoint を 17 family + other に分類。staging は family 単位の skeleton。
-`other` 62件は family 再分類が完全でないため、cutover 前に追加分類を要する（B.5 参照）。
+本番 188 endpoint を 20 family に分類（2026-04-23 再分類完了、other=0）。
+詳細内訳: [`api_family_reclassification_2026-04-23.md`](./api_family_reclassification_2026-04-23.md)
 
 ### C.1 Family レベル表
 
@@ -289,24 +289,26 @@ done
 |---|---|---|---|---|---|---|---|
 | contact | 2 | feedback.php, report_content.php | `marketing.ts`, `write.ts` (`/api/v1/contact/*`) | migrated | staging_only | TBD | |
 | auth | 4 | login_ajax.php, app_login.php, verify.php | `write.ts` (`/api/v1/auth/*`) | migrated + legacy_continued (app OAuth) | dual_write | TBD | |
-| map | 7 | get_site_geojson.php, heatmap_data.php, ecosystem_map.php | `mapApi.ts` (`/api/v1/map/*`) | migrated | staging_only | TBD | |
-| walk | 6 | save_track.php, get_tracks.php, get_trips.php | `walkApi.ts` (`/api/v1/walk/*`) | migrated (advanced capture support) | staging_only | TBD | |
-| guide | 4 | site_guide.php, voice_guide.php, get_learning_hint.php | `guideApi.ts` (`/api/v1/guide/*`) | migrated experimental | staging_only | TBD | |
+| map | 10 | get_site_geojson.php, heatmap_data.php, geo_context.php | `mapApi.ts` (`/api/v1/map/*`) | migrated + legacy_continued | proxy_to_legacy | TBD | |
+| walk | 12 | save_track.php, live_detections.php, passive_event.php | `walkApi.ts` (`/api/v1/walk/*`) | migrated (advanced capture support) + legacy_continued | proxy_to_legacy | TBD | |
+| guide | 5 | site_guide.php, voice_guide.php, get_learning_hint.php | `guideApi.ts` (`/api/v1/guide/*`) | migrated experimental | staging_only | TBD | |
 | fieldscan | 10 | env_scan.php, fieldscan_debug.php, scan_draft_save.php | `fieldscanApi.ts` (`/api/v1/fieldscan/*`) | migrated experimental | staging_only | TBD | |
 | research | 6 | export_dwc.php, export_dwca.php, gbif_publish.php | `researchApi.ts` (`/api/v1/research/*`) | migrated (Tier 3+ filter) | staging_only | TBD | |
-| ui-kpi | 10 | save_analytics.php, get_analytics_summary.php, get_exploration_stats.php | `uiKpi.ts` (`/api/v1/ui-kpi/*`) | migrated internal | staging_only | TBD | |
-| specialist | 3 | freetext_review.php, review_observation_metadata.php, thank_identification.php | `read.ts` (`/api/v1/specialist/*`), `write.ts` (`/api/v1/specialist/*`) | migrated internal | staging_only | TBD | |
-| observation | 9 | post_observation.php, submit_observation.php, update_observation.php | (legacy continues; v2 migration target) | legacy_continued | proxy_to_legacy | TBD | |
-| identification | 9 | post_identification.php, ai_suggest.php, scan_classify.php | (legacy continues; specialist lane と整合) | legacy_continued | proxy_to_legacy | TBD | |
-| site-report | 9 | generate_report.php, generate_csr_report.php, generate_tnfd_report.php | (backstage; partner reporting) | legacy_continued backstage | proxy_to_legacy | TBD | |
-| event-community | 16 | get_events.php, join_event.php, save_event.php | (legacy keep) | legacy_continued | proxy_to_legacy | TBD | |
-| user-auth | 7 | update_profile.php, upload_avatar.php, manage_emails.php | (legacy keep, auth/profile/notification) | legacy_continued | proxy_to_legacy | TBD | |
-| region-stats | 10 | get_regional_stats.php, region_stats.php, get_site_stats.php | (legacy keep, map/stats discover support) | legacy_continued | proxy_to_legacy | TBD | |
+| ui-kpi | 12 | save_analytics.php, click.php, submit_nps.php | `uiKpi.ts` (`/api/v1/ui-kpi/*`) | migrated internal + legacy_continued | proxy_to_legacy | TBD | |
+| specialist | 4 | freetext_review.php, review_observation_metadata.php, post_dispute.php | `read.ts` / `write.ts` (`/api/v1/specialist/*`) | migrated internal | staging_only | TBD | |
+| observation | 15 | post_observation.php, add_observation_photo.php, quick_post.php | (legacy continues; v2 migration target) | legacy_continued | proxy_to_legacy | TBD | |
+| identification | 23 | post_identification.php, ai_suggest.php, predict_species.php | (legacy continues; specialist lane と整合) | legacy_continued | proxy_to_legacy | TBD | |
+| site-report | 16 | generate_report.php, plot_report.php, tnfd_leap_report.php | (backstage; partner reporting) | legacy_continued backstage | proxy_to_legacy | TBD | |
+| event-community | 25 | get_events.php, get_daily_quests.php, log_reflection.php | (legacy keep) | legacy_continued | proxy_to_legacy | TBD | |
+| user-auth | 13 | update_profile.php, toggle_follow.php, update_role.php | (legacy keep, auth/profile/notification) | legacy_continued | proxy_to_legacy | TBD | |
+| region-stats | 20 | mesh_aggregates.php, nature_score.php, bio-index.php | (legacy keep, map/stats discover support) | legacy_continued | proxy_to_legacy | TBD | |
 | export | 7 | export_observations.php, export_site_csv.php, export_event_species_xlsx.php | (legacy keep backstage; research/partner) | legacy_continued backstage | proxy_to_legacy | TBD | |
 | dev-debug | 6 | csrf_debug.php, verify_config.php, test_concurrency.php | — | archive_from_public_deploy | **block_at_edge** | TBD | |
-| **other** | **62** | passive_event.php, predict_species.php, sound_archive_*, mesh_*, plot_*, etc. | — | **要再分類** | TBD | TBD | **BLOCK** |
+| **audio** (新設 2026-04-23) | 9 | analyze_audio.php, audio_batch_submit.php, sound_archive_*.php | — | legacy_continued | proxy_to_legacy | TBD | |
+| **notification** (新設 2026-04-23) | 5 | push_subscribe.php, get_notifications.php, csp_report.php | — | legacy_continued | proxy_to_legacy | TBD | |
+| **misc/utility** (新設 2026-04-23) | 9 | bootstrap.php, health.php, admin.php, admin_action.php | — | mixed (block_at_edge for admin, staging_only for health) | mixed | TBD | WATCH (bootstrap.php 要精査) |
 
-合計: 188（17 family 計 = 126 + other 62）
+合計: 188（20 family、other=0 達成）
 
 ### C.2 例外テーブル（family 単位の disposition を上書きする個別 endpoint）
 
@@ -318,10 +320,12 @@ done
 
 ### C.3 重要な注意
 
-1. **`other` カテゴリ 62 件は要再分類**（passive_event/predict_species/mesh_aggregates/plot_satellite_context など）。差し替え当日までに再分類完了が GO 条件。
+1. ~~**`other` カテゴリ 62 件は要再分類**~~ → ✅ 2026-04-23 解決。`api_family_reclassification_2026-04-23.md` で 20 family 体系に整理完了、other=0
 2. **`dev-debug` family は edge で必ず 404/403 を返すこと**。本番に dev エンドポイントを露出させない（CDN/WAF ルール確認）。
-3. **`legacy_continued` family の暗黙前提**: PHP origin が稼働中であること。Section E の T-1h C2 でヘルスチェック必須。
-4. **`/api/post_observation.php` 系は v2 migration target**。canonical pack §3.5 で「keep while legacy lives」と明記。
+3. **`misc/utility` の `admin.php` / `admin_action.php` も edge block**（/api/ 経由で admin 機能に触らせない）
+4. **`misc/utility` の `bootstrap.php` は要精査**（dev-only 疑い、該当なら dev-debug 家族に移す）
+5. **`legacy_continued` family の暗黙前提**: PHP origin が稼働中であること。Section E の T-1h C2 でヘルスチェック必須。
+6. **`/api/post_observation.php` 系は v2 migration target**。canonical pack §3.5 で「keep while legacy lives」と明記。
 
 ---
 
@@ -476,11 +480,12 @@ T-24h までに以下を解消すること。
 
 grep 再実行で `フィールドガイド` 残存 0 を確認済（`docs/strategy/*` 参照除く）。
 
-### API 再分類必須（62件）
+### ✅ 解決済: API 再分類 62件 (2026-04-23)
 
-- Section C `other` カテゴリ 62 件を 17 family のいずれかに再分類、または新 family 追加。
-- 対象例: `passive_event`, `predict_species`, `mesh_*`, `plot_*`, `sound_archive_*`,
-  `species_*`, `taxon_*`, `audio_batch_*`, `nature_score`, `tnfd_leap_report` 等。
+全 62 件を 17 既存 family + 3 新設 family (audio / notification / misc/utility) に再分類完了。
+詳細: [`api_family_reclassification_2026-04-23.md`](./api_family_reclassification_2026-04-23.md)。
+
+残る要精査: `misc/utility.bootstrap.php` (dev-only 疑い、30分程度の目視確認で dev-debug 移行か判定)。
 
 ### ✅ 解決済: ENDPOINTS 重複削除 (2026-04-23)
 
