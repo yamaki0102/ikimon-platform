@@ -220,8 +220,10 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
 export async function registerMarketingRoutes(app: FastifyInstance): Promise<void> {
   const redirectMap = new Map<string, string>([
     ["/index.php", "/"],
+    ["/scan", "/map"],
     ["/guides.php", "/learn/identification-basics"],
     ["/guidelines.php", "/learn/methodology"],
+    ["/learn/authority-policy", "/learn/methodology"],
     ["/updates.php", "/learn/updates"],
     ["/methodology.php", "/learn/methodology"],
     ["/about.php", "/about"],
@@ -264,7 +266,6 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     { path: "/learn", pageKey: "learnIndex" },
     { path: "/learn/field-loop", pageKey: "learnFieldLoop" },
     { path: "/learn/glossary", pageKey: "learnGlossary" },
-    { path: "/learn/authority-policy", pageKey: "learnAuthorityPolicy" },
     { path: "/learn/identification-basics", pageKey: "learnIdentificationBasics" },
     { path: "/learn/methodology", pageKey: "learnMethodology" },
     { path: "/learn/updates", pageKey: "learnUpdates" },
@@ -277,6 +278,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     { path: "/for-business/demo", pageKey: "forBusinessDemo" },
     { path: "/for-business/status", pageKey: "forBusinessStatus" },
     { path: "/for-business/apply", pageKey: "forBusinessApply" },
+    { path: "/for-researcher/apply", pageKey: "forResearcherApply", prependHtml: (basePath, lang) => renderContactForm(basePath, lang) },
   ];
 
   for (const route of pageRoutes) {

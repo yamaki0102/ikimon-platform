@@ -1,84 +1,85 @@
 {
   "landing": {
-    "title": "ikimon — 歩いて、見つけて、ノートに残す",
-    "heroEyebrow": "近くの自然を楽しむノート",
+    "title": "ikimon — ENJOY NATURE | 近くの自然が、もっと楽しくなる",
+    "heroEyebrow": "ENJOY NATURE",
     "heroHeadingPlain": "いつもの散歩が、冒険になる。",
     "heroHeadingLine1": "いつもの散歩が、",
     "heroHeadingEmphasis": "冒険になる。",
-    "heroLead": "近くの自然がちょっとおもしろくなる。旅先の 1 枚が、また来たい理由になる。AI は候補を出し、見分けるヒントを返します。記録の主役は人の観察です。",
+    "heroLead": "道端の花の名前がわかると、世界の解像度が変わる。歩いて、見つけて、記録しよう。自然が前よりわかると、また歩きたくなる。",
     "heroPromiseChips": [
-      "近くの自然がちょっとおもしろくなる",
-      "旅先の1枚が、また来たい理由になる"
+      "自然の解像度が上がる",
+      "また歩きたくなる",
+      "場所への愛着が育つ"
     ],
     "numberLocale": "ja-JP",
     "statLabelTemplateId": "observations_species",
-    "toolSectionEyebrow": "ノートを育てる入口",
-    "toolSectionTitle": "迷ったときは、この 2 つから始める",
-    "toolSectionLead": "その場で気になったものを調べる入口と、次にどこを歩くか決める入口です。どちらも、あとで記録を残しやすくするためにあります。",
+    "toolSectionEyebrow": "楽しみ方は 2 つ",
+    "toolSectionTitle": "その場で調べるか、次に歩く場所を探すか",
+    "toolSectionLead": "気になったものをその場で確かめる入口と、今日どこを歩くか決める入口です。どちらも、あとで記録を残しやすくするためにあります。",
     "tools": {
       "lens": {
-        "eyebrow": "フィールドガイド",
-        "title": "その場で気になったものを、すぐ調べる",
-        "body": "カメラを向けると、AI が候補と見分けるヒントを返します。名前を決めきる場ではなく、その場の気づきを記録につなげる入口です。",
-        "badge": "beta"
+        "eyebrow": "その場で調べる",
+        "title": "気になったものを、その場で確かめる",
+        "body": "カメラを向けると、AI が候補と見分けるヒントを返します。ここで決めきるより、その場の気づきを逃さず記録につなげるための入口です。",
+        "badge": "AI hint"
       },
       "scan": {
-        "eyebrow": "フィールドスキャン",
-        "title": "次に歩く場所を、地図から探す",
-        "body": "近くでも旅先でも、いま行く理由とまた行きたくなる理由を探します。場所のかたよりや季節の違いから、次の 1 件につながる場所を見つける入口です。",
-        "badge": "v0.10"
+        "eyebrow": "探索マップ",
+        "title": "今日どこを歩くか、地図から決める",
+        "body": "近くでも旅先でも、いま行く理由とまた行きたくなる理由を探します。場所の偏りや季節の違いから、次の 1 件につながる場所を見つける入口です。",
+        "badge": "map"
       }
     },
-    "mapSectionEyebrow": "場所のノート",
-    "mapSectionTitle": "また行きたくなる場所を、地図で振り返る",
-    "mapSectionLead": "近くの散歩道にも、旅先の寄り道にも、次に歩く理由があります。地図は、どこで何が見つかっているかをやさしく読む入口です。",
+    "mapSectionEyebrow": "探索マップ",
+    "mapSectionTitle": "また歩きたくなる場所を、地図で見つける",
+    "mapSectionLead": "近くの散歩道にも、旅先の寄り道にも、次に歩く理由があります。地図は、どこで何が見つかっているかをやさしく読み、次の 1 歩を決める入口です。",
     "mapEmpty": "まだ地図に載せる観察がありません"
   },
   "fieldLoop": {
-    "eyebrow": "ikimon の使い方",
-    "title": "見つけて、記録して、また歩く",
-    "lead": "その場で気づいて、ノートに残して、また同じ場所を歩く。続けるほど、近くの自然が少しずつ分かってきます。",
-    "primaryCta": "この使い方を見る",
+    "eyebrow": "使い方",
+    "title": "見つける。調べる。残す。だれかの役に立つ。",
+    "lead": "気になったものを見つけて、その場で確かめて、場所つきで残す。続けるほど、近くの自然が前より分かり、記録は研究や保全にもつながっていきます。",
+    "primaryCta": "この考え方を見る",
     "loopTitle": "4 steps",
     "principleTitle": "こだわり",
     "boundaryTitle": "言葉の約束",
     "steps": [
-      { "title": "1. 衛星で狙いをつける", "body": "林縁や水際、湿地、遷移帯。怪しい場所を、家を出る前に見つけておく。" },
-      { "title": "2. 3 つに絞っていく", "body": "どの小さな生息場所を確かめるか、どこを撮るか、何を書き留めるかを、先に決めておく。" },
-      { "title": "3. AI は断定しない", "body": "見えた特徴と、足りない証拠と、次に撮るといい 1 枚を教えてくれる。" },
-      { "title": "4. 差分が積もっていく", "body": "季節ごとの違いが積み重なって、また来たくなる理由が育っていく。" }
+      { "title": "1. 見つける", "body": "散歩中でも旅先でも、気になったものをまず見つける。" },
+      { "title": "2. 調べる", "body": "AI の候補と見分けるヒントを使って、その場の気づきを深くする。" },
+      { "title": "3. 残す", "body": "場所・時刻・写真・ひとことを、あとで見返せる記録にする。" },
+      { "title": "4. 役に立つ", "body": "積み重なった記録が、地域の見え方や研究・保全の手がかりになる。" }
     ],
     "principles": [
-      "答えより、目を育てていく。",
-      "種名より、文脈を厚くしていく。",
-      "空白と不在を、いっしょにしない。",
-      "不確実性も、きちんとデータとして残しておく。"
+      "楽しさを入口にする。",
+      "分からないままでも残せるようにする。",
+      "場所の文脈ごと記録する。",
+      "記録が次の観察につながるようにする。"
     ],
     "boundaries": [
-      "空白 = まだ見ていない",
-      "不在 = 努力量とセットで",
-      "AI更新 = 検証済みだけ"
+      "AI は候補提示まで",
+      "不在は努力量とセットで",
+      "強い主張は確認つきだけ"
     ]
   },
   "marketing": {
     "pages": {
       "about": {
-        "title": "ikimonについて — いつもの散歩が、また来たい理由に変わる | ikimon",
-        "eyebrow": "ikimonについて",
-        "heading": "いつもの散歩が、また来たい理由に変わる。",
-        "lead": "近くの自然がちょっとおもしろくなる。旅先の 1 枚が、また来たい理由になる。AI は候補を出し、見分けるヒントを返します。記録の主役は人の観察です。",
+        "title": "自然を楽しむ入口から始める | ikimon",
+        "eyebrow": "考え方",
+        "heading": "自然を楽しむ入口から始める。",
+        "lead": "ikimon は、知識をひけらかすための道具ではなく、近くの自然が前より面白く見えるようにする入口です。場所との関係を深める考え方は奥に置き、入口では楽しさを主語にします。",
         "activeNav": "learn",
         "bodyPageId": "about",
         "afterActions": [
-          { "href": "/learn", "label": "使い方と考え方を見る" },
-          { "href": "/faq", "label": "FAQを見る" }
+          { "href": "/learn", "label": "使い方を見る" },
+          { "href": "/learn/methodology", "label": "研究と信頼性を見る" }
         ]
       },
       "learnIndex": {
         "title": "使い方と考え方 | ikimon",
-        "eyebrow": "解説ガイド",
+        "eyebrow": "読む",
         "heading": "使い方と考え方",
-        "lead": "はじめて使う人向けの使い方から、名前の確かめ方、データの扱いまで、必要なことだけをまとめています。",
+        "lead": "楽しみ方から、研究と信頼性の前提まで、公開面で必要な説明をまとめています。",
         "activeNav": "learn",
         "bodyPageId": "learn-index"
       },
@@ -101,14 +102,6 @@
         "activeNav": "learn",
         "bodyPageId": "learn-glossary"
       },
-      "learnAuthorityPolicy": {
-        "title": "Authority Policy | ikimon",
-        "eyebrow": "読む",
-        "heading": "ikimon の同定の信頼のしくみ",
-        "lead": "同定は、粒度ごとに担当を分けて扱っています。ざっくりは市民で、細かい種名は任された人で、最後の公開判定だけ媒体条件を満たしたものを進めます。",
-        "activeNav": "learn",
-        "bodyPageId": "learn-authority-policy"
-      },
       "learnIdentificationBasics": {
         "title": "同定の基本 | ikimon",
         "eyebrow": "読む",
@@ -118,10 +111,10 @@
         "bodyPageId": "learn-identification-basics"
       },
       "learnMethodology": {
-        "title": "データの扱い | ikimon",
-        "eyebrow": "読む",
-        "heading": "データの扱いと、言いすぎない線引き",
-        "lead": "位置情報、公開範囲、AI と人の役割、そしてサービスとして言わないこと。誤読を減らすための前提をまとめています。",
+        "title": "研究・データ・信頼性 | ikimon",
+        "eyebrow": "研究と信頼性",
+        "heading": "研究・データ・信頼性について",
+        "lead": "AI と人の役割、同定の信頼レーン、quick capture と survey の違い、そしてサービスとして言いすぎない線引きをまとめています。",
         "activeNav": "learn",
         "bodyPageId": "learn-methodology"
       },
@@ -207,6 +200,14 @@
         "lead": "導入相談、共同実証、対象場所の選定、初回観察導線の設計などを受け付けています。個人利用と無料開始には申し込み不要です。",
         "activeNav": "business",
         "bodyPageId": "for-business-apply"
+      },
+      "forResearcherApply": {
+        "title": "研究利用申請 | ikimon",
+        "eyebrow": "For Researchers",
+        "heading": "研究でデータを使いたいときの申請窓口",
+        "lead": "Evidence Tier 3+ の観察を対象に、Darwin Core 形式での取得・DOI 発行・共同研究について相談を受け付けています。ORCID や利用目的は「内容」欄に記入してください。",
+        "activeNav": "learn",
+        "bodyPageId": "for-researcher-apply"
       }
     }
   },
@@ -217,6 +218,7 @@
       { "value": "improvement", "label": "💡 要望・提案" },
       { "value": "partnership", "label": "🤝 導入・連携" },
       { "value": "media", "label": "📰 取材・メディア" },
+      { "value": "research_apply", "label": "🔬 研究利用申請" },
       { "value": "deletion", "label": "🗑️ データ削除" },
       { "value": "other", "label": "💬 その他" }
     ],
@@ -405,8 +407,8 @@
       "footerNote": "観察の広がりを、次に歩く理由に変える地図。"
     },
     "guide": {
-      "title": "フィールドガイド | ikimon",
-      "activeNav": "フィールドガイド",
+      "title": "ライブガイド | ikimon",
+      "activeNav": "ライブガイド",
       "footerNote": "映像と音声で、土地の物語を聴く。"
     }
   }
