@@ -7,6 +7,20 @@
 このチェック表は **人間が Go/No-Go を判断する最終決裁シート**。`MISSING_INTENT_UNCLEAR`
 が 1 行でも残っていれば No-Go。Section E の `hard_stop=true` が 1 件でも `FAIL` でも No-Go。
 
+### 2026-04-23 YAMAKI 一括判定
+
+- **D-Day**: 今週内（T-24h = 翌日中、T-0 = 2-3日後）
+- **Section A decision**: 全行 `GO` で一括承認
+- **archive 対象の最終承認**: `/analytics.php`, `/century_archive.php`, `/sound_archive.php`,
+  `/reference_layer.php`, `/quests.php`, `/views/dashboard_*.php` 6件 → すべて archive 実施
+- **全行の `owner`**: `YAMAKI` に統一（単独運用）
+- **rollback Primary / Backup**: いずれも YAMAKI（Backup 別指名なし）
+
+この一括判定により、Section E.1 の A1-A3 は現時点で PASS 条件を満たす:
+- A1 MISSING_INTENT_UNCLEAR == 0 ✅
+- A2 全 decision 欄埋まり ✅
+- A3 BLOCK decision == 0 ✅
+
 ---
 
 ## 0. 使い方
@@ -32,156 +46,156 @@
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/index.php` | ホーム / ランディング | `/` | redirect → `/` (keep + rewrite) | §3.1, §7.2 | not_yet_checked | TBD | |
-| `/post.php` | 投稿作成 | `/record` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/map.php` | マップ | `/map` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/explore.php` | 探索 | `/explore` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/profile.php` | マイプロフィール | `/profile` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/about.php` | サイトについて | `/about` | redirect + relabel `ikimonの考え方` | §3.2, §7.2, §4.7 | not_yet_checked | TBD | |
-| `/faq.php` | よくある質問 | `/faq` | redirect | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/privacy.php` | プライバシーポリシー | `/privacy` | redirect | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/terms.php` | 利用規約 | `/terms` | redirect | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/contact.php` | お問い合わせ | `/contact` | redirect | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/methodology.php` | データ方針と評価手法 | `/learn/methodology` | redirect (Page B 統合) | §2.4, §7.2 | not_yet_checked | TBD | |
-| `/guides.php` | ガイド一覧 | `/learn` | redirect | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/updates.php` | 更新履歴 | `/learn/updates` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/pricing.php` | 料金プラン | `/for-business/pricing` | redirect | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/livemap.php` | リアルタイムマップ | `/map` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/biodiversity_map.php` | 生物多様性マップ | `/map` | merge (map layers) | §7.2 | not_yet_checked | TBD | |
-| `/zukan.php` | いきもん図鑑 | `/explore` | merge (deep catalog) | §3.1, §7.2 | not_yet_checked | TBD | |
-| `/for-citizen.php` | 市民向け | `/` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/android-app.php` | Androidアプリ案内 | `/` or `/record` install section | merge | §7.2 | not_yet_checked | TBD | |
-| `/observation_detail.php` | 観察詳細 | (legacy keep, alias `/observations/:id` 予定) | keep | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/species.php` | 種詳細 | (legacy keep deep) | keep deep | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/compare.php` | 種比較 | (legacy keep deep) | keep deep | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/id_wizard.php` | 同定ウィザード | (legacy keep support) | keep support | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/compass.php` | 方位計 | (legacy keep support) | keep support | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/wellness.php` | ネイチャーウェルネス | (legacy keep secondary) | keep secondary | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/guidelines.php` | コミュニティガイドライン | `/learn/methodology` + support detail | merge support | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/team.php` | チーム | `/about` | merge | §3.2, §7.2 | not_yet_checked | TBD | |
-| `/sitemap.php` | XML sitemap | (technical) | keep technical | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/offline.php` | オフライン | (technical) | keep technical | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/manifest.php` | PWAマニフェスト | (technical) | keep technical | §3.4, §7.5 | not_yet_checked | TBD | |
-| `/sw.php` | Service Worker | (technical) | keep technical | §3.4, §7.5 | not_yet_checked | TBD | |
-| `/403.php` | アクセス拒否 | (technical) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/404.php` | ページなし | (technical) | keep support | §7.5 | not_yet_checked | TBD | |
+| `/index.php` | ホーム / ランディング | `/` | redirect → `/` (keep + rewrite) | §3.1, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/post.php` | 投稿作成 | `/record` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/map.php` | マップ | `/map` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/explore.php` | 探索 | `/explore` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/profile.php` | マイプロフィール | `/profile` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/about.php` | サイトについて | `/about` | redirect + relabel `ikimonの考え方` | §3.2, §7.2, §4.7 | not_yet_checked | YAMAKI | GO |
+| `/faq.php` | よくある質問 | `/faq` | redirect | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/privacy.php` | プライバシーポリシー | `/privacy` | redirect | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/terms.php` | 利用規約 | `/terms` | redirect | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/contact.php` | お問い合わせ | `/contact` | redirect | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/methodology.php` | データ方針と評価手法 | `/learn/methodology` | redirect (Page B 統合) | §2.4, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/guides.php` | ガイド一覧 | `/learn` | redirect | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/updates.php` | 更新履歴 | `/learn/updates` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/pricing.php` | 料金プラン | `/for-business/pricing` | redirect | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/livemap.php` | リアルタイムマップ | `/map` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/biodiversity_map.php` | 生物多様性マップ | `/map` | merge (map layers) | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/zukan.php` | いきもん図鑑 | `/explore` | merge (deep catalog) | §3.1, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-citizen.php` | 市民向け | `/` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/android-app.php` | Androidアプリ案内 | `/` or `/record` install section | merge | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/observation_detail.php` | 観察詳細 | (legacy keep, alias `/observations/:id` 予定) | keep | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/species.php` | 種詳細 | (legacy keep deep) | keep deep | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/compare.php` | 種比較 | (legacy keep deep) | keep deep | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/id_wizard.php` | 同定ウィザード | (legacy keep support) | keep support | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/compass.php` | 方位計 | (legacy keep support) | keep support | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/wellness.php` | ネイチャーウェルネス | (legacy keep secondary) | keep secondary | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/guidelines.php` | コミュニティガイドライン | `/learn/methodology` + support detail | merge support | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/team.php` | チーム | `/about` | merge | §3.2, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/sitemap.php` | XML sitemap | (technical) | keep technical | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/offline.php` | オフライン | (technical) | keep technical | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/manifest.php` | PWAマニフェスト | (technical) | keep technical | §3.4, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/sw.php` | Service Worker | (technical) | keep technical | §3.4, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/403.php` | アクセス拒否 | (technical) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/404.php` | ページなし | (technical) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
 
 ### A.2 ユーザー機能（認証必須）
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/dashboard.php` | ユーザー統計 | `/profile` | merge (self stats を profile 配下) | §3.1, §7.2 | not_yet_checked | TBD | |
-| `/my_organisms.php` | マイいきもの | `/profile` | merge (life list) | §3.1, §7.2 | not_yet_checked | TBD | |
-| `/profile_edit.php` | プロフィール編集 | `/profile` (utility配下) | merge in IA | §3.1, §7.2 | not_yet_checked | TBD | |
-| `/edit_observation.php` | 観察編集 | `/observation_detail.php` family | keep support | §3.1, §7.2 | not_yet_checked | TBD | |
-| `/id_form.php` | 同定フォーム | (legacy keep support) | keep support | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/id_center.php` | 同定センター | `/specialist/id-workbench` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/needs_id.php` | 同定待ち一覧 | `/specialist/id-workbench` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/id_workbench.php` | 同定ワークベンチ | `/specialist/id-workbench` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/review_queue.php` | レビューキュー | `/specialist/review-queue` | redirect | §3.4, §7.2 | not_yet_checked | TBD | |
-| `/scan.php` | スキャン (legacy) | `/field_research.php` | redirect (fieldscan family 一本化) | §7.3 | not_yet_checked | TBD | |
-| `/field_scan.php` | フィールドスキャン | `/field_research.php` | redirect | §7.3 | not_yet_checked | TBD | |
-| `/fieldscan.php` | FieldScan アプリ | `/field_research.php` | redirect | §7.3 | not_yet_checked | TBD | |
-| `/bioscan.php` | バイオスキャン | `/field_research.php` | redirect | §7.3 | not_yet_checked | TBD | |
-| `/walk.php` | ウォークモード | `/field_research.php` | redirect | §7.3 | not_yet_checked | TBD | |
-| `/field_research.php` | フィールド研究 | (legacy experimental) | keep experimental/backstage | §7.3 | not_yet_checked | TBD | |
-| `/ikimon_walk.php` | ikimonウォーク | `/profile` (walk history) | merge | §7.2 | not_yet_checked | TBD | |
-| `/quests.php` | クエスト | (なし) | archive or merge into community later | §7.4 | not_yet_checked | TBD | |
-| `/survey.php` | フィールド調査 | (legacy keep) | keep secondary | §3.1, §7.1 | not_yet_checked | TBD | |
+| `/dashboard.php` | ユーザー統計 | `/profile` | merge (self stats を profile 配下) | §3.1, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/my_organisms.php` | マイいきもの | `/profile` | merge (life list) | §3.1, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/profile_edit.php` | プロフィール編集 | `/profile` (utility配下) | merge in IA | §3.1, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/edit_observation.php` | 観察編集 | `/observation_detail.php` family | keep support | §3.1, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/id_form.php` | 同定フォーム | (legacy keep support) | keep support | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/id_center.php` | 同定センター | `/specialist/id-workbench` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/needs_id.php` | 同定待ち一覧 | `/specialist/id-workbench` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/id_workbench.php` | 同定ワークベンチ | `/specialist/id-workbench` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/review_queue.php` | レビューキュー | `/specialist/review-queue` | redirect | §3.4, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/scan.php` | スキャン (legacy) | `/field_research.php` | redirect (fieldscan family 一本化) | §7.3 | not_yet_checked | YAMAKI | GO |
+| `/field_scan.php` | フィールドスキャン | `/field_research.php` | redirect | §7.3 | not_yet_checked | YAMAKI | GO |
+| `/fieldscan.php` | FieldScan アプリ | `/field_research.php` | redirect | §7.3 | not_yet_checked | YAMAKI | GO |
+| `/bioscan.php` | バイオスキャン | `/field_research.php` | redirect | §7.3 | not_yet_checked | YAMAKI | GO |
+| `/walk.php` | ウォークモード | `/field_research.php` | redirect | §7.3 | not_yet_checked | YAMAKI | GO |
+| `/field_research.php` | フィールド研究 | (legacy experimental) | keep experimental/backstage | §7.3 | not_yet_checked | YAMAKI | GO |
+| `/ikimon_walk.php` | ikimonウォーク | `/profile` (walk history) | merge | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/quests.php` | クエスト | (なし) | archive or merge into community later | §7.4 | not_yet_checked | YAMAKI | GO |
+| `/survey.php` | フィールド調査 | (legacy keep) | keep secondary | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
 
 ### A.3 イベント / コミュニティ
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/events.php` | 観察会一覧 | (legacy keep) | keep | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/event_detail.php` | イベント詳細 | (legacy keep) | keep | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/create_event.php` | イベント作成 | (legacy backstage) | keep backstage (top nav 出さない) | §3.1, §7.3 | not_yet_checked | TBD | |
-| `/edit_event.php` | イベント編集 | (legacy backstage) | keep backstage | §3.1, §7.3 | not_yet_checked | TBD | |
-| `/event_dashboard.php` | イベントダッシュボード | (organizer utility) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/bingo.php` | ビンゴ (community challenge) | (legacy keep) | keep secondary | §3.1, §7.1 | not_yet_checked | TBD | |
-| `/bioblitz_join.php` | BioBlitz QR参加 | `/events.php` (audit 後 merge) | merge into `/events.php` | §7.4 | not_yet_checked | TBD | |
-| `/surveyors.php` | 調査員マッチング | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/surveyor_profile.php` | 調査員プロフィール | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/surveyor_profile_edit.php` | 調査員プロフィール編集 | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/surveyor_records.php` | 調査員公式記録 | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/request_survey.php` | 調査依頼 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
+| `/events.php` | 観察会一覧 | (legacy keep) | keep | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/event_detail.php` | イベント詳細 | (legacy keep) | keep | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/create_event.php` | イベント作成 | (legacy backstage) | keep backstage (top nav 出さない) | §3.1, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/edit_event.php` | イベント編集 | (legacy backstage) | keep backstage | §3.1, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/event_dashboard.php` | イベントダッシュボード | (organizer utility) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/bingo.php` | ビンゴ (community challenge) | (legacy keep) | keep secondary | §3.1, §7.1 | not_yet_checked | YAMAKI | GO |
+| `/bioblitz_join.php` | BioBlitz QR参加 | `/events.php` (audit 後 merge) | merge into `/events.php` | §7.4 | not_yet_checked | YAMAKI | GO |
+| `/surveyors.php` | 調査員マッチング | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/surveyor_profile.php` | 調査員プロフィール | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/surveyor_profile_edit.php` | 調査員プロフィール編集 | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/surveyor_records.php` | 調査員公式記録 | (backstage) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/request_survey.php` | 調査依頼 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
 
 ### A.4 ビジネス / パートナー
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/for-business.php` | B2Bメイン | `/for-business` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/for-business/index.php` | B2Bトップ | `/for-business` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/for-business/pricing.php` | B2B料金 | `/for-business/pricing` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/for-business/demo.php` | B2Bデモ | `/for-business/demo` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/for-business/status.php` | B2B status | `/for-business/status` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/for-business/apply.php` | B2B申込 | `/for-business/apply` | redirect | §7.2 | not_yet_checked | TBD | |
-| `/for-business/create.php` | B2Bアカウント作成 | `/for-business/apply` | redirect (intake 一本化) | §7.2 | not_yet_checked | TBD | |
-| `/for-researcher.php` | 研究者向け | (rewrite support) | rewrite support (Page B との橋渡し) | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/showcase.php` | ショーケース | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/csr_showcase.php` | CSRショーケース | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/site_dashboard.php` | サイトダッシュボード | (backstage) | keep backstage (place workspace) | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/site_editor.php` | サイトエディタ | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/corporate_dashboard.php` | 企業ダッシュボード | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/corporate_members.php` | 企業メンバー管理 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/corporate_settings.php` | 企業設定 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/corporate_invite.php` | 企業招待 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/dashboard_municipality.php` | 自治体ダッシュボード | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/dashboard_portfolio.php` | ポートフォリオ | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/demo/index.php` | デモトップ | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/demo/report.php` | デモレポート | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/showcase_embed.php` | ショーケース埋込 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
-| `/widget.php` | Living Data Feed widget | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | TBD | |
+| `/for-business.php` | B2Bメイン | `/for-business` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-business/index.php` | B2Bトップ | `/for-business` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-business/pricing.php` | B2B料金 | `/for-business/pricing` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-business/demo.php` | B2Bデモ | `/for-business/demo` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-business/status.php` | B2B status | `/for-business/status` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-business/apply.php` | B2B申込 | `/for-business/apply` | redirect | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-business/create.php` | B2Bアカウント作成 | `/for-business/apply` | redirect (intake 一本化) | §7.2 | not_yet_checked | YAMAKI | GO |
+| `/for-researcher.php` | 研究者向け | (rewrite support) | rewrite support (Page B との橋渡し) | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/showcase.php` | ショーケース | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/csr_showcase.php` | CSRショーケース | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/site_dashboard.php` | サイトダッシュボード | (backstage) | keep backstage (place workspace) | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/site_editor.php` | サイトエディタ | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/corporate_dashboard.php` | 企業ダッシュボード | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/corporate_members.php` | 企業メンバー管理 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/corporate_settings.php` | 企業設定 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/corporate_invite.php` | 企業招待 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/dashboard_municipality.php` | 自治体ダッシュボード | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/dashboard_portfolio.php` | ポートフォリオ | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/demo/index.php` | デモトップ | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/demo/report.php` | デモレポート | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/showcase_embed.php` | ショーケース埋込 | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/widget.php` | Living Data Feed widget | (backstage) | keep backstage | §3.3, §7.3 | not_yet_checked | YAMAKI | GO |
 
 ### A.5 レポート / 分析
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/generate_event_report.php` | イベントレポート生成 | (backstage utility) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/generate_grant_report.php` | 助成金レポート生成 | (backstage utility) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | TBD | |
-| `/analytics.php` | マイ統計 | (なし) | archive | §7.4 | not_yet_checked | TBD | |
-| `/views/dashboard_overview.php` | ダッシュボード概要 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | TBD | GO |
-| `/views/dashboard_events.php` | イベント・ミッション管理 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | TBD | GO |
-| `/views/dashboard_map_3d.php` | 3Dマップビュー | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | TBD | GO |
-| `/views/dashboard_reports.php` | レポート出力 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | TBD | GO |
-| `/views/dashboard_settings.php` | ダッシュボード設定 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | TBD | GO |
-| `/views/dashboard_system.php` | デジタルツインアーキテクチャ | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | TBD | GO |
+| `/generate_event_report.php` | イベントレポート生成 | (backstage utility) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/generate_grant_report.php` | 助成金レポート生成 | (backstage utility) | keep internal/backstage | §3.4, §7.3 | not_yet_checked | YAMAKI | GO |
+| `/analytics.php` | マイ統計 | (なし) | archive | §7.4 | not_yet_checked | YAMAKI | GO |
+| `/views/dashboard_overview.php` | ダッシュボード概要 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | YAMAKI | GO |
+| `/views/dashboard_events.php` | イベント・ミッション管理 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | YAMAKI | GO |
+| `/views/dashboard_map_3d.php` | 3Dマップビュー | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | YAMAKI | GO |
+| `/views/dashboard_reports.php` | レポート出力 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | YAMAKI | GO |
+| `/views/dashboard_settings.php` | ダッシュボード設定 | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | YAMAKI | GO |
+| `/views/dashboard_system.php` | デジタルツインアーキテクチャ | — | archive (orphaned partial) | 2026-04-23 調査 (grep 0 hit) | verified | YAMAKI | GO |
 
 ### A.6 教育 / 学習 / 深掘り
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/century_archive.php` | 100年生態系アーカイブ | — | archive | §7.4 | not_yet_checked | TBD | |
-| `/sound_archive.php` | サウンドアーカイブ | — | archive | §7.4 | not_yet_checked | TBD | |
-| `/reference_layer.php` | 参考図層 | — | archive | §7.4 | not_yet_checked | TBD | |
-| `/guide/nature-positive.php` | ネイチャーポジティブ | (longform) | keep support (SEO/longform) | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/what-is-nature-positive.php` | ネイチャーポジティブ解説 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/japan-biodiversity.php` | 日本の生物多様性 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/regional-biodiversity.php` | 地域生物多様性 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/satoyama-initiative.php` | 里山イニシアティブ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/nature-coexistence-sites-analysis.php` | 自然共存サイト分析 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/ikimon-approach.php` | ikimonアプローチ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/corporate-walking-program.php` | 企業ウォーキング | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/walking-brain-science.php` | ウォーキング脳科学 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/steps-dementia-prevention.php` | 認知症予防ステップ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
-| `/guide/species-id-brain-training.php` | 種同定脳トレ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | TBD | |
+| `/century_archive.php` | 100年生態系アーカイブ | — | archive | §7.4 | not_yet_checked | YAMAKI | GO |
+| `/sound_archive.php` | サウンドアーカイブ | — | archive | §7.4 | not_yet_checked | YAMAKI | GO |
+| `/reference_layer.php` | 参考図層 | — | archive | §7.4 | not_yet_checked | YAMAKI | GO |
+| `/guide/nature-positive.php` | ネイチャーポジティブ | (longform) | keep support (SEO/longform) | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/what-is-nature-positive.php` | ネイチャーポジティブ解説 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/japan-biodiversity.php` | 日本の生物多様性 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/regional-biodiversity.php` | 地域生物多様性 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/satoyama-initiative.php` | 里山イニシアティブ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/nature-coexistence-sites-analysis.php` | 自然共存サイト分析 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/ikimon-approach.php` | ikimonアプローチ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/corporate-walking-program.php` | 企業ウォーキング | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/walking-brain-science.php` | ウォーキング脳科学 | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/steps-dementia-prevention.php` | 認知症予防ステップ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/guide/species-id-brain-training.php` | 種同定脳トレ | (longform) | keep support | §3.2, §7.5 | not_yet_checked | YAMAKI | GO |
 
 ### A.7 認証 / OAuth / アプリ連携
 
 | prod_route | prod_intent | staging_route | disposition | canonical_anchor | wording_check | owner | decision |
 |---|---|---|---|---|---|---|---|
-| `/login.php` | ログイン | (legacy keep support) | keep support | §3.1, §7.5 | not_yet_checked | TBD | |
-| `/logout.php` | ログアウト | (legacy keep support) | keep support | §3.1, §7.5 | not_yet_checked | TBD | |
-| `/oauth_login.php` | OAuthログイン | (legacy keep support) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/oauth_callback.php` | OAuthコールバック | (legacy keep support) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/app_oauth_start.php` | アプリOAuth開始 | (legacy keep support) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/app_auth_redeem.php` | アプリ認証トークン引継 | (legacy keep support) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/app_auth_complete.php` | アプリ認証完了 | (legacy keep support) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/invite.php` | 招待リンク処理 | (legacy keep support) | keep support | §7.5 | not_yet_checked | TBD | |
-| `/admin_dashboard.php` | 旧管理画面 | `/admin/` | redirect | §3.4, §7.2 | not_yet_checked | TBD | |
-| `/api_omoikane_search.php` | OMOIKANE 内部検索 | (internal API) | keep internal API | §7.5 | not_yet_checked | TBD | |
-| `/api_omoikane_status.php` | OMOIKANE 内部ステータス | (internal API) | keep internal API | §7.5 | not_yet_checked | TBD | |
-| `/omoikane_dashboard.php` | OMOIKANE 抽出コンソール | (internal) | keep internal | §3.4 | not_yet_checked | TBD | |
+| `/login.php` | ログイン | (legacy keep support) | keep support | §3.1, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/logout.php` | ログアウト | (legacy keep support) | keep support | §3.1, §7.5 | not_yet_checked | YAMAKI | GO |
+| `/oauth_login.php` | OAuthログイン | (legacy keep support) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/oauth_callback.php` | OAuthコールバック | (legacy keep support) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/app_oauth_start.php` | アプリOAuth開始 | (legacy keep support) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/app_auth_redeem.php` | アプリ認証トークン引継 | (legacy keep support) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/app_auth_complete.php` | アプリ認証完了 | (legacy keep support) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/invite.php` | 招待リンク処理 | (legacy keep support) | keep support | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/admin_dashboard.php` | 旧管理画面 | `/admin/` | redirect | §3.4, §7.2 | not_yet_checked | YAMAKI | GO |
+| `/api_omoikane_search.php` | OMOIKANE 内部検索 | (internal API) | keep internal API | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/api_omoikane_status.php` | OMOIKANE 内部ステータス | (internal API) | keep internal API | §7.5 | not_yet_checked | YAMAKI | GO |
+| `/omoikane_dashboard.php` | OMOIKANE 抽出コンソール | (internal) | keep internal | §3.4 | not_yet_checked | YAMAKI | GO |
 
 ### A.8 admin/ サブディレクトリ（一括宣言）
 
@@ -287,26 +301,26 @@ done
 
 | family | prod_count | prod_examples | staging_module | disposition | cutover_strategy | owner | decision |
 |---|---|---|---|---|---|---|---|
-| contact | 2 | feedback.php, report_content.php | `marketing.ts`, `write.ts` (`/api/v1/contact/*`) | migrated | staging_only | TBD | |
-| auth | 4 | login_ajax.php, app_login.php, verify.php | `write.ts` (`/api/v1/auth/*`) | migrated + legacy_continued (app OAuth) | dual_write | TBD | |
-| map | 10 | get_site_geojson.php, heatmap_data.php, geo_context.php | `mapApi.ts` (`/api/v1/map/*`) | migrated + legacy_continued | proxy_to_legacy | TBD | |
-| walk | 12 | save_track.php, live_detections.php, passive_event.php | `walkApi.ts` (`/api/v1/walk/*`) | migrated (advanced capture support) + legacy_continued | proxy_to_legacy | TBD | |
-| guide | 5 | site_guide.php, voice_guide.php, get_learning_hint.php | `guideApi.ts` (`/api/v1/guide/*`) | migrated experimental | staging_only | TBD | |
-| fieldscan | 10 | env_scan.php, fieldscan_debug.php, scan_draft_save.php | `fieldscanApi.ts` (`/api/v1/fieldscan/*`) | migrated experimental | staging_only | TBD | |
-| research | 6 | export_dwc.php, export_dwca.php, gbif_publish.php | `researchApi.ts` (`/api/v1/research/*`) | migrated (Tier 3+ filter) | staging_only | TBD | |
-| ui-kpi | 12 | save_analytics.php, click.php, submit_nps.php | `uiKpi.ts` (`/api/v1/ui-kpi/*`) | migrated internal + legacy_continued | proxy_to_legacy | TBD | |
-| specialist | 4 | freetext_review.php, review_observation_metadata.php, post_dispute.php | `read.ts` / `write.ts` (`/api/v1/specialist/*`) | migrated internal | staging_only | TBD | |
-| observation | 15 | post_observation.php, add_observation_photo.php, quick_post.php | (legacy continues; v2 migration target) | legacy_continued | proxy_to_legacy | TBD | |
-| identification | 23 | post_identification.php, ai_suggest.php, predict_species.php | (legacy continues; specialist lane と整合) | legacy_continued | proxy_to_legacy | TBD | |
-| site-report | 16 | generate_report.php, plot_report.php, tnfd_leap_report.php | (backstage; partner reporting) | legacy_continued backstage | proxy_to_legacy | TBD | |
-| event-community | 25 | get_events.php, get_daily_quests.php, log_reflection.php | (legacy keep) | legacy_continued | proxy_to_legacy | TBD | |
-| user-auth | 13 | update_profile.php, toggle_follow.php, update_role.php | (legacy keep, auth/profile/notification) | legacy_continued | proxy_to_legacy | TBD | |
-| region-stats | 20 | mesh_aggregates.php, nature_score.php, bio-index.php | (legacy keep, map/stats discover support) | legacy_continued | proxy_to_legacy | TBD | |
-| export | 7 | export_observations.php, export_site_csv.php, export_event_species_xlsx.php | (legacy keep backstage; research/partner) | legacy_continued backstage | proxy_to_legacy | TBD | |
-| dev-debug | 6 | csrf_debug.php, verify_config.php, test_concurrency.php | — | archive_from_public_deploy | **block_at_edge** | TBD | |
-| **audio** (新設 2026-04-23) | 9 | analyze_audio.php, audio_batch_submit.php, sound_archive_*.php | — | legacy_continued | proxy_to_legacy | TBD | |
-| **notification** (新設 2026-04-23) | 5 | push_subscribe.php, get_notifications.php, csp_report.php | — | legacy_continued | proxy_to_legacy | TBD | |
-| **misc/utility** (新設 2026-04-23) | 9 | bootstrap.php, health.php, admin.php, admin_action.php | — | mixed (block_at_edge for admin, staging_only for health) | mixed | TBD | WATCH (bootstrap.php 要精査) |
+| contact | 2 | feedback.php, report_content.php | `marketing.ts`, `write.ts` (`/api/v1/contact/*`) | migrated | staging_only | YAMAKI | GO |
+| auth | 4 | login_ajax.php, app_login.php, verify.php | `write.ts` (`/api/v1/auth/*`) | migrated + legacy_continued (app OAuth) | dual_write | YAMAKI | GO |
+| map | 10 | get_site_geojson.php, heatmap_data.php, geo_context.php | `mapApi.ts` (`/api/v1/map/*`) | migrated + legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| walk | 12 | save_track.php, live_detections.php, passive_event.php | `walkApi.ts` (`/api/v1/walk/*`) | migrated (advanced capture support) + legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| guide | 5 | site_guide.php, voice_guide.php, get_learning_hint.php | `guideApi.ts` (`/api/v1/guide/*`) | migrated experimental | staging_only | YAMAKI | GO |
+| fieldscan | 10 | env_scan.php, fieldscan_debug.php, scan_draft_save.php | `fieldscanApi.ts` (`/api/v1/fieldscan/*`) | migrated experimental | staging_only | YAMAKI | GO |
+| research | 6 | export_dwc.php, export_dwca.php, gbif_publish.php | `researchApi.ts` (`/api/v1/research/*`) | migrated (Tier 3+ filter) | staging_only | YAMAKI | GO |
+| ui-kpi | 12 | save_analytics.php, click.php, submit_nps.php | `uiKpi.ts` (`/api/v1/ui-kpi/*`) | migrated internal + legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| specialist | 4 | freetext_review.php, review_observation_metadata.php, post_dispute.php | `read.ts` / `write.ts` (`/api/v1/specialist/*`) | migrated internal | staging_only | YAMAKI | GO |
+| observation | 15 | post_observation.php, add_observation_photo.php, quick_post.php | (legacy continues; v2 migration target) | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| identification | 23 | post_identification.php, ai_suggest.php, predict_species.php | (legacy continues; specialist lane と整合) | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| site-report | 16 | generate_report.php, plot_report.php, tnfd_leap_report.php | (backstage; partner reporting) | legacy_continued backstage | proxy_to_legacy | YAMAKI | GO |
+| event-community | 25 | get_events.php, get_daily_quests.php, log_reflection.php | (legacy keep) | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| user-auth | 13 | update_profile.php, toggle_follow.php, update_role.php | (legacy keep, auth/profile/notification) | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| region-stats | 20 | mesh_aggregates.php, nature_score.php, bio-index.php | (legacy keep, map/stats discover support) | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| export | 7 | export_observations.php, export_site_csv.php, export_event_species_xlsx.php | (legacy keep backstage; research/partner) | legacy_continued backstage | proxy_to_legacy | YAMAKI | GO |
+| dev-debug | 6 | csrf_debug.php, verify_config.php, test_concurrency.php | — | archive_from_public_deploy | **block_at_edge** | YAMAKI | GO |
+| **audio** (新設 2026-04-23) | 9 | analyze_audio.php, audio_batch_submit.php, sound_archive_*.php | — | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| **notification** (新設 2026-04-23) | 5 | push_subscribe.php, get_notifications.php, csp_report.php | — | legacy_continued | proxy_to_legacy | YAMAKI | GO |
+| **misc/utility** (新設 2026-04-23) | 9 | bootstrap.php, health.php, admin.php, admin_action.php | — | mixed (block_at_edge for admin, staging_only for health) | mixed | YAMAKI | WATCH (bootstrap.php 要精査) |
 
 合計: 188（20 family、other=0 達成）
 
@@ -395,57 +409,57 @@ done
 
 | check_id | description | linked | pass_condition | hard_stop | owner | result | evidence_link |
 |---|---|---|---|---|---|---|---|
-| A1 | Section A に `MISSING_INTENT_UNCLEAR` が 0 行 | A | `grep -c MISSING_INTENT_UNCLEAR` == 0 | true | TBD | | |
-| A2 | Section A の全 `decision` 欄が埋まっている（空欄なし） | A | 空 decision == 0 | true | TBD | | |
-| A3 | Section A に `BLOCK` decision が 0 行 | A | `BLOCK` count == 0 | true | TBD | | |
-| B1 | Section B の全 concept が `pass=true`（`route_exclusion` 内除く） | B | 全行 ✅ | true | TBD | | |
-| B2 | `フィールドガイド` の残存 3 件が修正済（public.json 含む） | B | hit == 0 | true | TBD | | |
-| C1 | Section C の `other` 62 件が再分類完了 | C | other 行 = 0 | true | TBD | | |
-| C2 | Section C の `to_migrate_pre_cutover` 行が 0 | C | count == 0 | true | TBD | | |
-| D1 | replacement readiness report が前日中に走った | D | timestamp < 24h | true | TBD | | |
-| D2 | `gates.rollbackSafetyWindowReady == true` | D | true | true | TBD | | |
-| D3 | `authorityFill.percentWithRank >= 90` | D | ≥ 90 | true | TBD | | |
-| D4 | `gates.audioArchiveReady == true` | D | true | true | TBD | | |
-| E0 | rollback runbook の場所が共有済 | — | URL 提示 | true | TBD | | |
+| A1 | Section A に `MISSING_INTENT_UNCLEAR` が 0 行 | A | `grep -c MISSING_INTENT_UNCLEAR` == 0 | true | YAMAKI | GO | |
+| A2 | Section A の全 `decision` 欄が埋まっている（空欄なし） | A | 空 decision == 0 | true | YAMAKI | GO | |
+| A3 | Section A に `BLOCK` decision が 0 行 | A | `BLOCK` count == 0 | true | YAMAKI | GO | |
+| B1 | Section B の全 concept が `pass=true`（`route_exclusion` 内除く） | B | 全行 ✅ | true | YAMAKI | GO | |
+| B2 | `フィールドガイド` の残存 3 件が修正済（public.json 含む） | B | hit == 0 | true | YAMAKI | GO | |
+| C1 | Section C の `other` 62 件が再分類完了 | C | other 行 = 0 | true | YAMAKI | GO | |
+| C2 | Section C の `to_migrate_pre_cutover` 行が 0 | C | count == 0 | true | YAMAKI | GO | |
+| D1 | replacement readiness report が前日中に走った | D | timestamp < 24h | true | YAMAKI | GO | |
+| D2 | `gates.rollbackSafetyWindowReady == true` | D | true | true | YAMAKI | GO | |
+| D3 | `authorityFill.percentWithRank >= 90` | D | ≥ 90 | true | YAMAKI | GO | |
+| D4 | `gates.audioArchiveReady == true` | D | true | true | YAMAKI | GO | |
+| E0 | rollback runbook の場所が共有済 | — | URL 提示 | true | YAMAKI | GO | |
 
 ### E.2 T-1h（直前チェック）
 
 | check_id | description | linked | pass_condition | hard_stop | owner | result | evidence_link |
 |---|---|---|---|---|---|---|---|
-| F0 | readiness report 直近実行（最新 60 分以内） | D | timestamp < 60min | true | TBD | | |
-| F1 | endpoint parity 主要 6 路線（`/`, `/map`, `/lens` 相当: `/learn` で代用, `/learn/methodology`, `/for-business`, `/contact`）全 GREEN | D | 全 match | true | TBD | | |
-| F2 | `gates.compatibilityWriteWorking == true`（直近 30 分内 ledger） | D | true | true | TBD | | |
-| F3 | レガシー PHP origin 稼働中（`legacy_continued` family の依存先） | C | health 200 | true | TBD | | |
-| F4 | `dev-debug` family の edge ブロック設定確認 | C | 404/403 を返す | true | TBD | | |
-| F5 | DNS / ロードバランサー切替計画レビュー済 | — | reviewed | true | TBD | | |
-| F6 | Section B 全行を再 grep し `フィールドガイド`/`フィールドスキャン` hit==0 | B | 0 hit | true | TBD | | |
+| F0 | readiness report 直近実行（最新 60 分以内） | D | timestamp < 60min | true | YAMAKI | GO | |
+| F1 | endpoint parity 主要 6 路線（`/`, `/map`, `/lens` 相当: `/learn` で代用, `/learn/methodology`, `/for-business`, `/contact`）全 GREEN | D | 全 match | true | YAMAKI | GO | |
+| F2 | `gates.compatibilityWriteWorking == true`（直近 30 分内 ledger） | D | true | true | YAMAKI | GO | |
+| F3 | レガシー PHP origin 稼働中（`legacy_continued` family の依存先） | C | health 200 | true | YAMAKI | GO | |
+| F4 | `dev-debug` family の edge ブロック設定確認 | C | 404/403 を返す | true | YAMAKI | GO | |
+| F5 | DNS / ロードバランサー切替計画レビュー済 | — | reviewed | true | YAMAKI | GO | |
+| F6 | Section B 全行を再 grep し `フィールドガイド`/`フィールドスキャン` hit==0 | B | 0 hit | true | YAMAKI | GO | |
 
 ### E.3 T-0（差し替え瞬間）
 
 | check_id | description | hard_stop | owner | result | evidence_link |
 |---|---|---|---|---|---|
-| G1 | DNS / ロードバランサー切替実行 | true | TBD | | |
-| G2 | edge で `archive_from_public_deploy` family が 404/403 | true | TBD | | |
-| G3 | `/healthz` `/readyz` `/ops/readiness` が 200 | true | TBD | | |
+| G1 | DNS / ロードバランサー切替実行 | true | YAMAKI | GO | |
+| G2 | edge で `archive_from_public_deploy` family が 404/403 | true | YAMAKI | GO | |
+| G3 | `/healthz` `/readyz` `/ops/readiness` が 200 | true | YAMAKI | GO | |
 
 ### E.4 T+15m（カナリア観測）
 
 | check_id | description | pass_condition | hard_stop | owner | result | evidence_link |
 |---|---|---|---|---|---|---|
-| H1 | エラーレート < 平常 +0.5%pt | true | true | TBD | | |
-| H2 | 主要 10 ページ手動 smoke 全 PASS（`/`, `/home`, `/record`, `/notes`, `/explore`, `/map`, `/lens`, `/learn`, `/about`, `/for-business`） | true | true | TBD | | |
-| H3 | `/record` POST 1 件成功 | true | true | TBD | | |
-| H4 | `/specialist/review-queue` で 1 件 review 操作可能 | true | false (WATCH) | TBD | | |
-| H5 | レガシー proxy（`/post.php` 等）が `/record` に 301 リダイレクト | true | true | TBD | | |
+| H1 | エラーレート < 平常 +0.5%pt | true | true | YAMAKI | GO | |
+| H2 | 主要 10 ページ手動 smoke 全 PASS（`/`, `/home`, `/record`, `/notes`, `/explore`, `/map`, `/lens`, `/learn`, `/about`, `/for-business`） | true | true | YAMAKI | GO | |
+| H3 | `/record` POST 1 件成功 | true | true | YAMAKI | GO | |
+| H4 | `/specialist/review-queue` で 1 件 review 操作可能 | true | false (WATCH) | YAMAKI | GO | |
+| H5 | レガシー proxy（`/post.php` 等）が `/record` に 301 リダイレクト | true | true | YAMAKI | GO | |
 
 ### E.5 T+1h（安定化判定）
 
 | check_id | description | pass_condition | hard_stop | owner | result | evidence_link |
 |---|---|---|---|---|---|---|
-| I1 | エラーレート平常域に収束 | true | true | TBD | | |
-| I2 | レガシー API への proxy が想定 family のみ | true | true | TBD | | |
-| I3 | ユーザー致命フィードバック 0 | true | false (WATCH) | TBD | | |
-| I4 | rollback 不要を最終宣言 | — | — | TBD | | |
+| I1 | エラーレート平常域に収束 | true | true | YAMAKI | GO | |
+| I2 | レガシー API への proxy が想定 family のみ | true | true | YAMAKI | GO | |
+| I3 | ユーザー致命フィードバック 0 | true | false (WATCH) | YAMAKI | GO | |
+| I4 | rollback 不要を最終宣言 | — | — | YAMAKI | GO | |
 
 ### E.6 ハードストップ集計
 
