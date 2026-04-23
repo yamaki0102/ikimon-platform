@@ -41,7 +41,8 @@
     "write:legacy": "tsx src/scripts/writeLegacyCompatibility.ts",
     "readiness": "tsx src/scripts/readinessReport.ts",
     "rehearse:cutover": "tsx src/scripts/rehearseCutover.ts",
-    "check:public-terms": "tsx src/scripts/checkPublicSurfaceTerms.ts"
+    "check:public-terms": "tsx src/scripts/checkPublicSurfaceTerms.ts",
+    "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
