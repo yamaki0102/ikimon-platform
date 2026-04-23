@@ -364,14 +364,21 @@ done
 | `gates.audioArchiveReady` | readiness snapshot | migration 0020 適用 + `private_uploads` 書込可 + `V2_PRIVILEGED_WRITE_API_KEY` 設定済 | true | false | **false** | ⚠ KNOWN LIMITATION | 本番 DB に migration 0020 未適用。cutover 後の `npm run migrate` で解消。音声アーカイブ機能は cutover 直後は limited |
 | `gates.rollbackSafetyWindowReady` | readiness snapshot | 上記 4 ゲート（parity / delta / drift / compatibility）が全 true | true | false | **true** | 🟢 GREEN | cutover GO 条件 ✓ |
 
-### D.1.1 Known Limitations (cutover 直後は機能限定で稼働)
+### D.1.1 Known Limitations — 2026-04-23 17:10 JST すべて解消済
 
-- **migration 0020 未適用**: 音声アーカイブ機能 (`/api/v2/sound_archive_*`, `audio_batch_*`) は
-  cutover 直後は 500 で応答する可能性。対処: cutover 後 T+30m で本番 DB に対して
-  `cd /var/www/ikimon.life-staging/repo/platform_v2 && npm run migrate`
-- **`specialist_authorities` テーブル不在**: specialist lane (`/specialist/id-workbench` 等) で
-  authority-backed review が作動しない。internal route のみ影響、public face には無影響
-- ~~**`CLOUDFLARE_STREAM_*` env 未設定**~~ → ✅ **2026-04-23 16:55 JST 再確認で既に本番 v2 pm2 env に設定済**。CUTOVER_RUNBOOK の古い記述は修正済
+| 項目 | 状態 |
+|---|---|
+| migration 0020 (audio) | ✅ **2026-04-23 17:10 JST 本番 DB に適用済** (sudo -u postgres psql 経由、schema_migrations 登録済) |
+| `specialist_authorities` テーブル | ✅ **同日 migration 0018 で作成済**、行数 0 (authorityFill 計算上 total==0 → 100% 扱いで PASS) |
+| `CLOUDFLARE_STREAM_*` env | ✅ **本番 v2 pm2 env に既設定** (2026-04-23 16:55 確認) |
+| 本番 v2 dist 反映 | ⏳ production v2 の `dist/server.js` は古いコードで稼働中。`gates.audioArchiveReady` キーが旧フォーマットで出ない。cutover 後 T+30m に `npm run build` + `pm2 restart --update-env` で反映（機能自体は動くが gate 表示が整合しない） |
+
+追加で本番 DB に適用した migration 5件 (2026-04-23 17:10 JST):
+- `0017_taxa_gbif_cache.sql`
+- `0018_ai_runs_and_visit_display_state.sql`
+- `0018_specialist_authorities.sql`
+- `0019_authority_recommendations.sql`
+- `0020_audio_privacy_and_bundles.sql`
 
 ### D.2 endpoint parity（`replacementReadinessReport.ts:17-35` 由来）
 
