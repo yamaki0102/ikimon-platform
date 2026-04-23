@@ -906,7 +906,7 @@ export async function reassessObservation(
         : "habitat_wide";
       await client.query(
         `UPDATE evidence_assets
-           SET role_tag = $1, role_tag_source = 'ai', updated_at = now()
+           SET role_tag = $1, role_tag_source = 'ai'
          WHERE asset_id = $2::uuid
            AND (role_tag IS NULL OR role_tag_source = 'ai')`,
         [roleTag, photo.assetId],

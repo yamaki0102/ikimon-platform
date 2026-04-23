@@ -29,8 +29,7 @@ UPDATE evidence_assets ea
          WHEN ra.max_area >  0    THEN 'close_up_organ'
          ELSE                          'habitat_wide'
        END,
-       role_tag_source = 'ai',
-       updated_at = now()
+       role_tag_source = 'ai'
   FROM region_areas ra
  WHERE ea.asset_id = ra.asset_id
    AND ea.asset_role = 'observation_photo'
@@ -39,8 +38,7 @@ UPDATE evidence_assets ea
 -- (2) region が 1 つも無い asset → habitat_wide
 UPDATE evidence_assets ea
    SET role_tag = 'habitat_wide',
-       role_tag_source = 'ai',
-       updated_at = now()
+       role_tag_source = 'ai'
  WHERE ea.asset_role = 'observation_photo'
    AND (ea.role_tag IS NULL OR ea.role_tag_source = 'ai')
    AND NOT EXISTS (
