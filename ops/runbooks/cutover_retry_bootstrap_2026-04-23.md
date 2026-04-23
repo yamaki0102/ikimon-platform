@@ -60,9 +60,9 @@ for p in d:
         print(p['env']['V2_PRIVILEGED_WRITE_API_KEY'])
         break
 ")
-export LEGACY_DATA_ROOT=/var/www/ikimon.life/data
-export LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/public_html
-export LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/public_html/uploads
+export LEGACY_DATA_ROOT=/var/www/ikimon.life/repo/upload_package/data
+export LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/repo/upload_package/public_html
+export LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/repo/upload_package/public_html/uploads
 
 # 確認
 echo "DATABASE_URL host: $(echo $DATABASE_URL | sed -E 's|://[^@]+@||; s|/.*||')"
@@ -77,18 +77,33 @@ echo "DATABASE_URL db:   $(echo $DATABASE_URL | sed -E 's|.*/||')"
 
 ## 2. bootstrap import 順次実行（所要 10-30 分）
 
+⚠ **2026-04-23 23:00 追記**: `import:legacy` 以外の 6 scripts は `LEGACY_DATA_ROOT`
+環境変数を読まず、ハードコードで `../upload_package/data`（staging repo 側）を参照する
+バグあり。**`--legacy-data-root=...` CLI arg を必ず全コマンドに渡す**こと。
+
 ```bash
 cd /var/www/ikimon.life-staging/repo/platform_v2
+CORRECT_ROOT=/var/www/ikimon.life/repo/upload_package/data
 
-# 順序重要: legacy -> observations -> evidence -> identifications -> conditions -> tokens -> tracks
-npm run import:legacy                          # users / sites 等の基礎データ
-npm run import:observations                    # observation meaning (core records)
-npm run import:observations:evidence           # photo assets のリンク
-npm run import:observations:identifications    # 同定情報
-npm run import:observations:conditions         # 環境条件
-npm run import:remember-tokens                 # session tokens
-npm run import:tracks                          # trip / track points （今回特に重要）
+# 順序重要: legacy -> plan -> observations -> evidence -> identifications -> conditions -> tokens -> tracks
+npm run import:legacy                                          -- --legacy-data-root=$CORRECT_ROOT
+npm run import:plan:observations                               -- --legacy-data-root=$CORRECT_ROOT  # plan を先に必要
+npm run import:observations                                    -- --legacy-data-root=$CORRECT_ROOT
+npm run import:observations:evidence                           -- --legacy-data-root=$CORRECT_ROOT
+npm run import:observations:identifications                    -- --legacy-data-root=$CORRECT_ROOT
+npm run import:observations:conditions                         -- --legacy-data-root=$CORRECT_ROOT
+npm run import:remember-tokens                                 -- --legacy-data-root=$CORRECT_ROOT
+npm run import:tracks                                          -- --legacy-data-root=$CORRECT_ROOT
 ```
+
+**想定される counts (2026-04-23 実測値)**:
+- users: 77（orphan 補完込）
+- observations: **6530**
+- visits: 6573
+- trackPoints: **5725**
+
+これ未満で import が終わるなら path A (`/var/www/ikimon.life/data`) の古いスナップショットを
+使っている可能性。path B (`/var/www/ikimon.life/repo/upload_package/data`) を CLI arg で明示。
 
 **各ステップの成功判定**: 終了コード 0 + stdout に `rows_imported: N (N > 0)` が現れる。
 0 なら何かがおかしい（legacy データのパス・権限・schema）、止めて調査。

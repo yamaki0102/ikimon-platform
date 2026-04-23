@@ -147,6 +147,53 @@ shell env が本番 pm2 process に流れ込む問題を発見。`/etc/ikimon/st
 
 handoff 表と runbook にこの罠を明記して予防する。
 
+## 2026-04-23 23:00 追補 — Path 誤認 + import script env 無視
+
+INC の corrective action として v2 DB TRUNCATE + bootstrap を試みたが、**初回は誤った
+legacy data path**（`/var/www/ikimon.life/data`、古いスナップショット）を使用していた。
+これにより:
+- 初回 bootstrap: users 103, obs **237**, trackPoints 682 (古いデータ)
+- 正しい path B (`/var/www/ikimon.life/repo/upload_package/data`) で再 bootstrap:
+  users 77, obs **6530**, trackPoints **5725**（27 倍差）
+
+path 誤認の原因:
+1. **真の本番 data path** は `/var/www/ikimon.life/repo/upload_package/data`（nginx root
+   と同じ `upload_package/` 配下）。`/var/www/ikimon.life/data/` は古いバックアップ用
+2. CLAUDE.md の `DATA_DIR = ROOT_DIR/data` の `ROOT_DIR` は `upload_package/` を意味する
+
+**import script 7本中 6 本が `LEGACY_DATA_ROOT` env を読まないバグ**:
+- `planObservationLedger.ts`, `importObservationMeaning.ts`, `importObservationEvidence.ts`,
+  `importObservationIdentification.ts`, `importObservationPlaceCondition.ts`,
+  `importRememberTokens.ts`, `importTrackSessions.ts` が `path.resolve(projectRoot, "../upload_package/data")`
+  ハードコード
+- `--legacy-data-root=` CLI arg は各 script 対応しているため、これを必ず渡す運用で当面対応
+- long-term fix: 7 scripts 全部に `process.env.LEGACY_DATA_ROOT || <default>` を追加する PR
+
+**ユーザーから追加判明した差**:
+初回 bootstrap 時の staging `/` には Nats さんの 2026-03-19 掛川観察しか表示されておらず、
+本番 `/index.php` で見える 2026-04-23 13:24 浜松 / 2026-04-19 京都 の観察が出なかった。
+path B で再 bootstrap した後、`user_69be85c688371`（Nats さんの second user_id）の観察
+5 件以上が staging DB に正しく取り込まれ、Nats の 4月観察が表示された。
+
+**Nats さんの dual user_id**:
+- `user_69a01379b962e`（users.json 正規登録、3月19日掛川まで）
+- `user_69be85c688371`（users.json 未登録、4月観察の user_id）
+
+これは legacy 認証で user_id が新規発行された状態と推定。bootstrap は
+`orphanUsersFromObservations` で後者を補完しているが、display_name が空のため
+フィードでは user_id がそのまま出る。後日 merge が必要。
+
+## Follow-up Issues (ユーザーから指摘、別途対応)
+
+cutover rollback 後の staging 確認で、YAMAKI から以下 4 件の UX/バグ指摘あり。本 INC
+とは独立の課題として別 issue で対応:
+
+1. **観察カードの情報量が少ない** — v2 の obs-card が legacy feed-card より簡素
+2. **AI 未同定 observations の再実行プログラム** — 未同定状態を自動的に detector に流す仕組み
+3. **観察詳細ページ: 画像クリック無反応 + 複数枚切替不能 + 動画対応の実効性確認** —
+   `/observations/:id` の UI バグ
+4. **観察詳細ページが本番より見にくい** — UI 全般の polish
+
 ## Verification
 
 - nginx: `/etc/nginx/sites-available/ikimon.life` は pre-cutover と一致
