@@ -1,5 +1,26 @@
 import { getPool } from "../db.js";
 
+export type AreaInferenceCandidate = {
+  label: string;
+  why: string;
+  confidence: number | null;
+};
+
+export type AreaInference = {
+  vegetationStructureCandidates: AreaInferenceCandidate[];
+  successionStageCandidates: AreaInferenceCandidate[];
+  humanInfluenceCandidates: AreaInferenceCandidate[];
+  moistureRegimeCandidates: AreaInferenceCandidate[];
+  managementHintCandidates: AreaInferenceCandidate[];
+};
+
+export type ShotSuggestion = {
+  role: "full_body" | "close_up_organ" | "habitat_wide" | "substrate" | "scale_reference" | string;
+  target: string;
+  rationale: string;
+  priority: "high" | "medium";
+};
+
 export type AiAssessment = {
   assessmentId: string;
   confidenceBand: "high" | "medium" | "low" | "unknown";
@@ -21,6 +42,8 @@ export type AiAssessment = {
   confirmMore: string[];
   geographicContext: string;
   seasonalContext: string;
+  areaInference: AreaInference;
+  shotSuggestions: ShotSuggestion[];
   generatedAt: string;
 };
 
@@ -51,6 +74,8 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     confirm_more: unknown;
     geographic_context: string;
     seasonal_context: string;
+    area_inference: unknown;
+    shot_suggestions: unknown;
     generated_at: string;
   }>(
     `SELECT assessment_id::text, confidence_band, model_used, recommended_rank,
@@ -60,6 +85,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
             diagnostic_features_seen, missing_evidence, similar_taxa,
             distinguishing_tips, confirm_more,
             geographic_context, seasonal_context,
+            area_inference, shot_suggestions,
             generated_at::text
        FROM observation_ai_assessments
       WHERE occurrence_id = $1
@@ -87,6 +113,9 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     ? r.confidence_band
     : "unknown";
 
+  const areaInference = normalizeAreaInferenceFromDb(r.area_inference);
+  const shotSuggestions = normalizeShotSuggestionsFromDb(r.shot_suggestions);
+
   return {
     assessmentId: r.assessment_id,
     confidenceBand: band,
@@ -108,8 +137,64 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     confirmMore: arr(r.confirm_more),
     geographicContext: r.geographic_context,
     seasonalContext: r.seasonal_context,
+    areaInference,
+    shotSuggestions,
     generatedAt: r.generated_at,
   };
+}
+
+const AREA_INFERENCE_DB_KEYS: Array<[keyof AreaInference, string]> = [
+  ["vegetationStructureCandidates", "vegetation_structure_candidates"],
+  ["successionStageCandidates", "succession_stage_candidates"],
+  ["humanInfluenceCandidates", "human_influence_candidates"],
+  ["moistureRegimeCandidates", "moisture_regime_candidates"],
+  ["managementHintCandidates", "management_hint_candidates"],
+];
+
+function normalizeAreaInferenceFromDb(raw: unknown): AreaInference {
+  const empty: AreaInference = {
+    vegetationStructureCandidates: [],
+    successionStageCandidates: [],
+    humanInfluenceCandidates: [],
+    moistureRegimeCandidates: [],
+    managementHintCandidates: [],
+  };
+  if (!raw || typeof raw !== "object") return empty;
+  const obj = raw as Record<string, unknown>;
+  for (const [camelKey, snakeKey] of AREA_INFERENCE_DB_KEYS) {
+    const arr = obj[snakeKey];
+    if (!Array.isArray(arr)) continue;
+    empty[camelKey] = arr
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const e = entry as { label?: unknown; why?: unknown; confidence?: unknown };
+        const label = typeof e.label === "string" ? e.label.trim() : "";
+        if (!label) return null;
+        const why = typeof e.why === "string" ? e.why.trim() : "";
+        const confidence = typeof e.confidence === "number" && Number.isFinite(e.confidence)
+          ? Math.min(1, Math.max(0, e.confidence))
+          : null;
+        return { label, why, confidence } satisfies AreaInferenceCandidate;
+      })
+      .filter((value): value is AreaInferenceCandidate => value !== null);
+  }
+  return empty;
+}
+
+function normalizeShotSuggestionsFromDb(raw: unknown): ShotSuggestion[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const e = entry as { role?: unknown; target?: unknown; rationale?: unknown; priority?: unknown };
+      const role = typeof e.role === "string" ? e.role.trim() : "";
+      const target = typeof e.target === "string" ? e.target.trim() : "";
+      if (!role || !target) return null;
+      const rationale = typeof e.rationale === "string" ? e.rationale.trim() : "";
+      const priority: ShotSuggestion["priority"] = e.priority === "high" ? "high" : "medium";
+      return { role, target, rationale, priority } satisfies ShotSuggestion;
+    })
+    .filter((value): value is ShotSuggestion => value !== null);
 }
 
 /** UI ラベル（「いっしょに絞るためのメモ」等）用のヘルパ。 */

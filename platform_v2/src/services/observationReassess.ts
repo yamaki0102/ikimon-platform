@@ -56,6 +56,27 @@ type GeminiRegion = {
   note?: string;
 };
 
+type GeminiAreaCandidate = {
+  label?: string;
+  why?: string;
+  confidence?: number;
+};
+
+type GeminiAreaInference = {
+  vegetation_structure_candidates?: GeminiAreaCandidate[];
+  succession_stage_candidates?: GeminiAreaCandidate[];
+  human_influence_candidates?: GeminiAreaCandidate[];
+  moisture_regime_candidates?: GeminiAreaCandidate[];
+  management_hint_candidates?: GeminiAreaCandidate[];
+};
+
+type GeminiShotSuggestion = {
+  role?: string;
+  target?: string;
+  rationale?: string;
+  priority?: string;
+};
+
 type GeminiJson = {
   confidence_band?: string;
   recommended_rank?: string;
@@ -76,6 +97,8 @@ type GeminiJson = {
   confirm_more?: string[];
   geographic_context?: string;
   seasonal_context?: string;
+  area_inference?: GeminiAreaInference;
+  shot_suggestions?: GeminiShotSuggestion[];
   recommended_media_regions?: GeminiRegion[];
   coexisting_taxa?: Array<{
     name?: string;
@@ -86,6 +109,101 @@ type GeminiJson = {
     media_regions?: GeminiRegion[];
   }>;
 };
+
+const AREA_INFERENCE_KEYS = [
+  "vegetation_structure_candidates",
+  "succession_stage_candidates",
+  "human_influence_candidates",
+  "moisture_regime_candidates",
+  "management_hint_candidates",
+] as const;
+
+type AreaInferenceKey = typeof AREA_INFERENCE_KEYS[number];
+
+type NormalizedAreaCandidate = {
+  label: string;
+  why: string;
+  confidence: number | null;
+};
+
+type NormalizedAreaInference = Record<AreaInferenceKey, NormalizedAreaCandidate[]>;
+
+const SHOT_SUGGESTION_ROLES = new Set([
+  "full_body",
+  "close_up_organ",
+  "habitat_wide",
+  "substrate",
+  "scale_reference",
+]);
+
+const SHOT_SUGGESTION_PRIORITIES = new Set(["high", "medium"]);
+
+type NormalizedShotSuggestion = {
+  role: string;
+  target: string;
+  rationale: string;
+  priority: "high" | "medium";
+};
+
+function normalizeAreaCandidate(raw: unknown): NormalizedAreaCandidate | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as GeminiAreaCandidate;
+  const label = typeof obj.label === "string" ? obj.label.trim() : "";
+  if (!label) return null;
+  const why = typeof obj.why === "string" ? obj.why.trim() : "";
+  const confidenceRaw = typeof obj.confidence === "number" && Number.isFinite(obj.confidence)
+    ? Math.min(1, Math.max(0, obj.confidence))
+    : null;
+  return { label: label.slice(0, 60), why: why.slice(0, 120), confidence: confidenceRaw };
+}
+
+function normalizeAreaInference(raw: GeminiAreaInference | undefined): NormalizedAreaInference {
+  const out: NormalizedAreaInference = {
+    vegetation_structure_candidates: [],
+    succession_stage_candidates: [],
+    human_influence_candidates: [],
+    moisture_regime_candidates: [],
+    management_hint_candidates: [],
+  };
+  if (!raw || typeof raw !== "object") return out;
+  for (const key of AREA_INFERENCE_KEYS) {
+    const arr = (raw as Record<string, unknown>)[key];
+    if (!Array.isArray(arr)) continue;
+    out[key] = arr
+      .map(normalizeAreaCandidate)
+      .filter((value): value is NormalizedAreaCandidate => value !== null)
+      .slice(0, 4);
+  }
+  return out;
+}
+
+function normalizeShotSuggestions(raw: GeminiShotSuggestion[] | undefined): NormalizedShotSuggestion[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: NormalizedShotSuggestion[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const role = typeof entry.role === "string" ? entry.role.trim() : "";
+    const target = typeof entry.target === "string" ? entry.target.trim() : "";
+    const rationale = typeof entry.rationale === "string" ? entry.rationale.trim() : "";
+    const priorityRaw = typeof entry.priority === "string" ? entry.priority.trim().toLowerCase() : "";
+    if (!SHOT_SUGGESTION_ROLES.has(role) || !target) continue;
+    const priority: "high" | "medium" = SHOT_SUGGESTION_PRIORITIES.has(priorityRaw)
+      ? (priorityRaw as "high" | "medium")
+      : "medium";
+    const dedupeKey = `${role}|${target.toLowerCase()}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    out.push({
+      role,
+      target: target.slice(0, 60),
+      rationale: rationale.slice(0, 120),
+      priority,
+    });
+    if (out.length >= 5) break;
+  }
+  return out;
+}
 
 type LoadedPhotoInput = ReassessImageInput & {
   assetId: string | null;
@@ -436,6 +554,8 @@ export async function reassessObservation(
       : [];
     const distinguishing = Array.isArray(parsed.distinguishing_tips) ? parsed.distinguishing_tips.filter((value) => typeof value === "string") : [];
     const confirmMore = Array.isArray(parsed.confirm_more) ? parsed.confirm_more.filter((value) => typeof value === "string") : [];
+    const areaInference = normalizeAreaInference(parsed.area_inference);
+    const shotSuggestions = normalizeShotSuggestions(parsed.shot_suggestions);
     const coexisting = Array.isArray(parsed.coexisting_taxa)
       ? parsed.coexisting_taxa.filter((value) => {
           if (!value) return false;
@@ -533,6 +653,8 @@ export async function reassessObservation(
          confirm_more,
          geographic_context,
          seasonal_context,
+         area_inference,
+         shot_suggestions,
          raw_json
        ) VALUES (
          $1::uuid,
@@ -562,7 +684,9 @@ export async function reassessObservation(
          $24::jsonb,
          $25,
          $26,
-         $27::jsonb
+         $27::jsonb,
+         $28::jsonb,
+         $29::jsonb
        )`,
       [
         assessmentId,
@@ -591,6 +715,8 @@ export async function reassessObservation(
         JSON.stringify(confirmMore),
         String(parsed.geographic_context ?? "").trim(),
         String(parsed.seasonal_context ?? "").trim(),
+        JSON.stringify(areaInference),
+        JSON.stringify(shotSuggestions),
         JSON.stringify({ raw: rawText.slice(0, 12000), parsed }),
       ],
     );

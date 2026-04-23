@@ -36,6 +36,19 @@
 - `confirm_more` — ユーザーが追加観察すれば確信度が上がる手がかり（例「次に会ったら触角を撮って」「葉裏を確認」）。
 - `geographic_context` — 緯度経度・季節から見た観察の妥当性や地理的特徴（例「浜松の海岸近くは該当種の分布北限」）。
 - `seasonal_context` — 季節・時期情報（例「4月中旬は蜂群れ始め」）。
+- `area_inference` — **この 1 枚から非断定で推察できる**エリア属性。siteBrief の決定論的ラベルと相補。**断定禁止**。次のキーを持つオブジェクト。各値は候補配列 `[{label, why, confidence}]` (confidence は 0.0-1.0、why は 40字以内の根拠、label は 20字以内):
+  - `vegetation_structure_candidates` — 植生構造の候補（例「二次林（低木層が発達）」「河原の砂礫地」）
+  - `succession_stage_candidates` — 遷移段階（例「遷移中期」「成熟林」）
+  - `human_influence_candidates` — 人為影響の兆候（例「管理草地」「放棄農地」「歩道近接」）
+  - `moisture_regime_candidates` — 水分環境（例「中生」「湿性」「乾性」）
+  - `management_hint_candidates` — 管理履歴の示唆（例「定期刈払」「植栽」「踏圧」）
+  読み取れない項目は空配列。全 5 キーを常に返せ（値が空配列でも可）。
+- `shot_suggestions` — この観察の研究的意義（Evidence Tier）を引き上げるための**追加撮影セット**。`missing_evidence`（形質記述）や `confirm_more`（次回観察のアクション）とは役割が違い、**「今この現場であと何枚撮ると組写真が完成するか」**の構造化ガイド。配列要素は次の形:
+  - `role` — `full_body` | `close_up_organ` | `habitat_wide` | `substrate` | `scale_reference` のいずれか（1 要素 1 role）
+  - `target` — 撮影対象の具体名（20字以内、例「後翅裏面」「全景（3m引き）」「葉裏の毛状突起」「周辺の土壌表面」）
+  - `rationale` — なぜそれが必要か（40字以内、例「似種識別に必須」「生息環境の文脈記録」）
+  - `priority` — `high`（種確定に必須）| `medium`（研究価値を高める）
+  既に写っているものは提案しなくて良い。最大 5 要素、必要なければ空配列。
 - `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。**
   - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足", "media_regions": [...] }`
 - `recommended_media_regions` — 主対象が画像のどこにあるかの概形。**分からなければ空配列でよい。** 各要素:
@@ -84,6 +97,17 @@
   "confirm_more": ["...", "..."],
   "geographic_context": "...",
   "seasonal_context": "...",
+  "area_inference": {
+    "vegetation_structure_candidates": [{"label":"二次林（低木層発達）","why":"亜高木層と下層木が混在","confidence":0.62}],
+    "succession_stage_candidates": [],
+    "human_influence_candidates": [{"label":"管理草地","why":"刈払痕が規則的","confidence":0.5}],
+    "moisture_regime_candidates": [],
+    "management_hint_candidates": []
+  },
+  "shot_suggestions": [
+    {"role":"close_up_organ","target":"後翅裏面","rationale":"似種識別に必須","priority":"high"},
+    {"role":"habitat_wide","target":"周辺3m全景","rationale":"生息環境の文脈記録","priority":"medium"}
+  ],
   "recommended_media_regions": [
     {"asset_index":0,"rect":{"x":0.12,"y":0.18,"width":0.42,"height":0.51},"frame_time_ms":0,"confidence":0.83,"note":"主対象"}
   ],

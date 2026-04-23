@@ -181,6 +181,8 @@ async function getAssessmentMap(
     confirm_more: unknown;
     geographic_context: string;
     seasonal_context: string;
+    area_inference: unknown;
+    shot_suggestions: unknown;
     generated_at: string;
     ai_run_id: string | null;
     pipeline_version: string | null;
@@ -208,6 +210,8 @@ async function getAssessmentMap(
             confirm_more,
             geographic_context,
             seasonal_context,
+            area_inference,
+            shot_suggestions,
             generated_at::text,
             ai_run_id::text,
             pipeline_version,
@@ -241,6 +245,59 @@ async function getAssessmentMap(
           }, [])
       : [];
 
+  const readAreaInference = (value: unknown): AiAssessment["areaInference"] => {
+    const empty: AiAssessment["areaInference"] = {
+      vegetationStructureCandidates: [],
+      successionStageCandidates: [],
+      humanInfluenceCandidates: [],
+      moistureRegimeCandidates: [],
+      managementHintCandidates: [],
+    };
+    if (!value || typeof value !== "object") return empty;
+    const obj = value as Record<string, unknown>;
+    const keys: Array<[keyof AiAssessment["areaInference"], string]> = [
+      ["vegetationStructureCandidates", "vegetation_structure_candidates"],
+      ["successionStageCandidates", "succession_stage_candidates"],
+      ["humanInfluenceCandidates", "human_influence_candidates"],
+      ["moistureRegimeCandidates", "moisture_regime_candidates"],
+      ["managementHintCandidates", "management_hint_candidates"],
+    ];
+    for (const [camel, snake] of keys) {
+      const arr = obj[snake];
+      if (!Array.isArray(arr)) continue;
+      empty[camel] = arr
+        .map((entry) => {
+          if (!entry || typeof entry !== "object") return null;
+          const e = entry as { label?: unknown; why?: unknown; confidence?: unknown };
+          const label = typeof e.label === "string" ? e.label.trim() : "";
+          if (!label) return null;
+          const why = typeof e.why === "string" ? e.why.trim() : "";
+          const confidence = typeof e.confidence === "number" && Number.isFinite(e.confidence)
+            ? Math.min(1, Math.max(0, e.confidence))
+            : null;
+          return { label, why, confidence };
+        })
+        .filter((value): value is { label: string; why: string; confidence: number | null } => value !== null);
+    }
+    return empty;
+  };
+
+  const readShotSuggestions = (value: unknown): AiAssessment["shotSuggestions"] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const e = entry as { role?: unknown; target?: unknown; rationale?: unknown; priority?: unknown };
+        const role = typeof e.role === "string" ? e.role.trim() : "";
+        const target = typeof e.target === "string" ? e.target.trim() : "";
+        if (!role || !target) return null;
+        const rationale = typeof e.rationale === "string" ? e.rationale.trim() : "";
+        const priority: AiAssessment["shotSuggestions"][number]["priority"] = e.priority === "high" ? "high" : "medium";
+        return { role, target, rationale, priority };
+      })
+      .filter((entry): entry is AiAssessment["shotSuggestions"][number] => entry !== null);
+  };
+
   const assessmentMap = new Map<string, ObservationVisitAssessment>();
   for (const row of result.rows) {
     if (assessmentMap.has(row.occurrence_id)) continue;
@@ -265,6 +322,8 @@ async function getAssessmentMap(
       confirmMore: readStringArray(row.confirm_more),
       geographicContext: row.geographic_context,
       seasonalContext: row.seasonal_context,
+      areaInference: readAreaInference(row.area_inference),
+      shotSuggestions: readShotSuggestions(row.shot_suggestions),
       generatedAt: row.generated_at,
       aiRunId: row.ai_run_id,
       pipelineVersion: row.pipeline_version,
