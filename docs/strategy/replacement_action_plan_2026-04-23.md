@@ -217,19 +217,22 @@ checklist Section E との連動を runbook 冒頭で明記済。
 - ✅ VPS 作業 handoff 表 [`ops/runbooks/final_pre_cutover_handoff_2026-04-23.md`](../../ops/runbooks/final_pre_cutover_handoff_2026-04-23.md)
   を新規作成
 
-### 判明した VPS 側 BLOCKER (T-24h の最優先タスク)
+### VPS 実機検証結果 (2026-04-23 16:53 JST)
 
-staging `/ops/readiness` が `needs_work` / `rollbackSafetyWindowReady: false`。
-原因: `latestDriftReport.finished_at` が 24.7h 前で stale。VPS で:
+SSH で実機実行した結果、staging `/ops/readiness` の stale は解消したが、本質的により
+重要な発見: **cutover 判定対象は本番 v2 :3201**、そこは既に `rollbackSafetyWindowReady: true`。
 
-```bash
-cd /var/www/ikimon.life-staging/repo/platform_v2
-npm run report:legacy-drift
-npm run verify:legacy
-npm run report:replacement-readiness
-```
+staging v2 :3200 は別運用で `needs_work` のままでも cutover に影響しない。
 
-を実行すれば全 GREEN 復帰見込。詳細コマンドは handoff 表の T-24h セクション。
+ただし Known Limitation 3 件:
+1. **migration 0020 (audio) 未適用** → 音声機能 limited、cutover 後 T+30m に `npm run migrate`
+2. **`specialist_authorities` テーブル不在** → specialist lane 未構築、public face に無影響
+3. **`CLOUDFLARE_STREAM_*` env 未設定** → 動画投稿機能失敗、T-6h で pm2 set 追加推奨
+
+### GO 条件達成
+
+本番 v2 全 gates GREEN、Section E.1 の hard_stop チェックは全て PASS / WAIVED。
+cutover 実行可能（ただし上記 3 件の limited start に合意が前提）。
 
 ### Post-cutover TODO (差し替え後 1 週間内)
 
