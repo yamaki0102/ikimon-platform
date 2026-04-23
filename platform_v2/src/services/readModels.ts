@@ -31,12 +31,22 @@ type RecentObservation = {
   identificationCount: number;
 };
 
-type HomePlace = {
+export type HomePlace = {
   placeId: string;
   placeName: string;
   municipality: string | null;
   lastObservedAt: string;
+  previousObservedAt: string | null;
+  firstObservedAt: string | null;
   visitCount: number;
+  latestDisplayName: string | null;
+  revisitReason: string | null;
+  nextLookFor: string | null;
+  lastRecordMode: string | null;
+  lastSurveyResult: string | null;
+  absenceSemantics: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type HomeSnapshot = {
@@ -313,7 +323,7 @@ async function loadVisitSummaryObservations(
     `SELECT occurrence_id,
             visit_id,
             subject_index,
-            coalesce(vernacular_name, scientific_name, 'Unresolved') AS display_name,
+            coalesce(vernacular_name, scientific_name, '同定待ち') AS display_name,
             scientific_name,
             vernacular_name,
             taxon_rank,
@@ -409,7 +419,7 @@ async function loadVisitSummaryObservations(
     list.push({
       occurrenceId: row.occurrence_id,
       subjectIndex: row.subject_index,
-      displayName: row.display_name ?? "Unresolved",
+      displayName: row.display_name ?? "同定待ち",
       scientificName: row.scientific_name,
       rank: row.taxon_rank,
       roleHint: String(v2SubjectPayload?.role_hint ?? (row.subject_index === 0 ? "primary" : "coexisting")),
@@ -459,7 +469,7 @@ async function loadVisitSummaryObservations(
       isMultiSubject: subjects.length > 1,
       featuredConfidenceBand: featuredSubject?.latestAssessmentBand ?? null,
       displayStability: displayState.displayStability,
-      displayName: featuredSubject?.displayName ?? "Unresolved",
+      displayName: featuredSubject?.displayName ?? "同定待ち",
       observedAt: visitRow.observed_at,
       observerName: visitRow.observer_name ?? "Unknown observer",
       placeName: visitRow.place_name ?? "Unknown place",
@@ -487,30 +497,110 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
       place_name: string | null;
       municipality: string | null;
       last_observed_at: string;
+      previous_observed_at: string | null;
+      first_observed_at: string | null;
       visit_count: string;
+      latest_display_name: string | null;
+      last_record_mode: string | null;
+      last_survey_result: string | null;
+      absence_semantics: string | null;
+      target_taxa_scope: string | null;
+      source_payload: Record<string, unknown> | null;
+      latitude: number | null;
+      longitude: number | null;
     }>(
-      `select
+      `with place_stats as (
+          select
+            v.place_id,
+            count(*)::text as visit_count,
+            min(v.observed_at)::text as first_observed_at,
+            max(v.observed_at)::text as last_observed_at
+          from visits v
+          where v.user_id = $1
+          group by v.place_id
+       )
+       select
           p.place_id,
           p.canonical_name as place_name,
           p.municipality,
-          max(v.observed_at)::text as last_observed_at,
-          count(*)::text as visit_count
-       from visits v
-       join places p on p.place_id = v.place_id
-       where v.user_id = $1
-       group by p.place_id, p.canonical_name, p.municipality
-       order by max(v.observed_at) desc
+          stats.last_observed_at,
+          previous_visit.previous_observed_at,
+          stats.first_observed_at,
+          stats.visit_count,
+          latest_subject.display_name as latest_display_name,
+          latest_visit.visit_mode as last_record_mode,
+          latest_visit.source_payload,
+          latest_visit.source_payload->>'survey_result' as last_survey_result,
+          latest_visit.source_payload->>'absence_semantics' as absence_semantics,
+          latest_visit.target_taxa_scope,
+          latest_visit.point_latitude::float8 as latitude,
+          latest_visit.point_longitude::float8 as longitude
+       from place_stats stats
+       join places p on p.place_id = stats.place_id
+       join lateral (
+         select
+           v.visit_id,
+           v.observed_at,
+           v.visit_mode,
+           v.target_taxa_scope,
+           v.source_payload,
+           v.point_latitude,
+           v.point_longitude
+         from visits v
+         where v.user_id = $1
+           and v.place_id = stats.place_id
+         order by v.observed_at desc, v.visit_id desc
+         limit 1
+       ) latest_visit on true
+       left join lateral (
+         select v.observed_at::text as previous_observed_at
+         from visits v
+         where v.user_id = $1
+           and v.place_id = stats.place_id
+         order by v.observed_at desc, v.visit_id desc
+         offset 1
+         limit 1
+       ) previous_visit on true
+       left join lateral (
+         select coalesce(o.vernacular_name, o.scientific_name) as display_name
+         from occurrences o
+         where o.visit_id = latest_visit.visit_id
+         order by o.subject_index asc
+         limit 1
+       ) latest_subject on true
+       order by latest_visit.observed_at desc
        limit 6`,
       [userId],
     );
 
-    myPlaces = placesResult.rows.map((row) => ({
-      placeId: row.place_id,
-      placeName: row.place_name ?? "Unknown place",
-      municipality: row.municipality,
-      lastObservedAt: row.last_observed_at,
-      visitCount: Number(row.visit_count),
-    }));
+    myPlaces = placesResult.rows.map((row) => {
+      const visitPayload = (row.source_payload && typeof row.source_payload === "object")
+        ? row.source_payload
+        : {};
+      const revisitReason = typeof visitPayload.revisit_reason === "string"
+        ? visitPayload.revisit_reason.trim()
+        : "";
+      const nextLookFor = typeof visitPayload.next_look_for === "string"
+        ? visitPayload.next_look_for.trim()
+        : "";
+      return {
+        placeId: row.place_id,
+        placeName: row.place_name ?? "Unknown place",
+        municipality: row.municipality,
+        lastObservedAt: row.last_observed_at,
+        previousObservedAt: row.previous_observed_at,
+        firstObservedAt: row.first_observed_at,
+        visitCount: Number(row.visit_count),
+        latestDisplayName: row.latest_display_name,
+        revisitReason: revisitReason || null,
+        nextLookFor: nextLookFor || row.target_taxa_scope || row.latest_display_name || null,
+        lastRecordMode: row.last_record_mode,
+        lastSurveyResult: row.last_survey_result,
+        absenceSemantics: row.absence_semantics,
+        latitude: row.latitude != null ? Number(row.latitude) : null,
+        longitude: row.longitude != null ? Number(row.longitude) : null,
+      };
+    });
   }
 
   return {
@@ -544,7 +634,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
     observation_count: string;
   }>(
     `select
-        coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+        coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as display_name,
         count(*)::text as observation_count
      from occurrences o
      group by 1
@@ -559,7 +649,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
       observationCount: Number(row.observation_count),
     })),
     topTaxa: taxaResult.rows.map((row) => ({
-      displayName: row.display_name ?? "Unresolved",
+      displayName: row.display_name ?? "同定待ち",
       observationCount: Number(row.observation_count),
     })),
   };
@@ -596,7 +686,12 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         v.place_id,
         v.user_id as observer_user_id,
         avatar.public_url as observer_avatar_url,
-        coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+        coalesce(
+          nullif(o.vernacular_name, ''),
+          nullif(o.scientific_name, ''),
+          nullif(ai.recommended_taxon_name, ''),
+          '同定待ち'
+        ) as display_name,
         o.scientific_name,
         v.observed_at::text,
         v.note,
@@ -616,6 +711,13 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
      join visits v on v.visit_id = o.visit_id
      left join users u on u.user_id = v.user_id
      left join places p on p.place_id = v.place_id
+     left join lateral (
+       select recommended_taxon_name
+         from observation_ai_assessments a
+        where a.occurrence_id = o.occurrence_id
+        order by generated_at desc
+        limit 1
+     ) ai on true
      left join lateral (
        select coalesce(ab.public_url, ab.storage_path) as public_url
        from asset_blobs ab
@@ -716,7 +818,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     placeId: base.place_id,
     observerUserId: base.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(base.observer_avatar_url),
-    displayName: base.display_name ?? "Unresolved",
+    displayName: base.display_name ?? "同定待ち",
     scientificName: base.scientific_name,
     observedAt: base.observed_at,
     note: base.note,
@@ -879,7 +981,7 @@ export async function getSpecialistSnapshot(
       `select
           o.occurrence_id,
           o.visit_id,
-          coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+          coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as display_name,
           v.observed_at::text,
           ${VISIT_OBSERVER_NAME_SQL} as observer_name,
           coalesce(p.canonical_name, 'Unknown place') as place_name,
@@ -968,7 +1070,7 @@ export async function getSpecialistSnapshot(
     queue: scopedRows.slice(0, 12).map((row) => ({
       occurrenceId: row.occurrence_id,
       visitId: row.visit_id,
-      displayName: row.display_name ?? "Unresolved",
+      displayName: row.display_name ?? "同定待ち",
       observedAt: row.observed_at,
       observerName: row.observer_name ?? "Unknown observer",
       placeName: row.place_name ?? "Unknown place",
@@ -1000,6 +1102,11 @@ export type LandingObservation = RecentObservation & {
   /** entryType="identification" のときの同定時刻。 */
   identifiedAt?: string | null;
   evidenceTier?: number | null;
+  /** AI 最新 assessment の recommended name (非確定。displayName が vernacular/scientific なら別値)。 */
+  aiCandidateName?: string | null;
+  aiCandidateRank?: string | null;
+  /** true のとき displayName 自体が AI 候補 (人手 vernacular/scientific 欠落)。UI で「AI 候補」バッジを出す。 */
+  isAiCandidate?: boolean;
 };
 
 export type LandingMapPreviewCell = {

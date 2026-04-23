@@ -26,6 +26,9 @@ function sampleRows(): PreparedRows {
       sessionMode: "standard",
       visitMode: "manual",
       qualityGrade: "research",
+      aiCandidateName: null,
+      aiCandidateRank: null,
+      isAiCandidate: false,
     },
     {
       occurrenceId: "occ-2",
@@ -44,6 +47,9 @@ function sampleRows(): PreparedRows {
       sessionMode: "standard",
       visitMode: "manual",
       qualityGrade: "casual",
+      aiCandidateName: null,
+      aiCandidateRank: null,
+      isAiCandidate: false,
     },
   ];
 }

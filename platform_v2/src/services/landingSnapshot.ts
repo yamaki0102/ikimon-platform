@@ -31,6 +31,9 @@ type FeedRow = {
   occurrence_id: string;
   visit_id: string;
   display_name: string | null;
+  ai_candidate_name: string | null;
+  ai_candidate_rank: string | null;
+  is_ai_candidate: boolean | null;
   observed_at: string;
   observer_user_id: string | null;
   observer_name: string | null;
@@ -65,7 +68,16 @@ const FEED_SQL_BASE = `
   select
     o.occurrence_id,
     o.visit_id,
-    coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+    coalesce(
+      nullif(o.vernacular_name, ''),
+      nullif(o.scientific_name, ''),
+      nullif(ai.recommended_taxon_name, ''),
+      '同定待ち'
+    ) as display_name,
+    ai.recommended_taxon_name as ai_candidate_name,
+    ai.recommended_rank as ai_candidate_rank,
+    (coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is null
+      and nullif(ai.recommended_taxon_name, '') is not null) as is_ai_candidate,
     v.observed_at::text,
     v.user_id as observer_user_id,
     ${FEED_OBSERVER_NAME_SQL} as observer_name,
@@ -86,6 +98,13 @@ const FEED_SQL_BASE = `
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
   left join places p on p.place_id = v.place_id
+  left join lateral (
+    select recommended_taxon_name, recommended_rank
+    from observation_ai_assessments a
+    where a.occurrence_id = o.occurrence_id
+    order by generated_at desc
+    limit 1
+  ) ai on true
   left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url
     from evidence_assets ea
@@ -139,7 +158,10 @@ function toLandingObservation(row: FeedRow): LandingObservation {
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.display_name ?? "Unresolved",
+    displayName: row.display_name ?? "同定待ち",
+    aiCandidateName: row.ai_candidate_name ?? null,
+    aiCandidateRank: row.ai_candidate_rank ?? null,
+    isAiCandidate: Boolean(row.is_ai_candidate),
     observedAt: row.observed_at,
     observerName: row.observer_name ?? "Unknown observer",
     placeName: row.place_name ?? "Unknown place",
@@ -340,7 +362,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            i.proposed_rank,
            o.occurrence_id,
            o.visit_id,
-           coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as observation_display_name,
+           coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as observation_display_name,
            v.observed_at::text,
            v.user_id as observer_user_id,
            ${FEED_OBSERVER_NAME_SQL} as observer_name,
@@ -497,7 +519,12 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          limit 1
        ) latest on true
        left join lateral (
-         select coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name
+         select coalesce(
+                  nullif(o.vernacular_name, ''),
+                  nullif(o.scientific_name, ''),
+                  nullif((select recommended_taxon_name from observation_ai_assessments a where a.occurrence_id = o.occurrence_id order by generated_at desc limit 1), ''),
+                  '同定待ち'
+                ) as display_name
          from occurrences o
          join visits v2 on v2.visit_id = o.visit_id
          where v2.user_id = u.user_id
@@ -520,7 +547,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       displayName: row.display_name ?? "Observer",
       avatarUrl: normalizeAssetUrl(row.avatar_url),
       latestObservedAt: row.latest_observed_at,
-      latestDisplayName: row.latest_display_name ?? "Unresolved",
+      latestDisplayName: row.latest_display_name ?? "同定待ち",
     }));
   } catch {
     ambient = [];

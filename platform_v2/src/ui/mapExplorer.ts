@@ -1407,10 +1407,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var thumb = record.photoUrl
         ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="92" height="92" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
         : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
+      var displayLabel = record.displayName || '同定待ち';
+      var speciesBadge = record.isAwaitingId
+        ? '<span class="me-result-awaiting">同定待ち</span>'
+        : record.isAiCandidate
+          ? '<span class="me-result-ai">AI候補</span><strong>' + escapeHtml(displayLabel) + '</strong>'
+          : '<strong>' + escapeHtml(displayLabel) + '</strong>';
       return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
         thumb +
         '<span class="me-result-body">' +
-          '<strong>' + escapeHtml(record.displayName || 'Unresolved') + '</strong>' +
+          speciesBadge +
           '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
           (date ? '<span>' + escapeHtml(date) + '</span>' : '') +
         '</span>' +
@@ -1499,8 +1505,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         photo +
         '<div class="me-map-card-head">' +
           '<div>' +
-            '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionObservationLabel) + '</div>' +
-            '<strong class="me-map-card-title">' + escapeHtml(record.displayName || 'Unresolved') + '</strong>' +
+            '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionObservationLabel) + (record.isAiCandidate ? ' · <span class="me-map-card-ai">AI候補</span>' : record.isAwaitingId ? ' · <span class="me-map-card-awaiting">同定待ち</span>' : '') + '</div>' +
+            '<strong class="me-map-card-title">' + escapeHtml(record.displayName || '同定待ち') + '</strong>' +
             '<span class="me-map-card-copy">' + escapeHtml(record.localityLabel || '—') + (record.observedAt ? ' · ' + escapeHtml(String(record.observedAt).slice(0, 10)) : '') + '</span>' +
           '</div>' +
         '</div>' +
@@ -1613,9 +1619,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderObservationActions(record) {
     var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />' : '';
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
+    var bottomBadge = record.isAiCandidate
+      ? '<span class="me-result-ai">AI候補</span>'
+      : record.isAwaitingId
+        ? '<span class="me-result-awaiting">同定待ち</span>'
+        : '';
+    var bottomName = record.isAwaitingId ? '' : '<strong>' + escapeHtml(record.displayName) + '</strong>';
     return photo +
       '<div class="me-bottom-meta">' +
-      '<strong>' + escapeHtml(record.displayName) + '</strong>' +
+      bottomBadge + bottomName +
       '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
       (record.observedAt ? '<span>' + escapeHtml(String(record.observedAt).slice(0, 10)) + '</span>' : '') +
       '</div>' +
@@ -3404,6 +3416,10 @@ export const MAP_EXPLORER_STYLES = `
   .me-result-body { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; }
   .me-result-body strong { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
   .me-result-body span { font-size: 12px; color: #64748b; line-height: 1.4; }
+  .me-result-ai { display: inline-block; padding: 1px 7px; border-radius: 999px; background: rgba(14,165,233,.14); color: #075985; font-size: 10px; font-weight: 900; letter-spacing: .04em; margin-right: 6px; vertical-align: middle; }
+  .me-result-awaiting { display: inline-block; padding: 2px 9px; border-radius: 999px; background: rgba(234,179,8,.18); color: #713f12; font-size: 11.5px; font-weight: 900; }
+  .me-map-card-ai { color: #075985; font-weight: 900; }
+  .me-map-card-awaiting { color: #713f12; font-weight: 900; }
   .me-results-empty, .me-side-empty {
     padding: 16px;
     border-radius: 18px;

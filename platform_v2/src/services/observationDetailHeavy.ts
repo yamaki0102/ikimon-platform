@@ -125,7 +125,7 @@ export async function getObservationDetailHeavy(
         photo_url: string | null;
       }>(
         `SELECT o.occurrence_id,
-                coalesce(nullif(o.vernacular_name,''), o.scientific_name, 'Unresolved') AS display_name,
+                coalesce(nullif(o.vernacular_name,''), o.scientific_name, '同定待ち') AS display_name,
                 ${DETAIL_OBSERVER_NAME_SQL} AS observer_name,
                 u.user_id AS observer_user_id,
                 to_char(v.observed_at, 'YYYY-MM-DD') AS observed_at,
@@ -288,7 +288,7 @@ export async function getObservationDetailHeavy(
         subjects.push({
           occurrenceId: r.occurrence_id,
           subjectIndex: r.subject_index,
-          displayName: r.vernacular_name || r.scientific_name || "Unresolved",
+          displayName: r.vernacular_name || r.scientific_name || "同定待ち",
           scientificName: r.scientific_name,
           vernacularName: r.vernacular_name,
           rank: r.taxon_rank,

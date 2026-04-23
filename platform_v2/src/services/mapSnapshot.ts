@@ -86,6 +86,10 @@ export type PublicMapObservationRecord = {
   occurrenceId: string;
   visitId: string;
   displayName: string;
+  /** true = displayName is AI fallback (人手 vernacular/scientific 欠落)。UI で badge を出す。 */
+  isAiCandidate: boolean;
+  /** displayName が "同定待ち" (AI もまだ識別していない) の場合 true。UI で別表記。 */
+  isAwaitingId: boolean;
   localityLabel: string;
   observedAt: string;
   photoUrl: string | null;
@@ -116,6 +120,9 @@ type PublicMapSourceRow = {
   scientific_name: string | null;
   vernacular_name: string | null;
   display_name: string;
+  ai_candidate_name: string | null;
+  ai_candidate_rank: string | null;
+  is_ai_candidate: boolean | null;
   municipality: string | null;
   prefecture: string | null;
   observed_at: string;
@@ -132,6 +139,9 @@ type PublicMapPreparedRecord = {
   occurrenceId: string;
   visitId: string;
   displayName: string;
+  aiCandidateName: string | null;
+  aiCandidateRank: string | null;
+  isAiCandidate: boolean;
   observedAt: string;
   latitude: number;
   longitude: number;
@@ -362,7 +372,16 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
       o.visit_id,
       o.scientific_name,
       o.vernacular_name,
-      coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+      coalesce(
+        nullif(o.vernacular_name, ''),
+        nullif(o.scientific_name, ''),
+        nullif(ai.recommended_taxon_name, ''),
+        '同定待ち'
+      ) as display_name,
+      ai.recommended_taxon_name as ai_candidate_name,
+      ai.recommended_rank as ai_candidate_rank,
+      (coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is null
+        and nullif(ai.recommended_taxon_name, '') is not null) as is_ai_candidate,
       ${MAP_OBSERVER_NAME_SQL} as observer_name,
       coalesce(v.observed_municipality, p.municipality) as municipality,
       coalesce(v.observed_prefecture, p.prefecture) as prefecture,
@@ -378,6 +397,13 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
     join visits v on v.visit_id = o.visit_id
     left join users u on u.user_id = v.user_id
     left join places p on p.place_id = v.place_id
+    left join lateral (
+      select recommended_taxon_name, recommended_rank
+      from observation_ai_assessments a
+      where a.occurrence_id = o.occurrence_id
+      order by generated_at desc
+      limit 1
+    ) ai on true
     left join lateral (
       select coalesce(ab.public_url, ab.storage_path) as public_url
       from evidence_assets ea
@@ -416,6 +442,9 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,
           displayName: row.display_name,
+          aiCandidateName: row.ai_candidate_name ?? null,
+          aiCandidateRank: row.ai_candidate_rank ?? null,
+          isAiCandidate: Boolean(row.is_ai_candidate),
           observedAt: row.observed_at,
           latitude: Number(row.latitude),
           longitude: Number(row.longitude),
@@ -565,6 +594,8 @@ export function buildPublicCellRecords(
       occurrenceId: entry.row.occurrenceId,
       visitId: entry.row.visitId,
       displayName: entry.row.displayName,
+      isAiCandidate: entry.row.isAiCandidate,
+      isAwaitingId: entry.row.displayName === "同定待ち" || entry.row.displayName === "Unresolved",
       localityLabel: entry.row.localityLabel,
       observedAt: entry.row.observedAt,
       photoUrl: entry.row.photoUrl,
