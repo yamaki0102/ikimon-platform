@@ -246,6 +246,15 @@ cutover 実行可能（ただし上記 3 件の limited start に合意が前提
 - [ ] `views/dashboard_*.php` 6件 (orphaned partial) の削除 PR
 - [ ] legacy PHP API の段階撤去計画
 
+### Post-cutover 中長期 (1-4 ヶ月)
+
+- [ ] **研究連携 Phase R1-R4 着手** — [`research_connection_phase_2026-04-23.md`](./research_connection_phase_2026-04-23.md)
+  - R1 Foundation Fixes (2週): GBIF 実 push、`/for-researcher/apply`、`/methodology` 整備
+  - R2 Research Identity (3週): DOI、dataset_versions、Zenodo 連携
+  - R3 Response Diversity API (4週): ロス博士の中核概念の operationalization
+  - R4 Academic Partnership (8週): OIST MoU、citation tracking、年次 release
+- [ ] レガシー PHP API の段階撤去計画詳細化（`legacy_continued` family の移行ロードマップ）
+
 ---
 
 ## 改訂履歴
