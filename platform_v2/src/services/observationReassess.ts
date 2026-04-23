@@ -887,6 +887,32 @@ export async function reassessObservation(
       regionCount += 1;
     }
 
+    // Phase γ: evidence_assets.role_tag を region サイズから heuristic 推定。
+    // 既に user/heuristic が付いているものは上書きしない (role_tag_source=ai のみ更新)。
+    // area ≥ 0.55 → full_body / 0.05-0.55 → close_up_organ / region なし → habitat_wide
+    const roleAreaByAsset = new Map<string, number>();
+    for (const region of primaryRegions) {
+      const photo = photos[region.assetIndex];
+      if (!photo?.assetId || !region.rect) continue;
+      const area = Math.max(0, Math.min(1, region.rect.width * region.rect.height));
+      const prev = roleAreaByAsset.get(photo.assetId) ?? 0;
+      if (area > prev) roleAreaByAsset.set(photo.assetId, area);
+    }
+    for (const photo of photos) {
+      if (!photo?.assetId) continue;
+      const maxArea = roleAreaByAsset.get(photo.assetId) ?? 0;
+      const roleTag = maxArea >= 0.55 ? "full_body"
+        : maxArea > 0 && maxArea < 0.55 ? "close_up_organ"
+        : "habitat_wide";
+      await client.query(
+        `UPDATE evidence_assets
+           SET role_tag = $1, role_tag_source = 'ai', updated_at = now()
+         WHERE asset_id = $2::uuid
+           AND (role_tag IS NULL OR role_tag_source = 'ai')`,
+        [roleTag, photo.assetId],
+      );
+    }
+
     const storedDisplayState = await getStoredVisitDisplayState(client, target.visitId).catch(() => null);
     const latestSubjects = await getVisitSubjectSummaries(target.visitId, client);
     let resolvedDisplayState = storedDisplayState;

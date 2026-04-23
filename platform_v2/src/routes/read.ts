@@ -30,6 +30,7 @@ import { getObservationContext, groupFeaturesByLayer } from "../services/observa
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
 import { getObserverStats } from "../services/observerStats.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
+import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
 import { confidenceLabel } from "../services/observationAiAssessment.js";
 import { getObservationVisitBundle, type ObservationVisitBundle, type ObservationVisitSubject } from "../services/observationVisitBundle.js";
@@ -595,6 +596,21 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-area-conf-high { background: rgba(16,185,129,.15); color: #065f46; }
   .obs-area-conf-medium { background: rgba(245,158,11,.15); color: #92400e; }
   .obs-area-conf-low { background: rgba(148,163,184,.18); color: #475569; }
+  .obs-area-brief { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,.78); border: 1px solid rgba(14,165,233,.2); margin-bottom: 4px; }
+  .obs-area-brief.is-match { background: rgba(209,250,229,.9); border-color: rgba(16,185,129,.3); }
+  .obs-area-brief.is-near { background: rgba(254,252,232,.9); border-color: rgba(234,179,8,.28); }
+  .obs-area-brief.is-divergent { background: rgba(254,242,242,.9); border-color: rgba(239,68,68,.28); }
+  .obs-area-brief-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(15,23,42,.08); color: #0f172a; font-size: 15px; font-weight: 900; flex-shrink: 0; }
+  .obs-area-brief.is-match .obs-area-brief-icon { background: rgba(16,185,129,.18); color: #065f46; }
+  .obs-area-brief.is-near .obs-area-brief-icon { background: rgba(234,179,8,.22); color: #713f12; }
+  .obs-area-brief.is-divergent .obs-area-brief-icon { background: rgba(239,68,68,.18); color: #991b1b; }
+  .obs-area-brief-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .obs-area-brief-eye { font-size: 10.5px; font-weight: 900; color: #475569; letter-spacing: .04em; text-transform: uppercase; }
+  .obs-area-brief-label { font-size: 13.5px; font-weight: 800; color: #0f172a; }
+  .obs-area-brief-status { font-size: 11px; font-weight: 900; color: #475569; letter-spacing: .03em; padding: 3px 9px; border-radius: 999px; background: rgba(15,23,42,.06); flex-shrink: 0; }
+  .obs-area-brief.is-match .obs-area-brief-status { background: rgba(16,185,129,.2); color: #065f46; }
+  .obs-area-brief.is-near .obs-area-brief-status { background: rgba(234,179,8,.22); color: #713f12; }
+  .obs-area-brief.is-divergent .obs-area-brief-status { background: rgba(239,68,68,.16); color: #991b1b; }
 
   .obs-shot-card { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(254,252,232,.85), rgba(255,237,213,.6)); border: 1px solid rgba(234,179,8,.24); display: flex; flex-direction: column; gap: 10px; }
   .obs-shot-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -779,7 +795,7 @@ function renderReactionBar(
     : "";
 }
 
-function renderSubjectHint(subject: ObservationVisitSubject): string {
+function renderSubjectHint(subject: ObservationVisitSubject, siteBrief: SiteBrief | null = null): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
     return `<section class="section obs-hint-section is-tent">
@@ -816,7 +832,7 @@ function renderSubjectHint(subject: ObservationVisitSubject): string {
   const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
     : "";
-  const areaInference = renderAreaInferenceCard(aiAssessment.areaInference);
+  const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief);
   const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions);
   const boost = aiAssessment.observerBoost
     ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
@@ -869,16 +885,75 @@ const AREA_INFERENCE_LABELS: Array<{
   { key: "managementHintCandidates", label: "管理履歴", icon: "🪚" },
 ];
 
-function renderAreaInferenceCard(areaInference: import("../services/observationAiAssessment.js").AreaInference | null | undefined): string {
+function siteBriefAgreement(siteBrief: SiteBrief | null, candidates: { label: string }[]): "match" | "near" | "divergent" | "none" {
+  if (!siteBrief || candidates.length === 0) return "none";
+  const brief = siteBrief.hypothesis.label.toLowerCase();
+  for (const cand of candidates) {
+    const label = cand.label.toLowerCase();
+    if (brief.includes(label) || label.includes(brief)) return "match";
+  }
+  // 近縁: どちらも 森/林 / 草/草地 / 水/湿 / 田/畑 の同群なら near
+  const groups: Array<[string, string[]]> = [
+    ["forest", ["森", "林", "樹", "木", "森林"]],
+    ["grass", ["草", "草地", "草原", "草本"]],
+    ["wet", ["水", "湿", "湿地", "湿原", "沼", "池"]],
+    ["crop", ["畑", "農", "田", "耕", "作地"]],
+    ["urban", ["市街", "住宅", "公園", "道路", "人為"]],
+  ];
+  const groupOf = (s: string): string | null => {
+    for (const [g, ks] of groups) if (ks.some((k) => s.includes(k))) return g;
+    return null;
+  };
+  const briefGroup = groupOf(brief);
+  if (briefGroup) {
+    for (const cand of candidates) {
+      if (groupOf(cand.label.toLowerCase()) === briefGroup) return "near";
+    }
+  }
+  return "divergent";
+}
+
+function renderAreaInferenceCard(
+  areaInference: import("../services/observationAiAssessment.js").AreaInference | null | undefined,
+  siteBrief: SiteBrief | null = null,
+): string {
   if (!areaInference) return "";
   const hasAny = AREA_INFERENCE_LABELS.some(({ key }) => (areaInference[key] ?? []).length > 0);
-  if (!hasAny) return "";
+  const hasSiteBrief = Boolean(siteBrief && siteBrief.hypothesis.label);
+  if (!hasAny && !hasSiteBrief) return "";
   const confLabel = (confidence: number | null): string => {
     if (confidence === null) return "";
     if (confidence >= 0.7) return "high";
     if (confidence >= 0.4) return "medium";
     return "low";
   };
+  // siteBrief を「地点情報(決定論)」として植生構造カードにバッジ表示
+  const vegCands = areaInference.vegetationStructureCandidates ?? [];
+  const briefAgreement = siteBriefAgreement(siteBrief, vegCands);
+  const briefBanner = hasSiteBrief
+    ? (() => {
+        const icon =
+          briefAgreement === "match" ? "✓" :
+          briefAgreement === "near" ? "≈" :
+          briefAgreement === "divergent" ? "⚡" : "📍";
+        const tone =
+          briefAgreement === "match" ? "is-match" :
+          briefAgreement === "near" ? "is-near" :
+          briefAgreement === "divergent" ? "is-divergent" : "is-info";
+        const label =
+          briefAgreement === "match" ? "画像推察と一致" :
+          briefAgreement === "near" ? "画像推察と近い" :
+          briefAgreement === "divergent" ? "画像からは違う候補も" : "参考";
+        return `<div class="obs-area-brief ${tone}">
+          <span class="obs-area-brief-icon">${icon}</span>
+          <div class="obs-area-brief-body">
+            <div class="obs-area-brief-eye">地図データから見た場所 <span class="obs-hint-eye-note">決定論</span></div>
+            <div class="obs-area-brief-label">${escapeHtml(siteBrief!.hypothesis.label)}</div>
+          </div>
+          <span class="obs-area-brief-status">${escapeHtml(label)}</span>
+        </div>`;
+      })()
+    : "";
   const groups = AREA_INFERENCE_LABELS
     .map(({ key, label, icon }) => {
       const candidates = areaInference[key] ?? [];
@@ -903,11 +978,12 @@ function renderAreaInferenceCard(areaInference: import("../services/observationA
     <div class="obs-area-head">
       <div>
         <div class="obs-hint-eyebrow">この 1 枚からのエリア推察</div>
-        <p class="obs-hint-reminder">AI が写真から読み取った候補です。**断定ではありません**。地点の siteBrief と突き合わせて判断してください。</p>
+        <p class="obs-hint-reminder">AI が写真から読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。</p>
       </div>
       <span class="obs-hint-badge obs-hint-badge-candidate">参考</span>
     </div>
-    <div class="obs-area-groups">${groups}</div>
+    ${briefBanner}
+    ${hasAny ? `<div class="obs-area-groups">${groups}</div>` : ""}
   </section>`;
 }
 
@@ -2160,7 +2236,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Observation not found", stateCard("対象が見つかりません", "この観察の subject を表示できません", "subject 情報がまだ同期中の可能性があります。"), "みつける");
     }
 
-    const [obsContext, heavy, reactions, observerStats, insight] = await Promise.all([
+    const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult] = await Promise.all([
       getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
       subjectCount >= 2 ? Promise.resolve(null) : getReactionSummary(bundle.canonicalSubjectId, viewerUserId).catch(() => null),
@@ -2178,12 +2254,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             cacheOnly: true,
           }).catch(() => null)
         : Promise.resolve(null),
+      typeof snapshot.latitude === "number" && typeof snapshot.longitude === "number"
+        ? getSiteBrief(snapshot.latitude, snapshot.longitude, "ja").catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     // ===== Layer 0: ヒーロー =====
+    // AI bounding box は Gemini Flash-Lite の出力粒度が荒いため confidence < 0.5 は非表示。
+    // DB には残す (集計や再評価のため) が描画はしない。
+    const REGION_DISPLAY_CONF_MIN = 0.5;
     const renderRegionBoxes = (assetId: string): string =>
       currentSubject.regions
         .filter((region) => region.assetId === assetId && region.rect)
+        .filter((region) => (region.confidenceScore ?? 1) >= REGION_DISPLAY_CONF_MIN)
         .map((region) => {
           const rect = region.rect;
           if (!rect) return "";
@@ -2443,7 +2526,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </section>`;
 
-    const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject)}</div>`;
+    const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null)}</div>`;
 
     // ===== Layer 1: 物語 =====
     const ownerNote = snapshot.note
@@ -2582,7 +2665,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
     const subjectTemplates = bundle.subjects.map((subject) => `
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
     const reassessButtons: string[] = [];
