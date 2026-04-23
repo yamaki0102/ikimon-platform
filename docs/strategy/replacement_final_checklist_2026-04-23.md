@@ -460,9 +460,10 @@ done
 | D3 | `authorityFill.percentWithRank >= 90` | D | ≥ 90 | true | YAMAKI | ⚠ WAIVED | `specialist_authorities` 未構築。public face に無影響、specialist lane は cutover 後整備対象 |
 | D4 | `gates.audioArchiveReady == true` | D | true | true | YAMAKI | ⚠ WAIVED | migration 0020 未適用。音声機能 limited start、cutover 後 T+30m に `npm run migrate` で解消 |
 | E0 | rollback runbook の場所が共有済 | — | URL 提示 | true | YAMAKI | ✅ PASS | `ops/CUTOVER_RUNBOOK.md` §ロールバック手順 |
-| **F0** | **本番 v2 DB `counts.users` が legacy `users.json` 比で ≥ 95%** (2026-04-23 INC 再発防止) | D | ratio ≥ 0.95 | true | YAMAKI | **❌ FAIL** | 20:59 cutover 時点で users=9 vs legacy ≈100 → 9%。**即 rollback 要因**。再カットオーバーには本番 DB bootstrap import 完遂必須 |
-| **F1** | **本番 v2 DB `counts.trackPoints > 0`** (2026-04-23 INC 再発防止) | D | > 0 | true | YAMAKI | **❌ FAIL** | trackPoints=0 → `import:tracks` 未完遂。再カットオーバー前に実行要 |
-| **F2** | **最新 `bootstrap_import.rows_imported > 0`** (2026-04-23 INC 再発防止) | D | > 0 | true | YAMAKI | **❌ FAIL** | 最後の bootstrap (2026-04-18) が rows_imported=0。再実行要 |
+| **F0** | **本番 v2 DB `counts.users` が legacy `users.json` 比で ≥ 95%** (2026-04-23 INC 再発防止) | D | ratio ≥ 0.95 | true | YAMAKI | ✅ **PASS** (2026-04-23 21:29 再 bootstrap 後) | users=103 (legacy users.json 31 + orphan 補完)。TRUNCATE → fresh bootstrap で Nats `user_69a01379b962e`, YAMAKI `user_69bc926c2eca4` 等 legacy user_id を保持 |
+| **F1** | **本番 v2 DB `counts.trackPoints > 0`** (2026-04-23 INC 再発防止) | D | > 0 | true | YAMAKI | ✅ **PASS** (2026-04-23 21:30) | trackPoints=**682** (legacy tracks/trips から import、5 tracks 取込) |
+| **F2** | **最新 `bootstrap_import.rows_imported > 0`** (2026-04-23 INC 再発防止) | D | > 0 | true | YAMAKI | ✅ **PASS** | 2026-04-23 21:29:21 `bootstrap_import` completed, rows_imported=**233** |
+| F3 | `gates.compatibilityWriteWorking == true` (TRUNCATE 後の復帰確認) | D | true | true | YAMAKI | ✅ **PASS** (smoke:v2-write-lane で 5 succeeded writes 記録) | — |
 
 ### E.2 T-1h（直前チェック）
 
@@ -648,6 +649,7 @@ done
 | 2026-04-23 | 愛 (Claude) | VPS SSH で drift report / verify / materialize / replacement-readiness を実機実行。本番 v2 :3201 の全 gates が GREEN、rollbackSafetyWindowReady=true を確認。staging 側 parity は別運用、cutover 判定には無関係と判明。Known Limitation として migration 0020 (audio) / specialist_authorities / Cloudflare Stream の 3 件は cutover 後整備に分離 |
 | 2026-04-23 20:59 | 愛 (Claude) | **本番カットオーバー実行**。pg_dump 5.8MB / uploads rsync 762MB → nginx v2 proxy + legacy fallback 設定に reload → 外部 smoke 全 200 → dist rebuild + pm2 restart → DATABASE_URL 一時 regression を pm2 dump から復元 → 最終確認: status=near_ready、全 gates GREEN。カットオーバー完了。 |
 | 2026-04-23 21:14 | 愛 (Claude) | **ROLLBACK 実行 (S2 incident)**。本番 v2 DB の bootstrap import 未完遂 (`counts.users=9` vs legacy ~100、`trackPoints=0`) が判明、ユーザーデータ表示できず。nginx を pre-cutover に戻して 1 分で復旧。MTTR 15 分、データ損失ゼロ。Section D に Data Freshness gate、Section E.1 に F0-F2 追加、INC report を `ops/incidents/` に記録。 |
+| 2026-04-23 21:30 | 愛 (Claude) | **Fresh bootstrap 完遂**。v2 DB TRUNCATE (rollback 用 pg_dump 20260423_212757) → `import:legacy` → observation family 5本 → tokens + tracks → smoke:v2-write-lane で ledger 復帰。最終: users 103 / occurrences 235 / visits 241 / trackPoints 682 / 全 gates GREEN / rollbackSafetyWindowReady=true。legacy user_id 保持 (Nats `user_69a01379b962e`、YAMAKI `user_69bc926c2eca4`)。再カットオーバー GO 条件達成。 |
 
 ---
 
