@@ -209,6 +209,35 @@ checklist Section E との連動を runbook 冒頭で明記済。
 **進捗サマリ 2026-04-23**: P0 全本完了、P1-C1 も一括判定で解消、P2-E1 も解消。
 残りは T-24h / T-1h / T-0 の当日オペレーションのみ。
 
+## 2026-04-23 final sweep (カットオーバー直前までの最終整備)
+
+- ✅ API 再分類 ⚠ マーク全 62 件を `find` で実在確認、全解消
+- ✅ Section D.1 に staging `/ops/readiness` 実測値を記入
+- ✅ Section E.1 の 12 チェックに evidence / result を埋め込み
+- ✅ VPS 作業 handoff 表 [`ops/runbooks/final_pre_cutover_handoff_2026-04-23.md`](../../ops/runbooks/final_pre_cutover_handoff_2026-04-23.md)
+  を新規作成
+
+### 判明した VPS 側 BLOCKER (T-24h の最優先タスク)
+
+staging `/ops/readiness` が `needs_work` / `rollbackSafetyWindowReady: false`。
+原因: `latestDriftReport.finished_at` が 24.7h 前で stale。VPS で:
+
+```bash
+cd /var/www/ikimon.life-staging/repo/platform_v2
+npm run report:legacy-drift
+npm run verify:legacy
+npm run report:replacement-readiness
+```
+
+を実行すれば全 GREEN 復帰見込。詳細コマンドは handoff 表の T-24h セクション。
+
+### Post-cutover TODO (差し替え後 1 週間内)
+
+- [ ] `.github/workflows/deploy.yml` の health check を v2 路線に書き換え
+  (legacy `/index.php` 等のままだと次回 main push で fail)
+- [ ] `views/dashboard_*.php` 6件 (orphaned partial) の削除 PR
+- [ ] legacy PHP API の段階撤去計画
+
 ---
 
 ## 改訂履歴

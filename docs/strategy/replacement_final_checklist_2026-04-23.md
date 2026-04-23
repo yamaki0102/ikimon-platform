@@ -350,14 +350,16 @@ done
 
 ### D.1 readiness gates（`readiness.ts:218-232` 由来）
 
+2026-04-23 16:26 JST `https://staging.ikimon.life/ops/readiness` 実測値:
+
 | signal_id | source | meaning | green | red | last_value | judgment | mitigation |
 |---|---|---|---|---|---|---|---|
-| `gates.parityVerified` | readiness snapshot | drift report が succeeded + fresh + parityClean=true + verifyFresh=true | true | false | | | drift report 再実行 → mismatch を `migration_runs.details.mismatches` で確認 |
-| `gates.deltaSyncHealthy` | readiness snapshot | drift が succeeded + fresh + deltaHealthy/deltaFresh/cursorFresh が全 true | true | false | | | delta_sync を再実行、cursor を進める |
-| `gates.driftReportHealthy` | readiness snapshot | drift report が succeeded + fresh + summary.status=`healthy` | true | false | | | legacy_drift_report ジョブを起動、summary.status を確認 |
-| `gates.compatibilityWriteWorking` | readiness snapshot | `compatibility_write_ledger` 最新行が `succeeded` | true | failed/empty | | | dual write ledger エラー追跡 |
-| `gates.audioArchiveReady` | readiness snapshot | migration 0020 適用 + `private_uploads` 書込可 + `V2_PRIVILEGED_WRITE_API_KEY` 設定済 | true | false | | | `audioArchive.privateUploadsError` を確認 → 権限/パス修正 |
-| `gates.rollbackSafetyWindowReady` | readiness snapshot | 上記 4 ゲート（parity / delta / drift / compatibility）が全 true | true | false | | | 上記いずれかの mitigation を順に解消 |
+| `gates.parityVerified` | readiness snapshot | drift report が succeeded + fresh + parityClean=true + verifyFresh=true | true | false | **false** | 🟡 STALE | **drift report が 24.7h 前で stale**。VPS で `npm run report:legacy-drift` 再実行で解消見込 |
+| `gates.deltaSyncHealthy` | readiness snapshot | drift が succeeded + fresh + deltaHealthy/deltaFresh/cursorFresh が全 true | true | false | true | 🟢 GREEN | — |
+| `gates.driftReportHealthy` | readiness snapshot | drift report が succeeded + fresh + summary.status=`healthy` | true | false | true | 🟢 GREEN | — (summary.status=healthy 確認済) |
+| `gates.compatibilityWriteWorking` | readiness snapshot | `compatibility_write_ledger` 最新行が `succeeded` | true | failed/empty | true | 🟢 GREEN | 直近 10件全 succeeded |
+| `gates.audioArchiveReady` | readiness snapshot | migration 0020 適用 + `private_uploads` 書込可 + `V2_PRIVILEGED_WRITE_API_KEY` 設定済 | true | false | true | 🟢 GREEN | — |
+| `gates.rollbackSafetyWindowReady` | readiness snapshot | 上記 4 ゲート（parity / delta / drift / compatibility）が全 true | true | false | **false** | 🟡 STALE | parityVerified の STALE が解消すれば true になる |
 
 ### D.2 endpoint parity（`replacementReadinessReport.ts:17-35` 由来）
 
@@ -385,14 +387,18 @@ done
 
 ### D.3 corpus / authority indicators
 
-| signal_id | meaning | green | red | mitigation |
-|---|---|---|---|---|
-| `authorityFill.percentWithRank` | `specialist_authorities.scope_taxon_rank` 充填率 | ≥ 90% | < 80% | scope_taxon_rank backfill ジョブを実行 |
-| `corpus.occurrences` | 観察件数 | 増加 or 平常域 | 急減 | sync ログを確認、source 死活 |
-| `corpus.identificationsWithAcceptedRank` | accepted_rank 付き同定件数 | > 0 単調増 | 0 / 急減 | review pipeline 死活確認 |
-| `corpus.distinctSpeciesKeys` | distinct GBIF species key | 平常域 | 半減 | ingestion 死活確認 |
-| `corpus.photoAssets` | observation_photo asset 件数 | 増加 | 減少 | upload pipeline 確認 |
-| `latestDriftReport.summary.staleHours` | drift report 鮮度 | ≤ 24h | > 24h | drift report 再実行 |
+2026-04-23 16:26 JST 実測値:
+
+| signal_id | meaning | green | red | last_value | judgment |
+|---|---|---|---|---|---|
+| `authorityFill.percentWithRank` | `specialist_authorities.scope_taxon_rank` 充填率 | ≥ 90% | < 80% | **要実測** (VPS で `npm run report:replacement-readiness` 実行必要) | ⏳ PENDING |
+| `counts.users` | ユーザー数 | 増加 or 平常域 | 急減 | 134 | 🟢 |
+| `counts.visits` | 訪問 | 平常域 | 急減 | 247 | 🟢 |
+| `counts.occurrences` | 観察件数 | 増加 or 平常域 | 急減 | 240 | 🟢 |
+| `counts.observationPhotoAssets` | observation_photo asset 件数 | 増加 | 減少 | 229 | 🟢 |
+| `counts.avatarAssets` | avatar asset | 増加 or 平常 | — | 2 | 🟢 |
+| `counts.trackPoints` | track 地点 | 増加 | 急減 | 684 | 🟢 |
+| `latestDriftReport.summary.staleHours` | drift report 鮮度閾値 | ≤ 24h | > 24h | 24 | 🟡 現在 24.7h 前で stale |
 
 ### D.4 recent runs (last 5)
 
@@ -409,18 +415,18 @@ done
 
 | check_id | description | linked | pass_condition | hard_stop | owner | result | evidence_link |
 |---|---|---|---|---|---|---|---|
-| A1 | Section A に `MISSING_INTENT_UNCLEAR` が 0 行 | A | `grep -c MISSING_INTENT_UNCLEAR` == 0 | true | YAMAKI | GO | |
-| A2 | Section A の全 `decision` 欄が埋まっている（空欄なし） | A | 空 decision == 0 | true | YAMAKI | GO | |
-| A3 | Section A に `BLOCK` decision が 0 行 | A | `BLOCK` count == 0 | true | YAMAKI | GO | |
-| B1 | Section B の全 concept が `pass=true`（`route_exclusion` 内除く） | B | 全行 ✅ | true | YAMAKI | GO | |
-| B2 | `フィールドガイド` の残存 3 件が修正済（public.json 含む） | B | hit == 0 | true | YAMAKI | GO | |
-| C1 | Section C の `other` 62 件が再分類完了 | C | other 行 = 0 | true | YAMAKI | GO | |
-| C2 | Section C の `to_migrate_pre_cutover` 行が 0 | C | count == 0 | true | YAMAKI | GO | |
-| D1 | replacement readiness report が前日中に走った | D | timestamp < 24h | true | YAMAKI | GO | |
-| D2 | `gates.rollbackSafetyWindowReady == true` | D | true | true | YAMAKI | GO | |
-| D3 | `authorityFill.percentWithRank >= 90` | D | ≥ 90 | true | YAMAKI | GO | |
-| D4 | `gates.audioArchiveReady == true` | D | true | true | YAMAKI | GO | |
-| E0 | rollback runbook の場所が共有済 | — | URL 提示 | true | YAMAKI | GO | |
+| A1 | Section A に `MISSING_INTENT_UNCLEAR` が 0 行 | A | `grep -c MISSING_INTENT_UNCLEAR` == 0 | true | YAMAKI | ✅ PASS | grep 2 hit だが両方「解消済」の宣言文、SectionA 表では 0 |
+| A2 | Section A の全 `decision` 欄が埋まっている（空欄なし） | A | 空 decision == 0 | true | YAMAKI | ✅ PASS | 2026-04-23 commit 4cae506e で 164 行一括 GO 埋め |
+| A3 | Section A に `BLOCK` decision が 0 行 | A | `BLOCK` count == 0 | true | YAMAKI | ✅ PASS | `BLOCK` grep 0 hit |
+| B1 | Section B の全 concept が `pass=true`（`route_exclusion` 内除く） | B | 全行 ✅ | true | YAMAKI | ✅ PASS | Section B 表全 ✅ |
+| B2 | `フィールドガイド` の残存 3 件が修正済（public.json 含む） | B | hit == 0 | true | YAMAKI | ✅ PASS | commit 50f7be00 + `npm run check:public-terms` PASS |
+| C1 | Section C の `other` 62 件が再分類完了 | C | other 行 = 0 | true | YAMAKI | ✅ PASS | `api_family_reclassification_2026-04-23.md` で 20 family 体系 |
+| C2 | Section C の `to_migrate_pre_cutover` 行が 0 | C | count == 0 | true | YAMAKI | ✅ PASS | 該当 disposition なし |
+| D1 | replacement readiness report が前日中に走った | D | timestamp < 24h | true | YAMAKI | 🟡 STALE | 2026-04-23 16:26 JST snapshot: latestDriftReport=24.7h 前。**要 VPS 再実行** |
+| D2 | `gates.rollbackSafetyWindowReady == true` | D | true | true | YAMAKI | 🟡 STALE | false (parityVerified stale 起因)。D1 再実行で解消見込 |
+| D3 | `authorityFill.percentWithRank >= 90` | D | ≥ 90 | true | YAMAKI | ⏳ PENDING | `/ops/readiness` に未含、VPS で `npm run report:replacement-readiness` 必要 |
+| D4 | `gates.audioArchiveReady == true` | D | true | true | YAMAKI | ✅ PASS | audioArchive: migration0020Applied/writable/keyPresent 全 true |
+| E0 | rollback runbook の場所が共有済 | — | URL 提示 | true | YAMAKI | ✅ PASS | `ops/CUTOVER_RUNBOOK.md` §ロールバック手順 |
 
 ### E.2 T-1h（直前チェック）
 
@@ -541,10 +547,90 @@ done
 
 ### 付録 3: rollback runbook
 
-TBD — 整備時にリンク追記。
+- [`ops/CUTOVER_RUNBOOK.md`](../../ops/CUTOVER_RUNBOOK.md) §ロールバック手順 (拡充済、2026-04-23)
+- [`ops/runbooks/final_pre_cutover_handoff_2026-04-23.md`](../../ops/runbooks/final_pre_cutover_handoff_2026-04-23.md) VPS 作業だけ抽出
 
 ### 付録 4: 改訂履歴
 
 | date | author | change |
 |---|---|---|
 | 2026-04-23 | 愛 (Claude) | 初版。canonical pack 2026-04-22 を起点に Section A-E をプリフィル。`MISSING_INTENT_UNCLEAR` 6件、`フィールドガイド` 残存 1件、API `other` 62件を残課題として顕在化 |
+| 2026-04-23 | 愛 (Claude) | commit 50f7be00 / aa782d62 / 4cae506e で canonical rename、API 再分類、YAMAKI 一括判定を反映 |
+| 2026-04-23 | 愛 (Claude) | Section D.1/D.3 / E.1 に staging 実測 evidence を埋め。BLOCKER: parityVerified STALE (24.7h) 判明、VPS で `npm run report:legacy-drift` 再実行で解消見込 |
+
+---
+
+## 付録 5: 本日取得 evidence (2026-04-23 16:26 JST)
+
+### `/ops/readiness` 抜粋
+
+```json
+{
+  "status": "needs_work",
+  "gates": {
+    "parityVerified": false,
+    "deltaSyncHealthy": true,
+    "driftReportHealthy": true,
+    "compatibilityWriteWorking": true,
+    "audioArchiveReady": true,
+    "rollbackSafetyWindowReady": false
+  },
+  "counts": {
+    "users": 134, "visits": 247, "occurrences": 240,
+    "observationPhotoAssets": 229, "avatarAssets": 2, "trackPoints": 684
+  },
+  "audioArchive": {
+    "migration0020Applied": true,
+    "privateUploadsWritable": true,
+    "privilegedWriteKeyPresent": true,
+    "privateUploadsError": null
+  },
+  "latestDriftReport": {
+    "status": "succeeded",
+    "started_at": "2026-04-22 14:42:06.918407+09",
+    "finished_at": "2026-04-22 14:42:06.985891+09",
+    "summary": {
+      "status": "healthy",
+      "parityClean": true,
+      "verifyFresh": true,
+      "deltaHealthy": true,
+      "deltaFresh": true,
+      "cursorFresh": true,
+      "staleHours": 24
+    }
+  }
+}
+```
+
+**診断**: `latestDriftReport.finished_at` = 2026-04-22 14:42 JST。現在時刻 2026-04-23 16:26 JST
+との差 24.7h > staleHours 24h → `driftReportFresh=false` → `parityVerified=false` →
+`rollbackSafetyWindowReady=false`。
+
+**解消**: VPS で `cd platform_v2 && npm run report:legacy-drift` を再実行すれば
+`finished_at` がリフレッシュされ、全 gates GREEN に復帰する見込。
+
+### 公開面 endpoint 疎通 (18/18 OK)
+
+```
+200  /
+200  /home
+401  /record          (認証必須、期待通り)
+200  /notes
+200  /explore
+200  /map
+200  /lens
+200  /guide
+200  /learn
+200  /learn/methodology
+200  /about
+200  /for-business
+200  /faq
+200  /privacy
+200  /terms
+200  /contact
+200  /healthz
+200  /readyz
+```
+
+全 routing 想定通り。`/record` は未認証 401、Section E.2 F1 の smoke で認証済みブラウザで
+確認する。
