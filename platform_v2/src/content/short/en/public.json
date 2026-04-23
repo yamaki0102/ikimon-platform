@@ -13,16 +13,16 @@
     "numberLocale": "en-US",
     "toolSectionEyebrow": "Inputs to your notebook",
     "toolSectionTitle": "Two ways to feed the notebook",
-    "toolSectionLead": "Field Note is the core. Field Guide helps you see better on site, and Field Scan returns reasons to go now and reasons to come back later.",
+    "toolSectionLead": "Field Note is the core. Lens helps you see better on site, and the Explore Map returns reasons to go now and reasons to come back later.",
     "tools": {
       "lens": {
-        "eyebrow": "Field Guide",
+        "eyebrow": "Lens",
         "title": "Walk with an AI guide reading the world around you",
         "body": "Point your camera and the AI narrows what to check next. It is a support layer, not the final answer, and helps turn the moment into a record.",
         "badge": "beta"
       },
       "scan": {
-        "eyebrow": "Field Scan",
+        "eyebrow": "Explore Map",
         "title": "Find reasons to go now and reasons to return",
         "body": "Use map bias, seasonality, and gaps to understand why here, why now, what one visit can add, and what could bring you back again.",
         "badge": "v0.10"

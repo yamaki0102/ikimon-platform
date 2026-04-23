@@ -50,7 +50,7 @@ export async function generateTts(
 }
 
 /**
- * Build a Field Guide TTS script for a given scene and category.
+ * Build a Live Guide TTS script for a given scene and category.
  * category: "biodiversity" | "land_history" | "buildings" | "people_history"
  */
 export async function buildGuideScript(opts: {
@@ -85,7 +85,7 @@ export async function buildGuideScript(opts: {
       ? `検出種: ${opts.detectedSpecies.join("、")}`
       : "";
 
-  const systemPrompt = `あなたはフィールドガイドのナレーターです。
+  const systemPrompt = `あなたはライブガイドのナレーターです。
 観察者が今いる場所の「${categoryInstructions[opts.category]}」について、自然な語り口で2〜3文のガイドを${langNames[opts.lang]}で生成してください。
 
 ルール:

@@ -4,21 +4,21 @@ import { formatStatLabel, getStrings } from "./index.js";
 
 test("ja returns the canonical dictionary", () => {
   const s = getStrings("ja");
-  assert.strictEqual(s.landing.title, "ikimon — 歩いて、見つけて、ノートに残す");
-  assert.strictEqual(s.fieldLoop.eyebrow, "ikimon の使い方");
+  assert.strictEqual(s.landing.title, "ikimon — ENJOY NATURE | 近くの自然が、もっと楽しくなる");
+  assert.strictEqual(s.fieldLoop.eyebrow, "使い方");
 });
 
 test("en overrides landing and keeps the english field-loop page shape", () => {
   const s = getStrings("en");
   assert.ok(s.landing.title.startsWith("ikimon.life"));
-  assert.strictEqual(s.landing.tools.lens.eyebrow, "Field Guide");
+  assert.strictEqual(s.landing.tools.lens.eyebrow, "Lens");
   assert.strictEqual(s.fieldLoop.title, "Field Loop");
 });
 
 test("missing keys fall back to ja", () => {
   const s = getStrings("es");
   assert.strictEqual(s.landing.numberLocale, "es-ES");
-  assert.ok(s.landing.heroPromiseChips.length === 3);
+  assert.ok(s.landing.heroPromiseChips.length === 4);
   assert.ok(typeof s.landing.statLabelTemplate === "function");
   assert.strictEqual(s.fieldLoop.steps.length, 4);
 });

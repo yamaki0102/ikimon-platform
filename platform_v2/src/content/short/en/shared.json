@@ -6,8 +6,8 @@
       "openNotebook": "Field Note",
       "openMap": "See the map",
       "readFaq": "See FAQ",
-      "openGuide": "Field Guide",
-      "openScan": "Field Scan",
+      "openGuide": "Lens",
+      "openScan": "Explore Map",
       "openAbout": "About ikimon",
       "openGroupHelp": "For Business",
       "contact": "Contact"
@@ -74,8 +74,8 @@
     "labels": {
       "notes": "Field Note",
       "record": "Record one",
-      "lens": "Field Guide",
-      "scan": "Field Scan",
+      "lens": "Lens",
+      "scan": "Explore Map",
       "map": "Map"
     }
   }

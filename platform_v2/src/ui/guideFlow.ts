@@ -24,7 +24,7 @@ type GuideCopy = {
 
 const COPY: Record<SiteLang, GuideCopy> = {
   ja: {
-    title: "フィールドガイド",
+    title: "ライブガイド",
     subtitle: "常時映像・音声を分析し、土地の物語をガイドします",
     startBtn: "ガイドを開始する",
     stopBtn: "停止する",
@@ -49,7 +49,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioUnnamed: "まだ名前が付いていない音",
   },
   en: {
-    title: "Field Guide",
+    title: "Live Guide",
     subtitle: "Continuous video & audio analysis — the land tells its story",
     startBtn: "Start Guide",
     stopBtn: "Stop",
