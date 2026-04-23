@@ -19,27 +19,25 @@ staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える
 - staging browser verify secrets: `STAGING_BASIC_AUTH_USER`, `STAGING_BASIC_AUTH_PASS`
 - deploy-staging は `pre-flight` → `deploy` → `verify-ssh` → `verify-e2e` で止める
 
-## カットオーバー前に必要な環境変数追加 (🚨 要対応)
+## カットオーバー前に必要な環境変数 (2026-04-23 16:55 JST 再確認済)
 
-本番 v2 `pm2 ikimon-v2-production-api` の env に以下を**追加**する必要がある:
+**現状**: 本番 v2 `pm2 ikimon-v2-production-api` の env 確認結果:
+
+| 変数 | 状態 | 備考 |
+|---|---|---|
+| `GEMINI_API_KEY` | ✅ 設定済 | 本番/staging 共通 |
+| `CLOUDFLARE_ACCOUNT_ID` | ✅ 設定済 | |
+| `CLOUDFLARE_STREAM_API_TOKEN` | ✅ 設定済 | |
+| `CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN` | ✅ 設定済 | |
+| `DATABASE_URL` | ✅ 設定済 | |
+| `V2_PRIVILEGED_WRITE_API_KEY` | ✅ 設定済 | |
+| `COMPATIBILITY_WRITE_ENABLED` | ⚠ 未設定（default=true で稼働中） | 明示推奨のため cutover 前に追加 |
 
 ```bash
-# AI ガイド (contact は msmtp 直接なので不要)
-pm2 set ikimon-v2-production-api:GEMINI_API_KEY "<value>"
-
-# Cloudflare Stream (動画対応)
-pm2 set ikimon-v2-production-api:CLOUDFLARE_ACCOUNT_ID "<value>"
-pm2 set ikimon-v2-production-api:CLOUDFLARE_STREAM_API_TOKEN "<value>"
-pm2 set ikimon-v2-production-api:CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN "<value>"
-
-# Compatibility writer (default true だが明示推奨)
+# COMPATIBILITY_WRITE_ENABLED を明示する場合のみ
 pm2 set ikimon-v2-production-api:COMPATIBILITY_WRITE_ENABLED 1
-
 pm2 restart ikimon-v2-production-api --update-env
 ```
-
-- staging にある `GEMINI_API_KEY` をそのまま使うか本番用 key を別途発行するかは要判断
-- `CLOUDFLARE_*` は staging/本番ともに未設定 → Cloudflare ダッシュボードで発行して設定
 
 ## カットオーバー手順
 

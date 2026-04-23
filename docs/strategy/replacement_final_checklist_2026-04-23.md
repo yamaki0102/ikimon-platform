@@ -371,8 +371,7 @@ done
   `cd /var/www/ikimon.life-staging/repo/platform_v2 && npm run migrate`
 - **`specialist_authorities` テーブル不在**: specialist lane (`/specialist/id-workbench` 等) で
   authority-backed review が作動しない。internal route のみ影響、public face には無影響
-- **`CLOUDFLARE_STREAM_*` env 未設定**: 動画投稿機能 `POST /api/v1/videos/*` が失敗する。
-  cutover 前 (T-6h) に設定推奨、なければ cutover 後 24h 以内に追加
+- ~~**`CLOUDFLARE_STREAM_*` env 未設定**~~ → ✅ **2026-04-23 16:55 JST 再確認で既に本番 v2 pm2 env に設定済**。CUTOVER_RUNBOOK の古い記述は修正済
 
 ### D.2 endpoint parity（`replacementReadinessReport.ts:17-35` 由来）
 
