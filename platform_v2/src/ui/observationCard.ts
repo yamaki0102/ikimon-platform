@@ -146,14 +146,16 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-photo-fallback { display: none; }
   .obs-card-photo-fallback.is-visible { display: flex; }
   .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .obs-card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .obs-card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
   .obs-card-who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .obs-card-observer { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #0f172a; min-width: 0; }
-  .obs-card-observer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 10ch; }
-  .obs-card-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #475569; flex-shrink: 0; }
+  .obs-card-observer { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 800; color: #0f172a; min-width: 0; text-decoration: none; }
+  .obs-card-observer:hover { color: #047857; }
+  .obs-card-observer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14ch; }
+  .obs-card-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #475569; flex-shrink: 0; box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(16,185,129,.2); }
   .obs-card-avatar.is-placeholder { background: linear-gradient(135deg,#d1fae5,#bae6fd); color: #065f46; }
-  .obs-card-when { font-size: 11px; color: #64748b; letter-spacing: .02em; flex-shrink: 0; }
+  .obs-card-when { font-size: 11.5px; color: #475569; letter-spacing: .02em; flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
   .obs-card-place { font-size: 12px; color: #475569; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .obs-card-place::before { content: "📍 "; opacity: .7; }
   .obs-card.is-compact .obs-card-media { aspect-ratio: 4 / 3; }
   .obs-card.is-compact .obs-card-meta { padding: 10px 12px 12px; }
   .obs-card-kind { position: absolute; left: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 11px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 4px 10px rgba(15,23,42,.08); backdrop-filter: blur(6px); }

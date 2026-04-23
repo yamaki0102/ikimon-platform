@@ -40,6 +40,7 @@ import {
   getObservationDetailSnapshot,
   getProfileSnapshot,
   getSpecialistSnapshot,
+  type HomePlace,
 } from "../services/readModels.js";
 import {
   assertSpecialistAdminSession,
@@ -57,6 +58,7 @@ import {
   renderMapExplorer,
 } from "../ui/mapExplorer.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
+import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -345,9 +347,13 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-hero { grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); align-items: start; gap: 28px; }
     .obs-hero-meta { position: sticky; top: 16px; }
   }
-  .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); max-height: 620px; }
-  .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; max-height: 520px; }
-  .obs-hero-gallery .is-thumb { aspect-ratio: 1/1; }
+  .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 6px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); max-height: 640px; padding: 4px; }
+  .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; max-height: 520px; cursor: default; border-radius: 16px; }
+  .obs-hero-gallery .is-main img { border-radius: 14px; }
+  .obs-hero-gallery .is-thumb { aspect-ratio: 1/1; cursor: pointer; opacity: .82; transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease; border-radius: 10px; box-shadow: 0 0 0 1px rgba(15,23,42,.08); }
+  .obs-hero-gallery .is-thumb img { border-radius: 10px; }
+  .obs-hero-gallery .is-thumb:hover { opacity: 1; transform: translateY(-1px); box-shadow: 0 0 0 2px rgba(16,185,129,.55); }
+  .obs-hero-gallery .is-thumb:focus-visible { outline: none; opacity: 1; box-shadow: 0 0 0 2px rgba(16,185,129,.8); }
   .obs-hero-media-stack { display: grid; gap: 10px; }
   .obs-hero-photo-stack { display: grid; gap: 10px; }
   .obs-hero-video { display: grid; gap: 8px; }
@@ -887,6 +893,69 @@ function requestBasePath(request: { headers: Record<string, unknown> }): string 
   return getForwardedBasePath(request.headers);
 }
 
+function buildPlaceCompareLine(place: Pick<HomePlace, "previousObservedAt">): string {
+  return place.previousObservedAt
+    ? `前回 ${formatShortDate(place.previousObservedAt, "ja-JP")}`
+    : "この場所の最初の1件です。";
+}
+
+function buildPlaceNextLine(place: Pick<HomePlace, "nextLookFor" | "revisitReason" | "latestDisplayName">): string {
+  const focus = pickPlaceFocus(place);
+  return focus
+    ? `次は ${focus}`
+    : "次の散歩で小さな変化を1件残す";
+}
+
+function renderPlaceRows(
+  basePath: string,
+  lang: SiteLang,
+  viewerUserId: string | null | undefined,
+  places: HomePlace[],
+  emptyMessage: string,
+): string {
+  if (places.length === 0) {
+    return `<div class="row"><div>${escapeHtml(emptyMessage)}</div></div>`;
+  }
+
+  return places.map((place) => {
+    const recordHref = viewerUserId
+      ? buildPlaceRecordHref(basePath, lang, viewerUserId, place)
+      : null;
+    return `<div class="row row-place-revisit">
+      <div>
+        <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
+        <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · ${place.visitCount} 回</div>
+        <div class="meta">${escapeHtml(buildPlaceCompareLine(place))}</div>
+        <div class="meta">${escapeHtml(buildPlaceNextLine(place))}</div>
+      </div>
+      <div class="row-place-actions">
+        <span class="pill">${escapeHtml(formatShortDate(place.lastObservedAt, "ja-JP") || place.lastObservedAt)}</span>
+        ${recordHref ? `<a class="btn btn-ghost" href="${escapeHtml(recordHref)}">ここで記録</a>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+const PLACE_REVISIT_ROW_STYLES = `
+  .row-place-revisit {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .row-place-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+  @media (max-width: 640px) {
+    .row-place-revisit { flex-direction: column; }
+    .row-place-actions { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+  }
+`;
+
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
@@ -962,6 +1031,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <label class="record-field"><span class="record-label">生きもの名（分かれば）</span><input name="scientificName" type="text" placeholder="例: スズメ / Passer montanus" /></label>
               <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
               <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
+              <div class="record-field record-field-wide record-quick-fields" data-quick-only>
+                <div class="record-survey-box record-quick-box">
+                  <div class="record-survey-head">
+                    <div>
+                      <span class="record-label">あとで見返すためのメモ</span>
+                      <p class="record-help">見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。</p>
+                    </div>
+                    <span class="record-survey-pill">再訪用</span>
+                  </div>
+                  <div class="record-survey-grid">
+                    <label class="record-field">
+                      <span class="record-label">今回の残し方</span>
+                      <select name="quickCaptureState">
+                        <option value="present">見つけて書く</option>
+                        <option value="unknown">まだ分からないまま残す</option>
+                        <option value="no_detection_note">今日は見なかったメモを残す</option>
+                      </select>
+                    </label>
+                    <label class="record-field record-field-wide">
+                      <span class="record-label">次に探すもの</span>
+                      <input name="nextLookFor" type="text" placeholder="例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花" />
+                    </label>
+                  </div>
+                  <div class="record-survey-caution">
+                    <strong>「今日は見なかった」は今日のメモです。</strong>
+                    <span>この 1 回だけで不在を言い切るためには使いません。次に探す軸として残します。</span>
+                  </div>
+                </div>
+              </div>
               <div class="record-field record-field-wide record-survey-fields" data-survey-only hidden>
                 <div class="record-survey-box">
                   <div class="record-survey-head">
@@ -990,7 +1088,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <label class="record-field">
                       <span class="record-label">今回の結果</span>
                       <select name="surveyResult" disabled>
-                        <option value="present">見つけて記録した</option>
+                        <option value="detected">見つけて記録した</option>
                         <option value="no_detection_note">見つからなかったメモだけ残す</option>
                       </select>
                     </label>
@@ -1082,6 +1180,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const modeLead = document.getElementById('record-mode-lead');
         const modeInput = form ? form.querySelector('[name=recordMode]') : null;
         const modeButtons = form ? Array.from(form.querySelectorAll('[data-record-mode]')) : [];
+        const quickFieldsWrap = form ? form.querySelector('[data-quick-only]') : null;
         const surveyFieldsWrap = form ? form.querySelector('[data-survey-only]') : null;
         const surveyRequiredFields = form ? Array.from(form.querySelectorAll('[data-survey-required]')) : [];
         const previewDate = document.getElementById('record-preview-date');
@@ -1124,6 +1223,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               : '場所・時間・気づいたことを、まず 1 件残すための入力です。';
           }
           if (previewKicker) previewKicker.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
+          if (quickFieldsWrap) quickFieldsWrap.hidden = survey;
           if (surveyFieldsWrap) surveyFieldsWrap.hidden = !survey;
           surveyRequiredFields.forEach((field) => {
             field.disabled = !survey;
@@ -1142,6 +1242,71 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (typeof error === 'string') return error;
           if (error && typeof error.message === 'string') return error.message;
           return String(error);
+        };
+
+        const escapeHtmlText = (value) => String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
+        const formatObservedDate = (value) => {
+          if (!value) return '';
+          const parsed = new Date(String(value));
+          if (Number.isNaN(parsed.getTime())) return String(value);
+          return parsed.toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+        };
+
+        const buildImpactHtml = (impact, extraStatus) => {
+          const notes = [];
+          if (impact && impact.placeName) {
+            notes.push(impact.placeName + ' での記録が ' + String(impact.visitCount || 1) + ' 件目になりました。');
+          }
+          if (impact && impact.previousObservedAt) {
+            notes.push('前回は ' + formatObservedDate(impact.previousObservedAt) + ' に記録しています。');
+          } else if (impact && impact.placeName) {
+            notes.push('この場所の比較用メモがここから育ちます。');
+          }
+          if (impact && impact.focusLabel) {
+            notes.push('次は「' + String(impact.focusLabel) + '」を見返す軸として残しました。');
+          } else if (impact && impact.captureState === 'unknown') {
+            notes.push('まだ分からないまま残したので、次回の見分けポイントにできます。');
+          } else if (impact && impact.captureState === 'no_detection_note') {
+            notes.push('今日は見なかったメモとして残し、次回比較の起点にしました。');
+          }
+          if (extraStatus) {
+            notes.push(extraStatus);
+          }
+          return notes.map((line) => '<div class="meta" style="margin-top:6px">' + escapeHtmlText(line) + '</div>').join('');
+        };
+
+        const applyPrefillFromQuery = () => {
+          if (!form) return;
+          const params = new URLSearchParams(window.location.search);
+          const names = ['latitude', 'longitude', 'municipality', 'localityNote', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason'];
+          names.forEach((name) => {
+            if (!params.has(name)) return;
+            const field = form.elements.namedItem(name);
+            if (field && 'value' in field) {
+              field.value = params.get(name) || '';
+            }
+          });
+          if (params.has('quickCaptureState')) {
+            const field = form.elements.namedItem('quickCaptureState');
+            if (field && 'value' in field) {
+              field.value = params.get('quickCaptureState') || 'present';
+            }
+          }
+          if (params.has('surveyResult')) {
+            const field = form.elements.namedItem('surveyResult');
+            if (field && 'value' in field) {
+              field.value = params.get('surveyResult') || 'detected';
+            }
+          }
+          if (params.has('recordMode') && modeInput) {
+            modeInput.value = params.get('recordMode') === 'survey' ? 'survey' : 'quick';
+          }
         };
 
         const formatBytes = (bytes) => {
@@ -1228,6 +1393,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const localityNote = String(data.get('localityNote') || '').trim();
           const municipality = String(data.get('municipality') || '').trim();
           const revisitReason = String(data.get('revisitReason') || '').trim();
+          const nextLookFor = String(data.get('nextLookFor') || '').trim();
+          const quickCaptureState = String(data.get('quickCaptureState') || 'present');
           const targetTaxaScope = String(data.get('targetTaxaScope') || '').trim();
           const latitude = String(data.get('latitude') || '').trim();
           const longitude = String(data.get('longitude') || '').trim();
@@ -1236,7 +1403,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (previewPlace) {
             previewPlace.textContent = survey
               ? (revisitReason || targetTaxaScope || localityNote || 'また見に行きたい理由や見たかったものを書くと、あとで比べやすくなります。')
-              : (localityNote || '場所メモが入ると、あとから再訪理由として効きます。');
+              : (nextLookFor
+                  || (quickCaptureState === 'no_detection_note'
+                    ? '今日は見なかったメモとして残します。'
+                    : quickCaptureState === 'unknown'
+                      ? 'まだ分からないまま残し、あとで見分け直せます。'
+                      : localityNote)
+                  || '場所メモが入ると、あとから再訪理由として効きます。');
           }
           if (previewMunicipality) previewMunicipality.textContent = municipality || '自治体未入力';
           if (previewCoords) previewCoords.textContent = latitude && longitude ? latitude + ', ' + longitude : '座標未入力';
@@ -1365,8 +1538,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
         }
 
-        syncPreview();
+        applyPrefillFromQuery();
         syncModeUi();
+        syncPreview();
         resetVideoProgress();
 
         if (form) {
@@ -1386,7 +1560,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const targetTaxaScope = String(data.get('targetTaxaScope') || '').trim();
               const effortMinutes = Number(data.get('effortMinutes'));
               const revisitReason = String(data.get('revisitReason') || '').trim();
-              const surveyResult = String(data.get('surveyResult') || 'present');
+              const nextLookFor = String(data.get('nextLookFor') || '').trim();
+              const quickCaptureState = String(data.get('quickCaptureState') || 'present');
+              const surveyResult = String(data.get('surveyResult') || 'detected');
               if (recordMode === 'survey') {
                 if (!targetTaxaScope) {
                   throw new Error('survey_target_scope_required');
@@ -1419,14 +1595,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 completeChecklistFlag: recordMode === 'survey' ? checklistCompletion === 'complete' : false,
                 targetTaxaScope: recordMode === 'survey' ? targetTaxaScope : null,
                 effortMinutes: recordMode === 'survey' ? effortMinutes : null,
-                revisitReason: recordMode === 'survey' ? revisitReason : null,
+                revisitReason: recordMode === 'survey' ? revisitReason : nextLookFor || null,
                 sourcePayload: {
                   source: 'v2_web',
                   record_mode: recordMode,
                   survey_result: recordMode === 'survey' ? surveyResult : null,
-                  absence_semantics: recordMode === 'survey' && surveyResult === 'no_detection_note'
-                    ? 'protocol_note_only'
-                    : null,
+                  quick_capture_state: recordMode === 'survey' ? null : quickCaptureState,
+                  next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
+                  absence_semantics: recordMode === 'survey'
+                    ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
+                    : (quickCaptureState === 'no_detection_note'
+                        ? 'casual_note_only'
+                        : quickCaptureState === 'unknown'
+                          ? 'needs_followup'
+                          : null),
                 },
                 taxon: scientificName || vernacularName
                   ? {
@@ -1528,9 +1710,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               }
 
               const suffix = extraStatus
-                ? '<div class="meta" style="margin-top:6px">' + extraStatus + '</div>'
+                ? extraStatus
                 : '';
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + suffix + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートを見る</a></div></div></div>');
+              const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートを見る</a></div></div></div>');
               form.reset();
               if (modeInput) modeInput.value = 'quick';
               if (observedAt) {
@@ -1750,16 +1933,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         observerAvatarUrl: null,
       }, { locationMode: "public" }),
     ).join("");
-    const myPlaces = snapshot.myPlaces.map((place) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.viewerUserId || "")}`))}">
-        <div>
-          <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-          <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · 前回 ${escapeHtml(place.lastObservedAt)}</div>
-        </div>
-        <span class="pill">${place.visitCount} 回</span>
-      </a>`).join("");
+    const myPlaces = renderPlaceRows(
+      basePath,
+      lang,
+      snapshot.viewerUserId,
+      snapshot.myPlaces,
+      "まだ記録した場所はありません。",
+    );
     const revisitCue = snapshot.myPlaces[0]
-      ? `${snapshot.myPlaces[0].placeName} を起点に、前回の記録と今季の変化を見返せます。`
+      ? `${snapshot.myPlaces[0].placeName} · ${buildPlaceCompareLine(snapshot.myPlaces[0])} · ${buildPlaceNextLine(snapshot.myPlaces[0])}。`
       : "まず1件記録すると、場所ごとの再訪理由が育ち始めます。";
     const growthCue = snapshot.recentObservations[0]
       ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
@@ -1776,7 +1958,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="card is-soft"><div class="card-body"><div class="eyebrow">積み上がる意味</div><h2>長く残る観察</h2><p class="meta">今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div></div>
         </div>
       </section>
-      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces || '<div class="row"><div>まだ記録した場所はありません。</div></div>'}</div></section>` : ""}
+      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces}</div></section>` : ""}
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
       "ホーム",
       {
@@ -1790,6 +1972,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       `${OBSERVATION_CARD_STYLES}
         .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        ${PLACE_REVISIT_ROW_STYLES}
       `,
     );
   });
@@ -2396,7 +2579,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}`;
+    const galleryScript = snapshot.photoAssets.length >= 2
+      ? `<script>(function(){
+           var galleries = Array.prototype.slice.call(document.querySelectorAll('[data-obs-gallery]'));
+           galleries.forEach(function(g){
+             g.addEventListener('click', function(ev){
+               var btn = ev.target.closest ? ev.target.closest('[data-obs-photo-index]') : null;
+               if (!btn || !g.contains(btn)) return;
+               if (btn.classList.contains('is-main')) return;
+               ev.preventDefault();
+               var current = g.querySelector('.obs-hero-photo.is-main');
+               if (current) { current.classList.remove('is-main'); current.classList.add('is-thumb'); }
+               btn.classList.remove('is-thumb');
+               btn.classList.add('is-main');
+               g.insertBefore(btn, g.firstChild);
+             });
+           });
+          })();</script>`
+      : "";
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -2416,14 +2617,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
     }
-    const places = snapshot.recentPlaces.map((place) => `
-      <div class="row">
-        <div>
-          <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-          <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · ${escapeHtml(place.lastObservedAt)}</div>
-        </div>
-        <span class="pill">${place.visitCount} 回</span>
-      </div>`).join("");
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const places = renderPlaceRows(
+      basePath,
+      lang,
+      viewerSession?.userId ?? null,
+      snapshot.recentPlaces,
+      "まだ場所の記録はありません。",
+    );
     const observations = snapshot.recentObservations.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
@@ -2449,6 +2651,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このユーザーのホームを見る" },
         ],
       },
+      PLACE_REVISIT_ROW_STYLES,
     );
   });
 
@@ -2464,14 +2667,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
     }
-    const places = snapshot.recentPlaces.map((place) => `
-      <div class="row">
-        <div>
-          <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-          <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · ${escapeHtml(place.lastObservedAt)}</div>
-        </div>
-        <span class="pill">${place.visitCount} 回</span>
-      </div>`).join("");
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const places = renderPlaceRows(
+      basePath,
+      lang,
+      snapshot.userId,
+      snapshot.recentPlaces,
+      "まだ場所の記録はありません。",
+    );
     const observations = snapshot.recentObservations.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
@@ -2498,6 +2701,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           { href: "/home", label: "ホームへ", variant: "secondary" as const },
         ],
       },
+      PLACE_REVISIT_ROW_STYLES,
     );
   });
 
@@ -2619,7 +2823,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "authority recommendation の申請にはサインインが必要です",
           `<p style="margin:0 0 12px">自分の学習証跡を積み上げて、分類群ごとの authority 候補として申請できます。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -2638,7 +2842,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">Self claim</div>
               <h2>authority 候補として申請する</h2>
             </div>
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>
           </div>
           <p class="meta">観察会・ウェビナー・論文・図鑑/雑誌などの学習証跡を添えて、自分の分類群スコープ recommendation を作成します。証跡だけでは自動昇格せず、同じ分類群 authority 保有者または運営の解決が必要です。</p>
           <form id="authority-recommendation-form" class="stack" style="margin-top:14px">
@@ -2665,7 +2869,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どこで学び、何をベースに見分けているか"></textarea></label>
             <div class="actions">
               <button class="btn" type="submit">申請する</button>
-              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の全文を読む</a>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の全文を読む</a>
             </div>
           </form>
           <div id="authority-recommendation-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
@@ -2743,7 +2947,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "この画面は authority 付与済み reviewer 向けです",
           `<p style="margin:0 0 12px">レビュー queue と同定 workbench は、Admin / Analyst か、分類群 authority を持つ reviewer だけが入れます。制度の考え方と authority 候補になる道は説明ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -2780,7 +2984,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : `<div class="meta">表示中の queue は、あなたに付与された分類群 authority に一致する観察だけです。</div>`;
     const manageAuthorityAction = access.canManageAll
       ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
-      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
+      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
@@ -2904,7 +3108,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "この画面は authority 付与済み reviewer 向けです",
           `<p style="margin:0 0 12px">pending recommendation を解決できるのは、同じ分類群 scope の authority 保有者、または運営権限を持つアカウントです。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -2933,7 +3137,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">Current scope</div>
               <h2 style="margin:6px 0 0">解決できる分類群</h2>
             </div>
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>
           </div>
           ${renderAuthoritySummaryChips(access.activeAuthorities)}
           <div class="meta">${access.canManageAll ? "Admin / Analyst は全 pending recommendation を横断で確認できます。" : "自分の authority scope に一致する pending recommendation だけが表示されます。"}</div>
@@ -3096,7 +3300,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "authority 監査ログは Analyst / Admin 専用です",
           `<p style="margin:0 0 12px">grant / revoke / update の痕跡は一般公開せず、運営が追跡できる面に閉じています。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin へ戻る</a>
           </div>`,
         ),
@@ -3127,7 +3331,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">Filters</div>
               <h2>grant / revoke / update を追う</h2>
             </div>
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>
           </div>
           <form class="stack" method="get" action="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}" style="margin-top:14px">
             <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
@@ -3184,7 +3388,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "authority 管理は Analyst / Admin 専用です",
           `<p style="margin:0 0 12px">grant / revoke / evidence 追加は運営権限を持つアカウントだけが実行できます。制度の考え方は公開ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">専門確認へ戻る</a>
           </div>`,
         ),
@@ -3356,7 +3560,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           "この画面は authority 付与済み reviewer 向けです",
           `<p style="margin:0 0 12px">review-queue は broad triage 面ですが、閲覧できるのは Admin / Analyst か、分類群 authority を持つ reviewer だけです。</p>
           <div class="actions" style="margin-top:16px">
-            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -3376,7 +3580,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : `<div class="meta">review-queue でも、あなたの authority scope に一致する観察だけが表示されます。</div>`;
     const manageAuthorityAction = access.canManageAll
       ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
-      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
+      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
@@ -3502,6 +3706,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const emptyCopy = notesPageCopy.sections.nearbyEmpty;
     const nearbyCopy = notesPageCopy.sections.nearbyTitle;
     const myCopy = notesPageCopy.sections.ownTitle;
+    const placeRows = renderPlaceRows(
+      basePath,
+      lang,
+      viewerUserId,
+      snapshot.myPlaces,
+      "まだ再訪したい場所はありません。",
+    );
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
@@ -3515,6 +3726,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .notes-head h2 { margin: 0; }
         .notes-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
         .notes-grid.is-compact { grid-template-columns: 1fr; gap: 12px; }
+        ${PLACE_REVISIT_ROW_STYLES}
       `,
       hero: {
         eyebrow: notesPageCopy.hero.eyebrow,
@@ -3528,7 +3740,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           { href: "/map", label: sharedCopy.cta.openMap, variant: "secondary" as const },
         ],
       },
-      body: `<section class="section notes-page" data-testid="notes-own">
+      body: `${isLoggedIn ? `<section class="section notes-page" data-testid="notes-places">
+        <div class="notes-head"><div><h2>よく歩く場所</h2></div></div>
+        <div class="list">${placeRows}</div>
+      </section>` : ""}
+      <section class="section notes-page" data-testid="notes-own">
         <div class="notes-head"><div><h2>${escapeHtml(myCopy)}</h2></div></div>
         ${isLoggedIn
           ? (ownCards
@@ -3591,44 +3807,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <section class="section">${renderPublicRouteCardGrid(lensPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
       <section class="section">${renderPublicRouteCardGrid(lensPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
       footerNote: lensPageCopy.footerNote,
-    });
-  });
-
-  /* -------------------------------------------------------------- */
-  /* Field Scan entry (/scan) — marketing + CTA into map/explore    */
-  /* -------------------------------------------------------------- */
-  app.get("/scan", async (request, reply) => {
-    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const scanPageCopy = getShortCopy<any>(lang, "public", "read.scan");
-    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
-
-    reply.type("text/html; charset=utf-8");
-    return renderSiteDocument({
-      basePath,
-      title: scanPageCopy.title,
-      activeNav: scanPageCopy.activeNav,
-      lang,
-      hero: {
-        eyebrow: scanPageCopy.hero.eyebrow,
-        heading: scanPageCopy.hero.heading,
-        headingHtml: scanPageCopy.hero.heading,
-        lead: scanPageCopy.hero.lead,
-        tone: "light",
-        align: "center",
-        actions: [
-          { href: "/map", label: sharedCopy.cta.openMap },
-          { href: "/notes", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
-        ],
-      },
-      body: `<section class="section">
-        <div class="list">
-          ${scanPageCopy.steps.map((step: { title: string; body: string }) => `<div class="row"><div><strong>${escapeHtml(step.title)}</strong><div class="meta">${escapeHtml(step.body)}</div></div></div>`).join("")}
-        </div>
-      </section>
-      <section class="section">${renderPublicRouteCardGrid(scanPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
-      <section class="section">${renderPublicRouteCardGrid(scanPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
-      footerNote: scanPageCopy.footerNote,
     });
   });
 
