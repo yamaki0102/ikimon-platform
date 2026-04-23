@@ -39,6 +39,48 @@ pm2 set ikimon-v2-production-api:COMPATIBILITY_WRITE_ENABLED 1
 pm2 restart ikimon-v2-production-api --update-env
 ```
 
+## カットオーバー前の必須 bootstrap import (2026-04-23 INC 再発防止)
+
+再カットオーバー前に、**本番 v2 DB (`ikimon_v2`) に legacy PHP 全データを取り込む**。
+これをサボると S2 incident (INC_2026-04-23) が再発する。
+
+```bash
+cd /var/www/ikimon.life-staging/repo/platform_v2
+# 本番 DB 向け env (pm2 dump の値を使う)
+DATABASE_URL="postgres://ikimon_v2:<prod_pass>@127.0.0.1:5432/ikimon_v2" \
+LEGACY_DATA_ROOT=/var/www/ikimon.life/data \
+LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/public_html \
+LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/public_html/uploads \
+  npm run import:legacy && \
+  npm run import:observations && \
+  npm run import:observations:evidence && \
+  npm run import:observations:identifications && \
+  npm run import:observations:conditions && \
+  npm run import:remember-tokens && \
+  npm run import:tracks
+```
+
+### 成功判定（本番 DB でこれが達成されるまで cutover NG）
+
+```bash
+# 本番 DB 実測
+sudo -u postgres psql ikimon_v2 -c "
+select (select count(*) from users) as users,
+       (select count(*) from occurrences) as occurrences,
+       (select count(*) from visit_track_points) as track_points,
+       (select count(*) from identifications) as identifications;
+"
+# 期待: legacy data/ の件数とほぼ同数、trackPoints > 0
+```
+
+```bash
+# /ops/readiness で counts 確認（本番 v2 上）
+curl -s http://127.0.0.1:3201/ops/readiness | jq '.counts'
+# 期待: users >= 法人 users.json の ~95%、trackPoints > 0
+```
+
+詳細手順: [`ops/runbooks/cutover_retry_bootstrap_2026-04-23.md`](runbooks/cutover_retry_bootstrap_2026-04-23.md)
+
 ## カットオーバー手順
 
 ### Step 1: 事前バックアップ
@@ -118,6 +160,8 @@ Section E の hard_stop FAIL を観測したら本セクションへ。
 | エラーレート急上昇 | 平常 +0.5%pt 超 が 5分以上 | pm2 logs / アクセスログ |
 | `/record` POST 成功率 | < 95% が 5分以上 | `pm2 logs ikimon-v2-production-api` grep |
 | `compatibility_write_ledger.write_status=failed` | 直近10分で 3件以上 | `psql ikimon_v2 -c "select count(*) from compatibility_write_ledger where attempted_at > now()-interval '10 min' and write_status='failed'"` |
+| **`counts.users` / `counts.occurrences` が legacy 比で 10% 以上少ない** | users: legacy users.json 件数 × 0.9 未満 / occurrences: legacy data/observations/ 合算 × 0.9 未満 | `/ops/readiness` の counts と legacy データ比較（※ 2026-04-23 INC 再発防止） |
+| **`counts.trackPoints == 0`** | 0 のまま cutover に突入 | `/ops/readiness` counts — import:tracks 未完遂のシグナル |
 | チェック表 Section E.3-E.5 の hard_stop=true FAIL | 1件でも | 目視 |
 | ユーザーからの致命的障害報告 | 無限ループ/データ消失/認証断絶など | Twitter / 問い合わせ |
 

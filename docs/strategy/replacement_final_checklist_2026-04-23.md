@@ -364,7 +364,21 @@ done
 | `gates.audioArchiveReady` | readiness snapshot | migration 0020 適用 + `private_uploads` 書込可 + `V2_PRIVILEGED_WRITE_API_KEY` 設定済 | true | false | **false** | ⚠ KNOWN LIMITATION | 本番 DB に migration 0020 未適用。cutover 後の `npm run migrate` で解消。音声アーカイブ機能は cutover 直後は limited |
 | `gates.rollbackSafetyWindowReady` | readiness snapshot | 上記 4 ゲート（parity / delta / drift / compatibility）が全 true | true | false | **true** | 🟢 GREEN | cutover GO 条件 ✓ |
 
-### D.1.1 Known Limitations — 2026-04-23 17:10 JST すべて解消済
+### D.1.1 Data Freshness Gate (2026-04-23 INC 追加)
+
+**前回 cutover (20:59) の失敗要因**: gates は GREEN だが本番 v2 DB の counts が legacy と
+大きく乖離していた。次回 cutover ではこの gate を追加で見る:
+
+| signal | green | red |
+|---|---|---|
+| `counts.users` | legacy `users.json` 件数 × 0.95 以上 | それ未満 |
+| `counts.trackPoints` | > 0 | 0 のまま |
+| 最新 `bootstrap_import.rows_imported` | > 0 | 0（空 import） |
+| `counts.occurrences` | legacy `data/observations/*.json` 合算 × 0.9 以上 | それ未満 |
+
+詳細: [`ops/incidents/INC_2026-04-23_v2_cutover_rollback.md`](../../ops/incidents/INC_2026-04-23_v2_cutover_rollback.md)
+
+### D.1.2 Known Limitations — 2026-04-23 17:10 JST すべて解消済
 
 | 項目 | 状態 |
 |---|---|
@@ -446,6 +460,9 @@ done
 | D3 | `authorityFill.percentWithRank >= 90` | D | ≥ 90 | true | YAMAKI | ⚠ WAIVED | `specialist_authorities` 未構築。public face に無影響、specialist lane は cutover 後整備対象 |
 | D4 | `gates.audioArchiveReady == true` | D | true | true | YAMAKI | ⚠ WAIVED | migration 0020 未適用。音声機能 limited start、cutover 後 T+30m に `npm run migrate` で解消 |
 | E0 | rollback runbook の場所が共有済 | — | URL 提示 | true | YAMAKI | ✅ PASS | `ops/CUTOVER_RUNBOOK.md` §ロールバック手順 |
+| **F0** | **本番 v2 DB `counts.users` が legacy `users.json` 比で ≥ 95%** (2026-04-23 INC 再発防止) | D | ratio ≥ 0.95 | true | YAMAKI | **❌ FAIL** | 20:59 cutover 時点で users=9 vs legacy ≈100 → 9%。**即 rollback 要因**。再カットオーバーには本番 DB bootstrap import 完遂必須 |
+| **F1** | **本番 v2 DB `counts.trackPoints > 0`** (2026-04-23 INC 再発防止) | D | > 0 | true | YAMAKI | **❌ FAIL** | trackPoints=0 → `import:tracks` 未完遂。再カットオーバー前に実行要 |
+| **F2** | **最新 `bootstrap_import.rows_imported > 0`** (2026-04-23 INC 再発防止) | D | > 0 | true | YAMAKI | **❌ FAIL** | 最後の bootstrap (2026-04-18) が rows_imported=0。再実行要 |
 
 ### E.2 T-1h（直前チェック）
 
@@ -485,6 +502,31 @@ done
 - `/api/affiliate/admin.php` → 404 (edge block)
 - `/api/*.php` (legacy_continued) → PHP-FPM 継続
 - `/uploads/` / `/deploy` / `/tiles/` / `/sw.js` / 静的資産 → 既存通り
+
+### 🚨 ROLLBACK 実行ログ (2026-04-23 21:14:54 JST)
+
+**トリガー**: ユーザー報告「Nats のデータ消えまくってる」（CUTOVER_RUNBOOK トリガー §6 相当）
+
+**判明した事実**:
+- 本番 v2 DB の `counts.users=9` が legacy `users.json`（約 100 user）と大きく乖離
+- `counts.trackPoints=0` → `import:tracks` 未完遂
+- `migration_runs` の最新 `bootstrap_import` が `rows_imported=0` で completed 扱い
+- つまり pre-cutover check の gates は GREEN だったが、本番 v2 DB は **空に近い状態** で cutover していた
+
+**Rollback 実行**:
+
+| time | action |
+|---|---|
+| 21:14:54 JST | `cp /etc/nginx/sites-available/ikimon.life.pre-cutover /etc/nginx/sites-available/ikimon.life` |
+| 21:14:54 JST | `nginx -t` → syntax ok / test successful |
+| 21:14:56 JST | `systemctl reload nginx` → exit 0 |
+| 21:15 JST | 外部 smoke: `/`, `/explore.php`, `/index.php`, `/post.php`, `/api/get_events.php`, `/dashboard.php` 全 200/302 ✅ |
+
+**MTTR**: 15 分（cutover 20:59:16 → rollback 21:14:54）
+**データ損失**: ゼロ（compatibilityWriter が期間中も legacy に書き込み）
+**完全 incident report**: [`ops/incidents/INC_2026-04-23_v2_cutover_rollback.md`](../../ops/incidents/INC_2026-04-23_v2_cutover_rollback.md)
+
+**v2 設定の退避先**: `/etc/nginx/sites-available/ikimon.life.v2-cutover-snapshot` （再カットオーバー時に流用）
 
 ### E.3 T-0（差し替え瞬間）
 
@@ -605,6 +647,7 @@ done
 | 2026-04-23 | 愛 (Claude) | Section D.1/D.3 / E.1 に staging 実測 evidence を埋め。BLOCKER: parityVerified STALE (24.7h) 判明、VPS で `npm run report:legacy-drift` 再実行で解消見込 |
 | 2026-04-23 | 愛 (Claude) | VPS SSH で drift report / verify / materialize / replacement-readiness を実機実行。本番 v2 :3201 の全 gates が GREEN、rollbackSafetyWindowReady=true を確認。staging 側 parity は別運用、cutover 判定には無関係と判明。Known Limitation として migration 0020 (audio) / specialist_authorities / Cloudflare Stream の 3 件は cutover 後整備に分離 |
 | 2026-04-23 20:59 | 愛 (Claude) | **本番カットオーバー実行**。pg_dump 5.8MB / uploads rsync 762MB → nginx v2 proxy + legacy fallback 設定に reload → 外部 smoke 全 200 → dist rebuild + pm2 restart → DATABASE_URL 一時 regression を pm2 dump から復元 → 最終確認: status=near_ready、全 gates GREEN。カットオーバー完了。 |
+| 2026-04-23 21:14 | 愛 (Claude) | **ROLLBACK 実行 (S2 incident)**。本番 v2 DB の bootstrap import 未完遂 (`counts.users=9` vs legacy ~100、`trackPoints=0`) が判明、ユーザーデータ表示できず。nginx を pre-cutover に戻して 1 分で復旧。MTTR 15 分、データ損失ゼロ。Section D に Data Freshness gate、Section E.1 に F0-F2 追加、INC report を `ops/incidents/` に記録。 |
 
 ---
 
