@@ -246,10 +246,37 @@ bootstrap import で取り込まれず全 0 行。
   マキ属 (genus)、Magnoliopsida (class) 等
 
 **残タスク (明日以降の independent issue)**:
-- 残 ~6380 observations で `ai_assessments` が空のもの → **Gemini API で新規 AI 同定実行**（有料、rate limit あり）
 - obs card UI の「近くで見つかっているもの」グリッドにユーザー情報/日付表示（`app.ts` の
   landing renderer 500行超を弄る、深夜リスク大のため延期）
 - observation 詳細ページの画像クリック/複数枚切替のバグ調査
+
+## 2026-04-24 00:05 追補 — ゴミデータ purge (案A)
+
+ユーザー判断「Natsのが消えないならOK、Aの方向性で丁寧に進めて」:
+
+**発見**: bootstrap 後の 6573 visits の内訳調査で **user_admin_001 が 6384 visits** (97%) 占有、うち photos 49 枚以外は実質ゴミ（passive scan / live-scan / pocket walk の自動投稿集積）。system_import (愛管 生物調査チーム) 54 件 seed + install_*/field_user_* 9 件も無写真。
+
+**実行**: `ops/sql/purge_admin_seed_garbage_2026-04-23.sql` を staging + production v2 DB 両方に適用:
+
+Before / After:
+|       | Before | After | Delta |
+|---|---|---|---|
+| users | 77 | 77 | 0 |
+| visits | 6573 | 171 | -6402 |
+| occurrences | 6530 | 170 | -6360 |
+| track_points | 5725 | 1122 | -4603 |
+| identifications | 201 | 56 | -145 |
+| photos | 365 | 361 | -4 (e2e) |
+
+**保護 assert 通過**: Nats (user_69be85c688371) 132 visits / 269 photos、YAMAKI 9/23、
+よー 5/5 すべて保持。admin photos 付き 20 visits / 49 photos も残置。
+
+SQL は `BEGIN; ... COMMIT;` で transactional、`DO $$ ... RAISE EXCEPTION $$`
+で保護対象が誤ヒット時には即ロールバック。
+
+Backups:
+- `ikimon_v2_staging_pre_purge_20260423_222231.sql` (45MB)
+- `ikimon_v2_pre_purge_<timestamp>.sql`
 
 ## Verification
 
