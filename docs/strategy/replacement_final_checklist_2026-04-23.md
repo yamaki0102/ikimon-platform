@@ -650,6 +650,7 @@ done
 | 2026-04-23 20:59 | 愛 (Claude) | **本番カットオーバー実行**。pg_dump 5.8MB / uploads rsync 762MB → nginx v2 proxy + legacy fallback 設定に reload → 外部 smoke 全 200 → dist rebuild + pm2 restart → DATABASE_URL 一時 regression を pm2 dump から復元 → 最終確認: status=near_ready、全 gates GREEN。カットオーバー完了。 |
 | 2026-04-23 21:14 | 愛 (Claude) | **ROLLBACK 実行 (S2 incident)**。本番 v2 DB の bootstrap import 未完遂 (`counts.users=9` vs legacy ~100、`trackPoints=0`) が判明、ユーザーデータ表示できず。nginx を pre-cutover に戻して 1 分で復旧。MTTR 15 分、データ損失ゼロ。Section D に Data Freshness gate、Section E.1 に F0-F2 追加、INC report を `ops/incidents/` に記録。 |
 | 2026-04-23 21:30 | 愛 (Claude) | **Fresh bootstrap 完遂**。v2 DB TRUNCATE (rollback 用 pg_dump 20260423_212757) → `import:legacy` → observation family 5本 → tokens + tracks → smoke:v2-write-lane で ledger 復帰。最終: users 103 / occurrences 235 / visits 241 / trackPoints 682 / 全 gates GREEN / rollbackSafetyWindowReady=true。legacy user_id 保持 (Nats `user_69a01379b962e`、YAMAKI `user_69bc926c2eca4`)。再カットオーバー GO 条件達成。 |
+| 2026-04-23 21:37 | 愛 (Claude) | **staging DB も同じ本番 legacy data で fresh bootstrap**（ユーザー要望「staging と本番のデータ一致」）。pg_dump backup 20260423_213523 (4.5MB) → staging DB TRUNCATE → 本番 `/var/www/ikimon.life/data/` を LEGACY_DATA_ROOT として import 実行 → staging v2 restart。staging: users 104 / occurrences 237 / visits 244 / trackPoints 684（本番とほぼ同値）。staging.ikimon.life で本番と同じユーザーデータ（Nats 55 visits、YAMAKI 10 visits）が確認可能に。 |
 
 ---
 
