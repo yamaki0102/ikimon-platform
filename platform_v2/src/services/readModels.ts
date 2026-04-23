@@ -83,6 +83,9 @@ export type ObservationDetailSnapshot = {
   photoAssets: Array<{
     assetId: string;
     url: string;
+    roleTag: string | null;
+    roleTagSource: string | null;
+    organTarget: string | null;
   }>;
   photoUrls: string[];
   videoAssets: Array<{
@@ -744,9 +747,18 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
   const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
 
-  const photosResult = await pool.query<{ asset_id: string; photo_url: string | null }>(
+  const photosResult = await pool.query<{
+    asset_id: string;
+    photo_url: string | null;
+    role_tag: string | null;
+    role_tag_source: string | null;
+    organ_target: string | null;
+  }>(
     `select ea.asset_id::text as asset_id,
-            coalesce(ab.public_url, ab.storage_path) as photo_url
+            coalesce(ab.public_url, ab.storage_path) as photo_url,
+            ea.role_tag,
+            ea.role_tag_source,
+            ea.organ_target
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
      where ea.visit_id = $1
@@ -808,9 +820,18 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
       return {
         assetId: row.asset_id,
         url: normalizedUrl,
+        roleTag: row.role_tag ?? null,
+        roleTagSource: row.role_tag_source ?? null,
+        organTarget: row.organ_target ?? null,
       };
     })
-    .filter((row): row is { assetId: string; url: string } => Boolean(row));
+    .filter((row): row is {
+      assetId: string;
+      url: string;
+      roleTag: string | null;
+      roleTagSource: string | null;
+      organTarget: string | null;
+    } => Boolean(row));
 
   return {
     occurrenceId: base.occurrence_id,

@@ -624,6 +624,16 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-pri { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; letter-spacing: .04em; flex-shrink: 0; }
   .obs-shot-pri-high { background: rgba(239,68,68,.12); color: #991b1b; }
   .obs-shot-pri-medium { background: rgba(234,179,8,.18); color: #713f12; }
+  .obs-role-cov { margin-bottom: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.78); border: 1px solid rgba(234,179,8,.22); display: flex; flex-direction: column; gap: 8px; }
+  .obs-role-cov-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .obs-role-cov-eye { font-size: 11.5px; font-weight: 900; color: #713f12; letter-spacing: .04em; text-transform: uppercase; }
+  .obs-role-cov-count { font-size: 11.5px; font-weight: 800; color: #64748b; }
+  .obs-role-cov-count.is-met { color: #065f46; background: rgba(16,185,129,.14); padding: 2px 9px; border-radius: 999px; }
+  .obs-role-cov-bar { position: relative; height: 6px; border-radius: 999px; background: rgba(234,179,8,.15); overflow: hidden; }
+  .obs-role-cov-bar span { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #f59e0b, #10b981); transition: width .3s ease; }
+  .obs-role-cov-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .obs-role-chip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(148,163,184,.15); color: #64748b; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+  .obs-role-chip.is-covered { background: rgba(16,185,129,.16); color: #065f46; font-weight: 900; }
 
   .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
   .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
@@ -795,7 +805,11 @@ function renderReactionBar(
     : "";
 }
 
-function renderSubjectHint(subject: ObservationVisitSubject, siteBrief: SiteBrief | null = null): string {
+function renderSubjectHint(
+  subject: ObservationVisitSubject,
+  siteBrief: SiteBrief | null = null,
+  photoAssets: { roleTag: string | null }[] | null = null,
+): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
     return `<section class="section obs-hint-section is-tent">
@@ -833,7 +847,7 @@ function renderSubjectHint(subject: ObservationVisitSubject, siteBrief: SiteBrie
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
     : "";
   const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief);
-  const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions);
+  const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets);
   const boost = aiAssessment.observerBoost
     ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
     : "";
@@ -995,9 +1009,44 @@ const SHOT_ROLE_META: Record<string, { icon: string; label: string }> = {
   scale_reference: { icon: "📏", label: "スケール参照" },
 };
 
-function renderShotSuggestionsCard(shotSuggestions: import("../services/observationAiAssessment.js").ShotSuggestion[] | null | undefined): string {
-  if (!shotSuggestions || shotSuggestions.length === 0) return "";
-  const items = shotSuggestions.map((suggestion) => {
+const SHOT_ROLE_ORDER: Array<{ key: string; label: string; icon: string }> = [
+  { key: "full_body", label: "全景/全身", icon: "🖼" },
+  { key: "close_up_organ", label: "部位アップ", icon: "🔍" },
+  { key: "habitat_wide", label: "生息環境", icon: "🌄" },
+  { key: "substrate", label: "基質", icon: "🪨" },
+  { key: "scale_reference", label: "スケール", icon: "📏" },
+];
+
+function renderRoleCoverageStrip(photoAssets: { roleTag: string | null }[] | null | undefined): string {
+  if (!photoAssets || photoAssets.length === 0) return "";
+  const covered = new Set<string>();
+  for (const p of photoAssets) if (p.roleTag && p.roleTag !== "unknown") covered.add(p.roleTag);
+  const chips = SHOT_ROLE_ORDER.map(({ key, label, icon }) => {
+    const hit = covered.has(key);
+    return `<span class="obs-role-chip${hit ? " is-covered" : ""}" title="${escapeHtml(label)}">${icon} ${escapeHtml(label)}${hit ? " ✓" : ""}</span>`;
+  }).join("");
+  const hitCount = covered.size;
+  const threshold = 3;
+  const pct = Math.min(100, Math.round((hitCount / SHOT_ROLE_ORDER.length) * 100));
+  const pastThreshold = hitCount >= threshold;
+  return `<div class="obs-role-cov">
+    <div class="obs-role-cov-head">
+      <div class="obs-role-cov-eye">組写真カバレッジ</div>
+      <div class="obs-role-cov-count ${pastThreshold ? "is-met" : ""}">${hitCount} / ${SHOT_ROLE_ORDER.length} role${pastThreshold ? " · Tier 1.5 条件OK" : ""}</div>
+    </div>
+    <div class="obs-role-cov-bar"><span style="width:${pct}%"></span></div>
+    <div class="obs-role-cov-chips">${chips}</div>
+  </div>`;
+}
+
+function renderShotSuggestionsCard(
+  shotSuggestions: import("../services/observationAiAssessment.js").ShotSuggestion[] | null | undefined,
+  photoAssets: { roleTag: string | null }[] | null | undefined = null,
+): string {
+  const hasSuggestions = shotSuggestions && shotSuggestions.length > 0;
+  const coverageStrip = renderRoleCoverageStrip(photoAssets);
+  if (!hasSuggestions && !coverageStrip) return "";
+  const items = hasSuggestions ? (shotSuggestions as import("../services/observationAiAssessment.js").ShotSuggestion[]).map((suggestion) => {
     const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
     const priorityBadge = suggestion.priority === "high"
       ? `<span class="obs-shot-pri obs-shot-pri-high">必須級</span>`
@@ -1008,7 +1057,7 @@ function renderShotSuggestionsCard(shotSuggestions: import("../services/observat
       ${suggestion.rationale ? `<span class="obs-shot-rationale">${escapeHtml(suggestion.rationale)}</span>` : ""}
       ${priorityBadge}
     </li>`;
-  }).join("");
+  }).join("") : "";
   return `<section class="obs-shot-card" aria-label="追撮すると研究価値が上がる写真">
     <div class="obs-shot-head">
       <div>
@@ -1016,7 +1065,8 @@ function renderShotSuggestionsCard(shotSuggestions: import("../services/observat
         <p class="obs-hint-reminder">写真が揃うと、AI 同定の精度とコミュニティ検証のやりやすさが上がります。</p>
       </div>
     </div>
-    <ul class="obs-shot-list">${items}</ul>
+    ${coverageStrip}
+    ${items ? `<ul class="obs-shot-list">${items}</ul>` : ""}
   </section>`;
 }
 
@@ -2526,7 +2576,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </section>`;
 
-    const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null)}</div>`;
+    const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
 
     // ===== Layer 1: 物語 =====
     const ownerNote = snapshot.note
@@ -2665,7 +2715,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
     const subjectTemplates = bundle.subjects.map((subject) => `
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
     const reassessButtons: string[] = [];
