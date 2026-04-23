@@ -459,6 +459,33 @@ done
 | F5 | DNS / ロードバランサー切替計画レビュー済 | — | reviewed | true | YAMAKI | GO | |
 | F6 | Section B 全行を再 grep し `フィールドガイド`/`フィールドスキャン` hit==0 | B | 0 hit | true | YAMAKI | GO | |
 
+### ✅ CUTOVER 実行ログ (2026-04-23 20:59:16 JST)
+
+2026-04-23 20:59:16 JST に愛 (Claude) が SSH で本番カットオーバーを実行・完遂:
+
+| 時刻 | 作業 | 結果 |
+|---|---|---|
+| 20:58:24 | DB snapshot `pg_dump ikimon_v2` | `ikimon_v2_20260423_205824.sql` 5.8MB |
+| 20:58:24 | uploads rsync | 762MB コピー完了 |
+| 20:58:32 | nginx config 退避 `ikimon.life.pre-cutover` | 保存済 |
+| 20:58:45 | nginx 新設定書込 (v2 proxy primary + legacy fallback + edge block) | — |
+| 20:58:50 | `nginx -t` | syntax is ok / test is successful |
+| **20:59:16** | **`systemctl reload nginx`** | **exit 0 — 本番 DNS が v2 に切替** |
+| 20:59:18 | 外部 smoke 16 endpoint | 全 200 (認証必要 /record のみ 401) |
+| 21:03 | dist rebuild (`npm run build`) + pm2 restart | pid 3115210、audioArchiveReady=true |
+| 21:05 | DATABASE_URL 一時 regression → pm2 dump から復元 | 本番 DB (ikimon_v2) に再接続 |
+| 21:05 | 最終 readiness | status=near_ready、全 gates true |
+
+**保存 nginx config**: [`ops/nginx/ikimon.life.v2-cutover.conf`](../../ops/nginx/ikimon.life.v2-cutover.conf)
+
+**変更点サマリ**:
+- `/api/v1/*` → v2 Fastify (port 3201) proxy
+- `/*` → v2 primary、v2 が 404 なら legacy PHP へ fallback（`@legacy` location）
+- `/api/csrf_debug|verify_config|test_concurrency|admin_action` → 404 (edge block)
+- `/api/affiliate/admin.php` → 404 (edge block)
+- `/api/*.php` (legacy_continued) → PHP-FPM 継続
+- `/uploads/` / `/deploy` / `/tiles/` / `/sw.js` / 静的資産 → 既存通り
+
 ### E.3 T-0（差し替え瞬間）
 
 | check_id | description | hard_stop | owner | result | evidence_link |
@@ -577,6 +604,7 @@ done
 | 2026-04-23 | 愛 (Claude) | commit 50f7be00 / aa782d62 / 4cae506e で canonical rename、API 再分類、YAMAKI 一括判定を反映 |
 | 2026-04-23 | 愛 (Claude) | Section D.1/D.3 / E.1 に staging 実測 evidence を埋め。BLOCKER: parityVerified STALE (24.7h) 判明、VPS で `npm run report:legacy-drift` 再実行で解消見込 |
 | 2026-04-23 | 愛 (Claude) | VPS SSH で drift report / verify / materialize / replacement-readiness を実機実行。本番 v2 :3201 の全 gates が GREEN、rollbackSafetyWindowReady=true を確認。staging 側 parity は別運用、cutover 判定には無関係と判明。Known Limitation として migration 0020 (audio) / specialist_authorities / Cloudflare Stream の 3 件は cutover 後整備に分離 |
+| 2026-04-23 20:59 | 愛 (Claude) | **本番カットオーバー実行**。pg_dump 5.8MB / uploads rsync 762MB → nginx v2 proxy + legacy fallback 設定に reload → 外部 smoke 全 200 → dist rebuild + pm2 restart → DATABASE_URL 一時 regression を pm2 dump から復元 → 最終確認: status=near_ready、全 gates GREEN。カットオーバー完了。 |
 
 ---
 
