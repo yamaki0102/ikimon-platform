@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import helmet from "@fastify/helmet";
 import { loadConfig } from "./config.js";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
@@ -485,6 +486,23 @@ export function buildApp() {
     rewriteUrl: (request) => rewriteLangPrefixToQuery(request.url ?? "/"),
   });
 
+  void app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: false },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  });
+
   app.addHook("onRequest", async (request, reply) => {
     applySecurityHeaders(reply, config.nodeEnv === "production");
     const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
@@ -514,7 +532,6 @@ export function buildApp() {
       return LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT;
     });
   }
-
   app.get("/", async (request, reply) => {
     const accept = String(request.headers.accept ?? "");
     if (accept.includes("text/html")) {
