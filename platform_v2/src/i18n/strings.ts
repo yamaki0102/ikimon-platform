@@ -5,6 +5,26 @@ export type LandingStrings = {
   heroHeadingPlain: string;
   heroLead: string;
   heroPromiseChips: string[];
+  heroDailyLabel: string;
+  heroLatestLabel: string;
+  heroStatsLabel: string;
+  heroPhotoFallback: string;
+  heroReasonLabels: Record<"seasonal" | "nearby" | "vividPhoto" | "supported" | "fresh", string>;
+  dailyDashboard: {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    scoreLabel: string;
+    seasonalTitle: string;
+    seasonalEmpty: string;
+    cards: Record<"recordToday" | "revisitPlace" | "nearbyPulse" | "needsId", {
+      eyebrow: string;
+      title: string;
+      body: string;
+      cta: string;
+      metricLabel: string;
+    }>;
+  };
   numberLocale: string;
   statLabelTemplate: (obsFormatted: string, speciesFormatted: string) => string;
   actionPrimaryLoggedIn: string;

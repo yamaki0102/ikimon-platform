@@ -23,6 +23,26 @@ type JsonLandingCopy = {
   heroHeadingEmphasis: string;
   heroLead: string;
   heroPromiseChips: string[];
+  heroDailyLabel: string;
+  heroLatestLabel: string;
+  heroStatsLabel: string;
+  heroPhotoFallback: string;
+  heroReasonLabels: Record<"seasonal" | "nearby" | "vividPhoto" | "supported" | "fresh", string>;
+  dailyDashboard: {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    scoreLabel: string;
+    seasonalTitle: string;
+    seasonalEmpty: string;
+    cards: Record<"recordToday" | "revisitPlace" | "nearbyPulse" | "needsId", {
+      eyebrow: string;
+      title: string;
+      body: string;
+      cta: string;
+      metricLabel: string;
+    }>;
+  };
   numberLocale: string;
   statLabelTemplateId: "observations_species";
   toolSectionEyebrow: string;
@@ -63,7 +83,7 @@ type JsonMarketingPageMeta = {
   eyebrow: string;
   heading: string;
   lead: string;
-  activeNav: "home" | "learn" | "business" | "explore";
+  activeNav: "home" | "learn" | "business" | "explore" | "community";
   bodyPageId: string;
   footerNote?: string;
   afterActions?: JsonActionLink[];
@@ -320,6 +340,30 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
   assertString(value.heroHeadingEmphasis, `${path}.heroHeadingEmphasis`);
   assertString(value.heroLead, `${path}.heroLead`);
   assertStringArray(value.heroPromiseChips, `${path}.heroPromiseChips`);
+  assertString(value.heroDailyLabel, `${path}.heroDailyLabel`);
+  assertString(value.heroLatestLabel, `${path}.heroLatestLabel`);
+  assertString(value.heroStatsLabel, `${path}.heroStatsLabel`);
+  assertString(value.heroPhotoFallback, `${path}.heroPhotoFallback`);
+  assertObject(value.heroReasonLabels, `${path}.heroReasonLabels`);
+  for (const key of ["seasonal", "nearby", "vividPhoto", "supported", "fresh"] as const) {
+    assertString(value.heroReasonLabels[key], `${path}.heroReasonLabels.${key}`);
+  }
+  assertObject(value.dailyDashboard, `${path}.dailyDashboard`);
+  assertString(value.dailyDashboard.eyebrow, `${path}.dailyDashboard.eyebrow`);
+  assertString(value.dailyDashboard.title, `${path}.dailyDashboard.title`);
+  assertString(value.dailyDashboard.lead, `${path}.dailyDashboard.lead`);
+  assertString(value.dailyDashboard.scoreLabel, `${path}.dailyDashboard.scoreLabel`);
+  assertString(value.dailyDashboard.seasonalTitle, `${path}.dailyDashboard.seasonalTitle`);
+  assertString(value.dailyDashboard.seasonalEmpty, `${path}.dailyDashboard.seasonalEmpty`);
+  assertObject(value.dailyDashboard.cards, `${path}.dailyDashboard.cards`);
+  for (const key of ["recordToday", "revisitPlace", "nearbyPulse", "needsId"] as const) {
+    assertObject(value.dailyDashboard.cards[key], `${path}.dailyDashboard.cards.${key}`);
+    assertString(value.dailyDashboard.cards[key].eyebrow, `${path}.dailyDashboard.cards.${key}.eyebrow`);
+    assertString(value.dailyDashboard.cards[key].title, `${path}.dailyDashboard.cards.${key}.title`);
+    assertString(value.dailyDashboard.cards[key].body, `${path}.dailyDashboard.cards.${key}.body`);
+    assertString(value.dailyDashboard.cards[key].cta, `${path}.dailyDashboard.cards.${key}.cta`);
+    assertString(value.dailyDashboard.cards[key].metricLabel, `${path}.dailyDashboard.cards.${key}.metricLabel`);
+  }
   assertString(value.numberLocale, `${path}.numberLocale`);
   assertString(value.statLabelTemplateId, `${path}.statLabelTemplateId`);
   assertString(value.toolSectionEyebrow, `${path}.toolSectionEyebrow`);
@@ -677,6 +721,12 @@ export function buildAppStrings(lang: SiteLang): AppStrings {
     heroHeadingPlain: heading.plain,
     heroLead: publicCopy.landing.heroLead,
     heroPromiseChips: [...publicCopy.landing.heroPromiseChips, shared.publicShared.ai.short],
+    heroDailyLabel: publicCopy.landing.heroDailyLabel,
+    heroLatestLabel: publicCopy.landing.heroLatestLabel,
+    heroStatsLabel: publicCopy.landing.heroStatsLabel,
+    heroPhotoFallback: publicCopy.landing.heroPhotoFallback,
+    heroReasonLabels: publicCopy.landing.heroReasonLabels,
+    dailyDashboard: publicCopy.landing.dailyDashboard,
     numberLocale: publicCopy.landing.numberLocale,
     statLabelTemplate: statLabelFormatter(publicCopy.landing.statLabelTemplateId, publicCopy.landing.numberLocale),
     actionPrimaryLoggedIn: shared.publicShared.cta.openNotebook,

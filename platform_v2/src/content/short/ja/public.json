@@ -10,6 +10,55 @@
       "場所と写真を一緒に残せる",
       "あとで見返して次に生かせる"
     ],
+    "heroDailyLabel": "今日のフィールド",
+    "heroLatestLabel": "いま届いた記録",
+    "heroStatsLabel": "育っているノート",
+    "heroPhotoFallback": "今日の自然の入口",
+    "heroReasonLabels": {
+      "seasonal": "季節の気配",
+      "nearby": "近くの記録",
+      "vividPhoto": "よく見える写真",
+      "supported": "確かめやすい記録",
+      "fresh": "新しい発見"
+    },
+    "dailyDashboard": {
+      "eyebrow": "今日の操作盤",
+      "title": "観察、再訪、近所の変化をここから始める",
+      "lead": "いま見る理由がある記録を選び、今日やることに変える。トップを読む場所ではなく、外へ出る入口にします。",
+      "scoreLabel": "今日の選定",
+      "seasonalTitle": "季節の手がかり",
+      "seasonalEmpty": "季節の候補はまだ集計中です",
+      "cards": {
+        "recordToday": {
+          "eyebrow": "記録する",
+          "title": "今日の 1 枚を書く",
+          "body": "見つけたものを、写真とひとことで残す。",
+          "cta": "記録する",
+          "metricLabel": "今日"
+        },
+        "revisitPlace": {
+          "eyebrow": "再訪する",
+          "title": "前に歩いた場所へ戻る",
+          "body": "同じ場所でも、季節が変わると見えるものが変わる。",
+          "cta": "ノートを見る",
+          "metricLabel": "訪問"
+        },
+        "nearbyPulse": {
+          "eyebrow": "近所を見る",
+          "title": "近くで動いている場所を見る",
+          "body": "観察が集まっているエリアから、次に歩く理由を探す。",
+          "cta": "地図を見る",
+          "metricLabel": "記録"
+        },
+        "needsId": {
+          "eyebrow": "確かめる",
+          "title": "名前を確かめたい記録を見る",
+          "body": "分からない記録を、次の発見につなげる。",
+          "cta": "記録を見る",
+          "metricLabel": "同定"
+        }
+      }
+    },
     "numberLocale": "ja-JP",
     "statLabelTemplateId": "observations_species",
     "toolSectionEyebrow": "迷ったときの入口",
@@ -164,6 +213,18 @@
         "lead": "使い方の質問、記録や公開範囲の相談、学校や地域での利用相談を受け付けています。何を送れば返しやすいかも、このページで先に案内します。",
         "activeNav": "learn",
         "bodyPageId": "contact"
+      },
+      "community": {
+        "title": "みんなで調べる | ikimon",
+        "eyebrow": "Community",
+        "heading": "観察会やテーマ調査に参加する",
+        "lead": "一人で歩く楽しさを入口にしながら、ときどき誰かと同じ場所を見ます。観察会、テーマ調査、地域の小さな企画をここに集めます。",
+        "activeNav": "community",
+        "bodyPageId": "community",
+        "afterActions": [
+          { "href": "/record", "label": "記録する" },
+          { "href": "/contact", "label": "企画を相談する" }
+        ]
       },
       "forBusiness": {
         "title": "団体相談 | ikimon",

@@ -10,6 +10,11 @@ import {
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import type {
   AmbientObserver,
+  LandingDailyCard,
+  LandingDailyDashboard,
+  LandingFeaturedObservation,
+  LandingHeroReason,
+  LandingHeroScoreBreakdown,
   LandingHabitStats,
   LandingMapPreviewCell,
   LandingObservation,
@@ -35,14 +40,20 @@ type FeedRow = {
   observer_user_id: string | null;
   observer_name: string | null;
   observer_avatar_url: string | null;
+  ai_candidate_name: string | null;
+  ai_candidate_rank: string | null;
+  is_ai_candidate: boolean | null;
   place_name: string | null;
   municipality: string | null;
   prefecture: string | null;
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
+  photo_width_px: number | null;
+  photo_height_px: number | null;
   identification_count: string;
   evidence_tier: number | null;
+  quality_grade: string | null;
 };
 
 const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
@@ -70,24 +81,38 @@ const FEED_SQL_BASE = `
     v.user_id as observer_user_id,
     ${FEED_OBSERVER_NAME_SQL} as observer_name,
     avatar.public_url as observer_avatar_url,
+    ai.recommended_taxon_name as ai_candidate_name,
+    ai.recommended_rank as ai_candidate_rank,
+    (coalesce(o.quality_grade, '') = 'needs_review'
+      and nullif(ai.recommended_taxon_name, '') is not null) as is_ai_candidate,
     coalesce(p.canonical_name, 'Unknown place') as place_name,
     coalesce(v.observed_municipality, p.municipality) as municipality,
     coalesce(v.observed_prefecture, p.prefecture) as prefecture,
     coalesce(v.point_latitude, p.center_latitude) as latitude,
     coalesce(v.point_longitude, p.center_longitude) as longitude,
     photo.public_url as photo_url,
+    photo.width_px as photo_width_px,
+    photo.height_px as photo_height_px,
     (
       select count(*)::text
       from identifications i
       where i.occurrence_id = o.occurrence_id
     ) as identification_count,
-    o.evidence_tier
+    o.evidence_tier,
+    o.quality_grade
   from occurrences o
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
   left join places p on p.place_id = v.place_id
   left join lateral (
-    select coalesce(ab.public_url, ab.storage_path) as public_url
+    select recommended_taxon_name, recommended_rank
+    from observation_ai_assessments a
+    where a.occurrence_id = o.occurrence_id
+    order by generated_at desc
+    limit 1
+  ) ai on true
+  left join lateral (
+    select coalesce(ab.public_url, ab.storage_path) as public_url, ab.width_px, ab.height_px
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
     where ea.occurrence_id = o.occurrence_id
@@ -156,8 +181,247 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     longitude: safeLng,
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
+    aiCandidateName: row.ai_candidate_name ?? null,
+    aiCandidateRank: row.ai_candidate_rank ?? null,
+    isAiCandidate: Boolean(row.is_ai_candidate),
     entryType: "observation",
     evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
+  };
+}
+
+export type LandingHeroCandidate = LandingObservation & {
+  photoWidthPx: number | null;
+  photoHeightPx: number | null;
+  qualityGrade: string | null;
+};
+
+export type LandingHeroScoreContext = {
+  dateKey: string;
+  now: Date;
+  preferredMunicipalities: string[];
+};
+
+function toLandingHeroCandidate(row: FeedRow): LandingHeroCandidate {
+  return {
+    ...toLandingObservation(row),
+    photoWidthPx: row.photo_width_px != null ? Number(row.photo_width_px) : null,
+    photoHeightPx: row.photo_height_px != null ? Number(row.photo_height_px) : null,
+    qualityGrade: row.quality_grade ?? null,
+  };
+}
+
+function monthDistance(left: number, right: number): number {
+  const diff = Math.abs(left - right);
+  return Math.min(diff, 12 - diff);
+}
+
+function stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function scoreSeason(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  const observed = new Date(candidate.observedAt);
+  if (Number.isNaN(observed.getTime())) return 0;
+  const distance = monthDistance(observed.getUTCMonth(), context.now.getUTCMonth());
+  if (distance === 0) return 25;
+  if (distance === 1) return 18;
+  if (distance === 2) return 10;
+  return 4;
+}
+
+function scoreRegion(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  const municipality = candidate.municipality?.trim();
+  if (municipality && context.preferredMunicipalities.includes(municipality)) return 20;
+  if (candidate.publicLocation.scope === "municipality") return context.preferredMunicipalities.length > 0 ? 10 : 14;
+  if (candidate.publicLocation.scope === "prefecture") return context.preferredMunicipalities.length > 0 ? 6 : 10;
+  return 0;
+}
+
+function scorePhoto(candidate: LandingHeroCandidate): number {
+  if (!candidate.photoUrl) return 0;
+  const width = candidate.photoWidthPx;
+  const height = candidate.photoHeightPx;
+  if (!width || !height || width <= 0 || height <= 0) return 20;
+  const ratio = width / height;
+  if (ratio < 0.45 || ratio > 2.4) return 0;
+  const pixels = width * height;
+  const ratioPenalty = ratio < 0.62 || ratio > 1.95 ? 5 : 0;
+  if (pixels >= 1_080_000) return 25 - ratioPenalty;
+  if (pixels >= 480_000) return 22 - ratioPenalty;
+  if (pixels >= 172_800) return 18 - ratioPenalty;
+  return Math.max(10, 14 - ratioPenalty);
+}
+
+function scoreEvidence(candidate: LandingHeroCandidate): number {
+  const tier = candidate.evidenceTier ?? 0;
+  if (tier >= 3) return 15;
+  if (tier >= 2) return 12;
+  if (tier >= 1) return 8;
+  if (candidate.identificationCount >= 2) return 7;
+  if (candidate.identificationCount >= 1) return 5;
+  return 3;
+}
+
+function scoreFreshness(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  const observed = new Date(candidate.observedAt);
+  if (Number.isNaN(observed.getTime())) return 0;
+  const ageDays = Math.max(0, (context.now.getTime() - observed.getTime()) / 86_400_000);
+  if (ageDays <= 7) return 10;
+  if (ageDays <= 30) return 7;
+  if (ageDays <= 90) return 4;
+  return 1;
+}
+
+function scoreDailyVariation(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  return stableHash(`${context.dateKey}:${candidate.occurrenceId}:${candidate.visitId}`) % 6;
+}
+
+export function isLandingHeroCandidateEligible(candidate: LandingHeroCandidate): boolean {
+  if (!candidate.photoUrl) return false;
+  if (candidate.publicLocation.scope === "blurred") return false;
+  const width = candidate.photoWidthPx;
+  const height = candidate.photoHeightPx;
+  if (!width || !height || width <= 0 || height <= 0) return true;
+  const ratio = width / height;
+  return ratio >= 0.45 && ratio <= 2.4;
+}
+
+export function scoreLandingHeroCandidate(
+  candidate: LandingHeroCandidate,
+  context: LandingHeroScoreContext,
+): LandingHeroScoreBreakdown {
+  const breakdown = {
+    season: scoreSeason(candidate, context),
+    region: scoreRegion(candidate, context),
+    photo: scorePhoto(candidate),
+    evidence: scoreEvidence(candidate),
+    freshness: scoreFreshness(candidate, context),
+    dailyVariation: scoreDailyVariation(candidate, context),
+    total: 0,
+  };
+  breakdown.total = Math.min(100, breakdown.season + breakdown.region + breakdown.photo + breakdown.evidence + breakdown.freshness + breakdown.dailyVariation);
+  return breakdown;
+}
+
+function reasonFromBreakdown(breakdown: LandingHeroScoreBreakdown): LandingHeroReason {
+  const ranked: Array<{ key: LandingHeroReason; score: number }> = [
+    { key: "seasonal", score: breakdown.season },
+    { key: "nearby", score: breakdown.region },
+    { key: "vividPhoto", score: breakdown.photo },
+    { key: "supported", score: breakdown.evidence },
+    { key: "fresh", score: breakdown.freshness },
+  ];
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked[0]?.key ?? "seasonal";
+}
+
+function buildFeaturedObservation(
+  candidates: LandingHeroCandidate[],
+  context: LandingHeroScoreContext,
+): LandingFeaturedObservation | null {
+  const scored = candidates
+    .filter(isLandingHeroCandidateEligible)
+    .map((candidate) => {
+      const scoreBreakdown = scoreLandingHeroCandidate(candidate, context);
+      return {
+        candidate,
+        scoreBreakdown,
+      };
+    })
+    .sort((a, b) => b.scoreBreakdown.total - a.scoreBreakdown.total);
+  const best = scored[0];
+  if (!best) return null;
+  const { photoWidthPx: _photoWidthPx, photoHeightPx: _photoHeightPx, qualityGrade: _qualityGrade, ...observation } = best.candidate;
+  return {
+    ...observation,
+    score: best.scoreBreakdown.total,
+    reasonKey: reasonFromBreakdown(best.scoreBreakdown),
+    scoreBreakdown: best.scoreBreakdown,
+  };
+}
+
+function buildPreferredMunicipalities(userId: string | null, myPlaces: LandingSnapshot["myPlaces"], publicFeed: LandingObservation[]): string[] {
+  const values = userId
+    ? myPlaces.map((place) => place.municipality).filter((value): value is string => Boolean(value))
+    : publicFeed.map((obs) => obs.municipality).filter((value): value is string => Boolean(value));
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).slice(0, 5);
+}
+
+function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard">): LandingDailyCard[] {
+  const topMapCell = snapshot.mapPreviewCells[0] ?? null;
+  const revisitPlace = snapshot.myPlaces[0] ?? null;
+  const needsId = [...snapshot.myFeed, ...snapshot.feed].find((obs) => obs.isAiCandidate || obs.identificationCount === 0) ?? null;
+  const cards: LandingDailyCard[] = [
+    {
+      kind: "recordToday",
+      href: snapshot.viewerUserId && (snapshot.habit?.todayCount ?? 0) > 0 ? "/notes" : "/record",
+      primaryText: null,
+      secondaryText: null,
+      metricValue: snapshot.habit?.todayCount ?? null,
+    },
+    {
+      kind: "revisitPlace",
+      href: snapshot.viewerUserId ? "/notes" : "/map",
+      primaryText: revisitPlace?.placeName ?? topMapCell?.label ?? null,
+      secondaryText: revisitPlace?.latestDisplayName ?? revisitPlace?.municipality ?? null,
+      metricValue: revisitPlace?.visitCount ?? null,
+    },
+    {
+      kind: "nearbyPulse",
+      href: "/map",
+      primaryText: topMapCell?.label ?? null,
+      secondaryText: null,
+      metricValue: topMapCell?.count ?? null,
+    },
+    {
+      kind: "needsId",
+      href: needsId ? `/observations/${encodeURIComponent(needsId.detailId ?? needsId.visitId ?? needsId.occurrenceId)}` : "/explore",
+      primaryText: needsId?.displayName ?? null,
+      secondaryText: needsId?.publicLocation.label ?? null,
+      metricValue: needsId?.identificationCount ?? null,
+      observation: needsId ?? undefined,
+    },
+  ];
+  return cards;
+}
+
+function buildLandingDailyDashboard(
+  snapshot: Omit<LandingSnapshot, "dailyDashboard">,
+  heroCandidates: LandingHeroCandidate[],
+): LandingDailyDashboard | null {
+  const now = new Date();
+  const dateKey = now.toISOString().slice(0, 10);
+  const context: LandingHeroScoreContext = {
+    dateKey,
+    now,
+    preferredMunicipalities: buildPreferredMunicipalities(snapshot.viewerUserId, snapshot.myPlaces, snapshot.feed),
+  };
+  const featuredObservation = buildFeaturedObservation(heroCandidates, context);
+  const seasonalStrip = heroCandidates
+    .filter(isLandingHeroCandidateEligible)
+    .map((candidate) => {
+      const scoreBreakdown = scoreLandingHeroCandidate(candidate, context);
+      return {
+        observation: candidate,
+        score: scoreBreakdown.total,
+        reasonKey: reasonFromBreakdown(scoreBreakdown),
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  const dailyCards = buildLandingDailyCards(snapshot);
+  return {
+    dateKey,
+    updatedAt: now.toISOString(),
+    featuredObservation,
+    dailyCards,
+    seasonalStrip,
   };
 }
 
@@ -291,7 +555,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   try {
     pool = getPool();
   } catch {
-    return {
+    const emptySnapshot = {
       viewerUserId: userId,
       stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
       feed: [],
@@ -300,6 +564,10 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       mapPreviewCells: [],
       ambient: [],
       habit: null,
+    } satisfies Omit<LandingSnapshot, "dailyDashboard">;
+    return {
+      ...emptySnapshot,
+      dailyDashboard: buildLandingDailyDashboard(emptySnapshot, []),
     };
   }
 
@@ -312,6 +580,16 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     feedRows = result.rows;
   } catch {
     feedRows = [];
+  }
+
+  let heroCandidateRows: FeedRow[] = [];
+  try {
+    const result = await pool.query<FeedRow>(
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} order by v.observed_at desc limit 60`,
+    );
+    heroCandidateRows = result.rows;
+  } catch {
+    heroCandidateRows = [];
   }
 
   // Viewer own feed (if logged in) — own observations, photo-only
@@ -537,7 +815,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     return bTs.localeCompare(aTs);
   });
 
-  return {
+  const snapshotWithoutDashboard = {
     viewerUserId: userId,
     stats,
     feed: publicFeed,
@@ -546,5 +824,13 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     mapPreviewCells: buildMapPreviewCells(feedRows),
     ambient,
     habit,
+  } satisfies Omit<LandingSnapshot, "dailyDashboard">;
+
+  return {
+    ...snapshotWithoutDashboard,
+    dailyDashboard: buildLandingDailyDashboard(
+      snapshotWithoutDashboard,
+      heroCandidateRows.map(toLandingHeroCandidate),
+    ),
   };
 }
