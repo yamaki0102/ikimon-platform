@@ -2,7 +2,7 @@
   "publicShared": {
     "cta": {
       "record": "Record",
-      "startObservation": "Start your notebook",
+      "startObservation": "Go find something",
       "openNotebook": "Field Note",
       "openMap": "See the map",
       "readFaq": "See FAQ",
@@ -33,7 +33,7 @@
     }
   },
   "shell": {
-    "brandTagline": "Keep nearby finds so you can revisit them, place by place.",
+    "brandTagline": "Nearby nature gets a little more interesting.",
     "skipToContent": "Skip to content",
     "searchPlaceholder": "Search species or places",
     "searchLabel": "Site search",
@@ -41,12 +41,14 @@
     "nav": {
       "home": "Home",
       "explore": "Explore",
+      "places": "My Places",
+      "community": "Community",
       "learn": "Learn",
       "business": "For Business"
     },
     "record": "Record",
     "footer": {
-      "tagline": "Save what you find nearby and revisit it later.",
+      "tagline": "Walk, find, and save the place.",
       "start": "Start",
       "startLinks": {
         "discover": "Explore",
@@ -70,13 +72,18 @@
     }
   },
   "quickNav": {
-    "ariaLabel": "Primary notebook routes",
+    "ariaLabel": "Primary actions",
     "labels": {
-      "notes": "Field Note",
+      "notes": "My Places",
       "record": "Record one",
       "lens": "Lens",
       "scan": "Explore Map",
       "map": "Map"
     }
+  },
+  "footerNotes": {
+    "landing": "Walk, find, and save the place.",
+    "public": "Save what you find nearby and revisit it later.",
+    "qa": "Staging walkthrough for full-page QA."
   }
 }

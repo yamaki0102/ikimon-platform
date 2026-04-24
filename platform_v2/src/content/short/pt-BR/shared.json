@@ -2,12 +2,12 @@
   "publicShared": {
     "cta": {
       "record": "Registrar",
-      "startObservation": "Começar o caderno",
+      "startObservation": "Sair para encontrar algo",
       "openNotebook": "Caderno",
       "openMap": "Ver o mapa",
       "readFaq": "Ver FAQ",
       "openGuide": "Guia de campo",
-      "openScan": "Escaneamento",
+      "openScan": "Mapa",
       "openAbout": "Sobre o ikimon",
       "openGroupHelp": "Para organizações",
       "contact": "Contato"
@@ -17,7 +17,7 @@
     }
   },
   "shell": {
-    "brandTagline": "Guarde o que encontra por perto para revisar depois, lugar por lugar.",
+    "brandTagline": "A natureza próxima fica mais interessante.",
     "skipToContent": "Pular para o conteúdo",
     "searchPlaceholder": "Buscar espécie ou lugar",
     "searchLabel": "Busca no site",
@@ -25,12 +25,14 @@
     "nav": {
       "home": "Início",
       "explore": "Explorar",
+      "places": "Meus lugares",
+      "community": "Comunidade",
       "learn": "Aprender",
       "business": "Para organizações"
     },
     "record": "Registrar",
     "footer": {
-      "tagline": "Salve o que encontrar por perto e reveja mais tarde.",
+      "tagline": "Caminhe, encontre e guarde o lugar.",
       "start": "Começar",
       "startLinks": {
         "discover": "Explorar",
@@ -54,13 +56,18 @@
     }
   },
   "quickNav": {
-    "ariaLabel": "Rotas principais do caderno",
+    "ariaLabel": "Ações principais",
     "labels": {
-      "notes": "Caderno",
+      "notes": "Meus lugares",
       "record": "Registrar",
       "lens": "Guia de campo",
-      "scan": "Escaneamento",
+      "scan": "Mapa",
       "map": "Mapa"
     }
+  },
+  "footerNotes": {
+    "landing": "Caminhe, encontre e guarde o lugar.",
+    "public": "Guarde o que encontra perto e revisite depois.",
+    "qa": "Percurso de staging para QA visual."
   }
 }

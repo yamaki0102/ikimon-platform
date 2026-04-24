@@ -46,8 +46,8 @@ type ShellCopy = {
   nav: {
     home: string;
     explore: string;
-    learn: string;
-    business: string;
+    places: string;
+    community: string;
   };
   record: string;
   footer: {
@@ -95,8 +95,8 @@ function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): st
   const links = [
     { href: withBasePath(basePath, "/"), label: copy.nav.home },
     { href: withBasePath(basePath, "/explore"), label: copy.nav.explore },
-    { href: withBasePath(basePath, "/learn"), label: copy.nav.learn },
-    { href: withBasePath(basePath, "/for-business"), label: copy.nav.business },
+    { href: withBasePath(basePath, "/notes"), label: copy.nav.places },
+    { href: withBasePath(basePath, "/community"), label: copy.nav.community },
   ];
 
   return links
@@ -353,30 +353,30 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       padding-top: 18px;
     }
     .md-hidden { display: none; }
-    .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); background: rgba(249,255,254,.9); border-bottom: 1px solid rgba(0,0,0,.04); }
-    .site-header-inner { max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
-    .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 220px; }
-    .brand-mark { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 10px 24px rgba(15,23,42,.08); background: white; }
+    .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
+    .site-header-inner { max-width: 1180px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: wrap; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 210px; }
+    .brand-mark { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 8px 18px rgba(15,23,42,.07); background: white; }
     .brand-mark img { width: 100%; height: 100%; display: block; }
     .brand strong { display: block; font-size: 15px; font-weight: 900; }
     .brand small { display: block; margin-top: 2px; color: var(--muted); }
-    .site-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .site-nav-link { display: inline-flex; align-items: center; min-height: 44px; padding: 11px 10px; border-radius: 10px; background: transparent; border: 0; font-weight: 700; font-size: 14px; color: #475569; }
+    .site-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .site-nav-link { display: inline-flex; align-items: center; min-height: 40px; padding: 9px 10px; border-radius: 999px; background: transparent; border: 0; font-weight: 750; font-size: 13.5px; color: #475569; }
     .site-nav-link:hover { background: rgba(15,23,42,.04); }
-    .site-nav-link.is-active { color: #0f172a; background: rgba(16,185,129,.08); }
-    .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .site-nav-link.is-active { color: #047857; background: #ecfdf5; }
+    .site-header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .site-header-actions-mobile { display: none; }
     .site-record-link { white-space: nowrap; }
     .site-search {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      min-height: 44px;
+      min-height: 40px;
       padding: 4px 14px;
       border-radius: 999px;
       background: rgba(255,255,255,.92);
       border: 1px solid rgba(148,163,184,.32);
-      box-shadow: 0 6px 14px rgba(15,23,42,.04);
+      box-shadow: 0 5px 12px rgba(15,23,42,.035);
       flex: 1 1 200px;
       max-width: 280px;
     }
@@ -408,8 +408,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 44px;
-      min-height: 44px;
+      min-width: 40px;
+      min-height: 40px;
       padding: 0 12px;
       border-radius: 999px;
       color: #475569;
@@ -424,9 +424,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .site-mobile-menu { display: none; }
     .site-mobile-menu-toggle { list-style: none; }
     .site-mobile-menu-toggle::-webkit-details-marker { display: none; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 999px; font-weight: 800; border: 1px solid transparent; }
-    .btn-solid { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 10px 24px rgba(14,165,233,.18); }
-    .btn-solid-on-light { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 12px 26px rgba(14,165,233,.18); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 10px 15px; border-radius: 999px; font-weight: 850; border: 1px solid transparent; }
+    .btn-solid { background: #059669; color: white; box-shadow: 0 9px 20px rgba(5,150,105,.18); }
+    .btn-solid-on-light { background: #059669; color: white; box-shadow: 0 10px 22px rgba(5,150,105,.18); }
     .btn-ghost { background: rgba(255,255,255,.86); border-color: var(--border); color: var(--ink); }
     .btn-ghost-on-dark { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: white; backdrop-filter: blur(4px); }
     .btn.secondary { background: rgba(255,255,255,.88); border-color: var(--border); color: var(--ink); }
@@ -983,25 +983,25 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .onboarding-empty h3 { margin: 0 0 12px; font-size: 22px; font-weight: 800; }
     .onboarding-empty p { margin: 0 0 20px; color: #475569; max-width: 44ch; margin-inline: auto; }
     .ver-tag { font-size: 11px; font-weight: 700; color: #94a3b8; margin-right: 6px; font-family: ui-monospace, monospace; }
-    .site-footer { margin-top: 48px; border-top: 1px solid rgba(0,0,0,.04); background: #f8fafc; }
-    .site-footer-inner { max-width: 1120px; margin: 0 auto; padding: 40px 24px 28px; }
+    .site-footer { margin-top: 42px; border-top: 1px solid rgba(15,23,42,.05); background: #f8fafc; }
+    .site-footer-inner { max-width: 1120px; margin: 0 auto; padding: 34px 24px 24px; }
     .site-footer-top {
       display: grid;
-      gap: 28px;
-      grid-template-columns: 1.4fr 1fr 1fr 1fr;
-      padding-bottom: 28px;
+      gap: 22px;
+      grid-template-columns: 1.25fr .9fr .9fr .9fr;
+      padding-bottom: 22px;
       border-bottom: 1px solid rgba(148,163,184,.22);
     }
-    .site-footer-brand { max-width: 340px; }
+    .site-footer-brand { max-width: 300px; }
     .brand-footer { min-width: 0; }
     .site-footer-links-group { min-width: 0; }
-    .footer-links { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-    .footer-links a { color: var(--muted); font-weight: 700; }
+    .footer-links { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .footer-links a { color: var(--muted); font-weight: 700; font-size: 13px; line-height: 1.45; }
     .site-footer-bottom {
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      padding-top: 18px;
+      padding-top: 16px;
       color: #64748b;
       font-size: 12px;
     }
@@ -1014,15 +1014,15 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .shell.shell-bleed,
       .shell.shell-map { padding: 14px 12px 18px; }
       .site-header-inner {
-        padding: 10px 14px;
-        gap: 12px;
+        padding: 9px 12px;
+        gap: 8px;
         flex-wrap: nowrap;
         align-items: center;
       }
       .brand {
         min-width: 0;
         flex: 1 1 auto;
-        gap: 10px;
+        gap: 8px;
       }
       .brand-mark {
         width: 36px;
@@ -1038,13 +1038,13 @@ export function renderSiteDocument(options: SiteShellOptions): string {
         display: flex;
         flex: 0 0 auto;
         align-items: center;
-        gap: 8px;
+        gap: 7px;
       }
       .site-record-link {
         min-height: 40px;
-        padding: 10px 14px;
+        padding: 10px 12px;
         font-size: 13px;
-        box-shadow: 0 8px 18px rgba(14,165,233,.15);
+        box-shadow: 0 8px 18px rgba(5,150,105,.14);
       }
       .site-mobile-menu {
         position: relative;
@@ -1053,9 +1053,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .site-mobile-menu-toggle {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 7px;
         min-height: 40px;
-        padding: 0 14px;
+        padding: 0 12px;
         border-radius: 999px;
         border: 1px solid rgba(148,163,184,.28);
         background: rgba(255,255,255,.94);
@@ -1104,14 +1104,14 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       }
       .site-mobile-menu-panel {
         position: absolute;
-        top: calc(100% + 10px);
+        top: calc(100% + 9px);
         right: 0;
         width: min(340px, calc(100vw - 28px));
-        padding: 14px;
-        border-radius: 24px;
+        padding: 12px;
+        border-radius: 20px;
         border: 1px solid rgba(148,163,184,.22);
         background: rgba(255,255,255,.98);
-        box-shadow: 0 24px 48px rgba(15,23,42,.18);
+        box-shadow: 0 20px 42px rgba(15,23,42,.16);
         display: grid;
         gap: 12px;
       }
@@ -1124,14 +1124,14 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       }
       .site-nav-mobile {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .site-nav-mobile .site-nav-link {
         justify-content: flex-start;
         width: 100%;
         min-height: 42px;
-        padding: 12px 14px;
-        border-radius: 14px;
+        padding: 10px 12px;
+        border-radius: 12px;
         background: rgba(15,23,42,.04);
       }
       .site-mobile-menu-meta {

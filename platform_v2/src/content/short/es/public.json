@@ -1,7 +1,18 @@
 {
   "landing": {
+    "title": "ikimon — ENJOY NATURE | La naturaleza cercana se vuelve más divertida",
+    "heroEyebrow": "ENJOY NATURE",
+    "heroHeadingPlain": "Tu paseo de siempre se vuelve una aventura.",
+    "heroHeadingLine1": "Tu paseo de siempre",
+    "heroHeadingEmphasis": "se vuelve una aventura.",
+    "heroLead": "Camina, encuentra algo y guárdalo con su lugar. Cuando entiendes un poco más los nombres y las diferencias, quieres volver a caminar.",
+    "heroPromiseChips": [
+      "La naturaleza cercana se entiende mejor",
+      "Dan ganas de volver a caminar",
+      "Cada lugar gana memoria"
+    ],
     "heroDailyLabel": "Campo de hoy",
-    "heroLatestLabel": "Última nota de campo",
+    "heroLatestLabel": "Registro reciente",
     "heroStatsLabel": "Cuaderno creciendo",
     "heroPhotoFallback": "Entrada natural de hoy",
     "heroReasonLabels": {
@@ -12,23 +23,23 @@
       "fresh": "Hallazgo reciente"
     },
     "dailyDashboard": {
-      "eyebrow": "Panel de hoy",
-      "title": "Empieza aquí la observación, la vuelta al lugar y la revisión",
-      "lead": "La portada elige una nota útil para hoy y la convierte en la siguiente acción.",
+      "eyebrow": "Paso de hoy",
+      "title": "Elige una razón para salir",
+      "lead": "Registrar, volver a un lugar o mirar cerca. La portada se enfoca en disfrutar la naturaleza de hoy.",
       "scoreLabel": "Selección de hoy",
       "seasonalTitle": "Pistas de temporada",
       "seasonalEmpty": "Las pistas de temporada aún se están reuniendo",
       "cards": {
         "recordToday": {
           "eyebrow": "Registrar",
-          "title": "Escribir la nota de hoy",
+          "title": "Guardar el hallazgo de hoy",
           "body": "Guarda lo que encontraste con una foto y una nota breve.",
           "cta": "Registrar",
           "metricLabel": "hoy"
         },
         "revisitPlace": {
           "eyebrow": "Volver",
-          "title": "Volver a un lugar recorrido",
+          "title": "Volver a un lugar que caminaste",
           "body": "El mismo lugar cambia cuando cambia la estación.",
           "cta": "Abrir cuaderno",
           "metricLabel": "visitas"
@@ -49,7 +60,46 @@
         }
       }
     },
-    "numberLocale": "es-ES"
+    "numberLocale": "es-ES",
+    "toolSectionEyebrow": "Dos formas de disfrutar",
+    "toolSectionTitle": "Mirar en el lugar. Elegir desde el mapa.",
+    "toolSectionLead": "Revisa lo que llamó tu atención o elige dónde caminar después. Los dos caminos vuelven a un registro que podrás revisar.",
+    "tools": {
+      "lens": {
+        "eyebrow": "Mirar de cerca",
+        "title": "Mirar mejor lo que llamó tu atención",
+        "body": "Apunta la cámara y la IA devuelve candidatos y pistas. Ayuda a guardar el momento sin presentarse como respuesta final.",
+        "badge": "pista IA"
+      },
+      "scan": {
+        "eyebrow": "Mapa",
+        "title": "Elegir la caminata de hoy desde el mapa",
+        "body": "Usa hallazgos cercanos, cambios de estación y vacíos para escoger el siguiente lugar.",
+        "badge": "mapa"
+      }
+    },
+    "mapSectionEyebrow": "Mapa de exploración",
+    "mapSectionTitle": "Encuentra lugares que dan ganas de caminar otra vez",
+    "mapSectionLead": "Los caminos cercanos y las paradas de viaje tienen razones para el siguiente paseo. Mira qué se ha encontrado y decide un paso.",
+    "mapEmpty": "Todavía no hay observaciones en el mapa"
+  },
+  "fieldLoop": {
+    "eyebrow": "Cómo funciona",
+    "title": "Encontrar. Aprender. Guardar. Ayudar a alguien.",
+    "lead": "Encuentra algo, revisa algunas pistas y guárdalo con el lugar. Cuando muchas personas dejan estos registros pequeños, la naturaleza cercana se entiende mejor.",
+    "primaryCta": "Ver la idea",
+    "steps": [
+      { "title": "1. Encontrar", "body": "Nota algo durante un paseo o un viaje." },
+      { "title": "2. Aprender", "body": "Usa pistas de IA y tus propios ojos para mirar un poco más." },
+      { "title": "3. Guardar", "body": "Mantén juntos foto, lugar, hora y una nota breve." },
+      { "title": "4. Ayudar", "body": "Los registros pequeños pueden ser pistas para la naturaleza local, la investigación y la conservación." }
+    ],
+    "principles": [
+      "Empezar por el disfrute.",
+      "Guardar aunque todavía no sepas el nombre.",
+      "Conservar el contexto del lugar.",
+      "Convertir cada registro en el siguiente paseo."
+    ]
   },
   "marketing": {
     "pages": {

@@ -12,7 +12,7 @@ test("en overrides landing and keeps the english field-loop page shape", () => {
   const s = getStrings("en");
   assert.ok(s.landing.title.startsWith("ikimon.life"));
   assert.strictEqual(s.landing.tools.lens.eyebrow, "Lens");
-  assert.strictEqual(s.fieldLoop.title, "Field Loop");
+  assert.strictEqual(s.fieldLoop.title, "Find. Learn. Save. Help someone else.");
 });
 
 test("missing keys fall back to ja", () => {

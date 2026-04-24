@@ -2,7 +2,7 @@
   "publicShared": {
     "cta": {
       "record": "記録する",
-      "startObservation": "観察を始める",
+      "startObservation": "見つけに行く",
       "openNotebook": "ノートを見る",
       "openMap": "マップを見る",
       "readFaq": "FAQを見る",
@@ -41,12 +41,14 @@
     "nav": {
       "home": "ホーム",
       "explore": "みつける",
+      "places": "ノート",
+      "community": "みんなで調べる",
       "learn": "読む",
       "business": "団体相談"
     },
     "record": "記録する",
     "footer": {
-      "tagline": "歩いて見つけた自然を、あとで見返せる形に残す。",
+      "tagline": "歩いて、見つけて、残す。",
       "start": "はじめる",
       "startLinks": {
         "discover": "みつける",
@@ -82,7 +84,7 @@
     }
   },
   "footerNotes": {
-    "landing": "歩いて、見つけて、ノートに残す。",
+    "landing": "歩いて、見つけて、残す。",
     "public": "歩いて見つけた自然を、あとで見返せる形に残す。",
     "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
   }

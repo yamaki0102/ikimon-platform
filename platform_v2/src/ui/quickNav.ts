@@ -99,39 +99,39 @@ export function renderQuickNav(basePath: string, lang: SiteLang): string {
 }
 
 export const QUICK_NAV_STYLES = `
-  .quick-nav { margin-top: 22px; }
+  .quick-nav { margin-top: 18px; }
   .quick-nav-inner {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
     max-width: 760px;
   }
   .quick-nav-chip {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 62px;
-    padding: 14px 16px;
-    border-radius: 22px;
+    min-height: 58px;
+    padding: 12px 14px;
+    border-radius: 20px;
     background: rgba(255,255,255,.92);
     border: 1px solid rgba(15,23,42,.06);
-    box-shadow: 0 10px 24px rgba(15,23,42,.05);
+    box-shadow: 0 8px 20px rgba(15,23,42,.045);
     color: #0f172a;
     font-size: 13px;
     font-weight: 800;
     text-decoration: none;
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
-  .quick-nav-chip:hover { transform: translateY(-2px); box-shadow: 0 16px 28px rgba(15,23,42,.08); border-color: rgba(14,165,233,.28); }
+  .quick-nav-chip:hover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba(15,23,42,.07); border-color: rgba(14,165,233,.24); }
   .quick-nav-chip.is-primary {
-    background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(14,165,233,.12));
+    background: #ecfdf5;
     border-color: rgba(16,185,129,.22);
     color: #065f46;
   }
   .quick-nav-chip-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
     display: grid;
     place-items: center;
     background: rgba(15,23,42,.04);

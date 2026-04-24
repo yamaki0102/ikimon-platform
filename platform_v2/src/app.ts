@@ -189,16 +189,6 @@ function buildLandingHeroHtml(
         <strong>${escapeHtml(copy.heroPhotoFallback)}</strong>
       </div>`;
 
-  const timelineHtml = uniqueHeroPool.length > 0
-    ? `<div class="landing-hero-timeline">${uniqueHeroPool.slice(0, 3).map((obs) => {
-        const href = observationDetailHref(options.basePath, lang, obs);
-        return `<a href="${escapeHtml(href)}">
-          <span>${escapeHtml(formatLandingObservedAt(lang, obs.observedAt))}</span>
-          <strong>${escapeHtml(obs.displayName)}</strong>
-        </a>`;
-      }).join("")}</div>`
-    : "";
-
   const statHtml = featuredObservation
     ? `<div class="landing-hero-stat-block">
         <span>${escapeHtml(copy.dailyDashboard.scoreLabel)}</span>
@@ -225,7 +215,6 @@ function buildLandingHeroHtml(
       <div class="landing-hero-live">
         ${latestHtml}
         ${statHtml}
-        ${timelineHtml}
       </div>
     </div>
   </section>`;
@@ -320,7 +309,7 @@ function buildLandingRootHtml(
 
   const toolCardsHtml = `<div class="tool-card-grid">
     ${renderToolCard(options.basePath, lang, {
-      icon: "🔍",
+      icon: "AI",
       eyebrow: copy.tools.lens.eyebrow,
       title: copy.tools.lens.title,
       body: copy.tools.lens.body,
@@ -329,7 +318,7 @@ function buildLandingRootHtml(
       badge: copy.tools.lens.badge,
     })}
     ${renderToolCard(options.basePath, lang, {
-      icon: "📡",
+      icon: "MAP",
       eyebrow: copy.tools.scan.eyebrow,
       title: copy.tools.scan.title,
       body: copy.tools.scan.body,
@@ -418,13 +407,13 @@ function buildLandingRootHtml(
     `
   .landing-daily-hero {
     position: relative;
-    min-height: clamp(480px, 62svh, 620px);
-    margin-top: 8px;
-    border-radius: 34px;
+    min-height: clamp(500px, 64svh, 640px);
+    margin-top: 10px;
+    border-radius: 28px;
     overflow: hidden;
     background: #0f172a;
     color: #ffffff;
-    box-shadow: 0 28px 70px rgba(15, 23, 42, .18);
+    box-shadow: 0 22px 54px rgba(15, 23, 42, .14);
     isolation: isolate;
   }
   .landing-hero-visual,
@@ -437,7 +426,7 @@ function buildLandingRootHtml(
     height: 100%;
     object-fit: cover;
     display: block;
-    filter: saturate(1.08) contrast(1.02);
+    filter: saturate(1.08) contrast(1.03) brightness(1.06);
   }
   .landing-hero-visual.is-fallback {
     background:
@@ -460,22 +449,22 @@ function buildLandingRootHtml(
   .landing-hero-shade {
     z-index: 1;
     background:
-      linear-gradient(90deg, rgba(3, 7, 18, .66) 0%, rgba(3, 7, 18, .44) 48%, rgba(3, 7, 18, .08) 100%),
-      linear-gradient(180deg, rgba(3, 7, 18, .04) 0%, rgba(3, 7, 18, .42) 100%);
+      linear-gradient(90deg, rgba(3, 7, 18, .54) 0%, rgba(3, 7, 18, .34) 48%, rgba(3, 7, 18, .08) 100%),
+      linear-gradient(180deg, rgba(3, 7, 18, .02) 0%, rgba(3, 7, 18, .36) 100%);
   }
   .landing-hero-inner {
     position: relative;
     z-index: 2;
     min-height: inherit;
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(280px, .55fr);
+    grid-template-columns: minmax(0, 1.08fr) minmax(260px, .48fr);
     align-items: end;
-    gap: clamp(24px, 4vw, 48px);
-    padding: clamp(30px, 5vw, 58px);
+    gap: clamp(22px, 4vw, 44px);
+    padding: clamp(30px, 5vw, 56px);
   }
   .landing-hero-copy {
-    max-width: 760px;
-    text-shadow: 0 16px 42px rgba(0,0,0,.28);
+    max-width: 720px;
+    text-shadow: 0 14px 34px rgba(0,0,0,.24);
   }
   .landing-hero-kicker {
     display: inline-flex;
@@ -484,8 +473,8 @@ function buildLandingRootHtml(
     min-height: 38px;
     padding: 6px 12px;
     border-radius: 999px;
-    background: rgba(255,255,255,.16);
-    border: 1px solid rgba(255,255,255,.24);
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.28);
     backdrop-filter: blur(12px);
     color: rgba(255,255,255,.92);
     font-size: 12px;
@@ -501,44 +490,44 @@ function buildLandingRootHtml(
     margin: 18px 0 0;
     max-width: 12ch;
     font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
-    font-size: clamp(40px, 5.5vw, 70px);
+    font-size: clamp(40px, 5.3vw, 68px);
     line-height: 1.08;
     letter-spacing: 0;
     font-weight: 950;
   }
   .landing-hero-copy .hero-emphasis { color: #d9f99d; }
   .landing-hero-copy p {
-    margin: 22px 0 0;
-    max-width: 34em;
-    color: rgba(255,255,255,.9);
-    font-size: clamp(16px, 1.55vw, 21px);
-    line-height: 1.85;
+    margin: 20px 0 0;
+    max-width: 31em;
+    color: rgba(255,255,255,.92);
+    font-size: clamp(15px, 1.45vw, 19px);
+    line-height: 1.78;
   }
   .landing-hero-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 28px;
+    gap: 10px;
+    margin-top: 26px;
   }
   .landing-hero-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 48px;
-    padding: 12px 20px;
+    min-height: 50px;
+    padding: 12px 22px;
     border-radius: 999px;
     font-size: 14px;
     font-weight: 900;
     letter-spacing: 0;
     border: 1px solid rgba(255,255,255,.28);
-    box-shadow: 0 16px 34px rgba(0,0,0,.18);
+    box-shadow: 0 14px 28px rgba(0,0,0,.16);
   }
   .landing-hero-action.is-primary {
     background: #ffffff;
     color: #0f172a;
   }
   .landing-hero-action.is-secondary {
-    background: rgba(255,255,255,.12);
+    background: rgba(255,255,255,.16);
     color: #ffffff;
     backdrop-filter: blur(12px);
   }
@@ -546,14 +535,14 @@ function buildLandingRootHtml(
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 18px;
+    margin-top: 16px;
     max-width: 720px;
   }
   .landing-hero-chips span {
     display: inline-flex;
     align-items: center;
-    min-height: 34px;
-    padding: 7px 12px;
+    min-height: 32px;
+    padding: 6px 11px;
     border-radius: 999px;
     background: rgba(255,255,255,.13);
     border: 1px solid rgba(255,255,255,.2);
@@ -566,32 +555,30 @@ function buildLandingRootHtml(
   .landing-hero-live {
     display: grid;
     gap: 10px;
+    align-self: end;
   }
   .landing-hero-latest-main,
-  .landing-hero-stat-block,
-  .landing-hero-timeline a {
+  .landing-hero-stat-block {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 16px 18px;
-    border-radius: 24px;
-    background: rgba(255,255,255,.86);
-    border: 1px solid rgba(255,255,255,.45);
+    padding: 15px 17px;
+    border-radius: 20px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(255,255,255,.42);
     color: #0f172a;
-    box-shadow: 0 16px 38px rgba(0,0,0,.12);
+    box-shadow: 0 12px 28px rgba(0,0,0,.1);
     backdrop-filter: blur(18px);
   }
   .landing-hero-latest-main span,
-  .landing-hero-stat-block span,
-  .landing-hero-timeline a span {
+  .landing-hero-stat-block span {
     color: #047857;
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0;
   }
   .landing-hero-latest-main strong,
-  .landing-hero-stat-block strong,
-  .landing-hero-timeline a strong {
+  .landing-hero-stat-block strong {
     color: #0f172a;
     font-size: 16px;
     line-height: 1.35;
@@ -606,52 +593,29 @@ function buildLandingRootHtml(
   .landing-hero-stat-block {
     background: rgba(240,253,244,.9);
   }
-  .landing-hero-timeline {
-    display: grid;
-    gap: 8px;
-  }
-  .landing-hero-timeline a {
-    border-radius: 18px;
-    padding: 12px 14px;
-    background: rgba(15,23,42,.54);
-    border-color: rgba(255,255,255,.18);
-    color: #ffffff;
-  }
-  .landing-hero-timeline a span {
-    color: rgba(217,249,157,.92);
-  }
-  .landing-hero-timeline a strong {
-    color: #ffffff;
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
   .daily-dashboard {
-    margin-top: 24px;
-    padding: clamp(22px, 4vw, 34px);
-    border-radius: 32px;
-    background:
-      linear-gradient(135deg, rgba(236,253,245,.96), rgba(240,249,255,.94)),
-      radial-gradient(circle at top right, rgba(14,165,233,.18), transparent 34%);
+    margin-top: 22px;
+    padding: clamp(20px, 3.5vw, 30px);
+    border-radius: 24px;
+    background: rgba(255,255,255,.92);
     border: 1px solid rgba(15,23,42,.06);
-    box-shadow: 0 18px 44px rgba(15,23,42,.07);
+    box-shadow: 0 12px 32px rgba(15,23,42,.06);
   }
   .dd-head {
     display: grid;
     grid-template-columns: minmax(120px, .28fr) minmax(0, 1fr);
-    gap: 22px;
+    gap: 18px;
     align-items: start;
   }
   .dd-head > span {
     display: inline-flex;
     width: fit-content;
-    min-height: 34px;
+    min-height: 32px;
     align-items: center;
     padding: 7px 12px;
     border-radius: 999px;
-    background: #0f172a;
-    color: #ffffff;
+    background: #ecfdf5;
+    color: #047857;
     font-size: 12px;
     font-weight: 900;
   }
@@ -659,53 +623,54 @@ function buildLandingRootHtml(
     margin: 0;
     max-width: 18ch;
     color: #0f172a;
-    font-size: clamp(28px, 3.5vw, 46px);
+    font-size: clamp(26px, 3vw, 40px);
     line-height: 1.14;
     letter-spacing: 0;
   }
   .dd-head p {
     margin: 12px 0 0;
-    max-width: 58ch;
+    max-width: 54ch;
     color: #475569;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.8;
     font-weight: 700;
   }
   .dd-card-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 24px;
+    gap: 10px;
+    margin-top: 20px;
   }
   .dd-card {
-    min-height: 210px;
+    min-height: 188px;
     display: grid;
     align-content: start;
     gap: 8px;
-    padding: 18px;
-    border-radius: 22px;
-    background: rgba(255,255,255,.82);
+    padding: 16px;
+    border-radius: 20px;
+    background: #ffffff;
     border: 1px solid rgba(15,23,42,.07);
     color: #0f172a;
-    box-shadow: 0 12px 26px rgba(15,23,42,.06);
+    box-shadow: 0 8px 20px rgba(15,23,42,.045);
   }
   .dd-card-eyebrow {
     color: #047857;
     font-size: 11px;
     font-weight: 950;
+    letter-spacing: 0;
   }
   .dd-card h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.35;
     letter-spacing: 0;
   }
   .dd-card p {
-    margin: 2px 0 0;
+    margin: 0;
     color: #0f172a;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.45;
-    font-weight: 900;
+    font-weight: 850;
   }
   .dd-card small {
     color: #64748b;
@@ -719,7 +684,7 @@ function buildLandingRootHtml(
     justify-content: space-between;
     gap: 10px;
     align-items: center;
-    margin-top: 8px;
+    margin-top: 6px;
     color: #0f766e;
     font-size: 12px;
     font-weight: 900;
@@ -732,8 +697,8 @@ function buildLandingRootHtml(
   }
   .dd-card-metric strong { font-size: 22px; line-height: 1; }
   .dd-seasonal {
-    margin-top: 14px;
-    padding-top: 14px;
+    margin-top: 16px;
+    padding-top: 16px;
     border-top: 1px solid rgba(15,23,42,.08);
   }
   .dd-seasonal-head {
@@ -756,16 +721,16 @@ function buildLandingRootHtml(
   .dd-seasonal-strip {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
     margin-top: 12px;
   }
   .dd-seasonal-item {
     min-width: 0;
     display: grid;
     gap: 5px;
-    padding: 10px;
-    border-radius: 18px;
-    background: rgba(255,255,255,.68);
+    padding: 9px;
+    border-radius: 16px;
+    background: #f8fafc;
     border: 1px solid rgba(15,23,42,.06);
     color: #0f172a;
   }
@@ -817,16 +782,16 @@ function buildLandingRootHtml(
   .quick-nav-inner { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: none; }
   .field-loop-section { position: relative; overflow: hidden; }
   .field-loop-shell { display: grid; gap: 12px; }
-  .field-loop-copy { border-radius: 28px; padding: 28px; }
-  .field-loop-copy { background: linear-gradient(180deg, #f8fffc 0%, #effaf4 100%); border: 1px solid rgba(16,185,129,.16); }
+  .field-loop-copy { border-radius: 22px; padding: 24px; }
+  .field-loop-copy { background: #ffffff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 8px 22px rgba(15,23,42,.045); }
   .field-loop-copy h2 { margin-top: 8px; font-size: clamp(26px, 3vw, 38px); line-height: 1.18; letter-spacing: 0; }
   .field-loop-copy p { max-width: 58ch; }
   .field-loop-principles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; max-width: 760px; }
-  .field-loop-principles span { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 12px; border-radius: 999px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; }
+  .field-loop-principles span { display: inline-flex; align-items: center; min-height: 32px; padding: 6px 11px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; }
   .field-loop-boundary-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
   .field-loop-boundary-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: 0; }
   .field-loop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
-  .field-loop-card { min-height: 100%; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.74); border: 1px solid rgba(15,23,42,.06); display: grid; gap: 6px; }
+  .field-loop-card { min-height: 100%; padding: 14px 16px; border-radius: 18px; background: #ffffff; border: 1px solid rgba(15,23,42,.06); display: grid; gap: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
   .field-loop-card span { width: 8px; height: 8px; border-radius: 999px; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
   .field-loop-card strong { font-size: 14px; line-height: 1.35; letter-spacing: 0; color: #0f172a; }
   .field-loop-card small { font-size: 12px; line-height: 1.65; color: #64748b; font-weight: 700; }
@@ -848,7 +813,6 @@ function buildLandingRootHtml(
   @media (max-width: 860px) {
     .landing-hero-inner { grid-template-columns: 1fr; align-items: end; padding: 28px; }
     .landing-hero-live { grid-template-columns: 1fr 1fr; }
-    .landing-hero-timeline { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .dd-head { grid-template-columns: 1fr; gap: 12px; }
     .dd-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .dd-seasonal-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -859,13 +823,12 @@ function buildLandingRootHtml(
     .fn-grid, .fn-grid-compact { grid-template-columns: repeat(2, minmax(0,1fr)); }
   }
   @media (max-width: 720px) {
-    .landing-daily-hero { min-height: 0; border-radius: 28px; }
+    .landing-daily-hero { min-height: 0; border-radius: 24px; }
     .landing-hero-inner { min-height: 0; padding: 22px; gap: 18px; }
     .landing-hero-copy h1 { max-width: 10ch; font-size: clamp(34px, 9vw, 46px); line-height: 1.12; margin-top: 14px; }
     .landing-hero-copy p { max-width: 24em; font-size: 14px; line-height: 1.76; margin-top: 16px; }
     .landing-hero-actions { margin-top: 22px; }
     .landing-hero-live { grid-template-columns: 1fr; }
-    .landing-hero-timeline { display: none; }
     .tool-card-grid { grid-template-columns: 1fr; }
     .field-loop-copy { padding: 22px; }
     .field-loop-grid { grid-template-columns: 1fr; }
@@ -876,7 +839,7 @@ function buildLandingRootHtml(
     .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 520px) {
-    .daily-dashboard { border-radius: 26px; padding: 18px; }
+    .daily-dashboard { border-radius: 22px; padding: 18px; }
     .dd-head { gap: 8px; }
     .dd-head h2 { font-size: 24px; }
     .dd-head p { display: none; }
@@ -885,8 +848,8 @@ function buildLandingRootHtml(
     .dd-seasonal-strip { grid-template-columns: 1fr; }
     .dd-seasonal-item { grid-template-columns: 72px minmax(0, 1fr); align-items: center; }
     .dd-seasonal-item img { grid-row: span 3; aspect-ratio: 1 / 1; }
-    .landing-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .landing-hero-action { width: 100%; min-height: 46px; padding-left: 10px; padding-right: 10px; font-size: 13px; white-space: nowrap; }
+    .landing-hero-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .landing-hero-action { width: 100%; min-height: 46px; padding-left: 10px; padding-right: 10px; font-size: 13px; white-space: normal; text-align: center; }
     .landing-hero-chips { display: none; }
     .landing-hero-chips span { min-height: 30px; padding: 6px 10px; font-size: 11px; }
     .landing-hero-latest-main,

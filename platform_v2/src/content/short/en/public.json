@@ -5,7 +5,7 @@
     "heroHeadingPlain": "Your usual walk becomes an adventure.",
     "heroHeadingLine1": "Your usual walk",
     "heroHeadingEmphasis": "becomes an adventure.",
-    "heroLead": "Nearby nature becomes a little more interesting. A travel photo becomes a reason to come back. AI supports clues and understanding, while people remain responsible for observation and review.",
+    "heroLead": "Walk, find something, and save it with a place. When names and differences become a little clearer, you want to walk again.",
     "heroPromiseChips": [
       "Nearby nature gets a little more interesting",
       "One travel photo becomes a reason to return"
@@ -22,23 +22,23 @@
       "fresh": "Fresh find"
     },
     "dailyDashboard": {
-      "eyebrow": "Today's dashboard",
-      "title": "Start observation, revisit, nearby change, and review here",
-      "lead": "The top page now chooses a field note worth seeing today and turns it into the next action.",
+      "eyebrow": "Today's step",
+      "title": "Choose a reason to go outside",
+      "lead": "Record, revisit, or look nearby. The first screen stays focused on enjoying nature today.",
       "scoreLabel": "Today's pick",
       "seasonalTitle": "Seasonal clues",
       "seasonalEmpty": "Seasonal clues are still being collected",
       "cards": {
         "recordToday": {
           "eyebrow": "Record",
-          "title": "Write today's note",
+          "title": "Save today's find",
           "body": "Save what you found with a photo and a short note.",
           "cta": "Record",
           "metricLabel": "today"
         },
         "revisitPlace": {
           "eyebrow": "Revisit",
-          "title": "Return to a place you walked",
+          "title": "Go back to a place you walked",
           "body": "The same place changes when the season moves.",
           "cta": "Open notebook",
           "metricLabel": "visits"
@@ -60,44 +60,44 @@
       }
     },
     "numberLocale": "en-US",
-    "toolSectionEyebrow": "Inputs to your notebook",
-    "toolSectionTitle": "Two ways to feed the notebook",
-    "toolSectionLead": "Field Note is the core. Lens helps you see better on site, and the Explore Map returns reasons to go now and reasons to come back later.",
+    "toolSectionEyebrow": "Two ways to enjoy it",
+    "toolSectionTitle": "Look on site. Choose from the map.",
+    "toolSectionLead": "Check what caught your eye, or choose where to walk next. Both paths lead back to a record you can revisit.",
     "tools": {
       "lens": {
         "eyebrow": "Lens",
-        "title": "Walk with an AI guide reading the world around you",
-        "body": "Point your camera and the AI narrows what to check next. It is a support layer, not the final answer, and helps turn the moment into a record.",
-        "badge": "beta"
+        "title": "Look closer at what caught your eye",
+        "body": "Point the camera and AI returns candidates and clues. It helps you keep the moment without pretending to be the final answer.",
+        "badge": "AI hint"
       },
       "scan": {
         "eyebrow": "Explore Map",
-        "title": "Find reasons to go now and reasons to return",
-        "body": "Use map bias, seasonality, and gaps to understand why here, why now, what one visit can add, and what could bring you back again.",
-        "badge": "v0.10"
+        "title": "Choose today's walk from the map",
+        "body": "Use nearby finds, seasonal changes, and gaps to choose the next place worth walking.",
+        "badge": "map"
       }
     },
-    "mapSectionEyebrow": "Place notebook",
-    "mapSectionTitle": "Revisit places worth walking again, on the map",
-    "mapSectionLead": "For locals, it returns revisit reasons. For travelers, it returns reasons to stop here now and hooks to come back later.",
+    "mapSectionEyebrow": "Explore map",
+    "mapSectionTitle": "Find places that make you want to walk again",
+    "mapSectionLead": "Nearby paths and travel stops both hold reasons for the next walk. See what has been found and decide one next step.",
     "mapEmpty": "No observations on the map yet"
   },
   "fieldLoop": {
-    "eyebrow": "how ikimon works",
-    "title": "Field Loop",
-    "lead": "Aim from the satellite, check it on foot, write it in the notebook. The more you run this cycle, the more the same path looks different.",
-    "primaryCta": "Learn about Field Loop",
+    "eyebrow": "How it works",
+    "title": "Find. Learn. Save. Help someone else.",
+    "lead": "Find something, check a few clues, and save it with the place. The more people keep these small records, the easier nearby nature becomes to understand.",
+    "primaryCta": "See the idea",
     "steps": [
-      { "title": "1. Aim from the satellite", "body": "Edges, water, wetlands, succession zones — find the suspicious places before you leave home." },
-      { "title": "2. Narrow it down to three", "body": "Decide which microhabitat to verify, what to photograph, and what context to write down." },
-      { "title": "3. The AI never overclaims", "body": "It tells you what it saw, what evidence is missing, and which shot is worth taking next." },
-      { "title": "4. The deltas pile up", "body": "Season by season, the differences stack, and a reason to come back keeps growing." }
+      { "title": "1. Find", "body": "Notice something on a walk or while traveling." },
+      { "title": "2. Learn", "body": "Use AI clues and your own eyes to look a little closer." },
+      { "title": "3. Save", "body": "Keep the photo, place, time, and a short note together." },
+      { "title": "4. Help", "body": "Small records can become clues for local nature, research, and conservation." }
     ],
     "principles": [
-      "We train the eye, not just the answer.",
-      "We thicken the context before we push for certainty.",
-      "We never blur blank with absent.",
-      "We keep uncertainty and deltas as data, too."
+      "Start with enjoyment.",
+      "Keep records even before you know the name.",
+      "Save the place context.",
+      "Turn each record into the next walk."
     ],
     "boundaries": [
       "Blank = not yet observed",
