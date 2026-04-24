@@ -761,6 +761,8 @@ $formatMultiline = static function (string $text): string {
                 <?php endforeach; ?>
             </div>
 
+            <p class="msg-accent"><?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
+
             <div class="msg-plans">
                 <?php foreach ($supportPlans as $index => $plan): ?>
                 <div class="msg-plan-item<?= $index === 0 ? ' msg-plan-free' : '' ?>">

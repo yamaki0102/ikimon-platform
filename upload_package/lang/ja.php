@@ -126,7 +126,7 @@ return [
         'origin_resolution_title' => 'まちの解像度が上がると、愛着も上がる',
         'regional_title' => 'なぜ、地域創生なのか',
         'regional_adults_title' => '子どもだけじゃない。大人もイキイキしていないと',
-        'disappearing_title' => '消滅可能性自治体',
+        'disappearing_title' => '744の自治体が、消えるかもしれない',
         'sustainability_title' => '持続可能なかたち',
         'cta_heading' => '一緒に、自然とまちをつなぎませんか？',
         'cta_secondary' => '企業・自治体の方へ',
@@ -160,7 +160,7 @@ return [
         'disappearing_ratio_copy' => '全自治体の、43%にあたります。',
         'priority_lead' => '最も危機的な自治体に、ikimon.lifeを届けたい。',
         'eligibility_copy' => '若年女性人口の減少率が80%を超える自治体——',
-        'support_model_summary' => '企業・大規模自治体向け Public の収益で、この無償提供を支えます。',
+        'support_model_summary' => '企業や大規模自治体向けのPublicプランの収益で、この無償提供を支えます。',
         'free_plan' => [
             'tag' => '無償提供',
             'name' => '消滅可能性自治体（若年女性減少率80%以上）',
