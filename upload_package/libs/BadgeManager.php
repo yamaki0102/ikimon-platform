@@ -5,7 +5,7 @@ require_once __DIR__ . '/Auth.php';
 
 class BadgeManager
 {
-    const CONFIG_FILE = ROOT_DIR . '/data/config/badges.json';
+    const CONFIG_FILE = DATA_DIR . '/config/badges.json';
     const USER_BADGES_DIR = DATA_DIR . '/user_badges';
 
     private static $badges = null;

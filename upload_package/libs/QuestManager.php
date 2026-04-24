@@ -5,7 +5,7 @@ require_once __DIR__ . '/MyFieldManager.php';
 
 class QuestManager
 {
-    const CONFIG_FILE = ROOT_DIR . '/data/config/quests.json';
+    const CONFIG_FILE = DATA_DIR . '/config/quests.json';
     private static $definitions = null;
 
     public static function getDefinitions(): array

@@ -10,9 +10,10 @@ class OmoikaneDB
     private $pdo;
     private $dbPath;
 
-    public function __construct($dbPath = __DIR__ . '/../data/library/omoikane.sqlite3')
+    public function __construct($dbPath = null)
     {
-        $this->dbPath = $dbPath;
+        $dataDir = defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data';
+        $this->dbPath = $dbPath ?: $dataDir . '/library/omoikane.sqlite3';
         $this->connect();
         $this->initializeSchema();
     }

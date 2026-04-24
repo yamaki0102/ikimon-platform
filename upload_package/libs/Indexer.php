@@ -6,7 +6,7 @@ class Indexer
 
     public static function Init()
     {
-        self::$indexDir = __DIR__ . '/../data/indexes';
+        self::$indexDir = (defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data') . '/indexes';
         if (!file_exists(self::$indexDir)) {
             mkdir(self::$indexDir, 0755, true);
         }

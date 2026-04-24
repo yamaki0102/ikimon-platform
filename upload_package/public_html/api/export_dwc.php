@@ -45,7 +45,7 @@ fputcsv($output, $header);
 // We will iterate through Partition files if we want ALL data.
 // For MVP, let's check `observations_index.json` or just scan the dir.
 
-$data_dir = __DIR__ . '/../../data/observations';
+$data_dir = DATA_DIR . '/observations';
 $files = glob($data_dir . '/*.json');
 
 foreach ($files as $file) {

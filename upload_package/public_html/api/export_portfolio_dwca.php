@@ -139,7 +139,7 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
     $assocRefs = '';
     $taxonSlug = $taxon['slug'] ?? '';
     if ($taxonSlug) {
-        $indexDir = ROOT_DIR . '/data/library/index';
+        $indexDir = DATA_DIR . '/library/index';
         $indexFile = $indexDir . '/' . $taxonSlug . '.json';
         if (file_exists($indexFile)) {
             $citations = json_decode(file_get_contents($indexFile), true);
@@ -205,7 +205,7 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
 // Output: ZIP Archive (GBIF-ready DwC-A package)
 // ──────────────────────────────────────────────
 if ($format === 'archive') {
-    $dwcaDir = ROOT_DIR . '/data/dwca';
+    $dwcaDir = DATA_DIR . '/dwca';
     $metaXml = $dwcaDir . '/meta.xml';
     $emlXml  = $dwcaDir . '/eml.xml';
 

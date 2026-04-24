@@ -30,7 +30,7 @@ class RateLimiter
     private static function init()
     {
         if (self::$storageDir === null) {
-            self::$storageDir = __DIR__ . '/../data/rate_limits';
+            self::$storageDir = (defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data') . '/rate_limits';
             if (!is_dir(self::$storageDir)) {
                 mkdir(self::$storageDir, 0700, true);
             }

@@ -92,7 +92,7 @@ echo json_encode(['success' => true, 'message' => 'プロフィールを更新�
  */
 function syncObserverData(string $userId, array $updates): void
 {
-    $obsDir = __DIR__ . '/../../data/observations';
+    $obsDir = DATA_DIR . '/observations';
     if (!is_dir($obsDir)) return;
 
     foreach (glob($obsDir . '/*.json') as $file) {

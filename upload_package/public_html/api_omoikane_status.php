@@ -86,7 +86,7 @@ if (file_exists($heartbeatFile)) {
 }
 
 // Count spool files for writer status
-$spoolDir = __DIR__ . '/../data/spool';
+$spoolDir = DATA_DIR . '/spool';
 $spoolPending = count(glob($spoolDir . '/*.json'));
 $spoolArchived = count(glob($spoolDir . '/archive/*.json'));
 

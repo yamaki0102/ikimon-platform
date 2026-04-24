@@ -4,7 +4,8 @@ class Invasive {
 
     public static function check($name, $scientific = null) {
         if (self::$list === null) {
-            $path = __DIR__ . '/../data/masters/invasive_species.json';
+            $dataDir = defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data';
+            $path = $dataDir . '/masters/invasive_species.json';
             if (file_exists($path)) {
                 self::$list = json_decode(file_get_contents($path), true);
             } else {

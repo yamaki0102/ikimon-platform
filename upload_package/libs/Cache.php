@@ -6,7 +6,7 @@ class Cache
 
     public static function Init()
     {
-        self::$cacheDir = __DIR__ . '/../data/cache';
+        self::$cacheDir = (defined('DATA_DIR') ? DATA_DIR : __DIR__ . '/../data') . '/cache';
         if (!file_exists(self::$cacheDir)) {
             mkdir(self::$cacheDir, 0755, true);
         }
