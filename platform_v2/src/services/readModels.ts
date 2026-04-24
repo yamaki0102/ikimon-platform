@@ -83,6 +83,8 @@ export type ObservationDetailSnapshot = {
   photoAssets: Array<{
     assetId: string;
     url: string;
+    widthPx: number | null;
+    heightPx: number | null;
     roleTag: string | null;
     roleTagSource: string | null;
     organTarget: string | null;
@@ -750,12 +752,16 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   const photosResult = await pool.query<{
     asset_id: string;
     photo_url: string | null;
+    width_px: number | null;
+    height_px: number | null;
     role_tag: string | null;
     role_tag_source: string | null;
     organ_target: string | null;
   }>(
     `select ea.asset_id::text as asset_id,
             coalesce(ab.public_url, ab.storage_path) as photo_url,
+            ab.width_px,
+            ab.height_px,
             ea.role_tag,
             ea.role_tag_source,
             ea.organ_target
@@ -820,6 +826,8 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
       return {
         assetId: row.asset_id,
         url: normalizedUrl,
+        widthPx: row.width_px != null ? Number(row.width_px) : null,
+        heightPx: row.height_px != null ? Number(row.height_px) : null,
         roleTag: row.role_tag ?? null,
         roleTagSource: row.role_tag_source ?? null,
         organTarget: row.organ_target ?? null,
@@ -828,6 +836,8 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     .filter((row): row is {
       assetId: string;
       url: string;
+      widthPx: number | null;
+      heightPx: number | null;
       roleTag: string | null;
       roleTagSource: string | null;
       organTarget: string | null;

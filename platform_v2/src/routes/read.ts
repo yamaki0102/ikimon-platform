@@ -343,14 +343,14 @@ function formatAbsolute(dateStr: string | null | undefined): string {
 }
 
 const OBSERVATION_DETAIL_STYLES = `
-  .obs-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-bottom: 24px; }
+  .obs-hero { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 18px; margin-bottom: 30px; }
   @media (min-width: 860px) {
-    .obs-hero { grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); align-items: start; gap: 28px; }
-    .obs-hero-meta { position: sticky; top: 16px; }
+    .obs-hero { grid-template-columns: minmax(0, 1.16fr) minmax(320px, .84fr); align-items: start; gap: 36px; }
   }
-  .obs-hero-gallery { display: grid; gap: 10px; border-radius: 20px; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); padding: 8px; }
-  .obs-hero-preview { position: relative; aspect-ratio: 4/3; max-height: 540px; border-radius: 16px; overflow: hidden; background: #0f172a; cursor: zoom-in; }
-  .obs-hero-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .obs-hero-gallery { display: grid; gap: 10px; border-radius: 20px; background: #ffffff; border: 1px solid rgba(15,23,42,.08); padding: 8px; box-shadow: 0 18px 42px rgba(15,23,42,.07); }
+  .obs-hero-preview { position: relative; display: flex; align-items: center; justify-content: center; min-height: clamp(420px, 68vh, 680px); border-radius: 16px; overflow: hidden; background: #f8fafc; cursor: zoom-in; }
+  .obs-hero-image-frame { position: relative; display: inline-block; max-width: 100%; max-height: min(68vh, 680px); }
+  .obs-hero-image-frame img { width: auto; height: auto; max-width: 100%; max-height: min(68vh, 680px); object-fit: contain; display: block; }
   .obs-hero-preview .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
   .obs-hero-zoom { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border-radius: 50%; background: rgba(15,23,42,.78); color: #fff; border: 0; display: grid; place-items: center; cursor: pointer; transition: transform .18s ease, background .18s ease; box-shadow: 0 6px 16px rgba(0,0,0,.28); }
   .obs-hero-zoom:hover { background: #0f172a; transform: scale(1.06); }
@@ -392,13 +392,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
   .obs-hero-photo:hover img { transform: scale(1.04); }
   .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
-  .obs-region-box { position: absolute; border: 2px solid rgba(14,165,233,.96); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(14,165,233,.08) inset, 0 0 0 1px rgba(255,255,255,.7); }
-  .obs-region-box-label { position: absolute; left: 0; top: -28px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.86); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; }
+  .obs-region-box { position: absolute; border: 1.5px dashed rgba(14,165,233,.92); border-radius: 12px; background: rgba(14,165,233,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
+  .obs-region-box-label { position: absolute; left: 8px; top: 8px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
   .obs-hero-placeholder { aspect-ratio: 4/3; display: grid; place-items: center; text-align: center; font-weight: 800; color: #475569; background: repeating-linear-gradient(0deg, #f0fdf4 0 24px, #ecfdf5 24px 25px); border-radius: 20px; gap: 8px; }
   .obs-hero-placeholder span:first-child { font-size: 40px; }
-  .obs-hero-meta { display: flex; flex-direction: column; gap: 14px; padding: 4px; }
-  .obs-hero-title { margin: 0; font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.15; }
+  .obs-hero-meta { display: flex; flex-direction: column; gap: 15px; padding: 6px 4px 4px; align-self: start; }
+  .obs-hero-title { margin: 0; max-width: 18ch; font-size: clamp(30px, 3.1vw, 42px); font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.16; }
   .obs-hero-byline { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; color: #475569; font-size: 13px; }
   .obs-hero-observer { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: #0f172a; text-decoration: none; }
   .obs-hero-avatar { width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 14px; flex-shrink: 0; overflow: hidden; }
@@ -410,7 +410,14 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-badge-species { background: rgba(59,130,246,.08); color: #1d4ed8; border-color: rgba(59,130,246,.2); }
   .obs-badge-nearby { background: rgba(168,85,247,.08); color: #7e22ce; border-color: rgba(168,85,247,.2); }
   .obs-badge-video { background: rgba(15,23,42,.08); color: #0f172a; border-color: rgba(15,23,42,.16); }
-  .obs-trust-ladder { display: grid; gap: 10px; padding: 14px 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(239,246,255,.92)); border: 1px solid rgba(59,130,246,.14); box-shadow: 0 10px 24px rgba(59,130,246,.06); }
+  .obs-trust-ladder { display: grid; gap: 10px; padding: 0; border-radius: 16px; background: transparent; border: 0; box-shadow: none; }
+  .obs-trust-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 58px; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.08); cursor: pointer; }
+  .obs-trust-summary::-webkit-details-marker { display: none; }
+  .obs-trust-summary::marker { content: ""; }
+  .obs-trust-summary strong { display: block; margin-top: 2px; color: #0f172a; font-size: 14px; line-height: 1.45; }
+  .obs-trust-toggle { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 5px 10px; border-radius: 999px; background: rgba(14,165,233,.1); color: #0369a1; font-size: 11px; font-weight: 900; }
+  .obs-trust-ladder[open] .obs-trust-toggle { background: rgba(15,23,42,.08); color: #334155; }
+  .obs-trust-lead { margin: 0; padding: 0 4px; font-size: 12.5px; line-height: 1.7; color: #475569; }
   .obs-trust-head { display: grid; gap: 4px; }
   .obs-trust-head strong { font-size: 15px; color: #0f172a; }
   .obs-trust-head p { margin: 0; font-size: 12.5px; line-height: 1.7; color: #475569; }
@@ -422,13 +429,17 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-trust-step-label { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #0f172a; }
   .obs-trust-step-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(59,130,246,.12); color: #1d4ed8; font-size: 10px; font-weight: 900; }
   .obs-trust-step-meta { font-size: 11.5px; line-height: 1.6; color: #64748b; font-weight: 700; }
-  .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-  .obs-reaction { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 700; font-size: 13px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
+  .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; }
+  .obs-reaction { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 800; font-size: 12.5px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
   .obs-reaction:hover { background: #f9fafb; transform: translateY(-1px); }
   .obs-reaction.is-reacted { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.3); color: #047857; }
   .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 800; }
   .obs-reaction-label { display: none; }
   @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
+  .obs-support-panel { display: grid; gap: 14px; padding: 16px; border-radius: 18px; background: rgba(255,255,255,.76); border: 1px solid rgba(15,23,42,.07); box-shadow: 0 10px 26px rgba(15,23,42,.04); }
+  .obs-support-actions { display: grid; gap: 10px; }
+  .obs-support-title { margin: 0; font-size: 14px; font-weight: 900; color: #0f172a; }
+  .obs-support-note { margin: 0; color: #64748b; font-size: 12px; line-height: 1.6; }
   .obs-focus { display: grid; gap: 12px; margin-top: 16px; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(236,253,245,.92)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 28px rgba(16,185,129,.08); }
   .obs-focus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .obs-focus-title { margin: 0; font-size: 19px; font-weight: 900; color: #0f172a; line-height: 1.35; letter-spacing: -.01em; }
@@ -2313,10 +2324,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     // AI bounding box は Gemini Flash-Lite の出力粒度が荒いため confidence < 0.5 は非表示。
     // DB には残す (集計や再評価のため) が描画はしない。
     const REGION_DISPLAY_CONF_MIN = 0.5;
+    const isDisplayableRegion = (region: ObservationVisitSubject["regions"][number]): boolean =>
+      Boolean(region.rect) && (region.confidenceScore ?? 1) >= REGION_DISPLAY_CONF_MIN;
+    const visibleRegionsForAsset = (assetId: string): ObservationVisitSubject["regions"] =>
+      currentSubject.regions.filter((region) => region.assetId === assetId && isDisplayableRegion(region));
     const renderRegionBoxes = (assetId: string): string =>
-      currentSubject.regions
-        .filter((region) => region.assetId === assetId && region.rect)
-        .filter((region) => (region.confidenceScore ?? 1) >= REGION_DISPLAY_CONF_MIN)
+      visibleRegionsForAsset(assetId)
         .map((region) => {
           const rect = region.rect;
           if (!rect) return "";
@@ -2326,13 +2339,30 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </span>`;
         })
         .join("");
+    const initialPhotoRegionCount = snapshot.photoAssets[0]
+      ? visibleRegionsForAsset(snapshot.photoAssets[0].assetId).length
+      : 0;
+    const photoSizeAttrs = (asset: typeof snapshot.photoAssets[number]): string => {
+      const width = Number(asset.widthPx);
+      const height = Number(asset.heightPx);
+      return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+        ? ` width="${Math.round(width)}" height="${Math.round(height)}"`
+        : "";
+    };
+    const photoSizeDataAttrs = (asset: typeof snapshot.photoAssets[number]): string => {
+      const width = Number(asset.widthPx);
+      const height = Number(asset.heightPx);
+      return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+        ? ` data-obs-thumb-width="${Math.round(width)}" data-obs-thumb-height="${Math.round(height)}"`
+        : "";
+    };
     const photoGallery = snapshot.photoAssets.length > 0
       ? (() => {
           const first = snapshot.photoAssets[0]!;
           const thumbsHtml = snapshot.photoAssets.length >= 2
             ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => `
-                 <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(asset.url)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" aria-label="画像 ${i + 1}">
-                   <img src="${escapeHtml(asset.url)}" alt="" loading="lazy" />
+                 <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(asset.url)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
+                   <img src="${escapeHtml(asset.url)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
                    <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
                    <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
                    <span hidden data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${renderRegionBoxes(asset.assetId)}</span>
@@ -2340,8 +2370,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             : "";
           return `<div class="obs-hero-gallery" data-obs-gallery>
             <div class="obs-hero-preview" data-obs-preview data-obs-preview-asset-id="${escapeHtml(first.assetId)}">
-              <img src="${escapeHtml(first.url)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img />
-              <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderRegionBoxes(first.assetId)}</span>
+              <span class="obs-hero-image-frame" data-obs-image-frame>
+                <img src="${escapeHtml(first.url)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
+                <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderRegionBoxes(first.assetId)}</span>
+              </span>
               <button type="button" class="obs-hero-zoom" data-obs-zoom aria-label="画像を拡大">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
               </button>
@@ -2351,7 +2383,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         })()
       : "";
     const primaryVideo = snapshot.videoAssets[0] ?? null;
-    const videoRegion = primaryVideo ? currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId) ?? null : null;
+    const videoRegion = primaryVideo
+      ? currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId && isDisplayableRegion(region)) ?? null
+      : null;
     const videoPlayer = primaryVideo
       ? `<div class="obs-hero-video">
            <div class="obs-hero-video-frame">
@@ -2371,7 +2405,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
          </div>`
       : "";
     const mediaBlock = (videoPlayer || photoGallery)
-      ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${currentSubject.regions.length > 0 ? `<p class="obs-region-summary" data-region-summary>AI が対象位置の参考矩形を重ねています。</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
+      ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${initialPhotoRegionCount > 0 ? `<p class="obs-region-summary" data-region-summary>AI が対象位置の参考矩形を重ねています。</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
       : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
 
     const badges: string[] = [];
@@ -2419,6 +2453,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       { id: "authority_backed", label: "任された人の確認", meta: "細かい種名を通す段" },
       { id: "public_claim", label: "公開前提", meta: "公開用途の候補に進める" },
     ];
+    const trustStageLabel = trustSteps.find((step) => step.id === trustStage)?.label ?? "候補";
     const targetTaxaScopeLabel = (() => {
       const scope = (snapshot.targetTaxaScope ?? "").trim();
       if (!scope) return null;
@@ -2454,12 +2489,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             </div>`;
           })()
         : "";
-    const trustLadderBlock = `<div class="obs-trust-ladder">
-      <div class="obs-trust-head">
-        <div class="obs-story-eyebrow">Trust lane</div>
-        <strong>この名前がどこまで進んでいるか</strong>
-        <p>${escapeHtml(trustLead)}</p>
-      </div>
+    const trustLadderBlock = `<details class="obs-trust-ladder">
+      <summary class="obs-trust-summary">
+        <span>
+          <span class="obs-story-eyebrow">名前の確かさ</span>
+          <strong>いまは「${escapeHtml(trustStageLabel)}」の段階です</strong>
+        </span>
+        <span class="obs-trust-toggle">詳しく</span>
+      </summary>
+      <p class="obs-trust-lead">${escapeHtml(trustLead)}</p>
       <div class="obs-trust-steps">
         ${trustSteps.map((step) => {
           const current =
@@ -2477,7 +2515,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </div>`;
         }).join("")}
       </div>
-    </div>`;
+    </details>`;
 
     const focusRailBlock = featuredSubject
       ? (() => {
@@ -2570,8 +2608,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <span class="obs-hero-place">${escapeHtml(heroPlaceLabel)}</span>
           </div>
           ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
-          ${trustLadderBlock}
-          ${reactionBar}
           ${focusRailBlock}
         </div>
       </section>`;
@@ -2718,6 +2754,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
+    const supportBlock = `<section class="section obs-support-panel" aria-label="補助情報">
+      ${reactionBar
+        ? `<div class="obs-support-actions">
+             <h2 class="obs-support-title">この記録への反応</h2>
+             ${reactionBar}
+           </div>`
+        : ""}
+      ${trustLadderBlock}
+    </section>`;
     const reassessButtons: string[] = [];
     if (isOwner) {
       reassessButtons.push(
@@ -2749,6 +2794,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           assetId: region.assetId,
           rect: region.rect,
           note: region.note,
+          confidenceScore: region.confidenceScore,
         })),
       ]),
     );
@@ -2757,6 +2803,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
            var featuredSubjectId = ${JSON.stringify(featuredSubject.occurrenceId)};
            var regionMap = ${JSON.stringify(subjectRegionMap)};
+           var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
            var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
@@ -2767,8 +2814,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var renderRegions = function(subjectId){
              Array.prototype.slice.call(document.querySelectorAll('[data-region-layer]')).forEach(function(layer){ layer.innerHTML = ''; });
              var regions = regionMap[subjectId] || [];
+             var visibleRegionCount = 0;
              regions.forEach(function(region){
                if (!region || !region.rect || !region.assetId) return;
+               if (typeof region.confidenceScore === 'number' && region.confidenceScore < regionDisplayConfMin) return;
                var layer = document.querySelector('[data-region-layer="' + region.assetId.replace(/"/g, '\\"') + '"]');
                if (!layer) return;
                var box = document.createElement('span');
@@ -2784,11 +2833,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                  box.appendChild(label);
                }
                layer.appendChild(box);
+               visibleRegionCount += 1;
              });
              var regionSummary = document.querySelector('[data-region-summary]');
              if (regionSummary) {
-               regionSummary.hidden = regions.length === 0;
-               regionSummary.textContent = regions.length > 0 ? 'AI が対象位置の参考矩形を重ねています。' : '';
+               regionSummary.hidden = visibleRegionCount === 0;
+               regionSummary.textContent = visibleRegionCount > 0 ? 'AI が対象位置の参考矩形を重ねています。' : '';
              }
            };
            var updateStateLabels = function(subjectId){
@@ -2902,19 +2952,36 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var lightbox = document.querySelector('[data-obs-lightbox]');
            var lightboxImg = lightbox && lightbox.querySelector('[data-obs-lightbox-img]');
            var lightboxClose = lightbox && lightbox.querySelector('[data-obs-lightbox-close]');
+           var updateRegionSummary = function(regionHtml){
+             var summary = document.querySelector('[data-region-summary]');
+             if (!summary) return;
+             var hasVisibleRegion = !!regionHtml && regionHtml.trim().length > 0;
+             summary.hidden = !hasVisibleRegion;
+             summary.textContent = hasVisibleRegion ? 'AI が対象位置の参考矩形を重ねています。' : '';
+           };
 
            var selectThumb = function(t){
              if (!t || t.classList.contains('is-active')) return;
              var src = t.getAttribute('data-obs-thumb-src');
              var assetId = t.getAttribute('data-obs-thumb-asset-id');
+             var imageWidth = t.getAttribute('data-obs-thumb-width');
+             var imageHeight = t.getAttribute('data-obs-thumb-height');
              var regions = t.querySelector('[data-obs-thumb-regions]');
              thumbs.forEach(function(x){ x.classList.remove('is-active'); });
              t.classList.add('is-active');
+             if (previewImg && imageWidth && imageHeight) {
+               previewImg.setAttribute('width', imageWidth);
+               previewImg.setAttribute('height', imageHeight);
+             } else if (previewImg) {
+               previewImg.removeAttribute('width');
+               previewImg.removeAttribute('height');
+             }
              if (previewImg && src) { previewImg.src = src; }
              if (preview && assetId) { preview.setAttribute('data-obs-preview-asset-id', assetId); }
              if (previewRegions && regions) {
                previewRegions.innerHTML = regions.innerHTML;
                previewRegions.setAttribute('data-region-layer', assetId || '');
+               updateRegionSummary(regions.innerHTML);
              }
            };
 
@@ -3018,7 +3085,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
