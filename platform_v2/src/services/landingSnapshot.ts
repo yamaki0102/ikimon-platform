@@ -368,7 +368,7 @@ function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard"
       kind: "revisitPlace",
       href: snapshot.viewerUserId ? "/notes" : "/map",
       primaryText: revisitPlace?.placeName ?? topMapCell?.label ?? null,
-      secondaryText: revisitPlace?.latestDisplayName ?? revisitPlace?.municipality ?? null,
+      secondaryText: revisitPlace?.municipality ?? null,
       metricValue: revisitPlace?.visitCount ?? null,
     },
     {

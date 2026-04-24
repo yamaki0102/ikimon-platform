@@ -88,10 +88,22 @@
     "lead": "Aim from the satellite, check it on foot, write it in the notebook. The more you run this cycle, the more the same path looks different.",
     "primaryCta": "Learn about Field Loop",
     "steps": [
-      { "title": "1. Aim from the satellite", "body": "Edges, water, wetlands, succession zones — find the suspicious places before you leave home." },
-      { "title": "2. Narrow it down to three", "body": "Decide which microhabitat to verify, what to photograph, and what context to write down." },
-      { "title": "3. The AI never overclaims", "body": "It tells you what it saw, what evidence is missing, and which shot is worth taking next." },
-      { "title": "4. The deltas pile up", "body": "Season by season, the differences stack, and a reason to come back keeps growing." }
+      {
+        "title": "1. Aim from the satellite",
+        "body": "Edges, water, wetlands, succession zones — find the suspicious places before you leave home."
+      },
+      {
+        "title": "2. Narrow it down to three",
+        "body": "Decide which microhabitat to verify, what to photograph, and what context to write down."
+      },
+      {
+        "title": "3. The AI never overclaims",
+        "body": "It tells you what it saw, what evidence is missing, and which shot is worth taking next."
+      },
+      {
+        "title": "4. The deltas pile up",
+        "body": "Season by season, the differences stack, and a reason to come back keeps growing."
+      }
     ],
     "principles": [
       "We train the eye, not just the answer.",
@@ -106,19 +118,6 @@
     ]
   },
   "marketing": {
-    "pages": {
-      "community": {
-        "title": "Community | ikimon",
-        "eyebrow": "Community",
-        "heading": "Join walks and themed surveys",
-        "lead": "Start with a solo walk, then sometimes look at the same place with others. Community events, themed surveys, and small local programs live here.",
-        "activeNav": "community",
-        "bodyPageId": "community",
-        "afterActions": [
-          { "href": "/record", "label": "Record" },
-          { "href": "/contact", "label": "Plan a program" }
-        ]
-      }
-    }
+    "pages": {}
   }
 }

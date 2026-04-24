@@ -83,7 +83,7 @@ type JsonMarketingPageMeta = {
   eyebrow: string;
   heading: string;
   lead: string;
-  activeNav: "home" | "learn" | "business" | "explore" | "community";
+  activeNav: "home" | "learn" | "business" | "explore";
   bodyPageId: string;
   footerNote?: string;
   afterActions?: JsonActionLink[];

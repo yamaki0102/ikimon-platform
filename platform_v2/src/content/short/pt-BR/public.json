@@ -52,19 +52,6 @@
     "numberLocale": "pt-BR"
   },
   "marketing": {
-    "pages": {
-      "community": {
-        "title": "Comunidade | ikimon",
-        "eyebrow": "Comunidade",
-        "heading": "Participar de caminhadas e levantamentos temáticos",
-        "lead": "A porta de entrada continua sendo curtir a natureza, mas às vezes olhar o mesmo lugar com outras pessoas cria registros melhores.",
-        "activeNav": "community",
-        "bodyPageId": "community",
-        "afterActions": [
-          { "href": "/record", "label": "Registrar" },
-          { "href": "/contact", "label": "Consultar um programa" }
-        ]
-      }
-    }
+    "pages": {}
   }
 }

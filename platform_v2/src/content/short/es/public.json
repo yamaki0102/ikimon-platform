@@ -52,19 +52,6 @@
     "numberLocale": "es-ES"
   },
   "marketing": {
-    "pages": {
-      "community": {
-        "title": "Comunidad | ikimon",
-        "eyebrow": "Comunidad",
-        "heading": "Participar en caminatas y estudios temáticos",
-        "lead": "La entrada sigue siendo disfrutar la naturaleza, pero a veces mirar el mismo lugar con otras personas crea mejores registros.",
-        "activeNav": "community",
-        "bodyPageId": "community",
-        "afterActions": [
-          { "href": "/record", "label": "Registrar" },
-          { "href": "/contact", "label": "Consultar un programa" }
-        ]
-      }
-    }
+    "pages": {}
   }
 }
