@@ -26,7 +26,7 @@ Refresh policy: structure change = True, review cadence = every 6 months
 - docs/ : 221 files
 - mobile/ : 69 files
 - ops/ : 18 files
-- platform_v2/ : 276 files
+- platform_v2/ : 277 files
 - readme/ : 22 files
 - scripts/ : 22 files
 - tests/ : 29 files
