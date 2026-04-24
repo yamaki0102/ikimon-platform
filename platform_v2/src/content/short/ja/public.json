@@ -10,6 +10,55 @@
       "場所と写真を一緒に残せる",
       "あとで見返して次に生かせる"
     ],
+    "heroDailyLabel": "今日のフィールド",
+    "heroLatestLabel": "いま届いた記録",
+    "heroStatsLabel": "育っているノート",
+    "heroPhotoFallback": "今日の自然の入口",
+    "heroReasonLabels": {
+      "seasonal": "季節の気配",
+      "nearby": "近くの記録",
+      "vividPhoto": "よく見える写真",
+      "supported": "確かめやすい記録",
+      "fresh": "新しい発見"
+    },
+    "dailyDashboard": {
+      "eyebrow": "今日の操作盤",
+      "title": "観察、再訪、近所の変化をここから始める",
+      "lead": "いま見る理由がある記録を選び、今日やることに変える。トップを読む場所ではなく、外へ出る入口にします。",
+      "scoreLabel": "今日の選定",
+      "seasonalTitle": "季節の手がかり",
+      "seasonalEmpty": "季節の候補はまだ集計中です",
+      "cards": {
+        "recordToday": {
+          "eyebrow": "記録する",
+          "title": "今日の 1 枚を書く",
+          "body": "見つけたものを、写真とひとことで残す。",
+          "cta": "記録する",
+          "metricLabel": "今日"
+        },
+        "revisitPlace": {
+          "eyebrow": "再訪する",
+          "title": "前に歩いた場所へ戻る",
+          "body": "同じ場所でも、季節が変わると見えるものが変わる。",
+          "cta": "ノートを見る",
+          "metricLabel": "訪問"
+        },
+        "nearbyPulse": {
+          "eyebrow": "近所を見る",
+          "title": "近くで動いている場所を見る",
+          "body": "観察が集まっているエリアから、次に歩く理由を探す。",
+          "cta": "地図を見る",
+          "metricLabel": "記録"
+        },
+        "needsId": {
+          "eyebrow": "確かめる",
+          "title": "名前を確かめたい記録を見る",
+          "body": "分からない記録を、次の発見につなげる。",
+          "cta": "記録を見る",
+          "metricLabel": "同定"
+        }
+      }
+    },
     "numberLocale": "ja-JP",
     "statLabelTemplateId": "observations_species",
     "toolSectionEyebrow": "迷ったときの入口",
@@ -43,10 +92,22 @@
     "principleTitle": "この流れで考える理由",
     "boundaryTitle": "先に決めている線引き",
     "steps": [
-      { "title": "1. まず場所を押さえる", "body": "名前より先に、どこで見たかを残します。同じ場所をあとで見直すためです。" },
-      { "title": "2. 写真とひとことを残す", "body": "全体、気になった特徴、その場で気づいたことがあれば、あとで見返せます。" },
-      { "title": "3. 分からない点をそのまま残す", "body": "AI は候補と見分け方を返しますが、分からないまま残しても構いません。" },
-      { "title": "4. また同じ場所を見る", "body": "前回との差分が増えると、季節や場所の変化が読みやすくなります。" }
+      {
+        "title": "1. まず場所を押さえる",
+        "body": "名前より先に、どこで見たかを残します。同じ場所をあとで見直すためです。"
+      },
+      {
+        "title": "2. 写真とひとことを残す",
+        "body": "全体、気になった特徴、その場で気づいたことがあれば、あとで見返せます。"
+      },
+      {
+        "title": "3. 分からない点をそのまま残す",
+        "body": "AI は候補と見分け方を返しますが、分からないまま残しても構いません。"
+      },
+      {
+        "title": "4. また同じ場所を見る",
+        "body": "前回との差分が増えると、季節や場所の変化が読みやすくなります。"
+      }
     ],
     "principles": [
       "最初から言い切らない。",
@@ -70,8 +131,14 @@
         "activeNav": "learn",
         "bodyPageId": "about",
         "afterActions": [
-          { "href": "/learn", "label": "使い方と考え方を見る" },
-          { "href": "/faq", "label": "FAQを見る" }
+          {
+            "href": "/learn",
+            "label": "使い方と考え方を見る"
+          },
+          {
+            "href": "/faq",
+            "label": "FAQを見る"
+          }
         ]
       },
       "learnIndex": {
@@ -90,7 +157,10 @@
         "activeNav": "learn",
         "bodyPageId": "learn-field-loop",
         "afterActions": [
-          { "href": "/learn", "label": "解説一覧へ戻る" }
+          {
+            "href": "/learn",
+            "label": "解説一覧へ戻る"
+          }
         ]
       },
       "learnGlossary": {
@@ -173,7 +243,10 @@
         "activeNav": "business",
         "bodyPageId": "for-business",
         "afterActions": [
-          { "href": "/contact", "label": "お問い合わせする" }
+          {
+            "href": "/contact",
+            "label": "お問い合わせする"
+          }
         ]
       },
       "forBusinessPricing": {
@@ -212,13 +285,34 @@
   },
   "contactForm": {
     "categories": [
-      { "value": "question", "label": "❓ 使い方の質問" },
-      { "value": "bug", "label": "🐛 不具合の報告" },
-      { "value": "improvement", "label": "💡 改善の提案" },
-      { "value": "partnership", "label": "🤝 団体利用の相談" },
-      { "value": "media", "label": "📰 取材・掲載" },
-      { "value": "deletion", "label": "🗑️ 削除の相談" },
-      { "value": "other", "label": "💬 その他" }
+      {
+        "value": "question",
+        "label": "❓ 使い方の質問"
+      },
+      {
+        "value": "bug",
+        "label": "🐛 不具合の報告"
+      },
+      {
+        "value": "improvement",
+        "label": "💡 改善の提案"
+      },
+      {
+        "value": "partnership",
+        "label": "🤝 団体利用の相談"
+      },
+      {
+        "value": "media",
+        "label": "📰 取材・掲載"
+      },
+      {
+        "value": "deletion",
+        "label": "🗑️ 削除の相談"
+      },
+      {
+        "value": "other",
+        "label": "💬 その他"
+      }
     ],
     "fields": {
       "category": "ご用件",
@@ -304,9 +398,18 @@
         "lead": "カメラを向けると AI が候補と見分け方のヒントを返します。その場で決めきる必要はありません。まずは次に何を見ればよいかを知るためのページです。"
       },
       "steps": [
-        { "title": "1. まず写真かメモを残す", "body": "場所、時刻、見えた特徴を失わないことが先です。" },
-        { "title": "2. AI の候補より、次に見る点を読む", "body": "どこを確かめると見分けやすいかに注目してください。" },
-        { "title": "3. 気づいたことを記録する", "body": "このページだけでは保存されません。写真と場所は記録画面で 1 件にまとめてください。" }
+        {
+          "title": "1. まず写真かメモを残す",
+          "body": "場所、時刻、見えた特徴を失わないことが先です。"
+        },
+        {
+          "title": "2. AI の候補より、次に見る点を読む",
+          "body": "どこを確かめると見分けやすいかに注目してください。"
+        },
+        {
+          "title": "3. 気づいたことを記録する",
+          "body": "このページだけでは保存されません。写真と場所は記録画面で 1 件にまとめてください。"
+        }
       ],
       "guidanceCards": [
         {
@@ -356,9 +459,18 @@
         "lead": "近くの再訪先も、旅先の寄り道先も、このページで探します。場所ごとの記録の積み上がりから、いま見る理由を探すためのページです。"
       },
       "steps": [
-        { "title": "1. 地図で、いま見る理由を探す", "body": "記録が多い場所、少ない場所、季節の偏りから、行く理由を立てます。" },
-        { "title": "2. 細かい名前より先に、場所の違いを見る", "body": "どの場所がどう違うかを先に読むと、歩き先を決めやすくなります。" },
-        { "title": "3. 実際に見たことは記録に残す", "body": "このページでは保存されません。歩いた後は記録画面で 1 件にしてください。" }
+        {
+          "title": "1. 地図で、いま見る理由を探す",
+          "body": "記録が多い場所、少ない場所、季節の偏りから、行く理由を立てます。"
+        },
+        {
+          "title": "2. 細かい名前より先に、場所の違いを見る",
+          "body": "どの場所がどう違うかを先に読むと、歩き先を決めやすくなります。"
+        },
+        {
+          "title": "3. 実際に見たことは記録に残す",
+          "body": "このページでは保存されません。歩いた後は記録画面で 1 件にしてください。"
+        }
       ],
       "guidanceCards": [
         {

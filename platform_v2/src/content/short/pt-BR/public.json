@@ -1,5 +1,57 @@
 {
   "landing": {
+    "heroDailyLabel": "Campo de hoje",
+    "heroLatestLabel": "Nota de campo mais recente",
+    "heroStatsLabel": "Caderno crescendo",
+    "heroPhotoFallback": "Entrada de natureza de hoje",
+    "heroReasonLabels": {
+      "seasonal": "Sinal da estação",
+      "nearby": "Sinal local",
+      "vividPhoto": "Foto clara",
+      "supported": "Fácil de revisar",
+      "fresh": "Achado recente"
+    },
+    "dailyDashboard": {
+      "eyebrow": "Painel de hoje",
+      "title": "Comece aqui a observação, a revisita e a revisão",
+      "lead": "A página inicial escolhe uma nota útil para hoje e a transforma na próxima ação.",
+      "scoreLabel": "Escolha de hoje",
+      "seasonalTitle": "Pistas da estação",
+      "seasonalEmpty": "As pistas da estação ainda estão sendo reunidas",
+      "cards": {
+        "recordToday": {
+          "eyebrow": "Registrar",
+          "title": "Escrever a nota de hoje",
+          "body": "Guarde o que encontrou com uma foto e uma nota curta.",
+          "cta": "Registrar",
+          "metricLabel": "hoje"
+        },
+        "revisitPlace": {
+          "eyebrow": "Revisitar",
+          "title": "Voltar a um lugar percorrido",
+          "body": "O mesmo lugar muda quando a estação se move.",
+          "cta": "Abrir caderno",
+          "metricLabel": "visitas"
+        },
+        "nearbyPulse": {
+          "eyebrow": "Perto",
+          "title": "Ver onde os registros próximos estão se movendo",
+          "body": "Use áreas ativas como motivo para a próxima caminhada.",
+          "cta": "Abrir mapa",
+          "metricLabel": "registros"
+        },
+        "needsId": {
+          "eyebrow": "Revisar",
+          "title": "Abrir um registro que precisa de nome",
+          "body": "Transforme uma dúvida na próxima descoberta.",
+          "cta": "Abrir registro",
+          "metricLabel": "IDs"
+        }
+      }
+    },
     "numberLocale": "pt-BR"
+  },
+  "marketing": {
+    "pages": {}
   }
 }

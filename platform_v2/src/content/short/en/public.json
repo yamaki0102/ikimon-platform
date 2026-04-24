@@ -10,6 +10,55 @@
       "Nearby nature gets a little more interesting",
       "One travel photo becomes a reason to return"
     ],
+    "heroDailyLabel": "Today's field",
+    "heroLatestLabel": "Latest field note",
+    "heroStatsLabel": "Notebook growing now",
+    "heroPhotoFallback": "Today's nature doorway",
+    "heroReasonLabels": {
+      "seasonal": "Season signal",
+      "nearby": "Local signal",
+      "vividPhoto": "Clear photo",
+      "supported": "Easier to review",
+      "fresh": "Fresh find"
+    },
+    "dailyDashboard": {
+      "eyebrow": "Today's dashboard",
+      "title": "Start observation, revisit, nearby change, and review here",
+      "lead": "The top page now chooses a field note worth seeing today and turns it into the next action.",
+      "scoreLabel": "Today's pick",
+      "seasonalTitle": "Seasonal clues",
+      "seasonalEmpty": "Seasonal clues are still being collected",
+      "cards": {
+        "recordToday": {
+          "eyebrow": "Record",
+          "title": "Write today's note",
+          "body": "Save what you found with a photo and a short note.",
+          "cta": "Record",
+          "metricLabel": "today"
+        },
+        "revisitPlace": {
+          "eyebrow": "Revisit",
+          "title": "Return to a place you walked",
+          "body": "The same place changes when the season moves.",
+          "cta": "Open notebook",
+          "metricLabel": "visits"
+        },
+        "nearbyPulse": {
+          "eyebrow": "Nearby",
+          "title": "See where nearby records are moving",
+          "body": "Use active areas as a reason for the next walk.",
+          "cta": "Open map",
+          "metricLabel": "records"
+        },
+        "needsId": {
+          "eyebrow": "Review",
+          "title": "Open a record that needs a name",
+          "body": "Turn an uncertain record into the next discovery.",
+          "cta": "Open record",
+          "metricLabel": "IDs"
+        }
+      }
+    },
     "numberLocale": "en-US",
     "toolSectionEyebrow": "Inputs to your notebook",
     "toolSectionTitle": "Two ways to feed the notebook",
@@ -39,10 +88,22 @@
     "lead": "Aim from the satellite, check it on foot, write it in the notebook. The more you run this cycle, the more the same path looks different.",
     "primaryCta": "Learn about Field Loop",
     "steps": [
-      { "title": "1. Aim from the satellite", "body": "Edges, water, wetlands, succession zones — find the suspicious places before you leave home." },
-      { "title": "2. Narrow it down to three", "body": "Decide which microhabitat to verify, what to photograph, and what context to write down." },
-      { "title": "3. The AI never overclaims", "body": "It tells you what it saw, what evidence is missing, and which shot is worth taking next." },
-      { "title": "4. The deltas pile up", "body": "Season by season, the differences stack, and a reason to come back keeps growing." }
+      {
+        "title": "1. Aim from the satellite",
+        "body": "Edges, water, wetlands, succession zones — find the suspicious places before you leave home."
+      },
+      {
+        "title": "2. Narrow it down to three",
+        "body": "Decide which microhabitat to verify, what to photograph, and what context to write down."
+      },
+      {
+        "title": "3. The AI never overclaims",
+        "body": "It tells you what it saw, what evidence is missing, and which shot is worth taking next."
+      },
+      {
+        "title": "4. The deltas pile up",
+        "body": "Season by season, the differences stack, and a reason to come back keeps growing."
+      }
     ],
     "principles": [
       "We train the eye, not just the answer.",
@@ -55,5 +116,8 @@
       "Absence = only with effort logged",
       "Model updates = validated only"
     ]
+  },
+  "marketing": {
+    "pages": {}
   }
 }

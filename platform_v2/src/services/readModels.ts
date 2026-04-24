@@ -999,7 +999,54 @@ export type LandingObservation = RecentObservation & {
   proposedName?: string | null;
   /** entryType="identification" のときの同定時刻。 */
   identifiedAt?: string | null;
+  /** AI が補助候補を持つ未確認記録。 */
+  aiCandidateName?: string | null;
+  aiCandidateRank?: string | null;
+  isAiCandidate?: boolean;
   evidenceTier?: number | null;
+};
+
+export type LandingHeroReason = "seasonal" | "nearby" | "vividPhoto" | "supported" | "fresh";
+
+export type LandingHeroScoreBreakdown = {
+  season: number;
+  region: number;
+  photo: number;
+  evidence: number;
+  freshness: number;
+  dailyVariation: number;
+  total: number;
+};
+
+export type LandingFeaturedObservation = LandingObservation & {
+  score: number;
+  reasonKey: LandingHeroReason;
+  scoreBreakdown: LandingHeroScoreBreakdown;
+};
+
+export type LandingDailyCardKind = "recordToday" | "revisitPlace" | "nearbyPulse" | "needsId";
+
+export type LandingDailyCard = {
+  kind: LandingDailyCardKind;
+  href: string;
+  primaryText: string | null;
+  secondaryText: string | null;
+  metricValue: number | null;
+  observation?: LandingObservation;
+};
+
+export type LandingSeasonalStripItem = {
+  observation: LandingObservation;
+  score: number;
+  reasonKey: LandingHeroReason;
+};
+
+export type LandingDailyDashboard = {
+  dateKey: string;
+  updatedAt: string;
+  featuredObservation: LandingFeaturedObservation | null;
+  dailyCards: LandingDailyCard[];
+  seasonalStrip: LandingSeasonalStripItem[];
 };
 
 export type LandingMapPreviewCell = {
@@ -1053,4 +1100,5 @@ export type LandingSnapshot = {
   mapPreviewCells: LandingMapPreviewCell[];
   ambient: AmbientObserver[];
   habit: LandingHabitStats | null;
+  dailyDashboard: LandingDailyDashboard | null;
 };
