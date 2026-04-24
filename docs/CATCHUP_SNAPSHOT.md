@@ -26,12 +26,12 @@ Refresh policy: structure change = True, review cadence = every 6 months
 - docs/ : 221 files
 - mobile/ : 69 files
 - ops/ : 18 files
-- platform_v2/ : 273 files
+- platform_v2/ : 276 files
 - readme/ : 22 files
 - scripts/ : 22 files
 - tests/ : 29 files
 - tools/ : 10 files
-- upload_package/ : 840 files
+- upload_package/ : 841 files
 
 ## API Namespaces
 
