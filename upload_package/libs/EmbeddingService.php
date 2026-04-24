@@ -4,20 +4,20 @@
  * EmbeddingService - Gemini Embedding 2 multimodal API wrapper for ikimon.life
  *
  * Generates 768-dimensional embedding vectors from text, images, or both.
- * Model: gemini-embedding-2-preview (first natively multimodal embedding model)
+ * Model: gemini-embedding-2 (generally available multimodal embedding model)
  *
  * Capabilities:
  * - Text embedding (species names, ecological descriptions, papers)
  * - Image embedding (observation photos)
  * - Multimodal embedding (text + photo → single unified vector)
- * - Batch embedding (multiple items per API call)
+ * - Sequential batch helper for staging validation
  */
 
 require_once __DIR__ . '/../config/config.php';
 
 class EmbeddingService
 {
-    private const MODEL = 'gemini-embedding-2-preview';
+    private const MODEL = 'gemini-embedding-2';
     private const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
     private const DIMENSIONS = 768;
     private const MAX_TEXT_LENGTH = 2000;
@@ -40,12 +40,8 @@ class EmbeddingService
         $text = trim($text);
         if ($text === '' || !$this->apiKey) return null;
 
-        if (mb_strlen($text) > self::MAX_TEXT_LENGTH) {
-            $text = mb_substr($text, 0, self::MAX_TEXT_LENGTH);
-        }
-
-        $parts = [['text' => $text]];
-        return $this->callEmbedContent($parts, $taskType);
+        $parts = [['text' => self::formatTextForTask($text, $taskType)]];
+        return $this->callEmbedContent($parts);
     }
 
     /**
@@ -58,7 +54,7 @@ class EmbeddingService
         $parts = [
             ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64]],
         ];
-        return $this->callEmbedContent($parts, 'RETRIEVAL_DOCUMENT');
+        return $this->callEmbedContent($parts);
     }
 
     /**
@@ -71,19 +67,15 @@ class EmbeddingService
         if (trim($text) === '' && !$base64) return null;
 
         $text = trim($text);
-        if (mb_strlen($text) > self::MAX_TEXT_LENGTH) {
-            $text = mb_substr($text, 0, self::MAX_TEXT_LENGTH);
-        }
-
         $parts = [];
         if ($text !== '') {
-            $parts[] = ['text' => $text];
+            $parts[] = ['text' => self::formatTextForTask($text, $taskType)];
         }
         if ($base64) {
             $parts[] = ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64]];
         }
 
-        return $this->callEmbedContent($parts, $taskType);
+        return $this->callEmbedContent($parts);
     }
 
     /**
@@ -95,62 +87,23 @@ class EmbeddingService
     }
 
     /**
-     * Batch embed multiple items in one API call.
-     * Each request: ['parts' => [...], 'taskType' => '...']
+     * Embed multiple items sequentially.
+     *
+     * Staging GA validation intentionally avoids the synchronous batch endpoint
+     * while Gemini Embedding 2 payload compatibility is being tested.
+     *
+     * Each request: ['parts' => [...], optional 'taskType' => '...']
      * Returns array of vectors (null for failed items).
      */
     public function batchEmbed(array $requests): array
     {
         if (!$this->apiKey || empty($requests)) return [];
 
-        $url = self::API_BASE . self::MODEL . ':batchEmbedContents';
-
-        $batchRequests = [];
-        foreach ($requests as $req) {
-            $batchRequests[] = [
-                'model' => 'models/' . self::MODEL,
-                'content' => ['parts' => $req['parts']],
-                'taskType' => $req['taskType'] ?? 'RETRIEVAL_DOCUMENT',
-                'outputDimensionality' => self::DIMENSIONS,
-            ];
-        }
-
-        $payload = ['requests' => $batchRequests];
-
-        $ch = curl_init($url);
-        $curlOpts = [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'x-goog-api-key: ' . $this->apiKey,
-            ],
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_CONNECTTIMEOUT => 5,
-        ];
-        if (PHP_OS_FAMILY === 'Windows' && !ini_get('curl.cainfo')) {
-            $curlOpts[CURLOPT_SSL_VERIFYPEER] = false;
-        }
-        curl_setopt_array($ch, $curlOpts);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false || $httpCode !== 200) {
-            error_log("[embedding] Batch API error: HTTP {$httpCode}, error: {$error}");
-            return array_fill(0, count($requests), null);
-        }
-
-        $data = json_decode($response, true);
-        $embeddings = $data['embeddings'] ?? [];
-
         $results = [];
-        foreach ($requests as $i => $req) {
-            $values = $embeddings[$i]['values'] ?? null;
-            $results[] = (is_array($values) && count($values) === self::DIMENSIONS) ? $values : null;
+        foreach ($requests as $req) {
+            $taskType = $req['taskType'] ?? 'RETRIEVAL_DOCUMENT';
+            $parts = self::formatPartsForTask($req['parts'] ?? [], $taskType);
+            $results[] = $parts ? $this->callEmbedContent($parts) : null;
         }
 
         return $results;
@@ -423,17 +376,50 @@ class EmbeddingService
     // ─── Internal ───────────────────────────────────────────────
 
     /**
+     * Format text with Gemini Embedding 2 task instructions.
+     */
+    private static function formatTextForTask(string $text, string $taskType): string
+    {
+        $text = trim($text);
+        if (mb_strlen($text) > self::MAX_TEXT_LENGTH) {
+            $text = mb_substr($text, 0, self::MAX_TEXT_LENGTH);
+        }
+
+        return match ($taskType) {
+            'RETRIEVAL_QUERY' => 'task: search result | query: ' . $text,
+            default => 'title: none | text: ' . $text,
+        };
+    }
+
+    /**
+     * Apply the task instruction to the first text part in a multimodal request.
+     */
+    private static function formatPartsForTask(array $parts, string $taskType): array
+    {
+        $formatted = [];
+        $textFormatted = false;
+
+        foreach ($parts as $part) {
+            if (!$textFormatted && isset($part['text']) && is_string($part['text'])) {
+                $part['text'] = self::formatTextForTask($part['text'], $taskType);
+                $textFormatted = true;
+            }
+            $formatted[] = $part;
+        }
+
+        return $formatted;
+    }
+
+    /**
      * Call the embedContent API endpoint.
      */
-    private function callEmbedContent(array $parts, string $taskType): ?array
+    private function callEmbedContent(array $parts): ?array
     {
         $url = self::API_BASE . self::MODEL . ':embedContent';
 
         $payload = [
-            'model' => 'models/' . self::MODEL,
             'content' => ['parts' => $parts],
-            'taskType' => $taskType,
-            'outputDimensionality' => self::DIMENSIONS,
+            'output_dimensionality' => self::DIMENSIONS,
         ];
 
         $ch = curl_init($url);
@@ -478,5 +464,10 @@ class EmbeddingService
     public static function getDimensions(): int
     {
         return self::DIMENSIONS;
+    }
+
+    public static function getModel(): string
+    {
+        return self::MODEL;
     }
 }

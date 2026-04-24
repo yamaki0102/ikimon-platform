@@ -9,13 +9,14 @@
  * Usage:
  *   php scripts/backfill_embeddings.php --type=all
  *   php scripts/backfill_embeddings.php --type=observations [--force]
- *   php scripts/backfill_embeddings.php --type=papers [--batch-size=5]
+ *   php scripts/backfill_embeddings.php --type=papers [--batch-size=5] [--limit=30]
  *   php scripts/backfill_embeddings.php --type=taxons
  *
  * Options:
  *   --type        observations|papers|taxons|all (required)
  *   --force       Regenerate even if embedding already exists
  *   --batch-size  Items per batch API call (default: 5, max: 10)
+ *   --limit       Max source records to process per type (default: all)
  *   --delay       Seconds between batches (default: 1)
  */
 
@@ -27,14 +28,15 @@ require_once __DIR__ . '/../libs/EmbeddingService.php';
 require_once __DIR__ . '/../libs/EmbeddingStore.php';
 
 // Parse args
-$opts = getopt('', ['type:', 'force', 'batch-size:', 'delay:']);
+$opts = getopt('', ['type:', 'force', 'batch-size:', 'limit:', 'delay:']);
 $type = $opts['type'] ?? null;
 $force = isset($opts['force']);
 $batchSize = min((int) ($opts['batch-size'] ?? 5), 10);
+$limit = max((int) ($opts['limit'] ?? 0), 0);
 $delay = max((int) ($opts['delay'] ?? 1), 0);
 
 if (!$type || !in_array($type, ['observations', 'papers', 'taxons', 'all'])) {
-    echo "Usage: php backfill_embeddings.php --type=observations|papers|taxons|all [--force] [--batch-size=5]\n";
+    echo "Usage: php backfill_embeddings.php --type=observations|papers|taxons|all [--force] [--batch-size=5] [--limit=30]\n";
     exit(1);
 }
 
@@ -47,9 +49,9 @@ foreach ($types as $t) {
     echo "\n=== Backfilling: {$t} ===\n";
 
     match ($t) {
-        'observations' => backfillObservations($svc, $force, $batchSize, $delay),
-        'papers' => backfillPapers($svc, $force, $batchSize, $delay),
-        'taxons' => backfillTaxons($svc, $force, $batchSize, $delay),
+        'observations' => backfillObservations($svc, $force, $batchSize, $limit, $delay),
+        'papers' => backfillPapers($svc, $force, $batchSize, $limit, $delay),
+        'taxons' => backfillTaxons($svc, $force, $batchSize, $limit, $delay),
     };
 
     EmbeddingStore::clearCache();
@@ -60,11 +62,12 @@ echo "\n=== Done in {$elapsed}s ===\n";
 
 // ─── Observation backfill (multimodal + photo_only) ────────────
 
-function backfillObservations(EmbeddingService $svc, bool $force, int $batchSize, int $delay): void
+function backfillObservations(EmbeddingService $svc, bool $force, int $batchSize, int $limit, int $delay): void
 {
     $observations = DataStore::fetchAll('observations');
     $total = count($observations);
     echo "Found {$total} observations\n";
+    if ($limit > 0) echo "Limit: {$limit} observations\n";
 
     $done = 0;
     $skipped = 0;
@@ -73,6 +76,7 @@ function backfillObservations(EmbeddingService $svc, bool $force, int $batchSize
     foreach ($observations as $obs) {
         $id = $obs['id'] ?? null;
         if (!$id) continue;
+        if ($limit > 0 && $done >= $limit) break;
 
         $done++;
         $prefix = "[{$done}/{$total}]";
@@ -119,13 +123,14 @@ function backfillObservations(EmbeddingService $svc, bool $force, int $batchSize
     echo "Observations: done={$done} skipped={$skipped} failed={$failed}\n";
 }
 
-// ─── Paper backfill (text-only, with batch API) ────────────────
+// ─── Paper backfill (text-only, chunked sequential embedding) ──
 
-function backfillPapers(EmbeddingService $svc, bool $force, int $batchSize, int $delay): void
+function backfillPapers(EmbeddingService $svc, bool $force, int $batchSize, int $limit, int $delay): void
 {
     $papers = PaperStore::fetchAll();
     $total = count($papers);
     echo "Found {$total} papers\n";
+    if ($limit > 0) echo "Limit: {$limit} papers\n";
 
     $done = 0;
     $skipped = 0;
@@ -146,6 +151,7 @@ function backfillPapers(EmbeddingService $svc, bool $force, int $batchSize, int 
         if (trim($text) === '') continue;
 
         $pending[] = ['id' => $id, 'text' => $text];
+        if ($limit > 0 && count($pending) >= $limit) break;
     }
 
     echo "Need to embed: " . count($pending) . " (skipped: {$skipped})\n";
@@ -157,7 +163,6 @@ function backfillPapers(EmbeddingService $svc, bool $force, int $batchSize, int 
         foreach ($batch as $item) {
             $requests[] = [
                 'parts' => [['text' => mb_substr($item['text'], 0, 2000)]],
-                'taskType' => 'RETRIEVAL_DOCUMENT',
             ];
         }
 
@@ -186,9 +191,9 @@ function backfillPapers(EmbeddingService $svc, bool $force, int $batchSize, int 
     echo "Papers: done={$done} skipped={$skipped} failed={$failed}\n";
 }
 
-// ─── Taxon backfill (text-only, with batch API) ────────────────
+// ─── Taxon backfill (text-only, chunked sequential embedding) ──
 
-function backfillTaxons(EmbeddingService $svc, bool $force, int $batchSize, int $delay): void
+function backfillTaxons(EmbeddingService $svc, bool $force, int $batchSize, int $limit, int $delay): void
 {
     $resolverPath = DATA_DIR . '/taxon_resolver.json';
     if (!file_exists($resolverPath)) {
@@ -200,6 +205,7 @@ function backfillTaxons(EmbeddingService $svc, bool $force, int $batchSize, int 
     $taxa = $resolver['taxa'] ?? [];
     $total = count($taxa);
     echo "Found {$total} taxa in resolver\n";
+    if ($limit > 0) echo "Limit: {$limit} taxa\n";
 
     $done = 0;
     $skipped = 0;
@@ -216,6 +222,7 @@ function backfillTaxons(EmbeddingService $svc, bool $force, int $batchSize, int 
         if (trim($text) === '') continue;
 
         $pending[] = ['id' => $slug, 'text' => $text];
+        if ($limit > 0 && count($pending) >= $limit) break;
     }
 
     echo "Need to embed: " . count($pending) . " (skipped: {$skipped})\n";
@@ -226,7 +233,6 @@ function backfillTaxons(EmbeddingService $svc, bool $force, int $batchSize, int 
         foreach ($batch as $item) {
             $requests[] = [
                 'parts' => [['text' => mb_substr($item['text'], 0, 2000)]],
-                'taskType' => 'RETRIEVAL_DOCUMENT',
             ];
         }
 

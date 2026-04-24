@@ -105,6 +105,9 @@ class EmbeddingStore
         // Invalidate norm cache for this type
         unset(self::$normCache[$type]);
 
+        $store['meta']['model'] = EmbeddingService::getModel();
+        $store['meta']['dimensions'] = EmbeddingService::getDimensions();
+
         self::saveStore($type, $store);
     }
 
@@ -270,7 +273,7 @@ class EmbeddingStore
         if (!file_exists($path)) {
             $store = [
                 'meta' => [
-                    'model' => 'gemini-embedding-2-preview',
+                    'model' => EmbeddingService::getModel(),
                     'dimensions' => EmbeddingService::getDimensions(),
                     'created_at' => date('c'),
                 ],
