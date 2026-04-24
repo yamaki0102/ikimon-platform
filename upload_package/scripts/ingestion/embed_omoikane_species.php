@@ -27,10 +27,10 @@
  *   The store's ON CONFLICT DO UPDATE means re-processing is always safe.
  */
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../libs/EmbeddingService.php';
-require_once __DIR__ . '/../libs/EmbeddingStore.php';
-require_once __DIR__ . '/../libs/OmoikaneDB.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/EmbeddingService.php';
+require_once __DIR__ . '/../../libs/EmbeddingStore.php';
+require_once __DIR__ . '/../../libs/OmoikaneDB.php';
 
 // ─── Parse CLI options ───────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ foreach ($argv as $arg) {
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
 echo "=== Omoikane Species Embedding ===\n";
-echo "Model     : " . EmbeddingService::class . " → gemini-embedding-2-preview @ 768-dim\n";
+echo "Model     : " . EmbeddingService::class . " → " . EmbeddingService::getModel() . " @ 768-dim\n";
 echo "Mode      : " . ($dryRun ? "DRY RUN" : "LIVE") . "\n";
 echo "Force     : " . ($force ? "YES (re-embed existing)" : "NO (skip existing)") . "\n";
 echo "Batch size: {$batchSz}\n";
