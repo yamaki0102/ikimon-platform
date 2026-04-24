@@ -27,6 +27,7 @@ const explicitAllowlist = [
   "platform_v2/src/ui/mapMini.ts",
   "platform_v2/src/ui/mentorStrip.ts",
   "platform_v2/src/ui/observationCard.ts",
+  "platform_v2/src/ui/observationMedia.ts",
   "platform_v2/src/ui/officialNoticeCard.ts",
   "platform_v2/src/ui/revisitFlow.ts",
   "platform_v2/src/ui/todayHabit.ts",
