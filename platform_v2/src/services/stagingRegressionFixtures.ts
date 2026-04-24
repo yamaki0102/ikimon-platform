@@ -38,6 +38,20 @@ type FixturePhoto = {
   publicUrl: string;
   sha256: string;
   bytes: number;
+  mimeType: string;
+  widthPx: number;
+  heightPx: number;
+};
+
+type FixtureMediaRegion = {
+  rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  confidenceScore: number;
+  note: string;
 };
 
 type FixtureVisitInput = {
@@ -60,6 +74,7 @@ type FixtureVisitInput = {
   qualityGrade: string | null;
   evidenceTier: number;
   photo: FixturePhoto;
+  mediaRegions?: FixtureMediaRegion[];
 };
 
 function assertFixturePrefix(value: string): string {
@@ -72,12 +87,27 @@ function assertFixturePrefix(value: string): string {
 
 async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixtureKind): Promise<FixturePhoto> {
   const buffer = Buffer.from(TINY_PNG_BASE64, "base64");
-  const storagePath = `uploads/staging-regression/${fixturePrefix}/${kind}.png`;
+  const storagePath = `uploads/staging-regression/${fixturePrefix}/${kind}.${kind === "manual" ? "svg" : "png"}`;
+  if (kind === "manual") {
+    const svgMarker = Buffer.from("vertical-region-fixture.svg", "utf8");
+    return {
+      storagePath,
+      publicUrl: "/assets/regression/vertical-region-fixture.svg",
+      sha256: createHash("sha256").update(svgMarker).digest("hex"),
+      bytes: svgMarker.byteLength,
+      mimeType: "image/svg+xml",
+      widthPx: 320,
+      heightPx: 640,
+    };
+  }
   return {
     storagePath,
     publicUrl: "/assets/img/icon-192.png",
     sha256: createHash("sha256").update(buffer).digest("hex"),
     bytes: buffer.byteLength,
+    mimeType: "image/png",
+    widthPx: 192,
+    heightPx: 192,
   };
 }
 
@@ -247,10 +277,12 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
     storageBackend: "local_fs",
     storagePath: input.photo.storagePath,
     mediaType: "image",
-    mimeType: "image/png",
+    mimeType: input.photo.mimeType,
     publicUrl: input.photo.publicUrl,
     sha256: input.photo.sha256,
     bytes: input.photo.bytes,
+    widthPx: input.photo.widthPx,
+    heightPx: input.photo.heightPx,
     sourcePayload: {
       source: sourceName,
       fixture_prefix: input.fixturePrefix,
@@ -258,7 +290,8 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
     },
   });
 
-  await client.query(
+  const assetId = randomUUID();
+  const assetResult = await client.query<{ asset_id: string }>(
     `insert into evidence_assets (
         asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
      ) values (
@@ -269,9 +302,10 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
         occurrence_id = excluded.occurrence_id,
         visit_id = excluded.visit_id,
         legacy_relative_path = excluded.legacy_relative_path,
-        source_payload = excluded.source_payload`,
+        source_payload = excluded.source_payload
+      returning asset_id::text as asset_id`,
     [
-      randomUUID(),
+      assetId,
       blobId,
       occurrenceId,
       visitId,
@@ -284,6 +318,68 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
       }),
     ],
   );
+  const storedAssetId = assetResult.rows[0]?.asset_id ?? assetId;
+
+  if (input.mediaRegions && input.mediaRegions.length > 0) {
+    await client.query(
+      `delete from observation_ai_runs
+        where visit_id = $1
+          and source_payload->>'fixture_prefix' = $2
+          and source_payload->>'scenario' = $3`,
+      [visitId, input.fixturePrefix, input.kind],
+    );
+
+    const aiRunId = randomUUID();
+    await client.query(
+      `insert into observation_ai_runs (
+          ai_run_id, visit_id, trigger_occurrence_id, pipeline_version, model_provider,
+          model_name, model_version, prompt_version, taxonomy_version, input_asset_fingerprint,
+          trigger_kind, triggered_by, run_status, source_payload, generated_at, created_at
+       ) values (
+          $1::uuid, $2, $3, 'staging-regression', 'fixture',
+          'region-alignment-fixture', '1', 'fixture', 'fixture', $4,
+          'staging_fixture', $5, 'succeeded', $6::jsonb, $7, now()
+       )`,
+      [
+        aiRunId,
+        visitId,
+        occurrenceId,
+        input.photo.sha256,
+        input.userId,
+        JSON.stringify({
+          source: sourceName,
+          fixture_prefix: input.fixturePrefix,
+          scenario: input.kind,
+        }),
+        observedAt,
+      ],
+    );
+
+    for (const region of input.mediaRegions) {
+      await client.query(
+        `insert into subject_media_regions (
+            ai_run_id, occurrence_id, candidate_id, asset_id, normalized_rect,
+            frame_time_ms, confidence_score, source_kind, source_model, source_payload, created_at
+         ) values (
+            $1::uuid, $2, null, $3::uuid, $4::jsonb,
+            null, $5, 'staging_fixture', 'region-alignment-fixture', $6::jsonb, now()
+         )`,
+        [
+          aiRunId,
+          occurrenceId,
+          storedAssetId,
+          JSON.stringify(region.rect),
+          region.confidenceScore,
+          JSON.stringify({
+            source: sourceName,
+            fixture_prefix: input.fixturePrefix,
+            scenario: input.kind,
+            note: region.note,
+          }),
+        ],
+      );
+    }
+  }
 
   return {
     visitId,
@@ -341,6 +437,18 @@ export async function seedStagingRegressionFixtures(
       qualityGrade: "casual",
       evidenceTier: 1,
       photo: manualPhoto,
+      mediaRegions: [
+        {
+          rect: { x: 0.35, y: 0.28, width: 0.3, height: 0.53 },
+          confidenceScore: 0.92,
+          note: "visible-region-fixture",
+        },
+        {
+          rect: { x: 0.05, y: 0.05, width: 0.2, height: 0.2 },
+          confidenceScore: 0.49,
+          note: "low-confidence-hidden-fixture",
+        },
+      ],
     });
 
     const historical = await upsertFixtureVisit(client, {

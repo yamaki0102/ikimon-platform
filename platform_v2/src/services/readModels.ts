@@ -73,6 +73,8 @@ export type ObservationDetailSnapshot = {
   photoAssets: Array<{
     assetId: string;
     url: string;
+    widthPx: number | null;
+    heightPx: number | null;
   }>;
   photoUrls: string[];
   videoAssets: Array<{
@@ -642,9 +644,16 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
   const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
 
-  const photosResult = await pool.query<{ asset_id: string; photo_url: string | null }>(
+  const photosResult = await pool.query<{
+    asset_id: string;
+    photo_url: string | null;
+    width_px: number | null;
+    height_px: number | null;
+  }>(
     `select ea.asset_id::text as asset_id,
-            coalesce(ab.public_url, ab.storage_path) as photo_url
+            coalesce(ab.public_url, ab.storage_path) as photo_url,
+            ab.width_px,
+            ab.height_px
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
      where ea.visit_id = $1
@@ -706,9 +715,16 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
       return {
         assetId: row.asset_id,
         url: normalizedUrl,
+        widthPx: row.width_px != null ? Number(row.width_px) : null,
+        heightPx: row.height_px != null ? Number(row.height_px) : null,
       };
     })
-    .filter((row): row is { assetId: string; url: string } => Boolean(row));
+    .filter((row): row is {
+      assetId: string;
+      url: string;
+      widthPx: number | null;
+      heightPx: number | null;
+    } => Boolean(row));
 
   return {
     occurrenceId: base.occurrence_id,

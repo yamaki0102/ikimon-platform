@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="640" viewBox="0 0 320 640" role="img" aria-label="Vertical observation media regression fixture">
+  <rect width="320" height="640" fill="#eef6f2"/>
+  <rect x="0" y="0" width="320" height="96" fill="#b7d9cc"/>
+  <rect x="0" y="544" width="320" height="96" fill="#d8c9a7"/>
+  <path d="M160 120 C118 190 102 280 116 360 C127 426 146 474 160 524 C174 474 193 426 204 360 C218 280 202 190 160 120 Z" fill="#3f8f68"/>
+  <path d="M160 158 C139 220 132 290 139 354 C145 406 154 442 160 478 C166 442 175 406 181 354 C188 290 181 220 160 158 Z" fill="#f7fbf8" opacity=".86"/>
+  <circle cx="160" cy="214" r="22" fill="#1d4f3a"/>
+  <circle cx="151" cy="208" r="4" fill="#ffffff"/>
+  <circle cx="169" cy="208" r="4" fill="#ffffff"/>
+  <path d="M148 233 C156 240 164 240 172 233" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  <rect x="112" y="184" width="96" height="340" fill="none" stroke="#164e36" stroke-width="6" stroke-dasharray="14 12" opacity=".35"/>
+</svg>

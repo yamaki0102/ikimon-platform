@@ -56,6 +56,13 @@ import {
   mapExplorerBootScript,
   renderMapExplorer,
 } from "../ui/mapExplorer.js";
+import {
+  OBSERVATION_MEDIA_STYLES,
+  OBSERVATION_REGION_SUMMARY_TEXT,
+  REGION_DISPLAY_CONF_MIN,
+  renderObservationMedia,
+  toSubjectRegionMap,
+} from "../ui/observationMedia.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 
 type LayoutHero = {
@@ -366,24 +373,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-hero { grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); align-items: start; gap: 28px; }
     .obs-hero-meta { position: sticky; top: 16px; }
   }
-  .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); max-height: 620px; }
-  .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; max-height: 520px; }
-  .obs-hero-gallery .is-thumb { aspect-ratio: 1/1; }
-  .obs-hero-media-stack { display: grid; gap: 10px; }
-  .obs-hero-photo-stack { display: grid; gap: 10px; }
-  .obs-hero-video { display: grid; gap: 8px; }
-  .obs-hero-video-frame { position: relative; width: 100%; padding-top: 56.25%; border-radius: 20px; overflow: hidden; background: #020617; }
-  .obs-hero-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-  .obs-hero-video-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #334155; font-weight: 700; }
-  .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
-  .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
-  .obs-hero-photo { border: 0; padding: 0; background: none; overflow: hidden; cursor: zoom-in; position: relative; }
-  .obs-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
-  .obs-hero-photo:hover img { transform: scale(1.04); }
-  .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
-  .obs-region-box { position: absolute; border: 2px solid rgba(14,165,233,.96); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(14,165,233,.08) inset, 0 0 0 1px rgba(255,255,255,.7); }
-  .obs-region-box-label { position: absolute; left: 0; top: -28px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.86); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; }
-  .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
+  ${OBSERVATION_MEDIA_STYLES}
   .obs-hero-placeholder { aspect-ratio: 4/3; display: grid; place-items: center; text-align: center; font-weight: 800; color: #475569; background: repeating-linear-gradient(0deg, #f0fdf4 0 24px, #ecfdf5 24px 25px); border-radius: 20px; gap: 8px; }
   .obs-hero-placeholder span:first-child { font-size: 40px; }
   .obs-hero-meta { display: flex; flex-direction: column; gap: 14px; padding: 4px; }
@@ -418,6 +408,16 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 800; }
   .obs-reaction-label { display: none; }
   @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
+  .obs-support-panel { display: grid; gap: 14px; padding: 16px; border-radius: 18px; background: rgba(255,255,255,.76); border: 1px solid rgba(15,23,42,.07); box-shadow: 0 10px 26px rgba(15,23,42,.04); margin-bottom: 18px; }
+  .obs-support-actions { display: grid; gap: 10px; }
+  .obs-support-title { margin: 0; font-size: 14px; font-weight: 900; color: #0f172a; }
+  .obs-support-panel .obs-reaction-bar { margin-top: 0; }
+  .obs-trust-ladder { position: relative; }
+  .obs-trust-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+  .obs-trust-summary::-webkit-details-marker { display: none; }
+  .obs-trust-summary strong { display: block; margin-top: 3px; font-size: 15px; color: #0f172a; }
+  .obs-trust-toggle { flex-shrink: 0; display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: rgba(15,23,42,.06); color: #334155; font-size: 11px; font-weight: 900; }
+  .obs-trust-lead { margin: 4px 0 0; font-size: 12.5px; line-height: 1.7; color: #475569; }
   .obs-focus { display: grid; gap: 12px; margin-top: 16px; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(236,253,245,.92)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 28px rgba(16,185,129,.08); }
   .obs-focus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .obs-focus-title { margin: 0; font-size: 19px; font-weight: 900; color: #0f172a; line-height: 1.35; letter-spacing: -.01em; }
@@ -1867,50 +1867,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     ]);
 
     // ===== Layer 0: ヒーロー =====
-    const renderRegionBoxes = (assetId: string): string =>
-      currentSubject.regions
-        .filter((region) => region.assetId === assetId && region.rect)
-        .map((region) => {
-          const rect = region.rect;
-          if (!rect) return "";
-          return `<span class="obs-region-box"
-            style="left:${(rect.x * 100).toFixed(2)}%;top:${(rect.y * 100).toFixed(2)}%;width:${(rect.width * 100).toFixed(2)}%;height:${(rect.height * 100).toFixed(2)}%;">
-            ${region.note ? `<span class="obs-region-box-label">${escapeHtml(region.note)}</span>` : ""}
-          </span>`;
-        })
-        .join("");
-    const photoGallery = snapshot.photoAssets.length > 0
-      ? `<div class="obs-hero-gallery" data-obs-gallery>
-           ${snapshot.photoAssets.map((asset, i) => `
-             <button type="button" class="obs-hero-photo${i === 0 ? " is-main" : " is-thumb"}" data-obs-photo-index="${i}" data-obs-photo-src="${escapeHtml(asset.url)}">
-               <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(snapshot.displayName)}" loading="${i === 0 ? "eager" : "lazy"}" />
-               <span class="obs-region-layer" data-region-layer="${escapeHtml(asset.assetId)}">${renderRegionBoxes(asset.assetId)}</span>
-             </button>`).join("")}
-         </div>`
-      : "";
-    const primaryVideo = snapshot.videoAssets[0] ?? null;
-    const videoRegion = primaryVideo ? currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId) ?? null : null;
-    const videoPlayer = primaryVideo
-      ? `<div class="obs-hero-video">
-           <div class="obs-hero-video-frame">
-             <iframe
-               src="${escapeHtml(primaryVideo.iframeUrl)}"
-               title="${escapeHtml(snapshot.displayName)} の動画"
-               loading="lazy"
-               allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-               allowfullscreen>
-             </iframe>
-           </div>
-           <div class="obs-hero-video-meta">
-             <strong>動画</strong>
-             ${videoRegion ? `<span class="obs-region-video-note">AI が 2s 付近の対象位置を記録しています</span>` : ""}
-             ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
-           </div>
-         </div>`
-      : "";
-    const mediaBlock = (videoPlayer || photoGallery)
-      ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${currentSubject.regions.length > 0 ? `<p class="obs-region-summary" data-region-summary>AI が対象位置の参考矩形を重ねています。</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
-      : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
+    const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject);
 
     const badges: string[] = [];
     if (subjectCount >= 2) badges.push(`<span class="obs-badge obs-badge-species">🧩 ${subjectCount} 対象</span>`);
@@ -1992,12 +1949,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             </div>`;
           })()
         : "";
-    const trustLadderBlock = `<div class="obs-trust-ladder">
-      <div class="obs-trust-head">
-        <div class="obs-story-eyebrow">Trust lane</div>
-        <strong>この名前がどこまで進んでいるか</strong>
-        <p>${escapeHtml(trustLead)}</p>
-      </div>
+    const trustStageLabel = trustSteps.find((step) => step.id === trustStage)?.label ?? "AI のヒント";
+    const trustLadderBlock = `<details class="obs-trust-ladder">
+      <summary class="obs-trust-summary">
+        <span>
+          <span class="obs-story-eyebrow">名前の確かさ</span>
+          <strong>いまは「${escapeHtml(trustStageLabel)}」の段階です</strong>
+        </span>
+        <span class="obs-trust-toggle">詳しく</span>
+      </summary>
+      <p class="obs-trust-lead">${escapeHtml(trustLead)}</p>
       <div class="obs-trust-steps">
         ${trustSteps.map((step) => {
           const current =
@@ -2015,7 +1976,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </div>`;
         }).join("")}
       </div>
-    </div>`;
+    </details>`;
 
     const focusRailBlock = featuredSubject
       ? (() => {
@@ -2108,8 +2069,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <span class="obs-hero-place">${escapeHtml(heroPlaceLabel)}</span>
           </div>
           ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
-          ${trustLadderBlock}
-          ${reactionBar}
           ${focusRailBlock}
         </div>
       </section>`;
@@ -2256,6 +2215,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
+    const supportBlock = `<section class="section obs-support-panel" aria-label="補助情報">
+      ${reactionBar
+        ? `<div class="obs-support-actions">
+             <h2 class="obs-support-title">この記録への反応</h2>
+             ${reactionBar}
+           </div>`
+        : ""}
+      ${trustLadderBlock}
+    </section>`;
     const reassessButtons: string[] = [];
     if (isOwner) {
       reassessButtons.push(
@@ -2280,21 +2248,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
       : "";
-    const subjectRegionMap = Object.fromEntries(
-      bundle.subjects.map((subject) => [
-        subject.occurrenceId,
-        subject.regions.map((region) => ({
-          assetId: region.assetId,
-          rect: region.rect,
-          note: region.note,
-        })),
-      ]),
-    );
+    const subjectRegionMap = toSubjectRegionMap(bundle.subjects);
     const switchScript = subjectCount > 1
       ? `<script>(function(){
            var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
            var featuredSubjectId = ${JSON.stringify(featuredSubject.occurrenceId)};
            var regionMap = ${JSON.stringify(subjectRegionMap)};
+           var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
            var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
@@ -2307,6 +2267,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var regions = regionMap[subjectId] || [];
              regions.forEach(function(region){
                if (!region || !region.rect || !region.assetId) return;
+               if (typeof region.confidenceScore === 'number' && region.confidenceScore < regionDisplayConfMin) return;
                var layer = document.querySelector('[data-region-layer="' + region.assetId.replace(/"/g, '\\"') + '"]');
                if (!layer) return;
                var box = document.createElement('span');
@@ -2325,8 +2286,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              });
              var regionSummary = document.querySelector('[data-region-summary]');
              if (regionSummary) {
-               regionSummary.hidden = regions.length === 0;
-               regionSummary.textContent = regions.length > 0 ? 'AI が対象位置の参考矩形を重ねています。' : '';
+               var visibleRegionCount = Array.prototype.slice.call(document.querySelectorAll('.obs-region-box')).length;
+               regionSummary.hidden = visibleRegionCount === 0;
+               regionSummary.textContent = visibleRegionCount > 0 ? '${OBSERVATION_REGION_SUMMARY_TEXT}' : '';
              }
            };
            var updateStateLabels = function(subjectId){
@@ -2417,7 +2379,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}`;
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
