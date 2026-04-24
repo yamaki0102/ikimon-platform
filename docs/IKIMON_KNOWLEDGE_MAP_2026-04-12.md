@@ -1,6 +1,6 @@
 # ikimon.life Knowledge Map
 
-更新日: 2026-04-12
+更新日: 2026-04-22
 
 目的:
 
@@ -12,14 +12,20 @@
 
 ## 1. 最優先で見る正本
 
-### 1.1 Product / IA の正本
+### 1.1 Public surface の正本
+
+- `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
+  - public IA / message / feature-role の唯一正本
+  - `ENJOY NATURE`, page intent, feature naming, route disposition をここで固定
+  - staging / production の公開面を触る前に最優先で読む
+
+### 1.2 Product / strategy の補助正本
 
 - `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
-  - ikimon 改装の唯一の正本計画
-  - public message, nav 5 rails, route disposition, phase order をここで固定
-  - 現在の改装判断はこの文書を最優先する
+  - place-first / sponsor / nav 5 rails の大枠を決めた補助正本
+  - public surface の最終 message と page role は `ikimon_public_surface_canonical_pack_2026-04-22.md` を優先する
 
-### 1.2 Product decision の補助正本
+### 1.3 Product decision の補助正本
 
 - `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
   - 最上位 identity を `Place Intelligence OS` と定義
@@ -27,20 +33,20 @@
   - North Star を `active places`
   - 方向性判断で迷ったらここに戻る
 
-### 1.3 実装順の正本
+### 1.4 実装順の正本
 
 - `docs/strategy/ikimon_place_first_regional_os_execution_plan_2026-04-11.md`
   - 実装順を `message -> capture -> place -> sponsor/regional -> analytics` に固定
   - page ごとの着手順と gate を確認するときに使う
 
-### 1.4 ファイル別仕様の正本
+### 1.5 ファイル別仕様の補助正本
 
 - `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
   - route matrix
   - 各 page の新 role
   - 残す / 消す / 受け入れ条件
 
-### 1.5 データ設計の正本
+### 1.6 データ設計の正本
 
 - `docs/spec/ikimon_long_term_observatory_data_principles_2026-04-11.md`
   - 100 年価値を持つ観測の 5 層
@@ -188,9 +194,10 @@
 
 ## 7. いま重要な衝突点
 
-### 7.1 Product の正本は一本化されたが、data / migration は二層で走っている
+### 7.1 Public surface の正本は一本化されたが、data / migration は二層で走っている
 
-- 改装の正本は `ikimon_renovation_master_plan_2026-04-11.md`
+- 公開面の正本は `ikimon_public_surface_canonical_pack_2026-04-22.md`
+- その下の strategy 補助正本は `ikimon_renovation_master_plan_2026-04-11.md`
 - しかし data migration は
   - 短中期: `ikimon.db` canonical 化
   - 長期: PostgreSQL v2 cutover
@@ -198,7 +205,8 @@
 
 解釈:
 
-- UI / IA 改装は renovation master plan を正本にする
+- UI / IA / message / feature naming は canonical pack を正本にする
+- place-first の背骨や長期戦略は renovation master plan を補助線として使う
 - 現行 PHP の state 管理改善は ADR-001 系を使う
 - 完全刷新と本番切替は zero-base cutover を使う
 
@@ -219,12 +227,13 @@
 
 ### 8.1 改装タスクに入る前
 
-1. `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
-2. `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
-3. `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
-4. `docs/strategy/ikimon_nature_site_monitoring_acceleration_plan_2026-04-12.md`
-5. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\notes\ikimon_identification_system_master_note.md`
-6. `docs/strategy/ikimon_staging_ui_cleanup_plan_2026-04-12.md`
+1. `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
+2. `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
+3. `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
+4. `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
+5. `docs/strategy/ikimon_nature_site_monitoring_acceleration_plan_2026-04-12.md`
+6. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\notes\ikimon_identification_system_master_note.md`
+7. `docs/strategy/ikimon_staging_ui_cleanup_plan_2026-04-12.md`
 
 ### 8.2 データ / canonical / cutover を触る前
 
@@ -247,6 +256,7 @@
 ikimon.life の現行判断は、次の 3 本柱で読むのが最もズレにくい。
 
 1. public / product 改装:
+   - `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
    - `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
 2. 現行 PHP の canonical 改善:
    - `docs/architecture/ADR-001-canonical-source-of-truth.md`

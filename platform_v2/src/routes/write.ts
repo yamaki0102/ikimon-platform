@@ -177,7 +177,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,
         },
       }).catch(() => undefined);
-      return result;
+      return {
+        ok: true,
+        ...result,
+      };
     } catch (error) {
       reply.code(errorStatus(error, 400));
       return {

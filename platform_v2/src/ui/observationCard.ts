@@ -56,9 +56,10 @@ export function renderObservationCard(
   const profileHref = obs.observerUserId
     ? withBasePath(basePath, `/profile/${encodeURIComponent(obs.observerUserId)}`)
     : null;
+  const avatarBaseStyle = "width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(16,185,129,.2)";
   const avatar = obs.observerAvatarUrl
-    ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" />`
-    : `<span class="obs-card-avatar is-placeholder">${escapeHtml((obs.observerName || "?").slice(0, 1))}</span>`;
+    ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" style="${avatarBaseStyle};object-fit:cover;background:#e2e8f0" />`
+    : `<span class="obs-card-avatar is-placeholder" style="${avatarBaseStyle};background:linear-gradient(135deg,#d1fae5,#bae6fd);color:#065f46">${escapeHtml((obs.observerName || "?").slice(0, 1))}</span>`;
   // Broken / missing photo fallback: hand-drawn-style sketch card that looks
   // intentional, not a broken <img>. onerror swaps in the sketch if the URL
   // returns 404 (e.g. when /uploads/ is not yet mounted).
@@ -99,22 +100,35 @@ export function renderObservationCard(
   const tierBadge = tier != null
     ? `<span class="obs-card-tier" title="Evidence Tier ${tier}">T${tier}</span>`
     : "";
+  const isAi = Boolean(obs.isAiCandidate);
+  const awaitingId = !obs.displayName
+    || obs.displayName === "Unresolved"
+    || obs.displayName === "同定待ち";
+  const speciesClass = `obs-card-species${isAi ? " is-ai-candidate" : ""}${awaitingId ? " is-awaiting" : ""}`;
+  const speciesInnerHtml = awaitingId
+    ? `<span class="obs-card-species-label">${lang === "ja" ? "同定待ち" : "Awaiting ID"}</span>`
+    : isAi
+      ? `<span class="obs-card-species-ai-badge" aria-label="AI candidate">AI候補</span><span class="obs-card-species-label">${escapeHtml(obs.displayName)}</span>`
+      : `<span class="obs-card-species-label">${escapeHtml(obs.displayName)}</span>`;
   return `<article class="obs-card${options.compact ? " is-compact" : ""}${isIdentification ? " is-identification" : ""}" data-entry-type="${escapeHtml(entryType)}">
     <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(obs.displayName)}">
       ${photo}
       <span class="obs-card-kind">${escapeHtml(kind.badge)}</span>
       ${multiBadge}
       ${tierBadge}
-      <div class="obs-card-species">${escapeHtml(obs.displayName)}</div>
+      <div class="${speciesClass}">${speciesInnerHtml}</div>
     </a>
-    <div class="obs-card-meta">
-      ${focusMeta}
-      <div class="obs-card-who">
-        ${profileHref ? `<a class="obs-card-observer" href="${escapeHtml(appendLangToHref(profileHref, lang))}">${avatar}<span>${escapeHtml(attribution)}</span></a>` : `<span class="obs-card-observer">${avatar}<span>${escapeHtml(attribution)}</span></span>`}
-        <time class="obs-card-when">${escapeHtml(formatObservedAt(timestamp, lang))}</time>
+    <footer class="obs-card-meta" style="padding:14px 16px;display:block !important;background:#ffffff !important;border-top:2px solid #10b981;color:#0f172a !important;font-family:'Zen Kaku Gothic New','Inter','Noto Sans JP',sans-serif;position:relative;z-index:2">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        ${obs.observerAvatarUrl
+          ? `<img src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" style="display:inline-block;width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(16,185,129,.25);background:#e2e8f0" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'" /><span style="display:none;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#bae6fd);color:#065f46;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(16,185,129,.25)">${escapeHtml((obs.observerName || "?").slice(0, 1))}</span>`
+          : `<span style="display:inline-flex;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#bae6fd);color:#065f46;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(16,185,129,.25)">${escapeHtml((obs.observerName || "?").slice(0, 1))}</span>`}
+        <strong style="color:#0f172a !important;font-size:14px;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${profileHref ? `<a href="${escapeHtml(appendLangToHref(profileHref, lang))}" style="color:#0f172a !important;text-decoration:none">${escapeHtml(attribution)}</a>` : escapeHtml(attribution)}</strong>
+        <time style="color:#64748b !important;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0">${escapeHtml(formatObservedAt(timestamp, lang))}</time>
       </div>
-      <div class="obs-card-place">${escapeHtml(placeLine || "Unknown place")}</div>
-    </div>
+      <div style="color:#475569 !important;font-size:12.5px;font-weight:600;line-height:1.5">📍 ${escapeHtml(placeLine || "Unknown place")}</div>
+      ${focusMeta}
+    </footer>
   </article>`;
 }
 
@@ -145,8 +159,12 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-sketch-note { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
   .obs-card-photo-fallback { display: none; }
   .obs-card-photo-fallback.is-visible { display: flex; }
-  .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .obs-card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; display: inline-flex; align-items: center; gap: 6px; }
+  .obs-card-species-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .obs-card-species.is-awaiting { background: rgba(234,179,8,.88); color: #422006; }
+  .obs-card-species.is-ai-candidate { background: rgba(14,165,233,.88); }
+  .obs-card-species-ai-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,.92); color: #075985; font-size: 9.5px; font-weight: 900; letter-spacing: .06em; flex-shrink: 0; }
+  .obs-card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; background: #fff; border-top: 1px solid rgba(15,23,42,.06); min-height: 64px; }
   .obs-card-who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .obs-card-observer { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 800; color: #0f172a; min-width: 0; text-decoration: none; }
   .obs-card-observer:hover { color: #047857; }

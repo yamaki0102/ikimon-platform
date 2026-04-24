@@ -10,6 +10,10 @@ export type VisitSubjectSummary = SubjectRankInput & {
   latestAssessmentGeneratedAt: string | null;
   hasSpecialistApproval: boolean;
   evidenceTier: number | null;
+  aiCandidateName: string | null;
+  aiCandidateRank: string | null;
+  /** displayName が AI 候補 (人手 vernacular/scientific 欠落で AI 名を借りている) ときのみ true。 */
+  isAiCandidate: boolean;
 };
 
 function normalizeAssessmentBand(raw: string | null | undefined): AssessmentBand {
@@ -37,19 +41,30 @@ export async function getVisitSubjectSummaries(
     confidence_score: string | null;
     evidence_tier: string | null;
     source_payload: Record<string, unknown> | null;
+    ai_candidate_name: string | null;
+    ai_candidate_rank: string | null;
   }>(
-    `SELECT occurrence_id,
-            visit_id,
-            subject_index,
-            scientific_name,
-            vernacular_name,
-            taxon_rank,
-            confidence_score::text,
-            evidence_tier::text,
-            source_payload
-       FROM occurrences
-      WHERE visit_id = $1
-      ORDER BY subject_index ASC, created_at ASC`,
+    `SELECT o.occurrence_id,
+            o.visit_id,
+            o.subject_index,
+            o.scientific_name,
+            o.vernacular_name,
+            o.taxon_rank,
+            o.confidence_score::text,
+            o.evidence_tier::text,
+            o.source_payload,
+            ai.recommended_taxon_name AS ai_candidate_name,
+            ai.recommended_rank       AS ai_candidate_rank
+       FROM occurrences o
+       LEFT JOIN LATERAL (
+         SELECT recommended_taxon_name, recommended_rank
+           FROM observation_ai_assessments a
+          WHERE a.occurrence_id = o.occurrence_id
+          ORDER BY generated_at DESC
+          LIMIT 1
+       ) ai ON true
+      WHERE o.visit_id = $1
+      ORDER BY o.subject_index ASC, o.created_at ASC`,
     [visitId],
   );
   const occurrenceIds = rows.rows.map((row) => row.occurrence_id);
@@ -98,11 +113,14 @@ export async function getVisitSubjectSummaries(
     const latestAssessment = latestAssessments.get(row.occurrence_id);
     const specialistPayload = ((row.source_payload ?? {}) as { specialist_review?: { decision?: string } }).specialist_review;
     const v2SubjectPayload = ((row.source_payload ?? {}) as { v2_subject?: { role_hint?: string } }).v2_subject;
+    const humanName = row.vernacular_name || row.scientific_name || null;
+    const aiName = row.ai_candidate_name && row.ai_candidate_name.trim() ? row.ai_candidate_name.trim() : null;
+    const displayName = humanName || aiName || "同定待ち";
     return {
       occurrenceId: row.occurrence_id,
       visitId: row.visit_id,
       subjectIndex: row.subject_index,
-      displayName: row.vernacular_name || row.scientific_name || "Unresolved",
+      displayName,
       scientificName: row.scientific_name,
       vernacularName: row.vernacular_name,
       rank: row.taxon_rank,
@@ -114,6 +132,9 @@ export async function getVisitSubjectSummaries(
       hasSpecialistApproval: specialistPayload?.decision === "approve",
       evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
       isPrimary: row.subject_index === 0,
+      aiCandidateName: aiName,
+      aiCandidateRank: row.ai_candidate_rank ?? null,
+      isAiCandidate: !humanName && !!aiName,
     };
   });
 }

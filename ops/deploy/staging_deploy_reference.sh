@@ -17,6 +17,53 @@ CURRENT_BRANCH="${STAGING_BRANCH:-staging}"
 HEALTH_BASE_URL="${STAGING_BASE_URL:-http://127.0.0.1:8081}"
 BACKUP_DIR="$(mktemp -d /tmp/ikimon-staging-deploy-XXXX)"
 CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
+RUNTIME_ALLOWLIST="$REPO_DIR/ops/deploy/runtime_persistent_allowlist.txt"
+
+load_runtime_allowlist() {
+    if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
+        echo "Missing runtime allowlist: $RUNTIME_ALLOWLIST"
+        exit 1
+    fi
+    grep -v '^[[:space:]]*#' "$RUNTIME_ALLOWLIST" | sed '/^[[:space:]]*$/d'
+}
+
+copy_runtime_allowlist() {
+    local src_root="$1"
+    local dst_root="$2"
+    local pattern rel rel_dir match rel_match
+
+    while IFS= read -r pattern; do
+        if [[ "$pattern" != upload_package/data/* ]]; then
+            continue
+        fi
+
+        rel="${pattern#upload_package/data/}"
+
+        if [[ "$rel" == *"/**" ]]; then
+            rel_dir="${rel%/**}"
+            if [ -d "$src_root/$rel_dir" ]; then
+                mkdir -p "$dst_root/$rel_dir"
+                rsync -a "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
+            fi
+            continue
+        fi
+
+        if [[ "$rel" == *"*"* || "$rel" == *"?"* || "$rel" == *"["* ]]; then
+            while IFS= read -r match; do
+                [ -z "$match" ] && continue
+                rel_match="${match#$src_root/}"
+                mkdir -p "$dst_root/$(dirname "$rel_match")"
+                rsync -a "$match" "$dst_root/$rel_match"
+            done < <(compgen -G "$src_root/$rel" || true)
+            continue
+        fi
+
+        if [ -e "$src_root/$rel" ]; then
+            mkdir -p "$dst_root/$(dirname "$rel")"
+            rsync -a "$src_root/$rel" "$dst_root/$rel"
+        fi
+    done < <(load_runtime_allowlist)
+}
 
 cleanup() {
     rm -rf "$BACKUP_DIR"
@@ -44,9 +91,7 @@ if [ "$LOCAL_HEAD" = "$REMOTE_HEAD" ]; then
 else
     echo "[2/8] Back up staging runtime data"
     mkdir -p "$BACKUP_DIR/data" "$BACKUP_DIR/config" "$PERSISTENT_UPLOADS"
-    if [ -d "$DATA_DIR" ]; then
-        rsync -a "$DATA_DIR/" "$BACKUP_DIR/data/"
-    fi
+    copy_runtime_allowlist "$DATA_DIR" "$BACKUP_DIR/data"
 
     echo "[3/8] Back up staging runtime config"
     for file_name in "${CONFIG_FILES[@]}"; do
@@ -66,7 +111,7 @@ else
 
     echo "[6/8] Restore staging runtime data and config"
     mkdir -p "$DATA_DIR" "$CONFIG_DIR"
-    rsync -a "$BACKUP_DIR/data/" "$DATA_DIR/" >/dev/null 2>&1 || true
+    copy_runtime_allowlist "$BACKUP_DIR/data" "$DATA_DIR"
     for file_name in "${CONFIG_FILES[@]}"; do
         if [ -f "$BACKUP_DIR/config/$file_name" ]; then
             cp -a "$BACKUP_DIR/config/$file_name" "$CONFIG_DIR/$file_name"

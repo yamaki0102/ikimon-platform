@@ -39,8 +39,9 @@ test("about page sends readers to the learn hub", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /使い方と考え方を見る/);
-    assert.match(response.body, /\/learn/);
+    assert.match(response.body, /使い方を見る/);
+    assert.match(response.body, /研究と信頼性を見る/);
+    assert.match(response.body, /\/learn\/methodology/);
   } finally {
     await app.close();
   }
@@ -55,8 +56,37 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /このサービスの考え方/);
+    assert.match(response.body, /まず読むページ/);
+    assert.match(response.body, /研究・データ・信頼性について/);
     assert.match(response.body, /更新を見る/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("legacy public explainer routes redirect to their canonical destinations", async () => {
+  const app = buildApp();
+  try {
+    const scan = await app.inject({ method: "GET", url: "/scan?lang=ja" });
+    assert.equal(scan.statusCode, 308);
+    assert.equal(scan.headers.location, "/map?lang=ja");
+
+    const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
+    assert.equal(authority.statusCode, 308);
+    assert.equal(authority.headers.location, "/learn/methodology?lang=ja");
+  } finally {
+    await app.close();
+  }
+});
+
+test("learn methodology carries the merged trust and research framing", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/learn/methodology?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /同定の信頼レーン/);
+    assert.match(response.body, /quick capture と survey の違い/);
+    assert.match(response.body, /言いすぎないための線引き/);
   } finally {
     await app.close();
   }

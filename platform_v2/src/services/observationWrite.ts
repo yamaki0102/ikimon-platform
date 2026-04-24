@@ -91,6 +91,13 @@ export type ObservationWriteResult = {
   /** 全 subject の occurrence_id。primary が先頭。 */
   occurrenceIds: string[];
   placeId: string;
+  impact: {
+    placeName: string;
+    visitCount: number;
+    previousObservedAt: string | null;
+    focusLabel: string | null;
+    captureState: string | null;
+  };
   compatibility: {
     attempted: boolean;
     succeeded: boolean;
@@ -188,10 +195,23 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const effortMinutes = visitMode === "survey"
     ? normalizeOptionalNumber(input.effortMinutes)
     : null;
+  const sourcePayload = (input.sourcePayload && typeof input.sourcePayload === "object")
+    ? input.sourcePayload
+    : {};
   const distanceMeters = normalizeOptionalNumber(input.distanceMeters);
-  const revisitReason = visitMode === "survey"
-    ? normalizeOptionalText(input.revisitReason)
+  const revisitReason = normalizeOptionalText(input.revisitReason);
+  const nextLookFor = typeof sourcePayload.next_look_for === "string"
+    ? normalizeOptionalText(sourcePayload.next_look_for)
     : null;
+  const quickCaptureState = typeof sourcePayload.quick_capture_state === "string"
+    ? normalizeOptionalText(sourcePayload.quick_capture_state)
+    : null;
+  const focusLabel = nextLookFor
+    ?? targetTaxaScope
+    ?? revisitReason
+    ?? normalizeOptionalText(subjects[0]?.vernacularName)
+    ?? normalizeOptionalText(subjects[0]?.scientificName)
+    ?? null;
   const placeId = buildPlaceId({
     siteId: input.siteId,
     latitude: input.latitude,
@@ -501,6 +521,45 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     client.release();
   }
 
+  const impactResult = await pool.query<{
+    place_name: string | null;
+    visit_count: string;
+    previous_observed_at: string | null;
+  }>(
+    `select
+        p.canonical_name as place_name,
+        count(v.visit_id)::text as visit_count,
+        previous_visit.previous_observed_at
+     from places p
+     left join visits v
+       on v.place_id = p.place_id
+      and v.user_id = $1
+     left join lateral (
+       select v2.observed_at::text as previous_observed_at
+       from visits v2
+       where v2.user_id = $1
+         and v2.place_id = p.place_id
+       order by v2.observed_at desc, v2.visit_id desc
+       offset 1
+       limit 1
+     ) previous_visit on true
+     where p.place_id = $2
+     group by p.canonical_name, previous_visit.previous_observed_at`,
+    [input.userId, placeId],
+  );
+  const impactRow = impactResult.rows[0];
+  const impact = {
+    placeName: impactRow?.place_name ?? buildPlaceName({
+      siteName: input.siteName,
+      municipality: input.municipality,
+      prefecture: input.prefecture,
+    }),
+    visitCount: Number(impactRow?.visit_count ?? "1"),
+    previousObservedAt: impactRow?.previous_observed_at ?? null,
+    focusLabel,
+    captureState: quickCaptureState ?? null,
+  };
+
   // Non-blocking: capture Site Brief snapshot at observation time.
   // Failures silently drop — never block the observation write path.
   void (async () => {
@@ -568,6 +627,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     occurrenceId,
     occurrenceIds,
     placeId,
+    impact,
     compatibility,
   };
 }

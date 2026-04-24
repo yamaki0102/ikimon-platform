@@ -8,6 +8,7 @@ import {
   getOfficialNoticeRenderCopy,
   OFFICIAL_NOTICE_CARD_STYLES,
 } from "./officialNoticeCard.js";
+import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "./placeRevisit.js";
 import { escapeHtml } from "./siteShell.js";
 
 type MainCopy = {
@@ -32,6 +33,11 @@ type MainCopy = {
   walkLabel: string;
   walkNoActivity: string;
   walkDistUnit: string;
+  placeFirstVisit: string;
+  placeComparedOn: (date: string) => string;
+  placeNextLook: (focus: string) => string;
+  placeNextFallback: string;
+  placeRecordLabel: string;
 };
 
 const mainCopy: Record<SiteLang, MainCopy> = {
@@ -57,6 +63,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     walkLabel: "今日の記録",
     walkNoActivity: "まだ今日の記録がありません",
     walkDistUnit: "m",
+    placeFirstVisit: "この場所の最初のページ",
+    placeComparedOn: (date) => `前回 ${date}`,
+    placeNextLook: (focus) => `次は ${focus}`,
+    placeNextFallback: "次の散歩で小さな変化を 1 件残す",
+    placeRecordLabel: "ここで記録",
   },
   en: {
     eyebrow: "Your notebook",
@@ -80,6 +91,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     walkLabel: "Today's walk",
     walkNoActivity: "No walk recorded today yet",
     walkDistUnit: "m",
+    placeFirstVisit: "First page for this place",
+    placeComparedOn: (date) => `Last time ${date}`,
+    placeNextLook: (focus) => `Next: ${focus}`,
+    placeNextFallback: "Leave one small change next walk",
+    placeRecordLabel: "Record here",
   },
   es: {
     eyebrow: "Tu cuaderno",
@@ -103,6 +119,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     walkLabel: "Caminata de hoy",
     walkNoActivity: "No hay registro de caminata hoy",
     walkDistUnit: "m",
+    placeFirstVisit: "Primera página de este lugar",
+    placeComparedOn: (date) => `Última vez ${date}`,
+    placeNextLook: (focus) => `Próximo: ${focus}`,
+    placeNextFallback: "Deja un cambio pequeño en la próxima caminata",
+    placeRecordLabel: "Registrar aquí",
   },
   "pt-BR": {
     eyebrow: "Seu caderno",
@@ -126,6 +147,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     walkLabel: "Caminhada de hoje",
     walkNoActivity: "Nenhum registro de caminhada hoje",
     walkDistUnit: "m",
+    placeFirstVisit: "Primeira página deste lugar",
+    placeComparedOn: (date) => `Última vez ${date}`,
+    placeNextLook: (focus) => `Próximo: ${focus}`,
+    placeNextFallback: "Registre uma pequena mudança na próxima caminhada",
+    placeRecordLabel: "Registrar aqui",
   },
 };
 
@@ -164,10 +190,21 @@ export function renderFieldNoteMain(
     if (!isLoggedIn || snapshot.myPlaces.length === 0) return "";
     const items = snapshot.myPlaces
       .slice(0, 6)
-      .map((place) => `<a class="fn-place-chip" href="${escapeHtml(appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.viewerUserId ?? "")}`), lang))}">
-        <strong>${escapeHtml(place.placeName)}</strong>
-        <span>${escapeHtml(place.municipality || "")} · ${place.visitCount}回</span>
-      </a>`)
+      .map((place) => {
+        const compareLabel = place.previousObservedAt
+          ? copy.placeComparedOn(formatShortDate(place.previousObservedAt, lang === "ja" ? "ja-JP" : "en-US"))
+          : copy.placeFirstVisit;
+        const focus = pickPlaceFocus(place);
+        const nextLabel = focus ? copy.placeNextLook(focus) : copy.placeNextFallback;
+        const recordPlaceHref = buildPlaceRecordHref(basePath, lang, snapshot.viewerUserId, place);
+        return `<a class="fn-place-chip" href="${escapeHtml(recordPlaceHref)}" data-kpi-action="fieldnote:place-record">
+          <strong>${escapeHtml(place.placeName)}</strong>
+          <span>${escapeHtml(place.municipality || "")}${place.municipality ? " · " : ""}${escapeHtml(String(place.visitCount))}回</span>
+          <span class="fn-place-detail">${escapeHtml(compareLabel)}</span>
+          <span class="fn-place-detail">${escapeHtml(nextLabel)}</span>
+          <span class="fn-place-cta">${escapeHtml(copy.placeRecordLabel)}</span>
+        </a>`;
+      })
       .join("");
     return `<div class="fn-subhead"><h3>${escapeHtml(copy.myPlacesLabel)}</h3></div>
       <div class="fn-place-row">${items}</div>`;
@@ -374,6 +411,8 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-place-chip:hover { transform: translateY(-2px); }
   .fn-place-chip strong { font-size: 14px; font-weight: 800; color: #0f172a; }
   .fn-place-chip span { color: #64748b; font-weight: 600; }
+  .fn-place-detail { color: #475569 !important; line-height: 1.45; }
+  .fn-place-cta { margin-top: 6px; color: #0f172a !important; font-weight: 800 !important; }
   .fn-ambient { margin-top: 28px; padding-top: 20px; padding-left: 18px; border-top: 1px dashed rgba(15,23,42,.08); }
   .fn-ambient-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; margin-bottom: 10px; }
   .fn-ambient-row { display: grid; grid-template-columns: 1fr; gap: 10px; }

@@ -645,6 +645,7 @@ async function importUsers(
   const pool = getPool();
   for (const user of legacyUsers.values()) {
     let avatarAssetId: string | null = null;
+    const normalizedEmail = user.email?.toLowerCase() ?? null;
     if (typeof user.avatar === "string" && user.avatar.startsWith("uploads/")) {
       avatarAssetId = randomUUID();
       const legacyAssetKey = `avatar:${user.id}`;
@@ -696,6 +697,19 @@ async function importUsers(
       );
     }
 
+    if (normalizedEmail) {
+      // Staging can retain stale rows from older rehearsal imports under different user_ids.
+      // The current legacy mirror wins, so release conflicting emails before upserting.
+      await pool.query(
+        `update users
+         set email = null,
+             updated_at = now()
+         where user_id <> $1
+           and lower(coalesce(email, '')) = $2`,
+        [user.id, normalizedEmail],
+      );
+    }
+
     await pool.query(
       `insert into users (
           user_id, legacy_user_id, display_name, email, password_hash, avatar_asset_id,
@@ -723,7 +737,7 @@ async function importUsers(
         user.id,
         user.id,
         user.name ?? user.id,
-        user.email?.toLowerCase() ?? null,
+        normalizedEmail,
         user.password_hash ?? null,
         avatarAssetId,
         user.role ?? "Observer",
@@ -763,7 +777,7 @@ async function importUsers(
           user.id,
           user.auth_provider,
           user.oauth_id,
-          user.email?.toLowerCase() ?? null,
+          normalizedEmail,
           JSON.stringify({ source: "legacy_user_record" }),
         ],
       );

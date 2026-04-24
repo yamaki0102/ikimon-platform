@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import type { LandingSnapshot } from "../services/readModels.js";
+import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "./placeRevisit.js";
 import { escapeHtml } from "./siteShell.js";
 
 type RevisitCopy = {
@@ -16,6 +17,11 @@ type RevisitCopy = {
   weeksAgo: (n: number) => string;
   monthsAgo: (n: number) => string;
   ariaLabel: string;
+  firstVisitLabel: string;
+  comparedOn: (date: string) => string;
+  nextLook: (focus: string) => string;
+  nextLookFallback: string;
+  recordLabel: string;
 };
 
 const copyByLang: Record<SiteLang, RevisitCopy> = {
@@ -32,6 +38,11 @@ const copyByLang: Record<SiteLang, RevisitCopy> = {
     weeksAgo: (n) => `${n} 週前`,
     monthsAgo: (n) => `${n} ヶ月前`,
     ariaLabel: "あなたの場所への再訪導線",
+    firstVisitLabel: "この場所の最初のページ",
+    comparedOn: (date) => `前回 ${date}`,
+    nextLook: (focus) => `次は ${focus}`,
+    nextLookFallback: "次の散歩で小さな変化を拾う",
+    recordLabel: "ここで記録",
   },
   en: {
     eyebrow: "Reasons to revisit",
@@ -46,6 +57,11 @@ const copyByLang: Record<SiteLang, RevisitCopy> = {
     weeksAgo: (n) => `${n}w ago`,
     monthsAgo: (n) => `${n}mo ago`,
     ariaLabel: "Your places to revisit",
+    firstVisitLabel: "First page for this place",
+    comparedOn: (date) => `Last time ${date}`,
+    nextLook: (focus) => `Next: ${focus}`,
+    nextLookFallback: "Leave one small change next walk",
+    recordLabel: "Record here",
   },
   es: {
     eyebrow: "Razones para volver",
@@ -60,6 +76,11 @@ const copyByLang: Record<SiteLang, RevisitCopy> = {
     weeksAgo: (n) => `hace ${n} sem`,
     monthsAgo: (n) => `hace ${n} m`,
     ariaLabel: "Tus lugares para revisitar",
+    firstVisitLabel: "Primera página de este lugar",
+    comparedOn: (date) => `Última vez ${date}`,
+    nextLook: (focus) => `Próximo: ${focus}`,
+    nextLookFallback: "Deja un cambio pequeño en la próxima caminata",
+    recordLabel: "Registrar aquí",
   },
   "pt-BR": {
     eyebrow: "Motivos para voltar",
@@ -74,6 +95,11 @@ const copyByLang: Record<SiteLang, RevisitCopy> = {
     weeksAgo: (n) => `${n}sem atrás`,
     monthsAgo: (n) => `${n}m atrás`,
     ariaLabel: "Seus lugares para revisitar",
+    firstVisitLabel: "Primeira página deste lugar",
+    comparedOn: (date) => `Última vez ${date}`,
+    nextLook: (focus) => `Próximo: ${focus}`,
+    nextLookFallback: "Registre uma pequena mudança na próxima caminhada",
+    recordLabel: "Registrar aqui",
   },
 };
 
@@ -126,17 +152,30 @@ export function renderRevisitFlow(
       <div class="rv-bucket-label">${escapeHtml(label)}</div>
       <ul class="rv-list">
         ${items
-          .map(
-            (place) => `<li>
-              <a class="rv-place" href="${escapeHtml(profileHrefBase)}" data-kpi-action="revisit:${modifier}">
+          .map((place) => {
+            const compareLabel = place.previousObservedAt
+              ? copy.comparedOn(formatShortDate(place.previousObservedAt, lang === "ja" ? "ja-JP" : "en-US"))
+              : copy.firstVisitLabel;
+            const focus = pickPlaceFocus(place);
+            const nextLabel = focus ? copy.nextLook(focus) : copy.nextLookFallback;
+            const recordHref = buildPlaceRecordHref(basePath, lang, snapshot.viewerUserId, place);
+            return `<li>
+              <div class="rv-place" data-kpi-action="revisit:${modifier}">
                 <span class="rv-place-main">
-                  <strong>${escapeHtml(place.placeName)}</strong>
+                  <a class="rv-place-profile" href="${escapeHtml(profileHrefBase)}">
+                    <strong>${escapeHtml(place.placeName)}</strong>
+                  </a>
                   <span class="rv-place-meta">${escapeHtml(place.municipality || "")}${place.municipality ? " · " : ""}${escapeHtml(copy.visitCountSuffix(place.visitCount))}</span>
+                  <span class="rv-place-note">${escapeHtml(compareLabel)}</span>
+                  <span class="rv-place-note">${escapeHtml(nextLabel)}</span>
                 </span>
-                <span class="rv-place-since">${escapeHtml(relativeLabel(copy, place.lastObservedAt, now))}</span>
-              </a>
-            </li>`,
-          )
+                <span class="rv-place-tail">
+                  <span class="rv-place-since">${escapeHtml(relativeLabel(copy, place.lastObservedAt, now))}</span>
+                  <a class="rv-place-cta" href="${escapeHtml(recordHref)}">${escapeHtml(copy.recordLabel)}</a>
+                </span>
+              </div>
+            </li>`;
+          })
           .join("")}
       </ul>
     </div>`;
@@ -209,18 +248,21 @@ export const REVISIT_FLOW_STYLES = `
   .rv-place {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     padding: 10px 12px;
     border-radius: 14px;
-    text-decoration: none;
     color: inherit;
-    transition: background .15s ease;
+    transition: background .15s ease, border-color .15s ease;
+    border: 1px solid transparent;
   }
-  .rv-place:hover { background: rgba(15,23,42,.04); }
+  .rv-place:hover { background: rgba(15,23,42,.04); border-color: rgba(15,23,42,.06); }
   .rv-place-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .rv-place-profile { text-decoration: none; color: inherit; }
   .rv-place-main strong { font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
   .rv-place-meta { font-size: 12px; color: #64748b; font-weight: 600; }
+  .rv-place-note { font-size: 12px; color: #475569; line-height: 1.45; }
+  .rv-place-tail { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex-shrink: 0; }
   .rv-place-since {
     flex-shrink: 0;
     font-size: 12px;
@@ -231,6 +273,24 @@ export const REVISIT_FLOW_STYLES = `
     background: rgba(15,23,42,.05);
     letter-spacing: -.01em;
   }
+  .rv-place-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #fff;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+  }
   .rv-bucket-stale .rv-place-since { background: rgba(14,165,233,.1); color: #0369a1; }
   .rv-bucket-fresh .rv-place-since { background: rgba(16,185,129,.12); color: #047857; }
+  @media (max-width: 640px) {
+    .rv-place { flex-direction: column; }
+    .rv-place-tail { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+  }
 `;
