@@ -56,7 +56,7 @@ function Get-TrackedFilePaths {
         Join-Path $repoRoot $normalizedPath
     }
 
-    return @($matches | Where-Object { Test-Path $_ } | ForEach-Object { Get-Item $_ })
+    return @($matches | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-Item -LiteralPath $_ -Force })
 }
 
 function Get-FileList {
@@ -87,7 +87,7 @@ $trackedTopLevelDirectoryNames = $trackedRelativePaths |
     Sort-Object -Unique
 
 $topLevelDirectories = $trackedTopLevelDirectoryNames |
-    ForEach-Object { Get-Item (Join-Path $repoRoot $_) -ErrorAction SilentlyContinue } |
+    ForEach-Object { Get-Item -LiteralPath (Join-Path $repoRoot $_) -Force -ErrorAction SilentlyContinue } |
     Where-Object { $_ -and $_.PSIsContainer } |
     Sort-Object Name
 
