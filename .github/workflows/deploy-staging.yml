@@ -112,6 +112,8 @@ jobs:
             printf 'DATABASE_URL=%s\n' "$V2_STAGING_DATABASE_URL" >> "$TMP_ENV"
             printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$TMP_ENV"
             printf 'V2_PRIVILEGED_WRITE_API_KEY=%s\n' "$V2_PRIVILEGED_WRITE_API_KEY" >> "$TMP_ENV"
+            printf 'LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/repo/upload_package/public_html\n' >> "$TMP_ENV"
+            printf 'LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/repo/upload_package/public_html/uploads\n' >> "$TMP_ENV"
             for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_STREAM_API_TOKEN CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN; do
               if [ -f "$STAGING_ENV_FILE" ]; then
                 existing_line="$(grep -m1 "^${key}=" "$STAGING_ENV_FILE" || true)"
@@ -234,7 +236,7 @@ jobs:
               echo "FAIL: $STAGING_ENV_FILE is missing"
               exit 1
             fi
-            for key in ALLOW_QUERY_USER_ID DATABASE_URL GEMINI_API_KEY V2_PRIVILEGED_WRITE_API_KEY; do
+            for key in ALLOW_QUERY_USER_ID DATABASE_URL GEMINI_API_KEY V2_PRIVILEGED_WRITE_API_KEY LEGACY_PUBLIC_ROOT LEGACY_UPLOADS_ROOT; do
               if ! grep -q "^${key}=" "$STAGING_ENV_FILE"; then
                 echo "FAIL: $STAGING_ENV_FILE is missing $key"
                 exit 1

@@ -59,6 +59,24 @@ async function serveFileFromRoot(rootDir: string, rel: string): Promise<{ data: 
   }
 }
 
+async function serveUploadFile(rel: string): Promise<{ data: Buffer; mime: string } | null> {
+  const config = loadConfig();
+  const candidateRoots = [
+    config.legacyUploadsRoot,
+    path.join(config.legacyPublicRoot, "uploads"),
+    path.resolve(process.cwd(), "../upload_package/public_html/uploads"),
+  ];
+  const seen = new Set<string>();
+  for (const root of candidateRoots) {
+    const resolved = path.resolve(root);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    const file = await serveFileFromRoot(resolved, rel);
+    if (file) return file;
+  }
+  return null;
+}
+
 export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<void> {
   // Wildcard route for every path under /assets/*
   app.get<{ Params: { "*": string } }>("/assets/*", async (request, reply) => {
@@ -99,7 +117,7 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
 
   app.get<{ Params: { "*": string } }>("/uploads/*", async (request, reply) => {
     const rel = request.params["*"] ?? "";
-    const file = await serveFileFromRoot(loadConfig().legacyUploadsRoot, rel);
+    const file = await serveUploadFile(rel);
     if (!file) {
       reply.code(404).type("text/plain").send("not found");
       return;
@@ -114,7 +132,7 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
   // the actual public files live under the uploads root.
   app.get<{ Params: { "*": string } }>("/data/uploads/*", async (request, reply) => {
     const rel = request.params["*"] ?? "";
-    const file = await serveFileFromRoot(loadConfig().legacyUploadsRoot, rel);
+    const file = await serveUploadFile(rel);
     if (!file) {
       reply.code(404).type("text/plain").send("not found");
       return;
@@ -155,7 +173,7 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
         .send(cached.data);
       return;
     }
-    const src = await serveFileFromRoot(loadConfig().legacyUploadsRoot, rel);
+    const src = await serveUploadFile(rel);
     if (!src) {
       reply.code(404).type("text/plain").send("not found");
       return;

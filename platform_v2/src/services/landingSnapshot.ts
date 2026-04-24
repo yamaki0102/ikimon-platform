@@ -27,10 +27,33 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
+function normalizeDisplayName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "unresolved" || lowered === "awaiting id" || trimmed === "同定待ち") {
+    return null;
+  }
+  return trimmed;
+}
+
+export function resolveLandingDisplayName(
+  primaryName: string | null | undefined,
+  identificationName: string | null | undefined,
+  aiCandidateName?: string | null | undefined,
+): string {
+  return normalizeDisplayName(primaryName)
+    ?? normalizeDisplayName(identificationName)
+    ?? normalizeDisplayName(aiCandidateName)
+    ?? "同定待ち";
+}
+
 type FeedRow = {
   occurrence_id: string;
   visit_id: string;
   display_name: string | null;
+  identification_display_name: string | null;
+  ai_candidate_name: string | null;
   observed_at: string;
   observer_user_id: string | null;
   observer_name: string | null;
@@ -65,7 +88,9 @@ const FEED_SQL_BASE = `
   select
     o.occurrence_id,
     o.visit_id,
-    coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+    coalesce(o.vernacular_name, o.scientific_name, ident.display_name, ai.recommended_taxon_name, '同定待ち') as display_name,
+    ident.display_name as identification_display_name,
+    ai.recommended_taxon_name as ai_candidate_name,
     v.observed_at::text,
     v.user_id as observer_user_id,
     ${FEED_OBSERVER_NAME_SQL} as observer_name,
@@ -90,11 +115,33 @@ const FEED_SQL_BASE = `
     select coalesce(ab.public_url, ab.storage_path) as public_url
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
-    where ea.occurrence_id = o.occurrence_id
+    where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
       and ea.asset_role = 'observation_photo'
-    order by ea.created_at asc
+    order by
+      case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+      ea.created_at asc
     limit 1
   ) photo on true
+  left join lateral (
+    select
+      btrim(i.proposed_name) as display_name
+    from identifications i
+    where i.occurrence_id = o.occurrence_id
+      and coalesce(i.is_current, true)
+      and btrim(i.proposed_name) <> ''
+      and lower(btrim(i.proposed_name)) not in ('unresolved', 'awaiting id')
+      and btrim(i.proposed_name) <> '同定待ち'
+    order by i.created_at desc
+    limit 1
+  ) ident on true
+  left join lateral (
+    select recommended_taxon_name
+    from observation_ai_assessments a
+    where a.occurrence_id = o.occurrence_id
+      and btrim(coalesce(a.recommended_taxon_name, '')) <> ''
+    order by generated_at desc
+    limit 1
+  ) ai on true
   left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url
     from asset_blobs ab
@@ -139,7 +186,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.display_name ?? "Unresolved",
+    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
     observedAt: row.observed_at,
     observerName: row.observer_name ?? "Unknown observer",
     placeName: row.place_name ?? "Unknown place",
@@ -169,6 +216,7 @@ type IdentificationRow = {
   occurrence_id: string;
   visit_id: string;
   observation_display_name: string | null;
+  ai_candidate_name: string | null;
   observed_at: string;
   observer_user_id: string | null;
   observer_name: string | null;
@@ -190,7 +238,7 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.proposed_name,
+    displayName: resolveLandingDisplayName(row.proposed_name, row.observation_display_name, row.ai_candidate_name),
     observedAt: row.observed_at,
     observerName: row.observer_name ?? "Unknown observer",
     placeName: row.place_name ?? "Unknown place",
@@ -340,7 +388,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            i.proposed_rank,
            o.occurrence_id,
            o.visit_id,
-           coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as observation_display_name,
+           coalesce(o.vernacular_name, o.scientific_name, ident.display_name, ai.recommended_taxon_name, '同定待ち') as observation_display_name,
+           ai.recommended_taxon_name as ai_candidate_name,
            v.observed_at::text,
            v.user_id as observer_user_id,
            ${FEED_OBSERVER_NAME_SQL} as observer_name,
@@ -365,11 +414,32 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            select coalesce(ab.public_url, ab.storage_path) as public_url
            from evidence_assets ea
            join asset_blobs ab on ab.blob_id = ea.blob_id
-           where ea.occurrence_id = o.occurrence_id
+           where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
              and ea.asset_role = 'observation_photo'
-           order by ea.created_at asc
+           order by
+             case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+             ea.created_at asc
            limit 1
          ) photo on true
+         left join lateral (
+           select btrim(i2.proposed_name) as display_name
+           from identifications i2
+           where i2.occurrence_id = o.occurrence_id
+             and coalesce(i2.is_current, true)
+             and btrim(i2.proposed_name) <> ''
+             and lower(btrim(i2.proposed_name)) not in ('unresolved', 'awaiting id')
+             and btrim(i2.proposed_name) <> '同定待ち'
+           order by i2.created_at desc
+           limit 1
+         ) ident on true
+         left join lateral (
+           select recommended_taxon_name
+           from observation_ai_assessments a
+           where a.occurrence_id = o.occurrence_id
+             and btrim(coalesce(a.recommended_taxon_name, '')) <> ''
+           order by generated_at desc
+           limit 1
+         ) ai on true
          left join lateral (
            select coalesce(ab.public_url, ab.storage_path) as public_url
            from asset_blobs ab
@@ -497,9 +567,20 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          limit 1
        ) latest on true
        left join lateral (
-         select coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name
+         select coalesce(o.vernacular_name, o.scientific_name, ident.display_name, '同定待ち') as display_name
          from occurrences o
          join visits v2 on v2.visit_id = o.visit_id
+         left join lateral (
+           select btrim(i.proposed_name) as display_name
+           from identifications i
+           where i.occurrence_id = o.occurrence_id
+             and coalesce(i.is_current, true)
+             and btrim(i.proposed_name) <> ''
+             and lower(btrim(i.proposed_name)) not in ('unresolved', 'awaiting id')
+             and btrim(i.proposed_name) <> '同定待ち'
+           order by i.created_at desc
+           limit 1
+         ) ident on true
          where v2.user_id = u.user_id
            and ${AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL}
          order by v2.observed_at desc
@@ -520,7 +601,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       displayName: row.display_name ?? "Observer",
       avatarUrl: normalizeAssetUrl(row.avatar_url),
       latestObservedAt: row.latest_observed_at,
-      latestDisplayName: row.latest_display_name ?? "Unresolved",
+      latestDisplayName: resolveLandingDisplayName(row.latest_display_name, null),
     }));
   } catch {
     ambient = [];

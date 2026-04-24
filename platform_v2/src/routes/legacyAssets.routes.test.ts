@@ -83,6 +83,35 @@ test("legacy asset routes serve uploads from the legacy uploads root", async () 
   }
 });
 
+test("legacy asset routes fall back to public/uploads when uploads root env is stale", async () => {
+  const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-upload-fallback-"));
+  const publicRoot = path.join(sandboxRoot, "public");
+  const staleUploadsRoot = path.join(sandboxRoot, "stale-uploads");
+  await mkdir(path.join(publicRoot, "uploads", "photos"), { recursive: true });
+  await writeFile(path.join(publicRoot, "uploads", "photos", "fallback.jpg"), "jpeg-bits");
+
+  try {
+    await withEnv(
+      {
+        LEGACY_PUBLIC_ROOT: publicRoot,
+        LEGACY_UPLOADS_ROOT: staleUploadsRoot,
+      },
+      async () => {
+        const app = buildApp();
+        try {
+          const response = await app.inject({ method: "GET", url: "/uploads/photos/fallback.jpg" });
+          assert.equal(response.statusCode, 200);
+          assert.equal(response.body, "jpeg-bits");
+        } finally {
+          await app.close();
+        }
+      },
+    );
+  } finally {
+    await rm(sandboxRoot, { recursive: true, force: true });
+  }
+});
+
 test("thumb route resizes image and blocks invalid preset / traversal", async () => {
   const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-thumb-"));
   const uploadsRoot = path.join(sandboxRoot, "uploads");
