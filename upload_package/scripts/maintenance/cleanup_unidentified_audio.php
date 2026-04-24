@@ -19,7 +19,7 @@ $cutoff = time() - ($maxAgeDays * 86400);
 $preserveStages = ['ai_classified', 'verified', 'community_confirmed', 'expert_confirmed'];
 
 $observations = DataStore::fetchAll('observations');
-$audioDir = PUBLIC_DIR . '/uploads/audio';
+$audioDir = UPLOADS_DIR . '/audio';
 
 $referencedPaths = [];
 $preservedPaths = [];

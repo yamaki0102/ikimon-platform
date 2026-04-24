@@ -34,7 +34,7 @@ if (!api_rate_limit('quick_post', 10, 60)) {
 $user = Auth::user();
 
 // 写真を保存
-$uploadDir = PUBLIC_DIR . '/uploads/photos/' . date('Y-m');
+$uploadDir = app_upload_path('photos/' . date('Y-m'));
 if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
 $savedPhotos = [];

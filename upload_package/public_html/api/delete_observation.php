@@ -45,7 +45,7 @@ if (!$deleted) {
     exit;
 }
 
-$photoDir = PUBLIC_DIR . '/uploads/photos/' . $observationId;
+$photoDir = app_upload_path('photos/' . $observationId);
 if (is_dir($photoDir)) {
     foreach (glob($photoDir . '/*') ?: [] as $file) {
         if (is_file($file)) {

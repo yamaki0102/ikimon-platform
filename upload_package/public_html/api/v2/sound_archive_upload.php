@@ -52,7 +52,7 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
     }
 
     $yearMonth = date('Y-m');
-    $imgDir = PUBLIC_DIR . "/uploads/images/archive/{$yearMonth}";
+    $imgDir = app_upload_path("images/archive/{$yearMonth}");
     if (!is_dir($imgDir)) mkdir($imgDir, 0755, true);
 
     $imgId = bin2hex(random_bytes(8));
@@ -85,7 +85,7 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
 
 // --- Save audio ---
 $yearMonth = date('Y-m');
-$audioDir = PUBLIC_DIR . "/uploads/audio/archive/{$yearMonth}";
+$audioDir = app_upload_path("audio/archive/{$yearMonth}");
 if (!is_dir($audioDir)) mkdir($audioDir, 0755, true);
 
 $id = 'sa_' . bin2hex(random_bytes(8));

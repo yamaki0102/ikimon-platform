@@ -1310,7 +1310,7 @@ function _generateDialogueAudio(string $text, string $voiceMode): ?string
     $combined = substr_replace($combined, pack('V', $dataSize), 40, 4);
 
     $yearMonth = date('Y-m');
-    $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
+    $dir = app_upload_path("audio/voice/{$yearMonth}");
     if (!is_dir($dir)) mkdir($dir, 0755, true);
     $wavName = 'vg_duo_' . bin2hex(random_bytes(6)) . '.wav';
     $wavPath = "{$dir}/{$wavName}";
@@ -1512,7 +1512,7 @@ function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?
     if ($httpCode !== 200 || !$wavData) return null;
 
     $yearMonth = date('Y-m');
-    $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
+    $dir = app_upload_path("audio/voice/{$yearMonth}");
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 
     $wavName = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
@@ -1582,7 +1582,7 @@ function _generateGeminiAudio(string $text, string $voiceMode = 'gemini-bright',
     $wavData = _pcmToWav($pcmData, 24000, 16, 1);
 
     $yearMonth = date('Y-m');
-    $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
+    $dir = app_upload_path("audio/voice/{$yearMonth}");
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 
     $wavName = 'vg_' . bin2hex(random_bytes(6)) . '.wav';

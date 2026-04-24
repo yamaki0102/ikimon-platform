@@ -35,14 +35,14 @@ class ThumbnailGenerator
 
         $generated = [];
         foreach ($observation['photos'] as $photoPath) {
-            $absPath = PUBLIC_DIR . '/' . $photoPath;
+            $absPath = app_public_path($photoPath);
             if (!file_exists($absPath)) {
                 continue;
             }
 
             foreach (self::PRESETS as $suffix => $maxDim) {
                 $thumbPath = self::thumbnailPath($photoPath, $suffix);
-                $absThumbPath = PUBLIC_DIR . '/' . $thumbPath;
+                $absThumbPath = app_public_path($thumbPath);
 
                 // 既に存在すればスキップ
                 if (file_exists($absThumbPath)) {
@@ -169,7 +169,7 @@ class ThumbnailGenerator
     public static function resolve(string $photoPath, string $suffix = 'sm'): string
     {
         $thumbPath = self::thumbnailPath($photoPath, $suffix);
-        $absThumbPath = PUBLIC_DIR . '/' . $thumbPath;
+        $absThumbPath = app_public_path($thumbPath);
 
         if (file_exists($absThumbPath)) {
             return $thumbPath;
@@ -183,13 +183,13 @@ class ThumbnailGenerator
      */
     public static function exists(string $photoPath, string $suffix = 'sm'): bool
     {
-        $absPath = PUBLIC_DIR . '/' . ltrim($photoPath, '/');
+        $absPath = app_public_path($photoPath);
         if (file_exists($absPath)) {
             return true;
         }
 
         $thumbPath = self::thumbnailPath($photoPath, $suffix);
-        $absThumbPath = PUBLIC_DIR . '/' . ltrim($thumbPath, '/');
+        $absThumbPath = app_public_path($thumbPath);
         return file_exists($absThumbPath);
     }
 

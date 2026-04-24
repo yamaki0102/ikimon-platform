@@ -305,7 +305,7 @@ function buildVideoAssetFromRequest(string $observationId, array $post, string $
     }
 
     $posterRelativePath = 'uploads/photos/' . $observationId . '/video_poster.jpg';
-    $posterAbsolutePath = PUBLIC_DIR . '/' . $posterRelativePath;
+    $posterAbsolutePath = app_public_path($posterRelativePath);
     if (fetchRemoteFile((string)($asset['thumbnail_url'] ?? ''), $posterAbsolutePath)) {
         $asset['poster_path'] = $posterRelativePath;
         $asset['poster_local'] = true;
@@ -446,7 +446,7 @@ $bytes = random_bytes(16);
 $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40); // version 4
 $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80); // variant RFC 4122
 $id = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
-$observation_dir = PUBLIC_DIR . '/uploads/photos/' . $id;
+$observation_dir = app_upload_path('photos/' . $id);
 
 $photos = [];
 $exifData = null; // FB-15: First photo's EXIF data

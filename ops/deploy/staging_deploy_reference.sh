@@ -8,21 +8,87 @@ set -euo pipefail
 
 APP_ROOT="/var/www/ikimon.life-staging"
 REPO_DIR="$APP_ROOT/repo"
-DATA_DIR="$REPO_DIR/upload_package/data"
-CONFIG_DIR="$REPO_DIR/upload_package/config"
-UPLOADS_DIR="$REPO_DIR/upload_package/public_html/uploads"
+WORKTREE_DATA_DIR="$REPO_DIR/upload_package/data"
+WORKTREE_CONFIG_DIR="$REPO_DIR/upload_package/config"
+WORKTREE_UPLOADS_DIR="$REPO_DIR/upload_package/public_html/uploads"
 PERSISTENT_ROOT="$APP_ROOT/persistent"
+PERSISTENT_DATA="$PERSISTENT_ROOT/data"
+PERSISTENT_CONFIG="$PERSISTENT_ROOT/config"
 PERSISTENT_UPLOADS="$PERSISTENT_ROOT/uploads"
+BACKUP_ROOT="$APP_ROOT/backups"
 CURRENT_BRANCH="${STAGING_BRANCH:-staging}"
 HEALTH_BASE_URL="${STAGING_BASE_URL:-http://127.0.0.1:8081}"
-BACKUP_DIR="$(mktemp -d /tmp/ikimon-staging-deploy-XXXX)"
-CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
+STAMP="$(date +%Y%m%d_%H%M%S)"
+RUNTIME_BACKUP_DIR="$BACKUP_ROOT/staging_runtime_externalized_$STAMP"
 
-cleanup() {
-    rm -rf "$BACKUP_DIR"
+sync_dir_contents() {
+    local src="$1"
+    local dst="$2"
+
+    if [ -d "$src" ]; then
+        mkdir -p "$dst"
+        rsync -a "$src/" "$dst/"
+    fi
 }
 
-trap cleanup EXIT
+seed_missing_dir_contents() {
+    local src="$1"
+    local dst="$2"
+
+    if [ -d "$src" ]; then
+        mkdir -p "$dst"
+        rsync -a --ignore-existing "$src/" "$dst/"
+    fi
+}
+
+backup_dir_contents() {
+    local src="$1"
+    local dst="$2"
+
+    if [ -d "$src" ]; then
+        mkdir -p "$dst"
+        rsync -a "$src/" "$dst/"
+    fi
+}
+
+copy_secret_if_present() {
+    local src="$1"
+    local dst="$2"
+
+    if [ -f "$src/secret.php" ]; then
+        mkdir -p "$dst"
+        cp -a "$src/secret.php" "$dst/secret.php"
+        chmod 600 "$dst/secret.php" || true
+    fi
+}
+
+sync_uploads_to_persistent() {
+    if [ ! -e "$WORKTREE_UPLOADS_DIR" ]; then
+        return
+    fi
+
+    mkdir -p "$PERSISTENT_UPLOADS"
+
+    local src_real
+    local dst_real
+    src_real="$(readlink -f "$WORKTREE_UPLOADS_DIR" 2>/dev/null || true)"
+    dst_real="$(readlink -f "$PERSISTENT_UPLOADS" 2>/dev/null || true)"
+    if [ -n "$src_real" ] && [ -n "$dst_real" ] && [ "$src_real" = "$dst_real" ]; then
+        return
+    fi
+
+    rsync -a "$WORKTREE_UPLOADS_DIR/" "$PERSISTENT_UPLOADS/" >/dev/null 2>&1 || true
+}
+
+verify_clean_worktree() {
+    local status
+    status="$(git status --porcelain)"
+    if [ -n "$status" ]; then
+        echo "Staging worktree is not clean after deploy:"
+        git status --short
+        exit 1
+    fi
+}
 
 if [ ! -d "$REPO_DIR/.git" ]; then
     echo "Staging repo is not initialized: $REPO_DIR"
@@ -35,54 +101,43 @@ echo "=== ikimon.life staging deploy ==="
 echo "Repo: $REPO_DIR"
 echo "Branch: $CURRENT_BRANCH"
 
-echo "[1/8] Fetch latest"
+echo "[1/9] Fetch latest"
 git fetch origin "$CURRENT_BRANCH" >/dev/null
-LOCAL_HEAD="$(git rev-parse HEAD)"
-REMOTE_HEAD="$(git rev-parse "origin/$CURRENT_BRANCH")"
-if [ "$LOCAL_HEAD" = "$REMOTE_HEAD" ]; then
-    echo "Already up to date ($LOCAL_HEAD)"
-else
-    echo "[2/8] Back up staging runtime data"
-    mkdir -p "$BACKUP_DIR/data" "$BACKUP_DIR/config" "$PERSISTENT_UPLOADS"
-    if [ -d "$DATA_DIR" ]; then
-        rsync -a "$DATA_DIR/" "$BACKUP_DIR/data/"
-    fi
 
-    echo "[3/8] Back up staging runtime config"
-    for file_name in "${CONFIG_FILES[@]}"; do
-        if [ -f "$CONFIG_DIR/$file_name" ]; then
-            cp -a "$CONFIG_DIR/$file_name" "$BACKUP_DIR/config/$file_name"
-        fi
-    done
+echo "[2/9] Back up current staging runtime"
+mkdir -p "$RUNTIME_BACKUP_DIR"
+backup_dir_contents "$PERSISTENT_DATA" "$RUNTIME_BACKUP_DIR/persistent/data"
+backup_dir_contents "$PERSISTENT_CONFIG" "$RUNTIME_BACKUP_DIR/persistent/config"
+backup_dir_contents "$PERSISTENT_UPLOADS" "$RUNTIME_BACKUP_DIR/persistent/uploads"
+backup_dir_contents "$WORKTREE_DATA_DIR" "$RUNTIME_BACKUP_DIR/worktree/data"
+backup_dir_contents "$WORKTREE_UPLOADS_DIR" "$RUNTIME_BACKUP_DIR/worktree/uploads"
+copy_secret_if_present "$WORKTREE_CONFIG_DIR" "$RUNTIME_BACKUP_DIR/worktree/config"
 
-    echo "[4/8] Sync staging uploads to persistent storage"
-    if [ -e "$UPLOADS_DIR" ]; then
-        rsync -a "$UPLOADS_DIR/" "$PERSISTENT_UPLOADS/" >/dev/null 2>&1 || true
-    fi
+echo "[3/9] Migrate runtime outside the git worktree"
+mkdir -p "$PERSISTENT_DATA" "$PERSISTENT_CONFIG" "$PERSISTENT_UPLOADS"
+sync_dir_contents "$WORKTREE_DATA_DIR" "$PERSISTENT_DATA"
+sync_uploads_to_persistent
+copy_secret_if_present "$WORKTREE_CONFIG_DIR" "$PERSISTENT_CONFIG"
 
-    echo "[5/8] Reset tracked code to origin/$CURRENT_BRANCH"
-    git checkout "$CURRENT_BRANCH" >/dev/null 2>&1 || git checkout -f "$CURRENT_BRANCH"
-    git reset --hard "origin/$CURRENT_BRANCH"
-
-    echo "[6/8] Restore staging runtime data and config"
-    mkdir -p "$DATA_DIR" "$CONFIG_DIR"
-    rsync -a "$BACKUP_DIR/data/" "$DATA_DIR/" >/dev/null 2>&1 || true
-    for file_name in "${CONFIG_FILES[@]}"; do
-        if [ -f "$BACKUP_DIR/config/$file_name" ]; then
-            cp -a "$BACKUP_DIR/config/$file_name" "$CONFIG_DIR/$file_name"
-        fi
-    done
+echo "[4/9] Reset tracked code to origin/$CURRENT_BRANCH"
+if [ -L "$WORKTREE_UPLOADS_DIR" ]; then
+    rm -f "$WORKTREE_UPLOADS_DIR"
 fi
+git checkout "$CURRENT_BRANCH" >/dev/null 2>&1 || git checkout -f "$CURRENT_BRANCH"
+git reset --hard "origin/$CURRENT_BRANCH"
 
-rm -rf "$UPLOADS_DIR"
-ln -sfn "$PERSISTENT_UPLOADS" "$UPLOADS_DIR"
+echo "[5/9] Remove leftover worktree runtime files"
+git clean -fd -- . >/dev/null
+git clean -fdX -- upload_package/data upload_package/config upload_package/public_html/uploads >/dev/null
 
-echo "[7/8] Fix permissions"
+echo "[6/9] Seed persistent data from repo defaults"
+seed_missing_dir_contents "$WORKTREE_DATA_DIR" "$PERSISTENT_DATA"
+
+echo "[7/9] Fix permissions"
 chown -R www-data:www-data "$REPO_DIR/upload_package"
 chown -R www-data:www-data "$PERSISTENT_ROOT"
-chown -h www-data:www-data "$UPLOADS_DIR" 2>/dev/null || true
 
-echo "[8/8] Verify staging health"
+echo "[8/9] Verify staging health"
 for url in \
     "$HEALTH_BASE_URL/index.php" \
     "$HEALTH_BASE_URL/explore.php" \
@@ -97,4 +152,8 @@ do
     echo "OK: $url => $status_code"
 done
 
+echo "[9/9] Verify clean git worktree"
+verify_clean_worktree
+
+echo "Runtime backup: $RUNTIME_BACKUP_DIR"
 echo "Staging deploy complete: $(git rev-parse --short HEAD)"

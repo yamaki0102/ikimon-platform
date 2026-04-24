@@ -67,7 +67,7 @@ $photoFiles = $_FILES['photos'] ?? [];
 $savedPhotos = [];
 
 if (!empty($photoFiles['name']) && is_array($photoFiles['name'])) {
-    $uploadDir = ROOT_DIR . '/data/uploads/scan/' . date('Y-m') . '/';
+    $uploadDir = app_upload_path('scan/' . date('Y-m')) . '/';
     if (!is_dir($uploadDir)) {
         @mkdir($uploadDir, 0755, true);
     }

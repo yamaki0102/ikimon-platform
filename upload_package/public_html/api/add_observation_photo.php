@@ -47,7 +47,7 @@ if (empty($_FILES['photos'])) {
     respond(false, '写真が選択されていません。');
 }
 
-$obsDir = PUBLIC_DIR . '/uploads/photos/' . $obsId;
+$obsDir = app_upload_path('photos/' . $obsId);
 if (!is_dir($obsDir) && !mkdir($obsDir, 0777, true)) {
     respond(false, 'フォルダの作成に失敗しました。');
 }

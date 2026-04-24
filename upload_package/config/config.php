@@ -7,8 +7,40 @@
 // Guard against duplicate inclusion (PHP 9: redefining constants is a fatal error)
 if (defined('APP_NAME')) return;
 
-// Load local secrets early (before constants that may be overridden)
-if (file_exists(__DIR__ . '/secret.php')) {
+// Paths
+define('ROOT_DIR', dirname(__DIR__));
+
+if (!function_exists('ikimon_runtime_root')) {
+    function ikimon_runtime_root(): string
+    {
+        $configured = getenv('IKIMON_RUNTIME_ROOT')
+            ?: ($_SERVER['IKIMON_RUNTIME_ROOT'] ?? ($_ENV['IKIMON_RUNTIME_ROOT'] ?? ''));
+
+        if (is_string($configured) && trim($configured) !== '') {
+            return rtrim(str_replace('\\', '/', trim($configured)), '/');
+        }
+
+        $repoRoot = dirname(ROOT_DIR);
+        $appRoot = dirname($repoRoot);
+        $candidate = $appRoot . '/persistent';
+
+        if (basename($appRoot) === 'ikimon.life-staging' && is_dir($candidate)) {
+            return $candidate;
+        }
+
+        return '';
+    }
+}
+
+$runtimeRoot = ikimon_runtime_root();
+define('IKIMON_RUNTIME_ROOT', $runtimeRoot);
+define('IKIMON_RUNTIME_CONFIG_DIR', IKIMON_RUNTIME_ROOT !== '' ? IKIMON_RUNTIME_ROOT . '/config' : __DIR__);
+
+// Load runtime secrets early (before constants that may be overridden).
+$runtimeSecret = IKIMON_RUNTIME_CONFIG_DIR . '/secret.php';
+if (is_file($runtimeSecret)) {
+    require_once $runtimeSecret;
+} elseif (is_file(__DIR__ . '/secret.php')) {
     require_once __DIR__ . '/secret.php';
 }
 
@@ -17,11 +49,38 @@ define('APP_NAME', 'ikimon');
 define('APP_VERSION', '0.4.0');
 define('NOINDEX_SITE', defined('NOINDEX_SITE_OVERRIDE') ? NOINDEX_SITE_OVERRIDE : true);
 
-// Paths
-define('ROOT_DIR', dirname(__DIR__));
-define('DATA_DIR', ROOT_DIR . '/data');
+define('DATA_DIR', IKIMON_RUNTIME_ROOT !== '' ? IKIMON_RUNTIME_ROOT . '/data' : ROOT_DIR . '/data');
 define('LIBS_DIR', ROOT_DIR . '/libs');
 define('PUBLIC_DIR', ROOT_DIR . '/public_html');
+define('UPLOADS_DIR', IKIMON_RUNTIME_ROOT !== '' ? IKIMON_RUNTIME_ROOT . '/uploads' : PUBLIC_DIR . '/uploads');
+
+if (!function_exists('app_public_path')) {
+    function app_public_path(string $path = ''): string
+    {
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if ($relative === '') {
+            return PUBLIC_DIR;
+        }
+
+        if ($relative === 'uploads' || str_starts_with($relative, 'uploads/')) {
+            return UPLOADS_DIR . substr($relative, strlen('uploads'));
+        }
+
+        return PUBLIC_DIR . '/' . $relative;
+    }
+}
+
+if (!function_exists('app_upload_path')) {
+    function app_upload_path(string $path = ''): string
+    {
+        $relative = ltrim(str_replace('\\', '/', $path), '/');
+        if (str_starts_with($relative, 'uploads/')) {
+            $relative = substr($relative, strlen('uploads/'));
+        }
+
+        return $relative === '' ? UPLOADS_DIR : UPLOADS_DIR . '/' . $relative;
+    }
+}
 
 // Session Security (must be set before session_start)
 if (session_status() === PHP_SESSION_NONE) {

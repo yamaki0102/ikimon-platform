@@ -196,7 +196,7 @@ api_success($result);
 function _saveAudioEvidence(array $file, string $mime): ?string
 {
     $yearMonth = date('Y-m');
-    $dir = PUBLIC_DIR . "/uploads/audio/{$yearMonth}";
+    $dir = app_upload_path("audio/{$yearMonth}");
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
     }
@@ -224,11 +224,11 @@ function _saveToArchive(array $file, string $mime, float $lat, float $lng, float
 
     if ($existingAudioPath) {
         $audioRelPath = $existingAudioPath;
-        $fullPath = PUBLIC_DIR . '/' . $existingAudioPath;
+        $fullPath = app_public_path($existingAudioPath);
         $hash = file_exists($fullPath) ? hash_file('sha256', $fullPath) : null;
     } else {
         $yearMonth = date('Y-m');
-        $dir = PUBLIC_DIR . "/uploads/audio/archive/{$yearMonth}";
+        $dir = app_upload_path("audio/archive/{$yearMonth}");
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }

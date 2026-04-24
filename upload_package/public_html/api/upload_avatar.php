@@ -54,7 +54,7 @@ $extMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
 $ext = $extMap[$mimeType] ?? 'jpg';
 
 // Create uploads/avatars directory
-$avatarDir = __DIR__ . '/../uploads/avatars';
+$avatarDir = app_upload_path('avatars');
 if (!is_dir($avatarDir)) {
     mkdir($avatarDir, 0755, true);
 }
@@ -79,7 +79,7 @@ $user['avatar'] = $avatarUrl;
 Auth::login($user);
 
 // Sync denormalized avatar in all observation files
-$obsDir = __DIR__ . '/../../data/observations';
+$obsDir = DATA_DIR . '/observations';
 if (is_dir($obsDir)) {
     foreach (glob($obsDir . '/*.json') as $file) {
         $data = json_decode(file_get_contents($file), true);
