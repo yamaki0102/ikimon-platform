@@ -165,11 +165,11 @@ for (const profile of MAP_VIEWPORTS) {
     if (blankPlaceOpened) {
       if (profile.isMobile) {
         await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
-        await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
-        await expect(page.locator("#me-bottom-inner")).toContainText("スキャン");
+        await expect(page.locator("#me-bottom-inner")).toContainText("その場で調べる");
+        await expect(page.locator("#me-bottom-inner")).toContainText("記録する");
       } else {
         await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(1);
-        await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
+        await expect(page.locator("#me-map-selection-card")).toContainText("その場で調べる");
       }
     }
 
@@ -203,7 +203,7 @@ test("map share state survives reload", async ({ browser }) => {
   const page = await context.newPage();
   await waitForMapReady(page);
 
-  await page.getByRole("button", { name: "鳥類" }).click();
+  await page.getByRole("button", { name: "鳥類", exact: true }).click();
   await page.getByRole("tab", { name: "調査前進" }).click();
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
