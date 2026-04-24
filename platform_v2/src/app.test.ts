@@ -47,3 +47,28 @@ test("app sends HSTS in production", async () => {
     }
   }
 });
+
+test("contact submit endpoint is rate-limited before mail or database work", async () => {
+  const app = buildApp();
+  try {
+    for (let i = 0; i < 5; i += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/contact/submit",
+        remoteAddress: "203.0.113.10",
+        payload: { category: "invalid", message: "hello contact" },
+      });
+      assert.equal(response.statusCode, 400);
+    }
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/api/v1/contact/submit",
+      remoteAddress: "203.0.113.10",
+      payload: { category: "invalid", message: "hello contact" },
+    });
+    assert.equal(limited.statusCode, 429);
+  } finally {
+    await app.close();
+  }
+});

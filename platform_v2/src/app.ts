@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
 import { loadConfig } from "./config.js";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
@@ -487,18 +488,13 @@ export function buildApp() {
   });
 
   void app.register(helmet, {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
-        frameAncestors: ["'self'"],
-        upgradeInsecureRequests: null,
-      },
-    },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: false },
+    contentSecurityPolicy: false,
+    hsts: false,
+    frameguard: false,
+    noSniff: false,
+    originAgentCluster: false,
+    permittedCrossDomainPolicies: false,
+    referrerPolicy: false,
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   });
@@ -577,7 +573,12 @@ export function buildApp() {
   void registerSampleReportRoute(app);
   void registerStewardshipActionRoutes(app);
   void registerReadRoutes(app);
-  void registerWriteRoutes(app);
+  void app.register(async (writeScope) => {
+    await writeScope.register(rateLimit, {
+      global: false,
+    });
+    await registerWriteRoutes(writeScope);
+  });
   void registerUiKpiRoutes(app);
   void registerOpsRoutes(app);
   void registerPlotMonitoringApiRoutes(app);
