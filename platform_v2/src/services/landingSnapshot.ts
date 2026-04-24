@@ -112,18 +112,20 @@ const FEED_SQL_BASE = `
     limit 1
   ) ai on true
   left join lateral (
-    select coalesce(ab.public_url, ab.storage_path) as public_url, ab.width_px, ab.height_px
+    select ab.public_url as public_url, ab.width_px, ab.height_px
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
     where ea.occurrence_id = o.occurrence_id
       and ea.asset_role = 'observation_photo'
+      and nullif(ab.public_url, '') is not null
     order by ea.created_at asc
     limit 1
   ) photo on true
   left join lateral (
-    select coalesce(ab.public_url, ab.storage_path) as public_url
+    select ab.public_url as public_url
     from asset_blobs ab
     where ab.blob_id = u.avatar_asset_id
+      and nullif(ab.public_url, '') is not null
     limit 1
   ) avatar on true
 `;
@@ -200,6 +202,11 @@ export type LandingHeroScoreContext = {
   now: Date;
   preferredMunicipalities: string[];
 };
+
+function hasResolvedDisplayName(candidate: LandingHeroCandidate): boolean {
+  const name = candidate.displayName.trim();
+  return name.length > 0 && name.toLowerCase() !== "unresolved";
+}
 
 function toLandingHeroCandidate(row: FeedRow): LandingHeroCandidate {
   return {
@@ -283,6 +290,7 @@ function scoreDailyVariation(candidate: LandingHeroCandidate, context: LandingHe
 
 export function isLandingHeroCandidateEligible(candidate: LandingHeroCandidate): boolean {
   if (!candidate.photoUrl) return false;
+  if (!hasResolvedDisplayName(candidate)) return false;
   if (candidate.publicLocation.scope === "blurred") return false;
   const width = candidate.photoWidthPx;
   const height = candidate.photoHeightPx;
@@ -640,18 +648,20 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          left join users u on u.user_id = v.user_id
          left join places p on p.place_id = v.place_id
          left join lateral (
-           select coalesce(ab.public_url, ab.storage_path) as public_url
+           select ab.public_url as public_url
            from evidence_assets ea
            join asset_blobs ab on ab.blob_id = ea.blob_id
            where ea.occurrence_id = o.occurrence_id
              and ea.asset_role = 'observation_photo'
+             and nullif(ab.public_url, '') is not null
            order by ea.created_at asc
            limit 1
          ) photo on true
          left join lateral (
-           select coalesce(ab.public_url, ab.storage_path) as public_url
+           select ab.public_url as public_url
            from asset_blobs ab
            where ab.blob_id = u.avatar_asset_id
+             and nullif(ab.public_url, '') is not null
            limit 1
          ) avatar on true
          where i.actor_user_id = $1
@@ -784,9 +794,10 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          limit 1
        ) latest_obs on true
        left join lateral (
-         select coalesce(ab.public_url, ab.storage_path) as public_url
+         select ab.public_url as public_url
          from asset_blobs ab
          where ab.blob_id = u.avatar_asset_id
+           and nullif(ab.public_url, '') is not null
          limit 1
        ) avatar on true
        where ${AMBIENT_USER_FIXTURE_EXCLUSION_SQL}

@@ -69,9 +69,10 @@ test("scoreLandingHeroCandidate is stable within the same date key and can move 
   assert.notEqual(first.dailyVariation, nextDay.dailyVariation);
 });
 
-test("isLandingHeroCandidateEligible rejects missing photos, blurred locations, and extreme aspect ratios", () => {
+test("isLandingHeroCandidateEligible rejects missing photos, unresolved names, blurred locations, and extreme aspect ratios", () => {
   assert.equal(isLandingHeroCandidateEligible(candidate()), true);
   assert.equal(isLandingHeroCandidateEligible(candidate({ photoUrl: null })), false);
+  assert.equal(isLandingHeroCandidateEligible(candidate({ displayName: "Unresolved" })), false);
   assert.equal(isLandingHeroCandidateEligible(candidate({
     publicLocation: {
       label: "Blurred",
