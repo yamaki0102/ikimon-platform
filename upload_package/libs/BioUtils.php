@@ -592,15 +592,21 @@ class BioUtils
             return true;
         }
 
-        if ($taxonName !== '' && $taxonName !== '未同定') {
+        if ($taxonName !== '' && !self::isUnresolvedTaxonLabel($taxonName)) {
             return true;
         }
 
-        if ($communityName !== '') {
+        if ($communityName !== '' && !self::isUnresolvedTaxonLabel($communityName)) {
             return true;
         }
 
         return $hasIdentifications;
+    }
+
+    public static function isUnresolvedTaxonLabel(string $value): bool
+    {
+        $normalized = mb_strtolower(trim($value));
+        return in_array($normalized, ['unresolved', 'awaiting id', '未同定', '同定待ち', '要同定'], true);
     }
 
     public static function isSpeciesResearchGrade(?string $value): bool
