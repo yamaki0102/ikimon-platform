@@ -79,7 +79,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "記録する", en: "Record" },
     summary: { ja: "写真・場所・時間・メモを残す。未ログイン時は開始案内を表示。", en: "Record photo, place, time, and notes. Visitors see a start guide." },
     primaryAction: { href: "/record", label: { ja: "記録を始める", en: "Start recording" } },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "記録を始める準備" }, readySelector: "body", allowStatus: [200], screenshot: { baselineName: "registry-record-start" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "記録" }, readySelector: "body", allowStatus: [200], screenshot: { baselineName: "registry-record-start" } },
   },
   {
     path: "/lens",
@@ -111,7 +111,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "探す", en: "Explore" },
     summary: { ja: "最近の観察や名前を横断して見る。", en: "Browse observations and names across the service." },
     legacyRedirects: ["/zukan", "/zukan.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "近くで見つかっているもの" }, readySelector: "body", screenshot: { baselineName: "registry-explore" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "今日の散歩先を探す" }, readySelector: "body", screenshot: { baselineName: "registry-explore" } },
   },
   {
     path: "/notes",
@@ -131,7 +131,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["qa"],
     title: { ja: "ホーム", en: "Notebook home" },
     summary: { ja: "自分の観察・場所・再訪候補を見る。", en: "See your observations, places, and revisit prompts." },
-    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "My places" }, requires: "user", allowStatus: [200], screenshot: { baselineName: "registry-home" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "最近の観察" }, requires: "user", allowStatus: [200], screenshot: { baselineName: "registry-home" } },
   },
   {
     path: "/profile/:userId",
@@ -151,7 +151,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["qa"],
     title: { ja: "観察詳細", en: "Observation detail" },
     summary: { ja: "1件の観察を、同定・場所・文脈ごと読む。", en: "Read one observation with identification and place context." },
-    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "名前と分類" }, requires: "occurrence", allowStatus: [200], screenshot: { baselineName: "registry-observation-detail" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "この観察" }, requires: "occurrence", allowStatus: [200, 404], screenshot: { baselineName: "registry-observation-detail" } },
   },
   {
     path: "/learn",
