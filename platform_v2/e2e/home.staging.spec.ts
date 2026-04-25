@@ -20,10 +20,11 @@ for (const profile of HOME_VIEWPORTS) {
 
     try {
       await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-      await expect(page.locator("#landing-hero-heading")).toContainText("いつもの散歩");
-      await expect(page.locator(".landing-hero-action.is-primary")).toBeVisible();
-      await expect(page.locator(".landing-hero-action.is-secondary")).toBeVisible();
-      await expect(page.locator(".landing-hero-live")).toBeVisible();
+      await expect(page.locator(".prototype-hero")).toBeVisible();
+      await expect(page.locator("#landing-hero-heading")).toContainText("身近な自然");
+      await expect(page.locator(".prototype-hero a[href*='/record']").first()).toBeVisible();
+      await expect(page.locator(".prototype-hero-visual")).toBeVisible();
+      await expect(page.locator(".prototype-hero-panel")).toBeVisible();
       await expect(page.locator(".landing-hero-timeline")).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
     } finally {
