@@ -1113,6 +1113,7 @@ const START_STATE_STYLES = `
   .start-guide-panel h2 { margin: 8px 0; color: #0f172a; }
   .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .start-guide-auth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.68); border: 1px solid rgba(15,23,42,.08); }
   @media (max-width: 820px) { .start-guide-grid { grid-template-columns: 1fr; } }
 `;
 
@@ -1151,6 +1152,10 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
           <div class="eyebrow">sign in required</div>
           <h2>記録本体は、セッションがあると開きます。</h2>
           <p>観察はあとから見返せる個人ノートとして残すため、投稿画面はログイン済みの状態で使います。未ログイン時は、ここで準備だけ確認できます。</p>
+          <div class="start-guide-auth-actions">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/record"))}">ログインして記録する</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/record"))}">新しく登録して記録する</a>
+          </div>
           <div class="start-guide-actions">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
             <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/faq"))}">FAQを見る</a>

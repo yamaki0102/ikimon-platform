@@ -37,6 +37,7 @@ import { createVideoDirectUpload, finalizeVideoUpload } from "../services/videoU
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
+import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
 import { seedStagingRegressionFixtures } from "../services/stagingRegressionFixtures.js";
@@ -54,6 +55,9 @@ function errorStatus(error: unknown, fallback = 400): number {
   }
   if (error.message === "session_required" || error.message === "account_disabled") {
     return 401;
+  }
+  if (error.message === "same_origin_required") {
+    return 403;
   }
   if (
     error.message.startsWith("forbidden") ||
@@ -84,6 +88,12 @@ function errorStatus(error: unknown, fallback = 400): number {
 }
 
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
+  app.addHook("preHandler", async (request) => {
+    if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS") {
+      assertSameOriginRequest(request);
+    }
+  });
+
   app.post<{
     Body: {
       userId: string;
