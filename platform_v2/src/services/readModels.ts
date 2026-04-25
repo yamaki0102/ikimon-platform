@@ -160,6 +160,14 @@ const PROFILE_DISPLAY_NAME_SQL = buildObserverNameSql({
   defaultFallback: "Observer",
 });
 
+const GUEST_PROFILE_DISPLAY_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Guest",
+});
+
 type VisitCardRow = {
   visit_id: string;
   observed_at: string;
@@ -836,12 +844,40 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
   );
 
   const user = userResult.rows[0];
-  if (!user) {
+  if (!user && !userId.startsWith("guest_")) {
     return null;
   }
 
   const home = await getHomeSnapshot(userId);
   const recentObservations = await loadVisitSummaryObservations(8, { userId });
+
+  if (!user) {
+    const guestResult = await pool.query<{
+      user_id: string;
+      display_name: string | null;
+    }>(
+      `select
+          v.user_id,
+          ${GUEST_PROFILE_DISPLAY_NAME_SQL} as display_name
+       from visits v
+       left join users u on u.user_id = v.user_id
+       where v.user_id = $1
+       order by v.observed_at desc
+       limit 1`,
+      [userId],
+    );
+    const guest = guestResult.rows[0];
+    if (!guest) {
+      return null;
+    }
+    return {
+      userId: guest.user_id,
+      displayName: guest.display_name ?? "Guest",
+      rankLabel: "Guest observer",
+      recentPlaces: home.myPlaces,
+      recentObservations,
+    };
+  }
 
   return {
     userId: user.user_id,
@@ -1032,6 +1068,7 @@ export type AmbientObserver = {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+  latestPhotoUrl: string | null;
   latestObservedAt: string;
   latestDisplayName: string;
 };

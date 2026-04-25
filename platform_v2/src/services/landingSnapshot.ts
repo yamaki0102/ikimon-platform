@@ -77,7 +77,7 @@ const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
 });
 
 const AMBIENT_OBSERVER_NAME_SQL = buildObserverNameSql({
-  userIdExpr: "u.user_id",
+  userIdExpr: "latest.user_id",
   displayNameExpr: "u.display_name",
   sourcePayloadExpr: "latest.source_payload",
   guestFallback: "Guest",
@@ -164,16 +164,18 @@ const AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
 });
 
+const AMBIENT_LOCAL_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v3.user_id",
+  visitIdColumn: "v3.visit_id",
+  visitSourceColumn: "coalesce(v3.source_payload->>'source', '')",
+});
+
 const AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v2.user_id",
   visitIdColumn: "v2.visit_id",
   occurrenceIdColumn: "o.occurrence_id",
   visitSourceColumn: "coalesce(v2.source_payload->>'source', '')",
   occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
-});
-
-const AMBIENT_USER_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
-  userIdColumn: "u.user_id",
 });
 
 function toLandingObservation(row: FeedRow): LandingObservation {
@@ -548,24 +550,46 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       user_id: string;
       display_name: string | null;
       avatar_url: string | null;
+      latest_photo_url: string | null;
       latest_observed_at: string;
       latest_display_name: string | null;
     }>(
-      `select
-         u.user_id,
+      `with latest_photo_visits as (
+         select distinct on (v.user_id)
+           v.user_id,
+           v.visit_id,
+           v.observed_at as latest_observed_at,
+           v.source_payload,
+           coalesce(v.observed_municipality, p.municipality) as municipality,
+           coalesce(v.point_latitude, p.center_latitude) as latitude,
+           coalesce(v.point_longitude, p.center_longitude) as longitude,
+           photo.public_url as latest_photo_url
+         from visits v
+         left join places p on p.place_id = v.place_id
+         join lateral (
+           select coalesce(ab.public_url, ab.storage_path) as public_url
+           from occurrences o
+           join evidence_assets ea
+             on (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
+            and ea.asset_role = 'observation_photo'
+           join asset_blobs ab on ab.blob_id = ea.blob_id
+           where o.visit_id = v.visit_id
+           order by ea.created_at asc
+           limit 1
+         ) photo on true
+         where v.user_id is not null
+           and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
+         order by v.user_id, v.observed_at desc
+       )
+       select
+         latest.user_id,
          ${AMBIENT_OBSERVER_NAME_SQL} as display_name,
          avatar.public_url as avatar_url,
+         latest.latest_photo_url,
          latest.latest_observed_at::text as latest_observed_at,
          latest_obs.display_name as latest_display_name
-       from users u
-       join lateral (
-         select v.user_id, v.observed_at as latest_observed_at, v.source_payload
-         from visits v
-         where v.user_id = u.user_id
-           and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
-         order by v.observed_at desc
-         limit 1
-       ) latest on true
+       from latest_photo_visits latest
+       left join users u on u.user_id = latest.user_id
        left join lateral (
          select coalesce(o.vernacular_name, o.scientific_name, ident.display_name, '同定待ち') as display_name
          from occurrences o
@@ -581,25 +605,52 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            order by i.created_at desc
            limit 1
          ) ident on true
-         where v2.user_id = u.user_id
+         where v2.visit_id = latest.visit_id
            and ${AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL}
-         order by v2.observed_at desc
+         order by o.subject_index asc, o.created_at asc
          limit 1
        ) latest_obs on true
+       left join lateral (
+         select count(distinct v3.visit_id)::int as nearby_photo_visits
+         from visits v3
+         left join places p3 on p3.place_id = v3.place_id
+         where v3.observed_at >= now() - interval '90 days'
+           and ${AMBIENT_LOCAL_VISIT_FIXTURE_EXCLUSION_SQL}
+           and exists (
+             select 1
+             from occurrences o3
+             join evidence_assets ea3
+               on (ea3.occurrence_id = o3.occurrence_id or ea3.visit_id = v3.visit_id)
+              and ea3.asset_role = 'observation_photo'
+             where o3.visit_id = v3.visit_id
+           )
+           and (
+             (latest.municipality is not null and coalesce(v3.observed_municipality, p3.municipality) = latest.municipality)
+             or (
+               latest.latitude is not null
+               and latest.longitude is not null
+               and coalesce(v3.point_latitude, p3.center_latitude) between latest.latitude - 0.12 and latest.latitude + 0.12
+               and coalesce(v3.point_longitude, p3.center_longitude) between latest.longitude - 0.12 and latest.longitude + 0.12
+             )
+           )
+       ) local_activity on true
        left join lateral (
          select coalesce(ab.public_url, ab.storage_path) as public_url
          from asset_blobs ab
          where ab.blob_id = u.avatar_asset_id
          limit 1
        ) avatar on true
-       where ${AMBIENT_USER_FIXTURE_EXCLUSION_SQL}
-       order by latest.latest_observed_at desc
+       order by
+         coalesce(local_activity.nearby_photo_visits, 0) desc,
+         case when latest.latest_observed_at >= now() - interval '14 days' then 1 else 0 end desc,
+         latest.latest_observed_at desc
        limit 8`,
     );
     ambient = ambientResult.rows.map((row) => ({
       userId: row.user_id,
       displayName: row.display_name ?? "Observer",
       avatarUrl: normalizeAssetUrl(row.avatar_url),
+      latestPhotoUrl: normalizeAssetUrl(row.latest_photo_url),
       latestObservedAt: row.latest_observed_at,
       latestDisplayName: resolveLandingDisplayName(row.latest_display_name, null),
     }));

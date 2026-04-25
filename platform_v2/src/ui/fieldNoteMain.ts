@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
+import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import type { LandingSnapshot } from "../services/readModels.js";
 import { renderObservationCard } from "./observationCard.js";
 import {
@@ -164,7 +165,7 @@ export function renderFieldNoteMain(
     if (!isLoggedIn || snapshot.myPlaces.length === 0) return "";
     const items = snapshot.myPlaces
       .slice(0, 6)
-      .map((place) => `<a class="fn-place-chip" href="${escapeHtml(appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.viewerUserId ?? "")}`), lang))}">
+      .map((place) => `<a class="fn-place-chip" href="${escapeHtml(appendLangToHref(buildObserverProfileHref(basePath, snapshot.viewerUserId) ?? "#", lang))}">
         <strong>${escapeHtml(place.placeName)}</strong>
         <span>${escapeHtml(place.municipality || "")} · ${place.visitCount}回</span>
       </a>`)
@@ -191,9 +192,10 @@ export function renderFieldNoteMain(
     const items = snapshot.ambient
       .slice(0, 6)
       .map((obs) => {
-        const href = appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(obs.userId)}`), lang);
-        const avatar = obs.avatarUrl
-          ? `<img src="${escapeHtml(obs.avatarUrl)}" alt="" loading="lazy" />`
+        const href = appendLangToHref(buildObserverProfileHref(basePath, obs.userId) ?? "#", lang);
+        const visualUrl = obs.latestPhotoUrl ?? obs.avatarUrl;
+        const avatar = visualUrl
+          ? `<img src="${escapeHtml(visualUrl)}" alt="" loading="lazy" />`
           : `<span class="fn-ambient-placeholder">${escapeHtml(obs.displayName.slice(0, 1))}</span>`;
         return `<a class="fn-ambient-item" href="${escapeHtml(href)}" title="${escapeHtml(obs.latestDisplayName)}">
           <span class="fn-ambient-avatar">${avatar}</span>
