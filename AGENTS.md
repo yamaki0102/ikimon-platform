@@ -9,10 +9,11 @@ Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_p
 > → `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` → `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` → `docs/KNOWLEDGE_OS_OVERVIEW.md` の順で読む
 > → overview 更新要否は `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` で確認する
 
-## Staging Fast Path
+## Runtime Fast Path
 
+- `ikimon.life` 本番の通常ルート `/` は **`platform_v2` Node runtime**。本番の login / record / map / API 調査は **まず `platform_v2/` から入る**
 - `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **まず `platform_v2/` から入る**
-- legacy PHP (`upload_package/`) は **`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` と言わない限り、staging 相談で最初に触らない
+- legacy PHP (`upload_package/`) は **互換・移行元・`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` と言わない限り、本番/ staging 相談で最初に触らない
 - staging の正準根拠は `ops/CUTOVER_RUNBOOK.md` と `ops/deploy/staging_ikimon_life_tls_reference.conf`
 - `staging` とだけ言われた場合のデフォルト解釈は **`platform_v2 staging`**。`upload_package` ではない
 

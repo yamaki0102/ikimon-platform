@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { buildClearedSessionCookie, issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
@@ -238,6 +238,32 @@ async function issueUserSession(request: FastifyRequest, userId: string) {
   });
 }
 
+async function handleOAuthCallback(
+  request: FastifyRequest<{
+    Params?: { provider?: string };
+    Querystring?: { provider?: unknown; state?: string; code?: string; error?: string };
+  }>,
+  reply: FastifyReply,
+  providerInput: unknown,
+) {
+  try {
+    const provider = providerFromParam(providerInput);
+    const state = readOAuthState(request.headers.cookie);
+    const query = request.query as { state?: string; code?: string; error?: string };
+    if (!state || state.provider !== provider || state.state !== query.state || !query.code || query.error) {
+      throw new Error("oauth_state_invalid");
+    }
+    const profile = await exchangeOAuthCode(provider, query.code, oauthRedirectUri(request, provider), state.codeVerifier);
+    const user = await findOrCreateOAuthUser(profile);
+    const session = await issueUserSession(request, user.userId);
+    reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
+    reply.code(303).redirect(withBasePath(requestBasePath(request), state.redirect));
+  } catch {
+    reply.header("set-cookie", [buildClearedSessionCookie(), buildClearedOAuthStateCookie()]);
+    reply.code(303).redirect(withBasePath(requestBasePath(request), "/login?error=oauth"));
+  }
+}
+
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.get("/login", async (request, reply) => {
     const basePath = requestBasePath(request);
@@ -312,21 +338,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get<{ Params: { provider: string } }>("/auth/oauth/:provider/callback", async (request, reply) => {
-    const provider = providerFromParam(request.params.provider);
-    const state = readOAuthState(request.headers.cookie);
-    try {
-      const query = request.query as { state?: string; code?: string; error?: string };
-      if (!state || state.provider !== provider || state.state !== query.state || !query.code || query.error) {
-        throw new Error("oauth_state_invalid");
-      }
-      const profile = await exchangeOAuthCode(provider, query.code, oauthRedirectUri(request, provider), state.codeVerifier);
-      const user = await findOrCreateOAuthUser(profile);
-      const session = await issueUserSession(request, user.userId);
-      reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
-      reply.code(303).redirect(withBasePath(requestBasePath(request), state.redirect));
-    } catch {
-      reply.header("set-cookie", [buildClearedSessionCookie(), buildClearedOAuthStateCookie()]);
-      reply.code(303).redirect(withBasePath(requestBasePath(request), "/login?error=oauth"));
-    }
+    await handleOAuthCallback(request, reply, request.params.provider);
+  });
+
+  app.get<{ Querystring: { provider?: unknown; state?: string; code?: string; error?: string } }>("/oauth_callback.php", async (request, reply) => {
+    await handleOAuthCallback(request, reply, request.query.provider);
   });
 }
