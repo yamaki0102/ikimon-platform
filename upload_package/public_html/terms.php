@@ -1,139 +1,172 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/Lang.php';
 Auth::init();
+Lang::init();
+
+$documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+
+$termsText = [
+    'title' => __('terms_page.title', 'Terms of Service — ikimon.life'),
+    'meta_title' => __('terms_page.meta_title', 'Terms of Service — ikimon.life'),
+    'meta_description' => __('terms_page.meta_description', 'Terms of Service for ikimon.life. Covers service use conditions, data handling, and Creative Commons licensing.'),
+    'updated_at' => __('terms_page.updated_at', 'Last updated: March 11, 2026'),
+    'section_1_title' => __('terms_page.section_1_title', 'Article 1 (Scope)'),
+    'section_1_body' => __('terms_page.section_1_body', 'These Terms of Service (the "Terms") define the conditions for using ikimon.life (the "Service"). By using the Service, users are deemed to have agreed to these Terms.'),
+    'section_2_title' => __('terms_page.section_2_title', 'Article 2 (Service Description)'),
+    'section_2_intro' => __('terms_page.section_2_intro', 'This Service is a citizen-participation biodiversity observation platform. Users can post wildlife observation records and participate in the community identification process.'),
+    'section_2_items' => [
+        __('terms_page.section_2_item_1', 'Post and view biological observation records'),
+        __('terms_page.section_2_item_2', 'Community species identification'),
+        __('terms_page.section_2_item_3', 'Use field maps, field guides, and rankings'),
+        __('terms_page.section_2_item_4', 'API and bulk exports (paid plan)'),
+    ],
+    'section_3_title' => __('terms_page.section_3_title', 'Article 3 (Accounts)'),
+    'section_3_body' => __('terms_page.section_3_body', 'Users may use the Service via Google authentication or guest mode. Users are responsible for managing their own account information.'),
+    'section_4_title' => __('terms_page.section_4_title', 'Article 4 (Posted Data and Licensing)'),
+    'section_4_badge_title' => __('terms_page.section_4_badge_title', '📋 Important: Creative Commons licensing'),
+    'section_4_badge_subtitle' => __('terms_page.section_4_badge_subtitle', 'Observation data posted by users is governed by the Creative Commons license selected at submission.'),
+    'section_4_items' => [
+        __('terms_page.section_4_item_1', 'CC0 Public Domain — rights waived; anyone may use it freely'),
+        __('terms_page.section_4_item_2', 'CC BY Attribution — anyone may use it with credit (recommended)'),
+        __('terms_page.section_4_item_3', 'CC BY-NC Attribution-NonCommercial — use permitted only for non-commercial purposes'),
+    ],
+    'section_4_body' => __('terms_page.section_4_body', 'The selected license cannot be changed after posting. Data posted under CC0 or CC BY may be shared internationally through GBIF (the Global Biodiversity Information Facility). CC BY-NC data is not shared with GBIF.'),
+    'section_5_title' => __('terms_page.section_5_title', 'Article 5 (Prohibited Acts)'),
+    'section_5_items' => [
+        __('terms_page.section_5_item_1', 'Posting false observation data'),
+        __('terms_page.section_5_item_2', 'Posting other people’s works (photos, etc.) without permission'),
+        __('terms_page.section_5_item_3', 'Intentionally publishing information that identifies endangered species habitats'),
+        __('terms_page.section_5_item_4', 'Interfering with the operation of the Service'),
+        __('terms_page.section_5_item_5', 'Misusing the API (e.g. bypassing rate limits)'),
+        __('terms_page.section_5_item_6', 'Encouraging poaching or illegal collecting'),
+    ],
+    'section_6_title' => __('terms_page.section_6_title', 'Article 6 (Paid Plans)'),
+    'section_6_body_1' => __('terms_page.section_6_body_1', 'Some features of the Service (such as API access, DwC-A export, and summary exports for sharing) are available only on paid plans. Pricing is listed on the <a href="for-business/#pricing" class="text-primary underline">pricing page</a>.'),
+    'section_6_body_2' => __('terms_page.section_6_body_2', 'Cancellations for paid plans are handled by email. You may continue using the Service until the end of the cancellation month.'),
+    'section_7_title' => __('terms_page.section_7_title', 'Article 7 (Protection of Endangered Species)'),
+    'section_7_body' => __('terms_page.section_7_body', 'Location information for species listed on the Ministry of Environment Red List and prefectural Red Lists is automatically randomized (within a 10 km radius) to prevent poaching.'),
+    'section_8_title' => __('terms_page.section_8_title', 'Article 8 (Disclaimer)'),
+    'section_8_body' => __('terms_page.section_8_body', 'The Service is provided "as is". The operator does not guarantee the accuracy of community identification results. If you use the Service for external materials or research, we recommend expert verification based on your purpose.'),
+    'section_9_title' => __('terms_page.section_9_title', 'Article 9 (Changes to the Terms)'),
+    'section_9_body' => __('terms_page.section_9_body', 'The operator may change these Terms when deemed necessary. Important changes will be announced in advance through postings on this page and notifications to the registered email address. The revised Terms take effect when posted on this page.'),
+    'section_10_title' => __('terms_page.section_10_title', 'Article 10 (Governing Law and Jurisdiction)'),
+    'section_10_body' => __('terms_page.section_10_body', 'These Terms are governed by Japanese law, and any dispute relating to the Service shall be subject to the exclusive jurisdiction of the Shizuoka District Court as the court of first instance.'),
+    'commerce_title' => __('terms_page.commerce_title', 'Commercial Transaction Act Notice'),
+    'commerce_rows' => [
+        ['label' => __('terms_page.commerce_seller_label', 'Seller'), 'value' => __('terms_page.commerce_seller', 'ikimon.life Operations Office')],
+        ['label' => __('terms_page.commerce_address_label', 'Address'), 'value' => __('terms_page.commerce_address', 'Disclosed upon inquiry')],
+        ['label' => __('terms_page.commerce_contact_label', 'Contact'), 'value' => __('terms_page.commerce_contact', 'contact@ikimon.life')],
+        ['label' => __('terms_page.commerce_price_label', 'Price'), 'value' => __('terms_page.commerce_price', 'Listed on the <a href="for-business/#pricing" class="text-primary underline">pricing page</a>')],
+        ['label' => __('terms_page.commerce_payment_label', 'Payment method'), 'value' => __('terms_page.commerce_payment', 'Bank transfer (invoice payment)')],
+        ['label' => __('terms_page.commerce_delivery_label', 'Delivery timing'), 'value' => __('terms_page.commerce_delivery', 'Account activation within the same day to 3 business days after payment is confirmed')],
+        ['label' => __('terms_page.commerce_cancellation_label', 'Returns / cancellation'), 'value' => __('terms_page.commerce_cancellation', 'Cancellation allowed at month end. You may continue using the Service through the cancellation month. No refunds in principle')],
+        ['label' => __('terms_page.commerce_environment_label', 'Operating environment'), 'value' => __('terms_page.commerce_environment', 'Latest Chrome, Safari, Firefox, and Edge. Internet connection required')],
+    ],
+];
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 
 <head>
     <?php
-    $meta_title = "利用規約 — ikimon.life";
-    $meta_description = "ikimon.life の利用規約。サービスの利用条件、データの取り扱い、クリエイティブ・コモンズライセンスについて。";
+    $meta_title = $termsText['meta_title'];
+    $meta_description = $termsText['meta_description'];
     include __DIR__ . '/components/meta.php';
     ?>
 </head>
 
 <body class="font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
-    <?php include __DIR__ . '/components/header.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="max-w-3xl mx-auto px-4 pt-24 pb-20 md:pt-28">
 
-        <h1 class="text-2xl md:text-3xl font-black tracking-tight text-text mb-2">📜 利用規約</h1>
-        <p class="text-xs text-muted mb-8">最終更新日: 2026年3月11日</p>
+        <h1 class="text-2xl md:text-3xl font-black tracking-tight text-text mb-2">📜 <?= htmlspecialchars($termsText['title']) ?></h1>
+        <p class="text-xs text-muted mb-8"><?= htmlspecialchars($termsText['updated_at']) ?></p>
 
         <div class="space-y-8 text-sm text-text leading-relaxed">
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第1条（適用）</h2>
-                <p>本利用規約（以下「本規約」）は、ikimon.life（以下「本サービス」）の利用に関する条件を定めるものです。ユーザーは本サービスを利用することにより、本規約に同意したものとみなします。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_1_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_1_body']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第2条（サービスの内容）</h2>
-                <p>本サービスは、市民参加型の生物多様性観察プラットフォームです。ユーザーは野生生物の観察記録を投稿し、コミュニティによる同定プロセスに参加できます。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_2_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_2_intro']), false) ?></p>
                 <ul class="list-disc list-inside mt-2 space-y-1 text-muted">
-                    <li>生物の観察記録の投稿・閲覧</li>
-                    <li>コミュニティによる種の同定</li>
-                    <li>フィールドマップ・図鑑・ランキングの利用</li>
-                    <li>API・まとめ出力（有料プラン）</li>
+                    <?php foreach ($termsText['section_2_items'] as $item): ?>
+                        <li><?= htmlspecialchars($item) ?></li>
+                    <?php endforeach; ?>
                 </ul>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第3条（アカウント）</h2>
-                <p>ユーザーはGoogle認証またはゲストモードでサービスを利用できます。アカウント情報の管理はユーザー自身の責任とします。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_3_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_3_body']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第4条（投稿データとライセンス）</h2>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_4_title']) ?></h2>
                 <div class="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-3">
-                    <p class="font-bold text-text mb-2">📋 重要: クリエイティブ・コモンズライセンス</p>
-                    <p class="text-muted">ユーザーが投稿する観察データには、投稿時に選択したクリエイティブ・コモンズライセンスが適用されます。</p>
+                    <p class="font-bold text-text mb-2"><?= htmlspecialchars($termsText['section_4_badge_title']) ?></p>
+                    <p class="text-muted"><?= htmlspecialchars($termsText['section_4_badge_subtitle']) ?></p>
                     <ul class="mt-3 space-y-2">
-                        <li class="flex items-start gap-2"><span class="text-primary font-bold">CC0</span> パブリックドメイン — 著作権を放棄。誰でも自由に利用可能</li>
-                        <li class="flex items-start gap-2"><span class="text-primary font-bold">CC BY</span> 表示 — クレジット表示のもと、誰でも利用可能（推奨）</li>
-                        <li class="flex items-start gap-2"><span class="font-bold text-secondary">CC BY-NC</span> 表示-非営利 — 非営利目的でのみ利用可能</li>
+                        <?php foreach ($termsText['section_4_items'] as $item): ?>
+                            <li class="flex items-start gap-2"><span><?= htmlspecialchars($item) ?></span></li>
+                        <?php endforeach; ?>
                     </ul>
                 </div>
-                <p>選択されたライセンスは投稿後に変更できません。CC0 および CC BY で投稿されたデータは、GBIF（地球規模生物多様性情報機構）を通じて国際的に共有される場合があります。CC BY-NC のデータは GBIF への共有対象外です。</p>
+                <p><?= nl2br(htmlspecialchars($termsText['section_4_body']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第5条（禁止事項）</h2>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_5_title']) ?></h2>
                 <ul class="list-disc list-inside space-y-1 text-muted">
-                    <li>虚偽の観察データの投稿</li>
-                    <li>他者の著作物（写真等）を無断で投稿する行為</li>
-                    <li>絶滅危惧種の生息地を特定する情報の意図的な公開</li>
-                    <li>本サービスの運営を妨害する行為</li>
-                    <li>API の不正利用（レートリミットの回避等）</li>
-                    <li>密猟・違法採集を助長する行為</li>
+                    <?php foreach ($termsText['section_5_items'] as $item): ?>
+                        <li><?= htmlspecialchars($item) ?></li>
+                    <?php endforeach; ?>
                 </ul>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第6条（有料プラン）</h2>
-                <p>本サービスの一部機能（API アクセス、DwC-A エクスポート、共有向けのまとめ出力等）は有料プランでのみ提供されます。料金は<a href="for-business/#pricing" class="text-primary underline">料金プランページ</a>に記載のとおりです。</p>
-                <p class="mt-2">有料プランの解約は、メールにて承ります。解約月の末日までサービスをご利用いただけます。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_6_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_6_body_1']), false) ?></p>
+                <p class="mt-2"><?= nl2br(htmlspecialchars($termsText['section_6_body_2']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第7条（絶滅危惧種の保護）</h2>
-                <p>環境省レッドリストおよび都道府県レッドリストに掲載されている種の位置情報は、密猟防止のため自動的にランダム化（半径10km圏内）されます。この処理はシステムにより自動的に行われ、ユーザーが解除することはできません。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_7_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_7_body']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第8条（免責事項）</h2>
-                <p>本サービスは「現状有姿」で提供されます。コミュニティによる同定結果の正確性について、運営者は保証しません。外部資料への利用や研究用途で用いる場合は、目的に応じて専門家による検証を推奨します。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_8_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_8_body']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第9条（規約の変更）</h2>
-                <p>運営者は、必要と判断した場合に本規約を変更できるものとします。重要な変更を行う場合は、本ページでの掲載および登録メールアドレスへの通知により、事前にお知らせします。変更後の利用規約は、本ページに掲載した時点より効力を生じるものとします。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_9_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_9_body']), false) ?></p>
             </section>
 
             <section>
-                <h2 class="text-lg font-black text-text mb-3">第10条（準拠法・管轄）</h2>
-                <p>本規約の解釈は日本法に準拠し、本サービスに関する紛争については静岡地方裁判所を第一審の専属的合意管轄裁判所とします。</p>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['section_10_title']) ?></h2>
+                <p><?= nl2br(htmlspecialchars($termsText['section_10_body']), false) ?></p>
             </section>
 
             <section class="border-t border-border pt-8">
-                <h2 class="text-lg font-black text-text mb-3">特定商取引法に基づく表示</h2>
+                <h2 class="text-lg font-black text-text mb-3"><?= htmlspecialchars($termsText['commerce_title']) ?></h2>
                 <div class="bg-surface border border-border rounded-2xl overflow-hidden">
                     <table class="w-full text-sm">
                         <tbody>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface w-1/3">販売業者</td>
-                                <td class="px-4 py-3">ikimon.life 運営事務局</td>
-                            </tr>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">所在地</td>
-                                <td class="px-4 py-3">お問い合わせにより開示</td>
-                            </tr>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">連絡先</td>
-                                <td class="px-4 py-3">contact@ikimon.life</td>
-                            </tr>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">販売価格</td>
-                                <td class="px-4 py-3"><a href="for-business/#pricing" class="text-primary underline">料金プランページ</a>に記載</td>
-                            </tr>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">支払方法</td>
-                                <td class="px-4 py-3">銀行振込（請求書払い）</td>
-                            </tr>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">引渡し時期</td>
-                                <td class="px-4 py-3">お支払い確認後、即日〜3営業日以内にアカウント有効化</td>
-                            </tr>
-                            <tr class="border-b border-border">
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">返品・解約</td>
-                                <td class="px-4 py-3">月末解約可。解約月は引き続きご利用いただけます。返金は原則不可</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 font-bold text-muted bg-surface">動作環境</td>
-                                <td class="px-4 py-3">最新のChrome, Safari, Firefox, Edge。インターネット接続必須</td>
-                            </tr>
+                            <?php foreach ($termsText['commerce_rows'] as $row): ?>
+                                <tr class="border-b border-border">
+                                    <td class="px-4 py-3 font-bold text-muted bg-surface w-1/3"><?= htmlspecialchars($row['label']) ?></td>
+                                    <td class="px-4 py-3"><?= $row['value'] ?></td>
+                                </tr>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>

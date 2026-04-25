@@ -5,6 +5,8 @@ $newBadges = $_SESSION['new_badges'] ?? [];
 if (!empty($newBadges)) {
     unset($_SESSION['new_badges']);
 }
+$badgeEarned = __('toast.badge_earned', 'Badge earned!');
+$closeLabel = __('toast.close', 'Close');
 ?>
 <?php if (!empty($newBadges)): ?>
 <div x-data="{ toasts: <?= htmlspecialchars(json_encode($newBadges, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>, current: 0, show: true }"
@@ -21,10 +23,10 @@ if (!empty($newBadges)) {
     <div class="bg-surface border border-primary/20 rounded-xl shadow-lg p-4 flex items-center gap-3">
         <span class="text-2xl" x-text="toasts[current]?.icon || '🏆'"></span>
         <div>
-            <p class="text-xs text-primary font-bold">バッジ獲得！</p>
-            <p class="text-sm font-bold text-text" x-text="toasts[current]?.name_ja || toasts[current]?.name"></p>
+            <p class="text-xs text-primary font-bold"><?= htmlspecialchars($badgeEarned) ?></p>
+            <p class="text-sm font-bold text-text" x-text="toasts[current]?.name || toasts[current]?.name_ja"></p>
         </div>
-        <button @click="show = false" class="ml-auto text-faint hover:text-text" aria-label="閉じる">
+        <button @click="show = false" class="ml-auto text-faint hover:text-text" aria-label="<?= htmlspecialchars($closeLabel) ?>">
             <i data-lucide="x" class="w-4 h-4"></i>
         </button>
     </div>

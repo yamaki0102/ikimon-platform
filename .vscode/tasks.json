@@ -1,0 +1,125 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Catchup: Generate Snapshot",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".\\scripts\\generate_catchup_snapshot.ps1"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Catchup: Generate Workspace",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".\\scripts\\generate_workspace_from_manifest.ps1"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Catchup: Verify Sync",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".\\scripts\\check_catchup_sync.ps1"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy: Guardrails",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".\\scripts\\check_deploy_guardrails.ps1"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy: Manifest Sync",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".\\scripts\\check_deploy_manifest_sync.ps1"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy: Remote Reference",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".\\scripts\\check_remote_deploy_reference.ps1"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "PHP: Lint",
+            "type": "shell",
+            "command": "composer",
+            "args": [
+                "lint"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "PHP: Test",
+            "type": "shell",
+            "command": "composer",
+            "args": [
+                "test"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Web: Dev Server",
+            "type": "shell",
+            "command": "php",
+            "args": [
+                "-S",
+                "localhost:8899",
+                "-t",
+                "upload_package/public_html"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Catchup: Refresh All",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Catchup: Generate Snapshot",
+                "Catchup: Generate Workspace",
+                "Catchup: Verify Sync"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

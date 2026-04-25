@@ -6,8 +6,15 @@
 function uploader() {
     const config = window.__POST_CONFIG || {};
     return {
+        copy: config.successGuidance || {},
         AiAssist: window.AiAssist,
         photos: [],
+        videoAsset: null,
+        videoPreview: '',
+        videoUploading: false,
+        videoUploadProgress: 0,
+        videoProcessing: false,
+        videoError: '',
         observed_at: '',
         lat: '34.7108',
         lng: '137.7261',
@@ -73,16 +80,18 @@ function uploader() {
         guestPostLimit: config.guestPostLimit ?? 3,
         csrfToken: config.csrfToken ?? '',
         survey_id: config.survey_id ?? null,
+        outboxCount: 0,
         showDetails: false,
         biome: 'unknown',
         biomeAutoSelected: false,
         biomeAutoReason: '',
         substrate_tags: [],
         evidence_tags: [],
+        mismatch: '',
         individual_count: null,
         record_mode: 'standard',
         lightMode: false,
-        locationGranularity: 'exact',
+        locationGranularity: 'municipality',
         canSurveyorOfficialPost: config.canSurveyorOfficialPost ?? false,
         aiSuggestions: [],
         aiSelectedIndices: [],
@@ -123,6 +132,14 @@ function uploader() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('taxon_name')) this.taxon_name = urlParams.get('taxon_name');
             if (urlParams.get('note')) this.note = urlParams.get('note');
+            if (urlParams.get('lat') && urlParams.get('lng')) {
+                this.lat = Number(urlParams.get('lat')).toFixed(6);
+                this.lng = Number(urlParams.get('lng')).toFixed(6);
+                this.locationSource = 'manual';
+            }
+            if (urlParams.get('location_name')) {
+                this.locationName = urlParams.get('location_name');
+            }
             if (urlParams.get('event_id')) {
                 this.event_id = urlParams.get('event_id');
                 this.event_name = urlParams.get('event_name') || '観察会';
@@ -190,6 +207,8 @@ function uploader() {
                         if (d.managed_context_type) this.managed_context_type = d.managed_context_type;
                         if (d.managed_site_name) this.managed_site_name = d.managed_site_name;
                         if (d.managed_context_note) this.managed_context_note = d.managed_context_note;
+                        if (d.locationGranularity) this.locationGranularity = d.locationGranularity;
+                        if (d.lightMode) this.lightMode = !!d.lightMode;
                     }
                 } catch (e) { }
             }
@@ -205,6 +224,11 @@ function uploader() {
                     }
                 }
             } catch (e) { /* no active session */ }
+
+            this.refreshOutboxCount();
+            window.addEventListener('offline-outbox-count', (event) => {
+                this.outboxCount = event.detail?.count ?? 0;
+            });
 
             // Auto-Save Draft
             this.$watch('note', val => this.saveDraft());
@@ -238,15 +262,20 @@ function uploader() {
 
         get canOpenForm() {
             return this.photos.length > 0
+                || !!this.videoAsset
+                || this.videoUploading
+                || this.videoProcessing
                 || this.lightMode
                 || (this.canSurveyorOfficialPost && this.record_mode === 'surveyor_official');
         },
 
         get canSubmit() {
             if (!this.canOpenForm) return false;
+            if (this.videoUploading || this.videoProcessing) return false;
+            const hasVideo = !!this.videoAsset;
             if (this.record_mode === 'surveyor_official') {
                 const hasLocation = !!this.lat && !!this.lng;
-                const hasSubstance = this.photos.length > 0 || this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
+                const hasSubstance = this.photos.length > 0 || hasVideo || this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
                 return hasLocation && hasSubstance;
             }
             if (this.lightMode) {
@@ -254,7 +283,60 @@ function uploader() {
                 const hasSubstance = this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
                 return hasLocation && hasSubstance;
             }
-            return this.photos.length > 0;
+            return this.photos.length > 0 || hasVideo;
+        },
+
+        get successGuidance() {
+            const rank = String(this.taxon_rank || '').toLowerCase();
+            const speciesOrBelow = ['species', 'subspecies', 'variety', 'form'].includes(rank);
+            const hasCoarseRank = rank !== '' && !speciesOrBelow;
+            const hasNameHypothesis = !!(this.taxon_slug || this.taxon_name.trim());
+            const progressBody = speciesOrBelow
+                ? (this.copy.progressBodySpecies || '')
+                : (hasCoarseRank ? (this.copy.progressBodyCoarse || '') : (this.copy.progressBodyDefault || ''));
+            const retakeBody = this.photos.length <= 1
+                ? (this.copy.retakeBodySingle || '')
+                : (this.copy.retakeBodyMulti || '');
+            const contributionBody = hasNameHypothesis
+                ? (this.copy.contributionBodyNamed || this.copy.contributionBodyDefault || '')
+                : (this.copy.contributionBodyDefault || '');
+
+            return {
+                sectionTitle: this.copy.sectionTitle || '',
+                sectionBody: this.copy.sectionBody || '',
+                cards: [
+                    {
+                        icon: '🪜',
+                        title: this.copy.progressTitle || '',
+                        body: progressBody,
+                    },
+                    {
+                        icon: '📷',
+                        title: this.copy.retakeTitle || '',
+                        body: retakeBody,
+                    },
+                    {
+                        icon: '🌍',
+                        title: this.copy.contributionTitle || '',
+                        body: contributionBody,
+                        note: this.copy.contributionNote || '',
+                    },
+                ],
+            };
+        },
+
+        get successRevisit() {
+            return {
+                title: this.copy.revisitTitle || '',
+                body: this.isLoggedIn
+                    ? (this.copy.revisitBodyLoggedIn || this.copy.revisitBodyDefault || '')
+                    : (this.copy.revisitBodyGuest || this.copy.revisitBodyDefault || ''),
+                note: this.copy.revisitNote || '',
+                collectionHref: this.isLoggedIn ? 'profile.php' : 'explore.php',
+                collectionLabel: this.isLoggedIn
+                    ? (this.copy.revisitCollectionProfile || '')
+                    : (this.copy.revisitCollectionExplore || ''),
+            };
         },
 
         ensureFormReady() {
@@ -349,7 +431,16 @@ function uploader() {
         },
 
         resetForm() {
+            if (this.videoPreview) {
+                URL.revokeObjectURL(this.videoPreview);
+            }
             this.photos = [];
+            this.videoAsset = null;
+            this.videoPreview = '';
+            this.videoUploading = false;
+            this.videoUploadProgress = 0;
+            this.videoProcessing = false;
+            this.videoError = '';
             this.taxon_name = '';
             this.taxon_slug = '';
             this.taxon_rank = '';
@@ -370,6 +461,8 @@ function uploader() {
             this.evidence_tags = [];
             this.individual_count = null;
             this.record_mode = 'standard';
+            this.lightMode = false;
+            this.locationGranularity = 'municipality';
             this.showDetails = false;
             this.submitting = false;
             this.success = false;
@@ -396,6 +489,23 @@ function uploader() {
             this.$nextTick(() => lucide.createIcons());
         },
 
+        continueAtSamePlace() {
+            this.resetForm();
+            this.showDetails = true;
+            this.$nextTick(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                    if (this.marker) {
+                        this.marker.setLatLng([this.lat, this.lng]);
+                    }
+                    this.map.flyTo([this.lat, this.lng], 16);
+                } else {
+                    setTimeout(() => this.initMapNow(), 200);
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        },
+
         saveDraft() {
             const draft = {
                 note: this.note,
@@ -420,6 +530,8 @@ function uploader() {
                 managed_context_type: this.managed_context_type,
                 managed_site_name: this.managed_site_name,
                 managed_context_note: this.managed_context_note,
+                locationGranularity: this.locationGranularity,
+                lightMode: this.lightMode,
                 timestamp: Date.now()
             };
             try {
@@ -427,6 +539,28 @@ function uploader() {
             } catch (e) {
                 console.warn('[Draft] localStorage full, skipping save');
             }
+        },
+
+        async refreshOutboxCount() {
+            try {
+                this.outboxCount = await window.offlineManager.getCount();
+            } catch (e) {
+                this.outboxCount = 0;
+            }
+        },
+
+        async queueObservation(formData, reason, errorMessage) {
+            await window.offlineManager.saveObservation(formData, {
+                reason,
+                error: errorMessage || ''
+            });
+            this.progress = 100;
+            this.success = true;
+            if (navigator.vibrate) navigator.vibrate([50, 50]);
+            alert('📱 端末に保存したよ！\n通信が安定したら自動で再送するから安心してね。');
+            localStorage.removeItem('draft_obs');
+            await this.refreshOutboxCount();
+            setTimeout(() => window.location.href = 'index.php', 500);
         },
 
         handleFiles(e) {
@@ -465,6 +599,233 @@ function uploader() {
                 };
                 reader.readAsDataURL(file);
             });
+        },
+
+        async handleVideoFile(e) {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            if (navigator.vibrate) navigator.vibrate(50);
+
+            this.videoError = '';
+            this.videoAsset = null;
+            this.videoUploadProgress = 0;
+            this.videoPreview = URL.createObjectURL(file);
+            this.videoProcessing = true;
+
+            try {
+                const prepared = await this.prepareVideoForUpload(file);
+                this.videoProcessing = false;
+                this.ensureFormReady();
+                await this.uploadVideoDirect(prepared.file, prepared.durationMs);
+            } catch (error) {
+                console.error('Video preparation failed:', error);
+                this.videoProcessing = false;
+                this.videoUploading = false;
+                this.videoAsset = null;
+                this.videoError = error?.message || '動画の準備に失敗しました。';
+            }
+        },
+
+        async prepareVideoForUpload(file) {
+            const metadata = await this.readVideoMetadata(file);
+            if (!Number.isFinite(metadata.durationMs) || metadata.durationMs <= 0) {
+                throw new Error('動画の長さを読み取れなかった。別の動画で試して。');
+            }
+            if (metadata.durationMs > 15000) {
+                throw new Error('動画は15秒以内にして。');
+            }
+
+            const compressed = await this.bestEffortCompressVideo(file);
+            const finalFile = compressed?.file || file;
+            const finalMetadata = compressed?.durationMs ? { durationMs: compressed.durationMs } : metadata;
+
+            return {
+                file: finalFile,
+                durationMs: finalMetadata.durationMs,
+            };
+        },
+
+        readVideoMetadata(file) {
+            return new Promise((resolve, reject) => {
+                const video = document.createElement('video');
+                const objectUrl = URL.createObjectURL(file);
+                video.preload = 'metadata';
+                video.muted = true;
+                video.playsInline = true;
+                video.onloadedmetadata = () => {
+                    const durationMs = Math.round((video.duration || 0) * 1000);
+                    URL.revokeObjectURL(objectUrl);
+                    resolve({ durationMs });
+                };
+                video.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    reject(new Error('動画メタデータの読み取りに失敗した。'));
+                };
+                video.src = objectUrl;
+            });
+        },
+
+        async bestEffortCompressVideo(file) {
+            const supportedMime = [
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm'
+            ].find(type => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type));
+
+            if (!supportedMime || typeof document.createElement('video').captureStream !== 'function' || file.size <= 8 * 1024 * 1024) {
+                const originalMeta = await this.readVideoMetadata(file);
+                return { file, durationMs: originalMeta.durationMs };
+            }
+
+            return new Promise(async (resolve) => {
+                const video = document.createElement('video');
+                const objectUrl = URL.createObjectURL(file);
+                video.src = objectUrl;
+                video.preload = 'auto';
+                video.muted = true;
+                video.playsInline = true;
+
+                const cleanup = () => URL.revokeObjectURL(objectUrl);
+                const fallback = async () => {
+                    cleanup();
+                    const originalMeta = await this.readVideoMetadata(file);
+                    resolve({ file, durationMs: originalMeta.durationMs });
+                };
+
+                video.onerror = fallback;
+                video.onloadedmetadata = async () => {
+                    const durationMs = Math.round((video.duration || 0) * 1000);
+                    if (durationMs <= 0 || durationMs > 15000) {
+                        cleanup();
+                        resolve({ file, durationMs });
+                        return;
+                    }
+
+                    let recorder;
+                    let stream;
+                    try {
+                        stream = video.captureStream();
+                        recorder = new MediaRecorder(stream, {
+                            mimeType: supportedMime,
+                            videoBitsPerSecond: 1_250_000,
+                            audioBitsPerSecond: 96_000,
+                        });
+                    } catch (error) {
+                        await fallback();
+                        return;
+                    }
+
+                    const chunks = [];
+                    recorder.ondataavailable = (event) => {
+                        if (event.data && event.data.size > 0) {
+                            chunks.push(event.data);
+                        }
+                    };
+                    recorder.onerror = fallback;
+                    recorder.onstop = () => {
+                        cleanup();
+                        const blob = new Blob(chunks, { type: supportedMime });
+                        if (!blob.size || blob.size >= file.size * 0.96) {
+                            resolve({ file, durationMs });
+                            return;
+                        }
+                        const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), {
+                            type: supportedMime,
+                            lastModified: Date.now(),
+                        });
+                        resolve({ file: compressedFile, durationMs });
+                    };
+
+                    try {
+                        recorder.start(250);
+                        await video.play();
+                        video.onended = () => {
+                            if (recorder.state !== 'inactive') {
+                                recorder.stop();
+                            }
+                            stream.getTracks().forEach(track => track.stop());
+                        };
+                    } catch (error) {
+                        if (recorder.state !== 'inactive') {
+                            recorder.stop();
+                        }
+                        if (stream) {
+                            stream.getTracks().forEach(track => track.stop());
+                        }
+                        await fallback();
+                    }
+                };
+            });
+        },
+
+        async uploadVideoDirect(file, durationMs) {
+            this.videoUploading = true;
+            this.videoUploadProgress = 5;
+
+            const requestBody = new FormData();
+            requestBody.append('csrf_token', this.csrfToken);
+            requestBody.append('filename', file.name);
+            requestBody.append('max_duration_seconds', '15');
+
+            const response = await fetch('api/create_stream_direct_upload.php', {
+                method: 'POST',
+                body: requestBody
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || '動画アップロードURLの取得に失敗した。');
+            }
+
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', payload.upload_url);
+                xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        this.videoUploadProgress = Math.max(10, Math.min(95, Math.round((event.loaded / event.total) * 100)));
+                    }
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve();
+                        return;
+                    }
+                    reject(new Error('Cloudflare Stream への動画アップロードに失敗した。'));
+                };
+                xhr.onerror = () => reject(new Error('動画アップロード中に通信エラーが起きた。'));
+                const uploadBody = new FormData();
+                uploadBody.append('file', file, file.name);
+                xhr.send(uploadBody);
+            });
+
+            this.videoUploading = false;
+            this.videoUploadProgress = 100;
+            this.videoAsset = {
+                uid: payload.uid,
+                durationMs,
+                bytes: file.size,
+                filename: file.name,
+                mime: file.type || 'video/mp4',
+                thumbnailUrl: payload.thumbnail_url,
+                watchUrl: payload.watch_url,
+                iframeUrl: payload.iframe_url,
+            };
+            if (window.ikimonAnalytics) ikimonAnalytics.track('video_added', {
+                bytes: file.size,
+                duration_ms: durationMs
+            });
+        },
+
+        clearVideo() {
+            if (this.videoPreview) {
+                URL.revokeObjectURL(this.videoPreview);
+            }
+            this.videoPreview = '';
+            this.videoAsset = null;
+            this.videoUploading = false;
+            this.videoUploadProgress = 0;
+            this.videoProcessing = false;
+            this.videoError = '';
         },
 
         removePhoto(index) {
@@ -588,6 +949,7 @@ function uploader() {
             // Analytics: 投稿送信イベント
             if (window.ikimonAnalytics) ikimonAnalytics.track('post_submit', {
                 photo_count: this.photos.length,
+                has_video: !!this.videoAsset,
                 has_taxon: !!this.taxon_name,
                 record_mode: this.record_mode
             });
@@ -621,8 +983,10 @@ function uploader() {
             if (this.biomeAutoReason) formData.append('biome_auto_reason', this.biomeAutoReason);
             if (this.substrate_tags.length > 0) formData.append('substrate_tags', JSON.stringify(this.substrate_tags));
             if (this.evidence_tags.length > 0) formData.append('evidence_tags', JSON.stringify(this.evidence_tags));
+            if (this.mismatch) formData.append('mismatch', this.mismatch);
             if (this.individual_count !== null && this.individual_count !== '') formData.append('individual_count', this.individual_count);
             formData.append('record_mode', this.record_mode);
+            if (this.lightMode) formData.append('light_mode', '1');
             if (this.locationGranularity !== 'exact') formData.append('location_granularity', this.locationGranularity);
 
             // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
@@ -648,6 +1012,14 @@ function uploader() {
                 }
             }
 
+            if (this.videoAsset) {
+                formData.append('stream_video_uid', this.videoAsset.uid);
+                formData.append('stream_video_duration_ms', String(this.videoAsset.durationMs || ''));
+                formData.append('stream_video_bytes', String(this.videoAsset.bytes || ''));
+                formData.append('stream_video_filename', this.videoAsset.filename || '');
+                formData.append('stream_video_mime', this.videoAsset.mime || '');
+            }
+
             // Network Logic with Offline Fallback
             try {
                 if (this.validationWarnings.length === 0 && this.hasConstraints && !this.validating && this.taxon_slug) {
@@ -659,14 +1031,18 @@ function uploader() {
                 });
 
                 const text = await res.text();
+                if (res.status >= 500) {
+                    console.error('Server Error (5xx):', res.status, text.slice(0, 200));
+                    await this.queueObservation(formData, `server_${res.status}`, text.slice(0, 200));
+                    return;
+                }
                 let result;
                 try {
                     result = JSON.parse(text);
                 } catch (e) {
-                    // Server returned non-JSON (500 error, HTML error page, etc.)
+                    // Server returned non-JSON (proxy failure, HTML error page, etc.)
                     console.error('Server Error (non-JSON):', text.slice(0, 200));
-                    alert('サーバーエラーが発生したよ 🙇\nもう一度試してみてね。\n\n' + text.slice(0, 80));
-                    this.submitting = false;
+                    await this.queueObservation(formData, 'non_json_response', text.slice(0, 200));
                     return;
                 }
 
@@ -728,13 +1104,7 @@ function uploader() {
                 if (e instanceof TypeError || !navigator.onLine) {
                     console.log('Network unavailable, saving to Outbox...', e);
                     try {
-                        await window.offlineManager.saveObservation(formData);
-                        this.progress = 100;
-                        this.success = true;
-                        if (navigator.vibrate) navigator.vibrate([50, 50]);
-                        alert('📱 端末に保存したよ！\nネットが繋がったら自動で送信されるから安心してね。');
-                        localStorage.removeItem('draft_obs');
-                        setTimeout(() => window.location.href = 'index.php', 500);
+                        await this.queueObservation(formData, 'network_error', e.message || 'network_error');
                     } catch (dbError) {
                         console.error('IndexedDB Failed:', dbError);
                         alert('ごめん、保存がうまくいかなかった... 🙇\nもう一回試してみてね');

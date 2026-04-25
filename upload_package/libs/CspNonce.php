@@ -53,15 +53,29 @@ class CspNonce
         }
 
         $nonce = self::get();
+        $streamCustomerSubdomain = defined('CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN') && CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN !== ''
+            ? 'https://' . CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN
+            : null;
+        $streamImgSrc = trim(implode(' ', array_filter([
+            'https://videodelivery.net',
+            $streamCustomerSubdomain,
+        ])));
+        $streamConnectSrc = trim(implode(' ', array_filter([
+            'https://upload.videodelivery.net',
+            'https://upload.cloudflarestream.com',
+            $streamCustomerSubdomain,
+        ])));
 
         $csp = implode('; ', [
             "default-src 'self'",
             "script-src 'self' 'nonce-{$nonce}' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://cdnjs.cloudflare.com https://www.googletagmanager.com",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com",
             "font-src 'self' https://fonts.gstatic.com https://protomaps.github.io data:",
-            "img-src 'self' data: blob: https://i.pravatar.cc https://*.tile.openstreetmap.jp https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://tile.openstreetmap.jp https://lh3.googleusercontent.com https://m.media-amazon.com https://cover.openbd.jp https://protomaps.github.io",
-            "connect-src 'self' https://api.gbif.org https://tile.openstreetmap.jp https://*.tile.openstreetmap.jp https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://nominatim.openstreetmap.org https://unpkg.com https://protomaps.github.io",
+            "img-src 'self' data: blob: https://i.pravatar.cc https://*.tile.openstreetmap.jp https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://tile.openstreetmap.jp https://lh3.googleusercontent.com https://m.media-amazon.com https://cover.openbd.jp https://protomaps.github.io {$streamImgSrc}",
+            "connect-src 'self' https://api.gbif.org https://tile.openstreetmap.jp https://*.tile.openstreetmap.jp https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://nominatim.openstreetmap.org https://unpkg.com https://protomaps.github.io {$streamConnectSrc}",
             "worker-src 'self' blob:",
+            "frame-src 'self' {$streamCustomerSubdomain}",
+            "media-src 'self' blob: {$streamCustomerSubdomain} https://videodelivery.net",
             "child-src 'self' blob:",
             "frame-ancestors 'self'",
             "base-uri 'self'",

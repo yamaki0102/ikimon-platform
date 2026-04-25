@@ -29,7 +29,7 @@
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold" style="color:#1a2e1f;" x-text="regionName"></span>
-                        <span class="text-[10px] font-bold text-primary" x-text="observedSpecies + '種を発見'"></span>
+                        <span class="text-[10px] font-bold text-primary" x-text="observedSpecies + completionText.speciesFound"></span>
                     </div>
                     <!-- Milestone Progress Bar -->
                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-1 overflow-hidden">
@@ -39,7 +39,7 @@
                 </div>
                 <div class="text-right shrink-0">
                     <div class="text-xs font-bold text-primary" x-text="'Lv.' + adventureLevel"></div>
-                    <div class="text-[10px]" style="color:#4b5563;" x-text="'次: ' + nextMilestone + '種'"></div>
+                    <div class="text-[10px]" style="color:#4b5563;" x-text="completionText.nextPrefix + nextMilestone + completionText.speciesSuffix"></div>
                 </div>
                 <i data-lucide="chevron-down" class="w-4 h-4 text-muted transition-transform duration-300" :class="expanded && 'rotate-180'"></i>
             </div>
@@ -51,7 +51,7 @@
                     <div>
                         <h4 class="text-[10px] font-bold text-muted uppercase tracking-widest mb-2 flex items-center gap-1">
                             <i data-lucide="sparkles" class="w-3 h-3 text-secondary"></i>
-                            最近の新規発見
+                            <?= htmlspecialchars(__('regional_completion.recent_title', 'Recent new finds')) ?>
                         </h4>
                         <div class="space-y-1.5">
                             <template x-for="d in recentDiscoveries.slice(0, 5)" :key="d.name">
@@ -69,7 +69,7 @@
                     <div>
                         <h4 class="text-[10px] font-bold text-muted uppercase tracking-widest mb-2 flex items-center gap-1">
                             <i data-lucide="building-2" class="w-3 h-3 text-primary"></i>
-                            市区町村別
+                            <?= htmlspecialchars(__('regional_completion.cities_title', 'By city')) ?>
                         </h4>
                         <div class="space-y-2">
                             <template x-for="(city, slug) in cities" :key="slug">
@@ -77,8 +77,8 @@
                                     <div class="flex items-center justify-between text-xs mb-0.5">
                                         <span class="font-bold text-text" x-text="city.name"></span>
                                         <div class="flex items-center gap-2">
-                                            <span class="text-[10px] font-bold text-primary" x-text="city.observed_species + '種'"></span>
-                                            <span class="text-[10px] text-muted" x-text="'→ ' + getMilestone(city.observed_species) + '種'"></span>
+                                            <span class="text-[10px] font-bold text-primary" x-text="city.observed_species + completionText.speciesSuffix"></span>
+                                            <span class="text-[10px] text-muted" x-text="'→ ' + getMilestone(city.observed_species) + completionText.speciesSuffix"></span>
                                         </div>
                                     </div>
                                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
@@ -93,7 +93,7 @@
 
                 <!-- CTA -->
                 <a href="explore.php" class="block text-center text-xs font-bold text-primary hover:text-primary-dark transition py-2">
-                    探索ページで詳しく見る →
+                    <?= htmlspecialchars(__('regional_completion.view_explore', 'See more on Discover')) ?> →
                 </a>
             </div>
         </div>
@@ -109,13 +109,13 @@
                         <i data-lucide="compass" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-black text-text font-heading" x-text="regionName + ' 生き物図鑑'"></h3>
-                        <p class="text-[10px] text-muted">みんなで種を発見しよう</p>
+                        <h3 class="text-lg font-black text-text font-heading" x-text="regionName + completionText.encyclopediaSuffix"></h3>
+                        <p class="text-[10px] text-muted"><?= htmlspecialchars(__('regional_completion.full_subtitle', 'Find more species together')) ?></p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-3xl font-black text-primary font-heading" x-text="observedSpecies + '種'"></div>
-                    <div class="text-[10px] text-muted" x-text="'Lv.' + adventureLevel + ' — 次: ' + nextMilestone + '種'"></div>
+                    <div class="text-3xl font-black text-primary font-heading" x-text="observedSpecies + completionText.speciesSuffix"></div>
+                    <div class="text-[10px] text-muted" x-text="'Lv.' + adventureLevel + ' — ' + completionText.nextPrefix + nextMilestone + completionText.speciesSuffix"></div>
                 </div>
             </div>
 
@@ -128,8 +128,8 @@
                     </div>
                 </div>
                 <div class="flex justify-between text-[10px] text-muted mt-1">
-                    <span x-text="observedSpecies + '種を発見'"></span>
-                    <span x-text="'次のマイルストーン: ' + nextMilestone + '種'"></span>
+                    <span x-text="observedSpecies + completionText.speciesFound"></span>
+                    <span x-text="completionText.nextMilestone + nextMilestone + completionText.speciesSuffix"></span>
                 </div>
             </div>
 
@@ -140,7 +140,7 @@
                         <div class="flex items-center justify-between mb-2">
                             <h4 class="text-sm font-bold text-text" x-text="city.name"></h4>
                             <div class="flex items-center gap-1.5">
-                                <span class="text-xs font-bold text-primary" x-text="city.observed_species + '種'"></span>
+                                <span class="text-xs font-bold text-primary" x-text="city.observed_species + completionText.speciesSuffix"></span>
                                 <span class="text-[10px] text-muted" x-text="'→ ' + getMilestone(city.observed_species)"></span>
                             </div>
                         </div>
@@ -149,13 +149,13 @@
                                 :style="'width:' + getMilestonePercent(city.observed_species) + '%'"></div>
                         </div>
                         <div class="flex items-center justify-between text-[10px] text-muted">
-                            <span x-text="city.total_observations + '件の観察'"></span>
-                            <span x-text="city.observer_count + '人が参加'"></span>
+                            <span x-text="city.total_observations + completionText.observationSuffix"></span>
+                            <span x-text="city.observer_count + completionText.participantSuffix"></span>
                         </div>
                         <!-- Recent in this city -->
                         <template x-if="city.recent_discoveries && city.recent_discoveries.length > 0">
                             <div class="mt-2 pt-2 border-t border-border/50">
-                                <div class="text-[10px] text-muted font-bold mb-1">✨ 最新発見</div>
+                                <div class="text-[10px] text-muted font-bold mb-1">✨ <?= htmlspecialchars(__('regional_completion.latest_title', 'Latest finds')) ?></div>
                                 <template x-for="rd in city.recent_discoveries.slice(0, 3)" :key="rd.name">
                                     <div class="text-[10px] text-text truncate" x-text="rd.name + ' (' + rd.discovered_at + ')'"></div>
                                 </template>
@@ -176,7 +176,15 @@
 <script nonce="<?= CspNonce::attr() ?>">
     // Milestone thresholds for species discovery
     const MILESTONES = [1, 5, 10, 25, 50, 100, 200, 500, 1000, 2500, 5000];
-    const LEVEL_NAMES = ['はじまり', '探索者', '観察者', '調査員', '博物学者', 'マスター', '達人', '賢者', '伝説', '神話', '完全制覇'];
+    const completionText = {
+        speciesFound: <?= json_encode(__('regional_completion.species_found_suffix', ' species found'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        speciesSuffix: <?= json_encode(__('regional_completion.species_suffix', ' species'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        nextPrefix: <?= json_encode(__('regional_completion.next_prefix', 'Next: '), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        nextMilestone: <?= json_encode(__('regional_completion.next_milestone_prefix', 'Next milestone: '), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        observationSuffix: <?= json_encode(__('regional_completion.observation_suffix', ' observations'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        participantSuffix: <?= json_encode(__('regional_completion.participant_suffix', ' participants'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        encyclopediaSuffix: <?= json_encode(__('regional_completion.encyclopedia_suffix', ' Nature Index'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
+    };
 
     function getNextMilestone(count) {
         for (const m of MILESTONES) {
@@ -224,7 +232,7 @@
                     const res = await fetch('api/get_exploration_stats.php?region=jp_shizuoka');
                     const data = await res.json();
 
-                    this.regionName = data.region_name || '静岡県';
+                    this.regionName = data.region_name || <?= json_encode(__('regional_completion.default_region', 'Shizuoka'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
                     this.observedSpecies = data.observed_species || 0;
                     this.estimatedSpecies = data.estimated_species || 1;
                     this.completionPercent = this.estimatedSpecies > 0 ?

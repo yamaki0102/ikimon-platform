@@ -56,7 +56,7 @@ $header = AffiliateManager::getContextHeader($affiliateContext ?? 'encyclopedia'
         <?php endforeach; ?>
     </div>
 
-    <p class="aff-disclosure">※ リンクを経由して購入されると、運営に紹介料が入ります</p>
+    <p class="aff-disclosure"><?= htmlspecialchars(__('affiliate.disclosure', 'We may receive a referral fee if you buy through these links.')) ?></p>
 </section>
 
 <style>

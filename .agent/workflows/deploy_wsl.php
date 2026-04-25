@@ -22,6 +22,15 @@ if (!file_exists($configFile)) {
 }
 
 $config = json_decode(file_get_contents($configFile), true);
+$mode = $config['Mode'] ?? 'legacy_rsync';
+
+if ($mode === 'github_actions_only') {
+    echo "\033[33mThis repository disables WSL rsync deploy.\033[0m\n";
+    echo "Use PR -> merge to main -> GitHub Actions instead.\n";
+    echo "See docs/DEPLOYMENT.md and ops/deploy/deploy_manifest.json\n";
+    exit(1);
+}
+
 $required = ['TargetName', 'LocalDir', 'SshAlias', 'RemoteBase'];
 foreach ($required as $req) {
     if (empty($config[$req])) {

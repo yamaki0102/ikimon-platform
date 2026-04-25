@@ -1,95 +1,98 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/Lang.php';
 Auth::init();
+Lang::init();
 
-$meta_title = '解説ガイド一覧';
-$meta_description = 'ネイチャーポジティブ、地方創生、生物多様性、健康、企業導入まで。ikimon.life の解説コンテンツをまとめて読める一覧ページです。';
+$documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+$meta_title = __('guides_page.meta_title', 'Guide list');
+$meta_description = __('guides_page.meta_description', 'A theme-based list of ikimon guides covering nature positive, regional development, biodiversity, health, and organizational adoption.');
 
 $guideGroups = [
     [
-        'label' => '自然と社会',
-        'description' => 'ネイチャーポジティブや地域の自然資本を、社会実装の視点でつかむ。',
+        'label' => __('guides_page.group_1_label', 'Nature and society'),
+        'description' => __('guides_page.group_1_description', 'Understand nature positive and local natural capital through a social implementation lens.'),
         'accent' => 'from-emerald-500/15 via-cyan-500/10 to-sky-500/10',
         'border' => 'border-emerald-200/80',
         'items' => [
             [
                 'href' => '/guide/nature-positive.php',
-                'title' => 'ネイチャーポジティブ完全ガイド',
-                'summary' => '自然再興の全体像と、日常の観察行動につなげる入口。',
+                'title' => __('guides_page.nature_positive_title', 'Nature Positive complete guide'),
+                'summary' => __('guides_page.nature_positive_summary', 'A practical entry point from the big picture of nature recovery to everyday observation.'),
             ],
             [
                 'href' => '/guide/what-is-nature-positive.php',
-                'title' => 'ネイチャーポジティブとは？',
-                'summary' => '30by30 や世界目標を最短で理解する入門編。',
+                'title' => __('guides_page.what_is_nature_positive_title', 'What is nature positive?'),
+                'summary' => __('guides_page.what_is_nature_positive_summary', 'A short introduction to 30by30 and the global goals behind it.'),
             ],
             [
                 'href' => '/guide/japan-biodiversity.php',
-                'title' => '日本の生物多様性',
-                'summary' => '日本の固有性と国際的な位置づけをデータで把握する。',
+                'title' => __('guides_page.japan_biodiversity_title', 'Biodiversity in Japan'),
+                'summary' => __('guides_page.japan_biodiversity_summary', 'Use data to understand Japan’s uniqueness and international position.'),
             ],
             [
                 'href' => '/guide/satoyama-initiative.php',
-                'title' => '里山イニシアチブとは？',
-                'summary' => '里山・OECM・市民科学の接点を整理する。',
+                'title' => __('guides_page.satoyama_title', 'What is the Satoyama Initiative?'),
+                'summary' => __('guides_page.satoyama_summary', 'Sort out the overlap between satoyama, OECM, and citizen science.'),
             ],
             [
                 'href' => '/guide/regional-biodiversity.php',
-                'title' => '地方創生と生物多様性',
-                'summary' => '自然資本を活かした地域再生の可能性を読む。',
+                'title' => __('guides_page.regional_biodiversity_title', 'Regional revitalization and biodiversity'),
+                'summary' => __('guides_page.regional_biodiversity_summary', 'Read how natural capital can support regional renewal.'),
             ],
         ],
     ],
     [
-        'label' => '健康と学び',
-        'description' => '歩くこと、観察すること、見分けることが脳と身体にどう効くか。',
+        'label' => __('guides_page.group_2_label', 'Health and learning'),
+        'description' => __('guides_page.group_2_description', 'How walking, observing, and identifying affect the brain and body.'),
         'accent' => 'from-amber-500/15 via-orange-500/10 to-rose-500/10',
         'border' => 'border-amber-200/80',
         'items' => [
             [
                 'href' => '/guide/walking-brain-science.php',
-                'title' => '自然の中を歩くと脳に何が起きるのか？',
-                'summary' => 'お散歩と自然観察の健康効果を科学的に解説。',
+                'title' => __('guides_page.walking_brain_title', 'What happens to the brain when you walk in nature?'),
+                'summary' => __('guides_page.walking_brain_summary', 'A science-based look at the health effects of walking and nature observation.'),
             ],
             [
                 'href' => '/guide/steps-dementia-prevention.php',
-                'title' => '1日9,800歩で認知症リスク51%減',
-                'summary' => '歩数研究をもとに、継続しやすい実践に落とし込む。',
+                'title' => __('guides_page.steps_title', '9,800 steps a day and lower dementia risk'),
+                'summary' => __('guides_page.steps_summary', 'Turn walking research into something sustainable in daily life.'),
             ],
             [
                 'href' => '/guide/species-id-brain-training.php',
-                'title' => '種同定は脳トレだった',
-                'summary' => '見分ける力が認知機能にどう効くかを追う。',
+                'title' => __('guides_page.id_brain_title', 'Species ID as brain training'),
+                'summary' => __('guides_page.id_brain_summary', 'Explore how identification skills connect to cognition.'),
             ],
         ],
     ],
     [
-        'label' => '組織導入と分析',
-        'description' => '企業・自治体・研究用途に近い視点の読み物と分析記事。',
+        'label' => __('guides_page.group_3_label', 'Organizational adoption and analysis'),
+        'description' => __('guides_page.group_3_description', 'Guides and analysis closer to company, municipality, and research use cases.'),
         'accent' => 'from-violet-500/15 via-fuchsia-500/10 to-indigo-500/10',
         'border' => 'border-violet-200/80',
         'items' => [
             [
                 'href' => '/guide/corporate-walking-program.php',
-                'title' => '企業向けお散歩プログラム',
-                'summary' => '健康経営と生物多様性推進を両立させる導入論。',
+                'title' => __('guides_page.corporate_walking_title', 'Walking programs for organizations'),
+                'summary' => __('guides_page.corporate_walking_summary', 'An introduction to combining wellbeing initiatives with biodiversity action.'),
             ],
             [
                 'href' => '/guide/nature-coexistence-sites-analysis.php',
-                'title' => '自然共生サイト全件分析',
-                'summary' => '全国認定サイトの分布と傾向をまとめて把握する。',
+                'title' => __('guides_page.coexistence_analysis_title', 'Full analysis of nature coexistence sites'),
+                'summary' => __('guides_page.coexistence_analysis_summary', 'Review the distribution and patterns of certified sites across Japan.'),
             ],
             [
                 'href' => '/guide/ikimon-approach.php',
-                'title' => 'ikimon のアプローチ',
-                'summary' => 'ikimon が目指す設計思想と地域連携の考え方。',
+                'title' => __('guides_page.ikimon_approach_title', 'The ikimon approach'),
+                'summary' => __('guides_page.ikimon_approach_summary', 'The product philosophy behind ikimon and its regional collaboration model.'),
             ],
         ],
     ],
 ];
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
@@ -100,22 +103,21 @@ $guideGroups = [
         <section class="relative overflow-hidden border-b border-[var(--color-border)] bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.10),_transparent_30%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,249,0.98))]">
             <div class="max-w-6xl mx-auto px-4 md:px-6 pt-24 md:pt-28 pb-14 md:pb-18">
                 <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-200 bg-white/80 text-emerald-700 text-xs font-black tracking-[0.18em] uppercase">
-                    Guides
+                    <?= htmlspecialchars(__('guides_page.eyebrow', 'Guides')) ?>
                 </span>
-                <h1 class="mt-6 text-4xl md:text-6xl font-black tracking-tight text-text">解説ガイド一覧</h1>
+                <h1 class="mt-6 text-4xl md:text-6xl font-black tracking-tight text-text"><?= htmlspecialchars(__('guides_page.title', 'Guide list')) ?></h1>
                 <p class="mt-5 max-w-3xl text-base md:text-lg leading-8 text-muted">
-                    フッターから消えていた解説コンテンツを、テーマ別にまとめ直しました。
-                    ネイチャーポジティブ、地方創生、日本の生物多様性、健康、企業導入までここから辿れます。
+                    <?= htmlspecialchars(__('guides_page.lead', 'The guide articles that had become hard to reach from the footer are now regrouped by theme. Start here for nature positive, regional revitalization, biodiversity in Japan, health, and organizational adoption.')) ?>
                 </p>
                 <div class="mt-8 flex flex-wrap gap-3 text-sm font-bold text-muted">
                     <a href="/guide/regional-biodiversity.php" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-white px-4 py-2 hover:border-emerald-300 hover:text-text transition">
-                        地方創生と生物多様性
+                        <?= htmlspecialchars(__('guides_page.regional_biodiversity_title', 'Regional revitalization and biodiversity')) ?>
                     </a>
                     <a href="/guide/nature-positive.php" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-white px-4 py-2 hover:border-emerald-300 hover:text-text transition">
-                        ネイチャーポジティブ完全ガイド
+                        <?= htmlspecialchars(__('guides_page.nature_positive_title', 'Nature Positive complete guide')) ?>
                     </a>
                     <a href="/guide/walking-brain-science.php" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-white px-4 py-2 hover:border-emerald-300 hover:text-text transition">
-                        お散歩と脳科学
+                        <?= htmlspecialchars(__('guides_page.walking_brain_short', 'Walking and brain science')) ?>
                     </a>
                 </div>
             </div>
@@ -125,7 +127,7 @@ $guideGroups = [
             <?php foreach ($guideGroups as $group): ?>
                 <section class="rounded-3xl border <?= htmlspecialchars($group['border'], ENT_QUOTES, 'UTF-8') ?> bg-white/90 shadow-sm overflow-hidden">
                     <div class="bg-gradient-to-r <?= htmlspecialchars($group['accent'], ENT_QUOTES, 'UTF-8') ?> px-6 md:px-8 py-6 border-b border-[var(--color-border)]">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-faint">Guide Cluster</p>
+                        <p class="text-xs font-black uppercase tracking-[0.18em] text-faint"><?= htmlspecialchars(__('guides_page.cluster_label', 'Guide cluster')) ?></p>
                         <h2 class="mt-2 text-2xl md:text-3xl font-black text-text"><?= htmlspecialchars($group['label'], ENT_QUOTES, 'UTF-8') ?></h2>
                         <p class="mt-3 max-w-3xl text-sm md:text-base leading-7 text-muted"><?= htmlspecialchars($group['description'], ENT_QUOTES, 'UTF-8') ?></p>
                     </div>

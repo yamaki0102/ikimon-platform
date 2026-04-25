@@ -17,7 +17,7 @@ function _sensor_detection_body(?string $speciesName, string $sciName, bool $has
         }
     } else {
         $color = 'text-primary';
-        $html .= '<p class="text-xs ' . $color . ' font-bold">同定中</p>';
+        $html .= '<p class="text-xs ' . $color . ' font-bold">' . htmlspecialchars(__('feed_card.identifying', 'Identifying')) . '</p>';
     }
 
     $parts = [];
@@ -62,6 +62,8 @@ function _obs_card_menu(string $obsId, string $detailUrl, string $title, bool $l
 {
     $safeTitle = htmlspecialchars($title, ENT_QUOTES);
     $safeDetail = htmlspecialchars($detailUrl);
+    $viewLabel = htmlspecialchars(__('feed_card.view_details', 'View details'));
+    $shareLabel = htmlspecialchars(__('feed_card.share', 'Share'));
     return <<<HTML
     <div class="relative">
         <button @click.stop="menuOpen = !menuOpen" class="p-2 transition rounded-full text-faint hover:bg-surface">
@@ -70,11 +72,11 @@ function _obs_card_menu(string $obsId, string $detailUrl, string $title, bool $l
         <div x-show="menuOpen" x-transition.opacity.duration.150ms
             style="position:absolute;right:0;top:100%;margin-top:4px;width:11rem;background:var(--md-surface-container-high);border-radius:var(--shape-md);box-shadow:var(--elev-3);z-index:30;padding:4px 0;overflow:hidden;">
             <a href="{$safeDetail}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition">
-                <i data-lucide="eye" class="w-4 h-4 text-faint"></i>詳細を見る
+                <i data-lucide="eye" class="w-4 h-4 text-faint"></i>{$viewLabel}
             </a>
             <button @click="menuOpen=false;let u=location.origin+'/{$safeDetail}';if(navigator.share){navigator.share({title:'{$safeTitle}',url:u}).catch(()=>{})}else{navigator.clipboard.writeText(u)}"
                 class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition text-left">
-                <i data-lucide="share-2" class="w-4 h-4 text-faint"></i>シェアする
+                <i data-lucide="share-2" class="w-4 h-4 text-faint"></i>{$shareLabel}
             </button>
         </div>
     </div>

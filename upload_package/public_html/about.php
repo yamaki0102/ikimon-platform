@@ -2,24 +2,132 @@
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/CspNonce.php';
 require_once __DIR__ . '/../libs/BrandMessaging.php';
+require_once __DIR__ . '/../libs/Lang.php';
 Auth::init();
+Lang::init();
 CspNonce::sendHeader();
 
 $isLoggedIn = Auth::isLoggedIn();
 $ctaHref = $isLoggedIn ? 'post.php' : 'login.php?redirect=post.php';
-$ctaLabel = $isLoggedIn ? '観察を始める' : '無料で始める';
+$documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+$ctaLabel = $isLoggedIn
+    ? __('about_page.cta_primary_logged_in', 'Start observing')
+    : __('about_page.cta_primary_logged_out', 'Start free');
 
-$meta_title = 'ikimonの想い — 自然が、子どもとまちを結ぶ | ikimon';
+$meta_title = __('about_page.meta_title', 'Why ikimon exists — Nature connects children and towns | ikimon');
 $regionalMessaging = BrandMessaging::regionalRevitalization();
 $supportPlans = [
     $regionalMessaging['free_plan'],
     $regionalMessaging['community_plan'],
     $regionalMessaging['public_plan'],
 ];
-$meta_description = $regionalMessaging['about_meta_description'];
+$meta_description = __('about_page.meta_description', $regionalMessaging['about_meta_description']);
+$signatureName = $documentLang === 'ja' ? '八巻 毅' : 'Tsuyoshi Yamaki';
+$signatureTitle = $documentLang === 'ja' ? 'IKIMON株式会社 代表' : 'Founder, IKIMON Co., Ltd.';
+$contactLocation = $documentLang === 'ja' ? '静岡県浜松市' : 'Hamamatsu, Shizuoka';
+$aboutText = [
+    'hero_title' => __('about_page.hero_title', 'Nature connects children and towns.'),
+    'hero_sub' => __('about_page.hero_sub', 'The regional revitalization model ikimon.life is aiming for'),
+    'toc_label' => __('about_page.toc_label', 'Contents'),
+    'toc_origin' => __('about_page.toc_origin', 'Origin story'),
+    'toc_regional' => __('about_page.toc_regional', 'Why regional revitalization'),
+    'toc_disappearing' => __('about_page.toc_disappearing', 'At-risk municipalities'),
+    'toc_sustainability' => __('about_page.toc_sustainability', 'A sustainable model'),
+    'origin_title' => __('about_page.origin_title', 'Origin story'),
+    'origin_resolution_title' => __('about_page.origin_resolution_title', 'When a place becomes clearer, attachment grows'),
+    'regional_title' => __('about_page.regional_title', 'Why regional revitalization'),
+    'regional_adults_title' => __('about_page.regional_adults_title', 'It is not only about children. Adults need to feel alive too.'),
+    'disappearing_title' => __('about_page.disappearing_title', $regionalMessaging['disappearing_section_heading']),
+    'sustainability_title' => __('about_page.sustainability_title', 'A sustainable model'),
+    'cta_heading' => __('about_page.cta_heading', 'Want to connect nature and your town together?'),
+    'cta_secondary' => __('about_page.cta_secondary', 'For companies and municipalities'),
+    'more_label' => __('about_page.more_label', 'Learn more'),
+    'guide_brain_title' => __('about_page.guide_brain_title', 'What happens to the brain when you walk in nature?'),
+    'guide_brain_desc' => __('about_page.guide_brain_desc', 'The science behind walking and observing living things'),
+    'guide_steps_title' => __('about_page.guide_steps_title', '9,800 steps a day and lower dementia risk'),
+    'guide_steps_desc' => __('about_page.guide_steps_desc', 'A plain-language introduction to the large JAMA Neurology study'),
+    'guide_nature_positive_title' => __('about_page.guide_nature_positive_title', 'Nature Positive complete guide'),
+    'guide_nature_positive_desc' => __('about_page.guide_nature_positive_desc', 'The full picture of walking, observing, and health'),
+    'guide_archive_title' => __('about_page.guide_archive_title', '100-year ecosystem archive'),
+    'guide_archive_desc' => __('about_page.guide_archive_desc', 'Why keeping records matters, and how observations in 2026 become a baseline for the future'),
+    'guide_methodology_title' => __('about_page.guide_methodology_title', 'Data policy and evaluation methods'),
+    'guide_methodology_desc' => __('about_page.guide_methodology_desc', 'How data is handled and how monitoring reference indices are interpreted'),
+    'origin_lead' => __('about_page.origin_lead', 'Turning over the stepping stones at my childhood home, I found a roach under the stone. That was my first encounter with making biodiversity a memory that stays.'),
+    'origin_intro_paragraphs' => [
+        __('about_page.origin_intro_1', "Hokkaido, Iwanai-cho was my first hometown.\nI lived there from kindergarten through first grade of elementary school."),
+        __('about_page.origin_intro_2', "There was the sea, there were mountains, and there was a river. And in front of the house, there was a garden that felt like a jungle to me back then."),
+        __('about_page.origin_intro_3', "I flipped the paving stones by the entrance and caught the roach. I tried raising it and observed it every day. In autumn, I also went to the ski slopes and caught more than ten grasshoppers.\nThose were my happiest days."),
+        __('about_page.origin_intro_4', "But I have no photos from that time. I sometimes think the attachment would have grown even more if those moments had been recorded."),
+        __('about_page.origin_insight_1', "Without those stepping stones, I would never have met the roach. Without a maintained ski area, I would not have that grasshopper memory either."),
+        __('about_page.origin_insight_2', "Untouched nature is valuable, of course.\nBut it is often managed places—front-yard flagstones, mowed ski runs, maintained satoyama—where children get their first encounters with living things."),
+    ],
+    'origin_resolution_paragraphs' => [
+        __('about_page.origin_resolution_1', "On the streets I walk every day, have you noticed what kinds of street trees stand there? Can you tell the difference between a white-tailed eagle and a hawfinch?"),
+        __('about_page.origin_resolution_2', "You don't have to know to live your life. But once you do, the same path looks a little different."),
+        __('about_page.origin_resolution_3', "Knowing a name. Noticing seasonal changes. That raises the resolution of the place you live in."),
+        __('about_page.origin_resolution_accent_1', "When resolution rises, attachment is born.\nWhen attachment rises, you start caring for that place."),
+        __('about_page.origin_resolution_4', "ikimon.life wants to create that trigger:\nfind it, record it, review it.\nThat alone gradually changes our relationship with place."),
+    ],
+    'origin_final' => __('about_page.origin_final', "I don't want us to lose the bonds between children and nature."),
+    'regional_intro_paragraphs' => [
+        __('about_page.regional_intro_1', "Regional revitalization is not something one person can do alone.\nI don't think it can be achieved by ikimon.life alone either."),
+        __('about_page.regional_intro_2', "But when adults in the community—parents, teachers, neighbors—create chances to walk in nature with children, I believe change begins."),
+        __('about_page.regional_intro_3', "Walking in nature connects heart and body health.\nLearning about local nature through observation builds attachment.\nThat can become the energy that keeps a place alive."),
+        __('about_page.regional_intro_4', "ikimon.life wants to be a tool for that loop.\nAnd it is meant to be used by everyone who lives in the place."),
+        __('about_page.regional_intro_5', "This is not just a gut feeling. Multiple national studies keep saying the same thing."),
+    ],
+    'regional_insight_1_title' => __('about_page.regional_insight_1_title', 'Place attachment is discussed as a combination of nature and human connection.'),
+    'regional_insight_1_body' => __('about_page.regional_insight_1_body', 'In a survey of junior high students in Choshi City, the top reason for liking their hometown was “rich nature” (72.8%), followed by “kind and friendly local people” (58.3%).\nIn a Hamamatsu youth survey, 81.8% answered that they like Hamamatsu, with interpersonal ties and natural environment as major attractions.'),
+    'regional_insight_2_title' => __('about_page.regional_insight_2_title', 'Children say they want to return because they feel:\n“rich nature,” “kind people,” and “the place where they were born.”'),
+    'regional_insight_2_body' => __('about_page.regional_insight_2_body', 'In a survey in Iijima Town, the most frequent reason for wanting to live there was “abundant nature and good air” (45.5%).\nEven among those who were “somewhat likely to return,” “liveable nature” was the top answer (62.5%), followed by “people’s kindness and local ties” (12.5%).'),
+    'regional_insight_3_title' => __('about_page.regional_insight_3_title', 'A trustworthy adult outside the family gives children a sense of safety.'),
+    'regional_insight_3_body' => __('about_page.regional_insight_3_body', 'In a survey in Joetsu City, 55.18% of children reported having a reliable adult, and 51.71% reported having an adult who takes care of them.\nNatural observation settings naturally create such connections with adults beyond family.'),
+    'regional_adult_intro_paragraphs' => [
+        __('about_page.regional_adult_intro_1', "When speaking about regional revitalization, discussions often become “how to bring back young people” or “how to increase births.”\nBut if the adults who live there cannot stay mentally and physically healthy, there will be no room to watch over children, and no base to support the place."),
+        __('about_page.regional_adult_intro_2', "There is also scientific evidence that walking in nature is effective."),
+    ],
+    'regional_adult_insight_brain_title' => __('about_page.regional_adult_insight_brain_title', 'Walking in natural environments activates the prefrontal cortex.'),
+    'regional_adult_insight_brain_body' => __('about_page.regional_adult_insight_brain_body', 'Compared with urban environments, walking outdoors reduces stress hormones and supports recovery of attention and creativity.\nObserving living things requires active attention, which strengthens cognitive engagement.'),
+    'regional_adult_insight_steps_title' => __('about_page.regional_adult_insight_steps_title', 'Taking 9,800 steps a day is associated with 51% lower dementia risk.'),
+    'regional_adult_insight_steps_body' => __('about_page.regional_adult_insight_steps_body', 'A large JAMA Neurology study (78,430 participants) found this.\nWalking requires no special tools and is one of the simplest healthy habits.\nAdding observation adds curiosity and a sense of achievement beyond walking alone.'),
+    'regional_adult_tail_1' => __('about_page.regional_adult_tail_1', "If adults are healthy, relaxed, and cheerful,\nchildren can go outside with confidence.\nWhen children walk, adults also move more naturally and feel lighter."),
+    'regional_adult_tail_2' => __('about_page.regional_adult_tail_2', "Natural observation creates this cycle without special interventions:\nchildren’s curiosity, adult health, and intergenerational connection."),
+    'regional_adult_tail_3' => __('about_page.regional_adult_tail_3', "Natural observation is not the whole answer to regional revitalization,\nbut it can surely help."),
+    'disappearing_intro_paragraphs' => [
+        __('about_page.disappearing_intro_1', "In April 2024, the Population Strategy Council report made many people rethink what population decline can mean for communities."),
+        __('about_page.disappearing_intro_2', "{$regionalMessaging['disappearing_population_copy']}\n{$regionalMessaging['disappearing_count_copy']}\n{$regionalMessaging['disappearing_ratio_copy']}"),
+    ],
+    'disappearing_stat_label_1' => __('about_page.disappearing_stat_label_1', 'At-risk municipalities'),
+    'disappearing_stat_label_2' => __('about_page.disappearing_stat_label_2', 'Total municipalities'),
+    'disappearing_severity_intro' => __('about_page.disappearing_severity_intro', 'Some regions are especially severe.'),
+    'disappearing_region_examples' => [
+        ['region' => __('about_page.disappearing_region_minamimaki', 'Minamimaki Village, Gunma'), 'rate' => '-88.0%'],
+        ['region' => __('about_page.disappearing_region_sotogahama', 'Sotogahama Town, Aomori'), 'rate' => '-87.5%'],
+        ['region' => __('about_page.disappearing_region_uoshinai', 'Uoshinai City, Hokkaido'), 'rate' => '-86.7%'],
+        ['region' => __('about_page.disappearing_region_akita', 'Akita Prefecture (whole)'), 'rate' => '96% at risk'],
+        ['region' => __('about_page.disappearing_region_aomori', 'Aomori Prefecture (whole)'), 'rate' => '87.5% at risk'],
+    ],
+    'disappearing_memory_1' => __('about_page.disappearing_memory_1', "Behind the numbers is somebody's hometown.\nWild places I played in as a child. The stream along my route to school. The ski run in autumn.\nThese are places where I learned to meet living things."),
+    'disappearing_memory_2' => __('about_page.disappearing_memory_2', "If a municipality disappears, places where those memories and these encounters were born also disappear."),
+    'disappearing_support' => __('about_page.disappearing_support', "{$regionalMessaging['priority_lead']}\n{$regionalMessaging['eligibility_copy']}\nIn the most severe regions, we provide all ikimon.life functions for free."),
+    'disappearing_tail_1' => __('about_page.disappearing_tail_1', "I don't believe everything will change overnight.\nBut if even one child in a community comes to say \"I like this place\" through a small trigger from nature, that is enough."),
+    'disappearing_tail_2' => __('about_page.disappearing_tail_2', "I want to preserve the memory of growing up here for the next generation."),
+    'sustainability_paragraphs' => [
+        __('about_page.sustainability_1', "IKIMON Co., Ltd. is a startup led by me alone.\nSmall organizations can move quickly."),
+        __('about_page.sustainability_2', "If revenue from Public plans for companies and large municipalities is secured,\nit can sustain the company enough to keep running.\nSo we can provide free access to places with the strongest need."),
+    ],
+    'sustainability_highlight' => __('about_page.sustainability_highlight', "Because we are small, we can reach the places we want to reach."),
+    'sustainability_tail_1' => __('about_page.sustainability_tail_1', "This project has just started.\nStep by step, we continue to grow."),
+    'sustainability_tail_2' => __('about_page.sustainability_tail_2', 'Thank you for your support.'),
+    'stat_label_1' => __('about_page.stat_label_1', 'shizuoka, Hamamatsu'),
+];
+$formatMultiline = static function (string $text): string {
+    $normalized = str_replace(["\\n", "\r\n", "\r"], "\n", $text);
+    return nl2br(htmlspecialchars($normalized, ENT_QUOTES, 'UTF-8'));
+};
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&display=swap" rel="stylesheet">
@@ -431,20 +539,20 @@ $meta_description = $regionalMessaging['about_meta_description'];
          Section 1: Hero
          ============================================ -->
     <section class="msg-hero">
-        <h1>自然が、子どもとまちを結ぶ。</h1>
-        <p class="msg-hero-sub">ikimon.lifeが目指す地域創生のかたち</p>
+        <h1><?= htmlspecialchars($aboutText['hero_title']) ?></h1>
+        <p class="msg-hero-sub"><?= htmlspecialchars($aboutText['hero_sub']) ?></p>
     </section>
 
     <!-- TOC -->
     <nav class="msg-section" style="padding-top:32px;padding-bottom:0;">
         <div class="msg-section-inner" style="max-width:520px;">
             <div style="background:var(--md-surface-container);border-radius:16px;padding:24px 28px;">
-                <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--md-on-surface-variant);margin-bottom:14px;">目次</p>
+                <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--md-on-surface-variant);margin-bottom:14px;"><?= htmlspecialchars($aboutText['toc_label']) ?></p>
                 <ol style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;font-size:0.9375rem;">
-                    <li><a href="#origin" style="color:var(--md-primary);text-decoration:none;">原体験</a></li>
-                    <li><a href="#regional" style="color:var(--md-primary);text-decoration:none;">なぜ、地域創生なのか</a></li>
-                    <li><a href="#disappearing" style="color:var(--md-primary);text-decoration:none;">消滅可能性自治体</a></li>
-                    <li><a href="#sustainability" style="color:var(--md-primary);text-decoration:none;">持続可能なかたち</a></li>
+                    <li><a href="#origin" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_origin']) ?></a></li>
+                    <li><a href="#regional" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_regional']) ?></a></li>
+                    <li><a href="#disappearing" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_disappearing']) ?></a></li>
+                    <li><a href="#sustainability" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_sustainability']) ?></a></li>
                 </ol>
             </div>
         </div>
@@ -456,76 +564,31 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <section id="origin" class="msg-section" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
-            <h2>原体験</h2>
+            <h2><?= htmlspecialchars($aboutText['origin_title']) ?></h2>
 
             <div class="msg-lead">
-                玄関先の飛び石をひっくり返すと、その下にハサミムシがいた。
+                <?= $formatMultiline($aboutText['origin_lead']) ?>
             </div>
 
             <div class="msg-body">
-                <p>
-                    北海道・岩内町。<br>
-                    幼稚園から小学1年生まで過ごした、僕の最初のふるさとです。
-                </p>
-                <p>
-                    海がありました。山がありました。川もありました。<br>
-                    そして、家の前には——当時の僕には「ジャングル」としか思えないほどの庭がありました。
-                </p>
-                <p>
-                    玄関先の石畳をひっくり返して、ハサミムシを捕まえる。<br>
-                    飼育に挑戦して、毎日観察する。<br>
-                    秋になるとスキー場に行って、トノサマバッタを10匹以上捕まえる。<br>
-                    それだけで、世界は最高に面白かった。
-                </p>
-                <p>
-                    でも、そのときの写真は1枚も残っていません。<br>
-                    もし記録があったら、何度も見返して、もっと愛着が深まっていたんじゃないか。<br>
-                    そう思うことがあります。
-                </p>
+                <?php foreach (array_slice($aboutText['origin_intro_paragraphs'], 0, 4) as $paragraph): ?>
+                <p><?= $formatMultiline($paragraph) ?></p>
+                <?php endforeach; ?>
 
-                <p class="msg-accent">
-                    飛び石がなければ、ハサミムシとの出会いはなかった。<br>
-                    整備されたスキー場がなければ、バッタの記憶も残らなかった。
-                </p>
-
-                <p>
-                    手つかずの自然も、もちろん大切です。<br>
-                    でも、人が手入れをしている場所——玄関先の石畳、草を刈ったゲレンデ、管理された里山——<br>
-                    そういう場所にこそ、子どもが生き物と出会うきっかけがあります。
-                </p>
+                <p class="msg-accent"><?= $formatMultiline($aboutText['origin_intro_paragraphs'][4] . "\n" . $aboutText['origin_intro_paragraphs'][5]) ?></p>
             </div>
 
-            <h2 style="margin-top: 48px;">まちの解像度が上がると、愛着も上がる</h2>
+            <h2 style="margin-top: 48px;"><?= htmlspecialchars($aboutText['origin_resolution_title']) ?></h2>
 
             <div class="msg-body">
-                <p>
-                    いつも歩いている道の街路樹、なんという木か知っていますか？<br>
-                    街でよく見かけるカラス、ハシブトガラスとハシボソガラスの違いはわかりますか？
-                </p>
-                <p>
-                    知らなくても、生活は何も困りません。<br>
-                    でも、一度知ると——<br>
-                    同じ道が、ちょっとだけ違って見えるようになる。
-                </p>
-                <p>
-                    名前を知ること。季節の変化に気づくこと。<br>
-                    それは、自分が暮らしている場所の「解像度」が上がるということです。
-                </p>
+                <?php foreach (array_slice($aboutText['origin_resolution_paragraphs'], 0, 3) as $paragraph): ?>
+                <p><?= $formatMultiline($paragraph) ?></p>
+                <?php endforeach; ?>
 
-                <p class="msg-accent">
-                    解像度が上がると、愛着が生まれる。<br>
-                    愛着が生まれると、その場所を大切にしたくなる。
-                </p>
+                <p class="msg-accent"><?= $formatMultiline($aboutText['origin_resolution_paragraphs'][3]) ?></p>
+                <p><?= $formatMultiline($aboutText['origin_resolution_paragraphs'][4]) ?></p>
 
-                <p>
-                    ikimon.lifeは、そのきっかけを作りたい。<br>
-                    見つけて、記録して、見返す。<br>
-                    それだけで、まちとの関係が少しずつ変わっていく。
-                </p>
-
-                <p class="msg-accent-lg">
-                    子どもと自然の結びつきを、失いたくない。
-                </p>
+                <p class="msg-accent-lg"><?= $formatMultiline($aboutText['origin_final']) ?></p>
             </div>
 
         </div>
@@ -537,31 +600,12 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <section id="regional" class="msg-section msg-surface" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
-            <h2>なぜ、地域創生なのか</h2>
+            <h2><?= htmlspecialchars($aboutText['regional_title']) ?></h2>
 
             <div class="msg-body">
-                <p>
-                    地域創生って、誰かひとりが頑張ってできることじゃありません。<br>
-                    ikimon.lifeだけで実現できるとも思っていません。
-                </p>
-                <p>
-                    でも、地域の大人たちが——親も、先生も、近所のおじさんも——<br>
-                    子どもと一緒に自然の中を歩く機会を作っていくことで、<br>
-                    少しずつ、何かが変わり始めると信じています。
-                </p>
-                <p>
-                    自然の中を歩くことは、心と体の健康につながる。<br>
-                    観察を通じて地域の自然を知ることは、地元への愛着につながる。<br>
-                    そして地元を好きな人が増えることは、その地域が生き残っていく力になる。
-                </p>
-                <p>
-                    ikimon.lifeは、その循環のきっかけを作る道具でありたい。<br>
-                    使うのは、地域に暮らすみなさんです。
-                </p>
-                <p>
-                    感覚だけの話じゃありません。<br>
-                    全国の調査が、繰り返し同じことを示しています。
-                </p>
+                <?php foreach ($aboutText['regional_intro_paragraphs'] as $paragraph): ?>
+                <p><?= $formatMultiline($paragraph) ?></p>
+                <?php endforeach; ?>
             </div>
 
             <!-- Insight 1 -->
@@ -569,11 +613,10 @@ $meta_description = $regionalMessaging['about_meta_description'];
                 <span class="msg-insight-num">1</span>
                 <div class="msg-insight-body">
                     <p class="msg-insight-text">
-                        地域への愛着は、「自然」と「人のつながり」がセットで語られる
+                        <?= $formatMultiline($aboutText['regional_insight_1_title']) ?>
                     </p>
                     <p class="msg-cite">
-                        香取市の中学生調査では、地元を好きな理由の1位が「自然が豊かだから」（72.8%）、2位が「地域の人がやさしく、親切だから」（58.3%）。
-                        浜松市の若年層調査でも、81.8%が「浜松が好き」と答え、魅力として人間関係と自然環境を挙げている。
+                        <?= $formatMultiline($aboutText['regional_insight_1_body']) ?>
                     </p>
                 </div>
             </div>
@@ -583,11 +626,10 @@ $meta_description = $regionalMessaging['about_meta_description'];
                 <span class="msg-insight-num">2</span>
                 <div class="msg-insight-body">
                     <p class="msg-insight-text">
-                        子どもが「帰りたい」と思う理由——<br>「自然が豊か」「人が優しい」「生まれた場所」
+                        <?= $formatMultiline($aboutText['regional_insight_2_title']) ?>
                     </p>
                     <p class="msg-cite">
-                        飯島町の中学生調査で、「住みたい・帰ってきたい」理由の最多は「自然が多い、空気が美味しい」（45.5%）。
-                        「どちらかというと帰りたい」層でも、「自然豊か・住みやすい」が62.5%で最多、次いで「人の優しさ・地域とのつながり」（12.5%）。
+                        <?= $formatMultiline($aboutText['regional_insight_2_body']) ?>
                     </p>
                 </div>
             </div>
@@ -597,37 +639,30 @@ $meta_description = $regionalMessaging['about_meta_description'];
                 <span class="msg-insight-num">3</span>
                 <div class="msg-insight-body">
                     <p class="msg-insight-text">
-                        家族以外の「信頼できる大人」がいることが、子どもの安心感を支えている
+                        <?= $formatMultiline($aboutText['regional_insight_3_title']) ?>
                     </p>
                     <p class="msg-cite">
-                        上越市の調査では、子どもの55.18%に「信頼できる大人」が、51.71%に「自分のことを大切にしてくれる大人」がいると報告されている。
-                        自然観察の場は、こうした家族以外の大人との接点を自然に生み出す。
+                        <?= $formatMultiline($aboutText['regional_insight_3_body']) ?>
                     </p>
                 </div>
             </div>
 
-            <h2 style="margin-top: 48px;">子どもだけじゃない。大人もイキイキしていないと</h2>
+            <h2 style="margin-top: 48px;"><?= htmlspecialchars($aboutText['regional_adults_title']) ?></h2>
 
             <div class="msg-body">
-                <p>
-                    地域創生というと、つい「若い人を呼び戻す」「子どもを増やす」という話になりがちです。<br>
-                    でも、そこに暮らしている大人たちが心身ともに元気でなければ、<br>
-                    子どもを見守る余裕も、地域を支える力も生まれません。
-                </p>
-                <p>
-                    実は、自然の中を歩くことには、科学的に裏付けられた効果があります。
-                </p>
+                <?php foreach ($aboutText['regional_adult_intro_paragraphs'] as $paragraph): ?>
+                <p><?= $formatMultiline($paragraph) ?></p>
+                <?php endforeach; ?>
             </div>
 
             <div class="msg-insight">
                 <span class="msg-insight-num" style="font-size: 1.5rem;">🧠</span>
                 <div class="msg-insight-body">
                     <p class="msg-insight-text">
-                        自然環境での歩行は、脳の前頭前野を活性化させる
+                        <?= $formatMultiline($aboutText['regional_adult_insight_brain_title']) ?>
                     </p>
                     <p class="msg-cite">
-                        都市環境と比較して、自然の中を歩くことでストレスホルモンが低下し、注意力の回復や創造性の向上が確認されている。
-                        生き物を観察する行為は、能動的な注意を要するため、認知的エンゲージメントをさらに高める。
+                        <?= $formatMultiline($aboutText['regional_adult_insight_brain_body']) ?>
                     </p>
                 </div>
             </div>
@@ -636,33 +671,20 @@ $meta_description = $regionalMessaging['about_meta_description'];
                 <span class="msg-insight-num" style="font-size: 1.5rem;">👟</span>
                 <div class="msg-insight-body">
                     <p class="msg-insight-text">
-                        1日9,800歩で認知症リスクが51%低下する
+                        <?= $formatMultiline($aboutText['regional_adult_insight_steps_title']) ?>
                     </p>
                     <p class="msg-cite">
-                        JAMA Neurology掲載の大規模研究（78,430人対象）による。
-                        散歩は特別な道具もお金もいらない、最も手軽な健康習慣。
-                        そこに「観察」が加わると、ただ歩くだけでは得られない好奇心と達成感が生まれる。
+                        <?= $formatMultiline($aboutText['regional_adult_insight_steps_body']) ?>
                     </p>
                 </div>
             </div>
 
             <div class="msg-body" style="margin-top: 32px;">
-                <p>
-                    大人が健康で、笑っていて、余裕がある。<br>
-                    そんな大人がそばにいるから、子どもは安心して外に出られる。<br>
-                    子どもと一緒に歩くから、大人も自然と体を動かし、気持ちが軽くなる。
-                </p>
-                <p>
-                    自然観察は、この循環を——<br>
-                    子どもの好奇心、大人の健康、世代を超えた交流を——<br>
-                    特別な仕掛けなしに、自然に生み出します。
-                </p>
+                <p><?= $formatMultiline($aboutText['regional_adult_tail_1']) ?></p>
+                <p><?= $formatMultiline($aboutText['regional_adult_tail_2']) ?></p>
             </div>
 
-            <p class="msg-accent-lg">
-                自然観察は、地域創生のすべてじゃない。<br>
-                でも、きっと力になれる。
-            </p>
+            <p class="msg-accent-lg"><?= $formatMultiline($aboutText['regional_adult_tail_3']) ?></p>
 
         </div>
     </section>
@@ -673,18 +695,12 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <section id="disappearing" class="msg-section" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
-            <h2><?= htmlspecialchars($regionalMessaging['disappearing_section_heading']) ?></h2>
+            <h2><?= htmlspecialchars($aboutText['disappearing_title']) ?></h2>
 
             <div class="msg-body">
-                <p>
-                    2024年4月、人口戦略会議が発表したレポートは、<br>
-                    多くの人に衝撃を与えました。
-                </p>
-                <p>
-                    <?= htmlspecialchars($regionalMessaging['disappearing_population_copy']) ?><br>
-                    <?= htmlspecialchars($regionalMessaging['disappearing_count_copy']) ?><br>
-                    <?= htmlspecialchars($regionalMessaging['disappearing_ratio_copy']) ?>
-                </p>
+                <?php foreach ($aboutText['disappearing_intro_paragraphs'] as $paragraph): ?>
+                <p><?= $formatMultiline($paragraph) ?></p>
+                <?php endforeach; ?>
             </div>
 
             <div class="msg-stat-hero">
@@ -694,50 +710,27 @@ $meta_description = $regionalMessaging['about_meta_description'];
                     <span class="msg-stat-sub">1,729</span>
                 </div>
                 <div class="msg-stat-labels">
-                    <span class="msg-stat-label">消滅可能性自治体</span>
-                    <span class="msg-stat-label">全国の自治体数</span>
+                    <span class="msg-stat-label"><?= htmlspecialchars($aboutText['disappearing_stat_label_1']) ?></span>
+                    <span class="msg-stat-label"><?= htmlspecialchars($aboutText['disappearing_stat_label_2']) ?></span>
                 </div>
             </div>
 
             <div class="msg-body">
-                <p>
-                    特に深刻な地域があります。
-                </p>
+                <p><?= $formatMultiline($aboutText['disappearing_severity_intro']) ?></p>
             </div>
 
             <div class="msg-examples">
-                <div class="msg-example-item">
-                    <span>群馬県 南牧村</span>
-                    <span>-88.0%</span>
+                <?php foreach ($aboutText['disappearing_region_examples'] as $index => $example): ?>
+                <div class="msg-example-item"<?= $index === 3 ? ' style="padding-top: 12px; border-top: 1px solid var(--md-outline-variant);"' : '' ?>>
+                    <span><?= htmlspecialchars($example['region']) ?></span>
+                    <span><?= htmlspecialchars($example['rate']) ?></span>
                 </div>
-                <div class="msg-example-item">
-                    <span>青森県 外ヶ浜町</span>
-                    <span>-87.5%</span>
-                </div>
-                <div class="msg-example-item">
-                    <span>北海道 歌志内市</span>
-                    <span>-86.7%</span>
-                </div>
-                <div class="msg-example-item" style="padding-top: 12px; border-top: 1px solid var(--md-outline-variant);">
-                    <span>秋田県全体</span>
-                    <span>96%が消滅可能性</span>
-                </div>
-                <div class="msg-example-item">
-                    <span>青森県全体</span>
-                    <span>87.5%が消滅可能性</span>
-                </div>
+                <?php endforeach; ?>
             </div>
 
             <div class="msg-body">
-                <p>
-                    数字の向こうにあるのは、誰かのふるさとです。<br>
-                    子どもの頃に駆け回った野山。通学路沿いの川。秋のスキー場。<br>
-                    その風景の中で生き物と出会い、誰かに名前を教えてもらった記憶。
-                </p>
-                <p>
-                    自治体が消えるということは、そういう記憶が生まれる場所が、<br>
-                    なくなるということです。
-                </p>
+                <p><?= $formatMultiline($aboutText['disappearing_memory_1']) ?></p>
+                <p><?= $formatMultiline($aboutText['disappearing_memory_2']) ?></p>
             </div>
 
             <div class="msg-lead" style="margin-top: 40px;">
@@ -745,21 +738,11 @@ $meta_description = $regionalMessaging['about_meta_description'];
             </div>
 
             <div class="msg-body">
-                <p>
-                    <?= htmlspecialchars($regionalMessaging['eligibility_copy']) ?><br>
-                    最も厳しい状況に直面している地域に、<br>
-                    ikimon.lifeのすべての機能を<strong>無償で提供</strong>します。
-                </p>
-                <p>
-                    それだけで何かが劇的に変わるとは思っていません。<br>
-                    でも、自然を通じた小さなきっかけが、<br>
-                    地域に一人でも「ここが好きだ」と思う子どもを増やせるなら。
-                </p>
+                <p><?= $formatMultiline($aboutText['disappearing_support']) ?></p>
+                <p><?= $formatMultiline($aboutText['disappearing_tail_1']) ?></p>
             </div>
 
-            <p class="msg-accent-lg">
-                この町で育った記憶を、次の世代にも残したい。
-            </p>
+            <p class="msg-accent-lg"><?= $formatMultiline($aboutText['disappearing_tail_2']) ?></p>
 
         </div>
     </section>
@@ -770,19 +753,15 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <section id="sustainability" class="msg-section msg-surface" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
-            <h2>持続可能なかたち</h2>
+            <h2><?= htmlspecialchars($aboutText['sustainability_title']) ?></h2>
 
             <div class="msg-body">
-                <p>
-                    IKIMON株式会社は、僕ひとりのスタートアップです。<br>
-                    大きな組織じゃないからこそ、身軽に動ける。
-                </p>
-                <p>
-                    企業や大規模自治体向けのPublicプランで得られる収益があれば、<br>
-                    会社としての持続可能性は十分に保てると考えています。<br>
-                    だから、最も支援を必要としている地域には、無償で届けられる。
-                </p>
+                <?php foreach ($aboutText['sustainability_paragraphs'] as $paragraph): ?>
+                <p><?= $formatMultiline($paragraph) ?></p>
+                <?php endforeach; ?>
             </div>
+
+            <p class="msg-accent"><?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
 
             <div class="msg-plans">
                 <?php foreach ($supportPlans as $index => $plan): ?>
@@ -794,25 +773,18 @@ $meta_description = $regionalMessaging['about_meta_description'];
                 <?php endforeach; ?>
             </div>
 
-            <p class="msg-accent">
-                小さな会社だからこそ、届けたい場所に届けられる。
-            </p>
+            <p class="msg-accent"><?= $formatMultiline($aboutText['sustainability_highlight']) ?></p>
 
             <div class="msg-body" style="margin-top: 32px;">
-                <p>
-                    まだ始まったばかりのプロジェクトです。<br>
-                    一歩ずつ、着実に前に進んでいきます。
-                </p>
-                <p>
-                    応援していただけると嬉しいです。
-                </p>
+                <p><?= $formatMultiline($aboutText['sustainability_tail_1']) ?></p>
+                <p><?= $formatMultiline($aboutText['sustainability_tail_2']) ?></p>
             </div>
 
             <div class="msg-signature">
-                <img src="assets/img/yamaki.jpg" alt="八巻 毅" class="msg-signature-photo">
+                <img src="assets/img/yamaki.jpg" alt="<?= htmlspecialchars($signatureName) ?>" class="msg-signature-photo">
                 <div>
-                    <p class="msg-signature-name">八巻 毅</p>
-                    <p class="msg-signature-title">IKIMON株式会社 代表</p>
+                    <p class="msg-signature-name"><?= htmlspecialchars($signatureName) ?></p>
+                    <p class="msg-signature-title"><?= htmlspecialchars($signatureTitle) ?></p>
                 </div>
             </div>
 
@@ -826,7 +798,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
         <div class="msg-cta-inner">
 
             <p class="msg-cta-heading">
-                一緒に、自然とまちをつなぎませんか？
+                <?= htmlspecialchars($aboutText['cta_heading']) ?>
             </p>
 
             <div class="msg-cta-buttons">
@@ -836,14 +808,14 @@ $meta_description = $regionalMessaging['about_meta_description'];
                 </a>
                 <a href="for-business/" class="btn-secondary">
                     <i data-lucide="building-2" class="w-4 h-4"></i>
-                    企業・自治体の方へ
+                    <?= htmlspecialchars($aboutText['cta_secondary']) ?>
                 </a>
             </div>
 
             <div class="msg-contact">
                 <div class="msg-contact-item">
                     <i data-lucide="map-pin" class="w-4 h-4"></i>
-                    <span>静岡県浜松市</span>
+                    <span><?= htmlspecialchars($contactLocation) ?></span>
                 </div>
                 <div class="msg-contact-item">
                     <i data-lucide="mail" class="w-4 h-4"></i>
@@ -858,45 +830,45 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <div class="msg-guides">
         <p class="msg-guides-label">
             <i data-lucide="book-open" class="w-4 h-4"></i>
-            もっと知る
+            <?= htmlspecialchars($aboutText['more_label']) ?>
         </p>
         <a href="guide/walking-brain-science.php" class="msg-guide-link">
             <span style="font-size: 1.5rem;">🧠</span>
             <div style="flex: 1;">
-                <p class="msg-guide-title">自然の中を歩くと脳に何が起きるのか？</p>
-                <p class="msg-guide-desc">散歩×生きもの観察の科学的エビデンス</p>
+                <p class="msg-guide-title"><?= htmlspecialchars($aboutText['guide_brain_title']) ?></p>
+                <p class="msg-guide-desc"><?= htmlspecialchars($aboutText['guide_brain_desc']) ?></p>
             </div>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
         <a href="guide/steps-dementia-prevention.php" class="msg-guide-link">
             <span style="font-size: 1.5rem;">👟</span>
             <div style="flex: 1;">
-                <p class="msg-guide-title">1日9,800歩で認知症リスク51%減</p>
-                <p class="msg-guide-desc">JAMA Neurologyの大規模研究をやさしく紹介</p>
+                <p class="msg-guide-title"><?= htmlspecialchars($aboutText['guide_steps_title']) ?></p>
+                <p class="msg-guide-desc"><?= htmlspecialchars($aboutText['guide_steps_desc']) ?></p>
             </div>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
         <a href="guide/nature-positive.php" class="msg-guide-link">
             <span style="font-size: 1.5rem;">🌿</span>
             <div style="flex: 1;">
-                <p class="msg-guide-title">ネイチャーポジティブ完全ガイド</p>
-                <p class="msg-guide-desc">お散歩×観察×健康の全体像</p>
+                <p class="msg-guide-title"><?= htmlspecialchars($aboutText['guide_nature_positive_title']) ?></p>
+                <p class="msg-guide-desc"><?= htmlspecialchars($aboutText['guide_nature_positive_desc']) ?></p>
             </div>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
         <a href="century_archive.php" class="msg-guide-link">
             <span style="font-size: 1.5rem;">📦</span>
             <div style="flex: 1;">
-                <p class="msg-guide-title">100年生態系アーカイブ</p>
-                <p class="msg-guide-desc">なぜ記録するのか、2026年の観察が100年後の比較基準に</p>
+                <p class="msg-guide-title"><?= htmlspecialchars($aboutText['guide_archive_title']) ?></p>
+                <p class="msg-guide-desc"><?= htmlspecialchars($aboutText['guide_archive_desc']) ?></p>
             </div>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
         <a href="methodology.php" class="msg-guide-link">
             <span style="font-size: 1.5rem;">📊</span>
             <div style="flex: 1;">
-                <p class="msg-guide-title">データ方針と評価手法</p>
-                <p class="msg-guide-desc">データの取り扱いとモニタリング参考インデックスの透明性</p>
+                <p class="msg-guide-title"><?= htmlspecialchars($aboutText['guide_methodology_title']) ?></p>
+                <p class="msg-guide-desc"><?= htmlspecialchars($aboutText['guide_methodology_desc']) ?></p>
             </div>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>

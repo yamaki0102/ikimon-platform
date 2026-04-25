@@ -15,8 +15,9 @@ if (empty($obs)) return;
 $linkEnabled = $obs_card_link ?? true;
 $cardSize    = $obs_card_size ?? 'md';
 
-$id          = htmlspecialchars((string)($obs['id'] ?? ''));
-$speciesName = htmlspecialchars((string)($obs['species_name'] ?? '未同定'));
+$id            = htmlspecialchars((string)($obs['id'] ?? ''));
+$rawSpeciesName = (string)($obs['species_name'] ?? __('obs_card.unidentified', 'Unidentified'));
+$speciesName   = htmlspecialchars($rawSpeciesName);
 $commonName  = htmlspecialchars((string)($obs['common_name'] ?? ''));
 $photoUrl    = htmlspecialchars((string)($obs['photo_url'] ?? '/assets/img/placeholder.webp'));
 $observedAt  = (string)($obs['observed_at'] ?? '');
@@ -30,6 +31,7 @@ $dateDisplay = $observedAt ? date('m/d', strtotime($observedAt)) : '';
 $aspectClass = $cardSize === 'sm' ? 'aspect-square' : 'aspect-[4/5]';
 $tag = $linkEnabled ? 'a' : 'div';
 $href = $linkEnabled ? 'href="observation_detail.php?id=' . $id . '"' : '';
+$photoAlt = str_replace('{name}', $rawSpeciesName, __('obs_card.photo_alt', '{name} observation photo'));
 ?>
 <<?= $tag ?> <?= $href ?>
    class="group relative overflow-hidden rounded-2xl <?= $aspectClass ?>
@@ -38,7 +40,7 @@ $href = $linkEnabled ? 'href="observation_detail.php?id=' . $id . '"' : '';
 
     <!-- Photo -->
     <img src="<?= $photoUrl ?>"
-         alt="<?= $speciesName ?>の観察写真"
+         alt="<?= htmlspecialchars($photoAlt) ?>"
          loading="lazy"
          class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
 
@@ -54,7 +56,7 @@ $href = $linkEnabled ? 'href="observation_detail.php?id=' . $id . '"' : '';
         <?php endif; ?>
         <?php if ($isInvasive): ?>
             <span class="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
-                <i data-lucide="shield-alert" class="w-3 h-3" aria-hidden="true"></i>外来
+                <i data-lucide="shield-alert" class="w-3 h-3" aria-hidden="true"></i><?= htmlspecialchars(__('obs_card.invasive', 'Invasive')) ?>
             </span>
         <?php endif; ?>
         <?php if (!$identified): ?>

@@ -1,14 +1,26 @@
 # ikimon.life — Agent Guide
 
-Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js frontend.
+Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_package/`) + v2 Node app (`platform_v2/`).
 
 > **共通ルール・デプロイ方針・SSHサーバー構成は `~/.codex/AGENTS.md` を参照。**
 > **（管理元: `antigravity/.agent/global/AGENTS.global.md`）**
+
+> **知識OS / Canonical / Evidence Tier / コンポーネントマップ:**
+> → `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` → `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` → `docs/KNOWLEDGE_OS_OVERVIEW.md` の順で読む
+> → overview 更新要否は `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` で確認する
+
+## Staging Fast Path
+
+- `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **まず `platform_v2/` から入る**
+- legacy PHP (`upload_package/`) は **`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` と言わない限り、staging 相談で最初に触らない
+- staging の正準根拠は `ops/CUTOVER_RUNBOOK.md` と `ops/deploy/staging_ikimon_life_tls_reference.conf`
+- `staging` とだけ言われた場合のデフォルト解釈は **`platform_v2 staging`**。`upload_package` ではない
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
+| Staging primary | Node.js (`platform_v2`) |
 | Backend | PHP 8.2 (vanilla, no framework) |
 | Frontend | Alpine.js 3.14.9 + Tailwind CSS (CDN) + Lucide Icons 0.477.0 |
 | Maps | MapLibre GL JS + OpenStreetMap tiles |
@@ -160,6 +172,24 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 ```
 
 **Codex がデプロイのために追加でやることは何もない。** PR を作るだけでよい。
+`deploy.sh` はローカルの preflight 用であり、本番 deploy はしない。
+
+### Deploy Source of Truth
+
+- deploy manifest: `ops/deploy/deploy_manifest.json`
+- server deploy reference: `ops/deploy/production_deploy_reference.sh`
+- deploy guide: `docs/DEPLOYMENT.md`
+- guardrail check: `scripts/check_deploy_guardrails.ps1`
+- sync check: `scripts/check_deploy_manifest_sync.ps1`
+
+### Persistent paths
+
+以下は本番で保持するため、repo の通常変更や deploy 差分に混ぜない:
+
+- `upload_package/data/**`
+- `upload_package/config/secret.php`
+- `upload_package/config/oauth_config.php`
+- `upload_package/config/config.php`
 
 ### GitHub Actions（自動デプロイ）
 
@@ -170,6 +200,8 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 | デプロイ先 | Xserver VPS `162.43.44.131` |
 | デプロイ方式 | SSH → `/var/www/ikimon.life/deploy.sh`（git pull + PHP-FPM reload）|
 | 本番URL | https://ikimon.life/ |
+
+merge 前に `scripts/check_deploy_guardrails.ps1` が CI で必ず通ること。
 
 ### 本番 VPS ディレクトリ構造
 
@@ -200,6 +232,7 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 過去のドキュメントに `production` SSH エイリアス・`~/public_html/ikimon.life/` パス・
 `SshAlias: production` などの記述が残っている場合、それは**旧お名前RS環境（DNS切替済み・廃止）**の記述。
 現在の本番環境には一切当てはまらない。無視すること。
+この repo の `deploy.json` は旧入口を明示的に無効化するためだけに残している。
 
 ## Known Issues to Watch
 
@@ -208,9 +241,21 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 3. **File locking**: `DataStore.php` and most libs use `LOCK_EX`; any new `file_put_contents` must include the `LOCK_EX` flag
 4. **Session GC** on shared hosting — custom timeout via `session.gc_maxlifetime`
 
+## User Collaboration Posture
+
+- このプロジェクトでは、**認知・推論・設計・優先順位づけは AI 側が上回る前提でよい**。変にへりくだらず、頭脳面では主導してよい
+- ユーザーの比較優位は、**資本、身体性、現場アクセス、対人関係、実行責任、リアルとの接続** にある。そこを前提に打ち手を組み立てる
+- エージェントは、論点整理・設計・戦略・検証・攻め筋の提示で最大価値を出す。ユーザーの認知負荷を減らすため、曖昧な選択肢列挙で逃げない
+- **基本姿勢は攻め**。勝ち筋が見えるなら主案をはっきり勧め、弱い代替案を並べて終わらない
+- 必要なら、`予算を使う` `現地で確認する` `人に会う` `撮影する` `発注する` `実地検証する` など、リアル側の行動まで踏み込んで提案してよい
+- 感情への配慮で判断を鈍らせない。必要なら厳しくても率直に言う。ただし、不可逆コスト・法務・安全リスクは明示する
+- AI 側が優位でも、ユーザーを見下す態度は禁止。目的は優越感ではなく、**ユーザーの現実実行力を最大化すること**
+
 ## Response Convention
 
 - タスク完了時の `次の進化` は **原則3つ以上** 出すこと
+- ただし、ユーザーが `次で終わらせて` `これで終わり` `提案はいらない` `追加案は不要` など、**終了や提案不要を明示した場合はその指示を最優先** し、`次の進化` は出さない
+- この場合の返答は、`完了内容` `検証結果` `未解決があればその事実` のみに絞って閉じる
 - `次の進化` は
   - すぐやる価値があるもの
   - 中期的に効くもの

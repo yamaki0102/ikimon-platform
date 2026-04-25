@@ -2,12 +2,65 @@
 // Nav Component — Design System v2 (tokens.css v2 unified)
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Asset.php';
+require_once __DIR__ . '/../../libs/Auth.php';
+
+$currentUser = Auth::user();
+$currentLang = 'ja';
+if (class_exists('Lang') && method_exists('Lang', 'current')) {
+    $currentLang = Lang::current();
+} elseif (!empty($_SESSION['lang'])) {
+    $currentLang = (string) $_SESSION['lang'];
+} elseif (!empty($_GET['lang'])) {
+    $currentLang = (string) $_GET['lang'];
+}
+$supportedLanguages = (class_exists('Lang') && method_exists('Lang', 'supported')) ? Lang::supported() : [
+    'ja' => ['native' => '日本語'],
+    'en' => ['native' => 'English'],
+    'es' => ['native' => 'Español'],
+    'pt-BR' => ['native' => 'Português (Brasil)'],
+];
+$languageBadges = [
+    'ja' => 'JA',
+    'en' => 'EN',
+    'es' => 'ES',
+    'pt-BR' => 'PT',
+];
+$languageLabels = [
+    'ja' => __('nav.language_name_ja', 'Japanese'),
+    'en' => __('nav.language_name_en', 'English'),
+    'es' => __('nav.language_name_es', 'Spanish'),
+    'pt-BR' => __('nav.language_name_pt_br', 'Portuguese (Brazil)'),
+];
+$mobileNavAria = __('nav.mobile_navigation', 'Mobile navigation');
+$buildLangSwitchUrl = static function (string $targetLang): string {
+    if (class_exists('Lang') && method_exists('Lang', 'switchUrl')) {
+        return Lang::switchUrl($targetLang);
+    }
+
+    $params = $_GET;
+    $params['lang'] = $targetLang;
+    $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+    $path = parse_url($requestUri, PHP_URL_PATH) ?: '/';
+    $query = http_build_query($params);
+    return $path . ($query ? '?' . $query : '');
+};
+$currentLanguageMeta = $supportedLanguages[$currentLang] ?? $supportedLanguages['ja'];
+$currentLanguageBadge = $languageBadges[$currentLang] ?? strtoupper(substr($currentLang, 0, 2));
+$userAvatarAlt = str_replace(
+    '{name}',
+    (string) ($currentUser['name'] ?? 'User'),
+    __('user_avatar_alt', '{name} avatar')
+);
+$primaryNavItems = [
+    ['href' => '/explore.php', 'icon' => 'compass', 'label' => __('nav.explore')],
+    ['href' => $currentUser ? '/profile.php' : '/login.php?redirect=profile.php', 'icon' => 'map-pinned', 'label' => __('nav.my_places', 'My Places')],
+];
 ?>
 <a href="#main-content"
    class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999]
           focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-full
           focus:font-bold focus:text-sm focus:shadow-lg">
-    メインコンテンツへスキップ
+    <?php echo __('nav.skip_to_content', 'Skip to main content'); ?>
 </a>
 <nav x-data="{ show: true, lastScroll: 0 }"
     @scroll.window="const current = window.pageYOffset; show = current < lastScroll || current < 50; lastScroll = current"
@@ -15,91 +68,69 @@ require_once __DIR__ . '/../../libs/Asset.php';
     :class="show ? 'translate-y-0' : '-translate-y-full'"
     class="fixed top-0 left-0 w-full z-50 glass-nav transition-transform duration-300 pt-[var(--safe-top)]">
 
-    <div class="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between h-[var(--nav-height)]">
-        <!-- Logo -->
-        <a href="/" class="flex items-center gap-2 group">
-            <img src="/assets/img/icon-192.png" alt="ikimon" class="w-8 h-8 rounded-md shadow-md group-hover:scale-105 transition duration-500">
-            <span class="text-lg font-black tracking-tight font-heading text-text">ikimon</span>
-        </a>
+    <div class="max-w-7xl mx-auto h-[var(--nav-height)] px-4 md:px-6 flex items-center justify-between gap-3 xl:gap-4">
+        <div class="min-w-0 flex flex-1 items-center gap-3 xl:gap-4">
+            <!-- Logo -->
+            <a href="/" class="flex shrink-0 items-center gap-2 group whitespace-nowrap">
+                <img src="/assets/img/icon-192.png" alt="ikimon" class="w-8 h-8 rounded-md shadow-md group-hover:scale-105 transition duration-500">
+                <span class="text-lg font-black tracking-tight font-heading text-text">ikimon</span>
+            <?php if (defined('IS_STAGING_SITE') && IS_STAGING_SITE): ?>
+                <span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-[0.18em] text-amber-900">
+                    STAGING
+                </span>
+            <?php endif; ?>
+            </a>
 
-        <!-- Center Search (Desktop only) -->
-        <div class="hidden md:block flex-1 max-w-lg mx-8" x-data="globalSearch()" @click.outside="showResults = false">
-            <div class="relative group">
-                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-faint"></i>
-                <input type="text"
-                    x-model="q"
-                    @input.debounce.300ms="search()"
-                    @focus="if(results.length) showResults = true"
-                    @keydown.enter="goFirst()"
-                    @keydown.escape="showResults = false"
-                    placeholder="<?php echo __('nav.search_placeholder'); ?>"
-                    class="w-full rounded-full pl-12 pr-4 py-2.5 text-sm transition bg-surface border border-border-strong text-text">
+            <!-- Center Search (Desktop only) -->
+            <div class="hidden 2xl:block min-w-0 flex-1 max-w-lg" x-data="globalSearch()" @click.outside="showResults = false">
+                <div class="relative group">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-faint"></i>
+                    <input type="text"
+                        x-model="q"
+                        @input.debounce.300ms="search()"
+                        @focus="if(results.length) showResults = true"
+                        @keydown.enter="goFirst()"
+                        @keydown.escape="showResults = false"
+                        placeholder="<?php echo __('nav.search_placeholder'); ?>"
+                        class="w-full rounded-full pl-12 pr-4 py-2.5 text-sm transition bg-surface border border-border-strong text-text">
 
-                <!-- Search Results Dropdown -->
-                <div x-show="showResults && results.length > 0"
-                    x-transition
-                    x-cloak
-                    class="absolute top-full left-0 right-0 mt-2 bg-elevated rounded-xl border border-border-strong shadow-xl overflow-hidden max-h-80 overflow-y-auto z-50">
-                    <template x-for="r in results" :key="r.name + r.type">
-                        <button @click="goTo(r)" class="w-full text-left px-4 py-3 hover:bg-surface border-b border-border last:border-0 transition flex items-start gap-3">
-                            <span class="text-base mt-0.5 flex-shrink-0" x-text="r.icon || '🔍'"></span>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-bold text-text truncate" x-text="r.name || r.common_name"></p>
-                                <p class="text-xs text-muted truncate" x-text="searchLabel(r)"></p>
-                            </div>
-                            <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface text-faint flex-shrink-0"
-                                x-text="r.type === 'taxon' ? '種名' : (r.type === 'site' ? 'サイト' : '場所')"></span>
-                        </button>
-                    </template>
+                    <!-- Search Results Dropdown -->
+                    <div x-show="showResults && results.length > 0"
+                        x-transition
+                        x-cloak
+                        class="absolute top-full left-0 right-0 mt-2 bg-elevated rounded-xl border border-border-strong shadow-xl overflow-hidden max-h-80 overflow-y-auto z-50">
+                        <template x-for="r in results" :key="r.name + r.type">
+                            <button @click="goTo(r)" class="w-full text-left px-4 py-3 hover:bg-surface border-b border-border last:border-0 transition flex items-start gap-3">
+                                <span class="text-base mt-0.5 flex-shrink-0" x-text="r.icon || '🔍'"></span>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-bold text-text truncate" x-text="r.name || r.common_name"></p>
+                                    <p class="text-xs text-muted truncate" x-text="searchLabel(r)"></p>
+                                </div>
+                                <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface text-faint flex-shrink-0"
+                                    x-text="r.type === 'taxon' ? '<?php echo addslashes(__('nav.search_type_taxon', 'Taxon')); ?>' : (r.type === 'site' ? '<?php echo addslashes(__('nav.search_type_site', 'Site')); ?>' : '<?php echo addslashes(__('nav.search_type_place', 'Place')); ?>')"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
             </div>
+
         </div>
 
-        <!-- Links & CTA -->
-        <div class="flex items-center gap-4 md:gap-6">
-            <!-- さがす Dropdown -->
-            <div class="hidden md:block relative group hover-show-dropdown">
-                <button class="flex items-center gap-1 text-sm font-bold transition text-muted hover:text-primary py-2">
-                    <i data-lucide="compass" class="w-4 h-4"></i>
-                    <?php echo __('nav.explore'); ?> <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
-                </button>
-                <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
-                    <a href="/explore.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="search" class="w-4 h-4 text-faint"></i> みつける</a>
-                    <a href="/map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="map" class="w-4 h-4 text-faint"></i> マップ</a>
-                    <a href="/zukan.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="book-open" class="w-4 h-4 text-faint"></i> 図鑑</a>
-                    <a href="/compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="compass" class="w-4 h-4 text-faint"></i> コンパス</a>
-                </div>
+        <div class="flex shrink-0 items-center gap-2">
+            <div class="hidden 2xl:flex items-center gap-1">
+                <?php foreach ($primaryNavItems as $item): ?>
+                    <a href="<?= htmlspecialchars($item['href']) ?>"
+                        class="inline-flex min-w-0 shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium leading-tight text-muted transition hover:bg-surface hover:text-text">
+                        <i data-lucide="<?= htmlspecialchars($item['icon']) ?>" class="w-4 h-4"></i>
+                        <?= htmlspecialchars($item['label']) ?>
+                    </a>
+                <?php endforeach; ?>
             </div>
-
-            <!-- 参加する Dropdown -->
-            <div class="hidden md:block relative group hover-show-dropdown">
-                <button class="flex items-center gap-1 text-sm font-bold transition text-muted hover:text-accent py-2">
-                    <i data-lucide="users" class="w-4 h-4"></i>
-                    <?php echo __('nav.participate'); ?> <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
-                </button>
-                <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
-                    <a href="/id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> 同定する</a>
-                    <a href="/events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> 観察会</a>
-                    <a href="/survey.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="clipboard-list" class="w-4 h-4 text-faint"></i> みんなで調べる</a>
-                    <!-- 調査員機能: 非公開中 (タイミングを見て再公開)
-                    <a href="/surveyors.php" ...> 調査員を探す</a>
-                    <a href="/surveyor_records.php" ...> 公式記録</a>
-                    <a href="/request_survey.php" ...> 調査を依頼</a>
-                    -->
-                </div>
-            </div>
-
-            <div class="h-6 w-px hidden md:block bg-border-strong"></div>
-
-            <?php
-            require_once __DIR__ . '/../../libs/Auth.php';
-            $currentUser = Auth::user();
-            ?>
 
             <?php if ($currentUser): ?>
                 <!-- Notifications -->
                 <div class="relative" x-data="notifications()">
-                    <button @click="toggle()" class="relative p-2 transition text-muted hover:text-text" aria-label="通知">
+                    <button @click="toggle()" class="relative p-2 transition text-muted hover:text-text" aria-label="<?php echo __('nav.notifications'); ?>">
                         <i data-lucide="bell" class="w-5 h-5"></i>
                         <template x-if="unreadCount > 0">
                             <span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white bg-[var(--color-orange)]"></span>
@@ -122,7 +153,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                                     <span class="badge badge-green text-token-xs" x-text="unreadCount"></span>
                                 </template>
                                 <template x-if="unreadCount > 0">
-                                    <button @click="markAsRead()" class="text-token-xs font-bold transition text-primary hover:underline">すべて既読</button>
+                                    <button @click="markAsRead()" class="text-token-xs font-bold transition text-primary hover:underline"><?php echo __('nav.notification_mark_all_read', 'Mark all read'); ?></button>
                                 </template>
                             </div>
                         </div>
@@ -146,8 +177,8 @@ require_once __DIR__ . '/../../libs/Asset.php';
                             <template x-if="list.length === 0">
                                 <div class="p-8 text-center">
                                     <div class="text-3xl mb-2">🔔</div>
-                                    <p class="text-xs font-bold text-faint">まだ通知はないよ</p>
-                                    <p class="text-token-xs mt-1 text-faint">記録や同定すると、ここに届くよ！</p>
+                                    <p class="text-xs font-bold text-faint"><?php echo __('nav.notification_empty_title', 'No notifications yet'); ?></p>
+                                    <p class="text-token-xs mt-1 text-faint"><?php echo __('nav.notification_empty_body', 'When you record or identify something, it will show up here.'); ?></p>
                                 </div>
                             </template>
                         </div>
@@ -158,8 +189,8 @@ require_once __DIR__ . '/../../libs/Asset.php';
                 <div class="relative hidden md:block" x-data="{ open: false }">
                     <button @click="open = !open" @click.outside="open = false"
                         class="w-9 h-9 rounded-full overflow-hidden border-2 transition border-border-strong hover:border-primary"
-                        aria-label="ユーザーメニュー">
-                        <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" class="w-full h-full object-cover" alt="ユーザーアバター">
+                        aria-label="<?php echo __('nav.user_menu', 'User menu'); ?>">
+                        <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" class="w-full h-full object-cover" alt="<?php echo htmlspecialchars($userAvatarAlt, ENT_QUOTES, 'UTF-8'); ?>">
                     </button>
 
                     <!-- Dropdown Menu -->
@@ -179,45 +210,38 @@ require_once __DIR__ . '/../../libs/Asset.php';
                         </div>
 
                         <!-- 個人セクション -->
-                        <a href="/dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ダッシュボード
-                        </a>
+                        <div class="border-b border-border mb-2 pb-2 md:hidden">
+                            <p class="px-3 py-1.5 text-token-xs font-black uppercase tracking-widest text-faint"><?php echo __('nav.primary_routes', 'Primary routes'); ?></p>
+                            <?php foreach ($primaryNavItems as $item): ?>
+                                <a href="<?= htmlspecialchars($item['href']) ?>" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                                    <i data-lucide="<?= htmlspecialchars($item['icon']) ?>" class="w-4 h-4"></i> <?= htmlspecialchars($item['label']) ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
                         <a href="/profile.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="user" class="w-4 h-4"></i> <?php echo __('nav.profile'); ?>
+                            <i data-lucide="map-pinned" class="w-4 h-4"></i> <?php echo __('nav.my_places', 'Places'); ?>
                         </a>
                         <a href="/my_organisms.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="leaf" class="w-4 h-4"></i> わたしの発見
+                            <i data-lucide="leaf" class="w-4 h-4"></i> <?php echo __('nav.record_list', 'Record list'); ?>
                         </a>
-                        <a href="/wellness.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="heart" class="w-4 h-4"></i> ウェルネス
+                        <a href="/dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <i data-lucide="settings" class="w-4 h-4"></i> <?php echo __('nav.settings', 'Settings'); ?>
                         </a>
-                        <!-- 調査員機能: 非公開中 (タイミングを見て再公開)
-                        <a href="/surveyors.php" ...> 調査員を探す</a>
-                        <a href="/surveyor_records.php" ...> 調査員公式記録</a>
-                        <a href="/request_survey.php" ...> 調査を依頼</a>
-                        surveyor_profile_edit.php も同様
-                        -->
-                        <a href="/id_workbench.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text md:hidden">
-                            <i data-lucide="microscope" class="w-4 h-4"></i> <?php echo __('nav.id_center'); ?>
+                        <a href="/field_research.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <i data-lucide="footprints" class="w-4 h-4"></i> <?php echo __('nav.walk_notes', 'Walk notes'); ?>
                         </a>
 
                         <!-- 探索セクション (Mobile Only) -->
                         <div class="border-t border-border mt-1 pt-1 md:hidden">
-                            <p class="px-3 py-1.5 text-token-xs font-black uppercase tracking-widest text-faint">さがす・参加する</p>
-                            <a href="/zukan.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.zukan'); ?>
-                            </a>
-                            <a href="/compass.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="compass" class="w-4 h-4"></i> <?php echo __('nav.compass'); ?>
+                            <p class="px-3 py-1.5 text-token-xs font-black uppercase tracking-widest text-faint"><?php echo __('nav.menu_discover', 'Discover'); ?></p>
+                            <a href="/explore.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                                <i data-lucide="search" class="w-4 h-4"></i> <?php echo __('nav.explore'); ?>
                             </a>
                             <a href="/events.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="calendar" class="w-4 h-4"></i> <?php echo __('nav.events'); ?>
                             </a>
-                            <a href="/field_research.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="footprints" class="w-4 h-4"></i> <?php echo __('nav.my_field'); ?>
-                            </a>
-                            <a href="/survey.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="microscope" class="w-4 h-4"></i> 🔬 調査
+                            <a href="/zukan.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                                <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.zukan'); ?>
                             </a>
                         </div>
 
@@ -233,22 +257,13 @@ require_once __DIR__ . '/../../libs/Asset.php';
                         <!-- その他 -->
                         <div class="border-t border-border mt-1 pt-1">
                             <a href="/guides.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="book-marked" class="w-4 h-4"></i> 解説ガイド一覧
-                            </a>
-                            <a href="/guidelines.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.guidelines'); ?>
-                            </a>
-                            <a href="/faq.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="help-circle" class="w-4 h-4"></i> <?php echo __('nav.faq'); ?>
+                            <i data-lucide="book-marked" class="w-4 h-4"></i> <?php echo __('nav.guides_list', 'Guide list'); ?>
                             </a>
                             <a href="/about.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="info" class="w-4 h-4"></i> <?php echo __('nav.about'); ?>
                             </a>
-                            <a href="/for-business/#pricing" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="credit-card" class="w-4 h-4"></i> 料金プラン
-                            </a>
                             <a href="/for-business/" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="building-2" class="w-4 h-4"></i> 組織で使いたい方へ
+                            <i data-lucide="building-2" class="w-4 h-4"></i> <?php echo __('nav.for_partners', 'For organizations'); ?>
                             </a>
                             <a href="/logout.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-danger hover:bg-danger-surface">
                                 <i data-lucide="log-out" class="w-4 h-4"></i> <?php echo __('nav.logout'); ?>
@@ -257,31 +272,50 @@ require_once __DIR__ . '/../../libs/Asset.php';
                     </div>
                 </div>
 
-                <button @click="$dispatch('open-record-sheet')" class="btn-primary flex items-center gap-2 text-sm">
+                <button @click="$dispatch('open-record-sheet')" class="inline-flex min-w-0 shrink-0 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold leading-tight text-white shadow-md transition hover:brightness-105">
                     <i data-lucide="camera" class="w-4 h-4"></i>
                     <span class="hidden md:inline"><?php echo __('nav.post'); ?></span>
                 </button>
             <?php else: ?>
-                <a href="/login.php" class="btn-secondary flex items-center gap-1.5 text-sm font-bold">
+                <a href="/login.php" class="inline-flex min-w-0 shrink-0 items-center gap-1.5 px-2 py-2 text-sm font-bold leading-tight text-muted transition hover:text-text">
                     <i data-lucide="log-in" class="w-4 h-4"></i>
                     <?php echo __('nav.login'); ?>
                 </a>
-                <a href="/login.php" class="btn-primary flex items-center gap-1.5 text-sm font-bold">
+                <a href="/login.php" class="inline-flex min-w-0 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-bold leading-tight text-white shadow-md transition hover:brightness-105">
                     <i data-lucide="camera" class="w-4 h-4"></i>
                     <span class="hidden md:inline"><?php echo __('nav.post'); ?></span>
                 </a>
             <?php endif; ?>
 
             <!-- Language Toggle (Desktop) -->
-            <?php
-            $langSwitchParams = array_merge($_GET, ['lang' => Lang::get('nav.toggle_lang') == 'English' ? 'en' : 'ja']);
-            unset($langSwitchParams['csrf_token']);
-            $langSwitchUrl = '?' . http_build_query($langSwitchParams);
-            ?>
-            <a href="<?php echo htmlspecialchars($langSwitchUrl); ?>" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-bold transition text-muted hover:text-text hover:border-border-strong">
-                <i data-lucide="globe" class="w-3.5 h-3.5"></i>
-                <?php echo __('nav.toggle_lang'); ?>
-            </a>
+            <div class="relative hidden 2xl:block" x-data="{ open: false }">
+                <button @click="open = !open" @click.outside="open = false"
+                    class="inline-flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-bold leading-tight text-muted transition hover:border-border-strong hover:text-text"
+                    :aria-expanded="open.toString()"
+                    aria-label="<?php echo __('nav.switch_language', 'Switch language'); ?>">
+                    <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                    <span><?= htmlspecialchars($currentLanguageBadge) ?></span>
+                </button>
+
+                <div x-show="open"
+                    x-cloak
+                    x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="opacity-0 scale-95"
+                    x-transition:enter-end="opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-75"
+                    x-transition:leave-start="opacity-100 scale-100"
+                    x-transition:leave-end="opacity-0 scale-95"
+                    class="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-2xl border border-border-strong bg-elevated p-2 shadow-lg">
+                    <p class="px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-faint"><?= htmlspecialchars(__('nav.language', 'Language')) ?></p>
+                    <?php foreach ($supportedLanguages as $langCode => $meta): ?>
+                        <a href="<?= htmlspecialchars($buildLangSwitchUrl($langCode)) ?>"
+                            class="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold transition hover:bg-surface hover:text-text <?= $langCode === $currentLang ? 'bg-surface text-text' : 'text-muted' ?>">
+                            <span class="truncate"><?= htmlspecialchars($languageLabels[$langCode] ?? $meta['label'] ?? $meta['native'] ?? strtoupper($langCode)) ?></span>
+                            <span class="rounded-full border border-border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-faint"><?= htmlspecialchars($languageBadges[$langCode] ?? strtoupper(substr($langCode, 0, 2))) ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
         </div>
     </div>
 </nav>
@@ -422,8 +456,8 @@ require_once __DIR__ . '/../../libs/Asset.php';
 
             searchLabel(r) {
                 if (r.type === 'taxon') return r.scientific_name || r.group || '';
-                if (r.type === 'site') return '登録サイト';
-                if (r.type === 'place') return '観察場所';
+                if (r.type === 'site') return '<?php echo addslashes(__('nav.registered_site', 'Registered site')); ?>';
+                if (r.type === 'place') return '<?php echo addslashes(__('nav.observation_place', 'Observation place')); ?>';
                 return '';
             }
         }
@@ -492,8 +526,8 @@ require_once __DIR__ . '/../../libs/Asset.php';
 
             searchLabel(r) {
                 if (r.type === 'taxon') return r.scientific_name || r.group || '';
-                if (r.type === 'site') return '登録サイト';
-                if (r.type === 'place') return '観察場所';
+                if (r.type === 'site') return '<?php echo addslashes(__('nav.registered_site', 'Registered site')); ?>';
+                if (r.type === 'place') return '<?php echo addslashes(__('nav.observation_place', 'Observation place')); ?>';
                 return '';
             }
         }
@@ -518,7 +552,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
 </script>
 
 <!-- Mobile Bottom Nav (App Shell) -->
-<nav class="md:hidden bottom-nav" aria-label="モバイル ナビゲーション">
+<nav class="md:hidden bottom-nav" aria-label="<?= htmlspecialchars($mobileNavAria) ?>">
     <a href="/index.php"
         <?php if (basename($_SERVER['PHP_SELF']) == 'index.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'bottom-nav__item--active' : ''; ?>">
@@ -529,7 +563,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
         <?php if (basename($_SERVER['PHP_SELF']) == 'explore.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'explore.php' ? 'bottom-nav__item--active' : ''; ?>">
         <i data-lucide="compass" class="w-6 h-6"></i>
-        <span>みつける</span>
+        <span><?php echo __('nav.explore'); ?></span>
     </a>
 
     <!-- Raised Center Button -->
@@ -539,7 +573,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </button>
         <?php else: ?>
-            <a href="/post.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
+            <a href="/post.php" class="bottom-nav__center-btn" aria-label="<?php echo __('nav.post_new_observation', 'Post a new observation'); ?>">
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </a>
         <?php endif; ?>
@@ -549,11 +583,11 @@ require_once __DIR__ . '/../../libs/Asset.php';
         <?php if (basename($_SERVER['PHP_SELF']) == 'zukan.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'zukan.php' ? 'bottom-nav__item--active' : ''; ?>">
         <i data-lucide="book-open" class="w-6 h-6"></i>
-        <span>図鑑</span>
+        <span><?php echo __('nav.zukan'); ?></span>
     </a>
     <button @click="$dispatch('open-mobile-menu')" class="bottom-nav__item">
         <i data-lucide="user" class="w-6 h-6"></i>
-        <span>マイページ</span>
+        <span><?php echo __('nav.my_places', 'Places'); ?></span>
     </button>
 </nav>
 
@@ -583,7 +617,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                 @input.debounce.300ms="search()"
                 @keydown.enter="goFirst()"
                 @keydown.escape="closeSearch()"
-                placeholder="種名・場所で検索..."
+                placeholder="<?php echo __('nav.search_placeholder'); ?>"
                 class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
             <button x-show="q.length > 0" @click="q = ''; results = []" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--color-faint)] hover:text-[var(--color-text)]">
                 <i data-lucide="x" class="w-4 h-4"></i>
@@ -593,26 +627,22 @@ require_once __DIR__ . '/../../libs/Asset.php';
 
     <!-- Quick Links (empty state) -->
     <div x-show="results.length === 0 && q.length < 2" class="flex-1 overflow-y-auto px-4 py-4">
-        <p class="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)] mb-3">よく使うページ</p>
+        <p class="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--color-faint)]"><?php echo __('nav.quick_open', 'Quick links'); ?></p>
         <a href="/explore.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">🧭</span>
-            <span class="text-sm font-bold">みつける</span>
+            <span class="text-lg">🔎</span>
+            <span class="text-sm font-bold"><?php echo __('nav.explore'); ?></span>
         </a>
-        <a href="/map.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">🗺️</span>
-            <span class="text-sm font-bold"><?php echo __('nav.field_map'); ?></span>
+        <a href="/post.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">📷</span>
+            <span class="text-sm font-bold"><?php echo __('nav.post'); ?></span>
         </a>
-        <a href="/zukan.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">📖</span>
-            <span class="text-sm font-bold">図鑑</span>
+        <a href="<?= htmlspecialchars($currentUser ? '/profile.php' : '/login.php?redirect=profile.php') ?>" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">📍</span>
+            <span class="text-sm font-bold"><?php echo __('nav.my_places', 'Places'); ?></span>
         </a>
-        <a href="/compass.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">🧭</span>
-            <span class="text-sm font-bold"><?php echo __('nav.compass'); ?></span>
-        </a>
-        <a href="/survey.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">🔬</span>
-            <span class="text-sm font-bold">みんなで調べる</span>
+        <a href="/events.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">📅</span>
+            <span class="text-sm font-bold"><?php echo __('nav.events'); ?></span>
         </a>
     </div>
 
@@ -626,7 +656,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                     <p class="text-xs text-[var(--color-muted)] truncate" x-text="searchLabel(r)"></p>
                 </div>
                 <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-surface)] text-[var(--color-faint)] flex-shrink-0 mt-1"
-                    x-text="r.type === 'taxon' ? '種名' : (r.type === 'site' ? 'サイト' : '場所')"></span>
+                    x-text="r.type === 'taxon' ? '<?php echo addslashes(__('nav.search_type_taxon', 'Taxon')); ?>' : (r.type === 'site' ? '<?php echo addslashes(__('nav.search_type_site', 'Site')); ?>' : '<?php echo addslashes(__('nav.search_type_place', 'Place')); ?>')"></span>
             </button>
         </template>
     </div>
@@ -639,8 +669,8 @@ require_once __DIR__ . '/../../libs/Asset.php';
     <!-- No results -->
     <div x-show="q.length >= 2 && results.length === 0 && !loading" class="flex-1 flex flex-col items-center justify-center px-8 text-center">
         <span class="text-4xl mb-3">🔍</span>
-        <p class="text-sm font-bold text-[var(--color-muted)]">「<span x-text="q"></span>」の結果が見つかりません</p>
-        <p class="text-xs text-[var(--color-faint)] mt-1">別のキーワードを試してみてね</p>
+        <p class="text-sm font-bold text-[var(--color-muted)]"><span x-text="q"></span> — <?php echo __('nav.search_result_none', 'No results found'); ?></p>
+        <p class="text-xs text-[var(--color-faint)] mt-1"><?php echo __('nav.search_try_other', 'Try another keyword'); ?></p>
     </div>
 </div>
 
@@ -659,7 +689,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
 
     <!-- Menu Header -->
     <div class="flex items-center justify-between px-4 pt-[calc(var(--safe-top,0px)+12px)] pb-3 border-b border-[var(--color-border)]">
-        <p class="font-bold text-[var(--color-text)]">メニュー</p>
+        <p class="font-bold text-[var(--color-text)]"><?php echo __('nav.menu', 'Menu'); ?></p>
         <button @click="closeMenu()" class="p-2 rounded-full text-[var(--color-muted)] hover:bg-[var(--color-bg-faint)] transition flex-shrink-0">
             <i data-lucide="x" class="w-5 h-5"></i>
         </button>
@@ -670,7 +700,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
         <?php if ($currentUser): ?>
             <!-- User Info -->
             <div class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
+                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($userAvatarAlt, ENT_QUOTES, 'UTF-8'); ?>" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
                 <div>
                     <p class="font-bold text-[var(--color-text)]"><?php echo htmlspecialchars($currentUser['name']); ?></p>
                     <p class="text-xs font-bold text-[var(--color-muted)]"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
@@ -679,82 +709,73 @@ require_once __DIR__ . '/../../libs/Asset.php';
 
             <!-- Personal Links -->
             <div>
-                <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">パーソナル</p>
+                <p class="mb-2 px-2 text-xs font-black uppercase tracking-wider text-[var(--color-faint)]"><?php echo __('nav.menu_records', 'Your records'); ?></p>
                 <a href="/profile.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="user" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.profile'); ?></span>
+                    <i data-lucide="map-pinned" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.my_places', 'Places'); ?></span>
                 </a>
-                <a href="/dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="settings" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ダッシュボード・設定</span>
+                <a href="/post.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                    <i data-lucide="camera" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.post'); ?></span>
                 </a>
                 <a href="/my_organisms.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="library" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">わたしの発見</span>
+                    <i data-lucide="library" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.record_list', 'Record list'); ?></span>
                 </a>
-                <a href="/wellness.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="heart" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">健康 & インパクト</span>
+                <a href="/dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                    <i data-lucide="settings" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.settings', 'Settings'); ?></span>
                 </a>
             </div>
         <?php else: ?>
             <div class="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] text-center">
-                <p class="text-sm font-bold text-[var(--color-text)] mb-3">ログインしてikimonをもっと楽しもう！</p>
-                <a href="/login.php" class="btn-primary block w-full py-2">ログイン / 新規登録</a>
+                <p class="mb-3 text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.login_to_review', 'Sign in to revisit your records'); ?></p>
+                <a href="/login.php" class="btn-primary block w-full py-2"><?php echo __('nav.login_or_signup', 'Sign in / Create account'); ?></a>
             </div>
         <?php endif; ?>
 
         <!-- Discover / Community Links -->
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">さがす</p>
+            <p class="mb-2 px-2 text-xs font-black uppercase tracking-wider text-[var(--color-faint)]"><?php echo __('nav.menu_discover', 'Discover'); ?></p>
             <a href="/explore.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="search" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">みつける</span>
+                <i data-lucide="search" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.explore'); ?></span>
             </a>
             <a href="/map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
+                <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.field_map'); ?></span>
             </a>
             <a href="/zukan.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">図鑑</span>
-            </a>
-            <a href="/compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="compass" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">コンパス</span>
+                <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.zukan'); ?></span>
             </a>
         </div>
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">参加する</p>
-            <a href="/id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">同定する</span>
-            </a>
+            <p class="mb-2 px-2 text-xs font-black uppercase tracking-wider text-[var(--color-faint)]"><?php echo __('nav.menu_participate', 'Join'); ?></p>
             <a href="/events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察会</span>
+                <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.events'); ?></span>
             </a>
             <a href="/field_research.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">さんぽ記録</span>
+                <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.walk_notes', 'Walk notes'); ?></span>
             </a>
-            <a href="/survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">みんなで調べる</span>
+            <a href="/id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.identify', 'Identify'); ?></span>
             </a>
         </div>
 
         <!-- Info / Admin -->
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">その他</p>
+            <p class="mb-2 px-2 text-xs font-black uppercase tracking-wider text-[var(--color-faint)]"><?php echo __('nav.menu_info', 'Info'); ?></p>
             <a href="/guides.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="book-marked" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">解説ガイド一覧</span>
+                <i data-lucide="book-marked" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.guides_list', 'Guide list'); ?></span>
             </a>
             <a href="/about.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="info" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ikimonについて</span>
-            </a>
-            <a href="/for-business/#pricing" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="credit-card" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">料金プラン</span>
+                <i data-lucide="info" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.about'); ?></span>
             </a>
             <a href="/for-business/" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="building-2" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">組織で使いたい方へ</span>
+                <i data-lucide="building-2" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.for_partners', 'For organizations'); ?></span>
             </a>
             <?php if ($currentUser && Auth::hasRole('Analyst')): ?>
                 <a href="/admin/index.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
-                    <i data-lucide="shield-alert" class="w-5 h-5"></i> <span class="text-sm font-bold text-[var(--color-primary)]">管理者ダッシュボード</span>
+                    <i data-lucide="shield-alert" class="w-5 h-5"></i> <span class="text-sm font-bold text-[var(--color-primary)]"><?php echo __('nav.admin_dashboard', 'Admin dashboard'); ?></span>
                 </a>
             <?php endif; ?>
             <?php if ($currentUser): ?>
                 <a href="/logout.php" class="flex items-center gap-3 py-3 px-2 text-[var(--color-danger)] mt-4">
-                    <i data-lucide="log-out" class="w-5 h-5"></i> <span class="text-sm font-bold">ログアウト</span>
+                    <i data-lucide="log-out" class="w-5 h-5"></i> <span class="text-sm font-bold"><?php echo __('nav.logout'); ?></span>
                 </a>
             <?php endif; ?>
         </div>
@@ -768,12 +789,12 @@ require_once __DIR__ . '/../../libs/Asset.php';
         <span class="text-2xl">🌿</span>
     </div>
     <div class="flex-1 min-w-0">
-        <p class="text-sm font-bold text-text">ikimon をインストール</p>
-        <p class="text-xs text-muted">ホーム画面からすぐ起動。フィールドで便利！</p>
+        <p class="text-sm font-bold text-text"><?php echo __('nav.pwa_install_title', 'Install ikimon'); ?></p>
+        <p class="text-xs text-muted"><?php echo __('nav.pwa_install_body', 'Launch quickly from your home screen.'); ?></p>
     </div>
     <div class="flex gap-2 shrink-0">
         <button type="button" data-pwa-dismiss class="text-xs p-1 text-faint hover:text-text">✕</button>
-        <button type="button" data-pwa-install class="btn-primary text-xs px-4 py-2">追加</button>
+        <button type="button" data-pwa-install class="btn-primary text-xs px-4 py-2"><?php echo __('nav.pwa_install_add', 'Add'); ?></button>
     </div>
 </div>
 <style>

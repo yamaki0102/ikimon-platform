@@ -1,7 +1,9 @@
 {
+    "Mode": "github_actions_only",
     "TargetName": "ikimon.life",
     "LocalDir": "upload_package",
     "SshAlias": "production",
     "RemoteBase": "~/public_html/",
-    "Url": "https://ikimon.life/"
+    "Url": "https://ikimon.life/",
+    "Note": "Legacy WSL rsync route is disabled for this repository. Production deploy uses GitHub Actions only."
 }

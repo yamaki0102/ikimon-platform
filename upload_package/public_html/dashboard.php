@@ -5,12 +5,15 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/QuestManager.php';
 require_once __DIR__ . '/../libs/HabitEngine.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
+require_once __DIR__ . '/../libs/Lang.php';
 require_once __DIR__ . '/../libs/Services/UserStatsService.php';
 require_once __DIR__ . '/../libs/Services/LibraryService.php';
 
 Auth::init();
+Lang::init();
 $currentUser = Auth::user();
-$meta_title = 'ダッシュボード';
+$documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+$meta_title = __('dashboard_page.meta_title', 'Dashboard');
 
 // Fetch Data
 $latest_obs = DataStore::getLatest('observations', 5);
@@ -25,7 +28,7 @@ $bibStats = [
 
 // Stats Calculation
 $userStats = [
-    'rank'      => '見習い',
+    'rank'      => __('dashboard_page.rank_apprentice', 'Apprentice'),
     'score'     => 0,
     'territory' => 0.0,
 ];
@@ -45,7 +48,7 @@ $orsProgress   = $_ors ? ($_ors['progress'] ?? 0)         : UserStatsService::ge
 $orsNextThresh = $_ors ? ($_ors['next_threshold'] ?? null) : UserStatsService::getNextRankTarget($userStats['score']);
 $orsRankIcon   = $_ors ? ($_ors['rank']['icon']    ?? '🌱') : '🌱';
 $orsRankColor  = $_ors ? ($_ors['rank']['color']   ?? '#8bc34a') : '#8bc34a';
-$orsRankName   = $_ors ? ($_ors['rank']['name_ja'] ?? '見習い')  : '見習い';
+$orsRankName   = $_ors ? ($_ors['rank']['name_' . ($documentLang === 'ja' ? 'ja' : 'en')] ?? $_ors['rank']['name_en'] ?? __('dashboard_page.rank_apprentice', 'Apprentice'))  : __('dashboard_page.rank_apprentice', 'Apprentice');
 
 // Daily Quest
 $activeQuests = QuestManager::getActiveQuests($currentUser['id'] ?? null);
@@ -53,7 +56,7 @@ $dailyTargets = $activeQuests;
 $todayLabels = $todayState['labels'] ?? HabitEngine::getLabels();
 $todayTypes = $todayState['today_types'] ?? [];
 $todayHabitComplete = !empty($todayState['today_complete']);
-$todayTitle = $todayState['title'] ?? '今日の継続を積もう';
+$todayTitle = $todayState['title'] ?? 'Keep the streak going today';
 $todayMessage = $todayState['message'] ?? '';
 $todayRemaining = $todayState['remaining'] ?? [];
 $todayReflectionPreview = HabitEngine::previewNote($todayState['reflection_note'] ?? '');
@@ -62,14 +65,14 @@ $todayCtas = $todayState['cta_options'] ?? HabitEngine::getCtaOptions($todayType
 
 // Category tiles
 $missions = [
-    ['id' => 'insect', 'label' => '昆虫', 'icon' => 'bug',  'color' => 'emerald', 'count_done' => 12,  'count_total' => 450],
-    ['id' => 'bird',   'label' => '鳥類', 'icon' => 'bird', 'color' => 'sky',     'count_done' => 45,  'count_total' => 120],
-    ['id' => 'plant',  'label' => '植物', 'icon' => 'leaf', 'color' => 'green',   'count_done' => 102, 'count_total' => 1200],
-    ['id' => 'herps',  'label' => '両爬', 'icon' => 'fish', 'color' => 'amber',   'count_done' => 3,   'count_total' => 45],
+    ['id' => 'insect', 'label' => __('dashboard_page.mission_insect', 'Insects'), 'icon' => 'bug',  'color' => 'emerald', 'count_done' => 12,  'count_total' => 450],
+    ['id' => 'bird',   'label' => __('dashboard_page.mission_bird', 'Birds'), 'icon' => 'bird', 'color' => 'sky',     'count_done' => 45,  'count_total' => 120],
+    ['id' => 'plant',  'label' => __('dashboard_page.mission_plant', 'Plants'), 'icon' => 'leaf', 'color' => 'green',   'count_done' => 102, 'count_total' => 1200],
+    ['id' => 'herps',  'label' => __('dashboard_page.mission_herps', 'Amphibians and reptiles'), 'icon' => 'fish', 'color' => 'amber',   'count_done' => 3,   'count_total' => 45],
 ];
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang) ?>">
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
@@ -80,21 +83,21 @@ $missions = [
     <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 
     <main class="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <h1 class="sr-only">ダッシュボード</h1>
+        <h1 class="sr-only"><?= __('dashboard_page.title', 'Dashboard') ?></h1>
 
         <!-- 1. User Rank Card -->
         <?php if ($currentUser): ?>
         <section style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
             <div class="flex items-center gap-4">
                 <img src="<?= htmlspecialchars($currentUser['avatar']) ?>"
-                     alt="<?= htmlspecialchars($currentUser['name'] ?? 'ユーザー') ?>のアバター"
+                     alt="<?= htmlspecialchars(__('dashboard_page.user_avatar_alt', '{name} avatar', ['name' => $currentUser['name'] ?? ''])) ?>"
                      class="w-14 h-14 rounded-xl object-cover border-2 border-border shadow-sm shrink-0">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                         <span class="text-xl leading-none"><?= $orsRankIcon ?></span>
                         <span class="font-bold text-text truncate"><?= htmlspecialchars($currentUser['name']) ?></span>
                         <?php if (($streakData['current_streak'] ?? 0) > 0): ?>
-                            <span class="text-sm text-orange-500 font-bold">🔥 <?= $streakData['current_streak'] ?>日連続</span>
+                            <span class="text-sm text-orange-500 font-bold">🔥 <?= __('dashboard_page.streak_days', '{days} days in a row', ['days' => $streakData['current_streak']]) ?></span>
                         <?php endif; ?>
                     </div>
                     <div class="text-xs text-muted mb-2"><?= htmlspecialchars($orsRankName) ?> · <?= number_format($userStats['score']) ?> pt</div>
@@ -106,7 +109,7 @@ $missions = [
                         <span class="text-xs text-muted font-mono shrink-0"><?= round($orsProgress) ?>%</span>
                     </div>
                     <?php if ($orsNextThresh): ?>
-                    <div class="text-token-xs text-faint mt-1">次のランクまで <?= is_numeric($orsNextThresh) ? number_format($orsNextThresh) : htmlspecialchars($orsNextThresh) ?> pt</div>
+                    <div class="text-token-xs text-faint mt-1"><?= __('dashboard_page.next_rank', 'Next rank in {points} pt', ['points' => is_numeric($orsNextThresh) ? number_format($orsNextThresh) : htmlspecialchars($orsNextThresh)]) ?></div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -115,15 +118,15 @@ $missions = [
             <div class="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-3 text-center">
                 <a href="profile.php" class="rounded-xl py-1.5 transition" style="--hover-bg:var(--md-primary-container);" onmouseover="this.style.background='var(--md-primary-container)'" onmouseout="this.style.background=''">
                     <div class="text-lg font-black text-text"><?= number_format($userStats['score']) ?></div>
-                    <div class="text-token-xs text-faint">スコア</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.stat_score', 'Score') ?></div>
                 </a>
                 <a href="ikimon_walk.php" class="rounded-xl py-1.5 transition" style="--hover-bg:var(--md-primary-container);" onmouseover="this.style.background='var(--md-primary-container)'" onmouseout="this.style.background=''">
                     <div class="text-lg font-black text-text"><?= number_format($userStats['territory'], 1) ?></div>
-                    <div class="text-token-xs text-faint">km² 探索</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.stat_territory', 'km² explored') ?></div>
                 </a>
                 <a href="index.php" class="rounded-xl py-1.5 transition" style="--hover-bg:var(--md-primary-container);" onmouseover="this.style.background='var(--md-primary-container)'" onmouseout="this.style.background=''">
                     <div class="text-lg font-black text-text"><?= count($latest_obs ?? []) ?></div>
-                    <div class="text-token-xs text-faint">最新記録</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.stat_latest', 'Latest records') ?></div>
                 </a>
             </div>
         </section>
@@ -141,7 +144,7 @@ $missions = [
                 <div class="shrink-0 text-right">
                     <div class="text-2xl"><?= $todayHabitComplete ? '🌿' : '🔥' ?></div>
                     <div class="text-token-xs font-bold <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">
-                        <?= (int)($streakData['current_streak'] ?? 0) ?>日連続
+                        <?= __('dashboard_page.streak_days', '{days} days in a row', ['days' => (int)($streakData['current_streak'] ?? 0)]) ?>
                     </div>
                 </div>
             </div>
@@ -175,33 +178,33 @@ $missions = [
 
             <?php if ($todayReflectionPreview !== ''): ?>
             <div class="mt-4 rounded-xl rounded-xl" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant); px-4 py-3">
-                <div class="text-[10px] font-black tracking-widest text-emerald-700">TODAY NOTE</div>
+                <div class="text-[10px] font-black tracking-widest text-emerald-700"><?= __('dashboard_page.today_note', 'TODAY NOTE') ?></div>
                 <p class="text-sm text-text mt-1"><?= htmlspecialchars($todayReflectionPreview) ?></p>
             </div>
             <?php elseif ($latestReflectionPreview !== ''): ?>
-            <p class="mt-4 text-token-xs text-muted">前回の1分メモ: <?= htmlspecialchars($latestReflectionPreview) ?></p>
+            <p class="mt-4 text-token-xs text-muted"><?= __('dashboard_page.latest_note', 'Last 1-minute note') ?>: <?= htmlspecialchars($latestReflectionPreview) ?></p>
             <?php endif; ?>
 
             <div class="mt-4 rounded-xl rounded-xl" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant); p-4 hidden" data-reflection-panel>
                 <div class="flex items-center justify-between gap-3">
                     <div>
-                        <div class="text-xs font-black text-amber-700">1分メモ</div>
-                        <p class="text-[11px] text-muted mt-1">今日は何を見たか、何に気づいたかを一言だけ残す。</p>
+                        <div class="text-xs font-black text-amber-700"><?= __('dashboard_page.note_title', '1-minute note') ?></div>
+                        <p class="text-[11px] text-muted mt-1"><?= __('dashboard_page.note_body', 'Leave one short line about what you saw and noticed today.') ?></p>
                     </div>
-                    <button type="button" data-reflection-cancel class="text-[11px] font-bold text-muted hover:text-text transition">閉じる</button>
+                    <button type="button" data-reflection-cancel class="text-[11px] font-bold text-muted hover:text-text transition"><?= __('nav.close', 'Close') ?></button>
                 </div>
-                <textarea data-reflection-note maxlength="120" rows="3" class="mt-3 w-full rounded-xl px-3 py-3 text-sm focus:outline-none resize-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" placeholder="例: 雨上がりで鳥の声が増えていた"></textarea>
+                <textarea data-reflection-note maxlength="120" rows="3" class="mt-3 w-full rounded-xl px-3 py-3 text-sm focus:outline-none resize-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" placeholder="<?= __('dashboard_page.note_placeholder', 'Example: Birdsong was louder after the rain') ?>"></textarea>
                 <div class="mt-3 flex items-center justify-between gap-3">
-                    <p class="text-[11px] text-muted" data-reflection-status>雨の日でも継続は切らさない。</p>
+                    <p class="text-[11px] text-muted" data-reflection-status><?= __('dashboard_page.note_hint', 'Keep the streak going even on rainy days.') ?></p>
                     <button type="button" data-reflection-submit class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 transition">
-                        <i data-lucide="pen-square" class="w-4 h-4"></i> 保存して継続に加える
+                        <i data-lucide="pen-square" class="w-4 h-4"></i> <?= __('dashboard_page.note_submit', 'Save and add to the streak') ?>
                     </button>
                 </div>
             </div>
 
             <?php if (!$todayHabitComplete && !empty($todayRemaining)): ?>
             <p class="mt-3 text-token-xs text-amber-700">
-                今日は <?= htmlspecialchars(implode(' / ', array_map(fn($type) => $todayLabels[$type] ?? $type, $todayRemaining))) ?> のどれかで継続成立。
+                <?= htmlspecialchars(implode(' / ', array_map(fn($type) => $todayLabels[$type] ?? $type, $todayRemaining))) ?> <?= __('dashboard_page.today_complete_suffix', 'and the streak is complete.') ?>
             </p>
             <?php endif; ?>
         </section>
@@ -212,17 +215,17 @@ $missions = [
             <a href="post.php"
                class="flex flex-col items-center gap-2 bg-primary text-white rounded-2xl py-4 px-3 text-center shadow-sm active:scale-95 transition">
                 <i data-lucide="camera" class="w-6 h-6"></i>
-                <span class="text-xs font-bold">記録する</span>
+                <span class="text-xs font-bold"><?= __('dashboard_page.record', 'Record') ?></span>
             </a>
             <a href="ikimon_walk.php"
                class="flex flex-col items-center gap-2 rounded-2xl py-4 px-3 text-center active:scale-95 transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                 <i data-lucide="footprints" class="w-6 h-6 text-emerald-600"></i>
-                <span class="text-xs font-bold text-text">さんぽ</span>
+                <span class="text-xs font-bold text-text"><?= __('dashboard_page.walk', 'Walk') ?></span>
             </a>
             <a href="explore.php"
                class="flex flex-col items-center gap-2 rounded-2xl py-4 px-3 text-center active:scale-95 transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                 <i data-lucide="map" class="w-6 h-6 text-sky-600"></i>
-                <span class="text-xs font-bold text-text">探索マップ</span>
+                <span class="text-xs font-bold text-text"><?= __('dashboard_page.explore_map', 'Explore map') ?></span>
             </a>
         </section>
 
@@ -230,8 +233,8 @@ $missions = [
         <?php if (!empty($dailyTargets)): ?>
         <section>
             <div class="flex items-center justify-between mb-3">
-                <h2 class="text-base font-black text-text">今日のクエスト</h2>
-                <a href="explore.php" class="text-xs font-bold text-amber-700 hover:text-amber-800 transition">探しに行く</a>
+                <h2 class="text-base font-black text-text"><?= __('dashboard_page.daily_quest', 'Today’s quest') ?></h2>
+                <a href="explore.php" class="text-xs font-bold text-amber-700 hover:text-amber-800 transition"><?= __('dashboard_page.go_explore', 'Go explore') ?></a>
             </div>
             <div class="grid gap-3 md:grid-cols-3">
                 <?php foreach ($dailyTargets as $quest): ?>
@@ -241,8 +244,8 @@ $missions = [
                             <i data-lucide="<?= htmlspecialchars($quest['icon'] ?? 'target') ?>" class="w-5 h-5 text-amber-600"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="text-token-xs text-amber-700 font-bold tracking-wide">今日のクエスト</div>
-                            <div class="text-sm font-black text-gray-900 truncate"><?= htmlspecialchars($quest['title'] ?? 'クエスト') ?></div>
+                            <div class="text-token-xs text-amber-700 font-bold tracking-wide"><?= __('dashboard_page.daily_quest', 'Today’s quest') ?></div>
+                            <div class="text-sm font-black text-gray-900 truncate"><?= htmlspecialchars($quest['title'] ?? __('dashboard_page.quest_fallback', 'Quest')) ?></div>
                         </div>
                     </div>
                     <div class="text-xs text-amber-900/80 mb-2"><?= htmlspecialchars($quest['description'] ?? '') ?></div>
@@ -255,7 +258,7 @@ $missions = [
 
         <!-- 5. Category Exploration -->
         <section>
-            <h2 class="text-base font-black text-text mb-3">カテゴリ探索</h2>
+            <h2 class="text-base font-black text-text mb-3"><?= __('dashboard_page.category_explore', 'Category exploration') ?></h2>
             <div class="grid grid-cols-2 gap-3">
                 <?php
                 $colorMap = [
@@ -277,9 +280,7 @@ $missions = [
                     <div class="text-2xl font-black <?= $c['text'] ?> mb-1 leading-none">
                         <?= number_format($m['count_total'] - $m['count_done']) ?>
                     </div>
-                    <div class="text-token-xs text-gray-500 mb-2">
-                        <?= $m['count_done'] ?> 発見 · 残り <?= number_format(100 - $progress, 0) ?>%
-                    </div>
+                    <div class="text-token-xs text-gray-500 mb-2"><?= __('dashboard_page.category_found_remaining', '{done} found · {remaining}% left', ['done' => $m['count_done'], 'remaining' => number_format(100 - $progress, 0)]) ?></div>
                     <div class="h-1.5 bg-white/70 rounded-full overflow-hidden">
                         <div class="<?= $c['bar'] ?> h-full rounded-full" style="width: <?= number_format($progress, 1) ?>%"></div>
                     </div>
@@ -292,14 +293,14 @@ $missions = [
         <?php if (!empty($latest_obs)): ?>
         <section>
             <div class="flex items-center justify-between mb-3">
-                <h2 class="text-base font-black text-text mb-3">最新の記録</h2>
-                <a href="index.php" class="text-xs text-primary font-bold hover:underline">すべて見る</a>
+                <h2 class="text-base font-black text-text mb-3"><?= __('dashboard_page.recent_records', 'Recent records') ?></h2>
+                <a href="index.php" class="text-xs text-primary font-bold hover:underline"><?= __('dashboard_page.view_all', 'View all') ?></a>
             </div>
             <div class="space-y-2">
                 <?php foreach (array_slice($latest_obs, 0, 5) as $obs):
-                    $taxonName = $obs['taxon']['name_ja'] ?? $obs['taxon']['name'] ?? '未同定';
+                    $taxonName = $obs['taxon']['name_ja'] ?? $obs['taxon']['name'] ?? __('dashboard_page.unidentified', 'Unidentified');
                     $photoUrl  = !empty($obs['photos'][0]) ? 'uploads/photos/' . basename($obs['photos'][0]) : null;
-                    $userName  = htmlspecialchars($obs['user_name'] ?? '匿名');
+                    $userName  = htmlspecialchars($obs['user_name'] ?? __('dashboard_page.anonymous', 'Anonymous'));
                     $date      = isset($obs['created_at']) ? date('n/j', strtotime($obs['created_at'])) : '';
                 ?>
                 <a href="observation_detail.php?id=<?= htmlspecialchars($obs['id'] ?? '') ?>"
@@ -328,24 +329,24 @@ $missions = [
         <section style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
             <div class="flex items-center gap-2 mb-3">
                 <i data-lucide="book-open" class="w-4 h-4 text-amber-600"></i>
-                <span class="text-sm font-black text-text">文献データベース</span>
+                <span class="text-sm font-black text-text"><?= __('dashboard_page.library_db', 'Literature database') ?></span>
             </div>
             <div class="grid grid-cols-4 gap-2 text-center">
                 <div>
                     <div class="text-lg font-black text-sky-600"><?= number_format($bibStats['papers']) ?></div>
-                    <div class="text-token-xs text-faint">論文</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.papers', 'Papers') ?></div>
                 </div>
                 <div>
                     <div class="text-lg font-black text-amber-600"><?= number_format($bibStats['citations']) ?></div>
-                    <div class="text-token-xs text-faint">出典</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.citations', 'Citations') ?></div>
                 </div>
                 <div>
                     <div class="text-lg font-black text-emerald-600"><?= number_format($bibStats['keys']) ?></div>
-                    <div class="text-token-xs text-faint">検索表</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.keys', 'Keys') ?></div>
                 </div>
                 <div>
                     <div class="text-lg font-black text-gray-600"><?= number_format($bibStats['books']) ?></div>
-                    <div class="text-token-xs text-faint">図鑑</div>
+                    <div class="text-token-xs text-faint"><?= __('dashboard_page.books', 'Books') ?></div>
                 </div>
             </div>
         </section>
@@ -403,13 +404,13 @@ $missions = [
                 reflectionSubmit.addEventListener('click', async function () {
                     var note = reflectionNote.value.trim();
                     if (!note) {
-                        if (reflectionStatus) reflectionStatus.textContent = 'ひとことだけ書いてください。';
+                        if (reflectionStatus) reflectionStatus.textContent = '<?= addslashes(__('dashboard_page.reflection_empty', 'Please write one short line.')) ?>';
                         reflectionNote.focus();
                         return;
                     }
 
                     reflectionSubmit.disabled = true;
-                    if (reflectionStatus) reflectionStatus.textContent = '保存中...';
+                    if (reflectionStatus) reflectionStatus.textContent = '<?= addslashes(__('dashboard_page.reflection_saving', 'Saving...')) ?>';
 
                     try {
                         var response = await fetch('api/log_reflection.php', {
@@ -426,7 +427,7 @@ $missions = [
 
                         var result = await response.json();
                         if (!response.ok || !result.success) {
-                            throw new Error(result.message || '保存に失敗しました');
+                            throw new Error(result.message || '<?= addslashes(__('dashboard_page.reflection_save_failed', 'Saving failed.')) ?>');
                         }
 
                         if (window.ikimonAnalytics) {
@@ -436,12 +437,12 @@ $missions = [
                             });
                         }
 
-                        if (reflectionStatus) reflectionStatus.textContent = '保存した。今日の継続に加えた。';
+                        if (reflectionStatus) reflectionStatus.textContent = '<?= addslashes(__('dashboard_page.reflection_saved', 'Saved. Added to today’s streak.')) ?>';
                         window.setTimeout(function () {
                             window.location.reload();
                         }, 450);
                     } catch (error) {
-                        if (reflectionStatus) reflectionStatus.textContent = error.message || '保存に失敗しました。';
+                        if (reflectionStatus) reflectionStatus.textContent = error.message || '<?= addslashes(__('dashboard_page.reflection_save_failed', 'Saving failed.')) ?>';
                     } finally {
                         reflectionSubmit.disabled = false;
                     }

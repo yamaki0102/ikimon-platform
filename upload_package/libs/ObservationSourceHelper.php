@@ -68,47 +68,47 @@ class ObservationSourceHelper
     {
         return match ($source) {
             'post' => [
-                'label'              => 'フィールドノート',
-                'short_label'        => 'ノート',
+                'label'              => __('source.post_label', 'Field note'),
+                'short_label'        => __('source.post_short', 'Note'),
                 'icon'               => 'camera',
                 'color_class'        => 'bg-blue-500/15',
                 'text_color_class'   => 'text-blue-700',
                 'border_color_class' => 'border-blue-400/30',
                 'emoji'              => '📷',
-                'description'        => 'あなたが現場で撮影した写真記録です。',
-                'evidence_note'      => '写真による目視確認。同定センターでコミュニティレビュー可能。',
+                'description'        => __('source.post_description', 'A photo record you captured in the field.'),
+                'evidence_note'      => __('source.post_evidence', 'A visual record based on a photo. Community review is available later.'),
             ],
             'ikimon_sensor' => [
-                'label'              => 'AIレンズ',
-                'short_label'        => 'AIレンズ',
+                'label'              => __('source.sensor_label', 'AI Lens'),
+                'short_label'        => __('source.sensor_short', 'AI Lens'),
                 'icon'               => 'radio',
                 'color_class'        => 'bg-violet-500/15',
                 'text_color_class'   => 'text-violet-700',
                 'border_color_class' => 'border-violet-400/30',
                 'emoji'              => '📡',
-                'description'        => 'AIレンズ（ブラウザ）がAIで自動検出しました。',
-                'evidence_note'      => 'Gemini Vision（視覚）またはBirdNET + Perch v2（音声）による機械検出。',
+                'description'        => __('source.sensor_description', 'Detected automatically by the browser-based AI Lens.'),
+                'evidence_note'      => __('source.sensor_evidence', 'Machine detection using Gemini Vision, BirdNET, or Perch v2.'),
             ],
             'fieldscan' => [
-                'label'              => 'フィールドスキャン',
-                'short_label'        => 'スキャン',
+                'label'              => __('source.fieldscan_label', 'FieldScan'),
+                'short_label'        => __('source.fieldscan_short', 'Scan'),
                 'icon'               => 'scan-line',
                 'color_class'        => 'bg-emerald-500/15',
                 'text_color_class'   => 'text-emerald-700',
                 'border_color_class' => 'border-emerald-400/30',
                 'emoji'              => '🔬',
-                'description'        => 'フィールドスキャン（Android）が環境センサーと複数AIで記録しました。',
-                'evidence_note'      => 'BirdNET v2.4 + Perch v2 デュアルエンジン音声解析。温度・気圧・照度・音響指数も同時記録。',
+                'description'        => __('source.fieldscan_description', 'Recorded by FieldScan with environmental sensors and multiple AI models.'),
+                'evidence_note'      => __('source.fieldscan_evidence', 'Dual-engine detection with supporting environment signals.'),
             ],
             default => [
-                'label'              => 'フィールドノート',
-                'short_label'        => '投稿',
+                'label'              => __('source.default_label', 'Field note'),
+                'short_label'        => __('source.default_short', 'Post'),
                 'icon'               => 'leaf',
                 'color_class'        => 'bg-gray-500/15',
                 'text_color_class'   => 'text-gray-600',
                 'border_color_class' => 'border-gray-400/30',
                 'emoji'              => '🌿',
-                'description'        => '観察記録です。',
+                'description'        => __('source.default_description', 'An observation record.'),
                 'evidence_note'      => '',
             ],
         };
@@ -126,15 +126,15 @@ class ObservationSourceHelper
         $isDual  = ($obs['batch_engine'] ?? $obs['engine_source'] ?? '') === 'dual_agree';
 
         $base = match ($type) {
-            'audio'  => ['icon' => 'mic', 'label' => '音声検出', 'emoji' => '🎤'],
-            'visual' => ['icon' => 'eye', 'label' => '視覚検出', 'emoji' => '👁️'],
-            'sensor' => ['icon' => 'activity', 'label' => 'センサー', 'emoji' => '📊'],
-            default  => ['icon' => 'cpu', 'label' => 'AI検出', 'emoji' => '🤖'],
+            'audio'  => ['icon' => 'mic', 'label' => __('source.detect_audio', 'Audio detection'), 'emoji' => '🎤'],
+            'visual' => ['icon' => 'eye', 'label' => __('source.detect_visual', 'Visual detection'), 'emoji' => '👁️'],
+            'sensor' => ['icon' => 'activity', 'label' => __('source.detect_sensor', 'Sensor'), 'emoji' => '📊'],
+            default  => ['icon' => 'cpu', 'label' => __('source.detect_ai', 'AI detection'), 'emoji' => '🤖'],
         };
 
         $engineLabel = '';
         if (str_contains(strtolower($model), 'birdnet') && str_contains(strtolower($model), 'perch')) {
-            $engineLabel = 'デュアルエンジン';
+            $engineLabel = __('source.engine_dual', 'Dual engine');
         } elseif (str_contains(strtolower($model), 'birdnet')) {
             $engineLabel = 'BirdNET';
         } elseif (str_contains(strtolower($model), 'perch')) {
@@ -148,10 +148,10 @@ class ObservationSourceHelper
         }
 
         $confLabel = match (true) {
-            $conf >= 0.80 => ['text' => '高確信', 'class' => 'text-primary'],
-            $conf >= 0.55 => ['text' => '中確信', 'class' => 'text-gray-600'],
-            $conf >= 0.35 => ['text' => '低確信', 'class' => 'text-gray-500'],
-            default       => ['text' => '参考', 'class' => 'text-gray-400'],
+            $conf >= 0.80 => ['text' => __('source.conf_high', 'High confidence'), 'class' => 'text-primary'],
+            $conf >= 0.55 => ['text' => __('source.conf_medium', 'Medium confidence'), 'class' => 'text-gray-600'],
+            $conf >= 0.35 => ['text' => __('source.conf_low', 'Low confidence'), 'class' => 'text-gray-500'],
+            default       => ['text' => __('source.conf_reference', 'Reference'), 'class' => 'text-gray-400'],
         };
 
         return array_merge($base, [

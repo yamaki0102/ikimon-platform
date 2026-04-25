@@ -1,0 +1,312 @@
+{
+    "root": {
+        "question": "Where did you find it?",
+        "description": "Start by narrowing it down by place.",
+        "options": [
+            {
+                "id": "land",
+                "label": "Land / ground / grass",
+                "sub": "On land",
+                "icon": "footprints",
+                "next": "land_creature",
+                "desc": "On the ground or in grass around a forest, park, roadside, or your home."
+            },
+            {
+                "id": "water",
+                "label": "Waterside / in water",
+                "sub": "River / pond / sea",
+                "icon": "waves",
+                "next": "water_creature",
+                "desc": "In a river, pond, sea, rice paddy, or puddle."
+            },
+            {
+                "id": "sky",
+                "label": "Sky / high places",
+                "sub": "Flying",
+                "icon": "cloud",
+                "next": "sky_creature",
+                "desc": "Flying in the sky or up on a tall tree or power line."
+            },
+            {
+                "id": "indoor",
+                "label": "Indoors / building",
+                "sub": "Indoor",
+                "icon": "home",
+                "next": "indoor_creature",
+                "desc": "Found inside a room, on a balcony, or on a wall."
+            }
+        ]
+    },
+    "land_creature": {
+        "question": "What did it look like?",
+        "description": "What movement or visual clue stood out?",
+        "options": [
+            {
+                "id": "plant",
+                "label": "Not moving (plant)",
+                "sub": "Flower / grass / tree",
+                "icon": "flower",
+                "next": "plant_type",
+                "desc": "Growing from the ground and not moving on its own except in the wind."
+            },
+            {
+                "id": "insect_land",
+                "label": "Bug (6+ legs)",
+                "sub": "Insect / spider",
+                "icon": "bug",
+                "next": "insect_type",
+                "desc": "A small creature with many legs, usually 6 or 8, crawling or hopping."
+            },
+            {
+                "id": "animal",
+                "label": "Animal (4 legs)",
+                "sub": "Mammal / reptile",
+                "icon": "dog",
+                "next": "mammal_type",
+                "desc": "An animal walking on four legs, like a cat, dog, or lizard."
+            },
+            {
+                "id": "unknown_land",
+                "label": "Not sure",
+                "sub": "Other",
+                "icon": "help-circle",
+                "result": "未同定(陸)",
+                "desc": "Something like a mushroom, animal droppings, or anything hard to tell."
+            }
+        ]
+    },
+    "water_creature": {
+        "question": "A creature near water",
+        "description": "What shape did it have?",
+        "options": [
+            {
+                "id": "fish",
+                "label": "Fish",
+                "sub": "Swimming",
+                "icon": "fish",
+                "result": "魚上綱 (Pisces)",
+                "desc": "Swimming smoothly in water, with fins and no legs."
+            },
+            {
+                "id": "frog",
+                "label": "Frog / newt",
+                "sub": "Amphibian",
+                "icon": "cloud-rain",
+                "result": "両生綱 (Amphibia)",
+                "desc": "Near water with four legs, often with smooth wet skin."
+            },
+            {
+                "id": "water_bird",
+                "label": "Water bird",
+                "sub": "Swimming bird",
+                "icon": "anchor",
+                "result": "鳥綱 (Aves)",
+                "desc": "A bird floating on the water or walking at the water's edge."
+            },
+            {
+                "id": "water_insect",
+                "label": "Aquatic insect",
+                "sub": "Water strider / nymph",
+                "icon": "droplets",
+                "result": "水生昆虫",
+                "desc": "An insect in the water or on the surface, like a water strider."
+            }
+        ]
+    },
+    "sky_creature": {
+        "question": "A creature in the sky",
+        "description": "What was flying?",
+        "options": [
+            {
+                "id": "bird",
+                "label": "Bird",
+                "sub": "Has feathers",
+                "icon": "feather",
+                "result": "鳥綱 (Aves)",
+                "desc": "Covered in feathers and flying with wings."
+            },
+            {
+                "id": "flying_insect",
+                "label": "Flying bug",
+                "sub": "Butterfly / dragonfly",
+                "icon": "plane",
+                "next": "insect_type",
+                "desc": "A small creature flying around with wings."
+            }
+        ]
+    },
+    "indoor_creature": {
+        "question": "A creature indoors",
+        "description": "Where did you find it?",
+        "options": [
+            {
+                "id": "indoor_insect",
+                "label": "Bug indoors",
+                "sub": "Fly / spider",
+                "icon": "bug",
+                "result": "節足動物門 (Arthropoda)",
+                "desc": "A small bug that likely came in through a window or gap."
+            },
+            {
+                "id": "pet",
+                "label": "Pet",
+                "sub": "Kept by people",
+                "icon": "heart",
+                "result": "ペット",
+                "desc": "A dog, cat, or even a plant that is being kept."
+            }
+        ]
+    },
+    "insect_type": {
+        "question": "What kind of bug shape?",
+        "description": "What stands out most?",
+        "options": [
+            {
+                "id": "butterfly",
+                "label": "Butterfly / moth",
+                "sub": "Large wings",
+                "icon": "fan",
+                "result": "チョウ目 (Lepidoptera)",
+                "desc": "Flying with large wings. It may close or spread them while resting."
+            },
+            {
+                "id": "beetle",
+                "label": "Beetle",
+                "sub": "Hard back",
+                "icon": "shield",
+                "next": "beetle_type",
+                "desc": "Smooth hard back, like a rhinoceros beetle or ladybug."
+            },
+            {
+                "id": "dragonfly",
+                "label": "Dragonfly",
+                "sub": "Long body / clear wings",
+                "icon": "plane",
+                "result": "トンボ目 (Odonata)",
+                "desc": "Long narrow body with four transparent wings and large eyes."
+            },
+            {
+                "id": "mantis",
+                "label": "Mantis / grasshopper",
+                "sub": "Looks like grass",
+                "icon": "activity",
+                "result": "バッタ目 (Orthoptera)",
+                "desc": "Green or brown, grass-like, and often jumps with its legs."
+            },
+            {
+                "id": "spider",
+                "label": "Spider",
+                "sub": "8 legs",
+                "icon": "snowflake",
+                "result": "クモ綱 (Arachnida)",
+                "desc": "Has eight legs instead of six. Some make webs and some roam."
+            }
+        ]
+    },
+    "plant_type": {
+        "question": "What kind of plant?",
+        "description": "What does it look like?",
+        "options": [
+            {
+                "id": "flower",
+                "label": "Flowering",
+                "sub": "Wildflower",
+                "icon": "flower-2",
+                "result": "被子植物門 (Angiosperms)",
+                "desc": "Growing from the ground with visible petals."
+            },
+            {
+                "id": "tree",
+                "label": "Tree",
+                "sub": "Hard trunk",
+                "icon": "tree-pine",
+                "result": "木本植物 (Woody plants)",
+                "desc": "Tall, with a brown hard trunk."
+            },
+            {
+                "id": "grass",
+                "label": "Grass / leaves",
+                "sub": "Weed / fern",
+                "icon": "sprout",
+                "result": "維管束植物 (Tracheophyta)",
+                "desc": "Mostly green leaves, with flowers that are small or not obvious."
+            }
+        ]
+    },
+    "beetle_type": {
+        "question": "What kind of beetle?",
+        "description": "Go one step further.",
+        "options": [
+            {
+                "id": "rhinoceros_beetle",
+                "label": "Rhinoceros beetle",
+                "sub": "Has a horn",
+                "icon": "sword",
+                "result": "カブトムシ亜科 (Dynastinae)",
+                "desc": "A classic summer beetle. Males have a large horn."
+            },
+            {
+                "id": "stag_beetle",
+                "label": "Stag beetle",
+                "sub": "Large jaws",
+                "icon": "scissors",
+                "result": "クワガタムシ科 (Lucanidae)",
+                "desc": "Has large pincer-like jaws."
+            },
+            {
+                "id": "ladybug",
+                "label": "Ladybug",
+                "sub": "Round and red",
+                "icon": "disc",
+                "result": "テントウムシ科 (Coccinellidae)",
+                "desc": "A small beetle with red or black markings."
+            },
+            {
+                "id": "chafer",
+                "label": "Chafer / June beetle",
+                "sub": "Shiny",
+                "icon": "sun",
+                "result": "コガネムシ科 (Scarabaeidae)",
+                "desc": "Often has a metallic or glossy surface."
+            },
+            {
+                "id": "longhorn",
+                "label": "Longhorn beetle",
+                "sub": "Long antennae",
+                "icon": "radio-receiver",
+                "result": "カミキリムシ科 (Cerambycidae)",
+                "desc": "Has antennae longer than its body."
+            },
+            {
+                "id": "general_beetle",
+                "label": "Beetle (broadly)",
+                "sub": "Do not narrow further",
+                "icon": "check-circle",
+                "result": "甲虫目 (Coleoptera)",
+                "desc": "Register it simply as a beetle without narrowing the type further."
+            }
+        ]
+    },
+    "mammal_type": {
+        "question": "How big was the animal?",
+        "description": "What size did it feel like?",
+        "options": [
+            {
+                "id": "dog_cat",
+                "label": "Dog / cat size",
+                "sub": "Medium",
+                "icon": "dog",
+                "result": "哺乳綱 (Mammalia)",
+                "desc": "An animal with some size, like a raccoon dog or masked palm civet."
+            },
+            {
+                "id": "mouse",
+                "label": "Mouse size",
+                "sub": "Small",
+                "icon": "mouse",
+                "result": "哺乳綱 (Mammalia)",
+                "desc": "A small animal about the size of your palm."
+            }
+        ]
+    }
+}

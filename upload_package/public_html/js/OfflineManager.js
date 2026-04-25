@@ -16,6 +16,13 @@ constructor() {
     }
 }
 
+    async broadcastCount() {
+    const count = await this.getCount();
+    window.dispatchEvent(new CustomEvent('offline-outbox-count', {
+        detail: { count }
+    }));
+}
+
     async open() {
     if (this.db) return this.db;
     return new Promise((resolve, reject) => {
@@ -35,12 +42,13 @@ constructor() {
 
         request.onsuccess = (event) => {
             this.db = event.target.result;
+            this.broadcastCount().catch(() => {});
             resolve(this.db);
         };
     });
 }
 
-    async saveObservation(formData) {
+    async saveObservation(formData, meta = {}) {
     await this.open();
     return new Promise((resolve, reject) => {
         const transaction = this.db.transaction([this.storeName], 'readwrite');
@@ -60,10 +68,16 @@ constructor() {
         // Add metadata
         data.timestamp = Date.now();
         data.status = 'pending';
+        data.sync_attempts = 0;
+        data.queued_reason = meta.reason || 'unknown';
+        data.last_error = meta.error || '';
 
         const request = store.add(data);
 
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = async () => {
+            await this.broadcastCount();
+            resolve(request.result);
+        };
         request.onerror = () => reject(request.error);
     });
 }
@@ -96,7 +110,33 @@ constructor() {
         const transaction = this.db.transaction([this.storeName], 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const req = store.delete(id);
-        req.onsuccess = () => resolve();
+        req.onsuccess = async () => {
+            await this.broadcastCount();
+            resolve();
+        };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+    async markFailure(id, errorMessage) {
+    await this.open();
+    return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const req = store.get(id);
+        req.onsuccess = () => {
+            const item = req.result;
+            if (!item) {
+                resolve();
+                return;
+            }
+            item.last_error = errorMessage;
+            item.sync_attempts = (item.sync_attempts || 0) + 1;
+            item.last_attempt_at = Date.now();
+            const putReq = store.put(item);
+            putReq.onsuccess = () => resolve();
+            putReq.onerror = () => reject(putReq.error);
+        };
         req.onerror = () => reject(req.error);
     });
 }
@@ -136,6 +176,11 @@ constructor() {
                 body: formData
             });
 
+            if (res.status >= 500) {
+                await this.markFailure(item.id, `server_${res.status}`);
+                continue;
+            }
+
             // Handle non-JSON response gracefully
             const text = await res.text();
             let json;
@@ -143,6 +188,7 @@ constructor() {
                 json = JSON.parse(text);
             } catch (e) {
                 console.warn(`[OfflineManager] Server returned non-JSON for item ${item.id}`, text.slice(0, 100));
+                await this.markFailure(item.id, 'non_json_response');
                 continue; // Skip valid removal, try again later
             }
 
@@ -154,17 +200,20 @@ constructor() {
                 // Check for CSRF error
                 if (json.message && json.message.includes('トークン')) {
                     console.warn(`[OfflineManager] CSRF Error for item ${item.id}. Keeping in queue.`);
+                    await this.markFailure(item.id, 'csrf_token_invalid');
                     // Ideally we fetch a new token here, but for now just skip removal
                 } else {
                     // Other validation errors (e.g. Rate Limit, Validation)
                     // Log it but KEEP IT unless it's a permanent error?
                     // Safety first: Keep it. User can delete cache if stuck.
                     console.warn(`[OfflineManager] Sync failed for ${item.id}: ${json.message}. Keeping in queue.`);
+                    await this.markFailure(item.id, json.message || 'sync_failed');
                 }
             }
         } catch (e) {
             // Network error — item stays in queue for next online attempt
             console.error(`[OfflineManager] Network error during sync for ${item.id}`, e);
+            await this.markFailure(item.id, e.message || 'network_error');
         }
     }
 }

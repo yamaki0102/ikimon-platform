@@ -3,15 +3,25 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/Lang.php';
 Auth::init();
+Lang::init();
+$documentLang = 'ja';
+if (method_exists('Lang', 'current')) {
+    $documentLang = Lang::current();
+} elseif (!empty($_SESSION['lang'])) {
+    $documentLang = (string) $_SESSION['lang'];
+} elseif (!empty($_GET['lang'])) {
+    $documentLang = (string) $_GET['lang'];
+}
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang) ?>">
 
 <head>
     <?php
-    $meta_title = "みつける | ikimon";
-    $meta_description = "日本各地の生きもの観察記録をマップ・グリッドで探索。鳥・虫・植物・魚など3,000種以上の観察データを地域別・分類別に閲覧できます。";
+    $meta_title = __('explore_page.meta_title', 'Explore');
+    $meta_description = __('explore_page.meta_description', 'Search nearby records and places, then find somewhere new to walk or revisit.');
     include __DIR__ . '/components/meta.php';
     ?>
     <?php include __DIR__ . '/components/map_config.php'; ?>
@@ -94,7 +104,7 @@ Auth::init();
         <div class="h-14"></div>
 
         <!-- Header / Search Area -->
-        <div x-data="{ headerVisible: true }"
+        <div x-data="{ headerVisible: true, moreFilters: false }"
             @header-visibility.window="headerVisible = $event.detail"
             :class="headerVisible ? 'top-14' : 'top-0'"
             class="sticky z-30 bg-base/95 backdrop-blur-md border-b border-border pt-4 pb-4 px-4 shadow-sm transition-[top] duration-300 ease-out">
@@ -103,11 +113,11 @@ Auth::init();
                 <!-- Title & Mobile Map Button -->
                 <div class="flex items-center justify-between md:justify-start gap-4 shrink-0">
                     <div>
-                        <h2 class="text-2xl font-black font-heading">みつける</h2>
-                        <p class="text-xs text-muted mt-1">最近の観察や、まだ名前が育ちそうな記録を探す場所</p>
+                        <h2 class="text-2xl font-black font-heading"><?php echo __('explore_page.title', 'Explore'); ?></h2>
+                        <p class="text-xs text-muted mt-1"><?php echo __('explore_page.subtitle', 'Find nearby records and places'); ?></p>
                     </div>
                     <a href="map.php?tab=heatmap" class="md:hidden btn-secondary !py-2 !px-4 !rounded-full flex items-center gap-2 text-xs font-bold">
-                        <i data-lucide="flame" class="w-4 h-4"></i> 活動経路マップ
+                        <i data-lucide="map" class="w-4 h-4"></i> <?php echo __('explore_page.map', 'Map'); ?>
                     </a>
                 </div>
 
@@ -115,75 +125,74 @@ Auth::init();
                 <div class="relative w-full md:flex-1 md:max-w-xl">
                     <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color:var(--md-on-surface-variant); pointer-events:none;"></i>
                     <input type="text" x-model="query" @input.debounce.500ms="load(true)"
-                        placeholder="種名で検索..."
+                        placeholder="<?php echo __('explore_page.search_placeholder', 'Search by species or place'); ?>"
                         class="m3-search">
                 </div>
 
                 <!-- Filter Chips -->
                 <div class="relative shrink-0">
-                    <div class="flex gap-2 overflow-x-auto scrollbar-hide pr-6" role="tablist" aria-label="分類フィルタ">
-                        <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'" class="m3-chip" :class="filter === 'all' ? 'selected' : ''">すべて</button>
-                        <button @click="filter='birds'; load(true)" role="tab" :aria-selected="filter === 'birds'" class="m3-chip" :class="filter === 'birds' ? 'selected' : ''"><i data-lucide="bird" class="w-3 h-3" style="pointer-events:none"></i> 鳥類</button>
-                        <button @click="filter='insects'; load(true)" role="tab" :aria-selected="filter === 'insects'" class="m3-chip" :class="filter === 'insects' ? 'selected' : ''"><i data-lucide="bug" class="w-3 h-3" style="pointer-events:none"></i> 昆虫</button>
-                        <button @click="filter='plants'; load(true)" role="tab" :aria-selected="filter === 'plants'" class="m3-chip" :class="filter === 'plants' ? 'selected' : ''"><i data-lucide="flower" class="w-3 h-3" style="pointer-events:none"></i> 植物</button>
-                        <button @click="filter='fungi'; load(true)" role="tab" :aria-selected="filter === 'fungi'" class="m3-chip" :class="filter === 'fungi' ? 'selected' : ''">🍄 菌類</button>
-                        <button @click="filter='mammals'; load(true)" role="tab" :aria-selected="filter === 'mammals'" class="m3-chip" :class="filter === 'mammals' ? 'selected' : ''">🐾 哺乳類</button>
-                        <button @click="filter='herps'; load(true)" role="tab" :aria-selected="filter === 'herps'" class="m3-chip" :class="filter === 'herps' ? 'selected' : ''">🐸 両生爬虫類</button>
+                    <div class="flex gap-2 overflow-x-auto scrollbar-hide pr-6" role="tablist" aria-label="<?php echo __('explore_page.filter_label', 'Category filter'); ?>">
+                        <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'" class="m3-chip" :class="filter === 'all' ? 'selected' : ''"><?php echo __('explore_page.all', 'All'); ?></button>
+                        <button @click="filter='birds'; load(true)" role="tab" :aria-selected="filter === 'birds'" class="m3-chip" :class="filter === 'birds' ? 'selected' : ''"><i data-lucide="bird" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.birds', 'Birds'); ?></button>
+                        <button @click="filter='insects'; load(true)" role="tab" :aria-selected="filter === 'insects'" class="m3-chip" :class="filter === 'insects' ? 'selected' : ''"><i data-lucide="bug" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.insects', 'Insects'); ?></button>
+                        <button @click="filter='plants'; load(true)" role="tab" :aria-selected="filter === 'plants'" class="m3-chip" :class="filter === 'plants' ? 'selected' : ''"><i data-lucide="flower" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.plants', 'Plants'); ?></button>
                     </div>
                     <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,var(--md-surface))"></div>
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0 md:ml-auto">
-                    <button @click="toggleImported()" class="hidden md:inline-flex m3-chip" :class="includeImported ? 'selected' : ''">
-                        <i data-lucide="archive" class="w-4 h-4" style="pointer-events:none"></i>
-                        <span x-text="includeImported ? '調査記録を含む' : '通常の投稿のみ'"></span>
+                    <button @click="moreFilters = !moreFilters" class="m3-chip" :class="moreFilters ? 'selected' : ''" :aria-expanded="moreFilters.toString()">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4" style="pointer-events:none"></i>
+                        <?php echo __('explore_page.filter_more', 'More filters'); ?>
                     </button>
                     <a href="map.php?tab=heatmap" class="hidden md:flex m3-chip" style="text-decoration:none;">
-                        <i data-lucide="flame" class="w-4 h-4" style="pointer-events:none"></i>
-                        活動経路マップ
+                        <i data-lucide="map" class="w-4 h-4" style="pointer-events:none"></i>
+                        <?php echo __('explore_page.map', 'Map'); ?>
                     </a>
                 </div>
             </div>
 
-            <div class="w-full max-w-7xl mx-auto mt-3 flex gap-2 overflow-x-auto scrollbar-hide">
-                <button @click="toggleImported()" class="md:hidden m3-chip" :class="includeImported ? 'selected' : ''">
+            <div x-show="moreFilters" x-cloak class="w-full max-w-7xl mx-auto mt-3 space-y-3">
+                <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+                    <button @click="filter='fungi'; load(true)" class="m3-chip" :class="filter === 'fungi' ? 'selected' : ''">🍄 <?php echo __('explore_page.fungi', 'Fungi'); ?></button>
+                    <button @click="filter='mammals'; load(true)" class="m3-chip" :class="filter === 'mammals' ? 'selected' : ''">🐾 <?php echo __('explore_page.mammals', 'Mammals'); ?></button>
+                    <button @click="filter='herps'; load(true)" class="m3-chip" :class="filter === 'herps' ? 'selected' : ''">🐸 <?php echo __('explore_page.herps', 'Amphibians and reptiles'); ?></button>
+                </div>
+                <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+                    <button @click="toggleImported()" class="m3-chip" :class="includeImported ? 'selected' : ''">
                     <i data-lucide="archive" class="w-3 h-3" style="pointer-events:none"></i>
-                    <span x-text="includeImported ? '調査記録を含む' : '通常の投稿のみ'"></span>
-                </button>
-                <button @click="aiFilter='all'; load(true)" class="m3-chip" :class="aiFilter === 'all' ? 'selected' : ''">AI条件なし</button>
-                <button @click="aiFilter='hint'; load(true)" class="m3-chip" :class="aiFilter === 'hint' ? 'selected' : ''">
-                    <i data-lucide="sparkles" class="w-3 h-3" style="pointer-events:none"></i> AIヒントあり
-                </button>
-                <button @click="aiFilter='multi'; load(true)" class="m3-chip" :class="aiFilter === 'multi' ? 'selected' : ''">
-                    <i data-lucide="git-branch" class="w-3 h-3" style="pointer-events:none"></i> AI複数候補
-                </button>
-                <span class="w-px h-5 bg-border shrink-0 mx-1 self-center"></span>
-                <button @click="invasiveFilter='invasive'; load(true)" class="m3-chip" :class="invasiveFilter === 'invasive' ? 'selected' : ''" style="--chip-selected-bg:var(--md-error-container,#ffdad6);--chip-selected-color:var(--md-on-error-container,#410002);">
-                    <i data-lucide="alert-triangle" class="w-3 h-3" style="pointer-events:none"></i> 外来種のみ
-                </button>
-                <button @click="invasiveFilter='native'; load(true)" class="m3-chip" :class="invasiveFilter === 'native' ? 'selected' : ''">
-                    <i data-lucide="leaf" class="w-3 h-3" style="pointer-events:none"></i> 在来種のみ
-                </button>
-                <template x-if="invasiveFilter !== 'all'">
-                    <button @click="invasiveFilter='all'; load(true)" class="m3-chip" style="background:var(--md-surface-container-high,#e8e8e8);">
-                        <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> フィルタ解除
+                        <span x-text="includeImported ? '<?php echo addslashes(__('explore_page.include_survey', 'Include survey records')); ?>' : '<?php echo addslashes(__('explore_page.only_posts', 'Posts only')); ?>'"></span>
                     </button>
-                </template>
-                <span class="w-px h-5 bg-border shrink-0 mx-1 self-center"></span>
-                <button @click="sourceFilter='post'; load(true)" class="m3-chip" :class="sourceFilter === 'post' ? 'selected' : ''">
-                    📷 ノート
-                </button>
-                <button @click="sourceFilter='ikimon_sensor'; load(true)" class="m3-chip" :class="sourceFilter === 'ikimon_sensor' ? 'selected' : ''">
-                    📡 AIレンズ
-                </button>
-                <button @click="sourceFilter='fieldscan'; load(true)" class="m3-chip" :class="sourceFilter === 'fieldscan' ? 'selected' : ''">
-                    🔬 スキャン
-                </button>
-                <template x-if="sourceFilter !== 'all'">
-                    <button @click="sourceFilter='all'; load(true)" class="m3-chip" style="background:var(--md-surface-container-high,#e8e8e8);">
-                        <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> ソース解除
+                    <button @click="aiFilter='all'; load(true)" class="m3-chip" :class="aiFilter === 'all' ? 'selected' : ''"><?php echo __('explore_page.ai_all', 'No AI filter'); ?></button>
+                    <button @click="aiFilter='hint'; load(true)" class="m3-chip" :class="aiFilter === 'hint' ? 'selected' : ''">
+                        <i data-lucide="sparkles" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.ai_hint', 'Has AI hint'); ?>
                     </button>
-                </template>
+                    <button @click="aiFilter='multi'; load(true)" class="m3-chip" :class="aiFilter === 'multi' ? 'selected' : ''">
+                        <i data-lucide="git-branch" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.ai_multi', 'Multiple AI candidates'); ?>
+                    </button>
+                </div>
+                <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+                    <button @click="invasiveFilter='invasive'; load(true)" class="m3-chip" :class="invasiveFilter === 'invasive' ? 'selected' : ''" style="--chip-selected-bg:var(--md-error-container,#ffdad6);--chip-selected-color:var(--md-on-error-container,#410002);">
+                        <i data-lucide="alert-triangle" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.invasive_only', 'Invasive only'); ?>
+                    </button>
+                    <button @click="invasiveFilter='native'; load(true)" class="m3-chip" :class="invasiveFilter === 'native' ? 'selected' : ''">
+                        <i data-lucide="leaf" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.native_only', 'Native only'); ?>
+                    </button>
+                    <template x-if="invasiveFilter !== 'all'">
+                        <button @click="invasiveFilter='all'; load(true)" class="m3-chip" style="background:var(--md-surface-container-high,#e8e8e8);">
+                            <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> <?php echo __('explore_page.clear', 'Clear'); ?>
+                        </button>
+                    </template>
+                    <button @click="sourceFilter='post'; load(true)" class="m3-chip" :class="sourceFilter === 'post' ? 'selected' : ''">
+                        📷 <?php echo __('explore_page.source_post', 'Record'); ?>
+                    </button>
+                    <button @click="sourceFilter='ikimon_sensor'; load(true)" class="m3-chip" :class="sourceFilter === 'ikimon_sensor' ? 'selected' : ''">
+                        📡 <?php echo __('explore_page.source_sensor', 'AI lens'); ?>
+                    </button>
+                    <button @click="sourceFilter='fieldscan'; load(true)" class="m3-chip" :class="sourceFilter === 'fieldscan' ? 'selected' : ''">
+                        🔬 <?php echo __('explore_page.source_scan', 'Scan'); ?>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -215,7 +224,7 @@ Auth::init();
             <div class="responsive-grid pb-12" x-show="items.length > 0">
                 <template x-for="obs in items" :key="obs.id">
                     <a :href="'observation_detail.php?id=' + obs.id" class="block aspect-[4/5] rounded-2xl bg-surface border border-border overflow-hidden relative group">
-                        <img :src="obs.photos[0]" :alt="obs.taxon ? obs.taxon.name : '観察写真'" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
+                        <img :src="obs.photos[0]" :alt="obs.taxon ? obs.taxon.name : <?php echo json_encode(__('explore_page.observation_photo_alt', 'Observation photo'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
                         <div x-show="shouldShowAiHint(obs)" class="absolute top-3 left-3 right-8">
                             <div class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-black/45 text-white border border-white/20 px-2.5 py-1 backdrop-blur-sm">
@@ -225,13 +234,13 @@ Auth::init();
                         </div>
                         <div class="absolute bottom-3 left-3 right-3 text-white">
                             <div class="flex items-center gap-1.5">
-                                <p class="text-xs font-bold leading-tight truncate" x-text="obs.taxon ? obs.taxon.name : '未同定'"></p>
+                                <p class="text-xs font-bold leading-tight truncate" x-text="obs.taxon ? obs.taxon.name : <?php echo json_encode(__('explore_page.unidentified', 'Unidentified'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>"></p>
                                 <span x-show="obs.individual_count" class="text-[9px] font-bold text-white/80 bg-white/20 px-1.5 py-0.5 rounded-full flex-shrink-0" x-text="'×' + obs.individual_count"></span>
                             </div>
                             <p x-show="aiHintMeta(obs)" class="text-[10px] text-white/80 mt-1 truncate" x-text="aiHintMeta(obs)"></p>
                             <div class="flex items-center gap-1 mt-1 opacity-70">
                                 <i data-lucide="map-pin" class="w-3 h-3"></i>
-                                <span class="text-[10px] truncate" x-text="obs.municipality || (obs.location ? obs.location.name : '')"></span>
+                                <span class="text-[10px] truncate" x-text="locationLabel(obs)"></span>
                             </div>
                         </div>
                         <!-- Status Dot -->
@@ -243,18 +252,18 @@ Auth::init();
             <!-- Empty State -->
             <div x-show="items.length === 0 && !loading" class="text-center py-16 text-muted">
                 <div class="text-5xl mb-4">🌱</div>
-                <p class="text-lg font-bold text-muted mb-2">まだ観察がないよ</p>
-                <p class="text-sm text-muted mb-4">この地域で最初の発見者になろう！</p>
+                <p class="text-lg font-bold text-muted mb-2"><?php echo __('explore_page.empty_title', 'No nearby records yet'); ?></p>
+                <p class="text-sm text-muted mb-4"><?php echo __('explore_page.empty_body', 'Leave your first record and start the flow for this place.'); ?></p>
                 <a href="post.php" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:var(--shape-full);background:var(--md-primary);color:var(--md-on-primary);font-weight:700;font-size:var(--type-label-lg);text-decoration:none;box-shadow:var(--elev-1);">
-                    <i data-lucide="camera" class="w-4 h-4" style="pointer-events:none"></i> 最初の観察を投稿する
+                    <i data-lucide="camera" class="w-4 h-4" style="pointer-events:none"></i> <?php echo __('explore_page.empty_cta', 'Post the first observation'); ?>
                 </a>
             </div>
 
             <!-- Load More -->
             <div x-show="hasMore" class="py-4 text-center">
                 <button @click="load()" class="m3-chip" :disabled="loading">
-                    <span x-show="!loading">もっと見る</span>
-                    <span x-show="loading">読み込み中...</span>
+                <span x-show="!loading"><?php echo __('explore_page.load_more', 'See more'); ?></span>
+                <span x-show="loading"><?php echo __('explore_page.loading', 'Loading...'); ?></span>
                 </button>
             </div>
         </div>
@@ -359,24 +368,47 @@ Auth::init();
                     const ai = obs.latest_ai_assessment || null;
                     if (!ai) return '';
                     if (ai.candidate_disagreement && ai.candidate_disagreement !== 'single_candidate' && ai.similar_taxa_to_compare?.length) {
-                        return '見分け候補あり';
+                        return '<?php echo addslashes(__('explore_page.hint_candidates', 'Has identification candidates')); ?>';
                     }
                     if (!obs.taxon && this.aiHintTitle(obs)) {
                         const rank = ai.recommended_taxon?.rank || ai.best_specific_taxon?.rank || '';
-                        const rankMap = { family: '科', genus: '属', species: '種', order: '目', class: '綱' };
+                        const rankMap = {
+                            family: '<?php echo addslashes(__('explore_page.rank_family', 'Family')); ?>',
+                            genus: '<?php echo addslashes(__('explore_page.rank_genus', 'Genus')); ?>',
+                            species: '<?php echo addslashes(__('explore_page.rank_species', 'Species')); ?>',
+                            order: '<?php echo addslashes(__('explore_page.rank_order', 'Order')); ?>',
+                            class: '<?php echo addslashes(__('explore_page.rank_class', 'Class')); ?>'
+                        };
                         if (rank && rankMap[rank]) {
-                            return rankMap[rank] + 'まで AI が絞り込み中';
+                        return '<?php echo addslashes(__('explore_page.rank_narrowing', 'AI is narrowing it down to {rank}')); ?>'.replace('{rank}', rankMap[rank]);
                         }
                     }
                     if (!obs.taxon && ai.simple_summary) {
                         return ai.simple_summary;
                     }
                     const rank = ai.recommended_taxon?.rank || ai.best_specific_taxon?.rank || '';
-                    const rankMap = { family: '科', genus: '属', species: '種', order: '目', class: '綱' };
+                    const rankMap = {
+                            family: '<?php echo addslashes(__('explore_page.rank_family', 'Family')); ?>',
+                            genus: '<?php echo addslashes(__('explore_page.rank_genus', 'Genus')); ?>',
+                            species: '<?php echo addslashes(__('explore_page.rank_species', 'Species')); ?>',
+                            order: '<?php echo addslashes(__('explore_page.rank_order', 'Order')); ?>',
+                            class: '<?php echo addslashes(__('explore_page.rank_class', 'Class')); ?>'
+                    };
                     if (rank && rankMap[rank] && this.aiHintTitle(obs)) {
-                        return rankMap[rank] + 'ヒントあり';
+                        return '<?php echo addslashes(__('explore_page.rank_hint', '{rank} hint available')); ?>'.replace('{rank}', rankMap[rank]);
                     }
                     return '';
+                },
+
+                locationLabel(obs) {
+                    if (!obs) return '';
+                    return obs.public_location?.label
+                        || obs.location_name
+                        || obs.place_name
+                        || obs.municipality
+                        || obs.prefecture
+                        || (obs.location ? obs.location.name : '')
+                        || '';
                 },
 
                 async tryAutoLoadScanRecs() {

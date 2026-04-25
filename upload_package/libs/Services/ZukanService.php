@@ -219,7 +219,7 @@ class ZukanService
         try {
             $sciNames = array_filter(array_map(fn($s) => $s['scientific_name'] ?? '', $data));
             if (!empty($sciNames)) {
-                require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+                require_once ROOT_DIR . '/libs/OmoikaneDB.php';
                 $odb = new OmoikaneDB();
                 $nuggets = $odb->getBatchNuggets(array_values(array_unique($sciNames)));
             }

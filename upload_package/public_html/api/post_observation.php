@@ -15,8 +15,12 @@ require_once __DIR__ . '/../../libs/EmbeddingQueue.php';
 require_once __DIR__ . '/../../libs/AsyncJobMetrics.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/Gamification.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 require_once __DIR__ . '/../../libs/GeoUtils.php';
 require_once __DIR__ . '/../../libs/SurveyorManager.php';
+require_once __DIR__ . '/../../libs/CanonicalObservationWriter.php';
+require_once __DIR__ . '/../../libs/CloudflareStream.php';
+require_once __DIR__ . '/../../libs/ThumbnailGenerator.php';
 
 // FB-12: Apply post-specific rate limiting (10 posts / 5 min)
 RateLimiter::check();
@@ -199,6 +203,127 @@ function stripExifData($filepath)
     return true;
 }
 
+function fetchRemoteFile(string $url, string $targetPath): bool
+{
+    $url = trim($url);
+    if ($url === '') {
+        return false;
+    }
+
+    $dir = dirname($targetPath);
+    if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
+        return false;
+    }
+
+    $ch = curl_init($url);
+    if ($ch === false) {
+        return false;
+    }
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_HTTPHEADER => ['Accept: image/*'],
+    ]);
+    if (PHP_OS_FAMILY === 'Windows' && !ini_get('curl.cainfo')) {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    }
+    $body = curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    if (PHP_VERSION_ID < 80500) {
+        curl_close($ch);
+    }
+
+    if ($body === false || $error !== '' || $httpCode >= 400 || $body === '') {
+        return false;
+    }
+
+    return file_put_contents($targetPath, $body, LOCK_EX) !== false;
+}
+
+function buildPhotoMediaAssets(array $photos): array
+{
+    $assets = [];
+    foreach ($photos as $index => $photoPath) {
+        if (!is_string($photoPath) || $photoPath === '') {
+            continue;
+        }
+        $assets[] = [
+            'asset_id' => 'photo-' . ($index + 1),
+            'provider' => 'local_upload',
+            'media_type' => 'photo',
+            'asset_role' => 'observation_photo',
+            'media_path' => $photoPath,
+            'thumbnail_url' => resolvePhotoThumbnailPath($photoPath, 'sm'),
+            'upload_status' => 'ready',
+            'source' => 'post_upload',
+        ];
+    }
+    return $assets;
+}
+
+function resolvePhotoThumbnailPath(string $photoPath, string $suffix = 'sm'): string
+{
+    if (preg_match('#^(https?:)?//#i', $photoPath)) {
+        return $photoPath;
+    }
+
+    return ThumbnailGenerator::resolve($photoPath, $suffix);
+}
+
+function buildVideoAssetFromRequest(string $observationId, array $post, string $actorId, string $observationDir): ?array
+{
+    $uid = trim((string)($post['stream_video_uid'] ?? ''));
+    if ($uid === '') {
+        return null;
+    }
+
+    $issuedUpload = DataStore::findById('system/cloudflare_stream_uploads', $uid);
+    if (!is_array($issuedUpload) || (($issuedUpload['actor_id'] ?? '') !== $actorId)) {
+        throw new RuntimeException('動画アップロードの検証に失敗しました。もう一度アップロードしてください。');
+    }
+
+    $videoDetails = [];
+    try {
+        $videoDetails = CloudflareStream::getVideo($uid);
+    } catch (Throwable $e) {
+        $videoDetails = [];
+    }
+
+    $asset = CloudflareStream::normalizeVideoRecord($uid, $videoDetails, [
+        'duration_ms' => !empty($post['stream_video_duration_ms']) ? (int)$post['stream_video_duration_ms'] : null,
+        'bytes' => !empty($post['stream_video_bytes']) ? (int)$post['stream_video_bytes'] : 0,
+        'original_filename' => mb_substr(trim((string)($post['stream_video_filename'] ?? '')), 0, 180),
+        'client_mime' => mb_substr(trim((string)($post['stream_video_mime'] ?? '')), 0, 80),
+        'source' => 'direct_upload',
+    ]);
+
+    if (($asset['duration_ms'] ?? 0) > 15000) {
+        throw new RuntimeException('動画は15秒以内で投稿してください。');
+    }
+
+    $posterRelativePath = 'uploads/photos/' . $observationId . '/video_poster.jpg';
+    $posterAbsolutePath = PUBLIC_DIR . '/' . $posterRelativePath;
+    if (fetchRemoteFile((string)($asset['thumbnail_url'] ?? ''), $posterAbsolutePath)) {
+        $asset['poster_path'] = $posterRelativePath;
+        $asset['poster_local'] = true;
+    }
+
+    DataStore::upsert('system/cloudflare_stream_uploads', [
+        'id' => $uid,
+        'uid' => $uid,
+        'actor_id' => $actorId,
+        'status' => 'attached',
+        'observation_id' => $observationId,
+        'updated_at' => date('c'),
+        'video' => $asset,
+    ], 'id');
+
+    return $asset;
+}
+
 // Simple response helper
 function respond($success, $message, $data = [])
 {
@@ -230,6 +355,18 @@ function respondAndContinue($success, $message, $data = []): void
     if (function_exists('fastcgi_finish_request')) {
         @fastcgi_finish_request();
     }
+}
+
+function isLightweightSubmission(array $post, array $photos, string $recordMode): bool
+{
+    if ($recordMode !== 'standard' || !empty($photos)) {
+        return false;
+    }
+
+    $lightModeRequested = ($post['light_mode'] ?? '') === '1';
+    $hasSubstance = trim((string)($post['taxon_name'] ?? '')) !== '' || trim((string)($post['note'] ?? '')) !== '';
+
+    return $lightModeRequested && $hasSubstance;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -284,6 +421,9 @@ if (!empty($_POST['evidence_tags'])) {
         $evidenceTags = array_values(array_intersect($decoded, $allowedEvidence));
     }
 }
+
+// Field Loop: satellite vs field mismatch note
+$mismatch = isset($_POST['mismatch']) ? trim(substr($_POST['mismatch'], 0, 500)) : null;
 
 // Individual Count (abundance reference indicator)
 $individualCount = null;
@@ -357,8 +497,49 @@ if (!empty($_FILES['photos'])) {
             }
         }
     }
-} elseif ($recordMode !== 'surveyor_official') {
-    respond(false, '写真がアップロードされていません');
+}
+
+// ゲスト投稿対応: ログイン済みならユーザーID、ゲストならセッション管理されたゲストID
+if ($currentUser) {
+    $userId = $currentUser['id'];
+    $isGuestPost = false;
+} else {
+    // ゲストセッション初期化 & 投稿上限チェック
+    Auth::initGuest();
+    if (!Auth::canGuestPost()) {
+        respond(false, 'ゲスト投稿の上限(' . Auth::GUEST_POST_LIMIT . '件)に達しました。ログインすると無制限に投稿できます。');
+    }
+    $userId = Auth::getGuestId();
+    $isGuestPost = true;
+}
+
+$videoAsset = null;
+try {
+    $videoAsset = buildVideoAssetFromRequest($id, $_POST, $userId, $observation_dir);
+} catch (Throwable $e) {
+    respond(false, $e->getMessage());
+}
+
+if (empty($photos) && $videoAsset && !empty($videoAsset['poster_path'])) {
+    $photos[] = $videoAsset['poster_path'];
+}
+
+if (empty($photos) && $videoAsset && empty($videoAsset['poster_path']) && !empty($videoAsset['thumbnail_url'])) {
+    $photos[] = $videoAsset['thumbnail_url'];
+}
+
+$localPhotosForThumbs = array_values(array_filter(
+    $photos,
+    static fn($path) => is_string($path) && $path !== '' && !preg_match('#^(https?:)?//#i', $path)
+));
+if ($localPhotosForThumbs !== []) {
+    ThumbnailGenerator::generateForObservation(['photos' => $localPhotosForThumbs]);
+}
+
+if (empty($photos) && $videoAsset === null && $recordMode !== 'surveyor_official') {
+    if (!isLightweightSubmission($_POST, $photos, $recordMode)) {
+        respond(false, '写真がアップロードされていません');
+    }
 }
 
 // FB-15: Apply EXIF data as fallback values
@@ -416,24 +597,18 @@ if (!BiomeManager::isValid($biome)) {
 $biomeAutoSelected = !empty($_POST['biome_auto_selected']) && $_POST['biome_auto_selected'] === '1';
 $biomeAutoReason = mb_substr(trim((string)($_POST['biome_auto_reason'] ?? '')), 0, 160);
 
-if ($isSurveyorOfficial && empty($photos) && trim((string)($_POST['taxon_name'] ?? '')) === '' && trim($note) === '') {
+if ($isSurveyorOfficial && empty($photos) && $videoAsset === null && trim((string)($_POST['taxon_name'] ?? '')) === '' && trim($note) === '') {
     respond(false, '写真なしの公式記録では、少なくとも種名かメモを入力してください。');
 }
 
-
-// ゲスト投稿対応: ログイン済みならユーザーID、ゲストならセッション管理されたゲストID
-if ($currentUser) {
-    $userId = $currentUser['id'];
-    $isGuestPost = false;
-} else {
-    // ゲストセッション初期化 & 投稿上限チェック
-    Auth::initGuest();
-    if (!Auth::canGuestPost()) {
-        respond(false, 'ゲスト投稿の上限(' . Auth::GUEST_POST_LIMIT . '件)に達しました。ログインすると無制限に投稿できます。');
-    }
-    $userId = Auth::getGuestId();
-    $isGuestPost = true;
+$observerDisplayName = $currentUser['name'] ?? null;
+if ($observerDisplayName === $userId || preg_match('/^user_[a-z0-9]+$/i', (string)$observerDisplayName)) {
+    $observerDisplayName = null;
 }
+$observerDisplayName = $observerDisplayName
+    ?? $currentUser['display_name']
+    ?? $currentUser['username']
+    ?? ($isGuestPost ? 'Guest' : BioUtils::getUserName($userId));
 
 // Check for Corporate Site Match
 require_once __DIR__ . '/../../libs/CorporateSites.php';
@@ -442,7 +617,8 @@ $matchedSite = CorporateSites::findMatchingSite((float)$lat, (float)$lng);
 $observation = [
     'id' => $id,
     'user_id' => $userId,
-    'user_name' => $currentUser['name'] ?? 'Guest',
+    'user_name' => $observerDisplayName,
+    'user_display_name' => $observerDisplayName,
     'user_avatar' => $currentUser['avatar'] ?? 'https://i.pravatar.cc/150?u=' . $userId,
     'user_rank' => ($currentUser && !empty($currentUser['badges'])) ? end($currentUser['badges']) : 'Observer',
     'observed_at' => $observed_at ?: date('Y-m-d H:i'),
@@ -457,6 +633,10 @@ $observation = [
     'life_stage' => $_POST['life_stage'] ?? 'unknown',
     'note' => $note,
     'photos' => $photos,
+    'media_assets' => array_merge(
+        buildPhotoMediaAssets($photos),
+        $videoAsset ? [$videoAsset] : []
+    ),
     'status' => 'Needs ID',
     'event_id' => !empty($_POST['event_id']) ? trim($_POST['event_id']) : null,
     'survey_id' => !empty($_POST['survey_id']) ? trim($_POST['survey_id']) : null,
@@ -468,6 +648,7 @@ $observation = [
     'taxon' => null,
     'record_mode' => $isSurveyorOfficial ? 'surveyor_official' : 'standard',
     'official_record' => $isSurveyorOfficial,
+    'light_mode' => isLightweightSubmission($_POST, $photos, $recordMode),
     'biome' => $biome, // Phase 17
     'biome_meta' => [
         'auto_selected' => $biomeAutoSelected,
@@ -477,13 +658,14 @@ $observation = [
     ],
     'substrate_tags' => $substrateTags ?: null, // 100-Year Archive Fusion
     'evidence_tags' => $evidenceTags ?: null, // Phase C M7: Data Quality
+    'mismatch' => $mismatch ?: null, // Field Loop: satellite vs field reality
     'individual_count' => $individualCount, // Abundance reference indicator (DwC: individualCount)
     'archive_track' => ManagedSiteRegistry::isWildLike($organismOrigin) ? 'wild_occurrence' : 'managed_collection',
     // Phase A3: CC License (default CC BY — optimal for GBIF sharing)
     'license' => in_array($_POST['license'] ?? '', ['CC0', 'CC-BY', 'CC-BY-NC']) ? $_POST['license'] : 'CC-BY',
     // Phase A2: Data Quality Flags (auto-computed, recalculated on ID changes)
     'quality_flags' => [
-        'has_media'    => !empty($photos),
+        'has_media'    => !empty($photos) || $videoAsset !== null,
         'has_location' => !empty($lat) && !empty($lng),
         'has_date'     => !empty($observed_at),
         'is_organism'  => true, // Default true; future: AI validation
@@ -494,8 +676,12 @@ $observation = [
     ],
     // NP: GPS coordinate accuracy in meters (for DwC coordinateUncertaintyInMeters)
     'coordinate_accuracy' => !empty($_POST['coordinate_accuracy']) ? (int)$_POST['coordinate_accuracy'] : null,
-    'location_granularity' => in_array($_POST['location_granularity'] ?? 'exact', ['exact', 'municipality', 'prefecture', 'hidden']) ? ($_POST['location_granularity'] ?? 'exact') : 'exact',
+    'location_granularity' => in_array($_POST['location_granularity'] ?? 'municipality', ['exact', 'municipality', 'prefecture', 'hidden']) ? ($_POST['location_granularity'] ?? 'municipality') : 'municipality',
 ];
+
+if ($videoAsset !== null) {
+    $observation['video_assets'] = [$videoAsset];
+}
 
 if ($isSurveyorOfficial) {
     $observation['official_source'] = [
@@ -617,6 +803,36 @@ if (!empty($_POST['taxon_name'])) {
 
 // Save to DataStore (partition by creation month, not observed_at)
 if (DataStore::append('observations', $observation)) {
+    $canonicalDualWriteEnabled = defined('CANONICAL_DUAL_WRITE_ENABLED') && CANONICAL_DUAL_WRITE_ENABLED;
+    $canonicalWrite = [
+        'success' => false,
+        'skipped' => !$canonicalDualWriteEnabled,
+        'event_id' => null,
+        'occurrence_id' => null,
+        'error' => null,
+    ];
+    if ($canonicalDualWriteEnabled) {
+        try {
+            $canonicalResult = CanonicalObservationWriter::writeFromObservation($observation);
+            $canonicalWrite['success'] = true;
+            $canonicalWrite['skipped'] = !empty($canonicalResult['skipped']);
+            $canonicalWrite['event_id'] = $canonicalResult['event_id'] ?? null;
+            $canonicalWrite['occurrence_id'] = $canonicalResult['occurrence_id'] ?? null;
+
+            DataStore::upsert('observations', [
+                'id' => $id,
+                'canonical_refs' => [
+                    'event_id' => $canonicalWrite['event_id'],
+                    'occurrence_id' => $canonicalWrite['occurrence_id'],
+                    'synced_at' => date('c'),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $canonicalWrite['error'] = $e->getMessage();
+            error_log('Canonical dual-write failed for ' . $id . ': ' . $e->getMessage());
+        }
+    }
+
     ObservationRecalcQueue::enqueue($id, 'observation_created');
     $aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_created');
     // ゲスト投稿カウント更新
@@ -710,6 +926,8 @@ if (DataStore::append('observations', $observation)) {
     $responseData['ai_assessment_ready'] = false;
     $responseData['ai_assessment_pending'] = $aiPlan !== null;
     $responseData['embedding_pending'] = $embeddingPlanned;
+    $responseData['canonical_write_success'] = $canonicalWrite['success'];
+    $responseData['canonical_occurrence_id'] = $canonicalWrite['occurrence_id'];
 
     // Add Gamification Events to response
     if (!empty($gamificationEvents)) {
@@ -729,6 +947,9 @@ if (DataStore::append('observations', $observation)) {
         'embedding_planned' => $embeddingPlanned,
         'ai_queue' => AiAssessmentQueue::snapshot(),
         'embedding_queue' => EmbeddingQueue::snapshot(),
+        'canonical_write_success' => $canonicalWrite['success'],
+        'canonical_write_skipped' => $canonicalWrite['skipped'],
+        'canonical_write_error' => $canonicalWrite['error'],
     ]);
 
     respondAndContinue(true, 'Observation posted successfully', $responseData);

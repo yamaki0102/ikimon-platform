@@ -5,6 +5,16 @@
  * Provides consistent loading spinners and error displays
  */
 ?>
+<?php
+$uiFeedback = [
+    'loading' => __('ui_feedback.loading', 'Loading...'),
+    'error_generic' => __('ui_feedback.error_generic', 'Something went wrong'),
+    'rate_limit_title' => __('ui_feedback.rate_limit_title', 'Too many requests'),
+    'rate_limit_body' => __('ui_feedback.rate_limit_body', 'Please wait a bit and try again.'),
+    'network_title' => __('ui_feedback.network_title', 'Connection error'),
+    'network_body' => __('ui_feedback.network_body', 'Please check your network connection.'),
+];
+?>
 
 <!-- Loading Overlay Component -->
 <template x-teleport="body">
@@ -21,7 +31,7 @@
                 <div class="absolute inset-0 rounded-full border-4 border-white/20"></div>
                 <div class="absolute inset-0 rounded-full border-4 border-t-[var(--color-primary)] animate-spin"></div>
             </div>
-            <p class="text-white font-bold" x-text="$store.loading.message || '読み込み中...'"></p>
+            <p class="text-white font-bold" x-text="$store.loading.message || '<?= addslashes($uiFeedback['loading']) ?>'"></p>
         </div>
     </div>
 </template>
@@ -77,7 +87,7 @@
             show: false,
             message: '',
 
-            start(message = '読み込み中...') {
+            start(message = '<?= addslashes($uiFeedback['loading']) ?>') {
                 this.message = message;
                 this.show = true;
             },
@@ -146,7 +156,7 @@
     window.handleApiError = function(error, context = '') {
         console.error('API Error:', error, context);
 
-        let title = 'エラーが発生しました';
+        let title = '<?= addslashes($uiFeedback['error_generic']) ?>';
         let message = '';
 
         if (error.message) {
@@ -157,14 +167,14 @@
 
         // Rate limit specific handling
         if (error.status === 429) {
-            title = 'リクエスト制限';
-            message = 'しばらく待ってから再度お試しください。';
+            title = '<?= addslashes($uiFeedback['rate_limit_title']) ?>';
+            message = '<?= addslashes($uiFeedback['rate_limit_body']) ?>';
         }
 
         // Network error
         if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-            title = '接続エラー';
-            message = 'ネットワーク接続を確認してください。';
+            title = '<?= addslashes($uiFeedback['network_title']) ?>';
+            message = '<?= addslashes($uiFeedback['network_body']) ?>';
         }
 
         Alpine.store('toast').error(title, message);

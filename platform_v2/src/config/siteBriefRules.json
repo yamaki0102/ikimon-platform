@@ -1,0 +1,209 @@
+[
+  {
+    "id": "water_body",
+    "label_ja": "水域そのもの",
+    "label_en": "Open water",
+    "confidence": 0.85,
+    "when": { "landcover_here_any": ["water"] },
+    "reasons_ja": ["水面上の点"],
+    "reasons_en": ["Point is on open water"],
+    "checks_ja": ["岸辺の植生はどうか", "水鳥・水生昆虫の痕跡", "水の濁り・藻の有無"],
+    "checks_en": ["Shore vegetation", "Traces of water birds or aquatic insects", "Turbidity or algae"],
+    "captures_ja": ["岸から水面を1枚", "水際の植生を寄りで1枚"],
+    "captures_en": ["One shot from shore across the water", "One close-up of the waterline vegetation"]
+  },
+  {
+    "id": "wetland_edge",
+    "label_ja": "湿性林縁",
+    "label_en": "Wet forest edge",
+    "confidence": 0.7,
+    "when": {
+      "landcover_any": ["tree_cover", "shrubland", "wetland"],
+      "water_distance_m_lte": 120
+    },
+    "reasons_ja": ["樹林と水辺が近接", "低地の可能性"],
+    "reasons_en": ["Tree cover adjacent to water", "Low elevation hint"],
+    "checks_ja": ["ぬかるみの有無", "常緑低木の混じり方", "落葉層の厚み"],
+    "checks_en": ["Muddy ground", "Evergreen shrubs mixed in", "Leaf litter depth"],
+    "captures_ja": ["地表を1枚", "水際からの距離を分かるアングルで1枚"],
+    "captures_en": ["One shot of the ground", "One shot showing distance to water"]
+  },
+  {
+    "id": "forest_edge_open",
+    "label_ja": "林縁と開放地の境界",
+    "label_en": "Forest–open boundary",
+    "confidence": 0.7,
+    "when": {
+      "landcover_pair": [["tree_cover", "shrubland"], ["grassland", "cropland", "bare"]]
+    },
+    "reasons_ja": ["樹林と草地/農地が接している"],
+    "reasons_en": ["Tree cover meets grassland or cropland"],
+    "checks_ja": ["境界の植生遷移", "日当たりの差", "チョウ・ハチ類の動線"],
+    "checks_en": ["Vegetation transition at the edge", "Light contrast across the edge", "Butterfly/bee flight lines"],
+    "captures_ja": ["境界線を構図に入れた1枚"],
+    "captures_en": ["One shot framing the edge line"]
+  },
+  {
+    "id": "forest_interior",
+    "label_ja": "樹林の内部",
+    "label_en": "Forest interior",
+    "confidence": 0.6,
+    "when": {
+      "landcover_any": ["tree_cover"],
+      "water_distance_m_gt": 120
+    },
+    "reasons_ja": ["連続する樹林帯", "水辺からは距離あり"],
+    "reasons_en": ["Continuous tree cover", "Not near open water"],
+    "checks_ja": ["樹冠の粗密", "下層植生の厚さ", "地表の落葉層"],
+    "checks_en": ["Canopy density", "Understory thickness", "Leaf litter"],
+    "captures_ja": ["上方の樹冠を1枚", "足元の地表を1枚"],
+    "captures_en": ["One shot looking up at the canopy", "One shot of the ground underfoot"]
+  },
+  {
+    "id": "grassland_succession",
+    "label_ja": "草地と遷移帯",
+    "label_en": "Grassland / succession",
+    "confidence": 0.55,
+    "when": { "landcover_any": ["grassland", "shrubland"] },
+    "reasons_ja": ["草本優占", "撹乱後の遷移が進む可能性"],
+    "reasons_en": ["Herbaceous cover", "Likely succession after disturbance"],
+    "checks_ja": ["優占草本の種類", "低木の混入度", "人為的撹乱の痕跡"],
+    "checks_en": ["Dominant herbs", "Shrub invasion", "Signs of human disturbance"],
+    "captures_ja": ["群落を広角で1枚", "優占種の寄りで1枚"],
+    "captures_en": ["One wide-angle community shot", "One close-up of the dominant species"]
+  },
+  {
+    "id": "farmland",
+    "label_ja": "農地と縁",
+    "label_en": "Cropland and its edge",
+    "confidence": 0.5,
+    "when": { "landcover_any": ["cropland"] },
+    "reasons_ja": ["耕作地の影響下"],
+    "reasons_en": ["Inside or adjacent to cropland"],
+    "checks_ja": ["畦の植生", "水路の有無", "除草のタイミング痕跡"],
+    "checks_en": ["Hedge/bund vegetation", "Irrigation ditches", "Recent mowing signs"],
+    "captures_ja": ["畦・水路を入れた1枚"],
+    "captures_en": ["One shot including the bund or ditch"]
+  },
+  {
+    "id": "urban_seam",
+    "label_ja": "都市の裂け目",
+    "label_en": "Urban seam",
+    "confidence": 0.5,
+    "when": { "landcover_any": ["built_up"] },
+    "reasons_ja": ["人工被覆が優占", "街中に残る緑に注目"],
+    "reasons_en": ["Built-up dominates", "Green remnants in the urban fabric"],
+    "checks_ja": ["街路樹・植え込み", "建物裏の未管理地", "側溝・水路の生物相"],
+    "checks_en": ["Street trees and planters", "Unmanaged strips behind buildings", "Life in gutters and channels"],
+    "captures_ja": ["人工物と植物を同じ構図で1枚"],
+    "captures_en": ["One shot with built surface and plant in the same frame"]
+  },
+  {
+    "id": "riverside_gravel",
+    "label_ja": "河川敷・砂礫地",
+    "label_en": "Riverside gravel bar",
+    "confidence": 0.7,
+    "when": {
+      "landcover_any": ["bare"],
+      "water_distance_m_lte": 200
+    },
+    "reasons_ja": ["水際の裸地・砂礫が広がる", "増水攪乱が定期的に起きる"],
+    "reasons_en": ["Bare gravels near water", "Regular flood disturbance creates open habitat"],
+    "checks_ja": ["カワラヨモギ等の先駆植生", "ヨシ・オギの帯の位置", "水際の昆虫（カワゲラ・カゲロウ）"],
+    "checks_en": ["Pioneer herbs on bare gravel", "Reed belt position", "Stonefly/mayfly adults near waterline"],
+    "captures_ja": ["水際から河原全体を1枚", "先駆植生の寄りを1枚"],
+    "captures_en": ["One wide shot from waterline across the bar", "One close-up of pioneer vegetation"]
+  },
+  {
+    "id": "paddy_field",
+    "label_ja": "水田・棚田",
+    "label_en": "Paddy / rice terrace",
+    "confidence": 0.65,
+    "when": {
+      "landcover_any": ["cropland"],
+      "water_distance_m_lte": 150
+    },
+    "reasons_ja": ["水田的な土地利用 + 水辺近接", "農業水路に多様な水生生物が集まる"],
+    "reasons_en": ["Cropland adjacent to water — likely paddy", "Field ditches concentrate aquatic life"],
+    "checks_ja": ["用水路の水生昆虫・両生類", "あぜ道の草本層", "水面の水鳥の有無"],
+    "checks_en": ["Aquatic invertebrates and amphibians in ditches", "Bund herb layer", "Water birds on the surface"],
+    "captures_ja": ["水面に空を映した1枚", "水路の底を覗き込んだ1枚"],
+    "captures_en": ["One shot of sky reflected in the water", "One close-up looking into the ditch"]
+  },
+  {
+    "id": "bamboo_grove",
+    "label_ja": "竹林",
+    "label_en": "Bamboo grove",
+    "confidence": 0.6,
+    "when": {
+      "landcover_any": ["tree_cover", "shrubland"],
+      "landcover_here_any": ["tree_cover"]
+    },
+    "reasons_ja": ["単一優占の竹林は生物多様性が限られるが、林縁は豊か"],
+    "reasons_en": ["Dense bamboo stands limit diversity but edges are rich"],
+    "checks_ja": ["竹林の縁と隣接植生の関係", "落ち葉層の生物（ミミズ・ムカデ）", "鳥の声（竹林を採食場にする種）"],
+    "checks_en": ["Edge transition to adjacent vegetation", "Leaf litter fauna (earthworms, centipedes)", "Bird calls (species that forage in bamboo)"],
+    "captures_ja": ["竹の密度と光の差し込みを1枚", "竹林の縁を構図に入れた1枚"],
+    "captures_en": ["One shot of culm density and light", "One shot framing the grove edge"]
+  },
+  {
+    "id": "alpine_subalpine",
+    "label_ja": "亜高山帯・高山帯",
+    "label_en": "Subalpine / alpine zone",
+    "confidence": 0.75,
+    "when": { "water_distance_m_gt": 300, "elevation_m_gte": 1200 },
+    "reasons_ja": ["高標高帯の可能性（平地と異なる植生帯）", "短い生育期に特有の高山種が活動"],
+    "reasons_en": ["Potentially high-elevation site with distinct vegetation belt", "Short growing season concentrates alpine specialists"],
+    "checks_ja": ["矮性の木本・ハイマツの有無", "高山植物の花の状態", "雪田跡・礫地の範囲"],
+    "checks_en": ["Dwarf woody plants or pine krummholz", "Alpine flower phenology", "Extent of snowfield remnants or scree"],
+    "captures_ja": ["地平線まで見渡せる1枚", "高山植物の寄りを1枚"],
+    "captures_en": ["One wide shot toward the horizon", "One close-up of an alpine flower"]
+  },
+  {
+    "id": "coastal_shoreline",
+    "label_ja": "海岸・磯",
+    "label_en": "Coastal shoreline",
+    "confidence": 0.8,
+    "when": {
+      "landcover_any": ["bare", "water"],
+      "water_distance_m_lte": 80
+    },
+    "reasons_ja": ["海岸線に近い裸地・水域", "潮間帯は垂直に多様な生物が分布"],
+    "reasons_en": ["Bare ground near water on a coast", "Intertidal zone has steep vertical biodiversity gradients"],
+    "checks_ja": ["岩礁・砂浜・泥干潟の区別", "潮だまりの生物", "漂着物・流木の有無"],
+    "checks_en": ["Rock, sand, or mudflat substrate", "Rock pool inhabitants", "Wrack line and drift material"],
+    "captures_ja": ["水際から陸側に向けた1枚", "潮だまりを上から覗いた1枚"],
+    "captures_en": ["One shot from waterline toward land", "One overhead shot into a rock pool"]
+  },
+  {
+    "id": "satoyama_mixed",
+    "label_ja": "里山・雑木林",
+    "label_en": "Satoyama mixed woodland",
+    "confidence": 0.65,
+    "when": {
+      "landcover_pair": [["tree_cover", "shrubland"], ["cropland", "grassland"]]
+    },
+    "reasons_ja": ["樹林と農地・草地が入り混じる里山的構造", "多様な生育環境が近接する"],
+    "reasons_en": ["Mixed woodland and farmland — classic satoyama structure", "Multiple microhabitats in close proximity"],
+    "checks_ja": ["クヌギ・コナラ等の落葉広葉樹の混じり", "林床のスミレやタンポポ類", "クワガタ・カブトムシの樹液痕"],
+    "checks_en": ["Deciduous oaks and chestnuts in canopy", "Violets and dandelions on the woodland floor", "Sap wounds from beetles on trunks"],
+    "captures_ja": ["木の幹のアップを1枚（樹液痕・コケ・地衣類）", "林床の光と影を1枚"],
+    "captures_en": ["One close-up of a trunk (sap, moss, lichen)", "One shot of light and shadow on the woodland floor"]
+  },
+  {
+    "id": "open_wetland",
+    "label_ja": "開放湿地・湿原",
+    "label_en": "Open wetland / marsh",
+    "confidence": 0.75,
+    "when": {
+      "landcover_here_any": ["wetland", "grassland"],
+      "water_distance_m_lte": 100
+    },
+    "reasons_ja": ["開放水域に近い草本湿地", "希少な湿性植物・水生昆虫の宝庫"],
+    "reasons_en": ["Herbaceous wetland near open water", "Hotspot for rare wetland plants and aquatic insects"],
+    "checks_ja": ["ヨシ・ガマ・スゲ類の優占種", "水面の水生昆虫（ゲンゴロウ・タガメ）", "湿地固有の草花の開花状況"],
+    "checks_en": ["Dominant reeds, cattails, or sedges", "Aquatic beetles and water bugs on the surface", "Flowering of wetland-specialist herbs"],
+    "captures_ja": ["水際の植生をローアングルで1枚", "水面に映る空と植生を1枚"],
+    "captures_en": ["One low-angle shot of waterline vegetation", "One shot of sky and plants reflected in the water"]
+  }
+]

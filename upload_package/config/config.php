@@ -42,10 +42,99 @@ $is_https = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')
 $protocol = $is_https ? 'https' : 'http';
 // Force HTTPS on production domain
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$normalizedHost = strtolower(preg_replace('/:\d+$/', '', $host));
+$isStagingHost = str_contains($normalizedHost, 'sslip.io')
+    || str_contains($normalizedHost, 'nip.io')
+    || str_starts_with($normalizedHost, 'staging.')
+    || $normalizedHost === 'localhost'
+    || $normalizedHost === '127.0.0.1';
+$requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+$requestPath = (string) (parse_url($requestUri, PHP_URL_PATH) ?: '/');
+$appBasePath = '';
+if (preg_match('#^/(v[0-9]+)(?:/|$)#i', $requestPath, $matches) === 1) {
+    $appBasePath = '/' . strtolower($matches[1]);
+}
 if (strpos($host, 'ikimon.life') !== false) {
     $protocol = 'https';
 }
-define('BASE_URL', $protocol . '://' . $host);
+define('BASE_ORIGIN', $protocol . '://' . $host);
+define('APP_BASE_PATH', $appBasePath);
+define('BASE_URL', BASE_ORIGIN . APP_BASE_PATH);
+define('APP_BASE_URL', BASE_URL);
+define('IS_STAGING_SITE', $isStagingHost);
+define('RUNTIME_ENV_LABEL', IS_STAGING_SITE ? 'staging' : 'production');
+
+if (!function_exists('app_path')) {
+    function app_path(string $path = '/'): string
+    {
+        if ($path === '') {
+            return APP_BASE_PATH !== '' ? APP_BASE_PATH : '/';
+        }
+
+        if (preg_match('#^(?:https?:)?//#i', $path) === 1) {
+            return $path;
+        }
+
+        if ($path[0] !== '/') {
+            $path = '/' . $path;
+        }
+
+        if (APP_BASE_PATH !== '' && ($path === APP_BASE_PATH || str_starts_with($path, APP_BASE_PATH . '/'))) {
+            return $path;
+        }
+
+        return APP_BASE_PATH . $path;
+    }
+}
+
+if (!function_exists('app_url')) {
+    function app_url(string $path = '/'): string
+    {
+        return BASE_ORIGIN . app_path($path);
+    }
+}
+
+if (
+    PHP_SAPI !== 'cli'
+    && APP_BASE_PATH !== ''
+    && !headers_sent()
+    && !defined('APP_BASE_PATH_OUTPUT_BUFFER_REGISTERED')
+    && !str_starts_with($requestPath, APP_BASE_PATH . '/api/')
+    && !str_starts_with($requestPath, '/api/')
+    && stripos((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'text/html') !== false
+) {
+    define('APP_BASE_PATH_OUTPUT_BUFFER_REGISTERED', true);
+    ob_start(static function (string $buffer): string {
+        $prefix = APP_BASE_PATH;
+        if ($prefix === '') {
+            return $buffer;
+        }
+
+        $patterns = [
+            '#(?<attr>\b(?:href|src|action|formaction|poster)\s*=\s*["\'])(?<path>/(?!/|v[0-9]+/|v[0-9]+$))#i',
+            '#(?<fn>\b(?:fetch|import|location(?:\.href)?\.assign|location(?:\.href)?\.replace|window\.open)\s*\(\s*["\'])(?<path>/(?!/|v[0-9]+/))#i',
+            '#(?<eq>\b(?:location(?:\.href)?|window\.location(?:\.href)?|document\.location(?:\.href)?)\s*=\s*["\'])(?<path>/(?!/|v[0-9]+/))#i',
+            '#(?<css>url\(\s*["\']?)(?<path>/(?!/|v[0-9]+/))#i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            $buffer = preg_replace_callback(
+                $pattern,
+                static function (array $matches) use ($prefix): string {
+                    $lead = $matches['attr'] ?? $matches['fn'] ?? $matches['eq'] ?? $matches['css'] ?? '';
+                    return $lead . $prefix . $matches['path'];
+                },
+                $buffer
+            ) ?? $buffer;
+        }
+
+        return $buffer;
+    });
+}
+
+// Canonical migration feature flags
+define('CANONICAL_DUAL_WRITE_ENABLED', defined('CANONICAL_DUAL_WRITE_ENABLED_OVERRIDE') ? CANONICAL_DUAL_WRITE_ENABLED_OVERRIDE : true);
+define('CANONICAL_READ_PILOT_ENABLED', defined('CANONICAL_READ_PILOT_ENABLED_OVERRIDE') ? CANONICAL_READ_PILOT_ENABLED_OVERRIDE : true);
 
 // Red List Obscuring Settings
 define('OBSCURE_GRID_CR_EN', 10000); // 10km

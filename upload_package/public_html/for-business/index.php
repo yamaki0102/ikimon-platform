@@ -3,62 +3,70 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/CspNonce.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/BrandMessaging.php';
+require_once __DIR__ . '/../../libs/Lang.php';
 
 Auth::init();
+Lang::init();
 CspNonce::sendHeader();
+$documentLang = 'ja';
+if (method_exists('Lang', 'current')) {
+    $documentLang = Lang::current();
+} elseif (!empty($_SESSION['lang'])) {
+    $documentLang = (string) $_SESSION['lang'];
+} elseif (!empty($_GET['lang'])) {
+    $documentLang = (string) $_GET['lang'];
+}
+$supportedLanguages = method_exists('Lang', 'supported') ? Lang::supported() : [
+    'ja' => ['native' => '日本語'],
+    'en' => ['native' => 'English'],
+    'es' => ['native' => 'Español'],
+    'pt-BR' => ['native' => 'Português (Brasil)'],
+];
+$languageBadges = [
+    'ja' => 'JA',
+    'en' => 'EN',
+    'es' => 'ES',
+    'pt-BR' => 'PT',
+];
+$buildLangSwitchUrl = static function (string $targetLang): string {
+    if (class_exists('Lang') && method_exists('Lang', 'switchUrl')) {
+        return Lang::switchUrl($targetLang);
+    }
+
+    $params = $_GET;
+    $params['lang'] = $targetLang;
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/for-business/', PHP_URL_PATH) ?: '/for-business/';
+    $query = http_build_query($params);
+    return $path . ($query ? '?' . $query : '');
+};
 
 $isLoggedIn = Auth::isLoggedIn();
 $freeCtaHref = $isLoggedIn ? '../post.php' : '../login.php?redirect=post.php';
-$freeCtaLabel = $isLoggedIn ? '無料のまま使ってみる' : '無料で始める';
+$freeCtaLabel = $isLoggedIn ? 'Try it for free' : 'Get started free';
 $workspaceCtaHref = $isLoggedIn ? 'create.php' : '../login.php?redirect=for-business/create.php';
-$workspaceCtaLabel = $isLoggedIn ? '無料で団体ページを作る' : 'ログインして無料で作る';
+$workspaceCtaLabel = __('business_lp.nav_create_workspace', 'Create a group page');
 $publicCtaHref = 'apply.php';
+$lp = Lang::get('business_lp');
 $regionalMessaging = BrandMessaging::regionalRevitalization();
 
-$meta_title = 'ikimon for Business — 学校・企業・施設の自然観察記録';
+$meta_title = $lp['meta_title'] ?? 'ikimon for Business — Support nearby nature as an organization';
 $meta_description = $regionalMessaging['business_meta_description'];
 $meta_canonical = rtrim(BASE_URL, '/') . '/for-business/';
 $meta_image = rtrim(BASE_URL, '/') . '/assets/img/ogp_default.png';
 
-$features = [
-    ['icon' => 'map-pin', 'title' => 'スポットと観察会の管理', 'body' => '観察エリアをスポットとして登録し、観察会の開催・参加受付・記録の集約を団体ページでまとめて管理できます。'],
-    ['icon' => 'users', 'title' => '参加者との記録共有', 'body' => 'QRコードやリンクから参加者が観察会に参加。投稿した記録は自動的に団体の記録として集まります。'],
-    ['icon' => 'file-down', 'title' => '種一覧とレポートの出力', 'body' => '発見種の全リスト、CSV、証跡レポートなど、調査・報告に使う出力はPublicで利用できます。条件に当てはまる自治体には無償提供します。'],
-];
-
-$personas = [
-    ['label' => '学校・教育機関', 'icon' => 'graduation-cap',
-     'title' => '理科の授業や校外観察に',
-     'body' => '授業で観察会をやっても、写真や記録がそれぞれの手元に残るだけで終わりがち。ikimon はクラス・学年を横断して記録が集まり、次の授業でも見返せる仕組みを目指しています。',
-     'plan' => 'Community → 必要時 Public', 'cta' => '団体ページを作る', 'href' => $workspaceCtaHref, 'tone' => 'tone-edu'],
-    ['label' => '消滅可能性自治体・地域団体', 'icon' => 'map',
-     'title' => '記録の土台が必要な地域に',
-     'body' => '人口減少が進む地域ほど、自然の記録が担当者依存になりやすい。ikimon はまず無料で土台を作り、条件に当てはまる自治体には出力機能も含めて無償で届ける方針です。',
-     'plan' => 'Community / 条件により Public 相当も無償', 'cta' => '運営方針を見る', 'href' => '#support-model', 'tone' => 'tone-park'],
-    ['label' => '企業・CSR / ESG', 'icon' => 'building-2',
-     'title' => '自然共生活動の記録と報告に',
-     'body' => '活動の記録を残しつつ、報告や開示にも耐える形で使いたい。企業や大規模自治体向けのPublicを有料にすることで、無料提供の土台ごと継続できる設計にしています。',
-     'plan' => 'Public', 'cta' => 'Publicを相談する', 'href' => $publicCtaHref, 'tone' => 'tone-corp'],
-];
-
-$outcomes = [
-    ['title' => '個人参加者はアカウント取得から', 'body' => 'Personalプランで投稿・同定・イベント参加ができます。参加者への事前準備の負担はありません。', 'icon' => 'user'],
-    ['title' => '団体運営はCommunityで完結', 'body' => '法人格不要。団体ページ・スポット登録・観察会の開催・メンバー管理まで無料で使えます。', 'icon' => 'layout-dashboard'],
-    ['title' => '出力が必要な時だけPublicへ', 'body' => '種の全リスト、CSV、証跡レポートなどの出力機能は、有料のPublicプランにまとめています。', 'icon' => 'file-down'],
-    ['title' => '消滅可能性自治体には無償提供', 'body' => $regionalMessaging['support_policies'][0]['body'], 'icon' => 'heart-handshake'],
-    ['title' => '担当者が変わっても記録は残る', 'body' => '団体ページ単位で記録が蓄積されるため、人の入れ替わりに関係なく活動履歴が継続します。', 'icon' => 'archive'],
-];
-
+$features = $lp['features'] ?? [];
+$personas = $lp['personas'] ?? [];
+$outcomes = $lp['outcomes'] ?? [];
 $plans = [
-    ['name' => 'Personal', 'price' => '¥0', 'suffix' => '', 'headline' => '個人で観察・同定する', 'desc' => '投稿・同定・図鑑・イベント参加まで無料。', 'features' => ['観察記録の投稿・編集', 'AI同定ヒントと図鑑', 'イベントへの参加'], 'note' => '申込み不要。ずっと無料。', 'cta' => $freeCtaLabel, 'href' => $freeCtaHref, 'variant' => 'free'],
-    ['name' => 'Community', 'price' => '¥0', 'suffix' => '', 'headline' => '団体ページを作って運営する', 'desc' => '法人格なしで作成可。観察会の開催まで無料。', 'features' => ['団体ページ・スポット登録・観察会開催', 'メンバー招待・QR参加・ランキング', '観察数・参加人数・発見種数の概要'], 'note' => '学校・地域団体・企業の部署単位でもここから始められます。', 'cta' => $workspaceCtaLabel, 'href' => $workspaceCtaHref, 'variant' => 'community'],
-    ['name' => 'Public', 'price' => '¥39,800', 'suffix' => '/ 月', 'headline' => '調査・報告用の出力を使う', 'desc' => $regionalMessaging['public_plan']['description'], 'features' => ['種の全リストと要配慮種の詳細', 'CSV / 証跡JSON / 各種レポート出力', '継続運用サポート'], 'note' => $regionalMessaging['public_plan']['note'], 'cta' => 'Publicを相談する', 'href' => $publicCtaHref, 'variant' => 'public'],
+    ['name' => $lp['personal_plan']['name'] ?? 'Personal', 'price' => '¥0', 'suffix' => '', 'headline' => $lp['personal_plan']['headline'] ?? '', 'desc' => $lp['personal_plan']['desc'] ?? '', 'features' => $lp['personal_plan']['features'] ?? [], 'note' => $lp['personal_plan']['note'] ?? '', 'cta' => $freeCtaLabel, 'href' => $freeCtaHref, 'variant' => 'free'],
+    ['name' => $lp['community_plan']['name'] ?? 'Community', 'price' => '¥0', 'suffix' => '', 'headline' => $lp['community_plan']['headline'] ?? '', 'desc' => $lp['community_plan']['desc'] ?? '', 'features' => $lp['community_plan']['features'] ?? [], 'note' => $lp['community_plan']['note'] ?? '', 'cta' => $workspaceCtaLabel, 'href' => $workspaceCtaHref, 'variant' => 'community'],
+    ['name' => $lp['public_plan']['name'] ?? 'Public', 'price' => '¥39,800', 'suffix' => '/ mo', 'headline' => $lp['public_plan']['headline'] ?? '', 'desc' => $lp['public_plan']['desc'] ?? '', 'features' => $lp['public_plan']['features'] ?? [], 'note' => $lp['public_plan']['note'] ?? '', 'cta' => $lp['public_plan']['cta'] ?? 'Discuss Public', 'href' => $publicCtaHref, 'variant' => 'public'],
 ];
 
 $supportPolicies = $regionalMessaging['support_policies'];
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang) ?>">
 <head>
     <?php include __DIR__ . '/../components/meta.php'; ?>
     <style nonce="<?= CspNonce::attr() ?>">
@@ -108,8 +116,56 @@ $supportPolicies = $regionalMessaging['support_policies'];
         .lp-nav {
             display: none; align-items: center; gap: 24px;
             font-size: 13px; font-weight: 600; color: var(--muted);
+            min-width: 0;
+        }
+        .lp-nav a {
+            min-width: 0;
+            line-height: 1.2;
+            text-wrap: balance;
         }
         .lp-nav a:hover { color: var(--ink); }
+        .lp-lang-switch {
+            position: relative;
+            display: none;
+        }
+        .lp-lang-button {
+            display: inline-flex; align-items: center; gap: 8px;
+            min-height: 40px; padding: 0 14px;
+            border-radius: 999px; border: 1px solid var(--line);
+            background: var(--white); color: var(--ink);
+            font-size: 12px; font-weight: 700; cursor: pointer;
+        }
+        .lp-lang-button:hover { background: var(--surface); }
+        .lp-lang-menu {
+            display: none;
+            position: absolute; top: calc(100% + 8px); right: 0;
+            min-width: 180px;
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            box-shadow: var(--shadow-md);
+            padding: 8px;
+            z-index: 55;
+        }
+        .lp-lang-switch:hover .lp-lang-menu,
+        .lp-lang-switch:focus-within .lp-lang-menu { display: grid; gap: 4px; }
+        .lp-lang-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 10px 12px; border-radius: 10px;
+            font-size: 13px; font-weight: 600; color: var(--ink);
+        }
+        .lp-lang-item:hover { background: var(--surface); }
+        .lp-lang-item.is-current {
+            background: var(--green-light);
+            color: var(--green-dark);
+        }
+        .lp-lang-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 28px; height: 22px; padding: 0 8px;
+            border-radius: 999px;
+            background: rgba(6,95,70,.08);
+            font-size: 10px; font-weight: 800; letter-spacing: .08em;
+        }
 
         /* hamburger */
         .lp-hamburger {
@@ -140,12 +196,23 @@ $supportPolicies = $regionalMessaging['support_policies'];
             margin-top: 6px; justify-content: center;
             background: var(--green-dark); color: #fff; border-color: transparent;
         }
+        .lp-mobile-nav .lp-mobile-lang-title {
+            margin: 10px 2px 2px;
+            font-size: 11px; font-weight: 800;
+            letter-spacing: .08em; text-transform: uppercase;
+            color: var(--muted);
+        }
 
         /* ── buttons ── */
         .lp-btn-primary, .lp-btn-secondary, .lp-btn-ghost, .lp-nav-cta {
             display: inline-flex; align-items: center; justify-content: center; gap: 7px;
             min-height: 44px; padding: 0 20px; border-radius: 999px;
             font-size: 14px; font-weight: 700; border: none; cursor: pointer;
+            min-width: 0;
+            line-height: 1.2;
+            text-align: center;
+            text-wrap: balance;
+            white-space: normal;
             transition: opacity .15s ease, transform .15s ease;
         }
         .lp-btn-primary:hover, .lp-nav-cta:hover { opacity: .88; transform: translateY(-1px); }
@@ -177,6 +244,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
             font-size: clamp(30px, 5vw, 52px);
             line-height: 1.1;
             letter-spacing: -.03em;
+            text-wrap: balance;
         }
         .hero-copy h1 em {
             font-style: normal;
@@ -198,6 +266,8 @@ $supportPolicies = $regionalMessaging['support_policies'];
         .hero-note-item {
             display: flex; align-items: center; gap: 6px;
             font-size: 13px; color: var(--muted);
+            min-width: 0;
+            text-wrap: balance;
         }
         .hero-note-item i { color: var(--green); flex-shrink: 0; }
         .hero-support {
@@ -266,6 +336,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
             font-size: clamp(24px, 4vw, 40px);
             line-height: 1.15;
             letter-spacing: -.03em;
+            text-wrap: balance;
         }
         .section-head p {
             margin: 12px 0 0; font-size: 15px; line-height: 1.8; color: var(--muted);
@@ -376,7 +447,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
             border-color: var(--green);
             box-shadow: 0 0 0 1px var(--green), var(--shadow-md);
         }
-        .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
         .plan-pill, .plan-reco {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 4px 10px; border-radius: 999px;
@@ -455,6 +526,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
             font-family: var(--font-heading);
             font-size: clamp(22px, 4vw, 38px);
             line-height: 1.15; letter-spacing: -.03em;
+            text-wrap: balance;
         }
         .closing p { margin: 12px 0 0; font-size: 15px; line-height: 1.8; color: rgba(255,255,255,.75); max-width: 560px; }
         .closing-actions {
@@ -514,11 +586,13 @@ $supportPolicies = $regionalMessaging['support_policies'];
            ═══════════════════════════════════ */
         @media (min-width: 860px) {
             .lp-nav { display: flex; }
+            .lp-lang-switch { display: block; }
             .lp-hamburger { display: none; }
             .mobile-cta-bar { display: none; }
             .mobile-cta-spacer { display: none; }
 
             .lp-header-inner { min-height: 68px; }
+            .lp-nav { gap: 16px; }
             .hero-row { flex-direction: row; align-items: flex-end; gap: 48px; }
             .hero-visual { display: flex; flex-direction: column; }
             .grid-3 { grid-template-columns: repeat(3, 1fr); }
@@ -546,17 +620,32 @@ $supportPolicies = $regionalMessaging['support_policies'];
                 <img src="/assets/img/icon-192.png" alt="ikimon" style="width:32px;height:32px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.15)">
                 <span class="lp-brand-text">
                     <span class="lp-brand-name">ikimon</span>
-                    <span class="lp-brand-sub">for Business</span>
+                    <span class="lp-brand-sub"><?= htmlspecialchars(__('business_lp.subbrand', 'for Business')) ?></span>
                 </span>
             </a>
             <nav class="lp-nav">
-                <a href="#problems">できること</a>
-                <a href="#personas">使われ方</a>
-                <a href="#outcomes">プラン設計</a>
-                <a href="#plans">料金</a>
-                <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-nav-cta">団体ページを作る</a>
+                <a href="#problems"><?= htmlspecialchars(__('business_lp.nav_features', 'What it does')) ?></a>
+                <a href="#personas"><?= htmlspecialchars(__('business_lp.nav_use_cases', 'Use cases')) ?></a>
+                <a href="#outcomes"><?= htmlspecialchars(__('business_lp.nav_plan_design', 'Plan design')) ?></a>
+                <a href="#plans"><?= htmlspecialchars(__('business_lp.nav_pricing', 'Pricing')) ?></a>
+                <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-nav-cta"><?= htmlspecialchars(__('business_lp.nav_create_workspace', 'Create a group page')) ?></a>
             </nav>
-            <button class="lp-hamburger" aria-label="メニュー" onclick="document.getElementById('mobileNav').classList.toggle('is-open'); this.setAttribute('aria-expanded', document.getElementById('mobileNav').classList.contains('is-open'))">
+            <div class="lp-lang-switch">
+                <button type="button" class="lp-lang-button" aria-label="<?= htmlspecialchars(__('nav.switch_language', 'Switch language')) ?>">
+                    <i data-lucide="languages" class="h-4 w-4"></i>
+                    <span><?= htmlspecialchars($languageBadges[$documentLang] ?? strtoupper(substr($documentLang, 0, 2))) ?></span>
+                </button>
+                <div class="lp-lang-menu">
+                    <?php foreach ($supportedLanguages as $langCode => $langMeta): ?>
+                        <a href="<?= htmlspecialchars($buildLangSwitchUrl($langCode)) ?>"
+                           class="lp-lang-item<?= $langCode === $documentLang ? ' is-current' : '' ?>">
+                            <span><?= htmlspecialchars($langMeta['native'] ?? $langCode) ?></span>
+                            <span class="lp-lang-badge"><?= htmlspecialchars($languageBadges[$langCode] ?? strtoupper(substr($langCode, 0, 2))) ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <button class="lp-hamburger" aria-label="Menu" onclick="document.getElementById('mobileNav').classList.toggle('is-open'); this.setAttribute('aria-expanded', document.getElementById('mobileNav').classList.contains('is-open'))">
                 <i data-lucide="menu" class="h-5 w-5"></i>
             </button>
         </div>
@@ -564,11 +653,18 @@ $supportPolicies = $regionalMessaging['support_policies'];
 
     <!-- mobile nav -->
     <nav id="mobileNav" class="lp-mobile-nav" onclick="if(event.target.tagName==='A'){this.classList.remove('is-open')}">
-        <a href="#problems"><i data-lucide="list" class="h-4 w-4"></i>できること</a>
-        <a href="#personas"><i data-lucide="users" class="h-4 w-4"></i>使われ方</a>
-        <a href="#outcomes"><i data-lucide="layers" class="h-4 w-4"></i>プラン設計</a>
-        <a href="#plans"><i data-lucide="credit-card" class="h-4 w-4"></i>料金</a>
-        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-mobile-cta"><i data-lucide="sparkles" class="h-4 w-4"></i>団体ページを作る</a>
+        <a href="#problems"><i data-lucide="list" class="h-4 w-4"></i><?= htmlspecialchars(__('business_lp.nav_features', 'What it does')) ?></a>
+        <a href="#personas"><i data-lucide="users" class="h-4 w-4"></i><?= htmlspecialchars(__('business_lp.nav_use_cases', 'Use cases')) ?></a>
+        <a href="#outcomes"><i data-lucide="layers" class="h-4 w-4"></i><?= htmlspecialchars(__('business_lp.nav_plan_design', 'Plan design')) ?></a>
+        <a href="#plans"><i data-lucide="credit-card" class="h-4 w-4"></i><?= htmlspecialchars(__('business_lp.nav_pricing', 'Pricing')) ?></a>
+        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-mobile-cta"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars(__('business_lp.nav_create_workspace', 'Create a group page')) ?></a>
+        <p class="lp-mobile-lang-title"><?= htmlspecialchars(__('nav.language', 'Language')) ?></p>
+        <?php foreach ($supportedLanguages as $langCode => $langMeta): ?>
+            <a href="<?= htmlspecialchars($buildLangSwitchUrl($langCode)) ?>">
+                <i data-lucide="languages" class="h-4 w-4"></i>
+                <?= htmlspecialchars($langMeta['native'] ?? $langCode) ?>
+            </a>
+        <?php endforeach; ?>
     </nav>
 
     <main>
@@ -577,22 +673,21 @@ $supportPolicies = $regionalMessaging['support_policies'];
             <div class="lp-container">
                 <div class="hero-row">
                     <div class="hero-copy">
-                        <div class="pill"><i data-lucide="flask-conical" class="h-3 w-3"></i>β版 · 学校・企業・施設向け</div>
-                        <h1>観察記録を、<em>チームで続ける。</em></h1>
-                        <p class="hero-lead">学校の授業でも、企業の環境活動でも、施設の定期観察会でも。記録がバラバラになって後から使えない、という問題を解決するために作っています。現在β版として公開中ですが、すでに導入や試行は可能です。現場に合わせた運用設計や改善、共同実証の相談も歓迎しています。</p>
+                        <div class="pill"><i data-lucide="hand-heart" class="h-3 w-3"></i><?= htmlspecialchars(__('business_lp.pill', 'For schools, communities, and companies')) ?></div>
+                        <h1><?= htmlspecialchars(__('business_lp.hero_title', 'Make field trips and local records easier to continue.')) ?></h1>
+                        <p class="hero-lead"><?= htmlspecialchars(__('business_lp.hero_lead', 'Bring group pages, observation events, and participant records together. Keep the personal experience intact and add only the operational paths you need.')) ?></p>
                         <div class="hero-support">
-                            <strong>消滅可能性自治体には、Public相当の出力機能まで含めて無償提供します。</strong>
-                            <p>若年女性減少率80%以上を目安に、最も記録基盤が必要な地域へ優先して届ける方針です。<?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
+                            <strong><?= htmlspecialchars(__('business_lp.hero_support_title', 'Do not leave everything on one staff member; let records stay on the page.')) ?></strong>
+                            <p><?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
                         </div>
                         <div class="hero-actions">
                             <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars($workspaceCtaLabel) ?></a>
-                            <a href="../site_dashboard.php?site=ikan_hq&demo=1" class="lp-btn-secondary"><i data-lucide="monitor-play" class="h-4 w-4"></i>デモを見る</a>
+                            <a href="../site_dashboard.php?site=ikan_hq&demo=1" class="lp-btn-secondary"><i data-lucide="monitor-play" class="h-4 w-4"></i><?= htmlspecialchars(__('business_lp.hero_demo', 'View demo')) ?></a>
                         </div>
                         <div class="hero-note">
-                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>申込み不要</span>
-                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>法人格なしで作成可</span>
-                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>有料プランはPublicのみ</span>
-                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>消滅可能性自治体は無償対象</span>
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i><?= htmlspecialchars(__('business_lp.hero_note_1', 'Easy to start for schools and local groups')) ?></span>
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i><?= htmlspecialchars(__('business_lp.hero_note_2', 'Free through event operations')) ?></span>
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i><?= htmlspecialchars(__('business_lp.hero_note_3', 'Add only the outputs you need')) ?></span>
                         </div>
                     </div>
                     <div class="hero-visual">
@@ -602,7 +697,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
                                 <span class="hero-browser-dot"></span>
                                 <span class="hero-browser-dot"></span>
                             </div>
-                            <iframe class="hero-browser-iframe" src="../site_dashboard.php?site=ikan_hq&demo=1" loading="lazy" title="ikimon デモ"></iframe>
+                            <iframe class="hero-browser-iframe" src="../site_dashboard.php?site=ikan_hq&demo=1" loading="lazy" title="ikimon demo"></iframe>
                         </div>
                     </div>
                 </div>
@@ -612,8 +707,8 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <!-- trust-band -->
         <div class="lp-container" style="padding:20px 0">
             <p style="text-align:center;font-size:13px;font-weight:600;color:var(--muted);line-height:1.8;max-width:640px;margin:0 auto">
-                PNAS 2026 が示した「保全の答えに変わるデータ基盤」の方向と、ikimon の設計は強く整合しています。
-                <a href="../century_archive.php" style="color:var(--green);text-decoration:underline">詳しくは「記録が保全に変わる理由」へ →</a>
+                <?= htmlspecialchars($lp['trust_band_text'] ?? '') ?>
+                <a href="../century_archive.php" style="color:var(--green);text-decoration:underline"><?= htmlspecialchars($lp['trust_band_link'] ?? '') ?></a>
             </p>
         </div>
         <div class="section-divider"></div>
@@ -622,8 +717,8 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <section class="section section-tinted" id="problems">
             <div class="lp-container">
                 <div class="section-head">
-                    <span class="section-label">できること</span>
-                    <h2>観察記録の収集から、報告書の出力まで</h2>
+                    <span class="section-label"><?= htmlspecialchars($lp['features_label'] ?? '') ?></span>
+                    <h2><?= htmlspecialchars($lp['features_title'] ?? '') ?></h2>
                 </div>
                 <div class="grid-3">
                     <?php foreach ($features as $feature): ?>
@@ -641,11 +736,26 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <section class="section" id="personas">
             <div class="lp-container">
                 <div class="section-head">
-                    <span class="section-label">使われ方</span>
-                    <h2>どんな団体を想定しているか</h2>
+                    <span class="section-label"><?= htmlspecialchars($lp['personas_label'] ?? '') ?></span>
+                    <h2><?= htmlspecialchars($lp['personas_title'] ?? '') ?></h2>
                 </div>
                 <div class="grid-3">
                     <?php foreach ($personas as $persona): ?>
+                        <?php
+                        $personaCta = $persona['cta'] ?? $workspaceCtaLabel;
+                        $personaHref = $persona['href'] ?? $workspaceCtaHref;
+                        $personaRouteSignal = implode(' ', [
+                            $persona['label'] ?? '',
+                            $persona['plan'] ?? '',
+                            $personaCta,
+                        ]);
+                        if (str_contains($personaRouteSignal, 'Public')) {
+                            $personaHref = $publicCtaHref;
+                        }
+                        if (str_contains($personaRouteSignal, '方針') || str_contains($personaRouteSignal, '無償')) {
+                            $personaHref = '../about.php#disappearing';
+                        }
+                        ?>
                         <article class="card persona-card">
                             <div class="persona-head">
                                 <span class="persona-tag"><i data-lucide="<?= htmlspecialchars($persona['icon']) ?>" class="h-4 w-4"></i><?= htmlspecialchars($persona['label']) ?></span>
@@ -655,10 +765,10 @@ $supportPolicies = $regionalMessaging['support_policies'];
                                 <p style="font-size:14px; line-height:1.8; color:var(--muted)"><?= htmlspecialchars($persona['body']) ?></p>
                                 <div class="persona-foot">
                                     <div class="persona-foot-meta">
-                                        <strong>プラン:</strong>
+                                        <strong><?= htmlspecialchars($lp['plan_label'] ?? 'Plan:') ?></strong>
                                         <span><?= htmlspecialchars($persona['plan']) ?></span>
                                     </div>
-                                    <a href="<?= htmlspecialchars($persona['href']) ?>" class="lp-btn-primary"><?= htmlspecialchars($persona['cta']) ?></a>
+                                    <a href="<?= htmlspecialchars($personaHref) ?>" class="lp-btn-primary"><?= htmlspecialchars($personaCta) ?></a>
                                 </div>
                             </div>
                         </article>
@@ -671,19 +781,17 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <section class="section section-tinted" id="outcomes">
             <div class="lp-container">
                 <div class="section-head">
-                    <span class="section-label">仕様</span>
-                    <h2>プランの設計について</h2>
+                    <span class="section-label"><?= htmlspecialchars($lp['outcomes_label'] ?? '') ?></span>
+                    <h2><?= htmlspecialchars($lp['outcomes_title'] ?? '') ?></h2>
                 </div>
                 <div class="outcome-wrap">
                     <article class="card summary-card">
-                        <div class="pill" style="background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.25)">概要</div>
-                        <h3>個人も団体も、参加・運営まで無料。<br>大規模運用の出力だけを有料に。</h3>
+                        <div class="pill" style="background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.25)"><?= htmlspecialchars($lp['summary_label'] ?? '') ?></div>
+                        <h3><?= htmlspecialchars($lp['summary_title'] ?? '') ?></h3>
                         <div class="summary-points">
-                            <div>個人参加者はPersonalプランで無料</div>
-                            <div>団体ページと観察会はCommunityで無料</div>
-                            <div>種の全リストとレポート出力はPublicプラン</div>
-                            <div>消滅可能性自治体はPublic相当も無償提供</div>
-                            <div>担当者が変わっても記録はページに残る</div>
+                            <?php foreach (($lp['summary_points'] ?? []) as $point): ?>
+                                <div><?= htmlspecialchars($point) ?></div>
+                            <?php endforeach; ?>
                         </div>
                     </article>
                     <div class="grid-2">
@@ -707,9 +815,9 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <section class="section" id="plans">
             <div class="lp-container">
                 <div class="section-head">
-                    <span class="section-label">料金</span>
-                    <h2>3つのプラン</h2>
-                    <p>有料プランはPublicのみです。個人参加と団体運営は無料で始められ、条件に当てはまる自治体には Public 相当も無償で提供します。</p>
+                    <span class="section-label"><?= htmlspecialchars($lp['plans_label'] ?? '') ?></span>
+                    <h2><?= htmlspecialchars($lp['plans_title'] ?? '') ?></h2>
+                    <p><?= htmlspecialchars($lp['plans_lead'] ?? '') ?></p>
                 </div>
                 <div class="grid-3">
                     <?php foreach ($plans as $plan): ?>
@@ -717,7 +825,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
                             <div class="plan-head">
                                 <span class="plan-pill"><?= htmlspecialchars($plan['name']) ?></span>
                                 <?php if ($plan['name'] === 'Personal'): ?>
-                                    <span class="plan-reco">まずここから</span>
+                                    <span class="plan-reco"><?= htmlspecialchars($lp['first_here'] ?? 'Start here') ?></span>
                                 <?php endif; ?>
                             </div>
                             <div class="price"><?= htmlspecialchars($plan['price']) ?> <span><?= htmlspecialchars($plan['suffix']) ?></span></div>
@@ -739,9 +847,9 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <section class="section section-tinted" id="support-model">
             <div class="lp-container">
                 <div class="section-head">
-                    <span class="section-label">運営方針</span>
-                    <h2>なぜこの料金設計なのか</h2>
-                    <p>無料を入口だけの餌にしたくないので、誰から課金し、誰に無償で届けるかを先に決めています。</p>
+                    <span class="section-label"><?= htmlspecialchars($lp['support_label'] ?? '') ?></span>
+                    <h2><?= htmlspecialchars($lp['support_title'] ?? '') ?></h2>
+                    <p><?= htmlspecialchars($lp['support_lead'] ?? '') ?></p>
                 </div>
                 <div class="grid-3">
                     <?php foreach ($supportPolicies as $policy): ?>
@@ -752,8 +860,8 @@ $supportPolicies = $regionalMessaging['support_policies'];
                     <?php endforeach; ?>
                 </div>
                 <div class="policy-banner">
-                    <strong>Public の収益で、地域の無料運営と無償自治体支援を支える。</strong>
-                    <p>これが ikimon の現行運営モデルです。料金表だけでなく、誰のための無料かまで含めて一貫させています。</p>
+                    <strong><?= htmlspecialchars($lp['support_banner_title'] ?? '') ?></strong>
+                    <p><?= htmlspecialchars($lp['support_banner_body'] ?? '') ?></p>
                 </div>
             </div>
         </section>
@@ -762,43 +870,25 @@ $supportPolicies = $regionalMessaging['support_policies'];
         <section class="section">
             <div class="lp-container">
                 <div class="section-head">
-                    <span class="section-label">Q&A</span>
-                    <h2>よくある質問</h2>
+                    <span class="section-label"><?= htmlspecialchars($lp['faq_label'] ?? '') ?></span>
+                    <h2><?= htmlspecialchars($lp['faq_title'] ?? '') ?></h2>
                 </div>
                 <div class="grid-3">
-                    <article class="card faq-card">
-                        <strong>無料でどこまで使えますか？</strong>
-                        <p>個人の投稿・同定・イベント参加に加え、団体ページの作成、スポット登録、観察会の開催、参加人数・発見種数の概要確認まで無料です。</p>
-                    </article>
-                    <article class="card faq-card">
-                        <strong>有料プランはPublicだけですか？</strong>
-                        <p>はい。PersonalとCommunityは無料で、有料プランはPublicのみです。種の全リスト、CSV、レポート出力など、調査・報告に使う出力機能をまとめています。</p>
-                    </article>
-                    <article class="card faq-card">
-                        <strong>消滅可能性自治体は無償になりますか？</strong>
-                        <p>はい。<?= htmlspecialchars($regionalMessaging['support_policies'][0]['body']) ?> まずは相談してください。</p>
-                    </article>
-                    <article class="card faq-card">
-                        <strong>法人格がなくても使えますか？</strong>
-                        <p>Communityプランは法人格不要で作成できます。学校のクラス、地域のグループ、企業の部署など、任意の団体単位でページを作れます。</p>
-                    </article>
-                    <article class="card faq-card">
-                        <strong>なぜ無料で提供できるのですか？</strong>
-                        <p><?= htmlspecialchars($regionalMessaging['support_policies'][1]['body']) ?></p>
-                    </article>
-                    <article class="card faq-card">
-                        <strong>機能改善や共同実証の相談はできますか？</strong>
-                        <p>できます。まずはそのまま使い始めたい団体だけでなく、現場の運用に合わせて改善点を整理しながら試したい自治体・研究機関・企業・保全団体からの相談も受け付けています。</p>
-                    </article>
+                    <?php foreach (($lp['faqs'] ?? []) as $faq): ?>
+                        <article class="card faq-card">
+                            <strong><?= htmlspecialchars($faq['q'] ?? '') ?></strong>
+                            <p><?= htmlspecialchars($faq['a'] ?? '') ?></p>
+                        </article>
+                    <?php endforeach; ?>
                 </div>
 
                 <!-- closing CTA -->
                 <div class="closing">
-                    <h2>導入相談も、共同実証の相談も歓迎しています。</h2>
-                    <p>Community は申込み不要・無料で始められます。まずはそのまま使ってみたい方も、現場に合わせた改善や機能検証を一緒に進めたい方も、相談内容に応じて入口をご案内します。</p>
+                    <h2><?= htmlspecialchars($lp['closing_title'] ?? '') ?></h2>
+                    <p><?= htmlspecialchars($lp['closing_body'] ?? '') ?></p>
                     <div class="closing-actions">
                         <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars($workspaceCtaLabel) ?></a>
-                        <a href="<?= htmlspecialchars($publicCtaHref) ?>" class="lp-btn-secondary"><i data-lucide="messages-square" class="h-4 w-4"></i>導入・共同実証を相談</a>
+                        <a href="<?= htmlspecialchars($publicCtaHref) ?>" class="lp-btn-secondary"><i data-lucide="messages-square" class="h-4 w-4"></i><?= htmlspecialchars($lp['closing_cta_public'] ?? '') ?></a>
                     </div>
                 </div>
             </div>
@@ -807,8 +897,8 @@ $supportPolicies = $regionalMessaging['support_policies'];
 
     <!-- mobile sticky CTA -->
     <div class="mobile-cta-bar">
-        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i>無料で作る</a>
-        <a href="../site_dashboard.php?site=ikan_hq&demo=1" class="lp-btn-secondary"><i data-lucide="monitor-play" class="h-4 w-4"></i>デモ</a>
+        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars($lp['mobile_cta_free'] ?? '') ?></a>
+        <a href="../site_dashboard.php?site=ikan_hq&demo=1" class="lp-btn-secondary"><i data-lucide="monitor-play" class="h-4 w-4"></i><?= htmlspecialchars($lp['mobile_cta_demo'] ?? '') ?></a>
     </div>
     <div class="mobile-cta-spacer"></div>
 

@@ -12,6 +12,11 @@
     $elapsedMin = floor($elapsedSec / 60);
     $elapsedHrs = floor($elapsedMin / 60);
     $displayMin = $elapsedMin % 60;
+    $surveyPanel = [
+        'elapsed' => __('survey_panel.elapsed', 'elapsed'),
+        'records' => __('survey_panel.records', 'Records'),
+        'start' => __('survey_panel.start', 'Start a survey session'),
+    ];
     ?>
     <div class="max-w-5xl mx-auto px-4 md:px-6 relative z-20" style="margin-bottom:var(--phi-xl)">
         <a href="survey.php" class="block bg-gradient-to-r from-emerald-900 to-slate-900 rounded-xl p-4 text-white shadow-lg relative overflow-hidden group">
@@ -30,14 +35,14 @@
                         <div class="text-xs text-emerald-300 font-bold uppercase tracking-wider mb-0.5">Live Survey</div>
                         <div class="font-mono font-bold text-xl leading-none">
                             <?= sprintf('%02d:%02d', $elapsedHrs, $displayMin) ?>
-                            <span class="text-xs font-sans font-normal text-slate-400 ml-1">経過</span>
+                            <span class="text-xs font-sans font-normal text-slate-400 ml-1"><?= htmlspecialchars($surveyPanel['elapsed']) ?></span>
                         </div>
                     </div>
                 </div>
 
                 <div class="text-right">
                     <div class="text-2xl font-bold leading-none"><?= $activeSurvey['stats']['obs_count'] ?? 0 ?></div>
-                    <div class="text-[10px] text-slate-400 uppercase">Records</div>
+                    <div class="text-[10px] text-slate-400 uppercase"><?= htmlspecialchars($surveyPanel['records']) ?></div>
                 </div>
             </div>
         </a>
@@ -50,7 +55,7 @@
                 <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition">
                     <i data-lucide="compass" class="w-5 h-5 text-emerald-600"></i>
                 </div>
-                <span class="font-bold text-emerald-700 text-sm">🚀 調査セッションを開始</span>
+                <span class="font-bold text-emerald-700 text-sm">🚀 <?= htmlspecialchars($surveyPanel['start']) ?></span>
                 <i data-lucide="chevron-right" class="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform"></i>
             </div>
         </a>

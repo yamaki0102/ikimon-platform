@@ -1,0 +1,363 @@
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy to staging'
+        required: false
+        default: 'staging'
+        type: string
+      allow_non_fast_forward:
+        description: 'Allow replacing staging with a branch that does not contain the currently deployed commit'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [staging]
+
+jobs:
+  pre-flight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd, mbstring, json
+
+      - name: Check deploy guardrails
+        shell: pwsh
+        run: ./scripts/check_deploy_guardrails.ps1
+
+      - name: Check staging manifest sync
+        shell: pwsh
+        run: ./scripts/check_staging_manifest_sync.ps1
+
+      - name: PHP Syntax Check
+        run: php tools/lint.php
+
+  deploy:
+    name: Deploy via SSH (Staging)
+    runs-on: ubuntu-latest
+    needs: pre-flight
+    environment: staging
+    steps:
+      - name: Validate and export branch name
+        run: |
+          BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
+          # git ref name allows alnum . _ - / ; reject anything else before shell expansion
+          if ! printf '%s' "$BRANCH" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            echo "Invalid branch name: $BRANCH"
+            exit 1
+          fi
+          echo "STAGING_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          echo "STAGING_ALLOW_NON_FF=${{ github.event.inputs.allow_non_fast_forward || 'false' }}" >> "$GITHUB_ENV"
+
+      - name: Deploy staging PHP lane via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: STAGING_BRANCH,STAGING_ALLOW_NON_FF
+          script: |
+            export STAGING_BRANCH STAGING_ALLOW_NON_FF
+            cd /var/www/ikimon.life-staging/repo
+            git fetch origin "$STAGING_BRANCH" >/dev/null
+            LOCAL_HEAD="$(git rev-parse HEAD)"
+            REMOTE_HEAD="$(git rev-parse "origin/$STAGING_BRANCH")"
+            if [ "${STAGING_ALLOW_NON_FF:-false}" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
+              echo "Refusing non-fast-forward staging deploy."
+              echo "Current staging HEAD: $LOCAL_HEAD"
+              echo "Target branch HEAD:   $REMOTE_HEAD"
+              echo "Target branch origin/$STAGING_BRANCH does not contain the currently deployed commit."
+              echo "Rerun with allow_non_fast_forward=true only for intentional rollback or branch switch."
+              exit 1
+            fi
+            git show "origin/$STAGING_BRANCH:ops/deploy/staging_deploy_reference.sh" > /var/www/ikimon.life-staging/deploy.sh.tmp
+            install -m 755 /var/www/ikimon.life-staging/deploy.sh.tmp /var/www/ikimon.life-staging/deploy.sh
+            rm -f /var/www/ikimon.life-staging/deploy.sh.tmp
+            /var/www/ikimon.life-staging/deploy.sh
+
+      - name: Rebuild + restart platform_v2 on staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GEMINI_API_KEY,V2_PRIVILEGED_WRITE_API_KEY,V2_STAGING_DATABASE_URL
+          script: |
+            GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+            V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
+            V2_STAGING_DATABASE_URL="${{ secrets.V2_STAGING_DATABASE_URL }}"
+            set -euo pipefail
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            STAGING_ENV_DIR=/etc/ikimon
+            STAGING_ENV_FILE="$STAGING_ENV_DIR/staging-v2.env"
+            SERVICE_NAME=ikimon-v2-staging.service
+            if [ ! -d "$V2_DIR" ]; then
+              echo "platform_v2 directory missing at $V2_DIR"
+              exit 1
+            fi
+            if ! id ikimon-staging >/dev/null 2>&1; then
+              echo "ikimon-staging user is missing. Provision the canonical staging runtime first."
+              exit 1
+            fi
+            if [ ! -f "/etc/systemd/system/$SERVICE_NAME" ]; then
+              echo "systemd unit /etc/systemd/system/$SERVICE_NAME is missing."
+              exit 1
+            fi
+            if [ -z "$V2_STAGING_DATABASE_URL" ]; then
+              echo "V2_STAGING_DATABASE_URL is required"
+              exit 1
+            fi
+            cd "$V2_DIR"
+            echo "== npm ci =="
+            npm ci --silent
+            echo "== npm run build =="
+            npm run build
+            echo "== npm run migrate =="
+            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
+            echo "== update canonical staging env file =="
+            mkdir -p "$STAGING_ENV_DIR"
+            TMP_ENV="$(mktemp)"
+            printf 'ALLOW_QUERY_USER_ID=1\n' >> "$TMP_ENV"
+            printf 'DATABASE_URL=%s\n' "$V2_STAGING_DATABASE_URL" >> "$TMP_ENV"
+            printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$TMP_ENV"
+            printf 'V2_PRIVILEGED_WRITE_API_KEY=%s\n' "$V2_PRIVILEGED_WRITE_API_KEY" >> "$TMP_ENV"
+            printf 'LEGACY_DATA_ROOT=/var/www/ikimon.life-staging/repo/upload_package/data\n' >> "$TMP_ENV"
+            printf 'LEGACY_PUBLIC_ROOT=/var/www/ikimon.life-staging/repo/upload_package/public_html\n' >> "$TMP_ENV"
+            printf 'LEGACY_UPLOADS_ROOT=/var/www/ikimon.life-staging/repo/upload_package/public_html/uploads\n' >> "$TMP_ENV"
+            for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_STREAM_API_TOKEN CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN; do
+              if [ -f "$STAGING_ENV_FILE" ]; then
+                existing_line="$(grep -m1 "^${key}=" "$STAGING_ENV_FILE" || true)"
+                if [ -n "$existing_line" ]; then
+                  printf '%s\n' "$existing_line" >> "$TMP_ENV"
+                fi
+              fi
+            done
+            install -m 600 "$TMP_ENV" "$STAGING_ENV_FILE"
+            rm -f "$TMP_ENV"
+            echo "== restart canonical systemd service =="
+            systemctl daemon-reload
+            systemctl enable --now "$SERVICE_NAME"
+            systemctl restart "$SERVICE_NAME"
+            systemctl is-active "$SERVICE_NAME" >/dev/null
+            echo "== v2 health probe =="
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3200/healthz 2>/dev/null || true)
+              if [ "$code" = "200" ]; then
+                echo "v2 healthz OK"
+                break
+              fi
+              sleep 1
+            done
+            exit 0
+
+      - name: Sync staging nginx (v2 primary, PHP on /legacy/)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            SRC=/var/www/ikimon.life-staging/repo/ops/deploy/staging_ikimon_life_tls_reference.conf
+            DST=/etc/nginx/sites-available/staging.ikimon.life
+            ENABLED_DIR=/etc/nginx/sites-enabled
+            if [ ! -f "$SRC" ]; then
+              echo "Source nginx conf missing at $SRC — skip."
+              exit 0
+            fi
+            if [ ! -f "$DST" ]; then
+              echo "Live nginx conf missing at $DST — skip (not provisioned here)."
+              exit 0
+            fi
+            # Evict any stale backup files from sites-enabled/ that would claim
+            # server_name staging.ikimon.life before the real conf.
+            shopt -s nullglob
+            for stale in "$ENABLED_DIR"/staging.ikimon.life.bak* "$ENABLED_DIR"/staging.ikimon.life.*bak* "$ENABLED_DIR"/staging.ikimon.life.old* "$ENABLED_DIR"/staging.ikimon.life.disabled*; do
+              if [ -e "$stale" ]; then
+                echo "Evicting stale sites-enabled entry: $stale -> /etc/nginx/sites-available/$(basename "$stale")"
+                mv -f "$stale" "/etc/nginx/sites-available/"
+              fi
+            done
+            shopt -u nullglob
+
+            if diff -q "$SRC" "$DST" >/dev/null 2>&1; then
+              echo "nginx conf already in sync (sites-available unchanged)"
+            else
+              BACKUP="${DST}.bak-$(date +%Y%m%d-%H%M%S)"
+              echo "Backing up live conf to $BACKUP"
+              cp -a "$DST" "$BACKUP"
+              cp "$SRC" "$DST"
+            fi
+
+            # Ensure sites-enabled entry is a SYMLINK to sites-available.
+            # If it is a plain file (legacy provisioning), it has its own stale content
+            # and any update to sites-available is silently ignored by nginx.
+            ENABLED_LINK="$ENABLED_DIR/staging.ikimon.life"
+            if [ -e "$ENABLED_LINK" ] && [ ! -L "$ENABLED_LINK" ]; then
+              echo "sites-enabled/staging.ikimon.life is a plain file — converting to symlink"
+              mv -f "$ENABLED_LINK" "/etc/nginx/sites-available/staging.ikimon.life.legacy-$(date +%Y%m%d-%H%M%S)"
+            fi
+            if [ ! -e "$ENABLED_LINK" ]; then
+              ln -s "$DST" "$ENABLED_LINK"
+              echo "Created symlink $ENABLED_LINK -> $DST"
+            elif [ -L "$ENABLED_LINK" ] && [ "$(readlink -f "$ENABLED_LINK")" != "$(readlink -f "$DST")" ]; then
+              ln -sf "$DST" "$ENABLED_LINK"
+              echo "Re-pointed symlink $ENABLED_LINK -> $DST"
+            fi
+
+            if nginx -t; then
+              systemctl reload nginx
+              echo "nginx reloaded: staging / -> v2 (3200), /legacy/ -> PHP (8081)"
+            else
+              echo "nginx -t FAILED — restoring latest backup"
+              LATEST_BACKUP=$(ls -1t "${DST}.bak-"* 2>/dev/null | head -1)
+              if [ -n "$LATEST_BACKUP" ]; then cp "$LATEST_BACKUP" "$DST"; fi
+              nginx -t && systemctl reload nginx || echo "WARN: rollback reload also failed; manual intervention required"
+              exit 1
+            fi
+
+            # Post-reload sanity: which server block now owns /
+            echo "== active server_name blocks for staging.ikimon.life =="
+            nginx -T 2>/dev/null | awk '/server_name staging\.ikimon\.life/{flag=1; blk=""} flag{blk=blk"\n"$0; if(/proxy_pass|listen|server_name/){print $0} if(/^}/){flag=0; print "---"}}' | head -40
+
+  verify-ssh:
+    name: Verify Staging over SSH
+    runs-on: ubuntu-latest
+    needs: deploy
+    environment: staging
+    steps:
+      - name: Verify staging through SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: V2_PRIVILEGED_WRITE_API_KEY
+          script: |
+            V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
+            if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
+              echo "FAIL: V2_PRIVILEGED_WRITE_API_KEY missing in staging environment"
+              exit 1
+            fi
+            echo "== systemd env sanity =="
+            if [ ! -f "$STAGING_ENV_FILE" ]; then
+              echo "FAIL: $STAGING_ENV_FILE is missing"
+              exit 1
+            fi
+            for key in ALLOW_QUERY_USER_ID DATABASE_URL GEMINI_API_KEY V2_PRIVILEGED_WRITE_API_KEY LEGACY_DATA_ROOT LEGACY_PUBLIC_ROOT LEGACY_UPLOADS_ROOT; do
+              if ! grep -q "^${key}=" "$STAGING_ENV_FILE"; then
+                echo "FAIL: $STAGING_ENV_FILE is missing $key"
+                exit 1
+              fi
+            done
+            systemctl is-active ikimon-v2-staging.service >/dev/null || {
+              echo "FAIL: systemd service ikimon-v2-staging.service is not active"
+              exit 1
+            }
+            echo "OK canonical staging env + systemd service are active"
+            echo "== PHP lane (port 8081, internal) =="
+            for url in \
+              http://127.0.0.1:8081/index.php \
+              http://127.0.0.1:8081/explore.php \
+              http://127.0.0.1:8081/post.php \
+              http://127.0.0.1:8081/api/get_events.php
+            do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+              if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+                echo "OK $url -> $STATUS"
+              else
+                echo "FAIL $url -> $STATUS"
+                exit 1
+              fi
+            done
+            echo "== v2 lane (port 3200, internal) =="
+            for path in /healthz / /notes /lens /scan /map /guide /learn/field-loop /api/v1/research/occurrences; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "http://127.0.0.1:3200${path}")
+              if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+                echo "OK v2 ${path} -> $STATUS"
+              else
+                echo "FAIL v2 ${path} -> $STATUS"
+                exit 1
+              fi
+            done
+            echo "== public routing sanity (basic-auth protected, loopback without creds returns 401 which is expected) =="
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -k -H 'Host: staging.ikimon.life' https://127.0.0.1/ 2>/dev/null)
+            if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
+              echo "OK public / responds ($STATUS — 401 = basic auth guard, 200 = pre-auth cached session)"
+              else
+                echo "FAIL public / returned $STATUS"
+                exit 1
+              fi
+            echo "== authority gate =="
+            if [ ! -x "$V2_DIR/scripts/ops/run_authority_gate.sh" ]; then
+              chmod +x "$V2_DIR/scripts/ops/run_authority_gate.sh"
+            fi
+            export V2_PRIVILEGED_WRITE_API_KEY
+            export V2_BASE_URL=http://127.0.0.1:3200
+            bash "$V2_DIR/scripts/ops/run_authority_gate.sh"
+
+  verify-e2e:
+    name: Verify Staging in Browser
+    runs-on: ubuntu-latest
+    needs: verify-ssh
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
+
+      - name: Run staging registry sitemap smoke
+        working-directory: platform_v2
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: |
+          if [ -d e2e/sitemap-registry-visual.staging.spec.ts-snapshots ] && find e2e/sitemap-registry-visual.staging.spec.ts-snapshots -name '*.png' -print -quit | grep -q .; then
+            VISUAL_QA_ASSERT_SCREENSHOTS=1 npm run e2e:staging:site-map
+          else
+            npm run e2e:staging:site-map
+          fi
+
+      - name: Run staging browser E2E
+        working-directory: platform_v2
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: npm run e2e:staging
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-playwright-artifacts
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore

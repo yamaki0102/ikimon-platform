@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/ObservationMeta.php';
 require_once __DIR__ . '/../../libs/ObservationRecalcQueue.php';
 require_once __DIR__ . '/../../libs/AiAssessmentQueue.php';
+require_once __DIR__ . '/../../libs/CanonicalObservationUpdater.php';
 
 Auth::init();
 CSRF::validateRequest();
@@ -66,6 +67,32 @@ if (ObservationMeta::canEditObservation($observation, $user) || ObservationMeta:
 DataStore::upsert('observations', $observation);
 ObservationRecalcQueue::enqueue($observationId, 'observation_refreshed');
 
+$canonicalMeta = [
+    'attempted' => $mode === 'direct',
+    'written' => false,
+    'skipped' => false,
+];
+if ($mode === 'direct') {
+    try {
+        $canonicalResult = CanonicalObservationUpdater::syncEditableState($observation, 'system:propose_metadata_direct');
+        $canonicalMeta['written'] = empty($canonicalResult['skipped']);
+        $canonicalMeta['skipped'] = !empty($canonicalResult['skipped']);
+        if (!empty($canonicalResult['skip_reason'])) {
+            $canonicalMeta['skip_reason'] = $canonicalResult['skip_reason'];
+        }
+        if (!empty($canonicalResult['event_id'])) {
+            $canonicalMeta['event_id'] = $canonicalResult['event_id'];
+        }
+        if (!empty($canonicalResult['occurrence_id'])) {
+            $canonicalMeta['occurrence_id'] = $canonicalResult['occurrence_id'];
+        }
+    } catch (Throwable $e) {
+        $canonicalMeta['written'] = false;
+        $canonicalMeta['error'] = 'canonical_update_failed';
+        error_log('[propose_observation_metadata] canonical sync failed: ' . $e->getMessage());
+    }
+}
+
 $aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_refreshed');
 if ($aiPlan !== null) {
     AiAssessmentQueue::enqueue($observationId, (string)$aiPlan['reason'], $aiPlan);
@@ -77,4 +104,5 @@ echo json_encode([
     'observation_id' => $observationId,
     'mode' => $mode,
     'changes' => $changes,
+    'canonical' => $canonicalMeta,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

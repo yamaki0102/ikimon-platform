@@ -2,12 +2,12 @@
 
 /**
  * SiteManager - GeoJSON-based site boundary management
- * 
+ *
  * Replaces the hardcoded CorporateSites.php with a file-based approach.
  * Each site has a directory under data/sites/{site_id}/ containing:
  *   - boundary.geojson  (FeatureCollection with polygon boundaries)
  *   - meta.json          (optional overrides)
- * 
+ *
  * Supports MultiPolygon for 飛び地 (enclaves/non-contiguous areas).
  */
 
@@ -116,7 +116,7 @@ class SiteManager
     }
 
     /**
-     * Get the raw GeoJSON FeatureCollection for a site 
+     * Get the raw GeoJSON FeatureCollection for a site
      * (for passing to MapLibre as a source)
      */
     public static function getGeoJSON(string $siteId): ?array
@@ -330,7 +330,7 @@ class SiteManager
 
         // Map Scorer results to SiteStats Structure
         $shannonH = $scorerResult['breakdown']['richness']['raw'] ?? $shannonH;
-        // Chao1 is not in Scorer yet, keep existing calculation if needed, or deprecate? 
+        // Chao1 is not in Scorer yet, keep existing calculation if needed, or deprecate?
         // For now, let's keep calcChao1 as it's specific to SiteManager for now
         $chao1 = self::calcChao1($speciesSet);
         $completeness = $chao1 > 0 ? round($totalSpecies / $chao1 * 100, 1) : 0;

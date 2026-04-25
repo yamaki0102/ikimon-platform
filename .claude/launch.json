@@ -10,8 +10,14 @@
     {
       "name": "lp-kan",
       "runtimeExecutable": "php",
-      "runtimeArgs": ["-S", "localhost:8900", "-t", "C:\\Users\\YAMAKI\\Downloads\\i-kan_LP_Proposal"],
+      "runtimeArgs": ["-S", "localhost:8900", "-t", "E:\\Projects\\i-kan_LP_Proposal"],
       "port": 8900
+    },
+    {
+      "name": "platform_v2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "platform_v2"],
+      "port": 3200
     }
   ]
 }

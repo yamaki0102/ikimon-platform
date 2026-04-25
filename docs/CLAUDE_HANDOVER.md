@@ -1,5 +1,7 @@
 # Claude への引き継ぎメッセージ
 
+> 注意: このファイルは 2026-03 系の handover。直近の続きは `docs/CLAUDE_HANDOVER_2026-04-12_MULTILINGUAL_STAGING_UI.md` を優先してください。
+
 > このファイルの内容をそのままClaude Codeに貼り付けて会話を始めてください。
 
 ---

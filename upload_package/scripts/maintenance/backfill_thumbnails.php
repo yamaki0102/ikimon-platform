@@ -10,8 +10,8 @@
  */
 
 require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../libs/DataStore.php';
-require_once __DIR__ . '/../libs/ThumbnailGenerator.php';
+require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/ThumbnailGenerator.php';
 
 $dryRun = in_array('--dry-run', $argv ?? []);
 $limit = null;

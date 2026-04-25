@@ -61,14 +61,15 @@ $sm->load($siteId);
 - `$_ikimon_root` = 旧来の変数 (一部テストスクリプトで使用)
 
 ## デプロイ
-- **方式**: `bash deploy.sh [commit message]` — git commit + push + VPS deploy を一括実行
-- **VPS**: `ssh -i ~/Downloads/ikimon.pem root@162.43.44.131`
+- **方式**: PR → `main` merge → GitHub Actions → VPS deploy
+- **ローカル preflight**: `bash deploy.sh`
+- **guardrail**: `powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_guardrails.ps1`
 - **旧RS Plan**: DNS切替済み（使わない）
 - **除外**: `.git`, `.vscode`, `tests/`, `debug_*.php`, `test_*.php`
 
 ### ⚠️ 絶対ルール: デプロイ時の git commit
-**全てのデプロイ作業において、変更は必ず git commit + push すること。**
-SCP直送やファイル編集だけで終わらせない。`bash deploy.sh` を使えば自動的に git にも記録される。
+**本番 deploy は `main` への merge だけを起点にすること。**
+ローカルからの直接 SSH deploy、`main` への自動 merge、`git add -A` 前提の一括 deploy は使わない。
 
 ### ⚠️ サーバーディレクトリ構造（罠あり）
 ```
@@ -133,7 +134,7 @@ composer test
 | ワークフロー | トリガー | 内容 |
 |-------------|---------|------|
 | `ci.yml` | Push/PR to main | PHP Lint → PHPUnit Test |
-| `deploy.yml` | 手動 (workflow_dispatch) | Pre-flight → SCP Deploy → Health Check |
+| `deploy.yml` | `main` push / 手動 | Pre-flight → Guardrail → VPS Deploy → Health Check |
 
 ## 現在のフェーズ
 - ✅ Phase 13: SiteManager / GeoJSON / Dashboard / Editor

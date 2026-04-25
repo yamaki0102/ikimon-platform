@@ -7,6 +7,13 @@ require_once __DIR__ . '/../libs/Taxon.php';
 
 Auth::init();
 $currentUser = Auth::user();
+$requestedLane = (string)($_GET['lane'] ?? '');
+$allowedLaneFilters = ['public-claim', 'expert-lane'];
+$initialLaneFilter = in_array($requestedLane, $allowedLaneFilters, true) ? $requestedLane : '';
+$initialLaneMeta = [
+    'active' => $initialLaneFilter !== '',
+    'id' => $initialLaneFilter,
+];
 
 if (!$currentUser) {
     header('Location: login.php');
@@ -202,25 +209,25 @@ if (!$currentUser) {
 
     <!-- Top Bar (Cockpit Toolbar) -->
     <header class="workbench-topbar h-12 flex items-center justify-between px-4 z-20 select-none">
-        <div class="flex items-center gap-3">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
             <a href="id_center.php" class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition font-bold flex items-center gap-1.5">
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
             </a>
-            <h1 class="text-xs font-black text-[var(--color-text)] flex items-center gap-2 tracking-tight">
+            <h1 class="text-xs font-black text-[var(--color-text)] flex min-w-0 items-center gap-2 tracking-tight leading-tight">
                 <i data-lucide="layout-dashboard" class="text-[var(--color-primary)] w-3.5 h-3.5"></i>
-                ID Workbench
+                <span class="min-w-0" style="text-wrap: balance;">ID Workbench</span>
             </h1>
             <div class="h-4 w-px bg-black/10"></div>
-            <div class="text-token-xs font-mono text-[var(--color-text-muted)]">
+            <div class="text-token-xs font-mono text-[var(--color-text-muted)] min-w-0">
                 <span x-text="filteredItems.length" class="text-[var(--color-text)] font-bold"></span>件
                 <span x-show="selectedIds.length > 0" class="text-[var(--color-primary)] ml-1">
                     | <span x-text="selectedIds.length" class="font-bold"></span>選択中
                 </span>
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 min-w-0">
             <!-- Keyboard shortcuts legend (XL+) -->
-            <div class="hidden xl:flex items-center gap-2 text-token-xs text-[var(--color-text-muted)] mr-2">
+            <div class="hidden xl:flex flex-wrap items-center gap-x-2 gap-y-1 text-token-xs text-[var(--color-text-muted)] mr-2 max-w-[28rem]">
                 <span class="shortcut-badge">N</span>次
                 <span class="shortcut-badge">P</span>前
                 <span class="shortcut-badge">/</span>検索
@@ -284,11 +291,11 @@ if (!$currentUser) {
 
     <!-- Welcome Banner (first-visit only) -->
     <div x-show="showWelcome" x-cloak
-        class="relative bg-gradient-to-r from-[var(--color-primary)]/14 via-white to-[var(--color-secondary)]/10 border-b border-[var(--color-primary)]/20 px-4 py-2.5 flex items-center gap-4 shrink-0">
+        class="relative bg-gradient-to-r from-[var(--color-primary)]/14 via-white to-[var(--color-secondary)]/10 border-b border-[var(--color-primary)]/20 px-4 py-2.5 flex flex-wrap items-center gap-4 shrink-0">
         <div class="flex items-center gap-3 flex-1 min-w-0">
             <span class="text-lg shrink-0">🔬</span>
             <div class="min-w-0">
-                <p class="text-xs font-black text-[var(--color-text)]">ID Workbench — 同定作業台</p>
+                <p class="text-xs font-black text-[var(--color-text)] leading-tight" style="text-wrap: balance;">ID Workbench — 同定作業台</p>
                 <p class="text-token-xs text-[var(--color-text-muted)] leading-relaxed hidden sm:block">iNaturalist の Identify のように、一覧の流れを止めずに写真を大きく見ながら同定できるようにしています。
                     <span class="text-[var(--color-text)]">① 左で絞る</span> →
                     <span class="text-[var(--color-text)]">② 真ん中で選ぶ</span> →
@@ -298,7 +305,7 @@ if (!$currentUser) {
         </div>
         <div class="flex items-center gap-2 shrink-0">
             <button @click="showHelp = true; showWelcome = false; localStorage.setItem('ikimon_wb_welcomed','1')"
-                class="text-token-xs text-[var(--color-primary)] font-bold hover:underline whitespace-nowrap">
+                class="text-token-xs text-[var(--color-primary)] font-bold hover:underline leading-tight">
                 詳しく見る
             </button>
             <button @click="showWelcome = false; localStorage.setItem('ikimon_wb_welcomed','1')"
@@ -392,6 +399,18 @@ if (!$currentUser) {
                         <span>🌱 属までは近い</span>
                         <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.aiGenus"></span>
                     </button>
+                    <button @click="jumpToLane('public-claim')"
+                        class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
+                        :class="statusFilter === 'public-claim' ? 'bg-amber-500/10 text-amber-800' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
+                        <span>📢 公開主張レーン</span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.publicClaim"></span>
+                    </button>
+                    <button @click="jumpToLane('expert-lane')"
+                        class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
+                        :class="statusFilter === 'expert-lane' ? 'bg-emerald-500/10 text-emerald-800' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
+                        <span>🧠 Expert lane</span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.expertLane"></span>
+                    </button>
                     <button @click="statusFilter = 'all'"
                         class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between mt-1"
                         :class="statusFilter === 'all' ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
@@ -429,9 +448,9 @@ if (!$currentUser) {
                     <template x-for="(preset, pi) in presets" :key="pi">
                         <div class="group flex items-center">
                             <button @click="applyPreset(preset)"
-                                class="tree-node flex-1 text-left px-2 py-1 rounded-md text-token-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition truncate">
+                                class="tree-node flex-1 min-w-0 text-left px-2 py-1 rounded-md text-token-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition leading-tight">
                                 <i data-lucide="tag" class="w-2.5 h-2.5 inline opacity-40"></i>
-                                <span x-text="preset.name"></span>
+                                <span class="block min-w-0 break-words" x-text="preset.name"></span>
                             </button>
                             <button @click="removePreset(pi)" class="p-1 text-[var(--color-text-faint)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
                                 <i data-lucide="x" class="w-3 h-3"></i>
@@ -498,6 +517,16 @@ if (!$currentUser) {
                     :class="statusFilter === 'ai-genus' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
                     🌱 属までは近い <span x-text="statusCounts.aiGenus" class="font-mono ml-0.5 opacity-70"></span>
                 </button>
+                <button @click="jumpToLane('public-claim')"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'public-claim' ? 'bg-amber-500/10 border-amber-500/20 text-amber-800' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
+                    📢 公開主張 <span x-text="statusCounts.publicClaim" class="font-mono ml-0.5 opacity-70"></span>
+                </button>
+                <button @click="jumpToLane('expert-lane')"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'expert-lane' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-800' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
+                    🧠 Expert <span x-text="statusCounts.expertLane" class="font-mono ml-0.5 opacity-70"></span>
+                </button>
                 <div class="w-px h-4 bg-black/10 shrink-0"></div>
                 <template x-for="group in taxonGroups.slice(0, 5)" :key="group.id">
                     <button @click="taxonFilter = group.id; statusFilter = 'all'"
@@ -519,6 +548,66 @@ if (!$currentUser) {
                 <div class="flex items-center gap-2" x-show="selectedIds.length > 0">
                     <button @click="batchQuickID()" class="text-token-xs font-bold text-[var(--color-primary)] hover:underline">一括同定</button>
                     <button @click="clearSelection()" class="text-token-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)]">選択解除</button>
+                </div>
+            </div>
+            <div x-show="dedicatedLane.active" x-cloak class="px-3 pt-3 shrink-0">
+                <div class="rounded-2xl border px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                    :class="dedicatedLane.id === 'public-claim' ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-emerald-200 bg-emerald-50 text-emerald-950'">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="inline-flex items-center rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest"
+                                x-text="dedicatedLane.id === 'public-claim' ? 'Public claim queue' : 'Expert lane queue'"></span>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold bg-black/5"
+                                x-text="dedicatedLaneCount() + ' items'"></span>
+                        </div>
+                        <p class="mt-2 text-sm font-bold" x-text="dedicatedLaneTitle()"></p>
+                        <p class="mt-1 text-token-xs leading-relaxed opacity-90" x-text="dedicatedLaneBody()"></p>
+                        <template x-if="dedicatedLane.id === 'expert-lane'">
+                            <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div class="rounded-2xl border border-black/10 bg-white/75 px-3 py-2">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)]">Conflict</p>
+                                    <p class="mt-1 text-sm font-bold text-[var(--color-text)]" x-text="expertLaneStats().conflict + '件'"></p>
+                                    <p class="mt-1 text-[11px] text-[var(--color-text-muted)] leading-relaxed">名前が割れている記録。まず disagreement を減らしたい。</p>
+                                </div>
+                                <div class="rounded-2xl border border-black/10 bg-white/75 px-3 py-2">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)]">Reference</p>
+                                    <p class="mt-1 text-sm font-bold text-[var(--color-text)]" x-text="expertLaneStats().reference + '件'"></p>
+                                    <p class="mt-1 text-[11px] text-[var(--color-text-muted)] leading-relaxed">文献ベースや expert 判断。比較点メモがあると次に渡しやすい。</p>
+                                </div>
+                                <div class="rounded-2xl border border-black/10 bg-white/75 px-3 py-2">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-[var(--color-text-faint)]">Reason needed</p>
+                                    <p class="mt-1 text-sm font-bold text-[var(--color-text)]" x-text="expertLaneStats().reasonGap + '件'"></p>
+                                    <p class="mt-1 text-[11px] text-[var(--color-text-muted)] leading-relaxed">強い主張や reference claim なのに note が薄い記録。先に理由を足したい。</p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <template x-if="dedicatedLane.id === 'expert-lane'">
+                            <div class="flex items-center gap-2">
+                                <button @click="selectAllInLane()"
+                                    class="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-token-xs font-bold text-[var(--color-text)] transition hover:bg-white">
+                                    <span>☑</span>
+                                    <span>全件選択</span>
+                                </button>
+                                <button @click="markVisibleLater()"
+                                    class="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-token-xs font-bold text-[var(--color-text)] transition hover:bg-white">
+                                    <span>🔖</span>
+                                    <span>残りをあとで</span>
+                                </button>
+                            </div>
+                        </template>
+                        <a :href="activeItem ? 'observation_detail.php?id=' + activeItem.id + '#id-list-container' : 'observation_detail.php#id-list-container'"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-token-xs font-bold text-[var(--color-text)] transition hover:bg-white">
+                            <span>↗</span>
+                            <span>観察詳細へ戻る</span>
+                        </a>
+                        <button @click="clearDedicatedLane()"
+                            class="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-token-xs font-bold text-[var(--color-text)] transition hover:bg-white">
+                            <span>⬜</span>
+                            <span>全キューへ戻る</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -551,6 +640,8 @@ if (!$currentUser) {
                                         <span x-show="item.taxon" class="px-2 py-0.5 bg-purple-500/80 rounded-full text-token-xs text-white font-bold">提案あり</span>
                                         <span x-show="hasMultipleAiCandidates(item)" class="px-2 py-0.5 bg-amber-400/90 rounded-full text-token-xs text-black font-bold">AI複数</span>
                                         <span x-show="hasAiGenusHint(item)" class="px-2 py-0.5 bg-emerald-400/90 rounded-full text-token-xs text-black font-bold">属近い</span>
+                                        <span x-show="hasStrongPublicClaim(item)" class="px-2 py-0.5 bg-amber-700/90 rounded-full text-token-xs text-white font-bold">公開主張</span>
+                                        <span x-show="needsExpertLane(item)" class="px-2 py-0.5 bg-emerald-700/90 rounded-full text-token-xs text-white font-bold">Expert</span>
                                     </div>
 
                                     <div class="flex items-center gap-1.5">
@@ -578,7 +669,7 @@ if (!$currentUser) {
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
                                         <p class="text-token-xs font-bold text-[var(--color-text)] truncate" x-text="displayName(item)"></p>
-                                        <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="item.municipality || (item.location ? item.location.name : '場所情報なし')"></p>
+                                        <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="locationLabel(item) || '場所情報なし'"></p>
                                     </div>
                                     <span class="text-token-xs text-[var(--color-text-faint)] shrink-0" x-text="formatDate(item.observed_at)"></span>
                                 </div>
@@ -662,7 +753,7 @@ if (!$currentUser) {
                     <div class="p-4 space-y-4">
                         <div class="workbench-meta-card rounded-2xl p-3 text-token-xs text-[var(--color-text-muted)] space-y-1.5">
                             <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3"></i> <span x-text="formatDate(activeItem.observed_at)"></span></p>
-                            <p class="flex items-center gap-1.5" x-show="activeItem.municipality || activeItem.location"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="activeItem.municipality || (activeItem.location ? activeItem.location.name : '')"></span></p>
+                            <p class="flex items-center gap-1.5" x-show="locationLabel(activeItem)"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="locationLabel(activeItem)"></span></p>
                             <p class="flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i> <span x-text="activeItem.user_name || '匿名'"></span></p>
                         </div>
 
@@ -676,6 +767,45 @@ if (!$currentUser) {
                                     <span x-show="hasMultipleAiCandidates(activeItem)" class="px-2 py-1 rounded-full bg-amber-500/10 text-amber-700 text-token-xs font-bold">複数候補</span>
                                 </div>
                                 <p class="mt-2 text-token-xs text-[var(--color-text-muted)] leading-relaxed" x-text="latestAiAssessment(activeItem)?.simple_summary || latestAiAssessment(activeItem)?.why_not_more_specific || 'いま見えている情報から、次に確認したい点を絞っています。'"></p>
+                            </div>
+                        </template>
+
+                        <template x-if="activeItem && (hasStrongPublicClaim(activeItem) || needsExpertLane(activeItem) || statusCounts.publicClaim > 0 || statusCounts.expertLane > 0)">
+                            <div class="workbench-meta-card rounded-2xl p-3 space-y-3">
+                                <div class="flex items-start gap-3">
+                                    <span class="text-xl leading-none">🧭</span>
+                                    <div class="min-w-0">
+                                        <p class="text-token-xs font-bold uppercase tracking-widest text-[var(--color-text-faint)]">Review lanes</p>
+                                        <p class="mt-1 text-sm font-bold text-[var(--color-text)]" x-text="reviewLaneTitle(activeItem)"></p>
+                                        <p class="mt-1 text-token-xs text-[var(--color-text-muted)] leading-relaxed" x-text="reviewLaneBody(activeItem)"></p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button @click="jumpToLane('public-claim')"
+                                        class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-token-xs font-bold text-amber-800 transition hover:bg-amber-100">
+                                        <span>📢</span>
+                                        <span>公開主張レーン</span>
+                                        <span class="rounded-full bg-white/90 px-1.5 py-0.5 text-[10px]" x-text="statusCounts.publicClaim"></span>
+                                    </button>
+                                    <button @click="jumpToLane('expert-lane')"
+                                        class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-token-xs font-bold text-emerald-800 transition hover:bg-emerald-100">
+                                        <span>🧠</span>
+                                        <span>Expert lane</span>
+                                        <span class="rounded-full bg-white/90 px-1.5 py-0.5 text-[10px]" x-text="statusCounts.expertLane"></span>
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button @click="openQuickID(activeItem, activeItemIndex)"
+                                        class="py-2 text-token-xs font-bold transition text-center"
+                                        style="border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
+                                        この記録を同定
+                                    </button>
+                                    <a :href="'observation_detail.php?id=' + activeItem.id + '#id-list-container'"
+                                        class="block py-2 text-token-xs font-bold transition text-center"
+                                        style="border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
+                                        詳細で慎重確認
+                                    </a>
+                                </div>
                             </div>
                         </template>
 
@@ -698,7 +828,7 @@ if (!$currentUser) {
 
                         <div class="space-y-2 pt-1">
                             <button @click="openQuickID(activeItem, activeItemIndex)"
-                                class="w-full py-3 rounded-2xl bg-[var(--color-primary)] text-black text-xs font-bold hover:brightness-110 transition flex items-center justify-center gap-1.5 shadow-lg">
+                                class="w-full py-3 rounded-2xl bg-[var(--color-primary)] text-black text-xs font-bold hover:brightness-110 transition flex items-center justify-center gap-1.5 shadow-lg leading-tight">
                                 <i data-lucide="zap" class="w-3.5 h-3.5"></i> 同定する
                                 <span class="shortcut-badge !bg-black/20 !border-black/20 !text-black/60">Enter</span>
                             </button>
@@ -806,7 +936,7 @@ if (!$currentUser) {
             <div class="flex items-start gap-3">
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-black text-[var(--color-text)] truncate" x-text="displayName(activeItem)"></p>
-                    <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="(activeItem?.municipality || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
+                    <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="(locationLabel(activeItem) || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
                     <p class="text-token-xs text-[var(--color-text-faint)] truncate" x-text="activeItem?.identifications?.length ? activeItem.identifications.length + '件の同定あり' : '最初の同定を待っています'"></p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
@@ -925,10 +1055,11 @@ if (!$currentUser) {
                 // Filters
                 filterText: '',
                 taxonFilter: 'all',
-                statusFilter: 'all',
+                statusFilter: <?= json_encode($initialLaneFilter !== '' ? $initialLaneFilter : 'all', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
                 sortBy: 'newest',
                 gridCols: parseInt(localStorage.getItem('ikimon_wb_grid_cols')) || 3,
                 presets: [],
+                dedicatedLane: <?= json_encode($initialLaneMeta, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
 
                 // Pass/Later
                 passItems: [],
@@ -1012,6 +1143,18 @@ if (!$currentUser) {
                     // フィルター変更時にモバイルドロワーを閉じる
                     this.$watch('taxonFilter', () => { if (this.isMobile) this.showMobileFilter = false; });
                     this.$watch('statusFilter', () => { if (this.isMobile) this.showMobileFilter = false; });
+                    this.$watch('taxonFilter', value => {
+                        if (this.dedicatedLane.active && value !== 'all') {
+                            this.dedicatedLane = { active: false, id: '' };
+                            this.syncLaneUrl();
+                        }
+                    });
+                    this.$watch('statusFilter', value => {
+                        if (this.dedicatedLane.active && value !== this.dedicatedLane.id) {
+                            this.dedicatedLane = { active: false, id: '' };
+                            this.syncLaneUrl();
+                        }
+                    });
                     this.loadLocal();
                     this.fetchItems();
                     this.$watch('gridCols', v => localStorage.setItem('ikimon_wb_grid_cols', v));
@@ -1035,6 +1178,9 @@ if (!$currentUser) {
                         console.error('Fetch failed:', e);
                     } finally {
                         this.loading = false;
+                        if (this.filteredItems.length > 0) {
+                            this.activateItem(this.filteredItems[0], 0);
+                        }
                         this.$nextTick(() => lucide.createIcons());
                     }
                 },
@@ -1068,6 +1214,8 @@ if (!$currentUser) {
                         suggested: this.allItems.filter(i => !!i.taxon).length,
                         aiMulti: this.allItems.filter(i => this.hasMultipleAiCandidates(i)).length,
                         aiGenus: this.allItems.filter(i => this.hasAiGenusHint(i)).length,
+                        publicClaim: this.allItems.filter(i => this.hasStrongPublicClaim(i)).length,
+                        expertLane: this.allItems.filter(i => this.needsExpertLane(i)).length,
                     };
                 },
 
@@ -1102,11 +1250,23 @@ if (!$currentUser) {
                         || ai?.recommended_taxon?.scientific_name
                         || '';
                     if (scientificName) parts.push(scientificName);
-                    if (item.municipality) parts.push(item.municipality);
+                    const location = this.locationLabel(item);
+                    if (location) parts.push(location);
                     if (parts.length === 0 && ai?.simple_summary) {
                         return ai.simple_summary;
                     }
                     return parts.join(' · ') || 'この場で写真を見比べながら同定できます';
+                },
+
+                locationLabel(item) {
+                    if (!item) return '';
+                    return item.public_location?.label
+                        || item.location_name
+                        || item.place_name
+                        || item.municipality
+                        || item.prefecture
+                        || (item.location ? item.location.name : '')
+                        || '';
                 },
 
                 photoCounter(item, photoIndex = 0) {
@@ -1135,6 +1295,175 @@ if (!$currentUser) {
                     return rank === 'genus';
                 },
 
+                latestAiSummary(item) {
+                    if (!item) return null;
+                    const detailed = this.latestAiAssessment(item);
+                    if (detailed) return detailed;
+                    return item.latest_ai_assessment || null;
+                },
+
+                isSpeciesLevelRank(rank) {
+                    return ['species', 'subspecies', 'variety', 'form'].includes(String(rank || '').toLowerCase());
+                },
+
+                identificationNames(item) {
+                    return (item?.identifications || [])
+                        .map(idEntry => String(idEntry?.taxon_name || idEntry?.scientific_name || '').trim())
+                        .filter(Boolean);
+                },
+
+                hasStrongPublicClaim(item) {
+                    return (item?.identifications || []).some(idEntry => {
+                        const rank = String(idEntry?.taxon_rank || '').toLowerCase();
+                        const confidence = String(idEntry?.confidence || 'likely').toLowerCase();
+                        return this.isSpeciesLevelRank(rank) && ['sure', 'literature'].includes(confidence);
+                    });
+                },
+
+                hasIdentificationConflict(item) {
+                    return new Set(this.identificationNames(item)).size >= 2;
+                },
+
+                needsExpertLane(item) {
+                    if (!item) return false;
+                    const ai = this.latestAiSummary(item);
+                    const routingHint = String(ai?.routing_hint || '').toLowerCase();
+                    const disagreement = String(ai?.candidate_disagreement || '').toLowerCase();
+                    const hasReferenceClaim = (item.identifications || []).some(idEntry => String(idEntry?.confidence || '').toLowerCase() === 'literature');
+                    return hasReferenceClaim
+                        || this.hasIdentificationConflict(item)
+                        || this.hasMultipleAiCandidates(item)
+                        || disagreement !== ''
+                        || routingHint.includes('expert')
+                        || routingHint.includes('specialist')
+                        || routingHint.includes('public_claim')
+                        || (this.hasStrongPublicClaim(item) && (item.identifications || []).length >= 2);
+                },
+
+                reviewLaneTitle(item) {
+                    if (this.hasStrongPublicClaim(item) && this.needsExpertLane(item)) {
+                        return 'この記録は公開主張 + expert確認の両方が効く';
+                    }
+                    if (this.hasStrongPublicClaim(item)) {
+                        return 'この記録は公開主張レーンで慎重に確認したい';
+                    }
+                    if (this.needsExpertLane(item)) {
+                        return 'この記録は expert lane に寄せる価値が高い';
+                    }
+                    return '強い主張と expert 候補をここから見に行ける';
+                },
+
+                reviewLaneBody(item) {
+                    if (this.hasStrongPublicClaim(item) && this.hasIdentificationConflict(item)) {
+                        return '種レベルの強い主張があり、しかも候補が割れている。まず理由と比較点を整えつつ、慎重 lane で確認するのが正しい。';
+                    }
+                    if (this.hasStrongPublicClaim(item)) {
+                        return '種レベルまで踏み込んだ提案がある。公開主張として扱う前に、根拠メモと写真の一致をまとめて確認したい。';
+                    }
+                    if (this.needsExpertLane(item)) {
+                        return '候補の割れ、reference寄りの主張、または AI の routing hint が出ている。expert lane へ寄せて早めに整理したい。';
+                    }
+                    return '今の記録自体は cautious lane でも進められるが、別キューの強い主張や expert 候補はここからすぐ追える。';
+                },
+
+                dedicatedLaneTitle() {
+                    if (this.dedicatedLane.id === 'public-claim') {
+                        return '公開主張をまとめて見て、強い種主張の根拠を揃える';
+                    }
+                    if (this.dedicatedLane.id === 'expert-lane') {
+                        return '候補が割れる記録を expert lane で先に整理する';
+                    }
+                    return 'レーンを選ぶ';
+                },
+
+                dedicatedLaneBody() {
+                    if (this.dedicatedLane.id === 'public-claim') {
+                        return 'ここでは種レベルの強い主張だけを続けて見られる。短い根拠メモ、比較点、写真の一致を優先で確認する。';
+                    }
+                    if (this.dedicatedLane.id === 'expert-lane') {
+                        return 'ここでは候補の割れ、reference寄りの提案、AI routing hint がある記録だけを見る。まず disagreement を減らす。';
+                    }
+                    return '';
+                },
+
+                dedicatedLaneCount() {
+                    if (this.dedicatedLane.id === 'public-claim') {
+                        return this.statusCounts.publicClaim;
+                    }
+                    if (this.dedicatedLane.id === 'expert-lane') {
+                        return this.statusCounts.expertLane;
+                    }
+                    return this.filteredItems.length;
+                },
+
+                hasReasonGap(item) {
+                    return (item?.identifications || []).some(idEntry => {
+                        const rank = String(idEntry?.taxon_rank || '').toLowerCase();
+                        const confidence = String(idEntry?.confidence || 'likely').toLowerCase();
+                        const note = String(idEntry?.note || '').trim();
+                        const strongClaim = this.isSpeciesLevelRank(rank) && ['sure', 'literature'].includes(confidence);
+                        const referenceClaim = confidence === 'literature';
+                        return (strongClaim || referenceClaim) && note === '';
+                    });
+                },
+
+                expertLaneStats() {
+                    const items = this.allItems.filter(i => this.needsExpertLane(i));
+                    return {
+                        conflict: items.filter(i => this.hasIdentificationConflict(i)).length,
+                        reference: items.filter(i => (i.identifications || []).some(idEntry => String(idEntry?.confidence || '').toLowerCase() === 'literature')).length,
+                        reasonGap: items.filter(i => this.hasReasonGap(i)).length,
+                    };
+                },
+
+                syncLaneUrl() {
+                    const url = new URL(window.location.href);
+                    if (this.dedicatedLane.active && this.dedicatedLane.id) {
+                        url.searchParams.set('lane', this.dedicatedLane.id);
+                    } else {
+                        url.searchParams.delete('lane');
+                    }
+                    window.history.replaceState({}, '', url.toString());
+                },
+
+                applyDedicatedLane(status) {
+                    this.dedicatedLane = {
+                        active: true,
+                        id: status,
+                    };
+                    this.statusFilter = status;
+                    this.taxonFilter = 'all';
+                    this.filterText = '';
+                    this.syncLaneUrl();
+                    this.$nextTick(() => {
+                        if (this.filteredItems.length > 0) {
+                            this.activateItem(this.filteredItems[0], 0);
+                        }
+                    });
+                },
+
+                clearDedicatedLane() {
+                    this.dedicatedLane = {
+                        active: false,
+                        id: '',
+                    };
+                    this.resetFilters();
+                    this.syncLaneUrl();
+                    this.$nextTick(() => {
+                        if (this.filteredItems.length > 0) {
+                            this.activateItem(this.filteredItems[0], 0);
+                        }
+                    });
+                },
+
+                selectAllInLane() {
+                    this.selectedIds = this.filteredItems.map(i => i.id);
+                },
+
+                markVisibleLater() {
+                    this.filteredItems.forEach(item => this.markLater(item.id));
+                },
+
                 setTaxonFilter(id) {
                     this.taxonFilter = id;
                 },
@@ -1148,7 +1477,7 @@ if (!$currentUser) {
                         items = items.filter(i => {
                             const name = i.taxon ? (i.taxon.name || '').toLowerCase() : '';
                             const sci = i.taxon ? (i.taxon.scientific_name || '').toLowerCase() : '';
-                            const loc = (i.municipality || (i.location ? i.location.name : '') || '').toLowerCase();
+                            const loc = this.locationLabel(i).toLowerCase();
                             const ai = this.latestAiAssessment(i);
                             const aiCandidates = [
                                 ...(ai && Array.isArray(ai.provider_candidates) ? ai.provider_candidates.map(c => (c && c.label ? c.label : '')) : []),
@@ -1163,6 +1492,8 @@ if (!$currentUser) {
                     if (this.statusFilter === 'suggested') items = items.filter(i => !!i.taxon);
                     if (this.statusFilter === 'ai-multi') items = items.filter(i => this.hasMultipleAiCandidates(i));
                     if (this.statusFilter === 'ai-genus') items = items.filter(i => this.hasAiGenusHint(i));
+                    if (this.statusFilter === 'public-claim') items = items.filter(i => this.hasStrongPublicClaim(i));
+                    if (this.statusFilter === 'expert-lane') items = items.filter(i => this.needsExpertLane(i));
                     if (this.statusFilter === 'later') items = items.filter(i => this.laterItems.includes(i.id));
                     if (this.statusFilter === 'passed') items = items.filter(i => this.passItems.includes(i.id));
 
@@ -1286,6 +1617,10 @@ if (!$currentUser) {
                 clearSelection() {
                     this.selectedIds = [];
                     this.lastSelectedIndex = null;
+                },
+
+                jumpToLane(status) {
+                    this.applyDedicatedLane(status);
                 },
 
                 batchQuickID() {

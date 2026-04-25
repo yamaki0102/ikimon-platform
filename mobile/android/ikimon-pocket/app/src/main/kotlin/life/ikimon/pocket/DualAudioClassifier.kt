@@ -61,39 +61,30 @@ class DualAudioClassifier(private val context: Context) {
         callback: (List<DualResult>) -> Unit,
     ) {
         val scope = callerScope ?: CoroutineScope(Dispatchers.Default + SupervisorJob())
-        scope.launch {
-            val birdnetDeferred = async {
-                runCatching {
-                    birdnet.classifyData(audioData)
-                }.getOrElse {
-                    Log.e(TAG, "BirdNET error: ${it.message}")
-                    emptyList()
-                }
+        // OrtEnvironment はシングルトン — 並列推論でメモリ破壊が起きるため直列実行
+        scope.launch(Dispatchers.IO) {
+            val birdnetResults = runCatching {
+                birdnet.classifyData(audioData)
+            }.getOrElse {
+                Log.e(TAG, "BirdNET error: ${it.message}")
+                emptyList()
             }
 
-            val perchDeferred = async {
-                runCatching {
-                    if (perch.isReady()) perch.classify(audioData)
-                    else emptyList()
-                }.getOrElse {
-                    Log.e(TAG, "Perch error: ${it.message}")
-                    emptyList()
-                }
+            val perchResults = runCatching {
+                if (perch.isReady()) perch.classify(audioData)
+                else emptyList()
+            }.getOrElse {
+                Log.e(TAG, "Perch error: ${it.message}")
+                emptyList()
             }
 
-            val gemmaDeferred = async {
-                runCatching {
-                    if (gemma.isReady()) gemma.classify(audioData)
-                    else emptyList<AudioClassifier.ClassificationResult>()
-                }.getOrElse {
-                    Log.e(TAG, "Gemma error: ${it.message}")
-                    emptyList()
-                }
+            val gemmaResults = runCatching {
+                if (gemma.isReady()) gemma.classify(audioData)
+                else emptyList<AudioClassifier.ClassificationResult>()
+            }.getOrElse {
+                Log.e(TAG, "Gemma error: ${it.message}")
+                emptyList()
             }
-
-            val birdnetResults = birdnetDeferred.await()
-            val perchResults = perchDeferred.await()
-            val gemmaResults = gemmaDeferred.await()
 
             val fused = fuse(birdnetResults, perchResults, gemmaResults, minConfidence)
 

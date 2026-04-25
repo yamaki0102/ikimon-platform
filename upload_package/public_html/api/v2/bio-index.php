@@ -5,7 +5,7 @@
  *
  * Calculate an observation-based monitoring reference index and summarize data
  * based on pure spatial coordinates (Lat/Lng) rather than predefined sites.
- * 
+ *
  * Usage:
  * /api/v2/bio-index.php?lat=34.710&lng=137.726&radius=5000 (radius in meters)
  */
@@ -61,7 +61,7 @@ foreach ($allObs as $obs) {
 // Calculate approximate area in hectares for density scoring
 $areaHa = (pi() * pow($radius, 2)) / 10000;
 
-// MVP limitation: BiodiversityScorer calculates Red List using $obs metadata, 
+// MVP limitation: BiodiversityScorer calculates Red List using $obs metadata,
 // which is currently appended during import. Future versions should do real-time
 // Point-in-Polygon checks against regional Red List GeoJSON bounds here.
 $scoreData = MonitoringReferenceScorer::calculate($spatialObs, ['area_ha' => $areaHa]);

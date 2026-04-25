@@ -1,0 +1,22 @@
+[Unit]
+Description=ikimon platform_v2 green API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/ikimon.life/runtime/green
+EnvironmentFile=/etc/ikimon/production-v2.env
+Environment=NODE_ENV=production
+Environment=PORT=3202
+ExecStart=/usr/bin/env node dist/server.js
+Restart=always
+RestartSec=5
+UMask=0002
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

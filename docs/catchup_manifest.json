@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "owners": [
+    "web",
+    "android",
+    "agent"
+  ],
+  "refreshPolicy": {
+    "runAfterStructureChange": true,
+    "reviewEveryMonths": 6
+  },
+  "excludeTopLevelDirectories": [
+    ".git",
+    "vendor",
+    ".idea",
+    ".gradle",
+    ".kotlin",
+    ".claude",
+    ".phpunit.cache",
+    "_archive",
+    "_deploy_tmp",
+    "_tmp_ux_test_env",
+    "android-shell",
+    "CLI-Anything",
+    "output"
+  ],
+  "sections": [
+    {
+      "title": "Top-Level Directories",
+      "mode": "top_level_directories"
+    },
+    {
+      "title": "API Namespaces",
+      "mode": "directory_count",
+      "path": "upload_package/public_html/api",
+      "filter": "*.php"
+    },
+    {
+      "title": "Heavy Public Pages",
+      "mode": "largest_files",
+      "path": "upload_package/public_html",
+      "filter": "*.php",
+      "limit": 10
+    },
+    {
+      "title": "Heavy Library Files",
+      "mode": "largest_files",
+      "path": "upload_package/libs",
+      "filter": "*.php",
+      "limit": 10
+    }
+  ],
+  "entryPoints": [
+    {
+      "path": "upload_package/public_html/index.php",
+      "role": "feed / home"
+    },
+    {
+      "path": "upload_package/public_html/post.php",
+      "role": "observation posting"
+    },
+    {
+      "path": "upload_package/public_html/observation_detail.php",
+      "role": "observation detail"
+    },
+    {
+      "path": "upload_package/public_html/field_research.php",
+      "role": "field research flow"
+    },
+    {
+      "path": "upload_package/public_html/api/",
+      "role": "API endpoints"
+    },
+    {
+      "path": "upload_package/libs/",
+      "role": "domain logic"
+    },
+    {
+      "path": "tests/",
+      "role": "PHPUnit suites"
+    },
+    {
+      "path": "mobile/android/ikimon-pocket/",
+      "role": "Android"
+    }
+  ],
+  "workspace": {
+    "file": "ikimon.life.code-workspace",
+    "folders": [
+      {
+        "name": "shared-root",
+        "path": "."
+      },
+      {
+        "name": "web-public",
+        "path": "upload_package/public_html"
+      },
+      {
+        "name": "web-libs",
+        "path": "upload_package/libs"
+      },
+      {
+        "name": "android-app",
+        "path": "mobile/android/ikimon-pocket"
+      }
+    ],
+    "settings": {
+      "remote.autoForwardPorts": false,
+      "remote.portsAttributes": {
+        "8080": {
+          "label": "ikimon Dev Server",
+          "onAutoForward": "openBrowserOnce"
+        }
+      },
+      "files.exclude": {
+        "**/.DS_Store": true,
+        "**/.phpunit.cache": true
+      }
+    }
+  },
+  "watchItems": [
+    "When adding a new stable entry point, update entryPoints in this manifest.",
+    "When adding a support directory, decide whether it should be excluded from the snapshot.",
+    "Keep docs/CATCHUP_GUIDE.md and ikimon.life.code-workspace aligned with this manifest."
+  ]
+}

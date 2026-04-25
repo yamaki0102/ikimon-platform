@@ -1,16 +1,33 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"remote.autoForwardPorts": false,
-		"remote.portsAttributes": {
-			"8080": {
-				"label": "ikimon Dev Server",
-				"onAutoForward": "openBrowserOnce"
-			}
-		}
-	}
+  "folders": [
+    {
+      "name": "shared-root",
+      "path": "."
+    },
+    {
+      "name": "web-public",
+      "path": "upload_package/public_html"
+    },
+    {
+      "name": "web-libs",
+      "path": "upload_package/libs"
+    },
+    {
+      "name": "android-app",
+      "path": "mobile/android/ikimon-pocket"
+    }
+  ],
+  "settings": {
+    "remote.autoForwardPorts": false,
+    "remote.portsAttributes": {
+      "8080": {
+        "label": "ikimon Dev Server",
+        "onAutoForward": "openBrowserOnce"
+      }
+    },
+    "files.exclude": {
+      "**/.DS_Store": true,
+      "**/.phpunit.cache": true
+    }
+  }
 }

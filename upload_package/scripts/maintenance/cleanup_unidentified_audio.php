@@ -10,7 +10,7 @@
  */
 
 require_once __DIR__ . '/../../config/config.php';
-require_once ROOT_DIR . 'libs/DataStore.php';
+require_once ROOT_DIR . '/libs/DataStore.php';
 
 $dryRun = in_array('--dry-run', $argv ?? [], true);
 $maxAgeDays = 7;

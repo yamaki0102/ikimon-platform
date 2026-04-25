@@ -16,13 +16,28 @@ CspNonce::sendHeader();
 
 // Use translations for defaults
 $default_title = __('meta_title');
-$default_desc = "ikimonは、" . __('descriptor') . "です。";
+$default_desc = __('meta.website_description', 'A place to save nearby nature records and revisit them later by place.');
+$orgDescription = __('meta.organization_description', 'Citizen science biodiversity platform. Build a long-term archive of nearby nature through observation records.');
+$orgAltName = __('meta.organization_alt_name', 'ikimon');
 $default_image = BASE_URL . "/assets/img/ogp_default.png";
 
-$title = !empty($meta_title) ? $meta_title . " | ikimon" : $default_title;
+$title = $default_title;
+if (!empty($meta_title)) {
+    $title = $meta_title;
+    if (stripos($title, 'ikimon') === false) {
+        $title .= " | ikimon";
+    }
+}
+if (defined('IS_STAGING_SITE') && IS_STAGING_SITE) {
+    $title = '[STAGING] ' . $title;
+}
 $desc = !empty($meta_description) ? $meta_description : $default_desc;
 $image = !empty($meta_image) ? $meta_image : $default_image;
-$url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+$requestProtocol = (
+    (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')
+    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+) ? 'https' : 'http';
+$url = $requestProtocol . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
 $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 ?>
 <meta charset="UTF-8">
@@ -34,6 +49,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <?php endif; ?>
 
 <!-- Google Analytics 4 -->
+<?php if (!(defined('IS_STAGING_SITE') && IS_STAGING_SITE)): ?>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-NCL0M1VJZ2"></script>
 <script nonce="<?= CspNonce::attr() ?>">
     window.dataLayer = window.dataLayer || [];
@@ -41,6 +57,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
     gtag('js', new Date());
     gtag('config', 'G-NCL0M1VJZ2');
 </script>
+<?php endif; ?>
 
 <!-- Primary Meta Tags -->
 <title><?php echo htmlspecialchars($title); ?></title>
@@ -84,7 +101,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
   "name": "ikimon",
   "url": "https://ikimon.life",
   "logo": "https://ikimon.life/assets/img/icon-192.png",
-  "description": "市民参加型生物多様性プラットフォーム。自然観察の記録で100年後の生態系アーカイブを作る。",
+  "description": <?= json_encode($orgDescription, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
   "sameAs": []
 }
 </script>
@@ -145,7 +162,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
                     'md-outline-variant': 'var(--md-outline-variant)',
                     'md-error': 'var(--md-error)',
                     'md-tertiary': 'var(--md-tertiary)',
-                    /* Dashboard info palette (デジタル庁7色準拠) */
+                    /* Dashboard info palette */
                     'viz-blue': '#2563EB',
                     'viz-green': '#10b981',
                     'viz-orange': '#f59e0b',
@@ -171,11 +188,11 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 </script>
 <script src="https://unpkg.com/lucide@0.477.0"></script>
 <script nonce="<?= CspNonce::attr() ?>">
-    // Lucide Icons: 一元初期化（全ページ共通）
+    // Lucide icons: shared boot
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     });
-    // Alpine.js等の動的DOM変更にも対応
+    // Also refresh after dynamic DOM updates
     if (typeof MutationObserver !== 'undefined') {
         let _lucideTimer;
         new MutationObserver(function() {
@@ -196,9 +213,11 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script defer src="<?= htmlspecialchars(Asset::versioned('/js/HapticEngine.js')) ?>"></script>
 <script defer src="<?= htmlspecialchars(Asset::versioned('/js/MotionEngine.js')) ?>"></script>
 <script defer src="<?= htmlspecialchars(Asset::versioned('/js/OfflineManager.js')) ?>"></script>
+<?php if (!(defined('IS_STAGING_SITE') && IS_STAGING_SITE)): ?>
 <script defer src="<?= htmlspecialchars(Asset::versioned('/assets/js/analytics.js')) ?>"></script>
+<?php endif; ?>
 
-<!-- Critical FOUC Prevention (CSS遅延の保険) -->
+<!-- Critical FOUC prevention -->
 <style>
     [x-cloak] {
         display: none !important
@@ -211,6 +230,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <link rel="stylesheet" href="<?= htmlspecialchars(Asset::versioned('/assets/css/skeleton.css')) ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(Asset::versioned('/assets/css/input.css')) ?>">
 
+<?php if (!(defined('IS_STAGING_SITE') && IS_STAGING_SITE)): ?>
 <!-- Service Worker + PWA Install -->
 <script nonce="<?= CspNonce::attr() ?>">
     if ('serviceWorker' in navigator) {
@@ -301,5 +321,6 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         hidePwaBanner(true);
     });
 </script>
+<?php endif; ?>
 
 <?php include __DIR__ . '/feedback_widget.php'; ?>
