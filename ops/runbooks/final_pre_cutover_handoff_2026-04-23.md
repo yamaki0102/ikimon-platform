@@ -1,5 +1,9 @@
 # Final Pre-Cutover Handoff — 2026-04-23
 
+> Superseded for normal deploys: production v2 is now deployed by the blue/green path in
+> `ops/deploy/deploy_platform_v2_blue_green.sh` and `.github/workflows/deploy.yml`.
+> Keep this file as historical cutover context only; do not follow the pm2/manual nginx steps below for new deploys.
+
 YAMAKI が VPS で実行する作業だけを時系列で抽出した一枚物。
 関連:
 - [`ops/CUTOVER_RUNBOOK.md`](../CUTOVER_RUNBOOK.md) — 全手順の正本

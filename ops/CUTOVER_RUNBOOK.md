@@ -4,7 +4,7 @@ staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える
 
 ## 前提 (2026-04-19 staging runtime refresh 後)
 
-- 本番 v2 サーバ: `pm2 ikimon-v2-production-api` (:3201, uptime 確認済)
+- 本番 v2 サーバ: blue/green `systemd` (`ikimon-v2-blue.service` :3201 / `ikimon-v2-green.service` :3202, env file `/etc/ikimon/production-v2.env`)
 - staging v2: `systemd ikimon-v2-staging.service` (:3200, env file `/etc/ikimon/staging-v2.env`)
 - `/ops/readiness` = **near_ready** (最高ランク、全 gates true)
 - 本番 DB (`ikimon_v2`): 103 users / 240 visits / 234 occurrences / 229 photos / 682 track points
@@ -19,9 +19,19 @@ staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える
 - staging browser verify secrets: `STAGING_BASIC_AUTH_USER`, `STAGING_BASIC_AUTH_PASS`
 - deploy-staging は `pre-flight` → `deploy` → `verify-ssh` → `verify-e2e` で止める
 
-## カットオーバー前に必要な環境変数 (2026-04-23 16:55 JST 再確認済)
+## production v2 の canonical runtime
 
-**現状**: 本番 v2 `pm2 ikimon-v2-production-api` の env 確認結果:
+- unit references: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
+- service user: `www-data`
+- env file: `/etc/ikimon/production-v2.env`
+- deploy workflow: `.github/workflows/deploy.yml`
+- deploy workflow は `deploy.sh` 後に inactive color を prepare → `/healthz` `/readyz` `/ops/readiness` → browser smoke → nginx promote の順で検証する
+- active color は `/var/www/ikimon.life/deploy_state/active_color` に保存する。無い場合は nginx の `proxy_pass` から推定する
+- 旧 `pm2 ikimon-v2-production-api` は env 移行元としてのみ扱う。通常運用では使わない
+
+## カットオーバー前に必要な環境変数
+
+**正本**: `/etc/ikimon/production-v2.env`
 
 | 変数 | 状態 | 備考 |
 |---|---|---|
@@ -31,13 +41,14 @@ staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える
 | `CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN` | ✅ 設定済 | |
 | `DATABASE_URL` | ✅ 設定済 | |
 | `V2_PRIVILEGED_WRITE_API_KEY` | ✅ 設定済 | |
-| `COMPATIBILITY_WRITE_ENABLED` | ⚠ 未設定（default=true で稼働中） | 明示推奨のため cutover 前に追加 |
+| `COMPATIBILITY_WRITE_ENABLED` | ✅ `1` | 明示 |
+| `PORT` | unit 側で固定 | blue=3201 / green=3202 |
+| `LEGACY_DATA_ROOT` | ✅ `/var/www/ikimon.life/repo/upload_package/data` | path B が正本 |
+| `LEGACY_PUBLIC_ROOT` | ✅ `/var/www/ikimon.life/repo/upload_package/public_html` | path B が正本 |
+| `LEGACY_UPLOADS_ROOT` | ✅ `/var/www/ikimon.life/repo/upload_package/public_html/uploads` | path B が正本 |
 
-```bash
-# COMPATIBILITY_WRITE_ENABLED を明示する場合のみ
-pm2 set ikimon-v2-production-api:COMPATIBILITY_WRITE_ENABLED 1
-pm2 restart ikimon-v2-production-api --update-env
-```
+`pm2 restart --update-env` は使わない。shell env の混入で `DATABASE_URL` が staging に
+regression した実績があるため、systemd + env file に一本化する。
 
 ## カットオーバー前の必須 bootstrap import (2026-04-23 INC 再発防止)
 
@@ -45,13 +56,14 @@ pm2 restart ikimon-v2-production-api --update-env
 これをサボると S2 incident (INC_2026-04-23) が再発する。
 
 ```bash
-cd /var/www/ikimon.life-staging/repo/platform_v2
-# 本番 DB 向け env (pm2 dump の値を使う)
+cd /var/www/ikimon.life/repo/platform_v2
+# 本番 DB 向け env (/etc/ikimon/production-v2.env の値を使う)
 DATABASE_URL="postgres://ikimon_v2:<prod_pass>@127.0.0.1:5432/ikimon_v2" \
-LEGACY_DATA_ROOT=/var/www/ikimon.life/data \
-LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/public_html \
-LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/public_html/uploads \
+LEGACY_DATA_ROOT=/var/www/ikimon.life/repo/upload_package/data \
+LEGACY_PUBLIC_ROOT=/var/www/ikimon.life/repo/upload_package/public_html \
+LEGACY_UPLOADS_ROOT=/var/www/ikimon.life/repo/upload_package/public_html/uploads \
   npm run import:legacy && \
+  npm run import:plan:observations && \
   npm run import:observations && \
   npm run import:observations:evidence && \
   npm run import:observations:identifications && \
@@ -105,22 +117,15 @@ curl -s http://127.0.0.1:3201/healthz
 
 ### Step 3: nginx 設定切替
 
-`/etc/nginx/sites-available/ikimon.life` を編集し、**staging.ikimon.life と同じ構成** にする:
-
-- 現状 `location /` が `try_files $uri $uri/ $uri.php =404` → PHP fallback
-- 切替後 `location /` が `proxy_pass http://127.0.0.1:3201` (v2 production)
-- 既存 PHP は `location /legacy/` に退避（rollback 用）
-- `location /uploads/` は `alias /var/www/ikimon.life/public_html/uploads/` を維持
-
-参考: `/etc/nginx/sites-available/staging.ikimon.life` の v2 primary 構成。
+GitHub Actions の `deploy.yml` が `ops/deploy/deploy_platform_v2_blue_green.sh promote` で
+inactive color を public nginx に昇格する。手動で切り替える場合も同じ script を使う:
 
 ```bash
-# nginx 設定テスト
-sudo nginx -t
-
-# 問題なければ reload
-sudo systemctl reload nginx
+bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh status
+bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh promote
 ```
+
+promote は nginx snapshot を保存し、`nginx -t` / reload / public smoke 失敗時は直前設定に戻す。
 
 ### Step 4: スモークテスト (本番 DNS で)
 
@@ -137,7 +142,8 @@ curl -X POST https://ikimon.life/api/v1/contact/submit \
   -d '{"category":"question","message":"本番カットオーバー直後の疎通テスト","email":"yamaki0102@gmail.com"}'
 
 # ログ監視
-pm2 logs ikimon-v2-production-api --lines 100
+journalctl -u ikimon-v2-blue.service -n 50 --no-pager
+journalctl -u ikimon-v2-green.service -n 50 --no-pager
 ```
 
 ### Step 5: 既存ユーザー認証継続確認
@@ -157,8 +163,8 @@ Section E の hard_stop FAIL を観測したら本セクションへ。
 | 条件 | 閾値 | 観測元 |
 |---|---|---|
 | `/healthz` または `/readyz` 5xx | 2分以上継続 | `curl http://127.0.0.1:3201/healthz` |
-| エラーレート急上昇 | 平常 +0.5%pt 超 が 5分以上 | pm2 logs / アクセスログ |
-| `/record` POST 成功率 | < 95% が 5分以上 | `pm2 logs ikimon-v2-production-api` grep |
+| エラーレート急上昇 | 平常 +0.5%pt 超 が 5分以上 | `journalctl -u ikimon-v2-blue.service` / `ikimon-v2-green.service` / アクセスログ |
+| `/record` POST 成功率 | < 95% が 5分以上 | active color の journalctl grep |
 | `compatibility_write_ledger.write_status=failed` | 直近10分で 3件以上 | `psql ikimon_v2 -c "select count(*) from compatibility_write_ledger where attempted_at > now()-interval '10 min' and write_status='failed'"` |
 | **`counts.users` / `counts.occurrences` が legacy 比で 10% 以上少ない** | users: legacy users.json 件数 × 0.9 未満 / occurrences: legacy data/observations/ 合算 × 0.9 未満 | `/ops/readiness` の counts と legacy データ比較（※ 2026-04-23 INC 再発防止） |
 | **`counts.trackPoints == 0`** | 0 のまま cutover に突入 | `/ops/readiness` counts — import:tracks 未完遂のシグナル |
@@ -235,23 +241,18 @@ sudo -u postgres psql ikimon_v2 < /var/www/ikimon.life-staging/backups/ikimon_v2
 
 ## カットオーバー後 24h 監視
 
-- `pm2 logs ikimon-v2-production-api --lines 200` で Error/Fatal 監視
+- active color の `journalctl -u ikimon-v2-{blue|green}.service -n 200 --no-pager` で Error/Fatal 監視
 - `/ops/readiness` が near_ready を維持しているか
 - Gemini API quota (Cloudflare dashboard)
 - Cloudflare Stream の動画アップロード件数
 - `contact_submissions` テーブルへの書込み → `notification_sent=true` 率
 - `compatibility_write_ledger` の `write_status=failed` 件数 (0 であるべき)
 
-## 付録: 本番 v2 で pm2 managed でない問題
+## 付録: pm2 から systemd への移行
 
-**現状**: 本番 v2 は pm2 で起動されているが systemd unit が無く、VPS 再起動時に手動で `pm2 resurrect` が必要。
-
-**対処**: カットオーバー後に `pm2 startup && pm2 save` で systemd に登録する。
-
-```bash
-pm2 startup systemd -u root --hp /root
-pm2 save
-```
+本番 v2 は `ikimon-v2-blue.service` / `ikimon-v2-green.service` に統一する。
+旧 `pm2 ikimon-v2-production-api` は、初回 deploy 時に `/root/.pm2/dump.pm2` から既存 env を
+拾うための移行元としてのみ参照する。
 
 ## 付録: 未対応項目 (カットオーバー直前では不要)
 

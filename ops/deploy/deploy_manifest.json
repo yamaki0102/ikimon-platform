@@ -4,6 +4,23 @@
   "productionHost": "162.43.44.131",
   "productionRoot": "/var/www/ikimon.life",
   "repositoryRootOnServer": "/var/www/ikimon.life/repo",
+  "productionV2BlueGreen": {
+    "blueServiceName": "ikimon-v2-blue.service",
+    "greenServiceName": "ikimon-v2-green.service",
+    "legacyPm2Name": "ikimon-v2-production-api",
+    "bluePort": 3201,
+    "greenPort": 3202,
+    "envFile": "/etc/ikimon/production-v2.env",
+    "deployScriptPath": "ops/deploy/deploy_platform_v2_blue_green.sh",
+    "blueUnitReferencePath": "ops/deploy/ikimon_v2_blue.service",
+    "greenUnitReferencePath": "ops/deploy/ikimon_v2_green.service",
+    "releasesDirectory": "/var/www/ikimon.life/releases",
+    "runtimeDirectory": "/var/www/ikimon.life/runtime",
+    "deployStateDirectory": "/var/www/ikimon.life/deploy_state",
+    "legacyDataRoot": "/var/www/ikimon.life/repo/upload_package/data",
+    "legacyPublicRoot": "/var/www/ikimon.life/repo/upload_package/public_html",
+    "legacyUploadsRoot": "/var/www/ikimon.life/repo/upload_package/public_html/uploads"
+  },
   "runtimePersistentAllowlistPath": "ops/deploy/runtime_persistent_allowlist.txt",
   "persistentPaths": [
     "upload_package/data/affiliate/**",
@@ -107,24 +124,41 @@
     "upload_package/lang/**",
     "upload_package/scripts/**",
     "upload_package/tools/**",
+    "platform_v2/**",
+    "ops/deploy/deploy_platform_v2_blue_green.sh",
+    "ops/deploy/ikimon_v2_blue.service",
+    "ops/deploy/ikimon_v2_green.service",
     "upload_package/.htaccess",
     "upload_package/public_html/.htaccess",
     "composer.json",
     "composer.lock"
   ],
   "healthChecks": [
-    "https://ikimon.life/index.php",
-    "https://ikimon.life/explore.php",
-    "https://ikimon.life/post.php",
-    "https://ikimon.life/api/get_events.php"
+    "https://ikimon.life/healthz",
+    "https://ikimon.life/readyz",
+    "https://ikimon.life/",
+    "https://ikimon.life/explore",
+    "https://ikimon.life/map",
+    "https://ikimon.life/learn",
+    "https://ikimon.life/contact"
+  ],
+  "v2InternalHealthChecks": [
+    "/healthz",
+    "/readyz",
+    "/ops/readiness"
   ],
   "requiredChecks": [
     "php tools/lint.php",
+    "cd platform_v2 && npm ci && npm run typecheck && npm run build",
+    "cd platform_v2 && npm run e2e:production-smoke",
     "composer test",
     "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1"
   ],
   "notes": [
     "Production deploy is triggered only by merge to main and GitHub Actions.",
+    "Production platform_v2 uses blue/green deployment: prepare inactive runtime, browser-smoke candidate through an SSH tunnel, then promote nginx.",
+    "Production v2 runtime uses ikimon-v2-blue.service / ikimon-v2-green.service with /etc/ikimon/production-v2.env; legacy pm2 is only a migration source for existing env values.",
+    "Production v2 legacy roots must point to /var/www/ikimon.life/repo/upload_package/*, not the obsolete /var/www/ikimon.life/data snapshot.",
     "Persistent paths must never be overwritten by repo sync or manual copy.",
     "Tracked static data under upload_package/data/.htaccess, config, dwca, ecology, and tracked redlists must stay deployable.",
     "Legacy deploy.json + deploy_wsl.php route is disabled for this repository."

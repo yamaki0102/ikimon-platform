@@ -11,10 +11,16 @@ ikimon.life の本番 deploy は `main` マージ起点の GitHub Actions に一
 4. `main` にマージする
 5. GitHub Actions が VPS の deploy script を実行する
 
+本番 deploy は legacy PHP だけでは完了ではない。`deploy.sh` の git reset 後に
+`platform_v2` を blue/green の inactive runtime へ配置し、内部 health/readiness と
+runner からの browser smoke が通った場合だけ nginx を promote する。
+
 ## Source of Truth
 
 - deploy manifest: `ops/deploy/deploy_manifest.json`
 - server deploy reference: `ops/deploy/production_deploy_reference.sh`
+- production v2 blue/green deploy script: `ops/deploy/deploy_platform_v2_blue_green.sh`
+- production v2 systemd units: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`
 - staging manifest: `ops/deploy/staging_manifest.json`
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
 - production workflow: `.github/workflows/deploy.yml`
@@ -69,6 +75,10 @@ staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
 
 repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を repo に置いた。  
 サーバ側を変更するときは `ops/deploy/production_deploy_reference.sh` も同時に更新する。
+
+`platform_v2` の本番 runtime は blue/green systemd unit と
+`/etc/ikimon/production-v2.env` を正本にする。旧 `pm2 ikimon-v2-production-api` は
+既存 env の移行元であり、通常 deploy の実行単位ではない。
 
 ## Legacy Routes
 

@@ -25,12 +25,31 @@ jobs:
           php-version: '8.2'
           extensions: gd, mbstring, json
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
       - name: Check deploy guardrails
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
       - name: PHP Syntax Check
         run: php tools/lint.php
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Typecheck platform_v2
+        working-directory: platform_v2
+        run: npm run typecheck
+
+      - name: Build platform_v2
+        working-directory: platform_v2
+        run: npm run build
 
   deploy:
     name: Deploy via SSH (VPS)
@@ -39,13 +58,82 @@ jobs:
     if: always() && (needs.pre-flight.result == 'success' || needs.pre-flight.result == 'skipped')
     environment: production
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          host: 162.43.44.131
-          username: root
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: /var/www/ikimon.life/deploy.sh
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Deploy legacy lane via SSH
+        run: ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 /var/www/ikimon.life/deploy.sh
+
+      - name: Prepare inactive platform_v2 candidate
+        run: |
+          ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 \
+            "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
+
+      - name: Read candidate port
+        run: |
+          port="$(ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 'cat /var/www/ikimon.life/deploy_state/candidate_port')"
+          case "$port" in
+            3201|3202) ;;
+            *) echo "Invalid candidate port: $port"; exit 1 ;;
+          esac
+          echo "CANDIDATE_PORT=$port" >> "$GITHUB_ENV"
+
+      - name: Open SSH tunnel to candidate
+        run: |
+          ssh -i ~/.ssh/ikimon_vps -f -N \
+            -o ExitOnForwardFailure=yes \
+            -L 13202:127.0.0.1:${CANDIDATE_PORT} \
+            root@162.43.44.131
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:13202/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Candidate SSH tunnel did not become healthy"
+          exit 1
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production candidate browser smoke
+        working-directory: platform_v2
+        env:
+          PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
+        run: npm run e2e:production-smoke
+
+      - name: Promote candidate to public nginx
+        run: |
+          ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 \
+            "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh promote"
+
+      - name: Upload production smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-artifacts
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/production-smoke
+          if-no-files-found: ignore
 
   verify:
     name: Post-deploy Verification
@@ -56,16 +144,19 @@ jobs:
         run: |
           echo "=== Health Check ==="
           for url in \
-            https://ikimon.life/index.php \
-            https://ikimon.life/explore.php \
-            https://ikimon.life/post.php \
-            https://ikimon.life/api/get_events.php
+            https://ikimon.life/healthz \
+            https://ikimon.life/readyz \
+            https://ikimon.life/ \
+            https://ikimon.life/explore \
+            https://ikimon.life/map \
+            https://ikimon.life/learn \
+            https://ikimon.life/contact
           do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")
             if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
-              echo "✅ $url → $STATUS"
+              echo "OK $url -> $STATUS"
             else
-              echo "❌ $url → $STATUS"
+              echo "FAIL $url -> $STATUS"
               exit 1
             fi
           done
@@ -74,9 +165,9 @@ jobs:
         run: |
           BODY=$(curl -s https://ikimon.life/)
           if echo "$BODY" | grep -q "ikimon"; then
-            echo "✅ Content verified"
+            echo "Content verified"
           else
-            echo "❌ Content verification failed"
+            echo "Content verification failed"
             exit 1
           fi
 
