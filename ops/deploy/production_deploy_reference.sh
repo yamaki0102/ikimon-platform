@@ -147,10 +147,13 @@ systemctl reload php8.2-fpm
 
 echo "[Verify] Basic health checks"
 for url in \
-    "https://ikimon.life/index.php" \
-    "https://ikimon.life/explore.php" \
-    "https://ikimon.life/post.php" \
-    "https://ikimon.life/api/get_events.php"
+    "https://ikimon.life/healthz" \
+    "https://ikimon.life/readyz" \
+    "https://ikimon.life/" \
+    "https://ikimon.life/explore" \
+    "https://ikimon.life/map" \
+    "https://ikimon.life/learn" \
+    "https://ikimon.life/contact"
 do
     status_code="$(curl -s -o /dev/null -w "%{http_code}" "$url")"
     if [ "$status_code" -lt 200 ] || [ "$status_code" -ge 400 ]; then
