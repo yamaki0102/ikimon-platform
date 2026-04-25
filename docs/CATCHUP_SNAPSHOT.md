@@ -10,7 +10,7 @@ Manifest: docs/catchup_manifest.json (v1)
 | Public PHP pages | 94 |
 | API PHP files | 188 |
 | Library PHP files | 150 |
-| Test PHP files | 27 |
+| Test PHP files | 28 |
 | Android source files | 37 |
 | Repo / app scripts & tools | 193 |
 
@@ -23,13 +23,13 @@ Refresh policy: structure change = True, review cadence = every 6 months
 - .github/ : 3 files
 - .vscode/ : 3 files
 - dev_tools/ : 11 files
-- docs/ : 221 files
+- docs/ : 223 files
 - mobile/ : 69 files
-- ops/ : 18 files
-- platform_v2/ : 277 files
+- ops/ : 21 files
+- platform_v2/ : 299 files
 - readme/ : 22 files
 - scripts/ : 22 files
-- tests/ : 29 files
+- tests/ : 30 files
 - tools/ : 10 files
 - upload_package/ : 841 files
 
@@ -61,7 +61,7 @@ Refresh policy: structure change = True, review cadence = every 6 months
 |---|---:|
 | upload_package\libs\AiObservationAssessment.php | 60.4 |
 | upload_package\libs\CanonicalStore.php | 39.3 |
-| upload_package\libs\BioUtils.php | 39 |
+| upload_package\libs\BioUtils.php | 39.3 |
 | upload_package\libs\ContributionLedger.php | 35.6 |
 | upload_package\libs\OmoikaneInferenceEnhancer.php | 27.7 |
 | upload_package\libs\Services\MyZukanService.php | 26.5 |
