@@ -69,11 +69,11 @@ export function buildClearedOAuthStateCookie(): string {
 }
 
 function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
-  return cookieHeader
+  const matches = cookieHeader
     ?.split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
+    .filter((part) => part.startsWith(`${name}=`)) ?? [];
+  return matches.at(-1)?.slice(name.length + 1);
 }
 
 export function readOAuthState(cookieHeader: string | undefined): OAuthStatePayload | null {
