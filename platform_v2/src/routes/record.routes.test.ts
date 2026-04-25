@@ -70,10 +70,37 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /記録を始める準備/);
         assert.match(response.body, /名前が分からなくても、記録は始められる/);
+        assert.match(response.body, /ログインして記録する/);
+        assert.match(response.body, /新しく登録して記録する/);
         assert.doesNotMatch(response.body, /Session required/);
       } finally {
         await app.close();
       }
     },
   );
+});
+
+test("login and register pages render v2 auth forms", async () => {
+  const app = buildApp();
+  try {
+    const login = await app.inject({
+      method: "GET",
+      url: "/login?redirect=/record",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(login.statusCode, 200);
+    assert.match(login.body, /ログインして記録する/);
+    assert.match(login.body, /data-endpoint="\/api\/v1\/auth\/login"/);
+
+    const register = await app.inject({
+      method: "GET",
+      url: "/register?redirect=/record",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(register.statusCode, 200);
+    assert.match(register.body, /新しく登録して記録する/);
+    assert.match(register.body, /data-endpoint="\/api\/v1\/auth\/register"/);
+  } finally {
+    await app.close();
+  }
 });

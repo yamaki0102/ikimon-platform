@@ -4,6 +4,7 @@ import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { detectLangFromUrl, type SiteLang } from "./i18n.js";
 import { getShortCopy } from "./content/index.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerLegacyAssetRoutes } from "./routes/legacyAssets.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
@@ -434,6 +435,7 @@ export function buildApp() {
   });
 
   void registerHealthRoutes(app);
+  void registerAuthRoutes(app);
   void registerSiteMapRoutes(app);
   void registerLegacyAssetRoutes(app);
   void registerMapApiRoutes(app);

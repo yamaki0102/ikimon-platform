@@ -132,6 +132,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: 
   const desktopLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-desktop");
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
+  const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/record"), lang));
 
   return `<header class="site-header">
     <div class="site-header-inner">
@@ -146,9 +147,11 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: 
       ${desktopSearch}
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
+        <a class="btn btn-ghost site-login-link" href="${loginHref}">ログイン</a>
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
+        <a class="btn btn-ghost site-login-link" href="${loginHref}">ログイン</a>
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
         <details class="site-mobile-menu">
           <summary class="site-mobile-menu-toggle">
