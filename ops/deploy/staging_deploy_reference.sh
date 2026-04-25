@@ -14,6 +14,7 @@ UPLOADS_DIR="$REPO_DIR/upload_package/public_html/uploads"
 PERSISTENT_ROOT="$APP_ROOT/persistent"
 PERSISTENT_UPLOADS="$PERSISTENT_ROOT/uploads"
 CURRENT_BRANCH="${STAGING_BRANCH:-staging}"
+ALLOW_NON_FF="${STAGING_ALLOW_NON_FF:-false}"
 HEALTH_BASE_URL="${STAGING_BASE_URL:-http://127.0.0.1:8081}"
 BACKUP_DIR="$(mktemp -d /tmp/ikimon-staging-deploy-XXXX)"
 CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
@@ -86,6 +87,15 @@ echo "[1/8] Fetch latest"
 git fetch origin "$CURRENT_BRANCH" >/dev/null
 LOCAL_HEAD="$(git rev-parse HEAD)"
 REMOTE_HEAD="$(git rev-parse "origin/$CURRENT_BRANCH")"
+if [ "$ALLOW_NON_FF" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
+    echo "Refusing non-fast-forward staging deploy."
+    echo "Current staging HEAD: $LOCAL_HEAD"
+    echo "Target branch HEAD:   $REMOTE_HEAD"
+    echo "Target branch origin/$CURRENT_BRANCH does not contain the currently deployed commit."
+    echo "This would roll staging back or replace another in-progress staging branch."
+    echo "If this is an intentional rollback or branch switch, rerun with allow_non_fast_forward=true."
+    exit 1
+fi
 if [ "$LOCAL_HEAD" = "$REMOTE_HEAD" ]; then
     echo "Already up to date ($LOCAL_HEAD)"
 else
