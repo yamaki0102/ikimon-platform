@@ -370,28 +370,29 @@ export function renderFieldNoteMain(
 }
 
 export const FIELD_NOTE_MAIN_STYLES = `
-  .fn-main { margin-top: 24px; }
-  .fn-main-card { position: relative; padding: 32px 32px 28px; border-radius: 32px; background: linear-gradient(180deg,#ffffff 0%, #f8fafc 100%); border: 1px solid rgba(15,23,42,.05); box-shadow: 0 26px 64px rgba(15,23,42,.07); overflow: hidden; }
+  .fn-main { margin-top: 14px; }
+  .fn-main-card { position: relative; padding: 28px 28px 24px; border-radius: 24px; background: linear-gradient(180deg,#ffffff 0%, #f8fafc 100%); border: 1px solid rgba(15,23,42,.05); box-shadow: 0 26px 64px rgba(15,23,42,.07); overflow: hidden; }
   .fn-main-card::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 40px, rgba(14,165,233,.05) 41px, transparent 42px); pointer-events: none; }
   .fn-main-card::after { content: ""; position: absolute; inset: 0 auto 0 22px; width: 2px; background: linear-gradient(180deg, rgba(239,68,68,.24), rgba(239,68,68,.1)); pointer-events: none; }
   .fn-main-card > * { position: relative; z-index: 1; }
-  .fn-main-head { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; justify-content: flex-start; margin-bottom: 22px; padding-left: 18px; }
+  .fn-main-head { display: grid; grid-template-columns: minmax(0, 640px) auto; gap: 18px; align-items: end; justify-content: space-between; margin-bottom: 18px; padding-left: 18px; }
   .fn-main-head-copy { max-width: 640px; }
   .fn-main-eyebrow { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(16,185,129,.1); color: #059669; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
   .fn-main-heading { margin: 12px 0 10px; font-family: "Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif; font-size: clamp(26px,3.2vw,36px); font-weight: 900; letter-spacing: -.02em; line-height: 1.28; color: #0f172a; }
   .fn-main-lead { margin: 0; font-size: 15px; line-height: 1.85; color: #475569; max-width: 60ch; }
-  .fn-main-head-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; width: 100%; }
+  .fn-main-head-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0; width: auto; }
   .fn-main-head-actions .btn { padding: 13px 22px; }
   .fn-subhead { margin-top: 26px; margin-bottom: 12px; padding-left: 18px; }
   .fn-subhead h3 { margin: 0; font-family: "Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif; font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 2px solid rgba(16,185,129,.28); }
   .fn-grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding-left: 18px; }
   .fn-grid-compact { grid-template-columns: 1fr; }
-  .fn-grid-nearby { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }
+  .fn-grid-nearby { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: start; gap: 12px; }
   .fn-grid-nearby .obs-card-media { aspect-ratio: 4 / 3; }
+  .fn-grid-nearby .obs-card-meta { padding: 10px 12px !important; }
   .fn-empty { margin-left: 18px; padding: 18px 22px; border-radius: 18px; background: rgba(248,250,252,.8); color: #64748b; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .fn-empty p { margin: 0; flex: 1 1 240px; }
   .fn-empty .btn { flex-shrink: 0; }
-  .fn-hypothesis-wrap { margin-top: 20px; padding-left: 18px; }
+  .fn-hypothesis-wrap { max-width: 760px; margin-top: 18px; padding-left: 18px; }
   .fn-hypothesis-card { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(14,165,233,.06) 100%); border: 1px solid rgba(16,185,129,.18); font-size: 13px; }
   .fn-hypothesis-card.is-loading { color: #94a3b8; font-style: italic; }
   .fn-official-notice-slot { margin-top: 12px; }
@@ -415,9 +416,9 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-place-chip span { color: #64748b; font-weight: 600; }
   .fn-place-detail { color: #475569 !important; line-height: 1.45; }
   .fn-place-cta { margin-top: 6px; color: #0f172a !important; font-weight: 800 !important; }
-  .fn-ambient { margin-top: 28px; padding-top: 20px; padding-left: 18px; border-top: 1px dashed rgba(15,23,42,.08); }
+  .fn-ambient { margin-top: 22px; padding-top: 16px; padding-left: 18px; border-top: 1px dashed rgba(15,23,42,.08); }
   .fn-ambient-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; margin-bottom: 10px; }
-  .fn-ambient-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .fn-ambient-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
   .fn-ambient-item { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.05); text-decoration: none; color: inherit; transition: transform .15s ease, border-color .15s ease; }
   .fn-ambient-item:hover { transform: translateY(-1px); border-color: rgba(14,165,233,.28); }
   .fn-ambient-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg,#d1fae5,#bae6fd); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -428,9 +429,34 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-ambient-latest { font-size: 11px; color: #64748b; }
   @media (max-width: 860px) {
     .fn-main-card { padding: 24px 20px 22px; }
-    .fn-main-head { padding-left: 8px; }
+    .fn-main-head { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 18px; padding-left: 8px; }
     .fn-subhead, .fn-grid, .fn-place-row, .fn-empty, .fn-ambient { padding-left: 0; }
     .fn-main-head-actions { align-items: flex-start; min-width: 0; width: 100%; }
+  }
+  @media (max-width: 720px) {
+    .fn-main { margin-top: 8px; }
+    .fn-main-card { border-radius: 18px; padding: 22px 16px 20px; }
+    .fn-subhead { margin-top: 20px; margin-bottom: 10px; }
+    .fn-grid-nearby {
+      display: flex;
+      overflow-x: auto;
+      gap: 12px;
+      padding-bottom: 8px;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+    }
+    .fn-grid-nearby .obs-card {
+      flex: 0 0 min(76vw, 260px);
+      scroll-snap-align: start;
+    }
+    .fn-ambient-row {
+      display: flex;
+      overflow-x: auto;
+      gap: 10px;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+    .fn-ambient-item { flex: 0 0 min(72vw, 250px); }
   }
   ${OFFICIAL_NOTICE_CARD_STYLES}
 `;

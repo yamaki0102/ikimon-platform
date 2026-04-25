@@ -99,12 +99,12 @@ export function renderQuickNav(basePath: string, lang: SiteLang): string {
 }
 
 export const QUICK_NAV_STYLES = `
-  .quick-nav { margin-top: 18px; }
+  .quick-nav { margin-top: 14px; }
   .quick-nav-inner {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
-    max-width: 760px;
+    max-width: none;
   }
   .quick-nav-chip {
     display: flex;
@@ -141,4 +141,16 @@ export const QUICK_NAV_STYLES = `
   .quick-nav-chip-icon svg { display: block; }
   .quick-nav-chip.is-primary .quick-nav-chip-icon { background: rgba(255,255,255,.7); color: #065f46; }
   .quick-nav-chip-label { letter-spacing: -.01em; line-height: 1.35; }
+  @media (max-width: 1020px) {
+    .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 720px) {
+    .quick-nav { margin-top: 12px; }
+    .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .quick-nav-chip { min-height: 56px; padding: 10px; border-radius: 16px; }
+    .quick-nav-chip-icon { width: 34px; height: 34px; }
+  }
+  @media (max-width: 360px) {
+    .quick-nav-inner { grid-template-columns: 1fr; }
+  }
 `;
