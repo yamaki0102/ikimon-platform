@@ -64,3 +64,36 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
   assert.match(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
 });
+
+test("observation media uses v2 thumbnails for legacy upload photos", () => {
+  const legacyUploadSnapshot = {
+    ...snapshot,
+    photoAssets: [
+      {
+        assetId: "asset-legacy-upload",
+        url: "/uploads/photos/visit-1/photo_0.webp",
+        widthPx: 1200,
+        heightPx: 900,
+        roleTag: null,
+        roleTagSource: null,
+        organTarget: null,
+      },
+      {
+        assetId: "asset-legacy-upload-2",
+        url: "/uploads/photos/visit-1/photo_1.jpg",
+        widthPx: 1200,
+        heightPx: 900,
+        roleTag: null,
+        roleTagSource: null,
+        organTarget: null,
+      },
+    ],
+  } as unknown as ObservationDetailSnapshot;
+
+  const { mediaBlock } = renderObservationMedia(legacyUploadSnapshot, subject);
+
+  assert.match(mediaBlock, /src="\/thumb\/lg\/photos\/visit-1\/photo_0\.webp"/);
+  assert.match(mediaBlock, /data-obs-thumb-src="\/thumb\/lg\/photos\/visit-1\/photo_1\.jpg"/);
+  assert.match(mediaBlock, /src="\/thumb\/sm\/photos\/visit-1\/photo_1\.jpg"/);
+  assert.doesNotMatch(mediaBlock, /src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);
+});

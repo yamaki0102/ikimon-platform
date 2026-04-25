@@ -1,5 +1,6 @@
 import type { ObservationDetailSnapshot } from "../services/readModels.js";
 import type { ObservationVisitSubject, SubjectMediaRegionView } from "../services/observationVisitBundle.js";
+import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml } from "./siteShell.js";
 
 type PhotoAsset = ObservationDetailSnapshot["photoAssets"][number];
@@ -119,22 +120,31 @@ function photoSizeDataAttrs(asset: PhotoAsset): string {
     : "";
 }
 
+function photoDisplayUrl(asset: PhotoAsset, preset: "sm" | "lg"): string {
+  return toThumbnailUrl(asset.url, preset) ?? asset.url;
+}
+
 function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject): string {
   if (snapshot.photoAssets.length === 0) return "";
   const first = snapshot.photoAssets[0]!;
+  const firstDisplayUrl = photoDisplayUrl(first, "lg");
   const thumbsHtml = snapshot.photoAssets.length >= 2
-    ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => `
-         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(asset.url)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
-           <img src="${escapeHtml(asset.url)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
+    ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => {
+      const previewUrl = photoDisplayUrl(asset, "lg");
+      const thumbUrl = photoDisplayUrl(asset, "sm");
+      return `
+         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
+           <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
            <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
            <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
            <span hidden data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${renderObservationRegionBoxes(currentSubject, asset.assetId)}</span>
-         </button>`).join("")}</div>`
+         </button>`;
+    }).join("")}</div>`
     : "";
   return `<div class="obs-hero-gallery" data-obs-gallery>
     <div class="obs-hero-preview" data-obs-preview data-obs-preview-asset-id="${escapeHtml(first.assetId)}">
       <span class="obs-hero-image-frame" data-obs-image-frame>
-        <img src="${escapeHtml(first.url)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
+        <img src="${escapeHtml(firstDisplayUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
         <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderObservationRegionBoxes(currentSubject, first.assetId)}</span>
       </span>
       <button type="button" class="obs-hero-zoom" data-obs-zoom aria-label="画像を拡大">
