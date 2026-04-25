@@ -312,6 +312,14 @@ async function main(): Promise<void> {
       }
     }
 
+    const sourceTokenHashes = [
+      ...new Set(
+        tokens
+          .map((token) => token.token_hash)
+          .filter((tokenHash): tokenHash is string => typeof tokenHash === "string" && tokenHash !== ""),
+      ),
+    ];
+
     const actualCountsResult = await pool.query<{
       remember_tokens: string;
       track_visits: string;
@@ -322,7 +330,7 @@ async function main(): Promise<void> {
       evidence_assets_linked: string;
     }>(
       `select
-          (select count(*)::text from remember_tokens where token_family = 'legacy') as remember_tokens,
+          (select count(*)::text from remember_tokens where token_hash = any($1::text[])) as remember_tokens,
           (select count(*)::text from visits where source_kind = 'legacy_track_session') as track_visits,
           (select count(*)::text
            from visit_track_points vtp
@@ -356,6 +364,7 @@ async function main(): Promise<void> {
                where v.visit_id = ea.visit_id
                  and v.source_kind = 'legacy_observation'
            )) as evidence_assets_linked`,
+      [sourceTokenHashes],
     );
 
     const visitRows = await pool.query<{ legacy_observation_id: string; source_payload: JsonRecord | null }>(
@@ -389,7 +398,7 @@ async function main(): Promise<void> {
         observationsSampled: observations.length,
         observationsImportable: importableObservations.length,
         quarantinedNoPhotoObservations,
-        rememberTokens: tokens.length,
+        rememberTokens: sourceTokenHashes.length,
         trackVisits: tracks.length,
         trackPoints: tracks.reduce((sum, track) => sum + (Array.isArray(track.points) ? track.points.length : 0), 0),
         identificationCandidates: countIdentificationCandidates(observations),
