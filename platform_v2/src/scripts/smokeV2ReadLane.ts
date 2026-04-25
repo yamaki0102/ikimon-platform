@@ -87,43 +87,11 @@ async function main(): Promise<void> {
     }
 
     const baseUrl = options.baseUrl.replace(/\/+$/, "");
-    const coreChecks = [
-      {
-        name: "record",
-        url: `${baseUrl}/record?userId=${encodeURIComponent(userId)}`,
-        marker: "Quick capture",
-        allowedStatuses: [200],
-      },
-      {
-        name: "explore",
-        url: `${baseUrl}/explore`,
-        marker: "近くで見つかっているもの",
-        allowedStatuses: [200],
-      },
-      {
-        name: "home",
-        url: `${baseUrl}/home?userId=${encodeURIComponent(userId)}`,
-        marker: "My places",
-        allowedStatuses: [200],
-      },
-      {
-        name: "observation detail",
-        url: `${baseUrl}/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}`,
-        marker: "名前と分類",
-        allowedStatuses: [200],
-      },
-      {
-        name: "profile",
-        url: `${baseUrl}/profile/${encodeURIComponent(userId)}`,
-        marker: "最近の My places",
-        allowedStatuses: [200],
-      },
-    ];
     const registryChecks = listVisualQaPages()
       .map((page) => visualQaCheckForPage(baseUrl, page, { userId, visitId, occurrenceId }))
       .filter((check): check is NonNullable<typeof check> => Boolean(check));
     const seenUrls = new Set<string>();
-    const checks = [...coreChecks, ...registryChecks].filter((check) => {
+    const checks = registryChecks.filter((check) => {
       const key = `${check.url}::${check.marker}`;
       if (seenUrls.has(key)) return false;
       seenUrls.add(key);
