@@ -1,5 +1,5 @@
-import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
+import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import type { LandingSnapshot } from "../services/readModels.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "./placeRevisit.js";
 import { escapeHtml } from "./siteShell.js";
@@ -142,7 +142,7 @@ export function renderRevisitFlow(
   if (fresh.length === 0 && stale.length === 0) return "";
 
   const profileHrefBase = appendLangToHref(
-    withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.viewerUserId)}`),
+    buildObserverProfileHref(basePath, snapshot.viewerUserId) ?? "#",
     lang,
   );
 

@@ -2,6 +2,7 @@ import { withBasePath } from "../httpBasePath.js";
 import type { SiteLang } from "../i18n.js";
 import { appendLangToHref } from "../i18n.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
+import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import type { LandingObservation } from "../services/readModels.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml } from "./siteShell.js";
@@ -53,9 +54,7 @@ export function renderObservationCard(
     basePath,
     buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
   );
-  const profileHref = obs.observerUserId
-    ? withBasePath(basePath, `/profile/${encodeURIComponent(obs.observerUserId)}`)
-    : null;
+  const profileHref = buildObserverProfileHref(basePath, obs.observerUserId);
   const avatarBaseStyle = "width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(16,185,129,.2)";
   const avatar = obs.observerAvatarUrl
     ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" style="${avatarBaseStyle};object-fit:cover;background:#e2e8f0" />`

@@ -29,6 +29,7 @@ import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observatio
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
 import { getObserverStats } from "../services/observerStats.js";
+import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
@@ -42,6 +43,7 @@ import {
   getProfileSnapshot,
   getSpecialistSnapshot,
   type HomePlace,
+  type ProfileSnapshot,
 } from "../services/readModels.js";
 import {
   assertSpecialistAdminSession,
@@ -1203,6 +1205,41 @@ const PLACE_REVISIT_ROW_STYLES = `
     .row-place-actions { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
   }
 `;
+
+function renderProfileSnapshotBody(
+  basePath: string,
+  lang: SiteLang,
+  viewerUserId: string | null | undefined,
+  snapshot: ProfileSnapshot,
+  mode: "registered" | "guest" = "registered",
+): string {
+  const places = renderPlaceRows(
+    basePath,
+    lang,
+    viewerUserId,
+    snapshot.recentPlaces,
+    "まだ場所の記録はありません。",
+  );
+  const observations = snapshot.recentObservations.map((item) => `
+      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
+        <div>
+          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
+          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
+        </div>
+        <span class="pill">${item.identificationCount} ids</span>
+      </a>`).join("");
+  const guestIntro = mode === "guest"
+    ? `<section class="section"><div class="card is-soft"><div class="card-body stack">
+        <div class="eyebrow">Guest notebook</div>
+        <h2>匿名のまま残された、小さなフィールドノート</h2>
+        <p class="meta">Guest の記録はアカウントのプロフィールではなく、投稿された観察と場所の履歴だけで読める簡易ノートとして表示します。名前よりも、何を見つけ、どこを歩いたかを中心に残します。</p>
+      </div></div></section>`
+    : "";
+
+  return `${guestIntro}
+      <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`;
+}
 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
@@ -2473,7 +2510,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         <div class="obs-hero-meta">
           <h1 class="obs-hero-title">この観察で見えている生きもの</h1>
           <div class="obs-hero-byline">
-            <a class="obs-hero-observer" href="${escapeHtml(snapshot.observerUserId ? withBasePath(basePath, "/profile/" + encodeURIComponent(snapshot.observerUserId)) : "#")}">
+            <a class="obs-hero-observer" href="${escapeHtml(appendLangToHref(buildObserverProfileHref(basePath, snapshot.observerUserId) ?? "#", lang))}">
               ${snapshot.observerAvatarUrl
                 ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((snapshot.observerName || "?").slice(0, 1))}}))" />`
                 : `<span class="obs-hero-avatar">${escapeHtml((snapshot.observerName || "?").slice(0, 1))}</span>`}
@@ -2807,37 +2844,57 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
+  app.get<{ Params: { userId: string } }>("/guest/:userId", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    if (!request.params.userId.startsWith("guest_")) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return layout(basePath, "Guest notebook not found", stateCard("Guest ノートなし", "この Guest ノートは見つかりません", "Guest ノートのURLではない、または記録が非公開の可能性があります。"), "ホーム");
+    }
+    const snapshot = await getProfileSnapshot(request.params.userId);
+    if (!snapshot) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return layout(basePath, "Guest notebook not found", stateCard("Guest ノートなし", "この Guest ノートは見つかりません", "リンクが古い、または公開できる観察がまだありません。"), "ホーム");
+    }
+    const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      `${snapshot.displayName} notebook | ikimon`,
+      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot, "guest"),
+      "ホーム",
+      {
+        eyebrow: "Guest observer",
+        heading: snapshot.displayName,
+        headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
+        lead: "匿名の観察者が残した、最近の場所と観察のノート。",
+        actions: [
+          { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このGuestのホームを見る" },
+        ],
+      },
+      PLACE_REVISIT_ROW_STYLES,
+    );
+  });
+
   app.get<{ Params: { userId: string } }>("/profile/:userId", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    if (request.params.userId.startsWith("guest_")) {
+      const guestHref = appendLangToHref(withBasePath(basePath, `/guest/${encodeURIComponent(request.params.userId)}`), lang);
+      return reply.redirect(guestHref, 302);
+    }
     const snapshot = await getProfileSnapshot(request.params.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
     }
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-    const places = renderPlaceRows(
-      basePath,
-      lang,
-      viewerSession?.userId ?? null,
-      snapshot.recentPlaces,
-      "まだ場所の記録はありません。",
-    );
-    const observations = snapshot.recentObservations.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
-        <div>
-          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-        </div>
-        <span class="pill">${item.identificationCount} ids</span>
-      </a>`).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`,
+      renderProfileSnapshotBody(basePath, lang, viewerSession?.userId ?? null, snapshot),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "Observer",
@@ -2865,28 +2922,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
     }
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const places = renderPlaceRows(
-      basePath,
-      lang,
-      snapshot.userId,
-      snapshot.recentPlaces,
-      "まだ場所の記録はありません。",
-    );
-    const observations = snapshot.recentObservations.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
-        <div>
-          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-        </div>
-        <span class="pill">${item.identificationCount} ids</span>
-      </a>`).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`,
+      renderProfileSnapshotBody(basePath, lang, snapshot.userId, snapshot),
       "ホーム",
       {
         eyebrow: "あなたのプロフィール",

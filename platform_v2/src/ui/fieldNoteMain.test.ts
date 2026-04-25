@@ -56,6 +56,7 @@ const snapshot: LandingSnapshot = {
     userId: "user-1",
     displayName: "Nats",
     avatarUrl: null,
+    latestPhotoUrl: "/uploads/ambient-latest.jpg",
     latestObservedAt: "2026-04-08T09:00:00.000Z",
     latestDisplayName: "ショウジョウトンボ科",
   }],
@@ -76,4 +77,21 @@ test("field note public cards keep exact place out of the top page", () => {
   const html = renderFieldNoteMain("", "ja", snapshot);
   assert.match(html, /浜松市/);
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
+});
+
+test("field note guest ambient links open the guest notebook instead of a missing profile", () => {
+  const html = renderFieldNoteMain("", "ja", {
+    ...snapshot,
+    ambient: [{
+      userId: "guest_abc123",
+      displayName: "Guest",
+      avatarUrl: null,
+      latestPhotoUrl: "/uploads/guest-latest.jpg",
+      latestObservedAt: "2026-04-08T09:00:00.000Z",
+      latestDisplayName: "タンポポ属",
+    }],
+  });
+
+  assert.match(html, /href="\/guest\/guest_abc123\?lang=ja"/);
+  assert.doesNotMatch(html, /\/profile\/guest_abc123/);
 });

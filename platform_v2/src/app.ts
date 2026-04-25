@@ -19,6 +19,7 @@ import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
 import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
+import { buildObserverProfileHref } from "./services/observerProfileLink.js";
 import { getStrings } from "./i18n/index.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { COMMUNITY_METER_STYLES, renderCommunityMeter } from "./ui/communityMeter.js";
@@ -165,7 +166,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
     ? `/home?userId=${encodeURIComponent(options.userId)}`
     : "/home";
   const profileHref = options.userId
-    ? `/profile/${encodeURIComponent(options.userId)}`
+    ? buildObserverProfileHref("", options.userId) ?? "/profile"
     : "/profile";
   const detailHref = options.occurrenceId
     ? `/observations/${encodeURIComponent(options.occurrenceId)}`

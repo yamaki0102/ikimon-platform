@@ -2,6 +2,7 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
+import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import type { AmbientObserver, LandingObservation, LandingSnapshot } from "../services/readModels.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import {
@@ -225,9 +226,10 @@ function renderFieldNoteLiteObservationCard(
 }
 
 function renderFieldNoteLitePerson(basePath: string, lang: SiteLang, obs: AmbientObserver): string {
-  const href = appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(obs.userId)}`), lang);
-  const avatar = obs.avatarUrl
-    ? `<img src="${escapeHtml(obs.avatarUrl)}" alt="" loading="lazy" />`
+  const href = appendLangToHref(buildObserverProfileHref(basePath, obs.userId) ?? "#", lang);
+  const visualUrl = obs.latestPhotoUrl ?? obs.avatarUrl;
+  const avatar = visualUrl
+    ? `<img src="${escapeHtml(visualUrl)}" alt="" loading="lazy" />`
     : `<span class="fn-lite-person-placeholder">${escapeHtml(obs.displayName.slice(0, 1))}</span>`;
   return `<a class="fn-lite-person" href="${escapeHtml(href)}" title="${escapeHtml(obs.latestDisplayName)}">
     <span class="fn-lite-person-avatar">${avatar}</span>

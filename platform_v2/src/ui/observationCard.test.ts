@@ -40,3 +40,14 @@ test("renderObservationCard keeps canonical place line in owner mode", () => {
   assert.match(html, /浜松城公園 共生エリア/);
   assert.match(html, /浜松市/);
 });
+
+test("renderObservationCard links guest observers to notebook view", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    observerUserId: "guest_abc123",
+    observerName: "Guest",
+  }, { locationMode: "public" });
+
+  assert.match(html, /href="\/guest\/guest_abc123\?lang=ja"/);
+  assert.doesNotMatch(html, /\/profile\/guest_abc123/);
+});
