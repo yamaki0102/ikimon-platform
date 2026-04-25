@@ -803,14 +803,15 @@ if (!empty($_POST['taxon_name'])) {
 
 // Save to DataStore (partition by creation month, not observed_at)
 if (DataStore::append('observations', $observation)) {
+    $canonicalDualWriteEnabled = defined('CANONICAL_DUAL_WRITE_ENABLED') && CANONICAL_DUAL_WRITE_ENABLED;
     $canonicalWrite = [
         'success' => false,
-        'skipped' => !CANONICAL_DUAL_WRITE_ENABLED,
+        'skipped' => !$canonicalDualWriteEnabled,
         'event_id' => null,
         'occurrence_id' => null,
         'error' => null,
     ];
-    if (CANONICAL_DUAL_WRITE_ENABLED) {
+    if ($canonicalDualWriteEnabled) {
         try {
             $canonicalResult = CanonicalObservationWriter::writeFromObservation($observation);
             $canonicalWrite['success'] = true;

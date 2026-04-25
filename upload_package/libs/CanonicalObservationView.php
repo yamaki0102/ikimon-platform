@@ -7,7 +7,8 @@ class CanonicalObservationView
 {
     public static function hydrate(array $observation, bool $summaryMode = false): array
     {
-        if (!CANONICAL_READ_PILOT_ENABLED) {
+        $canonicalReadPilotEnabled = defined('CANONICAL_READ_PILOT_ENABLED') && CANONICAL_READ_PILOT_ENABLED;
+        if (!$canonicalReadPilotEnabled) {
             $observation['canonical_view'] = [
                 'enabled' => false,
                 'source' => 'json_only',
