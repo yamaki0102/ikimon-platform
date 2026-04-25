@@ -52,3 +52,28 @@ test("record route exposes quick revisit fields in staging mode", async () => {
     },
   );
 });
+
+test("record route gives unauthenticated visitors a start guide instead of a raw 401", async () => {
+  await withEnv(
+    {
+      ALLOW_QUERY_USER_ID: undefined,
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/record?lang=ja",
+          headers: { accept: "text/html" },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /記録を始める準備/);
+        assert.match(response.body, /名前が分からなくても、記録は始められる/);
+        assert.doesNotMatch(response.body, /Session required/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});

@@ -19,7 +19,7 @@ import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbn
  * reachable — path components are rejected if they try to escape.
  */
 
-const ALLOWED_PREFIXES = ["assets/", "robots.txt", "favicon.ico", "favicon.svg"];
+const ALLOWED_PREFIXES = ["assets/", "favicon.ico", "favicon.svg"];
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -97,7 +97,7 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
   });
 
   // Top-level singletons
-  for (const name of ["favicon.ico", "favicon.svg", "robots.txt"]) {
+  for (const name of ["favicon.ico", "favicon.svg"]) {
     app.get("/" + name, async (_request, reply) => {
       if (!allowPath(name)) {
         reply.code(404).type("text/plain").send("not found");

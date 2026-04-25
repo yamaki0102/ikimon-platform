@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import { getIdentificationConsensus } from "./identificationConsensus.js";
 
 /**
  * Environment flag (default on) for Phase γ role-coverage promotion path.
@@ -103,29 +104,17 @@ export async function tryAutoPromoteToTier1_5(occurrenceId: string): Promise<boo
 
 /**
  * Tier 2 → 3 promotion.
- * Criteria: ≥1 public-claim approval backed by authority/admin override AND has media.
+ * Criteria: media, no open dispute, interpretable taxonomy, and either
+ * authority-backed public-claim or community consensus within the precision
+ * policy ceiling.
  */
 export async function tryPromoteToTier3(occurrenceId: string): Promise<boolean> {
   const pool = getPool();
+  const consensus = await getIdentificationConsensus(occurrenceId, pool);
+  if (!consensus.canPromoteToTier3) return false;
+
   const client = await pool.connect();
   try {
-    const result = await client.query<{ approval_count: string; has_media: boolean }>(
-      `select
-         (select count(*) from identifications
-          where occurrence_id = $1
-            and actor_kind = 'human'
-            and is_current = true
-            and coalesce(source_payload->>'lane', '') = 'public-claim'
-            and coalesce(source_payload->>'review_class', '') in ('authority_backed', 'admin_override')) as approval_count,
-         exists(select 1 from evidence_assets where occurrence_id = $1) as has_media`,
-      [occurrenceId],
-    );
-    const row = result.rows[0];
-    if (!row) return false;
-
-    const approvals = Number(row.approval_count);
-    if (approvals < 1 || !row.has_media) return false;
-
     await client.query(
       `update occurrences set evidence_tier = 3, updated_at = now()
        where occurrence_id = $1 and evidence_tier < 3`,

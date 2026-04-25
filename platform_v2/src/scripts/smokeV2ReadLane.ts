@@ -1,4 +1,10 @@
 import { getPool } from "../db.js";
+import {
+  listVisualQaPages,
+  materializeSitePagePath,
+  sitePageLabel,
+  type SitePageDefinition,
+} from "../siteMap.js";
 
 type SmokeOptions = {
   baseUrl: string;
@@ -18,18 +24,40 @@ function parseArgs(argv: string[]): SmokeOptions {
   return options;
 }
 
-async function fetchHtml(url: string): Promise<string> {
+async function fetchHtml(url: string, allowedStatuses = [200]): Promise<{ html: string; status: number }> {
   const response = await fetch(url, {
     headers: {
       accept: "text/html",
     },
   });
 
-  if (!response.ok) {
+  if (!allowedStatuses.includes(response.status)) {
     throw new Error(`HTTP ${response.status} for ${url}`);
   }
 
-  return response.text();
+  return { html: await response.text(), status: response.status };
+}
+
+function visualQaCheckForPage(
+  baseUrl: string,
+  page: SitePageDefinition,
+  context: { userId: string; visitId: string; occurrenceId: string },
+): { name: string; url: string; marker: string; allowedStatuses: number[] } | null {
+  const qa = page.visualQa;
+  if (!qa?.smoke) {
+    return null;
+  }
+  const requires = qa.requires ?? "none";
+  if ((requires === "user" && !context.userId) || (requires === "occurrence" && !context.occurrenceId)) {
+    return null;
+  }
+  const path = materializeSitePagePath(page, context);
+  return {
+    name: `visual:${sitePageLabel(page)}`,
+    url: `${baseUrl.replace(/\/+$/, "")}${path}${path.includes("?") ? "&" : "?"}lang=ja`,
+    marker: qa.expectedText.ja,
+    allowedStatuses: qa.allowStatus ?? [200],
+  };
 }
 
 async function main(): Promise<void> {
@@ -37,8 +65,8 @@ async function main(): Promise<void> {
   const pool = getPool();
 
   try {
-    const latestOccurrence = await pool.query<{ occurrence_id: string }>(
-      `select occurrence_id
+    const latestOccurrence = await pool.query<{ occurrence_id: string; visit_id: string }>(
+      `select occurrence_id, visit_id
        from occurrences
        order by created_at desc
        limit 1`,
@@ -51,52 +79,69 @@ async function main(): Promise<void> {
     );
 
     const occurrenceId = latestOccurrence.rows[0]?.occurrence_id ?? "";
+    const visitId = latestOccurrence.rows[0]?.visit_id ?? "";
     const userId = latestUser.rows[0]?.user_id ?? "";
 
-    if (!occurrenceId || !userId) {
+    if (!occurrenceId || !visitId || !userId) {
       throw new Error("smoke requires at least one occurrence and one user");
     }
 
-    const checks = [
+    const baseUrl = options.baseUrl.replace(/\/+$/, "");
+    const coreChecks = [
       {
         name: "record",
-        url: `${options.baseUrl.replace(/\/+$/, "")}/record?userId=${encodeURIComponent(userId)}`,
+        url: `${baseUrl}/record?userId=${encodeURIComponent(userId)}`,
         marker: "Quick capture",
+        allowedStatuses: [200],
       },
       {
         name: "explore",
-        url: `${options.baseUrl.replace(/\/+$/, "")}/explore`,
+        url: `${baseUrl}/explore`,
         marker: "近くで見つかっているもの",
+        allowedStatuses: [200],
       },
       {
         name: "home",
-        url: `${options.baseUrl.replace(/\/+$/, "")}/home?userId=${encodeURIComponent(userId)}`,
+        url: `${baseUrl}/home?userId=${encodeURIComponent(userId)}`,
         marker: "My places",
+        allowedStatuses: [200],
       },
       {
         name: "observation detail",
-        url: `${options.baseUrl.replace(/\/+$/, "")}/observations/${encodeURIComponent(occurrenceId)}`,
-        marker: "Identifications",
+        url: `${baseUrl}/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}`,
+        marker: "名前と分類",
+        allowedStatuses: [200],
       },
       {
         name: "profile",
-        url: `${options.baseUrl.replace(/\/+$/, "")}/profile/${encodeURIComponent(userId)}`,
+        url: `${baseUrl}/profile/${encodeURIComponent(userId)}`,
         marker: "最近の My places",
+        allowedStatuses: [200],
       },
     ];
+    const registryChecks = listVisualQaPages()
+      .map((page) => visualQaCheckForPage(baseUrl, page, { userId, visitId, occurrenceId }))
+      .filter((check): check is NonNullable<typeof check> => Boolean(check));
+    const seenUrls = new Set<string>();
+    const checks = [...coreChecks, ...registryChecks].filter((check) => {
+      const key = `${check.url}::${check.marker}`;
+      if (seenUrls.has(key)) return false;
+      seenUrls.add(key);
+      return true;
+    });
 
     const results: Array<{ name: string; url: string; ok: boolean; error?: string }> = [];
     let failed = false;
 
     for (const check of checks) {
       try {
-        const html = await fetchHtml(check.url);
+        const { html, status } = await fetchHtml(check.url, check.allowedStatuses);
         if (!html.includes(check.marker)) {
           results.push({ name: check.name, url: check.url, ok: false, error: `marker_missing:${check.marker}` });
           failed = true;
           continue;
         }
-        results.push({ name: check.name, url: check.url, ok: true });
+        results.push({ name: check.name, url: check.url, ok: true, error: status === 200 ? undefined : `status:${status}` });
       } catch (error) {
         results.push({
           name: check.name,
@@ -111,6 +156,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({
       baseUrl: options.baseUrl,
       occurrenceId,
+      visitId,
       userId,
       checks: results,
       status: failed ? "failed" : "passed",

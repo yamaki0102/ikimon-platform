@@ -1026,6 +1026,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
     placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
     selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
+    identifyLabel: props.lang === "ja" ? "同定する" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
     selectedFieldLabel: props.lang === "ja" ? "この場所で次に見る" : props.lang === "es" ? "Qué mirar aquí" : props.lang === "pt-BR" ? "O que ver aqui" : "What to look for here",
     selectedRoleLead: props.lang === "ja" ? "次は" : props.lang === "es" ? "Siguiente" : props.lang === "pt-BR" ? "Próximo" : "Next",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
@@ -1500,6 +1501,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? '<img class="me-selected-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
       : '';
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
+    var identifyHref = href + '#identify';
     selectedCardEl.innerHTML =
       '<div class="me-map-card">' +
         photo +
@@ -1512,6 +1514,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '</div>' +
         '<div class="me-selected-actions">' +
           '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.selectedCardLabel) + '</a>' +
+          '<a class="inline-link" href="' + identifyHref + '">' + escapeHtml(COPY.identifyLabel) + '</a>' +
           '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
         '</div>' +
         '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
@@ -1619,6 +1622,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderObservationActions(record) {
     var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />' : '';
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
+    var identifyHref = href + '#identify';
     var bottomBadge = record.isAiCandidate
       ? '<span class="me-result-ai">AI候補</span>'
       : record.isAwaitingId
@@ -1633,6 +1637,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '</div>' +
       '<div class="me-bottom-actions">' +
         '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
+      '<a class="inline-link" href="' + identifyHref + '">' + escapeHtml(COPY.identifyLabel) + '</a>' +
       '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
       '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '</div>';

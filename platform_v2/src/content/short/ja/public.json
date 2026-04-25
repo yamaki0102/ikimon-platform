@@ -184,24 +184,24 @@
         "bodyPageId": "faq"
       },
       "privacy": {
-        "title": "Privacy Policy | ikimon",
-        "eyebrow": "Trust",
+        "title": "プライバシー | ikimon",
+        "eyebrow": "安心して記録する",
         "heading": "プライバシーポリシー",
         "lead": "記録を残すために必要なデータを扱いながら、希少種や個人の行動が見えすぎないよう公開範囲を分けています。",
         "activeNav": "learn",
         "bodyPageId": "privacy"
       },
       "terms": {
-        "title": "Terms | ikimon",
-        "eyebrow": "Trust",
+        "title": "利用規約 | ikimon",
+        "eyebrow": "安心して使うために",
         "heading": "利用規約",
         "lead": "安全に記録を残し、他の人や生きものに不利益が出ないように使っていただくための要点です。",
         "activeNav": "learn",
         "bodyPageId": "terms"
       },
       "contact": {
-        "title": "Contact | ikimon",
-        "eyebrow": "Contact",
+        "title": "お問い合わせ | ikimon",
+        "eyebrow": "お問い合わせ",
         "heading": "お問い合わせ",
         "lead": "ikimon に関するご質問を受け付けています。個人の利用相談を基本にしつつ、学校や地域で使いたい方向けの窓口も案内しています。",
         "activeNav": "learn",
@@ -209,7 +209,7 @@
       },
       "community": {
         "title": "みんなで調べる | ikimon",
-        "eyebrow": "Community",
+        "eyebrow": "みんなで調べる",
         "heading": "観察会やテーマ調査に参加する",
         "lead": "一人で歩く楽しさを入口にしながら、ときどき誰かと同じ場所を見ます。観察会、テーマ調査、地域の小さな企画をここに集めます。",
         "activeNav": "community",
@@ -231,7 +231,7 @@
         ]
       },
       "forBusinessPricing": {
-        "title": "For Business Pricing | ikimon",
+        "title": "連携の始め方 | ikimon",
         "eyebrow": "団体相談",
         "heading": "連携の始め方",
         "lead": "最初から重い契約を結ぶより、まずは場所ごとに始めて、必要な運用だけを段階的に足す方針です。",
@@ -239,7 +239,7 @@
         "bodyPageId": "for-business-pricing"
       },
       "forBusinessDemo": {
-        "title": "For Business Demo | ikimon",
+        "title": "団体向け画面デモ | ikimon",
         "eyebrow": "団体相談",
         "heading": "実際の画面で、始め方を確認する",
         "lead": "営業用の別画面ではなく、実際に公開している画面を見ていただきます。どこでどう始めるかを把握しやすくするためのページです。",
@@ -247,7 +247,7 @@
         "bodyPageId": "for-business-demo"
       },
       "forBusinessStatus": {
-        "title": "For Business Status | ikimon",
+        "title": "相談前の確認 | ikimon",
         "eyebrow": "団体相談",
         "heading": "相談前に知っておきたいこと",
         "lead": "団体向けは、専用画面の販売より先に、どこでどう始めるかを整理する段階です。今できることと、これから整えることをまとめています。",
@@ -255,7 +255,7 @@
         "bodyPageId": "for-business-status"
       },
       "forBusinessApply": {
-        "title": "For Business Apply | ikimon",
+        "title": "団体相談フォーム | ikimon",
         "eyebrow": "団体相談",
         "heading": "学校や地域で始めたいときの相談窓口",
         "lead": "導入相談、共同実証、対象場所の選定、初回観察導線の設計などを受け付けています。個人利用と無料開始には申し込み不要です。",

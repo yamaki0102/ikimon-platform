@@ -16,6 +16,16 @@ import { registerGuideApiRoutes } from "./routes/guideApi.js";
 import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
+import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
+import {
+  listPagesByLane,
+  listPagesByVisibility,
+  materializeSitePagePath,
+  sitePageLabel,
+  sitePageSummary,
+  type RouteLane,
+  type SitePageDefinition,
+} from "./siteMap.js";
 import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
@@ -38,6 +48,7 @@ import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 type PreviewContext = {
   basePath: string;
   userId: string;
+  visitId: string;
   occurrenceId: string;
   usesDemoFixture: boolean;
   stats: {
@@ -91,6 +102,77 @@ function buildFlowLink(basePath: string, href: string, label: string, note: stri
     <p>${escapeHtml(note)}</p>
     <span>Open</span>
   </a>`;
+}
+
+const QA_LANE_ORDER: RouteLane[] = ["start", "learn", "trust", "group", "business", "research", "specialist", "ops"];
+
+const QA_LANE_META: Record<RouteLane, { eyebrow: string; title: string; lead: string }> = {
+  start: {
+    eyebrow: "start",
+    title: "Start / Core Journey",
+    lead: "トップから記録、地図、探索、ノート、詳細へ進む主導線。",
+  },
+  learn: {
+    eyebrow: "learn",
+    title: "Learn / About",
+    lead: "使い方、名前の調べ方、研究と信頼性を読むための公開ページ。",
+  },
+  trust: {
+    eyebrow: "trust",
+    title: "Trust / Legal / Contact",
+    lead: "FAQ、公開範囲、規約、問い合わせまでの信頼形成ページ。",
+  },
+  group: {
+    eyebrow: "group",
+    title: "Community",
+    lead: "一人の観察を主役にした、薄いつながりの入口。",
+  },
+  business: {
+    eyebrow: "business",
+    title: "Group / Business",
+    lead: "学校・地域・団体利用の相談導線。",
+  },
+  research: {
+    eyebrow: "research",
+    title: "Research",
+    lead: "研究利用の目的とデータ粒度を相談する入口。",
+  },
+  specialist: {
+    eyebrow: "specialist",
+    title: "Specialist Review",
+    lead: "同定レビューと authority 周りの権限付き画面。",
+  },
+  ops: {
+    eyebrow: "ops",
+    title: "Ops / Release Gate",
+    lead: "ステージング確認、health、ready を見る運用導線。",
+  },
+};
+
+function materializeQaHref(page: SitePageDefinition, options: PreviewContext): string {
+  if (page.path === "/profile/:userId" && options.userId) {
+    return buildObserverProfileHref("", options.userId) ?? materializeSitePagePath(page, options);
+  }
+  if (page.path === "/observations/:id" && !options.visitId && !options.occurrenceId) {
+    return "/explore";
+  }
+  return materializeSitePagePath(page, options);
+}
+
+function qaStatusNote(page: SitePageDefinition, lang: SiteLang): string {
+  const note = sitePageSummary(page, lang);
+  switch (page.auth) {
+    case "session":
+      return `${note} / 未セッション時は案内画面か 401 想定。`;
+    case "specialist":
+      return `${note} / 権限なしは案内つき 403 想定。`;
+    case "admin":
+      return `${note} / 管理権限なしは案内つき 403 想定。`;
+    case "system":
+      return `${note} / JSON health endpoint。`;
+    default:
+      return note;
+  }
 }
 
 function buildLandingRootHtml(
@@ -158,72 +240,67 @@ ${mapMiniBootScript()}`,
 }
 
 function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath: string): string {
-  const copy = getShortCopy<QASiteMapCopy>(lang, "ops", "qaSiteMap");
-  const recordHref = options.userId
-    ? `/record?userId=${encodeURIComponent(options.userId)}`
-    : "/record";
-  const homeHref = options.userId
-    ? `/home?userId=${encodeURIComponent(options.userId)}`
-    : "/home";
-  const profileHref = options.userId
-    ? buildObserverProfileHref("", options.userId) ?? "/profile"
-    : "/profile";
-  const detailHref = options.occurrenceId
-    ? `/observations/${encodeURIComponent(options.occurrenceId)}`
-    : "/explore";
-  const sectionHrefs: string[][] = [
-    [recordHref, detailHref, homeHref, profileHref, "/explore"],
-    copy.sections[1]?.cards.map((card) => card.href) ?? [],
-    copy.sections[2]?.cards.map((card) => card.href) ?? [],
-    copy.sections[3]?.cards.map((card) => card.href) ?? [],
-  ];
-  const heroActions = copy.hero.actions.map((action, index) => ({
-    href: index === 1 ? recordHref : action.href,
-    label: action.label,
-    variant: action.variant,
-  }));
-  const sectionsHtml = copy.sections
-    .map((section, sectionIndex) => `<section class="section">
+  const recordPage = listPagesByVisibility("qa").find((page) => page.path === "/record");
+  const recordHref = recordPage ? materializeQaHref(recordPage, options) : "/record";
+  const sectionsHtml = QA_LANE_ORDER.map((lane) => {
+    const pages = listPagesByLane(lane, "qa");
+    if (pages.length === 0) {
+      return "";
+    }
+    const meta = QA_LANE_META[lane];
+    return `<section class="section">
       <div class="section-header">
         <div>
-          <div class="eyebrow">${escapeHtml(section.eyebrow)}</div>
-          <h2>${escapeHtml(section.title)}</h2>
-          <p>${escapeHtml(section.lead)}</p>
+          <div class="eyebrow">${escapeHtml(meta.eyebrow)}</div>
+          <h2>${escapeHtml(meta.title)}</h2>
+          <p>${escapeHtml(meta.lead)}</p>
         </div>
       </div>
       <div class="grid">
-        ${section.cards.map((card, cardIndex) => buildFlowLink(options.basePath, sectionHrefs[sectionIndex]?.[cardIndex] ?? card.href, card.label, card.note)).join("")}
+        ${pages.map((page) => buildFlowLink(
+          options.basePath,
+          materializeQaHref(page, options),
+          sitePageLabel(page, lang),
+          qaStatusNote(page, lang),
+        )).join("")}
       </div>
-      ${section.note ? `<div class="note">${escapeHtml(section.note)}</div>` : ""}
-    </section>`)
+    </section>`;
+  })
     .join("");
   const checklistHtml = `<section class="section">
       <div class="section-header">
         <div>
-          <div class="eyebrow">${escapeHtml(copy.checklist.eyebrow)}</div>
-          <h2>${escapeHtml(copy.checklist.title)}</h2>
-          <p>${escapeHtml(copy.checklist.lead)}</p>
+          <div class="eyebrow">checklist</div>
+          <h2>人間確認で見るべきこと</h2>
+          <p>トップ基準の画面品質にそろっているかを、導線・状態・文体の3つで見る。</p>
         </div>
       </div>
       <div class="list">
-        ${copy.checklist.items.map((item) => `<div class="row"><strong>${escapeHtml(item.title)}</strong><div class="meta">${escapeHtml(item.body)}</div></div>`).join("")}
+        <div class="row"><strong>Visual</strong><div class="meta">hero・card・button の崩れ、英日混在、CTA 密度、モバイル幅での詰まり。</div></div>
+        <div class="row"><strong>Transition</strong><div class="meta">主要導線が 200 / redirect / 401 / 403 の想定どおりか。迷子導線や dead end がないか。</div></div>
+        <div class="row"><strong>State</strong><div class="meta">未ログイン・権限不足・空状態が、雑なエラーではなく案内として読めるか。</div></div>
+        <div class="row"><strong>Legacy drift</strong><div class="meta">旧 PHP URL が v2 の正規ページへ 308 redirect されるか。</div></div>
       </div>
     </section>`;
 
   return renderSiteDocument({
     basePath: options.basePath,
-    title: copy.title,
+    title: "サイトマップ (運用向け) | ikimon",
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
     hero: {
-      eyebrow: copy.hero.eyebrow,
-      heading: copy.hero.heading,
-      lead: copy.hero.lead,
-      actions: heroActions,
+      eyebrow: "staging qa",
+      heading: "ページ遷移と確認面を、1枚で把握する。",
+      lead: "Canonical sitemap から生成した人間確認用マップです。存在すべきページ、認証状態、旧 URL の寄せ先を同じ基準で確認できます。",
+      actions: [
+        { href: "/", label: "Preview top" },
+        { href: recordHref, label: "Start at record", variant: "secondary" },
+        { href: "/sitemap.xml", label: "XML sitemap", variant: "secondary" },
+      ],
     },
     body: `${sectionsHtml}${checklistHtml}`,
-    footerNote: copy.footerNote,
+    footerNote: "Canonical route registry drives this QA sitemap, XML sitemap, robots.txt, and shared navigation.",
   });
 }
 
@@ -231,6 +308,7 @@ async function getPreviewContext(): Promise<PreviewContext> {
   const empty: PreviewContext = {
     basePath: "",
     userId: "",
+    visitId: "",
     occurrenceId: "",
     usesDemoFixture: false,
     stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
@@ -251,11 +329,12 @@ async function getPreviewContext(): Promise<PreviewContext> {
     limit 1
   `;
   const demoOccurrenceQuery = `
-    select occurrence_id
+    select occurrence_id, visit_id
     from occurrences
     where occurrence_id like 'occ:sample-cadence-%'
        or occurrence_id like 'occ:staging-session-smoke-%'
        or occurrence_id like 'occ:staging-write-smoke-%'
+       or occurrence_id like 'occ:authority-%'
     order by created_at desc
     limit 1
   `;
@@ -266,7 +345,7 @@ async function getPreviewContext(): Promise<PreviewContext> {
     limit 1
   `;
   const latestOccurrenceQuery = `
-    select occurrence_id
+    select occurrence_id, visit_id
     from occurrences
     order by created_at desc
     limit 1
@@ -279,16 +358,16 @@ async function getPreviewContext(): Promise<PreviewContext> {
   `;
 
   let demoUser: { rows: Array<{ user_id: string }> } = { rows: [] };
-  let demoOccurrence: { rows: Array<{ occurrence_id: string }> } = { rows: [] };
+  let demoOccurrence: { rows: Array<{ occurrence_id: string; visit_id: string }> } = { rows: [] };
   let latestUser: { rows: Array<{ user_id: string }> } = { rows: [] };
-  let latestOccurrence: { rows: Array<{ occurrence_id: string }> } = { rows: [] };
+  let latestOccurrence: { rows: Array<{ occurrence_id: string; visit_id: string }> } = { rows: [] };
   let statsResult: { rows: Array<{ observation_count: number; species_count: number; place_count: number }> } = { rows: [] };
   try {
     [demoUser, demoOccurrence, latestUser, latestOccurrence, statsResult] = await Promise.all([
       pool.query<{ user_id: string }>(demoUserQuery),
-      pool.query<{ occurrence_id: string }>(demoOccurrenceQuery),
+      pool.query<{ occurrence_id: string; visit_id: string }>(demoOccurrenceQuery),
       pool.query<{ user_id: string }>(latestUserQuery),
-      pool.query<{ occurrence_id: string }>(latestOccurrenceQuery),
+      pool.query<{ occurrence_id: string; visit_id: string }>(latestOccurrenceQuery),
       pool.query<{ observation_count: number; species_count: number; place_count: number }>(statsQuery),
     ]);
   } catch {
@@ -296,12 +375,15 @@ async function getPreviewContext(): Promise<PreviewContext> {
   }
 
   const userId = demoUser.rows[0]?.user_id ?? latestUser.rows[0]?.user_id ?? "";
-  const occurrenceId = demoOccurrence.rows[0]?.occurrence_id ?? latestOccurrence.rows[0]?.occurrence_id ?? "";
+  const occurrenceRow = demoOccurrence.rows[0] ?? latestOccurrence.rows[0];
+  const visitId = occurrenceRow?.visit_id ?? "";
+  const occurrenceId = occurrenceRow?.occurrence_id ?? "";
 
   const row = statsResult.rows[0];
   return {
     basePath: "",
     userId,
+    visitId,
     occurrenceId,
     usesDemoFixture: Boolean(demoUser.rows[0]?.user_id || demoOccurrence.rows[0]?.occurrence_id),
     stats: {
@@ -352,6 +434,7 @@ export function buildApp() {
   });
 
   void registerHealthRoutes(app);
+  void registerSiteMapRoutes(app);
   void registerLegacyAssetRoutes(app);
   void registerMapApiRoutes(app);
   void registerMarketingRoutes(app);

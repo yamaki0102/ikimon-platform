@@ -45,7 +45,7 @@ export function renderObservationCard(
   basePath: string,
   lang: SiteLang,
   obs: LandingObservation,
-  options: { compact?: boolean; locationMode?: "public" | "owner" } = {},
+  options: { compact?: boolean; locationMode?: "public" | "owner"; showSpecialistCta?: boolean } = {},
 ): string {
   const entryType = obs.entryType ?? "observation";
   const kind = kindCopy[lang][entryType];
@@ -53,6 +53,11 @@ export function renderObservationCard(
   const detailHref = withBasePath(
     basePath,
     buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
+  );
+  const identifyHref = appendLangToHref(`${detailHref}#identify`, lang);
+  const specialistHref = appendLangToHref(
+    withBasePath(basePath, `/specialist/id-workbench?occurrenceId=${encodeURIComponent(obs.featuredOccurrenceId ?? obs.occurrenceId)}`),
+    lang,
   );
   const profileHref = buildObserverProfileHref(basePath, obs.observerUserId);
   const avatarBaseStyle = "width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(16,185,129,.2)";
@@ -127,6 +132,10 @@ export function renderObservationCard(
       </div>
       <div style="color:#475569 !important;font-size:12.5px;font-weight:600;line-height:1.5">📍 ${escapeHtml(placeLine || "Unknown place")}</div>
       ${focusMeta}
+      <div class="obs-card-actions">
+        <a href="${escapeHtml(identifyHref)}">同定する</a>
+        ${options.showSpecialistCta ? `<a href="${escapeHtml(specialistHref)}">専門レビュー</a>` : ""}
+      </div>
     </footer>
   </article>`;
 }
@@ -183,6 +192,9 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-stability { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-weight: 800; background: rgba(15,23,42,.06); color: #334155; }
   .obs-card-stability.is-locked { background: rgba(16,185,129,.12); color: #047857; }
   .obs-card-stability.is-adaptive { background: rgba(59,130,246,.12); color: #1d4ed8; }
+  .obs-card-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 8px; margin-top: 10px; }
+  .obs-card-actions a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 14px; background: rgba(14,165,233,.1); color: #0369a1 !important; font-size: 12px; line-height: 1.2; font-weight: 900; text-align: center; text-decoration: none; }
+  .obs-card-actions a:hover { background: rgba(14,165,233,.18); }
   .obs-card-tier { position: absolute; right: 10px; top: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(15,23,42,.62); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .05em; backdrop-filter: blur(6px); }
   .obs-card.is-identification .obs-card-tier { background: rgba(14,165,233,.7); }
   .obs-card.is-identification { border-color: rgba(14,165,233,.26); box-shadow: 0 6px 18px rgba(14,165,233,.12); }

@@ -30,6 +30,7 @@ type RecentObservation = {
   publicLocation: PublicLocationSummary;
   photoUrl: string | null;
   identificationCount: number;
+  openDisputeCount?: number;
 };
 
 export type HomePlace = {
@@ -104,6 +105,16 @@ export type ObservationDetailSnapshot = {
     proposedRank: string | null;
     acceptedRank: string | null;
     notes: string | null;
+    actorName: string;
+    createdAt: string;
+  }>;
+  disputes: Array<{
+    disputeId: string;
+    kind: string;
+    proposedName: string | null;
+    proposedRank: string | null;
+    reason: string | null;
+    status: string;
     actorName: string;
     createdAt: string;
   }>;
@@ -832,6 +843,32 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     [base.occurrence_id],
   );
 
+  const disputesResult = await pool.query<{
+    dispute_id: string;
+    kind: string;
+    proposed_name: string | null;
+    proposed_rank: string | null;
+    reason: string | null;
+    status: string;
+    actor_name: string | null;
+    created_at: string;
+  }>(
+    `select d.dispute_id::text,
+            d.kind,
+            d.proposed_name,
+            d.proposed_rank,
+            d.reason,
+            d.status,
+            coalesce(u.display_name, 'Community') as actor_name,
+            d.created_at::text
+       from identification_disputes d
+       left join users u on u.user_id = d.actor_user_id
+      where d.occurrence_id = $1
+      order by case when d.status = 'open' then 0 else 1 end, d.created_at desc
+      limit 8`,
+    [base.occurrence_id],
+  );
+
   const photoAssets = photosResult.rows
     .map((row) => {
       const normalizedUrl = normalizeAssetUrl(row.photo_url);
@@ -935,6 +972,16 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
       proposedRank: row.proposed_rank,
       acceptedRank: row.accepted_rank,
       notes: row.notes,
+      actorName: row.actor_name ?? "Community",
+      createdAt: row.created_at,
+    })),
+    disputes: disputesResult.rows.map((row) => ({
+      disputeId: row.dispute_id,
+      kind: row.kind,
+      proposedName: row.proposed_name,
+      proposedRank: row.proposed_rank,
+      reason: row.reason,
+      status: row.status,
       actorName: row.actor_name ?? "Community",
       createdAt: row.created_at,
     })),
@@ -1050,6 +1097,7 @@ export async function getSpecialistSnapshot(
       vernacular_name: string | null;
       ai_taxon_name: string | null;
       evidence_tier: string | null;
+      open_dispute_count: string;
     }>(
       `select
           o.occurrence_id,
@@ -1068,7 +1116,8 @@ export async function getSpecialistSnapshot(
           o.scientific_name,
           o.vernacular_name,
           coalesce(ai.recommended_taxon_name, ai.best_specific_taxon_name) as ai_taxon_name,
-          o.evidence_tier::text
+          o.evidence_tier::text,
+          dispute.open_dispute_count::text
        from occurrences o
        join visits v on v.visit_id = o.visit_id
        left join users u on u.user_id = v.user_id
@@ -1083,6 +1132,12 @@ export async function getSpecialistSnapshot(
          limit 1
        ) photo on true
        left join lateral (
+         select count(*)::int as open_dispute_count
+           from identification_disputes d
+          where d.occurrence_id = o.occurrence_id
+            and d.status = 'open'
+       ) dispute on true
+       left join lateral (
          select recommended_taxon_name, best_specific_taxon_name
          from observation_ai_assessments a
          where a.occurrence_id = o.occurrence_id
@@ -1092,10 +1147,15 @@ export async function getSpecialistSnapshot(
        where
          case
            when $1 = 'public-claim' then coalesce(o.evidence_tier, 0) >= 2 and coalesce(o.evidence_tier, 0) < 3
-           when $1 = 'expert-lane' then coalesce(o.evidence_tier, 0) < 2
+           when $1 = 'expert-lane' then coalesce(dispute.open_dispute_count, 0) > 0 or coalesce(o.evidence_tier, 0) < 2 or photo.public_url is null
            else true
          end
        order by
+         case
+           when $1 = 'expert-lane' and coalesce(dispute.open_dispute_count, 0) > 0 then 0
+           when $1 = 'expert-lane' and photo.public_url is null then 1
+           else 2
+         end asc,
          case
            when $1 = 'expert-lane' then (
              select count(*)
@@ -1155,6 +1215,7 @@ export async function getSpecialistSnapshot(
       }),
       photoUrl: normalizeAssetUrl(row.photo_url),
       identificationCount: Number(row.identification_count),
+      openDisputeCount: Number(row.open_dispute_count ?? 0),
     })),
   };
 }

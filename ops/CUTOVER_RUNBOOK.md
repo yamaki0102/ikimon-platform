@@ -19,6 +19,31 @@ staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える
 - staging browser verify secrets: `STAGING_BASIC_AUTH_USER`, `STAGING_BASIC_AUTH_PASS`
 - deploy-staging は `pre-flight` → `deploy` → `verify-ssh` → `verify-e2e` で止める
 
+### Release gate: registry sitemap smoke
+
+staging 反映後、production cutover 判断の前に `platform_v2/src/siteMap.ts` の canonical registry から生成される巡回 smoke を必ず通す。`.github/workflows/deploy-staging.yml` の `verify-e2e` job でも `npm run e2e:staging:site-map` を実行する。baseline PNG が commit されている場合は、workflow が `VISUAL_QA_ASSERT_SCREENSHOTS=1` に切り替えて visual diff まで実行する。
+
+```bash
+cd platform_v2
+npm run e2e:staging:site-map
+```
+
+この gate は `/`, `/learn`, `/record`, `/map`, `/explore`, `/notes`, `/community`, `/for-business`, `/specialist/id-workbench` に加えて、QA sitemap から実データの `/home`, `/profile/:userId`, `/observations/:id?subject=:occurrenceId` を解決する。desktop `1440x1200` / mobile `390x844` の対象 viewport で、期待テキスト、許容 status、ready selector、横スクロールなしを確認する。失敗時は release blocker として扱う。
+
+screenshot baseline を承認済みの環境では、同じ registry smoke で visual diff も有効化する。
+
+```bash
+cd platform_v2
+VISUAL_QA_ASSERT_SCREENSHOTS=1 npm run e2e:staging:site-map
+```
+
+baseline を更新する場合は、差分理由を PR に明記したうえで次を実行し、生成された `e2e/sitemap-registry-visual.staging.spec.ts-snapshots/*.png` をレビュー対象に含める。
+
+```bash
+cd platform_v2
+VISUAL_QA_ASSERT_SCREENSHOTS=1 npm run e2e:staging:site-map -- --update-snapshots
+```
+
 ## production v2 の canonical runtime
 
 - unit references: `ops/deploy/ikimon_v2_blue.service`, `ops/deploy/ikimon_v2_green.service`

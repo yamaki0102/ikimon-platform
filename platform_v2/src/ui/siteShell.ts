@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
+import { listPagesByLane, listPagesByVisibility, sitePageLabel, type RouteLane, type SitePageDefinition } from "../siteMap.js";
 
 export type SiteAction = {
   href: string;
@@ -43,12 +44,7 @@ type ShellCopy = {
   searchPlaceholder: string;
   searchLabel: string;
   menu: string;
-  nav: {
-    home: string;
-    explore: string;
-    places: string;
-    community: string;
-  };
+  nav: Record<string, string>;
   record: string;
   footer: {
     tagline: string;
@@ -91,18 +87,12 @@ export function escapeHtml(value: string | null | undefined): string {
 }
 
 function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {
-  const copy = shellCopyFor(lang);
-  const links = [
-    { href: withBasePath(basePath, "/"), label: copy.nav.home },
-    { href: withBasePath(basePath, "/explore"), label: copy.nav.explore },
-    { href: withBasePath(basePath, "/notes"), label: copy.nav.places },
-    { href: withBasePath(basePath, "/community"), label: copy.nav.community },
-  ];
-
-  return links
-    .map((link) => {
-      const activeClass = activeNav === link.label ? " is-active" : "";
-      return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(link.href, lang))}">${escapeHtml(link.label)}</a>`;
+  return listPagesByVisibility("header")
+    .map((page) => {
+      const label = sitePageLabel(page, lang);
+      const activeClass = activeNav === label ? " is-active" : "";
+      const href = withBasePath(basePath, page.path);
+      return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(href, lang))}">${escapeHtml(label)}</a>`;
     })
     .join("");
 }
@@ -201,8 +191,25 @@ function hero(basePath: string, content?: SiteHero): string {
   </section>`;
 }
 
+function footerGroupPages(lanes: RouteLane[], limit: number): SitePageDefinition[] {
+  return lanes.flatMap((lane) => listPagesByLane(lane, "footer")).slice(0, limit);
+}
+
+function renderFooterLinks(basePath: string, lang: SiteLang, pages: SitePageDefinition[]): string {
+  return pages
+    .map((page) => {
+      const href = appendLangToHref(withBasePath(basePath, page.path), lang);
+      return `<a href="${escapeHtml(href)}">${escapeHtml(sitePageLabel(page, lang))}</a>`;
+    })
+    .join("");
+}
+
 function footer(basePath: string, lang: SiteLang, _footerNote?: string): string {
   const copy = shellCopyFor(lang);
+  const startPages = footerGroupPages(["start"], 5);
+  const learnPages = footerGroupPages(["learn"], 5);
+  const areaPages = footerGroupPages(["group", "business", "research"], 5);
+  const trustPages = footerGroupPages(["trust"], 5);
   return `<footer class="site-footer">
     <div class="footer-inner">
       <section class="footer-hero" aria-label="フッター案内">
@@ -247,38 +254,25 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
         <div class="footer-group">
           <strong><i>REC</i>使う</strong>
           <nav class="footer-links" aria-label="使う">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.footer.startLinks.record)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.nav.places === "ノート" ? "地図で見る" : copy.footer.startLinks.discover)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/explore"), lang))}">探す</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/community"), lang))}">コミュニティ</a>
+            ${renderFooterLinks(basePath, lang, startPages)}
           </nav>
         </div>
         <div class="footer-group">
           <strong><i>READ</i>${escapeHtml(copy.footer.learn)}</strong>
           <nav class="footer-links" aria-label="${escapeHtml(copy.footer.learn)}">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/field-loop"), lang))}">観察の流れ</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/identification-basics"), lang))}">名前の調べ方</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/methodology"), lang))}">方法論</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">更新情報</a>
+            ${renderFooterLinks(basePath, lang, learnPages)}
           </nav>
         </div>
         <div class="footer-group">
           <strong><i>AREA</i>広げる</strong>
           <nav class="footer-links" aria-label="広げる">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/for-business"), lang))}">${escapeHtml(copy.footer.trustLinks.business)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/community"), lang))}">地域で使う</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/for-researcher/apply"), lang))}">研究利用</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a>
+            ${renderFooterLinks(basePath, lang, areaPages)}
           </nav>
         </div>
         <div class="footer-group">
           <strong><i>SAFE</i>確認する</strong>
           <nav class="footer-links" aria-label="確認する">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/faq"), lang))}">${escapeHtml(copy.footer.learnLinks.faq)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/about"), lang))}">ikimon.lifeについて</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/privacy"), lang))}">${escapeHtml(copy.footer.trustLinks.privacy)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/terms"), lang))}">${escapeHtml(copy.footer.trustLinks.terms)}</a>
+            ${renderFooterLinks(basePath, lang, trustPages)}
           </nav>
         </div>
       </section>

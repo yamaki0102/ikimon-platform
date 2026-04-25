@@ -22,6 +22,13 @@ import {
   type AuthorityRecommendationSourceKind,
 } from "../services/authorityRecommendations.js";
 import { recordSpecialistReview, type SpecialistDecision, type SpecialistLane } from "../services/specialistReview.js";
+import {
+  openObservationDispute,
+  resolveIdentificationDispute,
+  submitObservationIdentification,
+  type DisputeResolution,
+  type PublicIdentificationStance,
+} from "../services/identificationParticipation.js";
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
@@ -60,6 +67,7 @@ function errorStatus(error: unknown, fallback = 400): number {
   }
   if (
     error.message === "observation_not_found" ||
+    error.message === "dispute_not_found" ||
     error.message === "video_not_found" ||
     error.message === "observation_video_not_found" ||
     error.message === "authority_recommendation_not_found"
@@ -215,6 +223,70 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  app.post<{
+    Params: { id: string };
+    Body: {
+      proposedName?: string | null;
+      proposedRank?: string | null;
+      notes?: string | null;
+      stance?: PublicIdentificationStance;
+    };
+  }>("/api/v1/observations/:id/identifications", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      const stance = request.body?.stance === "alternative" ? "alternative" : "support";
+      return await submitObservationIdentification({
+        occurrenceId: request.params.id,
+        actorUserId: session.userId,
+        proposedName: request.body?.proposedName ?? "",
+        proposedRank: request.body?.proposedRank ?? null,
+        notes: request.body?.notes ?? null,
+        stance,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "identification_submit_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      kind?: "alternative_id" | "needs_more_evidence" | "not_organism" | "location_date_issue";
+      proposedName?: string | null;
+      proposedRank?: string | null;
+      reason?: string | null;
+    };
+  }>("/api/v1/observations/:id/disputes", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      const kind = request.body?.kind ?? "alternative_id";
+      return await openObservationDispute({
+        occurrenceId: request.params.id,
+        actorUserId: session.userId,
+        kind,
+        proposedName: request.body?.proposedName ?? null,
+        proposedRank: request.body?.proposedRank ?? null,
+        reason: request.body?.reason ?? null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "dispute_submit_failed",
+      };
+    }
+  });
+
   app.post<{ Body: TrackUpsertInput }>("/api/v1/tracks/upsert", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
@@ -365,6 +437,33 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "specialist_review_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      actorUserId?: string | null;
+      resolution: DisputeResolution;
+      note?: string | null;
+    };
+  }>("/api/v1/specialist/disputes/:id/resolve", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const actorUserId = request.body.actorUserId ?? session?.userId ?? "";
+      const resolvedSession = await assertSpecialistSession(session, actorUserId);
+      return await resolveIdentificationDispute({
+        disputeId: request.params.id,
+        actorUserId: resolvedSession.userId,
+        resolution: request.body.resolution,
+        note: request.body.note ?? null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "dispute_resolve_failed",
       };
     }
   });

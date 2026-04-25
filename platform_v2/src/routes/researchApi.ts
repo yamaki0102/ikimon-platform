@@ -16,6 +16,8 @@ type OccurrenceRow = {
   municipality: string | null;
   observer_name: string | null;
   photo_url: string | null;
+  consensus_status: string;
+  identification_verification_status: string;
 };
 
 export function registerResearchApiRoutes(app: FastifyInstance): void {
@@ -32,7 +34,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
   app.get("/api/v1/research/occurrences", async (request, reply) => {
     const query = request.query as Record<string, string>;
 
-    const tierGte = Math.max(1, Math.min(3, Number(query.tier_gte ?? 3)));
+    const tierGte = Math.max(1, Math.min(4, Number(query.tier_gte ?? 3)));
     const limit   = Math.min(1000, Math.max(1, Number(query.limit ?? 100)));
     const offset  = Math.max(0, Number(query.offset ?? 0));
 
@@ -69,7 +71,17 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            coalesce(p.canonical_name, 'Unknown') as place_name,
            coalesce(v.observed_municipality, p.municipality)     as municipality,
            coalesce(u.display_name, 'Anonymous')                 as observer_name,
-           photo.public_url                                       as photo_url
+           photo.public_url                                       as photo_url,
+           case
+             when id_meta.authority_count > 0 then 'authority_backed'
+             when id_meta.current_count >= 2 then 'community_consensus'
+             else 'tier_gate'
+           end as consensus_status,
+           case
+             when id_meta.authority_count > 0 then 'authority_reviewed'
+             when id_meta.current_count >= 2 then 'community_consensus'
+             else 'tier3_export_candidate'
+           end as identification_verification_status
          from occurrences o
          join visits v on v.visit_id = o.visit_id
          left join places p on p.place_id = v.place_id
@@ -82,8 +94,26 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
              and ea.asset_role = 'observation_photo'
            order by ea.created_at asc limit 1
          ) photo on true
+         left join lateral (
+           select
+             count(*)::int as current_count,
+             count(*) filter (
+               where coalesce(source_payload->>'lane', '') = 'public-claim'
+                 and coalesce(source_payload->>'reviewClass', source_payload->>'review_class', '') in ('authority_backed', 'admin_override')
+             )::int as authority_count
+           from identifications i
+           where i.occurrence_id = o.occurrence_id
+             and i.actor_kind = 'human'
+             and coalesce(i.is_current, true) = true
+         ) id_meta on true
          where o.evidence_tier >= $1
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and not exists (
+             select 1
+               from identification_disputes d
+              where d.occurrence_id = o.occurrence_id
+                and d.status = 'open'
+           )
            ${whereExtra}
          order by v.observed_at desc
          limit $2 offset $3`,
@@ -108,6 +138,8 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
         basisOfRecord:        "HumanObservation",
         datasetName:          "ikimon Field Loop",
         license:              "CC-BY",
+        consensusStatus:      row.consensus_status,
+        identificationVerificationStatus: row.identification_verification_status,
       }));
 
       reply.header("Cache-Control", "public, max-age=300");

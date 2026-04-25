@@ -324,6 +324,20 @@ jobs:
         working-directory: platform_v2
         run: npx playwright install --with-deps chromium
 
+      - name: Run staging registry sitemap smoke
+        working-directory: platform_v2
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: |
+          if [ -d e2e/sitemap-registry-visual.staging.spec.ts-snapshots ] && find e2e/sitemap-registry-visual.staging.spec.ts-snapshots -name '*.png' -print -quit | grep -q .; then
+            VISUAL_QA_ASSERT_SCREENSHOTS=1 npm run e2e:staging:site-map
+          else
+            npm run e2e:staging:site-map
+          fi
+
       - name: Run staging browser E2E
         working-directory: platform_v2
         env:

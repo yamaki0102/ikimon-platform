@@ -3,7 +3,7 @@ import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
-import { getSessionFromCookie } from "../services/authSession.js";
+import { getSessionFromCookie, type SessionSnapshot } from "../services/authSession.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import {
   getReviewerAccessContext,
@@ -28,6 +28,7 @@ import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
+import { getIdentificationConsensus, type IdentificationConsensusResult } from "../services/identificationConsensus.js";
 import { getObserverStats } from "../services/observerStats.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
@@ -351,6 +352,52 @@ function formatAbsolute(dateStr: string | null | undefined): string {
   return `${y}.${mo}.${da} ${hh}:${mi}`;
 }
 
+function canUseSpecialistWorkbench(session: SessionSnapshot | null | undefined): boolean {
+  if (!session || session.banned) return false;
+  const role = `${session.roleName ?? ""} ${session.rankLabel ?? ""}`.toLowerCase();
+  return /admin|analyst|specialist|reviewer|authority|expert|curator/.test(role);
+}
+
+function consensusStatusLabel(status: IdentificationConsensusResult["consensusStatus"] | null | undefined): string {
+  switch (status) {
+    case "community_consensus":
+      return "分類合意あり";
+    case "authority_backed":
+      return "専門確認あり";
+    case "open_dispute":
+      return "反対意見あり";
+    case "gbif_match_failed":
+      return "分類名の照合待ち";
+    case "lineage_conflict":
+      return "分類系列の整理待ち";
+    case "single_identification":
+      return "同定1件";
+    default:
+      return "同定待ち";
+  }
+}
+
+function verificationStatusLabel(status: IdentificationConsensusResult["identificationVerificationStatus"] | null | undefined): string {
+  switch (status) {
+    case "authority_reviewed":
+      return "authority / expert review 済み";
+    case "community_consensus":
+      return "community consensus 済み";
+    case "blocked_open_dispute":
+      return "open dispute により保留";
+    case "blocked_taxonomy_match":
+      return "GBIF backbone 照合待ち";
+    case "blocked_lineage_conflict":
+      return "分類系列の衝突を確認中";
+    case "needs_media":
+      return "証拠メディア待ち";
+    case "needs_identification":
+      return "同定待ち";
+    default:
+      return "追加レビュー待ち";
+  }
+}
+
 const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
   .obs-hero { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 18px; margin-bottom: 30px; }
@@ -481,6 +528,50 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-id-meta { font-size: 11.5px; color: #64748b; font-weight: 700; margin-top: 3px; }
   .obs-id-note { margin: 6px 0 0; color: #475569; font-size: 13px; line-height: 1.6; }
   .obs-empty { color: #94a3b8; font-size: 13.5px; text-align: center; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px dashed rgba(15,23,42,.1); }
+  .obs-identify-panel { grid-column: 1 / -1; border-color: rgba(14,165,233,.18); background: linear-gradient(180deg, #ffffff, #f8fafc); }
+  .obs-identify-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .obs-identify-pill { display: inline-flex; align-items: center; min-height: 30px; padding: 5px 12px; border-radius: 999px; background: rgba(14,165,233,.1); color: #0369a1; font-size: 11.5px; font-weight: 900; white-space: nowrap; }
+  .obs-consensus-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .obs-consensus-card { display: grid; gap: 5px; padding: 13px 14px; border-radius: 13px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-consensus-card span { font-size: 10.5px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+  .obs-consensus-card strong { font-size: 14px; color: #0f172a; line-height: 1.45; }
+  .obs-needed-box { padding: 13px 15px; border-radius: 13px; background: rgba(254,249,195,.62); border: 1px solid rgba(234,179,8,.22); }
+  .obs-needed-box ul { margin: 6px 0 0; padding-left: 18px; color: #713f12; font-size: 13px; line-height: 1.7; }
+  .obs-identify-split { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 880px) { .obs-identify-split { grid-template-columns: .92fr 1.08fr; } }
+  .obs-identify-split h3 { margin: 0 0 9px; font-size: 14px; color: #0f172a; font-weight: 900; }
+  .obs-dispute-list { display: grid; gap: 8px; }
+  .obs-dispute-item { padding: 12px 13px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-dispute-item.is-open { border-color: rgba(239,68,68,.28); background: rgba(254,242,242,.72); }
+  .obs-dispute-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .obs-dispute-top strong { font-size: 13px; color: #0f172a; }
+  .obs-dispute-top span { padding: 2px 8px; border-radius: 999px; background: rgba(15,23,42,.08); color: #475569; font-size: 10px; font-weight: 900; }
+  .obs-dispute-name { margin-top: 5px; font-size: 13px; font-weight: 900; color: #991b1b; }
+  .obs-dispute-item p { margin: 6px 0 0; color: #475569; font-size: 12.5px; line-height: 1.6; }
+  .obs-identify-form { display: grid; gap: 11px; }
+  .obs-identify-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 720px) { .obs-identify-fields { grid-template-columns: 1fr 160px; } .obs-identify-fields .is-wide { grid-column: 1 / -1; } }
+  .obs-identify-fields label { display: grid; gap: 5px; font-size: 12px; font-weight: 900; color: #334155; }
+  .obs-identify-fields input, .obs-identify-fields textarea { width: 100%; border: 1px solid rgba(15,23,42,.14); border-radius: 12px; padding: 12px 13px; font: inherit; background: #fff; color: #0f172a; }
+  .obs-identify-fields input { min-height: 50px; }
+  .obs-identify-fields textarea { min-height: 104px; resize: vertical; }
+  .obs-identify-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .obs-identify-actions .btn { min-height: 52px; padding-inline: 16px; }
+  .obs-identify-status { min-height: 32px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 800; }
+  .obs-identify-status.is-error { color: #b91c1c; background: #fef2f2; }
+  .obs-identify-login { padding: 13px 14px; border-radius: 12px; background: #f8fafc; border: 1px dashed rgba(15,23,42,.14); }
+  .obs-identify-login p { margin: 5px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.6; }
+  .obs-specialist-link { display: inline-flex; margin-top: 10px; font-weight: 900; color: #0369a1; text-decoration: none; }
+  @media (max-width: 640px) {
+    .obs-identify-panel { padding: 16px; border-radius: 16px; }
+    .obs-identify-head { flex-direction: column; align-items: stretch; }
+    .obs-identify-pill { align-self: flex-start; min-height: 34px; }
+    .obs-consensus-grid { grid-template-columns: 1fr; }
+    .obs-identify-actions { display: grid; grid-template-columns: 1fr; }
+    .obs-identify-actions .btn { width: 100%; min-height: 56px; white-space: normal; border-radius: 14px; }
+    .obs-needed-box { padding: 12px 13px; }
+    .obs-identify-split { gap: 18px; }
+  }
 
   /* ADR-0004: 主種 + 共生種グリッド */
   .obs-subjects { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 8px; }
@@ -509,7 +600,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-seasonal-bar::before { content: ""; display: block; width: 100%; height: var(--h, 0%); background: linear-gradient(180deg, #f59e0b, #fbbf24); border-radius: 3px 3px 0 0; min-height: 2px; }
 
   .obs-cta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-  .obs-cta-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px; border-radius: 14px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid rgba(16,185,129,.15); text-decoration: none; color: #064e3b; font-weight: 800; transition: transform .15s ease; }
+  .obs-cta-item { min-height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 12px; border-radius: 14px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid rgba(16,185,129,.15); text-decoration: none; color: #064e3b; font-weight: 800; transition: transform .15s ease; }
   .obs-cta-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16,185,129,.12); }
   .obs-cta-icon { font-size: 26px; }
   .obs-cta-label { font-size: 13px; text-align: center; }
@@ -621,10 +712,10 @@ const OBSERVATION_DETAIL_STYLES = `
 
 function stateCard(eyebrow: string, title: string, body: string): string {
   return `<section class="section">
-    <div class="card is-soft">
+    <div class="card is-soft" style="padding:24px;border-radius:24px;background:linear-gradient(135deg,rgba(236,253,245,.92),rgba(240,249,255,.94));border:1px solid rgba(16,185,129,.18);box-shadow:0 16px 36px rgba(15,23,42,.06)">
       <div class="eyebrow">${escapeHtml(eyebrow)}</div>
       <h2 style="margin-top:8px">${escapeHtml(title)}</h2>
-      <p style="margin-top:8px;color:#475569;line-height:1.7">${body}</p>
+      <div style="margin-top:8px;color:#475569;line-height:1.7">${body}</div>
     </div>
   </section>`;
 }
@@ -1009,7 +1100,68 @@ function renderRoleCoverageStrip(photoAssets: { roleTag: string | null }[] | nul
     </div>
     <div class="obs-role-cov-bar"><span style="width:${pct}%"></span></div>
     <div class="obs-role-cov-chips">${chips}</div>
-  </div>`;
+    </div>`;
+}
+
+const START_STATE_STYLES = `
+  .start-guide { display: grid; gap: 20px; }
+  .start-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .start-guide-card { min-height: 168px; padding: 22px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
+  .start-guide-card strong { display: block; margin: 8px 0; color: #0f172a; font-size: 18px; }
+  .start-guide-card p { margin: 0; color: #64748b; font-size: 13.5px; line-height: 1.75; }
+  .start-guide-panel { padding: 24px; border-radius: 24px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
+  .start-guide-panel h2 { margin: 8px 0; color: #0f172a; }
+  .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
+  .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  @media (max-width: 820px) { .start-guide-grid { grid-template-columns: 1fr; } }
+`;
+
+function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
+  const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
+    ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
+    : "";
+  return renderSiteDocument({
+    basePath,
+    title: "記録を始める準備 | ikimon",
+    activeNav: "記録する",
+    lang,
+    currentPath: withBasePath(basePath, "/record"),
+    extraStyles: START_STATE_STYLES,
+    hero: {
+      eyebrow: "record",
+      heading: "記録を始める準備",
+      lead: "名前が分からなくても、記録は始められる。写真、場所、時刻、ひとことメモがあれば、今日の発見はあとから育てられます。",
+      tone: "light",
+      align: "center",
+      actions: [
+        { href: "/", label: "トップへ戻る", variant: "secondary" },
+        { href: "/learn/identification-basics", label: "名前の調べ方を見る", variant: "secondary" },
+      ],
+    },
+    body: `<div class="start-guide">
+      <section class="section">
+        <div class="start-guide-grid">
+          <div class="start-guide-card"><div class="eyebrow">photo</div><strong>まず写真を残す</strong><p>全体、近くから見た特徴、いた場所の雰囲気を残すと、あとから確かめやすくなります。</p></div>
+          <div class="start-guide-card"><div class="eyebrow">place</div><strong>場所と時間を残す</strong><p>散歩道、公園、水辺、庭先など、どこでいつ見たかが記録の価値を支えます。</p></div>
+          <div class="start-guide-card"><div class="eyebrow">note</div><strong>分からないまま書く</strong><p>名前が未確定でも、色、動き、数、周りの環境を短く書けば次の確認につながります。</p></div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="start-guide-panel">
+          <div class="eyebrow">sign in required</div>
+          <h2>記録本体は、セッションがあると開きます。</h2>
+          <p>観察はあとから見返せる個人ノートとして残すため、投稿画面はログイン済みの状態で使います。未ログイン時は、ここで準備だけ確認できます。</p>
+          <div class="start-guide-actions">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/faq"))}">FAQを見る</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/map"))}">地図を見る</a>
+          </div>
+          ${qaHint}
+        </div>
+      </section>
+    </div>`,
+    footerNote: "記録はログイン後に保存されます。未ログイン時は、準備と使い方を先に確認できます。",
+  });
 }
 
 function renderShotSuggestionsCard(
@@ -1139,6 +1291,111 @@ function renderSubjectTaxonomy(
     </section>`;
 }
 
+function renderIdentificationParticipation(options: {
+  basePath: string;
+  snapshot: NonNullable<Awaited<ReturnType<typeof getObservationDetailSnapshot>>>;
+  consensus: IdentificationConsensusResult | null;
+  viewerSession: SessionSnapshot | null;
+  canUseSpecialistWorkbench: boolean;
+}): string {
+  const { basePath, snapshot, consensus, viewerSession } = options;
+  const community = consensus?.communityTaxon;
+  const currentConsensus = community
+    ? `${community.name}（${rankLabelJa(community.rank)}、${community.supporterCount}名 / ${Math.round(community.supportRatio * 100)}%）`
+    : "まだ分類系列上の合意点はありません";
+  const targetLabel = snapshot.scientificName
+    ? `${snapshot.displayName} · ${snapshot.scientificName}`
+    : snapshot.displayName;
+  const needed = consensus?.neededEvidence.length
+    ? consensus.neededEvidence
+    : ["独立した同定、根拠メモ、または専門家レビューを追加する"];
+  const defaultName = snapshot.scientificName || (snapshot.displayName === "同定待ち" ? "" : snapshot.displayName);
+  const defaultRank = snapshot.scientificName ? "species" : "";
+  const endpointId = encodeURIComponent(snapshot.occurrenceId);
+  const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${endpointId}/identifications`);
+  const disputeEndpoint = withBasePath(basePath, `/api/v1/observations/${endpointId}/disputes`);
+  const specialistHref = withBasePath(basePath, `/specialist/id-workbench?occurrenceId=${endpointId}`);
+  const disputes = snapshot.disputes.length > 0
+    ? `<div class="obs-dispute-list">
+        ${snapshot.disputes.map((item) => `
+          <div class="obs-dispute-item${item.status === "open" ? " is-open" : ""}">
+            <div class="obs-dispute-top">
+              <strong>${escapeHtml(item.kind === "alternative_id" ? "別分類の提案" : item.kind === "needs_more_evidence" ? "証拠不足" : item.kind)}</strong>
+              <span>${escapeHtml(item.status)}</span>
+            </div>
+            ${item.proposedName ? `<div class="obs-dispute-name">${escapeHtml(item.proposedName)}${item.proposedRank ? ` · ${escapeHtml(item.proposedRank)}` : ""}</div>` : ""}
+            ${item.reason ? `<p>${escapeHtml(item.reason)}</p>` : ""}
+            <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
+          </div>`).join("")}
+       </div>`
+    : `<p class="obs-empty">反対意見はまだありません。別分類や証拠不足に気づいたら、ここから記録できます。</p>`;
+
+  const form = viewerSession
+    ? `<form class="obs-identify-form" data-identify-form data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}">
+        <div class="obs-identify-fields">
+          <label><span>提案する名前</span><input name="proposedName" type="text" value="${escapeHtml(defaultName)}" placeholder="例: Pieris rapae / モンシロチョウ" /></label>
+          <label><span>分類階級</span><input name="proposedRank" type="text" value="${escapeHtml(defaultRank)}" placeholder="species / genus / family" /></label>
+          <label class="is-wide"><span>根拠メモ</span><textarea name="notes" rows="3" placeholder="見えた形質、似ている種との差、追加で必要な写真など"></textarea></label>
+        </div>
+        <div class="obs-identify-actions">
+          <button type="button" class="btn btn-solid" data-identify-action="support">同じだと思う</button>
+          <button type="button" class="btn secondary" data-identify-action="alternative">別の分類だと思う</button>
+          <button type="button" class="btn secondary" data-identify-action="needs_more_evidence">証拠が足りない</button>
+          <button type="button" class="btn secondary" data-identify-action="note">根拠メモを追加</button>
+        </div>
+        <div class="obs-identify-status" data-identify-status>Ready.</div>
+      </form>`
+    : `<div class="obs-identify-login">
+        <strong>ログインすると同定・反対意見を書けます。</strong>
+        <p>閲覧だけならこのまま見られます。書き込みは、誰の判断かを追跡するため session が必要です。</p>
+       </div>`;
+
+  return `<section id="identify" class="section obs-layer obs-identify-panel">
+    <div class="obs-identify-head">
+      <div>
+        <div class="obs-story-eyebrow">Identification consensus</div>
+        <h2 class="obs-layer-title">同定に参加</h2>
+      </div>
+      <span class="obs-identify-pill">${escapeHtml(consensusStatusLabel(consensus?.consensusStatus))}</span>
+    </div>
+    <div class="obs-consensus-grid">
+      <div class="obs-consensus-card">
+        <span>いま判断する対象</span>
+        <strong>${escapeHtml(targetLabel)}</strong>
+      </div>
+      <div class="obs-consensus-card">
+        <span>現在の合意分類</span>
+        <strong>${escapeHtml(currentConsensus)}</strong>
+      </div>
+      <div class="obs-consensus-card">
+        <span>研究公開ゲート</span>
+        <strong>${escapeHtml(verificationStatusLabel(consensus?.identificationVerificationStatus))}</strong>
+      </div>
+      <div class="obs-consensus-card">
+        <span>精度ポリシー</span>
+        <strong>${escapeHtml(consensus ? `${rankLabelJa(consensus.precisionCeilingRank)}まで市民合意可` : "確認中")}</strong>
+      </div>
+    </div>
+    <div class="obs-needed-box">
+      <div class="obs-story-eyebrow">次に必要な証拠</div>
+      <ul>${needed.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    </div>
+    <div class="obs-identify-split">
+      <div>
+        <h3>反対意見</h3>
+        ${disputes}
+      </div>
+      <div>
+        <h3>この観察に判断を足す</h3>
+        ${form}
+        ${options.canUseSpecialistWorkbench
+          ? `<a class="obs-specialist-link" href="${escapeHtml(specialistHref)}">specialist batch review で開く</a>`
+          : ""}
+      </div>
+    </div>
+  </section>`;
+}
+
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
   return getForwardedBasePath(request.headers);
 }
@@ -1221,13 +1478,16 @@ function renderProfileSnapshotBody(
     "まだ場所の記録はありません。",
   );
   const observations = snapshot.recentObservations.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
+      <div class="row">
         <div>
-          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
+          <a style="font-weight:800;color:inherit;text-decoration:none" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">${escapeHtml(item.displayName)}</a>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
         </div>
-        <span class="pill">${item.identificationCount} ids</span>
-      </a>`).join("");
+        <div class="actions">
+          <span class="pill">${item.identificationCount} ids</span>
+          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + "#identify")}">同定する</a>
+        </div>
+      </div>`).join("");
   const guestIntro = mode === "guest"
     ? `<section class="section"><div class="card is-soft"><div class="card-body stack">
         <div class="eyebrow">Guest notebook</div>
@@ -1251,22 +1511,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const viewerUserId = resolution.viewerUserId ?? "";
     const queryUserId = resolution.queryOverrideHonored ? resolution.requestedUserId : "";
     if (!viewerUserId) {
-      reply.code(401).type("text/html; charset=utf-8");
-      return layout(
-        basePath,
-        "Session required",
-        stateCard(
-          "Session required",
-          "記録するにはサインインが必要です",
-          `<p style="margin:0 0 12px">ログイン済みのセッションがまだありません。</p>
-          <div class="actions" style="margin-top:16px">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/faq"))}">サインイン方法</a>
-          </div>
-          ${process.env.ALLOW_QUERY_USER_ID === "1" ? `<p class="meta" style="margin-top:16px;font-size:12px;color:#94a3b8">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>` : ""}`,
-        ),
-        "Record",
-      );
+      reply.type("text/html; charset=utf-8");
+      return renderRecordStartGuide(basePath, lang);
     }
 
     reply.type("text/html; charset=utf-8");
@@ -2114,6 +2360,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/explore", async (_request, reply) => {
     const basePath = requestBasePath(_request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((_request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(_request.headers.cookie);
     const explorePageCopy = getShortCopy<any>(lang, "public", "read.explore");
     const snapshot = await getExploreSnapshot();
     const cards = snapshot.recentObservations.map((item) =>
@@ -2139,7 +2386,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         longitude: null,
         observerUserId: null,
         observerAvatarUrl: null,
-      }, { locationMode: "public" }),
+      }, { locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }),
     ).join("");
     const municipalities = snapshot.municipalities.map((item) => `
       <div class="row">
@@ -2216,7 +2463,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         longitude: null,
         observerUserId: null,
         observerAvatarUrl: null,
-      }, { locationMode: "public" }),
+      }, { locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }),
     ).join("");
     const myPlaces = renderPlaceRows(
       basePath,
@@ -2294,7 +2541,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Observation not found", stateCard("対象が見つかりません", "この観察の subject を表示できません", "subject 情報がまだ同期中の可能性があります。"), "みつける");
     }
 
-    const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult] = await Promise.all([
+    const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult, consensus] = await Promise.all([
       getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
       subjectCount >= 2 ? Promise.resolve(null) : getReactionSummary(bundle.canonicalSubjectId, viewerUserId).catch(() => null),
@@ -2315,7 +2562,34 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       typeof snapshot.latitude === "number" && typeof snapshot.longitude === "number"
         ? getSiteBrief(snapshot.latitude, snapshot.longitude, "ja").catch(() => null)
         : Promise.resolve(null),
+      getIdentificationConsensus(bundle.canonicalSubjectId).catch(() => null),
     ]);
+    const subjectIdentifyEntries = await Promise.all(
+      bundle.subjects.map(async (subject) => {
+        if (subject.occurrenceId === snapshot.occurrenceId) {
+          return [subject.occurrenceId, { snapshot, consensus }] as const;
+        }
+        const [subjectSnapshot, subjectConsensus] = await Promise.all([
+          getObservationDetailSnapshot(subject.occurrenceId).catch(() => null),
+          getIdentificationConsensus(subject.occurrenceId).catch(() => null),
+        ]);
+        return [
+          subject.occurrenceId,
+          {
+            snapshot: subjectSnapshot ?? {
+              ...snapshot,
+              occurrenceId: subject.occurrenceId,
+              displayName: subject.displayName,
+              scientificName: subject.scientificName,
+              identifications: subject.identifications,
+              disputes: [],
+            },
+            consensus: subjectConsensus,
+          },
+        ] as const;
+      }),
+    );
+    const subjectIdentifyMap = new Map(subjectIdentifyEntries);
 
     // ===== Layer 0: ヒーロー =====
     const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject);
@@ -2570,6 +2844,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     // ===== Layer 2: 同定 =====
     const layer2 = `<div data-obs-switch-taxonomy>${renderSubjectTaxonomy(currentSubject, featuredSubject, subjectCount, bundle)}</div>`;
+    const identifyBlock = `<div data-obs-switch-identify>${renderIdentificationParticipation({
+      basePath,
+      snapshot,
+      consensus,
+      viewerSession,
+      canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
+    })}</div>`;
 
     // ===== Layer 3: 場所の物語 =====
     const nearbyCards = heavy && heavy.nearby.length > 0
@@ -2623,7 +2904,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <span class="obs-cta-icon">🔍</span>
             <span class="obs-cta-label">似た観察を探す</span>
           </a>
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench"))}">
+          <a class="obs-cta-item" href="#identify">
+            <span class="obs-cta-icon">🧭</span>
+            <span class="obs-cta-label">同定に参加する</span>
+          </a>
+          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?occurrenceId=" + encodeURIComponent(bundle.canonicalSubjectId)))}">
             <span class="obs-cta-icon">🔬</span>
             <span class="obs-cta-label">専門家の視点で見る</span>
           </a>
@@ -2664,8 +2949,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets)}</template>
-      <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
-    const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
+      <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
+      <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
+        basePath,
+        snapshot: subjectIdentifyMap.get(subject.occurrenceId)?.snapshot ?? snapshot,
+        consensus: subjectIdentifyMap.get(subject.occurrenceId)?.consensus ?? null,
+        viewerSession,
+        canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
+      })}</template>`).join("");
+    const layersGrid = `<div class="obs-layers-grid">${layer2}${identifyBlock}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
     const supportBlock = `<section class="section obs-support-panel" aria-label="補助情報">
       ${reactionBar
         ? `<div class="obs-support-actions">
@@ -2709,6 +3001,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
+           var identifyRoot = document.querySelector('[data-obs-switch-identify]');
            var currentBadge = document.querySelector('[data-current-subject-badge]');
            var selectTemplate = function(attr, subjectId){
              return document.querySelector('template[' + attr + '="' + subjectId.replace(/"/g, '\\"') + '"]');
@@ -2770,10 +3063,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var renderSubject = function(subjectId, push){
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
+             var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
+             if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
              renderRegions(subjectId);
              updateStateLabels(subjectId);
+             window.dispatchEvent(new CustomEvent('ikimon:identify-panel-replaced'));
              currentSubjectId = subjectId;
              if (push) {
                var active = links.find(function(link){ return link.getAttribute('data-subject-id') === subjectId; });
@@ -2831,7 +3127,69 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${galleryScript}`;
+    const identifyScript = `<script>(function(){
+      var bindIdentifyForms = function(){
+        Array.prototype.slice.call(document.querySelectorAll('[data-identify-form]')).forEach(function(form){
+          if (form.getAttribute('data-identify-bound') === '1') return;
+          form.setAttribute('data-identify-bound', '1');
+          var status = form.querySelector('[data-identify-status]');
+          var setStatus = function(message, isError) {
+            if (!status) return;
+            status.textContent = message;
+            status.classList.toggle('is-error', Boolean(isError));
+          };
+          var submit = function(action) {
+            var data = new FormData(form);
+            var proposedName = String(data.get('proposedName') || '').trim();
+            var proposedRank = String(data.get('proposedRank') || '').trim();
+            var notes = String(data.get('notes') || '').trim();
+            var identifyEndpoint = form.getAttribute('data-identify-endpoint') || '';
+            var disputeEndpoint = form.getAttribute('data-dispute-endpoint') || '';
+            var isAlternative = action === 'alternative';
+            var isNeedsEvidence = action === 'needs_more_evidence';
+            if (!isNeedsEvidence && !proposedName) {
+              setStatus('名前を入れてください。証拠不足だけを伝える場合は「証拠が足りない」を使えます。', true);
+              return;
+            }
+            var endpoint = isAlternative || isNeedsEvidence ? disputeEndpoint : identifyEndpoint;
+            var body = isAlternative
+              ? { kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes }
+              : isNeedsEvidence
+                ? { kind: 'needs_more_evidence', reason: notes || '証拠が足りない' }
+                : { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support' };
+            setStatus('保存中...', false);
+            fetch(endpoint, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify(body),
+            })
+            .then(function(response) {
+              return response.json().then(function(json) { return { ok: response.ok && json && json.ok !== false, json: json }; });
+            })
+            .then(function(result) {
+              if (!result.ok) {
+                setStatus('保存できませんでした: ' + String((result.json && result.json.error) || 'unknown_error'), true);
+                return;
+              }
+              setStatus('保存しました。表示を更新します。', false);
+              setTimeout(function(){ window.location.reload(); }, 700);
+            })
+            .catch(function(error) {
+              setStatus('通信エラー: ' + String(error && error.message || 'network'), true);
+            });
+          };
+          form.querySelectorAll('[data-identify-action]').forEach(function(button) {
+            button.addEventListener('click', function() {
+              submit(button.getAttribute('data-identify-action') || 'support');
+            });
+          });
+        });
+      };
+      bindIdentifyForms();
+      window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
+    })();</script>`;
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -3179,10 +3537,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Specialist access required",
+        "専門家レビューの入口 | ikimon",
         stateCard(
-          "Specialist only",
-          "この画面は authority 付与済み reviewer 向けです",
+          "専門家レビュー",
+          "この画面は、担当範囲が確認された reviewer 向けです",
           `<p style="margin:0 0 12px">レビュー queue と同定 workbench は、Admin / Analyst か、分類群 authority を持つ reviewer だけが入れます。制度の考え方と authority 候補になる道は説明ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
@@ -3194,6 +3552,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     }
     const requestedLane = typeof request.query === "object" && request.query && "lane" in request.query
       ? String((request.query as Record<string, unknown>).lane || "")
+      : "";
+    const requestedOccurrenceId = typeof request.query === "object" && request.query && "occurrenceId" in request.query
+      ? String((request.query as Record<string, unknown>).occurrenceId || "").trim()
       : "";
     const lane = requestedLane === "public-claim" || requestedLane === "expert-lane" ? requestedLane : "default";
     const reviewerUserId = session?.userId ?? "";
@@ -3223,15 +3584,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const manageAuthorityAction = access.canManageAll
       ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
       : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明</a>`;
-    const rows = snapshot.queue.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
+    const rows = snapshot.queue.map((item) => {
+      const detailHref = withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId));
+      const disputeLabel = (item.openDisputeCount ?? 0) > 0 ? ` · open dispute ${item.openDisputeCount}` : "";
+      return `
+      <div class="row specialist-queue-row" data-occurrence-id="${escapeHtml(item.occurrenceId)}" data-display-name="${escapeHtml(item.displayName)}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "Municipality unknown")}</div>
+          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "Municipality unknown")}${escapeHtml(disputeLabel)}</div>
         </div>
-        <span class="pill">${item.identificationCount} ids</span>
-      </a>`).join("");
+        <div class="actions">
+          <span class="pill">${item.identificationCount} ids</span>
+          <button class="btn secondary" type="button" data-queue-action="approve">approve</button>
+          <button class="btn secondary" type="button" data-queue-action="alternative">alternative</button>
+          <button class="btn secondary" type="button" data-queue-action="needs_more_evidence">needs evidence</button>
+          <a class="btn btn-ghost" href="${escapeHtml(detailHref)}">詳細</a>
+        </div>
+      </div>`;
+    }).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -3254,7 +3625,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <form id="specialist-review-form" class="stack" style="margin-top:14px">
             <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
             <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "reviewer")}</span></div>
-            <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" value="${escapeHtml(requestedOccurrenceId)}" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Scientific or common name" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Proposed rank</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
             <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どの根拠でこの同定にしたか"></textarea></label>
@@ -3282,6 +3653,52 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const form = document.getElementById('specialist-review-form');
         const status = document.getElementById('specialist-review-status');
         const setStatus = (html) => { status.innerHTML = html; };
+        const fillWorkbench = (occurrenceId, displayName, mode) => {
+          form.elements.occurrenceId.value = occurrenceId || '';
+          if (mode === 'alternative') {
+            form.elements.proposedName.value = '';
+            form.elements.notes.value = '別分類候補: ';
+            form.elements.proposedName.focus();
+            setStatus('<div class="row"><div>Alternative mode: 別分類名と根拠を入れて approve か note を選んでください。</div></div>');
+            return;
+          }
+          form.elements.proposedName.value = displayName && displayName !== '同定待ち' ? displayName : '';
+          form.elements.proposedRank.value = form.elements.proposedRank.value || 'species';
+          if (mode === 'needs_more_evidence') {
+            form.elements.notes.value = '証拠不足: 追加写真・形質情報が必要';
+          }
+        };
+        document.querySelectorAll('[data-queue-action]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const row = button.closest('[data-occurrence-id]');
+            const occurrenceId = row ? row.getAttribute('data-occurrence-id') : '';
+            const displayName = row ? row.getAttribute('data-display-name') : '';
+            const action = button.getAttribute('data-queue-action');
+            if (!occurrenceId) return;
+            if (action === 'alternative') {
+              fillWorkbench(occurrenceId, displayName, 'alternative');
+              return;
+            }
+            if (action === 'needs_more_evidence') {
+              fillWorkbench(occurrenceId, displayName, 'needs_more_evidence');
+              setStatus('<div class="row"><div>Opening needs-evidence dispute...</div></div>');
+              const response = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(occurrenceId) + '/disputes'), {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', accept: 'application/json' },
+                body: JSON.stringify({ kind: 'needs_more_evidence', reason: '専門レビュー: 追加証拠が必要' }),
+              });
+              const json = await response.json();
+              if (!response.ok || json.ok === false) {
+                setStatus('<div class="row"><div>Needs-evidence failed.<div class="meta">' + String(json.error || 'dispute_submit_failed') + '</div></div></div>');
+                return;
+              }
+              setStatus('<div class="row"><div><strong>Needs-evidence dispute opened.</strong><div class="meta">' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
+              return;
+            }
+            fillWorkbench(occurrenceId, displayName, 'approve');
+            form.querySelector('button[data-decision="approve"]').click();
+          });
+        });
         form.querySelectorAll('button[data-decision]').forEach((button) => {
           button.addEventListener('click', async () => {
             const data = new FormData(form);
@@ -3340,10 +3757,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Specialist access required",
+        "専門家推薦の入口 | ikimon",
         stateCard(
-          "Specialist only",
-          "この画面は authority 付与済み reviewer 向けです",
+          "専門家レビュー",
+          "この画面は、担当範囲が確認された reviewer 向けです",
           `<p style="margin:0 0 12px">pending recommendation を解決できるのは、同じ分類群 scope の authority 保有者、または運営権限を持つアカウントです。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
@@ -3792,10 +4209,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Specialist access required",
+        "レビューキューの入口 | ikimon",
         stateCard(
-          "Specialist only",
-          "この画面は authority 付与済み reviewer 向けです",
+          "専門家レビュー",
+          "この画面は、担当範囲が確認された reviewer 向けです",
           `<p style="margin:0 0 12px">review-queue は broad triage 面ですが、閲覧できるのは Admin / Analyst か、分類群 authority を持つ reviewer だけです。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">制度の説明を見る</a>
@@ -3934,11 +4351,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const isLoggedIn = Boolean(viewerUserId);
     const ownCards = snapshot.myFeed
-      .map((obs) => renderObservationCard(basePath, lang, obs, { locationMode: "owner" }))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { locationMode: "owner", showSpecialistCta: canUseSpecialistWorkbench(session) }))
       .join("");
     const nearbyCards = snapshot.feed
       .slice(0, 9)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public" }))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }))
       .join("");
 
     const emptyCopy = notesPageCopy.sections.nearbyEmpty;
