@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FastifyRequest } from "fastify";
-import { buildOAuthStart, oauthRedirectUri } from "./oauthFlow.js";
+import { buildOAuthStart, oauthRedirectUri, readOAuthState } from "./oauthFlow.js";
 
 async function withEnv(
   overrides: Record<string, string | undefined>,
@@ -61,6 +61,28 @@ test("google oauth start sends the registered redirect_uri to Google", async () 
       assert.equal(authUrl.searchParams.get("client_id"), "google-client");
       assert.equal(authUrl.searchParams.get("redirect_uri"), "https://ikimon.life/oauth_callback.php?provider=google");
       assert.match(start.cookie, /^ikimon_oauth_state=/);
+    },
+  );
+});
+
+test("oauth state reader prefers the newest duplicate state cookie", async () => {
+  await withEnv(
+    {
+      GOOGLE_CLIENT_ID: "google-client",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      V2_OAUTH_STATE_SECRET: "state-secret",
+    },
+    () => {
+      const req = request({ host: "ikimon.life", "x-forwarded-proto": "https" });
+      const start = buildOAuthStart("google", req, "/record");
+      const freshCookiePair = start.cookie.split(";", 1)[0];
+      const state = new URL(start.authorizationUrl).searchParams.get("state");
+
+      const parsed = readOAuthState(`ikimon_oauth_state=stale.invalid; ${freshCookiePair}`);
+
+      assert.equal(parsed?.provider, "google");
+      assert.equal(parsed?.state, state);
+      assert.equal(parsed?.redirect, "/record");
     },
   );
 });
