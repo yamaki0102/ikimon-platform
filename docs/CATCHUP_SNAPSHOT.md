@@ -8,7 +8,7 @@ Manifest: docs/catchup_manifest.json (v1)
 |---|---:|
 | Top-level directories | 13 |
 | Public PHP pages | 94 |
-| API PHP files | 188 |
+| API PHP files | 185 |
 | Library PHP files | 150 |
 | Test PHP files | 28 |
 | Android source files | 37 |
@@ -31,7 +31,7 @@ Refresh policy: structure change = True, review cadence = every 6 months
 - scripts/ : 22 files
 - tests/ : 30 files
 - tools/ : 10 files
-- upload_package/ : 841 files
+- upload_package/ : 838 files
 
 ## API Namespaces
 
