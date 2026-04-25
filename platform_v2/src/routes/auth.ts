@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { detectLangFromUrl, type SiteLang } from "../i18n.js";
-import { issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
+import { getSessionFromCookie, issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
 import { authenticateWithPassword, findOrCreateOAuthUser, registerWithPassword } from "../services/authUsers.js";
 import {
   assertAuthRateLimit,
@@ -81,6 +81,12 @@ function publicAuthError(error: unknown): string {
     return error.message;
   }
   return "invalid_credentials";
+}
+
+function postAuthRedirect(input: unknown): string {
+  const redirect = safeRedirectPath(input);
+  const path = redirect.split(/[?#]/, 1)[0] ?? "";
+  return path === "/login" || path === "/register" ? "/record" : redirect;
 }
 
 const AUTH_STYLES = `
@@ -268,7 +274,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.get("/login", async (request, reply) => {
     const basePath = requestBasePath(request);
     const url = new URL(requestUrl(request), "https://ikimon.local");
-    const redirect = safeRedirectPath(url.searchParams.get("redirect"));
+    const redirect = postAuthRedirect(url.searchParams.get("redirect"));
+    const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+    if (session && !session.banned) {
+      return reply.code(303).redirect(withBasePath(basePath, redirect));
+    }
     const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return renderAuthPage({ mode: "login", basePath, lang, redirect });
@@ -277,7 +287,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.get("/register", async (request, reply) => {
     const basePath = requestBasePath(request);
     const url = new URL(requestUrl(request), "https://ikimon.local");
-    const redirect = safeRedirectPath(url.searchParams.get("redirect"));
+    const redirect = postAuthRedirect(url.searchParams.get("redirect"));
+    const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+    if (session && !session.banned) {
+      return reply.code(303).redirect(withBasePath(basePath, redirect));
+    }
     const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return renderAuthPage({ mode: "register", basePath, lang, redirect });
@@ -296,7 +310,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       assertAuthRateLimit(["login", request.ip, email || "blank"]);
       const user = await authenticateWithPassword(email, request.body?.password);
       const session = await issueUserSession(request, user.userId);
-      const redirect = safeRedirectPath(request.body?.redirect);
+      const redirect = postAuthRedirect(request.body?.redirect);
       reply.header("set-cookie", session.cookie);
       return { ok: true, redirect, session: session.session };
     } catch (error) {
@@ -316,7 +330,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         password: request.body?.password,
       });
       const session = await issueUserSession(request, user.userId);
-      const redirect = safeRedirectPath(request.body?.redirect);
+      const redirect = postAuthRedirect(request.body?.redirect);
       reply.header("set-cookie", session.cookie);
       return { ok: true, redirect, session: session.session };
     } catch (error) {
