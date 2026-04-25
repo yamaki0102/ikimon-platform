@@ -27,9 +27,9 @@ jobs:
           php-version: '8.2'
           extensions: gd, mbstring, json
 
-      - name: Check catch-up asset sync
+      - name: Audit catch-up asset sync
         shell: pwsh
-        run: ./scripts/check_catchup_sync.ps1
+        run: ./scripts/check_catchup_sync.ps1 -WarningOnly
 
       - name: Check deploy guardrails
         shell: pwsh

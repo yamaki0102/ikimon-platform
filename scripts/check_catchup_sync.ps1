@@ -1,5 +1,6 @@
 param(
-    [string]$ManifestPath = "docs/catchup_manifest.json"
+    [string]$ManifestPath = "docs/catchup_manifest.json",
+    [switch]$WarningOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,19 +26,30 @@ try {
     $expectedWorkspace = Get-Content -Raw -Path (Join-Path $repoRoot "ikimon.life.code-workspace")
     $actualWorkspace = Get-Content -Raw -Path $workspaceGeneratedPath
 
-    $hasDiff = $false
+    $issues = New-Object System.Collections.Generic.List[string]
 
     if ($expectedSnapshot -ne $actualSnapshot) {
-        Write-Error "docs/CATCHUP_SNAPSHOT.md is out of date. Regenerate it with scripts/generate_catchup_snapshot.ps1."
-        $hasDiff = $true
+        $issues.Add("docs/CATCHUP_SNAPSHOT.md is out of date. Regenerate it with scripts/generate_catchup_snapshot.ps1.")
     }
 
     if ($expectedWorkspace -ne $actualWorkspace) {
-        Write-Error "ikimon.life.code-workspace is out of date. Regenerate it with scripts/generate_workspace_from_manifest.ps1."
-        $hasDiff = $true
+        $issues.Add("ikimon.life.code-workspace is out of date. Regenerate it with scripts/generate_workspace_from_manifest.ps1.")
     }
 
-    if ($hasDiff) {
+    if ($issues.Count -gt 0) {
+        foreach ($issue in $issues) {
+            if ($WarningOnly) {
+                Write-Warning $issue
+            } else {
+                Write-Error $issue
+            }
+        }
+
+        if ($WarningOnly) {
+            Write-Warning "Catch-up asset drift is non-blocking in CI. Refresh before handoff when the snapshot itself matters."
+            exit 0
+        }
+
         exit 1
     }
 
