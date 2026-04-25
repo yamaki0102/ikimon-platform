@@ -12,7 +12,7 @@ Manifest: docs/catchup_manifest.json (v1)
 | Library PHP files | 150 |
 | Test PHP files | 28 |
 | Android source files | 37 |
-| Repo / app scripts & tools | 193 |
+| Repo / app scripts & tools | 196 |
 
 Skipped support directories: .git, vendor, .idea, .gradle, .kotlin, .claude, .phpunit.cache, _archive, _deploy_tmp, _tmp_ux_test_env, android-shell, CLI-Anything, output
 Refresh policy: structure change = True, review cadence = every 6 months
@@ -25,10 +25,10 @@ Refresh policy: structure change = True, review cadence = every 6 months
 - dev_tools/ : 11 files
 - docs/ : 224 files
 - mobile/ : 69 files
-- ops/ : 21 files
+- ops/ : 22 files
 - platform_v2/ : 315 files
 - readme/ : 22 files
-- scripts/ : 22 files
+- scripts/ : 25 files
 - tests/ : 30 files
 - tools/ : 10 files
 - upload_package/ : 838 files
