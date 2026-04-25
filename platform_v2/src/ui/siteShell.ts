@@ -201,13 +201,13 @@ function hero(basePath: string, content?: SiteHero): string {
   </section>`;
 }
 
-function footer(basePath: string, lang: SiteLang, footerNote?: string): string {
+function footer(basePath: string, lang: SiteLang, _footerNote?: string): string {
   const copy = shellCopyFor(lang);
-  const note = footerNote ?? copy.footer.tagline;
   return `<footer class="site-footer">
-    <div class="site-footer-inner">
-      <div class="site-footer-top">
-        <section class="site-footer-brand">
+    <div class="footer-inner">
+      <section class="footer-hero" aria-label="フッター案内">
+        <div class="footer-brand-panel">
+          <div>
           <div class="brand brand-footer">
             <span class="brand-mark"><img src="/assets/img/icon-192.png" alt="ikimon icon" /></span>
             <span>
@@ -215,38 +215,77 @@ function footer(basePath: string, lang: SiteLang, footerNote?: string): string {
               <small>${escapeHtml(copy.footer.tagline)}</small>
             </span>
           </div>
-          <p class="meta">${escapeHtml(note)}</p>
-        </section>
-        <section class="site-footer-links-group">
-          <div class="eyebrow">${escapeHtml(copy.footer.start)}</div>
-          <div class="footer-links">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/explore"), lang))}">${escapeHtml(copy.footer.startLinks.discover)}</a>
+            <div class="footer-kicker">見つける、確かめる、残す、また歩く。</div>
+            <h2>足もとの一枚を、<br>世界につながる自然記録へ。</h2>
+            <p>身近な自然を見つけ、確かめ、残し、また歩くための自然観察基盤。個人の発見を、地域と世界の記録につなげる。</p>
+            <div class="footer-actions">
+              <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
+              <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
+            </div>
+          </div>
+          <div class="footer-chip-row" aria-label="ikimon の価値">
+            <span>名前が分からなくても残せる</span>
+            <span>公開範囲を安全側で制御</span>
+            <span>学校・研究・地域活動へ接続</span>
+          </div>
+        </div>
+        <div class="footer-mini-map" aria-label="観察ルートのイメージ">
+          <div class="footer-route"></div>
+          <span class="footer-pin one"></span>
+          <span class="footer-pin two"></span>
+          <span class="footer-pin three"></span>
+          <span class="footer-pin four"></span>
+          <div class="footer-map-copy">
+            <span>次の一歩</span>
+            <strong>いつもの道が、観察ルートになる。</strong>
+            <p>散歩、通学路、旅先、庭先。どこから始めても、記録はあとから育てられる。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="footer-directory" aria-label="サイト内リンク">
+        <div class="footer-group">
+          <strong><i>REC</i>使う</strong>
+          <nav class="footer-links" aria-label="使う">
             <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.footer.startLinks.record)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">${escapeHtml(copy.footer.startLinks.places)}</a>
-          </div>
-        </section>
-        <section class="site-footer-links-group">
-          <div class="eyebrow">${escapeHtml(copy.footer.learn)}</div>
-          <div class="footer-links">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">${escapeHtml(copy.footer.learnLinks.guides)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/about"), lang))}">${escapeHtml(copy.footer.learnLinks.about)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/faq"), lang))}">${escapeHtml(copy.footer.learnLinks.faq)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>
-          </div>
-        </section>
-        <section class="site-footer-links-group">
-          <div class="eyebrow">${escapeHtml(copy.footer.trust)}</div>
-          <div class="footer-links">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.nav.places === "ノート" ? "地図で見る" : copy.footer.startLinks.discover)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/explore"), lang))}">探す</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/community"), lang))}">コミュニティ</a>
+          </nav>
+        </div>
+        <div class="footer-group">
+          <strong><i>READ</i>${escapeHtml(copy.footer.learn)}</strong>
+          <nav class="footer-links" aria-label="${escapeHtml(copy.footer.learn)}">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/field-loop"), lang))}">観察の流れ</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/identification-basics"), lang))}">名前の調べ方</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/methodology"), lang))}">方法論</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">更新情報</a>
+          </nav>
+        </div>
+        <div class="footer-group">
+          <strong><i>AREA</i>広げる</strong>
+          <nav class="footer-links" aria-label="広げる">
             <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/for-business"), lang))}">${escapeHtml(copy.footer.trustLinks.business)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/community"), lang))}">地域で使う</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/for-researcher/apply"), lang))}">研究利用</a>
             <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/terms"), lang))}">${escapeHtml(copy.footer.trustLinks.terms)}</a>
+          </nav>
+        </div>
+        <div class="footer-group">
+          <strong><i>SAFE</i>確認する</strong>
+          <nav class="footer-links" aria-label="確認する">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/faq"), lang))}">${escapeHtml(copy.footer.learnLinks.faq)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/about"), lang))}">ikimon.lifeについて</a>
             <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/privacy"), lang))}">${escapeHtml(copy.footer.trustLinks.privacy)}</a>
-          </div>
-        </section>
-      </div>
-      <div class="site-footer-bottom">
-        <p>${escapeHtml(copy.footer.copyright)}</p>
-        ${copy.footer.revisit ? `<p>${escapeHtml(copy.footer.revisit)}</p>` : ""}
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/terms"), lang))}">${escapeHtml(copy.footer.trustLinks.terms)}</a>
+          </nav>
+        </div>
+      </section>
+
+      <div class="footer-bottom">
+        <span>ikimon.life｜自然を見つけ、確かめ、残し、また歩く。</span>
+        <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
   </footer>`;
@@ -983,30 +1022,263 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .onboarding-empty h3 { margin: 0 0 12px; font-size: 22px; font-weight: 800; }
     .onboarding-empty p { margin: 0 0 20px; color: #475569; max-width: 44ch; margin-inline: auto; }
     .ver-tag { font-size: 11px; font-weight: 700; color: #94a3b8; margin-right: 6px; font-family: ui-monospace, monospace; }
-    .site-footer { margin-top: 42px; border-top: 1px solid rgba(15,23,42,.05); background: #f8fafc; }
-    .site-footer-inner { max-width: 1120px; margin: 0 auto; padding: 34px 24px 24px; }
-    .site-footer-top {
+    .site-footer {
+      position: relative;
+      overflow: hidden;
+      margin-top: 42px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(116deg, rgba(16,185,129,.28) 0%, rgba(16,185,129,0) 34%),
+        linear-gradient(244deg, rgba(14,165,233,.2) 0%, rgba(14,165,233,0) 30%),
+        linear-gradient(135deg, #052e24 0%, #064e3b 48%, #075985 100%);
+      background-size: 46px 46px, 46px 46px, auto, auto, auto;
+      color: #ecfdf5;
+    }
+    .site-footer::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0) 34%, rgba(0,0,0,.14));
+      pointer-events: none;
+    }
+    .footer-inner {
+      position: relative;
+      z-index: 1;
+      width: min(1480px, calc(100% - 32px));
+      margin: 0 auto;
       display: grid;
-      gap: 22px;
-      grid-template-columns: 1.25fr .9fr .9fr .9fr;
-      padding-bottom: 22px;
-      border-bottom: 1px solid rgba(148,163,184,.22);
+      gap: 18px;
+      padding: clamp(36px, 6vw, 72px) 0 26px;
     }
-    .site-footer-brand { max-width: 300px; }
-    .brand-footer { min-width: 0; }
-    .site-footer-links-group { min-width: 0; }
-    .footer-links { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-    .footer-links a { color: var(--muted); font-weight: 700; font-size: 13px; line-height: 1.45; }
-    .site-footer-bottom {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding-top: 16px;
-      color: #64748b;
+    .footer-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .62fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .footer-brand-panel,
+    .footer-mini-map,
+    .footer-directory,
+    .footer-bottom {
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+      box-shadow: 0 24px 70px rgba(0,0,0,.18);
+      backdrop-filter: blur(18px);
+      border-radius: 8px;
+    }
+    .footer-brand-panel {
+      min-height: 340px;
+      padding: clamp(24px, 4vw, 44px);
+      display: grid;
+      align-content: space-between;
+      gap: 26px;
+    }
+    .site-footer .brand { color: #ffffff; }
+    .site-footer .brand-mark {
+      background: #ecfdf5;
+      box-shadow: 0 12px 30px rgba(0,0,0,.16);
+    }
+    .site-footer .brand small { color: rgba(236,253,245,.76); }
+    .footer-kicker {
+      width: fit-content;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      padding: 6px 10px;
+      border: 1px solid rgba(167,243,208,.28);
+      border-radius: 999px;
+      background: rgba(16,185,129,.13);
+      color: #a7f3d0;
       font-size: 12px;
+      font-weight: 950;
     }
-    @media (max-width: 900px) {
-      .site-footer-top { grid-template-columns: 1fr 1fr; }
+    .footer-brand-panel h2 {
+      margin: 18px 0 0;
+      max-width: 16ch;
+      color: #ffffff;
+      font-size: clamp(34px, 4.2vw, 58px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .footer-brand-panel p {
+      margin: 14px 0 0;
+      max-width: 50em;
+      color: rgba(236,253,245,.74);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .site-footer .btn-solid {
+      background: #ffffff;
+      color: #064e3b;
+      box-shadow: 0 18px 42px rgba(0,0,0,.18);
+    }
+    .site-footer .btn-ghost-on-dark {
+      background: rgba(255,255,255,.08);
+      color: #ffffff;
+      border-color: rgba(255,255,255,.24);
+    }
+    .footer-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .footer-chip-row span {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      background: rgba(255,255,255,.07);
+      color: rgba(236,253,245,.78);
+      font-size: 12px;
+      font-weight: 820;
+    }
+    .footer-mini-map {
+      min-height: 340px;
+      position: relative;
+      overflow: hidden;
+      padding: 22px;
+      display: grid;
+      align-content: end;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,.08) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(6,78,59,.58), rgba(14,165,233,.42));
+      background-size: 38px 38px, 38px 38px, auto;
+    }
+    .footer-route {
+      position: absolute;
+      inset: 42px 44px 72px 42px;
+      border: 2px solid rgba(167,243,208,.5);
+      border-left-color: transparent;
+      border-bottom-color: rgba(125,211,252,.52);
+      border-radius: 45% 55% 58% 42%;
+      transform: rotate(-9deg);
+    }
+    .footer-pin {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border: 4px solid #fff;
+      border-radius: 999px;
+      background: #10b981;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+    }
+    .footer-pin.one { left: 18%; top: 32%; }
+    .footer-pin.two { left: 57%; top: 24%; background: #0ea5e9; }
+    .footer-pin.three { left: 73%; top: 63%; background: #f59e0b; }
+    .footer-pin.four { left: 36%; top: 70%; background: #34d399; }
+    .footer-map-copy {
+      position: relative;
+      z-index: 2;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 8px;
+      background: rgba(5,46,36,.52);
+      backdrop-filter: blur(14px);
+    }
+    .footer-map-copy span {
+      color: #a7f3d0;
+      font-size: 12px;
+      font-weight: 950;
+    }
+    .footer-map-copy strong {
+      display: block;
+      margin-top: 5px;
+      color: #fff;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 950;
+    }
+    .footer-map-copy p {
+      margin: 8px 0 0;
+      color: rgba(236,253,245,.7);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .footer-directory {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      background: rgba(255,255,255,.12);
+    }
+    .footer-group {
+      min-height: 220px;
+      padding: 22px;
+      background: rgba(5,46,36,.42);
+    }
+    .footer-group strong {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 950;
+      margin-bottom: 14px;
+    }
+    .footer-group strong i {
+      min-width: 26px;
+      height: 26px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0 6px;
+      border-radius: 8px;
+      background: rgba(167,243,208,.14);
+      color: #a7f3d0;
+      font-size: 9px;
+      font-style: normal;
+      font-weight: 950;
+    }
+    .footer-links {
+      display: grid;
+      gap: 8px;
+    }
+    .footer-links a {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      color: rgba(236,253,245,.76);
+      font-weight: 760;
+      transition: color .18s ease, transform .18s ease;
+    }
+    .footer-links a:hover {
+      color: #ffffff;
+      transform: translateX(2px);
+    }
+    .footer-bottom {
+      min-height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 14px 18px;
+      color: rgba(236,253,245,.7);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .footer-bottom a {
+      color: #ffffff;
+      font-weight: 900;
+    }
+    @media (max-width: 1120px) {
+      .footer-hero,
+      .footer-directory { grid-template-columns: 1fr 1fr; }
+      .footer-brand-panel,
+      .footer-mini-map { min-height: 300px; }
     }
     @media (max-width: 720px) {
       .md-hidden { display: inline; }
@@ -1151,9 +1423,15 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .hero-panel.is-light .hero-media { margin-top: 20px; }
       .hero-photo.tall { grid-row: auto; min-height: 220px; }
       .photo-grid { grid-template-columns: 1fr; }
-      .site-footer-inner { padding: 28px 18px 24px; }
-      .site-footer-top { grid-template-columns: 1fr; }
-      .site-footer-bottom { flex-direction: column; }
+      .footer-inner { width: min(100% - 24px, 1480px); padding: 30px 0 22px; }
+      .footer-hero,
+      .footer-directory { grid-template-columns: 1fr; }
+      .footer-brand-panel,
+      .footer-mini-map { min-height: 0; }
+      .footer-brand-panel { padding: 22px; }
+      .footer-mini-map { min-height: 280px; }
+      .footer-group { min-height: 0; padding: 18px; }
+      .footer-bottom { flex-direction: column; align-items: flex-start; }
       .row { flex-direction: column; }
       .field-note-card { padding: 18px 18px 18px 20px; }
       .field-note-card h3 { font-size: 20px; }

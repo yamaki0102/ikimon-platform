@@ -8,6 +8,7 @@ const shallowJaRoutes = [
   "/notes?lang=ja",
   "/lens?lang=ja",
   "/map?lang=ja",
+  "/community?lang=ja",
   "/about?lang=ja",
   "/faq?lang=ja",
   "/contact?lang=ja",
@@ -56,13 +57,50 @@ test("general and group-help pages use the updated ja entry copy", async () => {
   }
 });
 
+test("community route replaces the legacy event rail on the public shell", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/community?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /観察会やテーマ調査に参加する/);
+    assert.match(response.body, /みんなで調べる/);
+
+    const redirect = await app.inject({ method: "GET", url: "/events.php?lang=ja" });
+    assert.equal(redirect.statusCode, 308);
+    assert.equal(redirect.headers.location, "/community?lang=ja");
+  } finally {
+    await app.close();
+  }
+});
+
+test("updates page keeps the full release history on the v2 public shell", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/learn/updates?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /AI考察 全面強化/);
+    assert.match(response.body, /フィールドスキャン Perch v2/);
+    assert.match(response.body, /プロトタイプ版スタート/);
+    assert.match(response.body, /2025年11月1日/);
+
+    const redirect = await app.inject({ method: "GET", url: "/updates.php?lang=ja" });
+    assert.equal(redirect.statusCode, 308);
+    assert.equal(redirect.headers.location, "/learn/updates?lang=ja");
+  } finally {
+    await app.close();
+  }
+});
+
 test("home hero and how-it-works copy match the canonical ja surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /ENJOY NATURE/);
-    assert.match(response.body, /見つける。調べる。残す。だれかの役に立つ。/);
+    assert.match(response.body, /身近な自然を、/);
+    assert.match(response.body, /世界につながる記録に。/);
+    assert.match(response.body, /散歩の発見を、自然記録へ。/);
+    assert.match(response.body, /地図で変化を見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
   } finally {
     await app.close();

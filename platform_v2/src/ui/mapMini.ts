@@ -31,6 +31,7 @@ export type MapMiniProps = {
   cells: MapMiniCell[];
   mapHref: string;
   mapCtaLabel: string;
+  mapCtaKpiAction?: string;
   emptyLabel: string;
   height?: number;
 };
@@ -78,6 +79,9 @@ function projectCells(cells: MapMiniCell[]): Array<MapMiniCell & {
 export function renderMapMini(props: MapMiniProps): string {
   const id = props.id ?? "ikimon-map-mini";
   const height = props.height ?? 260;
+  const mapCtaKpiAction = props.mapCtaKpiAction
+    ? ` data-kpi-action="${escapeHtml(props.mapCtaKpiAction)}"`
+    : "";
   const fallbackCells = projectCells(props.cells.slice(0, 18));
   const fallbackShapes = fallbackCells
     .map((cell, index) => `
@@ -115,7 +119,7 @@ export function renderMapMini(props: MapMiniProps): string {
       </div>
       ${badges ? `<div class="map-mini-badges">${badges}</div>` : ""}
     </div>
-    <a class="map-mini-cta" href="${escapeHtml(props.mapHref)}">${escapeHtml(props.mapCtaLabel)} →</a>
+    <a class="map-mini-cta" href="${escapeHtml(props.mapHref)}"${mapCtaKpiAction}>${escapeHtml(props.mapCtaLabel)} →</a>
   </div>`;
 }
 
