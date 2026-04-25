@@ -28,6 +28,19 @@ load_runtime_allowlist() {
     grep -v '^[[:space:]]*#' "$RUNTIME_ALLOWLIST" | sed '/^[[:space:]]*$/d'
 }
 
+rsync_runtime_copy() {
+    local source="$1"
+    local dest="$2"
+    local rc=0
+
+    rsync -a "$source" "$dest" || rc=$?
+    if [ "$rc" -eq 24 ]; then
+        echo "Warning: runtime file vanished during backup/restore: $source"
+        return 0
+    fi
+    return "$rc"
+}
+
 copy_runtime_allowlist() {
     local src_root="$1"
     local dst_root="$2"
@@ -44,7 +57,7 @@ copy_runtime_allowlist() {
             rel_dir="${rel%/**}"
             if [ -d "$src_root/$rel_dir" ]; then
                 mkdir -p "$dst_root/$rel_dir"
-                rsync -a "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
+                rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
             fi
             continue
         fi
@@ -54,14 +67,14 @@ copy_runtime_allowlist() {
                 [ -z "$match" ] && continue
                 rel_match="${match#$src_root/}"
                 mkdir -p "$dst_root/$(dirname "$rel_match")"
-                rsync -a "$match" "$dst_root/$rel_match"
+                rsync_runtime_copy "$match" "$dst_root/$rel_match"
             done < <(compgen -G "$src_root/$rel" || true)
             continue
         fi
 
         if [ -e "$src_root/$rel" ]; then
             mkdir -p "$dst_root/$(dirname "$rel")"
-            rsync -a "$src_root/$rel" "$dst_root/$rel"
+            rsync_runtime_copy "$src_root/$rel" "$dst_root/$rel"
         fi
     done < <(load_runtime_allowlist)
 }
