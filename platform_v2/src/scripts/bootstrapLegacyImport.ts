@@ -801,6 +801,14 @@ async function importRememberTokens(options: ImportOptions, tokens: LegacyAuthTo
   }
 
   const pool = getPool();
+  const sourceTokenHashes = [
+    ...new Set(
+      tokens
+        .map((token) => token.token_hash)
+        .filter((tokenHash): tokenHash is string => typeof tokenHash === "string" && tokenHash !== ""),
+    ),
+  ];
+
   for (const token of tokens) {
     await pool.query(
       `insert into remember_tokens (
@@ -819,6 +827,15 @@ async function importRememberTokens(options: ImportOptions, tokens: LegacyAuthTo
         toIsoTimestamp(token.expires) ?? new Date(Date.now() + 90 * 86400 * 1000).toISOString(),
         toIsoTimestamp(token.created_at) ?? new Date().toISOString(),
       ],
+    );
+  }
+
+  if (sourceTokenHashes.length > 0) {
+    await pool.query(
+      `delete from remember_tokens
+       where token_family = 'legacy'
+         and not (token_hash = any($1::text[]))`,
+      [sourceTokenHashes],
     );
   }
 }
