@@ -6,7 +6,7 @@ class MonitoringReferenceScorer
 {
     /**
      * Calculate a monitoring reference index (0-100) from observation data.
-     * 
+     *
      * This is an internal heuristic for comparing observation coverage and
      * conservation signals within the product. It is not a certification score,
      * a TNFD compliance score, or a biodiversity credit unit.
@@ -17,7 +17,7 @@ class MonitoringReferenceScorer
      *   3. Conservation Value (25pt) — IUCN category-weighted endangered species
      *   4. Taxonomic Coverage (15pt) — Detected taxonomic groups / expected groups
      *   5. Monitoring Effort (10pt) — Monthly coverage × active years
-     * 
+     *
      * @param array $observations List of observations in the site
      * @param array $fieldInfo    Site metadata (area_ha, etc.)
      * @return array Score details with breakdown
