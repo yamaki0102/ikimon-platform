@@ -102,7 +102,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
 
   const deniedResponse = await reviewerPage.goto("/specialist/id-workbench?lane=expert-lane", { waitUntil: "domcontentloaded" });
   expect(deniedResponse?.status()).toBe(403);
-  await expect(reviewerPage.getByText("authority 付与済み reviewer 向け", { exact: false })).toBeVisible();
+  await expect(reviewerPage.getByText("担当範囲が確認された reviewer 向け", { exact: false })).toBeVisible();
 
   const adminContext = await newStagingContext(browser, {
     slug: "authority-admin",
@@ -143,7 +143,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
 
   const revokedResponse = await reviewerPage.goto("/specialist/id-workbench?lane=expert-lane", { waitUntil: "domcontentloaded" });
   expect(revokedResponse?.status()).toBe(403);
-  await expect(reviewerPage.getByText("authority 付与済み reviewer 向け", { exact: false })).toBeVisible();
+  await expect(reviewerPage.getByText("担当範囲が確認された reviewer 向け", { exact: false })).toBeVisible();
 
   await api.dispose();
   await reviewerContext.close();
