@@ -221,8 +221,6 @@ prepare_release() {
 
   cd "${release_platform}"
   npm ci --silent
-  export_runtime_env
-  npm run migrate
   npm run build
 
   ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
