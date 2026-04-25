@@ -120,6 +120,8 @@ jobs:
             npm ci --silent
             echo "== npm run build =="
             npm run build
+            echo "== npm run migrate =="
+            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
             echo "== update canonical staging env file =="
             mkdir -p "$STAGING_ENV_DIR"
             TMP_ENV="$(mktemp)"
