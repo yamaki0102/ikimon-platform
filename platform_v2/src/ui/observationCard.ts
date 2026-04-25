@@ -44,7 +44,7 @@ export function renderObservationCard(
   basePath: string,
   lang: SiteLang,
   obs: LandingObservation,
-  options: { compact?: boolean; locationMode?: "public" | "owner"; showEvidenceTier?: boolean } = {},
+  options: { compact?: boolean; locationMode?: "public" | "owner" } = {},
 ): string {
   const entryType = obs.entryType ?? "observation";
   const kind = kindCopy[lang][entryType];
@@ -97,7 +97,7 @@ export function renderObservationCard(
     : "";
 
   const tier = obs.evidenceTier;
-  const tierBadge = tier != null && options.showEvidenceTier !== false
+  const tierBadge = tier != null
     ? `<span class="obs-card-tier" title="Evidence Tier ${tier}">T${tier}</span>`
     : "";
   const isAi = Boolean(obs.isAiCandidate);

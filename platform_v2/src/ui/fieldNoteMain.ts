@@ -1,8 +1,9 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
-import type { LandingSnapshot } from "../services/readModels.js";
-import { renderObservationCard } from "./observationCard.js";
+import { buildObservationDetailPath } from "../services/observationDetailLink.js";
+import type { AmbientObserver, LandingObservation, LandingSnapshot } from "../services/readModels.js";
+import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import {
   buildOfficialNoticeClientRenderer,
   getOfficialNoticeRenderCopy,
@@ -155,6 +156,88 @@ const mainCopy: Record<SiteLang, MainCopy> = {
   },
 };
 
+function formatLiteDate(raw: string | null | undefined, lang: SiteLang): string {
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  if (lang === "ja") return `${month}/${day}`;
+  return `${month}/${day}`;
+}
+
+function liteObservationKind(obs: LandingObservation, lang: SiteLang): string {
+  if ((obs.entryType ?? "observation") === "identification") {
+    if (lang === "ja") return "同定";
+    if (lang === "es") return "ID";
+    if (lang === "pt-BR") return "ID";
+    return "ID";
+  }
+  if (lang === "ja") return "観察";
+  if (lang === "es") return "Obs.";
+  if (lang === "pt-BR") return "Obs.";
+  return "Obs.";
+}
+
+function litePlaceLine(obs: LandingObservation, locationMode: "public" | "owner"): string {
+  if (locationMode === "owner") {
+    return [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
+  }
+  return obs.publicLocation?.label || obs.municipality || "";
+}
+
+function renderFieldNoteLiteObservationCard(
+  basePath: string,
+  lang: SiteLang,
+  obs: LandingObservation,
+  options: { locationMode: "public" | "owner" },
+): string {
+  const detailHref = appendLangToHref(
+    withBasePath(
+      basePath,
+      buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
+    ),
+    lang,
+  );
+  const displayName = obs.displayName || (lang === "ja" ? "同定待ち" : "Awaiting ID");
+  const dateLabel = formatLiteDate((obs.entryType === "identification" ? obs.identifiedAt : obs.observedAt) ?? obs.observedAt, lang);
+  const placeLine = litePlaceLine(obs, options.locationMode);
+  const kindLabel = liteObservationKind(obs, lang);
+  const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "sm") ?? obs.photoUrl) : null;
+  const photoHtml = photoUrl
+    ? `<span class="fn-lite-photo">
+        <img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'" />
+        <span class="fn-lite-photo-empty" aria-hidden="true" style="display:none">${escapeHtml(kindLabel.slice(0, 1))}</span>
+      </span>`
+    : `<span class="fn-lite-photo fn-lite-photo-empty" aria-hidden="true">${escapeHtml(kindLabel.slice(0, 1))}</span>`;
+
+  return `<a class="fn-lite-card" href="${escapeHtml(detailHref)}" data-entry-type="${escapeHtml(obs.entryType ?? "observation")}">
+    ${photoHtml}
+    <span class="fn-lite-body">
+      <span class="fn-lite-topline">
+        <span class="fn-lite-kind">${escapeHtml(kindLabel)}</span>
+        ${dateLabel ? `<time>${escapeHtml(dateLabel)}</time>` : ""}
+      </span>
+      <strong>${escapeHtml(displayName)}</strong>
+      <span class="fn-lite-meta">${escapeHtml(placeLine || (lang === "ja" ? "位置をぼかしています" : "Location generalized"))}</span>
+    </span>
+  </a>`;
+}
+
+function renderFieldNoteLitePerson(basePath: string, lang: SiteLang, obs: AmbientObserver): string {
+  const href = appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(obs.userId)}`), lang);
+  const avatar = obs.avatarUrl
+    ? `<img src="${escapeHtml(obs.avatarUrl)}" alt="" loading="lazy" />`
+    : `<span class="fn-lite-person-placeholder">${escapeHtml(obs.displayName.slice(0, 1))}</span>`;
+  return `<a class="fn-lite-person" href="${escapeHtml(href)}" title="${escapeHtml(obs.latestDisplayName)}">
+    <span class="fn-lite-person-avatar">${avatar}</span>
+    <span class="fn-lite-person-copy">
+      <strong>${escapeHtml(obs.displayName)}</strong>
+      <span>${escapeHtml(obs.latestDisplayName)}</span>
+    </span>
+  </a>`;
+}
+
 export function renderFieldNoteMain(
   basePath: string,
   lang: SiteLang,
@@ -180,7 +263,7 @@ export function renderFieldNoteMain(
     }
     const cards = snapshot.myFeed
       .slice(0, 4)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "owner" }))
+      .map((obs) => renderFieldNoteLiteObservationCard(basePath, lang, obs, { locationMode: "owner" }))
       .join("");
     return `<div class="fn-subhead"><h3>${escapeHtml(copy.myNotebookLabel)}</h3></div>
       <div class="fn-grid fn-grid-compact">${cards}</div>`;
@@ -217,7 +300,7 @@ export function renderFieldNoteMain(
     }
     const cards = snapshot.feed
       .slice(0, 6)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public", showEvidenceTier: false }))
+      .map((obs) => renderFieldNoteLiteObservationCard(basePath, lang, obs, { locationMode: "public" }))
       .join("");
     return `<div class="fn-subhead"><h3>${escapeHtml(copy.nearbyLabel)}</h3></div>
       <div class="fn-grid fn-grid-nearby">${cards}</div>`;
@@ -227,19 +310,7 @@ export function renderFieldNoteMain(
     if (snapshot.ambient.length === 0) return "";
     const items = snapshot.ambient
       .slice(0, 6)
-      .map((obs) => {
-        const href = appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(obs.userId)}`), lang);
-        const avatar = obs.avatarUrl
-          ? `<img src="${escapeHtml(obs.avatarUrl)}" alt="" loading="lazy" />`
-          : `<span class="fn-ambient-placeholder">${escapeHtml(obs.displayName.slice(0, 1))}</span>`;
-        return `<a class="fn-ambient-item" href="${escapeHtml(href)}" title="${escapeHtml(obs.latestDisplayName)}">
-          <span class="fn-ambient-avatar">${avatar}</span>
-          <span class="fn-ambient-meta">
-            <span class="fn-ambient-name">${escapeHtml(obs.displayName)}</span>
-            <span class="fn-ambient-latest">${escapeHtml(obs.latestDisplayName)}</span>
-          </span>
-        </a>`;
-      })
+      .map((obs) => renderFieldNoteLitePerson(basePath, lang, obs))
       .join("");
     return `<div class="fn-ambient">
       <div class="fn-ambient-label">${escapeHtml(copy.ambientLabel)}</div>
@@ -385,10 +456,49 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-subhead { margin-top: 26px; margin-bottom: 12px; padding-left: 18px; }
   .fn-subhead h3 { margin: 0; font-family: "Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif; font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 2px solid rgba(16,185,129,.28); }
   .fn-grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding-left: 18px; }
-  .fn-grid-compact { grid-template-columns: 1fr; }
+  .fn-grid-compact { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .fn-grid-nearby { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: start; gap: 12px; }
-  .fn-grid-nearby .obs-card-media { aspect-ratio: 4 / 3; }
-  .fn-grid-nearby .obs-card-meta { padding: 10px 12px !important; }
+  .fn-lite-card {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 9px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.06);
+    box-shadow: 0 6px 14px rgba(15,23,42,.04);
+    color: inherit;
+    text-decoration: none;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .fn-lite-card:hover { transform: translateY(-1px); border-color: rgba(16,185,129,.22); }
+  .fn-lite-photo {
+    width: 72px;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    display: block;
+    border-radius: 12px;
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.12) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.1) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 12px 12px, 12px 12px, auto;
+  }
+  .fn-lite-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .fn-lite-photo-empty {
+    display: grid;
+    place-items: center;
+    color: #047857;
+    font-size: 16px;
+    font-weight: 900;
+  }
+  .fn-lite-body { min-width: 0; display: grid; gap: 3px; }
+  .fn-lite-topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #64748b; font-size: 10.5px; font-weight: 800; }
+  .fn-lite-kind { color: #047857; letter-spacing: .04em; }
+  .fn-lite-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #0f172a; font-size: 13.5px; font-weight: 900; }
+  .fn-lite-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: 11.5px; font-weight: 700; }
   .fn-empty { margin-left: 18px; padding: 18px 22px; border-radius: 18px; background: rgba(248,250,252,.8); color: #64748b; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .fn-empty p { margin: 0; flex: 1 1 240px; }
   .fn-empty .btn { flex-shrink: 0; }
@@ -419,14 +529,14 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-ambient { margin-top: 22px; padding-top: 16px; padding-left: 18px; border-top: 1px dashed rgba(15,23,42,.08); }
   .fn-ambient-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; margin-bottom: 10px; }
   .fn-ambient-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
-  .fn-ambient-item { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.05); text-decoration: none; color: inherit; transition: transform .15s ease, border-color .15s ease; }
-  .fn-ambient-item:hover { transform: translateY(-1px); border-color: rgba(14,165,233,.28); }
-  .fn-ambient-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg,#d1fae5,#bae6fd); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .fn-ambient-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .fn-ambient-placeholder { font-size: 11px; font-weight: 800; color: #065f46; }
-  .fn-ambient-meta { display: flex; flex-direction: column; line-height: 1.3; }
-  .fn-ambient-name { font-size: 13px; font-weight: 800; color: #0f172a; }
-  .fn-ambient-latest { font-size: 11px; color: #64748b; }
+  .fn-lite-person { min-width: 0; display: inline-flex; align-items: center; gap: 10px; padding: 9px 12px 9px 9px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.05); text-decoration: none; color: inherit; transition: transform .15s ease, border-color .15s ease; }
+  .fn-lite-person:hover { transform: translateY(-1px); border-color: rgba(14,165,233,.28); }
+  .fn-lite-person-avatar { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg,#d1fae5,#bae6fd); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .fn-lite-person-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .fn-lite-person-placeholder { font-size: 11px; font-weight: 800; color: #065f46; }
+  .fn-lite-person-copy { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+  .fn-lite-person-copy strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 800; color: #0f172a; }
+  .fn-lite-person-copy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #64748b; }
   @media (max-width: 860px) {
     .fn-main-card { padding: 24px 20px 22px; }
     .fn-main-head { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 18px; padding-left: 8px; }
@@ -445,7 +555,7 @@ export const FIELD_NOTE_MAIN_STYLES = `
       scroll-snap-type: x mandatory;
       scrollbar-width: thin;
     }
-    .fn-grid-nearby .obs-card {
+    .fn-grid-nearby .fn-lite-card {
       flex: 0 0 min(76vw, 260px);
       scroll-snap-align: start;
     }
@@ -456,7 +566,7 @@ export const FIELD_NOTE_MAIN_STYLES = `
       padding-bottom: 4px;
       scrollbar-width: thin;
     }
-    .fn-ambient-item { flex: 0 0 min(72vw, 250px); }
+    .fn-lite-person { flex: 0 0 min(72vw, 250px); }
   }
   ${OFFICIAL_NOTICE_CARD_STYLES}
 `;
