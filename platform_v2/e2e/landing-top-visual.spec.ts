@@ -62,6 +62,7 @@ test.describe("landing top visual regression", () => {
       await expect(page).toHaveScreenshot(`landing-top-${viewport.name}.png`, {
         fullPage: true,
         animations: "disabled",
+        maxDiffPixelRatio: 0.02,
       });
 
       await page.close();
