@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import rateLimit from "@fastify/rate-limit";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "./i18n.js";
@@ -460,6 +461,10 @@ async function getPreviewContext(): Promise<PreviewContext> {
 export function buildApp() {
   const app = Fastify({
     logger: true,
+  });
+
+  void app.register(rateLimit, {
+    global: false,
   });
 
   app.get("/", async (request, reply) => {
