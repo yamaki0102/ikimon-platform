@@ -217,10 +217,10 @@ export function renderFieldNoteMain(
     }
     const cards = snapshot.feed
       .slice(0, 6)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { locationMode: "public" }))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public", showEvidenceTier: false }))
       .join("");
     return `<div class="fn-subhead"><h3>${escapeHtml(copy.nearbyLabel)}</h3></div>
-      <div class="fn-grid">${cards}</div>`;
+      <div class="fn-grid fn-grid-nearby">${cards}</div>`;
   })();
 
   const ambientSection = (() => {
@@ -386,6 +386,8 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-subhead h3 { margin: 0; font-family: "Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif; font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 2px solid rgba(16,185,129,.28); }
   .fn-grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding-left: 18px; }
   .fn-grid-compact { grid-template-columns: 1fr; }
+  .fn-grid-nearby { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }
+  .fn-grid-nearby .obs-card-media { aspect-ratio: 4 / 3; }
   .fn-empty { margin-left: 18px; padding: 18px 22px; border-radius: 18px; background: rgba(248,250,252,.8); color: #64748b; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .fn-empty p { margin: 0; flex: 1 1 240px; }
   .fn-empty .btn { flex-shrink: 0; }

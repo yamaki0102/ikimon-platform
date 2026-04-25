@@ -27,6 +27,7 @@ const observation = {
   observerUserId: "user-1",
   observerAvatarUrl: null,
   entryType: "observation" as const,
+  evidenceTier: 1,
 };
 
 test("renderObservationCard hides exact place name in public mode", () => {
@@ -39,4 +40,10 @@ test("renderObservationCard keeps canonical place line in owner mode", () => {
   const html = renderObservationCard("", "ja", observation, { locationMode: "owner" });
   assert.match(html, /浜松城公園 共生エリア/);
   assert.match(html, /浜松市/);
+});
+
+test("renderObservationCard can hide internal evidence tier labels", () => {
+  const html = renderObservationCard("", "ja", observation, { locationMode: "public", showEvidenceTier: false });
+  assert.doesNotMatch(html, />T1</);
+  assert.doesNotMatch(html, /Evidence Tier 1/);
 });
