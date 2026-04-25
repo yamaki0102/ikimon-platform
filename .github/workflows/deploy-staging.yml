@@ -66,6 +66,21 @@ jobs:
           envs: STAGING_BRANCH,STAGING_ALLOW_NON_FF
           script: |
             export STAGING_BRANCH STAGING_ALLOW_NON_FF
+            cd /var/www/ikimon.life-staging/repo
+            git fetch origin "$STAGING_BRANCH" >/dev/null
+            LOCAL_HEAD="$(git rev-parse HEAD)"
+            REMOTE_HEAD="$(git rev-parse "origin/$STAGING_BRANCH")"
+            if [ "${STAGING_ALLOW_NON_FF:-false}" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
+              echo "Refusing non-fast-forward staging deploy."
+              echo "Current staging HEAD: $LOCAL_HEAD"
+              echo "Target branch HEAD:   $REMOTE_HEAD"
+              echo "Target branch origin/$STAGING_BRANCH does not contain the currently deployed commit."
+              echo "Rerun with allow_non_fast_forward=true only for intentional rollback or branch switch."
+              exit 1
+            fi
+            git show "origin/$STAGING_BRANCH:ops/deploy/staging_deploy_reference.sh" > /var/www/ikimon.life-staging/deploy.sh.tmp
+            install -m 755 /var/www/ikimon.life-staging/deploy.sh.tmp /var/www/ikimon.life-staging/deploy.sh
+            rm -f /var/www/ikimon.life-staging/deploy.sh.tmp
             /var/www/ikimon.life-staging/deploy.sh
 
       - name: Rebuild + restart platform_v2 on staging
