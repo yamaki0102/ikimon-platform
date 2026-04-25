@@ -322,7 +322,7 @@ async function main(): Promise<void> {
       evidence_assets_linked: string;
     }>(
       `select
-          (select count(*)::text from remember_tokens) as remember_tokens,
+          (select count(*)::text from remember_tokens where token_family = 'legacy') as remember_tokens,
           (select count(*)::text from visits where source_kind = 'legacy_track_session') as track_visits,
           (select count(*)::text
            from visit_track_points vtp
@@ -394,6 +394,7 @@ async function main(): Promise<void> {
         trackPoints: tracks.reduce((sum, track) => sum + (Array.isArray(track.points) ? track.points.length : 0), 0),
         identificationCandidates: countIdentificationCandidates(observations),
         importableIdentificationCandidates: countIdentificationCandidates(importableObservations),
+        photoRefs: expectedPhotoRefs,
         existingPhotoRefs: expectedExistingPhotoRefs,
         missingPhotoRefs: expectedMissingPhotoRefs,
       },
@@ -420,7 +421,7 @@ async function main(): Promise<void> {
       { key: "observation_visits", expected: report.expected.observationsImportable, actual: report.actual.observationVisits },
       { key: "observation_occurrences", expected: report.expected.observationsImportable, actual: report.actual.observationOccurrences },
       { key: "identifications_linked", expected: report.expected.importableIdentificationCandidates, actual: report.actual.identificationsLinked },
-      { key: "evidence_assets_linked", expected: report.expected.existingPhotoRefs, actual: report.actual.evidenceAssetsLinked },
+      { key: "evidence_assets_linked", expected: report.expected.photoRefs, actual: report.actual.evidenceAssetsLinked },
       { key: "checksum.mismatches", expected: 0, actual: report.checksum.mismatches.length },
     ].filter((mismatch) => mismatch.expected !== mismatch.actual);
 
