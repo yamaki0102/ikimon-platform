@@ -678,11 +678,12 @@ export const LANDING_TOP_STYLES = `
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 16px;
-    margin: 18px 0 34px;
+    margin: 18px 0 16px;
   }
   .prototype-link-band i { width: 44px; height: 44px; border-radius: 12px; }
   .prototype-link-band strong { display: block; font-size: 16px; line-height: 1.35; font-weight: 950; }
   .prototype-link-band span { display: block; margin-top: 3px; color: #64748b; font-size: 12px; font-weight: 680; }
+  .prototype-link-band + .prototype-section { padding-top: clamp(28px, 4vw, 46px); }
   .prototype-section { padding: clamp(58px, 8vw, 104px) 0; scroll-margin-top: 92px; }
   .prototype-section-head { display: grid; grid-template-columns: minmax(0, .7fr) minmax(280px, .3fr); gap: 24px; align-items: end; margin-bottom: 24px; }
   .prototype-eyebrow { color: #047857; font-size: 12px; font-weight: 950; }
