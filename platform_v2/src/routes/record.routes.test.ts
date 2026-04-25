@@ -105,6 +105,49 @@ test("login and register pages render v2 auth forms", async () => {
   }
 });
 
+test("www host redirects to apex before OAuth cookies are issued", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/auth/oauth/google/start?redirect=/record",
+      headers: {
+        host: "www.ikimon.life",
+        accept: "text/html",
+      },
+    });
+
+    assert.equal(response.statusCode, 308);
+    assert.equal(response.headers.location, "https://ikimon.life/auth/oauth/google/start?redirect=/record");
+    assert.equal(response.headers["set-cookie"], undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("failed OAuth callback clears OAuth state without logging out an existing session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/oauth_callback.php?provider=google&state=bad&code=bad",
+      headers: {
+        cookie: "ikimon_v2_session=keep-me",
+      },
+    });
+
+    const setCookies = Array.isArray(response.headers["set-cookie"])
+      ? response.headers["set-cookie"]
+      : [String(response.headers["set-cookie"] ?? "")];
+    assert.equal(response.statusCode, 303);
+    assert.equal(response.headers.location, "/login?error=oauth");
+    assert.ok(setCookies.some((cookie) => cookie.startsWith("ikimon_oauth_state=;")));
+    assert.ok(!setCookies.some((cookie) => cookie.startsWith("ikimon_v2_session=;")));
+  } finally {
+    await app.close();
+  }
+});
+
 test("cross-site auth mutation returns a controlled 403", async () => {
   const app = buildApp();
   try {

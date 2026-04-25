@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { detectLangFromUrl, type SiteLang } from "../i18n.js";
-import { buildClearedSessionCookie, issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
+import { issueSession, readSessionTokenFromCookie, revokeSession } from "../services/authSession.js";
 import { authenticateWithPassword, findOrCreateOAuthUser, registerWithPassword } from "../services/authUsers.js";
 import {
   assertAuthRateLimit,
@@ -259,7 +259,7 @@ async function handleOAuthCallback(
     reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
     reply.code(303).redirect(withBasePath(requestBasePath(request), state.redirect));
   } catch {
-    reply.header("set-cookie", [buildClearedSessionCookie(), buildClearedOAuthStateCookie()]);
+    reply.header("set-cookie", buildClearedOAuthStateCookie());
     reply.code(303).redirect(withBasePath(requestBasePath(request), "/login?error=oauth"));
   }
 }
