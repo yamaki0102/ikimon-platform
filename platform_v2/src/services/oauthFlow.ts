@@ -96,6 +96,10 @@ export function requestPublicOrigin(request: FastifyRequest): string {
 }
 
 export function oauthRedirectUri(request: FastifyRequest, provider: OAuthProvider): string {
+  if (provider === "google") {
+    return `${requestPublicOrigin(request)}/oauth_callback.php?provider=google`;
+  }
+
   return `${requestPublicOrigin(request)}/auth/oauth/${provider}/callback`;
 }
 
