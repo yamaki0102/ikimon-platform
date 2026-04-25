@@ -252,19 +252,30 @@ async function handleOAuthCallback(
   reply: FastifyReply,
   providerInput: unknown,
 ) {
+  let failureStage = "provider";
   try {
     const provider = providerFromParam(providerInput);
+    failureStage = "state";
     const state = readOAuthState(request.headers.cookie);
     const query = request.query as { state?: string; code?: string; error?: string };
     if (!state || state.provider !== provider || state.state !== query.state || !query.code || query.error) {
       throw new Error("oauth_state_invalid");
     }
+    failureStage = "exchange_oauth_code";
     const profile = await exchangeOAuthCode(provider, query.code, oauthRedirectUri(request, provider), state.codeVerifier);
+    failureStage = "find_or_create_user";
     const user = await findOrCreateOAuthUser(profile);
+    failureStage = "issue_session";
     const session = await issueUserSession(request, user.userId);
     reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
     reply.code(303).redirect(withBasePath(requestBasePath(request), state.redirect));
-  } catch {
+  } catch (error) {
+    request.log.warn({
+      err: error,
+      failureStage,
+      providerInput: typeof providerInput === "string" ? providerInput : null,
+      hasOAuthStateCookie: String(request.headers.cookie ?? "").includes("ikimon_oauth_state="),
+    }, "oauth callback failed");
     reply.header("set-cookie", buildClearedOAuthStateCookie());
     reply.code(303).redirect(withBasePath(requestBasePath(request), "/login?error=oauth"));
   }
