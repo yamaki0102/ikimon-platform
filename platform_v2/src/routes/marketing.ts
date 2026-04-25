@@ -9,7 +9,7 @@ type MarketingPageMeta = {
   eyebrow: string;
   heading: string;
   lead: string;
-  activeNav: "home" | "learn" | "business" | "explore";
+  activeNav: "home" | "learn" | "business" | "explore" | "community";
   bodyPageId: string;
   footerNote?: string;
   afterActions?: Array<{ href: string; label: string }>;
@@ -57,6 +57,8 @@ function activeNavLabel(activeNav: MarketingPageMeta["activeNav"], lang: SiteLan
   switch (activeNav) {
     case "business":
       return getShortCopy<string>(lang, "shared", "shell.nav.business");
+    case "community":
+      return getShortCopy<string>(lang, "shared", "shell.nav.community");
     case "explore":
       return getShortCopy<string>(lang, "shared", "shell.nav.explore");
     case "learn":
@@ -233,6 +235,10 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     ["/contact.php", "/contact"],
     ["/for-business.php", "/for-business"],
     ["/pricing.php", "/for-business/pricing"],
+    ["/events.php", "/community"],
+    ["/survey.php", "/community"],
+    ["/bingo.php", "/community"],
+    ["/event_detail.php", "/community"],
     ["/for-business/index.php", "/for-business"],
     ["/for-business/pricing.php", "/for-business/pricing"],
     ["/for-business/demo.php", "/for-business/demo"],
@@ -273,6 +279,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     { path: "/privacy", pageKey: "privacy" },
     { path: "/terms", pageKey: "terms" },
     { path: "/contact", pageKey: "contact", prependHtml: (basePath, lang) => renderContactForm(basePath, lang) },
+    { path: "/community", pageKey: "community" },
     { path: "/for-business", pageKey: "forBusiness" },
     { path: "/for-business/pricing", pageKey: "forBusinessPricing" },
     { path: "/for-business/demo", pageKey: "forBusinessDemo" },
