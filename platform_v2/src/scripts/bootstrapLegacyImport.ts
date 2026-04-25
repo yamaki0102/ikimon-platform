@@ -530,10 +530,14 @@ async function loadLegacyTracks(options: ImportOptions): Promise<LegacyTrackSess
 }
 
 function mergeLegacyUser(existing: LegacyUser | undefined, incoming: LegacyUser): LegacyUser {
+  if (!existing) {
+    return incoming;
+  }
+
   return {
-    ...existing,
     ...incoming,
-    observer_rank: incoming.observer_rank ?? existing?.observer_rank,
+    ...existing,
+    observer_rank: existing.observer_rank ?? incoming.observer_rank,
   };
 }
 
