@@ -87,6 +87,17 @@ function requestUrl(request: { url?: string; raw?: { url?: string } }): string {
   return String(request.raw?.url ?? request.url ?? "");
 }
 
+function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string | null {
+  const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
+  const host = typeof rawHost === "string" ? rawHost.split(",")[0]?.trim().toLowerCase().replace(/:\d+$/, "") : "";
+  if (host !== "www.ikimon.life") {
+    return null;
+  }
+  const url = requestUrl(request);
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `https://ikimon.life${path}`;
+}
+
 function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string {
   return withBasePath(getForwardedBasePath(request.headers), requestUrl(request));
 }
@@ -398,6 +409,13 @@ async function getPreviewContext(): Promise<PreviewContext> {
 export function buildApp() {
   const app = Fastify({
     logger: true,
+  });
+
+  app.addHook("onRequest", async (request, reply) => {
+    const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
+    if (redirectUrl) {
+      reply.code(308).header("location", redirectUrl).send();
+    }
   });
 
   app.get("/", async (request, reply) => {
