@@ -33,7 +33,7 @@ foreach (is_array($cardObs['identifications'] ?? null) ? array_reverse($cardObs[
         continue;
     }
     $_candidateName = trim((string)($_identification['taxon_name'] ?? $_identification['proposed_name'] ?? $_identification['scientific_name'] ?? ''));
-    if ($_candidateName !== '' && !in_array(mb_strtolower($_candidateName), ['unresolved', 'awaiting id', '未同定', '同定待ち'], true)) {
+    if ($_candidateName !== '' && !BioUtils::isUnresolvedTaxonLabel($_candidateName)) {
         $_primaryIdentification = $_identification;
         break;
     }
@@ -111,7 +111,7 @@ $_nuggetIcons = [
                     <p class="text-token-xs text-muted mt-0.5"><?php echo $_timeAgo; ?><?php echo $_place ? ' · ' . $_place : ''; ?></p>
                 </div>
             </div>
-            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_taxon['name'] ?? __('feed_card.observation_record', 'Observation record'), $cardLoggedIn); ?>
+            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_speciesName ?? __('feed_card.observation_record', 'Observation record'), $cardLoggedIn); ?>
         </div>
 
         <!-- 写真 -->
