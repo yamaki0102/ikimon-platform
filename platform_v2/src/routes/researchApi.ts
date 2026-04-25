@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
+import { PUBLIC_OBSERVATION_QUALITY_SQL } from "../services/observationQualityGate.js";
 
 type OccurrenceRow = {
   occurrence_id: string;
@@ -82,6 +83,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            order by ea.created_at asc limit 1
          ) photo on true
          where o.evidence_tier >= $1
+           and ${PUBLIC_OBSERVATION_QUALITY_SQL}
            ${whereExtra}
          order by v.observed_at desc
          limit $2 offset $3`,

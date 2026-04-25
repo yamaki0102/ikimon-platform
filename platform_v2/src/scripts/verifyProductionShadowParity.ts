@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -50,10 +51,16 @@ type ParityMismatch = {
 
 function parseArgs(argv: string[]): VerifyOptions {
   const projectRoot = process.cwd();
+  const legacyRoots = resolveLegacyRoots(projectRoot, {
+    mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
+    legacyDataRoot: process.env.LEGACY_DATA_ROOT,
+    uploadsRoot: process.env.LEGACY_UPLOADS_ROOT,
+    publicRoot: process.env.LEGACY_PUBLIC_ROOT,
+  });
   const options: VerifyOptions = {
-    legacyDataRoot: path.resolve(projectRoot, "../upload_package/data"),
-    uploadsRoot: path.resolve(projectRoot, "../upload_package/public_html/uploads"),
-    publicRoot: path.resolve(projectRoot, "../upload_package/public_html"),
+    legacyDataRoot: legacyRoots.legacyDataRoot,
+    uploadsRoot: legacyRoots.uploadsRoot,
+    publicRoot: legacyRoots.publicRoot,
     limit: null,
     json: false,
     importVersion: "production_shadow_live",

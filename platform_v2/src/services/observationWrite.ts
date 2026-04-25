@@ -12,6 +12,11 @@ import {
 } from "./writeSupport.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
+import {
+  hasNativeObservationPhoto,
+  upsertVisitQualityReview,
+  type ObservationQualitySignals,
+} from "./observationQualityGate.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -187,6 +192,27 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const subjects = resolveSubjects(input);
   const occurrenceId = makeOccurrenceId(visitId, 0);
   const occurrenceIds = subjects.map((_, i) => makeOccurrenceId(visitId, i));
+  const photos = Array.isArray(input.photos) ? input.photos : [];
+  const hasPhoto = hasNativeObservationPhoto(photos);
+  const qualitySignals: ObservationQualitySignals = {
+    hasPhoto,
+    hasAudio: false,
+    hasLocation: Number.isFinite(input.latitude) && Number.isFinite(input.longitude),
+    hasIdentification: subjects.some((subject) =>
+      Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
+    ),
+    isPublicReady: true,
+    gateReasons: [
+      hasPhoto ? null : "missing_photo",
+      "missing_audio",
+      Number.isFinite(input.latitude) && Number.isFinite(input.longitude) ? null : "missing_location",
+      subjects.some((subject) =>
+        Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
+      ) ? null : "missing_identification",
+    ].filter((reason): reason is string => reason !== null),
+  };
+  const publicVisibility = hasPhoto ? "public" : "review";
+  const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
   const completeChecklistFlag = visitMode === "survey" ? Boolean(input.completeChecklistFlag) : false;
   const targetTaxaScope = visitMode === "survey"
@@ -286,10 +312,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           visit_id, legacy_observation_id, place_id, user_id, observed_at, session_mode, visit_mode,
           complete_checklist_flag, target_taxa_scope, effort_minutes, distance_meters, point_latitude, point_longitude,
           observed_country, observed_prefecture, observed_municipality, locality_note, note,
-          source_kind, source_payload, created_at, updated_at
+          source_kind, source_payload, public_visibility, quality_review_status, quality_gate_reasons, created_at, updated_at
        ) values (
           $1, $2, $3, $4, $5, 'standard', $6, $7, $8, $9, $10, $11,
-          $12, $13, $14, $15, $16, $17, 'v2_observation', $18::jsonb, $19, now()
+          $12, $13, $14, $15, $16, $17, 'v2_observation', $18::jsonb, $19, $20, $21::jsonb, $22, now()
        )
        on conflict (visit_id) do update set
           legacy_observation_id = excluded.legacy_observation_id,
@@ -309,6 +335,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           locality_note = excluded.locality_note,
           note = excluded.note,
           source_payload = excluded.source_payload,
+          public_visibility = excluded.public_visibility,
+          quality_review_status = excluded.quality_review_status,
+          quality_gate_reasons = excluded.quality_gate_reasons,
           updated_at = now()`,
       [
         visitId,
@@ -329,6 +358,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         input.localityNote ?? null,
         input.note ?? null,
         JSON.stringify(visitSourcePayload),
+        publicVisibility,
+        qualityReviewStatus,
+        JSON.stringify(qualitySignals.gateReasons),
         observedAt,
       ],
     );
@@ -405,7 +437,6 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       );
     }
 
-    const photos = Array.isArray(input.photos) ? input.photos : [];
     const legacyPhotoKeys = photos.map((photo, index) => `observation_photo:${visitId}:${index}:${photo.path}`);
     if (legacyPhotoKeys.length > 0) {
       await client.query(
@@ -472,6 +503,32 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
             photo_index: index,
           }),
         ],
+      );
+    }
+
+    if (!hasPhoto) {
+      await upsertVisitQualityReview(client, {
+        visitId,
+        occurrenceId,
+        reasonCode: "native_no_photo",
+        reasonDetail: "V2 observation was saved without photo evidence and is held for review before public display.",
+        qualitySignals,
+        sourcePayload: {
+          source: "v2_write_api",
+          visit_id: visitId,
+        },
+      });
+    } else {
+      await client.query(
+        `update observation_quality_reviews
+         set review_status = 'accepted',
+             public_visibility = 'public',
+             reviewed_at = coalesce(reviewed_at, now()),
+             updated_at = now()
+         where visit_id = $1
+           and reason_code = 'native_no_photo'
+           and review_status = 'needs_review'`,
+        [visitId],
       );
     }
 

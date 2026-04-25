@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   isLandingHeroCandidateEligible,
+  resolveLandingDisplayName,
   scoreLandingHeroCandidate,
   type LandingHeroCandidate,
   type LandingHeroScoreContext,
@@ -85,4 +86,10 @@ test("isLandingHeroCandidateEligible rejects missing photos, blurred locations, 
     },
   })), false);
   assert.equal(isLandingHeroCandidateEligible(candidate({ photoWidthPx: 3000, photoHeightPx: 800 })), false);
+});
+
+test("resolveLandingDisplayName ignores unresolved placeholders and uses identification fallback", () => {
+  assert.equal(resolveLandingDisplayName("Unresolved", "モンシロチョウ", null), "モンシロチョウ");
+  assert.equal(resolveLandingDisplayName("同定待ち", "Awaiting ID", "AI候補の花"), "AI候補の花");
+  assert.equal(resolveLandingDisplayName("", null, null), "同定待ち");
 });

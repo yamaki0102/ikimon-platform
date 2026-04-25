@@ -10,6 +10,7 @@ import {
   matchesAuthorityScope,
   type ReviewerAuthorityAccessContext,
 } from "./reviewerAuthorities.js";
+import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
 
 type RecentObservation = {
   occurrenceId: string;
@@ -173,6 +174,14 @@ const PROFILE_DISPLAY_NAME_SQL = buildObserverNameSql({
   defaultFallback: "Observer",
 });
 
+const GUEST_PROFILE_DISPLAY_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Guest",
+});
+
 type VisitCardRow = {
   visit_id: string;
   observed_at: string;
@@ -286,7 +295,7 @@ async function loadVisitSummaryObservations(
 ): Promise<RecentObservation[]> {
   const pool = getPool();
   const params: Array<string | number> = [];
-  const whereClauses: string[] = [];
+  const whereClauses: string[] = [PUBLIC_OBSERVATION_QUALITY_SQL];
   if (options.userId) {
     params.push(options.userId);
     whereClauses.push(`v.user_id = $${params.length}`);
@@ -629,6 +638,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
      from occurrences o
      join visits v on v.visit_id = o.visit_id
      left join places p on p.place_id = v.place_id
+     where ${PUBLIC_OBSERVATION_QUALITY_SQL}
      group by 1
      order by count(*) desc, municipality asc
      limit 6`,
@@ -642,6 +652,8 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
         coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as display_name,
         count(*)::text as observation_count
      from occurrences o
+     join visits v on v.visit_id = o.visit_id
+     where ${PUBLIC_OBSERVATION_QUALITY_SQL}
      group by 1
      order by count(*) desc, display_name asc
      limit 6`,
@@ -729,9 +741,10 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
        where ab.blob_id = u.avatar_asset_id
        limit 1
      ) avatar on true
-     where o.occurrence_id = $1
+     where (o.occurrence_id = $1
         or v.visit_id = $1
-        or o.legacy_observation_id = $1
+        or o.legacy_observation_id = $1)
+       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
      order by v.observed_at desc
      limit 1`,
     [id],
@@ -953,12 +966,41 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
   );
 
   const user = userResult.rows[0];
-  if (!user) {
+  if (!user && !userId.startsWith("guest_")) {
     return null;
   }
 
   const home = await getHomeSnapshot(userId);
   const recentObservations = await loadVisitSummaryObservations(8, { userId });
+
+  if (!user) {
+    const guestResult = await pool.query<{
+      user_id: string;
+      display_name: string | null;
+    }>(
+      `select
+          v.user_id,
+          ${GUEST_PROFILE_DISPLAY_NAME_SQL} as display_name
+       from visits v
+       left join users u on u.user_id = v.user_id
+       where v.user_id = $1
+         and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+       order by v.observed_at desc
+       limit 1`,
+      [userId],
+    );
+    const guest = guestResult.rows[0];
+    if (!guest) {
+      return null;
+    }
+    return {
+      userId: guest.user_id,
+      displayName: guest.display_name ?? "Guest",
+      rankLabel: "Guest observer",
+      recentPlaces: home.myPlaces,
+      recentObservations,
+    };
+  }
 
   return {
     userId: user.user_id,
@@ -1197,6 +1239,7 @@ export type AmbientObserver = {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+  latestPhotoUrl: string | null;
   latestObservedAt: string;
   latestDisplayName: string;
 };

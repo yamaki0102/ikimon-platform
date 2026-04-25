@@ -2,6 +2,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import {
+  assessLegacyObservationQuality,
+  shouldQuarantineLegacyNoPhoto,
+  upsertLegacyObservationQualityReview,
+} from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -17,6 +23,7 @@ type LegacyObservation = JsonRecord & {
   observed_at?: string;
   created_at?: string;
   updated_at?: string;
+  photos?: unknown[];
 };
 
 type PlanSummary = {
@@ -24,12 +31,17 @@ type PlanSummary = {
   ledgerRowsPlanned: number;
   idMapRowsPlanned: number;
   skippedMissingId: number;
+  quarantinedNoPhoto: number;
 };
 
 function parseArgs(argv: string[]): ImportOptions {
   const projectRoot = process.cwd();
+  const legacyRoots = resolveLegacyRoots(projectRoot, {
+    mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
+    legacyDataRoot: process.env.LEGACY_DATA_ROOT,
+  });
   const options: ImportOptions = {
-    legacyDataRoot: path.resolve(projectRoot, "../upload_package/data"),
+    legacyDataRoot: legacyRoots.legacyDataRoot,
     dryRun: false,
     limit: null,
     importVersion: "v0-plan",
@@ -190,12 +202,17 @@ async function planObservations(options: ImportOptions, observations: LegacyObse
     ledgerRowsPlanned: 0,
     idMapRowsPlanned: 0,
     skippedMissingId: 0,
+    quarantinedNoPhoto: 0,
   };
 
   if (options.dryRun) {
     for (const observation of observations) {
       if (typeof observation.id !== "string" || observation.id === "") {
         summary.skippedMissingId += 1;
+        continue;
+      }
+      if (shouldQuarantineLegacyNoPhoto(observation)) {
+        summary.quarantinedNoPhoto += 1;
         continue;
       }
       summary.ledgerRowsPlanned += 1;
@@ -219,6 +236,68 @@ async function planObservations(options: ImportOptions, observations: LegacyObse
       const occurrenceId = `occ:${observation.id}:0`;
       const checksum = hashRecord(observation);
       const observedAt = toIsoTimestamp(observation.observed_at ?? observation.created_at ?? observation.updated_at);
+
+      if (shouldQuarantineLegacyNoPhoto(observation)) {
+        const qualitySignals = assessLegacyObservationQuality(observation);
+        await upsertLegacyObservationQualityReview(pool, {
+          observation,
+          importVersion: options.importVersion,
+          reasonCode: "legacy_no_photo",
+          reasonDetail: "Legacy observation has no photo evidence and must not be re-imported into the public observation lane.",
+          legacyPath: "data/observations",
+        });
+        await pool.query(
+          `insert into migration_ledger (
+              migration_ledger_id, migration_run_id, entity_type, legacy_source, legacy_entity_type,
+              legacy_id, legacy_path, canonical_entity_type, canonical_id,
+              canonical_parent_type, canonical_parent_id,
+              import_status, skipped_reason, source_checksum, import_version, observed_at, imported_at, metadata
+           ) values (
+              $1::uuid, $2::uuid, 'observation_meaning', 'php_json', 'observation',
+              $3, $4, 'occurrence', $5,
+              'visit', $6,
+              'skipped', 'no_photo_quarantined', $7, $8, $9, now(), $10::jsonb
+           )
+           on conflict (legacy_source, legacy_entity_type, legacy_id, import_version) do update set
+              migration_run_id = excluded.migration_run_id,
+              canonical_entity_type = excluded.canonical_entity_type,
+              canonical_id = excluded.canonical_id,
+              canonical_parent_type = excluded.canonical_parent_type,
+              canonical_parent_id = excluded.canonical_parent_id,
+              import_status = 'skipped',
+              skipped_reason = 'no_photo_quarantined',
+              source_checksum = excluded.source_checksum,
+              observed_at = excluded.observed_at,
+              imported_at = now(),
+              metadata = excluded.metadata`,
+          [
+            randomUUID(),
+            runId,
+            observation.id,
+            "data/observations",
+            occurrenceId,
+            visitId,
+            checksum,
+            options.importVersion,
+            observedAt,
+            JSON.stringify({
+              planned_visit_id: visitId,
+              planned_occurrence_id: occurrenceId,
+              planner: "planObservationLedger",
+              quality_gate: qualitySignals,
+            }),
+          ],
+        );
+        await pool.query(
+          `delete from legacy_id_map
+           where legacy_source = 'php_json'
+             and legacy_entity_type = 'observation'
+             and legacy_id = $1`,
+          [observation.id],
+        );
+        summary.quarantinedNoPhoto += 1;
+        continue;
+      }
 
       await pool.query(
         `insert into migration_ledger (

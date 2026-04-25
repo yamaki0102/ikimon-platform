@@ -8,6 +8,7 @@ import {
   summarizePublicLocalitySet,
 } from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
+import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
 import type {
   AmbientObserver,
   LandingDailyCard,
@@ -32,10 +33,32 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
+function normalizeDisplayName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "unresolved" || lowered === "awaiting id" || trimmed === "同定待ち") {
+    return null;
+  }
+  return trimmed;
+}
+
+export function resolveLandingDisplayName(
+  primaryName: string | null | undefined,
+  identificationName: string | null | undefined,
+  aiCandidateName: string | null | undefined,
+): string {
+  return normalizeDisplayName(primaryName)
+    ?? normalizeDisplayName(identificationName)
+    ?? normalizeDisplayName(aiCandidateName)
+    ?? "同定待ち";
+}
+
 type FeedRow = {
   occurrence_id: string;
   visit_id: string;
   display_name: string | null;
+  identification_display_name: string | null;
   ai_candidate_name: string | null;
   ai_candidate_rank: string | null;
   is_ai_candidate: boolean | null;
@@ -65,7 +88,7 @@ const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
 });
 
 const AMBIENT_OBSERVER_NAME_SQL = buildObserverNameSql({
-  userIdExpr: "u.user_id",
+  userIdExpr: "latest.user_id",
   displayNameExpr: "u.display_name",
   sourcePayloadExpr: "latest.source_payload",
   guestFallback: "Guest",
@@ -79,12 +102,14 @@ const FEED_SQL_BASE = `
     coalesce(
       nullif(o.vernacular_name, ''),
       nullif(o.scientific_name, ''),
+      ident.display_name,
       nullif(ai.recommended_taxon_name, ''),
       '同定待ち'
     ) as display_name,
+    ident.display_name as identification_display_name,
     ai.recommended_taxon_name as ai_candidate_name,
-    ai.recommended_rank as ai_candidate_rank,
-    (coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is null
+    coalesce(ident.proposed_rank, ai.recommended_rank) as ai_candidate_rank,
+    (coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, ''), ident.display_name) is null
       and nullif(ai.recommended_taxon_name, '') is not null) as is_ai_candidate,
     v.observed_at::text,
     v.user_id as observer_user_id,
@@ -117,12 +142,29 @@ const FEED_SQL_BASE = `
     limit 1
   ) ai on true
   left join lateral (
+    select
+      case
+        when btrim(i.proposed_name) = '' then null
+        when lower(btrim(i.proposed_name)) in ('unresolved', 'awaiting id') then null
+        when btrim(i.proposed_name) = '同定待ち' then null
+        else btrim(i.proposed_name)
+      end as display_name,
+      i.proposed_rank
+    from identifications i
+    where i.occurrence_id = o.occurrence_id
+      and coalesce(i.is_current, true)
+    order by i.created_at desc
+    limit 1
+  ) ident on true
+  left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url, ab.width_px, ab.height_px
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
-    where ea.occurrence_id = o.occurrence_id
+    where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
       and ea.asset_role = 'observation_photo'
-    order by ea.created_at asc
+    order by
+      case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+      ea.created_at asc
     limit 1
   ) photo on true
   left join lateral (
@@ -155,10 +197,6 @@ const AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql
   occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
 });
 
-const AMBIENT_USER_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
-  userIdColumn: "u.user_id",
-});
-
 function toLandingObservation(row: FeedRow): LandingObservation {
   const latRaw = row.latitude;
   const lngRaw = row.longitude;
@@ -169,7 +207,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.display_name ?? "同定待ち",
+    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
     aiCandidateName: row.ai_candidate_name ?? null,
     aiCandidateRank: row.ai_candidate_rank ?? null,
     isAiCandidate: Boolean(row.is_ai_candidate),
@@ -438,6 +476,7 @@ type IdentificationRow = {
   occurrence_id: string;
   visit_id: string;
   observation_display_name: string | null;
+  ai_candidate_name: string | null;
   observed_at: string;
   observer_user_id: string | null;
   observer_name: string | null;
@@ -459,7 +498,7 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.proposed_name,
+    displayName: resolveLandingDisplayName(row.proposed_name, row.observation_display_name, row.ai_candidate_name),
     observedAt: row.observed_at,
     observerName: row.observer_name ?? "Unknown observer",
     placeName: row.place_name ?? "Unknown place",
@@ -580,7 +619,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 12`,
     );
     feedRows = result.rows;
   } catch {
@@ -590,7 +629,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let heroCandidateRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} order by v.observed_at desc limit 60`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 60`,
     );
     heroCandidateRows = result.rows;
   } catch {
@@ -602,7 +641,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null order by v.observed_at desc limit 6`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 6`,
         [userId],
       );
       myFeedRows = result.rows;
@@ -623,7 +662,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            i.proposed_rank,
            o.occurrence_id,
            o.visit_id,
-           coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as observation_display_name,
+           coalesce(o.vernacular_name, o.scientific_name, ident.display_name, ai.recommended_taxon_name, '同定待ち') as observation_display_name,
+           ai.recommended_taxon_name as ai_candidate_name,
            v.observed_at::text,
            v.user_id as observer_user_id,
            ${FEED_OBSERVER_NAME_SQL} as observer_name,
@@ -648,11 +688,34 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            select coalesce(ab.public_url, ab.storage_path) as public_url
            from evidence_assets ea
            join asset_blobs ab on ab.blob_id = ea.blob_id
-           where ea.occurrence_id = o.occurrence_id
+           where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
              and ea.asset_role = 'observation_photo'
-           order by ea.created_at asc
+           order by
+             case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+             ea.created_at asc
            limit 1
          ) photo on true
+         left join lateral (
+           select
+             case
+               when btrim(i2.proposed_name) = '' then null
+               when lower(btrim(i2.proposed_name)) in ('unresolved', 'awaiting id') then null
+               when btrim(i2.proposed_name) = '同定待ち' then null
+               else btrim(i2.proposed_name)
+             end as display_name
+           from identifications i2
+           where i2.occurrence_id = o.occurrence_id
+             and coalesce(i2.is_current, true)
+           order by i2.created_at desc
+           limit 1
+         ) ident on true
+         left join lateral (
+           select recommended_taxon_name
+           from observation_ai_assessments a
+           where a.occurrence_id = o.occurrence_id
+           order by generated_at desc
+           limit 1
+         ) ai on true
          left join lateral (
            select coalesce(ab.public_url, ab.storage_path) as public_url
            from asset_blobs ab
@@ -660,6 +723,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            limit 1
          ) avatar on true
          where i.actor_user_id = $1
+           and ${PUBLIC_OBSERVATION_QUALITY_SQL}
          order by i.created_at desc
          limit 6`,
         [userId],
@@ -738,8 +802,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       place_count: string | number;
     }>(
       `select
-         (select count(*) from occurrences) as observation_count,
-         (select count(distinct scientific_name) from occurrences where scientific_name is not null and scientific_name <> '') as species_count,
+         (select count(*) from occurrences o join visits v on v.visit_id = o.visit_id where ${PUBLIC_OBSERVATION_QUALITY_SQL}) as observation_count,
+         (select count(distinct o.scientific_name) from occurrences o join visits v on v.visit_id = o.visit_id where o.scientific_name is not null and o.scientific_name <> '' and ${PUBLIC_OBSERVATION_QUALITY_SQL}) as species_count,
          (select count(*) from places) as place_count`,
     );
     const row = statsResult.rows[0];
@@ -761,24 +825,48 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       user_id: string;
       display_name: string | null;
       avatar_url: string | null;
+      latest_photo_url: string | null;
       latest_observed_at: string;
       latest_display_name: string | null;
     }>(
-      `select
-         u.user_id,
+      `with latest_photo_visits as (
+         select distinct on (v.user_id)
+           v.user_id,
+           v.visit_id,
+           v.observed_at as latest_observed_at,
+           v.source_payload,
+           coalesce(v.observed_municipality, p.municipality) as municipality,
+           coalesce(v.observed_prefecture, p.prefecture) as prefecture,
+           coalesce(v.point_latitude, p.center_latitude) as latitude,
+           coalesce(v.point_longitude, p.center_longitude) as longitude,
+           photo.public_url as latest_photo_url
+         from visits v
+         left join places p on p.place_id = v.place_id
+         join lateral (
+           select coalesce(ab.public_url, ab.storage_path) as public_url
+           from occurrences o
+           join evidence_assets ea
+             on (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
+            and ea.asset_role = 'observation_photo'
+           join asset_blobs ab on ab.blob_id = ea.blob_id
+           where o.visit_id = v.visit_id
+           order by ea.created_at asc
+           limit 1
+         ) photo on true
+         where v.user_id is not null
+           and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
+           and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+         order by v.user_id, v.observed_at desc
+       )
+       select
+         latest.user_id,
          ${AMBIENT_OBSERVER_NAME_SQL} as display_name,
          avatar.public_url as avatar_url,
+         latest.latest_photo_url,
          latest.latest_observed_at::text as latest_observed_at,
          latest_obs.display_name as latest_display_name
-       from users u
-       join lateral (
-         select v.user_id, v.observed_at as latest_observed_at, v.source_payload
-         from visits v
-         where v.user_id = u.user_id
-           and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
-         order by v.observed_at desc
-         limit 1
-       ) latest on true
+       from latest_photo_visits latest
+       left join users u on u.user_id = latest.user_id
        left join lateral (
          select coalesce(
                   nullif(o.vernacular_name, ''),
@@ -788,25 +876,55 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
                 ) as display_name
          from occurrences o
          join visits v2 on v2.visit_id = o.visit_id
-         where v2.user_id = u.user_id
+         where v2.visit_id = latest.visit_id
            and ${AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL}
-         order by v2.observed_at desc
+           and coalesce(v2.public_visibility, 'public') = 'public'
+           and coalesce(v2.quality_review_status, 'accepted') = 'accepted'
+         order by o.subject_index asc, o.created_at asc
          limit 1
        ) latest_obs on true
+       left join lateral (
+         select count(distinct v3.visit_id)::int as nearby_photo_visits
+         from visits v3
+         left join places p3 on p3.place_id = v3.place_id
+         where coalesce(v3.public_visibility, 'public') = 'public'
+           and coalesce(v3.quality_review_status, 'accepted') = 'accepted'
+           and v3.observed_at >= now() - interval '90 days'
+           and exists (
+             select 1
+             from occurrences o3
+             join evidence_assets ea3
+               on (ea3.occurrence_id = o3.occurrence_id or ea3.visit_id = v3.visit_id)
+              and ea3.asset_role = 'observation_photo'
+             where o3.visit_id = v3.visit_id
+           )
+           and (
+             (latest.municipality is not null and coalesce(v3.observed_municipality, p3.municipality) = latest.municipality)
+             or (
+               latest.latitude is not null
+               and latest.longitude is not null
+               and coalesce(v3.point_latitude, p3.center_latitude) between latest.latitude - 0.12 and latest.latitude + 0.12
+               and coalesce(v3.point_longitude, p3.center_longitude) between latest.longitude - 0.12 and latest.longitude + 0.12
+             )
+           )
+       ) local_activity on true
        left join lateral (
          select coalesce(ab.public_url, ab.storage_path) as public_url
          from asset_blobs ab
          where ab.blob_id = u.avatar_asset_id
          limit 1
        ) avatar on true
-       where ${AMBIENT_USER_FIXTURE_EXCLUSION_SQL}
-       order by latest.latest_observed_at desc
+       order by
+         coalesce(local_activity.nearby_photo_visits, 0) desc,
+         case when latest.latest_observed_at >= now() - interval '14 days' then 1 else 0 end desc,
+         latest.latest_observed_at desc
        limit 8`,
     );
     ambient = ambientResult.rows.map((row) => ({
       userId: row.user_id,
       displayName: row.display_name ?? "Observer",
       avatarUrl: normalizeAssetUrl(row.avatar_url),
+      latestPhotoUrl: normalizeAssetUrl(row.latest_photo_url),
       latestObservedAt: row.latest_observed_at,
       latestDisplayName: row.latest_display_name ?? "同定待ち",
     }));

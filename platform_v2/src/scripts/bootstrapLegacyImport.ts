@@ -4,6 +4,11 @@ import path from "node:path";
 import type { Pool } from "pg";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import {
+  assessLegacyObservationQuality,
+  shouldQuarantineLegacyNoPhoto,
+  upsertLegacyObservationQualityReview,
+} from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -110,6 +115,7 @@ type ImportSummary = {
   trackPoints: number;
   missingAssets: number;
   orphanUsersFromObservations: number;
+  quarantinedNoPhotoObservations: number;
 };
 
 const summary: ImportSummary = {
@@ -123,6 +129,7 @@ const summary: ImportSummary = {
   trackPoints: 0,
   missingAssets: 0,
   orphanUsersFromObservations: 0,
+  quarantinedNoPhotoObservations: 0,
 };
 
 function parseArgs(argv: string[]): ImportOptions {
@@ -854,8 +861,8 @@ async function importInvites(options: ImportOptions, invites: LegacyInvite[]) {
 }
 
 async function importObservations(options: ImportOptions, observations: LegacyObservation[]) {
-  summary.observations = observations.length;
-  summary.occurrences = observations.length;
+  summary.observations = 0;
+  summary.occurrences = 0;
   const pool = options.dryRun ? null : getPool();
 
   if (pool) {
@@ -874,6 +881,30 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
     const observedAt = toIsoTimestamp(observation.observed_at ?? observation.created_at) ?? new Date().toISOString();
     const latitude = asFiniteNumber(observation.lat);
     const longitude = asFiniteNumber(observation.lng);
+    const qualitySignals = assessLegacyObservationQuality(observation);
+
+    if (shouldQuarantineLegacyNoPhoto(observation)) {
+      summary.quarantinedNoPhotoObservations += 1;
+      if (!options.dryRun && pool) {
+        await upsertLegacyObservationQualityReview(pool, {
+          observation,
+          importVersion: options.importVersion,
+          reasonCode: "legacy_no_photo",
+          reasonDetail: "Legacy observation has no photo evidence and is quarantined instead of imported.",
+          legacyPath: "data/observations",
+        });
+        await pool.query(
+          `update visits
+           set public_visibility = 'review',
+               quality_review_status = 'needs_review',
+               quality_gate_reasons = $2::jsonb,
+               updated_at = now()
+           where visit_id = $1`,
+          [visitId, JSON.stringify(qualitySignals.gateReasons)],
+        );
+      }
+      continue;
+    }
 
     if (!options.dryRun && pool) {
       await pool.query(
@@ -1155,7 +1186,12 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
           ],
         );
       }
+
+      summary.observations += 1;
+      summary.occurrences += 1;
     } else {
+      summary.observations += 1;
+      summary.occurrences += 1;
       summary.assets += Array.isArray(observation.photos) ? observation.photos.length : 0;
     }
   }

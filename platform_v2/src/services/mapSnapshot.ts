@@ -13,6 +13,7 @@ import {
   type PublicLocalityScope,
 } from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
+import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
 
 /**
  * Public map snapshot for `/map`.
@@ -348,6 +349,7 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
     "coalesce(v.point_latitude, p.center_latitude) is not null",
     "coalesce(v.point_longitude, p.center_longitude) is not null",
     MAP_READ_FIXTURE_EXCLUSION_SQL,
+    PUBLIC_OBSERVATION_QUALITY_SQL,
   ];
   const params: unknown[] = [];
 
@@ -687,6 +689,7 @@ export async function getCoverageMesh(
     where coalesce(v.point_latitude, p.center_latitude) is not null
       and coalesce(v.point_longitude, p.center_longitude) is not null
       and ${MAP_READ_FIXTURE_EXCLUSION_SQL}
+      and ${PUBLIC_OBSERVATION_QUALITY_SQL}
       ${whereYear}
     group by lat_bin, lng_bin
     order by c desc
