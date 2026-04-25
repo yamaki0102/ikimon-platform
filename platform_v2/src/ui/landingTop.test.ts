@@ -97,6 +97,15 @@ const photoSnapshot: LandingSnapshot = {
   },
 };
 
+const alternatePhotoObservation: LandingObservation = {
+  ...photoObservation,
+  occurrenceId: "occ-2",
+  visitId: "visit-2",
+  displayName: "ナナホシテントウ",
+  photoUrl: "/uploads/alternate-observation.jpg",
+  identificationCount: 0,
+};
+
 test("landing top empty state does not render sample images", () => {
   const html = renderTop(emptySnapshot);
 
@@ -121,4 +130,23 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /data-kpi-action="landing:daily:featured"/);
   assert.match(html, /data-kpi-action="landing:hero:observation"/);
   assert.match(html, /data-kpi-action="landing:library:identification"/);
+});
+
+test("landing hero image avoids the daily featured observation photo", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    stats: { observationCount: 2, speciesCount: 2, placeCount: 1 },
+    feed: [photoObservation, alternatePhotoObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: photoSnapshot.dailyDashboard!.featuredObservation,
+      seasonalStrip: [
+        { observation: photoObservation, score: 84, reasonKey: "vividPhoto" },
+        { observation: alternatePhotoObservation, score: 72, reasonKey: "seasonal" },
+      ],
+    },
+  });
+
+  assert.match(html, /--hero-image:url\('\/thumb\/lg\/alternate-observation\.jpg'\)/);
+  assert.doesNotMatch(html, /--hero-image:url\('\/thumb\/lg\/real-observation\.jpg'\)/);
 });

@@ -100,6 +100,22 @@ function observationImageUrl(obs: LandingObservation | null | undefined, preset:
   return toThumbnailUrl(obs.photoUrl, preset) ?? obs.photoUrl;
 }
 
+function isSameLandingPhoto(left: LandingObservation | null | undefined, right: LandingObservation | null | undefined): boolean {
+  if (!left || !right) return false;
+  return left.occurrenceId === right.occurrenceId || Boolean(left.photoUrl && right.photoUrl && left.photoUrl === right.photoUrl);
+}
+
+function resolveDailyMainObservation(snapshot: LandingSnapshot): LandingObservation | null {
+  const observations = uniqueLandingObservations(snapshot);
+  return snapshot.dailyDashboard?.featuredObservation ?? observations[0] ?? null;
+}
+
+function resolveHeroPhotoObservation(snapshot: LandingSnapshot): LandingObservation | null {
+  const dailyMainObservation = resolveDailyMainObservation(snapshot);
+  return uniqueLandingObservations(snapshot)
+    .find((obs) => Boolean(obs.photoUrl) && !isSameLandingPhoto(obs, dailyMainObservation)) ?? null;
+}
+
 function renderObservationThumb(obs: LandingObservation, copy: LandingStrings, preset: ThumbnailPreset, eager = false): string {
   const imageUrl = observationImageUrl(obs, preset);
   if (!imageUrl) {
@@ -166,9 +182,7 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot, isLoggedIn } = options;
   const featuredObservation = snapshot.dailyDashboard?.featuredObservation ?? null;
   const uniqueHeroPool = uniqueLandingObservations(snapshot);
-  const photoObservation = featuredObservation?.photoUrl
-    ? featuredObservation
-    : uniqueHeroPool.find((obs) => Boolean(obs.photoUrl)) ?? null;
+  const photoObservation = resolveHeroPhotoObservation(snapshot);
   const heroImage = observationImageUrl(photoObservation, "lg");
   const actionPrimaryHref = isLoggedIn ? "/notes" : "/record";
 
@@ -245,8 +259,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
   const dashboard = snapshot.dailyDashboard;
   const observations = uniqueLandingObservations(snapshot);
-  const featuredObservation = dashboard?.featuredObservation ?? observations[0] ?? null;
-  const mainObservation = featuredObservation ?? observations[0] ?? null;
+  const mainObservation = resolveDailyMainObservation(snapshot);
   const seasonal = dashboard?.seasonalStrip.map((item) => item.observation) ?? observations.slice(1, 5);
   const smallObservations = [...seasonal, ...observations].filter((obs, index, list) =>
     list.findIndex((candidate) => candidate.occurrenceId === obs.occurrenceId) === index
