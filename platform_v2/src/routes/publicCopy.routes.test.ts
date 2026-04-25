@@ -79,7 +79,7 @@ test("updates page keeps the full release history on the v2 public shell", async
     const response = await app.inject({ method: "GET", url: "/learn/updates?lang=ja" });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /AI考察 全面強化/);
-    assert.match(response.body, /フィールドスキャン Perch v2/);
+    assert.match(response.body, /センサースキャン Perch v2/);
     assert.match(response.body, /プロトタイプ版スタート/);
     assert.match(response.body, /2025年11月1日/);
 

@@ -3,6 +3,7 @@ import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import { shouldQuarantineLegacyNoPhoto } from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -275,6 +276,8 @@ async function finalizeMigrationRun(
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const observations = await loadLegacyObservations(options);
+  const importableObservations = observations.filter((observation) => !shouldQuarantineLegacyNoPhoto(observation));
+  const quarantinedNoPhotoObservations = observations.length - importableObservations.length;
   const tokens = await loadLegacyAuthTokens(options);
   const tracks = await loadLegacyTracks(options);
   const pool = getPool();
@@ -384,10 +387,13 @@ async function main(): Promise<void> {
       options,
       expected: {
         observationsSampled: observations.length,
+        observationsImportable: importableObservations.length,
+        quarantinedNoPhotoObservations,
         rememberTokens: tokens.length,
         trackVisits: tracks.length,
         trackPoints: tracks.reduce((sum, track) => sum + (Array.isArray(track.points) ? track.points.length : 0), 0),
         identificationCandidates: countIdentificationCandidates(observations),
+        importableIdentificationCandidates: countIdentificationCandidates(importableObservations),
         existingPhotoRefs: expectedExistingPhotoRefs,
         missingPhotoRefs: expectedMissingPhotoRefs,
       },
@@ -411,9 +417,9 @@ async function main(): Promise<void> {
       { key: "remember_tokens", expected: report.expected.rememberTokens, actual: report.actual.rememberTokens },
       { key: "track_visits", expected: report.expected.trackVisits, actual: report.actual.trackVisits },
       { key: "track_points", expected: report.expected.trackPoints, actual: report.actual.trackPoints },
-      { key: "observation_visits", expected: report.expected.observationsSampled, actual: report.actual.observationVisits },
-      { key: "observation_occurrences", expected: report.expected.observationsSampled, actual: report.actual.observationOccurrences },
-      { key: "identifications_linked", expected: report.expected.identificationCandidates, actual: report.actual.identificationsLinked },
+      { key: "observation_visits", expected: report.expected.observationsImportable, actual: report.actual.observationVisits },
+      { key: "observation_occurrences", expected: report.expected.observationsImportable, actual: report.actual.observationOccurrences },
+      { key: "identifications_linked", expected: report.expected.importableIdentificationCandidates, actual: report.actual.identificationsLinked },
       { key: "evidence_assets_linked", expected: report.expected.existingPhotoRefs, actual: report.actual.evidenceAssetsLinked },
       { key: "checksum.mismatches", expected: 0, actual: report.checksum.mismatches.length },
     ].filter((mismatch) => mismatch.expected !== mismatch.actual);

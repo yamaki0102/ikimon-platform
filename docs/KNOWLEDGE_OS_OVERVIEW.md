@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-04-20
+更新日: 2026-04-25
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -266,11 +266,13 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 11. 現時点の注意点（2026-04-20）
+## 11. 現時点の注意点（2026-04-25）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - staging の `/` は v2、`/legacy/` は PHP rollback lane
 - v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する
+- cutover 判定では `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `rollbackSafetyWindowReady` を必ず見る
+- rollback 再発防止のため、`trackPoints > 0` と `audioArchiveReady=true` は cutover 前の必須条件にする
 - v2 write lane には security gate が入っている
   - 一般 write: cookie session の本人のみ
   - specialist: session + specialist role
