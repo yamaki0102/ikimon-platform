@@ -40,6 +40,7 @@
     "smoke:specialist-authority": "tsx src/scripts/smokeSpecialistAuthority.ts",
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
+    "repair:user-password": "tsx src/scripts/setExistingUserPassword.ts",
     "sync:legacy": "tsx src/scripts/syncLegacyDelta.ts",
     "write:legacy": "tsx src/scripts/writeLegacyCompatibility.ts",
     "readiness": "tsx src/scripts/readinessReport.ts",
