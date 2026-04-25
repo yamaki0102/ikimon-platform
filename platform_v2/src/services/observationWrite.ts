@@ -444,6 +444,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
          where occurrence_id = $1
            and asset_role = 'observation_photo'
            and legacy_asset_key is not null
+           and source_payload ->> 'source' = 'v2_write_api'
            and not (legacy_asset_key = any($2::text[]))`,
         [occurrenceId, legacyPhotoKeys],
       );
@@ -452,7 +453,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         `delete from evidence_assets
          where occurrence_id = $1
            and asset_role = 'observation_photo'
-           and legacy_asset_key is not null`,
+           and legacy_asset_key is not null
+           and source_payload ->> 'source' = 'v2_write_api'`,
         [occurrenceId],
       );
     }
