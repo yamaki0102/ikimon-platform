@@ -87,10 +87,17 @@ function errorStatus(error: unknown, fallback = 400): number {
   return fallback;
 }
 
+function isAuthApiMutationHandledByAuthRoutes(url: string): boolean {
+  const path = url.split("?", 1)[0] ?? "";
+  return path === "/api/v1/auth/login" || path === "/api/v1/auth/register";
+}
+
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", async (request) => {
     if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS") {
-      assertSameOriginRequest(request);
+      if (!isAuthApiMutationHandledByAuthRoutes(request.url)) {
+        assertSameOriginRequest(request);
+      }
     }
   });
 

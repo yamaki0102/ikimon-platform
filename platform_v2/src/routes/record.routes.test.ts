@@ -104,3 +104,30 @@ test("login and register pages render v2 auth forms", async () => {
     await app.close();
   }
 });
+
+test("cross-site auth mutation returns a controlled 403", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      headers: {
+        origin: "https://evil.example",
+        "sec-fetch-site": "cross-site",
+        "content-type": "application/json",
+      },
+      payload: {
+        email: "nobody@example.invalid",
+        password: "wrongwrong",
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      ok: false,
+      error: "same_origin_required",
+    });
+  } finally {
+    await app.close();
+  }
+});

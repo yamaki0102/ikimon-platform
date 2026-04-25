@@ -132,7 +132,7 @@ jobs:
             printf 'LEGACY_DATA_ROOT=/var/www/ikimon.life-staging/repo/upload_package/data\n' >> "$TMP_ENV"
             printf 'LEGACY_PUBLIC_ROOT=/var/www/ikimon.life-staging/repo/upload_package/public_html\n' >> "$TMP_ENV"
             printf 'LEGACY_UPLOADS_ROOT=/var/www/ikimon.life-staging/repo/upload_package/public_html/uploads\n' >> "$TMP_ENV"
-            for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_STREAM_API_TOKEN CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN; do
+            for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_STREAM_API_TOKEN CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET TWITTER_CLIENT_ID TWITTER_CLIENT_SECRET V2_OAUTH_STATE_SECRET; do
               if [ -f "$STAGING_ENV_FILE" ]; then
                 existing_line="$(grep -m1 "^${key}=" "$STAGING_ENV_FILE" || true)"
                 if [ -n "$existing_line" ]; then
