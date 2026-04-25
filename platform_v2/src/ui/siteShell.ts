@@ -288,6 +288,35 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
   </footer>`;
 }
 
+function authNavHydrationScript(basePath: string, lang: SiteLang): string {
+  const sessionEndpoint = withBasePath(basePath, "/api/v1/auth/session");
+  const profileHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
+  return `<script>
+(function () {
+  const endpoint = ${JSON.stringify(sessionEndpoint)};
+  const profileHref = ${JSON.stringify(profileHref)};
+  const applySignedInState = (session) => {
+    if (!session || !session.userId) return;
+    document.documentElement.dataset.auth = 'signed-in';
+    document.querySelectorAll('.site-login-link').forEach((link) => {
+      link.textContent = 'マイページ';
+      link.setAttribute('href', profileHref);
+      link.setAttribute('aria-label', (session.displayName || 'マイページ') + ' のマイページ');
+      link.classList.add('is-authenticated');
+    });
+  };
+  fetch(endpoint, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin'
+  })
+    .then((response) => response.ok ? response.json() : null)
+    .then((payload) => applySignedInState(payload && payload.ok ? payload.session : null))
+    .catch(() => undefined);
+})();
+</script>`;
+}
+
 export function renderSiteDocument(options: SiteShellOptions): string {
   const lang = options.lang ?? "ja";
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
@@ -403,6 +432,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .site-nav-link.is-active { color: #047857; background: #ecfdf5; }
     .site-header-actions { display: flex; gap: 8px; flex: 0 0 auto; flex-wrap: nowrap; align-items: center; }
     .site-header-actions-mobile { display: none; }
+    .site-login-link.is-authenticated { color: #047857; background: #ecfdf5; border-color: rgba(16,185,129,.18); }
     .site-record-link { white-space: nowrap; }
     .site-search {
       display: inline-flex;
@@ -1481,6 +1511,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     </main>
     ${footer(options.basePath, lang, options.footerNote)}
   </div>
+  ${authNavHydrationScript(options.basePath, lang)}
   ${uiKpiScript}
 </body>
 </html>`;
