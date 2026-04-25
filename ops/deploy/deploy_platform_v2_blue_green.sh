@@ -65,6 +65,40 @@ export_runtime_env() {
   V2_PRIVILEGED_WRITE_API_KEY="$(read_env_value V2_PRIVILEGED_WRITE_API_KEY)"
 }
 
+assert_readiness_ready() {
+  local base_url="$1"
+  local payload
+  payload="$(curl -fsS "${base_url}/ops/readiness")"
+  READINESS_JSON="${payload}" python3 - "$base_url" <<'PY'
+import json
+import os
+import sys
+
+base_url = sys.argv[1]
+payload = json.loads(os.environ["READINESS_JSON"])
+gates = payload.get("gates") or {}
+required = [
+    "parityVerified",
+    "deltaSyncHealthy",
+    "driftReportHealthy",
+    "compatibilityWriteWorking",
+    "audioArchiveReady",
+    "rollbackSafetyWindowReady",
+]
+missing = [key for key in required if gates.get(key) is not True]
+if payload.get("status") != "near_ready" or missing:
+    print(f"Readiness gate failed for {base_url}", file=sys.stderr)
+    print(json.dumps({
+        "status": payload.get("status"),
+        "failedGates": missing,
+        "gates": gates,
+        "audioArchive": payload.get("audioArchive"),
+        "counts": payload.get("counts"),
+    }, ensure_ascii=False), file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 materialize_env() {
   mkdir -p "${ENV_DIR}"
   python3 - "$ENV_FILE" "$PM2_NAME" <<'PY'
@@ -131,6 +165,11 @@ install_units() {
   systemctl daemon-reload
 }
 
+ensure_private_uploads_dir() {
+  install -d -m 750 -o www-data -g www-data "${APP_ROOT}/private_uploads"
+  install -d -m 750 -o www-data -g www-data "${APP_ROOT}/private_uploads/v2-audio"
+}
+
 infer_active_color() {
   if [[ -f "${STATE_DIR}/active_color" ]]; then
     local saved
@@ -162,6 +201,7 @@ prepare_release() {
 
   materialize_env
   install_units
+  ensure_private_uploads_dir
   stop_legacy_pm2
 
   mkdir -p "${RELEASES_DIR}" "${RUNTIME_DIR}" "${STATE_DIR}"
@@ -181,6 +221,8 @@ prepare_release() {
 
   cd "${release_platform}"
   npm ci --silent
+  export_runtime_env
+  npm run migrate
   npm run build
 
   ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
@@ -247,7 +289,7 @@ promote_candidate() {
 
   curl -fsS "http://127.0.0.1:${port}/healthz" >/dev/null
   curl -fsS "http://127.0.0.1:${port}/readyz" >/dev/null
-  curl -fsS "http://127.0.0.1:${port}/ops/readiness" >/dev/null
+  assert_readiness_ready "http://127.0.0.1:${port}"
 
   snapshot="$(snapshot_nginx)"
   rendered="$(mktemp)"
@@ -277,6 +319,7 @@ promote_candidate() {
     printf '%s\n' "${previous}" > "${STATE_DIR}/active_color"
     exit 1
   fi
+  assert_readiness_ready "${PUBLIC_BASE_URL}"
 
   printf '%s\n' "${candidate}" > "${STATE_DIR}/active_color"
   rm -f "${STATE_DIR}/candidate_color" "${STATE_DIR}/candidate_port" "${STATE_DIR}/candidate_release" "${STATE_DIR}/previous_color"

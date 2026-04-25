@@ -270,9 +270,9 @@ platform_v2/src/routes/                  v2 APIルート
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - staging の `/` は v2、`/legacy/` は PHP rollback lane
-- v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する
-- cutover 判定では `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `rollbackSafetyWindowReady` を必ず見る
-- rollback 再発防止のため、`trackPoints > 0` と `audioArchiveReady=true` は cutover 前の必須条件にする
+- v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する。`near_ready` は rollback safety と audio archive がどちらも成立した時だけ許可する
+- cutover 判定では `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `compatibilityWriteWorking` / `audioArchiveReady` / `rollbackSafetyWindowReady` を必ず見る
+- rollback 再発防止のため、`trackPoints > 0` と `audioArchiveReady=true` は cutover 前の必須条件にする。`private_uploads` は deploy prepare で `www-data` 所有の永続ディレクトリとして作成する
 - v2 write lane には security gate が入っている
   - 一般 write: cookie session の本人のみ
   - specialist: session + specialist role

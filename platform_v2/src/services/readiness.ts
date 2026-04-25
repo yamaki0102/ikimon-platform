@@ -230,9 +230,10 @@ export async function getReadinessSnapshot() {
       canonicalDriftHealthy &&
       latestCompatibilityWrite?.write_status === "succeeded",
   };
+  const allReleaseGatesReady = gates.rollbackSafetyWindowReady && gates.audioArchiveReady;
 
   return {
-    status: gates.rollbackSafetyWindowReady ? "near_ready" : "needs_work",
+    status: allReleaseGatesReady ? "near_ready" : "needs_work",
     gates,
     counts: {
       users: Number(counts?.users ?? 0),
