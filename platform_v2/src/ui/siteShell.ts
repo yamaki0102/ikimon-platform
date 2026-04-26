@@ -370,7 +370,6 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
     <div class="global-record-camera-actions">
       <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
-      <button type="button" class="global-record-camera-action" data-global-record-camera-fallback>端末のカメラを開く</button>
     </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
     <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
@@ -419,9 +418,10 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   </section>`;
 }
 
-function globalRecordEntryScript(): string {
+function globalRecordEntryScript(basePath: string): string {
   return `<script>
 (function () {
+  const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
   const DRAFT_KEY = 'latest';
@@ -455,7 +455,6 @@ function globalRecordEntryScript(): string {
   const photoGrid = document.querySelector('[data-global-record-photo-grid]');
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
-  const fallbackButton = document.querySelector('[data-global-record-camera-fallback]');
   const inlineEdit = document.querySelector('[data-global-record-inline-edit]');
   const editRoleInput = document.querySelector('[data-global-record-edit-role]');
   const editNameInput = document.querySelector('[data-global-record-edit-name]');
@@ -473,16 +472,15 @@ function globalRecordEntryScript(): string {
       help: '主役を1つ決めて撮ります。周囲の様子も、あとでAIと人が見る手がかりになります。',
       start: 'カメラを起動',
       capture: '写真を撮る',
-      fallback: '端末のカメラを開く',
     },
     video: {
       title: '動画を撮る',
       help: '動画投稿は最大60秒です。主役の動きや鳴き声と、周囲の様子を一緒に残せます。',
       start: 'カメラを起動',
       capture: '録画開始',
-      fallback: '端末の動画カメラを開く',
     },
   };
+  const apiPath = (path) => BASE_PATH + path;
   const openDraftDb = () => new Promise((resolve, reject) => {
     if (!('indexedDB' in window)) {
       reject(new Error('indexeddb_unavailable'));
@@ -545,6 +543,24 @@ function globalRecordEntryScript(): string {
     vernacularName: editNameInput ? String(editNameInput.value || '').trim() : '',
     localityNote: editNoteInput ? String(editNoteInput.value || '').trim() : '',
   });
+  const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
+    reader.readAsDataURL(file);
+  });
+  const getCurrentSessionUserId = async () => {
+    const response = await fetch(apiPath('/api/v1/auth/session'), {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      credentials: 'include',
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.ok || !json.session || !json.session.userId) {
+      throw new Error('session_required');
+    }
+    return String(json.session.userId);
+  };
   const withInlineEditParams = (href, kind) => {
     let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
     try {
@@ -740,9 +756,8 @@ function globalRecordEntryScript(): string {
     if (captureButton) {
       captureButton.hidden = files.length === 0;
       captureButton.disabled = false;
-      captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚で投稿画面へ' : '写真を撮る';
+      captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚を投稿' : '写真を撮る';
     }
-    if (fallbackButton) fallbackButton.hidden = false;
     if (files.length === 0) {
       if (cameraImage) {
         cameraImage.hidden = true;
@@ -773,6 +788,110 @@ function globalRecordEntryScript(): string {
     const [url] = capturedPhotoObjectUrls.splice(target, 1);
     if (url) URL.revokeObjectURL(url);
     syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
+  };
+  const resetPhotoDraftAfterDirectPost = (message) => {
+    capturedReviewFile = null;
+    capturedPhotoFiles = [];
+    capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    capturedPhotoObjectUrls = [];
+    capturedReviewMeta = null;
+    renderPhotoTray();
+    setPhotoDraftLayout(false);
+    if (inlineEdit) inlineEdit.hidden = true;
+    if (cameraImage) {
+      cameraImage.hidden = true;
+      cameraImage.removeAttribute('src');
+    }
+    if (cameraVideo) cameraVideo.hidden = true;
+    if (empty) {
+      empty.textContent = '続けて写真を撮れます。';
+      empty.hidden = false;
+    }
+    if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
+    if (startButton) {
+      startButton.hidden = false;
+      startButton.disabled = false;
+      startButton.textContent = '次の写真を撮る';
+    }
+    if (captureButton) {
+      captureButton.hidden = true;
+      captureButton.disabled = false;
+      captureButton.textContent = '写真を撮る';
+    }
+    setStatus(message);
+  };
+  const directPostPhotoDraft = async () => {
+    const files = selectedPhotoDraftFiles();
+    if (!files.length) return;
+    const metadata = capturedReviewMeta || {};
+    let location = metadata.location || null;
+    if (!location) {
+      setStatus('投稿に使う地点を確認しています...');
+      location = await readCaptureLocation();
+    }
+    if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
+      throw new Error('location_required');
+    }
+    const userId = await getCurrentSessionUserId();
+    const observedAt = String(metadata.capturedAt || new Date().toISOString());
+    const observationId = 'record-' + Date.now();
+    setStatus('観察を保存しています...');
+    const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        observationId,
+        legacyObservationId: observationId,
+        userId,
+        observedAt,
+        latitude: Number(location.latitude),
+        longitude: Number(location.longitude),
+        prefecture: 'Shizuoka',
+        municipality: '',
+        localityNote: '',
+        note: '',
+        visitMode: 'manual',
+        completeChecklistFlag: false,
+        sourcePayload: {
+          source: 'global_photo_tray',
+          record_mode: 'quick',
+          quick_capture_state: 'present',
+          media_count: files.length,
+          subject_inference: 'ai',
+        },
+        taxon: null,
+      }),
+    });
+    const observationJson = await observationResponse.json().catch(() => ({}));
+    if (!observationResponse.ok || !observationJson.ok) {
+      throw new Error(observationJson.error || 'observation_upsert_failed');
+    }
+    const detailId = String(observationJson.occurrenceId || observationId);
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(files.length));
+      const photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          filename: file.name || 'upload.jpg',
+          mimeType: file.type || 'image/jpeg',
+          base64Data: await readFileAsDataUrl(file),
+          mediaRole: index === 0 ? 'primary_subject' : 'context',
+        }),
+      });
+      const photoJson = await photoResponse.json().catch(() => ({}));
+      if (!photoResponse.ok || !photoJson.ok) {
+        throw new Error('photo_upload_failed_at_' + String(index + 1));
+      }
+    }
+    fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/reassess'), {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => undefined);
+    resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
   };
   const addPhotoDraftFiles = (files, metadata) => {
     const incoming = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
@@ -851,8 +970,6 @@ function globalRecordEntryScript(): string {
       captureButton.textContent = label.capture;
       captureButton.hidden = true;
     }
-    if (fallbackButton) fallbackButton.textContent = label.fallback;
-    if (fallbackButton) fallbackButton.hidden = false;
     if (empty) {
       empty.textContent = 'カメラを起動すると、ここにプレビューが出ます。';
       empty.hidden = false;
@@ -869,7 +986,7 @@ function globalRecordEntryScript(): string {
     setPhotoDraftLayout(false);
     if (!(activeKind === 'photo' && selectedPhotoDraftFiles().length > 0)) clearReview();
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
-      setStatus('このブラウザでは小さい撮影画面を使えません。端末のカメラを開いてください。');
+      setStatus('このブラウザでは撮影を開始できません。ブラウザのカメラ許可を確認してください。');
       return;
     }
     const requestId = cameraRequestId + 1;
@@ -887,7 +1004,6 @@ function globalRecordEntryScript(): string {
       }
       if (cameraVideo) cameraVideo.hidden = false;
       if (cameraImage) cameraImage.hidden = true;
-      if (fallbackButton) fallbackButton.hidden = false;
       const constraints = {
         video: { facingMode: { ideal: 'environment' } },
         audio: activeKind === 'video',
@@ -912,7 +1028,7 @@ function globalRecordEntryScript(): string {
       if (startButton) startButton.hidden = true;
       setStatus(activeKind === 'video' ? '動画投稿は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
     } catch (_) {
-      setStatus('カメラを起動できませんでした。端末のカメラを開いてください。');
+      setStatus('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
       if (startButton) {
         startButton.hidden = false;
         startButton.disabled = false;
@@ -1119,14 +1235,12 @@ function globalRecordEntryScript(): string {
       captureButton.hidden = false;
       captureButton.disabled = false;
     }
-    if (fallbackButton) fallbackButton.hidden = true;
   };
   const retakeCapture = () => {
     const kind = activeKind || (capturedReviewFile && capturedReviewFile.type && capturedReviewFile.type.indexOf('video/') === 0 ? 'video' : 'photo');
     if (kind !== 'photo') clearReview();
     activeKind = kind;
     if (cameraVideo) cameraVideo.hidden = false;
-    if (fallbackButton) fallbackButton.hidden = false;
     startCamera();
   };
   const capturePhoto = () => {
@@ -1159,7 +1273,7 @@ function globalRecordEntryScript(): string {
   };
   const startVideoRecording = () => {
     if (!activeStream || typeof MediaRecorder === 'undefined') {
-      setStatus('このブラウザでは小さい録画を使えません。端末の動画カメラを開いてください。');
+      setStatus('このブラウザでは録画を開始できません。ブラウザのカメラ許可を確認してください。');
       return;
     }
     const mimeType = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
@@ -1207,10 +1321,14 @@ function globalRecordEntryScript(): string {
     if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
       if (captureButton) captureButton.disabled = true;
       try {
-        await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {});
+        await directPostPhotoDraft();
       } catch (error) {
         if (captureButton) captureButton.disabled = false;
-        setStatus('写真の準備に失敗しました。もう一度試してください。');
+        const message = error && error.message ? String(error.message) : '';
+        if (message === 'session_required') setStatus('投稿するにはログインが必要です。ログイン後にもう一度試してください。');
+        else if (message === 'location_required') setStatus('直接投稿には地点が必要です。位置情報を許可してからもう一度試してください。');
+        else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
+        else setStatus('投稿に失敗しました。通信状態を確認してもう一度試してください。');
       }
       return;
     }
@@ -1290,14 +1408,6 @@ function globalRecordEntryScript(): string {
         cameraVideo.pause();
         cameraVideo.currentTime = Number(sheetVideoTrimState.start || 0);
       }
-    });
-  }
-  if (fallbackButton) {
-    fallbackButton.addEventListener('click', () => {
-      const kind = activeKind || 'photo';
-      if (kind !== 'photo') closeSheet();
-      else stopActiveStream();
-      clickFallbackInput(kind);
     });
   }
 })();
@@ -3004,7 +3114,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   </div>
   ${legacyServiceWorkerCleanupScript}
   ${authNavHydrationScript(options.basePath, lang)}
-  ${globalRecordNav ? globalRecordEntryScript() : ""}
+  ${globalRecordNav ? globalRecordEntryScript(options.basePath) : ""}
   ${uiKpiScript}
 </body>
 </html>`;
