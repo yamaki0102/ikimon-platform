@@ -47,7 +47,10 @@
     "readiness": "tsx src/scripts/readinessReport.ts",
     "rehearse:cutover": "tsx src/scripts/rehearseCutover.ts",
     "check:public-terms": "tsx src/scripts/checkPublicSurfaceTerms.ts",
-    "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts"
+    "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts",
+    "import:feedback-knowledge": "tsx src/scripts/importObservationFeedbackKnowledgeClaims.ts",
+    "smoke:feedback-knowledge": "tsx src/scripts/smokeObservationFeedbackKnowledge.ts",
+    "import:observation-fields": "tsx src/scripts/importObservationFields.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

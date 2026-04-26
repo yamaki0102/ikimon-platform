@@ -37,6 +37,8 @@ export interface ObservationEventSessionRow {
   endedAt: string | null;
   targetSpecies: string[];
   config: Record<string, unknown>;
+  fieldId: string | null;
+  templateSourceSessionId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +60,8 @@ interface RawSessionRow extends Record<string, unknown> {
   ended_at: string | null;
   target_species: string[];
   config: Record<string, unknown> | null;
+  field_id: string | null;
+  template_source_session_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +73,7 @@ const SESSION_SELECT = `
   started_at::text AS started_at,
   ended_at::text   AS ended_at,
   target_species, config,
+  field_id, template_source_session_id,
   created_at::text AS created_at,
   updated_at::text AS updated_at
 `;
@@ -92,6 +97,8 @@ function mapSession(row: RawSessionRow): ObservationEventSessionRow {
     endedAt: row.ended_at,
     targetSpecies: row.target_species ?? [],
     config: row.config ?? {},
+    fieldId: row.field_id,
+    templateSourceSessionId: row.template_source_session_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -113,6 +120,8 @@ export interface CreateSessionInput {
   endedAt?: string | null;
   targetSpecies?: string[];
   config?: Record<string, unknown>;
+  fieldId?: string | null;
+  templateSourceSessionId?: string | null;
 }
 
 export async function createSession(
@@ -128,12 +137,14 @@ export async function createSession(
        legacy_event_id, event_code, title, organizer_user_id, corporation_id,
        plan, primary_mode, active_modes,
        location_lat, location_lng, location_radius_m,
-       started_at, ended_at, target_species, config
+       started_at, ended_at, target_species, config,
+       field_id, template_source_session_id
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8::text[],
        $9, $10, $11,
-       $12, $13, $14::text[], $15::jsonb
+       $12, $13, $14::text[], $15::jsonb,
+       $16, $17
      )
      RETURNING ${SESSION_SELECT}`,
     [
@@ -152,6 +163,8 @@ export async function createSession(
       input.endedAt ?? null,
       input.targetSpecies ?? [],
       JSON.stringify(input.config ?? {}),
+      input.fieldId ?? null,
+      input.templateSourceSessionId ?? null,
     ],
   );
   const row = result.rows[0];
@@ -228,6 +241,7 @@ export interface UpdateSessionInput {
   targetSpecies?: string[];
   plan?: "community" | "public";
   config?: Record<string, unknown>;
+  fieldId?: string | null;
 }
 
 export async function updateSession(
@@ -248,6 +262,7 @@ export async function updateSession(
   if (input.targetSpecies !== undefined) { setClauses.push(`target_species = $${idx++}::text[]`); values.push(input.targetSpecies); }
   if (input.plan !== undefined) { setClauses.push(`plan = $${idx++}`); values.push(input.plan); }
   if (input.config !== undefined) { setClauses.push(`config = $${idx++}::jsonb`); values.push(JSON.stringify(input.config)); }
+  if (input.fieldId !== undefined) { setClauses.push(`field_id = $${idx++}`); values.push(input.fieldId); }
   if (setClauses.length === 0) return getSessionById(sessionId);
   setClauses.push("updated_at = NOW()");
 

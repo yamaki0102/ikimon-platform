@@ -128,6 +128,7 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
       ${heroStats}
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
+      <a class="evt-btn evt-btn-primary" href="/community/events/new?template_from=${escapeHtml(session.sessionId)}">🔁 もう一度開催する</a>
       <button type="button" class="evt-btn evt-btn-on-dark" data-share="x">𝕏 で共有</button>
       <button type="button" class="evt-btn evt-btn-on-dark" data-share="line">LINE で共有</button>
       <button type="button" class="evt-btn evt-btn-on-dark" data-share="copy">🔗 URL をコピー</button>

@@ -52,9 +52,13 @@ export function renderEventListBody(sessions: ObservationEventSessionRow[], stri
         </header>
         <h3 class="evt-heading" style="margin:0; font-size:18px;">${escapeHtml(s.title || "")}</h3>
         <p class="evt-lead">${(s.targetSpecies ?? []).slice(0, 4).map(escapeHtml).join("、") || "—"}</p>
-        <a class="evt-btn evt-btn-${isLive ? "primary" : "ghost"}" href="${detailHref}" style="justify-self:start;">
-          ${isLive ? strings.joinCta : strings.recapCta}
-        </a>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <a class="evt-btn evt-btn-${isLive ? "primary" : "ghost"}" href="${detailHref}">
+            ${isLive ? strings.joinCta : strings.recapCta}
+          </a>
+          <a class="evt-btn evt-btn-ghost" href="/community/events/new?template_from=${encodeURIComponent(s.sessionId)}"
+             title="この観察会を再開催">🔁 もう一度開催</a>
+        </div>
       </article>`;
   };
 

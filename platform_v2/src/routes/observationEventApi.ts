@@ -162,6 +162,8 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         config: (body.config && typeof body.config === "object")
           ? (body.config as Record<string, unknown>)
           : {},
+        fieldId: asString(body.field_id),
+        templateSourceSessionId: asString(body.template_source_session_id),
       });
       return reply.status(201).send(created);
     } catch (error) {
@@ -561,6 +563,7 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       }
       if (body.plan === "public" || body.plan === "community") updates.plan = body.plan;
       if (body.config && typeof body.config === "object") updates.config = body.config as Record<string, unknown>;
+      if (body.field_id !== undefined) updates.fieldId = asString(body.field_id);
 
       const updated = await updateSession(session.sessionId, updates);
       if (!updated) return reply.status(500).send({ error: "update failed" });
