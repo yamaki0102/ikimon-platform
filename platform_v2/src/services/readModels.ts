@@ -11,6 +11,7 @@ import {
   type ReviewerAuthorityAccessContext,
 } from "./reviewerAuthorities.js";
 import {
+  PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
@@ -787,7 +788,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         or v.visit_id = $1
         or o.legacy_observation_id = $1)
        and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
+       and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
      order by v.observed_at desc
      limit 1`,
     [id],

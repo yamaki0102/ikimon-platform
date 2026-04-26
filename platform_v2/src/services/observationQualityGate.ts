@@ -102,6 +102,11 @@ export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
   and nullif(coalesce(ab.public_url, ab.storage_path), '') is not null
 `;
 
+export const VALID_OBSERVATION_VIDEO_ASSET_SQL = `
+  ea.asset_role = 'observation_video'
+  and nullif(coalesce(ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url'), '') is not null
+`;
+
 export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
   exists (
     select 1
@@ -112,6 +117,27 @@ export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
        and coalesce(nullif(lower(public_photo_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
        and coalesce(nullif(lower(public_photo_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
        and nullif(coalesce(public_photo_ab.public_url, public_photo_ab.storage_path), '') is not null
+  )
+`;
+
+export const PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL = `
+  exists (
+    select 1
+      from evidence_assets public_media_ea
+      join asset_blobs public_media_ab on public_media_ab.blob_id = public_media_ea.blob_id
+     where public_media_ea.visit_id = v.visit_id
+       and (
+         (
+           public_media_ea.asset_role = 'observation_photo'
+           and coalesce(nullif(lower(public_media_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+           and coalesce(nullif(lower(public_media_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+           and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path), '') is not null
+         )
+         or (
+           public_media_ea.asset_role = 'observation_video'
+           and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_ab.source_payload->>'iframe_url'), '') is not null
+         )
+       )
   )
 `;
 
