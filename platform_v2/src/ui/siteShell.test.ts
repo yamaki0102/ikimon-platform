@@ -52,11 +52,14 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-photo-tray/);
   assert.match(html, /data-global-record-photo-grid/);
   assert.match(html, /data-photo-draft="true"/);
+  assert.match(html, /data-active-kind/);
   assert.match(html, /data-global-record-inline-edit/);
   assert.match(html, /data-global-record-data-estimate/);
   assert.match(html, /data-global-record-video-trim/);
   assert.match(html, /object-fit: contain/);
   assert.match(html, /global-record-camera-preview video\[hidden\]/);
+  assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-camera-actions/);
+  assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-photo-tray/);
   assert.match(html, /global-record-camera-sheet\[data-photo-draft="true"\] \.global-record-camera-preview/);
   assert.match(html, /max-height: calc\(100dvh - 116px\)/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
