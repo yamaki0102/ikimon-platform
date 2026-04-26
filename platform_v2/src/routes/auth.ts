@@ -127,6 +127,8 @@ function renderAuthPage(options: {
   redirect: string;
 }): string {
   const isLogin = options.mode === "login";
+  const redirectPath = options.redirect.split(/[?#]/, 1)[0] ?? "";
+  const isProfileRedirect = redirectPath === "/profile" || redirectPath.startsWith("/profile/");
   const title = isLogin ? "ログイン | ikimon" : "新規登録 | ikimon";
   const endpoint = withBasePath(options.basePath, isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register");
   const switchHref = withBasePath(
@@ -149,21 +151,21 @@ function renderAuthPage(options: {
         <a class="auth-tab${!isLogin ? " is-active" : ""}" href="${escapeHtml(registerHref)}">新規登録</a>
       </div>
       <div class="eyebrow">${isLogin ? "sign in" : "create account"}</div>
-      <h2>${isLogin ? "記録を続ける" : "記録用アカウントを作る"}</h2>
-      <p>${isLogin ? "ログインすると、そのまま投稿画面へ戻ります。" : "登録後すぐに投稿画面へ進みます。"}</p>
+      <h2>${isProfileRedirect ? (isLogin ? "マイページへ入る" : "マイページを作る") : (isLogin ? "記録を続ける" : "記録用アカウントを作る")}</h2>
+      <p>${isProfileRedirect ? "ログインすると、あなたの場所・記録・Life List をまとめたマイページへ進みます。" : (isLogin ? "ログインすると、そのまま投稿画面へ戻ります。" : "登録後すぐに投稿画面へ進みます。")}</p>
       <form class="auth-form" data-auth-form data-endpoint="${escapeHtml(endpoint)}" data-redirect="${escapeHtml(options.redirect)}">
         ${displayNameField}
         <label class="auth-field"><span>メールアドレス</span><input name="email" type="email" autocomplete="email" required /></label>
         <label class="auth-field"><span>パスワード</span><input name="password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}" minlength="8" required /></label>
-        <button class="btn btn-solid auth-submit" type="submit">${isLogin ? "ログインして記録する" : "登録して記録する"}</button>
+        <button class="btn btn-solid auth-submit" type="submit">${isProfileRedirect ? (isLogin ? "ログインしてマイページへ" : "登録してマイページへ") : (isLogin ? "ログインして記録する" : "登録して記録する")}</button>
         <div class="auth-status" data-auth-status aria-live="polite"></div>
       </form>
       ${socialLogin}
     </section>
     <aside class="auth-note">
       <div class="eyebrow">record lane</div>
-      <h3>ログイン後は PHP ではなく v2 の投稿画面へ進みます。</h3>
-      <p>投稿、写真アップロード、同定参加は v2 の session cookie で扱います。</p>
+      <h3>${isProfileRedirect ? "ログイン後は v2 のマイページへ進みます。" : "ログイン後は PHP ではなく v2 の投稿画面へ進みます。"}</h3>
+      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "投稿、写真アップロード、同定参加は v2 の session cookie で扱います。"}</p>
       <ul>
         <li>cookie は HttpOnly / SameSite=Lax / production Secure</li>
         <li>メール有無が分からない失敗表示</li>
@@ -226,8 +228,8 @@ function renderAuthPage(options: {
     extraStyles: AUTH_STYLES,
     hero: {
       eyebrow: "account",
-      heading: isLogin ? "ログインして記録する" : "新しく登録して記録する",
-      lead: "足もとの発見を、自分の記録として残すための入口です。",
+      heading: isProfileRedirect ? (isLogin ? "ログインしてマイページへ" : "新しく登録してマイページへ") : (isLogin ? "ログインして記録する" : "新しく登録して記録する"),
+      lead: isProfileRedirect ? "自分の場所、記録、Life List を見返すための入口です。" : "足もとの発見を、自分の記録として残すための入口です。",
       tone: "light",
       align: "center",
     },

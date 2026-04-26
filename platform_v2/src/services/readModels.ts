@@ -124,6 +124,24 @@ export type ProfileSnapshot = {
   userId: string;
   displayName: string;
   rankLabel: string | null;
+  profileBio: string | null;
+  expertise: string | null;
+  stats: {
+    totalObservations: number;
+    thisMonthObservations: number;
+    placeCount: number;
+    uniqueTaxaAllTime: number;
+    currentStreakDays: number;
+    tier2PlusCount: number;
+    tier3PlusCount: number;
+  };
+  lifeListPreview: Array<{
+    displayName: string;
+    scientificName: string | null;
+    observationCount: number;
+    latestObservedAt: string;
+    photoUrl: string | null;
+  }>;
   recentPlaces: HomePlace[];
   recentObservations: RecentObservation[];
 };
@@ -994,11 +1012,15 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     user_id: string;
     display_name: string;
     rank_label: string | null;
+    profile_bio: string | null;
+    expertise: string | null;
   }>(
     `select
         u.user_id,
         ${PROFILE_DISPLAY_NAME_SQL} as display_name,
-        u.rank_label
+        u.rank_label,
+        coalesce(u.stats_json, '{}'::jsonb) #>> '{profile,bio}' as profile_bio,
+        coalesce(u.stats_json, '{}'::jsonb) #>> '{profile,expertise}' as expertise
      from users u
      left join lateral (
        select v.source_payload
@@ -1018,7 +1040,114 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
   }
 
   const home = await getHomeSnapshot(userId);
-  const recentObservations = await loadVisitSummaryObservations(8, { userId });
+  const [recentObservations, statsResult, streakResult, lifeListResult] = await Promise.all([
+    loadVisitSummaryObservations(8, { userId }),
+    pool.query<{
+      total_observations: string;
+      this_month_observations: string;
+      place_count: string;
+      unique_taxa_all_time: string;
+      tier2_plus_count: string;
+      tier3_plus_count: string;
+    }>(
+      `select
+          count(distinct v.visit_id)::text as total_observations,
+          count(distinct v.visit_id) filter (where v.observed_at >= date_trunc('month', now()))::text as this_month_observations,
+          count(distinct v.place_id) filter (where v.place_id is not null)::text as place_count,
+          count(distinct coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')))
+            filter (where coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is not null)::text as unique_taxa_all_time,
+          count(distinct o.occurrence_id) filter (where coalesce(o.evidence_tier, 0) >= 2)::text as tier2_plus_count,
+          count(distinct o.occurrence_id) filter (where coalesce(o.evidence_tier, 0) >= 3)::text as tier3_plus_count
+         from visits v
+         left join occurrences o on o.visit_id = v.visit_id
+        where v.user_id = $1`,
+      [userId],
+    ),
+    pool.query<{ streak: string }>(
+      `with days as (
+          select distinct date_trunc('day', observed_at)::date as d
+            from visits
+           where user_id = $1
+           order by d desc
+           limit 60
+        ),
+        ranked as (
+          select d, row_number() over (order by d desc) - 1 as rn
+            from days
+        )
+        select count(*)::text as streak
+          from ranked
+         where d = current_date - rn::int`,
+      [userId],
+    ),
+    pool.query<{
+      display_name: string;
+      scientific_name: string | null;
+      observation_count: string;
+      latest_observed_at: string;
+      photo_url: string | null;
+    }>(
+      `with named_occurrences as (
+          select
+            coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) as display_name,
+            nullif(o.scientific_name, '') as scientific_name,
+            v.observed_at,
+            o.occurrence_id,
+            v.visit_id
+          from occurrences o
+          join visits v on v.visit_id = o.visit_id
+          where v.user_id = $1
+            and coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is not null
+        ),
+        taxa as (
+          select
+            display_name,
+            min(scientific_name) filter (where scientific_name is not null) as scientific_name,
+            count(*)::text as observation_count,
+            max(observed_at)::text as latest_observed_at,
+            (array_agg(occurrence_id order by observed_at desc))[1] as latest_occurrence_id,
+            (array_agg(visit_id order by observed_at desc))[1] as latest_visit_id
+          from named_occurrences
+          group by display_name
+          order by max(observed_at) desc
+          limit 8
+        )
+        select
+          taxa.display_name,
+          taxa.scientific_name,
+          taxa.observation_count,
+          taxa.latest_observed_at,
+          photo.public_url as photo_url
+        from taxa
+        left join lateral (
+          select coalesce(ab.public_url, ab.storage_path) as public_url
+            from evidence_assets ea
+            join asset_blobs ab on ab.blob_id = ea.blob_id
+           where (ea.occurrence_id = taxa.latest_occurrence_id or ea.visit_id = taxa.latest_visit_id)
+             and ea.asset_role = 'observation_photo'
+           order by ea.created_at asc
+           limit 1
+        ) photo on true`,
+      [userId],
+    ),
+  ]);
+  const statsRow = statsResult.rows[0];
+  const stats = {
+    totalObservations: Number(statsRow?.total_observations ?? 0),
+    thisMonthObservations: Number(statsRow?.this_month_observations ?? 0),
+    placeCount: Number(statsRow?.place_count ?? 0),
+    uniqueTaxaAllTime: Number(statsRow?.unique_taxa_all_time ?? 0),
+    currentStreakDays: Number(streakResult.rows[0]?.streak ?? 0),
+    tier2PlusCount: Number(statsRow?.tier2_plus_count ?? 0),
+    tier3PlusCount: Number(statsRow?.tier3_plus_count ?? 0),
+  };
+  const lifeListPreview = lifeListResult.rows.map((row) => ({
+    displayName: row.display_name,
+    scientificName: row.scientific_name,
+    observationCount: Number(row.observation_count),
+    latestObservedAt: row.latest_observed_at,
+    photoUrl: normalizeAssetUrl(row.photo_url),
+  }));
 
   if (!user) {
     const guestResult = await pool.query<{
@@ -1044,6 +1173,10 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
       userId: guest.user_id,
       displayName: guest.display_name ?? "Guest",
       rankLabel: "Guest observer",
+      profileBio: null,
+      expertise: null,
+      stats,
+      lifeListPreview,
       recentPlaces: home.myPlaces,
       recentObservations,
     };
@@ -1053,6 +1186,10 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     userId: user.user_id,
     displayName: user.display_name,
     rankLabel: user.rank_label,
+    profileBio: user.profile_bio,
+    expertise: user.expertise,
+    stats,
+    lifeListPreview,
     recentPlaces: home.myPlaces,
     recentObservations,
   };

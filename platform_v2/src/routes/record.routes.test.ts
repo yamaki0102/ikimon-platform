@@ -105,6 +105,83 @@ test("login and register pages render v2 auth forms", async () => {
   }
 });
 
+test("profile route gives unauthenticated visitors a mypage start guide", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/profile?lang=ja",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /ログインすると、自分の場所と記録をまとめて見られます/);
+    assert.match(response.body, /ログインしてマイページへ/);
+    assert.match(response.body, /\/login\?redirect=\/profile/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("profile settings route gives unauthenticated visitors a login guide", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/profile/settings?lang=ja",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /プロフィール編集にはログインが必要です/);
+    assert.match(response.body, /\/login\?redirect=\/profile\/settings/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("guest profile urls still redirect to guest notebooks", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/profile/guest_route_test?lang=ja",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 302);
+    assert.equal(response.headers.location, "/guest/guest_route_test?lang=ja");
+  } finally {
+    await app.close();
+  }
+});
+
+test("profile self update API requires a signed-in session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/profile/me",
+      headers: {
+        "content-type": "application/json",
+      },
+      payload: {
+        displayName: "No Session",
+        profileBio: "",
+        expertise: "",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      ok: false,
+      error: "session_required",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
 test("www host redirects to apex before OAuth cookies are issued", async () => {
   const app = buildApp();
   try {
