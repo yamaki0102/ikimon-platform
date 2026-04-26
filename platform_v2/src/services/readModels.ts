@@ -124,6 +124,7 @@ export type ProfileSnapshot = {
   userId: string;
   displayName: string;
   rankLabel: string | null;
+  avatarUrl: string | null;
   profileBio: string | null;
   expertise: string | null;
   stats: {
@@ -1173,6 +1174,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
       userId: guest.user_id,
       displayName: guest.display_name ?? "Guest",
       rankLabel: "Guest observer",
+      avatarUrl: null,
       profileBio: null,
       expertise: null,
       stats,
@@ -1186,6 +1188,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     userId: user.user_id,
     displayName: user.display_name,
     rankLabel: user.rank_label,
+    avatarUrl: null,
     profileBio: user.profile_bio,
     expertise: user.expertise,
     stats,
