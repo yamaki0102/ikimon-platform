@@ -236,7 +236,7 @@ prepare_release() {
   npm ci --silent
   npm run build
   export_runtime_env
-  export IKIMON_MIGRATION_REPAIR_CHECKSUMS="${IKIMON_MIGRATION_REPAIR_CHECKSUMS:-0012_contact_submissions.sql}"
+  export IKIMON_MIGRATION_REPAIR_CHECKSUMS="${IKIMON_MIGRATION_REPAIR_CHECKSUMS:-0012_contact_submissions.sql,0013_video_upload_requests.sql,0014_audio_segments.sql,0015_observation_reactions_and_insights.sql,0016_observation_ai_assessments.sql}"
   npm run migrate
 
   ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
