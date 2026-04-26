@@ -49,6 +49,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-camera-sheet/);
   assert.match(html, /data-global-record-camera-video/);
   assert.match(html, /data-global-record-camera-image/);
+  assert.match(html, /data-global-record-photo-tray/);
+  assert.match(html, /data-global-record-photo-grid/);
   assert.match(html, /data-global-record-inline-edit/);
   assert.match(html, /data-global-record-data-estimate/);
   assert.match(html, /data-global-record-video-trim/);
@@ -58,6 +60,13 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /void startCamera\(\)/);
   assert.match(html, /MediaRecorder/);
+  assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
+  assert.match(html, /selectedPhotoDraftFiles/);
+  assert.match(html, /data-global-record-photo-remove/);
+  assert.match(html, /data-global-record-photo-move/);
+  assert.match(html, /AIは全体を見て主役と周囲を判断します/);
+  assert.match(html, /この' \+ String\(files\.length\) \+ '枚で投稿画面へ/);
+  assert.match(html, /もう1枚撮る/);
   assert.match(html, /VIDEO_MAX_SECONDS = 60/);
   assert.match(html, /動画投稿は最大60秒/);
   assert.match(html, /createSheetTrimmedVideoFile/);
