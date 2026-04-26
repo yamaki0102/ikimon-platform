@@ -352,6 +352,20 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <div class="global-record-camera-empty" data-global-record-camera-empty>カメラを起動すると、ここにプレビューが出ます。</div>
     </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
+    <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
+      <div class="global-record-inline-edit-head">
+        <strong>ここで少し整える</strong>
+        <span data-global-record-data-estimate>送信量を確認中</span>
+      </div>
+      <label>
+        <span>名前が分かれば</span>
+        <input data-global-record-edit-name type="text" maxlength="120" placeholder="例: スズメ / セミ / 名前は不明" />
+      </label>
+      <label>
+        <span>メモ</span>
+        <textarea data-global-record-edit-note rows="2" maxlength="240" placeholder="例: 水辺の柵の近く。鳴き声が聞こえた。"></textarea>
+      </label>
+    </div>
     <div class="global-record-video-trim" data-global-record-video-trim hidden>
       <div class="global-record-video-trim-head">
         <strong>投稿する最大60秒を選ぶ</strong>
@@ -407,6 +421,10 @@ function globalRecordEntryScript(): string {
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
   const fallbackButton = document.querySelector('[data-global-record-camera-fallback]');
+  const inlineEdit = document.querySelector('[data-global-record-inline-edit]');
+  const editNameInput = document.querySelector('[data-global-record-edit-name]');
+  const editNoteInput = document.querySelector('[data-global-record-edit-note]');
+  const dataEstimate = document.querySelector('[data-global-record-data-estimate]');
   const trimWrap = document.querySelector('[data-global-record-video-trim]');
   const trimStart = document.querySelector('[data-global-record-video-trim-start]');
   const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
@@ -457,6 +475,50 @@ function globalRecordEntryScript(): string {
   };
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
+  };
+  const formatDataSize = (bytes) => {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) return '0 MB';
+    const mb = value / (1024 * 1024);
+    if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+    return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + ' MB';
+  };
+  const formatEstimateMinutes = (bytes) => {
+    const mb = Number(bytes) / (1024 * 1024);
+    if (!Number.isFinite(mb) || mb <= 0) return '約0分';
+    const minutes = mb / 10;
+    if (minutes < 1) return '約' + Math.max(1, Math.round(minutes * 60)) + '秒';
+    return '約' + (minutes >= 10 ? Math.round(minutes) : minutes.toFixed(1)) + '分';
+  };
+  const updateDataEstimate = (file, selectedSeconds) => {
+    if (!dataEstimate) return;
+    if (!file) {
+      dataEstimate.textContent = '送信量を確認中';
+      return;
+    }
+    let bytes = Number(file.size || 0);
+    if (sheetVideoTrimState && Number.isFinite(selectedSeconds) && Number(sheetVideoTrimState.duration || 0) > 0) {
+      bytes = bytes * Math.min(1, Number(selectedSeconds) / Number(sheetVideoTrimState.duration || 1));
+    }
+    dataEstimate.textContent = '送信目安 ' + formatDataSize(bytes) + ' / YouTube標準画質なら' + formatEstimateMinutes(bytes) + 'ぶん';
+  };
+  const readInlineEdit = () => ({
+    vernacularName: editNameInput ? String(editNameInput.value || '').trim() : '',
+    localityNote: editNoteInput ? String(editNoteInput.value || '').trim() : '',
+  });
+  const withInlineEditParams = (href, kind) => {
+    let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
+    try {
+      const url = new URL(target, window.location.origin);
+      const values = readInlineEdit();
+      url.searchParams.set('draft', '1');
+      if (values.vernacularName) url.searchParams.set('vernacularName', values.vernacularName);
+      if (values.localityNote) url.searchParams.set('localityNote', values.localityNote);
+      return url.pathname + url.search + url.hash;
+    } catch (_) {
+      const separator = target.indexOf('?') >= 0 ? '&' : '?';
+      return target + separator + 'draft=1';
+    }
   };
   const stopRecordingTimer = () => {
     if (recordingTimer) window.clearInterval(recordingTimer);
@@ -509,11 +571,16 @@ function globalRecordEntryScript(): string {
     if (cameraVideo && Math.abs(Number(cameraVideo.currentTime || 0) - start) > 0.4) {
       cameraVideo.currentTime = start;
     }
+    updateDataEstimate(sheetVideoTrimState.sourceFile, end - start);
   };
   const clearReview = () => {
     capturedReviewFile = null;
     capturedReviewMeta = null;
     resetSheetVideoTrim();
+    if (inlineEdit) inlineEdit.hidden = true;
+    if (editNameInput) editNameInput.value = '';
+    if (editNoteInput) editNoteInput.value = '';
+    if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
     if (reviewObjectUrl) {
       URL.revokeObjectURL(reviewObjectUrl);
       reviewObjectUrl = '';
@@ -556,8 +623,7 @@ function globalRecordEntryScript(): string {
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
     try {
       await saveDraft({ file, kind, savedAt: Date.now(), metadata: metadata || {} });
-      const separator = href && href.indexOf('?') >= 0 ? '&' : '?';
-      window.location.href = String(href || '/record') + separator + 'draft=1';
+      window.location.href = withInlineEditParams(href || '/record', kind);
     } catch (_) {
       window.location.href = href || '/record?start=' + encodeURIComponent(kind);
     }
@@ -825,17 +891,19 @@ function globalRecordEntryScript(): string {
         cameraVideo.play().catch(() => undefined);
       }
       prepareSheetVideoTrim(file);
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。下で投稿する最大60秒を選べます。' : '下で投稿する最大60秒を選べます。位置は編集画面で指定できます。');
-      if (captureButton) captureButton.textContent = 'この最大60秒で編集へ';
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。下で区間、名前、メモを整えられます。' : '下で区間、名前、メモを整えられます。位置は投稿画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この内容で投稿画面へ';
     } else {
       if (cameraVideo) cameraVideo.hidden = true;
       if (cameraImage) {
         cameraImage.src = reviewObjectUrl;
         cameraImage.hidden = false;
       }
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。この写真で編集へ進めます。' : 'この写真で編集へ進めます。位置は編集画面で指定できます。');
-      if (captureButton) captureButton.textContent = 'この写真で編集へ';
+      updateDataEstimate(file);
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。名前とメモをここで整えられます。' : '名前とメモをここで整えられます。位置は投稿画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この内容で投稿画面へ';
     }
+    if (inlineEdit) inlineEdit.hidden = false;
     if (startButton) {
       startButton.hidden = false;
       startButton.disabled = false;
@@ -2110,6 +2178,60 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       font-size: 12px;
       line-height: 1.5;
       font-weight: 850;
+    }
+    .global-record-inline-edit {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .global-record-inline-edit[hidden] {
+      display: none;
+    }
+    .global-record-inline-edit-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .global-record-inline-edit-head strong {
+      color: #0f172a;
+      font-size: 13px;
+      line-height: 1.4;
+      font-weight: 950;
+    }
+    .global-record-inline-edit-head span {
+      max-width: 58%;
+      color: #047857;
+      font-size: 11px;
+      line-height: 1.45;
+      font-weight: 900;
+      text-align: right;
+    }
+    .global-record-inline-edit label {
+      display: grid;
+      gap: 6px;
+      color: #334155;
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+    .global-record-inline-edit input,
+    .global-record-inline-edit textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid rgba(15,23,42,.14);
+      border-radius: 12px;
+      background: #fff;
+      color: #0f172a;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 10px 11px;
+      resize: vertical;
     }
     .global-record-video-trim {
       display: grid;
