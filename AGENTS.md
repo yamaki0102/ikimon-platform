@@ -172,7 +172,14 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 5. GitHub Actions が自動的に VPS へデプロイ
 ```
 
-**Codex がデプロイのために追加でやることは何もない。** PR を作るだけでよい。
+### GitHub 管理者権限の扱い
+
+- ユーザーが「反映して」「マージして」「本番へ進めて」と明示した場合、Codex は GitHub 管理者権限で進める前提でよい
+- PR が `MERGEABLE` かつ required checks が通過済みで、止まっている理由が `REVIEW_REQUIRED` のみなら、`gh pr merge --admin` で owner review 待ちを bypass してよい
+- ただし、失敗中の CI / deploy guardrail / migration guardrail / production smoke を管理者権限で無視してはいけない
+- `main` への直接 push は引き続き禁止。管理者権限を使う場合も、`codex/<task-name>` → PR → admin merge → GitHub Actions deploy の順序を守る
+
+**Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、必要なら admin merge し、GitHub Actions の結果を確認する。
 `deploy.sh` はローカルの preflight 用であり、本番 deploy はしない。
 
 ### Deploy Source of Truth

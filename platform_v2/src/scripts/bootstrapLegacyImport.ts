@@ -976,6 +976,7 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
             $9, $10, $11, $12, $13, $14, 'legacy_observation', $15::jsonb, $16, now()
          )
          on conflict (visit_id) do update set
+            legacy_observation_id = excluded.legacy_observation_id,
             place_id = excluded.place_id,
             user_id = excluded.user_id,
             observed_at = excluded.observed_at,
@@ -986,6 +987,7 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
             observed_prefecture = excluded.observed_prefecture,
             observed_municipality = excluded.observed_municipality,
             note = excluded.note,
+            source_kind = excluded.source_kind,
             source_payload = excluded.source_payload,
             updated_at = now()`,
         [
