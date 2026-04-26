@@ -367,6 +367,11 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       </div>
       <div class="global-record-photo-grid" data-global-record-photo-grid></div>
     </div>
+    <div class="global-record-camera-actions">
+      <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
+      <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
+      <button type="button" class="global-record-camera-action" data-global-record-camera-fallback>端末のカメラを開く</button>
+    </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
     <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
       <div class="global-record-inline-edit-head">
@@ -410,11 +415,6 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
           <input data-global-record-video-trim-end type="range" min="0" max="0" step="0.1" value="0" />
         </label>
       </div>
-    </div>
-    <div class="global-record-camera-actions">
-      <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
-      <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
-      <button type="button" class="global-record-camera-action" data-global-record-camera-fallback>端末のカメラを開く</button>
     </div>
   </section>`;
 }
@@ -612,7 +612,13 @@ function globalRecordEntryScript(): string {
     }
     updateDataEstimate(sheetVideoTrimState.sourceFile, end - start);
   };
+  const setPhotoDraftLayout = (enabled) => {
+    if (!sheet) return;
+    if (enabled) sheet.setAttribute('data-photo-draft', 'true');
+    else sheet.removeAttribute('data-photo-draft');
+  };
   const clearReview = () => {
+    setPhotoDraftLayout(false);
     capturedReviewFile = null;
     capturedPhotoFiles = [];
     capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -719,6 +725,7 @@ function globalRecordEntryScript(): string {
     const [primaryFile] = files;
     capturedReviewFile = primaryFile || null;
     renderPhotoTray();
+    setPhotoDraftLayout(files.length > 0 && activeKind === 'photo' && !activeStream);
     if (inlineEdit) inlineEdit.hidden = files.length === 0;
     if (startButton) {
       startButton.hidden = false;
@@ -772,12 +779,13 @@ function globalRecordEntryScript(): string {
     capturedReviewFile = primaryFile || null;
     if (!capturedReviewMeta && metadata) capturedReviewMeta = metadata;
     renderPhotoTray();
-    const latest = accepted[accepted.length - 1] || capturedPhotoFiles[capturedPhotoFiles.length - 1] || null;
-    if (latest && cameraImage) {
-      if (reviewObjectUrl) URL.revokeObjectURL(reviewObjectUrl);
-      reviewObjectUrl = URL.createObjectURL(latest);
-      cameraImage.src = reviewObjectUrl;
-      cameraImage.hidden = false;
+    if (reviewObjectUrl) {
+      URL.revokeObjectURL(reviewObjectUrl);
+      reviewObjectUrl = '';
+    }
+    if (cameraImage) {
+      cameraImage.hidden = true;
+      cameraImage.removeAttribute('src');
     }
     if (cameraVideo) cameraVideo.hidden = true;
     if (empty) empty.hidden = true;
@@ -823,6 +831,7 @@ function globalRecordEntryScript(): string {
   const openSheet = (kind, options) => {
     if (!(options && options.keepReview)) clearReview();
     activeKind = kind;
+    setPhotoDraftLayout(kind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream);
     if (editRoleInput) editRoleInput.value = kind === 'video' ? 'sound_motion' : 'primary_subject';
     const label = labels[kind] || labels.photo;
     if (title) title.textContent = label.title;
@@ -850,6 +859,7 @@ function globalRecordEntryScript(): string {
   const startCamera = async () => {
     if (!activeKind) return;
     if (cameraStartInFlight) return;
+    setPhotoDraftLayout(false);
     if (!(activeKind === 'photo' && selectedPhotoDraftFiles().length > 0)) clearReview();
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
       setStatus('このブラウザでは小さい撮影画面を使えません。端末のカメラを開いてください。');
@@ -2407,7 +2417,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       object-fit: contain;
       background: #020617;
     }
+    .global-record-camera-preview video[hidden],
     .global-record-camera-preview img[hidden] {
+      display: none;
+    }
+    .global-record-camera-sheet[data-photo-draft="true"] .global-record-camera-preview {
       display: none;
     }
     .global-record-camera-empty {
