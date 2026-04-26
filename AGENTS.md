@@ -180,6 +180,7 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 - `main` への直接 push は引き続き禁止。管理者権限を使う場合も、`codex/<task-name>` → PR → admin merge → GitHub Actions deploy の順序を守る
 
 **Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、必要なら admin merge し、GitHub Actions の結果を確認する。
+本番反映をユーザーが依頼した場合は、PR 作成や merge で止めず、該当する GitHub Actions deploy workflow が `success` / `failure` などの最終状態になるまで監視し、失敗時はログ確認と止血まで継続する。
 `deploy.sh` はローカルの preflight 用であり、本番 deploy はしない。
 
 ### Deploy Source of Truth

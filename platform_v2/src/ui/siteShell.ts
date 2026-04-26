@@ -360,6 +360,13 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <img data-global-record-camera-image alt="撮影プレビュー" hidden />
       <div class="global-record-camera-empty" data-global-record-camera-empty>カメラを起動すると、ここにプレビューが出ます。</div>
     </div>
+    <div class="global-record-photo-tray" data-global-record-photo-tray hidden>
+      <div class="global-record-photo-tray-head">
+        <strong data-global-record-photo-tray-count>写真0枚</strong>
+        <span>最大6枚まで同じ観察にまとめます</span>
+      </div>
+      <div class="global-record-photo-grid" data-global-record-photo-grid></div>
+    </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
     <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
       <div class="global-record-inline-edit-head">
@@ -418,6 +425,7 @@ function globalRecordEntryScript(): string {
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
   const DRAFT_KEY = 'latest';
+  const MAX_PHOTO_DRAFT_FILES = 6;
   const VIDEO_MAX_SECONDS = 60;
   let activeKind = '';
   let activeStream = null;
@@ -429,6 +437,8 @@ function globalRecordEntryScript(): string {
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
   let capturedReviewFile = null;
+  let capturedPhotoFiles = [];
+  let capturedPhotoObjectUrls = [];
   let capturedReviewMeta = null;
   let reviewObjectUrl = '';
   let sheetVideoTrimState = null;
@@ -440,6 +450,9 @@ function globalRecordEntryScript(): string {
   const title = document.querySelector('[data-global-record-camera-title]');
   const help = document.querySelector('[data-global-record-camera-help]');
   const status = document.querySelector('[data-global-record-camera-status]');
+  const photoTray = document.querySelector('[data-global-record-photo-tray]');
+  const photoTrayCount = document.querySelector('[data-global-record-photo-tray-count]');
+  const photoGrid = document.querySelector('[data-global-record-photo-grid]');
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
   const fallbackButton = document.querySelector('[data-global-record-camera-fallback]');
@@ -519,7 +532,9 @@ function globalRecordEntryScript(): string {
       dataEstimate.textContent = '送信量を確認中';
       return;
     }
-    let bytes = Number(file.size || 0);
+    let bytes = Array.isArray(file)
+      ? file.reduce((sum, item) => sum + Number(item && item.size || 0), 0)
+      : Number(file.size || 0);
     if (sheetVideoTrimState && Number.isFinite(selectedSeconds) && Number(sheetVideoTrimState.duration || 0) > 0) {
       bytes = bytes * Math.min(1, Number(selectedSeconds) / Number(sheetVideoTrimState.duration || 1));
     }
@@ -599,6 +614,9 @@ function globalRecordEntryScript(): string {
   };
   const clearReview = () => {
     capturedReviewFile = null;
+    capturedPhotoFiles = [];
+    capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    capturedPhotoObjectUrls = [];
     capturedReviewMeta = null;
     resetSheetVideoTrim();
     if (inlineEdit) inlineEdit.hidden = true;
@@ -606,6 +624,9 @@ function globalRecordEntryScript(): string {
     if (editNameInput) editNameInput.value = '';
     if (editNoteInput) editNoteInput.value = '';
     if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
+    if (photoTray) photoTray.hidden = true;
+    if (photoGrid) photoGrid.innerHTML = '';
+    if (photoTrayCount) photoTrayCount.textContent = '写真0枚';
     if (reviewObjectUrl) {
       URL.revokeObjectURL(reviewObjectUrl);
       reviewObjectUrl = '';
@@ -644,6 +665,126 @@ function globalRecordEntryScript(): string {
     }
   };
   const normalizeDraftFiles = (files) => (Array.isArray(files) ? files : [files]).filter((file) => file instanceof File);
+  const selectedPhotoDraftFiles = () => capturedPhotoFiles.filter((file) => file instanceof File);
+  const renderPhotoTray = () => {
+    const files = selectedPhotoDraftFiles();
+    if (photoTray) photoTray.hidden = files.length === 0;
+    if (photoTrayCount) photoTrayCount.textContent = '写真' + String(files.length) + '枚';
+    if (photoGrid) {
+      photoGrid.innerHTML = '';
+      files.forEach((file, index) => {
+        const cell = document.createElement('div');
+        cell.className = 'global-record-photo-cell';
+        const img = document.createElement('img');
+        const url = capturedPhotoObjectUrls[index] || URL.createObjectURL(file);
+        capturedPhotoObjectUrls[index] = url;
+        img.src = url;
+        img.alt = '撮影写真 ' + String(index + 1);
+        const badge = document.createElement('span');
+        badge.textContent = String(index + 1);
+        const controls = document.createElement('div');
+        controls.className = 'global-record-photo-cell-actions';
+        const left = document.createElement('button');
+        left.type = 'button';
+        left.textContent = '←';
+        left.setAttribute('aria-label', '前へ移動');
+        left.setAttribute('data-global-record-photo-move', String(index));
+        left.setAttribute('data-direction', '-1');
+        left.disabled = index === 0;
+        const right = document.createElement('button');
+        right.type = 'button';
+        right.textContent = '→';
+        right.setAttribute('aria-label', '後ろへ移動');
+        right.setAttribute('data-global-record-photo-move', String(index));
+        right.setAttribute('data-direction', '1');
+        right.disabled = index === files.length - 1;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = '×';
+        remove.setAttribute('aria-label', '写真を外す');
+        remove.setAttribute('data-global-record-photo-remove', String(index));
+        controls.appendChild(left);
+        controls.appendChild(right);
+        controls.appendChild(remove);
+        cell.appendChild(img);
+        cell.appendChild(badge);
+        cell.appendChild(controls);
+        photoGrid.appendChild(cell);
+      });
+    }
+    updateDataEstimate(files);
+  };
+  const syncPhotoDraftControls = (message) => {
+    const files = selectedPhotoDraftFiles();
+    const [primaryFile] = files;
+    capturedReviewFile = primaryFile || null;
+    renderPhotoTray();
+    if (inlineEdit) inlineEdit.hidden = files.length === 0;
+    if (startButton) {
+      startButton.hidden = false;
+      startButton.disabled = files.length >= MAX_PHOTO_DRAFT_FILES;
+      startButton.textContent = files.length >= MAX_PHOTO_DRAFT_FILES ? '最大6枚です' : (files.length > 0 ? 'もう1枚撮る' : 'カメラを起動');
+    }
+    if (captureButton) {
+      captureButton.hidden = files.length === 0;
+      captureButton.disabled = false;
+      captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚で投稿画面へ' : '写真を撮る';
+    }
+    if (fallbackButton) fallbackButton.hidden = false;
+    if (files.length === 0) {
+      if (cameraImage) {
+        cameraImage.hidden = true;
+        cameraImage.removeAttribute('src');
+      }
+      if (empty) {
+        empty.textContent = '写真を追加すると、ここにプレビューが出ます。';
+        empty.hidden = false;
+      }
+      if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
+    }
+    if (message) setStatus(message);
+  };
+  const movePhotoDraft = (index, direction) => {
+    const from = Number(index);
+    const to = from + Number(direction);
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= capturedPhotoFiles.length || to >= capturedPhotoFiles.length) return;
+    const [file] = capturedPhotoFiles.splice(from, 1);
+    capturedPhotoFiles.splice(to, 0, file);
+    const [url] = capturedPhotoObjectUrls.splice(from, 1);
+    capturedPhotoObjectUrls.splice(to, 0, url);
+    syncPhotoDraftControls('写真の順番を変更しました。AIは全体を見て主役と周囲を判断します。');
+  };
+  const removePhotoDraft = (index) => {
+    const target = Number(index);
+    if (!Number.isInteger(target) || target < 0 || target >= capturedPhotoFiles.length) return;
+    capturedPhotoFiles.splice(target, 1);
+    const [url] = capturedPhotoObjectUrls.splice(target, 1);
+    if (url) URL.revokeObjectURL(url);
+    syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
+  };
+  const addPhotoDraftFiles = (files, metadata) => {
+    const incoming = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
+    if (!incoming.length) return;
+    const available = Math.max(0, MAX_PHOTO_DRAFT_FILES - capturedPhotoFiles.length);
+    const accepted = incoming.slice(0, available);
+    capturedPhotoFiles = capturedPhotoFiles.concat(accepted);
+    const [primaryFile] = capturedPhotoFiles;
+    capturedReviewFile = primaryFile || null;
+    if (!capturedReviewMeta && metadata) capturedReviewMeta = metadata;
+    renderPhotoTray();
+    const latest = accepted[accepted.length - 1] || capturedPhotoFiles[capturedPhotoFiles.length - 1] || null;
+    if (latest && cameraImage) {
+      if (reviewObjectUrl) URL.revokeObjectURL(reviewObjectUrl);
+      reviewObjectUrl = URL.createObjectURL(latest);
+      cameraImage.src = reviewObjectUrl;
+      cameraImage.hidden = false;
+    }
+    if (cameraVideo) cameraVideo.hidden = true;
+    if (empty) empty.hidden = true;
+    syncPhotoDraftControls();
+    const dropped = incoming.length - accepted.length;
+    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置は投稿画面で指定できます。') + ' 写真' + String(capturedPhotoFiles.length) + '枚をまとめています。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+  };
   const navigateWithDraft = async (files, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
@@ -679,8 +820,8 @@ function globalRecordEntryScript(): string {
     activeKind = '';
     setStatus('');
   };
-  const openSheet = (kind) => {
-    clearReview();
+  const openSheet = (kind, options) => {
+    if (!(options && options.keepReview)) clearReview();
     activeKind = kind;
     if (editRoleInput) editRoleInput.value = kind === 'video' ? 'sound_motion' : 'primary_subject';
     const label = labels[kind] || labels.photo;
@@ -703,13 +844,13 @@ function globalRecordEntryScript(): string {
     if (sheet) sheet.hidden = false;
     if (backdrop) backdrop.hidden = false;
     document.documentElement.classList.add('global-record-camera-open');
-    setStatus('カメラを起動しています...');
-    void startCamera();
+    setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから投稿へ進めます。' : 'カメラを起動しています...');
+    if (!(options && options.reviewOnly)) void startCamera();
   };
   const startCamera = async () => {
     if (!activeKind) return;
     if (cameraStartInFlight) return;
-    clearReview();
+    if (!(activeKind === 'photo' && selectedPhotoDraftFiles().length > 0)) clearReview();
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
       setStatus('このブラウザでは小さい撮影画面を使えません。端末のカメラを開いてください。');
       return;
@@ -728,6 +869,7 @@ function globalRecordEntryScript(): string {
         startButton.textContent = '起動中...';
       }
       if (cameraVideo) cameraVideo.hidden = false;
+      if (cameraImage) cameraImage.hidden = true;
       if (fallbackButton) fallbackButton.hidden = false;
       const constraints = {
         video: { facingMode: { ideal: 'environment' } },
@@ -909,6 +1051,20 @@ function globalRecordEntryScript(): string {
   };
   const showCapturedReview = (file, kind, metadata) => {
     stopActiveStream();
+    if (kind === 'photo') {
+      if (cameraImage) {
+        const latestUrl = URL.createObjectURL(file);
+        if (reviewObjectUrl) URL.revokeObjectURL(reviewObjectUrl);
+        reviewObjectUrl = latestUrl;
+        cameraImage.src = latestUrl;
+        cameraImage.hidden = false;
+      }
+      if (cameraVideo) cameraVideo.hidden = true;
+      if (empty) empty.hidden = true;
+      if (!capturedReviewMeta && metadata) capturedReviewMeta = metadata || {};
+      addPhotoDraftFiles([file], metadata);
+      return;
+    }
     capturedReviewFile = file;
     capturedReviewMeta = metadata || {};
     reviewObjectUrl = URL.createObjectURL(file);
@@ -950,7 +1106,7 @@ function globalRecordEntryScript(): string {
   };
   const retakeCapture = () => {
     const kind = activeKind || (capturedReviewFile && capturedReviewFile.type && capturedReviewFile.type.indexOf('video/') === 0 ? 'video' : 'photo');
-    clearReview();
+    if (kind !== 'photo') clearReview();
     activeKind = kind;
     if (cameraVideo) cameraVideo.hidden = false;
     if (fallbackButton) fallbackButton.hidden = false;
@@ -1027,6 +1183,20 @@ function globalRecordEntryScript(): string {
     }, 500);
   };
   const captureFromSheet = async () => {
+    if (activeKind === 'photo' && activeStream) {
+      capturePhoto();
+      return;
+    }
+    if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
+      if (captureButton) captureButton.disabled = true;
+      try {
+        await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {});
+      } catch (error) {
+        if (captureButton) captureButton.disabled = false;
+        setStatus('写真の準備に失敗しました。もう一度試してください。');
+      }
+      return;
+    }
     if (capturedReviewFile) {
       if (captureButton) captureButton.disabled = true;
       try {
@@ -1060,6 +1230,13 @@ function globalRecordEntryScript(): string {
       const files = input.files ? Array.from(input.files) : [];
       const kind = input.getAttribute('data-global-record-input') || 'gallery';
       if (!files.length) return;
+      if (kind === 'photo') {
+        openSheet('photo', { reviewOnly: true, keepReview: true });
+        const metadata = await buildCaptureMetadata();
+        addPhotoDraftFiles(files, metadata);
+        input.value = '';
+        return;
+      }
       await navigateWithDraft(files, kind);
     });
   });
@@ -1071,6 +1248,21 @@ function globalRecordEntryScript(): string {
     else startCamera();
   });
   if (captureButton) captureButton.addEventListener('click', captureFromSheet);
+  if (photoGrid) {
+    photoGrid.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const removeIndex = target.getAttribute('data-global-record-photo-remove');
+      if (removeIndex !== null) {
+        removePhotoDraft(removeIndex);
+        return;
+      }
+      const moveIndex = target.getAttribute('data-global-record-photo-move');
+      if (moveIndex !== null) {
+        movePhotoDraft(moveIndex, target.getAttribute('data-direction') || '0');
+      }
+    });
+  }
   if (trimStart) trimStart.addEventListener('input', () => syncSheetVideoTrim('start'));
   if (trimEnd) trimEnd.addEventListener('input', () => syncSheetVideoTrim('end'));
   if (cameraVideo) {
@@ -1086,7 +1278,8 @@ function globalRecordEntryScript(): string {
   if (fallbackButton) {
     fallbackButton.addEventListener('click', () => {
       const kind = activeKind || 'photo';
-      closeSheet();
+      if (kind !== 'photo') closeSheet();
+      else stopActiveStream();
       clickFallbackInput(kind);
     });
   }
@@ -2232,6 +2425,91 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-empty[hidden] {
       display: none;
     }
+    .global-record-photo-tray {
+      display: grid;
+      gap: 9px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .global-record-photo-tray[hidden] {
+      display: none;
+    }
+    .global-record-photo-tray-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #475569;
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 850;
+    }
+    .global-record-photo-tray-head strong {
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 950;
+    }
+    .global-record-photo-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 7px;
+    }
+    .global-record-photo-cell {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #e2e8f0;
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .global-record-photo-cell img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .global-record-photo-cell span {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      min-width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(15,23,42,.82);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 950;
+    }
+    .global-record-photo-cell-actions {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 3px;
+    }
+    .global-record-photo-cell-actions button {
+      min-width: 0;
+      min-height: 24px;
+      border: 0;
+      border-radius: 7px;
+      background: rgba(255,255,255,.92);
+      color: #0f172a;
+      font: inherit;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .global-record-photo-cell-actions button:disabled {
+      opacity: .42;
+      cursor: default;
+    }
     .global-record-camera-status {
       min-height: 18px;
       color: #0f766e;
@@ -2404,6 +2682,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .global-record-camera-preview {
         height: clamp(190px, 38dvh, 360px);
         max-height: calc(100dvh - 390px);
+      }
+      .global-record-photo-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .global-record-video-trim-controls {
         grid-template-columns: 1fr;
