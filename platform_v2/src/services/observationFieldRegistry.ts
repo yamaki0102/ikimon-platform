@@ -293,7 +293,6 @@ export async function listNearbyFields(
      FROM observation_fields
      WHERE lat BETWEEN $1 AND $2 AND lng BETWEEN $3 AND $4
        ${sourceClause}
-     HAVING TRUE
      ORDER BY distance_km ASC
      LIMIT $${params.length}`,
     params,
