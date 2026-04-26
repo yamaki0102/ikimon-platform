@@ -195,6 +195,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         displayName: request.body.displayName,
         profileBio: request.body.profileBio,
         expertise: request.body.expertise,
+        avatar: request.body.avatar,
       });
       return {
         ok: true,

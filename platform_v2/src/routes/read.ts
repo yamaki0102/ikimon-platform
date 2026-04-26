@@ -1523,6 +1523,11 @@ const PROFILE_HUB_STYLES = `
   .profile-settings-field { display: grid; gap: 8px; }
   .profile-settings-field label { font-weight: 850; color: #0f172a; }
   .profile-settings-field input, .profile-settings-field textarea { width: 100%; min-height: 48px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(15,23,42,.16); background: #fff; color: #0f172a; font: inherit; line-height: 1.6; box-sizing: border-box; }
+  .profile-settings-avatar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 14px; border-radius: 18px; border: 1px solid rgba(15,23,42,.1); background: rgba(248,250,252,.82); }
+  .profile-settings-avatar-preview { width: 76px; height: 76px; border-radius: 999px; overflow: hidden; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-size: 24px; font-weight: 950; flex: 0 0 auto; }
+  .profile-settings-avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .profile-settings-avatar-control { display: grid; gap: 8px; min-width: min(260px, 100%); flex: 1; }
+  .profile-settings-avatar-control input { min-height: auto; padding: 10px; }
   .profile-settings-field textarea { min-height: 148px; resize: vertical; }
   .profile-settings-help { margin: 0; color: #64748b; font-size: 13px; line-height: 1.65; }
   .profile-settings-status { min-height: 24px; color: #475569; font-weight: 800; }
@@ -1702,13 +1707,26 @@ function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: Profil
 function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot): string {
   const endpoint = withBasePath(basePath, "/api/v1/profile/me");
   const backHref = withBasePath(basePath, "/profile");
+  const avatarFallback = (snapshot.displayName || "?").slice(0, 1);
   return `<section class="section" data-testid="profile-settings">
     <div class="profile-settings-card">
       <form class="profile-settings-form" data-profile-settings data-endpoint="${escapeHtml(endpoint)}">
         <div>
           <div class="eyebrow">Profile settings</div>
           <h2 style="margin:8px 0 0">プロフィール編集</h2>
-          <p class="profile-settings-help" style="margin-top:8px">公開プロフィールとマイページの表示名を更新します。写真アップロードは次フェーズで分離します。</p>
+          <p class="profile-settings-help" style="margin-top:8px">公開プロフィールとマイページの表示名、アイコン、自己紹介を更新します。</p>
+        </div>
+        <div class="profile-settings-field">
+          <label for="profile-avatar">アイコン</label>
+          <div class="profile-settings-avatar">
+            <div class="profile-settings-avatar-preview" data-avatar-preview>
+              ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" onerror="this.remove();this.parentElement.textContent=${escapeHtml(JSON.stringify(avatarFallback))}" />` : escapeHtml(avatarFallback)}
+            </div>
+            <div class="profile-settings-avatar-control">
+              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+              <p class="profile-settings-help">5MBまで。JPG / PNG / WebP / GIF を使えます。</p>
+            </div>
+          </div>
         </div>
         <div class="profile-settings-field">
           <label for="profile-display-name">表示名</label>
@@ -1744,6 +1762,10 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     display_name_too_long: '表示名は50文字以内で入力してください。',
     profile_bio_too_long: '自己紹介は500文字以内で入力してください。',
     expertise_too_long: '関心分野は120文字以内で入力してください。',
+    avatar_invalid: 'アイコン画像を読み込めませんでした。',
+    avatar_empty: 'アイコン画像が空です。',
+    avatar_too_large: 'アイコン画像は5MB以内にしてください。',
+    avatar_invalid_type: 'アイコンは JPG / PNG / WebP / GIF を選んでください。',
     session_required: 'ログインし直してください。'
   };
   const setStatus = (message, kind) => {
@@ -1752,6 +1774,46 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     status.classList.toggle('is-error', kind === 'error');
     status.classList.toggle('is-success', kind === 'success');
   };
+  const avatarInput = form.querySelector('input[name="avatar"]');
+  const avatarPreview = form.querySelector('[data-avatar-preview]');
+  let selectedAvatar = null;
+  const readAvatar = (file) => new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    if (!/^image\\/(jpeg|png|webp|gif)$/.test(file.type || '')) {
+      return reject(new Error(messages.avatar_invalid_type));
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return reject(new Error(messages.avatar_too_large));
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      filename: file.name || 'avatar',
+      mimeType: file.type || 'image/jpeg',
+      base64Data: String(reader.result || '')
+    });
+    reader.onerror = () => reject(new Error(messages.avatar_invalid));
+    reader.readAsDataURL(file);
+  });
+  if (avatarInput) {
+    avatarInput.addEventListener('change', async () => {
+      const file = avatarInput.files && avatarInput.files[0] ? avatarInput.files[0] : null;
+      try {
+        selectedAvatar = await readAvatar(file);
+        if (selectedAvatar && avatarPreview) {
+          avatarPreview.innerHTML = '';
+          const image = document.createElement('img');
+          image.alt = '';
+          image.src = selectedAvatar.base64Data;
+          avatarPreview.appendChild(image);
+        }
+        setStatus('', '');
+      } catch (error) {
+        selectedAvatar = null;
+        avatarInput.value = '';
+        setStatus(error instanceof Error ? error.message : messages.avatar_invalid, 'error');
+      }
+    });
+  }
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!endpoint) return;
@@ -1770,7 +1832,8 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
         body: JSON.stringify({
           displayName: String(data.get('displayName') || ''),
           expertise: String(data.get('expertise') || ''),
-          profileBio: String(data.get('profileBio') || '')
+          profileBio: String(data.get('profileBio') || ''),
+          avatar: selectedAvatar
         })
       });
       const payload = await response.json().catch(() => null);
