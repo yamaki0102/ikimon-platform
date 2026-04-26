@@ -12,6 +12,7 @@ import {
 } from "./writeSupport.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
+import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import {
   hasNativeObservationPhoto,
   upsertVisitQualityReview,
@@ -24,6 +25,7 @@ type ObservationPhotoInput = {
   mimeType?: string | null;
   sha256?: string | null;
   bytes?: number | null;
+  mediaRole?: MediaRole | string | null;
 };
 
 /**
@@ -465,6 +467,13 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         continue;
       }
       const legacyAssetKey = `observation_photo:${visitId}:${index}:${photo.path}`;
+      const mediaRole = normalizeMediaRole(photo.mediaRole);
+      const photoSourcePayload = {
+        source: "v2_write_api",
+        visit_id: visitId,
+        photo_index: index,
+        media_role: mediaRole,
+      };
       const blobId = await upsertAssetBlob(client, {
         storageBackend: "local_fs",
         storagePath: photo.path,
@@ -473,11 +482,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         publicUrl: photo.publicUrl ?? photo.path,
         sha256: photo.sha256 ?? null,
         bytes: photo.bytes ?? null,
-        sourcePayload: {
-          source: "v2_write_api",
-          visit_id: visitId,
-          photo_index: index,
-        },
+        sourcePayload: photoSourcePayload,
       });
 
       await client.query(
@@ -499,11 +504,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           visitId,
           legacyAssetKey,
           photo.path,
-          JSON.stringify({
-            source: "v2_write_api",
-            visit_id: visitId,
-            photo_index: index,
-          }),
+          JSON.stringify(photoSourcePayload),
         ],
       );
     }

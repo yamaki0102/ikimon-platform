@@ -5,12 +5,20 @@ import { escapeHtml } from "./siteShell.js";
 
 type PhotoAsset = ObservationDetailSnapshot["photoAssets"][number];
 type VideoAsset = ObservationDetailSnapshot["videoAssets"][number];
+type MediaRoleView = "primary_subject" | "context" | "sound_motion" | "secondary_candidate";
 type RegionSwitchMap = Record<string, Array<{
   assetId: string;
   rect: SubjectMediaRegionView["rect"];
   note: string | null;
   confidenceScore: number | null;
 }>>;
+
+const MEDIA_ROLE_LABELS: Record<MediaRoleView, string> = {
+  primary_subject: "主役",
+  context: "周囲",
+  sound_motion: "音・動き",
+  secondary_candidate: "別対象候補",
+};
 
 export const REGION_DISPLAY_CONF_MIN = 0.5;
 export const OBSERVATION_REGION_SUMMARY_TEXT = "AI が対象位置の参考矩形を重ねています。";
@@ -34,6 +42,11 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-thumb-ring { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
   .obs-hero-thumb-active-label { position: absolute; left: 6px; right: 6px; bottom: 6px; padding: 3px 4px; border-radius: 6px; background: #10b981; color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .06em; text-align: center; opacity: 0; transition: opacity .18s ease; pointer-events: none; }
   .obs-hero-thumb.is-active .obs-hero-thumb-active-label { opacity: 1; }
+  .obs-media-role-badge { position: absolute; left: 12px; top: 12px; z-index: 2; display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 11px; line-height: 1; font-weight: 950; box-shadow: 0 8px 18px rgba(15,23,42,.22); pointer-events: none; }
+  .obs-media-role-badge.is-context { background: rgba(3,105,161,.84); }
+  .obs-media-role-badge.is-sound-motion { background: rgba(126,34,206,.84); }
+  .obs-media-role-badge.is-secondary-candidate { background: rgba(180,83,9,.86); }
+  .obs-hero-thumb .obs-media-role-badge { left: 6px; top: 6px; min-height: 22px; padding: 5px 6px; font-size: 9px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .obs-lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(8,12,20,.94); display: none; overflow: auto; padding: 72px 16px 56px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .obs-lightbox.is-open { display: block; }
@@ -55,6 +68,8 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-video-frame { position: relative; width: 100%; padding-top: 56.25%; border-radius: 20px; overflow: hidden; background: #020617; }
   .obs-hero-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
   .obs-hero-video-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #334155; font-weight: 700; }
+  .obs-hero-video-meta-main { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .obs-hero-video-meta .obs-media-role-badge { position: static; min-height: 24px; padding: 5px 9px; font-size: 10px; box-shadow: none; }
   .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
   .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
   .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
@@ -124,17 +139,34 @@ function photoDisplayUrl(asset: PhotoAsset, preset: "sm" | "lg"): string {
   return toThumbnailUrl(asset.url, preset) ?? asset.url;
 }
 
+function normalizeMediaRoleView(role: string | null | undefined): MediaRoleView | null {
+  if (role === "primary_subject" || role === "context" || role === "sound_motion" || role === "secondary_candidate") {
+    return role;
+  }
+  return null;
+}
+
+function mediaRoleBadge(asset: Pick<PhotoAsset | VideoAsset, "mediaRole">, compact = false): string {
+  const role = normalizeMediaRoleView(asset.mediaRole);
+  if (!role) return "";
+  const className = role === "primary_subject" ? "" : ` is-${role.replace(/_/g, "-")}`;
+  return `<span class="obs-media-role-badge${className}${compact ? " is-compact" : ""}" data-obs-media-role-badge>${escapeHtml(MEDIA_ROLE_LABELS[role])}</span>`;
+}
+
 function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject): string {
   if (snapshot.photoAssets.length === 0) return "";
   const first = snapshot.photoAssets[0]!;
   const firstDisplayUrl = photoDisplayUrl(first, "lg");
+  const firstRoleBadge = mediaRoleBadge(first) || `<span class="obs-media-role-badge" data-obs-media-role-badge hidden></span>`;
   const thumbsHtml = snapshot.photoAssets.length >= 2
     ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => {
       const previewUrl = photoDisplayUrl(asset, "lg");
       const thumbUrl = photoDisplayUrl(asset, "sm");
+      const role = normalizeMediaRoleView(asset.mediaRole);
       return `
-         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
+         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
            <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
+           ${mediaRoleBadge(asset, true)}
            <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
            <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
            <span hidden data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${renderObservationRegionBoxes(currentSubject, asset.assetId)}</span>
@@ -143,6 +175,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
     : "";
   return `<div class="obs-hero-gallery" data-obs-gallery>
     <div class="obs-hero-preview" data-obs-preview data-obs-preview-asset-id="${escapeHtml(first.assetId)}">
+      ${firstRoleBadge}
       <span class="obs-hero-image-frame" data-obs-image-frame>
         <img src="${escapeHtml(firstDisplayUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
         <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderObservationRegionBoxes(currentSubject, first.assetId)}</span>
@@ -169,7 +202,7 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
        </iframe>
      </div>
      <div class="obs-hero-video-meta">
-       <strong>動画</strong>
+       <span class="obs-hero-video-meta-main"><strong>動画</strong>${mediaRoleBadge(primaryVideo)}</span>
        ${videoRegion ? `<span class="obs-region-video-note">AI が 2s 付近の対象位置を記録しています</span>` : ""}
        ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
      </div>
@@ -217,6 +250,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
      var preview = gallery.querySelector('[data-obs-preview]');
      var previewImg = preview && preview.querySelector('[data-obs-preview-img]');
      var previewRegions = preview && preview.querySelector('[data-obs-preview-regions]');
+     var previewRoleBadge = preview && preview.querySelector('[data-obs-media-role-badge]');
      var thumbs = Array.prototype.slice.call(gallery.querySelectorAll('.obs-hero-thumb'));
      var lightbox = document.querySelector('[data-obs-lightbox]');
      var lightboxImg = lightbox && lightbox.querySelector('[data-obs-lightbox-img]');
@@ -247,6 +281,18 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        }
        if (previewImg && src) { previewImg.src = src; }
        if (preview && assetId) { preview.setAttribute('data-obs-preview-asset-id', assetId); }
+       if (previewRoleBadge) {
+         var role = t.getAttribute('data-obs-thumb-media-role') || '';
+         var roleLabels = {
+           primary_subject: '主役',
+           context: '周囲',
+           sound_motion: '音・動き',
+           secondary_candidate: '別対象候補'
+         };
+         previewRoleBadge.textContent = roleLabels[role] || '';
+         previewRoleBadge.hidden = !roleLabels[role];
+         previewRoleBadge.className = 'obs-media-role-badge' + (role && role !== 'primary_subject' ? ' is-' + role.replace(/_/g, '-') : '');
+       }
        if (previewRegions && regions) {
          previewRegions.innerHTML = regions.innerHTML;
          previewRegions.setAttribute('data-region-layer', assetId || '');

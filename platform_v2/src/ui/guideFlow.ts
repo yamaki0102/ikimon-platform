@@ -18,6 +18,8 @@ type GuideCopy = {
   privacyNotice: string;
   naturalSoundBadge: string;
   voiceExcludedNotice: string;
+  contextTitle: string;
+  contextBody: string;
   audioTitle: string;
   audioEmpty: string;
   audioSkipped: string;
@@ -55,6 +57,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "人の声が入った音声は保存しません",
     naturalSoundBadge: "自然音だけを使っています",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
+    contextTitle: "主役と周囲を一緒に見る",
+    contextBody: "ライブガイドは、目の前の主役だけでなく、周囲の生きもの・環境・音も手がかりとして読みます。記録するときは主役を1つ選べば十分です。",
     audioTitle: "今回の音の記録",
     audioEmpty: "自然音のまとまりはまだありません",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",
@@ -90,6 +94,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "Clips with human voices are not stored",
     naturalSoundBadge: "Using natural sounds only",
     voiceExcludedNotice: "Possible human voice was excluded",
+    contextTitle: "Read the subject and its surroundings",
+    contextBody: "Live Guide uses the main subject plus nearby organisms, habitat and sound as clues. When saving a record, choosing one subject is enough.",
     audioTitle: "Sounds From This Session",
     audioEmpty: "No natural sound bundles yet",
     audioSkipped: "Some clips were skipped for privacy",
@@ -125,6 +131,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "No guardamos clips con voces humanas",
     naturalSoundBadge: "Solo usamos sonidos naturales",
     voiceExcludedNotice: "Se excluyó audio con posible voz humana",
+    contextTitle: "Leer el sujeto y su entorno",
+    contextBody: "La guía usa el sujeto principal, los organismos cercanos, el hábitat y el sonido como pistas. Al guardar, basta elegir un sujeto principal.",
     audioTitle: "Sonidos de esta sesión",
     audioEmpty: "Todavía no hay grupos de sonidos naturales",
     audioSkipped: "Algunos clips se omitieron por privacidad",
@@ -160,6 +168,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "Clipes com voz humana não são salvos",
     naturalSoundBadge: "Usamos apenas sons naturais",
     voiceExcludedNotice: "Possível voz humana foi excluída",
+    contextTitle: "Ler o sujeito e o entorno",
+    contextBody: "O guia usa o sujeito principal, organismos próximos, habitat e som como pistas. Ao salvar, basta escolher um sujeito principal.",
     audioTitle: "Sons desta sessão",
     audioEmpty: "Ainda não há grupos de sons naturais",
     audioSkipped: "Alguns clipes foram ignorados por privacidade",
@@ -195,6 +205,10 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   <div class="guide-header">
     <h1 class="guide-title">${escapeHtml(c.title)}</h1>
     <p class="guide-subtitle">${escapeHtml(c.subtitle)}</p>
+    <div class="guide-context-card">
+      <strong>${escapeHtml(c.contextTitle)}</strong>
+      <p>${escapeHtml(c.contextBody)}</p>
+    </div>
   </div>
 
   <div class="guide-controls">
@@ -894,6 +908,9 @@ export const GUIDE_FLOW_STYLES = `
   .guide-header { margin-bottom: 24px; }
   .guide-title { font-size: 32px; font-weight: 950; color: #0f172a; letter-spacing: 0; line-height: 1.12; margin: 0 0 8px; }
   .guide-subtitle { font-size: 14px; color: #475569; margin: 0; line-height: 1.7; font-weight: 700; }
+  .guide-context-card { margin-top: 14px; display: grid; gap: 5px; padding: 12px 13px; border-radius: 8px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9)); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+  .guide-context-card strong { color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 950; }
+  .guide-context-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
   .guide-controls { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
   .guide-privacy-row { display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.86); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-privacy-badge { width: fit-content; display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 950; border: 1px solid rgba(5,150,105,.2); }
