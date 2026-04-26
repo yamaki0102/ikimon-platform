@@ -7,6 +7,15 @@ export type AppConfig = {
   privilegedWriteApiKey?: string;
   oauthStateSecret?: string;
   geminiApiKey?: string;
+  deepseekApiKey?: string;
+  profileDigest: {
+    provider: "disabled" | "deepseek";
+    model: string;
+    maxInputTokens: number;
+    maxOutputTokens: number;
+    monthlyBudgetJpy: number;
+    assumedJpyPerUsd: number;
+  };
   legacyDataRoot: string;
   legacyPublicRoot: string;
   legacyUploadsRoot: string;
@@ -60,6 +69,32 @@ function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean 
   return fallback;
 }
 
+function parsePositiveNumber(rawValue: string | undefined, fallback: number): number {
+  if (rawValue === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function parseProfileDigestProvider(rawValue: string | undefined, hasDeepseekKey: boolean): "disabled" | "deepseek" {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (normalized === "deepseek") {
+    return "deepseek";
+  }
+  if (normalized === "disabled" || normalized === "off" || normalized === "0") {
+    return "disabled";
+  }
+  if (hasDeepseekKey) {
+    return "deepseek";
+  }
+  return "disabled";
+}
+
 export function loadConfig(): AppConfig {
   const baseRoot = process.cwd();
   const legacyRoots = resolveLegacyRoots(baseRoot, {
@@ -78,6 +113,7 @@ export function loadConfig(): AppConfig {
   const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
   const twitterClientId = process.env.TWITTER_CLIENT_ID?.trim();
   const twitterClientSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
+  const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim() || undefined;
 
   return {
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -86,6 +122,15 @@ export function loadConfig(): AppConfig {
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
     oauthStateSecret: process.env.V2_OAUTH_STATE_SECRET?.trim() || process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
     geminiApiKey: process.env.GEMINI_API_KEY?.trim() || undefined,
+    deepseekApiKey,
+    profileDigest: {
+      provider: parseProfileDigestProvider(process.env.PROFILE_DIGEST_LLM_PROVIDER, Boolean(deepseekApiKey)),
+      model: process.env.PROFILE_DIGEST_MODEL?.trim() || "deepseek-v4-flash",
+      maxInputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_INPUT_TOKENS, 2000)),
+      maxOutputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_OUTPUT_TOKENS, 300)),
+      monthlyBudgetJpy: parsePositiveNumber(process.env.PROFILE_DIGEST_MONTHLY_BUDGET_JPY, 1000),
+      assumedJpyPerUsd: parsePositiveNumber(process.env.PROFILE_DIGEST_ASSUMED_JPY_PER_USD, 150),
+    },
     legacyDataRoot: legacyRoots.legacyDataRoot,
     legacyPublicRoot: legacyRoots.publicRoot,
     legacyUploadsRoot: legacyRoots.uploadsRoot,
