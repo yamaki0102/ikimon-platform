@@ -351,7 +351,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
     <div class="global-record-camera-head">
       <div>
         <strong data-global-record-camera-title>撮影して記録</strong>
-        <p data-global-record-camera-help>ブラウザ内で確認してから撮影できます。</p>
+        <p data-global-record-camera-help>主役を1つ決めて、周囲の様子も手がかりとして残せます。</p>
       </div>
       <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="閉じる">×</button>
     </div>
@@ -366,6 +366,19 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
         <strong>ここで少し整える</strong>
         <span data-global-record-data-estimate>送信量を確認中</span>
       </div>
+      <div class="global-record-media-meaning">
+        <strong>主役と周囲</strong>
+        <span>投稿では主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。</span>
+      </div>
+      <label>
+        <span>このメディアの役割</span>
+        <select data-global-record-edit-role>
+          <option value="primary_subject">主役</option>
+          <option value="context">周囲</option>
+          <option value="sound_motion">音・動き</option>
+          <option value="secondary_candidate">別対象候補</option>
+        </select>
+      </label>
       <label>
         <span>名前が分かれば</span>
         <input data-global-record-edit-name type="text" maxlength="120" placeholder="例: スズメ / セミ / 名前は不明" />
@@ -431,6 +444,7 @@ function globalRecordEntryScript(): string {
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
   const fallbackButton = document.querySelector('[data-global-record-camera-fallback]');
   const inlineEdit = document.querySelector('[data-global-record-inline-edit]');
+  const editRoleInput = document.querySelector('[data-global-record-edit-role]');
   const editNameInput = document.querySelector('[data-global-record-edit-name]');
   const editNoteInput = document.querySelector('[data-global-record-edit-note]');
   const dataEstimate = document.querySelector('[data-global-record-data-estimate]');
@@ -443,14 +457,14 @@ function globalRecordEntryScript(): string {
   const labels = {
     photo: {
       title: '写真を撮る',
-      help: 'いきなり全画面にせず、この小さな画面で構図を確認してから撮影します。',
+      help: '主役を1つ決めて撮ります。周囲の様子も、あとでAIと人が見る手がかりになります。',
       start: 'カメラを起動',
       capture: '写真を撮る',
       fallback: '端末のカメラを開く',
     },
     video: {
       title: '動画を撮る',
-      help: '動画投稿は最大60秒です。長めに撮っても、あとで見せたい60秒を選べます。',
+      help: '動画投稿は最大60秒です。主役の動きや鳴き声と、周囲の様子を一緒に残せます。',
       start: 'カメラを起動',
       capture: '録画開始',
       fallback: '端末の動画カメラを開く',
@@ -512,6 +526,7 @@ function globalRecordEntryScript(): string {
     dataEstimate.textContent = '送信目安 ' + formatDataSize(bytes) + ' / YouTube標準画質なら' + formatEstimateMinutes(bytes) + 'ぶん';
   };
   const readInlineEdit = () => ({
+    mediaRole: editRoleInput ? String(editRoleInput.value || '').trim() : '',
     vernacularName: editNameInput ? String(editNameInput.value || '').trim() : '',
     localityNote: editNoteInput ? String(editNoteInput.value || '').trim() : '',
   });
@@ -587,6 +602,7 @@ function globalRecordEntryScript(): string {
     capturedReviewMeta = null;
     resetSheetVideoTrim();
     if (inlineEdit) inlineEdit.hidden = true;
+    if (editRoleInput) editRoleInput.value = 'primary_subject';
     if (editNameInput) editNameInput.value = '';
     if (editNoteInput) editNoteInput.value = '';
     if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
@@ -630,8 +646,12 @@ function globalRecordEntryScript(): string {
   const navigateWithDraft = async (file, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
+    const inlineValues = readInlineEdit();
+    const metadataWithRole = Object.assign({}, metadata || {}, {
+      mediaRole: inlineValues.mediaRole || (kind === 'video' ? 'sound_motion' : 'primary_subject'),
+    });
     try {
-      await saveDraft({ file, kind, savedAt: Date.now(), metadata: metadata || {} });
+      await saveDraft({ file, kind, savedAt: Date.now(), metadata: metadataWithRole });
       window.location.href = withInlineEditParams(href || '/record', kind);
     } catch (_) {
       window.location.href = href || '/record?start=' + encodeURIComponent(kind);
@@ -659,6 +679,7 @@ function globalRecordEntryScript(): string {
   const openSheet = (kind) => {
     clearReview();
     activeKind = kind;
+    if (editRoleInput) editRoleInput.value = kind === 'video' ? 'sound_motion' : 'primary_subject';
     const label = labels[kind] || labels.photo;
     if (title) title.textContent = label.title;
     if (help) help.textContent = label.help;
@@ -2229,8 +2250,29 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       line-height: 1.35;
       font-weight: 900;
     }
+    .global-record-media-meaning {
+      display: grid;
+      gap: 4px;
+      padding: 10px 11px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9));
+      border: 1px solid rgba(16,185,129,.2);
+    }
+    .global-record-media-meaning strong {
+      color: #064e3b;
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 950;
+    }
+    .global-record-media-meaning span {
+      color: #475569;
+      font-size: 11px;
+      line-height: 1.55;
+      font-weight: 800;
+    }
     .global-record-inline-edit input,
-    .global-record-inline-edit textarea {
+    .global-record-inline-edit textarea,
+    .global-record-inline-edit select {
       width: 100%;
       box-sizing: border-box;
       border: 1px solid rgba(15,23,42,.14);

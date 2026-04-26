@@ -49,6 +49,7 @@ const snapshot = {
       roleTag: null,
       roleTagSource: null,
       organTarget: null,
+      mediaRole: "primary_subject",
     },
   ],
   videoAssets: [],
@@ -60,6 +61,7 @@ test("observation media renders boxes only for displayable regions", () => {
   const { mediaBlock } = renderObservationMedia(snapshot, subject);
   assert.match(mediaBlock, /data-obs-image-frame/);
   assert.match(mediaBlock, /width="320" height="640"/);
+  assert.match(mediaBlock, />主役<\/span>/);
   assert.match(mediaBlock, /visible-region-fixture/);
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
   assert.match(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
@@ -77,6 +79,7 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
         roleTag: null,
         roleTagSource: null,
         organTarget: null,
+        mediaRole: "context",
       },
       {
         assetId: "asset-legacy-upload-2",
@@ -86,6 +89,7 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
         roleTag: null,
         roleTagSource: null,
         organTarget: null,
+        mediaRole: "secondary_candidate",
       },
     ],
   } as unknown as ObservationDetailSnapshot;
@@ -95,5 +99,29 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
   assert.match(mediaBlock, /src="\/thumb\/lg\/photos\/visit-1\/photo_0\.webp"/);
   assert.match(mediaBlock, /data-obs-thumb-src="\/thumb\/lg\/photos\/visit-1\/photo_1\.jpg"/);
   assert.match(mediaBlock, /src="\/thumb\/sm\/photos\/visit-1\/photo_1\.jpg"/);
+  assert.match(mediaBlock, />周囲<\/span>/);
+  assert.match(mediaBlock, />別対象候補<\/span>/);
   assert.doesNotMatch(mediaBlock, /src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);
+});
+
+test("observation media renders video media role badges", () => {
+  const videoSnapshot = {
+    ...snapshot,
+    photoAssets: [],
+    videoAssets: [
+      {
+        assetId: "video-asset",
+        iframeUrl: "https://iframe.videodelivery.net/video-asset",
+        thumbnailUrl: "https://videodelivery.net/video-asset/thumbnails/thumbnail.jpg",
+        watchUrl: "https://watch.cloudflarestream.com/video-asset",
+        createdAt: "2026-04-26T00:00:00.000Z",
+        mediaRole: "sound_motion",
+      },
+    ],
+  } as unknown as ObservationDetailSnapshot;
+
+  const { mediaBlock } = renderObservationMedia(videoSnapshot, subject);
+
+  assert.match(mediaBlock, /<strong>動画<\/strong>/);
+  assert.match(mediaBlock, />音・動き<\/span>/);
 });

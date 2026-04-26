@@ -35,7 +35,12 @@ import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
 import { confidenceLabel } from "../services/observationAiAssessment.js";
-import { getObservationVisitBundle, type ObservationVisitBundle, type ObservationVisitSubject } from "../services/observationVisitBundle.js";
+import {
+  getObservationVisitBundle,
+  type ObservationVisitBundle,
+  type ObservationVisitCandidate,
+  type ObservationVisitSubject,
+} from "../services/observationVisitBundle.js";
 import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import {
   getExploreSnapshot,
@@ -576,6 +581,10 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-identify-actions .btn { width: 100%; min-height: 56px; white-space: normal; border-radius: 14px; }
     .obs-needed-box { padding: 12px 13px; }
     .obs-identify-split { gap: 18px; }
+    .obs-ai-cutout { padding: 14px; border-radius: 16px; }
+    .obs-ai-cutout-head { display: grid; }
+    .obs-ai-cutout-card { grid-template-columns: 1fr; }
+    .obs-ai-cutout-action, .obs-ai-cutout-learn { width: 100%; min-height: 52px; border-radius: 14px; white-space: normal; }
   }
 
   /* ADR-0004: 主種 + 共生種グリッド */
@@ -588,6 +597,23 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-subject-name { font-size: 14.5px; font-weight: 900; color: #0f172a; line-height: 1.3; }
   .obs-subject-rank { font-size: 11.5px; color: #64748b; font-weight: 700; }
   .obs-subject-conf { font-size: 11px; font-weight: 800; color: #16a34a; }
+  .obs-ai-cutout { margin-top: 16px; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(239,246,255,.94)); border: 1px solid rgba(16,185,129,.2); display: grid; gap: 12px; box-shadow: 0 12px 28px rgba(15,23,42,.06); }
+  .obs-ai-cutout-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .obs-ai-cutout-eye { margin: 0 0 4px; color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
+  .obs-ai-cutout-title { margin: 0; color: #0f172a; font-size: 15.5px; line-height: 1.45; font-weight: 950; }
+  .obs-ai-cutout-copy { margin: 5px 0 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 750; }
+  .obs-ai-cutout-pill { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 30px; padding: 6px 10px; border-radius: 999px; background: rgba(16,185,129,.14); color: #065f46; font-size: 11px; line-height: 1; font-weight: 950; white-space: nowrap; }
+  .obs-ai-cutout-grid { display: grid; gap: 9px; }
+  .obs-ai-cutout-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); }
+  .obs-ai-cutout-card strong { display: block; color: #0f172a; font-size: 14px; line-height: 1.35; }
+  .obs-ai-cutout-meta { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-ai-cutout-meta span { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.06); color: #475569; font-size: 10.5px; line-height: 1; font-weight: 900; }
+  .obs-ai-cutout-note { margin: 7px 0 0; color: #64748b; font-size: 11.5px; line-height: 1.55; font-weight: 700; }
+  .obs-ai-cutout-action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 13px; border: 0; border-radius: 999px; background: #059669; color: #fff; font-size: 12px; line-height: 1.25; font-weight: 950; cursor: pointer; box-shadow: 0 8px 18px rgba(5,150,105,.18); white-space: nowrap; }
+  .obs-ai-cutout-action:disabled { cursor: wait; opacity: .72; }
+  .obs-ai-cutout-learn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 9px 12px; border-radius: 999px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.1); color: #0369a1; font-size: 12px; font-weight: 950; text-decoration: none; white-space: nowrap; }
+  .obs-ai-cutout-status { min-height: 28px; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,.74); color: #475569; font-size: 11.5px; font-weight: 850; }
+  .obs-ai-cutout-status.is-error { background: #fef2f2; color: #b91c1c; }
 
   .obs-peers { margin: 0; padding: 10px 14px; background: rgba(168,85,247,.06); border-radius: 10px; font-size: 13px; color: #6b21a8; border: 1px solid rgba(168,85,247,.15); }
   .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
@@ -730,6 +756,75 @@ type RankedSubject = SiblingSubject & {
   focusReason: string;
   roleLabel: string;
 };
+
+const AI_CANDIDATE_CUTOUT_CONFIDENCE_MIN = 0.78;
+
+function candidateHasVisibleRegion(candidate: ObservationVisitCandidate): boolean {
+  return candidate.regions.some((region) => {
+    if (!region.rect) return false;
+    return (region.confidenceScore ?? 1) >= 0.5;
+  });
+}
+
+function highLearningCandidates(candidates: ObservationVisitCandidate[]): ObservationVisitCandidate[] {
+  return candidates
+    .filter((candidate) => {
+      if (candidate.suggestedOccurrenceId) return false;
+      if (candidate.candidateStatus !== "proposed" && candidate.candidateStatus !== "matched") return false;
+      if ((candidate.confidence ?? 0) < AI_CANDIDATE_CUTOUT_CONFIDENCE_MIN) return false;
+      return candidateHasVisibleRegion(candidate);
+    })
+    .slice(0, 3);
+}
+
+function renderAiCandidateLearningPanel(options: {
+  basePath: string;
+  lang: SiteLang;
+  visitId: string;
+  candidates: ObservationVisitCandidate[];
+  isOwner: boolean;
+}): string {
+  const candidates = highLearningCandidates(options.candidates);
+  if (candidates.length === 0) return "";
+  const identifyHref = appendLangToHref(withBasePath(options.basePath, `/observations/${encodeURIComponent(options.visitId)}#identify`), options.lang);
+  return `<section class="obs-ai-cutout" data-ai-cutout-panel>
+    <div class="obs-ai-cutout-head">
+      <div>
+        <p class="obs-ai-cutout-eye">AI が見つけたかもしれないもの</p>
+        <h2 class="obs-ai-cutout-title">写真の中に、別の観察として残せそうな候補があります</h2>
+        <p class="obs-ai-cutout-copy">いきものに詳しくなくても大丈夫です。AI が自信の高いものだけ先に整理しています。名前は候補なので、あとから人の確認で直せます。</p>
+      </div>
+      <span class="obs-ai-cutout-pill">${candidates.length} 件</span>
+    </div>
+    <div class="obs-ai-cutout-grid">
+      ${candidates.map((candidate) => {
+        const confidence = typeof candidate.confidence === "number" ? Math.round(candidate.confidence * 100) : null;
+        const meta = [
+          confidence != null ? `${confidence}%` : null,
+          candidate.rank || null,
+          candidate.regions.length > 0 ? "位置の手がかりあり" : null,
+        ].filter((item): item is string => Boolean(item));
+        const action = options.isOwner
+          ? `<button type="button"
+               class="obs-ai-cutout-action"
+               data-adopt-candidate="${escapeHtml(candidate.candidateId)}"
+               data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/adopt`))}">
+               別の観察として残す
+             </button>`
+          : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">見分けに参加する</a>`;
+        return `<div class="obs-ai-cutout-card">
+          <div>
+            <strong>${escapeHtml(candidate.displayName)}</strong>
+            ${meta.length > 0 ? `<div class="obs-ai-cutout-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
+            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">同じ写真から切り出せる候補です。まずは仮の観察として残し、あとで確かめます。</p>`}
+          </div>
+          ${action}
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? "残すと、同じ日時・同じ場所・同じ写真に紐づく別対象として追加されます。" : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
+  </section>`;
+}
 
 function subjectSpecificityScore(rank: string | null): number {
   switch ((rank ?? "").toLowerCase()) {
@@ -1110,7 +1205,7 @@ function renderRoleCoverageStrip(photoAssets: { roleTag: string | null }[] | nul
 
 const START_STATE_STYLES = `
   .start-guide { display: grid; gap: 20px; }
-  .start-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .start-guide-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
   .start-guide-card { min-height: 168px; padding: 22px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
   .start-guide-card strong { display: block; margin: 8px 0; color: #0f172a; font-size: 18px; }
   .start-guide-card p { margin: 0; color: #64748b; font-size: 13.5px; line-height: 1.75; }
@@ -1129,7 +1224,8 @@ const START_STATE_STYLES = `
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
   @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
   @media (max-width: 720px) { .start-guide { padding-bottom: 104px; } }
-  @media (max-width: 820px) { .start-guide-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 980px) { .start-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 620px) { .start-guide-grid { grid-template-columns: 1fr; } }
 `;
 
 function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
@@ -1164,7 +1260,7 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
     hero: {
       eyebrow: "record",
       heading: "記録を始める準備",
-      lead: "名前が分からなくても、記録は始められる。写真、場所、時刻、ひとことメモがあれば、今日の発見はあとから育てられます。",
+      lead: "名前が分からなくても、記録は始められる。まず主役を1つ決め、周囲の様子も手がかりとして残せば、今日の発見はあとから育てられます。",
       tone: "light",
       align: "center",
       actions: [
@@ -1177,6 +1273,7 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
         <div class="start-guide-grid">
           <div class="start-guide-card"><div class="eyebrow">photo</div><strong>まず写真を残す</strong><p>全体、近くから見た特徴、いた場所の雰囲気を残すと、あとから確かめやすくなります。</p></div>
           <div class="start-guide-card"><div class="eyebrow">place</div><strong>場所と時間を残す</strong><p>散歩道、公園、水辺、庭先など、どこでいつ見たかが記録の価値を支えます。</p></div>
+          <div class="start-guide-card"><div class="eyebrow">subject</div><strong>主役と周囲を分ける</strong><p>投稿では主役を1つ選べば十分です。周囲に写った生きものや環境は、AIと人が読む手がかりになります。</p></div>
           <div class="start-guide-card"><div class="eyebrow">note</div><strong>分からないまま書く</strong><p>名前が未確定でも、色、動き、数、周りの環境を短く書けば次の確認につながります。</p></div>
         </div>
       </section>
@@ -2763,7 +2860,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div>
                 <div class="eyebrow" id="record-mode-eyebrow">投稿入口</div>
                 <h2>まず、どう残すかを選ぶ</h2>
-                <p class="meta" id="record-mode-lead">写真、動画、手元のファイル、ライブガイドから始められます。選んだあとに必要な入力だけを出します。</p>
+                <p class="meta" id="record-mode-lead">写真、動画、手元のファイル、ライブガイドから始められます。まず主役を1つ決め、周囲の様子も手がかりとして残します。</p>
               </div>
               <div class="record-session-pill">
                 <span class="record-session-label">ログイン中</span>
@@ -2792,6 +2889,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <span>AIのヒントを見ながら探す</span>
               </a>
             </div>
+            <div class="record-subject-context" aria-label="主役と周囲の残し方">
+              <div>
+                <span class="record-label">主役と周囲</span>
+                <strong>主役は1つ選べばOK</strong>
+                <p>広角写真、環境、鳴き声、同じ画面に写った別の生きものも、AIが補助的な手がかりとして見ます。あとで別の観察に切り出せる余地も残します。</p>
+              </div>
+              <div class="record-subject-context-tags" aria-label="メディアの役割">
+                <span>主役</span>
+                <span>周囲</span>
+                <span>音・動き</span>
+                <span>別対象の候補</span>
+              </div>
+            </div>
             <div class="record-capture-dock" aria-label="すぐ投稿する">
               <button type="button" class="record-dock-action record-dock-primary" data-capture-action="photo">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
@@ -2814,7 +2924,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div>
                 <span class="record-label">選択中</span>
                 <strong id="record-capture-result-title">未選択</strong>
-                <p id="record-capture-result-help">ファイルを選ぶと入力欄が開きます。</p>
+                <p id="record-capture-result-help">ファイルを選ぶと入力欄が開きます。主役以外の周囲も、AIが手がかりとして見ます。</p>
               </div>
               <button type="button" class="btn btn-ghost" id="record-capture-change">選び直す</button>
             </div>
@@ -2831,6 +2941,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-media-video" data-record-media-input data-capture-kind="video" type="file" accept="video/*" capture="environment" hidden />
               <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" hidden />
               <input type="hidden" name="recordMode" value="quick" />
+              <div class="record-field record-field-wide record-media-role">
+                <span class="record-label">このメディアの役割</span>
+                <div class="record-media-role-grid" role="radiogroup" aria-label="このメディアの役割">
+                  <label class="record-media-role-chip">
+                    <input type="radio" name="mediaRole" value="primary_subject" checked />
+                    <strong>主役</strong>
+                    <span>この記録の中心</span>
+                  </label>
+                  <label class="record-media-role-chip">
+                    <input type="radio" name="mediaRole" value="context" />
+                    <strong>周囲</strong>
+                    <span>場所・環境の手がかり</span>
+                  </label>
+                  <label class="record-media-role-chip">
+                    <input type="radio" name="mediaRole" value="sound_motion" />
+                    <strong>音・動き</strong>
+                    <span>鳴き声や行動</span>
+                  </label>
+                  <label class="record-media-role-chip">
+                    <input type="radio" name="mediaRole" value="secondary_candidate" />
+                    <strong>別対象候補</strong>
+                    <span>同じ画面の別の生きもの</span>
+                  </label>
+                </div>
+                <p class="record-help">あとで同じ写真や動画から別の観察を切り出せるよう、保存データにも役割を残します。</p>
+              </div>
               <div id="record-video-trim" class="record-video-trim" hidden>
                 <div class="record-video-trim-head">
                   <div>
@@ -3026,6 +3162,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="list">
                 <div class="row"><div><strong>再訪理由が残る</strong><div class="meta">場所メモと日時が、次に同じ道を歩く理由になる。</div></div></div>
                 <div class="row"><div><strong>見分け方の仮説が残る</strong><div class="meta">写真と名前の仮説が、次に見返したときの手がかりになる。</div></div></div>
+                <div class="row"><div><strong>周囲も手がかりになる</strong><div class="meta">広角、背景、鳴き声、同じ画面の別対象も、AIが補助情報として読む。</div></div></div>
                 <div class="row"><div><strong>ノートとして読み返せる</strong><div class="meta">単発投稿ではなく、前回との差分が見える履歴になる。</div></div></div>
               </div>
             </section>
@@ -3063,6 +3200,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const quickFieldsWrap = form ? form.querySelector('[data-quick-only]') : null;
         const surveyFieldsWrap = form ? form.querySelector('[data-survey-only]') : null;
         const surveyRequiredFields = form ? Array.from(form.querySelectorAll('[data-survey-required]')) : [];
+        const mediaRoleInputs = form ? Array.from(form.querySelectorAll('input[name="mediaRole"]')) : [];
         const previewDate = document.getElementById('record-preview-date');
         const previewKicker = document.getElementById('record-preview-kicker');
         const previewTitle = document.getElementById('record-preview-title');
@@ -3110,6 +3248,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let selectedMediaFile = null;
         let selectedCaptureKind = '';
         let selectedMediaCapturedAt = null;
+        let selectedMediaRole = 'primary_subject';
         let selectedOriginalVideoFile = null;
         let selectedVideoWasTrimmed = false;
         let videoTrimState = null;
@@ -3264,6 +3403,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         };
 
         const normalizeDraftMetadata = (metadata) => metadata && typeof metadata === 'object' ? metadata : {};
+        const normalizeMediaRole = (value) => {
+          const raw = String(value || '').trim();
+          return ['primary_subject', 'context', 'sound_motion', 'secondary_candidate'].includes(raw) ? raw : 'primary_subject';
+        };
+
+        const syncMediaRoleInputs = () => {
+          mediaRoleInputs.forEach((input) => {
+            input.checked = input.value === selectedMediaRole;
+          });
+        };
+
+        const setSelectedMediaRole = (role) => {
+          selectedMediaRole = normalizeMediaRole(role);
+          syncMediaRoleInputs();
+        };
 
         const readMetadataLocation = (metadata) => {
           const location = metadata && metadata.location && typeof metadata.location === 'object' ? metadata.location : null;
@@ -3948,6 +4102,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const showRecordFormForMedia = (file, kind) => {
           selectedMediaFile = file || null;
           selectedCaptureKind = kind || '';
+          if (selectedMediaFile && !selectedMediaRole) setSelectedMediaRole('primary_subject');
           if (form) form.hidden = !selectedMediaFile;
           if (captureResult) captureResult.hidden = !selectedMediaFile;
           document.documentElement.classList.toggle('record-has-media', Boolean(selectedMediaFile));
@@ -3998,6 +4153,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (locationNudge) locationNudge.hidden = true;
           setAutofillStatus([]);
           selectedMediaCapturedAt = null;
+          setSelectedMediaRole('primary_subject');
           updateLocationText();
           document.documentElement.classList.remove('record-has-media');
           captureButtons.forEach((button) => {
@@ -4136,6 +4292,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const file = draft && draft.file instanceof File ? draft.file : null;
           const kind = draft && captureLabels[draft.kind] ? draft.kind : (params.get('start') || 'gallery');
           const metadata = normalizeDraftMetadata(draft && draft.metadata);
+          setSelectedMediaRole(metadata.mediaRole || (kind === 'video' ? 'sound_motion' : 'primary_subject'));
           if (!file) {
             setPendingCaptureKind(kind);
             return;
@@ -4251,11 +4408,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               resetVideoTrim();
               setAutofillStatus([]);
             } else if (!isVideoFile(file)) {
+              setSelectedMediaRole('primary_subject');
               showRecordFormForMedia(file, kind);
               resetVideoProgress();
               resetVideoTrim();
               await applyMediaAutofill(file, {}, { autoLocateFreshCapture: kind === 'photo' });
             } else if (videoProgressWrap) {
+              setSelectedMediaRole(kind === 'video' ? 'sound_motion' : 'primary_subject');
               showRecordFormForMedia(file, kind);
               await applyMediaAutofill(file, {}, { autoLocateFreshCapture: kind === 'video' });
               let trimReady = true;
@@ -4293,6 +4452,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         if (videoTrimApply) {
           videoTrimApply.addEventListener('click', applyVideoTrim);
         }
+        mediaRoleInputs.forEach((input) => {
+          input.addEventListener('change', () => {
+            if (input.checked) setSelectedMediaRole(input.value);
+          });
+        });
         locateButtons.forEach((button) => {
           button.addEventListener('click', fillCurrentLocation);
         });
@@ -4373,6 +4537,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const scientificName = String(data.get('scientificName') || '').trim();
               const vernacularName = String(data.get('vernacularName') || '').trim();
               const rank = String(data.get('rank') || '').trim();
+              const mediaRole = normalizeMediaRole(data.get('mediaRole') || selectedMediaRole);
               const payload = {
                 observationId,
                 legacyObservationId: observationId,
@@ -4395,6 +4560,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   survey_result: recordMode === 'survey' ? surveyResult : null,
                   quick_capture_state: recordMode === 'survey' ? null : quickCaptureState,
                   next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
+                  media_role: mediaRole,
                   absence_semantics: recordMode === 'survey'
                     ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
                     : (quickCaptureState === 'no_detection_note'
@@ -4438,6 +4604,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       filename: mediaFile.name || 'upload.jpg',
                       mimeType: mediaFile.type || 'image/jpeg',
                       base64Data,
+                      mediaRole,
                     }),
                   });
                   const photoJson = await photoResponse.json();
@@ -4460,6 +4627,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       filename: mediaFile.name || 'upload.mp4',
                       maxDurationSeconds: MAX_VIDEO_SECONDS,
                       observationId: detailId,
+                      mediaRole,
                     }),
                   });
                   const issueJson = await issueResponse.json();
@@ -4476,6 +4644,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     credentials: 'include',
                     body: JSON.stringify({
                       observationId: detailId,
+                      mediaRole,
                     }),
                   });
                   const finalizeJson = await finalizeResponse.json();
@@ -4562,6 +4731,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-capture-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .record-capture-option strong { font-size: 15px; line-height: 1.25; }
         .record-capture-option span:last-child { font-size: 12px; line-height: 1.55; color: #64748b; font-weight: 700; }
+        .record-subject-context { margin: -2px 0 18px 16px; padding: 16px; border-radius: 20px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(239,246,255,.9)); border: 1px solid rgba(16,185,129,.2); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+        .record-subject-context strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
+        .record-subject-context p { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.7; font-weight: 750; }
+        .record-subject-context-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; max-width: 250px; }
+        .record-subject-context-tags span { padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); color: #064e3b; font-size: 11px; line-height: 1.2; font-weight: 950; white-space: nowrap; }
         .record-capture-result { margin: -2px 0 18px 16px; padding: 14px 16px; border-radius: 18px; background: rgba(236,253,245,.82); border: 1px solid rgba(16,185,129,.24); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
         .record-capture-result[hidden] { display: none; }
         .record-capture-result strong { display: block; margin-top: 4px; color: #0f172a; font-size: 14px; word-break: break-word; }
@@ -4616,6 +4790,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-mode-chip strong { font-size: 14px; }
         .record-mode-chip span { font-size: 12px; line-height: 1.6; color: #64748b; font-weight: 700; }
         .record-mode-chip.is-active { border-color: rgba(14,165,233,.36); box-shadow: 0 10px 24px rgba(14,165,233,.1); transform: translateY(-1px); }
+        .record-media-role { padding: 14px; border-radius: 20px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
+        .record-media-role-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .record-media-role-chip { position: relative; display: grid; gap: 4px; min-height: 76px; padding: 12px; border-radius: 16px; border: 1px solid rgba(15,23,42,.1); background: rgba(248,250,252,.92); cursor: pointer; }
+        .record-media-role-chip input { position: absolute; opacity: 0; pointer-events: none; }
+        .record-media-role-chip strong { color: #0f172a; font-size: 13px; line-height: 1.3; }
+        .record-media-role-chip span { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 750; }
+        .record-media-role-chip:has(input:checked) { border-color: rgba(16,185,129,.34); background: #ecfdf5; box-shadow: 0 8px 18px rgba(16,185,129,.1); }
+        .record-media-role-chip:has(input:focus-visible) { outline: 3px solid #0284c7; outline-offset: 2px; }
         .record-survey-box { display: grid; gap: 14px; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.18); }
         .record-survey-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
         .record-survey-pill { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.08); color: #0f172a; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
@@ -4681,6 +4863,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-has-media .record-capture-launcher,
           .record-has-media .record-card-head { display: none; }
           .record-capture-option { min-height: 124px; padding: 14px; border-radius: 18px; }
+          .record-subject-context { margin-left: 0; grid-template-columns: 1fr; align-items: start; }
+          .record-subject-context-tags { justify-content: flex-start; max-width: none; }
+          .record-has-media .record-subject-context { display: none; }
           .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
           .record-has-media .record-capture-dock { display: none; }
           .record-dock-action { min-height: 58px; }
@@ -4701,7 +4886,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
           .record-video-trim-controls { grid-template-columns: 1fr; }
           .record-video-trim-actions .btn { width: 100%; }
-          .record-mode-grid, .record-survey-grid, .record-advanced-grid { grid-template-columns: 1fr; }
+          .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-media-role-grid { grid-template-columns: 1fr; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }
         }
@@ -4959,6 +5144,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
     const rankedSubjects = bundle.subjects;
     const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
+    const aiCandidateLearningPanel = renderAiCandidateLearningPanel({
+      basePath,
+      lang,
+      visitId: bundle.visitId,
+      candidates: bundle.aiCandidates,
+      isOwner,
+    });
     const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
     const heroPlaceLabel = canSeeCanonicalLocation
       ? (snapshot.placeName || "場所情報なし")
@@ -5147,6 +5339,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </div>
           ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
           ${focusRailBlock}
+          ${aiCandidateLearningPanel}
         </div>
       </section>`;
 
@@ -5479,6 +5672,55 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
+    const candidateAdoptionScript = isOwner && aiCandidateLearningPanel
+      ? `<script>(function(){
+           var panel = document.querySelector('[data-ai-cutout-panel]');
+           if (!panel) return;
+           var buttons = Array.prototype.slice.call(panel.querySelectorAll('[data-adopt-candidate][data-adopt-endpoint]'));
+           var status = panel.querySelector('[data-adopt-candidate-status]');
+           var setStatus = function(message, isError) {
+             if (!status) return;
+             status.textContent = message;
+             status.classList.toggle('is-error', Boolean(isError));
+           };
+           buttons.forEach(function(button){
+             button.addEventListener('click', function(){
+               var endpoint = button.getAttribute('data-adopt-endpoint');
+               if (!endpoint) return;
+               buttons.forEach(function(item){ item.disabled = true; });
+               var original = button.textContent;
+               button.textContent = '追加しています…';
+               setStatus('同じ日時・場所・写真に紐づく別対象として追加しています。', false);
+               fetch(endpoint, {
+                 method: 'POST',
+                 headers: { accept: 'application/json' },
+                 credentials: 'same-origin',
+               })
+               .then(function(response){
+                 return response.json().then(function(json){ return { ok: response.ok && json && json.ok, json: json }; });
+               })
+               .then(function(result){
+                 if (!result.ok) {
+                   throw new Error(String((result.json && result.json.error) || 'candidate_adoption_failed'));
+                 }
+                 setStatus('追加しました。新しい対象を開きます。', false);
+                 var occurrenceId = String(result.json.occurrenceId || '');
+                 var visitId = String(result.json.visitId || ${JSON.stringify(bundle.visitId)});
+                 var next = ${JSON.stringify(appendLangToHref(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`), lang))};
+                 if (occurrenceId) {
+                   next = ${JSON.stringify(withBasePath(basePath, "/observations/"))} + encodeURIComponent(visitId) + '?subject=' + encodeURIComponent(occurrenceId) + ${JSON.stringify(lang === "ja" ? "&lang=ja" : lang === "en" ? "&lang=en" : "")};
+                 }
+                 setTimeout(function(){ window.location.href = next; }, 550);
+               })
+               .catch(function(error){
+                 button.textContent = original;
+                 buttons.forEach(function(item){ item.disabled = false; });
+                 setStatus('追加できませんでした: ' + String(error && error.message || 'network'), true);
+               });
+             });
+           });
+         })();</script>`
+      : "";
     const identifyScript = `<script>(function(){
       var bindIdentifyForms = function(){
         Array.prototype.slice.call(document.querySelectorAll('[data-identify-form]')).forEach(function(form){
@@ -5541,7 +5783,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       bindIdentifyForms();
       window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
     })();</script>`;
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${identifyScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

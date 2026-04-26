@@ -1048,12 +1048,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
   var MAPLIBRE_JS_SRI  = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
-  var styleHref = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_CSS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
-    link.rel = 'stylesheet'; link.href = styleHref;
+    link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
     link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
     link.referrerPolicy = 'no-referrer'; link.setAttribute('data-maplibre', '1');
+    link.onerror = function () {
+      if (link.getAttribute('data-fallback') === '1') return;
+      link.setAttribute('data-fallback', '1');
+      link.href = MAPLIBRE_CSS_FALLBACK;
+    };
     document.head.appendChild(link);
   }
 
@@ -2309,7 +2317,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var lng2 = parseFloat(params.lng);
       var lat2 = parseFloat(params.lat);
       var z2 = parseFloat(params.z);
-      if (isFinite(lng2) && isFinite(lat2) && isFinite(z2)) {
+      if (
+        isFinite(lng2) && isFinite(lat2) && isFinite(z2) &&
+        lng2 >= -180 && lng2 <= 180 &&
+        lat2 >= -85 && lat2 <= 85 &&
+        z2 >= 0 && z2 <= 22
+      ) {
         state._restoredCenter = [lng2, lat2];
         state._restoredZoom = z2;
       }
@@ -2445,14 +2458,32 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   };
 
   function hydrate() {
-    if (!window.maplibregl) return;
-    state.map = new window.maplibregl.Map({
-      container: root,
-      style: BASEMAPS[state.basemap] || BASEMAPS.standard,
-      center: state._restoredCenter || [138.38, 35.34],
-      zoom: state._restoredZoom != null ? state._restoredZoom : 5.2,
-      attributionControl: true,
-    });
+    if (!window.maplibregl) { showMapLoadFailure(); return; }
+    try {
+      state.map = new window.maplibregl.Map({
+        container: root,
+        style: BASEMAPS[state.basemap] || BASEMAPS.standard,
+        center: state._restoredCenter || [138.38, 35.34],
+        zoom: state._restoredZoom != null ? state._restoredZoom : 5.2,
+        attributionControl: true,
+      });
+    } catch (err) {
+      try { console.error('[map] init failed', err); } catch (_) {}
+      state._restoredCenter = null;
+      state._restoredZoom = null;
+      try {
+        state.map = new window.maplibregl.Map({
+          container: root,
+          style: BASEMAPS.standard,
+          center: [138.38, 35.34],
+          zoom: 5.2,
+          attributionControl: true,
+        });
+      } catch (err2) {
+        showMapLoadFailure();
+        return;
+      }
+    }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('load', function () {
       // Restore enabled overlays from URL/localStorage state before loading data.
@@ -2463,6 +2494,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadFrontier(state.map);
       loadEffortSummary();
       loadTraces();
+      maybeAutoLocateOnFirstOpen();
     });
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
@@ -2489,17 +2521,40 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  function showMapLoadFailure() {
+    setStatus('—');
+    if (!root || root.querySelector('[data-map-load-error="1"]')) return;
+    var box = document.createElement('div');
+    box.setAttribute('data-map-load-error', '1');
+    box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ecfeff,#eff6ff);color:#0f172a;font:500 14px/1.5 system-ui,sans-serif;text-align:center;z-index:4;';
+    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">地図ライブラリを読み込めませんでした</div><div style="opacity:.75;margin-bottom:12px;">ネットワーク状況を確認のうえ、もう一度開いてください。</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">再読み込み</button></div>';
+    var btn = box.querySelector('button');
+    if (btn) btn.addEventListener('click', function () { window.location.reload(); });
+    root.appendChild(box);
+  }
+
+  function loadMaplibreScript(src, useSri, onload, onfail) {
+    var s = document.createElement('script');
+    s.src = src;
+    if (useSri) {
+      s.integrity = MAPLIBRE_JS_SRI;
+      s.crossOrigin = 'anonymous';
+      s.referrerPolicy = 'no-referrer';
+    }
+    s.defer = true;
+    s.onload = function () {
+      if (window.maplibregl) onload();
+      else onfail();
+    };
+    s.onerror = onfail;
+    document.head.appendChild(s);
+  }
+
   if (window.maplibregl) hydrate();
   else {
-    var s = document.createElement('script');
-    s.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-    s.integrity = MAPLIBRE_JS_SRI;
-    s.crossOrigin = 'anonymous';
-    s.referrerPolicy = 'no-referrer';
-    s.defer = true;
-    s.onload = hydrate;
-    s.onerror = function () { setStatus('—'); };
-    document.head.appendChild(s);
+    loadMaplibreScript(MAPLIBRE_JS_PRIMARY, true, hydrate, function () {
+      loadMaplibreScript(MAPLIBRE_JS_FALLBACK, true, hydrate, showMapLoadFailure);
+    });
   }
 
   // Bind UI events.
@@ -2880,6 +2935,40 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  function dropMeMarker(lng, lat) {
+    if (!state.map || !window.maplibregl) return;
+    if (state._meMarker) state._meMarker.remove();
+    var el = document.createElement('div');
+    el.className = 'me-locate-marker';
+    state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
+  }
+
+  // First-open auto-locate: zoom into the user's location only when no
+  // explicit location was restored from URL/hash/localStorage. Silent on
+  // permission denial or any failure — falls back to the default view.
+  var _autoLocateAttempted = false;
+  function maybeAutoLocateOnFirstOpen() {
+    if (_autoLocateAttempted) return;
+    _autoLocateAttempted = true;
+    if (!state.map || !navigator.geolocation) return;
+    if (state._restoredCenter || state._restoredCellId) return;
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      if (!state.map) return;
+      var lng = pos.coords.longitude;
+      var lat = pos.coords.latitude;
+      if (!isFinite(lng) || !isFinite(lat)) return;
+      if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return;
+      // Suppress later data-driven auto-fit so the user's location wins.
+      state._fittedOnce = true;
+      state.map.flyTo({ center: [lng, lat], zoom: 13, duration: 900, essential: true });
+      dropMeMarker(lng, lat);
+    }, function () { /* silent: keep default view */ }, {
+      enableHighAccuracy: false,
+      maximumAge: 60000,
+      timeout: 6000,
+    });
+  }
+
   // locate-me
   var locateFab = document.getElementById('me-locate-fab');
   if (locateFab) {
@@ -3171,7 +3260,7 @@ export const MAP_EXPLORER_STYLES = `
     border: 1px solid rgba(15,23,42,.06);
     box-shadow: 0 18px 42px rgba(15,23,42,.08);
   }
-  .me-map { width: 100%; height: var(--me-map-height); min-height: 620px; }
+  .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 620px; }
   .me-map-panel {
     position: absolute;
     z-index: 5;

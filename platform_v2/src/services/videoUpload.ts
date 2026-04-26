@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { upsertAssetBlob } from "./writeSupport.js";
+import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts/";
 const DEFAULT_MAX_DURATION_SECONDS = 15;
@@ -14,6 +15,7 @@ export type CreateVideoUploadInput = {
   filename?: string;
   actorId: string;
   observationId?: string | null;
+  mediaRole?: MediaRole | string | null;
 };
 
 export type CreateVideoUploadResult = {
@@ -44,6 +46,7 @@ export type FinalizeVideoUploadInput = {
   uid: string;
   actorId: string;
   observationId?: string | null;
+  mediaRole?: MediaRole | string | null;
 };
 
 export type FinalizeVideoUploadResult = VideoRecord & {
@@ -110,6 +113,7 @@ export async function createVideoDirectUpload(input: CreateVideoUploadInput): Pr
   const meta: Record<string, string> = {
     ikimon_actor: input.actorId,
     ikimon_origin: "v2_record",
+    ikimon_media_role: normalizeMediaRole(input.mediaRole),
   };
   if (input.observationId) meta.ikimon_observation_id = input.observationId;
   if (input.filename) meta.name = input.filename.slice(0, 120);
@@ -242,8 +246,8 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
   try {
     await client.query("begin");
 
-    const current = await client.query<{ actor_id: string; observation_id: string | null }>(
-      `select actor_id, observation_id
+    const current = await client.query<{ actor_id: string; observation_id: string | null; meta: Record<string, unknown> | null }>(
+      `select actor_id, observation_id, meta
          from video_upload_requests
         where stream_uid = $1
         for update`,
@@ -260,9 +264,12 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
       throw new Error("observation_not_found");
     }
 
+    const issuedMeta = issued?.meta && typeof issued.meta === "object" ? issued.meta : {};
+    const mediaRole = normalizeMediaRole(input.mediaRole ?? issuedMeta.ikimon_media_role ?? issuedMeta.media_role);
     const meta = {
       source: "v2_video_finalize",
       stream_uid: uid,
+      media_role: mediaRole,
       iframe_url: record.iframeUrl,
       watch_url: record.watchUrl,
       thumbnail_url: record.thumbnailUrl,
