@@ -105,6 +105,8 @@ export type ObservationDetailSnapshot = {
     iframeUrl: string;
     thumbnailUrl: string | null;
     watchUrl: string | null;
+    readyToStream: boolean;
+    uploadStatus: string | null;
     createdAt: string;
     mediaRole: string | null;
   } & MediaRoleSuggestion>;
@@ -1070,6 +1072,13 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
           iframeUrl,
           thumbnailUrl: normalizeAssetUrl(thumbnailUrlRaw),
           watchUrl: normalizeAssetUrl(watchUrlRaw),
+          readyToStream: payload.ready_to_stream === true || blobPayload.ready_to_stream === true,
+          uploadStatus:
+            typeof payload.upload_status === "string"
+              ? payload.upload_status
+              : typeof blobPayload.upload_status === "string"
+                ? blobPayload.upload_status
+                : null,
           createdAt: row.created_at,
           mediaRole: row.media_role ?? (typeof payload.media_role === "string" ? payload.media_role : null),
           ...deriveMediaRoleSuggestion({ mediaType: "video", totalMediaCount }),

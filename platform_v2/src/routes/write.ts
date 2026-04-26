@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { Readable } from "node:stream";
+import { loadConfig } from "../config.js";
 import {
   getSessionFromCookie,
   issueSession,
@@ -34,7 +36,12 @@ import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
-import { createVideoDirectUpload, finalizeVideoUpload } from "../services/videoUpload.js";
+import {
+  createVideoDirectUpload,
+  finalizeVideoUpload,
+  handleStreamWebhook,
+  verifyStreamWebhookSignature,
+} from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
@@ -732,9 +739,9 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // 動画アップロード（Cloudflare Stream Direct Creator Upload）。
-  // ユーザーのブラウザが直接 Cloudflare に PUT するので、サーバ帯域は消費しない。
+  // ユーザーのブラウザが直接アップロード先に送るので、サーバ帯域は消費しない。
   // 認証必須（セッション or guest はダメ）。
-  app.post<{ Body: { maxDurationSeconds?: number; filename?: string; observationId?: string | null; mediaRole?: string | null } }>(
+  app.post<{ Body: { maxDurationSeconds?: number; filename?: string; observationId?: string | null; mediaRole?: string | null; uploadProtocol?: "post" | "tus"; fileSizeBytes?: number | null } }>(
     "/api/v1/videos/direct-upload",
     async (request, reply) => {
       try {
@@ -754,6 +761,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           filename: body.filename,
           observationId: observationId || null,
           mediaRole: body.mediaRole,
+          uploadProtocol: body.uploadProtocol === "tus" ? "tus" : "post",
+          fileSizeBytes: typeof body.fileSizeBytes === "number" ? body.fileSizeBytes : null,
         });
         return { ok: true, ...result };
       } catch (error) {
@@ -764,7 +773,40 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // アップロード完了を client から通知するルート。Cloudflare から Stream 本体情報を取得し、
+  app.post<{ Body: unknown }>(
+    "/api/v1/videos/stream-webhook",
+    {
+      preParsing: async (request, _reply, payload) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of payload) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const rawBody = Buffer.concat(chunks);
+        (request as unknown as { rawBody?: Buffer }).rawBody = rawBody;
+        return Readable.from([rawBody]);
+      },
+    },
+    async (request, reply) => {
+      try {
+        const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody ?? Buffer.alloc(0);
+        const signature = Array.isArray(request.headers["webhook-signature"])
+          ? request.headers["webhook-signature"][0]
+          : request.headers["webhook-signature"];
+        const secret = loadConfig().cloudflare?.streamWebhookSecret;
+        if (!verifyStreamWebhookSignature(rawBody, signature, secret)) {
+          reply.code(401);
+          return { ok: false, error: "invalid_webhook_signature" };
+        }
+        const result = await handleStreamWebhook(request.body && typeof request.body === "object" ? request.body : {});
+        return result;
+      } catch (error) {
+        reply.code(errorStatus(error, 500));
+        return { ok: false, error: error instanceof Error ? error.message : "stream_webhook_failed" };
+      }
+    },
+  );
+
+  // アップロード完了を client から通知するルート。Stream 本体情報を取得し、
   // upload_status / duration / bytes を DB に反映する。フロント側で tus アップロード完了後に呼ぶ。
   app.post<{
     Params: { uid: string };

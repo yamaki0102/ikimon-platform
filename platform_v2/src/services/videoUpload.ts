@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
@@ -17,6 +17,8 @@ export type CreateVideoUploadInput = {
   actorId: string;
   observationId?: string | null;
   mediaRole?: MediaRole | string | null;
+  uploadProtocol?: "post" | "tus";
+  fileSizeBytes?: number | null;
 };
 
 export type CreateVideoUploadResult = {
@@ -25,6 +27,7 @@ export type CreateVideoUploadResult = {
   maxDurationSeconds: number;
   iframeUrl: string;
   thumbnailUrl: string;
+  uploadProtocol: "post" | "tus";
 };
 
 export type VideoRecord = {
@@ -55,6 +58,25 @@ export type FinalizeVideoUploadResult = VideoRecord & {
   visitId: string | null;
 };
 
+export type VideoStreamWebhookPayload = {
+  uid?: string;
+  readyToStream?: boolean;
+  thumbnail?: string;
+  preview?: string;
+  duration?: number;
+  size?: number;
+  uploaded?: string;
+  created?: string;
+  status?: {
+    state?: string;
+    pctComplete?: string;
+    errorReasonCode?: string;
+    errorReasonText?: string;
+    errReasonCode?: string;
+    errReasonText?: string;
+  };
+};
+
 type ObservationTarget = {
   occurrenceId: string;
   visitId: string;
@@ -66,9 +88,14 @@ function cfConfigOrThrow() {
   return cfg;
 }
 
+function cfApiUrl(path: string): string {
+  const cfg = cfConfigOrThrow();
+  return `${API_BASE}${encodeURIComponent(cfg.accountId)}/${path.replace(/^\//, "")}`;
+}
+
 async function cfRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<Record<string, unknown>> {
   const cfg = cfConfigOrThrow();
-  const url = `${API_BASE}${encodeURIComponent(cfg.accountId)}/${path.replace(/^\//, "")}`;
+  const url = cfApiUrl(path);
   const res = await fetch(url, {
     method,
     headers: {
@@ -88,6 +115,31 @@ async function cfRequest(method: "GET" | "POST", path: string, body?: unknown): 
     throw new Error(`cloudflare_error: ${res.status} ${JSON.stringify(json).slice(0, 400)}`);
   }
   return json;
+}
+
+function encodeUploadMetadataValue(value: string | number): string {
+  return Buffer.from(String(value), "utf8").toString("base64");
+}
+
+function buildTusUploadMetadata(input: CreateVideoUploadInput, maxDurationSeconds: number): string {
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const pairs: string[] = [
+    `maxDurationSeconds ${encodeUploadMetadataValue(maxDurationSeconds)}`,
+    `expiry ${encodeUploadMetadataValue(expiresAt)}`,
+    `ikimon_actor ${encodeUploadMetadataValue(input.actorId)}`,
+    `ikimon_origin ${encodeUploadMetadataValue("v2_record")}`,
+    `ikimon_media_role ${encodeUploadMetadataValue(normalizeMediaRole(input.mediaRole))}`,
+  ];
+  if (input.observationId) pairs.push(`ikimon_observation_id ${encodeUploadMetadataValue(input.observationId)}`);
+  if (input.filename) pairs.push(`name ${encodeUploadMetadataValue(input.filename.slice(0, 120))}`);
+  return pairs.join(",");
+}
+
+function resolveStreamUid(location: string | null, mediaId: string | null): string {
+  const fromHeader = String(mediaId ?? "").trim();
+  if (fromHeader) return fromHeader;
+  const fromLocation = String(location ?? "").trim().split("/").filter(Boolean).pop() ?? "";
+  return fromLocation.trim();
 }
 
 export function buildIframeUrl(uid: string): string {
@@ -111,6 +163,7 @@ export async function createVideoDirectUpload(input: CreateVideoUploadInput): Pr
     MIN_DURATION_SECONDS,
     Math.min(MAX_DURATION_SECONDS_HARD_CAP, Math.trunc(input.maxDurationSeconds ?? DEFAULT_MAX_DURATION_SECONDS)),
   );
+  const uploadProtocol = input.uploadProtocol === "tus" ? "tus" : "post";
   const meta: Record<string, string> = {
     ikimon_actor: input.actorId,
     ikimon_origin: "v2_record",
@@ -118,6 +171,61 @@ export async function createVideoDirectUpload(input: CreateVideoUploadInput): Pr
   };
   if (input.observationId) meta.ikimon_observation_id = input.observationId;
   if (input.filename) meta.name = input.filename.slice(0, 120);
+
+  if (uploadProtocol === "tus") {
+    const fileSizeBytes = Number(input.fileSizeBytes ?? 0);
+    if (!Number.isFinite(fileSizeBytes) || fileSizeBytes <= 0) {
+      throw new Error("video_tus_upload_length_required");
+    }
+    const cfg = cfConfigOrThrow();
+    const response = await fetch(cfApiUrl("stream?direct_user=true"), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.streamApiToken}`,
+        "Tus-Resumable": "1.0.0",
+        "Upload-Length": String(Math.trunc(fileSizeBytes)),
+        "Upload-Metadata": buildTusUploadMetadata(input, maxDurationSeconds),
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`cloudflare_tus_error: ${response.status} ${text.slice(0, 400)}`);
+    }
+    const location = response.headers.get("Location");
+    const uid = resolveStreamUid(location, response.headers.get("stream-media-id"));
+    if (!uid || !location) {
+      throw new Error("cloudflare_missing_upload_info");
+    }
+    try {
+      await getPool().query(
+        `insert into video_upload_requests
+           (stream_uid, actor_id, observation_id, upload_status, max_duration_seconds, filename, meta)
+         values ($1, $2, $3, 'tus_issued', $4, $5, $6::jsonb)
+         on conflict (stream_uid) do update
+           set updated_at = now(),
+               upload_status = 'tus_issued',
+               meta = coalesce(video_upload_requests.meta, '{}'::jsonb) || excluded.meta`,
+        [
+          uid,
+          input.actorId,
+          input.observationId ?? null,
+          maxDurationSeconds,
+          input.filename ?? "",
+          JSON.stringify({ ...meta, upload_protocol: "tus", file_size_bytes: Math.trunc(fileSizeBytes) }),
+        ],
+      );
+    } catch {
+      // Audit log failure must not block the upload URL.
+    }
+    return {
+      uid,
+      uploadUrl: location,
+      maxDurationSeconds,
+      iframeUrl: buildIframeUrl(uid),
+      thumbnailUrl: buildThumbnailUrl(uid),
+      uploadProtocol,
+    };
+  }
 
   const response = await cfRequest("POST", "stream/direct_upload", {
     maxDurationSeconds,
@@ -151,6 +259,7 @@ export async function createVideoDirectUpload(input: CreateVideoUploadInput): Pr
     maxDurationSeconds,
     iframeUrl: buildIframeUrl(uid),
     thumbnailUrl: buildThumbnailUrl(uid),
+    uploadProtocol,
   };
 }
 
@@ -199,6 +308,177 @@ export async function markVideoReady(uid: string): Promise<VideoRecord | null> {
     // best-effort
   }
   return record;
+}
+
+function webhookStatusState(payload: VideoStreamWebhookPayload): string {
+  return String(payload.status?.state ?? (payload.readyToStream ? "ready" : "unknown"));
+}
+
+function videoRecordFromWebhook(payload: VideoStreamWebhookPayload): VideoRecord {
+  const uid = String(payload.uid ?? "").trim();
+  if (!uid) throw new Error("invalid_uid");
+  const durationSec = Number(payload.duration ?? 0);
+  const bytes = Number(payload.size ?? 0);
+  return {
+    provider: "cloudflare_stream",
+    providerUid: uid,
+    mediaType: "video",
+    assetRole: "observation_video",
+    uploadStatus: webhookStatusState(payload),
+    durationMs: Number.isFinite(durationSec) ? Math.round(durationSec * 1000) : 0,
+    bytes: Number.isFinite(bytes) ? Math.round(bytes) : 0,
+    thumbnailUrl: String(payload.thumbnail ?? "") || buildThumbnailUrl(uid),
+    iframeUrl: buildIframeUrl(uid),
+    watchUrl: String(payload.preview ?? "") || buildWatchUrl(uid),
+    readyToStream: Boolean(payload.readyToStream),
+    createdAt: String(payload.created ?? new Date().toISOString()),
+    uploadedAt: typeof payload.uploaded === "string" ? payload.uploaded : null,
+  };
+}
+
+function normalizeStreamWebhookPayload(payload: VideoStreamWebhookPayload | Record<string, unknown>): VideoStreamWebhookPayload {
+  const result = (payload as { result?: unknown }).result;
+  if (result && typeof result === "object") {
+    return result as VideoStreamWebhookPayload;
+  }
+  return payload as VideoStreamWebhookPayload;
+}
+
+export function verifyStreamWebhookSignature(rawBody: Buffer, signatureHeader: string | undefined, secret: string | undefined): boolean {
+  const trimmedSecret = secret?.trim();
+  if (!trimmedSecret) {
+    return false;
+  }
+  const parts = Object.fromEntries(
+    String(signatureHeader ?? "")
+      .split(",")
+      .map((part) => part.trim().split("="))
+      .filter((pair): pair is [string, string] => pair.length === 2 && Boolean(pair[0]) && Boolean(pair[1])),
+  );
+  const time = parts.time;
+  const actualHex = parts.sig1;
+  if (!time || !actualHex || !/^[0-9a-f]+$/i.test(actualHex)) {
+    return false;
+  }
+  const timestamp = Number(time);
+  if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 10 * 60) {
+    return false;
+  }
+  const source = Buffer.concat([Buffer.from(`${time}.`, "utf8"), rawBody]);
+  const expected = createHmac("sha256", trimmedSecret).update(source).digest();
+  const actual = Buffer.from(actualHex, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+async function enqueueVideoProcessingJobs(client: PoolClient, record: VideoRecord, observationId: string | null, sourcePayload: Record<string, unknown>): Promise<number> {
+  if (!record.readyToStream || !observationId) {
+    return 0;
+  }
+  const jobTypes = ["video_thumbnail_refresh", "video_ready_reassess"];
+  let queued = 0;
+  for (const jobType of jobTypes) {
+    const result = await client.query<{ job_id: string }>(
+      `insert into video_processing_jobs (
+          stream_uid, observation_id, job_type, job_status, source_payload, created_at, updated_at
+       )
+       select $1, $2, $3, 'pending', $4::jsonb, now(), now()
+       where not exists (
+         select 1 from video_processing_jobs
+          where stream_uid = $1
+            and job_type = $3
+            and job_status in ('pending', 'running')
+       )
+       on conflict do nothing
+       returning job_id::text`,
+      [record.providerUid, observationId, jobType, JSON.stringify(sourcePayload)],
+    );
+    if (result.rows[0]?.job_id) queued += 1;
+  }
+  return queued;
+}
+
+export async function handleStreamWebhook(payload: VideoStreamWebhookPayload): Promise<{ ok: true; uid: string; readyToStream: boolean; queuedJobs: number }> {
+  const normalizedPayload = normalizeStreamWebhookPayload(payload);
+  const record = videoRecordFromWebhook(normalizedPayload);
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const current = await client.query<{ observation_id: string | null; meta: Record<string, unknown> | null }>(
+      `select observation_id, meta
+         from video_upload_requests
+        where stream_uid = $1
+        for update`,
+      [record.providerUid],
+    );
+    const row = current.rows[0] ?? null;
+    const sourcePayload = {
+      source: "stream_webhook",
+      stream_uid: record.providerUid,
+      upload_status: record.uploadStatus,
+      ready_to_stream: record.readyToStream,
+      thumbnail_url: record.thumbnailUrl,
+      watch_url: record.watchUrl,
+      iframe_url: record.iframeUrl,
+      status: normalizedPayload.status ?? null,
+    };
+    await client.query(
+      `insert into video_upload_requests (
+          stream_uid, actor_id, observation_id, upload_status, max_duration_seconds,
+          stream_duration_ms, stream_bytes, ready_to_stream, meta, created_at, updated_at
+       ) values (
+          $1, coalesce($2, 'stream_webhook'), $3, $4, $5, $6, $7, $8, $9::jsonb, now(), now()
+       )
+       on conflict (stream_uid) do update set
+          upload_status = excluded.upload_status,
+          stream_duration_ms = greatest(video_upload_requests.stream_duration_ms, excluded.stream_duration_ms),
+          stream_bytes = greatest(video_upload_requests.stream_bytes, excluded.stream_bytes),
+          ready_to_stream = excluded.ready_to_stream,
+          meta = coalesce(video_upload_requests.meta, '{}'::jsonb) || excluded.meta,
+          updated_at = now()`,
+      [
+        record.providerUid,
+        row?.meta && typeof row.meta.ikimon_actor === "string" ? row.meta.ikimon_actor : null,
+        row?.observation_id ?? null,
+        record.uploadStatus,
+        maxDurationFromRecord(record),
+        record.durationMs,
+        record.bytes,
+        record.readyToStream,
+        JSON.stringify(sourcePayload),
+      ],
+    );
+    await client.query(
+      `update asset_blobs
+          set public_url = coalesce(nullif($2, ''), public_url),
+              bytes = coalesce(nullif($3, 0), bytes),
+              duration_ms = coalesce(nullif($4, 0), duration_ms),
+              source_payload = coalesce(source_payload, '{}'::jsonb) || $5::jsonb,
+              updated_at = now()
+        where storage_backend = 'cloudflare_stream'
+          and storage_path = $1`,
+      [record.providerUid, record.watchUrl, record.bytes, record.durationMs, JSON.stringify(sourcePayload)],
+    );
+    await client.query(
+      `update evidence_assets
+          set source_payload = coalesce(source_payload, '{}'::jsonb) || $2::jsonb
+        where legacy_relative_path = $1
+           or legacy_asset_key like $3`,
+      [`cloudflare_stream/${record.providerUid}`, JSON.stringify(sourcePayload), `%:${record.providerUid}`],
+    );
+    const queuedJobs = await enqueueVideoProcessingJobs(client, record, row?.observation_id ?? null, sourcePayload);
+    await client.query("commit");
+    return { ok: true, uid: record.providerUid, readyToStream: record.readyToStream, queuedJobs };
+  } catch (error) {
+    try {
+      await client.query("rollback");
+    } catch {
+      // no-op
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function resolveObservationTarget(client: PoolClient, observationId: string): Promise<ObservationTarget | null> {

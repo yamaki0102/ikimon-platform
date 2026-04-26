@@ -69,6 +69,9 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-video { display: grid; gap: 8px; }
   .obs-hero-video-frame { position: relative; width: 100%; padding-top: 56.25%; border-radius: 20px; overflow: hidden; background: #020617; }
   .obs-hero-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  .obs-hero-video-processing { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 18px; background: linear-gradient(180deg, rgba(2,6,23,.82), rgba(15,23,42,.72)); color: #fff; text-align: center; }
+  .obs-hero-video-processing strong { display: block; font-size: 15px; line-height: 1.45; }
+  .obs-hero-video-processing span { display: block; margin-top: 6px; color: rgba(226,232,240,.9); font-size: 12px; line-height: 1.6; font-weight: 750; }
   .obs-hero-video-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #334155; font-weight: 700; }
   .obs-hero-video-meta-main { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .obs-hero-video-meta .obs-media-role-badge { position: static; min-height: 24px; padding: 5px 9px; font-size: 10px; box-shadow: none; }
@@ -213,6 +216,11 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
 function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject, primaryVideo: VideoAsset | null): string {
   if (!primaryVideo) return "";
   const videoRegion = currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId && isDisplayableRegion(region)) ?? null;
+  const processingOverlay = primaryVideo.readyToStream
+    ? ""
+    : `<div class="obs-hero-video-processing" aria-live="polite">
+         <div><strong>動画を処理しています</strong><span>記録は保存済みです。再生できる状態になるまで少し待ってから開き直してください。</span></div>
+       </div>`;
   return `<div class="obs-hero-video">
      <div class="obs-hero-video-frame">
        <iframe
@@ -222,6 +230,7 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
          allowfullscreen>
        </iframe>
+       ${processingOverlay}
      </div>
      <div class="obs-hero-video-meta">
        <span class="obs-hero-video-meta-main"><strong>動画</strong>${mediaRoleBadge(primaryVideo)}</span>

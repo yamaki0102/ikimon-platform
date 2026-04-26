@@ -3272,7 +3272,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
-        const MAX_VIDEO_BYTES = 200000000;
+        const MAX_VIDEO_BASIC_POST_BYTES = 200000000;
+        const MAX_VIDEO_TUS_BYTES = 1024 * 1024 * 1024;
+        const TUS_CHUNK_BYTES = 8 * 1024 * 1024;
         const MAX_VIDEO_SECONDS = 60;
         let previewObjectUrl = '';
         let videoTrimObjectUrl = '';
@@ -3295,7 +3297,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
           photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
-          video: { title: '動画を追加', help: '動画投稿は 200MB未満 / 最大60秒まで。長めの動画は見せたい60秒を選べます。' },
+          video: { title: '動画を追加', help: '動画投稿は最大60秒まで。大きい動画や不安定な通信では分割送信します。' },
           gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
         };
 
@@ -4561,6 +4563,98 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             request.send(formData);
           });
 
+        const requestTusOffset = (uploadUrl) =>
+          new Promise((resolve, reject) => {
+            const request = new XMLHttpRequest();
+            request.onload = () => {
+              if (request.status >= 200 && request.status < 300) {
+                const offset = Number(request.getResponseHeader('Upload-Offset') || '0');
+                resolve(Number.isFinite(offset) && offset >= 0 ? offset : 0);
+                return;
+              }
+              reject(new Error('video_tus_offset_failed:' + String(request.status)));
+            };
+            request.onerror = () => reject(new Error('video_tus_offset_network_failed'));
+            request.open('HEAD', uploadUrl, true);
+            request.setRequestHeader('Tus-Resumable', '1.0.0');
+            request.send();
+          });
+
+        const uploadVideoWithTus = (uploadUrl, file) =>
+          new Promise((resolve, reject) => {
+            let settled = false;
+            let offset = 0;
+            let currentRequest = null;
+            const finish = (error) => {
+              if (settled) return;
+              settled = true;
+              if (videoCancel) videoCancel.disabled = true;
+              activeTusUpload = null;
+              cancelTusUpload = null;
+              if (error) reject(error);
+              else resolve(true);
+            };
+            const sendChunk = async () => {
+              if (settled) return;
+              if (offset >= file.size) {
+                updateVideoProgress(file.size || 0, file.size || 0);
+                if (videoLive) videoLive.textContent = '動画アップロードが完了しました。処理が終わるまで少し待ってください。';
+                finish(null);
+                return;
+              }
+              const end = Math.min(file.size, offset + TUS_CHUNK_BYTES);
+              const chunk = file.slice(offset, end);
+              let attempts = 0;
+              const patch = () => {
+                attempts += 1;
+                const request = new XMLHttpRequest();
+                currentRequest = request;
+                activeTusUpload = request;
+                request.upload.onprogress = (event) => {
+                  updateVideoProgress(offset + (event.loaded || 0), file.size || 0);
+                  if (videoLive) videoLive.textContent = '動画を分割してアップロード中です。通信が途切れても途中から続けます。';
+                };
+                request.onerror = async () => {
+                  if (settled) return;
+                  if (attempts <= 3) {
+                    try {
+                      offset = await requestTusOffset(uploadUrl);
+                    } catch (_) {
+                      // keep local offset and retry
+                    }
+                    window.setTimeout(patch, 600 * attempts);
+                    return;
+                  }
+                  finish(new Error('video_tus_upload_network_failed'));
+                };
+                request.onabort = () => finish(new Error('video_upload_cancelled'));
+                request.onload = () => {
+                  if (request.status >= 200 && request.status < 300) {
+                    const nextOffset = Number(request.getResponseHeader('Upload-Offset') || String(end));
+                    offset = Number.isFinite(nextOffset) && nextOffset > offset ? nextOffset : end;
+                    updateVideoProgress(offset, file.size || 0);
+                    sendChunk();
+                    return;
+                  }
+                  finish(new Error('video_tus_upload_failed:' + String(request.status) + ':' + String(request.responseText || '').slice(0, 120)));
+                };
+                request.open('PATCH', uploadUrl, true);
+                request.setRequestHeader('Tus-Resumable', '1.0.0');
+                request.setRequestHeader('Upload-Offset', String(offset));
+                request.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+                request.send(chunk);
+              };
+              patch();
+            };
+            cancelTusUpload = () => {
+              if (currentRequest) currentRequest.abort();
+              else finish(new Error('video_upload_cancelled'));
+            };
+            if (videoCancel) videoCancel.disabled = false;
+            updateVideoProgress(0, file.size || 0);
+            sendChunk();
+          });
+
         if (form) {
           form.addEventListener('input', syncPreview);
         }
@@ -4848,12 +4942,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               let videoFile = selectedVideoFile instanceof File && selectedVideoFile.size > 0 ? selectedVideoFile : null;
               if (videoFile) {
                   videoFile = await ensureVideoReadyForUpload(videoFile);
-                  if (videoFile.size > MAX_VIDEO_BYTES) {
+                  if (videoFile.size > MAX_VIDEO_TUS_BYTES) {
                     throw new Error('video_file_too_large');
                   }
                   await validateVideoDuration(videoFile);
+                  const uploadProtocol = videoFile.size >= MAX_VIDEO_BASIC_POST_BYTES ? 'tus' : 'post';
 
-                  setStatus('<div class="row"><div>動画アップロード URL を発行しています...</div></div>');
+                  setStatus('<div class="row"><div>動画アップロードの準備をしています...</div></div>');
                   const issueResponse = await fetch(withBasePath('/api/v1/videos/direct-upload'), {
                     method: 'POST',
                     headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -4863,6 +4958,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       maxDurationSeconds: MAX_VIDEO_SECONDS,
                       observationId: detailId,
                       mediaRole: 'sound_motion',
+                      uploadProtocol,
+                      fileSizeBytes: videoFile.size,
                     }),
                   });
                   const issueJson = await issueResponse.json();
@@ -4870,8 +4967,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     throw new Error(issueJson.error || 'video_issue_failed');
                   }
 
-                  await uploadVideoWithDirectPost(String(issueJson.uploadUrl), videoFile);
-                  setStatus('<div class="row"><div>動画を観察へ紐づけています...</div></div>');
+                  if (String(issueJson.uploadProtocol || uploadProtocol) === 'tus') {
+                    await uploadVideoWithTus(String(issueJson.uploadUrl), videoFile);
+                  } else {
+                    await uploadVideoWithDirectPost(String(issueJson.uploadUrl), videoFile);
+                  }
+                  setStatus('<div class="row"><div>動画を記録に紐づけています...</div></div>');
 
                   const finalizeResponse = await fetch(withBasePath('/api/v1/videos/' + encodeURIComponent(String(issueJson.uid)) + '/finalize'), {
                     method: 'POST',
@@ -4886,20 +4987,24 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   if (!finalizeResponse.ok || !finalizeJson.ok) {
                     throw new Error(finalizeJson.error || 'video_finalize_failed');
                   }
-
-                  try {
-                    const reassessVideoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/reassess-from-video'), {
-                      method: 'POST',
-                      credentials: 'include',
-                    });
-                    const reassessVideoJson = await reassessVideoResponse.json();
-                    if (reassessVideoResponse.ok && reassessVideoJson.ok) {
-                      extraStatus = [extraStatus, '動画サムネイルの AI 解析も更新しました。'].filter(Boolean).join(' ');
-                    } else {
+                  const videoReady = Boolean(finalizeJson.video && finalizeJson.video.readyToStream);
+                  if (videoReady) {
+                    try {
+                      const reassessVideoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/reassess-from-video'), {
+                        method: 'POST',
+                        credentials: 'include',
+                      });
+                      const reassessVideoJson = await reassessVideoResponse.json();
+                      if (reassessVideoResponse.ok && reassessVideoJson.ok) {
+                        extraStatus = [extraStatus, '動画サムネイルの AI 解析も更新しました。'].filter(Boolean).join(' ');
+                      } else {
+                        extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
+                      }
+                    } catch (_error) {
                       extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
                     }
-                  } catch (_error) {
-                    extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
+                  } else {
+                    extraStatus = [extraStatus, '動画は保存済みです。再生準備が終わるまで少し待ってから詳細ページを開いてください。'].filter(Boolean).join(' ');
                   }
               }
 
@@ -4921,7 +5026,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             } catch (error) {
               const message = normalizeError(error);
               let userMessage = message;
-              if (message === 'video_file_too_large') userMessage = '動画サイズは 200MB 未満にしてください。';
+              if (message === 'video_file_too_large') userMessage = '動画サイズが大きすぎます。短く切り出すか、画質を下げてください。';
               if (message === 'video_duration_too_long') userMessage = '動画の長さは 60 秒以内にしてください。';
               if (message === 'video_trim_required') userMessage = '動画は投稿前に最大60秒の区間を選んでください。';
               if (message === 'video_trim_range_invalid') userMessage = '動画の切り出し範囲は最大60秒にしてください。';
@@ -4932,8 +5037,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 const match = message.match(/^photo_upload_failed_at_(\\d+)/);
                 userMessage = '写真' + (match ? match[1] : '') + '枚目の保存に失敗しました。観察本体は保存済みなら、詳細ページから確認できます。';
               }
-              if (message === 'cloudflare_stream_not_configured') userMessage = '動画アップロードの設定が有効ではありません。写真と観察本体は保存済みなら、詳細ページから確認できます。';
-              if (message.startsWith('cloudflare_error') || message === 'video_issue_failed') userMessage = '動画アップロードURLを発行できませんでした。時間をおいて動画だけ再試行してください。';
+              if (message === 'cloudflare_stream_not_configured') userMessage = '動画アップロードの設定が有効ではありません。写真と記録本体は保存済みなら、詳細ページから確認できます。';
+              if (message.startsWith('cloudflare_error') || message.startsWith('cloudflare_tus_error') || message === 'video_issue_failed') userMessage = '動画アップロードの準備ができませんでした。時間をおいて動画だけ再試行してください。';
               const isGenericVideoUploadError = (message.indexOf('tus') >= 0 || message.indexOf('upload') >= 0)
                 && message.indexOf('photo_upload_failed_at_') < 0
                 && message !== 'video_upload_library_unavailable'
@@ -4941,7 +5046,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 && message !== 'cloudflare_stream_not_configured'
                 && message !== 'video_issue_failed'
                 && !message.startsWith('cloudflare_error');
-              if (isGenericVideoUploadError) userMessage = 'Cloudflare側の動画アップロードに失敗しました。通信状態を確認して動画だけ再試行してください。';
+              if (isGenericVideoUploadError) userMessage = '動画アップロードに失敗しました。通信状態を確認して動画だけ再試行してください。';
               if (message === 'video_metadata_read_failed' || message === 'video_duration_unknown') userMessage = '動画の長さを確認できませんでした。別の動画で試してください。';
               if (message === 'unsupported_media_type') userMessage = '画像または動画ファイルを選択してください。';
               if (message === 'survey_target_scope_required') userMessage = 'しっかり記録では、何を見たかったかを入力してください。';

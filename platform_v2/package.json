@@ -39,6 +39,7 @@
     "smoke:manual-occurrence-map": "tsx src/scripts/smokeManualOccurrenceMap.ts",
     "smoke:specialist-authority": "tsx src/scripts/smokeSpecialistAuthority.ts",
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
+    "process:video-jobs": "tsx src/scripts/processVideoProcessingJobs.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
     "repair:user-password": "tsx src/scripts/setExistingUserPassword.ts",
     "sync:legacy": "tsx src/scripts/syncLegacyDelta.ts",
