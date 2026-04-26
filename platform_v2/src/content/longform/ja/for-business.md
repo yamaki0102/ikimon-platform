@@ -26,4 +26,16 @@
 3. 小さく記録して、あとで見返す
 4. 必要ならレポート、研究利用、継続運用を足す
 
+## サンプルレポートを見る
+
+「人と自然の関係」を 5 つの軸 (Access / Engagement / Learning / Stewardship / Evidence) で見る、サイト運用の補助指標です。認証や順位ではなく、同じサイトでの時間の流れを見るための鏡として使います。
+
+業種・気候帯ごとに見え方が変わるので、近いサンプルから選んで確認できます。
+
+- [都市公園 (温帯) のサンプル](/for-business/sample_report?demo=urban_park&lang=ja)
+- [工場ビオトープ (温帯)](/for-business/sample_report?demo=factory_biotope&lang=ja)
+- [無農薬田 (暖温帯)](/for-business/sample_report?demo=rice_field&lang=ja)
+- [北方湿原 (亜寒帯)](/for-business/sample_report?demo=northern_wetland&lang=ja)
+- [亜熱帯沿岸](/for-business/sample_report?demo=okinawa_coast&lang=ja)
+
 [団体相談を見る](/for-business/pricing)
