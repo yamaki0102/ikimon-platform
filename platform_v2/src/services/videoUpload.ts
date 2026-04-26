@@ -671,6 +671,12 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
     }
 
     await client.query("commit");
+    if (target && record.readyToStream) {
+      void kickVideoAiAfterFinalize(record, target.visitId).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[finalizeVideoUpload] AI kick failed for ${target.visitId} / ${uid}: ${message}`);
+      });
+    }
     return {
       ...record,
       occurrenceId: target?.occurrenceId ?? null,
@@ -686,4 +692,28 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
   } finally {
     client.release();
   }
+}
+
+async function kickVideoAiAfterFinalize(record: VideoRecord, observationId: string): Promise<void> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await enqueueVideoProcessingJobs(client, record, observationId, {
+      source: "v2_video_finalize_kick",
+      stream_uid: record.providerUid,
+    });
+    await client.query("commit");
+  } catch (error) {
+    try {
+      await client.query("rollback");
+    } catch {
+      // no-op
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+  const { processVideoProcessingJobs } = await import("./videoProcessingQueue.js");
+  await processVideoProcessingJobs(2);
 }

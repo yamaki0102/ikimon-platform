@@ -11,6 +11,8 @@ test("video finalize promotes video-only observations out of native no-photo rev
   assert.match(source, /quality_review_status = 'accepted'/);
   assert.match(source, /reason_code = 'native_no_photo'/);
   assert.match(source, /review_status = 'accepted'/);
+  assert.match(source, /void kickVideoAiAfterFinalize\(record, target\.visitId\)/);
+  assert.match(source, /v2_video_finalize_kick/);
 });
 
 test("video upload supports official tus direct uploads and ready webhooks", async () => {
