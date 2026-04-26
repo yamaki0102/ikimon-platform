@@ -18,6 +18,8 @@ jobs:
     if: ${{ github.event.inputs.skip_preflight != 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -35,6 +37,10 @@ jobs:
       - name: Check deploy guardrails
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
+
+      - name: Check platform_v2 migration guardrails
+        shell: pwsh
+        run: ./scripts/check_platform_v2_migration_guardrails.ps1
 
       - name: PHP Syntax Check
         run: php tools/lint.php
