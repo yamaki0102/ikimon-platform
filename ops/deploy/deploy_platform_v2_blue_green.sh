@@ -235,6 +235,8 @@ prepare_release() {
   cd "${release_platform}"
   npm ci --silent
   npm run build
+  export_runtime_env
+  npm run migrate
 
   ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
   chown -h www-data:www-data "${RUNTIME_DIR}/${inactive}" 2>/dev/null || true
@@ -244,7 +246,6 @@ prepare_release() {
   systemctl restart "ikimon-v2-${inactive}.service"
   systemctl is-active "ikimon-v2-${inactive}.service" >/dev/null
 
-  export_runtime_env
   npm run sync:legacy -- --force --source-name=production_legacy_fs --import-version=production_shadow_live
   npm run verify:production-shadow -- --import-version=production_shadow_live
   npm run report:legacy-drift -- --json
