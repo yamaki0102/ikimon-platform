@@ -31,7 +31,7 @@ import {
 } from "../services/identificationParticipation.js";
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
-import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
+import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
 import { createVideoDirectUpload, finalizeVideoUpload } from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
@@ -74,7 +74,8 @@ function errorStatus(error: unknown, fallback = 400): number {
     error.message === "dispute_not_found" ||
     error.message === "video_not_found" ||
     error.message === "observation_video_not_found" ||
-    error.message === "authority_recommendation_not_found"
+    error.message === "authority_recommendation_not_found" ||
+    error.message === "user_not_found"
   ) {
     return 404;
   }
@@ -177,6 +178,33 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "user_upsert_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Body: Omit<ProfileSelfUpdateInput, "userId">;
+  }>("/api/v1/profile/me", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      const result = await updateOwnProfile({
+        userId: session.userId,
+        displayName: request.body.displayName,
+        profileBio: request.body.profileBio,
+        expertise: request.body.expertise,
+      });
+      return {
+        ok: true,
+        ...result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "profile_update_failed",
       };
     }
   });

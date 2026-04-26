@@ -11,6 +11,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   });
 
   assert.match(html, /class="btn btn-ghost site-login-link"/);
+  assert.match(html, /\/login\?redirect=%2Fprofile/);
   assert.match(html, /\/api\/v1\/auth\/session/);
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);

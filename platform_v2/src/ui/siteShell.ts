@@ -132,7 +132,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: 
   const desktopLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-desktop");
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
-  const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/record"), lang));
+  const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
 
   return `<header class="site-header">
     <div class="site-header-inner">
@@ -421,8 +421,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
     .site-header-inner { max-width: 1240px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; }
     .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; flex: 1 1 260px; }
-    .brand-mark { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 8px 18px rgba(15,23,42,.07); background: white; }
-    .brand-mark img { width: 100%; height: 100%; display: block; }
+    .brand-mark { width: 38px; height: 38px; flex: 0 0 38px; aspect-ratio: 1 / 1; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 8px 18px rgba(15,23,42,.07); background: white; }
+    .brand-mark img { width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
     .brand > span:last-child { min-width: 0; }
     .brand strong { display: block; font-size: 15px; font-weight: 900; }
     .brand small { display: block; max-width: 100%; margin-top: 2px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1454,6 +1454,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .brand-mark {
         width: 36px;
         height: 36px;
+        flex-basis: 36px;
         border-radius: 11px;
       }
       .brand strong { font-size: 14px; }

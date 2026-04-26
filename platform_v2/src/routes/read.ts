@@ -1114,10 +1114,21 @@ const START_STATE_STYLES = `
   .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
   .start-guide-auth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.68); border: 1px solid rgba(15,23,42,.08); }
+  .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.25fr repeat(3, minmax(0, .78fr)); gap: 8px; }
+  .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; line-height: 1.2; }
+  .record-dock-primary { flex-direction: row; font-size: 13px; background: #064e3b; color: #fff; box-shadow: 0 10px 24px rgba(6,78,59,.22); }
+  .record-dock-icon { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
+  .record-dock-primary .record-dock-icon { background: rgba(255,255,255,.16); }
+  .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .site-footer { padding-bottom: 104px; }
+  .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
+  @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
+  @media (max-width: 720px) { .start-guide { padding-bottom: 104px; } }
   @media (max-width: 820px) { .start-guide-grid { grid-template-columns: 1fr; } }
 `;
 
 function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
+  const loginFor = (target: string) => withBasePath(basePath, `/login?redirect=${encodeURIComponent(target)}`);
   const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
     ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
     : "";
@@ -1164,6 +1175,24 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
           ${qaHint}
         </div>
       </section>
+      <nav class="record-capture-dock" aria-label="ログインして投稿を始める">
+        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor("/record?start=photo"))}">
+          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
+          <span>写真</span>
+        </a>
+        <a class="record-dock-action" href="${escapeHtml(loginFor("/record?start=video"))}">
+          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
+          <span>動画</span>
+        </a>
+        <a class="record-dock-action" href="${escapeHtml(loginFor("/record?start=gallery"))}">
+          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+          <span>選ぶ</span>
+        </a>
+        <a class="record-dock-action" href="${escapeHtml(loginFor("/guide"))}">
+          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
+          <span>ガイド</span>
+        </a>
+      </nav>
     </div>`,
     footerNote: "記録はログイン後に保存されます。未ログイン時は、準備と使い方を先に確認できます。",
   });
@@ -1468,6 +1497,298 @@ const PLACE_REVISIT_ROW_STYLES = `
   }
 `;
 
+const PROFILE_HUB_STYLES = `
+  ${PLACE_REVISIT_ROW_STYLES}
+  .profile-hub-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .profile-hub-actions .btn { min-height: 44px; }
+  .profile-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .profile-summary-card { min-height: 118px; padding: 18px; border-radius: 18px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 10px 24px rgba(15,23,42,.045); }
+  .profile-summary-card strong { display: block; margin-top: 8px; font-size: 28px; line-height: 1.05; color: #0f172a; letter-spacing: 0; }
+  .profile-summary-card span { display: block; margin-top: 7px; color: #64748b; font-size: 12px; font-weight: 750; line-height: 1.55; }
+  .profile-next-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .profile-action-card { display: grid; gap: 10px; min-height: 176px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.05); }
+  .profile-action-card h3 { margin: 0; font-size: 19px; line-height: 1.35; color: #0f172a; }
+  .profile-action-card p { margin: 0; color: #64748b; line-height: 1.7; }
+  .profile-life-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .profile-life-card { display: grid; grid-template-rows: auto 1fr; min-height: 210px; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
+  .profile-life-media { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #e2e8f0; }
+  .profile-life-thumb { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #e2e8f0; display: block; }
+  .profile-life-placeholder { width: 100%; aspect-ratio: 4 / 3; display: grid; place-items: center; background: linear-gradient(135deg, #ecfdf5, #f8fafc); color: #047857; font-weight: 900; }
+  .profile-life-media .profile-life-thumb, .profile-life-media .profile-life-placeholder { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+  .profile-life-body { padding: 14px; }
+  .profile-life-body strong { display: block; color: #0f172a; line-height: 1.4; }
+  .profile-life-body span { display: block; margin-top: 6px; color: #64748b; font-size: 12px; line-height: 1.55; }
+  .profile-settings-card { max-width: 760px; margin: 0 auto; padding: 24px; border-radius: 20px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 32px rgba(15,23,42,.055); }
+  .profile-settings-form { display: grid; gap: 18px; }
+  .profile-settings-field { display: grid; gap: 8px; }
+  .profile-settings-field label { font-weight: 850; color: #0f172a; }
+  .profile-settings-field input, .profile-settings-field textarea { width: 100%; min-height: 48px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(15,23,42,.16); background: #fff; color: #0f172a; font: inherit; line-height: 1.6; box-sizing: border-box; }
+  .profile-settings-field textarea { min-height: 148px; resize: vertical; }
+  .profile-settings-help { margin: 0; color: #64748b; font-size: 13px; line-height: 1.65; }
+  .profile-settings-status { min-height: 24px; color: #475569; font-weight: 800; }
+  .profile-settings-status.is-error { color: #b91c1c; }
+  .profile-settings-status.is-success { color: #047857; }
+  @media (max-width: 980px) {
+    .profile-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-next-grid, .profile-life-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 620px) {
+    .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
+    .profile-summary-card { min-height: 96px; }
+  }
+`;
+
+function formatProfileNumber(value: number): string {
+  return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function renderProfileSummary(snapshot: ProfileSnapshot): string {
+  const stats = snapshot.stats;
+  const cards = [
+    { eyebrow: "Total", value: stats.totalObservations, label: "総観察数" },
+    { eyebrow: "This month", value: stats.thisMonthObservations, label: "今月の観察" },
+    { eyebrow: "Places", value: stats.placeCount, label: "記録した場所" },
+    { eyebrow: "Life List", value: stats.uniqueTaxaAllTime, label: "見てきた生きもの" },
+    { eyebrow: "Streak", value: stats.currentStreakDays, label: "現在ストリーク" },
+  ];
+  return `<section class="section" data-testid="profile-summary">
+    <div class="profile-summary-grid">
+      ${cards.map((card) => `<div class="profile-summary-card">
+        <div class="eyebrow">${escapeHtml(card.eyebrow)}</div>
+        <strong>${escapeHtml(formatProfileNumber(card.value))}</strong>
+        <span>${escapeHtml(card.label)}</span>
+      </div>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editable = false): string {
+  if (!snapshot.profileBio && !snapshot.expertise && !editable) {
+    return "";
+  }
+  const editLink = editable
+    ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/profile/settings"))}">編集する</a>`
+    : "";
+  return `<section class="section" data-testid="profile-intro">
+    <div class="card is-soft">
+      <div class="card-body stack">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">プロフィール</div>
+            <h2>${escapeHtml(snapshot.displayName)} の観察メモ</h2>
+          </div>
+          ${editLink}
+        </div>
+        ${snapshot.expertise ? `<p class="meta"><strong>関心分野:</strong> ${escapeHtml(snapshot.expertise)}</p>` : ""}
+        ${snapshot.profileBio ? `<p style="margin:0;white-space:pre-wrap">${escapeHtml(snapshot.profileBio)}</p>` : `<p class="meta" style="margin:0">自己紹介はまだありません。</p>`}
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot): string {
+  const firstPlace = snapshot.recentPlaces[0] ?? null;
+  const revisitHref = firstPlace
+    ? buildPlaceRecordHref(basePath, "ja", snapshot.userId, firstPlace)
+    : withBasePath(basePath, "/record");
+  const revisitBody = firstPlace
+    ? `${firstPlace.placeName} は ${firstPlace.visitCount} 回記録されています。${buildPlaceNextLine(firstPlace)}。`
+    : "まず 1 件記録すると、よく歩く場所と再訪理由がここに育ちます。";
+  const cards = [
+    {
+      eyebrow: "Record",
+      title: "今日の 1 件を残す",
+      body: "写真、場所、時間、ひとことをまとめてフィールドノートに追加します。",
+      href: withBasePath(basePath, "/record"),
+      label: "記録する",
+    },
+    {
+      eyebrow: "Revisit",
+      title: "前に歩いた場所へ戻る",
+      body: revisitBody,
+      href: revisitHref,
+      label: "再訪して記録",
+    },
+    {
+      eyebrow: "Review",
+      title: "ノートを読み返す",
+      body: "最近の観察と近くの記録を見比べて、次に見るものを決めます。",
+      href: withBasePath(basePath, "/notes"),
+      label: "ノートを見る",
+    },
+  ];
+  return `<section class="section" data-testid="profile-next-actions">
+    <div class="section-header"><div><div class="eyebrow">次にやること</div><h2>今日の入口</h2></div></div>
+    <div class="profile-next-grid">
+      ${cards.map((card) => `<a class="profile-action-card" href="${escapeHtml(card.href)}">
+        <div class="eyebrow">${escapeHtml(card.eyebrow)}</div>
+        <h3>${escapeHtml(card.title)}</h3>
+        <p>${escapeHtml(card.body)}</p>
+        <span class="inline-link">${escapeHtml(card.label)}</span>
+      </a>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderProfileLifeList(snapshot: ProfileSnapshot): string {
+  const items = snapshot.lifeListPreview;
+  if (items.length === 0) {
+    return `<section class="section" data-testid="profile-life-list">
+      <div class="section-header"><div><div class="eyebrow">Life List</div><h2>見てきた生きもの</h2></div></div>
+      <div class="onboarding-empty">
+        <div class="eyebrow">まだ 0 種</div>
+        <h3>名前が分からない記録から始められます</h3>
+        <p>観察に名前が付くと、ここに自分の Life List としてまとまります。</p>
+      </div>
+    </section>`;
+  }
+  return `<section class="section" data-testid="profile-life-list">
+    <div class="section-header"><div><div class="eyebrow">Life List</div><h2>見てきた生きもの</h2></div></div>
+    <div class="profile-life-grid">
+      ${items.map((item) => `<div class="profile-life-card">
+        ${item.photoUrl
+          ? `<div class="profile-life-media"><img class="profile-life-thumb" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName)}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><div class="profile-life-placeholder" hidden>Life List</div></div>`
+          : `<div class="profile-life-placeholder">Life List</div>`}
+        <div class="profile-life-body">
+          <strong>${escapeHtml(item.displayName)}</strong>
+          <span>${item.scientificName ? escapeHtml(item.scientificName) + " · " : ""}${escapeHtml(formatProfileNumber(item.observationCount))} 件</span>
+          <span>最新: ${escapeHtml(formatShortDate(item.latestObservedAt, "ja-JP") || item.latestObservedAt)}</span>
+        </div>
+      </div>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot): string {
+  const places = renderPlaceRows(
+    basePath,
+    lang,
+    snapshot.userId,
+    snapshot.recentPlaces,
+    "まだ場所の記録はありません。最初の 1 件を記録すると、ここに再訪候補が育ちます。",
+  );
+  const observations = snapshot.recentObservations.map((item) => `
+      <div class="row">
+        <div>
+          <a style="font-weight:800;color:inherit;text-decoration:none" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">${escapeHtml(item.displayName)}</a>
+          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(formatShortDate(item.observedAt, "ja-JP") || item.observedAt)}</div>
+        </div>
+        <div class="actions">
+          <span class="pill">${item.identificationCount} ids</span>
+          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + "#identify")}">同定する</a>
+        </div>
+      </div>`).join("");
+  return `${renderProfileSummary(snapshot)}
+    ${renderProfileIntro(basePath, snapshot, true)}
+    ${renderProfileNextActions(basePath, snapshot)}
+    <section class="section" data-testid="profile-places">
+      <div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>My Places</h2></div></div>
+      <div class="list">${places}</div>
+    </section>
+    <section class="section" data-testid="profile-observations">
+      <div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div>
+      ${observations
+        ? `<div class="list">${observations}</div>`
+        : `<div class="onboarding-empty">
+            <div class="eyebrow">まだ 0 ページ</div>
+            <h3>最初の 1 件を記録する</h3>
+            <p>名前が分からなくても、写真と場所とひとことがあればフィールドノートになります。</p>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a>
+          </div>`}
+    </section>
+    ${renderProfileLifeList(snapshot)}`;
+}
+
+function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot): string {
+  const endpoint = withBasePath(basePath, "/api/v1/profile/me");
+  const backHref = withBasePath(basePath, "/profile");
+  return `<section class="section" data-testid="profile-settings">
+    <div class="profile-settings-card">
+      <form class="profile-settings-form" data-profile-settings data-endpoint="${escapeHtml(endpoint)}">
+        <div>
+          <div class="eyebrow">Profile settings</div>
+          <h2 style="margin:8px 0 0">プロフィール編集</h2>
+          <p class="profile-settings-help" style="margin-top:8px">公開プロフィールとマイページの表示名を更新します。写真アップロードは次フェーズで分離します。</p>
+        </div>
+        <div class="profile-settings-field">
+          <label for="profile-display-name">表示名</label>
+          <input id="profile-display-name" name="displayName" value="${escapeHtml(snapshot.displayName)}" maxlength="50" required autocomplete="name" />
+          <p class="profile-settings-help">1-50文字。ヘッダー、マイページ、公開プロフィールに表示されます。</p>
+        </div>
+        <div class="profile-settings-field">
+          <label for="profile-expertise">関心分野</label>
+          <input id="profile-expertise" name="expertise" value="${escapeHtml(snapshot.expertise ?? "")}" maxlength="120" placeholder="例: 里山の植物、都市鳥類、昆虫写真" />
+          <p class="profile-settings-help">自分がよく見る対象や得意な観察領域を短く残します。</p>
+        </div>
+        <div class="profile-settings-field">
+          <label for="profile-bio">自己紹介</label>
+          <textarea id="profile-bio" name="profileBio" maxlength="500" placeholder="観察している場所、見ている生きもの、記録の方針など">${escapeHtml(snapshot.profileBio ?? "")}</textarea>
+          <p class="profile-settings-help">500文字まで。公開プロフィールの説明として使えます。</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-solid" type="submit">保存する</button>
+          <a class="btn btn-ghost" href="${escapeHtml(backHref)}">マイページへ戻る</a>
+        </div>
+        <div class="profile-settings-status" data-profile-settings-status role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </section>
+  <script>
+(function () {
+  const form = document.querySelector('[data-profile-settings]');
+  if (!form) return;
+  const status = form.querySelector('[data-profile-settings-status]');
+  const endpoint = form.getAttribute('data-endpoint');
+  const messages = {
+    display_name_required: '表示名を入力してください。',
+    display_name_too_long: '表示名は50文字以内で入力してください。',
+    profile_bio_too_long: '自己紹介は500文字以内で入力してください。',
+    expertise_too_long: '関心分野は120文字以内で入力してください。',
+    session_required: 'ログインし直してください。'
+  };
+  const setStatus = (message, kind) => {
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle('is-error', kind === 'error');
+    status.classList.toggle('is-success', kind === 'success');
+  };
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!endpoint) return;
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    setStatus('保存しています。', '');
+    const data = new FormData(form);
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          displayName: String(data.get('displayName') || ''),
+          expertise: String(data.get('expertise') || ''),
+          profileBio: String(data.get('profileBio') || '')
+        })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload || payload.ok === false) {
+        const key = payload && payload.error ? payload.error : 'profile_update_failed';
+        throw new Error(messages[key] || '保存に失敗しました。入力内容を確認してください。');
+      }
+      setStatus('保存しました。マイページへ戻れます。', 'success');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存に失敗しました。', 'error');
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  });
+})();
+</script>`;
+}
+
 function renderProfileSnapshotBody(
   basePath: string,
   lang: SiteLang,
@@ -1502,6 +1823,7 @@ function renderProfileSnapshotBody(
     : "";
 
   return `${guestIntro}
+      ${mode === "registered" ? renderProfileIntro(basePath, snapshot) : ""}
       <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`;
 }
@@ -1529,117 +1851,199 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <section class="record-card record-sheet">
             <div class="record-card-head">
               <div>
-                <div class="eyebrow" id="record-mode-eyebrow">ふだんの記録</div>
-                <h2>見つけたことを、その場で残す</h2>
-                <p class="meta" id="record-mode-lead">場所・時間・気づいたことを、まず 1 件残すための画面です。名前が分からなくても始められます。</p>
+                <div class="eyebrow" id="record-mode-eyebrow">投稿入口</div>
+                <h2>まず、どう残すかを選ぶ</h2>
+                <p class="meta" id="record-mode-lead">写真、動画、手元のファイル、ライブガイドから始められます。選んだあとに必要な入力だけを出します。</p>
               </div>
               <div class="record-session-pill">
                 <span class="record-session-label">ログイン中</span>
                 <strong>${escapeHtml(viewerUserId)}</strong>
               </div>
             </div>
-            <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form">
-              <div class="record-field record-field-wide record-mode-switch">
-                <span class="record-label">記録モード</span>
-                <div class="record-mode-grid" role="group" aria-label="記録モード">
-                  <button type="button" class="record-mode-chip is-active" data-record-mode="quick">
-                    <strong>ふだんの記録</strong>
-                    <span>いつもの散歩で見つけたことを残す</span>
-                  </button>
-                  <button type="button" class="record-mode-chip" data-record-mode="survey">
-                    <strong>しっかり記録</strong>
-                    <span>比べたい観察の条件も一緒に残す</span>
-                  </button>
-                </div>
-                <input type="hidden" name="recordMode" value="quick" />
+            <div class="record-capture-launcher" aria-label="投稿の始め方">
+              <button type="button" class="record-capture-option is-primary" data-capture-action="photo">
+                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
+                <strong>写真を撮る</strong>
+                <span>その場の1枚をすぐ残す</span>
+              </button>
+              <button type="button" class="record-capture-option" data-capture-action="video">
+                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
+                <strong>動画を撮る</strong>
+                <span>動きや鳴き方ごと残す</span>
+              </button>
+              <button type="button" class="record-capture-option" data-capture-action="gallery">
+                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                <strong>ギャラリーから選ぶ</strong>
+                <span>撮影済みの写真や動画を使う</span>
+              </button>
+              <a class="record-capture-option record-capture-link" href="${escapeHtml(withBasePath(basePath, "/guide"))}">
+                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
+                <strong>ライブガイド</strong>
+                <span>AIのヒントを見ながら探す</span>
+              </a>
+            </div>
+            <div class="record-capture-dock" aria-label="すぐ投稿する">
+              <button type="button" class="record-dock-action record-dock-primary" data-capture-action="photo">
+                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
+                <span>写真</span>
+              </button>
+              <button type="button" class="record-dock-action" data-capture-action="video">
+                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
+                <span>動画</span>
+              </button>
+              <button type="button" class="record-dock-action" data-capture-action="gallery">
+                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+                <span>選ぶ</span>
+              </button>
+              <a class="record-dock-action" href="${escapeHtml(withBasePath(basePath, "/guide"))}">
+                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
+                <span>ガイド</span>
+              </a>
+            </div>
+            <div id="record-capture-result" class="record-capture-result" hidden>
+              <div>
+                <span class="record-label">選択中</span>
+                <strong id="record-capture-result-title">未選択</strong>
+                <p id="record-capture-result-help">ファイルを選ぶと入力欄が開きます。</p>
               </div>
+              <button type="button" class="btn btn-ghost" id="record-capture-change">選び直す</button>
+            </div>
+            <div id="record-location-nudge" class="record-location-nudge" hidden>
+              <div>
+                <strong>写真に場所も入れる</strong>
+                <p>現在地を入れると、あとで同じ場所を見返しやすくなります。</p>
+              </div>
+              <button type="button" data-record-locate>現在地を入れる</button>
+            </div>
+            <div id="record-autofill-status" class="record-autofill-status" hidden aria-live="polite"></div>
+            <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form" hidden>
+              <input id="record-media-photo" data-record-media-input data-capture-kind="photo" type="file" accept="image/*" capture="environment" hidden />
+              <input id="record-media-video" data-record-media-input data-capture-kind="video" type="file" accept="video/*" capture="environment" hidden />
+              <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" hidden />
+              <input type="hidden" name="recordMode" value="quick" />
               <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
               <div class="record-field record-field-wide record-gps-row">
-                <span class="record-label">現在地</span>
-                <button type="button" class="btn btn-ghost record-gps-btn" onclick="navigator.geolocation.getCurrentPosition(function(p){document.querySelector('[name=latitude]').value=p.coords.latitude.toFixed(6);document.querySelector('[name=longitude]').value=p.coords.longitude.toFixed(6);},function(){alert('位置情報の取得に失敗しました。手動で入力してください。')})">現在地を自動取得</button>
-                <div class="record-gps-inputs">
-                  <label class="record-field"><span class="record-label">緯度</span><input name="latitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
-                  <label class="record-field"><span class="record-label">経度</span><input name="longitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
+                <span class="record-label">撮影地点</span>
+                <div class="record-place-picker">
+                  <div class="record-place-head">
+                    <div>
+                      <strong id="record-location-label">地点未指定</strong>
+                      <p id="record-location-help">現在地、検索、地図タップで撮影地点を決められます。</p>
+                    </div>
+                    <button type="button" class="btn btn-ghost record-gps-btn" data-record-locate>現在地</button>
+                  </div>
+                  <div class="record-place-search">
+                    <input id="record-location-search" type="search" placeholder="公園名・駅名・住所で探す" autocomplete="off" />
+                    <button type="button" id="record-location-search-btn">検索</button>
+                  </div>
+                  <div id="record-location-results" class="record-location-results" hidden></div>
+                  <div id="record-location-map" class="record-location-map" aria-label="撮影地点を地図で指定">
+                    <div class="record-location-map-fallback">地図を読み込み中。表示されたらタップして地点を指定できます。</div>
+                  </div>
+                  <details class="record-coordinate-details">
+                    <summary>座標を直接編集</summary>
+                    <div class="record-gps-inputs">
+                      <label class="record-field"><span class="record-label">緯度</span><input name="latitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
+                      <label class="record-field"><span class="record-label">経度</span><input name="longitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
+                    </div>
+                  </details>
                 </div>
               </div>
-              <label class="record-field"><span class="record-label">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" /></label>
               <label class="record-field record-field-wide"><span class="record-label">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近 / 水辺の柵のそば" /></label>
-              <label class="record-field"><span class="record-label">生きもの名（分かれば）</span><input name="scientificName" type="text" placeholder="例: スズメ / Passer montanus" /></label>
-              <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
-              <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
-              <div class="record-field record-field-wide record-quick-fields" data-quick-only>
-                <div class="record-survey-box record-quick-box">
-                  <div class="record-survey-head">
-                    <div>
-                      <span class="record-label">あとで見返すためのメモ</span>
-                      <p class="record-help">見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。</p>
+              <details class="record-field record-field-wide record-advanced">
+                <summary>詳しく残す</summary>
+                <div class="record-advanced-grid">
+                  <label class="record-field"><span class="record-label">和名 / 通称（分かれば）</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
+                  <label class="record-field"><span class="record-label">学名 / 分類（分かれば）</span><input name="scientificName" type="text" placeholder="例: Passer montanus" /></label>
+                  <label class="record-field"><span class="record-label">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" /></label>
+                  <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
+                  <div class="record-field record-field-wide record-mode-switch">
+                    <span class="record-label">記録モード</span>
+                    <div class="record-mode-grid" role="group" aria-label="記録モード">
+                      <button type="button" class="record-mode-chip is-active" data-record-mode="quick">
+                        <strong>ふだんの記録</strong>
+                        <span>いつもの散歩で見つけたことを残す</span>
+                      </button>
+                      <button type="button" class="record-mode-chip" data-record-mode="survey">
+                        <strong>しっかり記録</strong>
+                        <span>比べたい観察の条件も一緒に残す</span>
+                      </button>
                     </div>
-                    <span class="record-survey-pill">再訪用</span>
                   </div>
-                  <div class="record-survey-grid">
-                    <label class="record-field">
-                      <span class="record-label">今回の残し方</span>
-                      <select name="quickCaptureState">
-                        <option value="present">見つけて書く</option>
-                        <option value="unknown">まだ分からないまま残す</option>
-                        <option value="no_detection_note">今日は見なかったメモを残す</option>
-                      </select>
-                    </label>
-                    <label class="record-field record-field-wide">
-                      <span class="record-label">次に探すもの</span>
-                      <input name="nextLookFor" type="text" placeholder="例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花" />
-                    </label>
+                  <div class="record-field record-field-wide record-quick-fields" data-quick-only>
+                    <div class="record-survey-box record-quick-box">
+                      <div class="record-survey-head">
+                        <div>
+                          <span class="record-label">あとで見返すためのメモ</span>
+                          <p class="record-help">見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。</p>
+                        </div>
+                        <span class="record-survey-pill">再訪用</span>
+                      </div>
+                      <div class="record-survey-grid">
+                        <label class="record-field">
+                          <span class="record-label">今回の残し方</span>
+                          <select name="quickCaptureState">
+                            <option value="present">見つけて書く</option>
+                            <option value="unknown">まだ分からないまま残す</option>
+                            <option value="no_detection_note">今日は見なかったメモを残す</option>
+                          </select>
+                        </label>
+                        <label class="record-field record-field-wide">
+                          <span class="record-label">次に探すもの</span>
+                          <input name="nextLookFor" type="text" placeholder="例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花" />
+                        </label>
+                      </div>
+                      <div class="record-survey-caution">
+                        <strong>「今日は見なかった」は今日のメモです。</strong>
+                        <span>この 1 回だけで不在を言い切るためには使いません。次に探す軸として残します。</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="record-survey-caution">
-                    <strong>「今日は見なかった」は今日のメモです。</strong>
-                    <span>この 1 回だけで不在を言い切るためには使いません。次に探す軸として残します。</span>
+                  <div class="record-field record-field-wide record-survey-fields" data-survey-only hidden>
+                    <div class="record-survey-box">
+                      <div class="record-survey-head">
+                        <div>
+                          <span class="record-label">比べるための記録</span>
+                          <p class="record-help">同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。</p>
+                        </div>
+                        <span class="record-survey-pill">比較用</span>
+                      </div>
+                      <div class="record-survey-grid">
+                        <label class="record-field">
+                          <span class="record-label">どこまで見たか</span>
+                          <select name="checklistCompletion" data-survey-required disabled>
+                            <option value="complete">ひと通り見た</option>
+                            <option value="partial">気になるものだけ見た</option>
+                          </select>
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">何を見たかったか</span>
+                          <input name="targetTaxaScope" type="text" placeholder="例: 水辺の鳥 / 春のチョウ / 公園の花" data-survey-required disabled />
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">見た時間（分）</span>
+                          <input name="effortMinutes" type="number" min="1" step="1" placeholder="20" data-survey-required disabled />
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">今回の結果</span>
+                          <select name="surveyResult" disabled>
+                            <option value="detected">見つけて記録した</option>
+                            <option value="no_detection_note">見つからなかったメモだけ残す</option>
+                          </select>
+                        </label>
+                        <label class="record-field record-field-wide">
+                          <span class="record-label">また見に行きたい理由</span>
+                          <textarea name="revisitReason" rows="3" placeholder="例: 先月と比べたい / 同じ水路の変化を見たい" data-survey-required disabled></textarea>
+                        </label>
+                      </div>
+                      <div class="record-survey-caution">
+                        <strong>未観測と不在は別です。</strong>
+                        <span>「見つからなかった」はメモとして残しますが、「いない」と言い切る材料には使いません。</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="record-field record-field-wide record-survey-fields" data-survey-only hidden>
-                <div class="record-survey-box">
-                  <div class="record-survey-head">
-                    <div>
-                      <span class="record-label">比べるための記録</span>
-                      <p class="record-help">同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。</p>
-                    </div>
-                    <span class="record-survey-pill">比較用</span>
-                  </div>
-                  <div class="record-survey-grid">
-                    <label class="record-field">
-                      <span class="record-label">どこまで見たか</span>
-                      <select name="checklistCompletion" data-survey-required disabled>
-                        <option value="complete">ひと通り見た</option>
-                        <option value="partial">気になるものだけ見た</option>
-                      </select>
-                    </label>
-                    <label class="record-field">
-                      <span class="record-label">何を見たかったか</span>
-                      <input name="targetTaxaScope" type="text" placeholder="例: 水辺の鳥 / 春のチョウ / 公園の花" data-survey-required disabled />
-                    </label>
-                    <label class="record-field">
-                      <span class="record-label">見た時間（分）</span>
-                      <input name="effortMinutes" type="number" min="1" step="1" placeholder="20" data-survey-required disabled />
-                    </label>
-                    <label class="record-field">
-                      <span class="record-label">今回の結果</span>
-                      <select name="surveyResult" disabled>
-                        <option value="detected">見つけて記録した</option>
-                        <option value="no_detection_note">見つからなかったメモだけ残す</option>
-                      </select>
-                    </label>
-                    <label class="record-field record-field-wide">
-                      <span class="record-label">また見に行きたい理由</span>
-                      <textarea name="revisitReason" rows="3" placeholder="例: 先月と比べたい / 同じ水路の変化を見たい" data-survey-required disabled></textarea>
-                    </label>
-                  </div>
-                  <div class="record-survey-caution">
-                    <strong>未観測と不在は別です。</strong>
-                    <span>「見つからなかった」はメモとして残しますが、「いない」と言い切る材料には使いません。</span>
-                  </div>
-                </div>
-              </div>
-              <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真 / 動画</span><input id="record-media" name="media" type="file" accept="image/*,video/*" /><span class="record-help">写真か動画を 1 つ選択できます。動画は 200MB / 60秒まで対応します。</span></label>
+              </details>
               <div id="record-video-progress" class="record-video-progress" hidden aria-live="polite">
                 <div class="record-video-progress-head">
                   <strong>動画アップロード進捗</strong>
@@ -1655,6 +2059,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="record-actions">
                 <button class="btn btn-solid" type="submit">${JA_PUBLIC_SHARED_COPY.cta.record}</button>
                 <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">${JA_PUBLIC_SHARED_COPY.cta.openNotebook}</a>
+              </div>
+              <div class="record-submit-dock" aria-label="記録を送信する">
+                <button type="button" class="record-submit-location" data-record-locate>現在地</button>
+                <button type="submit" class="record-submit-primary">投稿する</button>
               </div>
             </form>
           </section>
@@ -1727,6 +2135,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const previewCoords = document.getElementById('record-preview-coords');
         const previewPhoto = document.getElementById('record-preview-photo');
         const mediaInput = document.getElementById('record-media');
+        const mediaInputs = Array.from(document.querySelectorAll('[data-record-media-input]'));
+        const captureButtons = Array.from(document.querySelectorAll('[data-capture-action]'));
+        const captureResult = document.getElementById('record-capture-result');
+        const captureResultTitle = document.getElementById('record-capture-result-title');
+        const captureResultHelp = document.getElementById('record-capture-result-help');
+        const captureChange = document.getElementById('record-capture-change');
+        const locationNudge = document.getElementById('record-location-nudge');
+        const autofillStatus = document.getElementById('record-autofill-status');
+        const locateButtons = Array.from(document.querySelectorAll('[data-record-locate]'));
+        const locationLabel = document.getElementById('record-location-label');
+        const locationHelp = document.getElementById('record-location-help');
+        const locationMapEl = document.getElementById('record-location-map');
+        const locationSearchInput = document.getElementById('record-location-search');
+        const locationSearchButton = document.getElementById('record-location-search-btn');
+        const locationResults = document.getElementById('record-location-results');
         const videoProgressWrap = document.getElementById('record-video-progress');
         const videoProgressBar = document.getElementById('record-video-progressbar');
         const videoProgressLabel = document.getElementById('record-video-progress-label');
@@ -1738,6 +2161,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let previewObjectUrl = '';
         let activeTusUpload = null;
         let cancelTusUpload = null;
+        let selectedMediaFile = null;
+        let selectedCaptureKind = '';
+        let selectedMediaCapturedAt = null;
+        let recordMap = null;
+        let recordMapMarker = null;
+        let recordMapReady = false;
+        let locationSearchAbort = null;
+        const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
+        const captureLabels = {
+          photo: { title: '写真を撮る', help: 'その場で撮った写真を記録に添付します。' },
+          video: { title: '動画を撮る', help: '動画は 200MB / 60秒まで対応します。' },
+          gallery: { title: 'ギャラリーから選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
+        };
 
         if (observedAt && !observedAt.value) {
           const now = new Date();
@@ -1750,13 +2186,86 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const isSurveyMode = () => modeInput && modeInput.value === 'survey';
 
+        const coordsMissing = () => {
+          if (!form) return true;
+          const lat = form.elements.namedItem('latitude');
+          const lng = form.elements.namedItem('longitude');
+          const latValue = lat && 'value' in lat ? String(lat.value || '').trim() : '';
+          const lngValue = lng && 'value' in lng ? String(lng.value || '').trim() : '';
+          return !latValue || !lngValue;
+        };
+
+        const readCoords = () => {
+          if (!form) return null;
+          const latField = form.elements.namedItem('latitude');
+          const lngField = form.elements.namedItem('longitude');
+          const lat = latField && 'value' in latField ? Number(latField.value) : NaN;
+          const lng = lngField && 'value' in lngField ? Number(lngField.value) : NaN;
+          return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+        };
+
+        const isFreshMedia = () => {
+          const capturedAt = selectedMediaCapturedAt instanceof Date ? selectedMediaCapturedAt : null;
+          const baseTime = capturedAt || (selectedMediaFile && selectedMediaFile.lastModified ? new Date(selectedMediaFile.lastModified) : null);
+          if (!baseTime || Number.isNaN(baseTime.getTime())) return selectedCaptureKind === 'photo';
+          return Math.abs(Date.now() - baseTime.getTime()) <= 10 * 60 * 1000;
+        };
+
+        const syncLocationNudge = () => {
+          if (!locationNudge) return;
+          locationNudge.hidden = !(selectedMediaFile && isImageFile(selectedMediaFile) && coordsMissing() && isFreshMedia());
+        };
+
+        const updateLocationText = (sourceLabel) => {
+          const coords = readCoords();
+          if (!locationLabel || !locationHelp) return;
+          if (!coords) {
+            locationLabel.textContent = '地点未指定';
+            locationHelp.textContent = '現在地、検索、地図タップで撮影地点を決められます。';
+            return;
+          }
+          locationLabel.textContent = sourceLabel || '撮影地点を指定済み';
+          locationHelp.textContent = coords.lat.toFixed(6) + ', ' + coords.lng.toFixed(6);
+        };
+
+        const setRecordLocation = (lat, lng, sourceLabel, opts) => {
+          if (!form || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          const latField = form.elements.namedItem('latitude');
+          const lngField = form.elements.namedItem('longitude');
+          if (latField && 'value' in latField) latField.value = Number(lat).toFixed(6);
+          if (lngField && 'value' in lngField) lngField.value = Number(lng).toFixed(6);
+          updateLocationText(sourceLabel);
+          syncPreview();
+          syncLocationNudge();
+          if (recordMapReady && recordMap && window.maplibregl) {
+            recordMap.jumpTo({ center: [Number(lng), Number(lat)], zoom: opts && opts.zoom ? opts.zoom : Math.max(recordMap.getZoom(), 15) });
+            if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
+            recordMapMarker.setLngLat([Number(lng), Number(lat)]);
+          }
+        };
+
+        const setAutofillStatus = (items) => {
+          if (!autofillStatus) return;
+          if (!items || !items.length) {
+            autofillStatus.hidden = true;
+            autofillStatus.textContent = '';
+            return;
+          }
+          autofillStatus.hidden = false;
+          autofillStatus.textContent = '自動入力: ' + items.join(' / ');
+        };
+
         const syncModeUi = () => {
           const survey = isSurveyMode();
-          if (modeEyebrow) modeEyebrow.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
+          if (modeEyebrow) modeEyebrow.textContent = selectedCaptureKind
+            ? (survey ? 'しっかり記録' : 'ふだんの記録')
+            : '投稿入口';
           if (modeLead) {
-            modeLead.textContent = survey
-              ? '見た条件も一緒に残して、あとで比べやすくするための入力です。'
-              : '場所・時間・気づいたことを、まず 1 件残すための入力です。';
+            modeLead.textContent = selectedCaptureKind
+              ? (survey
+                  ? '見た条件も一緒に残して、あとで比べやすくするための入力です。'
+                  : '場所・時間・気づいたことを、まず 1 件残すための入力です。')
+              : '写真、動画、手元のファイル、ライブガイドから始められます。選んだあとに必要な入力だけを出します。';
           }
           if (previewKicker) previewKicker.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
           if (quickFieldsWrap) quickFieldsWrap.hidden = survey;
@@ -1771,6 +2280,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             button.classList.toggle('is-active', active);
             button.setAttribute('aria-pressed', active ? 'true' : 'false');
           });
+          syncLocationNudge();
         };
 
         const normalizeError = (error) => {
@@ -1792,6 +2302,159 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const parsed = new Date(String(value));
           if (Number.isNaN(parsed.getTime())) return String(value);
           return parsed.toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+        };
+
+        const dateToLocalInputValue = (date) => {
+          if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+          return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        };
+
+        const parseExifDate = (value) => {
+          const match = String(value || '').match(/^(\\d{4}):(\\d{2}):(\\d{2})\\s+(\\d{2}):(\\d{2})(?::(\\d{2}))?/);
+          if (!match) return null;
+          const date = new Date(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            Number(match[4]),
+            Number(match[5]),
+            Number(match[6] || '0'),
+          );
+          return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const parseJpegExif = async (file) => {
+          if (!file || !isImageFile(file)) return {};
+          const type = String(file.type || '').toLowerCase();
+          if (type && type !== 'image/jpeg' && type !== 'image/jpg' && !/\\.jpe?g$/i.test(String(file.name || ''))) {
+            return {};
+          }
+          const buffer = await file.slice(0, Math.min(file.size || 0, 512 * 1024)).arrayBuffer();
+          const view = new DataView(buffer);
+          if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return {};
+          let offset = 2;
+          while (offset + 4 <= view.byteLength) {
+            if (view.getUint8(offset) !== 0xff) break;
+            const marker = view.getUint8(offset + 1);
+            const segmentLength = view.getUint16(offset + 2, false);
+            if (segmentLength < 2 || offset + 2 + segmentLength > view.byteLength) break;
+            if (marker === 0xe1 && segmentLength >= 8) {
+              const exifHeader = String.fromCharCode(
+                view.getUint8(offset + 4),
+                view.getUint8(offset + 5),
+                view.getUint8(offset + 6),
+                view.getUint8(offset + 7),
+              );
+              if (exifHeader === 'Exif') {
+                return readExifTiff(view, offset + 10);
+              }
+            }
+            offset += 2 + segmentLength;
+          }
+          return {};
+        };
+
+        const readExifTiff = (view, tiffStart) => {
+          if (tiffStart + 8 > view.byteLength) return {};
+          const byteOrder = view.getUint16(tiffStart, false);
+          const littleEndian = byteOrder === 0x4949;
+          if (!littleEndian && byteOrder !== 0x4d4d) return {};
+          if (view.getUint16(tiffStart + 2, littleEndian) !== 42) return {};
+          const firstIfdOffset = view.getUint32(tiffStart + 4, littleEndian);
+          const typeBytes = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+
+          const readString = (start, count) => {
+            const chars = [];
+            for (let i = 0; i < count && start + i < view.byteLength; i += 1) {
+              const code = view.getUint8(start + i);
+              if (code === 0) break;
+              chars.push(String.fromCharCode(code));
+            }
+            return chars.join('').trim();
+          };
+          const readNumber = (start, type) => {
+            if (start < 0 || start >= view.byteLength) return null;
+            if (type === 3 && start + 2 <= view.byteLength) return view.getUint16(start, littleEndian);
+            if (type === 4 && start + 4 <= view.byteLength) return view.getUint32(start, littleEndian);
+            if (type === 9 && start + 4 <= view.byteLength) return view.getInt32(start, littleEndian);
+            if ((type === 5 || type === 10) && start + 8 <= view.byteLength) {
+              const numerator = type === 5 ? view.getUint32(start, littleEndian) : view.getInt32(start, littleEndian);
+              const denominator = type === 5 ? view.getUint32(start + 4, littleEndian) : view.getInt32(start + 4, littleEndian);
+              return denominator ? numerator / denominator : 0;
+            }
+            if ((type === 1 || type === 7) && start + 1 <= view.byteLength) return view.getUint8(start);
+            return null;
+          };
+          const readValue = (entryOffset) => {
+            const type = view.getUint16(entryOffset + 2, littleEndian);
+            const count = view.getUint32(entryOffset + 4, littleEndian);
+            const totalBytes = (typeBytes[type] || 0) * count;
+            if (!totalBytes) return null;
+            const valueStart = totalBytes <= 4 ? entryOffset + 8 : tiffStart + view.getUint32(entryOffset + 8, littleEndian);
+            if (valueStart < tiffStart || valueStart + totalBytes > view.byteLength) return null;
+            if (type === 2) return readString(valueStart, count);
+            const values = [];
+            for (let i = 0; i < count; i += 1) {
+              const value = readNumber(valueStart + i * (typeBytes[type] || 0), type);
+              if (value !== null) values.push(value);
+            }
+            return count === 1 ? values[0] : values;
+          };
+          const readIfd = (ifdOffset) => {
+            const start = tiffStart + ifdOffset;
+            if (start < tiffStart || start + 2 > view.byteLength) return {};
+            const count = view.getUint16(start, littleEndian);
+            const values = {};
+            for (let i = 0; i < count; i += 1) {
+              const entryOffset = start + 2 + i * 12;
+              if (entryOffset + 12 > view.byteLength) break;
+              const tag = view.getUint16(entryOffset, littleEndian);
+              values[tag] = readValue(entryOffset);
+            }
+            return values;
+          };
+          const ifd0 = readIfd(firstIfdOffset);
+          const exifIfd = ifd0[0x8769] ? readIfd(Number(ifd0[0x8769])) : {};
+          const gpsIfd = ifd0[0x8825] ? readIfd(Number(ifd0[0x8825])) : {};
+          const toDecimal = (parts, ref) => {
+            if (!Array.isArray(parts) || parts.length < 3) return null;
+            const decimal = Number(parts[0]) + Number(parts[1]) / 60 + Number(parts[2]) / 3600;
+            if (!Number.isFinite(decimal)) return null;
+            return String(ref || '').toUpperCase() === 'S' || String(ref || '').toUpperCase() === 'W' ? -decimal : decimal;
+          };
+          return {
+            capturedAt: parseExifDate(exifIfd[0x9003] || exifIfd[0x9004] || ifd0[0x0132]),
+            latitude: toDecimal(gpsIfd[2], gpsIfd[1]),
+            longitude: toDecimal(gpsIfd[4], gpsIfd[3]),
+          };
+        };
+
+        const applyMediaAutofill = async (file) => {
+          if (!file || !form) {
+            setAutofillStatus([]);
+            return;
+          }
+          const filled = [];
+          let exif = {};
+          try {
+            exif = await parseJpegExif(file);
+          } catch (_) {
+            exif = {};
+          }
+          const capturedAt = exif.capturedAt || (file.lastModified ? new Date(file.lastModified) : null);
+          const observedValue = dateToLocalInputValue(capturedAt);
+          if (observedAt && observedValue) {
+            observedAt.value = observedValue;
+            selectedMediaCapturedAt = capturedAt;
+            filled.push(exif.capturedAt ? '撮影日時' : 'ファイル日時');
+          }
+          if (Number.isFinite(exif.latitude) && Number.isFinite(exif.longitude)) {
+            setRecordLocation(Number(exif.latitude), Number(exif.longitude), '写真の撮影地点', { zoom: 16 });
+            filled.push('写真の位置');
+          }
+          setAutofillStatus(filled);
+          syncPreview();
+          syncLocationNudge();
         };
 
         const buildImpactHtml = (impact, extraStatus) => {
@@ -1845,6 +2508,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
         };
 
+        const applyStartModeFromQuery = () => {
+          const params = new URLSearchParams(window.location.search);
+          const start = params.get('start');
+          if (start === 'photo' || start === 'video' || start === 'gallery') {
+            setPendingCaptureKind(start);
+          }
+        };
+
         const formatBytes = (bytes) => {
           if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
           const mb = bytes / (1024 * 1024);
@@ -1884,6 +2555,223 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (videoProgressBar) videoProgressBar.value = percent;
           if (videoProgressLabel) videoProgressLabel.textContent = percent + '%';
           if (videoProgressBytes) videoProgressBytes.textContent = formatBytes(uploaded) + ' / ' + formatBytes(total);
+        };
+
+        const hydrateRecordMap = () => {
+          if (!locationMapEl || recordMapReady || !window.maplibregl) return;
+          recordMapReady = true;
+          const fallback = locationMapEl.querySelector('.record-location-map-fallback');
+          if (fallback) fallback.style.display = 'none';
+          const coords = readCoords();
+          const center = coords ? [coords.lng, coords.lat] : [DEFAULT_RECORD_LOCATION.lng, DEFAULT_RECORD_LOCATION.lat];
+          recordMap = new window.maplibregl.Map({
+            container: locationMapEl,
+            style: {
+              version: 8,
+              sources: {
+                osm: {
+                  type: 'raster',
+                  tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                  tileSize: 256,
+                  attribution: '© OpenStreetMap contributors',
+                },
+              },
+              layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
+            },
+            center,
+            zoom: coords ? 15 : DEFAULT_RECORD_LOCATION.zoom,
+            attributionControl: false,
+          });
+          recordMap.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+          recordMap.on('load', () => {
+            if (coords) {
+              const currentLabel = locationLabel && locationLabel.textContent && locationLabel.textContent !== '地点未指定'
+                ? locationLabel.textContent
+                : '撮影地点を指定済み';
+              setRecordLocation(coords.lat, coords.lng, currentLabel, { zoom: 15 });
+            }
+            recordMap.resize();
+          });
+          recordMap.on('click', (event) => {
+            if (!event || !event.lngLat) return;
+            setRecordLocation(event.lngLat.lat, event.lngLat.lng, '地図で指定した撮影地点', { zoom: Math.max(recordMap.getZoom(), 15) });
+          });
+        };
+
+        const ensureRecordMap = () => {
+          if (!locationMapEl) return;
+          if (window.maplibregl) {
+            hydrateRecordMap();
+            return;
+          }
+          if (!document.querySelector('link[data-maplibre="1"]')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+            link.integrity = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
+            link.crossOrigin = 'anonymous';
+            link.referrerPolicy = 'no-referrer';
+            link.setAttribute('data-maplibre', '1');
+            document.head.appendChild(link);
+          }
+          if (document.querySelector('script[data-record-maplibre="1"]')) return;
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+          script.integrity = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
+          script.crossOrigin = 'anonymous';
+          script.referrerPolicy = 'no-referrer';
+          script.defer = true;
+          script.setAttribute('data-record-maplibre', '1');
+          script.onload = hydrateRecordMap;
+          script.onerror = () => {
+            if (locationMapEl) locationMapEl.classList.add('is-fallback');
+          };
+          document.head.appendChild(script);
+        };
+
+        const renderLocationResults = (rows) => {
+          if (!locationResults) return;
+          if (!rows || !rows.length) {
+            locationResults.innerHTML = '<div class="record-location-empty">候補が見つかりませんでした。</div>';
+            locationResults.hidden = false;
+            return;
+          }
+          locationResults.innerHTML = rows.map((row, index) =>
+            '<button type="button" class="record-location-result" data-index="' + String(index) + '">' +
+              '<strong>' + escapeHtmlText(row.display_name || '地点候補') + '</strong>' +
+              '<span>' + escapeHtmlText(Number(row.lat).toFixed(5) + ', ' + Number(row.lon).toFixed(5)) + '</span>' +
+            '</button>'
+          ).join('');
+          locationResults.hidden = false;
+          Array.from(locationResults.querySelectorAll('.record-location-result')).forEach((button, index) => {
+            button.addEventListener('click', () => {
+              const row = rows[index];
+              const lat = Number(row && row.lat);
+              const lng = Number(row && row.lon);
+              if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+              setRecordLocation(lat, lng, '検索で選んだ撮影地点', { zoom: 16 });
+              if (locationSearchInput) locationSearchInput.value = row.display_name || '';
+              locationResults.innerHTML = '';
+              locationResults.hidden = true;
+            });
+          });
+        };
+
+        const searchRecordLocation = async () => {
+          if (!locationSearchInput) return;
+          const query = String(locationSearchInput.value || '').trim();
+          if (query.length < 2) {
+            renderLocationResults([]);
+            return;
+          }
+          if (locationSearchAbort) locationSearchAbort.abort();
+          locationSearchAbort = new AbortController();
+          if (locationResults) {
+            locationResults.hidden = false;
+            locationResults.innerHTML = '<div class="record-location-empty">検索中...</div>';
+          }
+          try {
+            const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=' + encodeURIComponent(query);
+            const response = await fetch(url, { signal: locationSearchAbort.signal, headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error('place_search_failed');
+            const rows = await response.json();
+            renderLocationResults(Array.isArray(rows) ? rows : []);
+          } catch (error) {
+            if (error && error.name === 'AbortError') return;
+            if (locationResults) {
+              locationResults.hidden = false;
+              locationResults.innerHTML = '<div class="record-location-empty">検索に失敗しました。現在地か地図で指定してください。</div>';
+            }
+          }
+        };
+
+        const fillCurrentLocation = () => {
+          if (!navigator.geolocation || !form) {
+            alert('位置情報を利用できません。手動で入力してください。');
+            return;
+          }
+          locateButtons.forEach((button) => { button.disabled = true; });
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setRecordLocation(position.coords.latitude, position.coords.longitude, '現在地を撮影地点に設定', { zoom: 16 });
+              locateButtons.forEach((button) => { button.disabled = false; });
+            },
+            () => {
+              locateButtons.forEach((button) => { button.disabled = false; });
+              alert('位置情報の取得に失敗しました。手動で入力してください。');
+            },
+            { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+          );
+        };
+
+        const clearMediaInputsExcept = (activeInput) => {
+          mediaInputs.forEach((input) => {
+            if (input !== activeInput) input.value = '';
+          });
+        };
+
+        const showRecordFormForMedia = (file, kind) => {
+          selectedMediaFile = file || null;
+          selectedCaptureKind = kind || '';
+          if (form) form.hidden = !selectedMediaFile;
+          if (captureResult) captureResult.hidden = !selectedMediaFile;
+          document.documentElement.classList.toggle('record-has-media', Boolean(selectedMediaFile));
+          if (selectedMediaFile) window.requestAnimationFrame(ensureRecordMap);
+          const label = captureLabels[selectedCaptureKind] || captureLabels.gallery;
+          if (captureResultTitle) captureResultTitle.textContent = selectedMediaFile
+            ? label.title + ' - ' + (selectedMediaFile.name || '選択したファイル')
+            : '未選択';
+          if (captureResultHelp) captureResultHelp.textContent = selectedMediaFile
+            ? label.help
+            : 'ファイルを選ぶと入力欄が開きます。';
+          captureButtons.forEach((button) => {
+            const active = button.getAttribute('data-capture-action') === selectedCaptureKind;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+          syncModeUi();
+          if (selectedMediaFile && form) {
+            window.requestAnimationFrame(() => form.scrollIntoView({ block: 'start', behavior: 'auto' }));
+          }
+        };
+
+        const setPendingCaptureKind = (kind) => {
+          if (!captureLabels[kind]) return;
+          selectedMediaFile = null;
+          selectedCaptureKind = kind;
+          if (form) form.hidden = true;
+          if (captureResult) captureResult.hidden = false;
+          document.documentElement.classList.remove('record-has-media');
+          const label = captureLabels[kind];
+          if (captureResultTitle) captureResultTitle.textContent = label.title + 'で始める';
+          if (captureResultHelp) captureResultHelp.textContent = 'ログイン後の続きです。下の「' + label.title.replace('を撮る', '').replace('から選ぶ', '') + '」を押すと始められます。';
+          syncLocationNudge();
+          captureButtons.forEach((button) => {
+            const active = button.getAttribute('data-capture-action') === kind;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+          syncModeUi();
+        };
+
+        const clearSelectedMedia = () => {
+          selectedMediaFile = null;
+          selectedCaptureKind = '';
+          mediaInputs.forEach((input) => { input.value = ''; });
+          if (form) form.hidden = true;
+          if (captureResult) captureResult.hidden = true;
+          if (locationNudge) locationNudge.hidden = true;
+          setAutofillStatus([]);
+          selectedMediaCapturedAt = null;
+          updateLocationText();
+          document.documentElement.classList.remove('record-has-media');
+          captureButtons.forEach((button) => {
+            button.classList.remove('is-active');
+            button.setAttribute('aria-pressed', 'false');
+          });
+          renderPreviewFile(null);
+          resetVideoProgress();
+          syncModeUi();
         };
 
         const renderPreviewFile = (file) => {
@@ -1954,6 +2842,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               ? new Date(observedAtValue).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
               : '今日';
           }
+          syncLocationNudge();
         };
 
         const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -2053,15 +2942,62 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             syncPreview();
           });
         });
-        if (mediaInput) {
-          mediaInput.addEventListener('change', () => {
-            const file = mediaInput.files && mediaInput.files[0];
+        captureButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            const action = button.getAttribute('data-capture-action') || 'gallery';
+            const target = document.querySelector('[data-record-media-input][data-capture-kind="' + action + '"]') || mediaInput;
+            if (target && typeof target.click === 'function') target.click();
+          });
+        });
+        mediaInputs.forEach((input) => {
+          input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            const kind = input.getAttribute('data-capture-kind') || 'gallery';
+            clearMediaInputsExcept(input);
             renderPreviewFile(file || null);
-            if (!file || !isVideoFile(file)) {
+            if (!file) {
+              showRecordFormForMedia(null, '');
               resetVideoProgress();
+              setAutofillStatus([]);
+            } else if (!isVideoFile(file)) {
+              showRecordFormForMedia(file, kind);
+              resetVideoProgress();
+              await applyMediaAutofill(file);
             } else if (videoProgressWrap) {
+              showRecordFormForMedia(file, kind);
+              await applyMediaAutofill(file);
               videoProgressWrap.hidden = false;
               if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+            }
+          });
+        });
+        if (captureChange) {
+          captureChange.addEventListener('click', clearSelectedMedia);
+        }
+        locateButtons.forEach((button) => {
+          button.addEventListener('click', fillCurrentLocation);
+        });
+        if (locationSearchButton) {
+          locationSearchButton.addEventListener('click', searchRecordLocation);
+        }
+        if (locationSearchInput) {
+          locationSearchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              searchRecordLocation();
+            }
+          });
+        }
+        if (form) {
+          const latField = form.elements.namedItem('latitude');
+          const lngField = form.elements.namedItem('longitude');
+          [latField, lngField].forEach((field) => {
+            if (field && field.addEventListener) {
+              field.addEventListener('input', () => {
+                updateLocationText('座標を直接編集');
+                syncPreview();
+                syncLocationNudge();
+              });
             }
           });
         }
@@ -2078,6 +3014,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         syncModeUi();
         syncPreview();
         resetVideoProgress();
+        applyStartModeFromQuery();
 
         if (form) {
           form.addEventListener('submit', async (event) => {
@@ -2167,8 +3104,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               }
               const detailId = String(observationJson.occurrenceId || observationId);
 
-              const media = data.get('media');
-              const mediaFile = media instanceof File && media.size > 0 ? media : null;
+              const mediaFile = selectedMediaFile instanceof File && selectedMediaFile.size > 0 ? selectedMediaFile : null;
               let extraStatus = '';
 
               if (mediaFile) {
@@ -2256,10 +3192,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 const now = new Date();
                 observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
               }
-              renderPreviewFile(null);
+              clearSelectedMedia();
               syncModeUi();
               syncPreview();
-              resetVideoProgress();
             } catch (error) {
               const message = normalizeError(error);
               let userMessage = message;
@@ -2303,11 +3238,63 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-session-pill { display: inline-flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); min-width: 180px; }
         .record-session-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
         .record-session-pill strong { font-size: 14px; color: #0f172a; word-break: break-all; }
+        .record-capture-launcher { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-left: 16px; margin: 0 0 18px; }
+        .record-capture-option { min-height: 132px; display: grid; align-content: start; gap: 8px; text-align: left; padding: 16px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; text-decoration: none; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.045); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+        .record-capture-option:hover, .record-capture-option.is-active { transform: translateY(-2px); border-color: rgba(14,165,233,.34); box-shadow: 0 16px 32px rgba(14,165,233,.1); }
+        .record-capture-option.is-primary { background: linear-gradient(180deg, rgba(236,253,245,.96), rgba(240,249,255,.96)); border-color: rgba(16,185,129,.24); }
+        .record-capture-icon { width: 42px; height: 42px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.05); color: #047857; }
+        .record-capture-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .record-capture-option strong { font-size: 15px; line-height: 1.25; }
+        .record-capture-option span:last-child { font-size: 12px; line-height: 1.55; color: #64748b; font-weight: 700; }
+        .record-capture-result { margin: -2px 0 18px 16px; padding: 14px 16px; border-radius: 18px; background: rgba(236,253,245,.82); border: 1px solid rgba(16,185,129,.24); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+        .record-capture-result[hidden] { display: none; }
+        .record-capture-result strong { display: block; margin-top: 4px; color: #0f172a; font-size: 14px; word-break: break-word; }
+        .record-capture-result p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 700; }
+        .record-location-nudge { margin: -2px 0 18px 16px; padding: 14px 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(240,253,250,.95), rgba(239,246,255,.95)); border: 1px solid rgba(14,165,233,.22); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+        .record-location-nudge[hidden] { display: none; }
+        .record-location-nudge strong { color: #0f172a; font-size: 14px; }
+        .record-location-nudge p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 700; }
+        .record-location-nudge button { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 0; background: #0f766e; color: #fff; font: inherit; font-size: 12px; font-weight: 950; white-space: nowrap; }
+        .record-autofill-status { margin: -6px 0 16px 16px; padding: 10px 13px; border-radius: 999px; width: fit-content; max-width: calc(100% - 16px); background: rgba(236,253,245,.9); border: 1px solid rgba(16,185,129,.24); color: #065f46; font-size: 12px; font-weight: 900; line-height: 1.5; }
+        .record-autofill-status[hidden] { display: none; }
+        .record-place-picker { display: grid; gap: 12px; padding: 14px; border-radius: 20px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
+        .record-place-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .record-place-head strong { display: block; color: #0f172a; font-size: 15px; line-height: 1.45; }
+        .record-place-head p { margin: 3px 0 0; color: #64748b; font-size: 12px; line-height: 1.6; font-weight: 750; }
+        .record-place-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+        .record-place-search input { min-height: 48px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(15,23,42,.12); background: #fff; font: inherit; }
+        .record-place-search button { min-height: 48px; padding: 0 16px; border-radius: 16px; border: 0; background: #0f766e; color: #fff; font: inherit; font-weight: 950; cursor: pointer; }
+        .record-location-results { display: grid; gap: 8px; }
+        .record-location-results[hidden] { display: none; }
+        .record-location-result { display: grid; gap: 3px; text-align: left; padding: 11px 12px; border-radius: 14px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #0f172a; font: inherit; cursor: pointer; }
+        .record-location-result strong { font-size: 13px; line-height: 1.45; }
+        .record-location-result span, .record-location-empty { color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 750; }
+        .record-location-map { position: relative; min-height: 240px; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#eff6ff); border: 1px solid rgba(15,23,42,.08); }
+        .record-location-map-fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 18px; text-align: center; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 850; }
+        .record-coordinate-details { display: grid; gap: 10px; }
+        .record-coordinate-details summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; border-radius: 14px; background: rgba(248,250,252,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; font-weight: 900; cursor: pointer; }
+        .record-coordinate-details .record-gps-inputs { margin-top: 10px; }
+        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: 1.35fr repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-dock-action { min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 16px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 12px; font-weight: 900; cursor: pointer; line-height: 1.2; }
+        .record-dock-action:hover, .record-dock-action.is-active { border-color: rgba(14,165,233,.28); background: #f0f9ff; }
+        .record-dock-primary { background: #064e3b; color: #fff; box-shadow: 0 10px 24px rgba(6,78,59,.22); }
+        .record-dock-primary:hover, .record-dock-primary.is-active { background: #047857; border-color: rgba(255,255,255,.2); }
+        .record-dock-icon { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
+        .record-dock-primary .record-dock-icon { background: rgba(255,255,255,.16); }
+        .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .record-submit-dock { display: none; }
+        .site-footer { padding-bottom: 104px; }
+        .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
+        @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
         .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; }
+        .record-form[hidden] { display: none; }
         .record-field { display: flex; flex-direction: column; gap: 8px; }
         .record-field-wide { grid-column: 1 / -1; }
         .record-label { font-weight: 800; color: #0f172a; font-size: 14px; }
         .record-help { font-size: 12px; line-height: 1.6; color: #64748b; }
+        .record-advanced { padding: 0; }
+        .record-advanced summary { min-height: 52px; display: flex; align-items: center; padding: 0 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-weight: 900; cursor: pointer; }
+        .record-advanced-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; border-radius: 20px; background: rgba(248,250,252,.7); border: 1px solid rgba(15,23,42,.06); }
         .record-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         .record-mode-chip { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 18px; border: 1px solid rgba(15,23,42,.1); background: rgba(255,255,255,.84); color: #0f172a; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
         .record-mode-chip strong { font-size: 14px; }
@@ -2320,8 +3307,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-survey-caution { display: grid; gap: 4px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
         .record-survey-caution strong { color: #0f172a; font-size: 13px; }
         .record-survey-caution span { color: #475569; font-size: 12px; line-height: 1.7; font-weight: 700; }
-        .record-photo-field input[type="file"] { padding: 14px; border-style: dashed; }
         .record-video-progress { grid-column: 1 / -1; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.2); display: grid; gap: 8px; }
+        .record-video-progress[hidden] { display: none; }
         .record-video-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         .record-video-progress strong { font-size: 13px; color: #0f172a; }
         .record-video-progress progress { width: 100%; height: 13px; }
@@ -2352,9 +3339,34 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-preview-photo video { width: 100%; height: 100%; display: block; object-fit: cover; background: #020617; }
         .record-preview-photo.is-empty { color: #475569; font-size: 13px; }
         @media (max-width: 720px) {
+          .record-page { padding-bottom: 104px; }
+          .record-has-media .record-page { padding-bottom: 118px; }
+          .record-has-media .hero-panel { display: none; }
           .record-card { padding: 20px; border-radius: 24px; }
+          .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
+          .record-has-media .record-capture-launcher,
+          .record-has-media .record-card-head { display: none; }
+          .record-capture-option { min-height: 124px; padding: 14px; border-radius: 18px; }
+          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: 1.25fr repeat(3, minmax(0, .78fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
+          .record-has-media .record-capture-dock { display: none; }
+          .record-dock-action { min-height: 58px; flex-direction: column; gap: 4px; padding: 7px 6px; border-radius: 17px; font-size: 11px; }
+          .record-dock-primary { flex-direction: row; font-size: 13px; }
+          .record-dock-icon { width: 28px; height: 28px; }
+          .record-location-nudge { margin-left: 0; align-items: flex-start; flex-direction: column; }
+          .record-location-nudge button { width: 100%; }
+          .record-autofill-status { margin-left: 0; max-width: 100%; border-radius: 16px; }
+          .record-place-head { flex-direction: column; }
+          .record-place-head .record-gps-btn { width: 100%; }
+          .record-place-search { grid-template-columns: 1fr; }
+          .record-location-map { min-height: 220px; }
+          .record-submit-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 42; display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); gap: 8px; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.96); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); }
+          .record-submit-location, .record-submit-primary { min-height: 58px; border-radius: 17px; border: 0; font: inherit; font-weight: 950; cursor: pointer; }
+          .record-submit-location { background: #f1f5f9; color: #0f172a; }
+          .record-submit-primary { background: #064e3b; color: #fff; box-shadow: 0 10px 24px rgba(6,78,59,.22); }
+          .record-submit-location:disabled, .record-submit-primary:disabled { opacity: .55; cursor: wait; }
+          .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
-          .record-mode-grid, .record-survey-grid { grid-template-columns: 1fr; }
+          .record-mode-grid, .record-survey-grid, .record-advanced-grid { grid-template-columns: 1fr; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }
         }
@@ -3275,34 +4287,94 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/profile", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const session = await getSessionFromCookie(request.headers.cookie);
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     if (!session) {
-      reply.code(401).type("text/html; charset=utf-8");
-      return layout(basePath, "サインインが必要です", stateCard("サインイン", "プロフィールの表示にはサインインが必要です", "ログイン済みのセッションがまだありません。トップページからサインインしてください。"), "ホーム");
+      reply.type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "マイページ | ikimon",
+        stateCard(
+          "マイページ",
+          "ログインすると、自分の場所と記録をまとめて見られます",
+          `<p style="margin:0 0 12px">総観察数、今月の記録、よく歩く場所、Life List を 1 つのハブで確認できます。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile"))}">ログインしてマイページへ</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/profile"))}">新しく登録する</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
     }
     const snapshot = await getProfileSnapshot(session.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
     }
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const heroActions = [
+      { href: "/record", label: "記録する" },
+      { href: "/notes", label: "ノートを見る", variant: "secondary" as const },
+      { href: "/home", label: "再訪ホーム", variant: "secondary" as const },
+      { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
+      { href: "/logout", label: "ログアウト", variant: "secondary" as const },
+    ];
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | ikimon`,
-      renderProfileSnapshotBody(basePath, lang, snapshot.userId, snapshot),
+      `マイページ | ${snapshot.displayName} | ikimon`,
+      renderSelfProfileHub(basePath, lang, snapshot),
       "ホーム",
       {
-        eyebrow: "あなたのプロフィール",
+        eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: `${snapshot.rankLabel || "Observer"} — あなたのフィールドノートと場所の記録。`,
+        lead: "あなたのマイページ。記録した場所、最近の観察、Life List、次にやることをまとめて確認します。",
+        actions: heroActions,
+      },
+      PROFILE_HUB_STYLES,
+    );
+  });
+
+  app.get("/profile/settings", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    if (!session) {
+      reply.type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "プロフィール編集 | ikimon",
+        stateCard(
+          "プロフィール編集",
+          "プロフィール編集にはログインが必要です",
+          `<div class="actions" style="margin-top:16px">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile/settings"))}">ログインする</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/profile"))}">マイページへ</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
+    const snapshot = await getProfileSnapshot(session.userId);
+    if (!snapshot) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return layout(basePath, "プロフィール編集 | ikimon", stateCard("プロフィールなし", "編集できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
+    }
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      "プロフィール編集 | ikimon",
+      renderProfileSettingsForm(basePath, snapshot),
+      "ホーム",
+      {
+        eyebrow: snapshot.rankLabel || "観察者",
+        heading: "プロフィール編集",
+        lead: "表示名、関心分野、自己紹介を整えて、マイページと公開プロフィールの文脈をそろえます。",
         actions: [
-          { href: "/notes", label: "ノートへ" },
-          { href: "/home", label: "ホームへ", variant: "secondary" as const },
+          { href: "/profile", label: "マイページへ戻る", variant: "secondary" as const },
+          { href: "/record", label: "記録する" },
         ],
       },
-      PLACE_REVISIT_ROW_STYLES,
+      PROFILE_HUB_STYLES,
     );
   });
 

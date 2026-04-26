@@ -20,12 +20,20 @@ type GuideCopy = {
   audioEmpty: string;
   audioSkipped: string;
   audioUnnamed: string;
+  nowTitle: string;
+  nowHint: string;
+  trailTitle: string;
+  trailEmpty: string;
+  trailPending: string;
+  trailDeferred: string;
+  playTrail: string;
+  saveTrail: string;
 };
 
 const COPY: Record<SiteLang, GuideCopy> = {
   ja: {
     title: "ライブガイド",
-    subtitle: "常時映像・音声を分析し、土地の物語をガイドします",
+    subtitle: "映像と音から、土地の物語を足跡に残します",
     startBtn: "ガイドを開始する",
     stopBtn: "停止する",
     langLabel: "言語",
@@ -47,6 +55,14 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioEmpty: "自然音のまとまりはまだありません",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",
     audioUnnamed: "まだ名前が付いていない音",
+    nowTitle: "Now",
+    nowHint: "今の景色には短い状態だけを出します。AIの答えは少し前の足跡として下に残ります。",
+    trailTitle: "Trail",
+    trailEmpty: "さっきの発見はまだありません",
+    trailPending: "さっきの景色を解析中",
+    trailDeferred: "移動中なので足跡に残しました",
+    playTrail: "聞く",
+    saveTrail: "保存",
   },
   en: {
     title: "Live Guide",
@@ -72,6 +88,14 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioEmpty: "No natural sound bundles yet",
     audioSkipped: "Some clips were skipped for privacy",
     audioUnnamed: "Unnamed sound",
+    nowTitle: "Now",
+    nowHint: "The current view stays quiet. AI results appear below as earlier trail cards.",
+    trailTitle: "Trail",
+    trailEmpty: "No earlier discoveries yet",
+    trailPending: "Analysing an earlier view",
+    trailDeferred: "Saved to the trail while you keep moving",
+    playTrail: "Play",
+    saveTrail: "Save",
   },
   es: {
     title: "Guía de Campo",
@@ -97,6 +121,14 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioEmpty: "Todavía no hay grupos de sonidos naturales",
     audioSkipped: "Algunos clips se omitieron por privacidad",
     audioUnnamed: "Sonido sin nombre",
+    nowTitle: "Ahora",
+    nowHint: "La vista actual se mantiene ligera. Los resultados aparecen abajo como tarjetas del recorrido.",
+    trailTitle: "Recorrido",
+    trailEmpty: "Todavía no hay descubrimientos anteriores",
+    trailPending: "Analizando una vista anterior",
+    trailDeferred: "Guardado en el recorrido mientras sigues avanzando",
+    playTrail: "Escuchar",
+    saveTrail: "Guardar",
   },
   "pt-BR": {
     title: "Guia de Campo",
@@ -122,6 +154,14 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioEmpty: "Ainda não há grupos de sons naturais",
     audioSkipped: "Alguns clipes foram ignorados por privacidade",
     audioUnnamed: "Som sem nome",
+    nowTitle: "Agora",
+    nowHint: "A visão atual fica leve. Os resultados aparecem abaixo como cartões do trajeto.",
+    trailTitle: "Trajeto",
+    trailEmpty: "Ainda não há descobertas anteriores",
+    trailPending: "Analisando uma visão anterior",
+    trailDeferred: "Salvo no trajeto enquanto você continua andando",
+    playTrail: "Ouvir",
+    saveTrail: "Salvar",
   },
 };
 
@@ -160,19 +200,29 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <p class="guide-privacy-note">${escapeHtml(c.privacyNotice)}</p>
   </div>
 
+  <div class="guide-now" id="guide-now" hidden>
+    <div>
+      <h2 class="guide-now-title">${escapeHtml(c.nowTitle)}</h2>
+      <p class="guide-now-hint">${escapeHtml(c.nowHint)}</p>
+    </div>
+    <div class="guide-now-state" id="guide-now-state"></div>
+  </div>
+
   <div class="guide-camera-wrap" id="guide-camera-wrap" hidden>
     <video class="guide-video" id="guide-video" autoplay playsinline muted></video>
     <div class="guide-status" id="guide-status"></div>
     <button class="guide-stop-btn" id="guide-stop-btn">${escapeHtml(c.stopBtn)}</button>
-    <button class="guide-record-btn" id="guide-record-btn" hidden>${escapeHtml(c.recordBtn)}</button>
   </div>
 
   <div class="guide-permission-msg" id="guide-permission-msg" hidden>${escapeHtml(c.permissionDenied)}</div>
 
   <div class="guide-discoveries" id="guide-discoveries">
-    <h2 class="guide-discoveries-title">${escapeHtml(c.reviewTitle)}</h2>
+    <div class="guide-trail-header">
+      <h2 class="guide-discoveries-title">${escapeHtml(c.trailTitle)}</h2>
+      <span class="guide-trail-pill" id="guide-trail-pill" hidden></span>
+    </div>
     <ul class="guide-discovery-list" id="guide-discovery-list">
-      <li class="guide-no-records" id="guide-no-records">${escapeHtml(c.noRecords)}</li>
+      <li class="guide-no-records" id="guide-no-records">${escapeHtml(c.trailEmpty)}</li>
     </ul>
   </div>
 
@@ -195,7 +245,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     playing: ${JSON.stringify(c.playing)},
     audioEmpty: ${JSON.stringify(c.audioEmpty)},
     audioSkipped: ${JSON.stringify(c.audioSkipped)},
-    audioUnnamed: ${JSON.stringify(c.audioUnnamed)}
+    audioUnnamed: ${JSON.stringify(c.audioUnnamed)},
+    trailPending: ${JSON.stringify(c.trailPending)},
+    trailDeferred: ${JSON.stringify(c.trailDeferred)},
+    playTrail: ${JSON.stringify(c.playTrail)},
+    saveTrail: ${JSON.stringify(c.saveTrail)}
   };
   const BASE = ${JSON.stringify(basePath)};
 
@@ -211,21 +265,26 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   let running = false;
   let lastScene = null;
   let lastKnownPosition = { lat: 35.68, lng: 139.76 };
+  let liveAssistToken = null;
   let sceneAudioChunks = [];
   let analyserFrames = [];
   let clientPrivacySkippedCount = 0;
+  const pendingScenes = new Map();
+  const readyScenes = new Map();
   const sessionId = 'guide-' + Math.random().toString(36).slice(2);
   const preferredMime = pickAudioMimeType();
 
   const video      = document.getElementById('guide-video');
   const startBtn   = document.getElementById('guide-start-btn');
   const stopBtn    = document.getElementById('guide-stop-btn');
-  const recBtn     = document.getElementById('guide-record-btn');
   const camWrap    = document.getElementById('guide-camera-wrap');
+  const nowWrap    = document.getElementById('guide-now');
+  const nowState   = document.getElementById('guide-now-state');
   const permMsg    = document.getElementById('guide-permission-msg');
   const statusEl   = document.getElementById('guide-status');
   const listEl     = document.getElementById('guide-discovery-list');
   const noRec      = document.getElementById('guide-no-records');
+  const trailPill  = document.getElementById('guide-trail-pill');
   const audioList  = document.getElementById('guide-audio-list');
   const audioEmpty = document.getElementById('guide-audio-empty');
   const audioSkip  = document.getElementById('guide-audio-skipped');
@@ -233,6 +292,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   function getLang() { return document.getElementById('guide-lang-select').value; }
   function getCategory() { return document.getElementById('guide-category-select').value; }
   function setStatus(msg) { if (statusEl) statusEl.textContent = msg; }
+  function setNowState(msg) { if (nowState) nowState.textContent = msg || ''; }
   function escapeInline(value) {
     return String(value || '').replace(/[&<>\"']/g, function (char) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] || char;
@@ -266,6 +326,13 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
   }
+  function captureFrameThumb() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 144;
+    canvas.height = 108;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.46);
+  }
   function blobToBase64(blob) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -297,15 +364,61 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       console.error('TTS playback error', e);
     }
   }
-  function addDiscovery(summary, species) {
+  function updateTrailPill() {
+    if (!trailPill) return;
+    const pendingCount = pendingScenes.size;
+    if (pendingCount > 0) {
+      trailPill.hidden = false;
+      trailPill.textContent = copy.trailPending + ' ' + pendingCount;
+    } else {
+      trailPill.hidden = true;
+      trailPill.textContent = '';
+    }
+  }
+  function addPendingDiscovery(scene) {
     if (noRec) noRec.remove();
     const li = document.createElement('li');
-    li.className = 'guide-discovery-item';
-    li.innerHTML = '<span class="gdi-icon">📍</span><div class="gdi-body">'
-      + '<div class="gdi-summary">' + escapeInline(summary) + '</div>'
-      + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
-      + '</div>';
+    li.className = 'guide-discovery-item guide-discovery-pending';
+    li.id = 'scene-' + scene.sceneId;
+    li.innerHTML = '<div class="gdi-thumb-wrap">' + (scene.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(scene.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
+      + '<div class="gdi-body"><div class="gdi-kicker">' + escapeInline(copy.trailPending) + '</div>'
+      + '<div class="gdi-summary">' + escapeInline(formatCaptured(scene.capturedAt)) + '</div></div>';
     listEl.prepend(li);
+    updateTrailPill();
+  }
+  function formatCaptured(value) {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  function formatDistance(value) {
+    if (typeof value !== 'number') return '';
+    const lang = getLang();
+    if (lang === 'ja') return ' · 現在地から' + value + 'm';
+    return ' · ' + value + 'm from current';
+  }
+  function renderReadyDiscovery(scene) {
+    const existing = document.getElementById('scene-' + scene.sceneId);
+    const li = existing || document.createElement('li');
+    li.className = 'guide-discovery-item';
+    li.id = 'scene-' + scene.sceneId;
+    const species = Array.isArray(scene.detectedSpecies) ? scene.detectedSpecies : [];
+    const distance = formatDistance(scene.distanceFromCurrentM);
+    li.innerHTML = '<div class="gdi-thumb-wrap">' + (scene.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(scene.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
+      + '<div class="gdi-body">'
+      + '<div class="gdi-kicker">' + escapeInline(formatCaptured(scene.capturedAt) + distance) + '</div>'
+      + '<div class="gdi-summary">' + escapeInline(scene.delayedSummary || scene.summary || '') + '</div>'
+      + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
+      + (scene.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(scene.uncertaintyReason) + '</div>' : '')
+      + '<div class="gdi-why">' + escapeInline(scene.whyInteresting || '') + '</div>'
+      + '<div class="gdi-next">' + escapeInline(scene.nextLookTarget || '') + '</div>'
+      + (scene.deliveryState === 'deferred' ? '<div class="gdi-deferred">' + escapeInline(copy.trailDeferred) + '</div>' : '')
+      + '<div class="gdi-actions"><button type="button" class="gdi-play" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.playTrail) + '</button>'
+      + '<button type="button" class="gdi-save" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.saveTrail) + '</button></div>'
+      + '</div>';
+    if (!existing) listEl.prepend(li);
+    readyScenes.set(scene.sceneId, scene);
+    updateTrailPill();
   }
   function startAnalyser() {
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -509,50 +622,128 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   async function doAnalyse() {
     if (!running) return;
     setStatus(copy.analysing);
+    setNowState(copy.analysing);
     try {
       lastKnownPosition = await getLocation();
       const frame = captureFrame();
+      const frameThumb = captureFrameThumb();
+      const capturedAt = new Date().toISOString();
       const audio = await captureAudioForScene();
       const lang = getLang();
-      const cat = getCategory();
       const sceneRes = await fetch(BASE + '/api/v1/guide/scene', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           frame,
+          frameThumb,
           audio,
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
           lang,
-          sessionId
+          sessionId,
+          capturedAt
         })
       }).then((r) => r.json());
-      lastScene = sceneRes;
-      if (sceneRes.isNew) {
-        recBtn.hidden = false;
-        addDiscovery(sceneRes.summary, sceneRes.detectedSpecies || []);
-        const ttsRes = await fetch(BASE + '/api/v1/guide/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sceneSummary: sceneRes.summary,
-            category: cat,
-            lang,
-            lat: lastKnownPosition.lat,
-            lng: lastKnownPosition.lng,
-            detectedSpecies: sceneRes.detectedSpecies || [],
-          })
-        }).then((r) => r.json());
-        if (ttsRes.audioBase64) await playAudio(ttsRes.audioBase64);
-      } else {
-        setStatus('');
+      if (sceneRes && sceneRes.sceneId) {
+        pendingScenes.set(sceneRes.sceneId, sceneRes);
+        addPendingDiscovery(sceneRes);
+        void watchScene(sceneRes.sceneId);
       }
+      setStatus('');
+      setNowState('');
     } catch (e) {
       console.error('Guide analyse error', e);
       setStatus('');
+      setNowState('');
     }
     scheduleRecapRefresh();
     if (running) analyseTimer = setTimeout(doAnalyse, 8000);
+  }
+  async function watchScene(sceneId) {
+    if (!('EventSource' in window)) {
+      void pollScene(sceneId, 0);
+      return;
+    }
+    try {
+      const pos = await getLocation();
+      const params = new URLSearchParams({ currentLat: String(pos.lat), currentLng: String(pos.lng) });
+      const source = new EventSource(BASE + '/api/v1/guide/scene/' + encodeURIComponent(sceneId) + '/events?' + params.toString());
+      let closed = false;
+      const close = function () {
+        closed = true;
+        source.close();
+      };
+      source.addEventListener('ready', function (event) {
+        const scene = JSON.parse(event.data || '{}');
+        pendingScenes.delete(sceneId);
+        lastScene = scene;
+        renderReadyDiscovery(scene);
+        close();
+      });
+      source.addEventListener('scene-error', function () {
+        pendingScenes.delete(sceneId);
+        const item = document.getElementById('scene-' + sceneId);
+        if (item) item.remove();
+        updateTrailPill();
+        close();
+      });
+      source.addEventListener('timeout', function () {
+        close();
+        void pollScene(sceneId, 0);
+      });
+      source.onerror = function () {
+        if (closed || !pendingScenes.has(sceneId)) return;
+        close();
+        void pollScene(sceneId, 0);
+      };
+    } catch (error) {
+      console.error('Guide scene stream error', error);
+      void pollScene(sceneId, 0);
+    }
+  }
+  async function pollScene(sceneId, attempt) {
+    if (!pendingScenes.has(sceneId) || attempt > 24) {
+      updateTrailPill();
+      return;
+    }
+    const delay = attempt < 3 ? 1000 : 1800;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      const pos = await getLocation();
+      const params = new URLSearchParams({ currentLat: String(pos.lat), currentLng: String(pos.lng) });
+      const response = await fetch(BASE + '/api/v1/guide/scene/' + encodeURIComponent(sceneId) + '?' + params.toString());
+      if (!response.ok) throw new Error('scene poll ' + response.status);
+      const scene = await response.json();
+      if (scene.status === 'ready') {
+        pendingScenes.delete(sceneId);
+        lastScene = scene;
+        renderReadyDiscovery(scene);
+        return;
+      }
+      if (scene.status === 'error') {
+        pendingScenes.delete(sceneId);
+        const item = document.getElementById('scene-' + sceneId);
+        if (item) item.remove();
+        updateTrailPill();
+        return;
+      }
+    } catch (error) {
+      console.error('Guide scene poll error', error);
+    }
+    void pollScene(sceneId, attempt + 1);
+  }
+  async function prepareLiveAssist() {
+    try {
+      const response = await fetch(BASE + '/api/v1/guide/live-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang: getLang() })
+      });
+      if (!response.ok) return;
+      liveAssistToken = await response.json();
+    } catch (error) {
+      liveAssistToken = null;
+    }
   }
   startBtn.addEventListener('click', async () => {
     try {
@@ -574,7 +765,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       }
       startAnalyser();
       running = true;
+      void prepareLiveAssist();
       camWrap.hidden = false;
+      if (nowWrap) nowWrap.hidden = false;
       startBtn.hidden = true;
       permMsg.hidden = true;
       analyseTimer = setTimeout(doAnalyse, 5000);
@@ -596,69 +789,128 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     freqData = null;
     timeData = null;
     camWrap.hidden = true;
+    if (nowWrap) nowWrap.hidden = true;
     startBtn.hidden = false;
-    recBtn.hidden = true;
     setStatus('');
+    setNowState('');
     scheduleRecapRefresh();
   });
-  recBtn.addEventListener('click', async () => {
-    if (!lastScene) return;
-    const pos = await getLocation();
+  async function playTrailScene(scene) {
+    if (!scene) return;
+    const ttsRes = await fetch(BASE + '/api/v1/guide/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sceneSummary: [
+          scene.delayedSummary || scene.summary || '',
+          scene.whyInteresting || '',
+          scene.nextLookTarget || ''
+        ].filter(Boolean).join('\\n'),
+        category: getCategory(),
+        lang: getLang(),
+        lat: scene.lat || lastKnownPosition.lat,
+        lng: scene.lng || lastKnownPosition.lng,
+        detectedSpecies: scene.detectedSpecies || [],
+      })
+    }).then((r) => r.json());
+    if (ttsRes.audioBase64) await playAudio(ttsRes.audioBase64);
+  }
+  async function saveTrailScene(scene, button) {
+    if (!scene) return;
     await fetch(BASE + '/api/v1/guide/record', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId,
         lang: getLang(),
-        lat: pos.lat,
-        lng: pos.lng,
-        sceneHash: lastScene.sceneHash,
-        sceneSummary: lastScene.summary,
-        detectedSpecies: lastScene.detectedSpecies || [],
+        lat: scene.lat || lastKnownPosition.lat,
+        lng: scene.lng || lastKnownPosition.lng,
+        capturedAt: scene.capturedAt,
+        returnedAt: scene.returnedAt,
+        currentDistanceM: scene.distanceFromCurrentM,
+        frameThumb: scene.frameThumb,
+        sceneHash: scene.sceneHash,
+        sceneSummary: scene.delayedSummary || scene.summary || '',
+        detectedSpecies: scene.detectedSpecies || [],
+        ttsScript: null,
       })
     });
-    recBtn.textContent = '✓ 記録しました';
-    setTimeout(() => { recBtn.textContent = ${JSON.stringify(c.recordBtn)}; }, 2000);
+    if (button) {
+      const old = button.textContent;
+      button.textContent = '✓';
+      setTimeout(() => { button.textContent = old; }, 1600);
+    }
+  }
+  listEl.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const sceneId = target.getAttribute('data-scene-id');
+    if (!sceneId) return;
+    const scene = readyScenes.get(sceneId);
+    if (target.classList.contains('gdi-play')) {
+      void playTrailScene(scene);
+    } else if (target.classList.contains('gdi-save')) {
+      void saveTrailScene(scene, target);
+    }
   });
 })();
 </script>`;
 }
 
 export const GUIDE_FLOW_STYLES = `
-  .guide-root { max-width: 600px; margin: 0 auto; padding: 20px 16px 60px; }
+  .guide-root { max-width: 640px; min-height: calc(100vh - 80px); margin: 0 auto; padding: 30px 16px 64px; background-image: linear-gradient(rgba(16,185,129,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,.045) 1px, transparent 1px); background-size: 56px 56px; }
   .guide-header { margin-bottom: 24px; }
-  .guide-title { font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -.02em; margin: 0 0 6px; }
-  .guide-subtitle { font-size: 13px; color: #64748b; margin: 0; line-height: 1.6; }
+  .guide-title { font-size: 32px; font-weight: 950; color: #0f172a; letter-spacing: 0; line-height: 1.12; margin: 0 0 8px; }
+  .guide-subtitle { font-size: 14px; color: #475569; margin: 0; line-height: 1.7; font-weight: 700; }
   .guide-controls { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
-  .guide-privacy-note { margin: 0; font-size: 12px; color: #0f766e; background: rgba(13,148,136,.08); border: 1px solid rgba(13,148,136,.15); border-radius: 14px; padding: 10px 12px; }
+  .guide-privacy-note { margin: 0; font-size: 12px; color: #047857; background: rgba(255,255,255,.82); border: 1px solid rgba(5,150,105,.18); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-selects { display: flex; gap: 10px; flex-wrap: wrap; }
-  .guide-select-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: .06em; display: flex; flex-direction: column; gap: 4px; }
-  .guide-select { padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #fff; font-size: 13px; font-weight: 700; color: #0f172a; cursor: pointer; }
-  .guide-start-btn { padding: 14px 24px; border-radius: 22px; background: linear-gradient(135deg, #10b981, #0ea5e9); color: #fff; font-size: 15px; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 8px 20px rgba(16,185,129,.25); transition: transform .15s ease, box-shadow .15s ease; }
-  .guide-start-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(16,185,129,.3); }
-  .guide-camera-wrap { position: relative; background: #0f172a; border-radius: 20px; overflow: hidden; margin-bottom: 20px; }
-  .guide-video { width: 100%; display: block; border-radius: 20px; max-height: 360px; object-fit: cover; }
+  .guide-select-label { font-size: 11px; font-weight: 900; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
+  .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 800; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
+  .guide-start-btn { min-height: 56px; padding: 14px 24px; border-radius: 999px; background: #059669; color: #fff; font-size: 15px; font-weight: 950; border: none; cursor: pointer; box-shadow: 0 12px 26px rgba(5,150,105,.24); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+  .guide-start-btn:hover { transform: translateY(-2px); background: #047857; box-shadow: 0 16px 30px rgba(5,150,105,.28); }
+  .guide-now[hidden] { display: none; }
+  .guide-now { margin-bottom: 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+  .guide-now-title { margin: 0 0 4px; font-size: 13px; font-weight: 900; color: #0f172a; }
+  .guide-now-hint { margin: 0; font-size: 12px; color: #64748b; line-height: 1.6; }
+  .guide-now-state { min-width: 72px; text-align: right; font-size: 12px; color: #047857; font-weight: 900; }
+  .guide-camera-wrap { position: relative; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 14px 34px rgba(15,23,42,.18); }
+  .guide-video { width: 100%; display: block; border-radius: 8px; max-height: 360px; object-fit: cover; }
   .guide-status { position: absolute; top: 12px; left: 12px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; backdrop-filter: blur(6px); }
   .guide-stop-btn { position: absolute; bottom: 12px; right: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(239,68,68,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
   .guide-record-btn { position: absolute; bottom: 12px; left: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(16,185,129,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
-  .guide-permission-msg { padding: 16px; border-radius: 16px; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #b91c1c; font-size: 13px; font-weight: 700; margin-bottom: 20px; }
+  .guide-permission-msg { padding: 16px; border-radius: 8px; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #b91c1c; font-size: 13px; font-weight: 700; margin-bottom: 20px; }
   .guide-discoveries { margin-top: 24px; }
+  .guide-trail-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .guide-discoveries-title { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; margin: 0 0 12px; }
+  .guide-trail-header .guide-discoveries-title { margin: 0; }
+  .guide-trail-pill { flex: 0 0 auto; border-radius: 999px; padding: 4px 9px; background: rgba(5,150,105,.1); color: #047857; font-size: 11px; font-weight: 900; }
   .guide-discovery-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .guide-no-records { font-size: 13px; color: #94a3b8; padding: 12px 0; }
-  .guide-discovery-item { display: flex; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid rgba(15,23,42,.06); border-radius: 16px; box-shadow: 0 4px 12px rgba(15,23,42,.04); }
+  .guide-discovery-item { display: flex; gap: 12px; padding: 12px 14px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); border-radius: 8px; box-shadow: 0 8px 20px rgba(15,23,42,.05); }
+  .guide-discovery-pending { background: rgba(248,250,252,.94); }
+  .gdi-thumb-wrap { width: 62px; height: 52px; border-radius: 7px; overflow: hidden; background: #e2e8f0; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+  .gdi-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
   .gdi-icon { font-size: 18px; flex-shrink: 0; }
   .gdi-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .gdi-kicker { font-size: 10px; color: #64748b; font-weight: 800; }
   .gdi-summary { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.5; }
   .gdi-species { font-size: 11px; color: #047857; font-weight: 700; }
+  .gdi-note { font-size: 12px; color: #b45309; background: rgba(245,158,11,.1); border-radius: 7px; padding: 7px 8px; line-height: 1.45; }
+  .gdi-why, .gdi-next { font-size: 12px; color: #475569; line-height: 1.55; }
+  .gdi-next { color: #0f766e; font-weight: 700; }
+  .gdi-deferred { font-size: 11px; color: #047857; font-weight: 900; }
+  .gdi-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .gdi-actions button { border: 1px solid rgba(15,23,42,.12); background: #fff; color: #0f172a; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; min-height: 34px; }
+  .gdi-actions .gdi-play { background: #0f172a; color: #fff; }
   .guide-audio { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
   .guide-audio-header { display: flex; flex-direction: column; gap: 6px; }
   .guide-audio-title { margin: 0; font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
   .guide-audio-note { margin: 0; font-size: 12px; color: #64748b; line-height: 1.5; }
-  .guide-audio-skipped { margin: 0; font-size: 12px; color: #b45309; background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.16); border-radius: 14px; padding: 10px 12px; }
+  .guide-audio-skipped { margin: 0; font-size: 12px; color: #b45309; background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.16); border-radius: 8px; padding: 10px 12px; }
   .guide-audio-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .guide-audio-item { margin: 0; }
-  .guide-audio-card { background: linear-gradient(180deg, #f8fafc, #ffffff); border: 1px solid rgba(15,23,42,.08); border-radius: 18px; padding: 14px; box-shadow: 0 8px 20px rgba(15,23,42,.04); display: flex; flex-direction: column; gap: 10px; }
+  .guide-audio-card { background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); border-radius: 8px; padding: 14px; box-shadow: 0 8px 20px rgba(15,23,42,.04); display: flex; flex-direction: column; gap: 10px; }
   .guide-audio-card-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .guide-audio-card-head strong { font-size: 14px; color: #0f172a; }
   .guide-audio-card-head span { font-size: 12px; color: #0f766e; font-weight: 700; }

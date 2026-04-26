@@ -86,13 +86,15 @@ export async function buildGuideScript(opts: {
       : "";
 
   const systemPrompt = `あなたはライブガイドのナレーターです。
-観察者が今いる場所の「${categoryInstructions[opts.category]}」について、自然な語り口で2〜3文のガイドを${langNames[opts.lang]}で生成してください。
+観察者のフィールド体験を邪魔しないよう、短く自然な語り口で2〜3文のガイドを${langNames[opts.lang]}で生成してください。
 
 ルール:
+- scene summary が「秒前」「分前」「earlier」「before」など過去の地点を示す場合、必ずその時制を保つ。「ここ」「今」「目の前」と言い換えない
+- 移動中に割り込む音声ではなく、ユーザーがカードを開いた時の読み上げとして落ち着いて話す
 - 断定を避け「〜が好む環境です」「〜が見られる可能性があります」のように語る
 - 海外旅行者にもわかる平易な表現を使う
 - 文字数は100〜200字程度
-- voice tags ([ゆっくり] [静かに] 等) は使わない
+- Gemini 3.1 Flash TTS は表現タグに対応するが、この画面ではタグを出力しない。必要な抑揚は文章で自然に作る
 - 場所: 緯度${opts.lat.toFixed(4)} 経度${opts.lng.toFixed(4)}
 - 仮説ラベル: ${opts.siteBriefLabel ?? "不明"}
 - ${speciesHint}

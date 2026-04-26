@@ -22,6 +22,41 @@ export type UserUpsertInput = {
   banned?: boolean;
 };
 
+export type ProfileSelfUpdateInput = {
+  userId: string;
+  displayName: unknown;
+  profileBio?: unknown;
+  expertise?: unknown;
+};
+
+function normalizedOptionalText(value: unknown, maxLength: number, errorName: string): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  if (typeof value !== "string") {
+    throw new Error(errorName);
+  }
+  const normalized = value.trim();
+  if (normalized.length > maxLength) {
+    throw new Error(errorName);
+  }
+  return normalized;
+}
+
+function normalizedDisplayName(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new Error("display_name_required");
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error("display_name_required");
+  }
+  if (normalized.length > 50) {
+    throw new Error("display_name_too_long");
+  }
+  return normalized;
+}
+
 export async function upsertUser(input: UserUpsertInput) {
   if (!input.userId.trim()) {
     throw new Error("userId is required");
@@ -150,6 +185,106 @@ export async function upsertUser(input: UserUpsertInput) {
 
   return {
     userId: input.userId,
+    compatibility,
+  };
+}
+
+export async function updateOwnProfile(input: ProfileSelfUpdateInput) {
+  if (!input.userId.trim()) {
+    throw new Error("session_required");
+  }
+
+  const displayName = normalizedDisplayName(input.displayName);
+  const profileBio = normalizedOptionalText(input.profileBio, 500, "profile_bio_too_long");
+  const expertise = normalizedOptionalText(input.expertise, 120, "expertise_too_long");
+
+  const pool = getPool();
+  const client = await pool.connect();
+  let updated:
+    | {
+        user_id: string;
+        display_name: string;
+        rank_label: string | null;
+        profile_bio: string | null;
+        expertise: string | null;
+      }
+    | undefined;
+
+  try {
+    await client.query("begin");
+    const result = await client.query<{
+      user_id: string;
+      display_name: string;
+      rank_label: string | null;
+      profile_bio: string | null;
+      expertise: string | null;
+    }>(
+      `update users
+          set display_name = $2,
+              stats_json = jsonb_set(
+                jsonb_set(coalesce(stats_json, '{}'::jsonb), '{profile,bio}', to_jsonb($3::text), true),
+                '{profile,expertise}', to_jsonb($4::text),
+                true
+              ),
+              updated_at = now()
+        where user_id = $1
+        returning
+          user_id,
+          display_name,
+          rank_label,
+          coalesce(stats_json, '{}'::jsonb) #>> '{profile,bio}' as profile_bio,
+          coalesce(stats_json, '{}'::jsonb) #>> '{profile,expertise}' as expertise`,
+      [input.userId, displayName, profileBio, expertise],
+    );
+
+    updated = result.rows[0];
+    if (!updated) {
+      throw new Error("user_not_found");
+    }
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const config = loadConfig();
+  const compatibility = {
+    attempted: config.compatibilityWriteEnabled,
+    succeeded: false,
+    error: undefined as string | undefined,
+  };
+
+  if (config.compatibilityWriteEnabled) {
+    try {
+      await writeLegacyUser(input.userId, {
+        legacyDataRoot: config.legacyDataRoot,
+        publicRoot: config.legacyPublicRoot,
+      });
+      compatibility.succeeded = true;
+    } catch (error) {
+      compatibility.error = error instanceof Error ? error.message : "compatibility_write_failed";
+      const failureClient = await pool.connect();
+      try {
+        await recordCompatibilityFailure(failureClient, "user", input.userId, config.legacyDataRoot, {
+          error: compatibility.error,
+        });
+      } finally {
+        failureClient.release();
+      }
+    }
+  }
+
+  return {
+    user: {
+      userId: updated.user_id,
+      displayName: updated.display_name,
+      rankLabel: updated.rank_label,
+      profileBio: updated.profile_bio ?? "",
+      expertise: updated.expertise ?? "",
+    },
     compatibility,
   };
 }

@@ -76,10 +76,23 @@ export type GuideRecordInput = {
   occurrenceId?: string | null;
   lat: number;
   lng: number;
+  capturedAt?: string | null;
+  returnedAt?: string | null;
+  currentDistanceM?: number | null;
+  deliveryState?: "pending" | "ready" | "surfaced" | "deferred" | "archived";
+  seenState?: "unseen" | "seen" | "dismissed" | "saved";
+  frameThumb?: string | null;
   sceneHash: string;
   sceneSummary: string;
   detectedSpecies: string[];
   detectedFeatures: DetectedFeature[];
+  primarySubject?: PrimarySubject | null;
+  environmentContext?: string | null;
+  seasonalNote?: string | null;
+  coexistingTaxa?: string[] | null;
+  confidenceContext?: Record<string, unknown> | null;
+  mediaRefs?: Record<string, unknown> | null;
+  meta?: Record<string, unknown> | null;
   ttsScript?: string | null;
   lang: TtsLang;
 };
@@ -269,13 +282,55 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
         input.lng,
         input.sceneHash,
         input.sceneSummary,
-        JSON.stringify(input.detectedSpecies),
+        input.detectedSpecies,
         JSON.stringify(input.detectedFeatures),
         input.ttsScript ?? null,
         input.lang,
       ],
     );
-    return result.rows[0]?.guide_record_id ?? "";
+    const guideRecordId = result.rows[0]?.guide_record_id ?? "";
+
+    if (guideRecordId) {
+      await client.query(
+        `insert into guide_record_latency_states
+           (guide_record_id, captured_at, returned_at, current_distance_m, delivery_state, seen_state,
+            frame_thumb, primary_subject, environment_context, seasonal_note, coexisting_taxa,
+            confidence_context, media_refs, meta)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb)
+         on conflict (guide_record_id) do update set
+           captured_at = excluded.captured_at,
+           returned_at = excluded.returned_at,
+           current_distance_m = excluded.current_distance_m,
+           delivery_state = excluded.delivery_state,
+           seen_state = excluded.seen_state,
+           frame_thumb = excluded.frame_thumb,
+           primary_subject = excluded.primary_subject,
+           environment_context = excluded.environment_context,
+           seasonal_note = excluded.seasonal_note,
+           coexisting_taxa = excluded.coexisting_taxa,
+           confidence_context = excluded.confidence_context,
+           media_refs = excluded.media_refs,
+           meta = excluded.meta`,
+        [
+          guideRecordId,
+          input.capturedAt ?? null,
+          input.returnedAt ?? null,
+          input.currentDistanceM ?? null,
+          input.deliveryState ?? "ready",
+          input.seenState ?? "unseen",
+          input.frameThumb ?? null,
+          JSON.stringify(input.primarySubject ?? {}),
+          input.environmentContext ?? null,
+          input.seasonalNote ?? null,
+          input.coexistingTaxa ?? [],
+          JSON.stringify(input.confidenceContext ?? {}),
+          JSON.stringify(input.mediaRefs ?? {}),
+          JSON.stringify(input.meta ?? {}),
+        ],
+      );
+    }
+
+    return guideRecordId;
   } finally {
     client.release();
   }

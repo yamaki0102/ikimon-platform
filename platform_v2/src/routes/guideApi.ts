@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
-import { analyzeScene, saveGuideRecord } from "../services/guideSession.js";
+import { createGuideLiveToken } from "../services/guideLiveToken.js";
+import { analyzeScene, saveGuideRecord, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
 import type { TtsLang } from "../services/guideTts.js";
 
@@ -13,12 +15,144 @@ function parseLang(raw: unknown): TtsLang {
   return "ja";
 }
 
+type PendingGuideScene = {
+  sceneId: string;
+  sessionId: string;
+  userId: string | null;
+  lat: number;
+  lng: number;
+  lang: TtsLang;
+  capturedAt: string;
+  requestedAt: string;
+  returnedAt: string | null;
+  frameThumb: string | null;
+  status: "pending" | "ready" | "error";
+  result: SceneResult | null;
+  error: string | null;
+};
+
+const sceneJobs = new Map<string, PendingGuideScene>();
+const SCENE_JOB_TTL_MS = 30 * 60 * 1000;
+let lastSceneJobGc = Date.now();
+
+function pruneSceneJobs(): void {
+  const now = Date.now();
+  if (now - lastSceneJobGc < 60_000 && sceneJobs.size < 2_000) return;
+  lastSceneJobGc = now;
+  for (const [sceneId, job] of sceneJobs) {
+    const baseTime = Date.parse(job.returnedAt ?? job.requestedAt);
+    if (Number.isFinite(baseTime) && now - baseTime > SCENE_JOB_TTL_MS) {
+      sceneJobs.delete(sceneId);
+    }
+  }
+  while (sceneJobs.size > 2_000) {
+    const first = sceneJobs.keys().next().value;
+    if (!first) break;
+    sceneJobs.delete(first);
+  }
+}
+
+function metersBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const r = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * r * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function sceneAgeSeconds(capturedAt: string, now = new Date()): number {
+  const t = Date.parse(capturedAt);
+  if (!Number.isFinite(t)) return 0;
+  return Math.max(0, Math.round((now.getTime() - t) / 1000));
+}
+
+function buildDelayedSceneCopy(result: SceneResult, ageSec: number): {
+  delayedSummary: string;
+  whyInteresting: string;
+  nextLookTarget: string;
+  uncertaintyReason: string | null;
+} {
+  const ageLabel = ageSec < 60 ? `${ageSec}秒前` : `${Math.round(ageSec / 60)}分前`;
+  const subject = result.primarySubject?.name || result.detectedSpecies[0] || "";
+  const lowConfidence = (result.primarySubject?.confidence ?? 1) < 0.62;
+  const delayedSummary = `${ageLabel}の地点で、${result.summary}`;
+  const whyInteresting = result.seasonalNote || result.environmentContext || (subject
+    ? `${subject}だけでなく、周囲の環境と一緒に見ると発見が増えます。`
+    : "種名が確定しなくても、環境や季節の手がかりとして残せます。");
+  const nextLookTarget = subject
+    ? `${subject}をもう一度見るなら、全体・近い特徴・いた場所の3つを分けて確認すると進みます。`
+    : "次に見るなら、葉・花・実・足元の環境など、名前以外の手がかりを1つ足してください。";
+  const uncertaintyReason = lowConfidence
+    ? "このフレームだけでは特徴が足りないため、種名は確定せず手がかりとして扱います。"
+    : null;
+  return { delayedSummary, whyInteresting, nextLookTarget, uncertaintyReason };
+}
+
+function distanceFromCurrent(job: PendingGuideScene, currentLatRaw: unknown, currentLngRaw: unknown): number | null {
+  const currentLat = Number(currentLatRaw);
+  const currentLng = Number(currentLngRaw);
+  if (!Number.isFinite(currentLat) || !Number.isFinite(currentLng)) return null;
+  return Math.round(metersBetween({ lat: job.lat, lng: job.lng }, { lat: currentLat, lng: currentLng }));
+}
+
+function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number | null): Record<string, unknown> {
+  if (job.status !== "ready" || !job.result || !job.returnedAt) {
+    return {
+      sceneId: job.sceneId,
+      status: job.status,
+      capturedAt: job.capturedAt,
+      returnedAt: job.returnedAt,
+      lat: job.lat,
+      lng: job.lng,
+      frameThumb: job.frameThumb,
+      error: job.error,
+    };
+  }
+
+  const ageSec = sceneAgeSeconds(job.capturedAt, new Date(job.returnedAt));
+  const copy = buildDelayedSceneCopy(job.result, ageSec);
+  const deliveryState = distanceFromCurrentM != null && distanceFromCurrentM > 25 ? "deferred" : "ready";
+
+  return {
+    sceneId: job.sceneId,
+    status: "ready",
+    capturedAt: job.capturedAt,
+    returnedAt: job.returnedAt,
+    lat: job.lat,
+    lng: job.lng,
+    frameThumb: job.frameThumb,
+    distanceFromCurrentM,
+    deliveryState,
+    summary: job.result.summary,
+    delayedSummary: copy.delayedSummary,
+    whyInteresting: copy.whyInteresting,
+    nextLookTarget: copy.nextLookTarget,
+    uncertaintyReason: copy.uncertaintyReason,
+    detectedSpecies: job.result.detectedSpecies,
+    detectedFeatures: job.result.detectedFeatures,
+    primarySubject: job.result.primarySubject,
+    environmentContext: job.result.environmentContext,
+    seasonalNote: job.result.seasonalNote,
+    coexistingTaxa: job.result.coexistingTaxa,
+    isNew: job.result.isNew,
+    sceneHash: job.result.sceneHash,
+  };
+}
+
+function writeSse(reply: { raw: { write: (chunk: string) => void } }, event: string, payload: Record<string, unknown>): void {
+  reply.raw.write(`event: ${event}\n`);
+  reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
 export function registerGuideApiRoutes(app: FastifyInstance): void {
   /**
    * POST /api/v1/guide/scene
-   * Analyse a video frame (+ optional audio) → scene summary + auto-save to guide_records.
+   * Queue video frame (+ optional audio) analysis and immediately return a scene_id.
    * Body (JSON):
    *   frame:       string  base64 JPEG/PNG frame
+   *   frameThumb?: string  compact data URL thumbnail for delayed trail cards
    *   audio?:      string  base64 PCM audio buffer
    *   frameMime?:  string  MIME type of frame (default "image/jpeg")
    *   lat:         number
@@ -28,6 +162,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    *   siteBriefLabel?: string
    */
   app.post("/api/v1/guide/scene", async (request, reply) => {
+    pruneSceneJobs();
     const body = request.body as Record<string, unknown>;
     const frame = typeof body.frame === "string" ? body.frame : null;
     if (!frame) return reply.status(400).send({ error: "frame is required" });
@@ -43,54 +178,183 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const userId = session?.userId ?? null;
 
-    const capturedAt = typeof body.capturedAt === "string" ? body.capturedAt : null;
+    const capturedAt = typeof body.capturedAt === "string" ? body.capturedAt : new Date().toISOString();
     const azimuthRaw = body.azimuth;
     const azimuth = typeof azimuthRaw === "number" && Number.isFinite(azimuthRaw)
       ? azimuthRaw
       : (typeof azimuthRaw === "string" && azimuthRaw !== "" && Number.isFinite(Number(azimuthRaw)) ? Number(azimuthRaw) : null);
+    const sceneId = randomUUID();
+    const requestedAt = new Date().toISOString();
+    const frameThumb = typeof body.frameThumb === "string" ? body.frameThumb : null;
 
-    const sceneResult = await analyzeScene({
-      frameBase64: frame,
-      audioBase64: typeof body.audio === "string" ? body.audio : null,
-      frameMimeType: typeof body.frameMime === "string" ? body.frameMime : "image/jpeg",
-      context: {
-        lat,
-        lng,
-        lang,
-        sessionId,
-        userId,
-        siteBriefLabel: typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null,
-        capturedAt,
-        azimuth,
-      },
+    const job: PendingGuideScene = {
+      sceneId,
+      sessionId,
+      userId,
+      lat,
+      lng,
+      lang,
+      capturedAt,
+      requestedAt,
+      returnedAt: null,
+      frameThumb,
+      status: "pending",
+      result: null,
+      error: null,
+    };
+    sceneJobs.set(sceneId, job);
+
+    void (async () => {
+      try {
+        const sceneResult = await analyzeScene({
+          frameBase64: frame,
+          audioBase64: typeof body.audio === "string" ? body.audio : null,
+          frameMimeType: typeof body.frameMime === "string" ? body.frameMime : "image/jpeg",
+          context: {
+            lat,
+            lng,
+            lang,
+            sessionId,
+            userId,
+            siteBriefLabel: typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null,
+            capturedAt,
+            azimuth,
+          },
+        });
+
+        job.status = "ready";
+        job.returnedAt = new Date().toISOString();
+        job.result = sceneResult;
+
+        if (sceneResult.isNew) {
+          const ageSec = sceneAgeSeconds(capturedAt, new Date(job.returnedAt));
+          const copy = buildDelayedSceneCopy(sceneResult, ageSec);
+          await saveGuideRecord({
+            sessionId,
+            userId,
+            lat,
+            lng,
+            capturedAt,
+            returnedAt: job.returnedAt,
+            currentDistanceM: null,
+            deliveryState: "ready",
+            seenState: "unseen",
+            frameThumb,
+            sceneHash: sceneResult.sceneHash,
+            sceneSummary: copy.delayedSummary,
+            detectedSpecies: sceneResult.detectedSpecies,
+            detectedFeatures: sceneResult.detectedFeatures,
+            primarySubject: sceneResult.primarySubject ?? null,
+            environmentContext: sceneResult.environmentContext ?? null,
+            seasonalNote: sceneResult.seasonalNote ?? null,
+            coexistingTaxa: sceneResult.coexistingTaxa ?? [],
+            confidenceContext: {
+              delayed: true,
+              ageSec,
+              uncertaintyReason: copy.uncertaintyReason,
+            },
+            mediaRefs: frameThumb ? { frameThumb } : {},
+            meta: {
+              sceneId,
+              whyInteresting: copy.whyInteresting,
+              nextLookTarget: copy.nextLookTarget,
+            },
+            lang,
+          });
+        }
+      } catch (error) {
+        job.status = "error";
+        job.returnedAt = new Date().toISOString();
+        job.error = error instanceof Error ? error.message : "scene_analysis_failed";
+      }
+    })();
+
+    return reply.status(202).send({
+      sceneId,
+      status: "pending",
+      capturedAt,
+      lat,
+      lng,
+      frameThumb,
     });
+  });
 
-    // Auto-save to guide_records (non-blocking on failure)
-    if (sceneResult.isNew) {
-      void saveGuideRecord({
-        sessionId,
-        userId,
-        lat,
-        lng,
-        sceneHash: sceneResult.sceneHash,
-        sceneSummary: sceneResult.summary,
-        detectedSpecies: sceneResult.detectedSpecies,
-        detectedFeatures: sceneResult.detectedFeatures,
-        lang,
-      }).catch(() => undefined);
+  app.get<{ Params: { id: string }; Querystring: { currentLat?: string; currentLng?: string } }>(
+    "/api/v1/guide/scene/:id",
+    async (request, reply) => {
+      pruneSceneJobs();
+      const job = sceneJobs.get(request.params.id);
+      if (!job) return reply.status(404).send({ error: "scene not found" });
+
+      return reply.send(buildScenePayload(job, distanceFromCurrent(job, request.query.currentLat, request.query.currentLng)));
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { currentLat?: string; currentLng?: string } }>(
+    "/api/v1/guide/scene/:id/events",
+    async (request, reply) => {
+      pruneSceneJobs();
+      const job = sceneJobs.get(request.params.id);
+      if (!job) return reply.status(404).send({ error: "scene not found" });
+
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      });
+
+      const distance = () => distanceFromCurrent(job, request.query.currentLat, request.query.currentLng);
+      writeSse(reply, "pending", buildScenePayload(job, distance()));
+
+      const startedAt = Date.now();
+      const interval = setInterval(() => {
+        if (reply.raw.destroyed) {
+          clearInterval(interval);
+          return;
+        }
+        const payload = buildScenePayload(job, distance());
+        if (payload.status === "ready") {
+          writeSse(reply, "ready", payload);
+          clearInterval(interval);
+          reply.raw.end();
+          return;
+        }
+        if (payload.status === "error") {
+          writeSse(reply, "scene-error", payload);
+          clearInterval(interval);
+          reply.raw.end();
+          return;
+        }
+        if (Date.now() - startedAt > 30_000) {
+          writeSse(reply, "timeout", payload);
+          clearInterval(interval);
+          reply.raw.end();
+          return;
+        }
+        writeSse(reply, "ping", payload);
+      }, 900);
+
+      request.raw.on("close", () => clearInterval(interval));
+    },
+  );
+
+  app.post("/api/v1/guide/live-token", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    if (!session) return reply.status(401).send({ error: "login required" });
+
+    try {
+      const body = request.body as Record<string, unknown> | undefined;
+      const token = await createGuideLiveToken({
+        model: typeof body?.model === "string" ? body.model : undefined,
+        lang: parseLang(body?.lang),
+      });
+      return reply.send(token);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "live_token_failed";
+      const status = message.includes("GEMINI_API_KEY") ? 503 : 500;
+      return reply.status(status).send({ error: message });
     }
-
-    return reply.send({
-      summary: sceneResult.summary,
-      detectedSpecies: sceneResult.detectedSpecies,
-      detectedFeatures: sceneResult.detectedFeatures,
-      primarySubject: sceneResult.primarySubject,
-      environmentContext: sceneResult.environmentContext,
-      seasonalNote: sceneResult.seasonalNote,
-      coexistingTaxa: sceneResult.coexistingTaxa,
-      isNew: sceneResult.isNew,
-      sceneHash: sceneResult.sceneHash,
-    });
   });
 
   /**
@@ -169,12 +433,19 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       userId: session?.userId ?? null,
       lat,
       lng,
+      capturedAt: typeof body.capturedAt === "string" ? body.capturedAt : null,
+      returnedAt: typeof body.returnedAt === "string" ? body.returnedAt : null,
+      currentDistanceM: Number.isFinite(Number(body.currentDistanceM)) ? Number(body.currentDistanceM) : null,
+      deliveryState: "surfaced",
+      seenState: "saved",
+      frameThumb: typeof body.frameThumb === "string" ? body.frameThumb : null,
       sceneHash: typeof body.sceneHash === "string" ? body.sceneHash : "manual",
       sceneSummary: typeof body.sceneSummary === "string" ? body.sceneSummary : "",
       detectedSpecies: Array.isArray(body.detectedSpecies)
         ? (body.detectedSpecies as unknown[]).filter((s): s is string => typeof s === "string")
         : [],
       detectedFeatures: [],
+      mediaRefs: typeof body.frameThumb === "string" ? { frameThumb: body.frameThumb } : {},
       ttsScript: typeof body.ttsScript === "string" ? body.ttsScript : null,
       lang,
     });
