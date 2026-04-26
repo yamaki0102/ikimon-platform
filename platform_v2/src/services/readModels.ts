@@ -124,6 +124,7 @@ export type ProfileSnapshot = {
   userId: string;
   displayName: string;
   rankLabel: string | null;
+  avatarUrl: string | null;
   profileBio: string | null;
   expertise: string | null;
   stats: {
@@ -1012,6 +1013,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     user_id: string;
     display_name: string;
     rank_label: string | null;
+    avatar_url: string | null;
     profile_bio: string | null;
     expertise: string | null;
   }>(
@@ -1019,9 +1021,12 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
         u.user_id,
         ${PROFILE_DISPLAY_NAME_SQL} as display_name,
         u.rank_label,
+        coalesce(avatar_blob.public_url, avatar_blob.storage_path) as avatar_url,
         coalesce(u.stats_json, '{}'::jsonb) #>> '{profile,bio}' as profile_bio,
         coalesce(u.stats_json, '{}'::jsonb) #>> '{profile,expertise}' as expertise
      from users u
+     left join evidence_assets avatar_asset on avatar_asset.asset_id = u.avatar_asset_id
+     left join asset_blobs avatar_blob on avatar_blob.blob_id = avatar_asset.blob_id
      left join lateral (
        select v.source_payload
        from visits v
@@ -1173,6 +1178,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
       userId: guest.user_id,
       displayName: guest.display_name ?? "Guest",
       rankLabel: "Guest observer",
+      avatarUrl: null,
       profileBio: null,
       expertise: null,
       stats,
@@ -1186,6 +1192,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     userId: user.user_id,
     displayName: user.display_name,
     rankLabel: user.rank_label,
+    avatarUrl: normalizeAssetUrl(user.avatar_url),
     profileBio: user.profile_bio,
     expertise: user.expertise,
     stats,
