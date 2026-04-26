@@ -1634,6 +1634,17 @@ const PROFILE_HUB_STYLES = `
   .profile-reading-points strong { display: block; margin-top: 8px; color: #1a2e1f; font-size: 16px; line-height: 1.35; }
   .profile-reading-points p { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 700; }
   .profile-reading-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .profile-history-shell, .profile-growth-shell, .profile-contribution-shell { display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
+  .profile-history-line { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .profile-history-step { min-height: 116px; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, rgba(236,253,245,.78), rgba(248,250,252,.92)); border: 1px solid rgba(16,185,129,.13); }
+  .profile-history-step span, .profile-growth-card span, .profile-contribution-card span { display: block; color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+  .profile-history-step strong, .profile-growth-card strong, .profile-contribution-card strong { display: block; margin-top: 8px; color: #10251a; font-size: 20px; line-height: 1.2; font-weight: 950; }
+  .profile-history-step p, .profile-growth-card p, .profile-contribution-card p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+  .profile-growth-grid, .profile-contribution-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .profile-growth-card, .profile-contribution-card { min-height: 132px; padding: 15px; border-radius: 8px; border: 1px solid rgba(16,185,129,.13); background: rgba(248,250,252,.82); }
+  .profile-life-strip { display: flex; flex-wrap: wrap; gap: 8px; }
+  .profile-life-pill { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 12px; font-weight: 900; }
+  .profile-library-link { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 42px; padding: 10px 14px; border-radius: 999px; background: #10251a; color: #fff; font-weight: 950; text-decoration: none; }
   .profile-action-card { display: grid; gap: 10px; min-height: 176px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.05); }
   .profile-action-card h3 { margin: 0; font-size: 19px; line-height: 1.35; color: #0f172a; }
   .profile-action-card p { margin: 0; color: #64748b; line-height: 1.7; }
@@ -1669,15 +1680,34 @@ const PROFILE_HUB_STYLES = `
     .profile-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .profile-next-grid, .profile-life-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .profile-reading-points { grid-template-columns: 1fr; }
+    .profile-history-line, .profile-growth-grid, .profile-contribution-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 620px) {
     .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
+    .profile-history-line, .profile-growth-grid, .profile-contribution-grid { grid-template-columns: 1fr; }
     .profile-summary-card { min-height: 96px; }
   }
 `;
 
 function formatProfileNumber(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function formatProfileDate(value: string | null | undefined): string {
+  if (!value) return "これから";
+  return formatShortDate(value, "ja-JP") || value.slice(0, 10);
+}
+
+function profileObservationYears(snapshot: ProfileSnapshot): number {
+  if (!snapshot.stats.firstObservedAt) return 0;
+  const first = new Date(snapshot.stats.firstObservedAt).getTime();
+  if (!Number.isFinite(first)) return 0;
+  const days = Math.max(1, Math.round((Date.now() - first) / 86400000));
+  return Math.max(1, Math.ceil(days / 365));
+}
+
+function profileRevisitCount(snapshot: ProfileSnapshot): number {
+  return snapshot.recentPlaces.reduce((sum, place) => sum + Math.max(0, place.visitCount - 1), 0);
 }
 
 function renderProfileSummary(snapshot: ProfileSnapshot): string {
@@ -1752,23 +1782,73 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
     ? `${escapeHtml(formatProfileNumber(digest.sourceStats.observationCount))} ページ`
     : `${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))} ページ`;
   return `<section class="section" data-testid="profile-next-actions">
-    <div class="section-header"><div><div class="eyebrow">ノートを読む</div><h2>気持ちよく見返す入口</h2></div></div>
+    <div class="section-header"><div><div class="eyebrow">My history</div><h2>自分の観察史</h2></div></div>
     <div class="profile-reading-digest">
       <div class="profile-reading-main">
-        <div class="eyebrow">Read</div>
-        <h3>前回のページから、今日の自分を読み直す</h3>
+        <div class="eyebrow">Story</div>
+        <h3>積み上がった時間から、今日の自分を読み直す</h3>
         <p>${escapeHtml(latestBody)}</p>
       </div>
       <div class="profile-reading-points">
-        <div><span>場所の章</span><strong>${escapeHtml(firstPlace?.placeName ?? "これから育つ場所")}</strong><p>${escapeHtml(placeBody)}</p></div>
-        <div><span>学び</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種を見てきた</strong><p>${escapeHtml(learningBody)}</p></div>
+        <div><span>はじまり</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(snapshot.stats.firstObservedAt ? `${profileObservationYears(snapshot)} 年分の観察史として読み返せます。` : "最初の観察が入ると、ここから自分の歴史が始まります。")}</p></div>
+        <div><span>見えてきたこと</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種を見てきた</strong><p>${escapeHtml(learningBody)}</p></div>
         <div><span>地域への手がかり</span><strong>${contributionValue}</strong><p>${escapeHtml(contributionBody)}</p></div>
       </div>
       <div class="profile-reading-actions">
         <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-places"))}">場所の章を開く</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-impact"))}">地域の手がかりを見る</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">観察ライブラリを開く</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-places"))}">場所アルバムを見る</a>
       </div>
+    </div>
+  </section>`;
+}
+
+function renderProfileHistory(snapshot: ProfileSnapshot): string {
+  const latest = snapshot.recentObservations[0] ?? null;
+  const firstPlace = snapshot.recentPlaces[0] ?? null;
+  const years = profileObservationYears(snapshot);
+  const revisitCount = profileRevisitCount(snapshot);
+  return `<section class="section" data-testid="profile-history">
+    <div class="section-header"><div><div class="eyebrow">Timeline</div><h2>積み上がった履歴</h2></div></div>
+    <div class="profile-history-shell">
+      <div class="profile-history-line">
+        <div class="profile-history-step"><span>最初の観察</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(years > 0 ? `${years} 年分のフィールドノートとして残っています。` : "ここから観察史が始まります。")}</p></div>
+        <div class="profile-history-step"><span>最近のページ</span><strong>${escapeHtml(latest?.displayName ?? "これから")}</strong><p>${escapeHtml(latest ? `${latest.placeName} の ${formatProfileDate(latest.observedAt)} の記録。` : "観察が入ると、前回のページとして読めます。")}</p></div>
+        <div class="profile-history-step"><span>再訪</span><strong>${escapeHtml(formatProfileNumber(revisitCount))} 回</strong><p>${escapeHtml(firstPlace ? `${firstPlace.placeName} など、同じ場所を重ねて見ています。` : "同じ場所をもう一度見るほど、変化が読めます。")}</p></div>
+        <div class="profile-history-step"><span>今月</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.thisMonthObservations))} 件</strong><p>最近の関心がどこに向いているかを示す短い章です。</p></div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderProfileGrowth(snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
+  const topLife = snapshot.lifeListPreview.slice(0, 6);
+  return `<section class="section" data-testid="profile-growth">
+    <div class="section-header"><div><div class="eyebrow">Growth</div><h2>前より見えてきたこと</h2></div></div>
+    <div class="profile-growth-shell">
+      <div class="profile-growth-grid">
+        <div class="profile-growth-card"><span>Life List</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種</strong><p>数を競うためではなく、見分ける観点が増えてきた履歴です。</p></div>
+        <div class="profile-growth-card"><span>手がかりが濃い記録</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.tier2PlusCount))} 件</strong><p>写真や文脈が残り、あとから確かめやすい記録です。</p></div>
+        <div class="profile-growth-card"><span>学びの要約</span><strong>${escapeHtml(digest ? "更新済み" : "準備中")}</strong><p>${escapeHtml(digest?.learningHighlight || "記録が増えるほど、よく見る生きものや名前が揺れている対象を要約できます。")}</p></div>
+      </div>
+      ${topLife.length > 0
+        ? `<div class="profile-life-strip">${topLife.map((item) => `<span class="profile-life-pill">${escapeHtml(item.displayName)}</span>`).join("")}</div>`
+        : `<div class="profile-life-strip"><span class="profile-life-pill">名前が付くとここに並びます</span></div>`}
+    </div>
+  </section>`;
+}
+
+function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
+  const revisitCount = profileRevisitCount(snapshot);
+  return `<section class="section" data-testid="profile-contribution">
+    <div class="section-header"><div><div class="eyebrow">Contribution</div><h2>地域に残った手がかり</h2></div></div>
+    <div class="profile-contribution-shell">
+      <div class="profile-contribution-grid">
+        <div class="profile-contribution-card"><span>観察ページ</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>キミの記録で、この地域のノートが少し厚くなっています。</p></div>
+        <div class="profile-contribution-card"><span>場所</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.placeCount))}</strong><p>見た場所が増えるほど、地域の自然を読み返す入口が増えます。</p></div>
+        <div class="profile-contribution-card"><span>再訪の厚み</span><strong>${escapeHtml(formatProfileNumber(revisitCount))}</strong><p>${escapeHtml(digest?.localContribution || "同じ場所を重ねて見ることが、変化の手がかりになります。")}</p></div>
+      </div>
+      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">観察データ一覧を見る</a>
     </div>
   </section>`;
 }
@@ -1803,43 +1883,12 @@ function renderProfileLifeList(snapshot: ProfileSnapshot): string {
 }
 
 function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
-  const places = renderPlaceRows(
-    basePath,
-    lang,
-    snapshot.userId,
-    snapshot.recentPlaces,
-    "まだ場所の章はありません。ページが増えると、ここに読み返す場所が育ちます。",
-  );
-  const observations = snapshot.recentObservations.map((item) => `
-      <div class="row">
-        <div>
-          <a style="font-weight:800;color:inherit;text-decoration:none" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">${escapeHtml(item.displayName)}</a>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(formatShortDate(item.observedAt, "ja-JP") || item.observedAt)}</div>
-        </div>
-        <div class="actions">
-          <span class="pill">${item.identificationCount} ids</span>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + "#identify")}">同定する</a>
-        </div>
-      </div>`).join("");
   return `${renderProfileSummary(snapshot)}
     ${renderProfileIntro(basePath, snapshot, true)}
     ${renderProfileNextActions(basePath, snapshot, digest)}
-    <section class="section" data-testid="profile-places">
-      <div class="section-header"><div><div class="eyebrow">場所の章</div><h2>読み返す場所</h2></div></div>
-      <div class="list">${places}</div>
-    </section>
-    <section class="section" data-testid="profile-observations">
-      <div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近のページ</h2></div></div>
-      ${observations
-        ? `<div class="list">${observations}</div>`
-        : `<div class="onboarding-empty">
-            <div class="eyebrow">まだ 0 ページ</div>
-            <h3>近くのページから読み始める</h3>
-            <p>自分のページが育つ前でも、近くの記録や場所の章から、どんな読み返し方ができるか眺められます。</p>
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/notes"))}">ノートを読む</a>
-          </div>`}
-    </section>
-    ${renderProfileLifeList(snapshot)}`;
+    ${renderProfileHistory(snapshot)}
+    ${renderProfileGrowth(snapshot, digest)}
+    ${renderProfileContribution(basePath, snapshot, digest)}`;
 }
 
 function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot): string {
@@ -2718,59 +2767,29 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-stats div { padding: 13px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.13); }
   .notes-library-stats strong { display: block; color: #10251a; font-size: 24px; line-height: 1; font-weight: 950; }
   .notes-library-stats em { display: block; margin-top: 7px; color: #64748b; font-size: 12px; font-style: normal; font-weight: 850; }
-  .notes-library-controls {
-    position: sticky;
-    top: 68px;
-    z-index: 5;
-    display: grid;
-    grid-template-columns: minmax(220px, .34fr) minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px;
-    border-radius: 8px;
-    background: rgba(255,255,255,.9);
-    border: 1px solid rgba(16,185,129,.14);
-    box-shadow: 0 12px 30px rgba(15,23,42,.055);
-    backdrop-filter: blur(16px);
-  }
+  .notes-library-controls { position: sticky; top: 68px; z-index: 5; display: grid; grid-template-columns: minmax(220px, .34fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; background: rgba(255,255,255,.9); border: 1px solid rgba(16,185,129,.14); box-shadow: 0 12px 30px rgba(15,23,42,.055); backdrop-filter: blur(16px); }
   .notes-library-search { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
   .notes-library-search span { color: #047857; font-weight: 950; }
   .notes-library-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #0f172a; font: inherit; font-weight: 750; }
   .notes-library-filters { display: flex; flex-wrap: wrap; gap: 8px; }
-  .notes-library-filters button {
-    min-height: 38px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(15,23,42,.08);
-    background: #fff;
-    color: #334155;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 900;
-    cursor: pointer;
-  }
+  .notes-library-filters button { min-height: 38px; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #334155; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
   .notes-library-filters button.is-active { background: #10251a; color: #fff; border-color: #10251a; }
   .notes-library-count { min-height: 42px; display: flex; align-items: center; gap: 7px; padding: 0 12px; border-radius: 8px; background: #ecfdf5; color: #047857; font-size: 12px; font-weight: 900; white-space: nowrap; }
   .notes-library-count strong { color: #10251a; font-size: 18px; }
+  .notes-library-source-lanes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .notes-library-source-lane { min-height: 72px; display: grid; align-content: center; gap: 5px; text-align: left; padding: 11px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.86); color: #334155; font: inherit; cursor: pointer; }
+  .notes-library-source-lane span { font-size: 11px; line-height: 1; font-weight: 950; }
+  .notes-library-source-lane strong { color: #10251a; font-size: 22px; line-height: 1; font-weight: 950; }
+  .notes-library-source-lane.is-source-photo { border-color: rgba(16,185,129,.18); background: #ecfdf5; }
+  .notes-library-source-lane.is-source-video { border-color: rgba(14,165,233,.18); background: #f0f9ff; }
+  .notes-library-source-lane.is-source-guide { border-color: rgba(245,158,11,.2); background: #fffbeb; }
+  .notes-library-source-lane.is-source-scan { border-color: rgba(20,184,166,.2); background: #f0fdfa; }
+  .notes-library-source-lane.is-source-note { border-color: rgba(100,116,139,.16); background: #f8fafc; }
   .notes-library-section-head { display: grid; grid-template-columns: minmax(0, .7fr) minmax(220px, .3fr); gap: 16px; align-items: end; margin-bottom: 14px; }
   .notes-library-section-head h2, .notes-library-month-head h2 { margin: 5px 0 0; color: #10251a; font-size: clamp(24px, 2.6vw, 36px); line-height: 1.14; letter-spacing: 0; }
   .notes-library-section-head p { margin: 0; color: #64748b; line-height: 1.75; font-weight: 700; }
   .notes-library-album-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 3px; scroll-snap-type: x proximity; }
-  .notes-library-album {
-    flex: 0 0 240px;
-    min-height: 112px;
-    display: grid;
-    gap: 6px;
-    text-align: left;
-    padding: 14px;
-    border-radius: 8px;
-    border: 1px solid rgba(16,185,129,.16);
-    background: rgba(255,255,255,.86);
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    scroll-snap-align: start;
-  }
+  .notes-library-album { flex: 0 0 240px; min-height: 112px; display: grid; gap: 6px; text-align: left; padding: 14px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.86); color: inherit; font: inherit; cursor: pointer; scroll-snap-align: start; }
   .notes-library-album span { color: #047857; font-size: 11px; font-weight: 950; }
   .notes-library-album strong { color: #10251a; font-size: 16px; line-height: 1.35; }
   .notes-library-album em { color: #64748b; font-size: 12px; line-height: 1.45; font-style: normal; font-weight: 800; }
@@ -2778,24 +2797,8 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-month[hidden], .notes-library-card[hidden] { display: none; }
   .notes-library-month-head { display: flex; justify-content: space-between; gap: 12px; align-items: end; }
   .notes-library-month-head span { color: #64748b; font-size: 12px; font-weight: 900; }
-  .notes-library-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
-    grid-auto-flow: dense;
-    gap: 10px;
-  }
-  .notes-library-card {
-    position: relative;
-    min-height: 184px;
-    aspect-ratio: 1 / 1.12;
-    overflow: hidden;
-    border-radius: 8px;
-    background: #ecfdf5;
-    color: #fff;
-    text-decoration: none;
-    border: 1px solid rgba(16,185,129,.14);
-    box-shadow: 0 12px 28px rgba(15,23,42,.06);
-  }
+  .notes-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); grid-auto-flow: dense; gap: 10px; }
+  .notes-library-card { position: relative; min-height: 184px; aspect-ratio: 1 / 1.12; overflow: hidden; border-radius: 8px; background: #ecfdf5; color: #fff; text-decoration: none; border: 1px solid rgba(16,185,129,.14); box-shadow: 0 12px 28px rgba(15,23,42,.06); }
   .notes-library-card:nth-child(7n + 1) { grid-row: span 2; aspect-ratio: 1 / 1.35; }
   .notes-library-card:hover { transform: translateY(-2px); box-shadow: 0 18px 36px rgba(16,185,129,.12); }
   .notes-library-photo { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(219,234,254,.9)); color: #047857; font-size: 34px; font-weight: 950; }
@@ -2809,6 +2812,10 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-card.is-photo-missing .notes-library-overlay em { color: #475569; }
   .notes-library-badges { display: flex; flex-wrap: wrap; gap: 5px; }
   .notes-library-badges b { width: fit-content; padding: 4px 7px; border-radius: 999px; background: rgba(255,255,255,.86); color: #065f46; font-size: 10px; line-height: 1; font-weight: 950; }
+  .notes-source-badge.is-source-video { color: #0369a1; }
+  .notes-source-badge.is-source-guide { color: #92400e; }
+  .notes-source-badge.is-source-scan { color: #0f766e; }
+  .notes-source-badge.is-source-note { color: #475569; }
   .notes-library-empty { padding: 20px; border-radius: 8px; border: 1px solid rgba(16,185,129,.14); background: rgba(255,255,255,.82); color: #64748b; font-weight: 720; line-height: 1.75; }
   .notes-nearby-library { opacity: .9; }
   .notes-nearby-library .notes-library-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
@@ -2823,6 +2830,7 @@ const NOTES_LIBRARY_STYLES = `
     .notes-library-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .notes-library-stats div { padding: 10px; }
     .notes-library-stats strong { font-size: 19px; }
+    .notes-library-source-lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .notes-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .notes-library-card, .notes-library-card:nth-child(7n + 1) { min-height: 168px; aspect-ratio: 1 / 1.18; grid-row: auto; }
     .notes-library-album { flex-basis: 210px; }
@@ -5866,8 +5874,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         "マイページ | ikimon",
         stateCard(
           "マイページ",
-          "ログインすると、自分のノートを読み返せます",
-          `<p style="margin:0 0 12px">前回のページ、場所の章、学びのハイライト、地域に残った手がかりを 1 つのハブで確認できます。</p>
+          "ログインすると、自分の観察史を読み返せます",
+          `<p style="margin:0 0 12px">観察データ一覧はライブラリへ。マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile"))}">ログインしてマイページへ</a>
             <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/profile"))}">新しく登録する</a>
@@ -5888,9 +5896,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "ノートに読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
     const heroActions = [
-      { href: "/notes#notes-reading", label: "前回のページを読む" },
-      { href: "/notes#notes-places", label: "場所の章を開く", variant: "secondary" as const },
-      { href: "/notes#notes-impact", label: "地域の手がかりを見る", variant: "secondary" as const },
+      { href: "/notes#notes-own", label: "観察ライブラリを開く" },
+      { href: "/notes#notes-places", label: "場所アルバムを見る", variant: "secondary" as const },
       { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
       { href: "/logout", label: "ログアウト", variant: "secondary" as const },
     ];
@@ -5905,7 +5912,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "あなたのマイページ。前回のページ、場所の章、学び、地域に残った手がかりを気持ちよく読み返します。",
+        lead: "あなたのマイページ。観察データ一覧ではなく、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
         actions: heroActions,
       },
       PROFILE_HUB_STYLES,
@@ -6999,64 +7006,63 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const notesPageCopy = getShortCopy<any>(lang, "public", "read.notes");
-    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
-    const [snapshot, digest] = await Promise.all([
-      getLandingSnapshot(viewerUserId),
-      getProfileNoteDigest(viewerUserId),
-    ]);
+    const snapshot = await getLandingSnapshot(viewerUserId);
 
     const isLoggedIn = Boolean(viewerUserId);
-    const ownCards = snapshot.myFeed
-      .map((obs) => renderNotesMiniCard(basePath, lang, obs, { locationMode: "owner" }))
-      .join("");
-    const nearbyCards = snapshot.feed
-      .slice(0, 9)
-      .map((obs) => renderNotesMiniCard(basePath, lang, obs, { locationMode: "public" }))
-      .join("");
-
-    const emptyCopy = notesPageCopy.sections.nearbyEmpty;
+    const libraryEntries = isLoggedIn ? snapshot.myFeed : snapshot.feed;
+    const nearbyEntries = isLoggedIn ? snapshot.feed.slice(0, 12) : [];
+    const uniquePlaces = new Set(libraryEntries.map((obs) => notesPlaceLine(obs, isLoggedIn ? "owner" : "public")).filter(Boolean));
+    const placeCount = isLoggedIn ? snapshot.myPlaces.length : uniquePlaces.size;
+    const photoCount = libraryEntries.filter((obs) => Boolean(obs.photoUrl)).length;
+    const namedCount = libraryEntries.filter((obs) => !notesLibraryIsUncertain(obs)).length;
+    const latest = libraryEntries[0] ?? null;
+    const latestLine = latest
+      ? `${notesLibraryDateLabel(latest, lang)} · ${latest.displayName || latest.proposedName || "名前を確かめている観察"}`
+      : "観察が増えるほど、ここに月ごとの棚が育ちます。";
+    const emptyCopy = "まだ近くの公開記録は表示できません。自分の観察ライブラリを主役にします。";
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: notesPageCopy.title,
+      title: "観察ライブラリ | ikimon",
       activeNav: notesPageCopy.activeNav,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/notes"), lang),
-      extraStyles: NOTES_READING_STYLES,
-      hero: {
-        eyebrow: notesPageCopy.hero.eyebrow,
-        heading: notesPageCopy.hero.heading,
-        headingHtml: notesPageCopy.hero.heading,
-        lead: notesPageCopy.hero.lead,
-        tone: "light",
-        align: "center",
-        actions: [
-          { href: "/notes#notes-reading", label: "今日読むページ" },
-          { href: "/map", label: sharedCopy.cta.openMap, variant: "secondary" as const },
-        ],
-      },
-      body: `${renderNotesReadingBrief(basePath, lang, snapshot, digest)}
-      ${renderNotesPlaceChapters(basePath, lang, snapshot, digest)}
-      <section class="section notes-page" data-testid="notes-own">
-        <div class="notes-section-head"><div><div class="notes-eyebrow">最近のページ</div><h2>あなたのノート</h2></div><p>観察と同定メモを、あとから読める目次として並べます。</p></div>
-        ${isLoggedIn
-          ? (ownCards
-              ? `<div class="notes-grid">${ownCards}</div>`
-              : `<div class="notes-empty-reading">あなたのページはまだありません。近くの記録や他の人の痕跡を読むと、このノートがどう育つか先に眺められます。</div>`)
-          : `<div class="notes-empty-reading">ログインすると自分のページがここにまとまります。今は近くの記録を読み物として眺められます。</div>`}
-      </section>
-      ${renderNotesLearningHighlights(snapshot, digest)}
-      ${renderNotesContributionSummary(snapshot, digest)}
-      <section class="section notes-page" data-testid="notes-nearby">
-        <div class="notes-section-head"><div><div class="notes-eyebrow">他の人の痕跡</div><h2>近くで見つかっているもの</h2></div><p>主役は自分のノート。周りの記録は、同じ地域を誰かも見ているという薄いつながりとして読む。</p></div>
-        ${nearbyCards
-          ? `<div class="notes-grid is-compact">${nearbyCards}</div>`
-          : `<div class="notes-empty-reading">${escapeHtml(emptyCopy)}</div>`}
-      </section>`,
-      footerNote: notesPageCopy.footerNote,
+      extraStyles: NOTES_LIBRARY_STYLES,
+      body: `<div class="notes-library-shell">
+        <section class="notes-library-hero">
+          <div>
+            <span>Observation Library</span>
+            <h1>観察ライブラリ</h1>
+            <p>写真、動画、ガイド、フィールドスキャンを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。</p>
+          </div>
+          <div class="notes-library-stats" aria-label="観察ライブラリの概要">
+            <div><strong>${escapeHtml(formatProfileNumber(libraryEntries.length))}</strong><em>観察データ</em></div>
+            <div><strong>${escapeHtml(formatProfileNumber(photoCount))}</strong><em>画像つき</em></div>
+            <div><strong>${escapeHtml(formatProfileNumber(namedCount))}</strong><em>名前あり</em></div>
+          </div>
+        </section>
+        <section id="notes-own" class="section notes-library-main" data-notes-library data-testid="notes-own">
+          <div class="notes-library-section-head">
+            <div><span>${escapeHtml(isLoggedIn ? "My observations" : "Public sample")}</span><h2>${escapeHtml(isLoggedIn ? "自分の観察データ" : "公開されている観察データ")}</h2></div>
+            <p>${escapeHtml(latestLine)}</p>
+          </div>
+          ${renderNotesLibraryControls(libraryEntries.length, placeCount)}
+          ${renderNotesLibrarySourceLanes(libraryEntries)}
+          ${renderNotesLibraryMonths(basePath, lang, libraryEntries, { locationMode: isLoggedIn ? "owner" : "public" })}
+        </section>
+        ${renderNotesLibraryPlaceAlbums(snapshot)}
+        <section id="notes-nearby" class="section notes-nearby-library" data-testid="notes-nearby">
+          <div class="notes-library-section-head"><div><span>Nearby traces</span><h2>近くの公開記録</h2></div><p>自分の棚とは分けて、地域の背景として薄く見る。</p></div>
+          ${nearbyEntries.length > 0
+            ? renderNotesLibraryMonths(basePath, lang, nearbyEntries, { locationMode: "public" })
+            : `<div class="notes-library-empty">${escapeHtml(emptyCopy)}</div>`}
+        </section>
+        ${renderNotesLibraryScript()}
+      </div>`,
+      footerNote: "観察データの棚はこのページ、成長や地域への効き方はマイページに分けています。",
     });
   });
 

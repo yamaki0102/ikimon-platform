@@ -107,22 +107,31 @@ test("home hero and how-it-works copy match the canonical ja surface", async () 
   }
 });
 
-test("notes page is reading-first and contribution-aware", async () => {
+test("notes page is an observation library with separated source lanes", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/notes?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /今日読むページ/);
-    assert.match(response.body, /学びのハイライト/);
-    assert.match(response.body, /地域に残った手がかり/);
-    assert.match(response.body, /場所の章/);
-    assert.match(response.body, /他の人の痕跡/);
+    assert.match(response.body, /観察ライブラリ/);
+    assert.match(response.body, /自分の観察データ|公開されている観察データ/);
+    assert.match(response.body, /名前・場所で探す/);
+    assert.match(response.body, /写真/);
+    assert.match(response.body, /動画/);
+    assert.match(response.body, /ガイド/);
+    assert.match(response.body, /スキャン/);
+    assert.match(response.body, /場所アルバム/);
+    assert.match(response.body, /近くの公開記録/);
+    assert.match(response.body, /data-testid="notes-own"/);
+    assert.match(response.body, /data-testid="notes-nearby"/);
     assert.doesNotMatch(response.body, /ノートを書く/);
     assert.doesNotMatch(response.body, /最初のノートを書く/);
     assert.doesNotMatch(response.body, /notes-brief-card/);
+    assert.doesNotMatch(response.body, /今日読むページ/);
+    assert.doesNotMatch(response.body, /学びのハイライト/);
+    assert.doesNotMatch(response.body, /地域に残った手がかり/);
     assert.ok(
-      response.body.indexOf("今日読むページ") < response.body.indexOf("近くで見つかっているもの"),
-      "reading brief should appear before nearby public traces",
+      response.body.indexOf("観察ライブラリ") < response.body.indexOf("近くの公開記録"),
+      "library should appear before nearby public traces",
     );
   } finally {
     await app.close();
