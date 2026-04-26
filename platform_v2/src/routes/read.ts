@@ -2010,6 +2010,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-media-video" data-record-media-input data-capture-kind="video" type="file" accept="video/*" capture="environment" hidden />
               <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" hidden />
               <input type="hidden" name="recordMode" value="quick" />
+              <div id="record-video-trim" class="record-video-trim" hidden>
+                <div class="record-video-trim-head">
+                  <div>
+                    <strong>投稿する最大60秒を選ぶ</strong>
+                    <p>動画投稿は最大60秒です。長めに撮った動画から、見せたい動きや鳴き声の区間だけを切り出します。</p>
+                  </div>
+                  <span id="record-video-trim-duration">0.0秒</span>
+                </div>
+                <div class="record-video-trim-preview">
+                  <video id="record-video-trim-player" controls playsinline preload="metadata" aria-label="動画トリミングプレビュー"></video>
+                </div>
+                <div class="record-video-trim-controls">
+                  <label>
+                    <span>開始 <output id="record-video-trim-start-label">0.0秒</output></span>
+                    <input id="record-video-trim-start" type="range" min="0" max="0" step="0.1" value="0" />
+                  </label>
+                  <label>
+                    <span>終了 <output id="record-video-trim-end-label">0.0秒</output></span>
+                    <input id="record-video-trim-end" type="range" min="0" max="0" step="0.1" value="0" />
+                  </label>
+                </div>
+                <div class="record-video-trim-actions">
+                  <button type="button" class="btn btn-solid" id="record-video-trim-apply">この区間で使う</button>
+                  <span id="record-video-trim-status" aria-live="polite">投稿は最大60秒です。区間を選ぶと投稿前に短い動画を作ります。</span>
+                </div>
+              </div>
               <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
               <div class="record-field record-field-wide record-gps-row">
                 <span class="record-label">撮影地点</span>
@@ -2133,32 +2159,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   </div>
                 </div>
               </details>
-              <div id="record-video-trim" class="record-video-trim" hidden>
-                <div class="record-video-trim-head">
-                  <div>
-                    <strong>投稿する60秒を選ぶ</strong>
-                    <p>長めに撮った動画から、見せたい動きや鳴き声の区間だけを切り出します。</p>
-                  </div>
-                  <span id="record-video-trim-duration">0.0秒</span>
-                </div>
-                <div class="record-video-trim-preview">
-                  <video id="record-video-trim-player" controls playsinline preload="metadata" aria-label="動画トリミングプレビュー"></video>
-                </div>
-                <div class="record-video-trim-controls">
-                  <label>
-                    <span>開始 <output id="record-video-trim-start-label">0.0秒</output></span>
-                    <input id="record-video-trim-start" type="range" min="0" max="0" step="0.1" value="0" />
-                  </label>
-                  <label>
-                    <span>終了 <output id="record-video-trim-end-label">0.0秒</output></span>
-                    <input id="record-video-trim-end" type="range" min="0" max="0" step="0.1" value="0" />
-                  </label>
-                </div>
-                <div class="record-video-trim-actions">
-                  <button type="button" class="btn btn-solid" id="record-video-trim-apply">この区間で使う</button>
-                  <span id="record-video-trim-status" aria-live="polite">区間を選ぶと投稿前に短い動画を作ります。</span>
-                </div>
-              </div>
               <div id="record-video-progress" class="record-video-progress" hidden aria-live="polite">
                 <div class="record-video-progress-head">
                   <strong>動画アップロード進捗</strong>
@@ -2299,7 +2299,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
           photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
-          video: { title: '動画を追加', help: '動画は 200MB / 60秒まで対応します。' },
+          video: { title: '動画を追加', help: '動画投稿は 200MB / 最大60秒まで。長めの動画は見せたい60秒を選べます。' },
           gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
         };
 
@@ -2341,7 +2341,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const syncLocationNudge = () => {
           if (!locationNudge) return;
-          locationNudge.hidden = !(selectedMediaFile && isImageFile(selectedMediaFile) && coordsMissing() && isFreshMedia());
+          locationNudge.hidden = !(selectedMediaFile && (isImageFile(selectedMediaFile) || isVideoFile(selectedMediaFile)) && coordsMissing() && isFreshMedia());
         };
 
         const updateLocationText = (sourceLabel) => {
@@ -2435,6 +2435,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const dateToLocalInputValue = (date) => {
           if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
           return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        };
+
+        const parseMetadataDate = (value) => {
+          const date = new Date(String(value || ''));
+          return Number.isNaN(date.getTime()) ? null : date;
+        };
+
+        const normalizeDraftMetadata = (metadata) => metadata && typeof metadata === 'object' ? metadata : {};
+
+        const readMetadataLocation = (metadata) => {
+          const location = metadata && metadata.location && typeof metadata.location === 'object' ? metadata.location : null;
+          if (!location) return null;
+          const lat = Number(location.latitude);
+          const lng = Number(location.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          return { lat, lng };
         };
 
         const parseExifDate = (value) => {
@@ -2557,28 +2573,66 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           };
         };
 
-        const applyMediaAutofill = async (file) => {
+        const readCurrentPosition = () => new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error('geolocation_unavailable'));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (position) => resolve(position),
+            () => reject(new Error('geolocation_failed')),
+            { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+          );
+        });
+
+        const applyCurrentLocation = async (sourceLabel, silent) => {
+          if (!form) return false;
+          locateButtons.forEach((button) => { button.disabled = true; });
+          try {
+            const position = await readCurrentPosition();
+            setRecordLocation(position.coords.latitude, position.coords.longitude, sourceLabel, { zoom: 16 });
+            return true;
+          } catch (_) {
+            if (!silent) alert('位置情報の取得に失敗しました。手動で入力してください。');
+            return false;
+          } finally {
+            locateButtons.forEach((button) => { button.disabled = false; });
+          }
+        };
+
+        const applyMediaAutofill = async (file, metadata, opts) => {
           if (!file || !form) {
             setAutofillStatus([]);
             return;
           }
           const filled = [];
+          const draftMetadata = normalizeDraftMetadata(metadata);
           let exif = {};
           try {
             exif = await parseJpegExif(file);
           } catch (_) {
             exif = {};
           }
-          const capturedAt = exif.capturedAt || (file.lastModified ? new Date(file.lastModified) : null);
+          const metadataCapturedAt = parseMetadataDate(draftMetadata.capturedAt);
+          const capturedAt = exif.capturedAt || metadataCapturedAt || (file.lastModified ? new Date(file.lastModified) : null);
           const observedValue = dateToLocalInputValue(capturedAt);
           if (observedAt && observedValue) {
             observedAt.value = observedValue;
             selectedMediaCapturedAt = capturedAt;
-            filled.push(exif.capturedAt ? '撮影日時' : 'ファイル日時');
+            filled.push(exif.capturedAt || metadataCapturedAt ? '撮影日時' : 'ファイル日時');
           }
           if (Number.isFinite(exif.latitude) && Number.isFinite(exif.longitude)) {
             setRecordLocation(Number(exif.latitude), Number(exif.longitude), '写真の撮影地点', { zoom: 16 });
             filled.push('写真の位置');
+          } else {
+            const metadataLocation = readMetadataLocation(draftMetadata);
+            if (metadataLocation) {
+              setRecordLocation(metadataLocation.lat, metadataLocation.lng, '撮影時の現在地', { zoom: 16 });
+              filled.push('撮影時の位置');
+            } else if (opts && opts.autoLocateFreshCapture && coordsMissing() && isFreshMedia()) {
+              const located = await applyCurrentLocation('撮影時の現在地', true);
+              if (located) filled.push('現在地');
+            }
           }
           setAutofillStatus(filled);
           syncPreview();
@@ -2728,7 +2782,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             videoTrimPlayer.load();
           }
           if (videoTrimWrap) videoTrimWrap.hidden = true;
-          if (videoTrimStatus) videoTrimStatus.textContent = '区間を選ぶと投稿前に短い動画を作ります。';
+          if (videoTrimStatus) videoTrimStatus.textContent = '投稿は最大60秒です。区間を選ぶと投稿前に短い動画を作ります。';
           if (videoTrimApply) videoTrimApply.disabled = false;
           videoTrimState = null;
           selectedOriginalVideoFile = null;
@@ -2765,7 +2819,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const needsClip = duration > MAX_VIDEO_SECONDS + 0.5 || start > 0.15 || end < duration - 0.15;
           if (videoTrimStatus) {
             videoTrimStatus.textContent = needsClip
-              ? '選んだ区間だけの動画を作ってから投稿できます。'
+              ? '選んだ最大60秒だけの動画を作ってから投稿できます。'
               : '60秒以内なのでこのまま投稿できます。必要なら区間を選べます。';
           }
         };
@@ -3061,18 +3115,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             alert('位置情報を利用できません。手動で入力してください。');
             return;
           }
-          locateButtons.forEach((button) => { button.disabled = true; });
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              setRecordLocation(position.coords.latitude, position.coords.longitude, '現在地を撮影地点に設定', { zoom: 16 });
-              locateButtons.forEach((button) => { button.disabled = false; });
-            },
-            () => {
-              locateButtons.forEach((button) => { button.disabled = false; });
-              alert('位置情報の取得に失敗しました。手動で入力してください。');
-            },
-            { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
-          );
+          void applyCurrentLocation('現在地を撮影地点に設定', false);
         };
 
         const clearMediaInputsExcept = (activeInput) => {
@@ -3271,6 +3314,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           }
           const file = draft && draft.file instanceof File ? draft.file : null;
           const kind = draft && captureLabels[draft.kind] ? draft.kind : (params.get('start') || 'gallery');
+          const metadata = normalizeDraftMetadata(draft && draft.metadata);
           if (!file) {
             setPendingCaptureKind(kind);
             return;
@@ -3282,10 +3326,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             showRecordFormForMedia(file, kind);
             resetVideoTrim();
             resetVideoProgress();
-            await applyMediaAutofill(file);
+            await applyMediaAutofill(file, metadata, { autoLocateFreshCapture: kind === 'photo' });
           } else if (videoProgressWrap) {
             showRecordFormForMedia(file, kind);
-            await applyMediaAutofill(file);
+            await applyMediaAutofill(file, metadata, { autoLocateFreshCapture: kind === 'video' });
             let trimReady = true;
             try {
               await loadVideoTrimEditor(file);
@@ -3389,10 +3433,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               showRecordFormForMedia(file, kind);
               resetVideoProgress();
               resetVideoTrim();
-              await applyMediaAutofill(file);
+              await applyMediaAutofill(file, {}, { autoLocateFreshCapture: kind === 'photo' });
             } else if (videoProgressWrap) {
               showRecordFormForMedia(file, kind);
-              await applyMediaAutofill(file);
+              await applyMediaAutofill(file, {}, { autoLocateFreshCapture: kind === 'video' });
               let trimReady = true;
               try {
                 await loadVideoTrimEditor(file);

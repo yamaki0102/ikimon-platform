@@ -348,6 +348,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
     </div>
     <div class="global-record-camera-preview">
       <video data-global-record-camera-video playsinline muted></video>
+      <img data-global-record-camera-image alt="撮影プレビュー" hidden />
       <div class="global-record-camera-empty" data-global-record-camera-empty>カメラを起動すると、ここにプレビューが出ます。</div>
     </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
@@ -373,9 +374,15 @@ function globalRecordEntryScript(): string {
   let discardRecording = false;
   let recordingStartedAt = 0;
   let recordingTimer = null;
+  let cameraStartInFlight = false;
+  let cameraRequestId = 0;
+  let capturedReviewFile = null;
+  let capturedReviewMeta = null;
+  let reviewObjectUrl = '';
   const sheet = document.querySelector('[data-global-record-camera-sheet]');
   const backdrop = document.querySelector('[data-global-record-camera-close].global-record-camera-backdrop');
   const cameraVideo = document.querySelector('[data-global-record-camera-video]');
+  const cameraImage = document.querySelector('[data-global-record-camera-image]');
   const empty = document.querySelector('[data-global-record-camera-empty]');
   const title = document.querySelector('[data-global-record-camera-title]');
   const help = document.querySelector('[data-global-record-camera-help]');
@@ -393,7 +400,7 @@ function globalRecordEntryScript(): string {
     },
     video: {
       title: '動画を撮る',
-      help: '長めに撮っても、投稿前に最大60秒の見せたい区間を選べます。',
+      help: '動画投稿は最大60秒です。長めに撮っても、あとで見せたい60秒を選べます。',
       start: 'カメラを起動',
       capture: '録画開始',
       fallback: '端末の動画カメラを開く',
@@ -432,6 +439,25 @@ function globalRecordEntryScript(): string {
     if (recordingTimer) window.clearInterval(recordingTimer);
     recordingTimer = null;
   };
+  const clearReview = () => {
+    capturedReviewFile = null;
+    capturedReviewMeta = null;
+    if (reviewObjectUrl) {
+      URL.revokeObjectURL(reviewObjectUrl);
+      reviewObjectUrl = '';
+    }
+    if (cameraImage) {
+      cameraImage.hidden = true;
+      cameraImage.removeAttribute('src');
+    }
+    if (cameraVideo) {
+      cameraVideo.removeAttribute('src');
+      cameraVideo.controls = false;
+      cameraVideo.muted = true;
+      cameraVideo.loop = false;
+      cameraVideo.load();
+    }
+  };
   const stopActiveStream = () => {
     stopRecordingTimer();
     if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -448,13 +474,16 @@ function globalRecordEntryScript(): string {
     }
     if (empty) empty.hidden = false;
     if (captureButton) captureButton.hidden = true;
-    if (startButton) startButton.hidden = false;
+    if (startButton) {
+      startButton.hidden = false;
+      startButton.disabled = false;
+    }
   };
-  const navigateWithDraft = async (file, kind) => {
+  const navigateWithDraft = async (file, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
     try {
-      await saveDraft({ file, kind, savedAt: Date.now() });
+      await saveDraft({ file, kind, savedAt: Date.now(), metadata: metadata || {} });
       const separator = href && href.indexOf('?') >= 0 ? '&' : '?';
       window.location.href = String(href || '/record') + separator + 'draft=1';
     } catch (_) {
@@ -470,7 +499,10 @@ function globalRecordEntryScript(): string {
     }
   };
   const closeSheet = () => {
+    cameraRequestId += 1;
+    cameraStartInFlight = false;
     stopActiveStream();
+    clearReview();
     if (sheet) sheet.hidden = true;
     if (backdrop) backdrop.hidden = true;
     document.documentElement.classList.remove('global-record-camera-open');
@@ -478,6 +510,7 @@ function globalRecordEntryScript(): string {
     setStatus('');
   };
   const openSheet = (kind) => {
+    clearReview();
     activeKind = kind;
     const label = labels[kind] || labels.photo;
     if (title) title.textContent = label.title;
@@ -491,6 +524,7 @@ function globalRecordEntryScript(): string {
       captureButton.hidden = true;
     }
     if (fallbackButton) fallbackButton.textContent = label.fallback;
+    if (fallbackButton) fallbackButton.hidden = false;
     if (empty) {
       empty.textContent = 'カメラを起動すると、ここにプレビューが出ます。';
       empty.hidden = false;
@@ -498,21 +532,42 @@ function globalRecordEntryScript(): string {
     if (sheet) sheet.hidden = false;
     if (backdrop) backdrop.hidden = false;
     document.documentElement.classList.add('global-record-camera-open');
-    setStatus('');
+    setStatus('カメラを起動しています...');
+    void startCamera();
   };
   const startCamera = async () => {
     if (!activeKind) return;
+    if (cameraStartInFlight) return;
+    clearReview();
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
       setStatus('このブラウザでは小さい撮影画面を使えません。端末のカメラを開いてください。');
       return;
     }
+    const requestId = cameraRequestId + 1;
+    cameraRequestId = requestId;
+    cameraStartInFlight = true;
+    if (startButton) {
+      startButton.disabled = true;
+      startButton.textContent = '起動中...';
+    }
     try {
       stopActiveStream();
+      if (startButton) {
+        startButton.disabled = true;
+        startButton.textContent = '起動中...';
+      }
+      if (cameraVideo) cameraVideo.hidden = false;
+      if (fallbackButton) fallbackButton.hidden = false;
       const constraints = {
         video: { facingMode: { ideal: 'environment' } },
         audio: activeKind === 'video',
       };
       activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) {
+        activeStream.getTracks().forEach((track) => track.stop());
+        activeStream = null;
+        return;
+      }
       if (cameraVideo) {
         cameraVideo.srcObject = activeStream;
         cameraVideo.muted = true;
@@ -525,10 +580,85 @@ function globalRecordEntryScript(): string {
         captureButton.textContent = activeKind === 'video' ? '録画開始' : '写真を撮る';
       }
       if (startButton) startButton.hidden = true;
-      setStatus(activeKind === 'video' ? '録画後に、投稿する最大60秒を選べます。' : '構図を確認してから撮影できます。');
+      setStatus(activeKind === 'video' ? '動画投稿は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
     } catch (_) {
       setStatus('カメラを起動できませんでした。端末のカメラを開いてください。');
+      if (startButton) {
+        startButton.hidden = false;
+        startButton.disabled = false;
+        startButton.textContent = (labels[activeKind] || labels.photo).start;
+      }
+    } finally {
+      if (requestId === cameraRequestId) cameraStartInFlight = false;
     }
+  };
+  const readCaptureLocation = () => new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        capturedAt: new Date().toISOString(),
+      }),
+      () => resolve(null),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 7000 },
+    );
+  });
+  const buildCaptureMetadata = async () => {
+    const capturedAt = new Date().toISOString();
+    setStatus('撮影地点を確認しています...');
+    const location = await readCaptureLocation();
+    return { capturedAt, location };
+  };
+  const showCapturedReview = (file, kind, metadata) => {
+    stopActiveStream();
+    capturedReviewFile = file;
+    capturedReviewMeta = metadata || {};
+    reviewObjectUrl = URL.createObjectURL(file);
+    if (empty) empty.hidden = true;
+    if (kind === 'video') {
+      if (cameraImage) cameraImage.hidden = true;
+      if (cameraVideo) {
+        cameraVideo.srcObject = null;
+        cameraVideo.src = reviewObjectUrl;
+        cameraVideo.controls = true;
+        cameraVideo.muted = true;
+        cameraVideo.loop = true;
+        cameraVideo.play().catch(() => undefined);
+      }
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。次に投稿する最大60秒を選びます。' : '次に投稿する最大60秒を選びます。位置は編集画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'カットして編集へ';
+    } else {
+      if (cameraVideo) cameraVideo.hidden = true;
+      if (cameraImage) {
+        cameraImage.src = reviewObjectUrl;
+        cameraImage.hidden = false;
+      }
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。この写真で編集へ進めます。' : 'この写真で編集へ進めます。位置は編集画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この写真で編集へ';
+    }
+    if (startButton) {
+      startButton.hidden = false;
+      startButton.disabled = false;
+      startButton.textContent = '撮り直す';
+    }
+    if (captureButton) {
+      captureButton.hidden = false;
+      captureButton.disabled = false;
+    }
+    if (fallbackButton) fallbackButton.hidden = true;
+  };
+  const retakeCapture = () => {
+    const kind = activeKind || (capturedReviewFile && capturedReviewFile.type && capturedReviewFile.type.indexOf('video/') === 0 ? 'video' : 'photo');
+    clearReview();
+    activeKind = kind;
+    if (cameraVideo) cameraVideo.hidden = false;
+    if (fallbackButton) fallbackButton.hidden = false;
+    startCamera();
   };
   const capturePhoto = () => {
     if (!cameraVideo || !activeStream) return;
@@ -540,14 +670,14 @@ function globalRecordEntryScript(): string {
     const context = canvas.getContext('2d');
     if (!context) return;
     context.drawImage(cameraVideo, 0, 0, width, height);
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (!blob) {
         setStatus('写真を保存できませんでした。');
         return;
       }
       const file = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
-      stopActiveStream();
-      navigateWithDraft(file, 'photo');
+      const metadata = await buildCaptureMetadata();
+      showCapturedReview(file, 'photo', metadata);
     }, 'image/jpeg', 0.9);
   };
   const stopVideoRecording = () => {
@@ -573,7 +703,7 @@ function globalRecordEntryScript(): string {
     mediaRecorder.ondataavailable = (event) => {
       if (event.data && event.data.size > 0) recordedChunks.push(event.data);
     };
-    mediaRecorder.onstop = () => {
+    mediaRecorder.onstop = async () => {
       stopRecordingTimer();
       if (discardRecording) {
         discardRecording = false;
@@ -586,19 +716,23 @@ function globalRecordEntryScript(): string {
         captureButton.disabled = false;
         captureButton.textContent = '録画開始';
       }
-      stopActiveStream();
-      navigateWithDraft(file, 'video');
+      const metadata = await buildCaptureMetadata();
+      showCapturedReview(file, 'video', metadata);
     };
     recordingStartedAt = Date.now();
     mediaRecorder.start(1000);
     if (captureButton) captureButton.textContent = '録画停止';
-    setStatus('録画中 0秒 / 投稿前に最大60秒を選べます');
+    setStatus('録画中 0秒 / 投稿は最大60秒。あとで区間を選べます');
     recordingTimer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
-      setStatus('録画中 ' + String(elapsed) + '秒 / 投稿前に最大60秒を選べます');
+      setStatus('録画中 ' + String(elapsed) + '秒 / 投稿は最大60秒。あとで区間を選べます');
     }, 500);
   };
   const captureFromSheet = () => {
+    if (capturedReviewFile) {
+      navigateWithDraft(capturedReviewFile, activeKind || 'photo', capturedReviewMeta || {});
+      return;
+    }
     if (activeKind === 'video') {
       if (mediaRecorder && mediaRecorder.state === 'recording') stopVideoRecording();
       else startVideoRecording();
@@ -624,7 +758,10 @@ function globalRecordEntryScript(): string {
   document.querySelectorAll('[data-global-record-camera-close]').forEach((button) => {
     button.addEventListener('click', closeSheet);
   });
-  if (startButton) startButton.addEventListener('click', startCamera);
+  if (startButton) startButton.addEventListener('click', () => {
+    if (capturedReviewFile) retakeCapture();
+    else startCamera();
+  });
   if (captureButton) captureButton.addEventListener('click', captureFromSheet);
   if (fallbackButton) {
     fallbackButton.addEventListener('click', () => {
@@ -1721,13 +1858,17 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
       border: 1px solid rgba(15,23,42,.08);
     }
-    .global-record-camera-preview video {
+    .global-record-camera-preview video,
+    .global-record-camera-preview img {
       width: 100%;
       height: 100%;
       min-height: 238px;
       display: block;
       object-fit: cover;
       background: #020617;
+    }
+    .global-record-camera-preview img[hidden] {
+      display: none;
     }
     .global-record-camera-empty {
       position: absolute;

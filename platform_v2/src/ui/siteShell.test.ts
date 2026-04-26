@@ -46,9 +46,15 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /indexedDB\.open\(DB_NAME, 1\)/);
   assert.match(html, /data-global-record-camera-sheet/);
   assert.match(html, /data-global-record-camera-video/);
+  assert.match(html, /data-global-record-camera-image/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(html, /void startCamera\(\)/);
   assert.match(html, /MediaRecorder/);
   assert.match(html, /VIDEO_MAX_SECONDS = 60/);
+  assert.match(html, /動画投稿は最大60秒/);
+  assert.match(html, /カットして編集へ/);
+  assert.match(html, /撮り直す/);
 });
 
 test("site shell does not duplicate the record entry on the record page", () => {
