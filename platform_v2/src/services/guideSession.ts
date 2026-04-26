@@ -271,13 +271,8 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
     const result = await client.query<{ guide_record_id: string }>(
       `insert into guide_records
          (session_id, user_id, occurrence_id, lat, lng, scene_hash, scene_summary,
-          detected_species, detected_features, tts_script, lang,
-          captured_at, returned_at, current_distance_m, delivery_state, seen_state,
-          frame_thumb, primary_subject, environment_context, seasonal_note,
-          coexisting_taxa, confidence_context, media_refs, meta)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11,
-          $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21,
-          $22::jsonb, $23::jsonb, $24::jsonb)
+          detected_species, detected_features, tts_script, lang)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
        returning guide_record_id`,
       [
         input.sessionId,
@@ -291,22 +286,51 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
         JSON.stringify(input.detectedFeatures),
         input.ttsScript ?? null,
         input.lang,
-        input.capturedAt ?? null,
-        input.returnedAt ?? null,
-        input.currentDistanceM ?? null,
-        input.deliveryState ?? "ready",
-        input.seenState ?? "unseen",
-        input.frameThumb ?? null,
-        JSON.stringify(input.primarySubject ?? {}),
-        input.environmentContext ?? null,
-        input.seasonalNote ?? null,
-        input.coexistingTaxa ?? [],
-        JSON.stringify(input.confidenceContext ?? {}),
-        JSON.stringify(input.mediaRefs ?? {}),
-        JSON.stringify(input.meta ?? {}),
       ],
     );
-    return result.rows[0]?.guide_record_id ?? "";
+    const guideRecordId = result.rows[0]?.guide_record_id ?? "";
+
+    if (guideRecordId) {
+      await client.query(
+        `insert into guide_record_latency_states
+           (guide_record_id, captured_at, returned_at, current_distance_m, delivery_state, seen_state,
+            frame_thumb, primary_subject, environment_context, seasonal_note, coexisting_taxa,
+            confidence_context, media_refs, meta)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb)
+         on conflict (guide_record_id) do update set
+           captured_at = excluded.captured_at,
+           returned_at = excluded.returned_at,
+           current_distance_m = excluded.current_distance_m,
+           delivery_state = excluded.delivery_state,
+           seen_state = excluded.seen_state,
+           frame_thumb = excluded.frame_thumb,
+           primary_subject = excluded.primary_subject,
+           environment_context = excluded.environment_context,
+           seasonal_note = excluded.seasonal_note,
+           coexisting_taxa = excluded.coexisting_taxa,
+           confidence_context = excluded.confidence_context,
+           media_refs = excluded.media_refs,
+           meta = excluded.meta`,
+        [
+          guideRecordId,
+          input.capturedAt ?? null,
+          input.returnedAt ?? null,
+          input.currentDistanceM ?? null,
+          input.deliveryState ?? "ready",
+          input.seenState ?? "unseen",
+          input.frameThumb ?? null,
+          JSON.stringify(input.primarySubject ?? {}),
+          input.environmentContext ?? null,
+          input.seasonalNote ?? null,
+          input.coexistingTaxa ?? [],
+          JSON.stringify(input.confidenceContext ?? {}),
+          JSON.stringify(input.mediaRefs ?? {}),
+          JSON.stringify(input.meta ?? {}),
+        ],
+      );
+    }
+
+    return guideRecordId;
   } finally {
     client.release();
   }

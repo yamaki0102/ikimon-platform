@@ -1,51 +1,31 @@
 -- Live Guide latency-tolerant delivery state.
--- A guide record can describe a scene captured several seconds before it is
--- surfaced, so store capture/return timing and delivery visibility explicitly.
+-- Staging/prod may run migrations with a role that can create new tables but
+-- is not the owner of legacy guide_records, so latency metadata lives in a
+-- companion table keyed by guide_record_id.
 
-ALTER TABLE guide_records
-    ADD COLUMN IF NOT EXISTS captured_at TIMESTAMPTZ,
-    ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ,
-    ADD COLUMN IF NOT EXISTS current_distance_m REAL,
-    ADD COLUMN IF NOT EXISTS delivery_state TEXT NOT NULL DEFAULT 'ready',
-    ADD COLUMN IF NOT EXISTS seen_state TEXT NOT NULL DEFAULT 'unseen',
-    ADD COLUMN IF NOT EXISTS frame_thumb TEXT,
-    ADD COLUMN IF NOT EXISTS primary_subject JSONB NOT NULL DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS environment_context TEXT,
-    ADD COLUMN IF NOT EXISTS seasonal_note TEXT,
-    ADD COLUMN IF NOT EXISTS coexisting_taxa TEXT[] NOT NULL DEFAULT '{}',
-    ADD COLUMN IF NOT EXISTS confidence_context JSONB NOT NULL DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS media_refs JSONB NOT NULL DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}'::jsonb;
+CREATE TABLE IF NOT EXISTS guide_record_latency_states (
+    guide_record_id     UUID        PRIMARY KEY,
+    captured_at         TIMESTAMPTZ,
+    returned_at         TIMESTAMPTZ,
+    current_distance_m  REAL,
+    delivery_state      TEXT        NOT NULL DEFAULT 'ready'
+        CHECK (delivery_state IN ('pending', 'ready', 'surfaced', 'deferred', 'archived')),
+    seen_state          TEXT        NOT NULL DEFAULT 'unseen'
+        CHECK (seen_state IN ('unseen', 'seen', 'dismissed', 'saved')),
+    frame_thumb         TEXT,
+    primary_subject     JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    environment_context TEXT,
+    seasonal_note       TEXT,
+    coexisting_taxa     TEXT[]      NOT NULL DEFAULT '{}',
+    confidence_context  JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    media_refs          JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    meta                JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'guide_records_delivery_state_check'
-    ) THEN
-        ALTER TABLE guide_records
-            ADD CONSTRAINT guide_records_delivery_state_check
-            CHECK (delivery_state IN ('pending', 'ready', 'surfaced', 'deferred', 'archived'));
-    END IF;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_guide_record_latency_delivery
+    ON guide_record_latency_states (delivery_state, returned_at DESC);
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'guide_records_seen_state_check'
-    ) THEN
-        ALTER TABLE guide_records
-            ADD CONSTRAINT guide_records_seen_state_check
-            CHECK (seen_state IN ('unseen', 'seen', 'dismissed', 'saved'));
-    END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_guide_records_delivery
-    ON guide_records (delivery_state, returned_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_guide_records_captured
-    ON guide_records (captured_at DESC)
+CREATE INDEX IF NOT EXISTS idx_guide_record_latency_captured
+    ON guide_record_latency_states (captured_at DESC)
     WHERE captured_at IS NOT NULL;
