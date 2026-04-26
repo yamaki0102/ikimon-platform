@@ -317,23 +317,86 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const galleryHref = appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang);
   const guideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
   return `<nav class="global-record-launcher" aria-label="すぐ記録する">
-    <a class="global-record-choice is-primary" href="${escapeHtml(photoHref)}" data-kpi-action="global_record_photo">
+    <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden />
+    <input class="global-record-input" data-global-record-input="video" type="file" accept="video/*" capture="environment" hidden />
+    <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*,video/*" hidden />
+    <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-record-target="${escapeHtml(photoHref)}" data-kpi-action="global_record_photo">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
       <span>写真</span>
-    </a>
-    <a class="global-record-choice" href="${escapeHtml(videoHref)}" data-kpi-action="global_record_video">
+    </button>
+    <button type="button" class="global-record-choice" data-global-record-trigger="video" data-record-target="${escapeHtml(videoHref)}" data-kpi-action="global_record_video">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
       <span>動画</span>
-    </a>
-    <a class="global-record-choice" href="${escapeHtml(galleryHref)}" data-kpi-action="global_record_gallery">
+    </button>
+    <button type="button" class="global-record-choice" data-global-record-trigger="gallery" data-record-target="${escapeHtml(galleryHref)}" data-kpi-action="global_record_gallery">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
       <span>選ぶ</span>
-    </a>
+    </button>
     <a class="global-record-choice" href="${escapeHtml(guideHref)}" data-kpi-action="global_record_guide">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
       <span>ガイド</span>
     </a>
   </nav>`;
+}
+
+function globalRecordEntryScript(): string {
+  return `<script>
+(function () {
+  const DB_NAME = 'ikimon-record-draft';
+  const STORE_NAME = 'drafts';
+  const DRAFT_KEY = 'latest';
+  const openDraftDb = () => new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) {
+      reject(new Error('indexeddb_unavailable'));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('indexeddb_open_failed'));
+  });
+  const saveDraft = async (draft) => {
+    const db = await openDraftDb();
+    try {
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        transaction.objectStore(STORE_NAME).put(draft, DRAFT_KEY);
+        transaction.oncomplete = () => resolve(true);
+        transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
+      });
+    } finally {
+      db.close();
+    }
+  };
+  document.querySelectorAll('[data-global-record-trigger]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const kind = button.getAttribute('data-global-record-trigger') || 'gallery';
+      const input = document.querySelector('[data-global-record-input="' + kind + '"]');
+      if (input && typeof input.click === 'function') input.click();
+      else window.location.href = button.getAttribute('data-record-target') || '/record';
+    });
+  });
+  document.querySelectorAll('[data-global-record-input]').forEach((input) => {
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      const kind = input.getAttribute('data-global-record-input') || 'gallery';
+      const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
+      const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
+      if (!file) return;
+      try {
+        await saveDraft({ file, kind, savedAt: Date.now() });
+        const separator = href && href.indexOf('?') >= 0 ? '&' : '?';
+        window.location.href = String(href || '/record') + separator + 'draft=1';
+      } catch (_) {
+        window.location.href = href || '/record?start=' + encodeURIComponent(kind);
+      }
+    });
+  });
+})();
+</script>`;
 }
 
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
@@ -1324,6 +1387,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       font-weight: 950;
       line-height: 1.2;
       text-decoration: none;
+      border: 0;
+      font-family: inherit;
+      cursor: pointer;
     }
     .global-record-choice.is-primary {
       background: #ecfdf5;
@@ -1626,6 +1692,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     ${globalRecordNav}
   </div>
   ${authNavHydrationScript(options.basePath, lang)}
+  ${globalRecordNav ? globalRecordEntryScript() : ""}
   ${uiKpiScript}
 </body>
 </html>`;
