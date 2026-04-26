@@ -127,6 +127,8 @@ test("observation media renders video media role badges", () => {
         iframeUrl: "https://iframe.videodelivery.net/video-asset",
         thumbnailUrl: "https://videodelivery.net/video-asset/thumbnails/thumbnail.jpg",
         watchUrl: "https://watch.cloudflarestream.com/video-asset",
+        readyToStream: true,
+        uploadStatus: "ready",
         createdAt: "2026-04-26T00:00:00.000Z",
         mediaRole: "sound_motion",
         suggestedMediaRole: "sound_motion",
@@ -142,4 +144,33 @@ test("observation media renders video media role badges", () => {
   assert.match(mediaBlock, /<strong>動画<\/strong>/);
   assert.match(mediaBlock, />音・動き<\/span>/);
   assert.match(mediaBlock, /提案 音・動き/);
+});
+
+test("observation media explains when video is still processing", () => {
+  const videoSnapshot = {
+    ...snapshot,
+    photoAssets: [],
+    videoAssets: [
+      {
+        assetId: "video-asset",
+        providerUid: "video-asset",
+        iframeUrl: "https://iframe.videodelivery.net/video-asset",
+        thumbnailUrl: "https://videodelivery.net/video-asset/thumbnails/thumbnail.jpg",
+        watchUrl: "https://watch.cloudflarestream.com/video-asset",
+        readyToStream: false,
+        uploadStatus: "inprogress",
+        createdAt: "2026-04-26T00:00:00.000Z",
+        mediaRole: "sound_motion",
+        suggestedMediaRole: "sound_motion",
+        suggestedMediaRoleConfidence: null,
+        suggestedMediaRoleSource: "heuristic",
+        suggestedMediaRoleReason: "fixture",
+      },
+    ],
+  } as unknown as ObservationDetailSnapshot;
+
+  const { mediaBlock } = renderObservationMedia(videoSnapshot, subject);
+
+  assert.match(mediaBlock, /動画を処理しています/);
+  assert.match(mediaBlock, /記録は保存済みです/);
 });

@@ -25,6 +25,7 @@ export type AppConfig = {
     accountId: string;
     streamApiToken: string;
     streamCustomerSubdomain: string;
+    streamWebhookSecret?: string;
   };
   oauth: {
     google?: {
@@ -106,8 +107,9 @@ export function loadConfig(): AppConfig {
   const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   const cfToken = process.env.CLOUDFLARE_STREAM_API_TOKEN?.trim();
   const cfSubdomain = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN?.trim();
+  const cfWebhookSecret = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET?.trim();
   const cloudflare = cfAccount && cfToken && cfSubdomain
-    ? { accountId: cfAccount, streamApiToken: cfToken, streamCustomerSubdomain: cfSubdomain }
+    ? { accountId: cfAccount, streamApiToken: cfToken, streamCustomerSubdomain: cfSubdomain, streamWebhookSecret: cfWebhookSecret || undefined }
     : undefined;
   const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
