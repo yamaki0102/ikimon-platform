@@ -46,6 +46,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /まだ分からないまま残す/);
         assert.match(response.body, /今日は見なかったメモを残す/);
         assert.match(response.body, /次に探すもの/);
+        assert.match(response.body, /data-capture-action="photo"/);
+        assert.match(response.body, /data-capture-action="video"/);
+        assert.match(response.body, /data-capture-action="gallery"/);
+        assert.doesNotMatch(response.body, /メモだけ始める/);
       } finally {
         await app.close();
       }
@@ -72,6 +76,8 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.match(response.body, /名前が分からなくても、記録は始められる/);
         assert.match(response.body, /ログインして記録する/);
         assert.match(response.body, /新しく登録して記録する/);
+        assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto/);
+        assert.doesNotMatch(response.body, /redirect=%2Frecord%3Fstart%3Dnote/);
         assert.doesNotMatch(response.body, /Session required/);
       } finally {
         await app.close();
