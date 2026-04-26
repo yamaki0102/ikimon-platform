@@ -658,7 +658,7 @@ async function importUsers(
     let avatarAssetId: string | null = null;
     const normalizedEmail = user.email?.toLowerCase() ?? null;
     if (typeof user.avatar === "string" && user.avatar.startsWith("uploads/")) {
-      avatarAssetId = randomUUID();
+      const candidateAvatarAssetId = randomUUID();
       const legacyAssetKey = `avatar:${user.id}`;
       const candidates = resolveAssetCandidatePaths(user.avatar, options);
       let sha256: string | null = null;
@@ -687,16 +687,17 @@ async function importUsers(
         },
       });
 
-      await pool.query(
+      const avatarAssetResult = await pool.query<{ asset_id: string }>(
         `insert into evidence_assets (
             asset_id, blob_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
          ) values ($1, $2::uuid, 'avatar', $3, $4, $5::jsonb)
          on conflict (legacy_asset_key) do update set
             blob_id = excluded.blob_id,
             legacy_relative_path = excluded.legacy_relative_path,
-            source_payload = excluded.source_payload`,
+            source_payload = excluded.source_payload
+         returning asset_id`,
         [
-          avatarAssetId,
+          candidateAvatarAssetId,
           blobId,
           legacyAssetKey,
           user.avatar,
@@ -706,6 +707,7 @@ async function importUsers(
           }),
         ],
       );
+      avatarAssetId = avatarAssetResult.rows[0]?.asset_id ?? null;
     }
 
     if (normalizedEmail) {
