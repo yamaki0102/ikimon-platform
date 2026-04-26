@@ -67,6 +67,10 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /void startCamera\(\)/);
   assert.match(html, /MediaRecorder/);
   assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
+  assert.match(html, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
+  assert.match(html, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
+  assert.match(html, /preparePhotoUpload/);
+  assert.match(html, /canvas\.toDataURL\('image\/jpeg', PHOTO_UPLOAD_JPEG_QUALITY\)/);
   assert.match(html, /selectedPhotoDraftFiles/);
   assert.match(html, /data-global-record-photo-remove/);
   assert.match(html, /data-global-record-photo-move/);

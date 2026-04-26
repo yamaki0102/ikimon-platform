@@ -438,6 +438,7 @@ self.addEventListener('fetch', () => {
 export function buildApp() {
   const app = Fastify({
     logger: true,
+    bodyLimit: 25 * 1024 * 1024,
   });
 
   app.addHook("onRequest", async (request, reply) => {
