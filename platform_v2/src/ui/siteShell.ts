@@ -352,6 +352,36 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <div class="global-record-camera-empty" data-global-record-camera-empty>カメラを起動すると、ここにプレビューが出ます。</div>
     </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
+    <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
+      <div class="global-record-inline-edit-head">
+        <strong>ここで少し整える</strong>
+        <span data-global-record-data-estimate>送信量を確認中</span>
+      </div>
+      <label>
+        <span>名前が分かれば</span>
+        <input data-global-record-edit-name type="text" maxlength="120" placeholder="例: スズメ / セミ / 名前は不明" />
+      </label>
+      <label>
+        <span>メモ</span>
+        <textarea data-global-record-edit-note rows="2" maxlength="240" placeholder="例: 水辺の柵の近く。鳴き声が聞こえた。"></textarea>
+      </label>
+    </div>
+    <div class="global-record-video-trim" data-global-record-video-trim hidden>
+      <div class="global-record-video-trim-head">
+        <strong>投稿する最大60秒を選ぶ</strong>
+        <span data-global-record-video-trim-duration>0.0秒</span>
+      </div>
+      <div class="global-record-video-trim-controls">
+        <label>
+          <span>開始 <output data-global-record-video-trim-start-label>0.0秒</output></span>
+          <input data-global-record-video-trim-start type="range" min="0" max="0" step="0.1" value="0" />
+        </label>
+        <label>
+          <span>終了 <output data-global-record-video-trim-end-label>0.0秒</output></span>
+          <input data-global-record-video-trim-end type="range" min="0" max="0" step="0.1" value="0" />
+        </label>
+      </div>
+    </div>
     <div class="global-record-camera-actions">
       <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
@@ -379,6 +409,7 @@ function globalRecordEntryScript(): string {
   let capturedReviewFile = null;
   let capturedReviewMeta = null;
   let reviewObjectUrl = '';
+  let sheetVideoTrimState = null;
   const sheet = document.querySelector('[data-global-record-camera-sheet]');
   const backdrop = document.querySelector('[data-global-record-camera-close].global-record-camera-backdrop');
   const cameraVideo = document.querySelector('[data-global-record-camera-video]');
@@ -390,6 +421,16 @@ function globalRecordEntryScript(): string {
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
   const fallbackButton = document.querySelector('[data-global-record-camera-fallback]');
+  const inlineEdit = document.querySelector('[data-global-record-inline-edit]');
+  const editNameInput = document.querySelector('[data-global-record-edit-name]');
+  const editNoteInput = document.querySelector('[data-global-record-edit-note]');
+  const dataEstimate = document.querySelector('[data-global-record-data-estimate]');
+  const trimWrap = document.querySelector('[data-global-record-video-trim]');
+  const trimStart = document.querySelector('[data-global-record-video-trim-start]');
+  const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
+  const trimStartLabel = document.querySelector('[data-global-record-video-trim-start-label]');
+  const trimEndLabel = document.querySelector('[data-global-record-video-trim-end-label]');
+  const trimDurationLabel = document.querySelector('[data-global-record-video-trim-duration]');
   const labels = {
     photo: {
       title: '写真を撮る',
@@ -435,13 +476,111 @@ function globalRecordEntryScript(): string {
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
   };
+  const formatDataSize = (bytes) => {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) return '0 MB';
+    const mb = value / (1024 * 1024);
+    if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+    return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + ' MB';
+  };
+  const formatEstimateMinutes = (bytes) => {
+    const mb = Number(bytes) / (1024 * 1024);
+    if (!Number.isFinite(mb) || mb <= 0) return '約0分';
+    const minutes = mb / 10;
+    if (minutes < 1) return '約' + Math.max(1, Math.round(minutes * 60)) + '秒';
+    return '約' + (minutes >= 10 ? Math.round(minutes) : minutes.toFixed(1)) + '分';
+  };
+  const updateDataEstimate = (file, selectedSeconds) => {
+    if (!dataEstimate) return;
+    if (!file) {
+      dataEstimate.textContent = '送信量を確認中';
+      return;
+    }
+    let bytes = Number(file.size || 0);
+    if (sheetVideoTrimState && Number.isFinite(selectedSeconds) && Number(sheetVideoTrimState.duration || 0) > 0) {
+      bytes = bytes * Math.min(1, Number(selectedSeconds) / Number(sheetVideoTrimState.duration || 1));
+    }
+    dataEstimate.textContent = '送信目安 ' + formatDataSize(bytes) + ' / YouTube標準画質なら' + formatEstimateMinutes(bytes) + 'ぶん';
+  };
+  const readInlineEdit = () => ({
+    vernacularName: editNameInput ? String(editNameInput.value || '').trim() : '',
+    localityNote: editNoteInput ? String(editNoteInput.value || '').trim() : '',
+  });
+  const withInlineEditParams = (href, kind) => {
+    let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
+    try {
+      const url = new URL(target, window.location.origin);
+      const values = readInlineEdit();
+      url.searchParams.set('draft', '1');
+      if (values.vernacularName) url.searchParams.set('vernacularName', values.vernacularName);
+      if (values.localityNote) url.searchParams.set('localityNote', values.localityNote);
+      return url.pathname + url.search + url.hash;
+    } catch (_) {
+      const separator = target.indexOf('?') >= 0 ? '&' : '?';
+      return target + separator + 'draft=1';
+    }
+  };
   const stopRecordingTimer = () => {
     if (recordingTimer) window.clearInterval(recordingTimer);
     recordingTimer = null;
   };
+  const formatVideoSeconds = (seconds) => {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value < 0) return '0.0秒';
+    return value.toFixed(1) + '秒';
+  };
+  const resetSheetVideoTrim = () => {
+    sheetVideoTrimState = null;
+    if (trimWrap) trimWrap.hidden = true;
+    if (trimStart) {
+      trimStart.max = '0';
+      trimStart.value = '0';
+    }
+    if (trimEnd) {
+      trimEnd.max = '0';
+      trimEnd.value = '0';
+    }
+    if (trimStartLabel) trimStartLabel.textContent = '0.0秒';
+    if (trimEndLabel) trimEndLabel.textContent = '0.0秒';
+    if (trimDurationLabel) trimDurationLabel.textContent = '0.0秒';
+  };
+  const syncSheetVideoTrim = (changed) => {
+    if (!sheetVideoTrimState || !trimStart || !trimEnd) return;
+    const duration = Number(sheetVideoTrimState.duration || 0);
+    let start = Number(trimStart.value);
+    let end = Number(trimEnd.value);
+    if (!Number.isFinite(start)) start = 0;
+    if (!Number.isFinite(end)) end = Math.min(duration, VIDEO_MAX_SECONDS);
+    start = Math.max(0, Math.min(start, Math.max(0, duration - 0.1)));
+    end = Math.max(0.1, Math.min(end, duration));
+    if (end <= start + 0.2) {
+      if (changed === 'start') end = Math.min(duration, start + 0.2);
+      else start = Math.max(0, end - 0.2);
+    }
+    if (end - start > VIDEO_MAX_SECONDS) {
+      if (changed === 'start') end = Math.min(duration, start + VIDEO_MAX_SECONDS);
+      else start = Math.max(0, end - VIDEO_MAX_SECONDS);
+    }
+    sheetVideoTrimState.start = start;
+    sheetVideoTrimState.end = end;
+    trimStart.value = String(start);
+    trimEnd.value = String(end);
+    if (trimStartLabel) trimStartLabel.textContent = formatVideoSeconds(start);
+    if (trimEndLabel) trimEndLabel.textContent = formatVideoSeconds(end);
+    if (trimDurationLabel) trimDurationLabel.textContent = formatVideoSeconds(end - start);
+    if (cameraVideo && Math.abs(Number(cameraVideo.currentTime || 0) - start) > 0.4) {
+      cameraVideo.currentTime = start;
+    }
+    updateDataEstimate(sheetVideoTrimState.sourceFile, end - start);
+  };
   const clearReview = () => {
     capturedReviewFile = null;
     capturedReviewMeta = null;
+    resetSheetVideoTrim();
+    if (inlineEdit) inlineEdit.hidden = true;
+    if (editNameInput) editNameInput.value = '';
+    if (editNoteInput) editNoteInput.value = '';
+    if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
     if (reviewObjectUrl) {
       URL.revokeObjectURL(reviewObjectUrl);
       reviewObjectUrl = '';
@@ -484,8 +623,7 @@ function globalRecordEntryScript(): string {
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
     try {
       await saveDraft({ file, kind, savedAt: Date.now(), metadata: metadata || {} });
-      const separator = href && href.indexOf('?') >= 0 ? '&' : '?';
-      window.location.href = String(href || '/record') + separator + 'draft=1';
+      window.location.href = withInlineEditParams(href || '/record', kind);
     } catch (_) {
       window.location.href = href || '/record?start=' + encodeURIComponent(kind);
     }
@@ -614,6 +752,128 @@ function globalRecordEntryScript(): string {
     const location = await readCaptureLocation();
     return { capturedAt, location };
   };
+  const prepareSheetVideoTrim = (file) => {
+    resetSheetVideoTrim();
+    if (!file || !trimWrap || !trimStart || !trimEnd || !cameraVideo) return;
+    const setup = () => {
+      const duration = Number(cameraVideo.duration || 0);
+      if (!Number.isFinite(duration) || duration <= 0) return;
+      sheetVideoTrimState = { sourceFile: file, duration, start: 0, end: Math.min(duration, VIDEO_MAX_SECONDS) };
+      trimStart.max = String(duration);
+      trimEnd.max = String(duration);
+      trimStart.value = '0';
+      trimEnd.value = String(Math.min(duration, VIDEO_MAX_SECONDS));
+      trimWrap.hidden = false;
+      syncSheetVideoTrim();
+    };
+    if (cameraVideo.readyState >= 1) setup();
+    else cameraVideo.addEventListener('loadedmetadata', setup, { once: true });
+  };
+  const createSheetTrimmedVideoFile = () => new Promise((resolve, reject) => {
+    if (!sheetVideoTrimState || !sheetVideoTrimState.sourceFile) {
+      reject(new Error('video_trim_source_missing'));
+      return;
+    }
+    const start = Number(sheetVideoTrimState.start || 0);
+    const end = Number(sheetVideoTrimState.end || 0);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > VIDEO_MAX_SECONDS + 0.5) {
+      reject(new Error('video_trim_range_invalid'));
+      return;
+    }
+    const sourceFile = sheetVideoTrimState.sourceFile;
+    const sourceUrl = URL.createObjectURL(sourceFile);
+    const sourceVideo = document.createElement('video');
+    const cleanup = () => {
+      URL.revokeObjectURL(sourceUrl);
+      sourceVideo.pause();
+      sourceVideo.removeAttribute('src');
+      sourceVideo.load();
+    };
+    const captureStream = () => {
+      const capture = sourceVideo.captureStream || sourceVideo.mozCaptureStream;
+      return capture ? capture.call(sourceVideo) : null;
+    };
+    sourceVideo.preload = 'auto';
+    sourceVideo.playsInline = true;
+    sourceVideo.src = sourceUrl;
+    sourceVideo.onerror = () => {
+      cleanup();
+      reject(new Error('video_trim_failed'));
+    };
+    sourceVideo.onloadedmetadata = async () => {
+      try {
+        sourceVideo.currentTime = start;
+        await new Promise((seekResolve, seekReject) => {
+          if (Math.abs(Number(sourceVideo.currentTime || 0) - start) < 0.05) {
+            seekResolve(true);
+            return;
+          }
+          const timer = window.setTimeout(() => seekReject(new Error('video_trim_seek_failed')), 8000);
+          sourceVideo.onseeked = () => {
+            window.clearTimeout(timer);
+            seekResolve(true);
+          };
+        });
+        const stream = captureStream();
+        if (!stream || typeof MediaRecorder === 'undefined') {
+          cleanup();
+          reject(new Error('video_trim_unsupported'));
+          return;
+        }
+        const mimeType = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm')
+            ? 'video/webm'
+            : '';
+        const chunks = [];
+        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        let settled = false;
+        const finish = (error) => {
+          if (settled) return;
+          settled = true;
+          stream.getTracks().forEach((track) => track.stop());
+          cleanup();
+          if (error) {
+            reject(error);
+            return;
+          }
+          const type = chunks[0] ? chunks[0].type || 'video/webm' : 'video/webm';
+          const blob = new Blob(chunks, { type });
+          resolve(new File([blob], 'ikimon-video-trim-' + Date.now() + '.webm', { type, lastModified: Date.now() }));
+        };
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) chunks.push(event.data);
+        };
+        recorder.onerror = () => finish(new Error('video_trim_failed'));
+        recorder.onstop = () => finish(null);
+        recorder.start(1000);
+        await sourceVideo.play();
+        const safetyTimer = window.setTimeout(() => {
+          if (recorder.state === 'recording') recorder.stop();
+        }, Math.ceil((end - start + 2) * 1000));
+        const timer = window.setInterval(() => {
+          if (sourceVideo.currentTime >= end || sourceVideo.ended) {
+            window.clearInterval(timer);
+            window.clearTimeout(safetyTimer);
+            if (recorder.state === 'recording') recorder.stop();
+          }
+        }, 100);
+      } catch (error) {
+        cleanup();
+        reject(error instanceof Error ? error : new Error('video_trim_failed'));
+      }
+    };
+  });
+  const buildVideoDraftFromSheet = async () => {
+    if (!capturedReviewFile || !sheetVideoTrimState) return capturedReviewFile;
+    const duration = Number(sheetVideoTrimState.duration || 0);
+    const start = Number(sheetVideoTrimState.start || 0);
+    const end = Number(sheetVideoTrimState.end || 0);
+    const needsClip = duration > VIDEO_MAX_SECONDS + 0.5 || start > 0.15 || end < duration - 0.15;
+    if (!needsClip) return capturedReviewFile;
+    setStatus('選んだ最大60秒の動画を作成中です...');
+    return await createSheetTrimmedVideoFile();
+  };
   const showCapturedReview = (file, kind, metadata) => {
     stopActiveStream();
     capturedReviewFile = file;
@@ -630,17 +890,20 @@ function globalRecordEntryScript(): string {
         cameraVideo.loop = true;
         cameraVideo.play().catch(() => undefined);
       }
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。次に投稿する最大60秒を選びます。' : '次に投稿する最大60秒を選びます。位置は編集画面で指定できます。');
-      if (captureButton) captureButton.textContent = 'カットして編集へ';
+      prepareSheetVideoTrim(file);
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。下で区間、名前、メモを整えられます。' : '下で区間、名前、メモを整えられます。位置は投稿画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この内容で投稿画面へ';
     } else {
       if (cameraVideo) cameraVideo.hidden = true;
       if (cameraImage) {
         cameraImage.src = reviewObjectUrl;
         cameraImage.hidden = false;
       }
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。この写真で編集へ進めます。' : 'この写真で編集へ進めます。位置は編集画面で指定できます。');
-      if (captureButton) captureButton.textContent = 'この写真で編集へ';
+      updateDataEstimate(file);
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。名前とメモをここで整えられます。' : '名前とメモをここで整えられます。位置は投稿画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この内容で投稿画面へ';
     }
+    if (inlineEdit) inlineEdit.hidden = false;
     if (startButton) {
       startButton.hidden = false;
       startButton.disabled = false;
@@ -676,6 +939,7 @@ function globalRecordEntryScript(): string {
         return;
       }
       const file = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+      stopActiveStream();
       const metadata = await buildCaptureMetadata();
       showCapturedReview(file, 'photo', metadata);
     }, 'image/jpeg', 0.9);
@@ -716,6 +980,7 @@ function globalRecordEntryScript(): string {
         captureButton.disabled = false;
         captureButton.textContent = '録画開始';
       }
+      stopActiveStream();
       const metadata = await buildCaptureMetadata();
       showCapturedReview(file, 'video', metadata);
     };
@@ -728,9 +993,19 @@ function globalRecordEntryScript(): string {
       setStatus('録画中 ' + String(elapsed) + '秒 / 投稿は最大60秒。あとで区間を選べます');
     }, 500);
   };
-  const captureFromSheet = () => {
+  const captureFromSheet = async () => {
     if (capturedReviewFile) {
-      navigateWithDraft(capturedReviewFile, activeKind || 'photo', capturedReviewMeta || {});
+      if (captureButton) captureButton.disabled = true;
+      try {
+        const file = activeKind === 'video' ? await buildVideoDraftFromSheet() : capturedReviewFile;
+        await navigateWithDraft(file, activeKind || 'photo', capturedReviewMeta || {});
+      } catch (error) {
+        if (captureButton) captureButton.disabled = false;
+        const message = error && error.message ? String(error.message) : '';
+        setStatus(message === 'video_trim_unsupported'
+          ? 'このブラウザではシート内カットに対応していません。60秒以内で撮り直すか、編集画面で選んでください。'
+          : '動画のカットに失敗しました。区間を変えるか、撮り直してください。');
+      }
       return;
     }
     if (activeKind === 'video') {
@@ -763,6 +1038,18 @@ function globalRecordEntryScript(): string {
     else startCamera();
   });
   if (captureButton) captureButton.addEventListener('click', captureFromSheet);
+  if (trimStart) trimStart.addEventListener('input', () => syncSheetVideoTrim('start'));
+  if (trimEnd) trimEnd.addEventListener('input', () => syncSheetVideoTrim('end'));
+  if (cameraVideo) {
+    cameraVideo.addEventListener('timeupdate', () => {
+      if (!sheetVideoTrimState || activeKind !== 'video' || !capturedReviewFile) return;
+      const end = Number(sheetVideoTrimState.end || 0);
+      if (Number(cameraVideo.currentTime || 0) > end) {
+        cameraVideo.pause();
+        cameraVideo.currentTime = Number(sheetVideoTrimState.start || 0);
+      }
+    });
+  }
   if (fallbackButton) {
     fallbackButton.addEventListener('click', () => {
       const kind = activeKind || 'photo';
@@ -1892,6 +2179,111 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       line-height: 1.5;
       font-weight: 850;
     }
+    .global-record-inline-edit {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .global-record-inline-edit[hidden] {
+      display: none;
+    }
+    .global-record-inline-edit-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .global-record-inline-edit-head strong {
+      color: #0f172a;
+      font-size: 13px;
+      line-height: 1.4;
+      font-weight: 950;
+    }
+    .global-record-inline-edit-head span {
+      max-width: 58%;
+      color: #047857;
+      font-size: 11px;
+      line-height: 1.45;
+      font-weight: 900;
+      text-align: right;
+    }
+    .global-record-inline-edit label {
+      display: grid;
+      gap: 6px;
+      color: #334155;
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+    .global-record-inline-edit input,
+    .global-record-inline-edit textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid rgba(15,23,42,.14);
+      border-radius: 12px;
+      background: #fff;
+      color: #0f172a;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 10px 11px;
+      resize: vertical;
+    }
+    .global-record-video-trim {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(236,253,245,.86);
+      border: 1px solid rgba(16,185,129,.22);
+    }
+    .global-record-video-trim[hidden] {
+      display: none;
+    }
+    .global-record-video-trim-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #064e3b;
+      font-size: 12px;
+      font-weight: 950;
+      line-height: 1.4;
+    }
+    .global-record-video-trim-head span {
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid rgba(16,185,129,.2);
+      color: #047857;
+    }
+    .global-record-video-trim-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .global-record-video-trim-controls label {
+      display: grid;
+      gap: 6px;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1.3;
+    }
+    .global-record-video-trim-controls label span {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .global-record-video-trim-controls input {
+      width: 100%;
+      accent-color: #047857;
+    }
     .global-record-camera-actions {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1918,6 +2310,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-action:disabled {
       opacity: .64;
       cursor: wait;
+    }
+    @media (max-width: 520px) {
+      .global-record-video-trim-controls {
+        grid-template-columns: 1fr;
+      }
     }
     .footer-chip-row {
       display: flex;
