@@ -18,6 +18,8 @@ import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
+import { registerSampleReportRoute } from "./routes/sampleReport.js";
+import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
 import {
   listPagesByLane,
   listPagesByVisibility,
@@ -458,6 +460,8 @@ export function buildApp() {
   void registerLegacyAssetRoutes(app);
   void registerMapApiRoutes(app);
   void registerMarketingRoutes(app);
+  void registerSampleReportRoute(app);
+  void registerStewardshipActionRoutes(app);
   void registerReadRoutes(app);
   void registerWriteRoutes(app);
   void registerUiKpiRoutes(app);
