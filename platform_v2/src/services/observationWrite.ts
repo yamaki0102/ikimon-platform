@@ -13,6 +13,7 @@ import {
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
+import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 import {
   hasNativeObservationPhoto,
   upsertVisitQualityReview,
@@ -485,7 +486,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         sourcePayload: photoSourcePayload,
       });
 
-      await client.query(
+      const assetResult = await client.query<{ asset_id: string }>(
         `insert into evidence_assets (
             asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
          ) values (
@@ -496,7 +497,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
             occurrence_id = excluded.occurrence_id,
             visit_id = excluded.visit_id,
             legacy_relative_path = excluded.legacy_relative_path,
-            source_payload = excluded.source_payload`,
+            source_payload = excluded.source_payload
+         returning asset_id::text`,
         [
           randomUUID(),
           blobId,
@@ -507,6 +509,22 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           JSON.stringify(photoSourcePayload),
         ],
       );
+      const assetId = assetResult.rows[0]?.asset_id;
+      if (!assetId) {
+        throw new Error("failed_to_upsert_photo_asset");
+      }
+      await upsertEvidenceAssetMediaRole(client, {
+        assetId,
+        occurrenceId,
+        visitId,
+        assetRole: "observation_photo",
+        mediaRole,
+        mediaRoleSource: "user",
+        sourcePayload: {
+          source: "v2_write_api",
+          photo_index: index,
+        },
+      });
     }
 
     if (!hasPhoto) {
