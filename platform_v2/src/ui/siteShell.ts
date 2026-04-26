@@ -288,6 +288,54 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
   </footer>`;
 }
 
+function normalizePathname(path: string): string {
+  try {
+    return new URL(path, "https://ikimon.local").pathname;
+  } catch {
+    return path.split("?")[0] || "/";
+  }
+}
+
+function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
+  const pathname = normalizePathname(currentPath);
+  return !(
+    pathname === "/record" ||
+    pathname.startsWith("/record/") ||
+    pathname === "/guide" ||
+    pathname.startsWith("/guide/") ||
+    pathname === "/login" ||
+    pathname === "/register"
+  );
+}
+
+function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string): string {
+  if (!shouldRenderGlobalRecordEntry(currentPath)) {
+    return "";
+  }
+  const photoHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
+  const videoHref = appendLangToHref(withBasePath(basePath, "/record?start=video"), lang);
+  const galleryHref = appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang);
+  const guideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
+  return `<nav class="global-record-launcher" aria-label="すぐ記録する">
+    <a class="global-record-choice is-primary" href="${escapeHtml(photoHref)}" data-kpi-action="global_record_photo">
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
+      <span>写真</span>
+    </a>
+    <a class="global-record-choice" href="${escapeHtml(videoHref)}" data-kpi-action="global_record_video">
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
+      <span>動画</span>
+    </a>
+    <a class="global-record-choice" href="${escapeHtml(galleryHref)}" data-kpi-action="global_record_gallery">
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
+      <span>選ぶ</span>
+    </a>
+    <a class="global-record-choice" href="${escapeHtml(guideHref)}" data-kpi-action="global_record_guide">
+      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
+      <span>ガイド</span>
+    </a>
+  </nav>`;
+}
+
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const sessionEndpoint = withBasePath(basePath, "/api/v1/auth/session");
   const profileHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
@@ -322,6 +370,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
+  const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
+  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}`;
   const uiKpiScript = `<script>
 (function () {
   const endpoint = ${JSON.stringify(uiKpiEndpoint)};
@@ -1243,6 +1293,63 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       color: #ffffff;
       border-color: rgba(255,255,255,.24);
     }
+    .global-record-launcher {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 36;
+      display: none;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      padding: 8px;
+      gap: 8px;
+      border-radius: 24px;
+      background: rgba(255,255,255,.96);
+      border: 1px solid rgba(15,23,42,.08);
+      box-shadow: 0 20px 44px rgba(15,23,42,.20);
+      backdrop-filter: blur(18px);
+    }
+    .global-record-choice {
+      min-height: 58px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 7px 6px;
+      border-radius: 17px;
+      background: rgba(248,250,252,.92);
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1.2;
+      text-decoration: none;
+    }
+    .global-record-choice.is-primary {
+      background: #ecfdf5;
+      color: #065f46;
+    }
+    .global-record-choice-icon {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(15,23,42,.06);
+    }
+    .global-record-choice.is-primary .global-record-choice-icon {
+      background: rgba(16,185,129,.14);
+    }
+    .global-record-choice svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .footer-chip-row {
       display: flex;
       flex-wrap: wrap;
@@ -1474,6 +1581,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
         font-size: 13px;
         box-shadow: 0 8px 18px rgba(5,150,105,.14);
       }
+      .has-global-record-launcher .site-header-actions-mobile .site-record-link { display: none; }
+      .site-shell.has-global-record-launcher { padding-bottom: 88px; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
       .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 18ch; }
       .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 32ch; margin-top: 18px; }
@@ -1497,13 +1606,16 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .field-note-card h3 { font-size: 20px; }
       .mentor-inline { padding: 20px 20px; }
       .mentor-inline h2 { font-size: 21px; }
+      .global-record-launcher {
+        display: grid;
+      }
     }
     ${options.extraStyles ?? ""}
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
-  <div class="site-shell">
+  <div class="${siteShellClassName}">
     ${nav(options.basePath, lang, currentPath, options.activeNav)}
     <main id="main-content" class="shell${options.shellClassName ? ` ${escapeHtml(options.shellClassName)}` : ""}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
@@ -1511,6 +1623,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       ${options.body}
     </main>
     ${footer(options.basePath, lang, options.footerNote)}
+    ${globalRecordNav}
   </div>
   ${authNavHydrationScript(options.basePath, lang)}
   ${uiKpiScript}

@@ -1114,11 +1114,11 @@ const START_STATE_STYLES = `
   .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
   .start-guide-auth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.68); border: 1px solid rgba(15,23,42,.08); }
-  .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.25fr repeat(3, minmax(0, .78fr)); gap: 8px; }
+  .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; line-height: 1.2; }
-  .record-dock-primary { flex-direction: row; font-size: 13px; background: #064e3b; color: #fff; box-shadow: 0 10px 24px rgba(6,78,59,.22); }
+  .record-dock-primary { background: #ecfdf5; color: #065f46; }
   .record-dock-icon { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
-  .record-dock-primary .record-dock-icon { background: rgba(255,255,255,.16); }
+  .record-dock-primary .record-dock-icon { background: rgba(16,185,129,.14); }
   .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .site-footer { padding-bottom: 104px; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
@@ -1146,8 +1146,8 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
       tone: "light",
       align: "center",
       actions: [
-        { href: "/", label: "トップへ戻る", variant: "secondary" },
-        { href: "/learn/identification-basics", label: "名前の調べ方を見る", variant: "secondary" },
+        { href: "/login?redirect=/record", label: "ログインして記録する" },
+        { href: "/register?redirect=/record", label: "新しく登録して記録する", variant: "secondary" },
       ],
     },
     body: `<div class="start-guide">
@@ -1523,6 +1523,11 @@ const PROFILE_HUB_STYLES = `
   .profile-settings-field { display: grid; gap: 8px; }
   .profile-settings-field label { font-weight: 850; color: #0f172a; }
   .profile-settings-field input, .profile-settings-field textarea { width: 100%; min-height: 48px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(15,23,42,.16); background: #fff; color: #0f172a; font: inherit; line-height: 1.6; box-sizing: border-box; }
+  .profile-settings-avatar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 14px; border-radius: 18px; border: 1px solid rgba(15,23,42,.1); background: rgba(248,250,252,.82); }
+  .profile-settings-avatar-preview { width: 76px; height: 76px; border-radius: 999px; overflow: hidden; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-size: 24px; font-weight: 950; flex: 0 0 auto; }
+  .profile-settings-avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .profile-settings-avatar-control { display: grid; gap: 8px; min-width: min(260px, 100%); flex: 1; }
+  .profile-settings-avatar-control input { min-height: auto; padding: 10px; }
   .profile-settings-field textarea { min-height: 148px; resize: vertical; }
   .profile-settings-help { margin: 0; color: #64748b; font-size: 13px; line-height: 1.65; }
   .profile-settings-status { min-height: 24px; color: #475569; font-weight: 800; }
@@ -1702,13 +1707,26 @@ function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: Profil
 function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot): string {
   const endpoint = withBasePath(basePath, "/api/v1/profile/me");
   const backHref = withBasePath(basePath, "/profile");
+  const avatarFallback = (snapshot.displayName || "?").slice(0, 1);
   return `<section class="section" data-testid="profile-settings">
     <div class="profile-settings-card">
       <form class="profile-settings-form" data-profile-settings data-endpoint="${escapeHtml(endpoint)}">
         <div>
           <div class="eyebrow">Profile settings</div>
           <h2 style="margin:8px 0 0">プロフィール編集</h2>
-          <p class="profile-settings-help" style="margin-top:8px">公開プロフィールとマイページの表示名を更新します。写真アップロードは次フェーズで分離します。</p>
+          <p class="profile-settings-help" style="margin-top:8px">公開プロフィールとマイページの表示名、アイコン、自己紹介を更新します。</p>
+        </div>
+        <div class="profile-settings-field">
+          <label for="profile-avatar">アイコン</label>
+          <div class="profile-settings-avatar">
+            <div class="profile-settings-avatar-preview" data-avatar-preview>
+              ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" onerror="this.remove();this.parentElement.textContent=${escapeHtml(JSON.stringify(avatarFallback))}" />` : escapeHtml(avatarFallback)}
+            </div>
+            <div class="profile-settings-avatar-control">
+              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+              <p class="profile-settings-help">5MBまで。JPG / PNG / WebP / GIF を使えます。</p>
+            </div>
+          </div>
         </div>
         <div class="profile-settings-field">
           <label for="profile-display-name">表示名</label>
@@ -1744,6 +1762,10 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     display_name_too_long: '表示名は50文字以内で入力してください。',
     profile_bio_too_long: '自己紹介は500文字以内で入力してください。',
     expertise_too_long: '関心分野は120文字以内で入力してください。',
+    avatar_invalid: 'アイコン画像を読み込めませんでした。',
+    avatar_empty: 'アイコン画像が空です。',
+    avatar_too_large: 'アイコン画像は5MB以内にしてください。',
+    avatar_invalid_type: 'アイコンは JPG / PNG / WebP / GIF を選んでください。',
     session_required: 'ログインし直してください。'
   };
   const setStatus = (message, kind) => {
@@ -1752,6 +1774,46 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     status.classList.toggle('is-error', kind === 'error');
     status.classList.toggle('is-success', kind === 'success');
   };
+  const avatarInput = form.querySelector('input[name="avatar"]');
+  const avatarPreview = form.querySelector('[data-avatar-preview]');
+  let selectedAvatar = null;
+  const readAvatar = (file) => new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    if (!/^image\\/(jpeg|png|webp|gif)$/.test(file.type || '')) {
+      return reject(new Error(messages.avatar_invalid_type));
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return reject(new Error(messages.avatar_too_large));
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      filename: file.name || 'avatar',
+      mimeType: file.type || 'image/jpeg',
+      base64Data: String(reader.result || '')
+    });
+    reader.onerror = () => reject(new Error(messages.avatar_invalid));
+    reader.readAsDataURL(file);
+  });
+  if (avatarInput) {
+    avatarInput.addEventListener('change', async () => {
+      const file = avatarInput.files && avatarInput.files[0] ? avatarInput.files[0] : null;
+      try {
+        selectedAvatar = await readAvatar(file);
+        if (selectedAvatar && avatarPreview) {
+          avatarPreview.innerHTML = '';
+          const image = document.createElement('img');
+          image.alt = '';
+          image.src = selectedAvatar.base64Data;
+          avatarPreview.appendChild(image);
+        }
+        setStatus('', '');
+      } catch (error) {
+        selectedAvatar = null;
+        avatarInput.value = '';
+        setStatus(error instanceof Error ? error.message : messages.avatar_invalid, 'error');
+      }
+    });
+  }
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!endpoint) return;
@@ -1770,7 +1832,8 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
         body: JSON.stringify({
           displayName: String(data.get('displayName') || ''),
           expertise: String(data.get('expertise') || ''),
-          profileBio: String(data.get('profileBio') || '')
+          profileBio: String(data.get('profileBio') || ''),
+          avatar: selectedAvatar
         })
       });
       const payload = await response.json().catch(() => null);
@@ -1832,11 +1895,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const recordPageCopy = getShortCopy<any>(lang, "public", "read.record");
     const session = await getSessionFromCookie(request.headers.cookie);
     const resolution = resolveViewer(request.query, session);
     const viewerUserId = resolution.viewerUserId ?? "";
-    const queryUserId = resolution.queryOverrideHonored ? resolution.requestedUserId : "";
     if (!viewerUserId) {
       reply.type("text/html; charset=utf-8");
       return renderRecordStartGuide(basePath, lang);
@@ -1845,7 +1906,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      recordPageCopy.title,
+      "記録する | ikimon",
       `<section class="record-page">
         <div class="record-shell">
           <section class="record-card record-sheet">
@@ -1863,22 +1924,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <div class="record-capture-launcher" aria-label="投稿の始め方">
               <button type="button" class="record-capture-option is-primary" data-capture-action="photo">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-                <strong>写真を撮る</strong>
+                <strong>写真</strong>
                 <span>その場の1枚をすぐ残す</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="video">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-                <strong>動画を撮る</strong>
+                <strong>動画</strong>
                 <span>動きや鳴き方ごと残す</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="gallery">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-                <strong>ギャラリーから選ぶ</strong>
+                <strong>選ぶ</strong>
                 <span>撮影済みの写真や動画を使う</span>
               </button>
               <a class="record-capture-option record-capture-link" href="${escapeHtml(withBasePath(basePath, "/guide"))}">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
-                <strong>ライブガイド</strong>
+                <strong>ガイド</strong>
                 <span>AIのヒントを見ながら探す</span>
               </a>
             </div>
@@ -2170,9 +2231,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let locationSearchAbort = null;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
-          photo: { title: '写真を撮る', help: 'その場で撮った写真を記録に添付します。' },
-          video: { title: '動画を撮る', help: '動画は 200MB / 60秒まで対応します。' },
-          gallery: { title: 'ギャラリーから選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
+          photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
+          video: { title: '動画を追加', help: '動画は 200MB / 60秒まで対応します。' },
+          gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
         };
 
         if (observedAt && !observedAt.value) {
@@ -3216,18 +3277,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         }
       </script>`,
       "Record",
-      {
-        eyebrow: recordPageCopy.hero.eyebrow,
-        heading: recordPageCopy.hero.heading,
-        lead: recordPageCopy.hero.lead,
-        actions: [
-          { href: queryUserId ? `/home?userId=${encodeURIComponent(viewerUserId)}` : "/home", label: "ホーム" },
-          { href: "/explore", label: "みつける", variant: "secondary" as const },
-        ],
-      },
+      undefined,
       `
         .record-page { margin-top: 24px; }
-        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 860px; }
+        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 1180px; }
         .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
         .record-sheet { position: relative; overflow: hidden; }
         .record-sheet::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 34px, rgba(14,165,233,.05) 35px, transparent 36px); pointer-events: none; }
@@ -3238,7 +3291,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-session-pill { display: inline-flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); min-width: 180px; }
         .record-session-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
         .record-session-pill strong { font-size: 14px; color: #0f172a; word-break: break-all; }
-        .record-capture-launcher { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-left: 16px; margin: 0 0 18px; }
+        .record-capture-launcher { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding-left: 16px; margin: 0 0 18px; }
         .record-capture-option { min-height: 132px; display: grid; align-content: start; gap: 8px; text-align: left; padding: 16px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; text-decoration: none; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.045); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
         .record-capture-option:hover, .record-capture-option.is-active { transform: translateY(-2px); border-color: rgba(14,165,233,.34); box-shadow: 0 16px 32px rgba(14,165,233,.1); }
         .record-capture-option.is-primary { background: linear-gradient(180deg, rgba(236,253,245,.96), rgba(240,249,255,.96)); border-color: rgba(16,185,129,.24); }
@@ -3274,19 +3327,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-coordinate-details { display: grid; gap: 10px; }
         .record-coordinate-details summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; border-radius: 14px; background: rgba(248,250,252,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; font-weight: 900; cursor: pointer; }
         .record-coordinate-details .record-gps-inputs { margin-top: 10px; }
-        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: 1.35fr repeat(3, minmax(0, 1fr)); gap: 8px; }
-        .record-dock-action { min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 16px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 12px; font-weight: 900; cursor: pointer; line-height: 1.2; }
+        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; cursor: pointer; line-height: 1.2; }
         .record-dock-action:hover, .record-dock-action.is-active { border-color: rgba(14,165,233,.28); background: #f0f9ff; }
-        .record-dock-primary { background: #064e3b; color: #fff; box-shadow: 0 10px 24px rgba(6,78,59,.22); }
-        .record-dock-primary:hover, .record-dock-primary.is-active { background: #047857; border-color: rgba(255,255,255,.2); }
+        .record-dock-primary { background: #ecfdf5; color: #065f46; }
+        .record-dock-primary:hover, .record-dock-primary.is-active { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
         .record-dock-icon { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
-        .record-dock-primary .record-dock-icon { background: rgba(255,255,255,.16); }
+        .record-dock-primary .record-dock-icon { background: rgba(16,185,129,.14); }
         .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .record-submit-dock { display: none; }
         .site-footer { padding-bottom: 104px; }
         .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
         @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
-        .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; }
+        .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; scroll-margin-top: 92px; }
         .record-form[hidden] { display: none; }
         .record-field { display: flex; flex-direction: column; gap: 8px; }
         .record-field-wide { grid-column: 1 / -1; }
@@ -3338,6 +3391,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-preview-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .record-preview-photo video { width: 100%; height: 100%; display: block; object-fit: cover; background: #020617; }
         .record-preview-photo.is-empty { color: #475569; font-size: 13px; }
+        @media (min-width: 1024px) {
+          .record-shell { grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr); }
+          .record-sidebar { position: sticky; top: 92px; }
+        }
         @media (max-width: 720px) {
           .record-page { padding-bottom: 104px; }
           .record-has-media .record-page { padding-bottom: 118px; }
@@ -3347,10 +3404,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-has-media .record-capture-launcher,
           .record-has-media .record-card-head { display: none; }
           .record-capture-option { min-height: 124px; padding: 14px; border-radius: 18px; }
-          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: 1.25fr repeat(3, minmax(0, .78fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
+          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
           .record-has-media .record-capture-dock { display: none; }
-          .record-dock-action { min-height: 58px; flex-direction: column; gap: 4px; padding: 7px 6px; border-radius: 17px; font-size: 11px; }
-          .record-dock-primary { flex-direction: row; font-size: 13px; }
+          .record-dock-action { min-height: 58px; }
           .record-dock-icon { width: 28px; height: 28px; }
           .record-location-nudge { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-location-nudge button { width: 100%; }
