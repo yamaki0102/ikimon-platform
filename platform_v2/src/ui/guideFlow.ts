@@ -16,6 +16,8 @@ type GuideCopy = {
   analysing: string;
   playing: string;
   privacyNotice: string;
+  naturalSoundBadge: string;
+  voiceExcludedNotice: string;
   audioTitle: string;
   audioEmpty: string;
   audioSkipped: string;
@@ -51,6 +53,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     analysing: "解析中…",
     playing: "▶ ガイド音声を再生中",
     privacyNotice: "人の声が入った音声は保存しません",
+    naturalSoundBadge: "自然音だけを使っています",
+    voiceExcludedNotice: "人声の可能性がある音を除外しました",
     audioTitle: "今回の音の記録",
     audioEmpty: "自然音のまとまりはまだありません",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",
@@ -84,6 +88,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     analysing: "Analysing…",
     playing: "▶ Playing guide audio",
     privacyNotice: "Clips with human voices are not stored",
+    naturalSoundBadge: "Using natural sounds only",
+    voiceExcludedNotice: "Possible human voice was excluded",
     audioTitle: "Sounds From This Session",
     audioEmpty: "No natural sound bundles yet",
     audioSkipped: "Some clips were skipped for privacy",
@@ -117,6 +123,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     analysing: "Analizando…",
     playing: "▶ Reproduciendo audio",
     privacyNotice: "No guardamos clips con voces humanas",
+    naturalSoundBadge: "Solo usamos sonidos naturales",
+    voiceExcludedNotice: "Se excluyó audio con posible voz humana",
     audioTitle: "Sonidos de esta sesión",
     audioEmpty: "Todavía no hay grupos de sonidos naturales",
     audioSkipped: "Algunos clips se omitieron por privacidad",
@@ -150,6 +158,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     analysing: "Analisando…",
     playing: "▶ Reproduzindo áudio",
     privacyNotice: "Clipes com voz humana não são salvos",
+    naturalSoundBadge: "Usamos apenas sons naturais",
+    voiceExcludedNotice: "Possível voz humana foi excluída",
     audioTitle: "Sons desta sessão",
     audioEmpty: "Ainda não há grupos de sons naturais",
     audioSkipped: "Alguns clipes foram ignorados por privacidade",
@@ -197,7 +207,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       </label>
     </div>
     <button class="guide-start-btn" id="guide-start-btn">${escapeHtml(c.startBtn)}</button>
-    <p class="guide-privacy-note">${escapeHtml(c.privacyNotice)}</p>
+    <div class="guide-privacy-row" aria-label="音声プライバシー">
+      <span class="guide-privacy-badge">${escapeHtml(c.naturalSoundBadge)}</span>
+      <p class="guide-privacy-note">${escapeHtml(c.privacyNotice)}</p>
+    </div>
+    <p class="guide-privacy-live" id="guide-privacy-live" hidden aria-live="polite"></p>
   </div>
 
   <div class="guide-now" id="guide-now" hidden>
@@ -243,6 +257,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const copy = {
     analysing: ${JSON.stringify(c.analysing)},
     playing: ${JSON.stringify(c.playing)},
+    voiceExcludedNotice: ${JSON.stringify(c.voiceExcludedNotice)},
     audioEmpty: ${JSON.stringify(c.audioEmpty)},
     audioSkipped: ${JSON.stringify(c.audioSkipped)},
     audioUnnamed: ${JSON.stringify(c.audioUnnamed)},
@@ -267,6 +282,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   let lastKnownPosition = { lat: 35.68, lng: 139.76 };
   let liveAssistToken = null;
   let sceneAudioChunks = [];
+  let sceneAudioPrivacySkippedCount = 0;
   let analyserFrames = [];
   let clientPrivacySkippedCount = 0;
   const pendingScenes = new Map();
@@ -288,6 +304,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const audioList  = document.getElementById('guide-audio-list');
   const audioEmpty = document.getElementById('guide-audio-empty');
   const audioSkip  = document.getElementById('guide-audio-skipped');
+  const privacyLive = document.getElementById('guide-privacy-live');
 
   function getLang() { return document.getElementById('guide-lang-select').value; }
   function getCategory() { return document.getElementById('guide-category-select').value; }
@@ -564,7 +581,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     const skippedCount = Math.max(Number(recap && recap.privacySkippedCount || 0), clientPrivacySkippedCount);
     if (skippedCount > 0) {
       audioSkip.hidden = false;
-      audioSkip.textContent = copy.audioSkipped + ' (' + skippedCount + ')';
+      audioSkip.textContent = copy.voiceExcludedNotice + ' (' + skippedCount + ')';
     } else {
       audioSkip.hidden = true;
       audioSkip.textContent = '';
@@ -583,15 +600,8 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     clearTimeout(recapTimer);
     recapTimer = setTimeout(refreshRecap, 600);
   }
-  async function uploadAudioChunk(blob) {
+  async function uploadAudioChunk(blob, fingerprint, vad) {
     if (!blob || !blob.size || !preferredMime) return;
-    const fingerprint = summarizeFrames();
-    const vad = classifySpeech(fingerprint);
-    if (vad.speechLikely) {
-      clientPrivacySkippedCount += 1;
-      scheduleRecapRefresh();
-      return;
-    }
     try {
       const base64Data = await blobToBase64(blob);
       const payload = {
@@ -619,6 +629,23 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     }
     scheduleRecapRefresh();
   }
+  function handleAudioChunk(blob) {
+    if (!blob || !blob.size) return;
+    const fingerprint = summarizeFrames();
+    const vad = classifySpeech(fingerprint);
+    if (vad.speechLikely) {
+      clientPrivacySkippedCount += 1;
+      sceneAudioPrivacySkippedCount += 1;
+      if (privacyLive) {
+        privacyLive.hidden = false;
+        privacyLive.textContent = copy.voiceExcludedNotice;
+      }
+      scheduleRecapRefresh();
+      return;
+    }
+    sceneAudioChunks.push(blob);
+    void uploadAudioChunk(blob, fingerprint, vad);
+  }
   async function doAnalyse() {
     if (!running) return;
     setStatus(copy.analysing);
@@ -629,6 +656,8 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       const frameThumb = captureFrameThumb();
       const capturedAt = new Date().toISOString();
       const audio = await captureAudioForScene();
+      const audioPrivacySkippedCount = sceneAudioPrivacySkippedCount;
+      sceneAudioPrivacySkippedCount = 0;
       const lang = getLang();
       const sceneRes = await fetch(BASE + '/api/v1/guide/scene', {
         method: 'POST',
@@ -641,7 +670,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
           lng: lastKnownPosition.lng,
           lang,
           sessionId,
-          capturedAt
+          capturedAt,
+          audioPrivacy: {
+            clientSkippedCount: audioPrivacySkippedCount,
+            policy: 'exclude_speech_likely_chunks'
+          }
         })
       }).then((r) => r.json());
       if (sceneRes && sceneRes.sceneId) {
@@ -757,8 +790,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         mediaRecorder = new MediaRecorder(stream, { mimeType: preferredMime, audioBitsPerSecond: 32000 });
         mediaRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
-            sceneAudioChunks.push(e.data);
-            void uploadAudioChunk(e.data);
+            handleAudioChunk(e.data);
           }
         };
         mediaRecorder.start(2000);
@@ -863,7 +895,11 @@ export const GUIDE_FLOW_STYLES = `
   .guide-title { font-size: 32px; font-weight: 950; color: #0f172a; letter-spacing: 0; line-height: 1.12; margin: 0 0 8px; }
   .guide-subtitle { font-size: 14px; color: #475569; margin: 0; line-height: 1.7; font-weight: 700; }
   .guide-controls { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
-  .guide-privacy-note { margin: 0; font-size: 12px; color: #047857; background: rgba(255,255,255,.82); border: 1px solid rgba(5,150,105,.18); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+  .guide-privacy-row { display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.86); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+  .guide-privacy-badge { width: fit-content; display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 950; border: 1px solid rgba(5,150,105,.2); }
+  .guide-privacy-note { margin: 0; font-size: 12px; color: #047857; line-height: 1.6; font-weight: 800; }
+  .guide-privacy-live { margin: -4px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(254,249,195,.92); color: #854d0e; border: 1px solid rgba(202,138,4,.2); font-size: 12px; line-height: 1.55; font-weight: 850; }
+  .guide-privacy-live[hidden] { display: none; }
   .guide-selects { display: flex; gap: 10px; flex-wrap: wrap; }
   .guide-select-label { font-size: 11px; font-weight: 900; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
   .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 800; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }

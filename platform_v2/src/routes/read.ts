@@ -2133,6 +2133,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   </div>
                 </div>
               </details>
+              <div id="record-video-trim" class="record-video-trim" hidden>
+                <div class="record-video-trim-head">
+                  <div>
+                    <strong>投稿する60秒を選ぶ</strong>
+                    <p>長めに撮った動画から、見せたい動きや鳴き声の区間だけを切り出します。</p>
+                  </div>
+                  <span id="record-video-trim-duration">0.0秒</span>
+                </div>
+                <div class="record-video-trim-preview">
+                  <video id="record-video-trim-player" controls playsinline preload="metadata" aria-label="動画トリミングプレビュー"></video>
+                </div>
+                <div class="record-video-trim-controls">
+                  <label>
+                    <span>開始 <output id="record-video-trim-start-label">0.0秒</output></span>
+                    <input id="record-video-trim-start" type="range" min="0" max="0" step="0.1" value="0" />
+                  </label>
+                  <label>
+                    <span>終了 <output id="record-video-trim-end-label">0.0秒</output></span>
+                    <input id="record-video-trim-end" type="range" min="0" max="0" step="0.1" value="0" />
+                  </label>
+                </div>
+                <div class="record-video-trim-actions">
+                  <button type="button" class="btn btn-solid" id="record-video-trim-apply">この区間で使う</button>
+                  <span id="record-video-trim-status" aria-live="polite">区間を選ぶと投稿前に短い動画を作ります。</span>
+                </div>
+              </div>
               <div id="record-video-progress" class="record-video-progress" hidden aria-live="polite">
                 <div class="record-video-progress-head">
                   <strong>動画アップロード進捗</strong>
@@ -2245,14 +2271,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const videoProgressBytes = document.getElementById('record-video-progress-bytes');
         const videoLive = document.getElementById('record-video-live');
         const videoCancel = document.getElementById('record-video-cancel');
+        const videoTrimWrap = document.getElementById('record-video-trim');
+        const videoTrimPlayer = document.getElementById('record-video-trim-player');
+        const videoTrimStart = document.getElementById('record-video-trim-start');
+        const videoTrimEnd = document.getElementById('record-video-trim-end');
+        const videoTrimStartLabel = document.getElementById('record-video-trim-start-label');
+        const videoTrimEndLabel = document.getElementById('record-video-trim-end-label');
+        const videoTrimDuration = document.getElementById('record-video-trim-duration');
+        const videoTrimApply = document.getElementById('record-video-trim-apply');
+        const videoTrimStatus = document.getElementById('record-video-trim-status');
         const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
         const MAX_VIDEO_SECONDS = 60;
         let previewObjectUrl = '';
+        let videoTrimObjectUrl = '';
         let activeTusUpload = null;
         let cancelTusUpload = null;
         let selectedMediaFile = null;
         let selectedCaptureKind = '';
         let selectedMediaCapturedAt = null;
+        let selectedOriginalVideoFile = null;
+        let selectedVideoWasTrimmed = false;
+        let videoTrimState = null;
         let recordMap = null;
         let recordMapMarker = null;
         let recordMapReady = false;
@@ -2646,6 +2685,249 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (videoProgressBytes) videoProgressBytes.textContent = formatBytes(uploaded) + ' / ' + formatBytes(total);
         };
 
+        const formatVideoSeconds = (seconds) => {
+          const value = Number(seconds);
+          if (!Number.isFinite(value) || value < 0) return '0.0秒';
+          return value.toFixed(1) + '秒';
+        };
+
+        const getVideoDuration = (file) => new Promise((resolve, reject) => {
+          const probe = document.createElement('video');
+          const objectUrl = URL.createObjectURL(file);
+          const cleanup = () => {
+            URL.revokeObjectURL(objectUrl);
+            probe.removeAttribute('src');
+          };
+          probe.preload = 'metadata';
+          probe.muted = true;
+          probe.playsInline = true;
+          probe.onloadedmetadata = () => {
+            const duration = Number(probe.duration);
+            cleanup();
+            if (!Number.isFinite(duration) || duration <= 0) {
+              reject(new Error('video_duration_unknown'));
+              return;
+            }
+            resolve(duration);
+          };
+          probe.onerror = () => {
+            cleanup();
+            reject(new Error('video_metadata_read_failed'));
+          };
+          probe.src = objectUrl;
+        });
+
+        const resetVideoTrim = (opts) => {
+          if (videoTrimObjectUrl) {
+            URL.revokeObjectURL(videoTrimObjectUrl);
+            videoTrimObjectUrl = '';
+          }
+          if (videoTrimPlayer) {
+            videoTrimPlayer.pause();
+            videoTrimPlayer.removeAttribute('src');
+            videoTrimPlayer.load();
+          }
+          if (videoTrimWrap) videoTrimWrap.hidden = true;
+          if (videoTrimStatus) videoTrimStatus.textContent = '区間を選ぶと投稿前に短い動画を作ります。';
+          if (videoTrimApply) videoTrimApply.disabled = false;
+          videoTrimState = null;
+          selectedOriginalVideoFile = null;
+          if (!(opts && opts.keepTrimmedFlag)) selectedVideoWasTrimmed = false;
+        };
+
+        const syncVideoTrimControls = (changed) => {
+          if (!videoTrimState || !videoTrimStart || !videoTrimEnd) return;
+          const duration = videoTrimState.duration;
+          let start = Number(videoTrimStart.value);
+          let end = Number(videoTrimEnd.value);
+          if (!Number.isFinite(start)) start = 0;
+          if (!Number.isFinite(end)) end = Math.min(duration, MAX_VIDEO_SECONDS);
+          start = Math.max(0, Math.min(start, Math.max(0, duration - 0.1)));
+          end = Math.max(0.1, Math.min(end, duration));
+          if (end <= start + 0.2) {
+            if (changed === 'start') end = Math.min(duration, start + 0.2);
+            else start = Math.max(0, end - 0.2);
+          }
+          if (end - start > MAX_VIDEO_SECONDS) {
+            if (changed === 'start') end = Math.min(duration, start + MAX_VIDEO_SECONDS);
+            else start = Math.max(0, end - MAX_VIDEO_SECONDS);
+          }
+          videoTrimState.start = start;
+          videoTrimState.end = end;
+          videoTrimStart.value = String(start);
+          videoTrimEnd.value = String(end);
+          if (videoTrimStartLabel) videoTrimStartLabel.textContent = formatVideoSeconds(start);
+          if (videoTrimEndLabel) videoTrimEndLabel.textContent = formatVideoSeconds(end);
+          if (videoTrimDuration) videoTrimDuration.textContent = formatVideoSeconds(end - start);
+          if (videoTrimPlayer && Math.abs(Number(videoTrimPlayer.currentTime || 0) - start) > 0.4) {
+            videoTrimPlayer.currentTime = start;
+          }
+          const needsClip = duration > MAX_VIDEO_SECONDS + 0.5 || start > 0.15 || end < duration - 0.15;
+          if (videoTrimStatus) {
+            videoTrimStatus.textContent = needsClip
+              ? '選んだ区間だけの動画を作ってから投稿できます。'
+              : '60秒以内なのでこのまま投稿できます。必要なら区間を選べます。';
+          }
+        };
+
+        const loadVideoTrimEditor = async (file) => {
+          resetVideoTrim();
+          if (!file || !isVideoFile(file) || !videoTrimWrap || !videoTrimStart || !videoTrimEnd) return;
+          const duration = await getVideoDuration(file);
+          selectedOriginalVideoFile = file;
+          selectedVideoWasTrimmed = false;
+          videoTrimState = { sourceFile: file, duration, start: 0, end: Math.min(duration, MAX_VIDEO_SECONDS) };
+          videoTrimStart.max = String(duration);
+          videoTrimEnd.max = String(duration);
+          videoTrimStart.value = '0';
+          videoTrimEnd.value = String(Math.min(duration, MAX_VIDEO_SECONDS));
+          if (videoTrimObjectUrl) URL.revokeObjectURL(videoTrimObjectUrl);
+          videoTrimObjectUrl = URL.createObjectURL(file);
+          if (videoTrimPlayer) {
+            videoTrimPlayer.src = videoTrimObjectUrl;
+            videoTrimPlayer.currentTime = 0;
+          }
+          videoTrimWrap.hidden = false;
+          syncVideoTrimControls();
+        };
+
+        const createTrimmedVideoFile = () => new Promise((resolve, reject) => {
+          if (!videoTrimState || !videoTrimState.sourceFile) {
+            reject(new Error('video_trim_source_missing'));
+            return;
+          }
+          const start = Number(videoTrimState.start || 0);
+          const end = Number(videoTrimState.end || 0);
+          if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > MAX_VIDEO_SECONDS + 0.5) {
+            reject(new Error('video_trim_range_invalid'));
+            return;
+          }
+          const sourceFile = videoTrimState.sourceFile;
+          const sourceUrl = URL.createObjectURL(sourceFile);
+          const sourceVideo = document.createElement('video');
+          const cleanup = () => {
+            URL.revokeObjectURL(sourceUrl);
+            sourceVideo.pause();
+            sourceVideo.removeAttribute('src');
+            sourceVideo.load();
+          };
+          const captureStream = () => {
+            const capture = sourceVideo.captureStream || sourceVideo.mozCaptureStream;
+            return capture ? capture.call(sourceVideo) : null;
+          };
+          sourceVideo.preload = 'auto';
+          sourceVideo.playsInline = true;
+          sourceVideo.volume = 0;
+          sourceVideo.src = sourceUrl;
+          sourceVideo.onerror = () => {
+            cleanup();
+            reject(new Error('video_trim_failed'));
+          };
+          sourceVideo.onloadedmetadata = async () => {
+            try {
+              sourceVideo.currentTime = start;
+              await new Promise((seekResolve, seekReject) => {
+                if (Math.abs(Number(sourceVideo.currentTime || 0) - start) < 0.05) {
+                  seekResolve(true);
+                  return;
+                }
+                const timer = window.setTimeout(() => seekReject(new Error('video_trim_seek_failed')), 8000);
+                sourceVideo.onseeked = () => {
+                  window.clearTimeout(timer);
+                  seekResolve(true);
+                };
+              });
+              const stream = captureStream();
+              if (!stream || typeof MediaRecorder === 'undefined') {
+                cleanup();
+                reject(new Error('video_trim_unsupported'));
+                return;
+              }
+              const mimeType = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+                ? 'video/webm;codecs=vp9'
+                : MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm')
+                  ? 'video/webm'
+                  : '';
+              const chunks = [];
+              const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+              let settled = false;
+              const finish = (error) => {
+                if (settled) return;
+                settled = true;
+                stream.getTracks().forEach((track) => track.stop());
+                cleanup();
+                if (error) {
+                  reject(error);
+                  return;
+                }
+                const type = chunks[0] ? chunks[0].type || 'video/webm' : 'video/webm';
+                const blob = new Blob(chunks, { type });
+                resolve(new File([blob], 'ikimon-video-trim-' + Date.now() + '.webm', { type, lastModified: Date.now() }));
+              };
+              recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) chunks.push(event.data);
+              };
+              recorder.onerror = () => finish(new Error('video_trim_failed'));
+              recorder.onstop = () => finish(null);
+              recorder.start(1000);
+              await sourceVideo.play();
+              const timer = window.setInterval(() => {
+                if (sourceVideo.currentTime >= end || sourceVideo.ended) {
+                  window.clearInterval(timer);
+                  if (recorder.state === 'recording') recorder.stop();
+                }
+              }, 100);
+            } catch (error) {
+              cleanup();
+              reject(error instanceof Error ? error : new Error('video_trim_failed'));
+            }
+          };
+        });
+
+        const ensureVideoReadyForUpload = async (file) => {
+          if (!file || !isVideoFile(file)) return file;
+          const duration = await getVideoDuration(file);
+          if (duration > MAX_VIDEO_SECONDS + 0.5 && !selectedVideoWasTrimmed) {
+            throw new Error('video_trim_required');
+          }
+          return file;
+        };
+
+        const applyVideoTrim = async () => {
+          if (!videoTrimState || !selectedOriginalVideoFile) return;
+          const duration = Number(videoTrimState.duration || 0);
+          const start = Number(videoTrimState.start || 0);
+          const end = Number(videoTrimState.end || 0);
+          const needsClip = duration > MAX_VIDEO_SECONDS + 0.5 || start > 0.15 || end < duration - 0.15;
+          if (!needsClip) {
+            selectedMediaFile = selectedOriginalVideoFile;
+            selectedVideoWasTrimmed = false;
+            if (videoTrimStatus) videoTrimStatus.textContent = 'このまま投稿できます。';
+            if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+            return;
+          }
+          if (videoTrimApply) videoTrimApply.disabled = true;
+          if (videoTrimStatus) videoTrimStatus.textContent = '選んだ区間の動画を作成中です...';
+          try {
+            const trimmedFile = await createTrimmedVideoFile();
+            selectedMediaFile = trimmedFile;
+            selectedVideoWasTrimmed = true;
+            renderPreviewFile(trimmedFile);
+            showRecordFormForMedia(trimmedFile, selectedCaptureKind || 'video');
+            resetVideoTrim({ keepTrimmedFlag: true });
+            if (videoProgressWrap) videoProgressWrap.hidden = false;
+            if (videoLive) videoLive.textContent = '切り出した動画をアップロードできます。送信すると開始します。';
+          } catch (error) {
+            if (videoTrimApply) videoTrimApply.disabled = false;
+            const message = normalizeError(error);
+            if (videoTrimStatus) {
+              videoTrimStatus.textContent = message === 'video_trim_unsupported'
+                ? 'このブラウザでは動画の切り出しに対応していません。60秒以内の動画を選んでください。'
+                : '動画の切り出しに失敗しました。別の区間か動画で試してください。';
+            }
+          }
+        };
+
         const hydrateRecordMap = () => {
           if (!locationMapEl || recordMapReady || !window.maplibregl) return;
           recordMapReady = true;
@@ -2859,6 +3141,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             button.setAttribute('aria-pressed', 'false');
           });
           renderPreviewFile(null);
+          resetVideoTrim();
           resetVideoProgress();
           syncModeUi();
         };
@@ -2997,45 +3280,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           renderPreviewFile(file);
           if (!isVideoFile(file)) {
             showRecordFormForMedia(file, kind);
+            resetVideoTrim();
             resetVideoProgress();
             await applyMediaAutofill(file);
           } else if (videoProgressWrap) {
             showRecordFormForMedia(file, kind);
             await applyMediaAutofill(file);
+            let trimReady = true;
+            try {
+              await loadVideoTrimEditor(file);
+            } catch (_) {
+              trimReady = false;
+              resetVideoTrim();
+              if (videoLive) videoLive.textContent = '動画の長さを確認できませんでした。別の動画で試してください。';
+            }
             videoProgressWrap.hidden = false;
-            if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+            if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
           }
         };
 
-        const validateVideoDuration = (file) => new Promise((resolve, reject) => {
-          const probe = document.createElement('video');
-          const objectUrl = URL.createObjectURL(file);
-          const cleanup = () => {
-            URL.revokeObjectURL(objectUrl);
-            probe.removeAttribute('src');
-          };
-          probe.preload = 'metadata';
-          probe.muted = true;
-          probe.playsInline = true;
-          probe.onloadedmetadata = () => {
-            const duration = Number(probe.duration);
-            cleanup();
-            if (!Number.isFinite(duration) || duration <= 0) {
-              reject(new Error('video_duration_unknown'));
-              return;
-            }
-            if (duration > MAX_VIDEO_SECONDS + 0.5) {
-              reject(new Error('video_duration_too_long'));
-              return;
-            }
-            resolve(duration);
-          };
-          probe.onerror = () => {
-            cleanup();
-            reject(new Error('video_metadata_read_failed'));
-          };
-          probe.src = objectUrl;
-        });
+        const validateVideoDuration = async (file) => {
+          const duration = await getVideoDuration(file);
+          if (duration > MAX_VIDEO_SECONDS + 0.5) {
+            throw new Error('video_duration_too_long');
+          }
+          return duration;
+        };
 
         const uploadVideoWithTus = (directUploadUrl, file) =>
           new Promise((resolve, reject) => {
@@ -3113,21 +3383,50 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (!file) {
               showRecordFormForMedia(null, '');
               resetVideoProgress();
+              resetVideoTrim();
               setAutofillStatus([]);
             } else if (!isVideoFile(file)) {
               showRecordFormForMedia(file, kind);
               resetVideoProgress();
+              resetVideoTrim();
               await applyMediaAutofill(file);
             } else if (videoProgressWrap) {
               showRecordFormForMedia(file, kind);
               await applyMediaAutofill(file);
+              let trimReady = true;
+              try {
+                await loadVideoTrimEditor(file);
+              } catch (_) {
+                trimReady = false;
+                resetVideoTrim();
+                if (videoLive) videoLive.textContent = '動画の長さを確認できませんでした。別の動画で試してください。';
+              }
               videoProgressWrap.hidden = false;
-              if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+              if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
             }
           });
         });
         if (captureChange) {
           captureChange.addEventListener('click', clearSelectedMedia);
+        }
+        if (videoTrimStart) {
+          videoTrimStart.addEventListener('input', () => syncVideoTrimControls('start'));
+        }
+        if (videoTrimEnd) {
+          videoTrimEnd.addEventListener('input', () => syncVideoTrimControls('end'));
+        }
+        if (videoTrimPlayer) {
+          videoTrimPlayer.addEventListener('timeupdate', () => {
+            if (!videoTrimState) return;
+            const end = Number(videoTrimState.end || 0);
+            if (Number(videoTrimPlayer.currentTime || 0) > end) {
+              videoTrimPlayer.pause();
+              videoTrimPlayer.currentTime = Number(videoTrimState.start || 0);
+            }
+          });
+        }
+        if (videoTrimApply) {
+          videoTrimApply.addEventListener('click', applyVideoTrim);
         }
         locateButtons.forEach((button) => {
           button.addEventListener('click', fillCurrentLocation);
@@ -3260,7 +3559,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               }
               const detailId = String(observationJson.occurrenceId || observationId);
 
-              const mediaFile = selectedMediaFile instanceof File && selectedMediaFile.size > 0 ? selectedMediaFile : null;
+              let mediaFile = selectedMediaFile instanceof File && selectedMediaFile.size > 0 ? selectedMediaFile : null;
               let extraStatus = '';
 
               if (mediaFile) {
@@ -3281,6 +3580,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     throw new Error(photoJson.error || 'photo_upload_failed');
                   }
                 } else if (isVideoFile(mediaFile)) {
+                  mediaFile = await ensureVideoReadyForUpload(mediaFile);
                   if (mediaFile.size > MAX_VIDEO_BYTES) {
                     throw new Error('video_file_too_large');
                   }
@@ -3356,6 +3656,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               let userMessage = message;
               if (message === 'video_file_too_large') userMessage = '動画サイズは 200MB 以下にしてください。';
               if (message === 'video_duration_too_long') userMessage = '動画の長さは 60 秒以内にしてください。';
+              if (message === 'video_trim_required') userMessage = '動画は投稿前に最大60秒の区間を選んでください。';
+              if (message === 'video_trim_range_invalid') userMessage = '動画の切り出し範囲は最大60秒にしてください。';
+              if (message === 'video_trim_unsupported') userMessage = 'このブラウザでは動画の切り出しに対応していません。60秒以内の動画を選んでください。';
               if (message === 'video_upload_cancelled') userMessage = '動画アップロードをキャンセルしました。';
               if (message === 'video_metadata_read_failed' || message === 'video_duration_unknown') userMessage = '動画の長さを確認できませんでした。別の動画で試してください。';
               if (message === 'unsupported_media_type') userMessage = '画像または動画ファイルを選択してください。';
@@ -3455,6 +3758,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-survey-caution { display: grid; gap: 4px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
         .record-survey-caution strong { color: #0f172a; font-size: 13px; }
         .record-survey-caution span { color: #475569; font-size: 12px; line-height: 1.7; font-weight: 700; }
+        .record-video-trim { grid-column: 1 / -1; display: grid; gap: 12px; padding: 14px; border-radius: 18px; background: linear-gradient(180deg, rgba(236,253,245,.92), rgba(239,246,255,.92)); border: 1px solid rgba(14,165,233,.2); }
+        .record-video-trim[hidden] { display: none; }
+        .record-video-trim-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+        .record-video-trim-head strong { display: block; color: #0f172a; font-size: 15px; }
+        .record-video-trim-head p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
+        .record-video-trim-head span { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #fff; color: #047857; font-size: 12px; font-weight: 950; border: 1px solid rgba(16,185,129,.2); }
+        .record-video-trim-preview { aspect-ratio: 16 / 9; min-height: 160px; border-radius: 16px; overflow: hidden; background: #020617; }
+        .record-video-trim-preview video { width: 100%; height: 100%; display: block; object-fit: contain; background: #020617; }
+        .record-video-trim-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .record-video-trim-controls label { display: grid; gap: 7px; color: #0f172a; font-size: 12px; font-weight: 900; }
+        .record-video-trim-controls label span { display: flex; justify-content: space-between; gap: 8px; }
+        .record-video-trim-controls input { width: 100%; accent-color: #047857; }
+        .record-video-trim-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .record-video-trim-actions span { color: #0f766e; font-size: 12px; line-height: 1.55; font-weight: 800; }
         .record-video-progress { grid-column: 1 / -1; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.2); display: grid; gap: 8px; }
         .record-video-progress[hidden] { display: none; }
         .record-video-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -3517,6 +3834,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-submit-location:disabled, .record-submit-primary:disabled { opacity: .55; cursor: wait; }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
+          .record-video-trim-controls { grid-template-columns: 1fr; }
+          .record-video-trim-actions .btn { width: 100%; }
           .record-mode-grid, .record-survey-grid, .record-advanced-grid { grid-template-columns: 1fr; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }

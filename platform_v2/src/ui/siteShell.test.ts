@@ -44,6 +44,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-record-target="\/record\?start=gallery&amp;lang=ja"/);
   assert.match(html, /href="\/guide\?lang=ja"/);
   assert.match(html, /indexedDB\.open\(DB_NAME, 1\)/);
+  assert.match(html, /data-global-record-camera-sheet/);
+  assert.match(html, /data-global-record-camera-video/);
+  assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(html, /MediaRecorder/);
+  assert.match(html, /VIDEO_MAX_SECONDS = 60/);
 });
 
 test("site shell does not duplicate the record entry on the record page", () => {
