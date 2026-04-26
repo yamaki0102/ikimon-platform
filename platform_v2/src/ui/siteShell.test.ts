@@ -71,7 +71,14 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-photo-remove/);
   assert.match(html, /data-global-record-photo-move/);
   assert.match(html, /AIは全体を見て主役と周囲を判断します/);
-  assert.match(html, /この' \+ String\(files\.length\) \+ '枚で投稿画面へ/);
+  assert.match(html, /この' \+ String\(files\.length\) \+ '枚を投稿/);
+  assert.match(html, /global_photo_tray/);
+  assert.match(html, /\/api\/v1\/observations\/upsert/);
+  assert.match(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/photos\/upload/);
+  assert.match(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);
+  assert.match(html, /subject_inference: 'ai'/);
+  assert.doesNotMatch(html, /data-global-record-camera-fallback/);
+  assert.doesNotMatch(html, /端末のカメラを開く/);
   assert.match(html, /もう1枚撮る/);
   assert.match(html, /VIDEO_MAX_SECONDS = 60/);
   assert.match(html, /動画投稿は最大60秒/);
