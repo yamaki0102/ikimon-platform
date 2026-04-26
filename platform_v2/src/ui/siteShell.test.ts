@@ -79,7 +79,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /global_photo_tray/);
   assert.match(html, /\/api\/v1\/observations\/upsert/);
   assert.match(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/photos\/upload/);
-  assert.match(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);
+  assert.doesNotMatch(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);
   assert.match(html, /subject_inference: 'ai'/);
   assert.doesNotMatch(html, /data-global-record-camera-fallback/);
   assert.doesNotMatch(html, /端末のカメラを開く/);

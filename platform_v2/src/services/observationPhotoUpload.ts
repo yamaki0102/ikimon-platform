@@ -8,6 +8,7 @@ import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
+import { enqueueMediaProcessingJobsStandalone } from "./mediaProcessingJobs.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
@@ -285,6 +286,27 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         failureClient.release();
       }
     }
+  }
+
+  try {
+    await enqueueMediaProcessingJobsStandalone([{
+      mediaKind: "photo",
+      mediaUid: occurrenceId,
+      observationId: visitId,
+      occurrenceId,
+      jobType: "photo_ready_reassess",
+      sourcePayload: {
+        source: "v2_photo_upload",
+        uploaded_observation_id: input.observationId,
+        media_role: mediaRole,
+        relative_path: relativePath,
+      },
+    }]);
+    void import("./mediaProcessingQueue.js")
+      .then(({ processMediaProcessingJobs }) => processMediaProcessingJobs(1))
+      .catch(() => undefined);
+  } catch {
+    // Media jobs are a best-effort follow-up; the photo itself is already durable.
   }
 
   return {

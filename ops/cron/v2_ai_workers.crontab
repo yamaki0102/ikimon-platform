@@ -1,0 +1,15 @@
+# platform_v2 worker cron entries (production VPS, root crontab)
+#
+# Apply with:
+#   ssh root@162.43.44.131 'cat /var/www/ikimon.life/repo/ops/cron/v2_ai_workers.crontab'
+#   then merge into `crontab -e` (preserve existing entries).
+#
+# Wrapper resolves the active blue/green color at call time and loads
+# /etc/ikimon/production-v2.env. Logs go to /var/log/ikimon/.
+#
+# This cron entry is a legacy safety net for older rows that were not queued.
+# The primary photo/video media worker is installed as
+# ikimon-v2-media-worker.timer by the blue/green deploy script.
+
+# v2 photo 投稿の AI 同定取りこぼし回収 (毎2分, 最大10件)
+*/2 * * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runAiForMissing --limit=10 >> /var/log/ikimon/v2_ai_for_missing.log 2>&1

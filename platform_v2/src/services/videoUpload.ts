@@ -5,6 +5,7 @@ import { getPool } from "../db.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
+import { enqueueMediaProcessingJobs } from "./mediaProcessingJobs.js";
 
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts/";
 const DEFAULT_MAX_DURATION_SECONDS = 15;
@@ -374,27 +375,16 @@ async function enqueueVideoProcessingJobs(client: PoolClient, record: VideoRecor
   if (!record.readyToStream || !observationId) {
     return 0;
   }
-  const jobTypes = ["video_thumbnail_refresh", "video_ready_reassess"];
-  let queued = 0;
-  for (const jobType of jobTypes) {
-    const result = await client.query<{ job_id: string }>(
-      `insert into video_processing_jobs (
-          stream_uid, observation_id, job_type, job_status, source_payload, created_at, updated_at
-       )
-       select $1, $2, $3, 'pending', $4::jsonb, now(), now()
-       where not exists (
-         select 1 from video_processing_jobs
-          where stream_uid = $1
-            and job_type = $3
-            and job_status in ('pending', 'running')
-       )
-       on conflict do nothing
-       returning job_id::text`,
-      [record.providerUid, observationId, jobType, JSON.stringify(sourcePayload)],
-    );
-    if (result.rows[0]?.job_id) queued += 1;
-  }
-  return queued;
+  return enqueueMediaProcessingJobs(client, ["video_thumbnail_refresh", "video_ready_reassess"].map((jobType) => ({
+    mediaKind: "video",
+    mediaUid: record.providerUid,
+    observationId,
+    jobType,
+    sourcePayload: {
+      ...sourcePayload,
+      stream_uid: record.providerUid,
+    },
+  })));
 }
 
 export async function handleStreamWebhook(payload: VideoStreamWebhookPayload): Promise<{ ok: true; uid: string; readyToStream: boolean; queuedJobs: number }> {
@@ -671,6 +661,12 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
     }
 
     await client.query("commit");
+    if (target && record.readyToStream) {
+      void kickVideoAiAfterFinalize(record, target.visitId).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[finalizeVideoUpload] AI kick failed for ${target.visitId} / ${uid}: ${message}`);
+      });
+    }
     return {
       ...record,
       occurrenceId: target?.occurrenceId ?? null,
@@ -686,4 +682,28 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
   } finally {
     client.release();
   }
+}
+
+async function kickVideoAiAfterFinalize(record: VideoRecord, observationId: string): Promise<void> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await enqueueVideoProcessingJobs(client, record, observationId, {
+      source: "v2_video_finalize_kick",
+      stream_uid: record.providerUid,
+    });
+    await client.query("commit");
+  } catch (error) {
+    try {
+      await client.query("rollback");
+    } catch {
+      // no-op
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+  const { processMediaProcessingJobs } = await import("./mediaProcessingQueue.js");
+  await processMediaProcessingJobs(2);
 }

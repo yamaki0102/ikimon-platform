@@ -941,10 +941,6 @@ function globalRecordEntryScript(basePath: string): string {
         throw new Error('photo_upload_failed_at_' + String(index + 1));
       }
     }
-    fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/reassess'), {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => undefined);
     resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
   };
   const addPhotoDraftFiles = (files, metadata) => {
