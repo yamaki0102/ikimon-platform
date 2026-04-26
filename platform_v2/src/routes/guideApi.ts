@@ -149,11 +149,12 @@ function writeSse(reply: { raw: { write: (chunk: string) => void } }, event: str
 export function registerGuideApiRoutes(app: FastifyInstance): void {
   /**
    * POST /api/v1/guide/scene
-   * Queue video frame (+ optional audio) analysis and immediately return a scene_id.
+   * Queue video frame (+ optional privacy-filtered natural audio) analysis and immediately return a scene_id.
    * Body (JSON):
    *   frame:       string  base64 JPEG/PNG frame
    *   frameThumb?: string  compact data URL thumbnail for delayed trail cards
-   *   audio?:      string  base64 PCM audio buffer
+   *   audio?:      string  base64 audio buffer after client speech-risk filtering
+   *   audioPrivacy?: { clientSkippedCount?: number, policy?: string }
    *   frameMime?:  string  MIME type of frame (default "image/jpeg")
    *   lat:         number
    *   lng:         number

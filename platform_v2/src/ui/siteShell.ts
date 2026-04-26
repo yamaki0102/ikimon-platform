@@ -336,7 +336,27 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
       <span>ガイド</span>
     </a>
-  </nav>`;
+  </nav>
+  <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
+  <section class="global-record-camera-sheet" data-global-record-camera-sheet hidden aria-label="撮影して記録する">
+    <div class="global-record-camera-head">
+      <div>
+        <strong data-global-record-camera-title>撮影して記録</strong>
+        <p data-global-record-camera-help>ブラウザ内で確認してから撮影できます。</p>
+      </div>
+      <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="閉じる">×</button>
+    </div>
+    <div class="global-record-camera-preview">
+      <video data-global-record-camera-video playsinline muted></video>
+      <div class="global-record-camera-empty" data-global-record-camera-empty>カメラを起動すると、ここにプレビューが出ます。</div>
+    </div>
+    <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
+    <div class="global-record-camera-actions">
+      <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
+      <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
+      <button type="button" class="global-record-camera-action" data-global-record-camera-fallback>端末のカメラを開く</button>
+    </div>
+  </section>`;
 }
 
 function globalRecordEntryScript(): string {
@@ -345,6 +365,40 @@ function globalRecordEntryScript(): string {
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
   const DRAFT_KEY = 'latest';
+  const VIDEO_MAX_SECONDS = 60;
+  let activeKind = '';
+  let activeStream = null;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let discardRecording = false;
+  let recordingStartedAt = 0;
+  let recordingTimer = null;
+  const sheet = document.querySelector('[data-global-record-camera-sheet]');
+  const backdrop = document.querySelector('[data-global-record-camera-close].global-record-camera-backdrop');
+  const cameraVideo = document.querySelector('[data-global-record-camera-video]');
+  const empty = document.querySelector('[data-global-record-camera-empty]');
+  const title = document.querySelector('[data-global-record-camera-title]');
+  const help = document.querySelector('[data-global-record-camera-help]');
+  const status = document.querySelector('[data-global-record-camera-status]');
+  const startButton = document.querySelector('[data-global-record-camera-start]');
+  const captureButton = document.querySelector('[data-global-record-camera-capture]');
+  const fallbackButton = document.querySelector('[data-global-record-camera-fallback]');
+  const labels = {
+    photo: {
+      title: '写真を撮る',
+      help: 'いきなり全画面にせず、この小さな画面で構図を確認してから撮影します。',
+      start: 'カメラを起動',
+      capture: '写真を撮る',
+      fallback: '端末のカメラを開く',
+    },
+    video: {
+      title: '動画を撮る',
+      help: '長めに撮っても、投稿前に最大60秒の見せたい区間を選べます。',
+      start: 'カメラを起動',
+      capture: '録画開始',
+      fallback: '端末の動画カメラを開く',
+    },
+  };
   const openDraftDb = () => new Promise((resolve, reject) => {
     if (!('indexedDB' in window)) {
       reject(new Error('indexeddb_unavailable'));
@@ -371,30 +425,214 @@ function globalRecordEntryScript(): string {
       db.close();
     }
   };
+  const setStatus = (message) => {
+    if (status) status.textContent = message || '';
+  };
+  const stopRecordingTimer = () => {
+    if (recordingTimer) window.clearInterval(recordingTimer);
+    recordingTimer = null;
+  };
+  const stopActiveStream = () => {
+    stopRecordingTimer();
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      discardRecording = true;
+      try { mediaRecorder.stop(); } catch (_) {}
+    }
+    mediaRecorder = null;
+    recordedChunks = [];
+    if (activeStream) activeStream.getTracks().forEach((track) => track.stop());
+    activeStream = null;
+    if (cameraVideo) {
+      cameraVideo.pause();
+      cameraVideo.srcObject = null;
+    }
+    if (empty) empty.hidden = false;
+    if (captureButton) captureButton.hidden = true;
+    if (startButton) startButton.hidden = false;
+  };
+  const navigateWithDraft = async (file, kind) => {
+    const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
+    const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
+    try {
+      await saveDraft({ file, kind, savedAt: Date.now() });
+      const separator = href && href.indexOf('?') >= 0 ? '&' : '?';
+      window.location.href = String(href || '/record') + separator + 'draft=1';
+    } catch (_) {
+      window.location.href = href || '/record?start=' + encodeURIComponent(kind);
+    }
+  };
+  const clickFallbackInput = (kind) => {
+    const input = document.querySelector('[data-global-record-input="' + kind + '"]');
+    if (input && typeof input.click === 'function') input.click();
+    else {
+      const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
+      window.location.href = (target && target.getAttribute('data-record-target')) || '/record';
+    }
+  };
+  const closeSheet = () => {
+    stopActiveStream();
+    if (sheet) sheet.hidden = true;
+    if (backdrop) backdrop.hidden = true;
+    document.documentElement.classList.remove('global-record-camera-open');
+    activeKind = '';
+    setStatus('');
+  };
+  const openSheet = (kind) => {
+    activeKind = kind;
+    const label = labels[kind] || labels.photo;
+    if (title) title.textContent = label.title;
+    if (help) help.textContent = label.help;
+    if (startButton) {
+      startButton.textContent = label.start;
+      startButton.hidden = false;
+    }
+    if (captureButton) {
+      captureButton.textContent = label.capture;
+      captureButton.hidden = true;
+    }
+    if (fallbackButton) fallbackButton.textContent = label.fallback;
+    if (empty) {
+      empty.textContent = 'カメラを起動すると、ここにプレビューが出ます。';
+      empty.hidden = false;
+    }
+    if (sheet) sheet.hidden = false;
+    if (backdrop) backdrop.hidden = false;
+    document.documentElement.classList.add('global-record-camera-open');
+    setStatus('');
+  };
+  const startCamera = async () => {
+    if (!activeKind) return;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+      setStatus('このブラウザでは小さい撮影画面を使えません。端末のカメラを開いてください。');
+      return;
+    }
+    try {
+      stopActiveStream();
+      const constraints = {
+        video: { facingMode: { ideal: 'environment' } },
+        audio: activeKind === 'video',
+      };
+      activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (cameraVideo) {
+        cameraVideo.srcObject = activeStream;
+        cameraVideo.muted = true;
+        cameraVideo.playsInline = true;
+        await cameraVideo.play().catch(() => undefined);
+      }
+      if (empty) empty.hidden = true;
+      if (captureButton) {
+        captureButton.hidden = false;
+        captureButton.textContent = activeKind === 'video' ? '録画開始' : '写真を撮る';
+      }
+      if (startButton) startButton.hidden = true;
+      setStatus(activeKind === 'video' ? '録画後に、投稿する最大60秒を選べます。' : '構図を確認してから撮影できます。');
+    } catch (_) {
+      setStatus('カメラを起動できませんでした。端末のカメラを開いてください。');
+    }
+  };
+  const capturePhoto = () => {
+    if (!cameraVideo || !activeStream) return;
+    const width = cameraVideo.videoWidth || 1280;
+    const height = cameraVideo.videoHeight || 960;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(cameraVideo, 0, 0, width, height);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setStatus('写真を保存できませんでした。');
+        return;
+      }
+      const file = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+      stopActiveStream();
+      navigateWithDraft(file, 'photo');
+    }, 'image/jpeg', 0.9);
+  };
+  const stopVideoRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      discardRecording = false;
+      mediaRecorder.stop();
+      if (captureButton) captureButton.disabled = true;
+    }
+  };
+  const startVideoRecording = () => {
+    if (!activeStream || typeof MediaRecorder === 'undefined') {
+      setStatus('このブラウザでは小さい録画を使えません。端末の動画カメラを開いてください。');
+      return;
+    }
+    const mimeType = MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9'
+      : MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm')
+        ? 'video/webm'
+        : '';
+    recordedChunks = [];
+    discardRecording = false;
+    mediaRecorder = new MediaRecorder(activeStream, mimeType ? { mimeType } : undefined);
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) recordedChunks.push(event.data);
+    };
+    mediaRecorder.onstop = () => {
+      stopRecordingTimer();
+      if (discardRecording) {
+        discardRecording = false;
+        return;
+      }
+      const type = recordedChunks[0] ? recordedChunks[0].type || 'video/webm' : 'video/webm';
+      const blob = new Blob(recordedChunks, { type });
+      const file = new File([blob], 'ikimon-video-' + Date.now() + '.webm', { type, lastModified: Date.now() });
+      if (captureButton) {
+        captureButton.disabled = false;
+        captureButton.textContent = '録画開始';
+      }
+      stopActiveStream();
+      navigateWithDraft(file, 'video');
+    };
+    recordingStartedAt = Date.now();
+    mediaRecorder.start(1000);
+    if (captureButton) captureButton.textContent = '録画停止';
+    setStatus('録画中 0秒 / 投稿前に最大60秒を選べます');
+    recordingTimer = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
+      setStatus('録画中 ' + String(elapsed) + '秒 / 投稿前に最大60秒を選べます');
+    }, 500);
+  };
+  const captureFromSheet = () => {
+    if (activeKind === 'video') {
+      if (mediaRecorder && mediaRecorder.state === 'recording') stopVideoRecording();
+      else startVideoRecording();
+      return;
+    }
+    capturePhoto();
+  };
   document.querySelectorAll('[data-global-record-trigger]').forEach((button) => {
     button.addEventListener('click', () => {
       const kind = button.getAttribute('data-global-record-trigger') || 'gallery';
-      const input = document.querySelector('[data-global-record-input="' + kind + '"]');
-      if (input && typeof input.click === 'function') input.click();
-      else window.location.href = button.getAttribute('data-record-target') || '/record';
+      if (kind === 'gallery') clickFallbackInput(kind);
+      else openSheet(kind);
     });
   });
   document.querySelectorAll('[data-global-record-input]').forEach((input) => {
     input.addEventListener('change', async () => {
       const file = input.files && input.files[0];
       const kind = input.getAttribute('data-global-record-input') || 'gallery';
-      const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
-      const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
       if (!file) return;
-      try {
-        await saveDraft({ file, kind, savedAt: Date.now() });
-        const separator = href && href.indexOf('?') >= 0 ? '&' : '?';
-        window.location.href = String(href || '/record') + separator + 'draft=1';
-      } catch (_) {
-        window.location.href = href || '/record?start=' + encodeURIComponent(kind);
-      }
+      await navigateWithDraft(file, kind);
     });
   });
+  document.querySelectorAll('[data-global-record-camera-close]').forEach((button) => {
+    button.addEventListener('click', closeSheet);
+  });
+  if (startButton) startButton.addEventListener('click', startCamera);
+  if (captureButton) captureButton.addEventListener('click', captureFromSheet);
+  if (fallbackButton) {
+    fallbackButton.addEventListener('click', () => {
+      const kind = activeKind || 'photo';
+      closeSheet();
+      clickFallbackInput(kind);
+    });
+  }
 })();
 </script>`;
 }
@@ -1415,6 +1653,130 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
+    }
+    .global-record-camera-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 37;
+      background: rgba(15,23,42,.22);
+      backdrop-filter: blur(3px);
+    }
+    .global-record-camera-backdrop[hidden],
+    .global-record-camera-sheet[hidden] {
+      display: none;
+    }
+    .global-record-camera-sheet {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px));
+      z-index: 38;
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 24px;
+      background: rgba(255,255,255,.98);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: 0 24px 70px rgba(15,23,42,.28);
+    }
+    .global-record-camera-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .global-record-camera-head strong {
+      display: block;
+      color: #0f172a;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+    .global-record-camera-head p {
+      margin: 4px 0 0;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.6;
+      font-weight: 750;
+    }
+    .global-record-camera-close {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(15,23,42,.06);
+      color: #0f172a;
+      font: inherit;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .global-record-camera-preview {
+      position: relative;
+      min-height: 238px;
+      overflow: hidden;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .global-record-camera-preview video {
+      width: 100%;
+      height: 100%;
+      min-height: 238px;
+      display: block;
+      object-fit: cover;
+      background: #020617;
+    }
+    .global-record-camera-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      text-align: center;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.65;
+      font-weight: 850;
+    }
+    .global-record-camera-empty[hidden] {
+      display: none;
+    }
+    .global-record-camera-status {
+      min-height: 18px;
+      color: #0f766e;
+      font-size: 12px;
+      line-height: 1.5;
+      font-weight: 850;
+    }
+    .global-record-camera-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+    .global-record-camera-action {
+      min-height: 48px;
+      border: 0;
+      border-radius: 16px;
+      background: rgba(248,250,252,.96);
+      color: #0f172a;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .global-record-camera-action.is-primary {
+      background: #064e3b;
+      color: #fff;
+    }
+    .global-record-camera-action[hidden] {
+      display: none;
+    }
+    .global-record-camera-action:disabled {
+      opacity: .64;
+      cursor: wait;
     }
     .footer-chip-row {
       display: flex;
