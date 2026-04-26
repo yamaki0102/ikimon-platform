@@ -31,15 +31,43 @@ export type RelationshipScoreSnapshot = {
   placeId: string;
   placeName: string | null;
   industry: string | null;
+  localityLabel: string | null;
   periodStart: string; // ISO date
   periodEnd: string;   // ISO date
   score: RelationshipScoreResult;
+  inputs: RelationshipScoreInputs;
   narrative: NarrativeBundle | null;
   diffFromPrevious: Record<RelationshipAxis, number> | null;
+  topActions: Array<{ axis: RelationshipAxis; score: number; priority: number }>;
   styleGuideVersion: string | null;
   generatedAt: string;
   fixtureKey: DemoFixtureKey | null;
 };
+
+const COST_FACTOR_LOOKUP: Record<RelationshipAxis, number> = {
+  access: 0.4,
+  engagement: 0.7,
+  learning: 0.8,
+  stewardship: 0.6,
+  evidence: 0.5,
+};
+
+function deriveTopActions(
+  result: RelationshipScoreResult
+): Array<{ axis: RelationshipAxis; score: number; priority: number }> {
+  const items = (Object.keys(result.axes) as RelationshipAxis[]).map((axis) => {
+    const sc = result.axes[axis].score;
+    const gap = (20 - sc) / 20;
+    const cost = COST_FACTOR_LOOKUP[axis];
+    const headroom = sc === 0 ? 0.5 : sc === 10 ? 1.0 : 0;
+    const priority = gap * 0.5 + cost * 0.3 + headroom * 0.2;
+    return { axis, score: sc, priority };
+  });
+  return items
+    .filter((it) => it.score < 20)
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 3);
+}
 
 export type GetSnapshotOptions = {
   placeId?: string;
@@ -51,7 +79,7 @@ export type GetSnapshotOptions = {
   persist?: boolean; // default true (live), false (demo)
 };
 
-const DEFAULT_WINDOW_DAYS = 90;
+const DEFAULT_WINDOW_DAYS = 365;
 
 function isoDate(value: Date): string {
   return value.toISOString().slice(0, 10);
@@ -160,11 +188,15 @@ async function persistSnapshot(
 
 async function loadPlaceMeta(
   placeId: string
-): Promise<{ placeName: string | null; industry: string | null }> {
+): Promise<{ placeName: string | null; industry: string | null; localityLabel: string | null }> {
   try {
     const pool = getPool();
-    const result = await pool.query<{ canonical_name: string | null; industry: string | null }>(
-      `SELECT canonical_name, metadata->>'industry' AS industry
+    const result = await pool.query<{
+      canonical_name: string | null;
+      industry: string | null;
+      locality_label: string | null;
+    }>(
+      `SELECT canonical_name, metadata->>'industry' AS industry, locality_label
          FROM places WHERE place_id = $1`,
       [placeId]
     );
@@ -172,10 +204,30 @@ async function loadPlaceMeta(
     return {
       placeName: row?.canonical_name ?? null,
       industry: row?.industry ?? null,
+      localityLabel: row?.locality_label ?? null,
     };
   } catch (error) {
     console.warn("[relationshipScoreSnapshot] place meta lookup failed", error);
-    return { placeName: null, industry: null };
+    return { placeName: null, industry: null, localityLabel: null };
+  }
+}
+
+// legacy_site_id (e.g. "ikan_hq") から place_id を解決する
+export async function resolvePlaceIdByLegacy(legacyKey: string): Promise<string | null> {
+  try {
+    const pool = getPool();
+    const result = await pool.query<{ place_id: string }>(
+      `SELECT place_id FROM places
+         WHERE legacy_site_id = $1
+            OR legacy_place_key = $1
+         ORDER BY visit_count DESC NULLS LAST
+         LIMIT 1`,
+      [legacyKey]
+    );
+    return result.rows[0]?.place_id ?? null;
+  } catch (error) {
+    console.warn("[relationshipScoreSnapshot] legacy place lookup failed", error);
+    return null;
   }
 }
 
@@ -203,11 +255,14 @@ export async function getRelationshipScoreSnapshot(
       placeId: `demo:${fx.key}`,
       placeName: fx.placeName,
       industry: fx.industry,
+      localityLabel: null,
       periodStart: isoDate(periodStart),
       periodEnd: isoDate(periodEnd),
       score: result,
+      inputs: fx.inputs,
       narrative,
       diffFromPrevious: null,
+      topActions: deriveTopActions(result),
       styleGuideVersion: narrative?.styleGuideVersion ?? null,
       generatedAt: new Date().toISOString(),
       fixtureKey: fx.key,
@@ -246,11 +301,14 @@ export async function getRelationshipScoreSnapshot(
     placeId,
     placeName: placeMeta.placeName,
     industry: placeMeta.industry,
+    localityLabel: placeMeta.localityLabel,
     periodStart: isoDate(periodStart),
     periodEnd: isoDate(periodEnd),
     score: result,
+    inputs,
     narrative,
     diffFromPrevious: diff,
+    topActions: deriveTopActions(result),
     styleGuideVersion: narrative?.styleGuideVersion ?? null,
     generatedAt: new Date().toISOString(),
     fixtureKey: null,

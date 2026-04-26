@@ -10,11 +10,21 @@ export type DemoFixtureKey =
   | "northern_wetland"    // 北海道湿原、亜寒帯
   | "okinawa_coast";      // 沖縄沿岸、亜熱帯
 
+export type DemoFixtureNarrative = {
+  ja: { summary: string; seasonal: string };
+  en: { summary: string; seasonal: string };
+  es: { summary: string; seasonal: string };
+  "pt-BR": { summary: string; seasonal: string };
+};
+
 export type DemoFixture = {
   key: DemoFixtureKey;
   industry: string;
+  industryLabel?: { ja: string; en: string; es: string; "pt-BR": string };
   placeName: string;
+  climateLabel?: { ja: string; en: string; es: string; "pt-BR": string };
   inputs: RelationshipScoreInputs;
+  narrative?: DemoFixtureNarrative;
 };
 
 export const DEMO_FIXTURES: Record<DemoFixtureKey, DemoFixture> = {
