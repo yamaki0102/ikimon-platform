@@ -1509,6 +1509,10 @@ const PROFILE_HUB_STYLES = `
   .profile-action-card { display: grid; gap: 10px; min-height: 176px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.05); }
   .profile-action-card h3 { margin: 0; font-size: 19px; line-height: 1.35; color: #0f172a; }
   .profile-action-card p { margin: 0; color: #64748b; line-height: 1.7; }
+  .profile-intro-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .profile-avatar { width: 58px; height: 58px; border-radius: 999px; overflow: hidden; display: grid; place-items: center; flex: 0 0 auto; background: #ecfdf5; color: #047857; border: 1px solid rgba(16,185,129,.18); font-size: 22px; font-weight: 950; }
+  .profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .profile-intro-heading h2 { min-width: 0; overflow-wrap: anywhere; }
   .profile-life-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .profile-life-card { display: grid; grid-template-rows: auto 1fr; min-height: 210px; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
   .profile-life-media { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #e2e8f0; }
@@ -1568,19 +1572,26 @@ function renderProfileSummary(snapshot: ProfileSnapshot): string {
 }
 
 function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editable = false): string {
-  if (!snapshot.profileBio && !snapshot.expertise && !editable) {
+  if (!snapshot.avatarUrl && !snapshot.profileBio && !snapshot.expertise && !editable) {
     return "";
   }
   const editLink = editable
     ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/profile/settings"))}">編集する</a>`
     : "";
+  const avatarFallback = (snapshot.displayName || "?").slice(0, 1);
+  const avatar = snapshot.avatarUrl
+    ? `<span class="profile-avatar"><img src="${escapeHtml(snapshot.avatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'profile-avatar',textContent:${JSON.stringify(avatarFallback)}}))" /></span>`
+    : `<span class="profile-avatar">${escapeHtml(avatarFallback)}</span>`;
   return `<section class="section" data-testid="profile-intro">
     <div class="card is-soft">
       <div class="card-body stack">
         <div class="section-header">
-          <div>
-            <div class="eyebrow">プロフィール</div>
-            <h2>${escapeHtml(snapshot.displayName)} の観察メモ</h2>
+          <div class="profile-intro-heading">
+            ${avatar}
+            <div>
+              <div class="eyebrow">プロフィール</div>
+              <h2>${escapeHtml(snapshot.displayName)} の観察メモ</h2>
+            </div>
           </div>
           ${editLink}
         </div>

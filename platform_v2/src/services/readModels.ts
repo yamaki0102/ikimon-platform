@@ -767,8 +767,9 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
      ) ai on true
      left join lateral (
        select coalesce(ab.public_url, ab.storage_path) as public_url
-       from asset_blobs ab
-       where ab.blob_id = u.avatar_asset_id
+       from evidence_assets ea
+       join asset_blobs ab on ab.blob_id = ea.blob_id
+       where ea.asset_id = u.avatar_asset_id
        limit 1
      ) avatar on true
      where (o.occurrence_id = $1
