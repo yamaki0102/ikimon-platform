@@ -141,6 +141,8 @@ export type ProfileSnapshot = {
     currentStreakDays: number;
     tier2PlusCount: number;
     tier3PlusCount: number;
+    firstObservedAt: string | null;
+    latestObservedAt: string | null;
   };
   lifeListPreview: Array<{
     displayName: string;
@@ -1069,6 +1071,8 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
       unique_taxa_all_time: string;
       tier2_plus_count: string;
       tier3_plus_count: string;
+      first_observed_at: string | null;
+      latest_observed_at: string | null;
     }>(
       `select
           count(distinct v.visit_id)::text as total_observations,
@@ -1077,7 +1081,9 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
           count(distinct coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')))
             filter (where coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, '')) is not null)::text as unique_taxa_all_time,
           count(distinct o.occurrence_id) filter (where coalesce(o.evidence_tier, 0) >= 2)::text as tier2_plus_count,
-          count(distinct o.occurrence_id) filter (where coalesce(o.evidence_tier, 0) >= 3)::text as tier3_plus_count
+          count(distinct o.occurrence_id) filter (where coalesce(o.evidence_tier, 0) >= 3)::text as tier3_plus_count,
+          min(v.observed_at)::text as first_observed_at,
+          max(v.observed_at)::text as latest_observed_at
          from visits v
          left join occurrences o on o.visit_id = v.visit_id
         where v.user_id = $1`,
@@ -1160,6 +1166,8 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     currentStreakDays: Number(streakResult.rows[0]?.streak ?? 0),
     tier2PlusCount: Number(statsRow?.tier2_plus_count ?? 0),
     tier3PlusCount: Number(statsRow?.tier3_plus_count ?? 0),
+    firstObservedAt: statsRow?.first_observed_at ?? null,
+    latestObservedAt: statsRow?.latest_observed_at ?? null,
   };
   const lifeListPreview = lifeListResult.rows.map((row) => ({
     displayName: row.display_name,

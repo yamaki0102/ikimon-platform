@@ -420,6 +420,18 @@ export function buildApp() {
     }
   });
 
+  // SSR HTML responses must never be heuristically cached by the browser.
+  // Without an explicit Cache-Control header, browsers fall back to the
+  // RFC 7234 "heuristic freshness" rule and serve stale HTML on a normal
+  // reload — stranding users on a pre-deploy bundle until a hard reload.
+  app.addHook("onSend", async (_request, reply, payload) => {
+    const contentType = String(reply.getHeader("content-type") ?? "");
+    if (contentType.startsWith("text/html") && !reply.getHeader("cache-control")) {
+      reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    }
+    return payload;
+  });
+
   app.get("/", async (request, reply) => {
     const accept = String(request.headers.accept ?? "");
     if (accept.includes("text/html")) {
