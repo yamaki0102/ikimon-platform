@@ -617,6 +617,11 @@ function globalRecordEntryScript(): string {
     if (enabled) sheet.setAttribute('data-photo-draft', 'true');
     else sheet.removeAttribute('data-photo-draft');
   };
+  const setSheetKind = (kind) => {
+    if (!sheet) return;
+    if (kind) sheet.setAttribute('data-active-kind', kind);
+    else sheet.removeAttribute('data-active-kind');
+  };
   const clearReview = () => {
     setPhotoDraftLayout(false);
     capturedReviewFile = null;
@@ -826,11 +831,13 @@ function globalRecordEntryScript(): string {
     if (backdrop) backdrop.hidden = true;
     document.documentElement.classList.remove('global-record-camera-open');
     activeKind = '';
+    setSheetKind('');
     setStatus('');
   };
   const openSheet = (kind, options) => {
     if (!(options && options.keepReview)) clearReview();
     activeKind = kind;
+    setSheetKind(kind);
     setPhotoDraftLayout(kind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream);
     if (editRoleInput) editRoleInput.value = kind === 'video' ? 'sound_motion' : 'primary_subject';
     const label = labels[kind] || labels.photo;
@@ -2420,6 +2427,21 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-preview video[hidden],
     .global-record-camera-preview img[hidden] {
       display: none;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-actions {
+      order: 1;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-preview {
+      order: 2;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-photo-tray {
+      order: 3;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
+      order: 4;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-inline-edit {
+      order: 5;
     }
     .global-record-camera-sheet[data-photo-draft="true"] .global-record-camera-preview {
       display: none;
