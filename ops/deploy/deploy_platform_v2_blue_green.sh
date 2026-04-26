@@ -125,6 +125,7 @@ fixed = {
     "LEGACY_DATA_ROOT": "/var/www/ikimon.life/repo/upload_package/data",
     "LEGACY_PUBLIC_ROOT": "/var/www/ikimon.life/repo/upload_package/public_html",
     "LEGACY_UPLOADS_ROOT": "/var/www/ikimon.life/repo/upload_package/public_html/uploads",
+    "FEATURE_RELATIONSHIP_SCORE": "1",
 }
 carry = [
     "DATABASE_URL",
