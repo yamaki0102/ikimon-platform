@@ -364,6 +364,30 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
           stream_uid: uid,
         },
       });
+      await client.query(
+        `update visits
+            set public_visibility = 'public',
+                quality_review_status = 'accepted',
+                quality_gate_reasons = coalesce((
+                  select jsonb_agg(reason)
+                    from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
+                   where reason <> 'missing_photo'
+                ), '[]'::jsonb),
+                updated_at = now()
+          where visit_id = $1`,
+        [target.visitId],
+      );
+      await client.query(
+        `update observation_quality_reviews
+            set review_status = 'accepted',
+                public_visibility = 'public',
+                reviewed_at = coalesce(reviewed_at, now()),
+                updated_at = now()
+          where visit_id = $1
+            and reason_code = 'native_no_photo'
+            and review_status = 'needs_review'`,
+        [target.visitId],
+      );
     }
 
     await client.query("commit");

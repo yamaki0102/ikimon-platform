@@ -64,7 +64,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
         assert.match(response.body, /photo_upload_failed_at_/);
         assert.match(response.body, /動画アップロードURLを発行できませんでした/);
-        assert.match(response.body, /動画アップロード部品を読み込めませんでした/);
+        assert.match(response.body, /uploadVideoWithDirectPost/);
+        assert.match(response.body, /request\.open\('POST', directUploadUrl, true\)/);
+        assert.match(response.body, /formData\.append\('file', file, file\.name \|\| 'upload\.mp4'\)/);
+        assert.doesNotMatch(response.body, /tus-js-client/);
+        assert.doesNotMatch(response.body, /window\.tus/);
         assert.match(response.body, /isGenericVideoUploadError/);
         assert.doesNotMatch(response.body, /data-record-media-input[\s\S]*?files\[0\]/);
         assert.match(response.body, /id="record-video-trim"/);
