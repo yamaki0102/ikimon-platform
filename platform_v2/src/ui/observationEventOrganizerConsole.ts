@@ -67,7 +67,12 @@ export function renderOrganizerConsoleBody(session: ObservationEventSessionRow):
       <p class="evt-lead">QR は <code>/community/events/${escapeHtml(session.eventCode ?? "")}/join</code> を読み込ませる。</p>
     </div>
 
-    <a class="evt-btn evt-btn-ghost" href="../live">参加者ライブ画面へ</a>
+    <div style="display:grid; gap:8px;">
+      <a class="evt-btn evt-btn-ghost" href="../live">参加者ライブ画面へ</a>
+      <a class="evt-btn evt-btn-ghost" href="./edit">⚙ 観察会を編集</a>
+      <a class="evt-btn evt-btn-ghost" href="./recap">📊 振り返り(終了後も常に有効)</a>
+      <button type="button" class="evt-btn evt-btn-danger" data-organizer-end>セッションを終了</button>
+    </div>
   </aside>
 
   <main class="evt-console-main">
@@ -258,6 +263,20 @@ export function organizerConsoleScript(): string {
       body: JSON.stringify({ message: fd.get("message") }),
     });
     if (r.ok) form.reset();
+  });
+
+  // End session
+  root.querySelector("[data-organizer-end]")?.addEventListener("click", async () => {
+    if (!confirm("このセッションを終了しますか？参加者の SSE 接続は維持されますが、新しい AI Quest は発火しなくなります。")) return;
+    const r = await fetch("/api/v1/observation-events/" + sessionId + "/end", {
+      method: "POST", credentials: "include",
+    });
+    if (r.ok){
+      if (window.evtFanfare) window.evtFanfare("セッションを終了");
+      setTimeout(() => { window.location.href = "./recap"; }, 600);
+    } else {
+      alert("終了に失敗しました");
+    }
   });
 
   // Quest run

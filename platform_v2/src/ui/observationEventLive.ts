@@ -134,6 +134,28 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
   </footer>
 </section>
 
+<dialog class="evt-role-dialog" data-evt-role-dialog
+        style="border:0; padding:0; background:transparent; max-width:480px; width:calc(100vw - 32px);">
+  <form class="evt-checkin-form" data-evt-role-form>
+    <header>
+      <span class="evt-eyebrow">役割宣言</span>
+      <h2 class="evt-heading" style="margin-top:4px;">この観察会で何をする？</h2>
+      <p class="evt-lead">あなたの強みを班に共有しよう。あとで切替もできる。</p>
+    </header>
+    <div style="display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(140px,1fr));">
+      <button type="button" class="evt-checkin-team-card" data-role="shoot"><strong>📷 撮影</strong><span class="evt-lead">写真で残す</span></button>
+      <button type="button" class="evt-checkin-team-card" data-role="identify"><strong>🔎 識別</strong><span class="evt-lead">名前を確かめる</span></button>
+      <button type="button" class="evt-checkin-team-card" data-role="map"><strong>🗺 地図</strong><span class="evt-lead">道筋を案内</span></button>
+      <button type="button" class="evt-checkin-team-card" data-role="record"><strong>📝 記録</strong><span class="evt-lead">手早く投稿</span></button>
+      <button type="button" class="evt-checkin-team-card" data-role="absence"><strong>❌ 不在</strong><span class="evt-lead">いない確認</span></button>
+      <button type="button" class="evt-checkin-team-card" data-role="free"><strong>✨ 自由</strong><span class="evt-lead">気の向くまま</span></button>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button type="button" class="evt-btn evt-btn-ghost" data-evt-role-close>閉じる</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog class="evt-quest-dialog" data-evt-quest-dialog
         style="border:0; padding:0; background:transparent; max-width:480px; width:calc(100vw - 32px);">
   <div class="evt-quest-card" data-evt-quest-card>
@@ -576,6 +598,29 @@ export function observationEventLiveScript(): string {
     const code = root.dataset.eventCode || "";
     const url = "/record" + (code ? "?event=" + encodeURIComponent(code) : "");
     window.location.href = url;
+  });
+
+  // role declare
+  const roleDialog = document.querySelector("[data-evt-role-dialog]");
+  document.querySelector('[data-action="role"]')?.addEventListener("click", () => {
+    if (roleDialog && typeof roleDialog.showModal === "function") {
+      try { roleDialog.showModal(); } catch(_){}
+    }
+  });
+  document.querySelector("[data-evt-role-close]")?.addEventListener("click", () => roleDialog?.close());
+  document.querySelectorAll("[data-role]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const role = btn.getAttribute("data-role");
+      if (!role) return;
+      const r = await fetch("/api/v1/observation-events/" + sessionId + "/role", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ declared_job: role, guest_token: guestToken }),
+      });
+      if (r.ok && window.evtFanfare) window.evtFanfare("役割を宣言した");
+      roleDialog?.close();
+    });
   });
 
   refreshStats();

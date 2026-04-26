@@ -15,6 +15,7 @@ import {
   getSessionByEventCode,
   isEventMode,
   switchPrimaryMode,
+  updateSession,
   EVENT_MODES,
   type EventMode,
   type ObservationEventSessionRow,
@@ -524,6 +525,88 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       const updated = await switchPrimaryMode(session.sessionId, next, auth.userId);
       if (!updated) return reply.status(500).send({ error: "switch failed" });
       return reply.send({ session: updated });
+    },
+  );
+
+  // PATCH /api/v1/observation-events/:sessionId  — セッション編集(主催者のみ)
+  app.patch<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) {
+        return reply.status(403).send({ error: "organizer only" });
+      }
+      const body = request.body ?? {};
+      const updates: Parameters<typeof updateSession>[1] = {};
+      if (typeof body.title === "string") updates.title = body.title;
+      if (typeof body.event_code === "string") updates.eventCode = body.event_code;
+      const primaryRaw = asString(body.primary_mode);
+      if (primaryRaw && isEventMode(primaryRaw)) updates.primaryMode = primaryRaw;
+      if (Array.isArray(body.active_modes)) {
+        const filtered = (body.active_modes as unknown[]).filter(isEventMode);
+        if (filtered.length > 0) updates.activeModes = filtered;
+      }
+      if (body.location_lat !== undefined) updates.locationLat = asNumber(body.location_lat);
+      if (body.location_lng !== undefined) updates.locationLng = asNumber(body.location_lng);
+      if (body.location_radius_m !== undefined) {
+        const r = asNumber(body.location_radius_m);
+        if (r !== null) updates.locationRadiusM = r;
+      }
+      if (typeof body.started_at === "string") updates.startedAt = body.started_at;
+      if (Array.isArray(body.target_species)) {
+        updates.targetSpecies = (body.target_species as unknown[]).filter((s): s is string => typeof s === "string");
+      }
+      if (body.plan === "public" || body.plan === "community") updates.plan = body.plan;
+      if (body.config && typeof body.config === "object") updates.config = body.config as Record<string, unknown>;
+
+      const updated = await updateSession(session.sessionId, updates);
+      if (!updated) return reply.status(500).send({ error: "update failed" });
+      return reply.send({ session: updated });
+    },
+  );
+
+  // PATCH /api/v1/observation-events/:sessionId/role  — 役割宣言(参加者本人のみ)
+  app.patch<{
+    Params: { sessionId: string };
+    Body: Record<string, unknown>;
+  }>(
+    "/api/v1/observation-events/:sessionId/role",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const guestToken = asString(request.body?.guest_token);
+      const declaredJob = asString(request.body?.declared_job);
+      const allowed = ["shoot", "identify", "map", "record", "absence", "free"] as const;
+      if (!declaredJob || !(allowed as readonly string[]).includes(declaredJob)) {
+        return reply.status(400).send({ error: "invalid declared_job" });
+      }
+      if (!auth && !guestToken) {
+        return reply.status(400).send({ error: "user or guest_token required" });
+      }
+      const result = await getPool().query<{ participant_id: string; team_id: string | null }>(
+        `UPDATE observation_event_participants
+         SET declared_job = $4
+         WHERE session_id = $1
+           AND ((user_id IS NOT NULL AND user_id = $2) OR (guest_token IS NOT NULL AND guest_token = $3))
+         RETURNING participant_id, team_id`,
+        [session.sessionId, auth?.userId ?? null, guestToken, declaredJob],
+      );
+      const row = result.rows[0];
+      if (!row) return reply.status(404).send({ error: "participant not found" });
+      await appendLiveEvent({
+        sessionId: session.sessionId,
+        type: "team_update",
+        scope: "team",
+        teamId: row.team_id,
+        actorUserId: auth?.userId ?? null,
+        actorGuestToken: guestToken,
+        payload: { kind: "role", participant_id: row.participant_id, declared_job: declaredJob },
+      });
+      return reply.send({ participant_id: row.participant_id, declared_job: declaredJob });
     },
   );
 

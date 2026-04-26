@@ -119,13 +119,18 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
           </li>`).join("");
 
   return `
-<section class="evt-recap-shell">
+<section class="evt-recap-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}">
   <article class="evt-result-card">
     <span class="evt-result-eyebrow">${escapeHtml(headerDate)} • ${highlights.durationMinutes ?? "?"} 分</span>
     <h2>${escapeHtml(session.title || "観察会の振り返り")}</h2>
     <p style="margin:0; color:rgba(236,253,245,.86);">参加 ${highlights.participantsCount} 名・effort ${highlights.totalEffortPersonHours} 人時・カバレッジ ${highlights.meshCoveragePct}%</p>
     <div class="evt-result-stats evt-stagger">
       ${heroStats}
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
+      <button type="button" class="evt-btn evt-btn-on-dark" data-share="x">𝕏 で共有</button>
+      <button type="button" class="evt-btn evt-btn-on-dark" data-share="line">LINE で共有</button>
+      <button type="button" class="evt-btn evt-btn-on-dark" data-share="copy">🔗 URL をコピー</button>
     </div>
   </article>
 
@@ -191,6 +196,25 @@ export function recapScript(): string {
       panels.forEach(p => {
         p.style.display = (p.getAttribute("data-tab-panel") === target) ? "" : "none";
       });
+    });
+  });
+  const root = document.querySelector(".evt-recap-shell");
+  const heading = document.querySelector(".evt-result-card h2")?.textContent?.trim() || "観察会";
+  const url = window.location.href;
+  document.querySelectorAll("[data-share]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const kind = btn.getAttribute("data-share");
+      const text = heading + " — ikimon.life で振り返り";
+      if (kind === "x"){
+        window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&url=" + encodeURIComponent(url), "_blank");
+      } else if (kind === "line"){
+        window.open("https://line.me/R/msg/text/?" + encodeURIComponent(text + " " + url), "_blank");
+      } else if (kind === "copy"){
+        try {
+          await navigator.clipboard.writeText(url);
+          if (window.evtFanfare) window.evtFanfare("URL をコピー");
+        } catch(_) { alert("コピーに失敗"); }
+      }
     });
   });
 })();

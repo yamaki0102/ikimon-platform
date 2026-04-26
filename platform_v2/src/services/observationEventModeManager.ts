@@ -216,6 +216,52 @@ export async function switchPrimaryMode(
   return mapSession(row);
 }
 
+export interface UpdateSessionInput {
+  title?: string;
+  eventCode?: string | null;
+  primaryMode?: EventMode;
+  activeModes?: EventMode[];
+  locationLat?: number | null;
+  locationLng?: number | null;
+  locationRadiusM?: number;
+  startedAt?: string;
+  targetSpecies?: string[];
+  plan?: "community" | "public";
+  config?: Record<string, unknown>;
+}
+
+export async function updateSession(
+  sessionId: string,
+  input: UpdateSessionInput,
+): Promise<ObservationEventSessionRow | null> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [sessionId];
+  let idx = 2;
+  if (input.title !== undefined) { setClauses.push(`title = $${idx++}`); values.push(input.title); }
+  if (input.eventCode !== undefined) { setClauses.push(`event_code = $${idx++}`); values.push(input.eventCode); }
+  if (input.primaryMode !== undefined) { setClauses.push(`primary_mode = $${idx++}`); values.push(input.primaryMode); }
+  if (input.activeModes !== undefined) { setClauses.push(`active_modes = $${idx++}::text[]`); values.push(input.activeModes); }
+  if (input.locationLat !== undefined) { setClauses.push(`location_lat = $${idx++}`); values.push(input.locationLat); }
+  if (input.locationLng !== undefined) { setClauses.push(`location_lng = $${idx++}`); values.push(input.locationLng); }
+  if (input.locationRadiusM !== undefined) { setClauses.push(`location_radius_m = $${idx++}`); values.push(input.locationRadiusM); }
+  if (input.startedAt !== undefined) { setClauses.push(`started_at = $${idx++}`); values.push(input.startedAt); }
+  if (input.targetSpecies !== undefined) { setClauses.push(`target_species = $${idx++}::text[]`); values.push(input.targetSpecies); }
+  if (input.plan !== undefined) { setClauses.push(`plan = $${idx++}`); values.push(input.plan); }
+  if (input.config !== undefined) { setClauses.push(`config = $${idx++}::jsonb`); values.push(JSON.stringify(input.config)); }
+  if (setClauses.length === 0) return getSessionById(sessionId);
+  setClauses.push("updated_at = NOW()");
+
+  const updated = await getPool().query<RawSessionRow>(
+    `UPDATE observation_event_sessions
+     SET ${setClauses.join(", ")}
+     WHERE session_id = $1
+     RETURNING ${SESSION_SELECT}`,
+    values,
+  );
+  const row = updated.rows[0];
+  return row ? mapSession(row) : null;
+}
+
 export async function endSession(
   sessionId: string,
 ): Promise<ObservationEventSessionRow | null> {

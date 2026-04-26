@@ -31,6 +31,14 @@ import {
   recapScript,
 } from "../ui/observationEventRecap.js";
 import { renderEventListBody } from "../ui/observationEventList.js";
+import {
+  renderEventCreateBody,
+  eventCreateScript,
+} from "../ui/observationEventCreate.js";
+import {
+  renderEventEditBody,
+  eventEditScript,
+} from "../ui/observationEventEdit.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -102,6 +110,65 @@ async function loadRecentSessions(limit = 24): Promise<ObservationEventSessionRo
 }
 
 export async function registerObservationEventPagesRoutes(app: FastifyInstance): Promise<void> {
+  // /community/events/new  --- 作成フォーム(主催者ログイン必要)
+  app.get("/community/events/new", async (request, reply) => {
+    const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const lang = langOf(request);
+    const strings = getStrings(lang).observationEvent;
+    reply.type("text/html; charset=utf-8");
+    return pageDocument({
+      basePath: "",
+      title: `${strings.listCreateCta} — ikimon.life`,
+      body: renderEventCreateBody({ isAuthenticated: Boolean(auth), strings }),
+      extraScript: eventCreateScript(),
+      lang,
+    });
+  });
+
+  // /events/:sessionId/edit  --- 編集(主催者のみ)
+  app.get<{ Params: { sessionId: string } }>(
+    "/events/:sessionId/edit",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId).catch(() => null);
+      if (!session) {
+        reply.code(404);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察会 — セッションが見つかりません",
+          body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
+        });
+      }
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth || auth.userId !== session.organizerUserId) {
+        reply.code(403);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "編集 — 権限がありません",
+          body: `<section class="evt-recap-shell">
+            <article class="evt-card">
+              <span class="evt-eyebrow">権限が必要です</span>
+              <h1 class="evt-heading">主催者のみ編集できます</h1>
+              <p class="evt-lead">主催者アカウントでログインしてから再度開いてください。</p>
+              <a class="evt-btn evt-btn-primary" href="/auth">ログインへ</a>
+            </article>
+          </section>`,
+        });
+      }
+      const lang = langOf(request);
+      const strings = getStrings(lang).observationEvent;
+      reply.type("text/html; charset=utf-8");
+      return pageDocument({
+        basePath: "",
+        title: `${session.title || "観察会"} 編集 — ikimon.life`,
+        body: renderEventEditBody({ session, strings }),
+        extraScript: eventEditScript(),
+        lang,
+      });
+    },
+  );
+
   // /community/events  --- 一覧
   app.get("/community/events", async (request, reply) => {
     const sessions = await loadRecentSessions();
