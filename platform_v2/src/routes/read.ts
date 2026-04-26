@@ -3272,7 +3272,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
-        const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+        const MAX_VIDEO_BYTES = 200000000;
         const MAX_VIDEO_SECONDS = 60;
         let previewObjectUrl = '';
         let videoTrimObjectUrl = '';
@@ -3295,7 +3295,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
           photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
-          video: { title: '動画を追加', help: '動画投稿は 200MB / 最大60秒まで。長めの動画は見せたい60秒を選べます。' },
+          video: { title: '動画を追加', help: '動画投稿は 200MB未満 / 最大60秒まで。長めの動画は見せたい60秒を選べます。' },
           gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
         };
 
@@ -4921,7 +4921,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             } catch (error) {
               const message = normalizeError(error);
               let userMessage = message;
-              if (message === 'video_file_too_large') userMessage = '動画サイズは 200MB 以下にしてください。';
+              if (message === 'video_file_too_large') userMessage = '動画サイズは 200MB 未満にしてください。';
               if (message === 'video_duration_too_long') userMessage = '動画の長さは 60 秒以内にしてください。';
               if (message === 'video_trim_required') userMessage = '動画は投稿前に最大60秒の区間を選んでください。';
               if (message === 'video_trim_range_invalid') userMessage = '動画の切り出し範囲は最大60秒にしてください。';

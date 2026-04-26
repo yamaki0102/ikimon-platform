@@ -54,6 +54,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /MAX_PHOTO_FILES = 6/);
         assert.match(response.body, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
         assert.match(response.body, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
+        assert.match(response.body, /MAX_VIDEO_BYTES = 200000000/);
+        assert.match(response.body, /動画投稿は 200MB未満/);
+        assert.match(response.body, /動画サイズは 200MB 未満にしてください/);
         assert.match(response.body, /preparePhotoUpload/);
         assert.match(response.body, /canvas\.toDataURL\('image\/jpeg', PHOTO_UPLOAD_JPEG_QUALITY\)/);
         assert.match(response.body, /let selectedMediaFiles = \[\]/);
