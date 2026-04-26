@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
-import { PUBLIC_OBSERVATION_QUALITY_SQL } from "../services/observationQualityGate.js";
+import {
+  PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_PHOTO_ASSET_SQL,
+} from "../services/observationQualityGate.js";
 
 type OccurrenceRow = {
   occurrence_id: string;
@@ -91,7 +95,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            from evidence_assets ea
            join asset_blobs ab on ab.blob_id = ea.blob_id
            where ea.occurrence_id = o.occurrence_id
-             and ea.asset_role = 'observation_photo'
+             and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
            order by ea.created_at asc limit 1
          ) photo on true
          left join lateral (
@@ -108,6 +112,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
          ) id_meta on true
          where o.evidence_tier >= $1
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
            and not exists (
              select 1
                from identification_disputes d

@@ -58,6 +58,13 @@ $sql = "
     WHERE o.evidence_tier >= :min_tier
       AND e.decimal_latitude IS NOT NULL
       AND e.decimal_longitude IS NOT NULL
+      AND EXISTS (
+          SELECT 1
+          FROM evidence ev
+          WHERE ev.occurrence_id = o.occurrence_id
+            AND ev.media_type IN ('photo', 'image')
+            AND TRIM(COALESCE(ev.media_path, '')) <> ''
+      )
 ";
 $params = [':min_tier' => $minTier];
 
@@ -143,6 +150,13 @@ $gridStmt = $pdo->query("
     FROM events e
     JOIN occurrences o ON e.event_id = o.event_id
     WHERE e.decimal_latitude IS NOT NULL AND e.decimal_longitude IS NOT NULL
+      AND EXISTS (
+          SELECT 1
+          FROM evidence ev
+          WHERE ev.occurrence_id = o.occurrence_id
+            AND ev.media_type IN ('photo', 'image')
+            AND TRIM(COALESCE(ev.media_path, '')) <> ''
+      )
     GROUP BY grid_lat, grid_lng
 ");
 $grid = $gridStmt->fetchAll(PDO::FETCH_ASSOC);

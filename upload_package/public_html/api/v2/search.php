@@ -86,6 +86,8 @@ function searchObservations(string $query, int $limit, int $offset, ?string $sit
     $matched = [];
 
     foreach ($allObs as $obs) {
+        if (!hasPublicPhotoEvidence($obs)) continue;
+
         // テキストマッチ
         $searchableFields = [
             mb_strtolower($obs['species_name'] ?? ''),
@@ -150,6 +152,8 @@ function searchSpecies(string $query, int $limit): array
     $speciesMap = [];
 
     foreach ($allObs as $obs) {
+        if (!hasPublicPhotoEvidence($obs)) continue;
+
         $name = $obs['taxon']['name'] ?? $obs['species_name'] ?? '';
         $sciName = $obs['taxon']['scientific_name'] ?? '';
 
@@ -185,6 +189,39 @@ function searchSpecies(string $query, int $limit): array
         'items' => array_values(array_slice($speciesMap, 0, $limit)),
         'total' => count($speciesMap),
     ];
+}
+
+function hasPublicPhotoEvidence(array $obs): bool
+{
+    if (!empty($obs['photo_missing'])) {
+        return false;
+    }
+
+    $photos = $obs['photos'] ?? [];
+    if (!is_array($photos) || $photos === []) {
+        return false;
+    }
+
+    foreach ($photos as $photo) {
+        $path = is_array($photo)
+            ? (string)($photo['path'] ?? $photo['url'] ?? '')
+            : (string)$photo;
+
+        $path = trim($path);
+        if ($path === '') {
+            continue;
+        }
+
+        if (preg_match('#^(https?:)?//#i', $path)) {
+            return true;
+        }
+
+        if (file_exists(PUBLIC_DIR . '/' . ltrim($path, '/'))) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function searchLiterature(string $query, int $limit, int $offset): array
