@@ -109,6 +109,7 @@ function layout(
   activeNav: string,
   hero?: LayoutHero,
   extraStyles?: string,
+  currentPath?: string,
 ): string {
   return renderSiteDocument({
     basePath,
@@ -127,6 +128,7 @@ function layout(
         }
       : undefined,
     extraStyles,
+    currentPath,
     footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
   });
 }
@@ -5235,6 +5237,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
+      appendLangToHref(withBasePath(basePath, `/guest/${encodeURIComponent(request.params.userId)}`), lang),
     );
   });
 
@@ -5268,6 +5271,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
+      appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(request.params.userId)}`), lang),
     );
   });
 
@@ -5290,6 +5294,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </div>`,
         ),
         "ホーム",
+        undefined,
+        undefined,
+        appendLangToHref(withBasePath(basePath, "/profile"), lang),
       );
     }
     const [snapshot, digest] = await Promise.all([
@@ -5322,6 +5329,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         actions: heroActions,
       },
       PROFILE_HUB_STYLES,
+      appendLangToHref(withBasePath(basePath, "/profile"), lang),
     );
   });
 
@@ -6436,6 +6444,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       title: notesPageCopy.title,
       activeNav: notesPageCopy.activeNav,
       lang,
+      currentPath: appendLangToHref(withBasePath(basePath, "/notes"), lang),
       extraStyles: NOTES_READING_STYLES,
       hero: {
         eyebrow: notesPageCopy.hero.eyebrow,
