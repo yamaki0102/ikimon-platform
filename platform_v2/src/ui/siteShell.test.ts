@@ -30,9 +30,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 4);
   assert.equal(html.match(/data-global-record-input="(?:photo|video|gallery)"/g)?.length, 3);
   assert.equal(html.match(/data-global-record-trigger="(?:photo|video|gallery)"/g)?.length, 3);
-  assert.match(html, /accept="image\/\*" capture="environment"/);
+  assert.match(html, /accept="image\/\*" capture="environment" multiple/);
   assert.match(html, /accept="video\/\*" capture="environment"/);
-  assert.match(html, /accept="image\/\*,video\/\*"/);
+  assert.match(html, /accept="image\/\*,video\/\*" multiple/);
+  assert.match(html, /files: draftFiles/);
+  assert.match(html, /Array\.from\(input\.files\)/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
   assert.doesNotMatch(html, /aria-expanded="false"/);
   assert.match(html, /data-kpi-action="global_record_photo"/);

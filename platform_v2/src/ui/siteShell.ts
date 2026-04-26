@@ -326,9 +326,9 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const galleryHref = appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang);
   const guideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
   return `<nav class="global-record-launcher" aria-label="すぐ記録する">
-    <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden />
+    <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" multiple hidden />
     <input class="global-record-input" data-global-record-input="video" type="file" accept="video/*" capture="environment" hidden />
-    <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*,video/*" hidden />
+    <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*,video/*" multiple hidden />
     <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-record-target="${escapeHtml(photoHref)}" data-kpi-action="global_record_photo">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
       <span>写真</span>
@@ -643,15 +643,18 @@ function globalRecordEntryScript(): string {
       startButton.disabled = false;
     }
   };
-  const navigateWithDraft = async (file, kind, metadata) => {
+  const normalizeDraftFiles = (files) => (Array.isArray(files) ? files : [files]).filter((file) => file instanceof File);
+  const navigateWithDraft = async (files, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
     const inlineValues = readInlineEdit();
+    const draftFiles = normalizeDraftFiles(files);
     const metadataWithRole = Object.assign({}, metadata || {}, {
       mediaRole: inlineValues.mediaRole || (kind === 'video' ? 'sound_motion' : 'primary_subject'),
     });
     try {
-      await saveDraft({ file, kind, savedAt: Date.now(), metadata: metadataWithRole });
+      const [primaryDraftFile = null] = draftFiles;
+      await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
       window.location.href = withInlineEditParams(href || '/record', kind);
     } catch (_) {
       window.location.href = href || '/record?start=' + encodeURIComponent(kind);
@@ -1054,10 +1057,10 @@ function globalRecordEntryScript(): string {
   });
   document.querySelectorAll('[data-global-record-input]').forEach((input) => {
     input.addEventListener('change', async () => {
-      const file = input.files && input.files[0];
+      const files = input.files ? Array.from(input.files) : [];
       const kind = input.getAttribute('data-global-record-input') || 'gallery';
-      if (!file) return;
-      await navigateWithDraft(file, kind);
+      if (!files.length) return;
+      await navigateWithDraft(files, kind);
     });
   });
   document.querySelectorAll('[data-global-record-camera-close]').forEach((button) => {

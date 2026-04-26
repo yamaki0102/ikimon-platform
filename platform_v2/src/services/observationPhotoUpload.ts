@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
@@ -71,6 +72,36 @@ function assertInput(input: ObservationPhotoUploadInput): void {
   }
 }
 
+async function normalizeObservationImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string; widthPx: number | null; heightPx: number | null }> {
+  const normalizedMime = mimeType.trim().toLowerCase();
+  if (normalizedMime === "image/gif") {
+    return { buffer, mimeType: normalizedMime, widthPx: null, heightPx: null };
+  }
+  try {
+    const image = sharp(buffer, { failOn: "none" }).rotate().resize({
+      width: 2560,
+      height: 2560,
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+    const pipeline = normalizedMime === "image/png"
+      ? image.png({ compressionLevel: 8, adaptiveFiltering: true })
+      : normalizedMime === "image/webp"
+        ? image.webp({ quality: 86, effort: 4 })
+        : image.jpeg({ quality: 88, mozjpeg: true });
+    const output = await pipeline.toBuffer();
+    const metadata = await sharp(output, { failOn: "none" }).metadata();
+    return {
+      buffer: output,
+      mimeType: normalizedMime === "image/png" || normalizedMime === "image/webp" ? normalizedMime : "image/jpeg",
+      widthPx: typeof metadata.width === "number" ? metadata.width : null,
+      heightPx: typeof metadata.height === "number" ? metadata.height : null,
+    };
+  } catch {
+    return { buffer, mimeType: normalizedMime, widthPx: null, heightPx: null };
+  }
+}
+
 export async function uploadObservationPhoto(input: ObservationPhotoUploadInput): Promise<ObservationPhotoUploadResult> {
   assertInput(input);
 
@@ -78,18 +109,23 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   const pool = getPool();
   const client = await pool.connect();
   const normalizedBase64 = normalizeBase64(input.base64Data);
-  const buffer = Buffer.from(normalizedBase64, "base64");
-  if (buffer.byteLength === 0) {
+  const originalBuffer = Buffer.from(normalizedBase64, "base64");
+  if (originalBuffer.byteLength === 0) {
     throw new Error("decoded image is empty");
   }
+  if (originalBuffer.byteLength > 18 * 1024 * 1024) {
+    throw new Error("image exceeds upload preflight limit");
+  }
+  const normalizedImage = await normalizeObservationImage(originalBuffer, input.mimeType);
+  const buffer = normalizedImage.buffer;
   if (buffer.byteLength > 10 * 1024 * 1024) {
-    throw new Error("image exceeds 10MB limit");
+    throw new Error("image exceeds 10MB limit after normalization");
   }
 
   const sha256 = createHash("sha256").update(buffer).digest("hex");
   const mediaRole = normalizeMediaRole(input.mediaRole);
   const safeBase = sanitizeFilename(input.filename).replace(/\.[A-Za-z0-9]+$/, "");
-  const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(input.mimeType)}`;
+  const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(normalizedImage.mimeType)}`;
 
   let visitId = "";
   let occurrenceId = "";
@@ -131,14 +167,18 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       storageBackend: "local_fs",
       storagePath: relativePath,
       mediaType: "image",
-      mimeType: input.mimeType,
+      mimeType: normalizedImage.mimeType,
       publicUrl: `/${relativePath}`,
       sha256,
       bytes: buffer.byteLength,
+      widthPx: normalizedImage.widthPx,
+      heightPx: normalizedImage.heightPx,
       sourcePayload: {
         source: "v2_photo_upload",
         visit_id: visitId,
         media_role: mediaRole,
+        normalized_max_edge_px: 2560,
+        original_bytes: originalBuffer.byteLength,
       },
     });
 
