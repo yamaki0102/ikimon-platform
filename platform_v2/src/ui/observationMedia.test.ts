@@ -50,6 +50,10 @@ const snapshot = {
       roleTagSource: null,
       organTarget: null,
       mediaRole: "primary_subject",
+      suggestedMediaRole: "primary_subject",
+      suggestedMediaRoleConfidence: 0.92,
+      suggestedMediaRoleSource: "ai_region",
+      suggestedMediaRoleReason: "fixture",
     },
   ],
   videoAssets: [],
@@ -62,6 +66,7 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.match(mediaBlock, /data-obs-image-frame/);
   assert.match(mediaBlock, /width="320" height="640"/);
   assert.match(mediaBlock, />主役<\/span>/);
+  assert.match(mediaBlock, /AI 主役 92%/);
   assert.match(mediaBlock, /visible-region-fixture/);
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
   assert.match(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
@@ -80,6 +85,10 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
         roleTagSource: null,
         organTarget: null,
         mediaRole: "context",
+        suggestedMediaRole: "context",
+        suggestedMediaRoleConfidence: null,
+        suggestedMediaRoleSource: "heuristic",
+        suggestedMediaRoleReason: "fixture",
       },
       {
         assetId: "asset-legacy-upload-2",
@@ -90,6 +99,10 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
         roleTagSource: null,
         organTarget: null,
         mediaRole: "secondary_candidate",
+        suggestedMediaRole: "secondary_candidate",
+        suggestedMediaRoleConfidence: 0.68,
+        suggestedMediaRoleSource: "ai_candidate",
+        suggestedMediaRoleReason: "fixture",
       },
     ],
   } as unknown as ObservationDetailSnapshot;
@@ -116,6 +129,10 @@ test("observation media renders video media role badges", () => {
         watchUrl: "https://watch.cloudflarestream.com/video-asset",
         createdAt: "2026-04-26T00:00:00.000Z",
         mediaRole: "sound_motion",
+        suggestedMediaRole: "sound_motion",
+        suggestedMediaRoleConfidence: null,
+        suggestedMediaRoleSource: "heuristic",
+        suggestedMediaRoleReason: "fixture",
       },
     ],
   } as unknown as ObservationDetailSnapshot;
@@ -124,4 +141,5 @@ test("observation media renders video media role badges", () => {
 
   assert.match(mediaBlock, /<strong>動画<\/strong>/);
   assert.match(mediaBlock, />音・動き<\/span>/);
+  assert.match(mediaBlock, /提案 音・動き/);
 });
