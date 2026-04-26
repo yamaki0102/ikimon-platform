@@ -3207,7 +3207,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </aside>
         </div>
       </section>
-      <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js" integrity="sha384-e14cNjQjd5R4CjmEtpwqhtz1Yr92mbPYc08UpfD17q3OEaOPNnZM0sxye7khgesI" crossorigin="anonymous"></script>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
@@ -4521,13 +4520,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           return duration;
         };
 
-        const uploadVideoWithTus = (directUploadUrl, file) =>
+        const uploadVideoWithDirectPost = (directUploadUrl, file) =>
           new Promise((resolve, reject) => {
-            if (!(window.tus && typeof window.tus.Upload === 'function')) {
-              reject(new Error('video_upload_library_unavailable'));
-              return;
-            }
             let settled = false;
+            const request = new XMLHttpRequest();
             const finish = (error) => {
               if (settled) return;
               settled = true;
@@ -4537,37 +4533,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (error) reject(error);
               else resolve(true);
             };
-
-            const upload = new window.tus.Upload(file, {
-              uploadUrl: directUploadUrl,
-              chunkSize: 8 * 1024 * 1024,
-              retryDelays: [0, 1200, 3000, 5000, 9000],
-              removeFingerprintOnSuccess: true,
-              metadata: {
-                filename: file.name || 'upload.mp4',
-                filetype: file.type || 'video/mp4',
-              },
-              onProgress: (uploaded, total) => {
-                updateVideoProgress(uploaded, total);
-                if (videoLive) videoLive.textContent = '動画をアップロード中です。';
-              },
-              onError: (error) => {
-                finish(error instanceof Error ? error : new Error(String(error)));
-              },
-              onSuccess: () => {
+            request.upload.onprogress = (event) => {
+              updateVideoProgress(event.loaded || 0, event.lengthComputable ? event.total : (file.size || 0));
+              if (videoLive) videoLive.textContent = '動画をアップロード中です。';
+            };
+            request.onerror = () => finish(new Error('video_upload_network_failed'));
+            request.onabort = () => finish(new Error('video_upload_cancelled'));
+            request.onload = () => {
+              if (request.status >= 200 && request.status < 300) {
+                updateVideoProgress(file.size || 0, file.size || 0);
                 if (videoLive) videoLive.textContent = '動画アップロードが完了しました。';
                 finish(null);
-              },
-            });
+                return;
+              }
+              finish(new Error('video_upload_failed:' + String(request.status) + ':' + String(request.responseText || '').slice(0, 120)));
+            };
 
-            activeTusUpload = upload;
+            activeTusUpload = request;
             cancelTusUpload = () => {
-              upload.abort(true);
-              finish(new Error('video_upload_cancelled'));
+              request.abort();
             };
             if (videoCancel) videoCancel.disabled = false;
             updateVideoProgress(0, file.size || 0);
-            upload.start();
+            const formData = new FormData();
+            formData.append('file', file, file.name || 'upload.mp4');
+            request.open('POST', directUploadUrl, true);
+            request.send(formData);
           });
 
         if (form) {
@@ -4879,7 +4870,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     throw new Error(issueJson.error || 'video_issue_failed');
                   }
 
-                  await uploadVideoWithTus(String(issueJson.uploadUrl), videoFile);
+                  await uploadVideoWithDirectPost(String(issueJson.uploadUrl), videoFile);
                   setStatus('<div class="row"><div>動画を観察へ紐づけています...</div></div>');
 
                   const finalizeResponse = await fetch(withBasePath('/api/v1/videos/' + encodeURIComponent(String(issueJson.uid)) + '/finalize'), {
