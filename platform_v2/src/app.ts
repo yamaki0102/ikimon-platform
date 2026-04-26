@@ -408,6 +408,33 @@ async function getPreviewContext(): Promise<PreviewContext> {
   };
 }
 
+const LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT = `// ikimon.life v2 intentionally does not use the legacy PHP Service Worker.
+// Returning this script from the old SW URLs lets browsers update the old
+// registration, clear its shell caches, and then unregister it.
+const LEGACY_CACHE_PREFIXES = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-'];
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    if ('caches' in self) {
+      const keys = await caches.keys();
+      await Promise.all(keys
+        .filter((key) => LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)))
+        .map((key) => caches.delete(key)));
+    }
+    await self.clients.claim();
+    await self.registration.unregister();
+  })());
+});
+
+self.addEventListener('fetch', () => {
+  // No respondWith: every request falls through to the network.
+});
+`;
+
 export function buildApp() {
   const app = Fastify({
     logger: true,
@@ -431,6 +458,16 @@ export function buildApp() {
     }
     return payload;
   });
+
+  for (const path of ["/sw.php", "/sw.js"]) {
+    app.get(path, async (_request, reply) => {
+      reply
+        .type("application/javascript; charset=utf-8")
+        .header("Cache-Control", "no-cache, no-store, must-revalidate")
+        .header("Service-Worker-Allowed", "/");
+      return LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT;
+    });
+  }
 
   app.get("/", async (request, reply) => {
     const accept = String(request.headers.accept ?? "");

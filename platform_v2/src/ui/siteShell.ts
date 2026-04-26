@@ -1127,6 +1127,27 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const skipLabel = shellCopyFor(lang).skipToContent;
   const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}`;
+  const legacyServiceWorkerCleanupScript = `<script>
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  const legacyCachePrefixes = ['ikimon-pwa-', 'ikimon-offline-', 'ikimon-static-'];
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => {
+        const scriptUrl = registration.active && registration.active.scriptURL ? registration.active.scriptURL : '';
+        if (scriptUrl && !/\\/sw\\.(php|js)(?:$|[?#])/.test(scriptUrl)) return Promise.resolve(false);
+        return registration.unregister();
+      })))
+      .then(() => {
+        if (!('caches' in window)) return undefined;
+        return caches.keys().then((keys) => Promise.all(keys
+          .filter((key) => legacyCachePrefixes.some((prefix) => key.startsWith(prefix)))
+          .map((key) => caches.delete(key))));
+      })
+      .catch(() => undefined);
+  }, { once: true });
+})();
+</script>`;
   const uiKpiScript = `<script>
 (function () {
   const endpoint = ${JSON.stringify(uiKpiEndpoint)};
@@ -2661,6 +2682,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     ${footer(options.basePath, lang, options.footerNote)}
     ${globalRecordNav}
   </div>
+  ${legacyServiceWorkerCleanupScript}
   ${authNavHydrationScript(options.basePath, lang)}
   ${globalRecordNav ? globalRecordEntryScript() : ""}
   ${uiKpiScript}
