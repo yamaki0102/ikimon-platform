@@ -44,8 +44,11 @@ import {
   getProfileSnapshot,
   getSpecialistSnapshot,
   type HomePlace,
+  type LandingObservation,
+  type LandingSnapshot,
   type ProfileSnapshot,
 } from "../services/readModels.js";
+import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
 import {
   assertSpecialistAdminSession,
   assertSpecialistSession,
@@ -106,6 +109,7 @@ function layout(
   activeNav: string,
   hero?: LayoutHero,
   extraStyles?: string,
+  currentPath?: string,
 ): string {
   return renderSiteDocument({
     basePath,
@@ -124,6 +128,7 @@ function layout(
         }
       : undefined,
     extraStyles,
+    currentPath,
     footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
   });
 }
@@ -1523,6 +1528,15 @@ const PROFILE_HUB_STYLES = `
   .profile-summary-card strong { display: block; margin-top: 8px; font-size: 28px; line-height: 1.05; color: #0f172a; letter-spacing: 0; }
   .profile-summary-card span { display: block; margin-top: 7px; color: #64748b; font-size: 12px; font-weight: 750; line-height: 1.55; }
   .profile-next-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .profile-reading-digest { padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: linear-gradient(135deg, rgba(236,253,245,.82), rgba(255,255,255,.92) 54%, rgba(240,249,255,.76)); box-shadow: 0 16px 38px rgba(15,23,42,.06); display: grid; gap: 16px; }
+  .profile-reading-main h3 { margin: 8px 0 0; color: #1a2e1f; font-size: clamp(28px, 3.2vw, 44px); line-height: 1.1; letter-spacing: 0; max-width: 18ch; }
+  .profile-reading-main p { margin: 12px 0 0; color: #475569; line-height: 1.8; font-weight: 720; max-width: 68em; }
+  .profile-reading-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .profile-reading-points div { min-height: 142px; padding: 14px; border-radius: 8px; border: 1px solid rgba(16,185,129,.14); background: rgba(255,255,255,.78); }
+  .profile-reading-points span { display: block; color: #047857; font-size: 12px; font-weight: 950; }
+  .profile-reading-points strong { display: block; margin-top: 8px; color: #1a2e1f; font-size: 16px; line-height: 1.35; }
+  .profile-reading-points p { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 700; }
+  .profile-reading-actions { display: flex; flex-wrap: wrap; gap: 10px; }
   .profile-action-card { display: grid; gap: 10px; min-height: 176px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.05); }
   .profile-action-card h3 { margin: 0; font-size: 19px; line-height: 1.35; color: #0f172a; }
   .profile-action-card p { margin: 0; color: #64748b; line-height: 1.7; }
@@ -1557,6 +1571,7 @@ const PROFILE_HUB_STYLES = `
   @media (max-width: 980px) {
     .profile-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .profile-next-grid, .profile-life-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-reading-points { grid-template-columns: 1fr; }
   }
   @media (max-width: 620px) {
     .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
@@ -1619,46 +1634,44 @@ function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editabl
   </section>`;
 }
 
-function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot): string {
+function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
   const firstPlace = snapshot.recentPlaces[0] ?? null;
-  const revisitHref = firstPlace
-    ? buildPlaceRecordHref(basePath, "ja", snapshot.userId, firstPlace)
-    : withBasePath(basePath, "/record");
-  const revisitBody = firstPlace
-    ? `${firstPlace.placeName} は ${firstPlace.visitCount} 回記録されています。${buildPlaceNextLine(firstPlace)}。`
-    : "まず 1 件記録すると、よく歩く場所と再訪理由がここに育ちます。";
-  const cards = [
-    {
-      eyebrow: "Record",
-      title: "今日の 1 件を残す",
-      body: "写真、場所、時間、ひとことをまとめてフィールドノートに追加します。",
-      href: withBasePath(basePath, "/record"),
-      label: "記録する",
-    },
-    {
-      eyebrow: "Revisit",
-      title: "前に歩いた場所へ戻る",
-      body: revisitBody,
-      href: revisitHref,
-      label: "再訪して記録",
-    },
-    {
-      eyebrow: "Review",
-      title: "ノートを読み返す",
-      body: "最近の観察と近くの記録を見比べて、次に見るものを決めます。",
-      href: withBasePath(basePath, "/notes"),
-      label: "ノートを見る",
-    },
-  ];
+  const latestObservation = snapshot.recentObservations[0] ?? null;
+  const latestHref = latestObservation
+    ? withBasePath(basePath, buildObservationDetailPath(
+      latestObservation.detailId ?? latestObservation.visitId ?? latestObservation.occurrenceId,
+      latestObservation.featuredOccurrenceId ?? latestObservation.occurrenceId,
+    ))
+    : withBasePath(basePath, "/notes#notes-own");
+  const latestBody = digest?.todayReading || (latestObservation
+    ? `${latestObservation.displayName} を見返すと、${latestObservation.placeName} の前回のページから読み始められます。`
+    : "まだ自分のページはありません。近くの記録や場所の章から、ノートの読み方を先に眺められます。");
+  const placeBody = digest?.placeChapters[0]?.readingAngle || (firstPlace
+    ? `${firstPlace.placeName} は ${firstPlace.visitCount} 回分の記憶があります。${buildPlaceNextLine(firstPlace)}。`
+    : "場所が増えるほど、同じ道の季節差や小さな変化を章として読み返せます。");
+  const learningBody = digest?.learningHighlight || "Life List は数ではなく、見分ける観点が増えてきた履歴として読み返せます。";
+  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域の自然ノートを少し厚くしています。`;
+  const contributionValue = digest
+    ? `${escapeHtml(formatProfileNumber(digest.sourceStats.observationCount))} ページ`
+    : `${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))} ページ`;
   return `<section class="section" data-testid="profile-next-actions">
-    <div class="section-header"><div><div class="eyebrow">次にやること</div><h2>今日の入口</h2></div></div>
-    <div class="profile-next-grid">
-      ${cards.map((card) => `<a class="profile-action-card" href="${escapeHtml(card.href)}">
-        <div class="eyebrow">${escapeHtml(card.eyebrow)}</div>
-        <h3>${escapeHtml(card.title)}</h3>
-        <p>${escapeHtml(card.body)}</p>
-        <span class="inline-link">${escapeHtml(card.label)}</span>
-      </a>`).join("")}
+    <div class="section-header"><div><div class="eyebrow">ノートを読む</div><h2>気持ちよく見返す入口</h2></div></div>
+    <div class="profile-reading-digest">
+      <div class="profile-reading-main">
+        <div class="eyebrow">Read</div>
+        <h3>前回のページから、今日の自分を読み直す</h3>
+        <p>${escapeHtml(latestBody)}</p>
+      </div>
+      <div class="profile-reading-points">
+        <div><span>場所の章</span><strong>${escapeHtml(firstPlace?.placeName ?? "これから育つ場所")}</strong><p>${escapeHtml(placeBody)}</p></div>
+        <div><span>学び</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種を見てきた</strong><p>${escapeHtml(learningBody)}</p></div>
+        <div><span>地域への手がかり</span><strong>${contributionValue}</strong><p>${escapeHtml(contributionBody)}</p></div>
+      </div>
+      <div class="profile-reading-actions">
+        <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-places"))}">場所の章を開く</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-impact"))}">地域の手がかりを見る</a>
+      </div>
     </div>
   </section>`;
 }
@@ -1692,13 +1705,13 @@ function renderProfileLifeList(snapshot: ProfileSnapshot): string {
   </section>`;
 }
 
-function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot): string {
+function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
   const places = renderPlaceRows(
     basePath,
     lang,
     snapshot.userId,
     snapshot.recentPlaces,
-    "まだ場所の記録はありません。最初の 1 件を記録すると、ここに再訪候補が育ちます。",
+    "まだ場所の章はありません。ページが増えると、ここに読み返す場所が育ちます。",
   );
   const observations = snapshot.recentObservations.map((item) => `
       <div class="row">
@@ -1713,20 +1726,20 @@ function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: Profil
       </div>`).join("");
   return `${renderProfileSummary(snapshot)}
     ${renderProfileIntro(basePath, snapshot, true)}
-    ${renderProfileNextActions(basePath, snapshot)}
+    ${renderProfileNextActions(basePath, snapshot, digest)}
     <section class="section" data-testid="profile-places">
-      <div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>My Places</h2></div></div>
+      <div class="section-header"><div><div class="eyebrow">場所の章</div><h2>読み返す場所</h2></div></div>
       <div class="list">${places}</div>
     </section>
     <section class="section" data-testid="profile-observations">
-      <div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div>
+      <div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近のページ</h2></div></div>
       ${observations
         ? `<div class="list">${observations}</div>`
         : `<div class="onboarding-empty">
             <div class="eyebrow">まだ 0 ページ</div>
-            <h3>最初の 1 件を記録する</h3>
-            <p>名前が分からなくても、写真と場所とひとことがあればフィールドノートになります。</p>
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">記録する</a>
+            <h3>近くのページから読み始める</h3>
+            <p>自分のページが育つ前でも、近くの記録や場所の章から、どんな読み返し方ができるか眺められます。</p>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/notes"))}">ノートを読む</a>
           </div>`}
     </section>
     ${renderProfileLifeList(snapshot)}`;
@@ -1918,6 +1931,468 @@ function renderProfileSnapshotBody(
       <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`;
 }
+
+function notesEntryDate(obs: LandingObservation): string {
+  return (obs.entryType === "identification" ? obs.identifiedAt : obs.observedAt) ?? obs.observedAt;
+}
+
+function notesEntryKind(obs: LandingObservation): string {
+  return obs.entryType === "identification" ? "同定メモ" : "観察ページ";
+}
+
+function notesDetailHref(basePath: string, lang: SiteLang, obs: LandingObservation): string {
+  return appendLangToHref(
+    withBasePath(
+      basePath,
+      buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
+    ),
+    lang,
+  );
+}
+
+function notesPlaceLine(obs: LandingObservation, locationMode: "owner" | "public"): string {
+  if (locationMode === "owner") {
+    return [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
+  }
+  return obs.publicLocation?.label || obs.municipality || "場所をぼかしています";
+}
+
+function renderNotesMiniCard(
+  basePath: string,
+  lang: SiteLang,
+  obs: LandingObservation,
+  options: { locationMode: "owner" | "public" },
+): string {
+  const href = notesDetailHref(basePath, lang, obs);
+  const displayName = obs.displayName || obs.proposedName || "名前を確かめているページ";
+  const dateLabel = formatShortDate(notesEntryDate(obs), lang === "ja" ? "ja-JP" : "en-US") || notesEntryDate(obs);
+  const placeLine = notesPlaceLine(obs, options.locationMode);
+  const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "sm") ?? obs.photoUrl) : null;
+  const photo = photoUrl
+    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span></span>`
+    : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>`;
+  const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
+  const supportLine = obs.entryType === "identification"
+    ? `${observerLine}${obs.proposedName ? `${obs.proposedName} · ` : ""}${dateLabel}`
+    : `${observerLine}${obs.identificationCount > 0 ? `同定 ${obs.identificationCount} 件 · ` : "名前を見返す余地あり · "}${dateLabel}`;
+  return `<a class="notes-page-card" href="${escapeHtml(href)}" data-entry-type="${escapeHtml(obs.entryType ?? "observation")}">
+    ${photo}
+    <span class="notes-page-copy">
+      <span class="notes-page-kicker">${escapeHtml(notesEntryKind(obs))}</span>
+      <strong>${escapeHtml(displayName)}</strong>
+      <span>${escapeHtml(placeLine)}</span>
+      <em>${escapeHtml(supportLine)}</em>
+    </span>
+  </a>`;
+}
+
+function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: LandingSnapshot, digest: ProfileNoteDigest | null = null): string {
+  const latest = snapshot.myFeed[0] ?? snapshot.feed[0] ?? null;
+  const firstPlace = snapshot.myPlaces[0] ?? null;
+  const supportedCount = snapshot.myFeed.filter((obs) => obs.identificationCount > 0 || obs.entryType === "identification").length;
+  const ownObservationPages = snapshot.myFeed.filter((obs) => obs.entryType !== "identification").length;
+  const latestHref = latest ? notesDetailHref(basePath, lang, latest) : appendLangToHref(withBasePath(basePath, "/notes#notes-nearby"), lang);
+  const latestName = latest?.displayName || "近くのページ";
+  const latestPlace = latest ? notesPlaceLine(latest, snapshot.viewerUserId ? "owner" : "public") : "この地域";
+  const latestDate = latest ? (formatShortDate(notesEntryDate(latest), "ja-JP") || "最近") : "今日";
+  const placeName = firstPlace?.placeName ?? "まだ章になっていない場所";
+  const digestPlace = digest?.placeChapters[0] ?? null;
+  const placeMemory = digestPlace?.readingAngle || (firstPlace
+    ? `${firstPlace.visitCount} 回分の記憶があり、${buildPlaceNextLine(firstPlace)}。`
+    : "場所の章はまだ薄い。でも近くのページを読むだけでも、同じ道を見返す感覚は先に掴める。");
+  const learningLine = digest?.learningHighlight || (supportedCount > 0
+    ? `${supportedCount} 件のページで、名前や同定の手がかりが育っています。`
+    : "名前が揺れているページも、次に分かる楽しみとして残っています。");
+  const contributionLine = digest?.localContribution || (snapshot.viewerUserId
+    ? `${formatProfileNumber(ownObservationPages)} ページと ${formatProfileNumber(snapshot.myPlaces.length)} つの場所が、地域を読み返す材料になっています。`
+    : `${formatProfileNumber(snapshot.stats.observationCount)} 件の公開ページが、地域の自然を読める形で残っています。`);
+  const digestLead = digest?.todayReading
+    || `${latestPlace} の ${latestDate} のページを起点に読むと、ただの一覧ではなく「前に何を見て、何が分かり、地域に何が残ったか」までつながって見えます。`;
+  const digestQuote = digest?.growthStory || "ノートは投稿履歴ではなく、同じ場所をもう一度おもしろくするための読み物です。";
+  const readingOrder = [
+    { label: "前回のページ", value: `${latestDate} の ${latestName}` },
+    { label: "場所の章", value: placeName },
+    { label: "学び", value: supportedCount > 0 ? "名前が育ったページ" : "まだ名前が揺れているページ" },
+    { label: "地域への効き方", value: snapshot.viewerUserId ? "自分の足あとが残した手がかり" : "公開ノートが残した手がかり" },
+  ];
+  return `<section id="notes-reading" class="section notes-reading" data-testid="notes-reading-brief">
+    <div class="notes-section-head">
+      <div><div class="notes-eyebrow">読むためのノート</div><h2>今日読むページ</h2></div>
+      <p>ここだけ読めば、前回のページ、場所の記憶、学び、地域への効き方までひと通り分かるようにします。</p>
+    </div>
+    <div class="notes-digest-shell">
+      <article class="notes-digest-main">
+        <div class="notes-digest-kicker">今日の読み筋</div>
+        <h3>${escapeHtml(latestName)}から読む、今日のノート</h3>
+        <p>${escapeHtml(digestLead)}</p>
+        <blockquote>${escapeHtml(digestQuote)}</blockquote>
+        <div class="notes-digest-story-grid">
+          <div>
+            <span>前回からの続き</span>
+            <strong>${escapeHtml(placeName)}</strong>
+            <p>${escapeHtml(placeMemory)}</p>
+          </div>
+          <div>
+            <span>見えてきたこと</span>
+            <strong>${escapeHtml(supportedCount > 0 ? "名前の手がかりが増えた" : "分からなさも残っている")}</strong>
+            <p>${escapeHtml(learningLine)}</p>
+          </div>
+          <div>
+            <span>世界や地域への効き方</span>
+            <strong>この地域のノートが少し厚くなった</strong>
+            <p>${escapeHtml(contributionLine)}</p>
+          </div>
+        </div>
+        <a class="notes-digest-link" href="${escapeHtml(latestHref)}">${escapeHtml(latest ? "このページを詳しく読む" : "近くのページを読む")}</a>
+      </article>
+      <aside class="notes-digest-rail" aria-label="今日の読み順">
+        <div class="notes-digest-rail-head">今日の読み順</div>
+        ${readingOrder.map((item, index) => `<div class="notes-reading-step">
+          <b>${index + 1}</b>
+          <span><em>${escapeHtml(item.label)}</em><strong>${escapeHtml(item.value)}</strong></span>
+        </div>`).join("")}
+        <div class="notes-digest-score">
+          <strong>${escapeHtml(formatProfileNumber(snapshot.viewerUserId ? ownObservationPages : snapshot.stats.observationCount))}</strong>
+          <span>${escapeHtml(snapshot.viewerUserId ? "自分のページ" : "公開ページ")}</span>
+        </div>
+      </aside>
+    </div>
+  </section>`;
+}
+
+function renderNotesLearningHighlights(snapshot: LandingSnapshot, digest: ProfileNoteDigest | null = null): string {
+  const ownEntries = snapshot.myFeed;
+  const uniqueNames = new Set(ownEntries.map((obs) => obs.displayName).filter(Boolean));
+  const supportedCount = ownEntries.filter((obs) => obs.identificationCount > 0).length;
+  const identificationMemos = ownEntries.filter((obs) => obs.entryType === "identification").length;
+  const openQuestions = ownEntries.filter((obs) => obs.identificationCount === 0 && obs.entryType !== "identification").length;
+  const cards = [
+    {
+      value: formatProfileNumber(uniqueNames.size),
+      label: "よく見返せる生きもの",
+      body: uniqueNames.size > 0 ? "名前の並びが、自分の観察テーマになっていきます。" : "近くのページを読むほど、見たい対象が見つかります。",
+    },
+    {
+      value: formatProfileNumber(supportedCount),
+      label: "同定が育ったページ",
+      body: supportedCount > 0 ? "候補名や人の同定が、読み返す手がかりになります。" : "まだ揺れている名前も、学びの余白として残ります。",
+    },
+    {
+      value: formatProfileNumber(openQuestions),
+      label: "まだ名前が揺れている記録",
+      body: "分からないまま残るページは、次に分かる楽しみを作ります。",
+    },
+    {
+      value: formatProfileNumber(identificationMemos),
+      label: "自分が残した同定メモ",
+      body: "誰かのページに残した見立ても、自分の学びの履歴です。",
+    },
+  ];
+  return `<section id="notes-learning" class="section notes-page" data-testid="notes-learning">
+    <div class="notes-section-head">
+      <div><div class="notes-eyebrow">学びのハイライト</div><h2>前より見えてきたこと</h2></div>
+      <p>${escapeHtml(digest?.learningHighlight || "正解数ではなく、見返すたびに増える観点を並べます。")}</p>
+    </div>
+    <div class="notes-metric-grid">
+      ${cards.map((card) => `<div class="notes-metric-card">
+        <strong>${escapeHtml(card.value)}</strong>
+        <span>${escapeHtml(card.label)}</span>
+        <p>${escapeHtml(card.body)}</p>
+      </div>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderNotesContributionSummary(snapshot: LandingSnapshot, digest: ProfileNoteDigest | null = null): string {
+  const ownObservationPages = snapshot.myFeed.filter((obs) => obs.entryType !== "identification").length;
+  const placeCount = snapshot.myPlaces.length;
+  const weekCount = snapshot.habit?.thisWeekCount ?? 0;
+  const supportedPages = snapshot.myFeed.filter((obs) => obs.identificationCount > 0 || obs.entryType === "identification").length;
+  const cards = snapshot.viewerUserId
+    ? [
+      { value: formatProfileNumber(ownObservationPages), label: "地域に残したページ" },
+      { value: formatProfileNumber(placeCount), label: "場所の章" },
+      { value: formatProfileNumber(weekCount), label: "今週読める足あと" },
+      { value: formatProfileNumber(supportedPages), label: "同定の手がかり" },
+    ]
+    : [
+      { value: formatProfileNumber(snapshot.stats.observationCount), label: "公開されているページ" },
+      { value: formatProfileNumber(snapshot.stats.speciesCount), label: "見えてきた生きもの" },
+      { value: formatProfileNumber(snapshot.stats.placeCount), label: "場所の記憶" },
+      { value: formatProfileNumber(snapshot.feed.filter((obs) => obs.identificationCount > 0).length), label: "同定の手がかり" },
+    ];
+  return `<section id="notes-impact" class="section notes-impact" data-testid="notes-impact">
+    <div class="notes-impact-band">
+      <div>
+        <div class="notes-eyebrow">地域に残った手がかり</div>
+        <h2>キミの記録で、この地域のノートが少し厚くなった</h2>
+        <p>${escapeHtml(digest?.contributionStory || "大げさに言い切らず、いま見えている観察・場所・同定の範囲で、役立ったことだけを返します。")}</p>
+      </div>
+      <div class="notes-impact-grid">
+        ${cards.map((card) => `<div><strong>${escapeHtml(card.value)}</strong><span>${escapeHtml(card.label)}</span></div>`).join("")}
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderNotesPlaceChapters(basePath: string, lang: SiteLang, snapshot: LandingSnapshot, digest: ProfileNoteDigest | null = null): string {
+  if (!snapshot.viewerUserId || snapshot.myPlaces.length === 0) {
+    return `<section id="notes-places" class="section notes-page" data-testid="notes-places">
+      <div class="notes-section-head"><div><div class="notes-eyebrow">場所の章</div><h2>読み返す場所</h2></div></div>
+      <div class="notes-empty-reading">場所の章はまだありません。近くのページを読むと、同じ場所を何度も見返す面白さが分かります。</div>
+    </section>`;
+  }
+  const digestByPlace = new Map((digest?.placeChapters ?? []).map((chapter) => [chapter.placeName, chapter]));
+  const chapters = snapshot.myPlaces.map((place) => {
+    const focus = pickPlaceFocus(place);
+    const digestChapter = digestByPlace.get(place.placeName);
+    const compared = place.previousObservedAt
+      ? `前回 ${formatShortDate(place.previousObservedAt, "ja-JP")}`
+      : "この場所の最初のページ";
+    const href = appendLangToHref(withBasePath(basePath, "/notes#notes-own"), lang);
+    const localClue = digestChapter?.localClue
+      || `${place.visitCount} 回分のページが、この場所をあとから読める手がかりになっています。`;
+    return `<a class="notes-place-chapter" href="${escapeHtml(href)}">
+      <span class="notes-place-topline">${escapeHtml(place.municipality || "地域")}</span>
+      <strong>${escapeHtml(place.placeName)}</strong>
+      <span>前回見たもの: ${escapeHtml(place.latestDisplayName || "まだ名前を確かめているページ")}</span>
+      <span>${escapeHtml(compared)} · ${escapeHtml(String(place.visitCount))} 回分</span>
+      <em>${escapeHtml(digestChapter?.readingAngle || (focus ? `次に読む観点: ${focus}` : "次に読む観点: 小さな変化"))}</em>
+      <span>地域への手がかり: ${escapeHtml(localClue)}</span>
+      <b>この場所を読む</b>
+    </a>`;
+  }).join("");
+  return `<section id="notes-places" class="section notes-page" data-testid="notes-places">
+    <div class="notes-section-head">
+      <div><div class="notes-eyebrow">場所の章</div><h2>読み返す場所</h2></div>
+      <p>よく歩く場所を、行き先ではなく読み返す章として並べます。</p>
+    </div>
+    <div class="notes-place-grid">${chapters}</div>
+  </section>`;
+}
+
+const NOTES_READING_STYLES = `
+  .notes-page { margin-top: 24px; }
+  .notes-section-head { display: grid; grid-template-columns: minmax(0,.74fr) minmax(240px,.26fr); gap: 18px; align-items: end; margin-bottom: 18px; }
+  .notes-section-head h2 { margin: 6px 0 0; color: #1a2e1f; font-size: clamp(27px,3vw,42px); line-height: 1.12; letter-spacing: 0; }
+  .notes-section-head p { margin: 0; color: #64748b; line-height: 1.75; font-weight: 680; }
+  .notes-eyebrow { color: #047857; font-size: 12px; font-weight: 950; }
+  .notes-digest-shell {
+    display: grid;
+    grid-template-columns: minmax(0, .68fr) minmax(280px, .32fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+  .notes-digest-main, .notes-digest-rail {
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 8px;
+    background: rgba(255,255,255,.84);
+    box-shadow: 0 16px 38px rgba(15,23,42,.06);
+  }
+  .notes-digest-main {
+    min-height: 360px;
+    padding: clamp(20px, 3vw, 30px);
+    display: grid;
+    gap: 16px;
+    align-content: start;
+    background:
+      linear-gradient(135deg, rgba(236,253,245,.74), rgba(255,255,255,.9) 45%, rgba(240,249,255,.72)),
+      rgba(255,255,255,.86);
+  }
+  .notes-digest-kicker, .notes-digest-rail-head {
+    color: #047857;
+    font-size: 12px;
+    font-weight: 950;
+  }
+  .notes-digest-main h3 {
+    margin: 0;
+    max-width: 16ch;
+    color: #1a2e1f;
+    font-size: clamp(30px, 4.1vw, 56px);
+    line-height: 1.05;
+    letter-spacing: 0;
+  }
+  .notes-digest-main > p {
+    margin: 0;
+    max-width: 58em;
+    color: #374151;
+    line-height: 1.85;
+    font-weight: 720;
+  }
+  .notes-digest-main blockquote {
+    margin: 0;
+    padding: 14px 16px;
+    border-left: 4px solid #10b981;
+    border-radius: 8px;
+    background: rgba(255,255,255,.72);
+    color: #1a2e1f;
+    font-size: 17px;
+    line-height: 1.7;
+    font-weight: 900;
+  }
+  .notes-digest-story-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .notes-digest-story-grid div {
+    min-height: 154px;
+    padding: 14px;
+    border: 1px solid rgba(16,185,129,.14);
+    border-radius: 8px;
+    background: rgba(255,255,255,.78);
+  }
+  .notes-digest-story-grid span {
+    display: block;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 950;
+  }
+  .notes-digest-story-grid strong {
+    display: block;
+    margin-top: 8px;
+    color: #1a2e1f;
+    font-size: 16px;
+    line-height: 1.35;
+  }
+  .notes-digest-story-grid p {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.65;
+    font-weight: 700;
+  }
+  .notes-digest-link {
+    width: fit-content;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: #10251a;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 900;
+    box-shadow: 0 14px 30px rgba(16,37,26,.16);
+  }
+  .notes-digest-rail {
+    padding: 16px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+  .notes-reading-step {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(236,253,245,.72);
+  }
+  .notes-reading-step b {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #10b981;
+    color: #fff;
+    line-height: 1;
+  }
+  .notes-reading-step em {
+    display: block;
+    color: #047857;
+    font-style: normal;
+    font-size: 11px;
+    font-weight: 950;
+  }
+  .notes-reading-step strong {
+    display: block;
+    margin-top: 3px;
+    color: #1a2e1f;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .notes-digest-score {
+    margin-top: 4px;
+    padding: 14px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.82);
+    border: 1px solid rgba(16,185,129,.14);
+  }
+  .notes-digest-score strong { display: block; color: #1a2e1f; font-size: 32px; line-height: 1; font-weight: 950; }
+  .notes-digest-score span { display: block; margin-top: 7px; color: #64748b; font-size: 12px; font-weight: 850; }
+  .notes-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .notes-metric-card, .notes-place-chapter {
+    min-height: 138px;
+    padding: 16px;
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 8px;
+    background: rgba(255,255,255,.82);
+    box-shadow: 0 12px 30px rgba(15,23,42,.055);
+    text-decoration: none;
+    color: inherit;
+  }
+  .notes-place-chapter:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(16,185,129,.1); }
+  .notes-page-kicker, .notes-place-topline { color: #047857; font-size: 12px; font-weight: 950; }
+  .notes-metric-card strong { display: block; color: #1a2e1f; font-size: 30px; line-height: 1.05; font-weight: 950; }
+  .notes-metric-card span { display: block; margin-top: 8px; color: #047857; font-size: 12px; font-weight: 900; }
+  .notes-metric-card p { margin: 8px 0 0; color: #64748b; line-height: 1.65; font-size: 13px; }
+  .notes-impact-band {
+    display: grid;
+    grid-template-columns: minmax(0,.62fr) minmax(320px,.38fr);
+    gap: 18px;
+    align-items: center;
+    padding: 22px;
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.88));
+    box-shadow: 0 18px 42px rgba(16,185,129,.09);
+  }
+  .notes-impact-band h2 { margin: 8px 0 0; color: #1a2e1f; font-size: clamp(26px,3vw,40px); line-height: 1.14; letter-spacing: 0; }
+  .notes-impact-band p { margin: 12px 0 0; color: #475569; line-height: 1.8; font-weight: 700; }
+  .notes-impact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .notes-impact-grid div { padding: 14px; border-radius: 8px; background: rgba(255,255,255,.78); border: 1px solid rgba(16,185,129,.14); }
+  .notes-impact-grid strong { display: block; color: #1a2e1f; font-size: 25px; line-height: 1.05; font-weight: 950; }
+  .notes-impact-grid span { display: block; margin-top: 6px; color: #64748b; font-size: 12px; font-weight: 850; }
+  .notes-place-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .notes-place-chapter { display: grid; gap: 7px; min-height: 190px; }
+  .notes-place-chapter strong { color: #1a2e1f; font-size: 19px; line-height: 1.32; }
+  .notes-place-chapter span, .notes-place-chapter em { color: #64748b; font-style: normal; font-size: 13px; line-height: 1.55; }
+  .notes-place-chapter b { width: fit-content; margin-top: 4px; color: #047857; font-size: 13px; }
+  .notes-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .notes-grid.is-compact { grid-template-columns: 1fr; }
+  .notes-page-card {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid rgba(16,185,129,.14);
+    border-radius: 8px;
+    background: rgba(255,255,255,.86);
+    box-shadow: 0 10px 24px rgba(15,23,42,.045);
+    color: inherit;
+    text-decoration: none;
+  }
+  .notes-thumb { width: 58px; height: 58px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-weight: 950; }
+  .notes-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .notes-page-copy { min-width: 0; display: grid; gap: 3px; }
+  .notes-page-copy strong { color: #1a2e1f; font-size: 16px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notes-page-copy span:not(.notes-page-kicker), .notes-page-copy em { color: #64748b; font-size: 12px; line-height: 1.45; font-style: normal; font-weight: 720; }
+  .notes-empty-reading { padding: 18px; border-radius: 8px; border: 1px solid rgba(16,185,129,.14); background: rgba(255,255,255,.82); color: #64748b; font-weight: 720; line-height: 1.75; }
+  @media (max-width: 980px) {
+    .notes-digest-shell, .notes-impact-band, .notes-section-head { grid-template-columns: 1fr; }
+    .notes-digest-story-grid, .notes-metric-grid, .notes-place-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 620px) {
+    .notes-digest-story-grid, .notes-metric-grid, .notes-place-grid, .notes-impact-grid { grid-template-columns: 1fr; }
+    .notes-section-head h2 { font-size: 28px; }
+    .notes-digest-main h3 { font-size: 34px; max-width: 100%; }
+  }
+`;
 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
@@ -4762,6 +5237,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
+      appendLangToHref(withBasePath(basePath, `/guest/${encodeURIComponent(request.params.userId)}`), lang),
     );
   });
 
@@ -4795,6 +5271,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       PLACE_REVISIT_ROW_STYLES,
+      appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(request.params.userId)}`), lang),
     );
   });
 
@@ -4809,25 +5286,31 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         "マイページ | ikimon",
         stateCard(
           "マイページ",
-          "ログインすると、自分の場所と記録をまとめて見られます",
-          `<p style="margin:0 0 12px">総観察数、今月の記録、よく歩く場所、Life List を 1 つのハブで確認できます。</p>
+          "ログインすると、自分のノートを読み返せます",
+          `<p style="margin:0 0 12px">前回のページ、場所の章、学びのハイライト、地域に残った手がかりを 1 つのハブで確認できます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile"))}">ログインしてマイページへ</a>
             <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/profile"))}">新しく登録する</a>
           </div>`,
         ),
         "ホーム",
+        undefined,
+        undefined,
+        appendLangToHref(withBasePath(basePath, "/profile"), lang),
       );
     }
-    const snapshot = await getProfileSnapshot(session.userId);
+    const [snapshot, digest] = await Promise.all([
+      getProfileSnapshot(session.userId),
+      getProfileNoteDigest(session.userId),
+    ]);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
+      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "ノートに読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
     const heroActions = [
-      { href: "/record", label: "記録する" },
-      { href: "/notes", label: "ノートを見る", variant: "secondary" as const },
-      { href: "/home", label: "再訪ホーム", variant: "secondary" as const },
+      { href: "/notes#notes-reading", label: "前回のページを読む" },
+      { href: "/notes#notes-places", label: "場所の章を開く", variant: "secondary" as const },
+      { href: "/notes#notes-impact", label: "地域の手がかりを見る", variant: "secondary" as const },
       { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
       { href: "/logout", label: "ログアウト", variant: "secondary" as const },
     ];
@@ -4836,16 +5319,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       `マイページ | ${snapshot.displayName} | ikimon`,
-      renderSelfProfileHub(basePath, lang, snapshot),
+      renderSelfProfileHub(basePath, lang, snapshot, digest),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "あなたのマイページ。記録した場所、最近の観察、Life List、次にやることをまとめて確認します。",
+        lead: "あなたのマイページ。前回のページ、場所の章、学び、地域に残った手がかりを気持ちよく読み返します。",
         actions: heroActions,
       },
       PROFILE_HUB_STYLES,
+      appendLangToHref(withBasePath(basePath, "/profile"), lang),
     );
   });
 
@@ -5938,27 +6422,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
-    const snapshot = await getLandingSnapshot(viewerUserId);
+    const [snapshot, digest] = await Promise.all([
+      getLandingSnapshot(viewerUserId),
+      getProfileNoteDigest(viewerUserId),
+    ]);
 
     const isLoggedIn = Boolean(viewerUserId);
     const ownCards = snapshot.myFeed
-      .map((obs) => renderObservationCard(basePath, lang, obs, { locationMode: "owner", showSpecialistCta: canUseSpecialistWorkbench(session) }))
+      .map((obs) => renderNotesMiniCard(basePath, lang, obs, { locationMode: "owner" }))
       .join("");
     const nearbyCards = snapshot.feed
       .slice(0, 9)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }))
+      .map((obs) => renderNotesMiniCard(basePath, lang, obs, { locationMode: "public" }))
       .join("");
 
     const emptyCopy = notesPageCopy.sections.nearbyEmpty;
-    const nearbyCopy = notesPageCopy.sections.nearbyTitle;
-    const myCopy = notesPageCopy.sections.ownTitle;
-    const placeRows = renderPlaceRows(
-      basePath,
-      lang,
-      viewerUserId,
-      snapshot.myPlaces,
-      "まだ再訪したい場所はありません。",
-    );
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
@@ -5966,14 +6444,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       title: notesPageCopy.title,
       activeNav: notesPageCopy.activeNav,
       lang,
-      extraStyles: `${OBSERVATION_CARD_STYLES}
-        .notes-page { margin-top: 24px; }
-        .notes-head { display: flex; flex-direction: column; gap: 8px; justify-content: flex-start; align-items: flex-start; margin-bottom: 16px; }
-        .notes-head h2 { margin: 0; }
-        .notes-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-        .notes-grid.is-compact { grid-template-columns: 1fr; gap: 12px; }
-        ${PLACE_REVISIT_ROW_STYLES}
-      `,
+      currentPath: appendLangToHref(withBasePath(basePath, "/notes"), lang),
+      extraStyles: NOTES_READING_STYLES,
       hero: {
         eyebrow: notesPageCopy.hero.eyebrow,
         heading: notesPageCopy.hero.heading,
@@ -5982,37 +6454,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         tone: "light",
         align: "center",
         actions: [
-          { href: "/record", label: sharedCopy.cta.record },
+          { href: "/notes#notes-reading", label: "今日読むページ" },
           { href: "/map", label: sharedCopy.cta.openMap, variant: "secondary" as const },
         ],
       },
-      body: `${isLoggedIn ? `<section class="section notes-page" data-testid="notes-places">
-        <div class="notes-head"><div><h2>よく歩く場所</h2></div></div>
-        <div class="list">${placeRows}</div>
-      </section>` : ""}
+      body: `${renderNotesReadingBrief(basePath, lang, snapshot, digest)}
+      ${renderNotesPlaceChapters(basePath, lang, snapshot, digest)}
       <section class="section notes-page" data-testid="notes-own">
-        <div class="notes-head"><div><h2>${escapeHtml(myCopy)}</h2></div></div>
+        <div class="notes-section-head"><div><div class="notes-eyebrow">最近のページ</div><h2>あなたのノート</h2></div><p>観察と同定メモを、あとから読める目次として並べます。</p></div>
         ${isLoggedIn
           ? (ownCards
               ? `<div class="notes-grid">${ownCards}</div>`
-              : `<div class="onboarding-empty">
-                  <div class="eyebrow">${escapeHtml(notesPageCopy.sections.loggedInEyebrow)}</div>
-                  <h3>${escapeHtml(notesPageCopy.sections.loggedInTitle)}</h3>
-                  <p>${escapeHtml(notesPageCopy.sections.loggedInBody)}</p>
-                  <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(sharedCopy.cta.record)}</a>
-                </div>`)
-          : `<div class="onboarding-empty">
-              <div class="eyebrow">${escapeHtml(notesPageCopy.sections.guestEyebrow)}</div>
-              <h3>${escapeHtml(notesPageCopy.sections.guestTitle)}</h3>
-              <p>${escapeHtml(notesPageCopy.sections.guestBody)}</p>
-              <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(sharedCopy.cta.record)}</a>
-            </div>`}
+              : `<div class="notes-empty-reading">あなたのページはまだありません。近くの記録や他の人の痕跡を読むと、このノートがどう育つか先に眺められます。</div>`)
+          : `<div class="notes-empty-reading">ログインすると自分のページがここにまとまります。今は近くの記録を読み物として眺められます。</div>`}
       </section>
+      ${renderNotesLearningHighlights(snapshot, digest)}
+      ${renderNotesContributionSummary(snapshot, digest)}
       <section class="section notes-page" data-testid="notes-nearby">
-        <div class="notes-head"><div><h2>${escapeHtml(nearbyCopy)}</h2></div></div>
+        <div class="notes-section-head"><div><div class="notes-eyebrow">他の人の痕跡</div><h2>近くで見つかっているもの</h2></div><p>主役は自分のノート。周りの記録は、同じ地域を誰かも見ているという薄いつながりとして読む。</p></div>
         ${nearbyCards
           ? `<div class="notes-grid is-compact">${nearbyCards}</div>`
-          : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(emptyCopy)}</p></div></div>`}
+          : `<div class="notes-empty-reading">${escapeHtml(emptyCopy)}</div>`}
       </section>`,
       footerNote: notesPageCopy.footerNote,
     });

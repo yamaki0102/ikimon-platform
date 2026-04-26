@@ -8,6 +8,7 @@ import {
 import { issueRememberToken, revokeRememberToken } from "../services/rememberTokenWrite.js";
 import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../services/observationPhotoUpload.js";
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
+import { refreshProfileNoteDigestForObservation } from "../services/profileNoteDigest.js";
 import {
   addReviewerAuthorityEvidence,
   grantReviewerAuthority,
@@ -230,6 +231,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           compatibilityAttempted: result.compatibility?.attempted ?? false,
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,
         },
+      }).catch(() => undefined);
+      void refreshProfileNoteDigestForObservation({
+        userId: request.body.userId,
+        visitId: result.visitId,
       }).catch(() => undefined);
       return {
         ok: true,

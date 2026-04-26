@@ -106,11 +106,12 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GEMINI_API_KEY,V2_PRIVILEGED_WRITE_API_KEY,V2_STAGING_DATABASE_URL
+          envs: GEMINI_API_KEY,V2_PRIVILEGED_WRITE_API_KEY,V2_STAGING_DATABASE_URL,DEEPSEEK_API_KEY
           script: |
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
             V2_STAGING_DATABASE_URL="${{ secrets.V2_STAGING_DATABASE_URL }}"
+            DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
             set -euo pipefail
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             STAGING_ENV_DIR=/etc/ikimon
@@ -145,14 +146,18 @@ jobs:
             printf 'ALLOW_QUERY_USER_ID=1\n' >> "$TMP_ENV"
             printf 'DATABASE_URL=%s\n' "$V2_STAGING_DATABASE_URL" >> "$TMP_ENV"
             printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$TMP_ENV"
+            if [ -n "$DEEPSEEK_API_KEY" ]; then
+              printf 'DEEPSEEK_API_KEY=%s\n' "$DEEPSEEK_API_KEY" >> "$TMP_ENV"
+              printf 'PROFILE_DIGEST_LLM_PROVIDER=deepseek\n' >> "$TMP_ENV"
+            fi
             printf 'V2_PRIVILEGED_WRITE_API_KEY=%s\n' "$V2_PRIVILEGED_WRITE_API_KEY" >> "$TMP_ENV"
             printf 'LEGACY_DATA_ROOT=/var/www/ikimon.life-staging/repo/upload_package/data\n' >> "$TMP_ENV"
             printf 'LEGACY_PUBLIC_ROOT=/var/www/ikimon.life-staging/repo/upload_package/public_html\n' >> "$TMP_ENV"
             printf 'LEGACY_UPLOADS_ROOT=/var/www/ikimon.life-staging/repo/upload_package/public_html/uploads\n' >> "$TMP_ENV"
-            for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_STREAM_API_TOKEN CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET TWITTER_CLIENT_ID TWITTER_CLIENT_SECRET V2_OAUTH_STATE_SECRET; do
+            for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_STREAM_API_TOKEN CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET TWITTER_CLIENT_ID TWITTER_CLIENT_SECRET V2_OAUTH_STATE_SECRET DEEPSEEK_API_KEY PROFILE_DIGEST_LLM_PROVIDER PROFILE_DIGEST_MODEL PROFILE_DIGEST_MONTHLY_BUDGET_JPY PROFILE_DIGEST_MAX_INPUT_TOKENS PROFILE_DIGEST_MAX_OUTPUT_TOKENS PROFILE_DIGEST_ASSUMED_JPY_PER_USD; do
               if [ -f "$STAGING_ENV_FILE" ]; then
                 existing_line="$(grep -m1 "^${key}=" "$STAGING_ENV_FILE" || true)"
-                if [ -n "$existing_line" ]; then
+                if [ -n "$existing_line" ] && ! grep -q "^${key}=" "$TMP_ENV"; then
                   printf '%s\n' "$existing_line" >> "$TMP_ENV"
                 fi
               fi

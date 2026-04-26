@@ -66,6 +66,10 @@ VISUAL_QA_ASSERT_SCREENSHOTS=1 npm run e2e:staging:site-map -- --update-snapshot
 | `CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN` | ✅ 設定済 | |
 | `DATABASE_URL` | ✅ 設定済 | |
 | `V2_PRIVILEGED_WRITE_API_KEY` | ✅ 設定済 | |
+| `DEEPSEEK_API_KEY` | 任意 | `/notes` / `/profile` の投稿後ダイジェスト更新。値はログ・repo に出さない |
+| `PROFILE_DIGEST_LLM_PROVIDER` | 任意 | `deepseek` / `disabled`。未設定でも `DEEPSEEK_API_KEY` があれば `deepseek` |
+| `PROFILE_DIGEST_MONTHLY_BUDGET_JPY` | 任意 | 既定 `1000`。投稿後更新だけで使い、ページ表示では課金しない |
+| `PROFILE_DIGEST_MAX_INPUT_TOKENS` / `PROFILE_DIGEST_MAX_OUTPUT_TOKENS` | 任意 | 既定 `2000` / `300`。10,000 投稿でも 1,000 円未満を狙う上限 |
 | `COMPATIBILITY_WRITE_ENABLED` | ✅ `1` | 明示 |
 | `PORT` | unit 側で固定 | blue=3201 / green=3202 |
 | `LEGACY_DATA_ROOT` | ✅ `/var/www/ikimon.life/repo/upload_package/data` | path B が正本 |

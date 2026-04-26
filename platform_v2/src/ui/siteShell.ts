@@ -303,9 +303,18 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
     pathname.startsWith("/record/") ||
     pathname === "/guide" ||
     pathname.startsWith("/guide/") ||
+    pathname === "/notes" ||
+    pathname.startsWith("/notes/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/") ||
     pathname === "/login" ||
     pathname === "/register"
   );
+}
+
+function isReadingSurface(currentPath: string): boolean {
+  const pathname = normalizePathname(currentPath);
+  return pathname === "/notes" || pathname.startsWith("/notes/") || pathname === "/profile" || pathname.startsWith("/profile/");
 }
 
 function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string): string {
@@ -1096,7 +1105,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
   const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
-  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}`;
+  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}`;
   const uiKpiScript = `<script>
 (function () {
   const endpoint = ${JSON.stringify(uiKpiEndpoint)};
@@ -1209,6 +1218,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .site-header-actions-mobile { display: none; }
     .site-login-link.is-authenticated { color: #047857; background: #ecfdf5; border-color: rgba(16,185,129,.18); }
     .site-record-link { white-space: nowrap; }
+    .is-reading-surface .site-record-link { display: none; }
     .site-search {
       display: inline-flex;
       align-items: center;
@@ -2548,6 +2558,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
         box-shadow: 0 8px 18px rgba(5,150,105,.14);
       }
       .has-global-record-launcher .site-header-actions-mobile .site-record-link { display: none; }
+      .is-reading-surface .site-header-actions-mobile .site-record-link { display: none; }
       .site-shell.has-global-record-launcher { padding-bottom: 88px; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
       .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 18ch; }
