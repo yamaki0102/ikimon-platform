@@ -13,7 +13,62 @@ export type LoadInputsOptions = {
   placeId: string;
   periodStart: Date; // inclusive
   periodEnd: Date; // exclusive
+  bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null;
 };
+
+export type PlaceBbox = { minLat: number; maxLat: number; minLng: number; maxLng: number };
+
+/**
+ * places.bbox_json から bounding box を取得。
+ * 形式: { minLat, maxLat, minLng, maxLng } または GeoJSON-ish。
+ * 空 or 不明形式なら center_latitude/longitude から 150m 四方を推定。
+ */
+export async function loadPlaceBbox(placeId: string): Promise<PlaceBbox | null> {
+  try {
+    const pool = getPool();
+    const result = await pool.query<{
+      bbox_json: unknown;
+      center_latitude: number | null;
+      center_longitude: number | null;
+    }>(
+      `SELECT bbox_json,
+              center_latitude::float8 AS center_latitude,
+              center_longitude::float8 AS center_longitude
+         FROM places WHERE place_id = $1`,
+      [placeId]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+
+    const raw = row.bbox_json as Record<string, unknown> | null;
+    if (raw && typeof raw === "object") {
+      // 直接 minLat 等を持つ形式
+      const minLat = Number((raw as Record<string, unknown>).minLat ?? (raw as Record<string, unknown>).min_lat);
+      const maxLat = Number((raw as Record<string, unknown>).maxLat ?? (raw as Record<string, unknown>).max_lat);
+      const minLng = Number((raw as Record<string, unknown>).minLng ?? (raw as Record<string, unknown>).min_lng);
+      const maxLng = Number((raw as Record<string, unknown>).maxLng ?? (raw as Record<string, unknown>).max_lng);
+      if ([minLat, maxLat, minLng, maxLng].every((v) => Number.isFinite(v))) {
+        return { minLat, maxLat, minLng, maxLng };
+      }
+    }
+
+    // center から 150m 四方を生成 (緯度0.00135°≒150m, 経度は緯度で変化)
+    if (row.center_latitude != null && row.center_longitude != null) {
+      const latPad = 0.00135;
+      const lngPad = 0.00135 / Math.max(0.05, Math.cos((row.center_latitude * Math.PI) / 180));
+      return {
+        minLat: row.center_latitude - latPad,
+        maxLat: row.center_latitude + latPad,
+        minLng: row.center_longitude - lngPad,
+        maxLng: row.center_longitude + lngPad,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn("[relationshipScore.queries] loadPlaceBbox failed", error);
+    return null;
+  }
+}
 
 const EMPTY_NUMERIC = 0;
 
@@ -29,8 +84,20 @@ async function safeQuery<T = unknown>(label: string, runner: () => Promise<T>, f
 export async function loadRelationshipScoreInputs(
   options: LoadInputsOptions
 ): Promise<RelationshipScoreInputs> {
-  const { placeId, periodStart, periodEnd } = options;
+  const { placeId, periodStart, periodEnd, bbox } = options;
   const pool = getPool();
+
+  // bbox を使うかどうかで visits/occurrences の WHERE 条件を切替
+  // bbox 指定時: place_id 一致 OR (point_lat/lng が bbox 内)
+  // bbox なし: place_id 一致のみ
+  const visitsWhereSql = bbox
+    ? `(visits.place_id = $1
+         OR (visits.point_latitude BETWEEN $4 AND $5
+             AND visits.point_longitude BETWEEN $6 AND $7))`
+    : `visits.place_id = $1`;
+  const visitsParams: unknown[] = bbox
+    ? [placeId, periodStart, periodEnd, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng]
+    : [placeId, periodStart, periodEnd];
 
   const placeMeta = await safeQuery(
     "place_metadata",
@@ -79,7 +146,7 @@ export async function loadRelationshipScoreInputs(
         `WITH window AS (
             SELECT *
             FROM visits
-            WHERE place_id = $1
+            WHERE ${visitsWhereSql}
               AND observed_at >= $2
               AND observed_at < $3
          )
@@ -96,7 +163,7 @@ export async function loadRelationshipScoreInputs(
            SUM(CASE WHEN quality_review_status = 'accepted' THEN 1 ELSE 0 END)::text AS accepted_count,
            COUNT(*)::text AS review_total
          FROM window`,
-        [placeId, periodStart, periodEnd]
+        visitsParams
       );
       return result.rows[0] ?? null;
     },
@@ -149,7 +216,7 @@ export async function loadRelationshipScoreInputs(
       }>(
         `WITH window_visits AS (
             SELECT visit_id FROM visits
-            WHERE place_id = $1 AND observed_at >= $2 AND observed_at < $3
+            WHERE ${visitsWhereSql} AND observed_at >= $2 AND observed_at < $3
          ),
          window_occ AS (
             SELECT o.* FROM occurrences o
@@ -169,7 +236,7 @@ export async function loadRelationshipScoreInputs(
               WHERE i2.actor_kind = 'human' AND i2.notes IS NOT NULL AND length(i2.notes) > 0
            ) AS review_replies
          FROM window_occ`,
-        [placeId, periodStart, periodEnd]
+        visitsParams
       );
       return result.rows[0] ?? null;
     },
@@ -222,11 +289,13 @@ export async function loadRelationshipScoreInputs(
         `SELECT EXISTS (
            SELECT 1 FROM observation_quality_reviews oqr
            JOIN visits v ON oqr.visit_id = v.visit_id
-           WHERE v.place_id = $1
+           WHERE ${bbox ? `(v.place_id = $1
+                  OR (v.point_latitude BETWEEN $4 AND $5
+                      AND v.point_longitude BETWEEN $6 AND $7))` : `v.place_id = $1`}
              AND v.observed_at >= $2
              AND v.observed_at < $3
          ) AS exists`,
-        [placeId, periodStart, periodEnd]
+        visitsParams
       );
       return Boolean(result.rows[0]?.exists);
     },

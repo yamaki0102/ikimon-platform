@@ -23,6 +23,15 @@ import {
 const FEATURE_FLAG_ENV = "FEATURE_RELATIONSHIP_SCORE";
 const DEFAULT_LIVE_LEGACY_KEY = "ikan_hq";
 
+// 連理の木の下 (愛管 1.3ha エリア) の bbox。
+// 出典: upload_package/libs/CorporateSites.php の 'ikan_hq' polygon
+const IKAN_HQ_BBOX = {
+  minLat: 34.8135,
+  maxLat: 34.8152,
+  minLng: 137.7318,
+  maxLng: 137.7336,
+};
+
 function isFeatureEnabled(): boolean {
   return process.env[FEATURE_FLAG_ENV] === "1" || process.env[FEATURE_FLAG_ENV] === "true";
 }
@@ -211,16 +220,22 @@ export async function registerSampleReportRoute(app: FastifyInstance): Promise<v
       // Resolve target placeId: ?demo=key has precedence, then ?place_id, then default ikan_hq
       let placeId: string | undefined = explicitPlaceId ?? undefined;
       let demoActive: string | null = isDemoFixtureKey(demoKey) ? demoKey : null;
+      let isDefaultIkanHq = false;
 
       if (!demoActive && !placeId) {
         const resolved = await resolvePlaceIdByLegacy(DEFAULT_LIVE_LEGACY_KEY);
         if (resolved) {
           placeId = resolved;
+          isDefaultIkanHq = true;
         } else {
           // 旧データ未登録なら fallback として urban_park fixture
           demoActive = "urban_park";
         }
       }
+
+      // 連理の木の下 (ikan_hq) の場合は CorporateSites.php 由来の bbox を必ず適用
+      // (places.bbox_json が空でも legacy エリア境界で集計できる)
+      const bboxOverride = isDefaultIkanHq ? IKAN_HQ_BBOX : undefined;
 
       let snapshot;
       try {
@@ -231,6 +246,7 @@ export async function registerSampleReportRoute(app: FastifyInstance): Promise<v
           generateNarrative: wantNarrative,
           persist: !demoActive,
           periodWindowDays: windowDays,
+          bbox: bboxOverride,
         });
       } catch (error) {
         console.warn("[sampleReport] snapshot failed", error);

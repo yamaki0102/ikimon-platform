@@ -13,7 +13,11 @@ import {
   type RelationshipScoreInputs,
   type RelationshipScoreResult,
 } from "./relationshipScore.js";
-import { loadRelationshipScoreInputs } from "./relationshipScore.queries.js";
+import {
+  loadRelationshipScoreInputs,
+  loadPlaceBbox,
+  type PlaceBbox,
+} from "./relationshipScore.queries.js";
 import {
   generateNarrative,
   type NarrativeBundle,
@@ -77,6 +81,10 @@ export type GetSnapshotOptions = {
   periodWindowDays?: number; // default 90
   generateNarrative?: boolean;
   persist?: boolean; // default true (live), false (demo)
+  /** 観察集計用の bbox。null=自動取得、明示で hardcoded polygon を渡せる。 */
+  bbox?: PlaceBbox | null;
+  /** bbox 集計を使うか。false で純粋な place_id 一致のみ */
+  useBboxAggregation?: boolean; // default true
 };
 
 const DEFAULT_WINDOW_DAYS = 365;
@@ -275,8 +283,13 @@ export async function getRelationshipScoreSnapshot(
     throw new Error("relationshipScoreSnapshot: placeId or demoKey is required");
   }
 
+  const useBbox = options.useBboxAggregation !== false;
+  const bbox: PlaceBbox | null = useBbox
+    ? (options.bbox ?? (await loadPlaceBbox(placeId)))
+    : null;
+
   const [inputs, placeMeta, previous] = await Promise.all([
-    loadRelationshipScoreInputs({ placeId, periodStart, periodEnd }),
+    loadRelationshipScoreInputs({ placeId, periodStart, periodEnd, bbox }),
     loadPlaceMeta(placeId),
     loadPreviousSnapshot(placeId, periodStart, RELATIONSHIP_SCORE_CALC_VERSION),
   ]);
