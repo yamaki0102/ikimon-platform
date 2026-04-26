@@ -78,6 +78,10 @@ type FeedRow = {
   photo_url: string | null;
   photo_width_px: number | null;
   photo_height_px: number | null;
+  video_count: string | null;
+  session_mode: string | null;
+  visit_mode: string | null;
+  record_mode: string | null;
   identification_count: string;
   evidence_tier: number | null;
   quality_grade: string | null;
@@ -127,6 +131,10 @@ const FEED_SQL_BASE = `
     photo.public_url as photo_url,
     photo.width_px as photo_width_px,
     photo.height_px as photo_height_px,
+    video.video_count,
+    v.session_mode,
+    v.visit_mode,
+    v.source_payload->>'record_mode' as record_mode,
     (
       select count(*)::text
       from identifications i
@@ -172,6 +180,12 @@ const FEED_SQL_BASE = `
     limit 1
   ) photo on true
   left join lateral (
+    select count(*)::text as video_count
+    from evidence_assets ea
+    where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+      and ea.asset_role = 'observation_video'
+  ) video on true
+  left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
@@ -179,6 +193,17 @@ const FEED_SQL_BASE = `
     limit 1
   ) avatar on true
 `;
+
+function landingLibrarySourceKind(row: FeedRow): LandingObservation["librarySourceKind"] {
+  const sessionMode = String(row.session_mode ?? "").toLowerCase();
+  const visitMode = String(row.visit_mode ?? "").toLowerCase();
+  const recordMode = String(row.record_mode ?? "").toLowerCase();
+  if (sessionMode === "fieldscan" || visitMode === "track") return "scan";
+  if (sessionMode.includes("guide") || visitMode.includes("guide") || recordMode.includes("guide")) return "guide";
+  if (Number(row.video_count ?? 0) > 0) return "video";
+  if (row.photo_url) return "photo";
+  return "note";
+}
 
 const PUBLIC_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
@@ -228,6 +253,8 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     }),
     photoUrl: normalizeAssetUrl(row.photo_url),
     identificationCount: Number(row.identification_count),
+    librarySourceKind: landingLibrarySourceKind(row),
+    hasVideo: Number(row.video_count ?? 0) > 0,
     latitude: safeLat,
     longitude: safeLng,
     observerUserId: row.observer_user_id,
@@ -516,6 +543,8 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
     }),
     photoUrl: normalizeAssetUrl(row.photo_url),
     identificationCount: Number(row.identification_count),
+    librarySourceKind: "note",
+    hasVideo: false,
     latitude: safeLat,
     longitude: safeLng,
     observerUserId: row.observer_user_id,
@@ -641,12 +670,12 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     heroCandidateRows = [];
   }
 
-  // Viewer own feed (if logged in) — own observations, photo-only
+  // Viewer own feed (if logged in) — own observation library, including non-photo media lanes
   let myFeedRows: FeedRow[] = [];
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 6`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 72`,
         [userId],
       );
       myFeedRows = result.rows;
@@ -732,7 +761,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
            and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by i.created_at desc
-         limit 6`,
+         limit 24`,
         [userId],
       );
       myIdentificationRows = result.rows;
@@ -960,7 +989,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     viewerUserId: userId,
     stats,
     feed: publicFeed,
-    myFeed: combined.slice(0, 12),
+    myFeed: combined.slice(0, 96),
     myPlaces,
     mapPreviewCells: buildMapPreviewCells(feedRows),
     ambient,
