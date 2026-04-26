@@ -286,6 +286,21 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "みんなで調べる入口" }, readySelector: "body", screenshot: { baselineName: "registry-community" } },
   },
   {
+    path: "/community/events",
+    lane: "group",
+    audience: "public",
+    auth: "public",
+    navVisibility: ["header", "footer", "qa", "xml"],
+    title: { ja: "観察会", en: "Observation events" },
+    summary: {
+      ja: "AI が現場を読み、班でリアルタイム協力する観察会。",
+      en: "Realtime cooperative bioblitz where AI reads the field and teams move together.",
+    },
+    primaryAction: { href: "/community/events", label: { ja: "観察会一覧", en: "Browse events" } },
+    legacyRedirects: ["/event_detail.php", "/bioblitz_join.php", "/event_dashboard.php"],
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察会 OS" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-events" } },
+  },
+  {
     path: "/for-business",
     lane: "business",
     audience: "business",

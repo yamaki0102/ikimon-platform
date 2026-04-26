@@ -1,5 +1,6 @@
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import type { AppStrings } from "./strings.js";
+import { getObservationEventStrings } from "./observationEventStrings.js";
 
 export const ja: AppStrings = {
   landing: {
@@ -101,4 +102,5 @@ export const ja: AppStrings = {
       "強い主張は確認つきだけ",
     ],
   },
+  observationEvent: getObservationEventStrings("ja"),
 };
