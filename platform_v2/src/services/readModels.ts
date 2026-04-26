@@ -813,6 +813,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     role_tag: string | null;
     role_tag_source: string | null;
     organ_target: string | null;
+    media_role: string | null;
     source_payload: Record<string, unknown> | null;
   }>(
     `select ea.asset_id::text as asset_id,
@@ -822,9 +823,11 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
             ea.role_tag,
             ea.role_tag_source,
             ea.organ_target,
+            emr.media_role,
             ea.source_payload
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
+     left join evidence_asset_media_roles emr on emr.asset_id = ea.asset_id
      where ea.visit_id = $1
        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
      order by ea.created_at asc`,
@@ -838,6 +841,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     public_url: string | null;
     storage_path: string | null;
     created_at: string;
+    media_role: string | null;
   }>(
     `select
         ea.asset_id::text as asset_id,
@@ -845,9 +849,11 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         ab.source_payload as blob_source_payload,
         ab.public_url,
         ab.storage_path,
-        ea.created_at::text
+        ea.created_at::text,
+        emr.media_role
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
+     left join evidence_asset_media_roles emr on emr.asset_id = ea.asset_id
      where ea.visit_id = $1
        and ea.asset_role = 'observation_video'
      order by ea.created_at desc`,
@@ -978,7 +984,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         roleTag: row.role_tag ?? null,
         roleTagSource: row.role_tag_source ?? null,
         organTarget: row.organ_target ?? null,
-        mediaRole: row.source_payload && typeof row.source_payload.media_role === "string" ? row.source_payload.media_role : null,
+        mediaRole: row.media_role ?? (row.source_payload && typeof row.source_payload.media_role === "string" ? row.source_payload.media_role : null),
         ...suggestion,
       };
     })
@@ -1064,7 +1070,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
           thumbnailUrl: normalizeAssetUrl(thumbnailUrlRaw),
           watchUrl: normalizeAssetUrl(watchUrlRaw),
           createdAt: row.created_at,
-          mediaRole: typeof payload.media_role === "string" ? payload.media_role : null,
+          mediaRole: row.media_role ?? (typeof payload.media_role === "string" ? payload.media_role : null),
           ...deriveMediaRoleSuggestion({ mediaType: "video", totalMediaCount }),
         };
       })

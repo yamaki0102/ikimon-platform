@@ -6,6 +6,7 @@ import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
+import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
@@ -142,7 +143,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     });
 
     const legacyAssetKey = `observation_photo:${visitId}:upload:${sha256}`;
-    await client.query(
+    const assetResult = await client.query<{ asset_id: string }>(
       `insert into evidence_assets (
           asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
        ) values (
@@ -153,7 +154,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           occurrence_id = excluded.occurrence_id,
           visit_id = excluded.visit_id,
           legacy_relative_path = excluded.legacy_relative_path,
-          source_payload = excluded.source_payload`,
+          source_payload = excluded.source_payload
+       returning asset_id::text`,
       [
         randomUUID(),
         blobId,
@@ -168,6 +170,22 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         }),
       ],
     );
+    const assetId = assetResult.rows[0]?.asset_id;
+    if (!assetId) {
+      throw new Error("failed_to_upsert_photo_asset");
+    }
+    await upsertEvidenceAssetMediaRole(client, {
+      assetId,
+      occurrenceId,
+      visitId,
+      assetRole: "observation_photo",
+      mediaRole,
+      mediaRoleSource: "user",
+      sourcePayload: {
+        source: "v2_photo_upload",
+        filename: input.filename,
+      },
+    });
 
     await client.query(
       `update visits

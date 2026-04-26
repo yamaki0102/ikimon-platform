@@ -4,6 +4,7 @@ import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
+import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts/";
 const DEFAULT_MAX_DURATION_SECONDS = 15;
@@ -320,7 +321,7 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
     if (target) {
       const legacyAssetKey = `observation_video:${target.visitId}:${uid}`;
       const legacyRelativePath = `cloudflare_stream/${uid}`;
-      await client.query(
+      const assetResult = await client.query<{ asset_id: string }>(
         `insert into evidence_assets (
             asset_id, blob_id, occurrence_id, visit_id, asset_role,
             legacy_asset_key, legacy_relative_path, source_payload, captured_at
@@ -334,7 +335,8 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
             visit_id = excluded.visit_id,
             legacy_relative_path = excluded.legacy_relative_path,
             source_payload = excluded.source_payload,
-            captured_at = excluded.captured_at`,
+            captured_at = excluded.captured_at
+         returning asset_id::text`,
         [
           randomUUID(),
           blobId,
@@ -346,6 +348,22 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
           record.uploadedAt,
         ],
       );
+      const assetId = assetResult.rows[0]?.asset_id;
+      if (!assetId) {
+        throw new Error("failed_to_upsert_video_asset");
+      }
+      await upsertEvidenceAssetMediaRole(client, {
+        assetId,
+        occurrenceId: target.occurrenceId,
+        visitId: target.visitId,
+        assetRole: "observation_video",
+        mediaRole,
+        mediaRoleSource: "user",
+        sourcePayload: {
+          source: "v2_video_finalize",
+          stream_uid: uid,
+        },
+      });
     }
 
     await client.query("commit");
