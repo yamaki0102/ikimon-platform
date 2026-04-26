@@ -426,6 +426,8 @@ function globalRecordEntryScript(basePath: string): string {
   const STORE_NAME = 'drafts';
   const DRAFT_KEY = 'latest';
   const MAX_PHOTO_DRAFT_FILES = 6;
+  const PHOTO_UPLOAD_MAX_EDGE = 2560;
+  const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
   const VIDEO_MAX_SECONDS = 60;
   let activeKind = '';
   let activeStream = null;
@@ -549,6 +551,57 @@ function globalRecordEntryScript(basePath: string): string {
     reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
     reader.readAsDataURL(file);
   });
+  const loadImageForUpload = (file) => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('photo_decode_failed'));
+    };
+    image.src = url;
+  });
+  const preparePhotoUpload = async (file) => {
+    const originalType = String(file && file.type || 'image/jpeg').toLowerCase();
+    if (originalType === 'image/gif') {
+      return {
+        filename: file.name || 'upload.gif',
+        mimeType: originalType,
+        base64Data: await readFileAsDataUrl(file),
+      };
+    }
+    try {
+      const image = await loadImageForUpload(file);
+      const width = Number(image.naturalWidth || image.width || 0);
+      const height = Number(image.naturalHeight || image.height || 0);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('photo_decode_failed');
+      const scale = Math.min(1, PHOTO_UPLOAD_MAX_EDGE / Math.max(width, height));
+      const targetWidth = Math.max(1, Math.round(width * scale));
+      const targetHeight = Math.max(1, Math.round(height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('photo_canvas_unavailable');
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+      const base64Data = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_QUALITY);
+      const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
+      return {
+        filename: safeName + '.jpg',
+        mimeType: 'image/jpeg',
+        base64Data,
+      };
+    } catch (_) {
+      return {
+        filename: file.name || 'upload.jpg',
+        mimeType: file.type || 'image/jpeg',
+        base64Data: await readFileAsDataUrl(file),
+      };
+    }
+  };
   const getCurrentSessionUserId = async () => {
     const response = await fetch(apiPath('/api/v1/auth/session'), {
       method: 'GET',
@@ -871,14 +924,15 @@ function globalRecordEntryScript(basePath: string): string {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(files.length));
+      const upload = await preparePhotoUpload(file);
       const photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          filename: file.name || 'upload.jpg',
-          mimeType: file.type || 'image/jpeg',
-          base64Data: await readFileAsDataUrl(file),
+          filename: upload.filename,
+          mimeType: upload.mimeType,
+          base64Data: upload.base64Data,
           mediaRole: index === 0 ? 'primary_subject' : 'context',
         }),
       });
