@@ -179,10 +179,13 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
       return;
     }
     try {
+      const resizeOptions = preset === "sm"
+        ? { width, height: width, fit: "cover" as const, withoutEnlargement: true }
+        : { width, fit: "inside" as const, withoutEnlargement: true };
       const data = await sharp(src.data, { failOn: "none" })
         .rotate()
-        .resize({ width, height: width, fit: "cover", withoutEnlargement: true })
-        .webp({ quality: 72, effort: 4 })
+        .resize(resizeOptions)
+        .webp({ quality: preset === "lg" ? 82 : 72, effort: 4 })
         .toBuffer();
       const etag = '"' + createHash("sha1").update(data).digest("base64url") + '"';
       if (thumbCache.size >= THUMB_CACHE_MAX) {

@@ -160,3 +160,42 @@ test("thumb route resizes image and blocks invalid preset / traversal", async ()
     await rm(sandboxRoot, { recursive: true, force: true });
   }
 });
+
+test("lg thumbnails preserve photo aspect ratio for detail pages", async () => {
+  const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-thumb-lg-"));
+  const uploadsRoot = path.join(sandboxRoot, "uploads");
+  await mkdir(path.join(uploadsRoot, "photos"), { recursive: true });
+  const sourcePng = await sharp({
+    create: { width: 1600, height: 900, channels: 3, background: { r: 90, g: 140, b: 210 } },
+  })
+    .png()
+    .toBuffer();
+  await writeFile(path.join(uploadsRoot, "photos", "wide.png"), sourcePng);
+
+  try {
+    await withEnv(
+      {
+        LEGACY_PUBLIC_ROOT: path.join(sandboxRoot, "public"),
+        LEGACY_UPLOADS_ROOT: uploadsRoot,
+      },
+      async () => {
+        const app = buildApp();
+        try {
+          const thumbResponse = await app.inject({
+            method: "GET",
+            url: "/thumb/lg/photos/wide.png",
+          });
+          assert.equal(thumbResponse.statusCode, 200);
+          const meta = await sharp(thumbResponse.rawPayload).metadata();
+          assert.equal(meta.format, "webp");
+          assert.equal(meta.width, 1280);
+          assert.equal(meta.height, 720);
+        } finally {
+          await app.close();
+        }
+      },
+    );
+  } finally {
+    await rm(sandboxRoot, { recursive: true, force: true });
+  }
+});
