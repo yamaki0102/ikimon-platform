@@ -18,8 +18,9 @@ test("video finalize promotes video-only observations out of native no-photo rev
 test("video upload supports official tus direct uploads and ready webhooks", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "videoUpload.ts"), "utf8");
   const routeSource = await readFile(path.join(process.cwd(), "src", "routes", "write.ts"), "utf8");
-  const queueSource = await readFile(path.join(process.cwd(), "src", "services", "videoProcessingQueue.ts"), "utf8");
+  const queueSource = await readFile(path.join(process.cwd(), "src", "services", "mediaProcessingQueue.ts"), "utf8");
   const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0033_video_processing_jobs.sql"), "utf8");
+  const mediaMigration = await readFile(path.join(process.cwd(), "db", "migrations", "0034_media_processing_jobs.sql"), "utf8");
 
   assert.match(source, /uploadProtocol\?: "post" \| "tus"/);
   assert.match(source, /stream\?direct_user=true/);
@@ -30,8 +31,11 @@ test("video upload supports official tus direct uploads and ready webhooks", asy
   assert.match(routeSource, /\/api\/v1\/videos\/stream-webhook/);
   assert.match(source, /video_thumbnail_refresh/);
   assert.match(source, /video_ready_reassess/);
-  assert.match(queueSource, /processVideoProcessingJobs/);
+  assert.match(source, /enqueueMediaProcessingJobs/);
+  assert.match(queueSource, /processMediaProcessingJobs/);
   assert.match(queueSource, /reassessFromVideoThumb/);
   assert.match(queueSource, /markVideoReady/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS video_processing_jobs/);
+  assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS media_processing_jobs/);
+  assert.match(mediaMigration, /migrated_from', 'video_processing_jobs'/);
 });

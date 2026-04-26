@@ -4989,20 +4989,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   }
                   const videoReady = Boolean(finalizeJson.video && finalizeJson.video.readyToStream);
                   if (videoReady) {
-                    try {
-                      const reassessVideoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/reassess-from-video'), {
-                        method: 'POST',
-                        credentials: 'include',
-                      });
-                      const reassessVideoJson = await reassessVideoResponse.json();
-                      if (reassessVideoResponse.ok && reassessVideoJson.ok) {
-                        extraStatus = [extraStatus, '動画サムネイルの AI 解析も更新しました。'].filter(Boolean).join(' ');
-                      } else {
-                        extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
-                      }
-                    } catch (_error) {
-                      extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
-                    }
+                    extraStatus = [extraStatus, '動画は保存済みです。AI 解析は裏側で進めています。'].filter(Boolean).join(' ');
                   } else {
                     extraStatus = [extraStatus, '動画は保存済みです。再生準備が終わるまで少し待ってから詳細ページを開いてください。'].filter(Boolean).join(' ');
                   }

@@ -176,7 +176,10 @@ PY
 install_units() {
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_blue.service" /etc/systemd/system/ikimon-v2-blue.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_green.service" /etc/systemd/system/ikimon-v2-green.service
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_media_worker.service" /etc/systemd/system/ikimon-v2-media-worker.service
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_media_worker.timer" /etc/systemd/system/ikimon-v2-media-worker.timer
   systemctl daemon-reload
+  systemctl enable --now ikimon-v2-media-worker.timer >/dev/null
 }
 
 ensure_private_uploads_dir() {

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ikimon platform_v2 media processing worker
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Persistent=true
+Unit=ikimon-v2-media-worker.service
+
+[Install]
+WantedBy=timers.target

@@ -5,6 +5,7 @@ import { getPool } from "../db.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
+import { enqueueMediaProcessingJobs } from "./mediaProcessingJobs.js";
 
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts/";
 const DEFAULT_MAX_DURATION_SECONDS = 15;
@@ -374,27 +375,16 @@ async function enqueueVideoProcessingJobs(client: PoolClient, record: VideoRecor
   if (!record.readyToStream || !observationId) {
     return 0;
   }
-  const jobTypes = ["video_thumbnail_refresh", "video_ready_reassess"];
-  let queued = 0;
-  for (const jobType of jobTypes) {
-    const result = await client.query<{ job_id: string }>(
-      `insert into video_processing_jobs (
-          stream_uid, observation_id, job_type, job_status, source_payload, created_at, updated_at
-       )
-       select $1, $2, $3, 'pending', $4::jsonb, now(), now()
-       where not exists (
-         select 1 from video_processing_jobs
-          where stream_uid = $1
-            and job_type = $3
-            and job_status in ('pending', 'running')
-       )
-       on conflict do nothing
-       returning job_id::text`,
-      [record.providerUid, observationId, jobType, JSON.stringify(sourcePayload)],
-    );
-    if (result.rows[0]?.job_id) queued += 1;
-  }
-  return queued;
+  return enqueueMediaProcessingJobs(client, ["video_thumbnail_refresh", "video_ready_reassess"].map((jobType) => ({
+    mediaKind: "video",
+    mediaUid: record.providerUid,
+    observationId,
+    jobType,
+    sourcePayload: {
+      ...sourcePayload,
+      stream_uid: record.providerUid,
+    },
+  })));
 }
 
 export async function handleStreamWebhook(payload: VideoStreamWebhookPayload): Promise<{ ok: true; uid: string; readyToStream: boolean; queuedJobs: number }> {
@@ -714,6 +704,6 @@ async function kickVideoAiAfterFinalize(record: VideoRecord, observationId: stri
   } finally {
     client.release();
   }
-  const { processVideoProcessingJobs } = await import("./videoProcessingQueue.js");
-  await processVideoProcessingJobs(2);
+  const { processMediaProcessingJobs } = await import("./mediaProcessingQueue.js");
+  await processMediaProcessingJobs(2);
 }
