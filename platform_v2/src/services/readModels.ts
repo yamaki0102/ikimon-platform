@@ -94,6 +94,7 @@ export type ObservationDetailSnapshot = {
     roleTag: string | null;
     roleTagSource: string | null;
     organTarget: string | null;
+    mediaRole: string | null;
   }>;
   photoUrls: string[];
   videoAssets: Array<{
@@ -103,6 +104,7 @@ export type ObservationDetailSnapshot = {
     thumbnailUrl: string | null;
     watchUrl: string | null;
     createdAt: string;
+    mediaRole: string | null;
   }>;
   identifications: Array<{
     proposedName: string;
@@ -808,6 +810,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     role_tag: string | null;
     role_tag_source: string | null;
     organ_target: string | null;
+    source_payload: Record<string, unknown> | null;
   }>(
     `select ea.asset_id::text as asset_id,
             coalesce(ab.public_url, ab.storage_path) as photo_url,
@@ -815,7 +818,8 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
             ab.height_px,
             ea.role_tag,
             ea.role_tag_source,
-            ea.organ_target
+            ea.organ_target,
+            ea.source_payload
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
      where ea.visit_id = $1
@@ -908,6 +912,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         roleTag: row.role_tag ?? null,
         roleTagSource: row.role_tag_source ?? null,
         organTarget: row.organ_target ?? null,
+        mediaRole: row.source_payload && typeof row.source_payload.media_role === "string" ? row.source_payload.media_role : null,
       };
     })
     .filter((row): row is {
@@ -918,6 +923,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
       roleTag: string | null;
       roleTagSource: string | null;
       organTarget: string | null;
+      mediaRole: string | null;
     } => Boolean(row));
 
   return {
@@ -991,6 +997,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
           thumbnailUrl: normalizeAssetUrl(thumbnailUrlRaw),
           watchUrl: normalizeAssetUrl(watchUrlRaw),
           createdAt: row.created_at,
+          mediaRole: typeof payload.media_role === "string" ? payload.media_role : null,
         };
       })
       .filter((video): video is ObservationDetailSnapshot["videoAssets"][number] => Boolean(video)),
@@ -1381,6 +1388,9 @@ export type LandingObservation = RecentObservation & {
   longitude: number | null;
   observerUserId: string | null;
   observerAvatarUrl: string | null;
+  /** /notes library source lane. Derived from visit mode and available evidence assets. */
+  librarySourceKind?: "photo" | "video" | "guide" | "scan" | "note";
+  hasVideo?: boolean;
   /** "observation" = 自分 or 誰かの観察記録。"identification" = 自分が他人の観察に付けた個人同定。 */
   entryType?: "observation" | "identification";
   /** entryType="identification" のときに自分が提案した種名。 */
