@@ -5,12 +5,14 @@ import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
+import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
   filename: string;
   mimeType: string;
   base64Data: string;
+  mediaRole?: MediaRole | string | null;
 };
 
 export type ObservationPhotoUploadResult = {
@@ -84,6 +86,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   }
 
   const sha256 = createHash("sha256").update(buffer).digest("hex");
+  const mediaRole = normalizeMediaRole(input.mediaRole);
   const safeBase = sanitizeFilename(input.filename).replace(/\.[A-Za-z0-9]+$/, "");
   const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(input.mimeType)}`;
 
@@ -134,6 +137,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       sourcePayload: {
         source: "v2_photo_upload",
         visit_id: visitId,
+        media_role: mediaRole,
       },
     });
 
@@ -160,6 +164,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         JSON.stringify({
           source: "v2_photo_upload",
           filename: input.filename,
+          media_role: mediaRole,
         }),
       ],
     );

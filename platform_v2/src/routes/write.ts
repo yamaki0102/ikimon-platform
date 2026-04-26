@@ -38,6 +38,7 @@ import { createVideoDirectUpload, finalizeVideoUpload } from "../services/videoU
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
+import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
 import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
@@ -263,12 +264,40 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           filename: request.body.filename,
           mimeType: request.body.mimeType,
           base64Data: request.body.base64Data,
+          mediaRole: request.body.mediaRole,
         });
       } catch (error) {
         reply.code(errorStatus(error, 400));
         return {
           ok: false,
           error: error instanceof Error ? error.message : "observation_photo_upload_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string; candidateId: string } }>(
+    "/api/v1/observations/:id/candidates/:candidateId/adopt",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        const result = await adoptObservationCandidate({
+          visitId: request.params.id,
+          candidateId: request.params.candidateId,
+          actorUserId: session.userId,
+        });
+        return {
+          ok: true,
+          ...result,
+        };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "candidate_adoption_failed",
         };
       }
     },
@@ -705,7 +734,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   // 動画アップロード（Cloudflare Stream Direct Creator Upload）。
   // ユーザーのブラウザが直接 Cloudflare に PUT するので、サーバ帯域は消費しない。
   // 認証必須（セッション or guest はダメ）。
-  app.post<{ Body: { maxDurationSeconds?: number; filename?: string; observationId?: string | null } }>(
+  app.post<{ Body: { maxDurationSeconds?: number; filename?: string; observationId?: string | null; mediaRole?: string | null } }>(
     "/api/v1/videos/direct-upload",
     async (request, reply) => {
       try {
@@ -724,6 +753,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           maxDurationSeconds: body.maxDurationSeconds,
           filename: body.filename,
           observationId: observationId || null,
+          mediaRole: body.mediaRole,
         });
         return { ok: true, ...result };
       } catch (error) {
@@ -738,7 +768,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   // upload_status / duration / bytes を DB に反映する。フロント側で tus アップロード完了後に呼ぶ。
   app.post<{
     Params: { uid: string };
-    Body: { observationId?: string | null };
+    Body: { observationId?: string | null; mediaRole?: string | null };
   }>(
     "/api/v1/videos/:uid/finalize",
     async (request, reply) => {
@@ -758,6 +788,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           uid: request.params.uid,
           actorId: session.userId,
           observationId: observationId || null,
+          mediaRole: request.body?.mediaRole,
         });
         if (!record) {
           reply.code(404);
