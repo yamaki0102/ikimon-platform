@@ -27,17 +27,23 @@ test("site shell renders a global record footer nav outside the record flow", ()
   });
 
   assert.match(html, /class="global-record-launcher"/);
-  assert.equal(html.match(/<a class="global-record-choice/g)?.length, 4);
+  assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 4);
+  assert.equal(html.match(/data-global-record-input="(?:photo|video|gallery)"/g)?.length, 3);
+  assert.equal(html.match(/data-global-record-trigger="(?:photo|video|gallery)"/g)?.length, 3);
+  assert.match(html, /accept="image\/\*" capture="environment"/);
+  assert.match(html, /accept="video\/\*" capture="environment"/);
+  assert.match(html, /accept="image\/\*,video\/\*"/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
   assert.doesNotMatch(html, /aria-expanded="false"/);
   assert.match(html, /data-kpi-action="global_record_photo"/);
   assert.match(html, /data-kpi-action="global_record_video"/);
   assert.match(html, /data-kpi-action="global_record_gallery"/);
   assert.match(html, /data-kpi-action="global_record_guide"/);
-  assert.match(html, /href="\/record\?start=photo&amp;lang=ja"/);
-  assert.match(html, /href="\/record\?start=video&amp;lang=ja"/);
-  assert.match(html, /href="\/record\?start=gallery&amp;lang=ja"/);
+  assert.match(html, /data-record-target="\/record\?start=photo&amp;lang=ja"/);
+  assert.match(html, /data-record-target="\/record\?start=video&amp;lang=ja"/);
+  assert.match(html, /data-record-target="\/record\?start=gallery&amp;lang=ja"/);
   assert.match(html, /href="\/guide\?lang=ja"/);
+  assert.match(html, /indexedDB\.open\(DB_NAME, 1\)/);
 });
 
 test("site shell does not duplicate the record entry on the record page", () => {

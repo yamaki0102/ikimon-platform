@@ -1127,8 +1127,25 @@ const START_STATE_STYLES = `
   @media (max-width: 820px) { .start-guide-grid { grid-template-columns: 1fr; } }
 `;
 
-function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
+function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
+  const currentParams = new URL(currentUrl, "https://ikimon.local").searchParams;
+  const start = currentParams.get("start");
+  const recordStart = start === "photo" || start === "video" || start === "gallery" ? start : "";
+  const recordParams = new URLSearchParams();
+  if (recordStart) recordParams.set("start", recordStart);
+  if (currentParams.get("draft") === "1") recordParams.set("draft", "1");
+  if (lang) recordParams.set("lang", lang);
+  const recordTarget = `/record${recordParams.toString() ? `?${recordParams.toString()}` : ""}`;
+  const recordTargetForStart = (kind: "photo" | "video" | "gallery") => {
+    const params = new URLSearchParams();
+    params.set("start", kind);
+    if (currentParams.get("draft") === "1" && recordStart === kind) params.set("draft", "1");
+    if (lang) params.set("lang", lang);
+    return `/record?${params.toString()}`;
+  };
   const loginFor = (target: string) => withBasePath(basePath, `/login?redirect=${encodeURIComponent(target)}`);
+  const loginHref = loginFor(recordTarget);
+  const registerHref = withBasePath(basePath, `/register?redirect=${encodeURIComponent(recordTarget)}`);
   const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
     ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
     : "";
@@ -1146,8 +1163,8 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
       tone: "light",
       align: "center",
       actions: [
-        { href: "/login?redirect=/record", label: "ログインして記録する" },
-        { href: "/register?redirect=/record", label: "新しく登録して記録する", variant: "secondary" },
+        { href: loginHref, label: "ログインして記録する" },
+        { href: registerHref, label: "新しく登録して記録する", variant: "secondary" },
       ],
     },
     body: `<div class="start-guide">
@@ -1164,8 +1181,8 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
           <h2>記録本体は、セッションがあると開きます。</h2>
           <p>観察はあとから見返せる個人ノートとして残すため、投稿画面はログイン済みの状態で使います。未ログイン時は、ここで準備だけ確認できます。</p>
           <div class="start-guide-auth-actions">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/record"))}">ログインして記録する</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/record"))}">新しく登録して記録する</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインして記録する</a>
+            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}">新しく登録して記録する</a>
           </div>
           <div class="start-guide-actions">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
@@ -1176,15 +1193,15 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang): string {
         </div>
       </section>
       <nav class="record-capture-dock" aria-label="ログインして投稿を始める">
-        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor("/record?start=photo"))}">
+        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
           <span>写真</span>
         </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor("/record?start=video"))}">
+        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("video")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
           <span>動画</span>
         </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor("/record?start=gallery"))}">
+        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("gallery")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
           <span>選ぶ</span>
         </a>
@@ -1911,7 +1928,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const viewerUserId = resolution.viewerUserId ?? "";
     if (!viewerUserId) {
       reply.type("text/html; charset=utf-8");
-      return renderRecordStartGuide(basePath, lang);
+      return renderRecordStartGuide(basePath, lang, String((request as unknown as { url?: string }).url ?? "/record"));
     }
 
     reply.type("text/html; charset=utf-8");
@@ -2924,6 +2941,72 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           reader.readAsDataURL(file);
         });
 
+        const RECORD_DRAFT_DB = 'ikimon-record-draft';
+        const RECORD_DRAFT_STORE = 'drafts';
+        const RECORD_DRAFT_KEY = 'latest';
+        const openRecordDraftDb = () => new Promise((resolve, reject) => {
+          if (!('indexedDB' in window)) {
+            reject(new Error('indexeddb_unavailable'));
+            return;
+          }
+          const request = indexedDB.open(RECORD_DRAFT_DB, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(RECORD_DRAFT_STORE)) db.createObjectStore(RECORD_DRAFT_STORE);
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error('indexeddb_open_failed'));
+        });
+        const consumeRecordDraft = async () => {
+          const db = await openRecordDraftDb();
+          try {
+            return await new Promise((resolve, reject) => {
+              const transaction = db.transaction(RECORD_DRAFT_STORE, 'readwrite');
+              const store = transaction.objectStore(RECORD_DRAFT_STORE);
+              const request = store.get(RECORD_DRAFT_KEY);
+              let value = null;
+              request.onsuccess = () => {
+                value = request.result || null;
+                store.delete(RECORD_DRAFT_KEY);
+              };
+              request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
+              transaction.oncomplete = () => resolve(value);
+              transaction.onerror = () => reject(transaction.error || new Error('indexeddb_transaction_failed'));
+            });
+          } finally {
+            db.close();
+          }
+        };
+        const importGlobalRecordDraft = async () => {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('draft') !== '1') return;
+          let draft = null;
+          try {
+            draft = await consumeRecordDraft();
+          } catch (_) {
+            draft = null;
+          }
+          const file = draft && draft.file instanceof File ? draft.file : null;
+          const kind = draft && captureLabels[draft.kind] ? draft.kind : (params.get('start') || 'gallery');
+          if (!file) {
+            setPendingCaptureKind(kind);
+            return;
+          }
+          selectedMediaCapturedAt = null;
+          clearMediaInputsExcept(null);
+          renderPreviewFile(file);
+          if (!isVideoFile(file)) {
+            showRecordFormForMedia(file, kind);
+            resetVideoProgress();
+            await applyMediaAutofill(file);
+          } else if (videoProgressWrap) {
+            showRecordFormForMedia(file, kind);
+            await applyMediaAutofill(file);
+            videoProgressWrap.hidden = false;
+            if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+          }
+        };
+
         const validateVideoDuration = (file) => new Promise((resolve, reject) => {
           const probe = document.createElement('video');
           const objectUrl = URL.createObjectURL(file);
@@ -3087,6 +3170,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         syncPreview();
         resetVideoProgress();
         applyStartModeFromQuery();
+        importGlobalRecordDraft();
 
         if (form) {
           form.addEventListener('submit', async (event) => {

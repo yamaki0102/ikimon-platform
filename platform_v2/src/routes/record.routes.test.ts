@@ -86,6 +86,29 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
   );
 });
 
+test("record start guide preserves a direct-capture draft through login", async () => {
+  await withEnv(
+    {
+      ALLOW_QUERY_USER_ID: undefined,
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/record?start=photo&draft=1&lang=ja",
+          headers: { accept: "text/html" },
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto%26draft%3D1%26lang%3Dja/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
 test("login and register pages render v2 auth forms", async () => {
   const app = buildApp();
   try {
