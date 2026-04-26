@@ -2940,7 +2940,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-media-photo" data-record-media-input data-capture-kind="photo" type="file" accept="image/*" capture="environment" hidden />
               <input id="record-media-video" data-record-media-input data-capture-kind="video" type="file" accept="video/*" capture="environment" hidden />
               <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" hidden />
+              <input id="record-video-primary-photo-input" type="file" accept="image/*" capture="environment" hidden />
               <input type="hidden" name="recordMode" value="quick" />
+              <div id="record-video-primary-photo" class="record-video-primary-photo" hidden>
+                <div>
+                  <span class="record-label">動画の主役写真</span>
+                  <strong id="record-video-primary-photo-title">主役写真を追加</strong>
+                  <p id="record-video-primary-photo-help">動画だけでは「どれが主役か」が曖昧になりやすいので、主役がよく写った写真を1枚添えると同定しやすくなります。</p>
+                </div>
+                <div class="record-video-primary-photo-actions">
+                  <button type="button" class="btn btn-solid" id="record-video-primary-photo-pick">主役写真を追加</button>
+                  <button type="button" class="btn btn-ghost" id="record-video-primary-photo-clear" hidden>外す</button>
+                </div>
+              </div>
               <div class="record-field record-field-wide record-media-role">
                 <span class="record-label">このメディアの役割</span>
                 <div class="record-media-role-grid" role="radiogroup" aria-label="このメディアの役割">
@@ -3239,6 +3251,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const videoTrimDuration = document.getElementById('record-video-trim-duration');
         const videoTrimApply = document.getElementById('record-video-trim-apply');
         const videoTrimStatus = document.getElementById('record-video-trim-status');
+        const videoPrimaryPhotoWrap = document.getElementById('record-video-primary-photo');
+        const videoPrimaryPhotoInput = document.getElementById('record-video-primary-photo-input');
+        const videoPrimaryPhotoPick = document.getElementById('record-video-primary-photo-pick');
+        const videoPrimaryPhotoClear = document.getElementById('record-video-primary-photo-clear');
+        const videoPrimaryPhotoTitle = document.getElementById('record-video-primary-photo-title');
+        const videoPrimaryPhotoHelp = document.getElementById('record-video-primary-photo-help');
         const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
         const MAX_VIDEO_SECONDS = 60;
         let previewObjectUrl = '';
@@ -3246,6 +3264,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let activeTusUpload = null;
         let cancelTusUpload = null;
         let selectedMediaFile = null;
+        let selectedPrimaryPhotoFile = null;
         let selectedCaptureKind = '';
         let selectedMediaCapturedAt = null;
         let selectedMediaRole = 'primary_subject';
@@ -3417,6 +3436,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const setSelectedMediaRole = (role) => {
           selectedMediaRole = normalizeMediaRole(role);
           syncMediaRoleInputs();
+        };
+
+        const syncVideoPrimaryPhotoUi = () => {
+          const hasVideo = selectedMediaFile instanceof File && isVideoFile(selectedMediaFile);
+          if (videoPrimaryPhotoWrap) videoPrimaryPhotoWrap.hidden = !hasVideo;
+          if (!hasVideo) selectedPrimaryPhotoFile = null;
+          if (videoPrimaryPhotoTitle) {
+            videoPrimaryPhotoTitle.textContent = selectedPrimaryPhotoFile
+              ? '主役写真: ' + (selectedPrimaryPhotoFile.name || '選択済み')
+              : '主役写真を追加';
+          }
+          if (videoPrimaryPhotoHelp) {
+            videoPrimaryPhotoHelp.textContent = selectedPrimaryPhotoFile
+              ? 'この写真を主役として保存し、動画は音・動きの証拠として同じ観察に添付します。'
+              : '動画だけでは「どれが主役か」が曖昧になりやすいので、主役がよく写った写真を1枚添えると同定しやすくなります。';
+          }
+          if (videoPrimaryPhotoClear) videoPrimaryPhotoClear.hidden = !selectedPrimaryPhotoFile;
         };
 
         const readMetadataLocation = (metadata) => {
@@ -4103,6 +4139,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           selectedMediaFile = file || null;
           selectedCaptureKind = kind || '';
           if (selectedMediaFile && !selectedMediaRole) setSelectedMediaRole('primary_subject');
+          if (selectedMediaFile && isVideoFile(selectedMediaFile)) setSelectedMediaRole('sound_motion');
+          if (selectedMediaFile && isImageFile(selectedMediaFile)) selectedPrimaryPhotoFile = null;
           if (form) form.hidden = !selectedMediaFile;
           if (captureResult) captureResult.hidden = !selectedMediaFile;
           document.documentElement.classList.toggle('record-has-media', Boolean(selectedMediaFile));
@@ -4123,6 +4161,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (selectedMediaFile && form) {
             window.requestAnimationFrame(() => form.scrollIntoView({ block: 'start', behavior: 'auto' }));
           }
+          syncVideoPrimaryPhotoUi();
         };
 
         const setPendingCaptureKind = (kind) => {
@@ -4141,13 +4180,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             button.classList.toggle('is-active', active);
             button.setAttribute('aria-pressed', active ? 'true' : 'false');
           });
+          syncVideoPrimaryPhotoUi();
           syncModeUi();
         };
 
         const clearSelectedMedia = () => {
           selectedMediaFile = null;
+          selectedPrimaryPhotoFile = null;
           selectedCaptureKind = '';
           mediaInputs.forEach((input) => { input.value = ''; });
+          if (videoPrimaryPhotoInput) videoPrimaryPhotoInput.value = '';
           if (form) form.hidden = true;
           if (captureResult) captureResult.hidden = true;
           if (locationNudge) locationNudge.hidden = true;
@@ -4163,6 +4205,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           renderPreviewFile(null);
           resetVideoTrim();
           resetVideoProgress();
+          syncVideoPrimaryPhotoUi();
           syncModeUi();
         };
 
@@ -4430,6 +4473,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             }
           });
         });
+        if (videoPrimaryPhotoPick && videoPrimaryPhotoInput) {
+          videoPrimaryPhotoPick.addEventListener('click', () => {
+            if (typeof videoPrimaryPhotoInput.click === 'function') videoPrimaryPhotoInput.click();
+          });
+        }
+        if (videoPrimaryPhotoInput) {
+          videoPrimaryPhotoInput.addEventListener('change', async () => {
+            const file = videoPrimaryPhotoInput.files && videoPrimaryPhotoInput.files[0];
+            if (!file) return;
+            if (!isImageFile(file)) {
+              selectedPrimaryPhotoFile = null;
+              syncVideoPrimaryPhotoUi();
+              setStatus('<div class="row"><div>主役写真には画像ファイルを選んでください。</div></div>');
+              return;
+            }
+            selectedPrimaryPhotoFile = file;
+            syncVideoPrimaryPhotoUi();
+            await applyMediaAutofill(file, {}, { autoLocateFreshCapture: false });
+          });
+        }
+        if (videoPrimaryPhotoClear) {
+          videoPrimaryPhotoClear.addEventListener('click', () => {
+            selectedPrimaryPhotoFile = null;
+            if (videoPrimaryPhotoInput) videoPrimaryPhotoInput.value = '';
+            syncVideoPrimaryPhotoUi();
+          });
+        }
         if (captureChange) {
           captureChange.addEventListener('click', clearSelectedMedia);
         }
@@ -4591,7 +4661,28 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const detailId = String(observationJson.occurrenceId || observationId);
 
               let mediaFile = selectedMediaFile instanceof File && selectedMediaFile.size > 0 ? selectedMediaFile : null;
+              const primaryPhotoFile = selectedPrimaryPhotoFile instanceof File && selectedPrimaryPhotoFile.size > 0 ? selectedPrimaryPhotoFile : null;
               let extraStatus = '';
+
+              if (primaryPhotoFile) {
+                const base64Data = await readFileAsDataUrl(primaryPhotoFile);
+                const photoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json', accept: 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    filename: primaryPhotoFile.name || 'primary-subject.jpg',
+                    mimeType: primaryPhotoFile.type || 'image/jpeg',
+                    base64Data,
+                    mediaRole: 'primary_subject',
+                  }),
+                });
+                const photoJson = await photoResponse.json();
+                if (!photoResponse.ok || !photoJson.ok) {
+                  throw new Error(photoJson.error || 'primary_photo_upload_failed');
+                }
+                extraStatus = '主役写真も同じ観察に保存しました。';
+              }
 
               if (mediaFile) {
                 if (isImageFile(mediaFile)) {
@@ -4627,7 +4718,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       filename: mediaFile.name || 'upload.mp4',
                       maxDurationSeconds: MAX_VIDEO_SECONDS,
                       observationId: detailId,
-                      mediaRole,
+                      mediaRole: 'sound_motion',
                     }),
                   });
                   const issueJson = await issueResponse.json();
@@ -4644,7 +4735,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     credentials: 'include',
                     body: JSON.stringify({
                       observationId: detailId,
-                      mediaRole,
+                      mediaRole: 'sound_motion',
                     }),
                   });
                   const finalizeJson = await finalizeResponse.json();
@@ -4659,12 +4750,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     });
                     const reassessVideoJson = await reassessVideoResponse.json();
                     if (reassessVideoResponse.ok && reassessVideoJson.ok) {
-                      extraStatus = '動画サムネイルの AI 解析も更新しました。';
+                      extraStatus = [extraStatus, '動画サムネイルの AI 解析も更新しました。'].filter(Boolean).join(' ');
                     } else {
-                      extraStatus = '動画は保存済みです（AI 解析は詳細ページから再実行できます）。';
+                      extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
                     }
                   } catch (_error) {
-                    extraStatus = '動画は保存済みです（AI 解析は詳細ページから再実行できます）。';
+                    extraStatus = [extraStatus, '動画は保存済みです（AI 解析は詳細ページから再実行できます）。'].filter(Boolean).join(' ');
                   }
                 } else {
                   throw new Error('unsupported_media_type');
@@ -4694,6 +4785,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (message === 'video_trim_range_invalid') userMessage = '動画の切り出し範囲は最大60秒にしてください。';
               if (message === 'video_trim_unsupported') userMessage = 'このブラウザでは動画の切り出しに対応していません。60秒以内の動画を選んでください。';
               if (message === 'video_upload_cancelled') userMessage = '動画アップロードをキャンセルしました。';
+              if (message === 'primary_photo_upload_failed') userMessage = '主役写真の保存に失敗しました。別の写真で試してください。';
               if (message === 'video_metadata_read_failed' || message === 'video_duration_unknown') userMessage = '動画の長さを確認できませんでした。別の動画で試してください。';
               if (message === 'unsupported_media_type') userMessage = '画像または動画ファイルを選択してください。';
               if (message === 'survey_target_scope_required') userMessage = 'しっかり記録では、何を見たかったかを入力してください。';
@@ -4791,6 +4883,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-mode-chip span { font-size: 12px; line-height: 1.6; color: #64748b; font-weight: 700; }
         .record-mode-chip.is-active { border-color: rgba(14,165,233,.36); box-shadow: 0 10px 24px rgba(14,165,233,.1); transform: translateY(-1px); }
         .record-media-role { padding: 14px; border-radius: 20px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
+        .record-video-primary-photo { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; border-radius: 20px; background: linear-gradient(135deg, rgba(236,253,245,.95), rgba(239,246,255,.95)); border: 1px solid rgba(16,185,129,.22); }
+        .record-video-primary-photo[hidden] { display: none; }
+        .record-video-primary-photo strong { display: block; margin-top: 4px; color: #0f172a; font-size: 14px; line-height: 1.4; word-break: break-word; }
+        .record-video-primary-photo p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.6; font-weight: 750; }
+        .record-video-primary-photo-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
         .record-media-role-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
         .record-media-role-chip { position: relative; display: grid; gap: 4px; min-height: 76px; padding: 12px; border-radius: 16px; border: 1px solid rgba(15,23,42,.1); background: rgba(248,250,252,.92); cursor: pointer; }
         .record-media-role-chip input { position: absolute; opacity: 0; pointer-events: none; }
@@ -4884,6 +4981,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-submit-location:disabled, .record-submit-primary:disabled { opacity: .55; cursor: wait; }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
+          .record-video-primary-photo { align-items: flex-start; flex-direction: column; }
+          .record-video-primary-photo-actions, .record-video-primary-photo-actions .btn { width: 100%; }
           .record-video-trim-controls { grid-template-columns: 1fr; }
           .record-video-trim-actions .btn { width: 100%; }
           .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-media-role-grid { grid-template-columns: 1fr; }

@@ -46,7 +46,9 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-media-role-badge.is-context { background: rgba(3,105,161,.84); }
   .obs-media-role-badge.is-sound-motion { background: rgba(126,34,206,.84); }
   .obs-media-role-badge.is-secondary-candidate { background: rgba(180,83,9,.86); }
+  .obs-media-ai-role { position: absolute; left: 12px; top: 48px; z-index: 2; display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 5px 9px; border-radius: 999px; background: rgba(255,255,255,.9); color: #0f172a; border: 1px solid rgba(15,23,42,.1); font-size: 10px; line-height: 1; font-weight: 950; box-shadow: 0 8px 18px rgba(15,23,42,.16); pointer-events: none; }
   .obs-hero-thumb .obs-media-role-badge { left: 6px; top: 6px; min-height: 22px; padding: 5px 6px; font-size: 9px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .obs-hero-thumb .obs-media-ai-role { left: 6px; top: auto; right: 6px; bottom: 6px; min-height: 20px; padding: 4px 5px; font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .obs-lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(8,12,20,.94); display: none; overflow: auto; padding: 72px 16px 56px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .obs-lightbox.is-open { display: block; }
@@ -70,6 +72,7 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-video-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #334155; font-weight: 700; }
   .obs-hero-video-meta-main { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .obs-hero-video-meta .obs-media-role-badge { position: static; min-height: 24px; padding: 5px 9px; font-size: 10px; box-shadow: none; }
+  .obs-hero-video-meta .obs-media-ai-role { position: static; min-height: 24px; padding: 5px 9px; font-size: 10px; box-shadow: none; pointer-events: auto; }
   .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
   .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
   .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
@@ -153,20 +156,38 @@ function mediaRoleBadge(asset: Pick<PhotoAsset | VideoAsset, "mediaRole">, compa
   return `<span class="obs-media-role-badge${className}${compact ? " is-compact" : ""}" data-obs-media-role-badge>${escapeHtml(MEDIA_ROLE_LABELS[role])}</span>`;
 }
 
+function mediaRoleSuggestionBadge(
+  asset: Pick<PhotoAsset | VideoAsset, "suggestedMediaRole" | "suggestedMediaRoleConfidence" | "suggestedMediaRoleSource">,
+  compact = false,
+): string {
+  const role = normalizeMediaRoleView(asset.suggestedMediaRole);
+  if (!role) return "";
+  const confidence = typeof asset.suggestedMediaRoleConfidence === "number"
+    ? ` ${Math.round(asset.suggestedMediaRoleConfidence * 100)}%`
+    : "";
+  const prefix = asset.suggestedMediaRoleSource === "heuristic" ? "提案" : "AI";
+  return `<span class="obs-media-ai-role${compact ? " is-compact" : ""}" data-obs-media-role-suggestion>${prefix} ${escapeHtml(MEDIA_ROLE_LABELS[role])}${confidence}</span>`;
+}
+
 function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject): string {
   if (snapshot.photoAssets.length === 0) return "";
   const first = snapshot.photoAssets[0]!;
   const firstDisplayUrl = photoDisplayUrl(first, "lg");
   const firstRoleBadge = mediaRoleBadge(first) || `<span class="obs-media-role-badge" data-obs-media-role-badge hidden></span>`;
+  const firstSuggestionBadge = mediaRoleSuggestionBadge(first) || `<span class="obs-media-ai-role" data-obs-media-role-suggestion hidden></span>`;
   const thumbsHtml = snapshot.photoAssets.length >= 2
     ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => {
       const previewUrl = photoDisplayUrl(asset, "lg");
       const thumbUrl = photoDisplayUrl(asset, "sm");
       const role = normalizeMediaRoleView(asset.mediaRole);
+      const suggestedRole = normalizeMediaRoleView(asset.suggestedMediaRole);
+      const suggestedConfidence = typeof asset.suggestedMediaRoleConfidence === "number" ? asset.suggestedMediaRoleConfidence.toFixed(4) : "";
+      const suggestedSource = asset.suggestedMediaRoleSource ?? "";
       return `
-         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
+         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}" data-obs-thumb-suggested-role="${escapeHtml(suggestedRole ?? "")}" data-obs-thumb-suggested-confidence="${escapeHtml(suggestedConfidence)}" data-obs-thumb-suggested-source="${escapeHtml(suggestedSource)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
            <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
            ${mediaRoleBadge(asset, true)}
+           ${mediaRoleSuggestionBadge(asset, true)}
            <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
            <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
            <span hidden data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${renderObservationRegionBoxes(currentSubject, asset.assetId)}</span>
@@ -176,6 +197,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
   return `<div class="obs-hero-gallery" data-obs-gallery>
     <div class="obs-hero-preview" data-obs-preview data-obs-preview-asset-id="${escapeHtml(first.assetId)}">
       ${firstRoleBadge}
+      ${firstSuggestionBadge}
       <span class="obs-hero-image-frame" data-obs-image-frame>
         <img src="${escapeHtml(firstDisplayUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
         <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderObservationRegionBoxes(currentSubject, first.assetId)}</span>
@@ -203,6 +225,7 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
      </div>
      <div class="obs-hero-video-meta">
        <span class="obs-hero-video-meta-main"><strong>動画</strong>${mediaRoleBadge(primaryVideo)}</span>
+       ${mediaRoleSuggestionBadge(primaryVideo)}
        ${videoRegion ? `<span class="obs-region-video-note">AI が 2s 付近の対象位置を記録しています</span>` : ""}
        ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
      </div>
@@ -251,6 +274,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
      var previewImg = preview && preview.querySelector('[data-obs-preview-img]');
      var previewRegions = preview && preview.querySelector('[data-obs-preview-regions]');
      var previewRoleBadge = preview && preview.querySelector('[data-obs-media-role-badge]');
+     var previewSuggestionBadge = preview && preview.querySelector('[data-obs-media-role-suggestion]');
      var thumbs = Array.prototype.slice.call(gallery.querySelectorAll('.obs-hero-thumb'));
      var lightbox = document.querySelector('[data-obs-lightbox]');
      var lightboxImg = lightbox && lightbox.querySelector('[data-obs-lightbox-img]');
@@ -292,6 +316,21 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
          previewRoleBadge.textContent = roleLabels[role] || '';
          previewRoleBadge.hidden = !roleLabels[role];
          previewRoleBadge.className = 'obs-media-role-badge' + (role && role !== 'primary_subject' ? ' is-' + role.replace(/_/g, '-') : '');
+       }
+       if (previewSuggestionBadge) {
+         var suggestedRole = t.getAttribute('data-obs-thumb-suggested-role') || '';
+         var suggestedConfidence = Number(t.getAttribute('data-obs-thumb-suggested-confidence') || '');
+         var suggestedSource = t.getAttribute('data-obs-thumb-suggested-source') || '';
+         var roleLabels2 = {
+           primary_subject: '主役',
+           context: '周囲',
+           sound_motion: '音・動き',
+           secondary_candidate: '別対象候補'
+         };
+         var confidenceLabel = Number.isFinite(suggestedConfidence) && suggestedConfidence > 0 ? ' ' + Math.round(suggestedConfidence * 100) + '%' : '';
+         var prefix = suggestedSource === 'heuristic' ? '提案' : 'AI';
+         previewSuggestionBadge.textContent = roleLabels2[suggestedRole] ? prefix + ' ' + roleLabels2[suggestedRole] + confidenceLabel : '';
+         previewSuggestionBadge.hidden = !roleLabels2[suggestedRole];
        }
        if (previewRegions && regions) {
          previewRegions.innerHTML = regions.innerHTML;

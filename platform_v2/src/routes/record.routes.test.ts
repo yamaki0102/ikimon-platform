@@ -50,6 +50,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /data-capture-action="video"/);
         assert.match(response.body, /data-capture-action="gallery"/);
         assert.match(response.body, /id="record-video-trim"/);
+        assert.match(response.body, /id="record-video-primary-photo"/);
+        assert.match(response.body, /主役写真を追加/);
+        assert.match(response.body, /selectedPrimaryPhotoFile/);
+        assert.match(response.body, /mediaRole: 'primary_subject'/);
+        assert.match(response.body, /mediaRole: 'sound_motion'/);
         assert.match(response.body, /投稿する最大60秒を選ぶ/);
         assert.match(response.body, /動画投稿は最大60秒です/);
         assert.match(response.body, /撮影時の現在地/);

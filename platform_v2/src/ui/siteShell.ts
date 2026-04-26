@@ -2129,6 +2129,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       display: grid;
       gap: 12px;
       padding: 14px;
+      max-height: calc(100dvh - 116px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
       border-radius: 24px;
       background: rgba(255,255,255,.98);
       border: 1px solid rgba(15,23,42,.1);
@@ -2170,7 +2173,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     }
     .global-record-camera-preview {
       position: relative;
-      min-height: 238px;
+      min-height: 0;
+      height: clamp(220px, 48dvh, 520px);
+      max-height: calc(100dvh - 360px);
       overflow: hidden;
       border-radius: 20px;
       background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
@@ -2180,9 +2185,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-preview img {
       width: 100%;
       height: 100%;
-      min-height: 238px;
+      min-height: 0;
       display: block;
-      object-fit: cover;
+      object-fit: contain;
       background: #020617;
     }
     .global-record-camera-preview img[hidden] {
@@ -2364,6 +2369,18 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       cursor: wait;
     }
     @media (max-width: 520px) {
+      .global-record-camera-sheet {
+        left: 8px;
+        right: 8px;
+        bottom: max(86px, calc(env(safe-area-inset-bottom) + 86px));
+        max-height: calc(100dvh - 102px);
+        gap: 10px;
+        padding: 12px;
+      }
+      .global-record-camera-preview {
+        height: clamp(190px, 38dvh, 360px);
+        max-height: calc(100dvh - 390px);
+      }
       .global-record-video-trim-controls {
         grid-template-columns: 1fr;
       }

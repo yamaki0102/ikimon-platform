@@ -15,6 +15,7 @@ import {
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
+import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole.js";
 
 type RecentObservation = {
   occurrenceId: string;
@@ -95,7 +96,7 @@ export type ObservationDetailSnapshot = {
     roleTagSource: string | null;
     organTarget: string | null;
     mediaRole: string | null;
-  }>;
+  } & MediaRoleSuggestion>;
   photoUrls: string[];
   videoAssets: Array<{
     assetId: string;
@@ -105,7 +106,7 @@ export type ObservationDetailSnapshot = {
     watchUrl: string | null;
     createdAt: string;
     mediaRole: string | null;
-  }>;
+  } & MediaRoleSuggestion>;
   identifications: Array<{
     proposedName: string;
     proposedRank: string | null;
@@ -859,6 +860,62 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     [base.visit_id],
   );
 
+  const latestAiRunResult = await pool.query<{ ai_run_id: string }>(
+    `select ai_run_id::text
+       from observation_ai_runs
+      where visit_id = $1
+      order by generated_at desc
+      limit 1`,
+    [base.visit_id],
+  );
+  const latestAiRunId = latestAiRunResult.rows[0]?.ai_run_id ?? null;
+  const primaryRegionConfidenceByAsset = new Map<string, number>();
+  const secondaryCandidateConfidenceByAsset = new Map<string, number>();
+  if (latestAiRunId) {
+    const mediaRoleEvidenceResult = await pool.query<{
+      asset_id: string;
+      occurrence_id: string | null;
+      candidate_id: string | null;
+      region_confidence: string | null;
+      candidate_confidence: string | null;
+    }>(
+      `select
+          smr.asset_id::text,
+          smr.occurrence_id,
+          smr.candidate_id::text,
+          smr.confidence_score::text as region_confidence,
+          c.confidence_score::text as candidate_confidence
+       from subject_media_regions smr
+       left join observation_ai_subject_candidates c
+         on c.candidate_id = smr.candidate_id
+      where smr.ai_run_id = $1::uuid
+        and (smr.occurrence_id = $2 or smr.candidate_id is not null)`,
+      [latestAiRunId, base.occurrence_id],
+    );
+    for (const row of mediaRoleEvidenceResult.rows) {
+      const regionConfidence = row.region_confidence != null ? Number(row.region_confidence) : null;
+      const candidateConfidence = row.candidate_confidence != null ? Number(row.candidate_confidence) : null;
+      if (row.occurrence_id === base.occurrence_id && regionConfidence != null && Number.isFinite(regionConfidence)) {
+        primaryRegionConfidenceByAsset.set(
+          row.asset_id,
+          Math.max(primaryRegionConfidenceByAsset.get(row.asset_id) ?? 0, regionConfidence),
+        );
+      }
+      if (row.candidate_id) {
+        const confidence = Math.max(
+          Number.isFinite(regionConfidence ?? NaN) ? Number(regionConfidence) : 0,
+          Number.isFinite(candidateConfidence ?? NaN) ? Number(candidateConfidence) : 0,
+        );
+        if (confidence > 0) {
+          secondaryCandidateConfidenceByAsset.set(
+            row.asset_id,
+            Math.max(secondaryCandidateConfidenceByAsset.get(row.asset_id) ?? 0, confidence),
+          );
+        }
+      }
+    }
+  }
+
   const identificationsResult = await pool.query<{
     proposed_name: string;
     proposed_rank: string | null;
@@ -908,10 +965,17 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     [base.occurrence_id],
   );
 
+  const totalMediaCount = photosResult.rows.length + videosResult.rows.length;
   const photoAssets = photosResult.rows
     .map((row) => {
       const normalizedUrl = normalizeAssetUrl(row.photo_url);
       if (!normalizedUrl) return null;
+      const suggestion = deriveMediaRoleSuggestion({
+        mediaType: "image",
+        primaryRegionConfidence: primaryRegionConfidenceByAsset.get(row.asset_id) ?? null,
+        secondaryCandidateConfidence: secondaryCandidateConfidenceByAsset.get(row.asset_id) ?? null,
+        totalMediaCount,
+      });
       return {
         assetId: row.asset_id,
         url: normalizedUrl,
@@ -921,6 +985,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         roleTagSource: row.role_tag_source ?? null,
         organTarget: row.organ_target ?? null,
         mediaRole: row.media_role ?? (row.source_payload && typeof row.source_payload.media_role === "string" ? row.source_payload.media_role : null),
+        ...suggestion,
       };
     })
     .filter((row): row is {
@@ -932,7 +997,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
       roleTagSource: string | null;
       organTarget: string | null;
       mediaRole: string | null;
-    } => Boolean(row));
+    } & MediaRoleSuggestion => Boolean(row));
 
   return {
     occurrenceId: base.occurrence_id,
@@ -1006,6 +1071,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
           watchUrl: normalizeAssetUrl(watchUrlRaw),
           createdAt: row.created_at,
           mediaRole: row.media_role ?? (typeof payload.media_role === "string" ? payload.media_role : null),
+          ...deriveMediaRoleSuggestion({ mediaType: "video", totalMediaCount }),
         };
       })
       .filter((video): video is ObservationDetailSnapshot["videoAssets"][number] => Boolean(video)),
