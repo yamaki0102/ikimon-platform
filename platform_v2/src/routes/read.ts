@@ -1969,9 +1969,10 @@ function renderNotesMiniCard(
   const photo = photoUrl
     ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span></span>`
     : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>`;
+  const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
   const supportLine = obs.entryType === "identification"
-    ? `${obs.proposedName ? `${obs.proposedName} · ` : ""}${dateLabel}`
-    : `${obs.identificationCount > 0 ? `同定 ${obs.identificationCount} 件 · ` : "名前を見返す余地あり · "}${dateLabel}`;
+    ? `${observerLine}${obs.proposedName ? `${obs.proposedName} · ` : ""}${dateLabel}`
+    : `${observerLine}${obs.identificationCount > 0 ? `同定 ${obs.identificationCount} 件 · ` : "名前を見返す余地あり · "}${dateLabel}`;
   return `<a class="notes-page-card" href="${escapeHtml(href)}" data-entry-type="${escapeHtml(obs.entryType ?? "observation")}">
     ${photo}
     <span class="notes-page-copy">
