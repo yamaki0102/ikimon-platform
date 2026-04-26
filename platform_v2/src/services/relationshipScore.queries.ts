@@ -143,7 +143,7 @@ export async function loadRelationshipScoreInputs(
         accepted_count: string;
         review_total: string;
       }>(
-        `WITH window AS (
+        `WITH vw AS (
             SELECT *
             FROM visits
             WHERE ${visitsWhereSql}
@@ -153,16 +153,16 @@ export async function loadRelationshipScoreInputs(
          SELECT
            COUNT(*)::text AS visits_count,
            (SELECT COUNT(*)::text FROM (
-              SELECT user_id FROM window WHERE user_id IS NOT NULL GROUP BY user_id HAVING COUNT(*) >= 2
+              SELECT user_id FROM vw WHERE user_id IS NOT NULL GROUP BY user_id HAVING COUNT(*) >= 2
            ) r) AS repeat_observers,
-           ARRAY(SELECT DISTINCT EXTRACT(MONTH FROM observed_at)::int FROM window) AS seasons_months,
+           ARRAY(SELECT DISTINCT EXTRACT(MONTH FROM observed_at)::int FROM vw) AS seasons_months,
            SUM(CASE WHEN note IS NOT NULL AND length(note) > 0 THEN 1 ELSE 0 END)::text AS notes_filled,
            COUNT(*)::text AS notes_total,
            SUM(CASE WHEN effort_minutes IS NOT NULL THEN 1 ELSE 0 END)::text AS effort_filled,
            COUNT(*)::text AS effort_total,
            SUM(CASE WHEN quality_review_status = 'accepted' THEN 1 ELSE 0 END)::text AS accepted_count,
            COUNT(*)::text AS review_total
-         FROM window`,
+         FROM vw`,
         visitsParams
       );
       return result.rows[0] ?? null;
