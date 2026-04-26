@@ -274,27 +274,27 @@ export async function listNearbyFields(
   const latDelta = range / 111;
   const lngDelta = range / (111 * Math.cos((lat * Math.PI) / 180));
   const limit = Math.min(Math.max(1, options.limit ?? 30), 100);
-  const params: unknown[] = [lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta];
-  let sourceClause = "";
-  if (options.source) {
-    params.push(options.source);
-    sourceClause = `AND source = $${params.length}`;
-  }
-  params.push(lat, lng, range, limit);
+  const sourceClause = options.source ? "AND source = $7" : "";
+  const limitPlaceholder = options.source ? "$8" : "$7";
+  const params: unknown[] = options.source
+    ? [lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta, lat, lng, options.source, limit]
+    : [lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta, lat, lng, limit];
+
   const result = await getPool().query<RawFieldRow & { distance_km: string }>(
     `SELECT ${SELECT},
        (
          6371 * 2 * ASIN(SQRT(
-           POWER(SIN(RADIANS(lat - $${params.length - 3}) / 2), 2) +
-           COS(RADIANS($${params.length - 3})) * COS(RADIANS(lat)) *
-           POWER(SIN(RADIANS(lng - $${params.length - 2}) / 2), 2)
+           POWER(SIN(RADIANS(lat - ($5::float8)) / 2), 2) +
+           COS(RADIANS($5::float8)) * COS(RADIANS(lat)) *
+           POWER(SIN(RADIANS(lng - ($6::float8)) / 2), 2)
          ))
        )::text AS distance_km
      FROM observation_fields
-     WHERE lat BETWEEN $1 AND $2 AND lng BETWEEN $3 AND $4
+     WHERE lat BETWEEN $1::float8 AND $2::float8
+       AND lng BETWEEN $3::float8 AND $4::float8
        ${sourceClause}
      ORDER BY distance_km ASC
-     LIMIT $${params.length}`,
+     LIMIT ${limitPlaceholder}`,
     params,
   );
   return result.rows
