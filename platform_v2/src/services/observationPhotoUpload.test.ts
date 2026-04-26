@@ -17,4 +17,6 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /reason <> 'missing_photo'/);
   assert.match(source, /reason_code = 'native_no_photo'/);
   assert.match(source, /review_status = 'accepted'/);
+  assert.match(source, /void reassessObservation\(visitId\)/);
+  assert.match(source, /import \{ reassessObservation \} from "\.\/observationReassess\.js"/);
 });

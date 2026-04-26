@@ -8,6 +8,7 @@ import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
+import { reassessObservation } from "./observationReassess.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
@@ -286,6 +287,11 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       }
     }
   }
+
+  void reassessObservation(visitId).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[observationPhotoUpload] reassess after upload failed for ${visitId}: ${message}`);
+  });
 
   return {
     visitId,
