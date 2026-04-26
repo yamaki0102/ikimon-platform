@@ -10,7 +10,11 @@ import {
   matchesAuthorityScope,
   type ReviewerAuthorityAccessContext,
 } from "./reviewerAuthorities.js";
-import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
+import {
+  PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_PHOTO_ASSET_SQL,
+} from "./observationQualityGate.js";
 
 type RecentObservation = {
   occurrenceId: string;
@@ -325,7 +329,7 @@ async function loadVisitSummaryObservations(
 ): Promise<RecentObservation[]> {
   const pool = getPool();
   const params: Array<string | number> = [];
-  const whereClauses: string[] = [PUBLIC_OBSERVATION_QUALITY_SQL];
+  const whereClauses: string[] = [PUBLIC_OBSERVATION_QUALITY_SQL, PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL];
   if (options.userId) {
     params.push(options.userId);
     whereClauses.push(`v.user_id = $${params.length}`);
@@ -349,7 +353,7 @@ async function loadVisitSummaryObservations(
            FROM evidence_assets ea
            JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
           WHERE ea.visit_id = v.visit_id
-            AND ea.asset_role = 'observation_photo'
+            AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
           ORDER BY ea.created_at ASC
           LIMIT 1
        ) photo ON true
@@ -669,6 +673,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
      join visits v on v.visit_id = o.visit_id
      left join places p on p.place_id = v.place_id
      where ${PUBLIC_OBSERVATION_QUALITY_SQL}
+       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
      group by 1
      order by count(*) desc, municipality asc
      limit 6`,
@@ -684,6 +689,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
      from occurrences o
      join visits v on v.visit_id = o.visit_id
      where ${PUBLIC_OBSERVATION_QUALITY_SQL}
+       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
      group by 1
      order by count(*) desc, display_name asc
      limit 6`,
@@ -776,6 +782,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         or v.visit_id = $1
         or o.legacy_observation_id = $1)
        and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
      order by v.observed_at desc
      limit 1`,
     [id],
@@ -812,7 +819,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
      where ea.visit_id = $1
-       and ea.asset_role = 'observation_photo'
+       and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
      order by ea.created_at asc`,
     [base.visit_id],
   );
@@ -1130,7 +1137,7 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
             from evidence_assets ea
             join asset_blobs ab on ab.blob_id = ea.blob_id
            where (ea.occurrence_id = taxa.latest_occurrence_id or ea.visit_id = taxa.latest_visit_id)
-             and ea.asset_role = 'observation_photo'
+             and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
            order by ea.created_at asc
            limit 1
         ) photo on true`,

@@ -8,7 +8,11 @@ import {
   summarizePublicLocalitySet,
 } from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
-import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
+import {
+  PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_PHOTO_ASSET_SQL,
+} from "./observationQualityGate.js";
 import type {
   AmbientObserver,
   LandingDailyCard,
@@ -161,7 +165,7 @@ const FEED_SQL_BASE = `
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
     where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
-      and ea.asset_role = 'observation_photo'
+      and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
     order by
       case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
       ea.created_at asc
@@ -620,7 +624,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 12`,
     );
     feedRows = result.rows;
   } catch {
@@ -630,7 +634,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let heroCandidateRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 60`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 60`,
     );
     heroCandidateRows = result.rows;
   } catch {
@@ -642,7 +646,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 6`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 6`,
         [userId],
       );
       myFeedRows = result.rows;
@@ -690,7 +694,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            from evidence_assets ea
            join asset_blobs ab on ab.blob_id = ea.blob_id
            where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
-             and ea.asset_role = 'observation_photo'
+             and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
            order by
              case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
              ea.created_at asc
@@ -726,6 +730,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          ) avatar on true
          where i.actor_user_id = $1
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by i.created_at desc
          limit 6`,
         [userId],
@@ -804,8 +809,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       place_count: string | number;
     }>(
       `select
-         (select count(*) from occurrences o join visits v on v.visit_id = o.visit_id where ${PUBLIC_OBSERVATION_QUALITY_SQL}) as observation_count,
-         (select count(distinct o.scientific_name) from occurrences o join visits v on v.visit_id = o.visit_id where o.scientific_name is not null and o.scientific_name <> '' and ${PUBLIC_OBSERVATION_QUALITY_SQL}) as species_count,
+         (select count(*) from occurrences o join visits v on v.visit_id = o.visit_id where ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as observation_count,
+         (select count(distinct o.scientific_name) from occurrences o join visits v on v.visit_id = o.visit_id where o.scientific_name is not null and o.scientific_name <> '' and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as species_count,
          (select count(*) from places) as place_count`,
     );
     const row = statsResult.rows[0];
@@ -849,15 +854,16 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            from occurrences o
            join evidence_assets ea
              on (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
-            and ea.asset_role = 'observation_photo'
            join asset_blobs ab on ab.blob_id = ea.blob_id
            where o.visit_id = v.visit_id
+             and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
            order by ea.created_at asc
            limit 1
          ) photo on true
          where v.user_id is not null
            and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by v.user_id, v.observed_at desc
        )
        select
@@ -897,8 +903,12 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
              from occurrences o3
              join evidence_assets ea3
                on (ea3.occurrence_id = o3.occurrence_id or ea3.visit_id = v3.visit_id)
-              and ea3.asset_role = 'observation_photo'
+              join asset_blobs ab3 on ab3.blob_id = ea3.blob_id
              where o3.visit_id = v3.visit_id
+              and ea3.asset_role = 'observation_photo'
+              and coalesce(nullif(lower(ea3.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+              and coalesce(nullif(lower(ab3.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+              and nullif(coalesce(ab3.public_url, ab3.storage_path), '') is not null
            )
            and (
              (latest.municipality is not null and coalesce(v3.observed_municipality, p3.municipality) = latest.municipality)

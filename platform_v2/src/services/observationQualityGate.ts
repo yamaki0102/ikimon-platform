@@ -95,6 +95,26 @@ export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   and coalesce(v.quality_review_status, 'accepted') = 'accepted'
 `;
 
+export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
+  ea.asset_role = 'observation_photo'
+  and coalesce(nullif(lower(ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+  and coalesce(nullif(lower(ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+  and nullif(coalesce(ab.public_url, ab.storage_path), '') is not null
+`;
+
+export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
+  exists (
+    select 1
+      from evidence_assets public_photo_ea
+      join asset_blobs public_photo_ab on public_photo_ab.blob_id = public_photo_ea.blob_id
+     where public_photo_ea.visit_id = v.visit_id
+       and public_photo_ea.asset_role = 'observation_photo'
+       and coalesce(nullif(lower(public_photo_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+       and coalesce(nullif(lower(public_photo_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+       and nullif(coalesce(public_photo_ab.public_url, public_photo_ab.storage_path), '') is not null
+  )
+`;
+
 export async function upsertLegacyObservationQualityReview(
   db: Queryable,
   input: {
