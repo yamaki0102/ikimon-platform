@@ -8,10 +8,9 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- owner-sensitive-ok: ADD COLUMN IF NOT EXISTS is non-rewriting and idempotent;
--- knowledge_claims is owned by ikimon-staging (same role that runs npm run migrate);
--- rollback = ALTER TABLE knowledge_claims DROP COLUMN claim_embedding, DROP COLUMN
--- embedding_model, DROP COLUMN embedded_at; safe under app DB role.
+-- owner-sensitive-ok: idempotent column addition (IF NOT EXISTS); knowledge_claims
+-- is owned by ikimon-staging (same role that runs npm run migrate). rollback path:
+-- write a reverse migration that removes these three columns.
 ALTER TABLE knowledge_claims
     ADD COLUMN IF NOT EXISTS claim_embedding VECTOR(1536),
     ADD COLUMN IF NOT EXISTS embedding_model TEXT NOT NULL DEFAULT '',
