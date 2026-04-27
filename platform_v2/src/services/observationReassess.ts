@@ -11,6 +11,8 @@ import { createObservationAiRun, ensureLegacyAiRunsForVisit, getLatestObservatio
 import { matchTaxon, matchTaxonBatch, type GbifMatch } from "./gbifBackboneMatch.js";
 import { getStoredVisitDisplayState, upsertVisitDisplayState, deriveVisitDisplayState } from "./visitDisplayState.js";
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
+import { logAiCost } from "./aiCostLogger.js";
+import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -436,7 +438,28 @@ function getClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: cfg.geminiApiKey });
 }
 
-async function runGemini(prompt: string, photos: ReassessImageInput[]): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
+// Gemini 3.1 Flash Lite Preview pricing (USD per 1M tokens). Fallback model
+// is assumed to share the same pricing tier; revisit when Google publishes
+// final 3.1 GA prices.
+const FLASH_LITE_PRICING: Record<string, { inputUsdPer1M: number; outputUsdPer1M: number }> = {
+  "gemini-3.1-flash-lite-preview": { inputUsdPer1M: 0.10, outputUsdPer1M: 0.40 },
+  "gemini-2.5-flash-lite":          { inputUsdPer1M: 0.10, outputUsdPer1M: 0.40 },
+};
+
+type GeminiCostMeta = {
+  userId?: string | null;
+  visitId?: string | null;
+  occurrenceId?: string | null;
+};
+
+async function runGemini(
+  prompt: string,
+  photos: ReassessImageInput[],
+  meta: GeminiCostMeta = {},
+): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
+  // Hot-layer budget gate: throws AiBudgetExceededError when monthly cap reached.
+  await assertAiBudgetAllowed("hot");
+
   const ai = getClient();
   const parts: Array<Record<string, unknown>> = photos.map((photo) => ({
     inlineData: { mimeType: photo.mime, data: photo.b64 },
@@ -446,9 +469,34 @@ async function runGemini(prompt: string, photos: ReassessImageInput[]): Promise<
   const MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
   let lastErr: unknown = null;
   for (const model of MODELS) {
+    const startedAt = Date.now();
     try {
       const response = await ai.models.generateContent({ model, contents: [{ role: "user", parts }] });
       const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+
+      const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }).usageMetadata;
+      const inputTokens = Number(usage?.promptTokenCount ?? 0);
+      const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
+      const pricing = FLASH_LITE_PRICING[model] ?? FLASH_LITE_PRICING["gemini-3.1-flash-lite-preview"]!;
+      const costUsd = (inputTokens / 1_000_000) * pricing.inputUsdPer1M + (outputTokens / 1_000_000) * pricing.outputUsdPer1M;
+      // Cost log failure should never break the user-facing flow.
+      logAiCost({
+        layer: "hot",
+        endpoint: "observation_reassess",
+        provider: "gemini",
+        model,
+        inputTokens,
+        outputTokens,
+        costUsd,
+        userId: meta.userId ?? null,
+        visitId: meta.visitId ?? null,
+        occurrenceId: meta.occurrenceId ?? null,
+        latencyMs: Date.now() - startedAt,
+      }).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn("[ai_cost_log] insert failed", err);
+      });
+
       let parsed: GeminiJson = {};
       try {
         const matched = rawText.match(/\{[\s\S]*\}/);
@@ -534,7 +582,11 @@ export async function reassessObservation(
       siteBriefLabel: vctx.place_id ?? "不明",
     });
 
-    const { parsed, modelUsed, rawText } = await runGemini(prompt, photos);
+    const { parsed, modelUsed, rawText } = await runGemini(prompt, photos, {
+      userId: options.triggeredBy ?? null,
+      visitId: target.visitId,
+      occurrenceId: target.primaryOccurrenceId,
+    });
     const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v2";
     const sourceTag = options.sourceTag?.trim() || "photo";
 
