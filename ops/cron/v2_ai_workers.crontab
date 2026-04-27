@@ -10,8 +10,6 @@
 # This cron entry is a legacy safety net for older rows that were not queued.
 # The primary photo/video media worker is installed as
 # ikimon-v2-media-worker.timer by the blue/green deploy script.
-# Daily end-to-end photo/video/AI smoke is installed as
-# ikimon-v2-production-media-smoke.timer by the same deploy script.
 
 # v2 photo 投稿の AI 同定取りこぼし回収 (毎2分, 最大10件)
 */2 * * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runAiForMissing --limit=10 >> /var/log/ikimon/v2_ai_for_missing.log 2>&1

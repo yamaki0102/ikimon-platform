@@ -178,11 +178,8 @@ install_units() {
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_green.service" /etc/systemd/system/ikimon-v2-green.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_media_worker.service" /etc/systemd/system/ikimon-v2-media-worker.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_media_worker.timer" /etc/systemd/system/ikimon-v2-media-worker.timer
-  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_production_media_smoke.service" /etc/systemd/system/ikimon-v2-production-media-smoke.service
-  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_production_media_smoke.timer" /etc/systemd/system/ikimon-v2-production-media-smoke.timer
   systemctl daemon-reload
   systemctl enable --now ikimon-v2-media-worker.timer >/dev/null
-  systemctl enable --now ikimon-v2-production-media-smoke.timer >/dev/null
 }
 
 ensure_private_uploads_dir() {

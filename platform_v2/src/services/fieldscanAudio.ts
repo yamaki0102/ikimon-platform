@@ -4,7 +4,6 @@ import path from "node:path";
 import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
-import { recordSegmentEmbedding } from "./audioEmbedding.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 
 const AUDIO_STORAGE_BACKEND = "private_audio_fs";
@@ -69,15 +68,6 @@ export type AudioSegmentSubmitResult = {
   privacyStatus: AudioPrivacyStatus;
 };
 
-export type AudioEmbeddingPayload = {
-  modelName?: string;
-  modelVersion?: string;
-  frameOffsetSec?: number;
-  frameDurationSec?: number;
-  qualityScore?: number;
-  vector: number[];
-};
-
 export type AudioDetectionCallbackInput = {
   segmentId?: string;
   externalId?: string;
@@ -91,9 +81,6 @@ export type AudioDetectionCallbackInput = {
     dualAgree?: boolean;
     rawScore?: Record<string, unknown>;
   }>;
-  embeddings?: AudioEmbeddingPayload[];
-  embeddingModelName?: string;
-  embeddingModelVersion?: string;
 };
 
 export type AudioPrivacyCallbackInput = {
@@ -821,16 +808,9 @@ export async function recordAudioPrivacyDecision(input: AudioPrivacyCallbackInpu
   }
 }
 
-export async function recordAudioDetections(input: AudioDetectionCallbackInput): Promise<{
-  inserted: number;
-  skipped: number;
-  embeddingsInserted: number;
-  embeddingsSkipped: number;
-}> {
-  const detections = Array.isArray(input.detections) ? input.detections : [];
-  const embeddings = Array.isArray(input.embeddings) ? input.embeddings : [];
-  if (detections.length === 0 && embeddings.length === 0) {
-    throw new Error("detections_or_embeddings_required");
+export async function recordAudioDetections(input: AudioDetectionCallbackInput): Promise<{ inserted: number; skipped: number }> {
+  if (!Array.isArray(input.detections) || input.detections.length === 0) {
+    throw new Error("detections_required");
   }
 
   const pool = getPool();
@@ -851,16 +831,11 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
         [segment.segment_id],
       );
       await client.query("commit");
-      return {
-        inserted: 0,
-        skipped: detections.length,
-        embeddingsInserted: 0,
-        embeddingsSkipped: embeddings.length,
-      };
+      return { inserted: 0, skipped: input.detections.length };
     }
 
     let inserted = 0;
-    for (const det of detections) {
+    for (const det of input.detections) {
       if (!det.detectedTaxon) continue;
       await client.query(
         `insert into audio_detections
@@ -882,28 +857,6 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
       inserted += 1;
     }
 
-    let embeddingsInserted = 0;
-    let embeddingsSkipped = 0;
-    for (const emb of embeddings) {
-      if (!Array.isArray(emb.vector) || emb.vector.length === 0) {
-        embeddingsSkipped += 1;
-        continue;
-      }
-      await recordSegmentEmbedding(
-        {
-          segmentId: segment.segment_id,
-          modelName: emb.modelName ?? input.embeddingModelName ?? "perch_v2",
-          modelVersion: emb.modelVersion ?? input.embeddingModelVersion ?? "v2",
-          embedding: emb.vector,
-          frameOffsetSec: emb.frameOffsetSec,
-          frameDurationSec: emb.frameDurationSec,
-          qualityScore: emb.qualityScore,
-        },
-        client,
-      );
-      embeddingsInserted += 1;
-    }
-
     await client.query(
       `update audio_segments
           set transcription_status = 'done',
@@ -913,7 +866,7 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
     );
     await rebuildSessionBundles(client, segment.session_id);
     await client.query("commit");
-    return { inserted, skipped: 0, embeddingsInserted, embeddingsSkipped };
+    return { inserted, skipped: 0 };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
     throw error;

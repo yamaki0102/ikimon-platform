@@ -17,11 +17,6 @@ import { registerGuideApiRoutes } from "./routes/guideApi.js";
 import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
-import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
-import { registerObservationEventRecapRoutes } from "./routes/observationEventRecapApi.js";
-import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
-import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
-import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
@@ -526,13 +521,6 @@ export function buildApp() {
   void registerWalkApiRoutes(app);
   void registerResearchApiRoutes(app);
   void registerFieldscanApiRoutes(app);
-  void registerObservationEventApiRoutes(app);
-  void registerObservationEventRecapRoutes(app);
-  void registerObservationEventPagesRoutes(app);
-  void registerObservationFieldsApiRoutes(app);
-
-  // 5 分周期の AI Quest cron(activity ありのセッションのみ)
-  startQuestScheduler();
 
   return app;
 }

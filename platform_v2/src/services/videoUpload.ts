@@ -704,4 +704,6 @@ async function kickVideoAiAfterFinalize(record: VideoRecord, observationId: stri
   } finally {
     client.release();
   }
+  const { processMediaProcessingJobs } = await import("./mediaProcessingQueue.js");
+  await processMediaProcessingJobs(2);
 }

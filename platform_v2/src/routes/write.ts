@@ -11,7 +11,6 @@ import { issueRememberToken, revokeRememberToken } from "../services/rememberTok
 import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../services/observationPhotoUpload.js";
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
 import { refreshProfileNoteDigestForObservation } from "../services/profileNoteDigest.js";
-import { hookObservationToEvent } from "../services/observationEventDualWrite.js";
 import {
   addReviewerAuthorityEvidence,
   grantReviewerAuthority,
@@ -265,14 +264,6 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       void refreshProfileNoteDigestForObservation({
         userId: request.body.userId,
         visitId: result.visitId,
-      }).catch(() => undefined);
-      void hookObservationToEvent({
-        body: request.body as unknown as Parameters<typeof hookObservationToEvent>[0]["body"],
-        result: {
-          visitId: result.visitId,
-          occurrenceId: result.occurrenceId,
-          occurrenceIds: result.occurrenceIds,
-        },
       }).catch(() => undefined);
       return {
         ok: true,
