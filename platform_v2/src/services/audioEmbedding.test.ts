@@ -6,7 +6,7 @@ import { __test__ } from "./audioEmbedding.js";
 
 test("audio embedding migration sets up pgvector and ivfflat index", async () => {
   const migration = await readFile(
-    path.join(process.cwd(), "db", "migrations", "0036_audio_embeddings.sql"),
+    path.join(process.cwd(), "db", "migrations", "0037_audio_embeddings.sql"),
     "utf8",
   );
   assert.match(migration, /CREATE EXTENSION IF NOT EXISTS vector/);

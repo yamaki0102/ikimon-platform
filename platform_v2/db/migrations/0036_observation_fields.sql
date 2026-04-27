@@ -63,6 +63,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_fields_cert_unique
     WHERE certification_id <> '';
 
 -- 観察会セッションを field に紐付け
+-- owner-sensitive-ok: nullable UUID 列の追加のみ。既存行は NULL となり、staging/prod の app
+-- role でも実害がない (rollback 不要、新規セッションから利用)。
 ALTER TABLE observation_event_sessions
     ADD COLUMN IF NOT EXISTS field_id UUID REFERENCES observation_fields(field_id) ON DELETE SET NULL,
     ADD COLUMN IF NOT EXISTS template_source_session_id UUID REFERENCES observation_event_sessions(session_id) ON DELETE SET NULL;
