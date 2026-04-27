@@ -3288,6 +3288,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let selectedMediaRole = 'primary_subject';
         let selectedOriginalVideoFile = null;
         let selectedVideoWasTrimmed = false;
+        let mediaAutofillSequence = 0;
         let pendingMediaRetryObservationId = '';
         let videoTrimState = null;
         let recordMap = null;
@@ -3649,7 +3650,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           };
         };
 
-        const readCurrentPosition = () => new Promise((resolve, reject) => {
+        const readCurrentPosition = (options) => new Promise((resolve, reject) => {
           if (!navigator.geolocation) {
             reject(new Error('geolocation_unavailable'));
             return;
@@ -3657,15 +3658,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           navigator.geolocation.getCurrentPosition(
             (position) => resolve(position),
             () => reject(new Error('geolocation_failed')),
-            { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+            {
+              enableHighAccuracy: options && Object.prototype.hasOwnProperty.call(options, 'enableHighAccuracy') ? Boolean(options.enableHighAccuracy) : true,
+              maximumAge: options && Number.isFinite(Number(options.maximumAge)) ? Number(options.maximumAge) : 30000,
+              timeout: options && Number.isFinite(Number(options.timeout)) ? Number(options.timeout) : 10000,
+            },
           );
         });
 
-        const applyCurrentLocation = async (sourceLabel, silent) => {
+        const applyCurrentLocation = async (sourceLabel, silent, options) => {
           if (!form) return false;
           locateButtons.forEach((button) => { button.disabled = true; });
           try {
-            const position = await readCurrentPosition();
+            const position = await readCurrentPosition(options);
+            if (options && typeof options.guard === 'function' && !options.guard()) return false;
             setRecordLocation(position.coords.latitude, position.coords.longitude, sourceLabel, { zoom: 16 });
             return true;
           } catch (_) {
@@ -3681,6 +3687,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             setAutofillStatus([]);
             return;
           }
+          const guard = opts && typeof opts.guard === 'function' ? opts.guard : () => true;
           const filled = [];
           const draftMetadata = normalizeDraftMetadata(metadata);
           let exif = {};
@@ -3689,6 +3696,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           } catch (_) {
             exif = {};
           }
+          if (!guard()) return;
           const metadataCapturedAt = parseMetadataDate(draftMetadata.capturedAt);
           const capturedAt = exif.capturedAt || metadataCapturedAt || (file.lastModified ? new Date(file.lastModified) : null);
           const observedValue = dateToLocalInputValue(capturedAt);
@@ -3706,13 +3714,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               setRecordLocation(metadataLocation.lat, metadataLocation.lng, '撮影時の現在地', { zoom: 16 });
               filled.push('撮影時の位置');
             } else if (opts && opts.autoLocateFreshCapture && coordsMissing() && isFreshMedia()) {
-              const located = await applyCurrentLocation('撮影時の現在地', true);
+              const located = await applyCurrentLocation('撮影時の現在地', true, {
+                enableHighAccuracy: false,
+                maximumAge: 60000,
+                timeout: 2500,
+                guard,
+              });
+              if (!guard()) return;
               if (located) filled.push('現在地');
             }
           }
+          if (!guard()) return;
           setAutofillStatus(filled);
           syncPreview();
           syncLocationNudge();
+        };
+
+        const scheduleMediaAutofill = (file, metadata, opts) => {
+          const sequence = ++mediaAutofillSequence;
+          const guard = () => sequence === mediaAutofillSequence;
+          window.requestAnimationFrame(() => {
+            window.setTimeout(() => {
+              if (!guard()) return;
+              void applyMediaAutofill(file, metadata, { ...(opts || {}), guard }).catch(() => {
+                if (!guard()) return;
+                setAutofillStatus([]);
+                syncLocationNudge();
+              });
+            }, 0);
+          });
         };
 
         const buildImpactHtml = (impact, extraStatus) => {
@@ -4287,6 +4317,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         };
 
         const clearSelectedMedia = () => {
+          mediaAutofillSequence += 1;
           selectedMediaFiles = [];
           selectedVideoFile = null;
           selectedPrimaryPhotoFile = null;
@@ -4518,9 +4549,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (!normalized.video) {
             resetVideoTrim();
             resetVideoProgress();
-            await applyMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' });
+            scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' });
           } else if (videoProgressWrap) {
-            await applyMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'video' });
+            scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'video' });
             let trimReady = true;
             try {
               await loadVideoTrimEditor(normalized.video);
@@ -4697,6 +4728,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           input.addEventListener('change', async () => {
             const files = input.files ? Array.from(input.files) : [];
             const kind = input.getAttribute('data-capture-kind') || 'gallery';
+            selectedMediaCapturedAt = null;
+            mediaAutofillSequence += 1;
             clearMediaInputsExcept(input);
             const normalized = normalizeSelectedFiles(files, kind);
             if (!files.length || (!normalized.photos.length && !normalized.video)) {
@@ -4713,12 +4746,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               renderPreviewSelection();
               resetVideoProgress();
               resetVideoTrim();
-              await applyMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' });
+              scheduleMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' });
             } else if (videoProgressWrap) {
               setSelectedMediaRole(kind === 'video' ? 'sound_motion' : 'primary_subject');
               showRecordFormForMedia(files, kind);
               renderPreviewSelection();
-              await applyMediaAutofill(normalized.photos[0] || normalized.video, {}, { autoLocateFreshCapture: kind === 'video' });
+              scheduleMediaAutofill(normalized.photos[0] || normalized.video, {}, { autoLocateFreshCapture: kind === 'video' });
               let trimReady = true;
               try {
                 await loadVideoTrimEditor(normalized.video);
@@ -4749,7 +4782,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             }
             selectedPrimaryPhotoFile = file;
             syncVideoPrimaryPhotoUi();
-            await applyMediaAutofill(file, {}, { autoLocateFreshCapture: false });
+            scheduleMediaAutofill(file, {}, { autoLocateFreshCapture: false });
           });
         }
         if (videoPrimaryPhotoClear) {
