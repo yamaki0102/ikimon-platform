@@ -311,6 +311,11 @@ function safeUploadPath(legacyPublicRoot: string, relativePath: string): string 
   return absolute;
 }
 
+function isLocalObservationUploadPath(relativePath: string): boolean {
+  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalized.startsWith("uploads/v2-observations/");
+}
+
 async function deleteCloudflareVideo(state: SmokeState): Promise<void> {
   const uid = state.video?.uid;
   if (!uid) return;
@@ -432,7 +437,9 @@ async function cleanupDatabaseAndFiles(state: SmokeState): Promise<Record<string
       summary.storagePaths = storagePaths;
 
       let deletedFiles = 0;
-      for (const storagePath of new Set(storagePaths)) {
+      const localStoragePaths = storagePaths.filter(isLocalObservationUploadPath);
+      summary.localStoragePaths = localStoragePaths;
+      for (const storagePath of new Set(localStoragePaths)) {
         const absolute = safeUploadPath(config.legacyPublicRoot, storagePath);
         await rm(absolute, { force: true });
         deletedFiles += 1;
