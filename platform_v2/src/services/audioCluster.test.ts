@@ -128,3 +128,41 @@ test("audio_v2_embedding_worker.py wires Perch -> v2 callback with auth", async 
   assert.match(source, /include_embedding/);
   assert.match(source, /audio_embeddings/);
 });
+
+test("admin sound-review SSR page is gated to admin/analyst sessions", async () => {
+  const pageSource = await readFile(
+    path.join(process.cwd(), "src", "routes", "adminSoundReviewPages.ts"),
+    "utf8",
+  );
+  assert.match(pageSource, /\/admin\/sound-review/);
+  assert.match(pageSource, /isAdminOrAnalystRole/);
+  assert.match(pageSource, /reply\.code\(403\)/);
+
+  const uiSource = await readFile(
+    path.join(process.cwd(), "src", "ui", "admin", "soundReview.ts"),
+    "utf8",
+  );
+  assert.match(uiSource, /confirm\('/);
+  assert.match(uiSource, /reject\('/);
+  assert.match(uiSource, /flag-for-review/);
+  assert.match(uiSource, /cluster-runs/);
+  assert.match(uiSource, /escapeHtml/);
+
+  const appSource = await readFile(
+    path.join(process.cwd(), "src", "app.ts"),
+    "utf8",
+  );
+  assert.match(appSource, /registerAdminSoundReviewPagesRoutes/);
+});
+
+test("admin audio API accepts admin session OR write key", async () => {
+  const source = await readFile(
+    path.join(process.cwd(), "src", "routes", "adminAudioApi.ts"),
+    "utf8",
+  );
+  assert.match(source, /assertAdminAudioAccess/);
+  assert.match(source, /isAdminOrAnalystRole/);
+  assert.match(source, /assertPrivilegedWriteAccess/);
+  // helper should not require reviewerUserId in body when session derives it
+  assert.doesNotMatch(source, /if \(!body\.reviewerUserId\) \{[^}]*reviewerUserId_required/);
+});

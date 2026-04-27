@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { runClusterBatch } from "../services/audioCluster.js";
 import {
   confirmCluster,
@@ -14,6 +14,21 @@ import {
   type PropagateMode,
 } from "../services/audioPropagation.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
+import { getSessionFromCookie } from "../services/authSession.js";
+import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
+
+async function assertAdminAudioAccess(request: FastifyRequest): Promise<{
+  reviewerUserId: string;
+  via: "session" | "write_key";
+}> {
+  const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+  if (session && !session.banned && isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
+    return { reviewerUserId: session.userId, via: "session" };
+  }
+  // Fallback: privileged write key (for cron / smoke / external admin tooling).
+  assertPrivilegedWriteAccess(request);
+  return { reviewerUserId: "system_write_key", via: "write_key" };
+}
 
 const VALID_REVIEW_STATUSES: ReadonlyArray<ReviewStatus | "any"> = [
   "ai_candidate",
@@ -54,7 +69,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     };
   }>("/api/v1/admin/audio/clusters", async (request, reply) => {
     try {
-      assertPrivilegedWriteAccess(request);
+      await assertAdminAudioAccess(request);
       const status = (request.query.status ?? "needs_review") as ReviewStatus | "any";
       if (!VALID_REVIEW_STATUSES.includes(status)) {
         reply.code(400);
@@ -85,7 +100,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     "/api/v1/admin/audio/clusters/:id",
     async (request, reply) => {
       try {
-        assertPrivilegedWriteAccess(request);
+        await assertAdminAudioAccess(request);
         const detail = await getClusterDetail(request.params.id);
         if (!detail) {
           reply.code(404);
@@ -107,7 +122,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     "/api/v1/admin/audio/clusters/:id/representative",
     async (request, reply) => {
       try {
-        assertPrivilegedWriteAccess(request);
+        await assertAdminAudioAccess(request);
         const segmentId = request.body?.segmentId;
         if (!segmentId) {
           reply.code(400);
@@ -137,22 +152,19 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     };
   }>("/api/v1/admin/audio/clusters/:id/confirm", async (request, reply) => {
     try {
-      assertPrivilegedWriteAccess(request);
+      const auth = await assertAdminAudioAccess(request);
       const body = request.body ?? {};
       if (!body.label) {
         reply.code(400);
         return { ok: false, error: "label_required" };
       }
-      if (!body.reviewerUserId) {
-        reply.code(400);
-        return { ok: false, error: "reviewerUserId_required" };
-      }
+      const reviewerUserId = body.reviewerUserId ?? auth.reviewerUserId;
 
       await confirmCluster({
         clusterId: request.params.id,
         taxonId: body.taxonId ?? null,
         label: body.label,
-        reviewerUserId: body.reviewerUserId,
+        reviewerUserId,
         gbifPublishEligible: body.gbifPublishEligible,
         notes: body.notes,
       });
@@ -180,15 +192,12 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     Body: { reviewerUserId?: string; reason?: string };
   }>("/api/v1/admin/audio/clusters/:id/reject", async (request, reply) => {
     try {
-      assertPrivilegedWriteAccess(request);
+      const auth = await assertAdminAudioAccess(request);
       const body = request.body ?? {};
-      if (!body.reviewerUserId) {
-        reply.code(400);
-        return { ok: false, error: "reviewerUserId_required" };
-      }
+      const reviewerUserId = body.reviewerUserId ?? auth.reviewerUserId;
       await rejectCluster(
         request.params.id,
-        body.reviewerUserId,
+        reviewerUserId,
         body.reason ?? "rejected_without_reason",
       );
       return { ok: true, clusterId: request.params.id };
@@ -203,7 +212,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     "/api/v1/admin/audio/clusters/:id/flag-for-review",
     async (request, reply) => {
       try {
-        assertPrivilegedWriteAccess(request);
+        await assertAdminAudioAccess(request);
         await flagForReview(request.params.id);
         return { ok: true, clusterId: request.params.id };
       } catch (error) {
@@ -224,7 +233,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     };
   }>("/api/v1/admin/audio/clusters/:id/propagate", async (request, reply) => {
     try {
-      assertPrivilegedWriteAccess(request);
+      await assertAdminAudioAccess(request);
       const body = request.body ?? {};
       if (!body.taxonName) {
         reply.code(400);
@@ -254,7 +263,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
     };
   }>("/api/v1/admin/audio/cluster-runs", async (request, reply) => {
     try {
-      assertPrivilegedWriteAccess(request);
+      await assertAdminAudioAccess(request);
       const body = request.body ?? {};
       const summary = await runClusterBatch({
         modelName: body.modelName,
