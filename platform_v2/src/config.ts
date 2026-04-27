@@ -16,6 +16,13 @@ export type AppConfig = {
     monthlyBudgetJpy: number;
     assumedJpyPerUsd: number;
   };
+  aiBudget: {
+    hotMonthlyBudgetJpy: number;
+    warmMonthlyBudgetJpy: number;
+    coldMonthlyBudgetJpy: number;
+    assumedJpyPerUsd: number;
+    overrideActive: boolean;
+  };
   legacyDataRoot: string;
   legacyPublicRoot: string;
   legacyUploadsRoot: string;
@@ -132,6 +139,13 @@ export function loadConfig(): AppConfig {
       maxOutputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_OUTPUT_TOKENS, 300)),
       monthlyBudgetJpy: parsePositiveNumber(process.env.PROFILE_DIGEST_MONTHLY_BUDGET_JPY, 1000),
       assumedJpyPerUsd: parsePositiveNumber(process.env.PROFILE_DIGEST_ASSUMED_JPY_PER_USD, 150),
+    },
+    aiBudget: {
+      hotMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_HOT_MONTHLY_BUDGET_JPY, 10000),
+      warmMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_WARM_MONTHLY_BUDGET_JPY, 5000),
+      coldMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_COLD_MONTHLY_BUDGET_JPY, 5000),
+      assumedJpyPerUsd: parsePositiveNumber(process.env.AI_BUDGET_JPY_PER_USD, 150),
+      overrideActive: parseBoolean(process.env.AI_BUDGET_OVERRIDE, false),
     },
     legacyDataRoot: legacyRoots.legacyDataRoot,
     legacyPublicRoot: legacyRoots.publicRoot,
