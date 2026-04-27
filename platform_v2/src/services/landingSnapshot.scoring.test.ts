@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  isKnownLandingDummyObservation,
   isLandingHeroCandidateEligible,
   resolveLandingDisplayName,
   scoreLandingHeroCandidate,
@@ -92,4 +93,23 @@ test("resolveLandingDisplayName ignores unresolved placeholders and uses identif
   assert.equal(resolveLandingDisplayName("Unresolved", "モンシロチョウ", null), "モンシロチョウ");
   assert.equal(resolveLandingDisplayName("同定待ち", "Awaiting ID", "AI候補の花"), "AI候補の花");
   assert.equal(resolveLandingDisplayName("", null, null), "同定待ち");
+});
+
+test("known winter dummy observations stay out of landing surfaces", () => {
+  assert.equal(isKnownLandingDummyObservation({
+    displayName: "アブラゼミ",
+    observedAt: "2026-02-17T09:00:00.000Z",
+  }), true);
+  assert.equal(isKnownLandingDummyObservation({
+    displayName: "アジサイ",
+    observedAt: "2026-01-10T09:00:00.000Z",
+  }), true);
+  assert.equal(isKnownLandingDummyObservation({
+    displayName: "アブラゼミ",
+    observedAt: "2026-07-17T09:00:00.000Z",
+  }), false);
+  assert.equal(isKnownLandingDummyObservation({
+    displayName: "モンシロチョウ",
+    observedAt: "2026-02-17T09:00:00.000Z",
+  }), false);
 });
