@@ -6,5 +6,5 @@ After=network-online.target ikimon-v2-media-worker.service
 Type=oneshot
 User=root
 WorkingDirectory=/var/www/ikimon.life/repo
-ExecStart=/var/www/ikimon.life/repo/ops/cron/run_production_media_smoke.sh
+ExecStart=/bin/bash /var/www/ikimon.life/repo/ops/cron/run_production_media_smoke.sh
 Nice=10
