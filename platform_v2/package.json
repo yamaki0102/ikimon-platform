@@ -35,6 +35,7 @@
     "smoke:v2-lane": "tsx src/scripts/smokeV2Lane.ts",
     "smoke:v2-read-lane": "tsx src/scripts/smokeV2ReadLane.ts",
     "smoke:v2-write-lane": "tsx src/scripts/smokeV2WriteLane.ts",
+    "smoke:production-media": "tsx src/scripts/smokeProductionMediaUpload.ts",
     "smoke:audio-archive": "tsx src/scripts/smokeAudioArchive.ts",
     "smoke:audio-embedding": "tsx src/scripts/smokeAudioEmbedding.ts",
     "smoke:manual-occurrence-map": "tsx src/scripts/smokeManualOccurrenceMap.ts",

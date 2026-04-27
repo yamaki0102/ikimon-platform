@@ -302,9 +302,6 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         relative_path: relativePath,
       },
     }]);
-    void import("./mediaProcessingQueue.js")
-      .then(({ processMediaProcessingJobs }) => processMediaProcessingJobs(1))
-      .catch(() => undefined);
   } catch {
     // Media jobs are a best-effort follow-up; the photo itself is already durable.
   }
