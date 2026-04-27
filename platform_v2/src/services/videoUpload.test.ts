@@ -29,6 +29,8 @@ test("video upload supports official tus direct uploads and ready webhooks", asy
   assert.match(source, /verifyStreamWebhookSignature/);
   assert.match(routeSource, /webhook-signature/);
   assert.match(routeSource, /\/api\/v1\/videos\/stream-webhook/);
+  assert.match(routeSource, /pendingVideoFinalizePayload/);
+  assert.match(routeSource, /ok: true, video: pendingVideoFinalizePayload\(request\.params\.uid\)/);
   assert.match(source, /video_thumbnail_refresh/);
   assert.match(source, /video_ready_reassess/);
   assert.match(source, /enqueueMediaProcessingJobs/);
