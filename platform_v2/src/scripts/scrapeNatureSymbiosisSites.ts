@@ -61,10 +61,17 @@ interface ProcessedSite {
 // HTTP (no extra deps)
 // --------------------------------------------------------------------------
 
-function fetchJson<T>(url: string): Promise<T | null> {
+const MOE_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Referer": "https://policies.env.go.jp/nature/biodiversity/30by30alliance/kyousei/nintei/index.html",
+  "Accept": "application/json, */*",
+  "Accept-Language": "ja,en;q=0.5",
+};
+
+function fetchJson<T>(url: string, headers: Record<string, string> = {}): Promise<T | null> {
   return new Promise((resolve, reject) => {
     const fn = url.startsWith("https:") ? https : http;
-    const req = fn.get(url, (res) => {
+    const req = fn.get(url, { headers }, (res) => {
       if (res.statusCode === 404) { res.resume(); resolve(null); return; }
       if (!res.statusCode || res.statusCode >= 400) {
         reject(new Error(`HTTP ${res.statusCode} for ${url}`));
@@ -118,7 +125,7 @@ async function geocode(name: string, prefecture: string, city: string): Promise<
     await sleep(1100);
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=ja&countrycodes=jp`;
     try {
-      const data = await fetchJson<Array<{ lat: string; lon: string }>>(url);
+      const data = await fetchJson<Array<{ lat: string; lon: string }>>(url, { "User-Agent": GEOCODE_UA });
       if (data && data.length > 0 && data[0]) {
         const lat = parseFloat(data[0].lat);
         const lng = parseFloat(data[0].lon);
@@ -148,7 +155,7 @@ async function collectAllSites(): Promise<ProcessedSite[]> {
       const url = `${BASE_URL}/${year}/${region}.json`;
       let raw: MoeSiteRaw[] | null = null;
       try {
-        raw = await fetchJson<MoeSiteRaw[]>(url);
+        raw = await fetchJson<MoeSiteRaw[]>(url, MOE_HEADERS);
         await sleep(200);
       } catch (err) {
         console.warn(`[fetch] ${year}/${region}: ${(err as Error).message}`);
