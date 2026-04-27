@@ -325,37 +325,43 @@ DAU 100、1 ユーザー 5 観察/日 = 月 15,000 観察 → 安全マージン
 
 ---
 
-## 8. Sprint ロードマップ
+## 8. Sprint ロードマップ (2026-04-28 実装後の現況)
 
-### Sprint 0 (3 日, 本仕様書) ✅
+### Sprint 0 ✅ (PR #184)
 - `docs/spec/ikimon_biodiversity_freshness_os_spec.md` 作成
 - 既存制約 (`knowledge_claims` 260/320 字, `access_policy` 4 値) との整合確認
 
-### Sprint 1 (2 週): 基盤
+### Sprint 1 ✅ (PR #184) — 基盤
 - migration: `0045_source_snapshots`, `0046_freshness_registry`, `0047_ai_curator_runs`, `0048_ai_cost_log`
-- service: `aiCostLogger.ts`, `aiBudgetGate.ts`, `geminiFlashLiteClient.ts`
-- 改修: `observationReassess.ts` で cost log + budget gate 配線
-- PoC: `mcp_servers/ikimon-db-mcp/` 最小 + invasive-law-curator dry-run 1 回
-- 期待: ダッシュボードで先週 AI コスト + freshness 状態が見える
+- service: `aiCostLogger.ts`, `aiBudgetGate.ts`
+- staging 適用済 (4 テーブル + 10 件 freshness_registry seed)
 
-### Sprint 2 (2 週): Hot Personalization + Invasive/Redlist
-- migration: `0045_invasive_status_versions`, `0046_risk_status_versions`, `0047_claim_review_queue`, `0048_user_output_cache`
-- 改修: `observation_reassess.md` v3, `taxon_insight.md`, `observationReassess.ts` (user_output_cache 経由化)
-- 新規: redlist-curator (CMA, 月次)
-- 期待: 法令/レッドリスト更新 PR 自動生成、初回人手承認
+### Sprint 2 ✅ (PR #185) — Versioned Knowledge Store + Hot wiring + Dashboard
+- migration: `0049_knowledge_claims_compat` (cross-branch FK 用) + `0050_invasive_status_versions` 〜 `0058_inferred_absence_candidates` (合計 10 本)
+- service: `userOutputCache.ts` (CRUD + cache key + invalidation API)
+- 改修: `observationReassess.ts` の `runGemini` に budget gate + cost log を配線、layer/endpoint/provider/model/tokens/cost/escalated/cache_hit を ai_cost_log に記録
+- 新規ルート: `routes/adminDataHealth.ts` (Evaluation Gate ダッシュボード — 月次AIコスト×3 layer + freshness_registry + claim_review_queue + staleness_alerts)
+- staging 適用済
 
-### Sprint 3 (2 週): Paper + Cold cron + Cache invalidate
-- 新規: paper-research-curator + `0049_research_paper_ingest_queue`, `0050_staleness_alerts`
-- migration: `knowledge_claims.claim_embedding pgvector(1536)` 追加
-- systemd timer: audio-cluster (毎時), audio-embedding (15分, Flex), cache-invalidate (5分)
-- 改修: `observationFeedbackKnowledge.ts` で claim_embedding semantic fallback
-- 期待: 日次論文 ingest, version 更新で user_output_cache が invalidate
+### Sprint 3 ✅ (PR #186) — Personalization + pgvector + Cold cron skeleton
+- migration: `0059_knowledge_claims_embedding` (pgvector 1536d, ivfflat lists=50), `0060_research_paper_ingest_queue`
+- service: `profileDigestPromptLoader.ts` (≤240 字 summary, profile_note_digests 由来)
+- 改修: `observation_reassess.md` v3 + `taxon_insight.md` で `${profileDigestSummary}` placeholder 追加、`observationReassess.ts` で digest 取得 → renderPrompt
+- cron: `src/scripts/cron/runCacheInvalidate.ts` (gc + freshness_registry status refresh + overdue alert 起票) + systemd unit `ikimon-cold-cache-invalidate.{service,timer}` (運用者手動 enable)
+- staging 適用済
 
-### Sprint 4 (2 週): Satellite + Evaluation Gate 本番化
-- migration: `0051_taxonomy_versions`, `0052_taxon_name_mappings`, `0053_place_environment_snapshots`, `0054_inferred_absence_candidates`
-- 新規: satellite-update-curator
-- 新規ルート: `routes/adminDataHealth.ts` + view
-- 期待: 6 指標可視化、CMA 4 本稼働
+### Sprint 4 ✅ (PR #187) — MCP server + Curators + GitHub Action
+- `platform_v2/mcp_servers/ikimon-db-mcp/` (README + permissions.json + server.ts スケルトン)
+  - tools: `query_readonly`, `propose_write`, `schema_introspect`, `record_run_status`, `register_snapshot`
+  - 信頼境界 §1.5 制約は code で強制 (knowledge_claims の use_in_feedback / 長さ制約)
+- 4 curator system prompts: `mcp_servers/curators/{invasive-law,redlist,paper-research,satellite-update}-curator.md`
+- `.github/workflows/agent-curator-pr.yml` — proposal SQL → 自動 PR 化 + `agent-generated` ラベル
+
+### Sprint 5+ (将来)
+- `versionedKnowledgeReader.ts` + `fetchUserOutputCache` の `observationReassess.ts` 統合 (cache hit ratio 50% 達成)
+- `ikimon-db-mcp` の `@modelcontextprotocol/sdk` 実 transport 統合 (現在は placeholder)
+- 各 curator の dry-run → PoC → 本走 (Anthropic Managed Agents 接続)
+- `taxon_precision_policy` × 危険種位置遮断の検証パイプライン
 
 ---
 
