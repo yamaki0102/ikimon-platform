@@ -9,6 +9,7 @@ import {
   type AudioDetectionCallbackInput,
   type AudioPrivacyCallbackInput,
 } from "../services/fieldscanAudio.js";
+import { findSimilarSegments } from "../services/audioEmbedding.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
@@ -51,6 +52,7 @@ function privilegedAudioStatusCode(message: string): number {
  * - POST /api/v1/fieldscan/audio/callback       外部同定ワーカーから detection 結果を登録 (privileged)
  * - POST /api/v1/fieldscan/audio/privacy-callback 人声 privacy 判定を反映 (privileged)
  * - GET  /api/v1/fieldscan/audio/segment/:id    owner-only playback
+ * - GET  /api/v1/fieldscan/audio/segment/:id/similar  類似 segment 検索 (privileged)
  * - GET  /api/v1/fieldscan/session/:id/recap    セッション単位の集計
  */
 export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<void> {
@@ -97,6 +99,31 @@ export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<
         return { ok: true, ...result };
       } catch (error) {
         const message = error instanceof Error ? error.message : "privacy_callback_failed";
+        reply.code(privilegedAudioStatusCode(message));
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  app.get<{
+    Params: { id: string };
+    Querystring: { limit?: string; minSimilarity?: string; modelName?: string; modelVersion?: string };
+  }>(
+    "/api/v1/fieldscan/audio/segment/:id/similar",
+    async (request, reply) => {
+      try {
+        assertPrivilegedWriteAccess(request);
+        const limitRaw = Number(request.query.limit ?? "");
+        const minRaw = Number(request.query.minSimilarity ?? "");
+        const results = await findSimilarSegments(request.params.id, {
+          limit: Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined,
+          minSimilarity: Number.isFinite(minRaw) ? minRaw : undefined,
+          modelName: request.query.modelName,
+          modelVersion: request.query.modelVersion,
+        });
+        return { ok: true, segmentId: request.params.id, results };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "similar_search_failed";
         reply.code(privilegedAudioStatusCode(message));
         return { ok: false, error: message };
       }
