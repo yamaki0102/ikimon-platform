@@ -34,7 +34,15 @@ import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
-import { confidenceLabel } from "../services/observationAiAssessment.js";
+import {
+  confidenceLabel,
+  invasiveActionLabel,
+  mhlwCategoryLabel,
+  sizeClassLabel,
+  type InvasiveResponse,
+  type NoveltyHint,
+  type SizeAssessment,
+} from "../services/observationAiAssessment.js";
 import {
   getObservationVisitBundle,
   type ObservationVisitBundle,
@@ -969,6 +977,100 @@ function renderReactionBar(
     : "";
 }
 
+function renderInvasiveCard(invasive: InvasiveResponse, subjectName: string): string {
+  const categoryLabel = mhlwCategoryLabel(invasive.mhlwCategory);
+  const pillClass = invasive.mhlwCategory ? `detail-pill detail-pill--${invasive.mhlwCategory}` : "detail-pill detail-pill--prevention";
+  const actionLabel = invasiveActionLabel(invasive.recommendedAction);
+  const isStrict = invasive.mhlwCategory === "iaspecified";
+  const legalBlock = invasive.legalWarning
+    ? `<div class="detail-warning-box">⚖️ ${escapeHtml(invasive.legalWarning)}</div>`
+    : "";
+  const regional = invasive.regionalCaveat
+    ? `<p class="detail-card-meta">📍 地域差: ${escapeHtml(invasive.regionalCaveat)}</p>`
+    : "";
+  const basis = invasive.actionBasis
+    ? `<p class="detail-card-meta">出典: ${escapeHtml(invasive.actionBasis)}</p>`
+    : "";
+  const followBtn = subjectName
+    ? `<button class="detail-action-btn" type="button" data-follow-taxon="${escapeHtml(subjectName)}">この種をフォロー</button>`
+    : "";
+  const reportBtn = isStrict
+    ? `<a class="detail-action-btn detail-action-btn--danger" href="https://www.env.go.jp/nature/intro/4control/list.html" target="_blank" rel="noopener">環境省に通報</a>`
+    : "";
+  return `<section class="detail-card detail-card--lens-invasive">
+    <h3 class="detail-card-title">🚨 外来種の可能性 <span class="${pillClass}">${escapeHtml(categoryLabel || "外来種")}</span></h3>
+    <div class="detail-card-body">
+      ${actionLabel ? `<p style="font-size:18px;font-weight:800;margin:6px 0 4px">推奨対応: ${escapeHtml(actionLabel)}</p>` : ""}
+      ${legalBlock}
+      ${basis}
+      ${regional}
+    </div>
+    <div class="detail-action-row">
+      ${followBtn}
+      ${reportBtn}
+    </div>
+    <p class="detail-card-hedge">${escapeHtml(invasive.hedge)} 駆除前に必ずお住まいの自治体（環境部局）にご確認ください。</p>
+  </section>`;
+}
+
+function renderSizeCard(size: SizeAssessment, subjectName: string): string {
+  const cls = size.sizeClass;
+  const isExceptional = cls === "exceptional";
+  const pill = isExceptional
+    ? `<span class="detail-pill detail-pill--exceptional">${escapeHtml(sizeClassLabel(cls))}</span>`
+    : cls
+      ? `<span class="detail-pill" style="background:rgba(59,130,246,.10);color:#1e3a8a">${escapeHtml(sizeClassLabel(cls))}</span>`
+      : "";
+  const typical = size.typicalSizeCm !== null
+    ? `<p style="margin:4px 0;font-size:15px">平均サイズ: <strong>${size.typicalSizeCm.toFixed(1)} cm</strong></p>`
+    : "";
+  const observed = size.observedSizeEstimateCm !== null
+    ? `<p style="margin:4px 0;font-size:18px">この個体: <strong>${size.observedSizeEstimateCm.toFixed(1)} cm</strong></p>`
+    : `<p class="detail-card-meta">画像内のスケール参照（手・指・コインなど）が見当たらず、長さ推定はできていません。</p>`;
+  const ranking = size.rankingHint
+    ? `<p style="margin:4px 0;color:var(--accent-hover);font-weight:700">${escapeHtml(size.rankingHint)}</p>`
+    : "";
+  const basis = size.basis
+    ? `<p class="detail-card-meta">推定根拠: ${escapeHtml(size.basis)}</p>`
+    : "";
+  const _name = subjectName;
+  void _name;
+  return `<section class="detail-card detail-card--lens-size">
+    <h3 class="detail-card-title">📏 大きさの目安 ${pill}</h3>
+    <div class="detail-card-body">
+      ${typical}
+      ${observed}
+      ${ranking}
+      ${basis}
+    </div>
+    <p class="detail-card-hedge">${escapeHtml(size.hedge)}</p>
+  </section>`;
+}
+
+function renderNoveltyCard(novelty: NoveltyHint): string {
+  const pct = novelty.noveltyScore !== null ? Math.round(novelty.noveltyScore * 100) : null;
+  return `<section class="detail-card detail-card--lens-novelty">
+    <h3 class="detail-card-title">🔍 もしかして新種？ <span class="detail-pill detail-pill--novelty">${pct !== null ? `${pct}% の可能性（参考）` : "可能性あり"}</span></h3>
+    <div class="detail-card-body">
+      <div class="detail-warning-box" style="background:rgba(168,85,247,.10);border-color:rgba(168,85,247,.25);color:#581c87">これはAIの仮説です。新種判定はAIにはできず、専門研究者による形態・遺伝子解析を経て初めて確定します。</div>
+      ${novelty.reasoning ? `<p style="margin-top:10px">${escapeHtml(novelty.reasoning)}</p>` : ""}
+    </div>
+    <p class="detail-card-hedge">${escapeHtml(novelty.hedge)}</p>
+  </section>`;
+}
+
+function renderThreeLensCards(subject: ObservationVisitSubject): string {
+  const ai = subject.aiAssessment;
+  if (!ai) return "";
+  const subjectName = ai.recommendedTaxonName || subject.displayName || "";
+  const cards: string[] = [];
+  if (ai.invasiveResponse) cards.push(renderInvasiveCard(ai.invasiveResponse, subjectName));
+  if (ai.sizeAssessment) cards.push(renderSizeCard(ai.sizeAssessment, subjectName));
+  if (ai.noveltyHint) cards.push(renderNoveltyCard(ai.noveltyHint));
+  if (cards.length === 0) return "";
+  return `<div class="detail-three-lens" style="margin-top:14px">${cards.join("")}</div>`;
+}
+
 function renderSubjectHint(
   subject: ObservationVisitSubject,
   siteBrief: SiteBrief | null = null,
@@ -1033,6 +1135,7 @@ function renderSubjectHint(
   const runMeta = aiAssessment.pipelineVersion || aiAssessment.taxonomyVersion
     ? `<p class="obs-hint-foot">run: ${escapeHtml(aiAssessment.pipelineVersion ?? "unknown")} / taxonomy: ${escapeHtml(aiAssessment.taxonomyVersion ?? "unknown")}</p>`
     : `<p class="obs-hint-foot">このメモは観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>`;
+  const threeLens = renderThreeLensCards(subject);
   return `<section class="section obs-hint-section ${bandClass}">
     <div class="obs-hint-head">
       <div>
@@ -1041,6 +1144,7 @@ function renderSubjectHint(
       </div>
       <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
     </div>
+    ${threeLens}
     ${rec}${best}
     <div class="obs-hint-grid">${clues}${missingPhoto}${stop}${placeSeason}${boost}${nextStep}</div>
     ${areaInference}

@@ -21,6 +21,13 @@ import {
   saveUserOutputCache,
 } from "./userOutputCache.js";
 import { buildKnowledgeVersionSet } from "./versionedKnowledgeReader.js";
+import {
+  hasSubjectInvasiveFact,
+  lookupInvasiveStatusFacts,
+  pickSubjectInvasiveFact,
+  type InvasiveLookupTerm,
+  type InvasiveStatusFact,
+} from "./invasiveLookupHelpers.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -211,6 +218,119 @@ function normalizeShotSuggestions(raw: GeminiShotSuggestion[] | undefined): Norm
       priority,
     });
     if (out.length >= 5) break;
+  }
+  return out;
+}
+
+type GbifMatchLite = { canonicalName?: string | null; genus?: string | null; family?: string | null } | GbifMatch | null;
+
+function buildInvasiveLookupTerms(input: {
+  primaryName: string;
+  primaryGbif: GbifMatchLite;
+  coexisting: Array<{ name: string; gbif: GbifMatchLite }>;
+}): InvasiveLookupTerm[] {
+  const terms: InvasiveLookupTerm[] = [];
+  const seen = new Set<string>();
+  const push = (name: string | null | undefined, rank: string, appliesTo: "subject" | "coexisting") => {
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const key = `${trimmed.toLowerCase()}|${rank}|${appliesTo}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    terms.push({ name: trimmed, rank, appliesTo });
+  };
+  if (input.primaryName) push(input.primaryName, "species", "subject");
+  if (input.primaryGbif) {
+    const g = input.primaryGbif as { canonicalName?: string | null; genus?: string | null; family?: string | null };
+    push(g.canonicalName ?? null, "species", "subject");
+    push(g.genus ?? null, "genus", "subject");
+    push(g.family ?? null, "family", "subject");
+  }
+  for (const c of input.coexisting) {
+    push(c.name, "species", "coexisting");
+    if (c.gbif) {
+      const g = c.gbif as { canonicalName?: string | null; genus?: string | null; family?: string | null };
+      push(g.canonicalName ?? null, "species", "coexisting");
+      push(g.genus ?? null, "genus", "coexisting");
+      push(g.family ?? null, "family", "coexisting");
+    }
+  }
+  return terms;
+}
+
+/**
+ * Three-lens hard-gates applied before the LLM output is persisted.
+ * - invasive_response: invasive_status_versions に subject 該当が無い場合は is_invasive=false 化。
+ *                     該当がある場合は mhlw_category / action_basis を実データで補正。
+ * - novelty_hint:      novelty_score >= 0.5 でなければ削除。confidence_band='low' のときは強制削除
+ * - size_assessment:   basis が空、もしくはスケール参照らしい記述が無いとき observed_size_estimate_cm を null 化
+ */
+function applyThreeLensGates(
+  parsed: GeminiJson,
+  context: {
+    bandIsLow: boolean;
+    subjectInvasiveCovered: boolean;
+    subjectInvasiveFact: InvasiveStatusFact | null;
+  },
+): GeminiJson {
+  const out: GeminiJson = { ...parsed } as GeminiJson;
+  const inv = (parsed as Record<string, unknown>)["invasive_response"];
+  if (inv && typeof inv === "object") {
+    const obj = { ...(inv as Record<string, unknown>) };
+    if (obj.is_invasive === true && !context.subjectInvasiveCovered) {
+      obj.is_invasive = false;
+      obj.mhlw_category = null;
+      obj.recommended_action = null;
+      obj.action_basis = "invasive_status_versions に該当データが見つからなかったため、AI判定を保留しました。";
+      obj.legal_warning = "";
+      obj.regional_caveat = "";
+      obj.hedge = obj.hedge || "AI判定です。駆除前に自治体・環境省にご確認ください。";
+    } else if (obj.is_invasive === true && context.subjectInvasiveFact) {
+      // 公式版データで mhlw_category と action_basis を上書き (LLM の hallucination を実データで補正)
+      const fact = context.subjectInvasiveFact;
+      const factCategory = fact.mhlwCategory === "none" ? null : fact.mhlwCategory;
+      // none なら is_invasive そのものを false 化
+      if (factCategory === null) {
+        obj.is_invasive = false;
+        obj.mhlw_category = null;
+        obj.recommended_action = null;
+      } else {
+        obj.mhlw_category = factCategory;
+        // iaspecified は 'controlled_removal' を強制的に 'report_only' に格下げ
+        if (factCategory === "iaspecified" && obj.recommended_action === "controlled_removal") {
+          obj.recommended_action = "report_only";
+        }
+        // source_excerpt があれば action_basis を補強
+        if (fact.sourceExcerpt && fact.sourceExcerpt.trim().length > 0) {
+          const existing = typeof obj.action_basis === "string" ? obj.action_basis : "";
+          obj.action_basis = existing
+            ? `${existing} / 出典: ${fact.sourceExcerpt}`
+            : `環境省 ${factCategory} (${fact.scientificName})。出典: ${fact.sourceExcerpt}`;
+        }
+      }
+      obj.hedge = obj.hedge || "AI判定です。駆除前に自治体・環境省にご確認ください。";
+    }
+    (out as Record<string, unknown>)["invasive_response"] = obj;
+  }
+  const nov = (parsed as Record<string, unknown>)["novelty_hint"];
+  if (nov && typeof nov === "object") {
+    const obj = nov as Record<string, unknown>;
+    const score = typeof obj.novelty_score === "number" ? obj.novelty_score : null;
+    if (context.bandIsLow || obj.is_potentially_novel !== true || score === null || score < 0.5) {
+      delete (out as Record<string, unknown>)["novelty_hint"];
+    }
+  }
+  const size = (parsed as Record<string, unknown>)["size_assessment"];
+  if (size && typeof size === "object") {
+    const obj = { ...(size as Record<string, unknown>) };
+    const basis = typeof obj.basis === "string" ? obj.basis : "";
+    const hasScaleHint = /手|指|コイン|スケール|物差し|定規|cm|mm/i.test(basis);
+    if (!basis || !hasScaleHint) {
+      obj.observed_size_estimate_cm = null;
+    }
+    obj.hedge = obj.hedge || "AIによる目測のため誤差大。確定値ではありません。";
+    (out as Record<string, unknown>)["size_assessment"] = obj;
   }
   return out;
 }
@@ -721,6 +841,26 @@ export async function reassessObservation(
       ? parsed.recommended_media_regions.map(normalizeRectCandidate).filter((region): region is NormalizedRegion => Boolean(region))
       : [];
 
+    const invasiveLookupTerms = buildInvasiveLookupTerms({
+      primaryName: recommendedScientificName || recommendedName,
+      primaryGbif: primaryGbifMatch,
+      coexisting: preparedCandidates.map((c, i) => ({
+        name: c.scientificName || c.vernacularName,
+        gbif: coexistingGbifMatches[i] ?? null,
+      })),
+    });
+    const invasiveFacts = await lookupInvasiveStatusFacts(client, invasiveLookupTerms).catch(
+      () => [] as InvasiveStatusFact[],
+    );
+    const subjectInvasiveCovered = hasSubjectInvasiveFact(invasiveFacts);
+    const subjectInvasiveFact = pickSubjectInvasiveFact(invasiveFacts);
+
+    const gatedParsed = applyThreeLensGates(parsed, {
+      bandIsLow: band === "low",
+      subjectInvasiveCovered,
+      subjectInvasiveFact,
+    });
+
     await client.query("begin");
     await ensureLegacyAiRunsForVisit(client, target.visitId);
     const previousRun = await getLatestObservationAiRunForVisit(client, target.visitId);
@@ -742,6 +882,13 @@ export async function reassessObservation(
         sourceTag,
         selectedOccurrenceId: target.selectedOccurrenceId,
         photoCount: photos.length,
+        knowledgeVersionSet,
+        invasiveLookup: {
+          termCount: invasiveLookupTerms.length,
+          factCount: invasiveFacts.length,
+          subjectCovered: subjectInvasiveCovered,
+          subjectVersionId: subjectInvasiveFact?.versionId ?? null,
+        },
       },
     });
 
@@ -839,7 +986,7 @@ export async function reassessObservation(
         String(parsed.seasonal_context ?? "").trim(),
         JSON.stringify(areaInference),
         JSON.stringify(shotSuggestions),
-        JSON.stringify({ raw: rawText.slice(0, 12000), parsed }),
+        JSON.stringify({ raw: rawText.slice(0, 12000), parsed: gatedParsed }),
       ],
     );
 

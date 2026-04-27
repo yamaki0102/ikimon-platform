@@ -1662,7 +1662,63 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       --accent-soft: #ecfdf5;
       --shadow: 0 18px 44px rgba(15, 23, 42, .07);
       --shadow-strong: 0 26px 64px rgba(15, 23, 42, .12);
+      --color-warn: #ea580c;
+      --color-warn-soft: rgba(234,88,12,.08);
+      --color-danger: #dc2626;
+      --color-danger-soft: rgba(220,38,38,.08);
+      --color-novelty: #a855f7;
+      --color-novelty-soft: rgba(168,85,247,.08);
+      --color-info: #3b82f6;
+      --color-info-soft: rgba(59,130,246,.08);
+      --radius-card: 14px;
+      --radius-pill: 999px;
+      --shadow-card: 0 8px 24px rgba(15,23,42,.06);
+      --space-card: clamp(16px, 2vw, 24px);
     }
+    .detail-card { background: var(--surface-strong); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--space-card); }
+    .detail-card + .detail-card { margin-top: 14px; }
+    .detail-card-title { margin: 0 0 8px; font-size: 16px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .detail-card-body { color: var(--ink); line-height: 1.65; }
+    .detail-card-meta { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .detail-card-hedge { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(15,23,42,.04); color: var(--muted); font-size: 12.5px; }
+    .detail-card--lens-size { border-left: 4px solid var(--color-info); }
+    .detail-card--lens-novelty { border-left: 4px solid var(--color-novelty); background: linear-gradient(180deg, var(--color-novelty-soft), transparent 70%); }
+    .detail-card--lens-invasive { border-left: 4px solid var(--color-danger); background: var(--color-danger-soft); }
+    .detail-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 800; }
+    .detail-pill--iaspecified { background: var(--color-danger); color: #fff; }
+    .detail-pill--priority { background: var(--color-warn); color: #fff; }
+    .detail-pill--industrial { background: #ca8a04; color: #fff; }
+    .detail-pill--prevention { background: #6b7280; color: #fff; }
+    .detail-pill--native { background: #16a34a; color: #fff; }
+    .detail-pill--exceptional { background: var(--color-info); color: #fff; }
+    .detail-pill--novelty { background: var(--color-novelty); color: #fff; }
+    .detail-action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .detail-action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface-strong); color: var(--ink); font-weight: 700; font-size: 13px; text-decoration: none; cursor: pointer; }
+    .detail-action-btn:hover { background: var(--accent-soft); }
+    .detail-action-btn--danger { background: var(--color-danger); color: #fff; border-color: transparent; }
+    .detail-action-btn--danger:hover { background: #b91c1c; }
+    .detail-warning-box { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.18); color: #7f1d1d; font-size: 13.5px; font-weight: 600; }
+    .detail-evidence-list { margin: 6px 0 0; padding-left: 20px; }
+    .detail-evidence-list li { margin: 4px 0; }
+    .detail-evidence-list li.is-positive::marker { content: "\\2713  "; color: var(--accent); }
+    .detail-evidence-list li.is-negative::marker { content: "\\2717  "; color: var(--color-warn); }
+    /* 折りたたみ全面禁止の保険 (.detail-card 配下) */
+    .detail-card details, .detail-card summary { display: revert; }
+    .detail-card details { all: unset; }
+    .detail-card summary { all: unset; }
+    /* 同定パネル */
+    .ident-panel { background: var(--surface-strong); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--space-card); }
+    .ident-panel-header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .ident-panel-name { margin: 0; font-size: 22px; font-weight: 900; color: var(--ink); }
+    .ident-panel-sci { color: var(--muted); font-style: italic; font-size: 15px; }
+    .ident-panel-band { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: var(--radius-pill); font-size: 12.5px; font-weight: 800; background: var(--accent-soft); color: var(--accent-hover); }
+    .ident-panel-band.is-low { background: rgba(234,88,12,.10); color: #9a3412; }
+    .ident-panel-band.is-medium { background: rgba(59,130,246,.10); color: #1e3a8a; }
+    .ident-panel-section { margin-top: 14px; }
+    .ident-panel-section h4 { margin: 0 0 6px; font-size: 14px; font-weight: 800; color: var(--ink); }
+    .ident-panel-similar { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .ident-panel-similar-card { padding: 10px 12px; border-radius: 10px; background: rgba(15,23,42,.03); border: 1px solid var(--border); font-size: 13.5px; }
+    .ident-panel-similar-card strong { display: block; font-weight: 800; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
