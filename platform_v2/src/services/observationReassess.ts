@@ -13,6 +13,7 @@ import { getStoredVisitDisplayState, upsertVisitDisplayState, deriveVisitDisplay
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { logAiCost } from "./aiCostLogger.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
+import { loadProfileDigestForPrompt } from "./profileDigestPromptLoader.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -572,6 +573,11 @@ export async function reassessObservation(
     const lat = vctx.latitude ?? 35.0;
     const lng = vctx.longitude ?? 138.0;
     const existingLabel = target.vernacularName || target.scientificName || "未同定";
+    // Hot-path personalization: pull a 240-char digest summary if the user has one.
+    // Failures are silenced because new users / DB hiccups must not block re-assess.
+    const profileDigest = await loadProfileDigestForPrompt(options.triggeredBy ?? null).catch(
+      () => ({ summary: "", digestVersion: 0 }),
+    );
     const prompt = renderPrompt({
       occurrenceId: target.primaryOccurrenceId,
       lat: lat.toFixed(5),
@@ -580,6 +586,7 @@ export async function reassessObservation(
       season: guessSeason(vctx.observed_at || null),
       existingLabel,
       siteBriefLabel: vctx.place_id ?? "不明",
+      profileDigestSummary: profileDigest.summary,
     });
 
     const { parsed, modelUsed, rawText } = await runGemini(prompt, photos, {
@@ -587,7 +594,7 @@ export async function reassessObservation(
       visitId: target.visitId,
       occurrenceId: target.primaryOccurrenceId,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v2";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
     const sourceTag = options.sourceTag?.trim() || "photo";
 
     const band = normalizeBand(parsed.confidence_band);
