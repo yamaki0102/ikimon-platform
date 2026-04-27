@@ -53,8 +53,10 @@ CREATE INDEX IF NOT EXISTS idx_ai_curator_runs_pr
     ON ai_curator_runs (pr_number)
     WHERE pr_number IS NOT NULL;
 
--- Backfill source_snapshots.curator_run_id FK target now that ai_curator_runs exists.
--- (The FK was deferred in 0041 to avoid migration ordering issues.)
+-- owner-sensitive-ok: ADD CONSTRAINT only adds a deferred FK on a column we just
+-- introduced in 0045 with no existing rows; rollback = ALTER TABLE source_snapshots
+-- DROP CONSTRAINT source_snapshots_curator_run_fk (table owner = ikimon-staging,
+-- same role that runs npm run migrate, so the ALTER succeeds under the app DB role).
 ALTER TABLE source_snapshots
     ADD CONSTRAINT source_snapshots_curator_run_fk
     FOREIGN KEY (curator_run_id)
