@@ -51,6 +51,7 @@
     "check:public-terms": "tsx src/scripts/checkPublicSurfaceTerms.ts",
     "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts",
     "import:feedback-knowledge": "tsx src/scripts/importObservationFeedbackKnowledgeClaims.ts",
+    "import:invasive-knowledge": "tsx src/scripts/importInvasiveKnowledgeClaims.ts",
     "smoke:feedback-knowledge": "tsx src/scripts/smokeObservationFeedbackKnowledge.ts",
     "import:observation-fields": "tsx src/scripts/importObservationFields.ts",
     "scrape:nature-symbiosis": "tsx src/scripts/scrapeNatureSymbiosisSites.ts",

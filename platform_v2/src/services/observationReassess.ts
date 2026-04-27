@@ -335,6 +335,72 @@ function applyThreeLensGates(
   return out;
 }
 
+/**
+ * gated 3 レンズの値を occurrences テーブルの専用カラムに同期する。
+ * - 値が無いフィールドは NULL / 空 JSONB のままにする（既存値を破壊しない方針なら別途差分 UPDATE が必要だが、
+ *   reassess は最新評価で上書きする前提なので NULL でリセットされる）
+ * - サイズ・新種・外来種それぞれ JSONB 全体は保持し、UI / API は専用カラム or JSONB のいずれからも引ける
+ */
+async function syncOccurrenceThreeLenses(
+  client: PoolClient,
+  occurrenceId: string,
+  gatedParsed: GeminiJson,
+): Promise<void> {
+  const obj = gatedParsed as Record<string, unknown>;
+  const sizeRaw = obj["size_assessment"];
+  const noveltyRaw = obj["novelty_hint"];
+  const invasiveRaw = obj["invasive_response"];
+
+  const sizeObj = sizeRaw && typeof sizeRaw === "object" ? (sizeRaw as Record<string, unknown>) : null;
+  const noveltyObj = noveltyRaw && typeof noveltyRaw === "object" ? (noveltyRaw as Record<string, unknown>) : null;
+  const invasiveObj = invasiveRaw && typeof invasiveRaw === "object" ? (invasiveRaw as Record<string, unknown>) : null;
+
+  const sizeClassRaw = sizeObj && typeof sizeObj.size_class === "string" ? sizeObj.size_class.trim() : "";
+  const sizeClass = ["tiny", "small", "typical", "large", "exceptional"].includes(sizeClassRaw)
+    ? sizeClassRaw
+    : null;
+
+  const observedSize = sizeObj && typeof sizeObj.observed_size_estimate_cm === "number" && Number.isFinite(sizeObj.observed_size_estimate_cm) && sizeObj.observed_size_estimate_cm > 0
+    ? Number(sizeObj.observed_size_estimate_cm)
+    : null;
+
+  const noveltyScoreRaw = noveltyObj && typeof noveltyObj.novelty_score === "number" && Number.isFinite(noveltyObj.novelty_score)
+    ? Math.min(1, Math.max(0, Number(noveltyObj.novelty_score)))
+    : null;
+  const isPotentiallyNovel = noveltyObj?.is_potentially_novel === true;
+  const noveltyScore = isPotentiallyNovel ? noveltyScoreRaw : null;
+
+  const invasiveCatRaw = invasiveObj && typeof invasiveObj.mhlw_category === "string" ? invasiveObj.mhlw_category.trim() : "";
+  const invasiveStatus = invasiveObj?.is_invasive === true && ["iaspecified", "priority", "industrial", "prevention"].includes(invasiveCatRaw)
+    ? invasiveCatRaw
+    : invasiveObj?.is_invasive === false
+      ? "native"
+      : null;
+
+  await client.query(
+    `UPDATE occurrences
+        SET size_class = $2,
+            size_value_cm = $3,
+            size_assessment_json = $4::jsonb,
+            novelty_score = $5,
+            novelty_assessment_json = $6::jsonb,
+            invasive_status = $7,
+            invasive_assessment_json = $8::jsonb,
+            ai_lenses_assessed_at = NOW()
+      WHERE occurrence_id = $1::uuid`,
+    [
+      occurrenceId,
+      sizeClass,
+      observedSize,
+      JSON.stringify(sizeObj ?? {}),
+      noveltyScore,
+      JSON.stringify(noveltyObj ?? {}),
+      invasiveStatus,
+      JSON.stringify(invasiveObj ?? {}),
+    ],
+  );
+}
+
 type LoadedPhotoInput = ReassessImageInput & {
   assetId: string | null;
 };
@@ -989,6 +1055,10 @@ export async function reassessObservation(
         JSON.stringify({ raw: rawText.slice(0, 12000), parsed: gatedParsed }),
       ],
     );
+
+    // 0061: gated 3 レンズ値を occurrences の専用列に同期。
+    // raw_json への保存とは別に、ランキング・集計用の冗長カラムを更新する。
+    await syncOccurrenceThreeLenses(client, target.primaryOccurrenceId, gatedParsed);
 
     const subjects = await getVisitSubjectSummaries(target.visitId, client);
     const subjectByKey = new Map<string, { occurrenceId: string }>();
