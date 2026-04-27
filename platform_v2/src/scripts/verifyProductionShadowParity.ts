@@ -237,6 +237,17 @@ function countIdentificationCandidates(observations: LegacyObservation[]): numbe
   return count;
 }
 
+function hasImportableTrackCoordinates(point: LegacyTrackPoint): boolean {
+  return Number.isFinite(point.lat) && Number.isFinite(point.lng);
+}
+
+function countImportableTrackPoints(tracks: LegacyTrackSession[]): number {
+  return tracks.reduce((sum, track) => {
+    const points = Array.isArray(track.points) ? track.points : [];
+    return sum + points.filter(hasImportableTrackCoordinates).length;
+  }, 0);
+}
+
 async function createMigrationRun(importVersion: string, limit: number | null): Promise<string> {
   const result = await getPool().query<{ migration_run_id: string }>(
     `insert into migration_runs (
@@ -400,7 +411,7 @@ async function main(): Promise<void> {
         quarantinedNoPhotoObservations,
         rememberTokens: sourceTokenHashes.length,
         trackVisits: tracks.length,
-        trackPoints: tracks.reduce((sum, track) => sum + (Array.isArray(track.points) ? track.points.length : 0), 0),
+        trackPoints: countImportableTrackPoints(tracks),
         identificationCandidates: countIdentificationCandidates(observations),
         importableIdentificationCandidates: countIdentificationCandidates(importableObservations),
         photoRefs: expectedPhotoRefs,
