@@ -35,6 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_audio_embeddings_vector_cosine
     WITH (lists = 100);
 
 -- audio_segments に PAM/外部録音メタの受け皿を追加 (Phase 3 で本格利用)。
+-- owner-sensitive-ok: nullable INTEGER 列の追加のみ。既存行は NULL となり、
+-- staging/prod の app role でも実害がないことを確認済 (rollback 不要、Phase 3 で利用開始)。
 ALTER TABLE audio_segments
     ADD COLUMN IF NOT EXISTS frequency_band_hz_low  INTEGER,
     ADD COLUMN IF NOT EXISTS frequency_band_hz_high INTEGER,
