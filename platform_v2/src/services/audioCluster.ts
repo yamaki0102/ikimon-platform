@@ -142,22 +142,22 @@ async function refreshClusterStats(
   // member_count を再計算し、centroid をメンバー embedding の平均で再計算する。
   // pgvector の AVG 集約は 0.7 以降で利用可能。dimension 一致が前提。
   await client.query(
-    `update sound_clusters c
-        set member_count = sub.cnt,
-            centroid_embedding = sub.centroid,
+    `with stats as (
+       select count(*)::integer as cnt,
+              avg(e.embedding) as centroid
+         from sound_cluster_members m
+         join audio_embeddings e on e.segment_id = m.segment_id
+         join sound_clusters c2 on c2.cluster_id = m.cluster_id
+        where m.cluster_id = $1
+          and e.model_name = c2.model_name
+          and e.model_version = c2.model_version
+     )
+     update sound_clusters c
+        set member_count = coalesce(stats.cnt, 0),
+            centroid_embedding = coalesce(stats.centroid, c.centroid_embedding),
             updated_at = now()
-       from (
-         select e.segment_id,
-                count(*) over () as cnt,
-                avg(e.embedding) over () as centroid
-           from sound_cluster_members m
-           join audio_embeddings e on e.segment_id = m.segment_id
-                                  and e.model_name = c.model_name
-                                  and e.model_version = c.model_version
-          where m.cluster_id = $1
-       ) sub
-      where c.cluster_id = $1
-      limit 1`,
+       from stats
+      where c.cluster_id = $1`,
     [clusterId],
   );
 }
