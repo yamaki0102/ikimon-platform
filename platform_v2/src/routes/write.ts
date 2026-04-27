@@ -102,6 +102,27 @@ function isAuthApiMutationHandledByAuthRoutes(url: string): boolean {
   return path === "/api/v1/auth/login" || path === "/api/v1/auth/register";
 }
 
+function pendingVideoFinalizePayload(uid: string) {
+  return {
+    provider: "cloudflare_stream",
+    providerUid: uid,
+    mediaType: "video",
+    assetRole: "observation_video",
+    uploadStatus: "processing",
+    durationMs: 0,
+    bytes: 0,
+    thumbnailUrl: "",
+    iframeUrl: "",
+    watchUrl: "",
+    readyToStream: false,
+    createdAt: new Date().toISOString(),
+    uploadedAt: null,
+    occurrenceId: null,
+    visitId: null,
+    pending: true,
+  };
+}
+
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", async (request) => {
     if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS") {
@@ -833,8 +854,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           mediaRole: request.body?.mediaRole,
         });
         if (!record) {
-          reply.code(404);
-          return { ok: false, error: "video_not_found" };
+          return { ok: true, video: pendingVideoFinalizePayload(request.params.uid) };
         }
         return { ok: true, video: record };
       } catch (error) {

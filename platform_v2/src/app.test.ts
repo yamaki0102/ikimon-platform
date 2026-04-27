@@ -5,7 +5,7 @@ import { buildApp } from "./app.js";
 test("app accepts photo upload JSON bodies up to the v2 photo preflight envelope", async () => {
   const app = buildApp();
   try {
-    assert.equal(app.initialConfig.bodyLimit, 25 * 1024 * 1024);
+    assert.equal(app.initialConfig.bodyLimit, 40 * 1024 * 1024);
   } finally {
     await app.close();
   }

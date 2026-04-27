@@ -213,6 +213,16 @@ const PUBLIC_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
 });
 
+const PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL = `
+  coalesce(u.is_seed, false) = false
+  and coalesce(v.legacy_observation_id, '') !~* '^(dummy|seed|sample[-_])'
+  and coalesce(o.legacy_observation_id, '') !~* '^(dummy|seed|sample[-_])'
+  and coalesce(v.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
+  and coalesce(o.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
+  and coalesce(v.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
+  and coalesce(o.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
+`;
+
 const AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
   visitIdColumn: "v.visit_id",
@@ -653,7 +663,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 12`,
     );
     feedRows = result.rows;
   } catch {
@@ -663,7 +673,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let heroCandidateRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 60`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 60`,
     );
     heroCandidateRows = result.rows;
   } catch {
@@ -758,6 +768,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            limit 1
          ) avatar on true
          where i.actor_user_id = $1
+           and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
            and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by i.created_at desc
@@ -891,6 +902,9 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          ) photo on true
          where v.user_id is not null
            and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
+           and coalesce(v.legacy_observation_id, '') !~* '^(dummy|seed|sample[-_])'
+           and coalesce(v.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
+           and coalesce(v.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
            and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by v.user_id, v.observed_at desc
