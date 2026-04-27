@@ -17,6 +17,7 @@ import { registerGuideApiRoutes } from "./routes/guideApi.js";
 import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
+import { registerAdminAudioApiRoutes } from "./routes/adminAudioApi.js";
 import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
 import { registerObservationEventRecapRoutes } from "./routes/observationEventRecapApi.js";
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
@@ -443,7 +444,7 @@ self.addEventListener('fetch', () => {
 export function buildApp() {
   const app = Fastify({
     logger: true,
-    bodyLimit: 25 * 1024 * 1024,
+    bodyLimit: 40 * 1024 * 1024,
   });
 
   app.addHook("onRequest", async (request, reply) => {
@@ -526,6 +527,7 @@ export function buildApp() {
   void registerWalkApiRoutes(app);
   void registerResearchApiRoutes(app);
   void registerFieldscanApiRoutes(app);
+  void registerAdminAudioApiRoutes(app);
   void registerObservationEventApiRoutes(app);
   void registerObservationEventRecapRoutes(app);
   void registerObservationEventPagesRoutes(app);
