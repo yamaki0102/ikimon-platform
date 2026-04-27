@@ -16,7 +16,7 @@
 
 import https from "node:https";
 import http from "node:http";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { upsertCertifiedField } from "../services/observationFieldRegistry.js";
@@ -222,6 +222,7 @@ async function main(): Promise<void> {
   const outPath = typeof args["out"] === "string"
     ? resolve(process.cwd(), args["out"])
     : resolve(__dirname, "data", "nature_symbiosis_scraped.json");
+  mkdirSync(resolve(outPath, ".."), { recursive: true });
   const resumeFrom = typeof args["resume-from"] === "string" ? parseInt(args["resume-from"], 10) : 0;
   const limit = typeof args["limit"] === "string" ? parseInt(args["limit"], 10) : Infinity;
 
