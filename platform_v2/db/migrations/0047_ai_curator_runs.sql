@@ -53,10 +53,10 @@ CREATE INDEX IF NOT EXISTS idx_ai_curator_runs_pr
     ON ai_curator_runs (pr_number)
     WHERE pr_number IS NOT NULL;
 
--- owner-sensitive-ok: ADD CONSTRAINT only adds a deferred FK on a column we just
--- introduced in 0045 with no existing rows; rollback = ALTER TABLE source_snapshots
--- DROP CONSTRAINT source_snapshots_curator_run_fk (table owner = ikimon-staging,
--- same role that runs npm run migrate, so the ALTER succeeds under the app DB role).
+-- owner-sensitive-ok: deferred FK target (curator_run_id introduced in 0045 with
+-- zero rows). table owner = ikimon-staging (same role that runs npm run migrate),
+-- so the constraint addition succeeds under the app DB role. rollback path:
+-- write a reverse migration that removes this named constraint.
 ALTER TABLE source_snapshots
     ADD CONSTRAINT source_snapshots_curator_run_fk
     FOREIGN KEY (curator_run_id)
