@@ -30,6 +30,13 @@ type SmokeState = {
   observationId?: string;
   visitId?: string;
   occurrenceId?: string;
+  duplicateGuard?: {
+    clientSubmissionId: string;
+    duplicateVisitId?: string;
+    duplicateObservationId?: string;
+    sameVisit?: boolean;
+    matchingVisitCount?: number;
+  };
   photo?: {
     publicUrl?: string;
     relativePath?: string;
@@ -290,6 +297,54 @@ async function verifyAiState(state: SmokeState): Promise<void> {
   }
 }
 
+async function verifyDuplicateGuard(state: SmokeState, observedAt: string, clientPhotoHash: string): Promise<void> {
+  const pool = getPool();
+  const userId = state.userId ?? "";
+  const clientSubmissionId = state.duplicateGuard?.clientSubmissionId ?? "";
+  const result = await timed(state, "info", "db_duplicate_guard_verify", { userId, clientSubmissionId }, async () => {
+    const [idempotency, matchingVisits] = await Promise.all([
+      pool.query<{ c: string }>(
+        `select count(*)::text as c
+           from observation_write_idempotency
+          where client_submission_id = $1
+            and user_id = $2
+            and visit_id = $3
+            and duplicate_count >= 1`,
+        [clientSubmissionId, userId, state.visitId ?? ""],
+      ),
+      pool.query<{ c: string }>(
+        `select count(distinct v.visit_id)::text as c
+           from visits v
+           join occurrences o on o.visit_id = v.visit_id
+           join evidence_assets ea on ea.visit_id = v.visit_id or ea.occurrence_id = o.occurrence_id
+           join asset_blobs ab on ab.blob_id = ea.blob_id
+          where v.user_id = $1
+            and v.observed_at = $2::timestamptz
+            and (
+              v.source_payload ->> 'client_submission_id' = $3
+              or v.source_payload -> 'client_photo_sha256s' ? $4
+              or ab.sha256 = $4
+            )`,
+        [userId, observedAt, clientSubmissionId, clientPhotoHash],
+      ),
+    ]);
+    return {
+      idempotencyCount: Number(idempotency.rows[0]?.c ?? 0),
+      matchingVisitCount: Number(matchingVisits.rows[0]?.c ?? 0),
+    };
+  });
+  state.duplicateGuard = {
+    ...(state.duplicateGuard ?? { clientSubmissionId }),
+    matchingVisitCount: result.matchingVisitCount,
+  };
+  if (result.idempotencyCount !== 1) {
+    throw new Error(`idempotency_duplicate_count_missing:${result.idempotencyCount}`);
+  }
+  if (result.matchingVisitCount !== 1) {
+    throw new Error(`duplicate_media_visit_detected:${result.matchingVisitCount}`);
+  }
+}
+
 async function drainMediaJobs(state: SmokeState): Promise<void> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const result = await timed(state, "info", "media_worker", { attempt }, () => processMediaProcessingJobs(10, 60));
@@ -422,6 +477,7 @@ async function cleanupDatabaseAndFiles(state: SmokeState): Promise<Record<string
 
       await deleteCount("mediaJobs", `delete from media_processing_jobs where observation_id = any($1::text[]) or occurrence_id = any($2::text[]) or source_payload::text like $3`, [visitIds, occurrenceIds, `%${state.fixturePrefix}%`]);
       await deleteCount("videoRequests", `delete from video_upload_requests where stream_uid = $1 or actor_id = any($2::text[]) or observation_id = any($3::text[])`, [state.video?.uid ?? "", userIds, visitIds]);
+      await deleteCount("idempotency", `delete from observation_write_idempotency where visit_id = any($1::text[]) or client_submission_id = $2`, [visitIds, state.duplicateGuard?.clientSubmissionId ?? ""]);
       await deleteCount("compatibilityLedger", `delete from compatibility_write_ledger where canonical_id = any($1::text[]) or details::text like $2`, [visitIds, `%${state.fixturePrefix}%`]);
       await deleteCount("rememberTokens", `delete from remember_tokens where user_id = any($1::text[])`, [userIds]);
       await deleteCount("identifications", `delete from identifications where occurrence_id = any($1::text[]) or actor_user_id = any($2::text[])`, [occurrenceIds, userIds]);
@@ -512,11 +568,20 @@ async function main(): Promise<void> {
     state.userId = stringField(register.body.session.userId);
     if (!state.userId) throw new Error("register_user_missing");
 
-    const observation = await requestJson(state, "POST", "/api/v1/observations/upsert", {
+    const observedAt = new Date().toISOString();
+    const clientPhotoHash = createHash("sha256").update(TINY_PNG_BASE64).digest("hex");
+    const clientSubmissionId = `prod-media:${createHash("sha256").update(`${state.userId}|${observedAt}|${clientPhotoHash}`).digest("hex")}`;
+    state.duplicateGuard = {
+      clientSubmissionId,
+      duplicateObservationId: `${state.observationId}-duplicate`,
+    };
+
+    const observationPayload = {
       observationId: state.observationId,
       legacyObservationId: state.observationId,
+      clientSubmissionId,
       userId: state.userId,
-      observedAt: new Date().toISOString(),
+      observedAt,
       latitude: 34.7108,
       longitude: 137.7261,
       prefecture: "Shizuoka",
@@ -532,12 +597,28 @@ async function main(): Promise<void> {
         source: "prod_media_smoke",
         prefix: options.fixturePrefix,
         delete_after_verification: true,
+        client_submission_id: clientSubmissionId,
+        client_photo_sha256s: [clientPhotoHash],
       },
-    }, { cookie });
+    };
+
+    const observation = await requestJson(state, "POST", "/api/v1/observations/upsert", observationPayload, { cookie });
     if (!isRecord(observation.body)) throw new Error("observation_response_invalid");
     state.visitId = stringField(observation.body.visitId);
     state.occurrenceId = stringField(observation.body.occurrenceId);
     if (!state.visitId || !state.occurrenceId) throw new Error("observation_ids_missing");
+
+    const duplicateObservation = await requestJson(state, "POST", "/api/v1/observations/upsert", {
+      ...observationPayload,
+      observationId: state.duplicateGuard.duplicateObservationId,
+      legacyObservationId: state.duplicateGuard.duplicateObservationId,
+    }, { cookie });
+    if (!isRecord(duplicateObservation.body)) throw new Error("duplicate_observation_response_invalid");
+    state.duplicateGuard.duplicateVisitId = stringField(duplicateObservation.body.visitId);
+    state.duplicateGuard.sameVisit = state.duplicateGuard.duplicateVisitId === state.visitId;
+    if (!state.duplicateGuard.sameVisit) {
+      throw new Error(`duplicate_upsert_created_new_visit:${state.duplicateGuard.duplicateVisitId}`);
+    }
 
     const photo = await requestJson(state, "POST", `/api/v1/observations/${encodeURIComponent(state.occurrenceId)}/photos/upload`, {
       filename: `${options.fixturePrefix}.png`,
@@ -592,6 +673,7 @@ async function main(): Promise<void> {
     });
     await drainMediaJobs(state);
     await verifyAiState(state);
+    await verifyDuplicateGuard(state, observedAt, clientPhotoHash);
 
     if (options.cleanup) {
       state.cleanup = await cleanupDatabaseAndFiles(state);

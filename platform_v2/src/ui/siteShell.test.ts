@@ -58,7 +58,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-video-trim/);
   assert.match(html, /object-fit: contain/);
   assert.match(html, /global-record-camera-preview video\[hidden\]/);
-  assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-camera-actions/);
+  assert.match(html, /\.global-record-camera-actions \{/);
   assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-photo-tray/);
   assert.match(html, /global-record-camera-sheet\[data-photo-draft="true"\] \.global-record-camera-preview/);
   assert.match(html, /max-height: calc\(100dvh - 116px\)/);
@@ -77,6 +77,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /AIは全体を見て主役と周囲を判断します/);
   assert.match(html, /この' \+ String\(files\.length\) \+ '枚を投稿/);
   assert.match(html, /global_photo_tray/);
+  assert.match(html, /directPostInFlight/);
+  assert.match(html, /clientSubmissionId/);
+  assert.match(html, /client_photo_sha256s/);
   assert.match(html, /\/api\/v1\/observations\/upsert/);
   assert.match(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/photos\/upload/);
   assert.doesNotMatch(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);

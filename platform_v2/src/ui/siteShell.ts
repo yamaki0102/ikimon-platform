@@ -367,7 +367,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       </div>
       <div class="global-record-photo-grid" data-global-record-photo-grid></div>
     </div>
-    <div class="global-record-camera-actions">
+    <div class="global-record-camera-actions" aria-label="撮影操作">
       <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
     </div>
@@ -436,6 +436,7 @@ function globalRecordEntryScript(basePath: string): string {
   let discardRecording = false;
   let recordingStartedAt = 0;
   let recordingTimer = null;
+  let directPostInFlight = false;
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
   let capturedReviewFile = null;
@@ -551,6 +552,12 @@ function globalRecordEntryScript(basePath: string): string {
     reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
     reader.readAsDataURL(file);
   });
+  const sha256Hex = async (value) => {
+    if (!(window.crypto && window.crypto.subtle && typeof TextEncoder !== 'undefined')) return '';
+    const bytes = new TextEncoder().encode(String(value || ''));
+    const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  };
   const loadImageForUpload = (file) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -691,6 +698,25 @@ function globalRecordEntryScript(basePath: string): string {
     if (kind) sheet.setAttribute('data-active-kind', kind);
     else sheet.removeAttribute('data-active-kind');
   };
+  const setPrimaryAction = (button, enabled) => {
+    if (!button) return;
+    if (enabled) button.classList.add('is-primary');
+    else button.classList.remove('is-primary');
+  };
+  const setFooterActionMode = (mode) => {
+    if (mode === 'submit') {
+      setPrimaryAction(startButton, false);
+      setPrimaryAction(captureButton, true);
+      return;
+    }
+    if (mode === 'capture') {
+      setPrimaryAction(startButton, false);
+      setPrimaryAction(captureButton, true);
+      return;
+    }
+    setPrimaryAction(startButton, true);
+    setPrimaryAction(captureButton, false);
+  };
   const clearReview = () => {
     setPhotoDraftLayout(false);
     capturedReviewFile = null;
@@ -811,6 +837,7 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.disabled = false;
       captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚を投稿' : '写真を撮る';
     }
+    setFooterActionMode(files.length > 0 ? 'submit' : 'start');
     if (files.length === 0) {
       if (cameraImage) {
         cameraImage.hidden = true;
@@ -871,77 +898,112 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.disabled = false;
       captureButton.textContent = '写真を撮る';
     }
+    setFooterActionMode('start');
     setStatus(message);
   };
   const directPostPhotoDraft = async () => {
+    if (directPostInFlight) return;
     const files = selectedPhotoDraftFiles();
     if (!files.length) return;
+    directPostInFlight = true;
+    if (captureButton) {
+      captureButton.disabled = true;
+      captureButton.textContent = '投稿中...';
+    }
+    if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
-    let location = metadata.location || null;
-    if (!location) {
-      setStatus('投稿に使う地点を確認しています...');
-      location = await readCaptureLocation();
-    }
-    if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
-      throw new Error('location_required');
-    }
-    const userId = await getCurrentSessionUserId();
-    const observedAt = String(metadata.capturedAt || new Date().toISOString());
-    const observationId = 'record-' + Date.now();
-    setStatus('観察を保存しています...');
-    const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        observationId,
-        legacyObservationId: observationId,
+    try {
+      let location = metadata.location || null;
+      if (!location) {
+        setStatus('投稿に使う地点を確認しています...');
+        location = await readCaptureLocation();
+      }
+      if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
+        throw new Error('location_required');
+      }
+      const userId = await getCurrentSessionUserId();
+      const observedAt = String(metadata.capturedAt || new Date().toISOString());
+      setStatus('写真を投稿用に整えています...');
+      const uploads = [];
+      const uploadHashes = [];
+      for (let index = 0; index < files.length; index += 1) {
+        const upload = await preparePhotoUpload(files[index]);
+        const hash = await sha256Hex(upload.base64Data);
+        uploads.push(upload);
+        uploadHashes.push(hash || [upload.filename, upload.mimeType, String(files[index] && files[index].size || 0)].join(':'));
+      }
+      const submissionSeed = [
         userId,
         observedAt,
-        latitude: Number(location.latitude),
-        longitude: Number(location.longitude),
-        prefecture: 'Shizuoka',
-        municipality: '',
-        localityNote: '',
-        note: '',
-        visitMode: 'manual',
-        completeChecklistFlag: false,
-        sourcePayload: {
-          source: 'global_photo_tray',
-          record_mode: 'quick',
-          quick_capture_state: 'present',
-          media_count: files.length,
-          subject_inference: 'ai',
-        },
-        taxon: null,
-      }),
-    });
-    const observationJson = await observationResponse.json().catch(() => ({}));
-    if (!observationResponse.ok || !observationJson.ok) {
-      throw new Error(observationJson.error || 'observation_upsert_failed');
-    }
-    const detailId = String(observationJson.occurrenceId || observationId);
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
-      setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(files.length));
-      const upload = await preparePhotoUpload(file);
-      const photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+        Number(location.latitude).toFixed(6),
+        Number(location.longitude).toFixed(6),
+        uploadHashes.join(','),
+      ].join('|');
+      const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
+      const observationId = 'record-' + Date.now();
+      setStatus('観察を保存しています...');
+      const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          filename: upload.filename,
-          mimeType: upload.mimeType,
-          base64Data: upload.base64Data,
-          mediaRole: index === 0 ? 'primary_subject' : 'context',
+          observationId,
+          legacyObservationId: observationId,
+          clientSubmissionId,
+          userId,
+          observedAt,
+          latitude: Number(location.latitude),
+          longitude: Number(location.longitude),
+          prefecture: 'Shizuoka',
+          municipality: '',
+          localityNote: '',
+          note: '',
+          visitMode: 'manual',
+          completeChecklistFlag: false,
+          sourcePayload: {
+            source: 'global_photo_tray',
+            record_mode: 'quick',
+            quick_capture_state: 'present',
+            media_count: files.length,
+            subject_inference: 'ai',
+            client_submission_id: clientSubmissionId,
+            client_photo_sha256s: uploadHashes,
+          },
+          taxon: null,
         }),
       });
-      const photoJson = await photoResponse.json().catch(() => ({}));
-      if (!photoResponse.ok || !photoJson.ok) {
-        throw new Error('photo_upload_failed_at_' + String(index + 1));
+      const observationJson = await observationResponse.json().catch(() => ({}));
+      if (!observationResponse.ok || !observationJson.ok) {
+        throw new Error(observationJson.error || 'observation_upsert_failed');
+      }
+      const detailId = String(observationJson.occurrenceId || observationId);
+      for (let index = 0; index < uploads.length; index += 1) {
+        const upload = uploads[index];
+        setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(uploads.length));
+        const photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            filename: upload.filename,
+            mimeType: upload.mimeType,
+            base64Data: upload.base64Data,
+            mediaRole: index === 0 ? 'primary_subject' : 'context',
+          }),
+        });
+        const photoJson = await photoResponse.json().catch(() => ({}));
+        if (!photoResponse.ok || !photoJson.ok) {
+          throw new Error('photo_upload_failed_at_' + String(index + 1));
+        }
+      }
+      resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
+    } finally {
+      directPostInFlight = false;
+      if (startButton) startButton.disabled = false;
+      if (captureButton && selectedPhotoDraftFiles().length > 0 && captureButton.textContent === '投稿中...') {
+        captureButton.textContent = 'この' + String(selectedPhotoDraftFiles().length) + '枚を投稿';
       }
     }
-    resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
   };
   const addPhotoDraftFiles = (files, metadata) => {
     const incoming = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
@@ -1020,6 +1082,7 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.textContent = label.capture;
       captureButton.hidden = true;
     }
+    setFooterActionMode('start');
     if (empty) {
       empty.textContent = 'カメラを起動すると、ここにプレビューが出ます。';
       empty.hidden = false;
@@ -1076,6 +1139,7 @@ function globalRecordEntryScript(basePath: string): string {
         captureButton.textContent = activeKind === 'video' ? '録画開始' : '写真を撮る';
       }
       if (startButton) startButton.hidden = true;
+      setFooterActionMode('capture');
       setStatus(activeKind === 'video' ? '動画投稿は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
     } catch (_) {
       setStatus('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
@@ -1084,6 +1148,7 @@ function globalRecordEntryScript(basePath: string): string {
         startButton.disabled = false;
         startButton.textContent = (labels[activeKind] || labels.photo).start;
       }
+      setFooterActionMode('start');
     } finally {
       if (requestId === cameraRequestId) cameraStartInFlight = false;
     }
@@ -1285,6 +1350,7 @@ function globalRecordEntryScript(basePath: string): string {
       captureButton.hidden = false;
       captureButton.disabled = false;
     }
+    setFooterActionMode('submit');
   };
   const retakeCapture = () => {
     const kind = activeKind || (capturedReviewFile && capturedReviewFile.type && capturedReviewFile.type.indexOf('video/') === 0 ? 'video' : 'photo');
@@ -1357,6 +1423,7 @@ function globalRecordEntryScript(basePath: string): string {
     recordingStartedAt = Date.now();
     mediaRecorder.start(1000);
     if (captureButton) captureButton.textContent = '録画停止';
+    setFooterActionMode('capture');
     setStatus('録画中 0秒 / 投稿は最大60秒。あとで区間を選べます');
     recordingTimer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
@@ -1369,6 +1436,7 @@ function globalRecordEntryScript(basePath: string): string {
       return;
     }
     if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
+      if (directPostInFlight) return;
       if (captureButton) captureButton.disabled = true;
       try {
         await directPostPhotoDraft();
@@ -2514,16 +2582,21 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-sheet[hidden] {
       display: none;
     }
+    .global-record-camera-open .global-record-launcher {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+    }
     .global-record-camera-sheet {
       position: fixed;
       left: 12px;
       right: 12px;
-      bottom: max(92px, calc(env(safe-area-inset-bottom) + 92px));
+      bottom: max(106px, calc(env(safe-area-inset-bottom) + 106px));
       z-index: 38;
       display: grid;
       gap: 12px;
       padding: 14px;
-      max-height: calc(100dvh - 116px);
+      max-height: calc(100dvh - 132px);
       overflow-y: auto;
       overscroll-behavior: contain;
       border-radius: 24px;
@@ -2588,20 +2661,17 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-preview img[hidden] {
       display: none;
     }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-actions {
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-preview {
       order: 1;
     }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-preview {
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-photo-tray {
       order: 2;
     }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-photo-tray {
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
       order: 3;
     }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
-      order: 4;
-    }
     .global-record-camera-sheet[data-active-kind="photo"] .global-record-inline-edit {
-      order: 5;
+      order: 4;
     }
     .global-record-camera-sheet[data-photo-draft="true"] .global-record-camera-preview {
       display: none;
@@ -2840,19 +2910,32 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       accent-color: #047857;
     }
     .global-record-camera-actions {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 8px;
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 39;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 24px;
+      background: rgba(255,255,255,.98);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: 0 20px 44px rgba(15,23,42,.22);
+      backdrop-filter: blur(18px);
     }
     .global-record-camera-action {
-      min-height: 48px;
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 68px;
       border: 0;
       border-radius: 16px;
       background: rgba(248,250,252,.96);
       color: #0f172a;
       font: inherit;
-      font-size: 12px;
+      font-size: 15px;
       font-weight: 950;
+      line-height: 1.2;
       cursor: pointer;
     }
     .global-record-camera-action.is-primary {
@@ -2870,14 +2953,24 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .global-record-camera-sheet {
         left: 8px;
         right: 8px;
-        bottom: max(86px, calc(env(safe-area-inset-bottom) + 86px));
-        max-height: calc(100dvh - 102px);
+        bottom: max(104px, calc(env(safe-area-inset-bottom) + 104px));
+        max-height: calc(100dvh - 116px);
         gap: 10px;
         padding: 12px;
       }
       .global-record-camera-preview {
-        height: clamp(190px, 38dvh, 360px);
-        max-height: calc(100dvh - 390px);
+        height: clamp(200px, 44dvh, 420px);
+        max-height: calc(100dvh - 350px);
+      }
+      .global-record-camera-actions {
+        left: 8px;
+        right: 8px;
+        padding: 8px;
+        gap: 8px;
+      }
+      .global-record-camera-action {
+        min-height: 70px;
+        font-size: 15px;
       }
       .global-record-photo-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));

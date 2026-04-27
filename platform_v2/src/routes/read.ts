@@ -3294,6 +3294,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let recordMapMarker = null;
         let recordMapReady = false;
         let locationSearchAbort = null;
+        let recordSubmitInFlight = false;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
           photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
@@ -3308,6 +3309,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const setStatus = (html) => {
           if (status) status.innerHTML = html;
+        };
+        const recordSubmitButtons = () => form ? Array.from(form.querySelectorAll('button[type="submit"]')) : [];
+        const setRecordSubmitting = (submitting) => {
+          recordSubmitInFlight = Boolean(submitting);
+          recordSubmitButtons().forEach((button) => {
+            button.disabled = Boolean(submitting);
+            if (submitting) {
+              if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent || '';
+              button.textContent = '送信中...';
+            } else if (button.dataset.idleLabel) {
+              button.textContent = button.dataset.idleLabel;
+            }
+          });
         };
 
         const isSurveyMode = () => modeInput && modeInput.value === 'survey';
@@ -4433,6 +4447,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             };
           }
         };
+        const sha256Hex = async (value) => {
+          if (!(window.crypto && window.crypto.subtle && typeof TextEncoder !== 'undefined')) return '';
+          const bytes = new TextEncoder().encode(String(value || ''));
+          const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+          return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+        };
 
         const RECORD_DRAFT_DB = 'ikimon-record-draft';
         const RECORD_DRAFT_STORE = 'drafts';
@@ -4812,6 +4832,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         if (form) {
           form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (recordSubmitInFlight) return;
             const data = new FormData(form);
             const userId = form.dataset.userId || '';
             const observationId = pendingMediaRetryObservationId || 'record-' + Date.now();
@@ -4820,6 +4841,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               setStatus('<div class="row"><div>ログイン情報を確認できませんでした。ページを開き直してから、もう一度お試しください。</div></div>');
               return;
             }
+            setRecordSubmitting(true);
             setStatus('<div class="row"><div>記録を送信中...</div></div>');
             try {
               const recordMode = String(data.get('recordMode') || 'quick') === 'survey' ? 'survey' : 'quick';
@@ -4848,13 +4870,50 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const vernacularName = String(data.get('vernacularName') || '').trim();
               const rank = String(data.get('rank') || '').trim();
               const mediaRole = normalizeMediaRole(data.get('mediaRole') || selectedMediaRole);
+              const photoFiles = selectedPhotoFiles();
+              const primaryPhotoFile = selectedPrimaryPhotoFile instanceof File && selectedPrimaryPhotoFile.size > 0 ? selectedPrimaryPhotoFile : null;
+              const photoUploadList = [
+                ...photoFiles.map((file, index) => ({
+                  file,
+                  role: index === 0 ? (mediaRole === 'sound_motion' ? 'primary_subject' : mediaRole) : 'context',
+                })),
+                ...(primaryPhotoFile ? [{ file: primaryPhotoFile, role: 'primary_subject' }] : []),
+              ];
+              const preparedPhotoUploads = [];
+              const clientPhotoHashes = [];
+              if (photoUploadList.length > 0) {
+                setStatus('<div class="row"><div>写真を投稿用に整えています...</div></div>');
+              }
+              for (let index = 0; index < photoUploadList.length; index += 1) {
+                const item = photoUploadList[index];
+                const upload = await preparePhotoUpload(item.file);
+                const hash = await sha256Hex(upload.base64Data);
+                preparedPhotoUploads.push({ upload, role: item.role });
+                clientPhotoHashes.push(hash || [upload.filename, upload.mimeType, String(item.file && item.file.size || 0)].join(':'));
+              }
+              const observedAtIso = new Date(String(data.get('observedAt'))).toISOString();
+              const latitude = Number(data.get('latitude'));
+              const longitude = Number(data.get('longitude'));
+              const videoFingerprint = selectedVideoFile instanceof File
+                ? ['video', selectedVideoFile.name || '', String(selectedVideoFile.size || 0), String(selectedVideoFile.lastModified || 0)].join(':')
+                : '';
+              const clientSubmissionSeed = [
+                userId,
+                observedAtIso,
+                Number.isFinite(latitude) ? latitude.toFixed(6) : '',
+                Number.isFinite(longitude) ? longitude.toFixed(6) : '',
+                clientPhotoHashes.join(','),
+                videoFingerprint,
+              ].join('|');
+              const clientSubmissionId = 'record-form:' + ((await sha256Hex(clientSubmissionSeed)) || observationId);
               const payload = {
                 observationId,
                 legacyObservationId: observationId,
+                clientSubmissionId,
                 userId,
-                observedAt: new Date(String(data.get('observedAt'))).toISOString(),
-                latitude: Number(data.get('latitude')),
-                longitude: Number(data.get('longitude')),
+                observedAt: observedAtIso,
+                latitude,
+                longitude,
                 prefecture: 'Shizuoka',
                 municipality: String(data.get('municipality') || ''),
                 localityNote: String(data.get('localityNote') || ''),
@@ -4871,6 +4930,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   quick_capture_state: recordMode === 'survey' ? null : quickCaptureState,
                   next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
                   media_role: mediaRole,
+                  client_submission_id: clientSubmissionId,
+                  client_photo_sha256s: clientPhotoHashes,
                   absence_semantics: recordMode === 'survey'
                     ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
                     : (quickCaptureState === 'no_detection_note'
@@ -4900,13 +4961,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               }
               const detailId = String(observationJson.occurrenceId || observationId);
               savedDetailId = detailId;
-              const photoFiles = selectedPhotoFiles();
-              const primaryPhotoFile = selectedPrimaryPhotoFile instanceof File && selectedPrimaryPhotoFile.size > 0 ? selectedPrimaryPhotoFile : null;
               let extraStatus = '';
 
-              const uploadPhotoFile = async (file, mediaRoleForPhoto, index, total) => {
+              const uploadPhotoFile = async (upload, mediaRoleForPhoto, index, total) => {
                 setStatus('<div class="row"><div>写真を保存しています... ' + String(index) + '/' + String(total) + '</div></div>');
-                const upload = await preparePhotoUpload(file);
                 const photoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
                   method: 'POST',
                   headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -4924,19 +4982,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 }
               };
 
-              const photoUploadList = [
-                ...photoFiles.map((file, index) => ({
-                  file,
-                  role: index === 0 ? (mediaRole === 'sound_motion' ? 'primary_subject' : mediaRole) : 'context',
-                })),
-                ...(primaryPhotoFile ? [{ file: primaryPhotoFile, role: 'primary_subject' }] : []),
-              ];
-              for (let index = 0; index < photoUploadList.length; index += 1) {
-                const item = photoUploadList[index];
-                await uploadPhotoFile(item.file, item.role, index + 1, photoUploadList.length);
+              for (let index = 0; index < preparedPhotoUploads.length; index += 1) {
+                const item = preparedPhotoUploads[index];
+                await uploadPhotoFile(item.upload, item.role, index + 1, preparedPhotoUploads.length);
               }
-              if (photoUploadList.length > 0) {
-                extraStatus = '写真' + String(photoUploadList.length) + '枚を同じ観察に保存しました。';
+              if (preparedPhotoUploads.length > 0) {
+                extraStatus = '写真' + String(preparedPhotoUploads.length) + '枚を同じ観察に保存しました。';
               }
 
               let videoFile = selectedVideoFile instanceof File && selectedVideoFile.size > 0 ? selectedVideoFile : null;
@@ -5048,6 +5099,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (videoCancel) videoCancel.disabled = true;
               activeTusUpload = null;
               cancelTusUpload = null;
+              setRecordSubmitting(false);
             }
           });
         }
