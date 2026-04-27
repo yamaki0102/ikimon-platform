@@ -301,6 +301,20 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察会 OS" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-events" } },
   },
   {
+    path: "/community/fields",
+    lane: "group",
+    audience: "public",
+    auth: "public",
+    navVisibility: ["footer", "qa", "xml"],
+    title: { ja: "フィールド DB", en: "Field database" },
+    summary: {
+      ja: "自然共生サイト・TSUNAG・自分の観察フィールドを横断検索する。",
+      en: "Search 自然共生サイト / TSUNAG and your own saved observation fields.",
+    },
+    primaryAction: { href: "/community/fields", label: { ja: "フィールドを探す", en: "Browse fields" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "フィールド DB" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-fields" } },
+  },
+  {
     path: "/for-business",
     lane: "business",
     audience: "business",

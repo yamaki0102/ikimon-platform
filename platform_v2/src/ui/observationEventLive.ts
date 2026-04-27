@@ -67,7 +67,8 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
       <div class="evt-live-map-canvas" data-evt-map
            data-center-lat="${escapeHtml(String(session.locationLat ?? 35.0))}"
            data-center-lng="${escapeHtml(String(session.locationLng ?? 138.0))}"
-           data-radius-m="${escapeHtml(String(session.locationRadiusM ?? 1000))}">
+           data-radius-m="${escapeHtml(String(session.locationRadiusM ?? 1000))}"
+           data-field-id="${escapeHtml(session.fieldId ?? "")}">
       </div>
       <div class="evt-live-map-overlay">
         <span class="evt-badge evt-mode-discovery">目標: ${targets}</span>
@@ -382,7 +383,54 @@ export function observationEventLiveScript(): string {
       zoom: 14,
       attributionControl: { compact: true },
     });
-    map.on("load", () => {
+    map.on("load", async () => {
+      // Field polygon (or radius circle) を描画
+      const fieldId = mapEl.dataset.fieldId || "";
+      let fieldFeature = null;
+      if (fieldId) {
+        try {
+          const r = await fetch("/api/v1/fields/" + encodeURIComponent(fieldId), { credentials: "include" });
+          if (r.ok) {
+            const data = await r.json();
+            const f = data?.field;
+            if (f) {
+              const earthR = 6378137;
+              if (f.polygon && (f.polygon.type === "Polygon" || f.polygon.type === "MultiPolygon")) {
+                fieldFeature = { type: "Feature", geometry: f.polygon, properties: {} };
+              } else {
+                const coords = [];
+                const steps = 64;
+                const radiusM = Number(f.radiusM ?? mapEl.dataset.radiusM ?? 1000);
+                for (let i = 0; i <= steps; i++) {
+                  const angle = (i / steps) * 2 * Math.PI;
+                  const dx = radiusM * Math.cos(angle);
+                  const dy = radiusM * Math.sin(angle);
+                  const dLat = (dy / earthR) * (180 / Math.PI);
+                  const dLng = (dx / (earthR * Math.cos((f.lat * Math.PI) / 180))) * (180 / Math.PI);
+                  coords.push([f.lng + dLng, f.lat + dLat]);
+                }
+                fieldFeature = { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
+              }
+            }
+          }
+        } catch(_){}
+      }
+      if (fieldFeature) {
+        map.addSource("evt-field", { type: "geojson", data: fieldFeature });
+        map.addLayer({
+          id: "evt-field-fill",
+          type: "fill",
+          source: "evt-field",
+          paint: { "fill-color": "#10b981", "fill-opacity": 0.10 },
+        });
+        map.addLayer({
+          id: "evt-field-line",
+          type: "line",
+          source: "evt-field",
+          paint: { "line-color": "#0ea5e9", "line-width": 3, "line-dasharray": [2, 2] },
+        });
+      }
+
       map.addSource("evt-obs", { type: "geojson", data: observationFC });
       map.addLayer({
         id: "evt-obs-circle",

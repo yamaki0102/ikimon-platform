@@ -3,9 +3,12 @@ import { getSessionFromCookie } from "../services/authSession.js";
 import {
   createField,
   getField,
+  getFieldStats,
   listCertifiedFields,
+  listFields,
   listMyFields,
   listNearbyFields,
+  listPrefectureBuckets,
   searchFieldsByName,
   updateField,
   type FieldSource,
@@ -63,11 +66,24 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     }
   });
 
+  // GET /api/v1/fields/prefectures  — 都道府県別バケット
+  app.get("/api/v1/fields/prefectures", async (_request, reply) => {
+    const buckets = await listPrefectureBuckets();
+    return reply.send({ prefectures: buckets });
+  });
+
   // GET /api/v1/fields/:fieldId  — 単一取得
   app.get<{ Params: { fieldId: string } }>("/api/v1/fields/:fieldId", async (request, reply) => {
     const field = await getField(request.params.fieldId);
     if (!field) return reply.status(404).send({ error: "field not found" });
     return reply.send({ field });
+  });
+
+  // GET /api/v1/fields/:fieldId/stats  — フィールドごとの観察会・観察集計
+  app.get<{ Params: { fieldId: string } }>("/api/v1/fields/:fieldId/stats", async (request, reply) => {
+    const stats = await getFieldStats(request.params.fieldId);
+    if (!stats) return reply.status(404).send({ error: "field not found" });
+    return reply.send({ stats });
   });
 
   // PATCH /api/v1/fields/:fieldId  — 自分のフィールドのみ
@@ -169,6 +185,22 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
       return reply.send({ fields });
     }
 
-    return reply.status(400).send({ error: "specify nearby/q/mine/certified" });
+    // 一般ブラウズ: prefecture/city/source/offset の任意組み合わせ
+    const prefecture = asString(request.query.prefecture);
+    const city = asString((request.query as Record<string, unknown>).city);
+    const sourceFilter = request.query.source ? asFieldSource(request.query.source) : null;
+    const offset = Number((request.query as Record<string, unknown>).offset ?? 0) || 0;
+    if (prefecture || city || sourceFilter) {
+      const fields = await listFields({
+        prefecture: prefecture ?? undefined,
+        city: city ?? undefined,
+        source: sourceFilter ?? undefined,
+        limit,
+        offset,
+      });
+      return reply.send({ fields });
+    }
+
+    return reply.status(400).send({ error: "specify nearby/q/mine/certified/prefecture" });
   });
 }

@@ -39,6 +39,19 @@ import {
   renderEventEditBody,
   eventEditScript,
 } from "../ui/observationEventEdit.js";
+import { renderFieldListBody } from "../ui/observationFieldList.js";
+import {
+  renderFieldDetailBody,
+  fieldDetailScript,
+} from "../ui/observationFieldDetail.js";
+import {
+  getField,
+  getFieldStats,
+  listFields,
+  listPrefectureBuckets,
+  searchFieldsByName,
+  type FieldSource,
+} from "../services/observationFieldRegistry.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -164,6 +177,88 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         title: `${session.title || "観察会"} 編集 — ikimon.life`,
         body: renderEventEditBody({ session, strings }),
         extraScript: eventEditScript(),
+        lang,
+      });
+    },
+  );
+
+  // /community/fields  --- フィールド一覧(都道府県/種別フィルタ)
+  app.get<{
+    Querystring: { prefecture?: string; source?: string; q?: string; offset?: string };
+  }>("/community/fields", async (request, reply) => {
+    const lang = langOf(request);
+    const prefecture = request.query.prefecture && request.query.prefecture.length > 0 ? request.query.prefecture : undefined;
+    const sourceRaw = request.query.source;
+    const source = sourceRaw === "user_defined" || sourceRaw === "nature_symbiosis_site" ||
+      sourceRaw === "tsunag" || sourceRaw === "protected_area" || sourceRaw === "oecm"
+      ? (sourceRaw as FieldSource)
+      : undefined;
+    const query = request.query.q && request.query.q.length > 0 ? request.query.q : undefined;
+    let fields: Awaited<ReturnType<typeof listFields>>;
+    let prefectures: Awaited<ReturnType<typeof listPrefectureBuckets>> = [];
+    try {
+      [fields, prefectures] = await Promise.all([
+        query
+          ? searchFieldsByName(query, 60)
+          : listFields({ prefecture, source, limit: 60 }),
+        listPrefectureBuckets(),
+      ]);
+    } catch {
+      fields = [];
+      prefectures = [];
+    }
+
+    const html = pageDocument({
+      basePath: "",
+      title: "フィールド DB — ikimon.life",
+      body: renderFieldListBody({
+        fields,
+        prefectures,
+        filter: { prefecture, source: source ?? sourceRaw, query },
+      }),
+      lang,
+    });
+    reply.type("text/html; charset=utf-8");
+    return html;
+  });
+
+  // /community/fields/:fieldId  --- フィールド詳細
+  app.get<{ Params: { fieldId: string } }>(
+    "/community/fields/:fieldId",
+    async (request, reply) => {
+      const field = await getField(request.params.fieldId).catch(() => null);
+      if (!field) {
+        reply.code(404);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "フィールド — 見つかりません",
+          body: `<section class="evt-recap-shell">
+            <article class="evt-card">
+              <span class="evt-eyebrow">フィールド</span>
+              <h1 class="evt-heading">このフィールドは見つかりませんでした。</h1>
+              <a class="evt-btn evt-btn-primary" href="/community/fields">フィールド一覧へ</a>
+            </article>
+          </section>`,
+        });
+      }
+      const stats = await getFieldStats(field.fieldId).catch(() => null);
+      if (!stats) {
+        reply.code(500);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "フィールド — 集計できません",
+          body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">集計に失敗しました</h1></article></section>`,
+        });
+      }
+      const lang = langOf(request);
+      reply.type("text/html; charset=utf-8");
+      return pageDocument({
+        basePath: "",
+        title: `${field.name} — フィールド DB — ikimon.life`,
+        body: renderFieldDetailBody({ field, stats }),
+        extraScript: fieldDetailScript(),
         lang,
       });
     },

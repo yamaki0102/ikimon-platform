@@ -342,3 +342,206 @@ export async function listCertifiedFields(
   );
   return result.rows.map(mapRow);
 }
+
+export interface FieldFilter {
+  prefecture?: string;
+  city?: string;
+  source?: FieldSource | "any";
+  query?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function listFields(filter: FieldFilter = {}): Promise<ObservationField[]> {
+  const params: unknown[] = [];
+  const where: string[] = [];
+  if (filter.prefecture) {
+    params.push(filter.prefecture);
+    where.push(`prefecture = $${params.length}`);
+  }
+  if (filter.city) {
+    params.push(filter.city);
+    where.push(`city = $${params.length}`);
+  }
+  if (filter.source && filter.source !== "any") {
+    params.push(filter.source);
+    where.push(`source = $${params.length}`);
+  }
+  if (filter.query) {
+    const q = filter.query.trim().toLowerCase();
+    if (q) {
+      params.push(q);
+      const idx = params.length;
+      where.push(`(
+        lower(name) LIKE '%' || $${idx} || '%'
+        OR lower(name_kana) LIKE '%' || $${idx} || '%'
+        OR lower(prefecture) LIKE '%' || $${idx} || '%'
+        OR lower(city) LIKE '%' || $${idx} || '%'
+      )`);
+    }
+  }
+  const limit = Math.min(Math.max(1, filter.limit ?? 60), 200);
+  const offset = Math.max(0, filter.offset ?? 0);
+  params.push(limit);
+  const limitIdx = params.length;
+  params.push(offset);
+  const offsetIdx = params.length;
+  const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+  const result = await getPool().query<RawFieldRow>(
+    `SELECT ${SELECT} FROM observation_fields
+     ${whereClause}
+     ORDER BY
+       CASE WHEN source = 'user_defined' THEN 1 ELSE 0 END,
+       prefecture, city, name
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params,
+  );
+  return result.rows.map(mapRow);
+}
+
+export interface PrefectureBucket {
+  prefecture: string;
+  total: number;
+  natureSymbiosisSite: number;
+  tsunag: number;
+  userDefined: number;
+}
+
+export async function listPrefectureBuckets(): Promise<PrefectureBucket[]> {
+  const result = await getPool().query<{
+    prefecture: string;
+    total: string;
+    nss: string;
+    tsu: string;
+    ud: string;
+  }>(
+    `SELECT
+       prefecture,
+       COUNT(*)::text AS total,
+       COUNT(*) FILTER (WHERE source = 'nature_symbiosis_site')::text AS nss,
+       COUNT(*) FILTER (WHERE source = 'tsunag')::text AS tsu,
+       COUNT(*) FILTER (WHERE source = 'user_defined')::text AS ud
+     FROM observation_fields
+     WHERE prefecture <> ''
+     GROUP BY prefecture
+     ORDER BY COUNT(*) DESC, prefecture`,
+  );
+  return result.rows.map((r) => ({
+    prefecture: r.prefecture,
+    total: Number(r.total),
+    natureSymbiosisSite: Number(r.nss),
+    tsunag: Number(r.tsu),
+    userDefined: Number(r.ud),
+  }));
+}
+
+export interface FieldStats {
+  fieldId: string;
+  totalSessions: number;
+  liveSessions: number;
+  totalObservations: number;
+  uniqueSpeciesCount: number;
+  totalAbsences: number;
+  totalParticipants: number;
+  topTaxa: Array<{ name: string; count: number }>;
+  recentSessions: Array<{
+    sessionId: string;
+    title: string;
+    eventCode: string | null;
+    startedAt: string;
+    endedAt: string | null;
+  }>;
+}
+
+export async function getFieldStats(fieldId: string): Promise<FieldStats | null> {
+  const pool = getPool();
+  const fieldExists = await pool.query<{ field_id: string }>(
+    `SELECT field_id FROM observation_fields WHERE field_id = $1`,
+    [fieldId],
+  );
+  if (fieldExists.rows.length === 0) return null;
+
+  const [sessionsRow, recentRow, obsRow, absenceRow, taxaRow, participantsRow] = await Promise.all([
+    pool.query<{ total: string; live: string }>(
+      `SELECT
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE ended_at IS NULL)::text AS live
+       FROM observation_event_sessions
+       WHERE field_id = $1`,
+      [fieldId],
+    ),
+    pool.query<{
+      session_id: string;
+      title: string;
+      event_code: string | null;
+      started_at: string;
+      ended_at: string | null;
+    }>(
+      `SELECT session_id, title, event_code,
+              started_at::text AS started_at,
+              ended_at::text AS ended_at
+       FROM observation_event_sessions
+       WHERE field_id = $1
+       ORDER BY started_at DESC
+       LIMIT 12`,
+      [fieldId],
+    ),
+    pool.query<{ obs_count: string; species_count: string }>(
+      `WITH live AS (
+         SELECT e.payload
+         FROM observation_event_live_events e
+         JOIN observation_event_sessions s ON s.session_id = e.session_id
+         WHERE s.field_id = $1 AND e.type = 'observation_added'
+       )
+       SELECT COUNT(*)::text AS obs_count,
+              COUNT(DISTINCT (payload->>'taxon_name'))::text AS species_count
+       FROM live
+       WHERE payload->>'taxon_name' IS NOT NULL`,
+      [fieldId],
+    ),
+    pool.query<{ absence_count: string }>(
+      `SELECT COUNT(*)::text AS absence_count
+       FROM observation_event_absences a
+       JOIN observation_event_sessions s ON s.session_id = a.session_id
+       WHERE s.field_id = $1`,
+      [fieldId],
+    ),
+    pool.query<{ taxon_name: string; cnt: string }>(
+      `SELECT e.payload->>'taxon_name' AS taxon_name, COUNT(*)::text AS cnt
+       FROM observation_event_live_events e
+       JOIN observation_event_sessions s ON s.session_id = e.session_id
+       WHERE s.field_id = $1
+         AND e.type = 'observation_added'
+         AND e.payload->>'taxon_name' IS NOT NULL
+       GROUP BY e.payload->>'taxon_name'
+       ORDER BY COUNT(*) DESC
+       LIMIT 8`,
+      [fieldId],
+    ),
+    pool.query<{ participants: string }>(
+      `SELECT COUNT(*)::text AS participants
+       FROM observation_event_participants p
+       JOIN observation_event_sessions s ON s.session_id = p.session_id
+       WHERE s.field_id = $1`,
+      [fieldId],
+    ),
+  ]);
+
+  return {
+    fieldId,
+    totalSessions: Number(sessionsRow.rows[0]?.total ?? 0),
+    liveSessions: Number(sessionsRow.rows[0]?.live ?? 0),
+    totalObservations: Number(obsRow.rows[0]?.obs_count ?? 0),
+    uniqueSpeciesCount: Number(obsRow.rows[0]?.species_count ?? 0),
+    totalAbsences: Number(absenceRow.rows[0]?.absence_count ?? 0),
+    totalParticipants: Number(participantsRow.rows[0]?.participants ?? 0),
+    topTaxa: taxaRow.rows.map((r) => ({ name: r.taxon_name, count: Number(r.cnt) })),
+    recentSessions: recentRow.rows.map((r) => ({
+      sessionId: r.session_id,
+      title: r.title,
+      eventCode: r.event_code,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+    })),
+  };
+}
