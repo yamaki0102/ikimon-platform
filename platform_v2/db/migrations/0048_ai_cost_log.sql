@@ -42,13 +42,17 @@ CREATE TABLE IF NOT EXISTS ai_cost_log (
         CHECK (char_length(endpoint) BETWEEN 1 AND 120)
 );
 
--- Monthly aggregation index (drives aiBudgetGate.summarizeMonth)
-CREATE INDEX IF NOT EXISTS idx_ai_cost_log_month_layer
-    ON ai_cost_log ((date_trunc('month', occurred_at)), layer);
+-- Monthly aggregation index (drives aiBudgetGate.summarizeMonth).
+-- date_trunc(timestamptz) is STABLE, not IMMUTABLE, so it cannot appear in
+-- an expression index. Use a plain BTree on (occurred_at DESC, layer) and
+-- rely on range predicates (occurred_at >= :ms AND occurred_at < :next) in queries.
+CREATE INDEX IF NOT EXISTS idx_ai_cost_log_occurred_at_layer
+    ON ai_cost_log (occurred_at DESC, layer);
 
--- Per-user monthly cost (for the "1 user month AI cost" Evaluation Gate metric)
-CREATE INDEX IF NOT EXISTS idx_ai_cost_log_user_month
-    ON ai_cost_log (user_id, (date_trunc('month', occurred_at)))
+-- Per-user monthly cost (for the "1 user month AI cost" Evaluation Gate metric).
+-- Same IMMUTABLE caveat — query the range explicitly.
+CREATE INDEX IF NOT EXISTS idx_ai_cost_log_user_occurred_at
+    ON ai_cost_log (user_id, occurred_at DESC)
     WHERE user_id IS NOT NULL;
 
 -- Curator run cost rollup

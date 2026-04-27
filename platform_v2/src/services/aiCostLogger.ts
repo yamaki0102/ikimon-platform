@@ -119,15 +119,20 @@ export async function summarizeMonthlyCost(layer: AiCostLayer | "all" = "all", m
     cache_hits: string;
     escalations: string;
   }>(
-    `SELECT
-       date_trunc('month', NOW() - ($1 || ' month')::interval)::date::text AS month_start,
+    `WITH bounds AS (
+       SELECT date_trunc('month', NOW() - ($1 || ' month')::interval) AS month_start,
+              date_trunc('month', NOW() - ($1 || ' month')::interval) + INTERVAL '1 month' AS next_start
+     )
+     SELECT
+       (SELECT month_start::date::text FROM bounds) AS month_start,
        COALESCE(SUM(cost_jpy), 0)::text AS total_cost_jpy,
        COALESCE(SUM(cost_usd), 0)::text AS total_cost_usd,
        COUNT(*)::text AS call_count,
        COUNT(*) FILTER (WHERE cache_hit)::text AS cache_hits,
        COUNT(*) FILTER (WHERE escalated)::text AS escalations
      FROM ai_cost_log
-     WHERE date_trunc('month', occurred_at) = date_trunc('month', NOW() - ($1 || ' month')::interval)
+     WHERE occurred_at >= (SELECT month_start FROM bounds)
+       AND occurred_at <  (SELECT next_start  FROM bounds)
        ${layerClause}`,
     params
   );
