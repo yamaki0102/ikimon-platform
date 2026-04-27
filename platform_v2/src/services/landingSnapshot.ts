@@ -58,6 +58,36 @@ export function resolveLandingDisplayName(
     ?? "同定待ち";
 }
 
+function landingMonthDay(raw: string | null | undefined): string {
+  const value = raw?.trim();
+  if (!value) return "";
+  const direct = value.match(/(?:^|\D)(\d{4})-(\d{2})-(\d{2})(?:\D|$)/);
+  if (direct) return `${direct[2]}-${direct[3]}`;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return `${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+}
+
+function normalizedKnownDummyName(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function isKnownLandingDummyObservation(input: {
+  displayName?: string | null;
+  aiCandidateName?: string | null;
+  observedAt?: string | null;
+}): boolean {
+  const name = normalizedKnownDummyName(input.displayName ?? input.aiCandidateName);
+  const monthDay = landingMonthDay(input.observedAt);
+  if (!monthDay) return false;
+  const isWinterFixtureDate = monthDay === "01-10" || monthDay === "02-17";
+  if (!isWinterFixtureDate) return false;
+  return name === "アブラゼミ" ||
+    name === "graptopsaltria nigrofuscata" ||
+    name === "アジサイ" ||
+    name === "hydrangea macrophylla";
+}
+
 type FeedRow = {
   occurrence_id: string;
   visit_id: string;
@@ -565,6 +595,23 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   };
 }
 
+function filterLandingDummyObservations<T extends {
+  displayName?: string | null;
+  aiCandidateName?: string | null;
+  observedAt?: string | null;
+}>(observations: T[]): T[] {
+  return observations.filter((observation) => !isKnownLandingDummyObservation(observation));
+}
+
+function filterLandingDummyPlaces(places: LandingSnapshot["myPlaces"]): LandingSnapshot["myPlaces"] {
+  return places.filter((place) =>
+    !isKnownLandingDummyObservation({
+      displayName: place.latestDisplayName,
+      observedAt: place.lastObservedAt,
+    }),
+  );
+}
+
 function buildMapPreviewCells(rows: FeedRow[]): LandingMapPreviewCell[] {
   const groups = new Map<string, {
     count: number;
@@ -685,7 +732,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 72`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 72`,
         [userId],
       );
       myFeedRows = result.rows;
@@ -990,10 +1037,15 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
 
   // Merge own observations + own identifications into myFeed, sorted by timestamp desc,
   // so that the "your notebook" stream shows both kinds of pages in one timeline.
+  const filteredFeedRows = feedRows.filter((row) => !isKnownLandingDummyObservation({
+    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
+    aiCandidateName: row.ai_candidate_name,
+    observedAt: row.observed_at,
+  }));
   const ownObservationEntries = myFeedRows.map(toLandingObservation);
   const ownIdentificationEntries = myIdentificationRows.map(toIdentificationEntry);
-  const publicFeed = feedRows.map(toLandingObservation);
-  const combined = [...ownObservationEntries, ...ownIdentificationEntries].sort((a, b) => {
+  const publicFeed = filteredFeedRows.map(toLandingObservation);
+  const combined = filterLandingDummyObservations([...ownObservationEntries, ...ownIdentificationEntries]).sort((a, b) => {
     const aTs = (a.entryType === "identification" ? a.identifiedAt : a.observedAt) ?? "";
     const bTs = (b.entryType === "identification" ? b.identifiedAt : b.observedAt) ?? "";
     return bTs.localeCompare(aTs);
@@ -1004,8 +1056,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     stats,
     feed: publicFeed,
     myFeed: combined.slice(0, 96),
-    myPlaces,
-    mapPreviewCells: buildMapPreviewCells(feedRows),
+    myPlaces: filterLandingDummyPlaces(myPlaces),
+    mapPreviewCells: buildMapPreviewCells(filteredFeedRows),
     ambient,
     habit,
   } satisfies Omit<LandingSnapshot, "dailyDashboard">;
@@ -1014,7 +1066,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     ...snapshotWithoutDashboard,
     dailyDashboard: buildLandingDailyDashboard(
       snapshotWithoutDashboard,
-      heroCandidateRows.map(toLandingHeroCandidate),
+      filterLandingDummyObservations(heroCandidateRows.map(toLandingHeroCandidate)),
     ),
   };
 }
