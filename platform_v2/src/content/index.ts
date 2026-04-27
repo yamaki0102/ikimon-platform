@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SiteLang } from "../i18n.js";
 import type { AppStrings, FieldLoopStrings, LandingStrings } from "../i18n/strings.js";
-import { getObservationEventStrings } from "../i18n/observationEventStrings.js";
 import { renderMarkdown } from "./markdown.js";
 
 export type ContentNamespace = "shared" | "public" | "specialist" | "ops";
@@ -773,6 +772,5 @@ export function buildAppStrings(lang: SiteLang): AppStrings {
     boundaries: publicCopy.fieldLoop.boundaries,
   };
 
-  const observationEvent = getObservationEventStrings(lang);
-  return { landing, fieldLoop, observationEvent };
+  return { landing, fieldLoop };
 }

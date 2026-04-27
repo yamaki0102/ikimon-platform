@@ -63,94 +63,9 @@ export type FieldLoopStrings = {
   boundaries: string[];
 };
 
-export type ObservationEventStrings = {
-  // 一覧
-  listEyebrow: string;
-  listHeroHeading: string;
-  listHeroLead: string;
-  listCreateCta: string;
-  listBackToCommunity: string;
-  listLiveSection: string;
-  listPastSection: string;
-  listLiveEmpty: string;
-  listPastEmpty: string;
-  badgeLive: string;
-  badgeEnded: string;
-  joinCta: string;
-  recapCta: string;
-  // モード
-  modeLabels: Record<"discovery" | "effort_maximize" | "bingo" | "absence_confirm" | "ai_quest", string>;
-  // チェックイン
-  checkinEyebrow: string;
-  checkinHeading: (title: string) => string;
-  checkinLead: (mode: string, targets: string) => string;
-  checkinNameLabel: string;
-  checkinTeamLabel: string;
-  checkinShareLocation: string;
-  checkinIsMinor: string;
-  checkinAuthenticated: string;
-  checkinGuestNote: string;
-  checkinSubmit: string;
-  // ライブ
-  liveModeSuffix: string;
-  liveTargetLabel: string;
-  liveFeedHeader: string;
-  liveFeedSeed: string;
-  liveStatObs: string;
-  liveStatSpecies: string;
-  liveStatAbsence: string;
-  liveActionRecord: string;
-  liveActionSearched: string;
-  liveActionAbsent: string;
-  liveActionRole: string;
-  liveQuestEyebrow: string;
-  liveQuestAccept: string;
-  liveQuestDecline: string;
-  liveAbsenceFormHeading: string;
-  liveAbsenceFormLead: string;
-  liveAbsenceTaxonLabel: string;
-  liveAbsenceEffortLabel: string;
-  liveAbsenceConfidenceLabel: string;
-  liveAbsenceConfidenceSearched: string;
-  liveAbsenceConfidenceAbsent: string;
-  liveAbsenceCancel: string;
-  liveAbsenceSubmit: string;
-  liveOfflineLabel: string;
-  liveReconnectLabel: string;
-  // 管制塔
-  consoleEyebrow: string;
-  consoleHeading: (title: string) => string;
-  consoleLead: string;
-  consoleAnnounceLabel: string;
-  consoleAnnouncePlaceholder: string;
-  consoleAnnounceSubmit: string;
-  consoleQuestRunCta: string;
-  consoleStatParticipants: string;
-  consoleStatObs: string;
-  consoleStatAbsence: string;
-  consoleStatQuests: string;
-  consoleTeamHeader: string;
-  consoleAddTeamLabel: string;
-  consoleAddTeamCta: string;
-  consoleFeedHeader: string;
-  consoleEndCta: string;
-  // 振り返り
-  recapTabOverview: string;
-  recapTabTeams: string;
-  recapTabMe: string;
-  recapTabTimeline: string;
-  recapTabImpact: string;
-  recapTopTaxa: string;
-  recapStats: string;
-  recapTeamsHeader: string;
-  recapMeFallback: string;
-  recapImpactEmpty: string;
-};
-
 export type AppStrings = {
   landing: LandingStrings;
   fieldLoop: FieldLoopStrings;
-  observationEvent: ObservationEventStrings;
 };
 
 export type PartialAppStrings = {
@@ -158,5 +73,4 @@ export type PartialAppStrings = {
     tools?: { lens?: Partial<LandingStrings["tools"]["lens"]>; scan?: Partial<LandingStrings["tools"]["scan"]> };
   };
   fieldLoop?: Partial<FieldLoopStrings>;
-  observationEvent?: Partial<ObservationEventStrings>;
 };
