@@ -37,6 +37,7 @@
     "smoke:v2-write-lane": "tsx src/scripts/smokeV2WriteLane.ts",
     "smoke:production-media": "tsx src/scripts/smokeProductionMediaUpload.ts",
     "smoke:audio-archive": "tsx src/scripts/smokeAudioArchive.ts",
+    "smoke:audio-embedding": "tsx src/scripts/smokeAudioEmbedding.ts",
     "smoke:manual-occurrence-map": "tsx src/scripts/smokeManualOccurrenceMap.ts",
     "smoke:specialist-authority": "tsx src/scripts/smokeSpecialistAuthority.ts",
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
@@ -48,7 +49,12 @@
     "readiness": "tsx src/scripts/readinessReport.ts",
     "rehearse:cutover": "tsx src/scripts/rehearseCutover.ts",
     "check:public-terms": "tsx src/scripts/checkPublicSurfaceTerms.ts",
-    "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts"
+    "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts",
+    "import:feedback-knowledge": "tsx src/scripts/importObservationFeedbackKnowledgeClaims.ts",
+    "smoke:feedback-knowledge": "tsx src/scripts/smokeObservationFeedbackKnowledge.ts",
+    "import:observation-fields": "tsx src/scripts/importObservationFields.ts",
+    "scrape:nature-symbiosis": "tsx src/scripts/scrapeNatureSymbiosisSites.ts",
+    "import:protected-areas": "tsx src/scripts/importProtectedAreas.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
