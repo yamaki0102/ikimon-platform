@@ -57,6 +57,10 @@ jobs:
         working-directory: platform_v2
         run: npm run build
 
+      - name: Test platform_v2 curator validators
+        working-directory: platform_v2
+        run: npm run test:curator
+
   deploy:
     name: Deploy via SSH (VPS)
     runs-on: ubuntu-latest

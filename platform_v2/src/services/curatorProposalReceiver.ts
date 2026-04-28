@@ -1,13 +1,13 @@
-// Sprint 6: receive curator proposals from CMA agents and turn them into PRs.
+// Sprint 6/7: receive curator proposals and turn them into PRs.
 //
-// CMA agents (with no GitHub credentials of their own) POST proposed migration
-// SQL to /api/internal/agent-proposals. This service:
+// The Node-owned curator dispatcher POSTs proposed migration SQL to
+// /api/internal/agent-proposals. This service:
 //   1. Validates the shared secret (X-Curator-Secret header)
 //   2. Writes the SQL to out/proposals/<run_id>.sql
 //   3. Creates a branch + commit + push using a git worktree on the VPS repo
 //   4. Opens a PR via `gh pr create` with the agent-generated label
 //
-// The VPS holds the GitHub PAT in $GH_TOKEN env. Agents never see the token.
+// The VPS holds the GitHub PAT in $GH_TOKEN env. LLM providers never see the token.
 
 import { execFile as execFileCb } from "node:child_process";
 import { mkdir, writeFile, readdir } from "node:fs/promises";

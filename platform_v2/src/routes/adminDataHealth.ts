@@ -27,6 +27,29 @@ type FreshnessRow = {
 type ClaimReviewSummary = { severity: string; pending: number };
 type StalenessSummary = { severity: string; pending: number };
 
+type CuratorRunRow = {
+  run_id: string;
+  curator_name: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  cost_jpy: string | null;
+  pr_url: string | null;
+  receiver_response_status: number | null;
+  deepseek_call_count: number | null;
+  deepseek_skip_reason: string | null;
+  curator_model_provider: string | null;
+  curator_model_name: string | null;
+  curator_model_call_count: number | null;
+  gemini_call_count: number | null;
+  gemini_skip_reason: string | null;
+  chunk_count: number | null;
+  rows_proposed: number | null;
+  rows_dropped_validation: number | null;
+  wet_run_marker: boolean;
+  attempt_no: number;
+};
+
 function escapeHtml(value: string | null | undefined): string {
   if (value === null || value === undefined) return "";
   return String(value)
@@ -145,6 +168,136 @@ function renderQueueSummary(label: string, rows: { severity: string; pending: nu
 </div>`;
 }
 
+async function fetchRecentCuratorRuns(): Promise<CuratorRunRow[]> {
+  const pool = getPool();
+  try {
+    const result = await pool.query<CuratorRunRow>(
+      `SELECT run_id::text AS run_id,
+              curator_name,
+              started_at::text AS started_at,
+              finished_at::text AS finished_at,
+              status,
+              cost_jpy::text AS cost_jpy,
+              pr_url,
+              receiver_response_status,
+              deepseek_call_count,
+              deepseek_skip_reason,
+              curator_model_provider,
+              curator_model_name,
+              curator_model_call_count,
+              gemini_call_count,
+              gemini_skip_reason,
+              chunk_count,
+              rows_proposed,
+              rows_dropped_validation,
+              COALESCE(wet_run_marker, FALSE) AS wet_run_marker,
+              COALESCE(attempt_no, 1) AS attempt_no
+         FROM ai_curator_runs
+        WHERE started_at >= NOW() - INTERVAL '7 days'
+        ORDER BY started_at DESC
+        LIMIT 30`,
+    );
+    return result.rows;
+  } catch {
+    return [];
+  }
+}
+
+function renderCuratorRunsTable(rows: CuratorRunRow[]): string {
+  if (rows.length === 0) {
+    return `<p style="color:#6b7280;font-size:13px;">過去 7 日に curator run の記録がありません。</p>`;
+  }
+  const tbody = rows
+    .map((row) => {
+      const statusColor =
+        row.status === "success" ? "#10b981"
+        : row.status === "running" ? "#3b82f6"
+        : row.status === "partial" ? "#f59e0b"
+        : "#ef4444";
+      const modelCell = (() => {
+        if (row.curator_model_provider && row.curator_model_provider !== "none") {
+          const calls = row.curator_model_call_count ?? 0;
+          const geminiCalls = row.gemini_call_count ?? 0;
+          const reason = row.gemini_skip_reason ?? "";
+          const violated = row.curator_model_provider === "gemini" && calls === 0 && (!reason || reason === "none");
+          const color = violated ? "#ef4444" : calls >= 1 ? "#10b981" : "#f59e0b";
+          const detail = [
+            `${row.curator_model_provider}/${row.curator_model_name ?? "unknown"}`,
+            `model calls ${calls}`,
+            `gemini calls ${geminiCalls}`,
+            reason ? `reason ${reason}` : "",
+          ].filter(Boolean).join(" · ");
+          return `<span style="color:${color};font-weight:600;" title="${escapeHtml(detail)}">${escapeHtml(row.curator_model_provider)} ${calls}</span>`;
+        }
+        if (row.deepseek_call_count !== null && row.deepseek_call_count !== undefined) {
+          if (row.deepseek_call_count >= 1) {
+            return `<span style="color:#10b981;font-weight:600;" title="legacy v6 DeepSeek telemetry">deepseek ${row.deepseek_call_count}</span>`;
+          }
+          const reason = row.deepseek_skip_reason ?? "(no reason)";
+          const justified = reason !== "none" && reason !== "(no reason)";
+          const color = justified ? "#f59e0b" : "#ef4444";
+          const title = justified
+            ? `legacy 0 calls justified by ${reason}`
+            : `legacy v6 cost violation: deepseek_skip_reason=${reason}`;
+          return `<span style="color:${color};font-weight:600;" title="${escapeHtml(title)}">deepseek 0</span>`;
+        }
+        return `<span style="color:#9ca3af;font-size:11px;">—</span>`;
+      })();
+      const rowsCell = row.rows_proposed === null || row.rows_proposed === undefined
+        ? "—"
+        : `${row.rows_proposed}/${row.rows_dropped_validation ?? 0}`;
+      const wetTag = row.wet_run_marker
+        ? `<span style="display:inline-block;padding:1px 6px;font-size:10px;background:#fbbf24;color:#78350f;border-radius:9999px;margin-left:4px;">wet-run</span>`
+        : "";
+      const httpTag = row.receiver_response_status
+        ? `<span style="font-size:11px;color:${row.receiver_response_status < 300 ? "#10b981" : "#ef4444"};">HTTP ${row.receiver_response_status}</span>`
+        : `<span style="font-size:11px;color:#9ca3af;">—</span>`;
+      const prCell = row.pr_url
+        ? `<a href="${escapeHtml(row.pr_url)}" target="_blank" rel="noopener" style="color:#3b82f6;font-size:11px;">PR ↗</a>`
+        : `<span style="color:#9ca3af;font-size:11px;">—</span>`;
+      const costCell = row.cost_jpy ? `¥${Number(row.cost_jpy).toFixed(2)}` : "—";
+      return `
+<tr>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;font-family:ui-monospace,monospace;">${escapeHtml((row.started_at ?? "").slice(0, 19))}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;">${escapeHtml(row.curator_name)}${wetTag}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;"><span style="display:inline-block;padding:2px 6px;border-radius:9999px;background:${statusColor};color:#fff;font-size:11px;font-weight:600;">${escapeHtml(row.status)}</span></td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;">${modelCell}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;">${escapeHtml(rowsCell)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:center;">${httpTag}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;">${escapeHtml(costCell)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:center;">${prCell}</td>
+</tr>`;
+    })
+    .join("");
+  const wetCount = rows.filter((r) => r.wet_run_marker).length;
+  const violationCount = rows.filter(
+    (r) =>
+      (r.curator_model_provider === "gemini" && r.curator_model_call_count === 0 && (!r.gemini_skip_reason || r.gemini_skip_reason === "none")) ||
+      (!r.curator_model_provider && r.deepseek_call_count === 0 && (!r.deepseek_skip_reason || r.deepseek_skip_reason === "none")),
+  ).length;
+  const warningBanner = violationCount > 0
+    ? `<div style="margin-bottom:8px;padding:8px 12px;background:#fee2e2;border:1px solid #ef4444;border-radius:6px;font-size:12px;color:#7f1d1d;">${violationCount} run(s) で LLM 構造化抽出 call が 0 かつ skip reason なし。</div>`
+    : "";
+  return `
+${warningBanner}
+<div style="margin-bottom:8px;font-size:12px;color:#6b7280;">過去 7 日: ${rows.length} run, うち wet-run ${wetCount} 件 / telemetry warning ${violationCount} 件</div>
+<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+  <thead>
+    <tr style="background:#f9fafb;">
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">started_at</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">curator</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">status</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">model calls</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">rows ok/drop</th>
+      <th style="padding:8px;text-align:center;font-size:11px;color:#374151;text-transform:uppercase;">receiver</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">cost</th>
+      <th style="padding:8px;text-align:center;font-size:11px;color:#374151;text-transform:uppercase;">pr</th>
+    </tr>
+  </thead>
+  <tbody>${tbody}</tbody>
+</table>`;
+}
+
 async function fetchFreshnessRegistry(): Promise<FreshnessRow[]> {
   const pool = getPool();
   const result = await pool.query<FreshnessRow>(
@@ -194,7 +347,7 @@ async function fetchStalenessSummary(): Promise<StalenessSummary[]> {
 
 async function renderDashboard(): Promise<string> {
   const layers: AiCostLayer[] = ["hot", "warm", "cold"];
-  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness] = await Promise.all([
+  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, curatorRuns] = await Promise.all([
     summarizeMonthlyCost("hot"),
     summarizeMonthlyCost("warm"),
     summarizeMonthlyCost("cold"),
@@ -204,6 +357,7 @@ async function renderDashboard(): Promise<string> {
     fetchFreshnessRegistry(),
     fetchClaimReviewSummary(),
     fetchStalenessSummary(),
+    fetchRecentCuratorRuns(),
   ]);
 
   const summaries = { hot: hotSummary, warm: warmSummary, cold: coldSummary };
@@ -229,6 +383,11 @@ async function renderDashboard(): Promise<string> {
       ${renderQueueSummary("claim_review_queue", claimReview)}
       ${renderQueueSummary("staleness_alerts (未解決)", staleness)}
     </div>
+  </section>
+
+  <section style="margin-bottom:24px;">
+    <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">直近 7 日の curator run</h2>
+    ${renderCuratorRunsTable(curatorRuns)}
   </section>
 
   <section>
