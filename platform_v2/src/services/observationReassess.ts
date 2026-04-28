@@ -379,16 +379,27 @@ async function syncOccurrenceThreeLenses(
       : null;
 
   await client.query(
-    `UPDATE occurrences
-        SET size_class = $2,
-            size_value_cm = $3,
-            size_assessment_json = $4::jsonb,
-            novelty_score = $5,
-            novelty_assessment_json = $6::jsonb,
-            invasive_status = $7,
-            invasive_assessment_json = $8::jsonb,
-            ai_lenses_assessed_at = NOW()
-      WHERE occurrence_id = $1::uuid`,
+    `INSERT INTO occurrence_three_lenses (
+         occurrence_id, size_class, size_value_cm, size_assessment_json,
+         novelty_score, novelty_assessment_json,
+         invasive_status, invasive_assessment_json,
+         ai_lenses_assessed_at, updated_at
+     ) VALUES (
+         $1::uuid, $2, $3, $4::jsonb,
+         $5, $6::jsonb,
+         $7, $8::jsonb,
+         NOW(), NOW()
+     )
+     ON CONFLICT (occurrence_id) DO UPDATE SET
+         size_class = EXCLUDED.size_class,
+         size_value_cm = EXCLUDED.size_value_cm,
+         size_assessment_json = EXCLUDED.size_assessment_json,
+         novelty_score = EXCLUDED.novelty_score,
+         novelty_assessment_json = EXCLUDED.novelty_assessment_json,
+         invasive_status = EXCLUDED.invasive_status,
+         invasive_assessment_json = EXCLUDED.invasive_assessment_json,
+         ai_lenses_assessed_at = NOW(),
+         updated_at = NOW()`,
     [
       occurrenceId,
       sizeClass,
