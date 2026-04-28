@@ -81,16 +81,16 @@ jobs:
           ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
 
       - name: Deploy legacy lane via SSH
-        run: ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 /var/www/ikimon.life/deploy.sh
+        run: ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 /var/www/ikimon.life/deploy.sh
 
       - name: Prepare inactive platform_v2 candidate
         run: |
-          ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 \
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
             "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh prepare '${GITHUB_SHA}'"
 
       - name: Read candidate port
         run: |
-          port="$(ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 'cat /var/www/ikimon.life/deploy_state/candidate_port')"
+          port="$(ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 'cat /var/www/ikimon.life/deploy_state/candidate_port')"
           case "$port" in
             3201|3202) ;;
             *) echo "Invalid candidate port: $port"; exit 1 ;;
@@ -100,6 +100,8 @@ jobs:
       - name: Open SSH tunnel to candidate
         run: |
           ssh -i ~/.ssh/ikimon_vps -f -N \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=20 \
             -o ExitOnForwardFailure=yes \
             -L 13202:127.0.0.1:${CANDIDATE_PORT} \
             root@162.43.44.131
@@ -128,7 +130,7 @@ jobs:
 
       - name: Promote candidate to public nginx
         run: |
-          ssh -i ~/.ssh/ikimon_vps root@162.43.44.131 \
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
             "bash /var/www/ikimon.life/repo/ops/deploy/deploy_platform_v2_blue_green.sh promote"
 
       - name: Upload production smoke artifacts
