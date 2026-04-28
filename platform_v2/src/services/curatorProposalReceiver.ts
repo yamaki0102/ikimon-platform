@@ -129,13 +129,20 @@ export async function receiveProposal(submission: ProposalSubmission): Promise<P
   await mkdir(WORKTREES_ROOT, { recursive: true });
   const worktreePath = path.join(WORKTREES_ROOT, submission.runId);
 
-  // Refresh main first so the worktree branch is based on the latest
-  await runGit(["fetch", "origin", "main"], REPO_ROOT);
+  // Refresh main via HTTPS+token so the worktree branch is based on the latest.
+  // We bypass the `origin` remote because production repos are commonly cloned
+  // via SSH and the www-data runtime user has no SSH key — the token-bearing
+  // HTTPS URL works regardless of how origin was configured.
+  const fetchUrl = `https://x-access-token:${ghToken}@github.com/yamaki0102/ikimon-platform.git`;
+  await runGit(
+    ["fetch", "--no-tags", fetchUrl, "main:refs/remotes/origin/main"],
+    REPO_ROOT,
+  );
 
   // If a stale worktree exists for this run_id, prune it
   await runGit(["worktree", "prune"], REPO_ROOT).catch(() => undefined);
 
-  await runGit(["worktree", "add", "-B", branchName, worktreePath, "origin/main"], REPO_ROOT);
+  await runGit(["worktree", "add", "-B", branchName, worktreePath, "refs/remotes/origin/main"], REPO_ROOT);
 
   try {
     // 4. Drop the proposal SQL into the migrations dir
