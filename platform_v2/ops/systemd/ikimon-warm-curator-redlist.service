@@ -1,0 +1,16 @@
+[Unit]
+Description=ikimon Freshness OS — redlist-curator (CMA scheduled run)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=oneshot
+User=ikimon-staging
+Group=www-data
+WorkingDirectory=/var/www/ikimon.life-staging/repo/platform_v2
+EnvironmentFile=/etc/ikimon/staging-v2.env
+Environment=CURATOR_NAME=redlist
+ExecStart=/usr/bin/env node dist/scripts/cron/runCurator.js
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=1800

@@ -1,0 +1,10 @@
+[Unit]
+Description=Trigger satellite-update-curator monthly (5th 04:00 JST)
+
+[Timer]
+OnCalendar=*-*-05 04:00:00 Asia/Tokyo
+Persistent=true
+Unit=ikimon-warm-curator-satellite.service
+
+[Install]
+WantedBy=timers.target

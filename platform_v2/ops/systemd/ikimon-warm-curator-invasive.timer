@@ -1,0 +1,10 @@
+[Unit]
+Description=Trigger invasive-law-curator weekly (Mon 03:00 JST)
+
+[Timer]
+OnCalendar=Mon 03:00 Asia/Tokyo
+Persistent=true
+Unit=ikimon-warm-curator-invasive.service
+
+[Install]
+WantedBy=timers.target

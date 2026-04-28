@@ -1,0 +1,10 @@
+[Unit]
+Description=Trigger redlist-curator monthly (1st 03:30 JST)
+
+[Timer]
+OnCalendar=*-*-01 03:30:00 Asia/Tokyo
+Persistent=true
+Unit=ikimon-warm-curator-redlist.service
+
+[Install]
+WantedBy=timers.target
