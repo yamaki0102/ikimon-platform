@@ -3,6 +3,14 @@
 --   - 新種可能性 (novelty_score / novelty_assessment_json)
 --   - 外来種 (invasive_status / invasive_assessment_json)
 --   - ai_lenses_assessed_at: 直近 reassess で 3 レンズが書き込まれた時刻
+--
+-- owner-sensitive-ok: idempotent column addition (IF NOT EXISTS) and CHECK
+-- constraints (DO $$ ... IF NOT EXISTS) on existing occurrences table.
+-- occurrences is owned by ikimon-staging role (same role that runs
+-- npm run migrate), so ALTER TABLE permission is intact. Rollback path:
+-- write a reverse migration that drops the 8 columns + 3 partial indexes
+-- + 3 CHECK constraints; observation_ai_assessments.raw_json keeps the
+-- canonical copy so no data loss on column removal.
 
 ALTER TABLE occurrences
     ADD COLUMN IF NOT EXISTS size_class TEXT NULL,
