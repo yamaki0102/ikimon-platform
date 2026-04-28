@@ -385,7 +385,7 @@ async function syncOccurrenceThreeLenses(
          invasive_status, invasive_assessment_json,
          ai_lenses_assessed_at, updated_at
      ) VALUES (
-         $1::uuid, $2, $3, $4::jsonb,
+         $1::text, $2, $3, $4::jsonb,
          $5, $6::jsonb,
          $7, $8::jsonb,
          NOW(), NOW()

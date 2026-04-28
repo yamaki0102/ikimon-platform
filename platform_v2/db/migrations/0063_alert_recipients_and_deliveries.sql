@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_recipients_type
 
 CREATE TABLE IF NOT EXISTS alert_deliveries (
     delivery_id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    occurrence_id          UUID         NOT NULL REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
+    occurrence_id          TEXT         NOT NULL REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
     user_id                TEXT         REFERENCES users(user_id) ON DELETE SET NULL,
     recipient_id           UUID         REFERENCES alert_recipients(recipient_id) ON DELETE SET NULL,
     subscription_id        UUID         REFERENCES taxon_alert_subscriptions(subscription_id) ON DELETE SET NULL,
