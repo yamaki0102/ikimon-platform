@@ -20,6 +20,7 @@ import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
 import { registerAdminAudioApiRoutes } from "./routes/adminAudioApi.js";
 import { registerAdminSoundReviewPagesRoutes } from "./routes/adminSoundReviewPages.js";
 import { registerAdminDataHealthRoutes } from "./routes/adminDataHealth.js";
+import { registerCuratorProposalsRoutes } from "./routes/curatorProposalsApi.js";
 import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
 import { registerObservationEventRecapRoutes } from "./routes/observationEventRecapApi.js";
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
@@ -532,6 +533,7 @@ export function buildApp() {
   void registerAdminAudioApiRoutes(app);
   void registerAdminSoundReviewPagesRoutes(app);
   void registerAdminDataHealthRoutes(app);
+  void registerCuratorProposalsRoutes(app);
   void registerObservationEventApiRoutes(app);
   void registerObservationEventRecapRoutes(app);
   void registerObservationEventPagesRoutes(app);

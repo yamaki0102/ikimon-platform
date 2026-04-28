@@ -116,10 +116,18 @@ async function closeRunRecord(
   );
 }
 
+type ReceiverCredentials = {
+  url: string;
+  secret: string;
+};
+
 async function callManagedAgents(
   agentId: string,
   systemPrompt: string,
   inputSnapshotIds: string[],
+  curatorName: string,
+  runId: string,
+  receiver: ReceiverCredentials | null,
 ): Promise<CmaSessionResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is required (CMA beta)");
@@ -155,16 +163,26 @@ async function callManagedAgents(
 
   const sid = sessionIdOf(session);
 
-  // Best-effort: send the scheduled-run instruction as the first event.
-  // CMA β event body shape is still settling; try a few known shapes and
-  // log without aborting on failure. The session is already recorded.
+  // Initial event payload. Includes per-run identifiers AND the receiver
+  // credentials so the agent can submit its proposal back to the VPS.
+  // The agent NEVER sees the GitHub PAT — only the shared receiver secret,
+  // which is rotated independently of the GitHub token.
+  const receiverBlock = receiver
+    ? `receiver_url: ${receiver.url}\nreceiver_secret: ${receiver.secret}\n`
+    : `receiver_url: (not configured — proposal submission disabled, log only)\n`;
+
   const taskText =
     `[scheduled-run]\n` +
-    `system_prompt_digest: ${systemPrompt.slice(0, 200)}…\n` +
+    `curator: ${curatorName}\n` +
+    `run_id: ${runId}\n` +
+    `${receiverBlock}` +
     `input_snapshot_ids: ${inputSnapshotIds.join(",") || "(none)"}\n` +
+    `\n` +
     `Please follow the workflow defined in your system prompt for this scheduled run. ` +
-    `Emit proposed_changes via the ikimon-db-mcp propose_write tool when wired; ` +
-    `otherwise produce a structured plan and call record_run_status with a final status.`;
+    `When you have a proposed migration SQL ready, submit it to the receiver via the ` +
+    `"## 提案の提出方法" section in your system prompt (POST to receiver_url with header ` +
+    `X-Curator-Secret: <receiver_secret>). The receiver will create a GitHub PR for ` +
+    `human review. Do not include the receiver_secret in the proposal body itself.\n`;
 
   // Per CMA β docs (https://platform.claude.com/docs/en/managed-agents/sessions):
   //   POST /v1/sessions/<id>/events
@@ -232,7 +250,24 @@ async function main(): Promise<void> {
 
   try {
     const systemPrompt = await loadCuratorPrompt(curator);
-    const session = await callManagedAgents(agentId, systemPrompt, inputSnapshotIds);
+    const receiverUrl = process.env.CURATOR_RECEIVER_URL?.trim();
+    const receiverSecret = process.env.CURATOR_RECEIVER_SECRET?.trim();
+    const receiver: ReceiverCredentials | null =
+      receiverUrl && receiverSecret ? { url: receiverUrl, secret: receiverSecret } : null;
+    if (!receiver) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[curator] CURATOR_RECEIVER_URL / CURATOR_RECEIVER_SECRET not set — agent will run but cannot submit proposals",
+      );
+    }
+    const session = await callManagedAgents(
+      agentId,
+      systemPrompt,
+      inputSnapshotIds,
+      curator,
+      runId,
+      receiver,
+    );
     const sid = sessionIdOf(session);
     const summary = session.outcome?.summary ?? `session ${sid || "<no-id>"} ${session.status ?? "started"}`;
     const costJpy = Number(session.outcome?.cost_jpy ?? 0);
