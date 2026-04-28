@@ -1,0 +1,10 @@
+[Unit]
+Description=Trigger paper-research-curator daily (03:45 JST)
+
+[Timer]
+OnCalendar=*-*-* 03:45:00 Asia/Tokyo
+Persistent=true
+Unit=ikimon-warm-curator-paper.service
+
+[Install]
+WantedBy=timers.target

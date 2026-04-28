@@ -14,6 +14,13 @@ import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { logAiCost } from "./aiCostLogger.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
 import { loadProfileDigestForPrompt } from "./profileDigestPromptLoader.js";
+import {
+  buildCacheKey,
+  fetchUserOutputCache,
+  recordCacheHit,
+  saveUserOutputCache,
+} from "./userOutputCache.js";
+import { buildKnowledgeVersionSet } from "./versionedKnowledgeReader.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -578,6 +585,62 @@ export async function reassessObservation(
     const profileDigest = await loadProfileDigestForPrompt(options.triggeredBy ?? null).catch(
       () => ({ summary: "", digestVersion: 0 }),
     );
+
+    // ---- user_output_cache lookup ----
+    // Skip when the caller forced a refresh via overridePhotos or explicit
+    // sourceTag != "photo". Otherwise build the cache key from the canonical
+    // inputs and try to short-circuit the Gemini call entirely.
+    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
+    const cacheUserId = options.triggeredBy ?? null;
+    const cacheAssetIds = photos
+      .map((p) => p.assetId ?? null)
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+      .slice()
+      .sort();
+    const knowledgeVersionSet = await buildKnowledgeVersionSet({
+      scientificNames: [target.scientificName, target.vernacularName].filter(
+        (name): name is string => typeof name === "string" && name.length > 0,
+      ),
+      placeId: vctx.place_id ?? null,
+    }).catch(() => ({ invasive: [], redlist: [], taxonomy: [], placeEnv: [] }));
+    const cacheEligible =
+      cacheUserId !== null &&
+      overridePhotos.length === 0 &&
+      cacheAssetIds.length > 0;
+    const cacheKey = cacheEligible
+      ? buildCacheKey({
+          promptVersion: cachePromptVersion,
+          userId: cacheUserId,
+          visitId: target.visitId,
+          occurrenceId: target.primaryOccurrenceId,
+          assetBlobIds: cacheAssetIds,
+          digestVersion: profileDigest.digestVersion,
+          knowledgeVersionSet: knowledgeVersionSet as unknown as Record<string, string | string[]>,
+        })
+      : null;
+
+    if (cacheKey) {
+      const cached = await fetchUserOutputCache(cacheKey).catch(() => null);
+      if (cached && cached.outputPayload) {
+        recordCacheHit(cacheKey).catch(() => undefined);
+        logAiCost({
+          layer: "hot",
+          endpoint: "observation_reassess",
+          provider: "gemini",
+          model: "user_output_cache",
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          userId: cacheUserId,
+          visitId: target.visitId,
+          occurrenceId: target.primaryOccurrenceId,
+          cacheKey,
+          cacheHit: true,
+        }).catch(() => undefined);
+        return cached.outputPayload as ReassessResult;
+      }
+    }
+
     const prompt = renderPrompt({
       occurrenceId: target.primaryOccurrenceId,
       lat: lat.toFixed(5),
@@ -982,7 +1045,7 @@ export async function reassessObservation(
 
     await client.query("commit");
 
-    return {
+    const result: ReassessResult = {
       aiRunId: aiRun.aiRunId,
       assessmentId,
       occurrenceId: target.primaryOccurrenceId,
@@ -998,6 +1061,26 @@ export async function reassessObservation(
       selectionSource: resolvedDisplayState?.selectionSource ?? "system_stable",
       featuredOccurrenceId: resolvedDisplayState?.featuredOccurrenceId ?? null,
     };
+
+    // Persist to user_output_cache for the next identical request. Failures
+    // are silenced — the user already got their assessment.
+    if (cacheKey && cacheUserId) {
+      saveUserOutputCache({
+        cacheKey,
+        userId: cacheUserId,
+        outputKind: "observation_assessment",
+        promptVersion: cachePromptVersion,
+        visitId: target.visitId,
+        occurrenceId: target.primaryOccurrenceId,
+        knowledgeVersionSet: knowledgeVersionSet as unknown as Record<string, string | string[]>,
+        outputPayload: result,
+      }).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn("[user_output_cache] save failed", err);
+      });
+    }
+
+    return result;
   } catch (error) {
     try { await client.query("rollback"); } catch {}
     throw error;

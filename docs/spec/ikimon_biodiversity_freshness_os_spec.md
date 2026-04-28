@@ -357,11 +357,19 @@ DAU 100、1 ユーザー 5 観察/日 = 月 15,000 観察 → 安全マージン
 - 4 curator system prompts: `mcp_servers/curators/{invasive-law,redlist,paper-research,satellite-update}-curator.md`
 - `.github/workflows/agent-curator-pr.yml` — proposal SQL → 自動 PR 化 + `agent-generated` ラベル
 
-### Sprint 5+ (将来)
-- `versionedKnowledgeReader.ts` + `fetchUserOutputCache` の `observationReassess.ts` 統合 (cache hit ratio 50% 達成)
-- `ikimon-db-mcp` の `@modelcontextprotocol/sdk` 実 transport 統合 (現在は placeholder)
-- 各 curator の dry-run → PoC → 本走 (Anthropic Managed Agents 接続)
-- `taxon_precision_policy` × 危険種位置遮断の検証パイプライン
+### Sprint 5 ✅ (PR #188) — Cache 統合 + CMA 本走起動経路
+- service: `versionedKnowledgeReader.ts` (invasive / redlist / taxonomy / place_env の current/time-travel lookup + buildKnowledgeVersionSet)
+- 改修: `observationReassess.ts` で cache fetch → hit 時 ai_cost_log に cache_hit=true 記録 + 既存 ReassessResult 復元、miss 時末尾で saveUserOutputCache
+- 新規: `src/scripts/cron/runCurator.ts` — Anthropic Managed Agents (`anthropic-beta: managed-agents-2026-04-01`) HTTP client. ai_curator_runs に row 作成 → `/v1/managed-agents/sessions` 呼出 → 結果反映。`CURATOR_DRY_RUN=1` で smoke test
+- 新規 systemd unit: `ikimon-warm-curator-{invasive,redlist,paper,satellite}.{service,timer}` (週次 / 月次 1日 / 日次 / 月次 5日)
+- 必要 env: `ANTHROPIC_API_KEY`, `ANTHROPIC_CMA_AGENT_<NAME>_ID`
+
+### Sprint 6+ (将来)
+- `ikimon-db-mcp` を独立 npm package 化 (`package.json` + `tsconfig.json`) + `@modelcontextprotocol/sdk` 実 transport 統合 (現在は placeholder、curator 起動経路は Sprint 5 の HTTP client が代替)
+- 各 curator の Anthropic CMA console での Agent 作成 → `ANTHROPIC_CMA_AGENT_<NAME>_ID` 取得 → dry-run → 本走
+- `taxon_precision_policy` × 危険種位置遮断の Hot-path 統合 (claim 取得時に precision policy 適用)
+- Cache hit ratio 監視ダッシュボード強化 (現在は /admin/data-health に call_count + cache_hit のみ)
+- Green pool 同期の自動化 (現状は次の deploy で blue↔green インバート)
 
 ---
 
