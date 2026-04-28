@@ -22,6 +22,7 @@ import { registerAdminSoundReviewPagesRoutes } from "./routes/adminSoundReviewPa
 import { registerAdminDataHealthRoutes } from "./routes/adminDataHealth.js";
 import { registerCuratorProposalsRoutes } from "./routes/curatorProposalsApi.js";
 import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
+import { registerMeSubscriptionsApiRoutes } from "./routes/meSubscriptionsApi.js";
 import { registerObservationEventRecapRoutes } from "./routes/observationEventRecapApi.js";
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
 import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
@@ -538,6 +539,7 @@ export function buildApp() {
   void registerObservationEventRecapRoutes(app);
   void registerObservationEventPagesRoutes(app);
   void registerObservationFieldsApiRoutes(app);
+  void registerMeSubscriptionsApiRoutes(app);
 
   // 5 分周期の AI Quest cron(activity ありのセッションのみ)
   startQuestScheduler();

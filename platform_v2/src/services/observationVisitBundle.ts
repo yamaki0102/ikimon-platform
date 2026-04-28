@@ -1,6 +1,13 @@
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
-import { getLatestAiAssessment, type AiAssessment } from "./observationAiAssessment.js";
+import {
+  getLatestAiAssessment,
+  normalizeInvasiveResponseFromRaw,
+  normalizeNoveltyHintFromRaw,
+  normalizeSizeAssessmentFromRaw,
+  pickParsedFromRawJson,
+  type AiAssessment,
+} from "./observationAiAssessment.js";
 import { ensureLegacyAiRunsForVisit, listObservationAiRunsForVisit, type ObservationAiRun } from "./observationAiRuns.js";
 import { rankVisitSubjects, type RankedSubject } from "./subjectRanking.js";
 import { deriveVisitDisplayState, getStoredVisitDisplayState, type VisitDisplayStateRecord } from "./visitDisplayState.js";
@@ -183,6 +190,7 @@ async function getAssessmentMap(
     seasonal_context: string;
     area_inference: unknown;
     shot_suggestions: unknown;
+    raw_json: unknown;
     generated_at: string;
     ai_run_id: string | null;
     pipeline_version: string | null;
@@ -212,6 +220,7 @@ async function getAssessmentMap(
             seasonal_context,
             area_inference,
             shot_suggestions,
+            raw_json,
             generated_at::text,
             ai_run_id::text,
             pipeline_version,
@@ -301,6 +310,10 @@ async function getAssessmentMap(
   const assessmentMap = new Map<string, ObservationVisitAssessment>();
   for (const row of result.rows) {
     if (assessmentMap.has(row.occurrence_id)) continue;
+    const parsedFromRaw = pickParsedFromRawJson(row.raw_json);
+    const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
+    const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
+    const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
     assessmentMap.set(row.occurrence_id, {
       assessmentId: row.assessment_id,
       confidenceBand: row.confidence_band === "high" || row.confidence_band === "medium" || row.confidence_band === "low" ? row.confidence_band : "unknown",
@@ -324,6 +337,9 @@ async function getAssessmentMap(
       seasonalContext: row.seasonal_context,
       areaInference: readAreaInference(row.area_inference),
       shotSuggestions: readShotSuggestions(row.shot_suggestions),
+      sizeAssessment,
+      noveltyHint,
+      invasiveResponse,
       generatedAt: row.generated_at,
       aiRunId: row.ai_run_id,
       pipelineVersion: row.pipeline_version,

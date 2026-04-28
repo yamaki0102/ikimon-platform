@@ -21,6 +21,42 @@ export type ShotSuggestion = {
   priority: "high" | "medium";
 };
 
+export type SizeClass = "tiny" | "small" | "typical" | "large" | "exceptional";
+
+export type SizeAssessment = {
+  typicalSizeCm: number | null;
+  observedSizeEstimateCm: number | null;
+  sizeClass: SizeClass | null;
+  rankingHint: string;
+  basis: string;
+  hedge: string;
+};
+
+export type NoveltyHint = {
+  isPotentiallyNovel: boolean;
+  noveltyScore: number | null;
+  reasoning: string;
+  hedge: string;
+};
+
+export type MhlwInvasiveCategory = "iaspecified" | "priority" | "industrial" | "prevention" | "native";
+export type InvasiveRecommendedAction =
+  | "observe_only"
+  | "observe_and_report"
+  | "report_only"
+  | "do_not_handle"
+  | "controlled_removal";
+
+export type InvasiveResponse = {
+  isInvasive: boolean;
+  mhlwCategory: MhlwInvasiveCategory | null;
+  recommendedAction: InvasiveRecommendedAction | null;
+  actionBasis: string;
+  regionalCaveat: string;
+  legalWarning: string;
+  hedge: string;
+};
+
 export type AiAssessment = {
   assessmentId: string;
   confidenceBand: "high" | "medium" | "low" | "unknown";
@@ -44,6 +80,9 @@ export type AiAssessment = {
   seasonalContext: string;
   areaInference: AreaInference;
   shotSuggestions: ShotSuggestion[];
+  sizeAssessment: SizeAssessment | null;
+  noveltyHint: NoveltyHint | null;
+  invasiveResponse: InvasiveResponse | null;
   generatedAt: string;
 };
 
@@ -76,6 +115,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     seasonal_context: string;
     area_inference: unknown;
     shot_suggestions: unknown;
+    raw_json: unknown;
     generated_at: string;
   }>(
     `SELECT assessment_id::text, confidence_band, model_used, recommended_rank,
@@ -86,6 +126,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
             distinguishing_tips, confirm_more,
             geographic_context, seasonal_context,
             area_inference, shot_suggestions,
+            raw_json,
             generated_at::text
        FROM observation_ai_assessments
       WHERE occurrence_id = $1
@@ -115,6 +156,10 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
 
   const areaInference = normalizeAreaInferenceFromDb(r.area_inference);
   const shotSuggestions = normalizeShotSuggestionsFromDb(r.shot_suggestions);
+  const parsedFromRaw = pickParsedFromRawJson(r.raw_json);
+  const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
+  const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
+  const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
 
   return {
     assessmentId: r.assessment_id,
@@ -139,6 +184,9 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     seasonalContext: r.seasonal_context,
     areaInference,
     shotSuggestions,
+    sizeAssessment,
+    noveltyHint,
+    invasiveResponse,
     generatedAt: r.generated_at,
   };
 }
@@ -197,6 +245,102 @@ function normalizeShotSuggestionsFromDb(raw: unknown): ShotSuggestion[] {
     .filter((value): value is ShotSuggestion => value !== null);
 }
 
+const SIZE_CLASS_VALUES = new Set<SizeClass>(["tiny", "small", "typical", "large", "exceptional"]);
+const MHLW_CATEGORY_VALUES = new Set<MhlwInvasiveCategory>([
+  "iaspecified",
+  "priority",
+  "industrial",
+  "prevention",
+  "native",
+]);
+const INVASIVE_ACTION_VALUES = new Set<InvasiveRecommendedAction>([
+  "observe_only",
+  "observe_and_report",
+  "report_only",
+  "do_not_handle",
+  "controlled_removal",
+]);
+
+/**
+ * raw_json は現状 `{ raw, parsed }` 形式で保存されている（observationReassess.ts:733 参照）。
+ * parsed が無い旧フォーマットや、JSON 直書き形式にもフォールバックする。
+ */
+export function pickParsedFromRawJson(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  const obj = value as Record<string, unknown>;
+  const parsed = obj["parsed"];
+  if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+  if ("size_assessment" in obj || "novelty_hint" in obj || "invasive_response" in obj) {
+    return obj;
+  }
+  return null;
+}
+
+function trimStr(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+function numOrNull(v: unknown, min?: number, max?: number): number | null {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  let n = v;
+  if (typeof min === "number" && n < min) return null;
+  if (typeof max === "number" && n > max) return null;
+  return n;
+}
+
+export function normalizeSizeAssessmentFromRaw(raw: unknown): SizeAssessment | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const sizeClassRaw = trimStr(o["size_class"]);
+  const sizeClass = SIZE_CLASS_VALUES.has(sizeClassRaw as SizeClass) ? (sizeClassRaw as SizeClass) : null;
+  const result: SizeAssessment = {
+    typicalSizeCm: numOrNull(o["typical_size_cm"], 0),
+    observedSizeEstimateCm: numOrNull(o["observed_size_estimate_cm"], 0),
+    sizeClass,
+    rankingHint: trimStr(o["ranking_hint"]),
+    basis: trimStr(o["basis"]),
+    hedge: trimStr(o["hedge"]),
+  };
+  const hasContent =
+    result.typicalSizeCm !== null ||
+    result.observedSizeEstimateCm !== null ||
+    result.sizeClass !== null ||
+    result.rankingHint.length > 0;
+  return hasContent ? result : null;
+}
+
+export function normalizeNoveltyHintFromRaw(raw: unknown): NoveltyHint | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const score = numOrNull(o["novelty_score"], 0, 1);
+  const isPotentiallyNovel = o["is_potentially_novel"] === true;
+  if (!isPotentiallyNovel || score === null || score < 0.5) return null;
+  return {
+    isPotentiallyNovel: true,
+    noveltyScore: score,
+    reasoning: trimStr(o["reasoning"]),
+    hedge: trimStr(o["hedge"]) || "新種判定はAIにはできません。可能性の示唆に留まります。",
+  };
+}
+
+export function normalizeInvasiveResponseFromRaw(raw: unknown): InvasiveResponse | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (o["is_invasive"] !== true) return null;
+  const cat = trimStr(o["mhlw_category"]);
+  const action = trimStr(o["recommended_action"]);
+  return {
+    isInvasive: true,
+    mhlwCategory: MHLW_CATEGORY_VALUES.has(cat as MhlwInvasiveCategory) ? (cat as MhlwInvasiveCategory) : null,
+    recommendedAction: INVASIVE_ACTION_VALUES.has(action as InvasiveRecommendedAction)
+      ? (action as InvasiveRecommendedAction)
+      : null,
+    actionBasis: trimStr(o["action_basis"]),
+    regionalCaveat: trimStr(o["regional_caveat"]),
+    legalWarning: trimStr(o["legal_warning"]),
+    hedge: trimStr(o["hedge"]) || "AI判定です。駆除前に自治体・環境省にご確認ください。",
+  };
+}
+
 /** UI ラベル（「いっしょに絞るためのメモ」等）用のヘルパ。 */
 export function confidenceLabel(band: AiAssessment["confidenceBand"], lang: "ja" = "ja"): string {
   switch (band) {
@@ -204,5 +348,65 @@ export function confidenceLabel(band: AiAssessment["confidenceBand"], lang: "ja"
     case "medium": return lang === "ja" ? "いまはここまで" : "Probably";
     case "low": return lang === "ja" ? "慎重に" : "Cautious";
     default: return lang === "ja" ? "様子見" : "Tentative";
+  }
+}
+
+export function mhlwCategoryLabel(cat: MhlwInvasiveCategory | null, lang: "ja" = "ja"): string {
+  if (!cat) return "";
+  if (lang !== "ja") {
+    switch (cat) {
+      case "iaspecified": return "Invasive Alien Species (designated)";
+      case "priority": return "Priority Control Alien Species";
+      case "industrial": return "Industrially Managed Alien Species";
+      case "prevention": return "Ecosystem-impact Prevention Alien Species";
+      case "native": return "Native";
+    }
+  }
+  switch (cat) {
+    case "iaspecified": return "特定外来生物";
+    case "priority": return "重点対策外来種";
+    case "industrial": return "産業管理外来種";
+    case "prevention": return "生態系被害防止外来種";
+    case "native": return "在来種";
+  }
+}
+
+export function invasiveActionLabel(action: InvasiveRecommendedAction | null, lang: "ja" = "ja"): string {
+  if (!action) return "";
+  if (lang !== "ja") {
+    switch (action) {
+      case "observe_only": return "Observe only";
+      case "observe_and_report": return "Observe & report";
+      case "report_only": return "Report only (do not handle)";
+      case "do_not_handle": return "Do not handle";
+      case "controlled_removal": return "Controlled removal (with permit)";
+    }
+  }
+  switch (action) {
+    case "observe_only": return "観察のみ";
+    case "observe_and_report": return "観察と通報";
+    case "report_only": return "通報のみ（直接の捕獲・運搬はしない）";
+    case "do_not_handle": return "触れない・移動しない";
+    case "controlled_removal": return "管理された駆除（許可が必要）";
+  }
+}
+
+export function sizeClassLabel(cls: SizeClass | null, lang: "ja" = "ja"): string {
+  if (!cls) return "";
+  if (lang !== "ja") {
+    switch (cls) {
+      case "tiny": return "Tiny";
+      case "small": return "Small";
+      case "typical": return "Typical";
+      case "large": return "Large";
+      case "exceptional": return "Possibly record-breaking";
+    }
+  }
+  switch (cls) {
+    case "tiny": return "とても小さい";
+    case "small": return "小さめ";
+    case "typical": return "標準的";
+    case "large": return "大きい";
+    case "exceptional": return "観測史上クラスかも？（参考）";
   }
 }

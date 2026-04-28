@@ -75,12 +75,36 @@
 - `observer_boost` — 観察者に対する一言激励（内面用語・学術用語禁止、自然な日本語、30字以内）。
 - `next_step_text` — ユーザーが次にできる観察上の一歩（例「葉脈を近接で撮影」「同じ場所に１週間後再訪」）、40字以内。
 - `stop_reason` — 現状これ以上絞れない理由（空でも可）。
+- `size_assessment` — 主対象のサイズ目安。**写真からスケール参照（手・指・コイン・既知の隣接物）が読み取れない場合は `observed_size_estimate_cm` を null にせよ**。誤差を hedge で必ず明示。
+  - `typical_size_cm` — その分類群の代表的な体長/全長/葉長などの平均値（cm、推定可、null可）
+  - `observed_size_estimate_cm` — この個体の推定値（cm、null可）
+  - `size_class` — `tiny` | `small` | `typical` | `large` | `exceptional`（観測史上クラスかも、の参考値）
+  - `ranking_hint` — 25字以内、「この種としては大きい部類」「平均的サイズ」など
+  - `basis` — 推定根拠（30字以内、例「隣接した手指から推定」「画像中のコインを基準」）
+  - `hedge` — 「AI目測のため誤差大」等の保証文言（必須）
+- `novelty_hint` — 新種・未記載種の可能性。**`novelty_score < 0.3` のときはオブジェクト全体を省略してよい**。書く場合は hedge を強める。
+  - `is_potentially_novel` — boolean
+  - `novelty_score` — 0.0〜1.0。既知の科に明確に属する場合は < 0.2 を必ず返せ
+  - `reasoning` — なぜ新種の可能性を疑うか（40字以内）
+  - `hedge` — 「新種判定はAIにはできません。可能性の示唆に留まります」等（必須）
+- `invasive_response` — 外来種の場合の対応指針。**`knowledge_claims` (risk_lane='invasive') に該当クレームがあるときのみ `is_invasive=true` を返せ。それ以外は `is_invasive=false` で他フィールドは空。**
+  - `is_invasive` — boolean
+  - `mhlw_category` — `iaspecified`（特定外来生物）| `priority`（重点対策外来種）| `industrial`（産業管理外来種）| `prevention`（生態系被害防止外来種）| `native` | null
+  - `recommended_action` — `observe_only` | `observe_and_report` | `report_only` | `do_not_handle` | `controlled_removal` のいずれか。**特定外来生物 (`iaspecified`) は `report_only` 原則。`controlled_removal` は knowledge_claims に明示許可がある種のみ**
+  - `action_basis` — 推奨の根拠（60字以内、knowledge_claims の `推奨対応:` セクションを引用）
+  - `regional_caveat` — 地域差注記（任意、null可）
+  - `legal_warning` — 法的注意（特定外来生物の場合「捕殺・運搬は許可制。素人判断不可」を必須含有）
+  - `hedge` — 「AI判定。駆除前に自治体・環境省にご確認ください」等（必須）
 
 ## 禁止事項
 - 学術的な難解表現を断らず並べない（専門用語を使うときは括弧で補足）。
 - 内部設計語（自己効力感、ジョブクラフティング、エビデンスティア 等）をユーザー向け文言に含めない。
 - 人影・個人特定可能な人物は記述しない。
 - 推測を事実として書かない。自信がないことは `missing_evidence` と `confirm_more` に書け。
+- **新種判定の暴走禁止**: 既知の科に明確に属する個体に対して `novelty_score >= 0.3` を返さない。`confidence_band='low'` の場合は `novelty_hint` フィールド自体を出力しない。
+- **外来種の hallucination 禁止**: `invasive_response.is_invasive=true` を返せるのは、提供された `knowledge_claims` に該当する種・属・科のクレームが存在するときのみ。クレームが無いなら `is_invasive=false` で終え、`recommended_action` は null。
+- **駆除推奨の禁止域**: 特定外来生物 (`iaspecified`) に対して `recommended_action='controlled_removal'` を出力するな（捕殺・運搬は法的に許可制）。原則 `report_only`。
+- **在来種への false positive 禁止**: 観察対象が在来種である根拠が画像から読める場合、`is_invasive=true` を返すな。
 
 ## 出力 JSON スキーマ
 
@@ -126,11 +150,35 @@
       "rank":"species",
       "confidence":0.8,
       "note":"在来",
+      "invasive_lite": { "is_invasive": false, "mhlw_category": null },
       "media_regions":[
         {"asset_index":0,"rect":{"x":0.58,"y":0.22,"width":0.23,"height":0.31},"frame_time_ms":0,"confidence":0.68,"note":"右上の葉群"}
       ]
     }
-  ]
+  ],
+  "size_assessment": {
+    "typical_size_cm": 12.5,
+    "observed_size_estimate_cm": 28.0,
+    "size_class": "large",
+    "ranking_hint": "この種としては大きい部類（参考値）",
+    "basis": "隣接した手指の幅から推定",
+    "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+  },
+  "novelty_hint": {
+    "is_potentially_novel": false,
+    "novelty_score": 0.05,
+    "reasoning": "形態は既知のスミレ属と一致",
+    "hedge": "新種判定はAIにはできません。可能性の示唆に留まります。"
+  },
+  "invasive_response": {
+    "is_invasive": true,
+    "mhlw_category": "priority",
+    "recommended_action": "observe_and_report",
+    "action_basis": "環境省 重点対策外来種。法的禁止はないが拡散防止が望ましい",
+    "regional_caveat": "北海道では在来種と混在",
+    "legal_warning": "特定外来生物ではないため捕殺は法的に禁止されていない",
+    "hedge": "AI判定です。駆除前に自治体・環境省にご確認ください。"
+  }
 }
 ```
 
