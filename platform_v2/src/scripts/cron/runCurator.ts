@@ -166,39 +166,38 @@ async function callManagedAgents(
     `Emit proposed_changes via the ikimon-db-mcp propose_write tool when wired; ` +
     `otherwise produce a structured plan and call record_run_status with a final status.`;
 
-  const eventBodyCandidates: Array<Record<string, unknown>> = [
-    { type: "user_turn", message: { role: "user", content: [{ type: "text", text: taskText }] } },
-    { type: "user_message", message: { role: "user", content: [{ type: "text", text: taskText }] } },
-    { type: "user_turn", text: taskText },
-    { role: "user", content: [{ type: "text", text: taskText }] },
-  ];
-
+  // Per CMA β docs (https://platform.claude.com/docs/en/managed-agents/sessions):
+  //   POST /v1/sessions/<id>/events
+  //   { "events": [{ "type": "user.message", "content": [{"type":"text","text":"..."}] }] }
+  // The body wraps a list of events; type uses dot notation (user.message).
   if (sid) {
-    let eventDelivered = false;
-    for (const body of eventBodyCandidates) {
-      const eventRes = await fetch(`${baseUrl}/v1/sessions/${sid}/events`, {
-        method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-beta": betaHeader,
-          "content-type": "application/json",
-          accept: "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-      if (eventRes.ok) {
-        eventDelivered = true;
-        // eslint-disable-next-line no-console
-        console.log(`[curator] event delivered with shape keys=${Object.keys(body).join(",")}`);
-        break;
-      }
-    }
-    if (!eventDelivered) {
+    const eventRes = await fetch(`${baseUrl}/v1/sessions/${sid}/events`, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": betaHeader,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        events: [
+          {
+            type: "user.message",
+            content: [{ type: "text", text: taskText }],
+          },
+        ],
+      }),
+    });
+    if (!eventRes.ok) {
+      const body = await eventRes.text().catch(() => "<no body>");
       // eslint-disable-next-line no-console
       console.warn(
-        `[curator] initial event POST failed across all candidate shapes (session still created)`,
+        `[curator] initial event POST failed (session still created): ${eventRes.status} ${body.slice(0, 200)}`,
       );
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`[curator] initial event delivered (session=${sid})`);
     }
   }
 
