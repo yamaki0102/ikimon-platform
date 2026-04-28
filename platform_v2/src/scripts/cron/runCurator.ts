@@ -163,26 +163,31 @@ async function callManagedAgents(
 
   const sid = sessionIdOf(session);
 
-  // Initial event payload. Includes per-run identifiers AND the receiver
-  // credentials so the agent can submit its proposal back to the VPS.
-  // The agent NEVER sees the GitHub PAT — only the shared receiver secret,
-  // which is rotated independently of the GitHub token.
+  // Initial event payload. Includes per-run identifiers, receiver creds,
+  // and (optionally) the DeepSeek API key so the agent can offload bulk
+  // text-to-text work to DeepSeek V4 Flash. The GitHub PAT never appears
+  // in this payload — that token lives on the VPS only.
   const receiverBlock = receiver
     ? `receiver_url: ${receiver.url}\nreceiver_secret: ${receiver.secret}\n`
     : `receiver_url: (not configured — proposal submission disabled, log only)\n`;
+
+  const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
+  const deepseekModel = process.env.PROFILE_DIGEST_MODEL?.trim() || "deepseek-v4-flash";
+  const deepseekBlock = deepseekKey
+    ? `deepseek_api_key: ${deepseekKey}\ndeepseek_model: ${deepseekModel}\n`
+    : `deepseek_api_key: (not configured — orchestrator does all the work itself)\n`;
 
   const taskText =
     `[scheduled-run]\n` +
     `curator: ${curatorName}\n` +
     `run_id: ${runId}\n` +
     `${receiverBlock}` +
+    `${deepseekBlock}` +
     `input_snapshot_ids: ${inputSnapshotIds.join(",") || "(none)"}\n` +
     `\n` +
-    `Please follow the workflow defined in your system prompt for this scheduled run. ` +
-    `When you have a proposed migration SQL ready, submit it to the receiver via the ` +
-    `"## 提案の提出方法" section in your system prompt (POST to receiver_url with header ` +
-    `X-Curator-Secret: <receiver_secret>). The receiver will create a GitHub PR for ` +
-    `human review. Do not include the receiver_secret in the proposal body itself.\n`;
+    `Follow the workflow in your system prompt. Use DeepSeek for bulk parsing if a key is provided. ` +
+    `Submit the proposed migration SQL to the receiver via POST (X-Curator-Secret header). ` +
+    `Never include any secret in the proposal body. Stop after one POST.\n`;
 
   // Per CMA β docs (https://platform.claude.com/docs/en/managed-agents/sessions):
   //   POST /v1/sessions/<id>/events
