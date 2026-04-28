@@ -28,6 +28,7 @@ import {
   type InvasiveLookupTerm,
   type InvasiveStatusFact,
 } from "./invasiveLookupHelpers.js";
+import { emitAlertsForOccurrence } from "./alertDispatcher.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -730,18 +731,29 @@ export async function reassessObservation(
       latitude: number | null;
       longitude: number | null;
       place_id: string | null;
+      prefecture: string | null;
+      municipality: string | null;
     }>(
       `SELECT to_char(v.observed_at, 'YYYY-MM-DD HH24:MI') AS observed_at,
               coalesce(v.point_latitude, p.center_latitude) AS latitude,
               coalesce(v.point_longitude, p.center_longitude) AS longitude,
-              v.place_id
+              v.place_id,
+              p.prefecture,
+              p.municipality
          FROM visits v
          LEFT JOIN places p ON p.place_id = v.place_id
         WHERE v.visit_id = $1
         LIMIT 1`,
       [target.visitId],
     );
-    const vctx = visit.rows[0] ?? { observed_at: "", latitude: null, longitude: null, place_id: null };
+    const vctx = visit.rows[0] ?? {
+      observed_at: "",
+      latitude: null,
+      longitude: null,
+      place_id: null,
+      prefecture: null,
+      municipality: null,
+    };
 
     const overridePhotos = Array.isArray(options.photos)
       ? options.photos
@@ -1059,6 +1071,38 @@ export async function reassessObservation(
     // 0061: gated 3 レンズ値を occurrences の専用列に同期。
     // raw_json への保存とは別に、ランキング・集計用の冗長カラムを更新する。
     await syncOccurrenceThreeLenses(client, target.primaryOccurrenceId, gatedParsed);
+
+    // Phase 3: 通知ディスパッチ。reassess の主処理を巻き込まないように catch で握りつぶす。
+    const noveltyScoreFromGated = (() => {
+      const obj = (gatedParsed as Record<string, unknown>)["novelty_hint"];
+      if (!obj || typeof obj !== "object") return null;
+      const v = (obj as Record<string, unknown>)["novelty_score"];
+      return typeof v === "number" ? v : null;
+    })();
+    await emitAlertsForOccurrence(
+      {
+        occurrenceId: target.primaryOccurrenceId,
+        visitId: target.visitId,
+        invasiveStatus: subjectInvasiveCovered && subjectInvasiveFact
+          ? subjectInvasiveFact.mhlwCategory
+          : null,
+        scientificName: recommendedScientificName || target.scientificName || null,
+        vernacularName: recommendedName || target.vernacularName || null,
+        genus: primaryGbifMatch.genus ?? null,
+        family: primaryGbifMatch.family ?? null,
+        orderName: primaryGbifMatch.orderName ?? null,
+        className: primaryGbifMatch.className ?? null,
+        prefecture: vctx.prefecture ?? null,
+        municipality: vctx.municipality ?? null,
+        observerUserId: options.triggeredBy ?? null,
+        noveltyScore: noveltyScoreFromGated,
+        isRare: false,
+      },
+      client,
+    ).catch((err) => {
+      // 通知ディスパッチの失敗は reassess を巻き込まない。ログだけ残す。
+      console.error("[reassess] alert dispatch failed:", err instanceof Error ? err.message : err);
+    });
 
     const subjects = await getVisitSubjectSummaries(target.visitId, client);
     const subjectByKey = new Map<string, { occurrenceId: string }>();

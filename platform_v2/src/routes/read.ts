@@ -1068,8 +1068,55 @@ function renderThreeLensCards(subject: ObservationVisitSubject): string {
   if (ai.sizeAssessment) cards.push(renderSizeCard(ai.sizeAssessment, subjectName));
   if (ai.noveltyHint) cards.push(renderNoveltyCard(ai.noveltyHint));
   if (cards.length === 0) return "";
-  return `<div class="detail-three-lens" style="margin-top:14px">${cards.join("")}</div>`;
+  return `<div class="detail-three-lens" style="margin-top:14px">${cards.join("")}${renderFollowTaxonScript()}</div>`;
 }
+
+let __followScriptEmitted = new WeakSet<object>();
+const __followScriptKey = {};
+
+function renderFollowTaxonScript(): string {
+  // SSR で複数 subject 描画時に script タグが重複するため、IIFE 内で
+  // window フラグを見て一度だけハンドラを取り付ける。
+  return `<script>(function(){
+    if (window.__ikimonFollowTaxonInit) return;
+    window.__ikimonFollowTaxonInit = true;
+    document.addEventListener('click', function (event) {
+      var btn = event.target && event.target.closest && event.target.closest('[data-follow-taxon]');
+      if (!btn) return;
+      event.preventDefault();
+      var name = btn.getAttribute('data-follow-taxon');
+      if (!name) return;
+      btn.disabled = true;
+      btn.textContent = '送信中…';
+      fetch('/api/v1/me/subscriptions', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scientificName: name,
+          taxonRank: 'species',
+          matchField: 'scientific_name',
+          channel: 'digest_daily',
+          label: name + ' フォロー',
+        }),
+      }).then(function (r) {
+        if (r.status === 401) {
+          btn.disabled = false;
+          btn.textContent = 'ログインが必要です';
+          return;
+        }
+        if (!r.ok) throw new Error('failed');
+        btn.textContent = 'フォロー中 ✓';
+      }).catch(function () {
+        btn.disabled = false;
+        btn.textContent = 'もう一度フォロー';
+      });
+    });
+  })();</script>`;
+}
+// referenced to keep WeakSet for future per-request dedupe (no-op now)
+void __followScriptEmitted;
+void __followScriptKey;
 
 function renderSubjectHint(
   subject: ObservationVisitSubject,
