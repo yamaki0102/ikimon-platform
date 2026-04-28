@@ -90,6 +90,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /normalizeDraftMetadata/);
         assert.match(response.body, /createTrimmedVideoFile/);
         assert.match(response.body, /video_trim_required/);
+        assert.match(response.body, /const scheduleMediaAutofill = \(file, metadata, opts\) =>/);
+        assert.match(response.body, /requestAnimationFrame\(\(\) =>/);
+        assert.match(response.body, /timeout: 2500/);
+        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \}\)/);
+        assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
         assert.doesNotMatch(response.body, /メモだけ始める/);
       } finally {
         await app.close();
