@@ -117,11 +117,35 @@ async function callManagedAgents(
 ): Promise<CmaSessionResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is required (CMA beta)");
+  const environmentId = process.env.ANTHROPIC_CMA_ENVIRONMENT_ID?.trim();
+  if (!environmentId) throw new Error("ANTHROPIC_CMA_ENVIRONMENT_ID is required (CMA beta)");
   const baseUrl = process.env.ANTHROPIC_CMA_BASE_URL?.trim() || "https://api.anthropic.com";
   const betaHeader = process.env.ANTHROPIC_CMA_BETA_HEADER?.trim() || "managed-agents-2026-04-01";
 
-  // CMA session create endpoint shape (subject to beta evolution).
-  const res = await fetch(`${baseUrl}/v1/managed-agents/sessions`, {
+  // CMA β session shape (per console spec 2026-04-28):
+  //   POST /v1/sessions
+  //   { environment_id, agent: { type: "agent", id }, initial_message? }
+  const requestBody: Record<string, unknown> = {
+    environment_id: environmentId,
+    agent: { type: "agent", id: agentId },
+    initial_message: {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text:
+            `[scheduled-run]\n` +
+            `system_prompt_digest: ${systemPrompt.slice(0, 200)}…\n` +
+            `input_snapshot_ids: ${inputSnapshotIds.join(",") || "(none)"}\n` +
+            `Please follow the workflow defined in your system prompt for this scheduled run. ` +
+            `Emit proposed_changes via the ikimon-db-mcp propose_write tool when wired; ` +
+            `otherwise produce a structured plan and call record_run_status with a final status.`,
+        },
+      ],
+    },
+  };
+
+  const res = await fetch(`${baseUrl}/v1/sessions`, {
     method: "POST",
     headers: {
       "x-api-key": apiKey,
@@ -130,25 +154,7 @@ async function callManagedAgents(
       "content-type": "application/json",
       accept: "application/json",
     },
-    body: JSON.stringify({
-      agent_id: agentId,
-      initial_message: {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text:
-              `[scheduled-run]\n` +
-              `system_prompt_digest: ${systemPrompt.slice(0, 200)}…\n` +
-              `input_snapshot_ids: ${inputSnapshotIds.join(",") || "(none)"}\n` +
-              `Please follow the workflow defined in the curator system prompt and emit ` +
-              `the proposed_changes via the ikimon-db-mcp propose_write tool. Stop when ` +
-              `record_run_status has been called with a final status.`,
-          },
-        ],
-      },
-      stream: false,
-    }),
+    body: JSON.stringify(requestBody),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "<no body>");
