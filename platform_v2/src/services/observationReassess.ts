@@ -13,6 +13,7 @@ import { getStoredVisitDisplayState, upsertVisitDisplayState, deriveVisitDisplay
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { logAiCost } from "./aiCostLogger.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
+import { estimateAiCostUsd, pricingForModel } from "./aiModelPricing.js";
 import { loadProfileDigestForPrompt } from "./profileDigestPromptLoader.js";
 import {
   buildCacheKey,
@@ -644,14 +645,6 @@ function getClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: cfg.geminiApiKey });
 }
 
-// Gemini 3.1 Flash Lite Preview pricing (USD per 1M tokens). Fallback model
-// is assumed to share the same pricing tier; revisit when Google publishes
-// final 3.1 GA prices.
-const FLASH_LITE_PRICING: Record<string, { inputUsdPer1M: number; outputUsdPer1M: number }> = {
-  "gemini-3.1-flash-lite-preview": { inputUsdPer1M: 0.10, outputUsdPer1M: 0.40 },
-  "gemini-2.5-flash-lite":          { inputUsdPer1M: 0.10, outputUsdPer1M: 0.40 },
-};
-
 type GeminiCostMeta = {
   userId?: string | null;
   visitId?: string | null;
@@ -683,8 +676,8 @@ async function runGemini(
       const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }).usageMetadata;
       const inputTokens = Number(usage?.promptTokenCount ?? 0);
       const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-      const pricing = FLASH_LITE_PRICING[model] ?? FLASH_LITE_PRICING["gemini-3.1-flash-lite-preview"]!;
-      const costUsd = (inputTokens / 1_000_000) * pricing.inputUsdPer1M + (outputTokens / 1_000_000) * pricing.outputUsdPer1M;
+      pricingForModel(model);
+      const costUsd = estimateAiCostUsd({ model, inputTokens, outputTokens });
       // Cost log failure should never break the user-facing flow.
       logAiCost({
         layer: "hot",

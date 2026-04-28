@@ -1,5 +1,5 @@
 [Unit]
-Description=ikimon Freshness OS — invasive-law-curator (CMA scheduled run)
+Description=ikimon Freshness OS — invasive-law-curator (Node scheduled run)
 After=network.target postgresql.service
 Wants=postgresql.service
 

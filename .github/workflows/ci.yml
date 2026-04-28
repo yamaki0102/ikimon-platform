@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'upload_package/**'
+      - 'platform_v2/**'
       - 'tests/**'
       - 'docs/**'
       - 'scripts/**'
@@ -70,16 +71,46 @@ jobs:
       - name: Run tests
         run: composer test
 
+  platform-v2:
+    name: platform_v2 Typecheck & Curator Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Typecheck platform_v2
+        working-directory: platform_v2
+        run: npm run typecheck
+
+      - name: Build platform_v2
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Test platform_v2 curator validators
+        working-directory: platform_v2
+        run: npm run test:curator
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, platform-v2]
     if: always()
     steps:
       - name: Check results
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" || "${{ needs.test.result }}" != "success" ]]; then
-            echo "❌ Quality Gate failed: lint=${{ needs.lint.result }}, test=${{ needs.test.result }}"
+          if [[ "${{ needs.lint.result }}" != "success" || "${{ needs.test.result }}" != "success" || "${{ needs.platform-v2.result }}" != "success" ]]; then
+            echo "❌ Quality Gate failed: lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}"
             exit 1
           fi
           echo "✅ Quality Gate passed"

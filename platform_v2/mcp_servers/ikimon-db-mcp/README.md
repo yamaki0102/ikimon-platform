@@ -1,17 +1,21 @@
 # ikimon-db-mcp
 
 MCP (Model Context Protocol) server that exposes the ikimon platform_v2
-PostgreSQL database to the four Biodiversity Freshness OS curator agents
+PostgreSQL database to historical Biodiversity Freshness OS curator agents
 under a strict allowlist.
+
+## Status
+
+Archived. Sprint 7 v2.2 moved curator execution to the Node dispatcher at
+`platform_v2/src/scripts/cron/runCurator.ts`. Node now owns source fetch,
+snapshot checks, deterministic validation, SQL generation, and receiver POST.
+LLMs are called directly by Node only for structured extraction.
 
 ## Why a separate MCP server
 
-Curators run on Claude Managed Agents in Anthropic's cloud. They cannot
-reach the staging Postgres directly. This server runs on the VPS, accepts
-stdio MCP requests over an SSH tunnel, and exposes only the operations
-each curator is allowed to perform — read certain tables, propose writes
-to certain tables (which become PRs, never direct DB writes), and
-introspect schemas.
+The old design ran curators as Claude Managed Agents. That path is retired;
+this README remains only to document the previous allowlist model and to keep
+old references from being mistaken for the current runtime.
 
 ## Permission model
 
@@ -68,9 +72,4 @@ Production (per-curator systemd):
 ExecStart=/usr/bin/env AGENT_ID=invasive-law node dist/server.js
 ```
 
-## Status
-
-**Skeleton only.** Sprint 4 lands the protocol shape, permissions
-allowlist, and PR-emission contract. Actual MCP wire format integration
-with `@modelcontextprotocol/sdk` is intentionally deferred until the
-first real curator run scheduled by the operator.
+Do not revive this MCP path without a fresh architecture review.
