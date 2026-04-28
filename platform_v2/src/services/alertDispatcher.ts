@@ -105,7 +105,7 @@ async function emitMunicipalityInvasive(
     `INSERT INTO alert_deliveries (
         occurrence_id, recipient_id, trigger_kind, channel, payload_json
      )
-     SELECT $1::uuid, r.recipient_id, 'municipality_invasive',
+     SELECT $1::text, r.recipient_id, 'municipality_invasive',
             COALESCE(NULLIF(r.email, '') IS NOT NULL, false)::text || '_email',
             $5::jsonb
        FROM alert_recipients r
@@ -157,7 +157,7 @@ async function emitResearcherTrigger(
     `INSERT INTO alert_deliveries (
         occurrence_id, recipient_id, trigger_kind, channel, payload_json
      )
-     SELECT $1::uuid, r.recipient_id, $3,
+     SELECT $1::text, r.recipient_id, $3,
             COALESCE(NULLIF(r.email, '') IS NOT NULL, false)::text || '_email',
             $4::jsonb
        FROM alert_recipients r
@@ -204,7 +204,7 @@ async function emitUserTaxonMatches(
       `INSERT INTO alert_deliveries (
           occurrence_id, user_id, subscription_id, trigger_kind, channel, payload_json
        )
-       SELECT $1::uuid, s.user_id, s.subscription_id, 'taxon_match', s.channel, $4::jsonb
+       SELECT $1::text, s.user_id, s.subscription_id, 'taxon_match', s.channel, $4::jsonb
          FROM taxon_alert_subscriptions s
         WHERE s.is_active
           AND s.match_field = $2

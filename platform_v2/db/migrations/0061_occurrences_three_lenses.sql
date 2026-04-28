@@ -16,7 +16,7 @@
 -- 発生しない。
 
 CREATE TABLE IF NOT EXISTS occurrence_three_lenses (
-    occurrence_id            UUID         PRIMARY KEY REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
+    occurrence_id            TEXT         PRIMARY KEY REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
     -- サイズレンズ
     size_class               TEXT,
     size_value_cm            NUMERIC(8, 2),
