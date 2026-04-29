@@ -17,9 +17,14 @@ test("guide flow exposes a photo fallback when camera access is unavailable", ()
 test("guide live capture starts video-only and asks for microphone separately", () => {
   const html = renderGuideFlow("", "en");
 
-  assert.match(html, /getUserMedia\(\{\s*video: true,\s*audio: false\s*\}\)/);
+  assert.match(html, /let audioOptIn = false/);
+  assert.match(html, /id="guide-audio-opt-btn" type="button" aria-pressed="false"/);
+  assert.match(html, /Audio is saved only if you enable natural sound recording below\./);
+  assert.match(html, /requestEnvironmentCamera\(\)/);
+  assert.match(html, /facingMode: \{ exact: 'environment' \}/);
   assert.match(html, /audio: \{ channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false \}/);
-  assert.match(html, /Started without microphone\. Video analysis continues\./);
+  assert.match(html, /if \(audioOptIn\) void startOptionalAudioCapture\(\);/);
+  assert.doesNotMatch(html, /\n\s+void startOptionalAudioCapture\(\);\n\s+void prepareLiveAssist/);
   assert.doesNotMatch(html, /Camera & microphone access required/);
   assert.match(html, /Guide camera unavailable/);
 });
