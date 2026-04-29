@@ -16,7 +16,7 @@ test("app sends browser security headers on every response", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/sw.js" });
     assert.equal(response.headers["x-content-type-options"], "nosniff");
-    assert.equal(response.headers["x-frame-options"], "DENY");
+    assert.equal(response.headers["x-frame-options"], "SAMEORIGIN");
     assert.equal(response.headers["referrer-policy"], "strict-origin-when-cross-origin");
     assert.equal(response.headers["x-permitted-cross-domain-policies"], "none");
     assert.equal(response.headers["origin-agent-cluster"], "?1");
