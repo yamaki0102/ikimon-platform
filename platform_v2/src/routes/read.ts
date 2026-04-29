@@ -2334,6 +2334,7 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
   const href = notesDetailHref(basePath, lang, obs);
   const displayName = obs.displayName || obs.proposedName || "名前を確かめている観察";
   const placeLine = notesPlaceLine(obs, options.locationMode);
+  const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
   const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "md") ?? obs.photoUrl) : null;
   const dateLabel = notesLibraryDateLabel(obs, lang);
   const isUncertain = notesLibraryIsUncertain(obs);
@@ -2359,7 +2360,7 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
         ${obs.identificationCount > 0 ? `<b>${escapeHtml(String(obs.identificationCount))} ids</b>` : ""}
       </span>
       <strong>${escapeHtml(displayName)}</strong>
-      <em>${escapeHtml(placeLine || "場所未設定")} · ${escapeHtml(dateLabel)}</em>
+      <em>${escapeHtml(`${observerLine}${placeLine || "場所未設定"} · ${dateLabel}`)}</em>
     </span>
   </a>`;
 }
