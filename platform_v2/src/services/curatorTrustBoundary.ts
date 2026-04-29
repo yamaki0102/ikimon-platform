@@ -26,7 +26,7 @@ export function assertNoSecretLeak(payloadText: string, secrets: Array<string | 
 
 export function looksLikeScientificName(value: string): boolean {
   const text = value.trim();
-  return /^[A-Z][a-z-]+(?:\s+[a-z][a-z-]+){1,2}$/.test(text);
+  return /^[A-Z][a-z-]+(?:\s+(?:[a-z][a-z-]+|spp\.?|sp\.)){0,2}$/.test(text);
 }
 
 export function validateInvasiveLawRows(rows: unknown[]): ValidationResult<InvasiveLawParsedRow> {

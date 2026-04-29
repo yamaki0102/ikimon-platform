@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertNoSecretLeak, dedupeInvasiveRows, validateInvasiveLawRows } from "./curatorTrustBoundary.js";
+import { assertNoSecretLeak, dedupeInvasiveRows, looksLikeScientificName, validateInvasiveLawRows } from "./curatorTrustBoundary.js";
 
 test("trust boundary rejects exact secret and sk-like token patterns", () => {
   assert.throws(() => assertNoSecretLeak("payload abc-secret", ["abc-secret"]), /curator_payload_secret_leak_detected/);
@@ -21,6 +21,14 @@ test("invasive-law row validator accepts only schema-safe rows", () => {
   ]);
   assert.equal(result.accepted.length, 1);
   assert.equal(result.dropped.length, 3);
+});
+
+test("scientific name validator accepts official genus-level spp labels", () => {
+  assert.equal(looksLikeScientificName("Erinaceus"), true);
+  assert.equal(looksLikeScientificName("Erinaceus spp."), true);
+  assert.equal(looksLikeScientificName("Sciurus spp"), true);
+  assert.equal(looksLikeScientificName("Lasius sp."), true);
+  assert.equal(looksLikeScientificName("bad"), false);
 });
 
 test("invasive-law dedupe uses scientific name plus category", () => {
