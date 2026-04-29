@@ -783,6 +783,28 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   function newQueueId(prefix) {
     return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
+  function mirrorAppOutboxItem(item, status) {
+    if (!(window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function')) return;
+    window.ikimonAppOutbox.enqueue({
+      id: 'guide:' + item.id,
+      source: 'guide',
+      kind: item.type || 'item',
+      sourceId: item.id,
+      status: status || 'queued',
+      attempts: item.attempts || 0,
+      payloadMeta: {
+        sessionId: item.sessionId || null,
+        lang: item.lang || null,
+        guideMode: item.guideMode || null,
+        capturedAt: item.capturedAt || item.recordedAt || null,
+        lastError: item.lastError || null
+      }
+    }).catch(() => undefined);
+  }
+  function removeAppOutboxItem(id) {
+    if (!(window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function')) return;
+    window.ikimonAppOutbox.delete('guide:' + id).catch(() => undefined);
+  }
   function updateOfflineUi() {
     const online = isOnlineNow();
     let label = online ? copy.offlineOnline : copy.offlineOffline;
@@ -929,6 +951,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       item.attempts = Number(item.attempts || 0);
       item.byteSize = estimateOfflineItemBytes(item);
       await putOfflineItem(item);
+      mirrorAppOutboxItem(item, 'queued');
       storagePressureActive = await enforceOfflineQueueLimits();
       offlineFailed = false;
       offlineLastSynced = false;
@@ -946,6 +969,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     item.lastError = error instanceof Error ? error.message : String(error || 'sync_failed');
     item.updatedAt = Date.now();
     await putOfflineItem(item).catch(() => undefined);
+    mirrorAppOutboxItem(item, 'error');
   }
   function pickAudioMimeType() {
     if (!window.MediaRecorder || typeof window.MediaRecorder.isTypeSupported !== 'function') return null;
@@ -1586,6 +1610,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         try {
           await replayOfflineItem(item);
           await deleteOfflineItem(item.id);
+          removeAppOutboxItem(item.id);
         } catch (error) {
           offlineFailed = true;
           await markOfflineItemError(item, error);
@@ -2008,6 +2033,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     scheduleRecapRefresh();
   });
   window.addEventListener('online', () => {
+    void refreshQueueStatus();
+    void drainOfflineQueue();
+  });
+  window.addEventListener('ikimon-app-outbox-sync', () => {
     void refreshQueueStatus();
     void drainOfflineQueue();
   });

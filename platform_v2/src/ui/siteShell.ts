@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
+import { appInstallCopy } from "../appInstall.js";
 import { listPagesByLane, listPagesByVisibility, sitePageLabel, type RouteLane, type SitePageDefinition } from "../siteMap.js";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "./facePrivacyScript.js";
 
@@ -26,6 +27,7 @@ export type SiteHero = {
 export type SiteShellOptions = {
   basePath: string;
   title: string;
+  description?: string;
   body: string;
   hero?: SiteHero;
   /** HTML slot rendered inside <main> between the hero and body (e.g. quick nav chips). */
@@ -36,6 +38,9 @@ export type SiteShellOptions = {
   footerNote?: string;
   lang?: SiteLang;
   currentPath?: string;
+  canonicalPath?: string;
+  alternateLangs?: SiteLang[];
+  noindex?: boolean;
   shellClassName?: string;
 };
 
@@ -98,40 +103,42 @@ function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): st
     .join("");
 }
 
-function renderSearchForm(basePath: string, copy: ShellCopy, className = ""): string {
+function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, className = ""): string {
   const classes = ["site-search"];
   if (className) {
     classes.push(className);
   }
 
-  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(withBasePath(basePath, "/explore"))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
+  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/explore"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
     <span class="site-search-icon" aria-hidden="true">🔍</span>
     <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
   </form>`;
 }
 
-function renderLangSwitch(currentPath: string, lang: SiteLang, className = ""): string {
+function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: SiteLang[], className = ""): string {
   const classes = ["lang-switch"];
   if (className) {
     classes.push(className);
   }
+  const available = new Set(availableLangs);
 
   return `<div class="${classes.join(" ")}" aria-label="Language switcher">${supportedLanguages
     .map((language) => {
       const activeClass = language.code === lang ? " is-active" : "";
-      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(currentPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}">${escapeHtml(language.shortLabel)}</a>`;
+      const targetPath = available.has(language.code) ? currentPath : "/";
+      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(targetPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}">${escapeHtml(language.shortLabel)}</a>`;
     })
     .join("")}</div>`;
 }
 
-function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: string): string {
+function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[]): string {
   const copy = shellCopyFor(lang);
   const brandMarkSrc = "/assets/img/icon-192.png";
   const navLinks = buildNavLinks(basePath, lang, activeNav);
-  const desktopSearch = renderSearchForm(basePath, copy, "site-search-desktop");
-  const mobileSearch = renderSearchForm(basePath, copy, "site-search-mobile");
-  const desktopLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-desktop");
-  const mobileLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-mobile");
+  const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop");
+  const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile");
+  const desktopLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-desktop");
+  const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
 
@@ -308,6 +315,8 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
     pathname.startsWith("/notes/") ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
+    pathname === "/debug" ||
+    pathname.startsWith("/debug/") ||
     pathname === "/login" ||
     pathname === "/register"
   );
@@ -509,6 +518,20 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         transaction.oncomplete = () => resolve(true);
         transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
       });
+      if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
+        window.ikimonAppOutbox.enqueue({
+          id: 'record:' + DRAFT_KEY,
+          source: 'record',
+          kind: 'draft',
+          sourceId: DRAFT_KEY,
+          status: 'queued',
+          payloadMeta: {
+            kind: draft && draft.kind || null,
+            fileCount: draft && Array.isArray(draft.files) ? draft.files.length : (draft && draft.file ? 1 : 0),
+            savedAt: draft && draft.savedAt || Date.now()
+          }
+        }).catch(() => undefined);
+      }
     } finally {
       db.close();
     }
@@ -1571,13 +1594,153 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
 </script>`;
 }
 
+const PUBLIC_ORIGIN = "https://ikimon.life";
+
+function stripFragment(path: string): string {
+  const hashIndex = path.indexOf("#");
+  return hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+}
+
+function absolutePublicUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const rooted = path.startsWith("/") ? path : `/${path}`;
+  return `${PUBLIC_ORIGIN}${rooted}`;
+}
+
+function ogLocale(lang: SiteLang): string {
+  const map: Record<SiteLang, string> = {
+    ja: "ja_JP",
+    en: "en_US",
+    es: "es_ES",
+    "pt-BR": "pt_BR",
+  };
+  return map[lang];
+}
+
 export function renderSiteDocument(options: SiteShellOptions): string {
   const lang = options.lang ?? "ja";
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
+  const alternateLangs = options.alternateLangs?.length ? options.alternateLangs : supportedLanguages.map((language) => language.code);
+  const description = options.description ?? options.hero?.lead ?? options.footerNote ?? shellCopyFor(lang).brandTagline;
+  const canonicalPath = stripFragment(options.canonicalPath ?? appendLangToHref(currentPath, lang));
+  const canonicalUrl = absolutePublicUrl(canonicalPath);
+  const alternateLinks = alternateLangs
+    .map((alternateLang) => {
+      const href = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, alternateLang)));
+      return `  <link rel="alternate" hreflang="${escapeHtml(alternateLang)}" href="${escapeHtml(href)}" />`;
+    })
+    .join("\n");
+  const xDefaultHref = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, "ja")));
+  const robotsMeta = options.noindex ? `\n  <meta name="robots" content="noindex,follow" />` : "";
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
   const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
+  const installCopy = appInstallCopy[lang];
+  const manifestHref = `/manifest.webmanifest?lang=${encodeURIComponent(lang)}`;
+  const installPromptHtml = `<div class="app-install-prompt" data-app-install-prompt hidden>
+    <div class="app-install-prompt-copy">
+      <strong>${escapeHtml(installCopy.installTitle)}</strong>
+      <span>${escapeHtml(installCopy.installBody)}</span>
+    </div>
+    <div class="app-install-prompt-actions">
+      <button type="button" class="app-install-primary" data-app-install-action>${escapeHtml(installCopy.installAction)}</button>
+      <button type="button" class="app-install-dismiss" data-app-install-dismiss aria-label="${escapeHtml(installCopy.dismissAction)}">${escapeHtml(installCopy.dismissAction)}</button>
+    </div>
+  </div>`;
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}`;
+  const appOutboxHeadScript = `<script>
+(function () {
+  if (window.ikimonAppOutbox) return;
+  const DB_NAME = 'ikimon-app-outbox-v1';
+  const DB_VERSION = 1;
+  const STORE_NAME = 'items';
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('indexeddb_unavailable'));
+        return;
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          store.createIndex('source', 'source', { unique: false });
+          store.createIndex('status', 'status', { unique: false });
+          store.createIndex('updatedAt', 'updatedAt', { unique: false });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('app_outbox_open_failed'));
+    });
+  }
+  function emitChange(detail) {
+    try { window.dispatchEvent(new CustomEvent('ikimon-app-outbox-change', { detail })); } catch (_) {}
+  }
+  async function put(input) {
+    const now = Date.now();
+    const id = String(input && input.id || (String(input && input.source || 'app') + ':' + now));
+    const item = {
+      id,
+      source: String(input && input.source || 'app'),
+      kind: String(input && input.kind || 'item'),
+      sourceId: String(input && input.sourceId || id),
+      route: String(input && input.route || location.pathname + location.search),
+      status: String(input && input.status || 'queued'),
+      attempts: Number(input && input.attempts || 0),
+      payloadMeta: input && input.payloadMeta ? input.payloadMeta : null,
+      createdAt: Number(input && input.createdAt || now),
+      updatedAt: now
+    };
+    const db = await openDb();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(item);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error || new Error('app_outbox_put_failed'));
+      });
+      emitChange({ action: 'put', item });
+      return item;
+    } finally {
+      db.close();
+    }
+  }
+  async function remove(id) {
+    const db = await openDb();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(String(id));
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error || new Error('app_outbox_delete_failed'));
+      });
+      emitChange({ action: 'delete', id: String(id) });
+    } finally {
+      db.close();
+    }
+  }
+  async function all() {
+    const db = await openDb();
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+        req.onerror = () => reject(req.error || new Error('app_outbox_read_failed'));
+      });
+    } finally {
+      db.close();
+    }
+  }
+  async function count() {
+    return (await all()).length;
+  }
+  window.ikimonAppOutbox = { put, enqueue: put, delete: remove, remove, all, count };
+})();
+</script>`;
   const legacyServiceWorkerCleanupScript = `<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
@@ -1597,6 +1760,124 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       })
       .catch(() => undefined);
   }, { once: true });
+})();
+</script>`;
+  const appRuntimeScript = `<script>
+(function () {
+  const currentLang = ${JSON.stringify(lang)};
+  const supported = { ja: 'ja', en: 'en', es: 'es', pt: 'pt-BR', 'pt-br': 'pt-BR' };
+  const storageKeys = {
+    lang: 'ikimon:app-lang',
+    localeRedirect: 'ikimon:locale-redirect-v1',
+    installDismissed: 'ikimon:install-dismissed-v1'
+  };
+  function normalizeLocale(locale) {
+    const value = String(locale || '').trim().toLowerCase();
+    if (!value) return 'ja';
+    if (value === 'pt' || value.indexOf('pt-') === 0) return 'pt-BR';
+    if (value.indexOf('en') === 0) return 'en';
+    if (value.indexOf('es') === 0) return 'es';
+    return 'ja';
+  }
+  function segmentFor(lang) {
+    return lang === 'pt-BR' ? 'pt-br' : lang;
+  }
+  function isLanguagePrefixed(pathname) {
+    return /^\\/(ja|en|es|pt-br)(?:\\/|$)/.test(pathname);
+  }
+  try {
+    const deviceLang = normalizeLocale((navigator.languages && navigator.languages[0]) || navigator.language || '');
+    document.documentElement.dataset.deviceLang = deviceLang;
+    if (isLanguagePrefixed(location.pathname)) {
+      localStorage.setItem(storageKeys.lang, currentLang);
+    } else if (!localStorage.getItem(storageKeys.lang)) {
+      localStorage.setItem(storageKeys.lang, deviceLang);
+    }
+    const explicitLang = new URLSearchParams(location.search).has('lang');
+    const alreadyRedirected = sessionStorage.getItem(storageKeys.localeRedirect) === '1';
+    if (!explicitLang && !alreadyRedirected && location.pathname === '/' && deviceLang !== 'ja') {
+      sessionStorage.setItem(storageKeys.localeRedirect, '1');
+      location.replace('/' + segmentFor(deviceLang) + '/' + (location.search ? location.search + '&source=device_locale' : '?source=device_locale'));
+      return;
+    }
+  } catch (_) {}
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/app-sw.js', { scope: '/' }).catch(() => undefined);
+      requestAppOutboxSync('startup');
+    }, { once: true });
+  }
+
+  function dispatchAppOutboxSync(reason) {
+    try {
+      window.dispatchEvent(new CustomEvent('ikimon-app-outbox-sync', { detail: { reason: reason || 'manual' } }));
+    } catch (_) {
+      window.dispatchEvent(new Event('ikimon-app-outbox-sync'));
+    }
+  }
+  function requestAppOutboxSync(reason) {
+    if (!navigator.onLine) return Promise.resolve(false);
+    if (!('serviceWorker' in navigator)) {
+      dispatchAppOutboxSync(reason || 'fallback');
+      return Promise.resolve(false);
+    }
+    return navigator.serviceWorker.ready.then((registration) => {
+      if (registration && 'sync' in registration && registration.sync && typeof registration.sync.register === 'function') {
+        return registration.sync.register('ikimon-app-outbox-sync').then(() => true);
+      }
+      dispatchAppOutboxSync(reason || 'startup-fallback');
+      return false;
+    }).catch(() => {
+      dispatchAppOutboxSync(reason || 'startup-fallback');
+      return false;
+    });
+  }
+  window.ikimonRequestAppOutboxSync = requestAppOutboxSync;
+  window.addEventListener('online', () => {
+    void requestAppOutboxSync('online');
+  });
+  window.addEventListener('ikimon-app-outbox-change', () => {
+    void requestAppOutboxSync('outbox-change');
+  });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'ikimon:app-outbox-sync') {
+        dispatchAppOutboxSync(event.data.reason || 'background-sync');
+      }
+    });
+  }
+
+  const promptEl = document.querySelector('[data-app-install-prompt]');
+  const actionEl = document.querySelector('[data-app-install-action]');
+  const dismissEl = document.querySelector('[data-app-install-dismiss]');
+  let deferredPrompt = null;
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function showInstallPrompt() {
+    if (!promptEl || isStandalone()) return;
+    try {
+      if (localStorage.getItem(storageKeys.installDismissed) === '1') return;
+    } catch (_) {}
+    promptEl.hidden = false;
+  }
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    showInstallPrompt();
+  });
+  if (dismissEl) dismissEl.addEventListener('click', () => {
+    if (promptEl) promptEl.hidden = true;
+    try { localStorage.setItem(storageKeys.installDismissed, '1'); } catch (_) {}
+  });
+  if (actionEl) actionEl.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch (_) {}
+    deferredPrompt = null;
+    if (promptEl) promptEl.hidden = true;
+  });
 })();
 </script>`;
   const uiKpiScript = `<script>
@@ -1651,10 +1932,29 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#10b981" />
+  <meta name="application-name" content="ikimon.life" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="ikimon" />
+  <link rel="manifest" href="${escapeHtml(manifestHref)}" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png" />
   <title>${escapeHtml(options.title)}</title>
+  <meta name="description" content="${escapeHtml(description)}" />${robotsMeta}
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+${alternateLinks}
+  <link rel="alternate" hreflang="x-default" href="${escapeHtml(xDefaultHref)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="ikimon.life" />
+  <meta property="og:locale" content="${escapeHtml(ogLocale(lang))}" />
+  <meta property="og:title" content="${escapeHtml(options.title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="${escapeHtml(options.title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  ${appOutboxHeadScript}
   <style>
     :root {
       color-scheme: light;
@@ -3305,13 +3605,59 @@ export function renderSiteDocument(options: SiteShellOptions): string {
         display: grid;
       }
     }
+    .app-install-prompt {
+      position: fixed;
+      left: max(14px, env(safe-area-inset-left));
+      right: max(14px, env(safe-area-inset-right));
+      bottom: max(14px, env(safe-area-inset-bottom));
+      z-index: 70;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(15,23,42,.1);
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 18px 48px rgba(15,23,42,.18);
+      color: #0f172a;
+    }
+    .app-install-prompt[hidden] { display: none; }
+    .app-install-prompt-copy { display: grid; gap: 2px; min-width: 0; }
+    .app-install-prompt-copy strong { font-size: 13px; line-height: 1.35; font-weight: 950; }
+    .app-install-prompt-copy span { color: #475569; font-size: 12px; line-height: 1.45; font-weight: 750; }
+    .app-install-prompt-actions { display: flex; align-items: center; gap: 8px; }
+    .app-install-primary,
+    .app-install-dismiss {
+      min-height: 38px;
+      border-radius: 8px;
+      border: 0;
+      padding: 0 12px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .app-install-primary { background: #10b981; color: #fff; }
+    .app-install-dismiss { background: rgba(15,23,42,.06); color: #334155; }
+    @media (min-width: 768px) {
+      .app-install-prompt {
+        left: auto;
+        right: 22px;
+        bottom: 22px;
+      }
+    }
     ${options.extraStyles ?? ""}
   </style>
 </head>
 <body>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
+  ${installPromptHtml}
   <div class="${siteShellClassName}">
-    ${nav(options.basePath, lang, currentPath, options.activeNav)}
+    ${nav(options.basePath, lang, currentPath, options.activeNav, alternateLangs)}
     <main id="main-content" class="shell${options.shellClassName ? ` ${escapeHtml(options.shellClassName)}` : ""}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
       ${options.belowHeroHtml ?? ""}
@@ -3321,6 +3667,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     ${globalRecordNav}
   </div>
   ${legacyServiceWorkerCleanupScript}
+  ${appRuntimeScript}
   ${authNavHydrationScript(options.basePath, lang)}
   ${globalRecordNav ? globalRecordEntryScript(options.basePath) : ""}
   ${uiKpiScript}

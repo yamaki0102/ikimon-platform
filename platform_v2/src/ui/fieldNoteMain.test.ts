@@ -92,6 +92,6 @@ test("field note guest ambient links open the guest notebook instead of a missin
     }],
   });
 
-  assert.match(html, /href="\/guest\/guest_abc123\?lang=ja"/);
+  assert.match(html, /href="\/ja\/guest\/guest_abc123"/);
   assert.doesNotMatch(html, /\/profile\/guest_abc123/);
 });

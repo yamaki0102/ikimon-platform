@@ -16,6 +16,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /MapExplorerStateHelpers/);
     assert.match(html, /MAP_STATE_KEYS = \[[^\]]*"cell"/);
     assert.match(html, /serializeSharedMapState/);
+    assert.match(html, /source: 'map'/);
+    assert.match(html, /id: 'map:state'/);
   } finally {
     await app.close();
   }

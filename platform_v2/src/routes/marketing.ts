@@ -1,12 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
-import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
+import { appendLangToHref, detectLangFromUrl, langFromPathPrefix, type SiteLang } from "../i18n.js";
 import { getShortCopy, renderLongformPage } from "../content/index.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import {
   legacyRedirectEntries,
   listMarketingPages,
   listPagesByLane,
+  localizedPageLangs,
   sitePageLabel,
   sitePageSummary,
   type RouteLane,
@@ -54,12 +55,18 @@ function requestBasePath(request: { headers: Record<string, unknown> }): string 
   return getForwardedBasePath(request.headers);
 }
 
-function requestUrl(request: { url?: string; raw?: { url?: string } }): string {
-  return String(request.raw?.url ?? request.url ?? "");
+function requestUrl(request: { url?: string; raw?: { url?: string; originalUrl?: string } }): string {
+  return String(request.raw?.originalUrl ?? request.raw?.url ?? request.url ?? "");
 }
 
-function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string {
+function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string {
   return withBasePath(requestBasePath(request), requestUrl(request));
+}
+
+function isLanguagePrefixedRequest(url: string): boolean {
+  const queryIndex = url.indexOf("?");
+  const path = queryIndex >= 0 ? url.slice(0, queryIndex) : url;
+  return Boolean(langFromPathPrefix(path));
 }
 
 function activeNavLabel(activeNav: MarketingPageMeta["activeNav"], lang: SiteLang): string {
@@ -339,14 +346,20 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   if (!pageKey) {
     throw new Error(`missing_marketing_page_key:${page.path}`);
   }
+  const availableLangs = localizedPageLangs(page);
+  const hasLocalizedSeoPage = availableLangs.includes(lang);
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
   const bodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   return renderSiteDocument({
     basePath,
     title: meta.title,
+    description: meta.lead,
     activeNav: activeNavLabel(meta.activeNav, lang),
     lang,
     currentPath,
+    canonicalPath: appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja"),
+    alternateLangs: availableLangs,
+    noindex: !hasLocalizedSeoPage,
     extraStyles: LOWER_PAGE_STYLES,
     hero: {
       eyebrow: meta.eyebrow,
@@ -390,13 +403,18 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   for (const page of listMarketingPages()) {
     app.get(page.path, async (request, reply) => {
       const basePath = requestBasePath(request as { headers: Record<string, unknown> });
-      const lang = detectLangFromUrl(requestUrl(request));
+      const url = requestUrl(request);
+      const lang = detectLangFromUrl(url);
+      const availableLangs = localizedPageLangs(page);
+      if (isLanguagePrefixedRequest(url) && !availableLangs.includes(lang)) {
+        return reply.redirect(appendLangToHref(withBasePath(basePath, "/"), lang), 302);
+      }
       const prependHtml = page.marketing?.prepend === "contactForm" ? renderContactForm(basePath, lang) : "";
       reply.type("text/html; charset=utf-8");
       return renderPageDocument(
         basePath,
         lang,
-        requestCurrentPath(request as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+        requestCurrentPath(request as { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }),
         page,
         prependHtml,
       );

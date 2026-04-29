@@ -48,6 +48,6 @@ test("renderObservationCard links guest observers to notebook view", () => {
     observerName: "Guest",
   }, { locationMode: "public" });
 
-  assert.match(html, /href="\/guest\/guest_abc123\?lang=ja"/);
+  assert.match(html, /href="\/ja\/guest\/guest_abc123"/);
   assert.doesNotMatch(html, /\/profile\/guest_abc123/);
 });

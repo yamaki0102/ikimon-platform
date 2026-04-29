@@ -70,11 +70,44 @@ test("legacy public explainer routes redirect to their canonical destinations", 
   try {
     const scan = await app.inject({ method: "GET", url: "/scan?lang=ja" });
     assert.equal(scan.statusCode, 308);
-    assert.equal(scan.headers.location, "/map?lang=ja");
+    assert.equal(scan.headers.location, "/ja/map");
 
     const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
     assert.equal(authority.statusCode, 308);
-    assert.equal(authority.headers.location, "/learn/methodology?lang=ja");
+    assert.equal(authority.headers.location, "/ja/learn/methodology");
+  } finally {
+    await app.close();
+  }
+});
+
+test("language-prefixed marketing pages enforce the localized fallback gate", async () => {
+  const app = buildApp();
+  try {
+    const localized = await app.inject({
+      method: "GET",
+      url: "/en/community",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(localized.statusCode, 200);
+    assert.match(localized.body, /<html lang="en"/);
+    assert.match(localized.body, /rel="canonical" href="https:\/\/ikimon\.life\/en\/community"/);
+
+    const missing = await app.inject({
+      method: "GET",
+      url: "/en/about",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(missing.statusCode, 302);
+    assert.equal(missing.headers.location, "/en/");
+
+    const legacyFallback = await app.inject({
+      method: "GET",
+      url: "/about?lang=en",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(legacyFallback.statusCode, 200);
+    assert.match(legacyFallback.body, /name="robots" content="noindex,follow"/);
+    assert.match(legacyFallback.body, /rel="canonical" href="https:\/\/ikimon\.life\/ja\/about"/);
   } finally {
     await app.close();
   }

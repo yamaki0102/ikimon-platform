@@ -32,13 +32,17 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /let audioOnlyChunkCount = 0/);
   assert.match(html, /const OFFLINE_DB_NAME = 'ikimon-guide-offline-v1'/);
   assert.match(html, /const OFFLINE_STORE = 'queue'/);
+  assert.match(html, /mirrorAppOutboxItem\(item, 'queued'\)/);
+  assert.match(html, /source: 'guide'/);
+  assert.match(html, /removeAppOutboxItem\(item\.id\)/);
   assert.match(html, /window\.addEventListener\('online'/);
+  assert.match(html, /window\.addEventListener\('ikimon-app-outbox-sync'/);
   assert.match(html, /window\.addEventListener\('offline'/);
   assert.match(html, /id="guide-offline-queued" hidden/);
   assert.match(html, /id="guide-summary-queued">0<\/strong>/);
   assert.match(html, /id="guide-audio-opt-btn" type="button" aria-pressed="false"/);
   assert.match(html, /Audio is saved only if you enable natural sound recording below\./);
-  assert.match(html, /Field-like discoveries are saved automatically; indoor or person-first scenes are not kept\./);
+  assert.match(html, /Field-like discoveries are saved automatically; indoor, person-first, or weak nature signals are not kept\./);
   assert.match(html, /autoSaveView\(scene\)/);
   assert.match(html, /copy\.autoSaved/);
   assert.match(html, /copy\.manualSave/);

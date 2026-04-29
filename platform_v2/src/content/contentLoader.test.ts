@@ -3,7 +3,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createContentStore, fallbackChain, getShortCopy, resolveContentRoots } from "./index.js";
+import { createContentStore, fallbackChain, getShortCopy, hasLocalizedLongform, hasLocalizedShortCopy, resolveContentRoots } from "./index.js";
 
 function withFixture(mutator: (fixtureRoot: string) => void): void {
   const roots = resolveContentRoots();
@@ -76,4 +76,11 @@ test("content store rejects schema mismatches in partial locales", () => {
       /scalar type/,
     );
   });
+});
+
+test("localized content helpers distinguish real translations from ja fallback", () => {
+  assert.equal(hasLocalizedShortCopy("en", "public", "marketing.pages.community"), true);
+  assert.equal(hasLocalizedLongform("en", "community"), true);
+  assert.equal(hasLocalizedShortCopy("en", "public", "marketing.pages.about"), false);
+  assert.equal(hasLocalizedLongform("en", "about"), false);
 });

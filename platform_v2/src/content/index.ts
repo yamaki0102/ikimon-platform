@@ -330,6 +330,18 @@ function getByPath(source: JsonObject, key: string): JsonValue {
   return current;
 }
 
+function hasByPath(source: JsonObject, key: string): boolean {
+  const parts = key.split(".");
+  let current: JsonValue = source;
+  for (const part of parts) {
+    if (!isPlainObject(current) || !(part in current)) {
+      return false;
+    }
+    current = current[part] as JsonValue;
+  }
+  return true;
+}
+
 function validateLandingCopy(value: unknown, path: string): asserts value is JsonLandingCopy {
   assertObject(value, path);
   assertString(value.title, `${path}.title`);
@@ -675,6 +687,26 @@ export function getShortNamespace<T>(lang: SiteLang, namespace: ContentNamespace
 export function getShortCopy<T>(lang: SiteLang, namespace: ContentNamespace, key: string): T {
   const namespaceObject = getShortNamespace<JsonObject>(lang, namespace);
   return getByPath(namespaceObject, key) as T;
+}
+
+export function hasLocalizedShortCopy(lang: SiteLang, namespace: ContentNamespace, key: string): boolean {
+  if (lang === "ja") {
+    return true;
+  }
+  const roots = resolveContentRoots();
+  const filePath = join(roots.shortRoot, lang, `${namespace}.json`);
+  if (!existsSync(filePath)) {
+    return false;
+  }
+  return hasByPath(readJsonFile(filePath), key);
+}
+
+export function hasLocalizedLongform(lang: SiteLang, pageId: string): boolean {
+  if (lang === "ja") {
+    return true;
+  }
+  const roots = resolveContentRoots();
+  return existsSync(join(roots.longformRoot, lang, `${pageId}.md`));
 }
 
 export function getLongformMarkdown(lang: SiteLang, pageId: string): string {

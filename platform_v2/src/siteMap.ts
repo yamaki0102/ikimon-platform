@@ -1,3 +1,6 @@
+import { appendLangToHref, supportedLanguages, type SiteLang } from "./i18n.js";
+import { getShortCopy, hasLocalizedLongform, hasLocalizedShortCopy } from "./content/index.js";
+
 export type RouteLane =
   | "start"
   | "learn"
@@ -532,21 +535,65 @@ export function xmlSitemapPages(): SitePageDefinition[] {
   return listPagesByVisibility("xml").filter((page) => !page.path.includes(":"));
 }
 
+type MarketingPageMeta = {
+  bodyPageId: string;
+};
+
+export function localizedPageLangs(page: SitePageDefinition): SiteLang[] {
+  if (!page.marketing) {
+    return supportedLanguages.map((language) => language.code);
+  }
+  return supportedLanguages
+    .map((language) => language.code)
+    .filter((lang) => {
+      if (lang === "ja") {
+        return true;
+      }
+      const metaPath = `marketing.pages.${page.marketing!.pageKey}`;
+      if (!hasLocalizedShortCopy(lang, "public", metaPath)) {
+        return false;
+      }
+      const meta = getShortCopy<MarketingPageMeta>(lang, "public", metaPath);
+      return hasLocalizedLongform(lang, meta.bodyPageId);
+    });
+}
+
 function normalizeOrigin(origin: string): string {
   return origin.replace(/\/+$/, "");
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }
 
 export function buildXmlSitemap(origin: string, today = new Date()): string {
   const base = normalizeOrigin(origin || "https://ikimon.life");
   const lastmod = today.toISOString().slice(0, 10);
   const urls = xmlSitemapPages()
-    .map((page) => `  <url>
-    <loc>${base}${page.path}</loc>
+    .flatMap((page) => {
+      const langs = localizedPageLangs(page);
+      return langs.map((lang) => {
+        const localizedPath = appendLangToHref(page.path, lang);
+        const alternates = langs
+          .map((alternateLang) => `    <xhtml:link rel="alternate" hreflang="${escapeXml(alternateLang)}" href="${escapeXml(`${base}${appendLangToHref(page.path, alternateLang)}`)}" />`)
+          .join("\n");
+        const xDefault = `    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeXml(`${base}${appendLangToHref(page.path, "ja")}`)}" />`;
+        return `  <url>
+    <loc>${escapeXml(`${base}${localizedPath}`)}</loc>
     <lastmod>${lastmod}</lastmod>
-  </url>`)
+${alternates}
+${xDefault}
+  </url>`;
+      });
+    })
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${urls}
 </urlset>
 `;
@@ -558,5 +605,6 @@ export function buildRobotsTxt(origin: string): string {
 Allow: /
 
 Sitemap: ${base}/sitemap.xml
+LLMs: ${base}/llms.txt
 `;
 }

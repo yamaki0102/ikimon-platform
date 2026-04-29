@@ -2289,6 +2289,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         window.history.replaceState(null, '', next + (url.hash || ''));
       }
       localStorage.setItem(STATE_STORAGE_KEY, s);
+      if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
+        window.ikimonAppOutbox.enqueue({
+          id: 'map:state',
+          source: 'map',
+          kind: 'state',
+          sourceId: STATE_STORAGE_KEY,
+          status: 'saved',
+          payloadMeta: {
+            stateBytes: s.length,
+            tab: state.tab,
+            role: state.role,
+            selectedCellId: state.selectedCellId || null
+          }
+        }).catch(function () {});
+      }
     } catch (_) {}
   }
 
