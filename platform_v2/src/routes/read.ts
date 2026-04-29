@@ -63,6 +63,7 @@ import {
   type ProfileSnapshot,
 } from "../services/readModels.js";
 import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
+import { getRegionalStoryCue, type RegionalStoryCue } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
   assertSpecialistSession,
@@ -625,6 +626,18 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-cutout-status.is-error { background: #fef2f2; color: #b91c1c; }
 
   .obs-peers { margin: 0; padding: 10px 14px; background: rgba(168,85,247,.06); border-radius: 10px; font-size: 13px; color: #6b21a8; border: 1px solid rgba(168,85,247,.15); }
+  .regional-story { display: grid; gap: 14px; margin: 18px 0; padding: 18px; border-radius: 12px; border: 1px solid rgba(16,185,129,.18); background: linear-gradient(135deg, rgba(240,253,244,.92), rgba(255,255,255,.96)); box-shadow: 0 12px 28px rgba(15,23,42,.045); }
+  .regional-story-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .regional-story-eyebrow { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .regional-story h2 { margin: 6px 0 0; color: #10251a; font-size: clamp(22px, 3vw, 32px); line-height: 1.18; letter-spacing: 0; }
+  .regional-story-head > span { flex: 0 0 auto; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
+  .regional-story-lead { margin: 0; color: #475569; line-height: 1.8; font-weight: 720; }
+  .regional-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .regional-story-grid div { min-height: 96px; padding: 13px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.12); }
+  .regional-story-grid small { display: block; color: #047857; font-size: 11px; font-weight: 950; }
+  .regional-story-grid strong { display: block; margin-top: 8px; color: #1f3527; font-size: 14px; line-height: 1.55; }
+  .regional-story-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+  .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
   .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .obs-nearby-card { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); overflow: hidden; text-decoration: none; color: inherit; transition: transform .15s ease; }
   .obs-nearby-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
@@ -637,6 +650,10 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-seasonal-wrap { padding: 10px 12px; background: #fffbeb; border-radius: 10px; }
   .obs-seasonal { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; align-items: end; height: 60px; margin-top: 6px; }
   .obs-seasonal-bar { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; font-size: 9px; color: #b45309; font-weight: 700; }
+  @media (max-width: 680px) {
+    .regional-story-head, .regional-story-grid { grid-template-columns: 1fr; }
+    .regional-story-head { flex-direction: column; }
+  }
   .obs-seasonal-bar::before { content: ""; display: block; width: 100%; height: var(--h, 0%); background: linear-gradient(180deg, #f59e0b, #fbbf24); border-radius: 3px 3px 0 0; min-height: 2px; }
 
   .obs-cta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
@@ -1200,6 +1217,32 @@ function renderSubjectHint(
     ${funFact}
     ${similar}
     ${runMeta}
+  </section>`;
+}
+
+function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, variant: "observation" | "profile" | "compact" = "observation"): string {
+  if (!story) return "";
+  const cards = story.cards.slice(0, variant === "observation" ? 2 : 1);
+  const sourceLinks = cards.length > 0
+    ? `<div class="regional-story-sources">
+        ${cards.map((card) => `<a href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">${escapeHtml(card.sourceLabel)}</a>`).join("")}
+      </div>`
+    : "";
+  const className = `regional-story regional-story--${variant}`;
+  return `<section class="${className}" data-testid="regional-story">
+    <div class="regional-story-head">
+      <div>
+        <div class="regional-story-eyebrow">もう一度見に行く理由</div>
+        <h2>${escapeHtml(story.placeHook)}</h2>
+      </div>
+      <span>${escapeHtml(story.sourceMode === "fallback" ? story.angleLabel : `出典つき / ${story.angleLabel}`)}</span>
+    </div>
+    <p class="regional-story-lead">${escapeHtml(story.whyHere)}</p>
+    <div class="regional-story-grid">
+      <div><small>次に撮る1枚</small><strong>${escapeHtml(story.nextObservationAngle)}</strong></div>
+      <div><small>この場所が育つこと</small><strong>${escapeHtml(story.collectiveNote)}</strong></div>
+    </div>
+    ${sourceLinks}
   </section>`;
 }
 
@@ -1786,6 +1829,19 @@ const PROFILE_HUB_STYLES = `
   .profile-reading-points strong { display: block; margin-top: 8px; color: #1a2e1f; font-size: 16px; line-height: 1.35; }
   .profile-reading-points p { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.65; font-weight: 700; }
   .profile-reading-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .regional-story { display: grid; gap: 14px; padding: 18px; border-radius: 12px; border: 1px solid rgba(16,185,129,.18); background: linear-gradient(135deg, rgba(240,253,244,.92), rgba(255,255,255,.96)); box-shadow: 0 12px 28px rgba(15,23,42,.045); }
+  .regional-story-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .regional-story-eyebrow { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .regional-story h2 { margin: 6px 0 0; color: #10251a; font-size: clamp(22px, 3vw, 32px); line-height: 1.18; letter-spacing: 0; }
+  .regional-story-head > span { flex: 0 0 auto; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
+  .regional-story-lead { margin: 0; color: #475569; line-height: 1.8; font-weight: 720; }
+  .regional-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .regional-story-grid div { min-height: 96px; padding: 13px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.12); }
+  .regional-story-grid small { display: block; color: #047857; font-size: 11px; font-weight: 950; }
+  .regional-story-grid strong { display: block; margin-top: 8px; color: #1f3527; font-size: 14px; line-height: 1.55; }
+  .regional-story-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+  .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
+  .profile-place-story-list { display: grid; gap: 12px; }
   .profile-history-shell, .profile-growth-shell, .profile-contribution-shell { display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
   .profile-history-line { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .profile-history-step { min-height: 116px; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, rgba(236,253,245,.78), rgba(248,250,252,.92)); border: 1px solid rgba(16,185,129,.13); }
@@ -1836,7 +1892,8 @@ const PROFILE_HUB_STYLES = `
   }
   @media (max-width: 620px) {
     .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
-    .profile-history-line, .profile-growth-grid, .profile-contribution-grid { grid-template-columns: 1fr; }
+    .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .regional-story-grid { grid-template-columns: 1fr; }
+    .regional-story-head { flex-direction: column; }
     .profile-summary-card { min-height: 96px; }
   }
 `;
@@ -1990,6 +2047,16 @@ function renderProfileGrowth(snapshot: ProfileSnapshot, digest: ProfileNoteDiges
   </section>`;
 }
 
+function renderProfilePlaceStories(stories: RegionalStoryCue[]): string {
+  if (stories.length === 0) return "";
+  return `<section class="section" data-testid="profile-place-stories">
+    <div class="section-header"><div><div class="eyebrow">Place relationship</div><h2>自分と場所の関係史</h2></div></div>
+    <div class="profile-place-story-list">
+      ${stories.slice(0, 3).map((story) => renderRegionalStoryPanel(story, "profile")).join("")}
+    </div>
+  </section>`;
+}
+
 function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
   const revisitCount = profileRevisitCount(snapshot);
   return `<section class="section" data-testid="profile-contribution">
@@ -2034,10 +2101,11 @@ function renderProfileLifeList(snapshot: ProfileSnapshot): string {
   </section>`;
 }
 
-function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
+function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null, regionalStories: RegionalStoryCue[] = []): string {
   return `${renderProfileSummary(snapshot)}
     ${renderProfileIntro(basePath, snapshot, true)}
     ${renderProfileNextActions(basePath, snapshot, digest)}
+    ${renderProfilePlaceStories(regionalStories)}
     ${renderProfileHistory(snapshot)}
     ${renderProfileGrowth(snapshot, digest)}
     ${renderProfileContribution(basePath, snapshot, digest)}`;
@@ -4596,14 +4664,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           image.src = url;
         });
         const preparePhotoUpload = async (file) => {
-          const originalType = String(file && file.type || 'image/jpeg').toLowerCase();
-          if (originalType === 'image/gif') {
-            return {
-              filename: file.name || 'upload.gif',
-              mimeType: originalType,
-              base64Data: await readFileAsDataUrl(file),
-            };
-          }
           try {
             const image = await loadImageForUpload(file);
             const width = Number(image.naturalWidth || image.width || 0);
@@ -4636,6 +4696,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               filename: file.name || 'upload.jpg',
               mimeType: file.type || 'image/jpeg',
               base64Data: await readFileAsDataUrl(file),
+              facePrivacy: { detector: 'browser_face_detector', status: 'unavailable', faceCount: 0, error: 'photo_canvas_fallback' },
             };
           }
         };
@@ -5759,6 +5820,25 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       isOwner,
     });
     const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
+    const regionalStory = await getRegionalStoryCue({
+      surface: "observation",
+      viewerUserId,
+      place: {
+        placeId: snapshot.placeId,
+        placeName: snapshot.placeName,
+        municipality: snapshot.municipality,
+        latitude: snapshot.latitude,
+        longitude: snapshot.longitude,
+        publicLabel: snapshot.publicLocation?.label ?? null,
+        allowPrecisePlaceLabel: canSeeCanonicalLocation,
+      },
+      observation: {
+        observationId: snapshot.occurrenceId,
+        observedAt: snapshot.observedAt,
+        displayName: snapshot.displayName,
+      },
+      maxCards: 2,
+    }).catch(() => null);
     const heroPlaceLabel = canSeeCanonicalLocation
       ? (snapshot.placeName || "場所情報なし")
       : (snapshot.publicLocation?.label || "位置をぼかしています");
@@ -5951,6 +6031,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       </section>`;
 
     const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
+    const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
 
     // ===== Layer 1: 物語 =====
     const ownerNote = snapshot.note
@@ -6390,7 +6471,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       bindIdentifyForms();
       window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
     })();</script>`;
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${regionalStoryBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -6502,6 +6583,19 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "ノートに読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
+    const regionalStories = (await Promise.all(snapshot.recentPlaces.slice(0, 3).map((place) => getRegionalStoryCue({
+      surface: "profile",
+      viewerUserId: session.userId,
+      place: {
+        placeId: place.placeId,
+        placeName: place.placeName,
+        municipality: place.municipality,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        allowPrecisePlaceLabel: true,
+      },
+      maxCards: 1,
+    }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
     const heroActions = [
       { href: "/notes#notes-own", label: "観察ライブラリを開く" },
       { href: "/notes#notes-places", label: "場所アルバムを見る", variant: "secondary" as const },
@@ -6513,7 +6607,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     return layout(
       basePath,
       `マイページ | ${snapshot.displayName} | ikimon`,
-      renderSelfProfileHub(basePath, lang, snapshot, digest),
+      renderSelfProfileHub(basePath, lang, snapshot, digest, regionalStories),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "観察者",

@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
+import { upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
 import { createGuideLiveToken } from "../services/guideLiveToken.js";
-import { analyzeScene, saveGuideRecord, type SceneResult } from "../services/guideSession.js";
+import { analyzeScene, saveGuideRecord, type GuideMode, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import type { TtsLang } from "../services/guideTts.js";
@@ -25,6 +26,40 @@ function parseClientSceneId(raw: unknown): string | null {
   return value;
 }
 
+function parseGuideMode(raw: unknown): GuideMode {
+  return raw === "vehicle" ? "vehicle" : "walk";
+}
+
+function parseDetectedFeatures(raw: unknown): SceneResult["detectedFeatures"] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => item && typeof item === "object" ? item as Record<string, unknown> : null)
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .map((item) => ({
+      type: ["species", "vegetation", "landform", "structure", "sound"].includes(String(item.type))
+        ? item.type as SceneResult["detectedFeatures"][number]["type"]
+        : "structure",
+      name: typeof item.name === "string" ? item.name : "",
+      confidence: typeof item.confidence === "number" && Number.isFinite(item.confidence) ? item.confidence : undefined,
+      note: typeof item.note === "string" ? item.note : undefined,
+    }))
+    .filter((item) => item.name.trim() !== "")
+    .slice(0, 30);
+}
+
+function parsePrimarySubject(raw: unknown): SceneResult["primarySubject"] | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  const rank = String(obj.rank ?? "");
+  if (typeof obj.name !== "string" || !["species", "genus", "family", "lifeform", "unknown"].includes(rank)) return null;
+  const confidence = Number(obj.confidence);
+  return {
+    name: obj.name,
+    rank: rank as "species" | "genus" | "family" | "lifeform" | "unknown",
+    confidence: Number.isFinite(confidence) ? confidence : 0,
+  };
+}
+
 type PendingGuideScene = {
   sceneId: string;
   sessionId: string;
@@ -32,6 +67,7 @@ type PendingGuideScene = {
   lat: number;
   lng: number;
   lang: TtsLang;
+  guideMode: GuideMode;
   capturedAt: string;
   requestedAt: string;
   returnedAt: string | null;
@@ -115,15 +151,18 @@ function buildDelayedSceneCopy(result: SceneResult, ageSec: number): {
   const ageLabel = ageSec < 60 ? `${ageSec}秒前` : `${Math.round(ageSec / 60)}分前`;
   const subject = result.primarySubject?.name || result.detectedSpecies[0] || "";
   const lowConfidence = (result.primarySubject?.confidence ?? 1) < 0.62;
+  const hasEnvironment = Boolean(result.environmentContext || result.detectedFeatures.some((feature) => feature.type === "vegetation" || feature.type === "landform"));
   const delayedSummary = `${ageLabel}の地点で、${result.summary}`;
   const whyInteresting = result.seasonalNote || result.environmentContext || (subject
     ? `${subject}だけでなく、周囲の環境と一緒に見ると発見が増えます。`
-    : "種名が確定しなくても、環境や季節の手がかりとして残せます。");
+    : "種名が確定しなくても、植生・土地利用・水辺や道路際の状態として残せます。");
   const nextLookTarget = subject
     ? `${subject}をもう一度見るなら、全体・近い特徴・いた場所の3つを分けて確認すると進みます。`
-    : "次に見るなら、葉・花・実・足元の環境など、名前以外の手がかりを1つ足してください。";
+    : hasEnvironment
+      ? "次に見るなら、草丈・樹木の並び・水路・刈り込み跡・道路際のどれかを1つ足してください。"
+      : "次に見るなら、葉・花・実・足元の環境など、名前以外の手がかりを1つ足してください。";
   const uncertaintyReason = lowConfidence
-    ? "このフレームだけでは特徴が足りないため、種名は確定せず手がかりとして扱います。"
+    ? "このフレームだけでは特徴が足りないため、種名は確定せず環境の手がかりとして扱います。"
     : null;
   return { delayedSummary, whyInteresting, nextLookTarget, uncertaintyReason };
 }
@@ -221,6 +260,7 @@ async function applyGuideAutoSave(input: {
   frameThumb: string | null;
   facePrivacy: FacePrivacySummary | null;
   sceneId: string;
+  guideMode: GuideMode;
   lang: TtsLang;
 }): Promise<PendingGuideAutoSave> {
   const decision = decideGuideAutoSave({ result: input.sceneResult, siteBrief: input.siteBrief });
@@ -255,6 +295,7 @@ async function applyGuideAutoSave(input: {
         ageSec,
         uncertaintyReason: copy.uncertaintyReason,
         autoSave: decision,
+        facePrivacy: input.facePrivacy,
       },
       mediaRefs: {
         ...(input.frameThumb ? { frameThumb: input.frameThumb } : {}),
@@ -262,6 +303,7 @@ async function applyGuideAutoSave(input: {
       },
       meta: {
         sceneId: input.sceneId,
+        guideMode: input.guideMode,
         facePrivacy: input.facePrivacy,
         whyInteresting: copy.whyInteresting,
         nextLookTarget: copy.nextLookTarget,
@@ -277,6 +319,14 @@ async function applyGuideAutoSave(input: {
       },
       lang: input.lang,
     });
+    await upsertGuideEnvironmentMeshFromRecord({
+      guideRecordId,
+      userId: input.userId,
+      lat: input.lat,
+      lng: input.lng,
+      detectedFeatures: input.sceneResult.detectedFeatures,
+      seenAt: input.capturedAt,
+    }).catch(() => undefined);
     return { state: "saved", guideRecordId, ...decision };
   } catch (error) {
     return {
@@ -322,6 +372,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
 
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "anonymous";
     const lang = parseLang(body.lang);
+    const guideMode = parseGuideMode(body.guideMode);
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const userId = session?.userId ?? null;
 
@@ -349,6 +400,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       lat,
       lng,
       lang,
+      guideMode,
       capturedAt,
       requestedAt,
       returnedAt: null,
@@ -381,6 +433,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
             userId,
             siteBriefLabel: siteBrief?.hypothesis.label ?? (typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null),
             siteBriefSignals: siteBrief?.signals ?? null,
+            guideMode,
             capturedAt,
             azimuth,
           },
@@ -401,6 +454,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           frameThumb,
           facePrivacy,
           sceneId,
+          guideMode,
           lang,
         });
         job.status = "ready";
@@ -520,6 +574,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const lat = Number(body.lat);
     const lng = Number(body.lng);
     const lang = parseLang(body.lang);
+    const guideMode = parseGuideMode(body.guideMode);
 
     const allowedCategories = ["biodiversity", "land_history", "buildings", "people_history"] as const;
     type Category = (typeof allowedCategories)[number];
@@ -540,6 +595,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       lng: Number.isFinite(lng) ? lng : 138.0,
       siteBriefLabel: typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : undefined,
       detectedSpecies,
+      guideMode,
     });
 
     if (!script) return reply.status(500).send({ error: "Script generation failed" });
@@ -570,6 +626,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     }
 
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const facePrivacy = normalizeFacePrivacy(body.facePrivacy);
 
     const id = await saveGuideRecord({
       sessionId,
@@ -587,17 +644,29 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       detectedSpecies: Array.isArray(body.detectedSpecies)
         ? (body.detectedSpecies as unknown[]).filter((s): s is string => typeof s === "string")
         : [],
-      detectedFeatures: [],
+      detectedFeatures: parseDetectedFeatures(body.detectedFeatures),
+      primarySubject: parsePrimarySubject(body.primarySubject),
+      environmentContext: typeof body.environmentContext === "string" ? body.environmentContext : null,
+      seasonalNote: typeof body.seasonalNote === "string" ? body.seasonalNote : null,
+      coexistingTaxa: Array.isArray(body.coexistingTaxa)
+        ? (body.coexistingTaxa as unknown[]).filter((s): s is string => typeof s === "string")
+        : [],
       mediaRefs: {
         ...(typeof body.frameThumb === "string" ? { frameThumb: body.frameThumb } : {}),
-        ...(normalizeFacePrivacy(body.facePrivacy) ? { facePrivacy: normalizeFacePrivacy(body.facePrivacy) } : {}),
-      },
-      meta: {
-        facePrivacy: normalizeFacePrivacy(body.facePrivacy),
+        ...(facePrivacy ? { facePrivacy } : {}),
       },
       ttsScript: typeof body.ttsScript === "string" ? body.ttsScript : null,
+      meta: { guideMode: parseGuideMode(body.guideMode), facePrivacy },
       lang,
     });
+    await upsertGuideEnvironmentMeshFromRecord({
+      guideRecordId: id,
+      userId: session?.userId ?? null,
+      lat,
+      lng,
+      detectedFeatures: parseDetectedFeatures(body.detectedFeatures),
+      seenAt: typeof body.capturedAt === "string" ? body.capturedAt : null,
+    }).catch((error) => app.log.warn({ error, guideRecordId: id }, "guide environment mesh update failed"));
 
     return reply.send({ guideRecordId: id });
   });

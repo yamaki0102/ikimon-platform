@@ -17,6 +17,7 @@ import {
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole.js";
+import type { RegionalStoryCue } from "./regionalStory.js";
 
 type RecentObservation = {
   occurrenceId: string;
@@ -55,6 +56,7 @@ export type HomePlace = {
   absenceSemantics: string | null;
   latitude: number | null;
   longitude: number | null;
+  regionalStory?: RegionalStoryCue | null;
 };
 
 export type HomeSnapshot = {
@@ -1522,6 +1524,7 @@ export type LandingDailyCard = {
   secondaryText: string | null;
   metricValue: number | null;
   observation?: LandingObservation;
+  regionalStory?: RegionalStoryCue | null;
 };
 
 export type LandingSeasonalStripItem = {
@@ -1591,4 +1594,5 @@ export type LandingSnapshot = {
   ambient: AmbientObserver[];
   habit: LandingHabitStats | null;
   dailyDashboard: LandingDailyDashboard | null;
+  regionalStory?: RegionalStoryCue | null;
 };
