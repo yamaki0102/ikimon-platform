@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { loadConfig } from "./config.js";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { detectLangFromUrl, type SiteLang } from "./i18n.js";
@@ -108,6 +109,29 @@ function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; u
   const url = requestUrl(request);
   const path = url.startsWith("/") ? url : `/${url}`;
   return `https://ikimon.life${path}`;
+}
+
+function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, name: string, value: string): void {
+  if (!reply.getHeader(name)) {
+    reply.header(name, value);
+  }
+}
+
+function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, isProduction: boolean): void {
+  setHeaderIfMissing(reply, "X-Content-Type-Options", "nosniff");
+  setHeaderIfMissing(reply, "X-Frame-Options", "DENY");
+  setHeaderIfMissing(reply, "Referrer-Policy", "strict-origin-when-cross-origin");
+  setHeaderIfMissing(reply, "X-Permitted-Cross-Domain-Policies", "none");
+  setHeaderIfMissing(reply, "Origin-Agent-Cluster", "?1");
+  setHeaderIfMissing(
+    reply,
+    "Permissions-Policy",
+    "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=()",
+  );
+  setHeaderIfMissing(reply, "Content-Security-Policy", "base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+  if (isProduction) {
+    setHeaderIfMissing(reply, "Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
 }
 
 function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string {
@@ -446,12 +470,14 @@ self.addEventListener('fetch', () => {
 `;
 
 export function buildApp() {
+  const config = loadConfig();
   const app = Fastify({
     logger: true,
     bodyLimit: 40 * 1024 * 1024,
   });
 
   app.addHook("onRequest", async (request, reply) => {
+    applySecurityHeaders(reply, config.nodeEnv === "production");
     const redirectUrl = canonicalHostRedirectUrl(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
     if (redirectUrl) {
       reply.code(308).header("location", redirectUrl).send();
