@@ -11,11 +11,16 @@ export type ValidationResult<T> = {
 };
 
 const MHLW_CATEGORIES = new Set(["iaspecified", "priority", "industrial", "prevention"]);
+const MIN_EXACT_SECRET_LENGTH = 20;
+
+function shouldCheckExactSecret(value: string): boolean {
+  return value.length >= MIN_EXACT_SECRET_LENGTH;
+}
 
 export function assertNoSecretLeak(payloadText: string, secrets: Array<string | undefined | null>): void {
   for (const secret of secrets) {
     const trimmed = secret?.trim();
-    if (trimmed && payloadText.includes(trimmed)) {
+    if (trimmed && shouldCheckExactSecret(trimmed) && payloadText.includes(trimmed)) {
       throw new Error("curator_payload_secret_leak_detected");
     }
   }
