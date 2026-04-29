@@ -2,6 +2,7 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
 import { listPagesByLane, listPagesByVisibility, sitePageLabel, type RouteLane, type SitePageDefinition } from "../siteMap.js";
+import { FACE_PRIVACY_CLIENT_SCRIPT } from "./facePrivacyScript.js";
 
 export type SiteAction = {
   href: string;
@@ -420,6 +421,8 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
 
 function globalRecordEntryScript(basePath: string): string {
   return `<script>
+window.ikimonFacePrivacyAssetBase = ${JSON.stringify(withBasePath(basePath, "/assets/face-privacy"))};
+${FACE_PRIVACY_CLIENT_SCRIPT}
 (function () {
   const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
   const DB_NAME = 'ikimon-record-draft';
@@ -594,12 +597,18 @@ function globalRecordEntryScript(basePath: string): string {
       const context = canvas.getContext('2d');
       if (!context) throw new Error('photo_canvas_unavailable');
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
+      const privacyResult = window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.redactCanvasFaces === 'function'
+        ? await window.ikimonFacePrivacy.redactCanvasFaces(canvas)
+        : { available: false, redacted: false, faceCount: 0, error: 'face_privacy_unavailable' };
       const base64Data = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_QUALITY);
       const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
       return {
         filename: safeName + '.jpg',
         mimeType: 'image/jpeg',
         base64Data,
+        facePrivacy: window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.summarizeFacePrivacy === 'function'
+          ? window.ikimonFacePrivacy.summarizeFacePrivacy(privacyResult)
+          : null,
       };
     } catch (_) {
       return {
@@ -989,6 +998,7 @@ function globalRecordEntryScript(basePath: string): string {
             mimeType: upload.mimeType,
             base64Data: upload.base64Data,
             mediaRole: index === 0 ? 'primary_subject' : 'context',
+            facePrivacy: upload.facePrivacy || null,
           }),
         });
         const photoJson = await photoResponse.json().catch(() => ({}));

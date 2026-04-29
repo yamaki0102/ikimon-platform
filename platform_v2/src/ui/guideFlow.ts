@@ -1,4 +1,5 @@
 import type { SiteLang } from "../i18n.js";
+import { FACE_PRIVACY_CLIENT_SCRIPT } from "./facePrivacyScript.js";
 import { escapeHtml } from "./siteShell.js";
 
 type GuideCopy = {
@@ -598,6 +599,8 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
 </div>
 
 <script>
+window.ikimonFacePrivacyAssetBase = ${JSON.stringify(basePath ? basePath + "/assets/face-privacy" : "/assets/face-privacy")};
+${FACE_PRIVACY_CLIENT_SCRIPT}
 (function () {
   const copy = {
     analysing: ${JSON.stringify(c.analysing)},
@@ -972,6 +975,49 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.46);
   }
+  function summarizeFacePrivacy(result) {
+    return window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.summarizeFacePrivacy === 'function'
+      ? window.ikimonFacePrivacy.summarizeFacePrivacy(result)
+      : { detector: 'none', status: 'unavailable', faceCount: 0, error: 'face_privacy_unavailable' };
+  }
+  async function redactGuideCanvas(canvas) {
+    const result = window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.redactCanvasFaces === 'function'
+      ? await window.ikimonFacePrivacy.redactCanvasFaces(canvas, { blocksPerFace: 10 })
+      : { available: false, redacted: false, faceCount: 0, error: 'face_privacy_unavailable' };
+    return summarizeFacePrivacy(result);
+  }
+  function canvasToBlob(canvas, quality) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('frame_blob_failed'));
+      }, 'image/jpeg', quality);
+    });
+  }
+  function frameThumbFromCanvas(sourceCanvas) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 144;
+    canvas.height = 108;
+    canvas.getContext('2d').drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.46);
+  }
+  async function captureFramePayload() {
+    const sourceWidth = video.videoWidth || 640;
+    const sourceHeight = video.videoHeight || 480;
+    const ratio = Math.min(960 / Math.max(1, sourceWidth), 720 / Math.max(1, sourceHeight), 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sourceWidth * ratio));
+    canvas.height = Math.max(1, Math.round(sourceHeight * ratio));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('frame_canvas_unavailable');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const facePrivacy = await redactGuideCanvas(canvas);
+    return {
+      frameBlob: await canvasToBlob(canvas, 0.68),
+      frameThumb: frameThumbFromCanvas(canvas),
+      facePrivacy
+    };
+  }
   function dataUrlToBlob(dataUrl) {
     const parts = String(dataUrl || '').split(',');
     const meta = parts[0] || '';
@@ -1004,6 +1050,10 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     });
   }
   function drawImageData(image, maxWidth, maxHeight, quality) {
+    const canvas = drawImageCanvas(image, maxWidth, maxHeight);
+    return canvas.toDataURL('image/jpeg', quality);
+  }
+  function drawImageCanvas(image, maxWidth, maxHeight) {
     const ratio = Math.min(maxWidth / Math.max(1, image.naturalWidth), maxHeight / Math.max(1, image.naturalHeight), 1);
     const width = Math.max(1, Math.round(image.naturalWidth * ratio));
     const height = Math.max(1, Math.round(image.naturalHeight * ratio));
@@ -1011,15 +1061,18 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     canvas.width = width;
     canvas.height = height;
     canvas.getContext('2d').drawImage(image, 0, 0, width, height);
-    return canvas.toDataURL('image/jpeg', quality);
+    return canvas;
   }
   async function buildGuideFramesFromFile(file) {
     const image = await loadImageFromFile(file);
-    const frameDataUrl = drawImageData(image, 1280, 1280, 0.78);
+    const canvas = drawImageCanvas(image, 1280, 1280);
+    const facePrivacy = await redactGuideCanvas(canvas);
+    const frameDataUrl = canvas.toDataURL('image/jpeg', 0.78);
     return {
       frame: frameDataUrl.split(',')[1],
       frameBlob: dataUrlToBlob(frameDataUrl),
-      frameThumb: drawImageData(image, 144, 108, 0.46)
+      frameThumb: frameThumbFromCanvas(canvas),
+      facePrivacy
     };
   }
   function captureAudioBlobForScene() {
@@ -1312,6 +1365,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         clientSceneId: payload.clientSceneId,
         frame: frame,
         frameThumb: payload.frameThumb,
+        facePrivacy: payload.facePrivacy || null,
         audio: audio,
         lat: payload.lat,
         lng: payload.lng,
@@ -1339,6 +1393,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       lang: payload.lang,
       frameThumb: payload.frameThumb,
       frameBlob: payload.frameBlob,
+      facePrivacy: payload.facePrivacy || null,
       audioBlob: payload.audioBlob,
       audioMimeType: payload.audioBlob ? payload.audioBlob.type : null,
       audioPrivacySkippedCount: payload.audioPrivacySkippedCount || 0,
@@ -1444,6 +1499,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         lang: item.lang,
         frameThumb: item.frameThumb,
         frameBlob: item.frameBlob,
+        facePrivacy: item.facePrivacy || null,
         audioBlob: item.audioBlob || null,
         audioPrivacySkippedCount: item.audioPrivacySkippedCount || 0,
         audioPrivacyPolicy: item.audioPrivacyPolicy || 'exclude_speech_likely_chunks'
@@ -1521,8 +1577,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     setNowState(copy.analysing);
     try {
       lastKnownPosition = await getLocation();
-      const frameBlob = await captureFrameBlob();
-      const frameThumb = captureFrameThumb();
+      const framePayload = await captureFramePayload();
       const capturedAt = new Date().toISOString();
       const audioBlob = captureAudioBlobForScene();
       const audioPrivacySkippedCount = sceneAudioPrivacySkippedCount;
@@ -1535,8 +1590,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
           lang,
-          frameThumb,
-          frameBlob,
+          frameThumb: framePayload.frameThumb,
+          frameBlob: framePayload.frameBlob,
+          facePrivacy: framePayload.facePrivacy,
           audioBlob,
           audioPrivacySkippedCount,
           audioPrivacyPolicy: 'exclude_speech_likely_chunks'
@@ -1571,6 +1627,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
           lang,
           frameThumb: frames.frameThumb,
           frameBlob: frames.frameBlob,
+          facePrivacy: frames.facePrivacy,
           audioBlob: null,
           audioPrivacySkippedCount: 0,
           audioPrivacyPolicy: 'photo_fallback_no_audio'

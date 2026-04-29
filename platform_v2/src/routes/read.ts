@@ -25,6 +25,7 @@ import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
+import { FACE_PRIVACY_CLIENT_SCRIPT } from "../ui/facePrivacyScript.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
@@ -3360,6 +3361,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </section>
       <script>
+        window.ikimonFacePrivacyAssetBase = ${JSON.stringify(withBasePath(basePath, "/assets/face-privacy"))};
+${FACE_PRIVACY_CLIENT_SCRIPT}
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
         const form = document.getElementById('record-form');
@@ -4615,12 +4618,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const context = canvas.getContext('2d');
             if (!context) throw new Error('photo_canvas_unavailable');
             context.drawImage(image, 0, 0, targetWidth, targetHeight);
+            const privacyResult = window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.redactCanvasFaces === 'function'
+              ? await window.ikimonFacePrivacy.redactCanvasFaces(canvas)
+              : { available: false, redacted: false, faceCount: 0, error: 'face_privacy_unavailable' };
             const base64Data = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_QUALITY);
             const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
             return {
               filename: safeName + '.jpg',
               mimeType: 'image/jpeg',
               base64Data,
+              facePrivacy: window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.summarizeFacePrivacy === 'function'
+                ? window.ikimonFacePrivacy.summarizeFacePrivacy(privacyResult)
+                : null,
             };
           } catch (_) {
             return {
@@ -5159,6 +5168,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     mimeType: upload.mimeType,
                     base64Data: upload.base64Data,
                     mediaRole: mediaRoleForPhoto,
+                    facePrivacy: upload.facePrivacy || null,
                   }),
                 });
                 const photoJson = await photoResponse.json();

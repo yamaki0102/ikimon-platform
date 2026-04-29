@@ -32,7 +32,12 @@ const MIME: Record<string, string> = {
   ".txt": "text/plain; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".wasm": "application/wasm",
+  ".tflite": "application/octet-stream",
+  ".task": "application/octet-stream",
+  ".bin": "application/octet-stream",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
 };

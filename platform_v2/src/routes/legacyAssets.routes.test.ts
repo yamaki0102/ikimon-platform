@@ -37,8 +37,12 @@ test("legacy asset routes serve uploads from the legacy uploads root", async () 
   const publicRoot = path.join(sandboxRoot, "public");
   const uploadsRoot = path.join(sandboxRoot, "uploads");
   await mkdir(path.join(publicRoot, "assets"), { recursive: true });
+  await mkdir(path.join(publicRoot, "assets", "face-privacy", "mediapipe", "wasm"), { recursive: true });
   await mkdir(path.join(uploadsRoot, "photos"), { recursive: true });
   await writeFile(path.join(publicRoot, "assets", "brand.txt"), "brand");
+  await writeFile(path.join(publicRoot, "assets", "face-privacy", "mediapipe", "vision_bundle.mjs"), "export default null;");
+  await writeFile(path.join(publicRoot, "assets", "face-privacy", "mediapipe", "wasm", "vision_wasm_internal.wasm"), Buffer.from([0, 97, 115, 109]));
+  await writeFile(path.join(publicRoot, "assets", "face-privacy", "blaze_face_short_range.tflite"), Buffer.from([1, 2, 3]));
   await writeFile(path.join(uploadsRoot, "photos", "sample.jpg"), "jpeg-bits");
 
   try {
@@ -57,6 +61,27 @@ test("legacy asset routes serve uploads from the legacy uploads root", async () 
           assert.equal(assetResponse.statusCode, 200);
           assert.match(String(assetResponse.headers["content-type"] ?? ""), /^text\/plain/);
           assert.equal(assetResponse.body, "brand");
+
+          const moduleResponse = await app.inject({
+            method: "GET",
+            url: "/assets/face-privacy/mediapipe/vision_bundle.mjs",
+          });
+          assert.equal(moduleResponse.statusCode, 200);
+          assert.match(String(moduleResponse.headers["content-type"] ?? ""), /^application\/javascript/);
+
+          const wasmResponse = await app.inject({
+            method: "GET",
+            url: "/assets/face-privacy/mediapipe/wasm/vision_wasm_internal.wasm",
+          });
+          assert.equal(wasmResponse.statusCode, 200);
+          assert.equal(wasmResponse.headers["content-type"], "application/wasm");
+
+          const modelResponse = await app.inject({
+            method: "GET",
+            url: "/assets/face-privacy/blaze_face_short_range.tflite",
+          });
+          assert.equal(modelResponse.statusCode, 200);
+          assert.equal(modelResponse.headers["content-type"], "application/octet-stream");
 
           const uploadResponse = await app.inject({
             method: "GET",

@@ -36,6 +36,7 @@ type PendingGuideScene = {
   requestedAt: string;
   returnedAt: string | null;
   frameThumb: string | null;
+  facePrivacy: FacePrivacySummary | null;
   status: "pending" | "ready" | "error";
   result: SceneResult | null;
   autoSave: PendingGuideAutoSave | null;
@@ -46,6 +47,27 @@ type PendingGuideAutoSave =
   | ({ state: "saved"; guideRecordId: string } & GuideAutoSaveDecision)
   | ({ state: "skipped" } & GuideAutoSaveDecision)
   | ({ state: "error"; error: string } & GuideAutoSaveDecision);
+
+type FacePrivacySummary = {
+  detector?: string | null;
+  status?: string | null;
+  faceCount?: number | null;
+  error?: string | null;
+};
+
+function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
+  if (!input || typeof input !== "object") return null;
+  const record = input as Record<string, unknown>;
+  const status = typeof record.status === "string" ? record.status : null;
+  if (status && !["redacted", "no_faces", "unavailable"].includes(status)) return null;
+  const faceCount = Number(record.faceCount);
+  return {
+    detector: typeof record.detector === "string" ? record.detector.slice(0, 80) : null,
+    status,
+    faceCount: Number.isFinite(faceCount) ? Math.max(0, Math.min(100, Math.round(faceCount))) : 0,
+    error: typeof record.error === "string" ? record.error.slice(0, 120) : null,
+  };
+}
 
 const sceneJobs = new Map<string, PendingGuideScene>();
 const SCENE_JOB_TTL_MS = 30 * 60 * 1000;
@@ -123,6 +145,7 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
       lat: job.lat,
       lng: job.lng,
       frameThumb: job.frameThumb,
+      facePrivacy: job.facePrivacy,
       error: job.error,
     };
   }
@@ -139,6 +162,7 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
     lat: job.lat,
     lng: job.lng,
     frameThumb: job.frameThumb,
+    facePrivacy: job.facePrivacy,
     distanceFromCurrentM,
     deliveryState,
     summary: job.result.summary,
@@ -195,6 +219,7 @@ async function applyGuideAutoSave(input: {
   capturedAt: string;
   returnedAt: string;
   frameThumb: string | null;
+  facePrivacy: FacePrivacySummary | null;
   sceneId: string;
   lang: TtsLang;
 }): Promise<PendingGuideAutoSave> {
@@ -231,9 +256,13 @@ async function applyGuideAutoSave(input: {
         uncertaintyReason: copy.uncertaintyReason,
         autoSave: decision,
       },
-      mediaRefs: input.frameThumb ? { frameThumb: input.frameThumb } : {},
+      mediaRefs: {
+        ...(input.frameThumb ? { frameThumb: input.frameThumb } : {}),
+        ...(input.facePrivacy ? { facePrivacy: input.facePrivacy } : {}),
+      },
       meta: {
         sceneId: input.sceneId,
+        facePrivacy: input.facePrivacy,
         whyInteresting: copy.whyInteresting,
         nextLookTarget: copy.nextLookTarget,
         autoSave: decision,
@@ -268,6 +297,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    *   frameThumb?: string  compact data URL thumbnail for delayed trail cards
    *   audio?:      string  base64 audio buffer after client speech-risk filtering
    *   audioPrivacy?: { clientSkippedCount?: number, policy?: string }
+   *   facePrivacy?: { detector?: string, status?: string, faceCount?: number, error?: string }
    *   frameMime?:  string  MIME type of frame (default "image/jpeg")
    *   lat:         number
    *   lng:         number
@@ -310,6 +340,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const sceneId = clientSceneId ?? randomUUID();
     const requestedAt = new Date().toISOString();
     const frameThumb = typeof body.frameThumb === "string" ? body.frameThumb : null;
+    const facePrivacy = normalizeFacePrivacy(body.facePrivacy);
 
     const job: PendingGuideScene = {
       sceneId,
@@ -322,6 +353,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       requestedAt,
       returnedAt: null,
       frameThumb,
+      facePrivacy,
       status: "pending",
       result: null,
       autoSave: null,
@@ -367,6 +399,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           capturedAt,
           returnedAt,
           frameThumb,
+          facePrivacy,
           sceneId,
           lang,
         });
@@ -385,6 +418,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       lat,
       lng,
       frameThumb,
+      facePrivacy,
     });
   });
 
@@ -554,7 +588,13 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         ? (body.detectedSpecies as unknown[]).filter((s): s is string => typeof s === "string")
         : [],
       detectedFeatures: [],
-      mediaRefs: typeof body.frameThumb === "string" ? { frameThumb: body.frameThumb } : {},
+      mediaRefs: {
+        ...(typeof body.frameThumb === "string" ? { frameThumb: body.frameThumb } : {}),
+        ...(normalizeFacePrivacy(body.facePrivacy) ? { facePrivacy: normalizeFacePrivacy(body.facePrivacy) } : {}),
+      },
+      meta: {
+        facePrivacy: normalizeFacePrivacy(body.facePrivacy),
+      },
       ttsScript: typeof body.ttsScript === "string" ? body.ttsScript : null,
       lang,
     });
