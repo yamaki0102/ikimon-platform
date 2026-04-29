@@ -2,11 +2,13 @@ import Fastify from "fastify";
 import { loadConfig } from "./config.js";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
-import { detectLangFromUrl, type SiteLang } from "./i18n.js";
+import { detectLangFromUrl, rewriteLangPrefixToQuery, type SiteLang } from "./i18n.js";
 import { getShortCopy } from "./content/index.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerLegacyAssetRoutes } from "./routes/legacyAssets.js";
+import { registerPwaRoutes } from "./routes/pwa.js";
+import { registerLlmoRoutes } from "./routes/llmo.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
 import { registerOpsRoutes } from "./routes/ops.js";
@@ -98,11 +100,11 @@ type QASiteMapCopy = {
   footerNote: string;
 };
 
-function requestUrl(request: { url?: string; raw?: { url?: string } }): string {
-  return String(request.raw?.url ?? request.url ?? "");
+function requestUrl(request: { url?: string; raw?: { url?: string; originalUrl?: string } }): string {
+  return String(request.raw?.originalUrl ?? request.raw?.url ?? request.url ?? "");
 }
 
-function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string | null {
+function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string | null {
   const rawHost = Array.isArray(request.headers.host) ? request.headers.host[0] : request.headers.host;
   const host = typeof rawHost === "string" ? rawHost.split(",")[0]?.trim().toLowerCase().replace(/:\d+$/, "") : "";
   if (host !== "www.ikimon.life") {
@@ -136,7 +138,7 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
   }
 }
 
-function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string {
+function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string {
   return withBasePath(getForwardedBasePath(request.headers), requestUrl(request));
 }
 
@@ -263,6 +265,7 @@ function buildLandingRootHtml(
   return renderSiteDocument({
     basePath: options.basePath,
     title: copy.title,
+    description: copy.heroLead,
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
@@ -336,6 +339,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
   return renderSiteDocument({
     basePath: options.basePath,
     title: "サイトマップ (運用向け) | ikimon",
+    description: "Canonical route registry から生成した、ステージング確認と公開面QAのためのサイトマップです。",
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
@@ -476,6 +480,7 @@ export function buildApp() {
   const app = Fastify({
     logger: true,
     bodyLimit: 40 * 1024 * 1024,
+    rewriteUrl: (request) => rewriteLangPrefixToQuery(request.url ?? "/"),
   });
 
   app.addHook("onRequest", async (request, reply) => {
@@ -544,6 +549,8 @@ export function buildApp() {
 
   void registerHealthRoutes(app);
   void registerAuthRoutes(app);
+  void registerPwaRoutes(app);
+  void registerLlmoRoutes(app);
   void registerSiteMapRoutes(app);
   void registerLegacyAssetRoutes(app);
   void registerMapApiRoutes(app);

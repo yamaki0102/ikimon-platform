@@ -15,6 +15,17 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\/api\/v1\/auth\/session/);
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);
+  assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
+  assert.match(html, /navigator\.languages/);
+  assert.match(html, /beforeinstallprompt/);
+  assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
+  assert.match(html, /data-app-install-prompt/);
+  assert.match(html, /window\.ikimonAppOutbox/);
+  assert.match(html, /ikimon-app-outbox-v1/);
+  assert.match(html, /window\.ikimonRequestAppOutboxSync/);
+  assert.match(html, /registration\.sync\.register\('ikimon-app-outbox-sync'\)/);
+  assert.match(html, /ikimon-app-outbox-change/);
+  assert.match(html, /ikimon:app-outbox-sync/);
 });
 
 test("site shell renders a global record footer nav outside the record flow", () => {
@@ -41,11 +52,13 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-kpi-action="global_record_video"/);
   assert.match(html, /data-kpi-action="global_record_gallery"/);
   assert.match(html, /data-kpi-action="global_record_guide"/);
-  assert.match(html, /data-record-target="\/record\?start=photo&amp;lang=ja"/);
-  assert.match(html, /data-record-target="\/record\?start=video&amp;lang=ja"/);
-  assert.match(html, /data-record-target="\/record\?start=gallery&amp;lang=ja"/);
-  assert.match(html, /href="\/guide\?lang=ja"/);
+  assert.match(html, /data-record-target="\/ja\/record\?start=photo"/);
+  assert.match(html, /data-record-target="\/ja\/record\?start=video"/);
+  assert.match(html, /data-record-target="\/ja\/record\?start=gallery"/);
+  assert.match(html, /href="\/ja\/guide"/);
   assert.match(html, /indexedDB\.open\(DB_NAME, 1\)/);
+  assert.match(html, /source: 'record'/);
+  assert.match(html, /id: 'record:' \+ DRAFT_KEY/);
   assert.match(html, /data-global-record-camera-sheet/);
   assert.match(html, /data-global-record-camera-video/);
   assert.match(html, /data-global-record-camera-image/);

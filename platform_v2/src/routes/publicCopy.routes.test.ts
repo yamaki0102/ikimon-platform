@@ -67,7 +67,7 @@ test("community route replaces the legacy event rail on the public shell", async
 
     const redirect = await app.inject({ method: "GET", url: "/events.php?lang=ja" });
     assert.equal(redirect.statusCode, 308);
-    assert.equal(redirect.headers.location, "/community?lang=ja");
+    assert.equal(redirect.headers.location, "/ja/community");
   } finally {
     await app.close();
   }
@@ -85,7 +85,7 @@ test("updates page keeps the full release history on the v2 public shell", async
 
     const redirect = await app.inject({ method: "GET", url: "/updates.php?lang=ja" });
     assert.equal(redirect.statusCode, 308);
-    assert.equal(redirect.headers.location, "/learn/updates?lang=ja");
+    assert.equal(redirect.headers.location, "/ja/learn/updates");
   } finally {
     await app.close();
   }

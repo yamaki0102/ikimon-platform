@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { appendLangToHref, detectLangFromUrl, langFromBrowserLocale, rewriteLangPrefixToQuery } from "../i18n.js";
 import { formatStatLabel, getStrings } from "./index.js";
 
 test("ja returns the canonical dictionary", () => {
@@ -41,4 +42,25 @@ test("all 4 languages return a full AppStrings", () => {
     assert.strictEqual(s.fieldLoop.principles.length, 4);
     assert.strictEqual(s.fieldLoop.boundaries.length, 3);
   }
+});
+
+test("language URLs use path prefixes and strip legacy query params", () => {
+  assert.strictEqual(appendLangToHref("/", "ja"), "/ja/");
+  assert.strictEqual(appendLangToHref("/about?lang=ja", "en"), "/en/about");
+  assert.strictEqual(appendLangToHref("/en/about?utm=1#top", "pt-BR"), "/pt-br/about?utm=1#top");
+  assert.strictEqual(detectLangFromUrl("/pt-br/about"), "pt-BR");
+  assert.strictEqual(detectLangFromUrl("/about?lang=es"), "es");
+});
+
+test("prefixed urls rewrite to existing route paths with lang query", () => {
+  assert.strictEqual(rewriteLangPrefixToQuery("/en/about?utm=1"), "/about?utm=1&lang=en");
+  assert.strictEqual(rewriteLangPrefixToQuery("/pt-br/"), "/?lang=pt-BR");
+  assert.strictEqual(rewriteLangPrefixToQuery("/assets/icon.png"), "/assets/icon.png");
+});
+
+test("browser locale maps to the minimal app language set", () => {
+  assert.strictEqual(langFromBrowserLocale("en-US"), "en");
+  assert.strictEqual(langFromBrowserLocale("es-MX"), "es");
+  assert.strictEqual(langFromBrowserLocale("pt-PT"), "pt-BR");
+  assert.strictEqual(langFromBrowserLocale("fr-FR"), "ja");
 });

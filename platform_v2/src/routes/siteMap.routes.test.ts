@@ -25,8 +25,12 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
     });
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/community/);
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/for-business/);
+    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/community/);
+    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/community/);
+    assert.match(sitemap.body, /hreflang="en" href="https:\/\/staging\.ikimon\.life\/en\/community"/);
+    assert.match(sitemap.body, /hreflang="x-default" href="https:\/\/staging\.ikimon\.life\/ja\/community"/);
+    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/for-business/);
+    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/for-business/);
     assert.doesNotMatch(sitemap.body, /:id|:userId/);
 
     const robots = await app.inject({
@@ -36,6 +40,7 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
     });
     assert.equal(robots.statusCode, 200);
     assert.match(robots.body, /Sitemap: https:\/\/staging\.ikimon\.life\/sitemap\.xml/);
+    assert.match(robots.body, /LLMs: https:\/\/staging\.ikimon\.life\/llms\.txt/);
   } finally {
     await app.close();
   }
@@ -53,15 +58,15 @@ test("qa sitemap uses the canonical registry and legacy redirects point to v2 ro
 
     const sitemapPhp = await app.inject({ method: "GET", url: "/sitemap.php?lang=ja" });
     assert.equal(sitemapPhp.statusCode, 308);
-    assert.equal(sitemapPhp.headers.location, "/sitemap.xml?lang=ja");
+    assert.equal(sitemapPhp.headers.location, "/ja/sitemap.xml");
 
     const events = await app.inject({ method: "GET", url: "/events.php?lang=ja" });
     assert.equal(events.statusCode, 308);
-    assert.equal(events.headers.location, "/community?lang=ja");
+    assert.equal(events.headers.location, "/ja/community");
 
     const idWorkbench = await app.inject({ method: "GET", url: "/id_workbench.php?lang=ja" });
     assert.equal(idWorkbench.statusCode, 308);
-    assert.equal(idWorkbench.headers.location, "/specialist/id-workbench?lang=ja");
+    assert.equal(idWorkbench.headers.location, "/ja/specialist/id-workbench");
   } finally {
     await app.close();
   }
@@ -73,7 +78,7 @@ test("top-level shared navigation does not link to 404 pages", async () => {
     const top = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(top.statusCode, 200);
     const hrefs = extractInternalHrefs(top.body);
-    assert.ok(hrefs.includes("/community?lang=ja") || hrefs.includes("/community"), "top should expose community");
+    assert.ok(hrefs.includes("/ja/community"), "top should expose community");
 
     for (const href of hrefs) {
       const response = await app.inject({ method: "GET", url: href, headers: { accept: "text/html" } });

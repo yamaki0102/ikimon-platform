@@ -252,7 +252,7 @@ test("guest profile urls still redirect to guest notebooks", async () => {
     });
 
     assert.equal(response.statusCode, 302);
-    assert.equal(response.headers.location, "/guest/guest_route_test?lang=ja");
+    assert.equal(response.headers.location, "/ja/guest/guest_route_test");
   } finally {
     await app.close();
   }

@@ -4734,6 +4734,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               request.onsuccess = () => {
                 value = request.result || null;
                 store.delete(RECORD_DRAFT_KEY);
+                if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.delete === 'function') {
+                  window.ikimonAppOutbox.delete('record:' + RECORD_DRAFT_KEY).catch(() => undefined);
+                }
               };
               request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
               transaction.oncomplete = () => resolve(value);
