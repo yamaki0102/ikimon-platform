@@ -20,6 +20,10 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /let audioOptIn = false/);
   assert.match(html, /id="guide-audio-opt-btn" type="button" aria-pressed="false"/);
   assert.match(html, /Audio is saved only if you enable natural sound recording below\./);
+  assert.match(html, /Field-like discoveries are saved automatically; indoor or person-first scenes are not kept\./);
+  assert.match(html, /autoSaveView\(scene\)/);
+  assert.match(html, /copy\.autoSaved/);
+  assert.match(html, /copy\.manualSave/);
   assert.match(html, /requestEnvironmentCamera\(\)/);
   assert.match(html, /facingMode: \{ exact: 'environment' \}/);
   assert.match(html, /audio: \{ channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false \}/);
