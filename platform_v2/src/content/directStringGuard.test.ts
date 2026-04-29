@@ -14,6 +14,7 @@ const migratedFiles = [
 const explicitAllowlist = [
   "platform_v2/src/app.ts",
   "platform_v2/src/routes/adminAudioApi.ts",
+  "platform_v2/src/routes/adminDataHealth.ts",
   "platform_v2/src/routes/adminSoundReviewPages.ts",
   "platform_v2/src/routes/auth.ts",
   "platform_v2/src/routes/fieldscanApi.ts",
