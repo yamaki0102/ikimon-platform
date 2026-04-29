@@ -1,0 +1,155 @@
+name: Curator Staging Wet Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      curator:
+        description: "Curator to run"
+        required: true
+        default: "invasive-law"
+        type: choice
+        options:
+          - invasive-law
+      provider:
+        description: "LLM provider"
+        required: true
+        default: "gemini"
+        type: choice
+        options:
+          - gemini
+          - deepseek
+      force_run:
+        description: "Ignore unchanged source snapshot and exercise extraction"
+        required: true
+        default: true
+        type: boolean
+      enable_receiver:
+        description: "Allow receiver POST if staging env has CURATOR_RECEIVER_SECRET"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  wet-run:
+    name: Run staging curator once
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Run staging curator over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            CURATOR_NAME_INPUT='${{ github.event.inputs.curator }}'
+            PROVIDER_INPUT='${{ github.event.inputs.provider }}'
+            FORCE_RUN_INPUT='${{ github.event.inputs.force_run }}'
+            ENABLE_RECEIVER_INPUT='${{ github.event.inputs.enable_receiver }}'
+            case "$CURATOR_NAME_INPUT" in
+              invasive-law) ;;
+              *) echo "unsupported curator: $CURATOR_NAME_INPUT"; exit 1 ;;
+            esac
+            case "$PROVIDER_INPUT" in
+              gemini|deepseek) ;;
+              *) echo "unsupported provider: $PROVIDER_INPUT"; exit 1 ;;
+            esac
+
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            ENV_FILE=/etc/ikimon/staging-v2.env
+            if [ ! -d "$V2_DIR" ]; then
+              echo "missing $V2_DIR"
+              exit 1
+            fi
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "missing $ENV_FILE"
+              exit 1
+            fi
+            cd "$V2_DIR"
+            echo "repo_head=$(git rev-parse --short HEAD)"
+            if [ ! -f dist/scripts/cron/runCurator.js ]; then
+              echo "dist curator runner missing; run staging deploy first"
+              exit 1
+            fi
+
+            set -a
+            # shellcheck disable=SC1090
+            . "$ENV_FILE"
+            set +a
+            if [ -z "${DATABASE_URL:-}" ]; then
+              echo "DATABASE_URL missing from staging env"
+              exit 1
+            fi
+            if [ "$PROVIDER_INPUT" = "gemini" ] && [ -z "${GEMINI_API_KEY:-}" ]; then
+              echo "GEMINI_API_KEY missing from staging env"
+              exit 1
+            fi
+            if [ "$PROVIDER_INPUT" = "deepseek" ] && [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+              echo "DEEPSEEK_API_KEY missing from staging env"
+              exit 1
+            fi
+
+            if [ "$ENABLE_RECEIVER_INPUT" = "true" ]; then
+              if [ -z "${CURATOR_RECEIVER_SECRET:-}" ]; then
+                echo "enable_receiver=true but CURATOR_RECEIVER_SECRET is missing from staging env"
+                exit 1
+              fi
+            fi
+
+            echo "== run curator =="
+            if [ "$ENABLE_RECEIVER_INPUT" = "true" ]; then
+              runuser -u ikimon-staging -- env \
+                "DATABASE_URL=${DATABASE_URL}" \
+                "GEMINI_API_KEY=${GEMINI_API_KEY:-}" \
+                "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}" \
+                "CURATOR_NAME=${CURATOR_NAME_INPUT}" \
+                "CURATOR_LLM_PROVIDER=${PROVIDER_INPUT}" \
+                "CURATOR_FORCE_RUN=${FORCE_RUN_INPUT}" \
+                "CURATOR_RECEIVER_URL=${CURATOR_RECEIVER_URL:-http://127.0.0.1:3200/api/internal/agent-proposals}" \
+                "CURATOR_RECEIVER_SECRET=${CURATOR_RECEIVER_SECRET}" \
+                node dist/scripts/cron/runCurator.js
+            else
+              runuser -u ikimon-staging -- env \
+                "DATABASE_URL=${DATABASE_URL}" \
+                "GEMINI_API_KEY=${GEMINI_API_KEY:-}" \
+                "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}" \
+                "CURATOR_NAME=${CURATOR_NAME_INPUT}" \
+                "CURATOR_LLM_PROVIDER=${PROVIDER_INPUT}" \
+                "CURATOR_FORCE_RUN=${FORCE_RUN_INPUT}" \
+                node dist/scripts/cron/runCurator.js
+            fi
+
+            echo "== latest ai_curator_runs row =="
+            runuser -u ikimon-staging -- env \
+              "DATABASE_URL=${DATABASE_URL}" \
+              "CURATOR_NAME=${CURATOR_NAME_INPUT}" \
+              node --input-type=module <<'NODE'
+            import pg from "pg";
+            const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+            const result = await pool.query(
+              `SELECT run_id::text AS run_id,
+                      curator_name,
+                      started_at::text AS started_at,
+                      finished_at::text AS finished_at,
+                      status,
+                      curator_model_provider,
+                      curator_model_name,
+                      curator_model_call_count,
+                      gemini_call_count,
+                      gemini_skip_reason,
+                      chunk_count,
+                      rows_proposed,
+                      rows_dropped_validation,
+                      cost_usd::text AS cost_usd,
+                      pr_url,
+                      error
+                 FROM ai_curator_runs
+                WHERE curator_name = $1
+                ORDER BY started_at DESC
+                LIMIT 1`,
+              [process.env.CURATOR_NAME],
+            );
+            await pool.end();
+            console.log(JSON.stringify(result.rows[0] ?? null, null, 2));
+            NODE

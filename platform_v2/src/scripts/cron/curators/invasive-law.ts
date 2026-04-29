@@ -67,6 +67,11 @@ function modelForProvider(provider: CuratorModelProvider): string {
   return provider === "deepseek" ? CURATOR_DEEPSEEK_MODEL : CURATOR_DEFAULT_MODEL;
 }
 
+function shouldForceRun(): boolean {
+  const raw = process.env.CURATOR_FORCE_RUN?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
 async function sourceAlreadySeen(snapshot: CuratorSourceSnapshot): Promise<boolean> {
   const pool = getPool();
   const result = await pool.query<{ exists: boolean }>(
@@ -123,7 +128,7 @@ export async function runInvasiveLawCurator(ctx: CuratorWorkflowContext): Promis
     throw new Error(`source_fetch_failed:${detail}`);
   });
 
-  if (await sourceAlreadySeen(snapshot)) {
+  if (!shouldForceRun() && await sourceAlreadySeen(snapshot)) {
     return validationOnlyResult({
       status: "cancelled",
       reason: "source_unchanged",
