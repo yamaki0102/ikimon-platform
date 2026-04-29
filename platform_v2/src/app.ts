@@ -119,7 +119,7 @@ function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(na
 
 function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, isProduction: boolean): void {
   setHeaderIfMissing(reply, "X-Content-Type-Options", "nosniff");
-  setHeaderIfMissing(reply, "X-Frame-Options", "DENY");
+  setHeaderIfMissing(reply, "X-Frame-Options", "SAMEORIGIN");
   setHeaderIfMissing(reply, "Referrer-Policy", "strict-origin-when-cross-origin");
   setHeaderIfMissing(reply, "X-Permitted-Cross-Domain-Policies", "none");
   setHeaderIfMissing(reply, "Origin-Agent-Cluster", "?1");
