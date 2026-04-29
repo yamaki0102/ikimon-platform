@@ -273,6 +273,16 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   ).join("");
 
   const dailyCards = dashboard?.dailyCards ?? [];
+  const regionalStory = snapshot.regionalStory ?? null;
+  const regionalStorySource = regionalStory?.cards[0] ?? null;
+  const regionalStoryHtml = regionalStory
+    ? `<div class="prototype-place-story">
+        <small>${escapeHtml(regionalStory.angleLabel)}</small>
+        <strong>${escapeHtml(regionalStory.placeHook)}</strong>
+        <p>${escapeHtml(regionalStory.nextObservationAngle)}</p>
+        ${regionalStorySource ? `<a href="${escapeHtml(regionalStorySource.sourceUrl)}" target="_blank" rel="noreferrer noopener">出典: ${escapeHtml(regionalStorySource.sourceLabel)}</a>` : ""}
+      </div>`
+    : "";
   const dailyCardsHtml = dailyCards.slice(0, 4).map((card) => {
     const cardCopy = copy.dailyDashboard.cards[card.kind];
     const href = card.observation
@@ -300,6 +310,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
           <strong>完璧な投稿より、あとで確かめられる証拠を残す。</strong>
           <p>写真、音、位置、季節、環境メモを組み合わせることで、観察の根拠をあとから確かめやすくなる。</p>
         </div>
+        ${regionalStoryHtml}
         ${bottomSmallTiles ? `<div class="prototype-photo-row">${bottomSmallTiles}</div>` : ""}
       </div>
     </div>`
@@ -779,6 +790,11 @@ export const LANDING_TOP_STYLES = `
   .prototype-thought-card small { color: #a7f3d0; font-weight: 950; }
   .prototype-thought-card strong { max-width: 22ch; font-size: 26px; line-height: 1.25; font-weight: 950; }
   .prototype-thought-card p { margin: 0; color: rgba(255,255,255,.75); font-size: 13px; font-weight: 650; }
+  .prototype-place-story { min-height: 178px; padding: 18px; display: grid; align-content: center; gap: 10px; border: 1px solid rgba(16,185,129,.2); background: #f8fff9; color: #14251b; }
+  .prototype-place-story small { color: #047857; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .prototype-place-story strong { font-size: 19px; line-height: 1.35; font-weight: 950; }
+  .prototype-place-story p { margin: 0; color: #40564a; font-size: 13px; font-weight: 700; }
+  .prototype-place-story a { color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
   .prototype-daily-card-grid,
   .prototype-flow-grid,
   .prototype-library-grid,

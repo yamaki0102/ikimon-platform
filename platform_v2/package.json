@@ -60,7 +60,14 @@
     "smoke:feedback-knowledge": "tsx src/scripts/smokeObservationFeedbackKnowledge.ts",
     "import:observation-fields": "tsx src/scripts/importObservationFields.ts",
     "scrape:nature-symbiosis": "tsx src/scripts/scrapeNatureSymbiosisSites.ts",
-    "import:protected-areas": "tsx src/scripts/importProtectedAreas.ts"
+    "import:protected-areas": "tsx src/scripts/importProtectedAreas.ts",
+    "import:regional-knowledge": "tsx src/scripts/importRegionalKnowledgeCards.ts",
+    "draft:regional-hooks": "tsx src/scripts/draftRegionalKnowledgeHooks.ts",
+    "scrape:adeac-regional": "tsx src/scripts/scrapeAdeacTextListRegionalCards.ts",
+    "embed:regional-knowledge": "tsx src/scripts/embedRegionalKnowledgeCards.ts",
+    "backfill:guide-non-biological-species": "tsx src/scripts/backfillGuideNonBiologicalSpecies.ts",
+    "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEval.ts",
+    "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

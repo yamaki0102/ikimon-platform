@@ -36,13 +36,20 @@ export async function getObservationContext(
     const guideRows = await pool.query<{
       scene_summary: string | null;
       detected_features: Array<{ type: string; name: string; confidence?: number; note?: string }> | null;
+      environment_context: string | null;
+      seasonal_note: string | null;
       meta: Record<string, unknown> | null;
     }>(
-      `select scene_summary, detected_features, meta
-         from guide_records
-        where occurrence_id = $1
-           or (${visitId ? "session_id = $2 or " : ""}false)
-        order by created_at desc
+      `select gr.scene_summary,
+              gr.detected_features,
+              gls.environment_context,
+              gls.seasonal_note,
+              gls.meta
+         from guide_records gr
+         left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
+        where gr.occurrence_id = $1
+           or (${visitId ? "gr.session_id = $2 or " : ""}false)
+        order by gr.created_at desc
         limit 30`,
       visitId ? [occurrenceId, visitId] : [occurrenceId],
     );
@@ -54,7 +61,9 @@ export async function getObservationContext(
           features.push({ type: t, name: f.name, confidence: f.confidence, note: f.note, sourceKind: "guide" });
         }
       }
-      // 環境文脈・季節ノートは meta.environmentContext / meta.seasonalNote として保存されている可能性
+      if (row.environment_context) envSet.add(row.environment_context);
+      if (row.seasonal_note) noteSet.add(row.seasonal_note);
+      // 旧データ互換: 環境文脈・季節ノートが meta に入っている可能性も拾う
       const meta = (row.meta ?? {}) as Record<string, unknown>;
       const ec = typeof meta.environmentContext === "string" ? meta.environmentContext : null;
       const sn = typeof meta.seasonalNote === "string" ? meta.seasonalNote : null;

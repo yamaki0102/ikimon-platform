@@ -16,6 +16,16 @@ export type AppConfig = {
     monthlyBudgetJpy: number;
     assumedJpyPerUsd: number;
   };
+  regionalStory: {
+    provider: "disabled" | "gemini";
+    model: string;
+    maxOutputTokens: number;
+  };
+  regionalKnowledgeEmbedding: {
+    provider: "disabled" | "gemini";
+    model: string;
+    outputDimensionality: number;
+  };
   aiBudget: {
     hotMonthlyBudgetJpy: number;
     warmMonthlyBudgetJpy: number;
@@ -103,6 +113,17 @@ function parseProfileDigestProvider(rawValue: string | undefined, hasDeepseekKey
   return "disabled";
 }
 
+function parseRegionalStoryProvider(rawValue: string | undefined, hasGeminiKey: boolean): "disabled" | "gemini" {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (normalized === "gemini") {
+    return hasGeminiKey ? "gemini" : "disabled";
+  }
+  if (normalized === "disabled" || normalized === "off" || normalized === "0") {
+    return "disabled";
+  }
+  return "disabled";
+}
+
 export function loadConfig(): AppConfig {
   const baseRoot = process.cwd();
   const legacyRoots = resolveLegacyRoots(baseRoot, {
@@ -123,6 +144,7 @@ export function loadConfig(): AppConfig {
   const twitterClientId = process.env.TWITTER_CLIENT_ID?.trim();
   const twitterClientSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim() || undefined;
+  const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || undefined;
 
   return {
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -130,7 +152,7 @@ export function loadConfig(): AppConfig {
     databaseUrl: process.env.DATABASE_URL,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
     oauthStateSecret: process.env.V2_OAUTH_STATE_SECRET?.trim() || process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
-    geminiApiKey: process.env.GEMINI_API_KEY?.trim() || undefined,
+    geminiApiKey,
     deepseekApiKey,
     profileDigest: {
       provider: parseProfileDigestProvider(process.env.PROFILE_DIGEST_LLM_PROVIDER, Boolean(deepseekApiKey)),
@@ -139,6 +161,18 @@ export function loadConfig(): AppConfig {
       maxOutputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_OUTPUT_TOKENS, 300)),
       monthlyBudgetJpy: parsePositiveNumber(process.env.PROFILE_DIGEST_MONTHLY_BUDGET_JPY, 1000),
       assumedJpyPerUsd: parsePositiveNumber(process.env.PROFILE_DIGEST_ASSUMED_JPY_PER_USD, 150),
+    },
+    regionalStory: {
+      provider: parseRegionalStoryProvider(process.env.REGIONAL_STORY_LLM_PROVIDER, Boolean(geminiApiKey)),
+      model: process.env.REGIONAL_STORY_GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite-preview",
+      maxOutputTokens: Math.floor(parsePositiveNumber(process.env.REGIONAL_STORY_MAX_OUTPUT_TOKENS, 360)),
+    },
+    regionalKnowledgeEmbedding: {
+      provider: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_PROVIDER?.trim().toLowerCase() === "gemini" && geminiApiKey
+        ? "gemini"
+        : "disabled",
+      model: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_MODEL?.trim() || "text-embedding-004",
+      outputDimensionality: Math.floor(parsePositiveNumber(process.env.REGIONAL_KNOWLEDGE_EMBEDDING_DIM, 1536)),
     },
     aiBudget: {
       hotMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_HOT_MONTHLY_BUDGET_JPY, 10000),

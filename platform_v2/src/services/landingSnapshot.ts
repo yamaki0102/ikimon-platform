@@ -13,6 +13,7 @@ import {
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
+import { getRegionalStoryCue } from "./regionalStory.js";
 import type {
   AmbientObserver,
   LandingDailyCard,
@@ -471,6 +472,7 @@ function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard"
   const topMapCell = snapshot.mapPreviewCells[0] ?? null;
   const revisitPlace = snapshot.myPlaces[0] ?? null;
   const needsId = [...snapshot.myFeed, ...snapshot.feed].find((obs) => obs.isAiCandidate || obs.identificationCount === 0) ?? null;
+  const regionalStory = snapshot.regionalStory ?? null;
   const cards: LandingDailyCard[] = [
     {
       kind: "recordToday",
@@ -483,15 +485,17 @@ function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard"
       kind: "revisitPlace",
       href: snapshot.viewerUserId ? "/notes" : "/map",
       primaryText: revisitPlace?.placeName ?? topMapCell?.label ?? null,
-      secondaryText: revisitPlace?.latestDisplayName ?? revisitPlace?.municipality ?? null,
+      secondaryText: regionalStory?.placeHook ?? revisitPlace?.latestDisplayName ?? revisitPlace?.municipality ?? null,
       metricValue: revisitPlace?.visitCount ?? null,
+      regionalStory,
     },
     {
       kind: "nearbyPulse",
       href: "/map",
       primaryText: topMapCell?.label ?? null,
-      secondaryText: null,
+      secondaryText: regionalStory?.nextObservationAngle ?? null,
       metricValue: topMapCell?.count ?? null,
+      regionalStory,
     },
     {
       kind: "needsId",
@@ -703,6 +707,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     return {
       ...emptySnapshot,
       dailyDashboard: buildLandingDailyDashboard(emptySnapshot, []),
+      regionalStory: null,
     };
   }
 
@@ -1050,16 +1055,55 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     const bTs = (b.entryType === "identification" ? b.identifiedAt : b.observedAt) ?? "";
     return bTs.localeCompare(aTs);
   });
+  const filteredMyPlaces = filterLandingDummyPlaces(myPlaces);
+  const regionalStoryPlace = filteredMyPlaces[0]
+    ? {
+        placeId: filteredMyPlaces[0].placeId,
+        placeName: filteredMyPlaces[0].placeName,
+        municipality: filteredMyPlaces[0].municipality,
+        latitude: filteredMyPlaces[0].latitude,
+        longitude: filteredMyPlaces[0].longitude,
+        allowPrecisePlaceLabel: true,
+      }
+    : publicFeed[0]
+      ? {
+          placeId: null,
+          placeName: publicFeed[0].placeName,
+          municipality: publicFeed[0].municipality,
+          latitude: publicFeed[0].latitude,
+          longitude: publicFeed[0].longitude,
+          publicLabel: publicFeed[0].publicLocation.label,
+          allowPrecisePlaceLabel: false,
+        }
+      : {
+          municipality: "浜松市",
+          publicLabel: "浜松市",
+          allowPrecisePlaceLabel: false,
+        };
+  const regionalStory = await getRegionalStoryCue({
+    surface: "landing",
+    viewerUserId: userId,
+    place: regionalStoryPlace,
+    observation: publicFeed[0]
+      ? {
+          observationId: publicFeed[0].occurrenceId,
+          observedAt: publicFeed[0].observedAt,
+          displayName: publicFeed[0].displayName,
+        }
+      : undefined,
+    maxCards: 1,
+  }).catch(() => null);
 
   const snapshotWithoutDashboard = {
     viewerUserId: userId,
     stats,
     feed: publicFeed,
     myFeed: combined.slice(0, 96),
-    myPlaces: filterLandingDummyPlaces(myPlaces),
+    myPlaces: filteredMyPlaces,
     mapPreviewCells: buildMapPreviewCells(filteredFeedRows),
     ambient,
     habit,
+    regionalStory,
   } satisfies Omit<LandingSnapshot, "dailyDashboard">;
 
   return {

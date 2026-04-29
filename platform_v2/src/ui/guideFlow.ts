@@ -45,6 +45,8 @@ type GuideCopy = {
   storagePressure: string;
   stopBtn: string;
   langLabel: string;
+  modeLabel: string;
+  modes: { id: string; label: string }[];
   categoryLabel: string;
   categories: { id: string; label: string }[];
   recordBtn: string;
@@ -55,8 +57,11 @@ type GuideCopy = {
   choosePhotoBtn: string;
   photoAnalysing: string;
   analysing: string;
+  started: string;
+  stopped: string;
   playing: string;
   privacyNotice: string;
+  frameNotice: string;
   naturalSoundBadge: string;
   voiceExcludedNotice: string;
   audioOffNotice: string;
@@ -129,6 +134,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     storagePressure: "端末の保存容量に近づいています。映像の頻度を下げて、自然音と代表フレームを優先します。",
     stopBtn: "停止する",
     langLabel: "言語",
+    modeLabel: "移動モード",
+    modes: [
+      { id: "walk", label: "徒歩" },
+      { id: "vehicle", label: "車・自転車" },
+    ],
     categoryLabel: "ガイドカテゴリ",
     categories: [
       { id: "biodiversity", label: "🌿 生物多様性" },
@@ -144,8 +154,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "投稿用写真を選ぶ",
     photoAnalysing: "写真を解析中…",
     analysing: "解析中…",
+    started: "ガイド中。解析用フレームは自動送信され、元画像は保存しません。",
+    stopped: "停止しました。解析済みの足跡は下に残ります。",
     playing: "▶ ガイド音声を再生中",
     privacyNotice: "開始直後は映像解析のみ。音声は下のボタンを押した場合だけ、自然音候補として短く保存します。",
+    frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけ自動で送り、保存するのはサムネイルと解析結果です。",
     naturalSoundBadge: "音声は初期OFF",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
     audioOffNotice: "音声記録はOFFです。野外らしい発見は自動保存し、室内・人物中心・自然手がかりが弱いものは残しません。",
@@ -153,8 +166,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOptOutBtn: "音声記録を止める",
     audioOptInNotice: "音声記録をONにしました。人声らしい音は保存せず、自然音候補だけ2秒単位で保存します。",
     audioUnavailableNotice: "マイクなしで開始しました。映像だけで解析します。",
-    contextTitle: "主役と周囲を一緒に見る",
-    contextBody: "ライブガイドは、目の前の主役だけでなく、周囲の生きもの・環境・音も手がかりとして読みます。野外らしい発見は自動保存し、室内や人物中心のシーンは残しません。",
+    contextTitle: "種名より、場所の状態を読む",
+    contextBody: "ライブガイドは、種名が確定しない場面でも、植生・草刈り・水路・道路際・土地利用の細かな変化を足跡として残します。看板や車名は生きものとして扱いません。",
     audioTitle: "今回の音の記録",
     audioEmpty: "自然音のまとまりはまだありません",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",
@@ -216,6 +229,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     storagePressure: "Device storage is getting full. Guide will lower video frequency and prioritize natural sound plus representative frames.",
     stopBtn: "Stop",
     langLabel: "Language",
+    modeLabel: "Movement mode",
+    modes: [
+      { id: "walk", label: "Walk" },
+      { id: "vehicle", label: "Car / bike" },
+    ],
     categoryLabel: "Guide Category",
     categories: [
       { id: "biodiversity", label: "🌿 Biodiversity" },
@@ -231,8 +249,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "Choose post photo",
     photoAnalysing: "Analysing photo…",
     analysing: "Analysing…",
+    started: "Guide is running. Small analysis frames are sent automatically; original device images are not stored.",
+    stopped: "Stopped. Analysed trail items remain below.",
     playing: "▶ Playing guide audio",
     privacyNotice: "Guide starts with video analysis only. Audio is saved only if you enable natural sound recording below.",
+    frameNotice: "There is no full-device-image upload button. Guide only sends small analysis frames and stores thumbnails plus results.",
     naturalSoundBadge: "Audio off by default",
     voiceExcludedNotice: "Possible human voice was excluded",
     audioOffNotice: "Audio recording is off. Field-like discoveries are saved automatically; indoor, person-first, or weak nature signals are not kept.",
@@ -240,8 +261,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOptOutBtn: "Stop audio recording",
     audioOptInNotice: "Natural sound recording is on. Speech-like clips are not stored; natural-sound candidates are saved in short chunks.",
     audioUnavailableNotice: "Started without microphone. Video analysis continues.",
-    contextTitle: "Read the subject and its surroundings",
-    contextBody: "Live Guide uses the main subject plus nearby organisms, habitat and sound as clues. Field-like discoveries are saved automatically; indoor or person-first scenes are not kept.",
+    contextTitle: "Read the place, not only species",
+    contextBody: "Live Guide treats vegetation, mowing, waterways, roadside edges, and land-use changes as useful records even when species cannot be identified. Signs and vehicle names are not treated as organisms.",
     audioTitle: "Sounds From This Session",
     audioEmpty: "No natural sound bundles yet",
     audioSkipped: "Some clips were skipped for privacy",
@@ -303,6 +324,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     storagePressure: "El almacenamiento del dispositivo se está llenando. La guía bajará la frecuencia de video y priorizará sonidos naturales y fotogramas representativos.",
     stopBtn: "Detener",
     langLabel: "Idioma",
+    modeLabel: "Modo de movimiento",
+    modes: [
+      { id: "walk", label: "A pie" },
+      { id: "vehicle", label: "Auto / bici" },
+    ],
     categoryLabel: "Categoría",
     categories: [
       { id: "biodiversity", label: "🌿 Biodiversidad" },
@@ -318,8 +344,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "Elegir foto",
     photoAnalysing: "Analizando foto…",
     analysing: "Analizando…",
+    started: "La guía está activa. Solo se envían fotogramas pequeños de análisis; no se guardan las imágenes originales.",
+    stopped: "Detenido. Las huellas analizadas quedan abajo.",
     playing: "▶ Reproduciendo audio",
     privacyNotice: "La guía empieza solo con video. El audio se guarda solo si activas la grabación de sonidos naturales.",
+    frameNotice: "No hay botón para subir toda la imagen del dispositivo. Solo se envían fotogramas pequeños y se guardan miniaturas y resultados.",
     naturalSoundBadge: "Audio apagado por defecto",
     voiceExcludedNotice: "Se excluyó audio con posible voz humana",
     audioOffNotice: "La grabación de audio está apagada. Los hallazgos de campo se guardan automáticamente; las escenas de interior, personas o señales débiles no se conservan.",
@@ -327,8 +356,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOptOutBtn: "Detener audio",
     audioOptInNotice: "La grabación de sonidos naturales está activa. Los clips con posible voz humana no se guardan.",
     audioUnavailableNotice: "Iniciado sin micrófono. El análisis de video continúa.",
-    contextTitle: "Leer el sujeto y su entorno",
-    contextBody: "La guía usa el sujeto principal, los organismos cercanos, el hábitat y el sonido como pistas. Los hallazgos de campo se guardan automáticamente; interiores o personas no se conservan.",
+    contextTitle: "Leer el lugar, no solo especies",
+    contextBody: "La guía registra vegetación, cortes de pasto, agua, bordes de camino y uso del suelo aunque la especie no se pueda identificar. Señales y nombres de vehículos no son organismos.",
     audioTitle: "Sonidos de esta sesión",
     audioEmpty: "Todavía no hay grupos de sonidos naturales",
     audioSkipped: "Algunos clips se omitieron por privacidad",
@@ -390,6 +419,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     storagePressure: "O armazenamento do dispositivo está ficando cheio. O guia reduzirá a frequência de vídeo e priorizará sons naturais e quadros representativos.",
     stopBtn: "Parar",
     langLabel: "Idioma",
+    modeLabel: "Modo de movimento",
+    modes: [
+      { id: "walk", label: "A pé" },
+      { id: "vehicle", label: "Carro / bike" },
+    ],
     categoryLabel: "Categoria",
     categories: [
       { id: "biodiversity", label: "🌿 Biodiversidade" },
@@ -405,8 +439,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "Escolher foto",
     photoAnalysing: "Analisando foto…",
     analysing: "Analisando…",
+    started: "O guia está ativo. Apenas quadros pequenos de análise são enviados; as imagens originais não são salvas.",
+    stopped: "Parado. As trilhas analisadas ficam abaixo.",
     playing: "▶ Reproduzindo áudio",
     privacyNotice: "O guia começa só com vídeo. O áudio só é salvo se você ativar a gravação de sons naturais.",
+    frameNotice: "Não há botão para enviar a imagem completa do dispositivo. Só quadros pequenos são enviados, com miniaturas e resultados salvos.",
     naturalSoundBadge: "Áudio desligado por padrão",
     voiceExcludedNotice: "Possível voz humana foi excluída",
     audioOffNotice: "A gravação de áudio está desligada. Descobertas de campo são salvas automaticamente; cenas internas, pessoas ou sinais fracos não ficam registradas.",
@@ -414,8 +451,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOptOutBtn: "Parar áudio",
     audioOptInNotice: "A gravação de sons naturais está ligada. Clipes com possível voz humana não são salvos.",
     audioUnavailableNotice: "Iniciado sem microfone. A análise de vídeo continua.",
-    contextTitle: "Ler o sujeito e o entorno",
-    contextBody: "O guia usa o sujeito principal, organismos próximos, habitat e som como pistas. Descobertas de campo são salvas automaticamente; ambientes internos ou pessoas não ficam registrados.",
+    contextTitle: "Ler o lugar, não só espécies",
+    contextBody: "O guia registra vegetação, roçada, água, beiras de estrada e uso do solo mesmo sem identificar a espécie. Placas e nomes de veículos não são organismos.",
     audioTitle: "Sons desta sessão",
     audioEmpty: "Ainda não há grupos de sons naturais",
     audioSkipped: "Alguns clipes foram ignorados por privacidade",
@@ -439,6 +476,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
 export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const c = COPY[lang];
   const cats = c.categories.map((cat) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.label)}</option>`).join("");
+  const modes = c.modes.map((mode) => `<option value="${escapeHtml(mode.id)}">${escapeHtml(mode.label)}</option>`).join("");
 
   const langOptions = [
     { value: "ja", label: "🇯🇵 日本語" },
@@ -467,6 +505,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <label class="guide-select-label">${escapeHtml(c.langLabel)}
         <select class="guide-select" id="guide-lang-select">${langOptions}</select>
       </label>
+      <label class="guide-select-label">${escapeHtml(c.modeLabel)}
+        <select class="guide-select" id="guide-mode-select">${modes}</select>
+      </label>
       <label class="guide-select-label">${escapeHtml(c.categoryLabel)}
         <select class="guide-select" id="guide-category-select">${cats}</select>
       </label>
@@ -475,6 +516,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <div class="guide-privacy-row" aria-label="音声プライバシー">
       <span class="guide-privacy-badge">${escapeHtml(c.naturalSoundBadge)}</span>
       <p class="guide-privacy-note">${escapeHtml(c.privacyNotice)}</p>
+      <p class="guide-privacy-note">${escapeHtml(c.frameNotice)}</p>
       <button class="guide-audio-opt-btn" id="guide-audio-opt-btn" type="button" aria-pressed="false">${escapeHtml(c.audioOptInBtn)}</button>
     </div>
     <p class="guide-privacy-live" id="guide-privacy-live" aria-live="polite">${escapeHtml(c.audioOffNotice)}</p>
@@ -604,6 +646,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 (function () {
   const copy = {
     analysing: ${JSON.stringify(c.analysing)},
+    started: ${JSON.stringify(c.started)},
+    stopped: ${JSON.stringify(c.stopped)},
     playing: ${JSON.stringify(c.playing)},
     voiceExcludedNotice: ${JSON.stringify(c.voiceExcludedNotice)},
     audioOffNotice: ${JSON.stringify(c.audioOffNotice)},
@@ -717,6 +761,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const offlinePressure = document.getElementById('guide-offline-pressure');
 
   function getLang() { return document.getElementById('guide-lang-select').value; }
+  function getGuideMode() { return document.getElementById('guide-mode-select').value || 'walk'; }
   function getCategory() { return document.getElementById('guide-category-select').value; }
   function setStatus(msg) { if (statusEl) statusEl.textContent = msg; }
   function setNowState(msg) { if (nowState) nowState.textContent = msg || ''; }
@@ -1370,6 +1415,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         lat: payload.lat,
         lng: payload.lng,
         lang: payload.lang,
+        guideMode: payload.guideMode || 'walk',
         sessionId: payload.sessionId,
         capturedAt: payload.capturedAt,
         audioPrivacy: {
@@ -1391,6 +1437,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       lat: payload.lat,
       lng: payload.lng,
       lang: payload.lang,
+      guideMode: payload.guideMode || 'walk',
       frameThumb: payload.frameThumb,
       frameBlob: payload.frameBlob,
       facePrivacy: payload.facePrivacy || null,
@@ -1497,6 +1544,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         lat: item.lat,
         lng: item.lng,
         lang: item.lang,
+        guideMode: item.guideMode || 'walk',
         frameThumb: item.frameThumb,
         frameBlob: item.frameBlob,
         facePrivacy: item.facePrivacy || null,
@@ -1590,6 +1638,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
           lang,
+          guideMode: getGuideMode(),
           frameThumb: framePayload.frameThumb,
           frameBlob: framePayload.frameBlob,
           facePrivacy: framePayload.facePrivacy,
@@ -1625,6 +1674,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
           lang,
+          guideMode: getGuideMode(),
           frameThumb: frames.frameThumb,
           frameBlob: frames.frameBlob,
           facePrivacy: frames.facePrivacy,
@@ -1888,6 +1938,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           ? (audioOptIn ? copy.cameraAudioNotice : copy.cameraOnlyNotice)
           : copy.audioOnlyNotice;
       }
+      setStatus(copy.started);
+      setNowState(copy.started);
       if (audioOptIn) void startOptionalAudioCapture();
       void prepareLiveAssist();
       if (nowWrap) nowWrap.hidden = false;
@@ -1949,6 +2001,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     setStatus('');
     setNowState('');
     showSessionSummary();
+    if (privacyLive) {
+      privacyLive.hidden = false;
+      privacyLive.textContent = copy.stopped;
+    }
     scheduleRecapRefresh();
   });
   window.addEventListener('online', () => {
@@ -1972,6 +2028,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         ].filter(Boolean).join('\\n'),
         category: getCategory(),
         lang: getLang(),
+        guideMode: getGuideMode(),
         lat: scene.lat || lastKnownPosition.lat,
         lng: scene.lng || lastKnownPosition.lng,
         detectedSpecies: scene.detectedSpecies || [],
@@ -1996,6 +2053,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         sceneHash: scene.sceneHash,
         sceneSummary: scene.delayedSummary || scene.summary || '',
         detectedSpecies: scene.detectedSpecies || [],
+        detectedFeatures: scene.detectedFeatures || [],
+        primarySubject: scene.primarySubject || null,
+        environmentContext: scene.environmentContext || null,
+        seasonalNote: scene.seasonalNote || null,
+        coexistingTaxa: scene.coexistingTaxa || [],
+        guideMode: getGuideMode(),
         ttsScript: null,
       })
     });
