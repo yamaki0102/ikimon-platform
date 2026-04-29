@@ -1,8 +1,8 @@
 /**
- * /api/v1/me/subscriptions   ユーザーの taxon フォロー (購読) 管理
- * /api/v1/me/alerts          受信履歴
+ * /api/v1/me/subscriptions   Taxon follow subscription management
+ * /api/v1/me/alerts          Alert delivery history
  *
- * いずれもログインユーザー必須。Cookie 認証 (services/authSession.ts) で識別する。
+ * Both route groups require a logged-in user resolved from the session cookie.
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
