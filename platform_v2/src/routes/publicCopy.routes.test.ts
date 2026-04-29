@@ -78,6 +78,9 @@ test("updates page keeps the full release history on the v2 public shell", async
   try {
     const response = await app.inject({ method: "GET", url: "/learn/updates?lang=ja" });
     assert.equal(response.statusCode, 200);
+    assert.match(response.body, /バージョンの見方/);
+    assert.match(response.body, /v0\.11\.3/);
+    assert.match(response.body, /観察会・音声記録・投稿の安全性/);
     assert.match(response.body, /AI考察 全面強化/);
     assert.match(response.body, /センサースキャン Perch v2/);
     assert.match(response.body, /プロトタイプ版スタート/);
