@@ -161,6 +161,9 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    *   sessionId:   string
    *   lang?:       TtsLang (default "ja")
    *   siteBriefLabel?: string
+   *
+   * This endpoint keeps analysis in memory for the live trail. Persistent
+   * guide_records are created only by POST /api/v1/guide/record.
    */
   app.post("/api/v1/guide/scene", async (request, reply) => {
     pruneSceneJobs();
@@ -226,43 +229,6 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         job.status = "ready";
         job.returnedAt = new Date().toISOString();
         job.result = sceneResult;
-
-        if (sceneResult.isNew) {
-          const ageSec = sceneAgeSeconds(capturedAt, new Date(job.returnedAt));
-          const copy = buildDelayedSceneCopy(sceneResult, ageSec);
-          await saveGuideRecord({
-            sessionId,
-            userId,
-            lat,
-            lng,
-            capturedAt,
-            returnedAt: job.returnedAt,
-            currentDistanceM: null,
-            deliveryState: "ready",
-            seenState: "unseen",
-            frameThumb,
-            sceneHash: sceneResult.sceneHash,
-            sceneSummary: copy.delayedSummary,
-            detectedSpecies: sceneResult.detectedSpecies,
-            detectedFeatures: sceneResult.detectedFeatures,
-            primarySubject: sceneResult.primarySubject ?? null,
-            environmentContext: sceneResult.environmentContext ?? null,
-            seasonalNote: sceneResult.seasonalNote ?? null,
-            coexistingTaxa: sceneResult.coexistingTaxa ?? [],
-            confidenceContext: {
-              delayed: true,
-              ageSec,
-              uncertaintyReason: copy.uncertaintyReason,
-            },
-            mediaRefs: frameThumb ? { frameThumb } : {},
-            meta: {
-              sceneId,
-              whyInteresting: copy.whyInteresting,
-              nextLookTarget: copy.nextLookTarget,
-            },
-            lang,
-          });
-        }
       } catch (error) {
         job.status = "error";
         job.returnedAt = new Date().toISOString();
