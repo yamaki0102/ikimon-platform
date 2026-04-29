@@ -13,11 +13,15 @@ type GuideCopy = {
   reviewTitle: string;
   noRecords: string;
   permissionDenied: string;
+  photoFallbackHint: string;
+  choosePhotoBtn: string;
+  photoAnalysing: string;
   analysing: string;
   playing: string;
   privacyNotice: string;
   naturalSoundBadge: string;
   voiceExcludedNotice: string;
+  audioUnavailableNotice: string;
   contextTitle: string;
   contextBody: string;
   audioTitle: string;
@@ -51,12 +55,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     recordBtn: "この発見を記録する",
     reviewTitle: "今日の気づき",
     noRecords: "まだ記録がありません",
-    permissionDenied: "カメラ・マイクへのアクセスが必要です",
+    permissionDenied: "カメラを使えません。写真を選ぶと解析できます。",
+    photoFallbackHint: "投稿用の写真を選ぶと、ライブ映像なしでガイド解析できます。",
+    choosePhotoBtn: "投稿用写真を選ぶ",
+    photoAnalysing: "写真を解析中…",
     analysing: "解析中…",
     playing: "▶ ガイド音声を再生中",
     privacyNotice: "人の声が入った音声は保存しません",
     naturalSoundBadge: "自然音だけを使っています",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
+    audioUnavailableNotice: "マイクなしで開始しました。映像だけで解析します。",
     contextTitle: "主役と周囲を一緒に見る",
     contextBody: "ライブガイドは、目の前の主役だけでなく、周囲の生きもの・環境・音も手がかりとして読みます。記録するときは主役を1つ選べば十分です。",
     audioTitle: "今回の音の記録",
@@ -88,12 +96,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     recordBtn: "Save this discovery",
     reviewTitle: "Today's Discoveries",
     noRecords: "No records yet",
-    permissionDenied: "Camera & microphone access required",
+    permissionDenied: "Camera is unavailable. Choose a photo to analyse instead.",
+    photoFallbackHint: "Choose a post photo to run guide analysis without live video.",
+    choosePhotoBtn: "Choose post photo",
+    photoAnalysing: "Analysing photo…",
     analysing: "Analysing…",
     playing: "▶ Playing guide audio",
     privacyNotice: "Clips with human voices are not stored",
     naturalSoundBadge: "Using natural sounds only",
     voiceExcludedNotice: "Possible human voice was excluded",
+    audioUnavailableNotice: "Started without microphone. Video analysis continues.",
     contextTitle: "Read the subject and its surroundings",
     contextBody: "Live Guide uses the main subject plus nearby organisms, habitat and sound as clues. When saving a record, choosing one subject is enough.",
     audioTitle: "Sounds From This Session",
@@ -125,12 +137,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     recordBtn: "Guardar este hallazgo",
     reviewTitle: "Descubrimientos de hoy",
     noRecords: "Sin registros aún",
-    permissionDenied: "Se requiere acceso a cámara y micrófono",
+    permissionDenied: "La cámara no está disponible. Elige una foto para analizarla.",
+    photoFallbackHint: "Elige una foto de publicación para usar la guía sin video en vivo.",
+    choosePhotoBtn: "Elegir foto",
+    photoAnalysing: "Analizando foto…",
     analysing: "Analizando…",
     playing: "▶ Reproduciendo audio",
     privacyNotice: "No guardamos clips con voces humanas",
     naturalSoundBadge: "Solo usamos sonidos naturales",
     voiceExcludedNotice: "Se excluyó audio con posible voz humana",
+    audioUnavailableNotice: "Iniciado sin micrófono. El análisis de video continúa.",
     contextTitle: "Leer el sujeto y su entorno",
     contextBody: "La guía usa el sujeto principal, los organismos cercanos, el hábitat y el sonido como pistas. Al guardar, basta elegir un sujeto principal.",
     audioTitle: "Sonidos de esta sesión",
@@ -162,12 +178,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     recordBtn: "Salvar esta descoberta",
     reviewTitle: "Descobertas de hoje",
     noRecords: "Nenhum registro ainda",
-    permissionDenied: "Acesso à câmera e microfone necessário",
+    permissionDenied: "A câmera não está disponível. Escolha uma foto para analisar.",
+    photoFallbackHint: "Escolha uma foto de publicação para usar o guia sem vídeo ao vivo.",
+    choosePhotoBtn: "Escolher foto",
+    photoAnalysing: "Analisando foto…",
     analysing: "Analisando…",
     playing: "▶ Reproduzindo áudio",
     privacyNotice: "Clipes com voz humana não são salvos",
     naturalSoundBadge: "Usamos apenas sons naturais",
     voiceExcludedNotice: "Possível voz humana foi excluída",
+    audioUnavailableNotice: "Iniciado sem microfone. A análise de vídeo continua.",
     contextTitle: "Ler o sujeito e o entorno",
     contextBody: "O guia usa o sujeito principal, organismos próximos, habitat e som como pistas. Ao salvar, basta escolher um sujeito principal.",
     audioTitle: "Sons desta sessão",
@@ -243,6 +263,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   </div>
 
   <div class="guide-permission-msg" id="guide-permission-msg" hidden>${escapeHtml(c.permissionDenied)}</div>
+  <div class="guide-photo-fallback" id="guide-photo-fallback" hidden>
+    <p>${escapeHtml(c.photoFallbackHint)}</p>
+    <button class="guide-photo-btn" id="guide-photo-btn" type="button">${escapeHtml(c.choosePhotoBtn)}</button>
+    <input class="guide-photo-input" id="guide-photo-input" type="file" accept="image/*" hidden>
+  </div>
 
   <div class="guide-discoveries" id="guide-discoveries">
     <div class="guide-trail-header">
@@ -272,9 +297,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     analysing: ${JSON.stringify(c.analysing)},
     playing: ${JSON.stringify(c.playing)},
     voiceExcludedNotice: ${JSON.stringify(c.voiceExcludedNotice)},
+    audioUnavailableNotice: ${JSON.stringify(c.audioUnavailableNotice)},
     audioEmpty: ${JSON.stringify(c.audioEmpty)},
     audioSkipped: ${JSON.stringify(c.audioSkipped)},
     audioUnnamed: ${JSON.stringify(c.audioUnnamed)},
+    photoAnalysing: ${JSON.stringify(c.photoAnalysing)},
     trailPending: ${JSON.stringify(c.trailPending)},
     trailDeferred: ${JSON.stringify(c.trailDeferred)},
     playTrail: ${JSON.stringify(c.playTrail)},
@@ -283,6 +310,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const BASE = ${JSON.stringify(basePath)};
 
   let stream = null;
+  let audioStream = null;
   let mediaRecorder = null;
   let audioContext = null;
   let analyser = null;
@@ -311,6 +339,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const nowWrap    = document.getElementById('guide-now');
   const nowState   = document.getElementById('guide-now-state');
   const permMsg    = document.getElementById('guide-permission-msg');
+  const photoFallback = document.getElementById('guide-photo-fallback');
+  const photoBtn   = document.getElementById('guide-photo-btn');
+  const photoInput = document.getElementById('guide-photo-input');
   const statusEl   = document.getElementById('guide-status');
   const listEl     = document.getElementById('guide-discovery-list');
   const noRec      = document.getElementById('guide-no-records');
@@ -370,6 +401,39 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
       reader.readAsDataURL(blob);
     });
+  }
+  function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const url = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('image_load_failed'));
+      };
+      image.src = url;
+    });
+  }
+  function drawImageData(image, maxWidth, maxHeight, quality) {
+    const ratio = Math.min(maxWidth / Math.max(1, image.naturalWidth), maxHeight / Math.max(1, image.naturalHeight), 1);
+    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', quality);
+  }
+  async function buildGuideFramesFromFile(file) {
+    const image = await loadImageFromFile(file);
+    const frameDataUrl = drawImageData(image, 1280, 1280, 0.78);
+    return {
+      frame: frameDataUrl.split(',')[1],
+      frameThumb: drawImageData(image, 144, 108, 0.46)
+    };
   }
   async function captureAudioForScene() {
     const chunks = sceneAudioChunks.splice(0);
@@ -453,9 +517,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   }
   function startAnalyser() {
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtor || !stream) return;
+    if (!AudioCtor || !audioStream || !audioStream.getAudioTracks().length) return;
     audioContext = new AudioCtor();
-    const source = audioContext.createMediaStreamSource(stream);
+    const source = audioContext.createMediaStreamSource(audioStream);
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.35;
@@ -706,6 +770,46 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     scheduleRecapRefresh();
     if (running) analyseTimer = setTimeout(doAnalyse, 8000);
   }
+  async function analyseSelectedPhoto(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) return;
+    setNowState(copy.photoAnalysing);
+    if (nowWrap) nowWrap.hidden = false;
+    if (photoBtn) photoBtn.disabled = true;
+    try {
+      lastKnownPosition = await getLocation();
+      const frames = await buildGuideFramesFromFile(file);
+      const capturedAt = new Date().toISOString();
+      const lang = getLang();
+      const sceneRes = await fetch(BASE + '/api/v1/guide/scene', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          frame: frames.frame,
+          frameThumb: frames.frameThumb,
+          audio: null,
+          lat: lastKnownPosition.lat,
+          lng: lastKnownPosition.lng,
+          lang,
+          sessionId,
+          capturedAt,
+          audioPrivacy: {
+            clientSkippedCount: 0,
+            policy: 'photo_fallback_no_audio'
+          }
+        })
+      }).then((r) => r.json());
+      if (sceneRes && sceneRes.sceneId) {
+        pendingScenes.set(sceneRes.sceneId, sceneRes);
+        addPendingDiscovery(sceneRes);
+        void watchScene(sceneRes.sceneId);
+      }
+    } catch (error) {
+      console.error('Guide photo fallback error', error);
+    } finally {
+      setNowState('');
+      if (photoBtn) photoBtn.disabled = false;
+    }
+  }
   async function watchScene(sceneId) {
     if (!('EventSource' in window)) {
       void pollScene(sceneId, 0);
@@ -792,37 +896,86 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       liveAssistToken = null;
     }
   }
-  startBtn.addEventListener('click', async () => {
+  function showPrivacyNotice(message) {
+    if (!privacyLive) return;
+    privacyLive.hidden = false;
+    privacyLive.textContent = message;
+  }
+  async function startOptionalAudioCapture() {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      showPrivacyNotice(copy.audioUnavailableNotice);
+      return;
+    }
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+      audioStream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false }
       });
-      lastKnownPosition = await getLocation();
-      video.srcObject = stream;
-      if (window.MediaRecorder && preferredMime) {
-        mediaRecorder = new MediaRecorder(stream, { mimeType: preferredMime, audioBitsPerSecond: 32000 });
+    } catch (error) {
+      audioStream = null;
+      showPrivacyNotice(copy.audioUnavailableNotice);
+      console.info('Guide microphone unavailable; continuing video-only', error);
+      return;
+    }
+    if (!running) {
+      audioStream.getTracks().forEach((track) => track.stop());
+      audioStream = null;
+      return;
+    }
+    if (window.MediaRecorder && preferredMime && audioStream.getAudioTracks().length) {
+      try {
+        mediaRecorder = new MediaRecorder(audioStream, { mimeType: preferredMime, audioBitsPerSecond: 32000 });
         mediaRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
             handleAudioChunk(e.data);
           }
         };
         mediaRecorder.start(2000);
+      } catch (error) {
+        mediaRecorder = null;
+        showPrivacyNotice(copy.audioUnavailableNotice);
+        console.info('Guide audio recording unavailable; continuing video-only', error);
       }
-      startAnalyser();
+    }
+    startAnalyser();
+  }
+  startBtn.addEventListener('click', async () => {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
+      lastKnownPosition = await getLocation();
+      video.srcObject = stream;
       running = true;
+      if (privacyLive) {
+        privacyLive.hidden = true;
+        privacyLive.textContent = '';
+      }
+      void startOptionalAudioCapture();
       void prepareLiveAssist();
       camWrap.hidden = false;
       if (nowWrap) nowWrap.hidden = false;
       startBtn.hidden = true;
       permMsg.hidden = true;
+      if (photoFallback) photoFallback.hidden = true;
       analyseTimer = setTimeout(doAnalyse, 5000);
       scheduleRecapRefresh();
     } catch (err) {
       permMsg.hidden = false;
-      console.error('Camera/mic denied', err);
+      if (photoFallback) photoFallback.hidden = false;
+      console.error('Guide camera unavailable', err);
     }
   });
+  if (photoBtn && photoInput) {
+    photoBtn.addEventListener('click', () => {
+      photoInput.click();
+    });
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files && photoInput.files[0];
+      if (file) void analyseSelectedPhoto(file);
+      photoInput.value = '';
+    });
+  }
   stopBtn.addEventListener('click', () => {
     running = false;
     clearTimeout(analyseTimer);
@@ -830,7 +983,12 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     if (audioSampleTimer) clearInterval(audioSampleTimer);
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     if (stream) stream.getTracks().forEach((t) => t.stop());
+    if (audioStream) audioStream.getTracks().forEach((t) => t.stop());
     if (audioContext && audioContext.state !== 'closed') audioContext.close().catch(() => undefined);
+    stream = null;
+    audioStream = null;
+    mediaRecorder = null;
+    audioSampleTimer = null;
     analyser = null;
     freqData = null;
     timeData = null;
@@ -933,6 +1091,11 @@ export const GUIDE_FLOW_STYLES = `
   .guide-stop-btn { position: absolute; bottom: 12px; right: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(239,68,68,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
   .guide-record-btn { position: absolute; bottom: 12px; left: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(16,185,129,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
   .guide-permission-msg { padding: 16px; border-radius: 8px; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #b91c1c; font-size: 13px; font-weight: 700; margin-bottom: 20px; }
+  .guide-photo-fallback[hidden] { display: none; }
+  .guide-photo-fallback { margin: -6px 0 20px; padding: 14px; border-radius: 8px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.1); box-shadow: 0 8px 20px rgba(15,23,42,.05); display: grid; gap: 10px; }
+  .guide-photo-fallback p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
+  .guide-photo-btn { min-height: 46px; padding: 10px 16px; border-radius: 999px; border: none; background: #0f172a; color: #fff; font-size: 13px; font-weight: 900; cursor: pointer; }
+  .guide-photo-btn:disabled { opacity: .62; cursor: wait; }
   .guide-discoveries { margin-top: 24px; }
   .guide-trail-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .guide-discoveries-title { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; margin: 0 0 12px; }
