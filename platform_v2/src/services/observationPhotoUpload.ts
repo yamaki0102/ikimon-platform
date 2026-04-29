@@ -16,6 +16,14 @@ export type ObservationPhotoUploadInput = {
   mimeType: string;
   base64Data: string;
   mediaRole?: MediaRole | string | null;
+  facePrivacy?: FacePrivacySummary | null;
+};
+
+export type FacePrivacySummary = {
+  detector?: string | null;
+  status?: string | null;
+  faceCount?: number | null;
+  error?: string | null;
 };
 
 export type ObservationPhotoUploadResult = {
@@ -28,6 +36,7 @@ export type ObservationPhotoUploadResult = {
     succeeded: boolean;
     error?: string;
   };
+  facePrivacy: FacePrivacySummary | null;
 };
 
 function sanitizeFilename(filename: string): string {
@@ -71,6 +80,20 @@ function assertInput(input: ObservationPhotoUploadInput): void {
   if (!input.base64Data.trim()) {
     throw new Error("base64Data is required");
   }
+}
+
+function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
+  if (!input || typeof input !== "object") return null;
+  const record = input as Record<string, unknown>;
+  const status = typeof record.status === "string" ? record.status : null;
+  if (status && !["redacted", "no_faces", "unavailable"].includes(status)) return null;
+  const faceCount = Number(record.faceCount);
+  return {
+    detector: typeof record.detector === "string" ? record.detector.slice(0, 80) : null,
+    status,
+    faceCount: Number.isFinite(faceCount) ? Math.max(0, Math.min(100, Math.round(faceCount))) : 0,
+    error: typeof record.error === "string" ? record.error.slice(0, 120) : null,
+  };
 }
 
 async function normalizeObservationImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string; widthPx: number | null; heightPx: number | null }> {
@@ -125,6 +148,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
 
   const sha256 = createHash("sha256").update(buffer).digest("hex");
   const mediaRole = normalizeMediaRole(input.mediaRole);
+  const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
   const safeBase = sanitizeFilename(input.filename).replace(/\.[A-Za-z0-9]+$/, "");
   const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(normalizedImage.mimeType)}`;
 
@@ -178,6 +202,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         source: "v2_photo_upload",
         visit_id: visitId,
         media_role: mediaRole,
+        face_privacy: facePrivacy,
         normalized_max_edge_px: 2560,
         original_bytes: originalBuffer.byteLength,
       },
@@ -208,6 +233,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           source: "v2_photo_upload",
           filename: input.filename,
           media_role: mediaRole,
+          face_privacy: facePrivacy,
         }),
       ],
     );
@@ -225,6 +251,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       sourcePayload: {
         source: "v2_photo_upload",
         filename: input.filename,
+        face_privacy: facePrivacy,
       },
     });
 
@@ -299,6 +326,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         source: "v2_photo_upload",
         uploaded_observation_id: input.observationId,
         media_role: mediaRole,
+        face_privacy: facePrivacy,
         relative_path: relativePath,
       },
     }]);
@@ -312,5 +340,6 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     relativePath,
     publicUrl: `/${relativePath}`,
     compatibility,
+    facePrivacy,
   };
 }

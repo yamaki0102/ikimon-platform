@@ -302,6 +302,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           mimeType: request.body.mimeType,
           base64Data: request.body.base64Data,
           mediaRole: request.body.mediaRole,
+          facePrivacy: request.body.facePrivacy,
         });
       } catch (error) {
         reply.code(errorStatus(error, 400));

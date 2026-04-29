@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
+    "build": "npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:node": "tsx --test \"src/**/*.test.ts\"",
@@ -32,6 +32,7 @@
     "import:tracks": "tsx src/scripts/importTrackSessions.ts",
     "verify:legacy": "tsx src/scripts/verifyLegacyParity.ts",
     "verify:production-shadow": "tsx src/scripts/verifyProductionShadowParity.ts",
+    "sync:face-privacy-assets": "node scripts/sync-face-privacy-assets.mjs",
     "backfill:authority-rank": "tsx src/scripts/backfillAuthorityRank.ts",
     "report:replacement-readiness": "tsx src/scripts/replacementReadinessReport.ts",
     "materialize:legacy-verify-snapshot": "tsx src/scripts/materializeLegacyVerifySnapshot.ts",
@@ -63,6 +64,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
+    "@mediapipe/tasks-vision": "0.10.35",
     "bcryptjs": "^3.0.3",
     "fastify": "^5.8.5",
     "pg": "^8.16.3",

@@ -46,6 +46,7 @@ mobile/android/ikimon-pocket/local.properties
 # === Large ML models ===
 *.onnx
 *.tflite
+!upload_package/public_html/assets/face-privacy/blaze_face_short_range.tflite
 
 # === Data (user-generated, server-specific) ===
 upload_package/data/redlists/scraped_production_master.csv

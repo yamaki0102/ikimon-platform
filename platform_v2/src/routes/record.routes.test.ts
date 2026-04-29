@@ -54,6 +54,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /MAX_PHOTO_FILES = 6/);
         assert.match(response.body, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
         assert.match(response.body, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
+        assert.match(response.body, /ikimonFacePrivacy/);
+        assert.match(response.body, /ikimonFacePrivacyAssetBase/);
+        assert.match(response.body, /assets\/face-privacy/);
+        assert.match(response.body, /redactCanvasFaces\(canvas\)/);
+        assert.match(response.body, /facePrivacy: upload\.facePrivacy \|\| null/);
         assert.match(response.body, /MAX_VIDEO_BASIC_POST_BYTES = 200000000/);
         assert.match(response.body, /MAX_VIDEO_TUS_BYTES = 1024 \* 1024 \* 1024/);
         assert.match(response.body, /uploadProtocol = videoFile\.size >= MAX_VIDEO_BASIC_POST_BYTES \? 'tus' : 'post'/);
@@ -153,6 +158,28 @@ test("record start guide preserves a direct-capture draft through login", async 
       }
     },
   );
+});
+
+test("guide route redacts face regions before scene analysis", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/guide?lang=ja",
+      headers: { accept: "text/html" },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /ikimonFacePrivacy/);
+    assert.match(response.body, /ikimonFacePrivacyAssetBase/);
+    assert.match(response.body, /assets\/face-privacy/);
+    assert.match(response.body, /captureFramePayload/);
+    assert.match(response.body, /redactCanvasFaces\(canvas, \{ blocksPerFace: 10 \}\)/);
+    assert.match(response.body, /facePrivacy: framePayload\.facePrivacy/);
+    assert.match(response.body, /\/api\/v1\/guide\/scene/);
+  } finally {
+    await app.close();
+  }
 });
 
 test("login and register pages render v2 auth forms", async () => {
