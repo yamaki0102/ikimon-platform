@@ -22,6 +22,13 @@ export type SceneContext = {
   azimuth?: number | null;
 };
 
+export type GuideSceneSaveRecommendation = {
+  decision: "save" | "skip";
+  confidence?: number;
+  reasonCodes?: string[];
+  note?: string;
+};
+
 export type DetectedFeature = {
   type: "species" | "vegetation" | "landform" | "structure" | "sound";
   name: string;
@@ -43,6 +50,7 @@ export type SceneResult = {
   environmentContext?: string;
   seasonalNote?: string;
   coexistingTaxa?: string[];
+  saveRecommendation?: GuideSceneSaveRecommendation;
   isNew: boolean;
   sceneHash: string;
 };
@@ -227,6 +235,7 @@ export async function analyzeScene(opts: {
     environmentContext?: string;
     seasonalNote?: string;
     coexistingTaxa?: string[];
+    saveRecommendation?: GuideSceneSaveRecommendation;
   } = {};
   try {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
@@ -242,6 +251,7 @@ export async function analyzeScene(opts: {
   const environmentContext = typeof parsed.environmentContext === "string" ? parsed.environmentContext : undefined;
   const seasonalNote = typeof parsed.seasonalNote === "string" ? parsed.seasonalNote : undefined;
   const coexistingTaxa = Array.isArray(parsed.coexistingTaxa) ? parsed.coexistingTaxa : undefined;
+  const saveRecommendation = normalizeSaveRecommendation(parsed.saveRecommendation);
 
   const sceneHash = createHash("sha256")
     .update(detectedSpecies.sort().join(",") + detectedFeatures.map((f) => f.name).sort().join(","))
@@ -258,8 +268,25 @@ export async function analyzeScene(opts: {
     environmentContext,
     seasonalNote,
     coexistingTaxa,
+    saveRecommendation,
     isNew,
     sceneHash,
+  };
+}
+
+function normalizeSaveRecommendation(raw: unknown): GuideSceneSaveRecommendation | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const value = raw as Record<string, unknown>;
+  const decision = value.decision === "save" || value.decision === "skip" ? value.decision : null;
+  if (!decision) return undefined;
+  const confidence = Number(value.confidence);
+  return {
+    decision,
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : undefined,
+    reasonCodes: Array.isArray(value.reasonCodes)
+      ? value.reasonCodes.filter((item): item is string => typeof item === "string").slice(0, 8)
+      : undefined,
+    note: typeof value.note === "string" ? value.note.slice(0, 160) : undefined,
   };
 }
 

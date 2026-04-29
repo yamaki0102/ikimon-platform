@@ -40,6 +40,11 @@ type GuideCopy = {
   trailDeferred: string;
   playTrail: string;
   saveTrail: string;
+  autoSaveBadge: string;
+  autoSaved: string;
+  autoSkipped: string;
+  autoSaveError: string;
+  manualSave: string;
 };
 
 const COPY: Record<SiteLang, GuideCopy> = {
@@ -68,13 +73,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "開始直後は映像解析のみ。音声は下のボタンを押した場合だけ、自然音候補として短く保存します。",
     naturalSoundBadge: "音声は初期OFF",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
-    audioOffNotice: "音声記録はOFFです。映像フレームは解析に送りますが、記録保存は「保存」を押した発見だけです。",
+    audioOffNotice: "音声記録はOFFです。野外らしい発見は自動保存し、室内・人物中心・自然手がかりが弱いものは残しません。",
     audioOptInBtn: "自然音も記録する",
     audioOptOutBtn: "音声記録を止める",
     audioOptInNotice: "音声記録をONにしました。人声らしい音は保存せず、自然音候補だけ2秒単位で保存します。",
     audioUnavailableNotice: "マイクなしで開始しました。映像だけで解析します。",
     contextTitle: "主役と周囲を一緒に見る",
-    contextBody: "ライブガイドは、目の前の主役だけでなく、周囲の生きもの・環境・音も手がかりとして読みます。記録するときは主役を1つ選べば十分です。",
+    contextBody: "ライブガイドは、目の前の主役だけでなく、周囲の生きもの・環境・音も手がかりとして読みます。野外らしい発見は自動保存し、室内や人物中心のシーンは残しません。",
     audioTitle: "今回の音の記録",
     audioEmpty: "自然音のまとまりはまだありません",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",
@@ -87,6 +92,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     trailDeferred: "移動中なので足跡に残しました",
     playTrail: "聞く",
     saveTrail: "保存",
+    autoSaveBadge: "自動保存",
+    autoSaved: "自動保存済み",
+    autoSkipped: "保存しませんでした",
+    autoSaveError: "自動保存できませんでした",
+    manualSave: "手動で保存",
   },
   en: {
     title: "Live Guide",
@@ -113,13 +123,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "Guide starts with video analysis only. Audio is saved only if you enable natural sound recording below.",
     naturalSoundBadge: "Audio off by default",
     voiceExcludedNotice: "Possible human voice was excluded",
-    audioOffNotice: "Audio recording is off. Video frames are sent for analysis, and only discoveries you tap Save on are kept as records.",
+    audioOffNotice: "Audio recording is off. Field-like discoveries are saved automatically; indoor, person-first, or weak nature signals are not kept.",
     audioOptInBtn: "Record natural sounds",
     audioOptOutBtn: "Stop audio recording",
     audioOptInNotice: "Natural sound recording is on. Speech-like clips are not stored; natural-sound candidates are saved in short chunks.",
     audioUnavailableNotice: "Started without microphone. Video analysis continues.",
     contextTitle: "Read the subject and its surroundings",
-    contextBody: "Live Guide uses the main subject plus nearby organisms, habitat and sound as clues. When saving a record, choosing one subject is enough.",
+    contextBody: "Live Guide uses the main subject plus nearby organisms, habitat and sound as clues. Field-like discoveries are saved automatically; indoor or person-first scenes are not kept.",
     audioTitle: "Sounds From This Session",
     audioEmpty: "No natural sound bundles yet",
     audioSkipped: "Some clips were skipped for privacy",
@@ -132,6 +142,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     trailDeferred: "Saved to the trail while you keep moving",
     playTrail: "Play",
     saveTrail: "Save",
+    autoSaveBadge: "Auto-save",
+    autoSaved: "Auto-saved",
+    autoSkipped: "Not saved",
+    autoSaveError: "Auto-save failed",
+    manualSave: "Save manually",
   },
   es: {
     title: "Guía de Campo",
@@ -158,13 +173,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "La guía empieza solo con video. El audio se guarda solo si activas la grabación de sonidos naturales.",
     naturalSoundBadge: "Audio apagado por defecto",
     voiceExcludedNotice: "Se excluyó audio con posible voz humana",
-    audioOffNotice: "La grabación de audio está apagada. Los fotogramas de video se envían para análisis, y solo se guardan los hallazgos que guardes.",
+    audioOffNotice: "La grabación de audio está apagada. Los hallazgos de campo se guardan automáticamente; las escenas de interior, personas o señales débiles no se conservan.",
     audioOptInBtn: "Grabar sonidos naturales",
     audioOptOutBtn: "Detener audio",
     audioOptInNotice: "La grabación de sonidos naturales está activa. Los clips con posible voz humana no se guardan.",
     audioUnavailableNotice: "Iniciado sin micrófono. El análisis de video continúa.",
     contextTitle: "Leer el sujeto y su entorno",
-    contextBody: "La guía usa el sujeto principal, los organismos cercanos, el hábitat y el sonido como pistas. Al guardar, basta elegir un sujeto principal.",
+    contextBody: "La guía usa el sujeto principal, los organismos cercanos, el hábitat y el sonido como pistas. Los hallazgos de campo se guardan automáticamente; interiores o personas no se conservan.",
     audioTitle: "Sonidos de esta sesión",
     audioEmpty: "Todavía no hay grupos de sonidos naturales",
     audioSkipped: "Algunos clips se omitieron por privacidad",
@@ -177,6 +192,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     trailDeferred: "Guardado en el recorrido mientras sigues avanzando",
     playTrail: "Escuchar",
     saveTrail: "Guardar",
+    autoSaveBadge: "Autoguardado",
+    autoSaved: "Guardado automáticamente",
+    autoSkipped: "No guardado",
+    autoSaveError: "Falló el autoguardado",
+    manualSave: "Guardar manualmente",
   },
   "pt-BR": {
     title: "Guia de Campo",
@@ -203,13 +223,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     privacyNotice: "O guia começa só com vídeo. O áudio só é salvo se você ativar a gravação de sons naturais.",
     naturalSoundBadge: "Áudio desligado por padrão",
     voiceExcludedNotice: "Possível voz humana foi excluída",
-    audioOffNotice: "A gravação de áudio está desligada. Quadros de vídeo são enviados para análise, e só descobertas salvas por você viram registros.",
+    audioOffNotice: "A gravação de áudio está desligada. Descobertas de campo são salvas automaticamente; cenas internas, pessoas ou sinais fracos não ficam registradas.",
     audioOptInBtn: "Gravar sons naturais",
     audioOptOutBtn: "Parar áudio",
     audioOptInNotice: "A gravação de sons naturais está ligada. Clipes com possível voz humana não são salvos.",
     audioUnavailableNotice: "Iniciado sem microfone. A análise de vídeo continua.",
     contextTitle: "Ler o sujeito e o entorno",
-    contextBody: "O guia usa o sujeito principal, organismos próximos, habitat e som como pistas. Ao salvar, basta escolher um sujeito principal.",
+    contextBody: "O guia usa o sujeito principal, organismos próximos, habitat e som como pistas. Descobertas de campo são salvas automaticamente; ambientes internos ou pessoas não ficam registrados.",
     audioTitle: "Sons desta sessão",
     audioEmpty: "Ainda não há grupos de sons naturais",
     audioSkipped: "Alguns clipes foram ignorados por privacidade",
@@ -222,6 +242,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     trailDeferred: "Salvo no trajeto enquanto você continua andando",
     playTrail: "Ouvir",
     saveTrail: "Salvar",
+    autoSaveBadge: "Salvamento automático",
+    autoSaved: "Salvo automaticamente",
+    autoSkipped: "Não salvo",
+    autoSaveError: "Falha ao salvar",
+    manualSave: "Salvar manualmente",
   },
 };
 
@@ -330,7 +355,12 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     trailPending: ${JSON.stringify(c.trailPending)},
     trailDeferred: ${JSON.stringify(c.trailDeferred)},
     playTrail: ${JSON.stringify(c.playTrail)},
-    saveTrail: ${JSON.stringify(c.saveTrail)}
+    saveTrail: ${JSON.stringify(c.saveTrail)},
+    autoSaveBadge: ${JSON.stringify(c.autoSaveBadge)},
+    autoSaved: ${JSON.stringify(c.autoSaved)},
+    autoSkipped: ${JSON.stringify(c.autoSkipped)},
+    autoSaveError: ${JSON.stringify(c.autoSaveError)},
+    manualSave: ${JSON.stringify(c.manualSave)}
   };
   const BASE = ${JSON.stringify(basePath)};
 
@@ -537,6 +567,14 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     if (lang === 'ja') return ' · 現在地から' + value + 'm';
     return ' · ' + value + 'm from current';
   }
+  function autoSaveView(scene) {
+    const state = scene && scene.autoSave ? scene.autoSave.state : '';
+    const note = getLang() === 'ja' && scene && scene.autoSave ? (scene.autoSave.note || '') : '';
+    if (state === 'saved') return { cls: 'is-saved', text: copy.autoSaved, note: note || (getLang() === 'ja' ? copy.autoSaveBadge : ''), showManual: false };
+    if (state === 'skipped') return { cls: 'is-skipped', text: copy.autoSkipped, note: note, showManual: true };
+    if (state === 'error') return { cls: 'is-error', text: copy.autoSaveError, note: '', showManual: true };
+    return { cls: 'is-pending', text: copy.autoSaveBadge, note: '', showManual: true };
+  }
   function renderReadyDiscovery(scene) {
     const existing = document.getElementById('scene-' + scene.sceneId);
     const li = existing || document.createElement('li');
@@ -544,9 +582,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     li.id = 'scene-' + scene.sceneId;
     const species = Array.isArray(scene.detectedSpecies) ? scene.detectedSpecies : [];
     const distance = formatDistance(scene.distanceFromCurrentM);
+    const autoSave = autoSaveView(scene);
     li.innerHTML = '<div class="gdi-thumb-wrap">' + (scene.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(scene.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
       + '<div class="gdi-body">'
       + '<div class="gdi-kicker">' + escapeInline(formatCaptured(scene.capturedAt) + distance) + '</div>'
+      + '<div class="gdi-autosave ' + escapeInline(autoSave.cls) + '"><span>' + escapeInline(autoSave.text) + '</span>' + (autoSave.note ? '<em>' + escapeInline(autoSave.note) + '</em>' : '') + '</div>'
       + '<div class="gdi-summary">' + escapeInline(scene.delayedSummary || scene.summary || '') + '</div>'
       + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
       + (scene.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(scene.uncertaintyReason) + '</div>' : '')
@@ -554,7 +594,8 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       + '<div class="gdi-next">' + escapeInline(scene.nextLookTarget || '') + '</div>'
       + (scene.deliveryState === 'deferred' ? '<div class="gdi-deferred">' + escapeInline(copy.trailDeferred) + '</div>' : '')
       + '<div class="gdi-actions"><button type="button" class="gdi-play" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.playTrail) + '</button>'
-      + '<button type="button" class="gdi-save" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.saveTrail) + '</button></div>'
+      + (autoSave.showManual ? '<button type="button" class="gdi-save" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.manualSave) + '</button>' : '')
+      + '</div>'
       + '</div>';
     if (!existing) listEl.prepend(li);
     readyScenes.set(scene.sceneId, scene);
@@ -1188,6 +1229,13 @@ export const GUIDE_FLOW_STYLES = `
   .gdi-icon { font-size: 18px; flex-shrink: 0; }
   .gdi-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .gdi-kicker { font-size: 10px; color: #64748b; font-weight: 800; }
+  .gdi-autosave { width: fit-content; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; border-radius: 999px; padding: 4px 9px; font-size: 10.5px; font-weight: 900; line-height: 1.35; }
+  .gdi-autosave span { white-space: nowrap; }
+  .gdi-autosave em { font-style: normal; font-weight: 800; opacity: .82; }
+  .gdi-autosave.is-saved { background: rgba(16,185,129,.14); color: #047857; border: 1px solid rgba(16,185,129,.22); }
+  .gdi-autosave.is-skipped { background: rgba(245,158,11,.12); color: #92400e; border: 1px solid rgba(245,158,11,.22); }
+  .gdi-autosave.is-error { background: rgba(239,68,68,.12); color: #991b1b; border: 1px solid rgba(239,68,68,.2); }
+  .gdi-autosave.is-pending { background: rgba(148,163,184,.14); color: #475569; border: 1px solid rgba(148,163,184,.22); }
   .gdi-summary { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.5; }
   .gdi-species { font-size: 11px; color: #047857; font-weight: 700; }
   .gdi-note { font-size: 12px; color: #b45309; background: rgba(245,158,11,.1); border-radius: 7px; padding: 7px 8px; line-height: 1.45; }

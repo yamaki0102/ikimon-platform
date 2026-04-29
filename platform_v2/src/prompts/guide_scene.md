@@ -28,10 +28,14 @@
   - `type: structure` — 人工物・環境文脈（柵・舗装・砂利・標識 等、**人や明確な人物は除外**）。
   - `type: sound` — 聞こえる音があれば（鳴き声・水音・風・車 等）。
 - **人影・明確に識別可能な人物・車内の乗員などは除外**。
+- 室内、部屋、天井、机、モニター、自撮り、人しか写っていない画像は、観察記録として自動保存すべきではない。
 - 人工物（柵・建物・道路）は除外せず `environment_context` や `structure` として記録。
 - 在来・外来の区別が可能な範囲で `note` に含める。
 - 季節と緯度から見て**不自然な種**（例: 4月の浜松でエゾフクロウ）は信頼度を下げる、または記録しない。
 - 季節・撮影日時・地点から推論できる観察ボーナス情報を `seasonalNote` に短く記載（例「4月中旬・浜松の荒れ地。セイヨウタンポポの結実期。カラスノエンドウが花期」）。
+- `saveRecommendation` は、このシーンを野外観察記録として自動保存してよいかの補助判定。
+  - `save`: 生きもの・植生・地形・自然音など、後から見返す価値のある野外手がかりがある。
+  - `skip`: 室内・人物中心・人工物だけ・位置情報と明らかに噛み合わない・自然手がかりが弱い。
 
 ## 出力 JSON スキーマ
 
@@ -49,7 +53,13 @@
   ],
   "environmentContext": "場所の状況を1文で（例: 住宅地の縁、砂利まじり、日当たり良好）",
   "seasonalNote": "季節・日時・位置から推論できる観察上のヒント（省略可）",
-  "coexistingTaxa": ["主種以外の検出物の名前の配列（detectedFeatures の type=species/vegetation の和名・属名）"]
+  "coexistingTaxa": ["主種以外の検出物の名前の配列（detectedFeatures の type=species/vegetation の和名・属名）"],
+  "saveRecommendation": {
+    "decision": "save|skip",
+    "confidence": 0.0,
+    "reasonCodes": ["field_nature_signal|privacy_or_indoor_scene|no_field_nature_signal|location_mismatch|model_uncertain"],
+    "note": "自動保存/除外理由を短く"
+  }
 }
 ```
 

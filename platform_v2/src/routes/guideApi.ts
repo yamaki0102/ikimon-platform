@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
 import { createGuideLiveToken } from "../services/guideLiveToken.js";
 import { analyzeScene, saveGuideRecord, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
+import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import type { TtsLang } from "../services/guideTts.js";
 
 const ALLOWED_LANGS: TtsLang[] = ["ja", "en", "es", "pt-BR", "ko", "zh"];
@@ -28,8 +30,14 @@ type PendingGuideScene = {
   frameThumb: string | null;
   status: "pending" | "ready" | "error";
   result: SceneResult | null;
+  autoSave: PendingGuideAutoSave | null;
   error: string | null;
 };
+
+type PendingGuideAutoSave =
+  | ({ state: "saved"; guideRecordId: string } & GuideAutoSaveDecision)
+  | ({ state: "skipped" } & GuideAutoSaveDecision)
+  | ({ state: "error"; error: string } & GuideAutoSaveDecision);
 
 const sceneJobs = new Map<string, PendingGuideScene>();
 const SCENE_JOB_TTL_MS = 30 * 60 * 1000;
@@ -136,6 +144,8 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
     environmentContext: job.result.environmentContext,
     seasonalNote: job.result.seasonalNote,
     coexistingTaxa: job.result.coexistingTaxa,
+    saveRecommendation: job.result.saveRecommendation,
+    autoSave: job.autoSave,
     isNew: job.result.isNew,
     sceneHash: job.result.sceneHash,
   };
@@ -144,6 +154,100 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
 function writeSse(reply: { raw: { write: (chunk: string) => void } }, event: string, payload: Record<string, unknown>): void {
   reply.raw.write(`event: ${event}\n`);
   reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+async function resolveGuideSiteBrief(
+  lat: number,
+  lng: number,
+  lang: TtsLang,
+  fallbackLabel: string | null,
+): Promise<SiteBrief | null> {
+  try {
+    return await getSiteBrief(lat, lng, lang === "en" ? "en" : "ja");
+  } catch {
+    if (!fallbackLabel) return null;
+    return {
+      hypothesis: { id: "client_label", label: fallbackLabel, confidence: 0.2 },
+      reasons: [],
+      checks: [],
+      captureHints: [],
+      signals: { landcover: [], nearbyLandcover: [], waterDistanceM: null, elevationM: null },
+      officialNotices: [],
+    };
+  }
+}
+
+async function applyGuideAutoSave(input: {
+  sceneResult: SceneResult;
+  siteBrief: SiteBrief | null;
+  sessionId: string;
+  userId: string | null;
+  lat: number;
+  lng: number;
+  capturedAt: string;
+  returnedAt: string;
+  frameThumb: string | null;
+  sceneId: string;
+  lang: TtsLang;
+}): Promise<PendingGuideAutoSave> {
+  const decision = decideGuideAutoSave({ result: input.sceneResult, siteBrief: input.siteBrief });
+  if (decision.decision === "skip") {
+    return { state: "skipped", ...decision };
+  }
+
+  const ageSec = sceneAgeSeconds(input.capturedAt, new Date(input.returnedAt));
+  const copy = buildDelayedSceneCopy(input.sceneResult, ageSec);
+  try {
+    const guideRecordId = await saveGuideRecord({
+      sessionId: input.sessionId,
+      userId: input.userId,
+      lat: input.lat,
+      lng: input.lng,
+      capturedAt: input.capturedAt,
+      returnedAt: input.returnedAt,
+      currentDistanceM: null,
+      deliveryState: "ready",
+      seenState: "saved",
+      frameThumb: input.frameThumb,
+      sceneHash: input.sceneResult.sceneHash,
+      sceneSummary: copy.delayedSummary,
+      detectedSpecies: input.sceneResult.detectedSpecies,
+      detectedFeatures: input.sceneResult.detectedFeatures,
+      primarySubject: input.sceneResult.primarySubject ?? null,
+      environmentContext: input.sceneResult.environmentContext ?? null,
+      seasonalNote: input.sceneResult.seasonalNote ?? null,
+      coexistingTaxa: input.sceneResult.coexistingTaxa ?? [],
+      confidenceContext: {
+        delayed: true,
+        ageSec,
+        uncertaintyReason: copy.uncertaintyReason,
+        autoSave: decision,
+      },
+      mediaRefs: input.frameThumb ? { frameThumb: input.frameThumb } : {},
+      meta: {
+        sceneId: input.sceneId,
+        whyInteresting: copy.whyInteresting,
+        nextLookTarget: copy.nextLookTarget,
+        autoSave: decision,
+        siteBrief: input.siteBrief
+          ? {
+              id: input.siteBrief.hypothesis.id,
+              label: input.siteBrief.hypothesis.label,
+              confidence: input.siteBrief.hypothesis.confidence,
+              signals: input.siteBrief.signals,
+            }
+          : null,
+      },
+      lang: input.lang,
+    });
+    return { state: "saved", guideRecordId, ...decision };
+  } catch (error) {
+    return {
+      state: "error",
+      ...decision,
+      error: error instanceof Error ? error.message : "guide_auto_save_failed",
+    };
+  }
 }
 
 export function registerGuideApiRoutes(app: FastifyInstance): void {
@@ -162,8 +266,8 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    *   lang?:       TtsLang (default "ja")
    *   siteBriefLabel?: string
    *
-   * This endpoint keeps analysis in memory for the live trail. Persistent
-   * guide_records are created only by POST /api/v1/guide/record.
+   * This endpoint auto-saves only scenes that pass the field-observation
+   * quality gate. Indoor/person-only/duplicate scenes remain transient.
    */
   app.post("/api/v1/guide/scene", async (request, reply) => {
     pruneSceneJobs();
@@ -204,12 +308,19 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       frameThumb,
       status: "pending",
       result: null,
+      autoSave: null,
       error: null,
     };
     sceneJobs.set(sceneId, job);
 
     void (async () => {
       try {
+        const siteBrief = await resolveGuideSiteBrief(
+          lat,
+          lng,
+          lang,
+          typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null,
+        );
         const sceneResult = await analyzeScene({
           frameBase64: frame,
           audioBase64: typeof body.audio === "string" ? body.audio : null,
@@ -220,15 +331,30 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
             lang,
             sessionId,
             userId,
-            siteBriefLabel: typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null,
+            siteBriefLabel: siteBrief?.hypothesis.label ?? (typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null),
+            siteBriefSignals: siteBrief?.signals ?? null,
             capturedAt,
             azimuth,
           },
         });
 
-        job.status = "ready";
-        job.returnedAt = new Date().toISOString();
+        const returnedAt = new Date().toISOString();
+        job.returnedAt = returnedAt;
         job.result = sceneResult;
+        job.autoSave = await applyGuideAutoSave({
+          sceneResult,
+          siteBrief,
+          sessionId,
+          userId,
+          lat,
+          lng,
+          capturedAt,
+          returnedAt,
+          frameThumb,
+          sceneId,
+          lang,
+        });
+        job.status = "ready";
       } catch (error) {
         job.status = "error";
         job.returnedAt = new Date().toISOString();
