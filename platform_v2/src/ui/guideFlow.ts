@@ -24,6 +24,15 @@ type GuideCopy = {
   audioOnlyBody: string;
   cameraOnlyNotice: string;
   cameraAudioNotice: string;
+  recommendedTitle: string;
+  recommendedBody: string;
+  recommendedApply: string;
+  recommendedPocketHint: string;
+  sessionSummaryTitle: string;
+  sessionSummarySaved: string;
+  sessionSummarySkipped: string;
+  sessionSummaryAudioOnly: string;
+  sessionSummaryEmpty: string;
   stopBtn: string;
   langLabel: string;
   categoryLabel: string;
@@ -90,6 +99,15 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOnlyBody: "カメラ映像は取得していません。ポケットに入れて歩くときは、このまま自然音の手がかりを集められます。",
     cameraOnlyNotice: "カメラだけで開始しました。音声は記録しません。",
     cameraAudioNotice: "カメラと音声で開始しました。人声らしい音は保存しません。",
+    recommendedTitle: "おすすめ設定",
+    recommendedBody: "歩きながら見たり、自転車でゆっくり移動するなら「カメラON + 音声ON」が一番情報量を増やせます。",
+    recommendedApply: "おすすめを使う",
+    recommendedPocketHint: "ポケットに入れて使う日は、カメラOFF + 音声ONに変えると映像を取らずに自然音だけ集められます。",
+    sessionSummaryTitle: "今回のふりかえり",
+    sessionSummarySaved: "保存されたもの",
+    sessionSummarySkipped: "保存しなかったもの",
+    sessionSummaryAudioOnly: "音声だけで取れたもの",
+    sessionSummaryEmpty: "まだ集計できる記録はありません。",
     stopBtn: "停止する",
     langLabel: "言語",
     categoryLabel: "ガイドカテゴリ",
@@ -159,6 +177,15 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOnlyBody: "No camera video is captured. This mode is suited to pocket walks that collect natural sound cues.",
     cameraOnlyNotice: "Started with camera only. Audio is not recorded.",
     cameraAudioNotice: "Started with camera and audio. Speech-like clips are not saved.",
+    recommendedTitle: "Recommended setup",
+    recommendedBody: "For walking or slow bike rides, Camera on + Audio on gives Guide the richest field clues.",
+    recommendedApply: "Use recommended",
+    recommendedPocketHint: "For pocket use, switch to Camera off + Audio on to collect natural sound without video.",
+    sessionSummaryTitle: "Session recap",
+    sessionSummarySaved: "Saved",
+    sessionSummarySkipped: "Not saved",
+    sessionSummaryAudioOnly: "Audio-only captures",
+    sessionSummaryEmpty: "No session activity to summarize yet.",
     stopBtn: "Stop",
     langLabel: "Language",
     categoryLabel: "Guide Category",
@@ -228,6 +255,15 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOnlyBody: "No se captura video. Este modo sirve para caminar con el teléfono en el bolsillo y recoger pistas sonoras naturales.",
     cameraOnlyNotice: "Iniciado solo con cámara. No se graba audio.",
     cameraAudioNotice: "Iniciado con cámara y audio. Los clips con voz probable no se guardan.",
+    recommendedTitle: "Ajuste recomendado",
+    recommendedBody: "Para caminar o ir despacio en bicicleta, cámara ON + audio ON aporta más pistas de campo.",
+    recommendedApply: "Usar recomendado",
+    recommendedPocketHint: "Para usarlo en el bolsillo, cambia a cámara OFF + audio ON y no se capturará video.",
+    sessionSummaryTitle: "Resumen de la sesión",
+    sessionSummarySaved: "Guardado",
+    sessionSummarySkipped: "No guardado",
+    sessionSummaryAudioOnly: "Capturas solo audio",
+    sessionSummaryEmpty: "Aún no hay actividad para resumir.",
     stopBtn: "Detener",
     langLabel: "Idioma",
     categoryLabel: "Categoría",
@@ -297,6 +333,15 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioOnlyBody: "Nenhum vídeo é capturado. Este modo é indicado para caminhar com o celular no bolso e coletar pistas sonoras naturais.",
     cameraOnlyNotice: "Iniciado somente com câmera. O áudio não é gravado.",
     cameraAudioNotice: "Iniciado com câmera e áudio. Clipes com provável voz não são salvos.",
+    recommendedTitle: "Configuração recomendada",
+    recommendedBody: "Para caminhar ou pedalar devagar, câmera ON + áudio ON dá ao guia mais pistas de campo.",
+    recommendedApply: "Usar recomendado",
+    recommendedPocketHint: "Para usar no bolso, mude para câmera OFF + áudio ON e nenhum vídeo será capturado.",
+    sessionSummaryTitle: "Resumo da sessão",
+    sessionSummarySaved: "Salvo",
+    sessionSummarySkipped: "Não salvo",
+    sessionSummaryAudioOnly: "Capturas só com áudio",
+    sessionSummaryEmpty: "Ainda não há atividade para resumir.",
     stopBtn: "Parar",
     langLabel: "Idioma",
     categoryLabel: "Categoria",
@@ -396,6 +441,15 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         <p>${escapeHtml(c.startSheetBody)}</p>
       </div>
 
+      <div class="guide-recommended-card">
+        <div>
+          <strong>${escapeHtml(c.recommendedTitle)}</strong>
+          <p>${escapeHtml(c.recommendedBody)}</p>
+          <small>${escapeHtml(c.recommendedPocketHint)}</small>
+        </div>
+        <button class="guide-recommended-apply" id="guide-recommended-apply" type="button">${escapeHtml(c.recommendedApply)}</button>
+      </div>
+
       <fieldset class="guide-start-choice">
         <legend>${escapeHtml(c.cameraChoiceTitle)}</legend>
         <p>${escapeHtml(c.cameraChoiceBody)}</p>
@@ -460,6 +514,16 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <input class="guide-photo-input" id="guide-photo-input" type="file" accept="image/*" hidden>
   </div>
 
+  <section class="guide-session-summary" id="guide-session-summary" hidden aria-live="polite">
+    <h2>${escapeHtml(c.sessionSummaryTitle)}</h2>
+    <div class="guide-session-summary-grid">
+      <div><strong id="guide-summary-saved">0</strong><span>${escapeHtml(c.sessionSummarySaved)}</span></div>
+      <div><strong id="guide-summary-skipped">0</strong><span>${escapeHtml(c.sessionSummarySkipped)}</span></div>
+      <div><strong id="guide-summary-audio-only">0</strong><span>${escapeHtml(c.sessionSummaryAudioOnly)}</span></div>
+    </div>
+    <p id="guide-summary-empty" hidden>${escapeHtml(c.sessionSummaryEmpty)}</p>
+  </section>
+
   <div class="guide-discoveries" id="guide-discoveries">
     <div class="guide-trail-header">
       <h2 class="guide-discoveries-title">${escapeHtml(c.trailTitle)}</h2>
@@ -509,7 +573,8 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     noSensorNotice: ${JSON.stringify(c.noSensorNotice)},
     audioOnlyNotice: ${JSON.stringify(c.audioOnlyNotice)},
     cameraOnlyNotice: ${JSON.stringify(c.cameraOnlyNotice)},
-    cameraAudioNotice: ${JSON.stringify(c.cameraAudioNotice)}
+    cameraAudioNotice: ${JSON.stringify(c.cameraAudioNotice)},
+    sessionSummaryEmpty: ${JSON.stringify(c.sessionSummaryEmpty)}
   };
   const BASE = ${JSON.stringify(basePath)};
 
@@ -533,8 +598,10 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   let clientPrivacySkippedCount = 0;
   let audioOptIn = false;
   let cameraOptIn = true;
+  let audioOnlyChunkCount = 0;
   const pendingScenes = new Map();
   const readyScenes = new Map();
+  const manuallySavedSceneIds = new Set();
   const sessionId = 'guide-' + Math.random().toString(36).slice(2);
   const preferredMime = pickAudioMimeType();
 
@@ -562,6 +629,12 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const startConfirm = document.getElementById('guide-start-confirm');
   const startCancel = document.getElementById('guide-start-cancel');
   const startSheetLive = document.getElementById('guide-start-sheet-live');
+  const recommendedApply = document.getElementById('guide-recommended-apply');
+  const sessionSummary = document.getElementById('guide-session-summary');
+  const summarySaved = document.getElementById('guide-summary-saved');
+  const summarySkipped = document.getElementById('guide-summary-skipped');
+  const summaryAudioOnly = document.getElementById('guide-summary-audio-only');
+  const summaryEmpty = document.getElementById('guide-summary-empty');
 
   function getLang() { return document.getElementById('guide-lang-select').value; }
   function getCategory() { return document.getElementById('guide-category-select').value; }
@@ -938,11 +1011,14 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
           clientVadResult: vad
         }
       };
-      await fetch(BASE + '/api/v1/fieldscan/audio/submit', {
+      const response = await fetch(BASE + '/api/v1/fieldscan/audio/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      if (!response.ok) throw new Error('audio_submit_failed_' + response.status);
+      if (!cameraOptIn) audioOnlyChunkCount += 1;
+      if (sessionSummary && !sessionSummary.hidden) showSessionSummary();
     } catch (error) {
       console.error('Audio upload error', error);
     }
@@ -1156,6 +1232,35 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   function closeStartSheet() {
     if (startSheet) startSheet.hidden = true;
   }
+  function setRadioChoice(name, value) {
+    const target = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
+    if (target) target.checked = true;
+  }
+  function applyRecommendedSettings() {
+    setRadioChoice('guide-camera-choice', 'on');
+    setRadioChoice('guide-audio-choice', 'on');
+    if (startSheetLive) startSheetLive.textContent = '';
+  }
+  function sessionCounts() {
+    const savedIds = new Set(manuallySavedSceneIds);
+    let skipped = 0;
+    readyScenes.forEach((scene, sceneId) => {
+      const state = scene && scene.autoSave ? scene.autoSave.state : '';
+      if (state === 'saved') savedIds.add(sceneId);
+      if ((state === 'skipped' || state === 'error') && !savedIds.has(sceneId)) skipped += 1;
+    });
+    return { saved: savedIds.size, skipped, audioOnly: audioOnlyChunkCount };
+  }
+  function showSessionSummary() {
+    if (!sessionSummary) return;
+    const counts = sessionCounts();
+    if (summarySaved) summarySaved.textContent = String(counts.saved);
+    if (summarySkipped) summarySkipped.textContent = String(counts.skipped);
+    if (summaryAudioOnly) summaryAudioOnly.textContent = String(counts.audioOnly);
+    const isEmpty = counts.saved === 0 && counts.skipped === 0 && counts.audioOnly === 0;
+    if (summaryEmpty) summaryEmpty.hidden = !isEmpty;
+    sessionSummary.hidden = false;
+  }
   function stopAudioCapture() {
     if (audioSampleTimer) clearInterval(audioSampleTimer);
     audioSampleTimer = null;
@@ -1297,6 +1402,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       void beginGuideFromSheet();
     });
   }
+  if (recommendedApply) {
+    recommendedApply.addEventListener('click', applyRecommendedSettings);
+  }
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && startSheet && !startSheet.hidden) closeStartSheet();
   });
@@ -1325,6 +1433,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     startBtn.hidden = false;
     setStatus('');
     setNowState('');
+    showSessionSummary();
     scheduleRecapRefresh();
   });
   async function playTrailScene(scene) {
@@ -1349,7 +1458,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   }
   async function saveTrailScene(scene, button) {
     if (!scene) return;
-    await fetch(BASE + '/api/v1/guide/record', {
+    const response = await fetch(BASE + '/api/v1/guide/record', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1367,6 +1476,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         ttsScript: null,
       })
     });
+    if (!response.ok) throw new Error('guide_manual_save_failed_' + response.status);
+    if (scene.sceneId) manuallySavedSceneIds.add(scene.sceneId);
+    showSessionSummary();
     if (button) {
       const old = button.textContent;
       button.textContent = '✓';
@@ -1416,6 +1528,11 @@ export const GUIDE_FLOW_STYLES = `
   .guide-start-sheet-head { display: grid; gap: 6px; }
   .guide-start-sheet-head h2 { margin: 0; color: #0f172a; font-size: 20px; line-height: 1.28; font-weight: 950; letter-spacing: 0; }
   .guide-start-sheet-head p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 750; }
+  .guide-recommended-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(5,150,105,.22); box-shadow: inset 0 0 0 1px rgba(5,150,105,.08); }
+  .guide-recommended-card strong { display: block; color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 950; }
+  .guide-recommended-card p { margin: 4px 0 0; color: #065f46; font-size: 12px; line-height: 1.6; font-weight: 850; }
+  .guide-recommended-card small { display: block; margin-top: 5px; color: #0f766e; font-size: 11px; line-height: 1.5; font-weight: 800; }
+  .guide-recommended-apply { min-height: 40px; padding: 8px 13px; border: none; border-radius: 999px; background: #059669; color: #fff; font-size: 12px; font-weight: 950; cursor: pointer; white-space: nowrap; }
   .guide-start-choice { margin: 0; padding: 13px; border-radius: 8px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; display: grid; gap: 9px; }
   .guide-start-choice legend { padding: 0 4px; color: #0f172a; font-size: 13px; font-weight: 950; }
   .guide-start-choice p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
@@ -1436,7 +1553,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-now-state { min-width: 72px; text-align: right; font-size: 12px; color: #047857; font-weight: 900; }
   .guide-camera-wrap { position: relative; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 14px 34px rgba(15,23,42,.18); }
   .guide-camera-wrap.is-audio-only { min-height: 172px; display: grid; place-items: center; padding: 18px; background: linear-gradient(135deg, #0f172a, #164e63); }
-  .guide-video { width: 100%; display: block; border-radius: 8px; max-height: 360px; object-fit: cover; }
+  .guide-video { width: 100%; display: block; border-radius: 8px; height: min(68dvh, 640px); min-height: 420px; object-fit: cover; }
   .guide-video[hidden] { display: none; }
   .guide-audio-only-panel[hidden] { display: none; }
   .guide-audio-only-panel { max-width: 420px; text-align: center; color: #e0f2fe; display: grid; gap: 8px; padding: 24px 18px 52px; }
@@ -1451,6 +1568,14 @@ export const GUIDE_FLOW_STYLES = `
   .guide-photo-fallback p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
   .guide-photo-btn { min-height: 46px; padding: 10px 16px; border-radius: 999px; border: none; background: #0f172a; color: #fff; font-size: 13px; font-weight: 900; cursor: pointer; }
   .guide-photo-btn:disabled { opacity: .62; cursor: wait; }
+  .guide-session-summary[hidden] { display: none; }
+  .guide-session-summary { margin: 18px 0 22px; padding: 14px; border-radius: 8px; background: rgba(255,255,255,.95); border: 1px solid rgba(15,23,42,.1); box-shadow: 0 8px 20px rgba(15,23,42,.05); display: grid; gap: 11px; }
+  .guide-session-summary h2 { margin: 0; color: #0f172a; font-size: 14px; font-weight: 950; line-height: 1.35; }
+  .guide-session-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .guide-session-summary-grid div { min-width: 0; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); display: grid; gap: 2px; }
+  .guide-session-summary-grid strong { color: #059669; font-size: 22px; line-height: 1; font-weight: 950; }
+  .guide-session-summary-grid span { color: #475569; font-size: 11px; line-height: 1.35; font-weight: 850; }
+  .guide-session-summary p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 800; }
   .guide-discoveries { margin-top: 24px; }
   .guide-trail-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .guide-discoveries-title { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; margin: 0 0 12px; }
@@ -1500,8 +1625,12 @@ export const GUIDE_FLOW_STYLES = `
   @media (max-width: 520px) {
     .guide-start-sheet-backdrop { padding: 10px; }
     .guide-start-sheet { padding: 15px; }
+    .guide-recommended-card { grid-template-columns: 1fr; }
+    .guide-recommended-apply { width: 100%; }
     .guide-start-options { grid-template-columns: 1fr; }
     .guide-start-sheet-actions { flex-direction: column-reverse; }
     .guide-sheet-secondary, .guide-sheet-primary { width: 100%; }
+    .guide-video { height: min(70dvh, 620px); min-height: 360px; }
+    .guide-session-summary-grid { grid-template-columns: 1fr; }
   }
 `;
