@@ -5,6 +5,25 @@ type GuideCopy = {
   title: string;
   subtitle: string;
   startBtn: string;
+  startSheetTitle: string;
+  startSheetBody: string;
+  cameraChoiceTitle: string;
+  cameraChoiceBody: string;
+  cameraOnBtn: string;
+  cameraOffBtn: string;
+  cameraOffHint: string;
+  audioChoiceTitle: string;
+  audioChoiceBody: string;
+  audioOnBtn: string;
+  audioOffBtn: string;
+  beginWithChoices: string;
+  startSheetCancel: string;
+  noSensorNotice: string;
+  audioOnlyNotice: string;
+  audioOnlyTitle: string;
+  audioOnlyBody: string;
+  cameraOnlyNotice: string;
+  cameraAudioNotice: string;
   stopBtn: string;
   langLabel: string;
   categoryLabel: string;
@@ -52,6 +71,25 @@ const COPY: Record<SiteLang, GuideCopy> = {
     title: "ライブガイド",
     subtitle: "映像と音から、土地の物語を足跡に残します",
     startBtn: "ガイドを開始する",
+    startSheetTitle: "使うものを選んで開始します",
+    startSheetBody: "歩き方に合わせて、カメラと音声を別々に選べます。あとから画面下のボタンで音声だけ切り替えることもできます。",
+    cameraChoiceTitle: "カメラを使いますか？",
+    cameraChoiceBody: "周囲の植物や地形を読み取る場合はONが向いています。ポケットに入れて音だけ集めるときはOFFにすると、映像は取得しません。",
+    cameraOnBtn: "カメラON",
+    cameraOffBtn: "カメラOFF",
+    cameraOffHint: "カメラOFFでは映像解析は行わず、音声ONの場合だけ自然音を記録します。",
+    audioChoiceTitle: "音声も記録しますか？",
+    audioChoiceBody: "外を歩いたり自転車で移動する場合、鳥・虫・水音などの手がかりが増えます。人の声らしい音は保存しないよう除外します。",
+    audioOnBtn: "音声ON",
+    audioOffBtn: "音声OFF",
+    beginWithChoices: "この設定で開始する",
+    startSheetCancel: "戻る",
+    noSensorNotice: "カメラか音声のどちらかをONにすると開始できます。",
+    audioOnlyNotice: "音声だけで開始しました。映像は取得せず、自然音候補だけを短く記録します。",
+    audioOnlyTitle: "音声だけで記録中",
+    audioOnlyBody: "カメラ映像は取得していません。ポケットに入れて歩くときは、このまま自然音の手がかりを集められます。",
+    cameraOnlyNotice: "カメラだけで開始しました。音声は記録しません。",
+    cameraAudioNotice: "カメラと音声で開始しました。人声らしい音は保存しません。",
     stopBtn: "停止する",
     langLabel: "言語",
     categoryLabel: "ガイドカテゴリ",
@@ -102,6 +140,25 @@ const COPY: Record<SiteLang, GuideCopy> = {
     title: "Live Guide",
     subtitle: "Continuous video & audio analysis — the land tells its story",
     startBtn: "Start Guide",
+    startSheetTitle: "Choose what Guide can use",
+    startSheetBody: "Camera and audio are separate choices. You can still change audio later.",
+    cameraChoiceTitle: "Use the camera?",
+    cameraChoiceBody: "Turn it on when you want plants, habitat, and landforms read from the scene. Turn it off for pocket audio-only walks.",
+    cameraOnBtn: "Camera on",
+    cameraOffBtn: "Camera off",
+    cameraOffHint: "With camera off, Guide does not capture video. If audio is on, only natural-sound candidates are recorded.",
+    audioChoiceTitle: "Record audio too?",
+    audioChoiceBody: "Audio helps during walks or bike rides by adding clues like birds, insects, and water. Speech-like clips are skipped.",
+    audioOnBtn: "Audio on",
+    audioOffBtn: "Audio off",
+    beginWithChoices: "Start with these settings",
+    startSheetCancel: "Back",
+    noSensorNotice: "Turn on either camera or audio to start.",
+    audioOnlyNotice: "Started audio-only. No video is captured; only natural-sound candidates are recorded.",
+    audioOnlyTitle: "Recording audio only",
+    audioOnlyBody: "No camera video is captured. This mode is suited to pocket walks that collect natural sound cues.",
+    cameraOnlyNotice: "Started with camera only. Audio is not recorded.",
+    cameraAudioNotice: "Started with camera and audio. Speech-like clips are not saved.",
     stopBtn: "Stop",
     langLabel: "Language",
     categoryLabel: "Guide Category",
@@ -152,6 +209,25 @@ const COPY: Record<SiteLang, GuideCopy> = {
     title: "Guía de Campo",
     subtitle: "Análisis continuo de video y audio — la tierra cuenta su historia",
     startBtn: "Iniciar Guía",
+    startSheetTitle: "Elige qué puede usar la guía",
+    startSheetBody: "La cámara y el audio se eligen por separado. Luego puedes cambiar solo el audio.",
+    cameraChoiceTitle: "¿Usar cámara?",
+    cameraChoiceBody: "Actívala para leer plantas, hábitat y relieve. Desactívala si llevas el teléfono en el bolsillo y quieres solo audio.",
+    cameraOnBtn: "Cámara ON",
+    cameraOffBtn: "Cámara OFF",
+    cameraOffHint: "Sin cámara no se captura video. Si el audio está activo, solo se guardan sonidos naturales candidatos.",
+    audioChoiceTitle: "¿Grabar audio también?",
+    audioChoiceBody: "En caminatas o bicicleta, el audio aporta pistas como aves, insectos o agua. Los clips con posible voz humana se omiten.",
+    audioOnBtn: "Audio ON",
+    audioOffBtn: "Audio OFF",
+    beginWithChoices: "Iniciar con estos ajustes",
+    startSheetCancel: "Volver",
+    noSensorNotice: "Activa cámara o audio para iniciar.",
+    audioOnlyNotice: "Iniciado solo con audio. No se captura video; solo sonidos naturales candidatos.",
+    audioOnlyTitle: "Grabando solo audio",
+    audioOnlyBody: "No se captura video. Este modo sirve para caminar con el teléfono en el bolsillo y recoger pistas sonoras naturales.",
+    cameraOnlyNotice: "Iniciado solo con cámara. No se graba audio.",
+    cameraAudioNotice: "Iniciado con cámara y audio. Los clips con voz probable no se guardan.",
     stopBtn: "Detener",
     langLabel: "Idioma",
     categoryLabel: "Categoría",
@@ -202,6 +278,25 @@ const COPY: Record<SiteLang, GuideCopy> = {
     title: "Guia de Campo",
     subtitle: "Análise contínua de vídeo e áudio — a terra conta sua história",
     startBtn: "Iniciar Guia",
+    startSheetTitle: "Escolha o que o guia pode usar",
+    startSheetBody: "Câmera e áudio são escolhas separadas. Depois você ainda pode mudar só o áudio.",
+    cameraChoiceTitle: "Usar câmera?",
+    cameraChoiceBody: "Ligue para ler plantas, habitat e relevo. Desligue para caminhadas com o celular no bolso e apenas áudio.",
+    cameraOnBtn: "Câmera ON",
+    cameraOffBtn: "Câmera OFF",
+    cameraOffHint: "Com a câmera desligada, nenhum vídeo é capturado. Se o áudio estiver ligado, apenas sons naturais candidatos são gravados.",
+    audioChoiceTitle: "Gravar áudio também?",
+    audioChoiceBody: "Em caminhadas ou bicicleta, o áudio traz pistas como aves, insetos e água. Clipes com possível voz humana são ignorados.",
+    audioOnBtn: "Áudio ON",
+    audioOffBtn: "Áudio OFF",
+    beginWithChoices: "Iniciar com estes ajustes",
+    startSheetCancel: "Voltar",
+    noSensorNotice: "Ligue câmera ou áudio para iniciar.",
+    audioOnlyNotice: "Iniciado somente com áudio. Nenhum vídeo é capturado; apenas sons naturais candidatos.",
+    audioOnlyTitle: "Gravando somente áudio",
+    audioOnlyBody: "Nenhum vídeo é capturado. Este modo é indicado para caminhar com o celular no bolso e coletar pistas sonoras naturais.",
+    cameraOnlyNotice: "Iniciado somente com câmera. O áudio não é gravado.",
+    cameraAudioNotice: "Iniciado com câmera e áudio. Clipes com provável voz não são salvos.",
     stopBtn: "Parar",
     langLabel: "Idioma",
     categoryLabel: "Categoria",
@@ -294,6 +389,52 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <p class="guide-privacy-live" id="guide-privacy-live" aria-live="polite">${escapeHtml(c.audioOffNotice)}</p>
   </div>
 
+  <div class="guide-start-sheet-backdrop" id="guide-start-sheet" hidden>
+    <div class="guide-start-sheet" role="dialog" aria-modal="true" aria-labelledby="guide-start-sheet-title">
+      <div class="guide-start-sheet-head">
+        <h2 id="guide-start-sheet-title">${escapeHtml(c.startSheetTitle)}</h2>
+        <p>${escapeHtml(c.startSheetBody)}</p>
+      </div>
+
+      <fieldset class="guide-start-choice">
+        <legend>${escapeHtml(c.cameraChoiceTitle)}</legend>
+        <p>${escapeHtml(c.cameraChoiceBody)}</p>
+        <div class="guide-start-options">
+          <label class="guide-start-option">
+            <input type="radio" name="guide-camera-choice" value="on" checked>
+            <span>${escapeHtml(c.cameraOnBtn)}</span>
+          </label>
+          <label class="guide-start-option">
+            <input type="radio" name="guide-camera-choice" value="off">
+            <span>${escapeHtml(c.cameraOffBtn)}</span>
+          </label>
+        </div>
+        <small>${escapeHtml(c.cameraOffHint)}</small>
+      </fieldset>
+
+      <fieldset class="guide-start-choice">
+        <legend>${escapeHtml(c.audioChoiceTitle)}</legend>
+        <p>${escapeHtml(c.audioChoiceBody)}</p>
+        <div class="guide-start-options">
+          <label class="guide-start-option">
+            <input type="radio" name="guide-audio-choice" value="on">
+            <span>${escapeHtml(c.audioOnBtn)}</span>
+          </label>
+          <label class="guide-start-option">
+            <input type="radio" name="guide-audio-choice" value="off" checked>
+            <span>${escapeHtml(c.audioOffBtn)}</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <p class="guide-start-sheet-live" id="guide-start-sheet-live" aria-live="polite"></p>
+      <div class="guide-start-sheet-actions">
+        <button class="guide-sheet-secondary" id="guide-start-cancel" type="button">${escapeHtml(c.startSheetCancel)}</button>
+        <button class="guide-sheet-primary" id="guide-start-confirm" type="button">${escapeHtml(c.beginWithChoices)}</button>
+      </div>
+    </div>
+  </div>
+
   <div class="guide-now" id="guide-now" hidden>
     <div>
       <h2 class="guide-now-title">${escapeHtml(c.nowTitle)}</h2>
@@ -304,6 +445,10 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
 
   <div class="guide-camera-wrap" id="guide-camera-wrap" hidden>
     <video class="guide-video" id="guide-video" autoplay playsinline muted></video>
+    <div class="guide-audio-only-panel" id="guide-audio-only-panel" hidden>
+      <strong>${escapeHtml(c.audioOnlyTitle)}</strong>
+      <p>${escapeHtml(c.audioOnlyBody)}</p>
+    </div>
     <div class="guide-status" id="guide-status"></div>
     <button class="guide-stop-btn" id="guide-stop-btn">${escapeHtml(c.stopBtn)}</button>
   </div>
@@ -360,7 +505,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     autoSaved: ${JSON.stringify(c.autoSaved)},
     autoSkipped: ${JSON.stringify(c.autoSkipped)},
     autoSaveError: ${JSON.stringify(c.autoSaveError)},
-    manualSave: ${JSON.stringify(c.manualSave)}
+    manualSave: ${JSON.stringify(c.manualSave)},
+    noSensorNotice: ${JSON.stringify(c.noSensorNotice)},
+    audioOnlyNotice: ${JSON.stringify(c.audioOnlyNotice)},
+    cameraOnlyNotice: ${JSON.stringify(c.cameraOnlyNotice)},
+    cameraAudioNotice: ${JSON.stringify(c.cameraAudioNotice)}
   };
   const BASE = ${JSON.stringify(basePath)};
 
@@ -383,6 +532,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   let analyserFrames = [];
   let clientPrivacySkippedCount = 0;
   let audioOptIn = false;
+  let cameraOptIn = true;
   const pendingScenes = new Map();
   const readyScenes = new Map();
   const sessionId = 'guide-' + Math.random().toString(36).slice(2);
@@ -407,6 +557,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const audioSkip  = document.getElementById('guide-audio-skipped');
   const audioOptBtn = document.getElementById('guide-audio-opt-btn');
   const privacyLive = document.getElementById('guide-privacy-live');
+  const audioOnlyPanel = document.getElementById('guide-audio-only-panel');
+  const startSheet = document.getElementById('guide-start-sheet');
+  const startConfirm = document.getElementById('guide-start-confirm');
+  const startCancel = document.getElementById('guide-start-cancel');
+  const startSheetLive = document.getElementById('guide-start-sheet-live');
 
   function getLang() { return document.getElementById('guide-lang-select').value; }
   function getCategory() { return document.getElementById('guide-category-select').value; }
@@ -987,6 +1142,20 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     privacyLive.hidden = false;
     privacyLive.textContent = message;
   }
+  function selectedChoice(name, fallback) {
+    const checked = document.querySelector('input[name="' + name + '"]:checked');
+    return checked && checked.value ? checked.value : fallback;
+  }
+  function openStartSheet() {
+    if (!startSheet) return;
+    if (startSheetLive) startSheetLive.textContent = '';
+    startSheet.hidden = false;
+    const first = startSheet.querySelector('input[name="guide-camera-choice"]');
+    if (first && typeof first.focus === 'function') first.focus();
+  }
+  function closeStartSheet() {
+    if (startSheet) startSheet.hidden = true;
+  }
   function stopAudioCapture() {
     if (audioSampleTimer) clearInterval(audioSampleTimer);
     audioSampleTimer = null;
@@ -1051,7 +1220,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       }
     }
     startAnalyser();
-    if (audioStream) showPrivacyNotice(copy.audioOptInNotice);
+    if (audioStream) showPrivacyNotice(cameraOptIn ? copy.audioOptInNotice : copy.audioOnlyNotice);
   }
   if (audioOptBtn) {
     audioOptBtn.addEventListener('click', () => {
@@ -1067,30 +1236,69 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     });
   }
   updateAudioOptButton();
-  startBtn.addEventListener('click', async () => {
+  async function beginGuideFromSheet() {
+    cameraOptIn = selectedChoice('guide-camera-choice', 'on') === 'on';
+    audioOptIn = selectedChoice('guide-audio-choice', 'off') === 'on';
+    updateAudioOptButton();
+    if (!cameraOptIn && !audioOptIn) {
+      if (startSheetLive) startSheetLive.textContent = copy.noSensorNotice;
+      return;
+    }
+    closeStartSheet();
     try {
-      stream = await requestEnvironmentCamera();
+      if (cameraOptIn) {
+        stream = await requestEnvironmentCamera();
+        video.srcObject = stream;
+        if (video) video.hidden = false;
+        if (audioOnlyPanel) audioOnlyPanel.hidden = true;
+        camWrap.classList.remove('is-audio-only');
+        camWrap.hidden = false;
+      } else {
+        stream = null;
+        if (video) video.srcObject = null;
+        if (video) video.hidden = true;
+        if (audioOnlyPanel) audioOnlyPanel.hidden = false;
+        camWrap.classList.add('is-audio-only');
+        camWrap.hidden = false;
+      }
       lastKnownPosition = await getLocation();
-      video.srcObject = stream;
       running = true;
       if (privacyLive) {
         privacyLive.hidden = false;
-        privacyLive.textContent = audioOptIn ? copy.audioOptInNotice : copy.audioOffNotice;
+        privacyLive.textContent = cameraOptIn
+          ? (audioOptIn ? copy.cameraAudioNotice : copy.cameraOnlyNotice)
+          : copy.audioOnlyNotice;
       }
       if (audioOptIn) void startOptionalAudioCapture();
       void prepareLiveAssist();
-      camWrap.hidden = false;
       if (nowWrap) nowWrap.hidden = false;
       startBtn.hidden = true;
       permMsg.hidden = true;
       if (photoFallback) photoFallback.hidden = true;
-      analyseTimer = setTimeout(doAnalyse, 5000);
+      if (cameraOptIn) analyseTimer = setTimeout(doAnalyse, 5000);
       scheduleRecapRefresh();
     } catch (err) {
       permMsg.hidden = false;
       if (photoFallback) photoFallback.hidden = false;
       console.error('Guide camera unavailable', err);
     }
+  }
+  startBtn.addEventListener('click', openStartSheet);
+  if (startCancel) {
+    startCancel.addEventListener('click', closeStartSheet);
+  }
+  if (startSheet) {
+    startSheet.addEventListener('click', (event) => {
+      if (event.target === startSheet) closeStartSheet();
+    });
+  }
+  if (startConfirm) {
+    startConfirm.addEventListener('click', () => {
+      void beginGuideFromSheet();
+    });
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && startSheet && !startSheet.hidden) closeStartSheet();
   });
   if (photoBtn && photoInput) {
     photoBtn.addEventListener('click', () => {
@@ -1110,6 +1318,9 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     stopAudioCapture();
     stream = null;
     camWrap.hidden = true;
+    camWrap.classList.remove('is-audio-only');
+    if (video) video.hidden = false;
+    if (audioOnlyPanel) audioOnlyPanel.hidden = true;
     if (nowWrap) nowWrap.hidden = true;
     startBtn.hidden = false;
     setStatus('');
@@ -1199,13 +1410,38 @@ export const GUIDE_FLOW_STYLES = `
   .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 800; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
   .guide-start-btn { min-height: 56px; padding: 14px 24px; border-radius: 999px; background: #059669; color: #fff; font-size: 15px; font-weight: 950; border: none; cursor: pointer; box-shadow: 0 12px 26px rgba(5,150,105,.24); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
   .guide-start-btn:hover { transform: translateY(-2px); background: #047857; box-shadow: 0 16px 30px rgba(5,150,105,.28); }
+  .guide-start-sheet-backdrop[hidden] { display: none; }
+  .guide-start-sheet-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(15,23,42,.48); backdrop-filter: blur(5px); }
+  .guide-start-sheet { width: min(100%, 560px); max-height: min(86vh, 720px); overflow-y: auto; display: grid; gap: 14px; padding: 18px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.12); box-shadow: 0 24px 60px rgba(15,23,42,.28); }
+  .guide-start-sheet-head { display: grid; gap: 6px; }
+  .guide-start-sheet-head h2 { margin: 0; color: #0f172a; font-size: 20px; line-height: 1.28; font-weight: 950; letter-spacing: 0; }
+  .guide-start-sheet-head p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 750; }
+  .guide-start-choice { margin: 0; padding: 13px; border-radius: 8px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; display: grid; gap: 9px; }
+  .guide-start-choice legend { padding: 0 4px; color: #0f172a; font-size: 13px; font-weight: 950; }
+  .guide-start-choice p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
+  .guide-start-choice small { color: #0f766e; font-size: 11px; line-height: 1.5; font-weight: 850; }
+  .guide-start-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .guide-start-option { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .guide-start-option:has(input:checked) { border-color: rgba(5,150,105,.55); background: #ecfdf5; color: #065f46; box-shadow: inset 0 0 0 1px rgba(5,150,105,.18); }
+  .guide-start-option input { width: 16px; height: 16px; accent-color: #059669; flex: 0 0 auto; }
+  .guide-start-sheet-live { min-height: 18px; margin: -2px 0 0; color: #b45309; font-size: 12px; line-height: 1.5; font-weight: 900; }
+  .guide-start-sheet-actions { display: flex; justify-content: flex-end; gap: 10px; }
+  .guide-sheet-secondary, .guide-sheet-primary { min-height: 46px; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .guide-sheet-secondary { border: 1px solid rgba(15,23,42,.14); background: #fff; color: #334155; }
+  .guide-sheet-primary { border: none; background: #059669; color: #fff; box-shadow: 0 10px 24px rgba(5,150,105,.22); }
   .guide-now[hidden] { display: none; }
   .guide-now { margin-bottom: 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-now-title { margin: 0 0 4px; font-size: 13px; font-weight: 900; color: #0f172a; }
   .guide-now-hint { margin: 0; font-size: 12px; color: #64748b; line-height: 1.6; }
   .guide-now-state { min-width: 72px; text-align: right; font-size: 12px; color: #047857; font-weight: 900; }
   .guide-camera-wrap { position: relative; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 14px 34px rgba(15,23,42,.18); }
+  .guide-camera-wrap.is-audio-only { min-height: 172px; display: grid; place-items: center; padding: 18px; background: linear-gradient(135deg, #0f172a, #164e63); }
   .guide-video { width: 100%; display: block; border-radius: 8px; max-height: 360px; object-fit: cover; }
+  .guide-video[hidden] { display: none; }
+  .guide-audio-only-panel[hidden] { display: none; }
+  .guide-audio-only-panel { max-width: 420px; text-align: center; color: #e0f2fe; display: grid; gap: 8px; padding: 24px 18px 52px; }
+  .guide-audio-only-panel strong { color: #fff; font-size: 18px; font-weight: 950; line-height: 1.25; }
+  .guide-audio-only-panel p { margin: 0; color: #bae6fd; font-size: 13px; line-height: 1.7; font-weight: 800; }
   .guide-status { position: absolute; top: 12px; left: 12px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; backdrop-filter: blur(6px); }
   .guide-stop-btn { position: absolute; bottom: 12px; right: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(239,68,68,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
   .guide-record-btn { position: absolute; bottom: 12px; left: 12px; padding: 8px 16px; border-radius: 999px; background: rgba(16,185,129,.88); color: #fff; font-size: 12px; font-weight: 800; border: none; cursor: pointer; backdrop-filter: blur(6px); }
@@ -1258,4 +1494,14 @@ export const GUIDE_FLOW_STYLES = `
   .guide-audio-card-head span { font-size: 12px; color: #0f766e; font-weight: 700; }
   .guide-audio-meta { font-size: 12px; color: #64748b; }
   .guide-audio-player { width: 100%; }
+  @media (min-width: 720px) {
+    .guide-start-sheet-backdrop { align-items: center; }
+  }
+  @media (max-width: 520px) {
+    .guide-start-sheet-backdrop { padding: 10px; }
+    .guide-start-sheet { padding: 15px; }
+    .guide-start-options { grid-template-columns: 1fr; }
+    .guide-start-sheet-actions { flex-direction: column-reverse; }
+    .guide-sheet-secondary, .guide-sheet-primary { width: 100%; }
+  }
 `;
