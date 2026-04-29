@@ -16,8 +16,12 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.ok(sceneStart > 0, "guide scene route missing");
   assert.ok(sceneEnd > sceneStart, "guide scene route end missing");
   assert.match(sceneRoute, /applyGuideAutoSave\(/);
+  assert.match(sceneRoute, /parseClientSceneId\(body\.clientSceneId\)/);
+  assert.match(sceneRoute, /sceneJobs\.get\(clientSceneId\)/);
+  assert.match(sceneRoute, /const sceneId = clientSceneId \?\? randomUUID\(\)/);
   assert.match(source, /decideGuideAutoSave/);
   assert.match(source, /getSiteBrief/);
+  assert.match(source, /clientSceneId\?: string stable client id for offline retry idempotency/);
   assert.match(normalizedSource, /Indoor\/person-only\/duplicate scenes remain transient/);
   assert.match(manualSaveRoute, /saveGuideRecord\(/);
 });
