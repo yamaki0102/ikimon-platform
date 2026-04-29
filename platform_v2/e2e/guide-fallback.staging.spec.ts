@@ -32,6 +32,7 @@ test("guide shows photo fallback when camera permission is unavailable", async (
     await page.locator("#guide-start-btn").click();
     await expect(page.locator("#guide-start-sheet")).toBeVisible();
     await expect(page.locator("#guide-start-sheet")).toContainText("カメラを使いますか？");
+    await expect(page.locator("#guide-start-sheet")).toContainText("おすすめ設定");
     await page.locator("#guide-start-confirm").click();
 
     await expect(page.locator("#guide-permission-msg")).toBeVisible();
@@ -134,6 +135,10 @@ test("guide can start audio-only without requesting camera video", async ({ brow
     await expect(page.locator("#guide-audio-only-panel")).toBeVisible();
     await expect(page.locator("#guide-video")).toBeHidden();
     await expect(page.locator("#guide-privacy-live")).toContainText("音声だけ");
+    await page.locator("#guide-stop-btn").click();
+    await expect(page.locator("#guide-session-summary")).toBeVisible();
+    await expect(page.locator("#guide-session-summary")).toContainText("今回のふりかえり");
+    await expect(page.locator("#guide-session-summary")).toContainText("音声だけで取れたもの");
 
     const calls = await page.evaluate(() => {
       return (window as typeof window & { __guideMediaCalls?: unknown[] }).__guideMediaCalls ?? [];

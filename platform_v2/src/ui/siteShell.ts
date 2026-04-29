@@ -2647,15 +2647,16 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       position: fixed;
       left: 12px;
       right: 12px;
-      bottom: max(106px, calc(env(safe-area-inset-bottom) + 106px));
+      top: max(12px, env(safe-area-inset-top));
+      bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
       z-index: 38;
       display: grid;
-      gap: 12px;
-      padding: 14px;
-      max-height: calc(100dvh - 132px);
+      grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+      gap: 10px;
+      padding: 10px;
       overflow-y: auto;
       overscroll-behavior: contain;
-      border-radius: 24px;
+      border-radius: 18px;
       background: rgba(255,255,255,.98);
       border: 1px solid rgba(15,23,42,.1);
       box-shadow: 0 24px 70px rgba(15,23,42,.28);
@@ -2673,10 +2674,10 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       line-height: 1.35;
     }
     .global-record-camera-head p {
-      margin: 4px 0 0;
+      margin: 2px 0 0;
       color: #64748b;
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 11px;
+      line-height: 1.45;
       font-weight: 750;
     }
     .global-record-camera-close {
@@ -2697,10 +2698,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .global-record-camera-preview {
       position: relative;
       min-height: 0;
-      height: clamp(220px, 48dvh, 520px);
-      max-height: calc(100dvh - 360px);
+      height: min(72dvh, calc(100dvh - 178px));
       overflow: hidden;
-      border-radius: 20px;
+      border-radius: 12px;
       background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
       border: 1px solid rgba(15,23,42,.08);
     }
@@ -3009,14 +3009,13 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .global-record-camera-sheet {
         left: 8px;
         right: 8px;
-        bottom: max(104px, calc(env(safe-area-inset-bottom) + 104px));
-        max-height: calc(100dvh - 116px);
+        top: max(8px, env(safe-area-inset-top));
+        bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px));
         gap: 10px;
-        padding: 12px;
+        padding: 10px;
       }
       .global-record-camera-preview {
-        height: clamp(200px, 44dvh, 420px);
-        max-height: calc(100dvh - 350px);
+        height: min(70dvh, calc(100dvh - 176px));
       }
       .global-record-camera-actions {
         left: 8px;

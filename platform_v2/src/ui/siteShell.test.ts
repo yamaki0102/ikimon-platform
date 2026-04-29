@@ -61,7 +61,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /\.global-record-camera-actions \{/);
   assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-photo-tray/);
   assert.match(html, /global-record-camera-sheet\[data-photo-draft="true"\] \.global-record-camera-preview/);
-  assert.match(html, /max-height: calc\(100dvh - 116px\)/);
+  assert.match(html, /top: max\(12px, env\(safe-area-inset-top\)\)/);
+  assert.match(html, /height: min\(72dvh, calc\(100dvh - 178px\)\)/);
+  assert.match(html, /height: min\(70dvh, calc\(100dvh - 176px\)\)/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /void startCamera\(\)/);
