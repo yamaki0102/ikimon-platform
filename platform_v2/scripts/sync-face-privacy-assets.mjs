@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const platformRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(platformRoot, "..");
 const packageRoot = join(platformRoot, "node_modules", "@mediapipe", "tasks-vision");
+const uploadPackageRoot = join(repoRoot, "upload_package");
 const targetRoot = join(repoRoot, "upload_package", "public_html", "assets", "face-privacy");
 const targetMediaPipeRoot = join(targetRoot, "mediapipe");
 const targetWasmRoot = join(targetMediaPipeRoot, "wasm");
@@ -21,6 +22,11 @@ const files = [
 
 if (!existsSync(packageRoot)) {
   throw new Error("Missing @mediapipe/tasks-vision. Run npm install in platform_v2 first.");
+}
+
+if (!existsSync(uploadPackageRoot)) {
+  console.log("Skipping face privacy asset sync: upload_package is not present in this platform_v2-only release.");
+  process.exit(0);
 }
 
 const modelPath = join(targetRoot, "blaze_face_short_range.tflite");
