@@ -3,7 +3,8 @@ import test from "node:test";
 import { assertNoSecretLeak, dedupeInvasiveRows, looksLikeScientificName, validateInvasiveLawRows } from "./curatorTrustBoundary.js";
 
 test("trust boundary rejects exact secret and sk-like token patterns", () => {
-  assert.throws(() => assertNoSecretLeak("payload abc-secret", ["abc-secret"]), /curator_payload_secret_leak_detected/);
+  assert.doesNotThrow(() => assertNoSecretLeak("provider gemini", ["gemini"]));
+  assert.throws(() => assertNoSecretLeak("payload abc-secret-1234567890", ["abc-secret-1234567890"]), /curator_payload_secret_leak_detected/);
   assert.throws(() => assertNoSecretLeak("payload sk-abcdefghijklmnopqrstuvwxyz", []), /curator_payload_secret_pattern_detected/);
 });
 
