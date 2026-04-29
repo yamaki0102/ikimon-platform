@@ -125,7 +125,8 @@ test("landing top renders real observation photos and detail CTAs", () => {
   const html = renderTop(photoSnapshot);
 
   assert.doesNotMatch(html, /sample_/);
-  assert.match(html, /\/thumb\/lg\/real-observation\.jpg/);
+  assert.match(html, /<img src="\/uploads\/real-observation\.jpg" alt="モンシロチョウ" loading="eager"/);
+  assert.doesNotMatch(html, /prototype-photo-large[\s\S]*\/thumb\/lg\/real-observation\.jpg/);
   assert.match(html, /\/observations\/visit-1/);
   assert.match(html, /data-kpi-action="landing:daily:featured"/);
   assert.match(html, /data-kpi-action="landing:hero:observation"/);
