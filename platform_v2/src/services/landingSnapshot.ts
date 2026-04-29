@@ -109,6 +109,7 @@ type FeedRow = {
   photo_url: string | null;
   photo_width_px: number | null;
   photo_height_px: number | null;
+  photo_bytes: string | number | null;
   video_count: string | null;
   session_mode: string | null;
   visit_mode: string | null;
@@ -162,6 +163,7 @@ const FEED_SQL_BASE = `
     photo.public_url as photo_url,
     photo.width_px as photo_width_px,
     photo.height_px as photo_height_px,
+    photo.bytes as photo_bytes,
     video.video_count,
     v.session_mode,
     v.visit_mode,
@@ -200,7 +202,7 @@ const FEED_SQL_BASE = `
     limit 1
   ) ident on true
   left join lateral (
-    select coalesce(ab.public_url, ab.storage_path) as public_url, ab.width_px, ab.height_px
+    select coalesce(ab.public_url, ab.storage_path) as public_url, ab.width_px, ab.height_px, ab.bytes
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
     where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
@@ -308,6 +310,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
 export type LandingHeroCandidate = LandingObservation & {
   photoWidthPx: number | null;
   photoHeightPx: number | null;
+  photoBytes: number | null;
   qualityGrade: string | null;
 };
 
@@ -322,6 +325,7 @@ function toLandingHeroCandidate(row: FeedRow): LandingHeroCandidate {
     ...toLandingObservation(row),
     photoWidthPx: row.photo_width_px != null ? Number(row.photo_width_px) : null,
     photoHeightPx: row.photo_height_px != null ? Number(row.photo_height_px) : null,
+    photoBytes: row.photo_bytes != null ? Number(row.photo_bytes) : null,
     qualityGrade: row.quality_grade ?? null,
   };
 }
@@ -362,10 +366,12 @@ function scorePhoto(candidate: LandingHeroCandidate): number {
   if (!candidate.photoUrl) return 0;
   const width = candidate.photoWidthPx;
   const height = candidate.photoHeightPx;
-  if (!width || !height || width <= 0 || height <= 0) return 20;
+  const bytes = candidate.photoBytes;
+  if (!width || !height || width <= 0 || height <= 0) return bytes && bytes >= 90_000 ? 20 : 12;
   const ratio = width / height;
   if (ratio < 0.45 || ratio > 2.4) return 0;
   const pixels = width * height;
+  if (bytes && pixels > 0 && (bytes < 70_000 || bytes / pixels < 0.035)) return 6;
   const ratioPenalty = ratio < 0.62 || ratio > 1.95 ? 5 : 0;
   if (pixels >= 1_080_000) return 25 - ratioPenalty;
   if (pixels >= 480_000) return 22 - ratioPenalty;
@@ -402,9 +408,14 @@ export function isLandingHeroCandidateEligible(candidate: LandingHeroCandidate):
   if (candidate.publicLocation.scope === "blurred") return false;
   const width = candidate.photoWidthPx;
   const height = candidate.photoHeightPx;
-  if (!width || !height || width <= 0 || height <= 0) return true;
+  const bytes = candidate.photoBytes;
+  if (!width || !height || width <= 0 || height <= 0) return !bytes || bytes >= 90_000;
   const ratio = width / height;
-  return ratio >= 0.45 && ratio <= 2.4;
+  const pixels = width * height;
+  if (ratio < 0.45 || ratio > 2.4) return false;
+  if (pixels < 900_000 || Math.max(width, height) < 1000 || Math.min(width, height) < 720) return false;
+  if (bytes && (bytes < 70_000 || bytes / pixels < 0.035)) return false;
+  return true;
 }
 
 export function scoreLandingHeroCandidate(
@@ -452,7 +463,7 @@ function buildFeaturedObservation(
     .sort((a, b) => b.scoreBreakdown.total - a.scoreBreakdown.total);
   const best = scored[0];
   if (!best) return null;
-  const { photoWidthPx: _photoWidthPx, photoHeightPx: _photoHeightPx, qualityGrade: _qualityGrade, ...observation } = best.candidate;
+  const { photoWidthPx: _photoWidthPx, photoHeightPx: _photoHeightPx, photoBytes: _photoBytes, qualityGrade: _qualityGrade, ...observation } = best.candidate;
   return {
     ...observation,
     score: best.scoreBreakdown.total,

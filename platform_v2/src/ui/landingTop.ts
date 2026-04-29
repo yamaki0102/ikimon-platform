@@ -95,8 +95,9 @@ function uniqueLandingObservations(snapshot: LandingSnapshot): LandingObservatio
   return Array.from(new Map(observations.map((obs) => [obs.occurrenceId, obs])).values());
 }
 
-function observationImageUrl(obs: LandingObservation | null | undefined, preset: ThumbnailPreset): string | null {
+function observationImageUrl(obs: LandingObservation | null | undefined, preset: ThumbnailPreset | "original"): string | null {
   if (!obs?.photoUrl) return null;
+  if (preset === "original") return obs.photoUrl;
   return toThumbnailUrl(obs.photoUrl, preset) ?? obs.photoUrl;
 }
 
@@ -153,7 +154,7 @@ function renderPhotoTile(
   fallbackLabel: string,
   kpiAction: string | null,
 ): string {
-  const imageUrl = observationImageUrl(obs, size === "large" ? "lg" : "md");
+  const imageUrl = observationImageUrl(obs, size === "large" ? "original" : "md");
   if (!imageUrl) return renderObservationEvidenceCard(basePath, lang, copy, obs, kpiAction, size);
   const href = observationDetailHref(basePath, lang, obs);
   const title = displayObservationName(obs, fallbackTitle);

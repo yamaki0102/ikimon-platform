@@ -37,6 +37,7 @@ function candidate(overrides: Partial<LandingHeroCandidate> = {}): LandingHeroCa
     evidenceTier: 2,
     photoWidthPx: 1600,
     photoHeightPx: 1100,
+    photoBytes: 220_000,
     qualityGrade: "research",
     ...overrides,
   };
@@ -87,6 +88,19 @@ test("isLandingHeroCandidateEligible rejects missing photos, blurred locations, 
     },
   })), false);
   assert.equal(isLandingHeroCandidateEligible(candidate({ photoWidthPx: 3000, photoHeightPx: 800 })), false);
+});
+
+test("isLandingHeroCandidateEligible rejects over-compressed photos for the oversized landing slot", () => {
+  assert.equal(isLandingHeroCandidateEligible(candidate({
+    photoWidthPx: 1245,
+    photoHeightPx: 1117,
+    photoBytes: 27_806,
+  })), false);
+  assert.equal(isLandingHeroCandidateEligible(candidate({
+    photoWidthPx: 1440,
+    photoHeightPx: 1920,
+    photoBytes: 182_240,
+  })), true);
 });
 
 test("resolveLandingDisplayName ignores unresolved placeholders and uses identification fallback", () => {
