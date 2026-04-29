@@ -32,7 +32,16 @@ type GuideCopy = {
   sessionSummarySaved: string;
   sessionSummarySkipped: string;
   sessionSummaryAudioOnly: string;
+  queuedRecapLabel: string;
   sessionSummaryEmpty: string;
+  offlineOnline: string;
+  offlineOffline: string;
+  offlineQueued: string;
+  offlineSyncing: string;
+  offlineSynced: string;
+  offlineFailed: string;
+  offlineSceneQueued: string;
+  storagePressure: string;
   stopBtn: string;
   langLabel: string;
   categoryLabel: string;
@@ -107,7 +116,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummarySaved: "保存されたもの",
     sessionSummarySkipped: "保存しなかったもの",
     sessionSummaryAudioOnly: "音声だけで取れたもの",
+    queuedRecapLabel: "未同期のもの",
     sessionSummaryEmpty: "まだ集計できる記録はありません。",
+    offlineOnline: "オンライン",
+    offlineOffline: "オフライン中",
+    offlineQueued: "未同期 {count}件",
+    offlineSyncing: "同期中",
+    offlineSynced: "同期しました",
+    offlineFailed: "同期失敗あり",
+    offlineSceneQueued: "端末に一時保存中",
+    storagePressure: "端末の保存容量に近づいています。映像の頻度を下げて、自然音と代表フレームを優先します。",
     stopBtn: "停止する",
     langLabel: "言語",
     categoryLabel: "ガイドカテゴリ",
@@ -185,7 +203,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummarySaved: "Saved",
     sessionSummarySkipped: "Not saved",
     sessionSummaryAudioOnly: "Audio-only captures",
+    queuedRecapLabel: "Waiting to sync",
     sessionSummaryEmpty: "No session activity to summarize yet.",
+    offlineOnline: "Online",
+    offlineOffline: "Offline",
+    offlineQueued: "{count} unsynced",
+    offlineSyncing: "Syncing",
+    offlineSynced: "Synced",
+    offlineFailed: "Sync issue",
+    offlineSceneQueued: "Temporarily saved on this device",
+    storagePressure: "Device storage is getting full. Guide will lower video frequency and prioritize natural sound plus representative frames.",
     stopBtn: "Stop",
     langLabel: "Language",
     categoryLabel: "Guide Category",
@@ -263,7 +290,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummarySaved: "Guardado",
     sessionSummarySkipped: "No guardado",
     sessionSummaryAudioOnly: "Capturas solo audio",
+    queuedRecapLabel: "Pendiente de sincronizar",
     sessionSummaryEmpty: "Aún no hay actividad para resumir.",
+    offlineOnline: "En línea",
+    offlineOffline: "Sin conexión",
+    offlineQueued: "{count} sin sincronizar",
+    offlineSyncing: "Sincronizando",
+    offlineSynced: "Sincronizado",
+    offlineFailed: "Error de sincronización",
+    offlineSceneQueued: "Guardado temporalmente en este dispositivo",
+    storagePressure: "El almacenamiento del dispositivo se está llenando. La guía bajará la frecuencia de video y priorizará sonidos naturales y fotogramas representativos.",
     stopBtn: "Detener",
     langLabel: "Idioma",
     categoryLabel: "Categoría",
@@ -341,7 +377,16 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummarySaved: "Salvo",
     sessionSummarySkipped: "Não salvo",
     sessionSummaryAudioOnly: "Capturas só com áudio",
+    queuedRecapLabel: "Aguardando sincronização",
     sessionSummaryEmpty: "Ainda não há atividade para resumir.",
+    offlineOnline: "Online",
+    offlineOffline: "Offline",
+    offlineQueued: "{count} sem sincronizar",
+    offlineSyncing: "Sincronizando",
+    offlineSynced: "Sincronizado",
+    offlineFailed: "Falha de sincronização",
+    offlineSceneQueued: "Salvo temporariamente neste dispositivo",
+    storagePressure: "O armazenamento do dispositivo está ficando cheio. O guia reduzirá a frequência de vídeo e priorizará sons naturais e quadros representativos.",
     stopBtn: "Parar",
     langLabel: "Idioma",
     categoryLabel: "Categoria",
@@ -432,6 +477,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <button class="guide-audio-opt-btn" id="guide-audio-opt-btn" type="button" aria-pressed="false">${escapeHtml(c.audioOptInBtn)}</button>
     </div>
     <p class="guide-privacy-live" id="guide-privacy-live" aria-live="polite">${escapeHtml(c.audioOffNotice)}</p>
+    <div class="guide-offline-row" id="guide-offline-row" data-state="online" aria-live="polite">
+      <span class="guide-offline-state" id="guide-offline-state">${escapeHtml(c.offlineOnline)}</span>
+      <span class="guide-offline-queued" id="guide-offline-queued" hidden>${escapeHtml(c.offlineQueued.replace("{count}", "0"))}</span>
+      <span class="guide-offline-pressure" id="guide-offline-pressure" hidden>${escapeHtml(c.storagePressure)}</span>
+    </div>
   </div>
 
   <div class="guide-start-sheet-backdrop" id="guide-start-sheet" hidden>
@@ -520,6 +570,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <div><strong id="guide-summary-saved">0</strong><span>${escapeHtml(c.sessionSummarySaved)}</span></div>
       <div><strong id="guide-summary-skipped">0</strong><span>${escapeHtml(c.sessionSummarySkipped)}</span></div>
       <div><strong id="guide-summary-audio-only">0</strong><span>${escapeHtml(c.sessionSummaryAudioOnly)}</span></div>
+      <div><strong id="guide-summary-queued">0</strong><span>${escapeHtml(c.queuedRecapLabel)}</span></div>
     </div>
     <p id="guide-summary-empty" hidden>${escapeHtml(c.sessionSummaryEmpty)}</p>
   </section>
@@ -574,7 +625,15 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     audioOnlyNotice: ${JSON.stringify(c.audioOnlyNotice)},
     cameraOnlyNotice: ${JSON.stringify(c.cameraOnlyNotice)},
     cameraAudioNotice: ${JSON.stringify(c.cameraAudioNotice)},
-    sessionSummaryEmpty: ${JSON.stringify(c.sessionSummaryEmpty)}
+    sessionSummaryEmpty: ${JSON.stringify(c.sessionSummaryEmpty)},
+    offlineOnline: ${JSON.stringify(c.offlineOnline)},
+    offlineOffline: ${JSON.stringify(c.offlineOffline)},
+    offlineQueued: ${JSON.stringify(c.offlineQueued)},
+    offlineSyncing: ${JSON.stringify(c.offlineSyncing)},
+    offlineSynced: ${JSON.stringify(c.offlineSynced)},
+    offlineFailed: ${JSON.stringify(c.offlineFailed)},
+    offlineSceneQueued: ${JSON.stringify(c.offlineSceneQueued)},
+    storagePressure: ${JSON.stringify(c.storagePressure)}
   };
   const BASE = ${JSON.stringify(basePath)};
 
@@ -599,11 +658,24 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   let audioOptIn = false;
   let cameraOptIn = true;
   let audioOnlyChunkCount = 0;
+  let offlineQueuedCount = 0;
+  let offlineSyncing = false;
+  let offlineFailed = false;
+  let offlineLastSynced = false;
+  let storagePressureActive = false;
   const pendingScenes = new Map();
   const readyScenes = new Map();
   const manuallySavedSceneIds = new Set();
   const sessionId = 'guide-' + Math.random().toString(36).slice(2);
   const preferredMime = pickAudioMimeType();
+  const OFFLINE_DB_NAME = 'ikimon-guide-offline-v1';
+  const OFFLINE_DB_VERSION = 1;
+  const OFFLINE_STORE = 'queue';
+  const OFFLINE_MAX_BYTES = 80 * 1024 * 1024;
+  const OFFLINE_MAX_SCENES = 120;
+  const OFFLINE_MAX_AUDIO = 1800;
+  const ONLINE_ANALYSE_INTERVAL_MS = 8000;
+  const OFFLINE_ANALYSE_INTERVAL_MS = 22000;
 
   const video      = document.getElementById('guide-video');
   const startBtn   = document.getElementById('guide-start-btn');
@@ -634,7 +706,12 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const summarySaved = document.getElementById('guide-summary-saved');
   const summarySkipped = document.getElementById('guide-summary-skipped');
   const summaryAudioOnly = document.getElementById('guide-summary-audio-only');
+  const summaryQueued = document.getElementById('guide-summary-queued');
   const summaryEmpty = document.getElementById('guide-summary-empty');
+  const offlineRow = document.getElementById('guide-offline-row');
+  const offlineState = document.getElementById('guide-offline-state');
+  const offlineQueued = document.getElementById('guide-offline-queued');
+  const offlinePressure = document.getElementById('guide-offline-pressure');
 
   function getLang() { return document.getElementById('guide-lang-select').value; }
   function getCategory() { return document.getElementById('guide-category-select').value; }
@@ -644,6 +721,183 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     return String(value || '').replace(/[&<>\"']/g, function (char) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] || char;
     });
+  }
+  function formatCopy(template, values) {
+    let text = String(template || '');
+    Object.keys(values || {}).forEach((key) => {
+      text = text.split('{' + key + '}').join(String(values[key]));
+    });
+    return text;
+  }
+  function isOnlineNow() {
+    return typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
+  }
+  function newQueueId(prefix) {
+    return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+  function updateOfflineUi() {
+    const online = isOnlineNow();
+    let label = online ? copy.offlineOnline : copy.offlineOffline;
+    if (offlineSyncing) label = copy.offlineSyncing;
+    else if (offlineFailed) label = copy.offlineFailed;
+    else if (online && offlineQueuedCount === 0 && offlineLastSynced) label = copy.offlineSynced;
+    if (offlineState) offlineState.textContent = label;
+    if (offlineRow) offlineRow.dataset.state = offlineFailed ? 'failed' : offlineSyncing ? 'syncing' : online ? 'online' : 'offline';
+    if (offlineQueued) {
+      offlineQueued.hidden = offlineQueuedCount <= 0;
+      offlineQueued.textContent = formatCopy(copy.offlineQueued, { count: offlineQueuedCount });
+    }
+    if (offlinePressure) {
+      offlinePressure.hidden = !storagePressureActive;
+      offlinePressure.textContent = copy.storagePressure;
+    }
+    if (summaryQueued) summaryQueued.textContent = String(offlineQueuedCount);
+    if (sessionSummary && !sessionSummary.hidden) showSessionSummary();
+  }
+  function openOfflineDb() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('indexeddb_unavailable'));
+        return;
+      }
+      const request = indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(OFFLINE_STORE)) {
+          const store = db.createObjectStore(OFFLINE_STORE, { keyPath: 'id' });
+          store.createIndex('createdAt', 'createdAt', { unique: false });
+          store.createIndex('type', 'type', { unique: false });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('indexeddb_open_failed'));
+    });
+  }
+  function readAllOfflineItems() {
+    return new Promise((resolve, reject) => {
+      openOfflineDb().then((db) => {
+        const tx = db.transaction(OFFLINE_STORE, 'readonly');
+        const request = tx.objectStore(OFFLINE_STORE).getAll();
+        request.onsuccess = () => resolve(Array.isArray(request.result) ? request.result : []);
+        request.onerror = () => reject(request.error || new Error('offline_queue_read_failed'));
+        tx.oncomplete = () => db.close();
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error || new Error('offline_queue_tx_failed'));
+        };
+      }).catch(reject);
+    });
+  }
+  function putOfflineItem(item) {
+    return new Promise((resolve, reject) => {
+      openOfflineDb().then((db) => {
+        const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+        tx.objectStore(OFFLINE_STORE).put(item);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error || new Error('offline_queue_put_failed'));
+        };
+      }).catch(reject);
+    });
+  }
+  function deleteOfflineItem(id) {
+    return new Promise((resolve, reject) => {
+      openOfflineDb().then((db) => {
+        const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+        tx.objectStore(OFFLINE_STORE).delete(id);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error || new Error('offline_queue_delete_failed'));
+        };
+      }).catch(reject);
+    });
+  }
+  function estimateOfflineItemBytes(item) {
+    return Number(item.byteSize || 0)
+      || ((item.frameBlob && item.frameBlob.size) || 0)
+      + ((item.audioBlob && item.audioBlob.size) || 0)
+      + (typeof item.frameThumb === 'string' ? item.frameThumb.length * 2 : 0)
+      + JSON.stringify({ type: item.type, id: item.id, meta: item.meta || null }).length;
+  }
+  async function enforceOfflineQueueLimits() {
+    const items = await readAllOfflineItems();
+    items.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const scenes = items.filter((item) => item.type === 'scene');
+    const audios = items.filter((item) => item.type === 'audio');
+    let bytes = items.reduce((sum, item) => sum + estimateOfflineItemBytes(item), 0);
+    const deleteIds = [];
+    while (scenes.length > OFFLINE_MAX_SCENES) {
+      const item = scenes.shift();
+      if (item) {
+        deleteIds.push(item.id);
+        bytes -= estimateOfflineItemBytes(item);
+      }
+    }
+    while (audios.length > OFFLINE_MAX_AUDIO) {
+      const item = audios.shift();
+      if (item) {
+        deleteIds.push(item.id);
+        bytes -= estimateOfflineItemBytes(item);
+      }
+    }
+    while (bytes > OFFLINE_MAX_BYTES && scenes.length > 1) {
+      const item = scenes.shift();
+      if (item) {
+        deleteIds.push(item.id);
+        bytes -= estimateOfflineItemBytes(item);
+      }
+    }
+    while (bytes > OFFLINE_MAX_BYTES && audios.length > 300) {
+      const item = audios.shift();
+      if (item) {
+        deleteIds.push(item.id);
+        bytes -= estimateOfflineItemBytes(item);
+      }
+    }
+    for (const id of deleteIds) await deleteOfflineItem(id);
+    return deleteIds.length > 0 || bytes > OFFLINE_MAX_BYTES * 0.85;
+  }
+  async function refreshQueueStatus() {
+    try {
+      const items = await readAllOfflineItems();
+      offlineQueuedCount = items.length;
+      storagePressureActive = items.reduce((sum, item) => sum + estimateOfflineItemBytes(item), 0) > OFFLINE_MAX_BYTES * 0.85;
+    } catch {
+      offlineQueuedCount = 0;
+    }
+    updateOfflineUi();
+  }
+  async function enqueueOfflineItem(item) {
+    try {
+      item.createdAt = item.createdAt || Date.now();
+      item.attempts = Number(item.attempts || 0);
+      item.byteSize = estimateOfflineItemBytes(item);
+      await putOfflineItem(item);
+      storagePressureActive = await enforceOfflineQueueLimits();
+      offlineFailed = false;
+      offlineLastSynced = false;
+      await refreshQueueStatus();
+      return true;
+    } catch (error) {
+      offlineFailed = true;
+      console.error('Guide offline queue error', error);
+      updateOfflineUi();
+      return false;
+    }
+  }
+  async function markOfflineItemError(item, error) {
+    item.attempts = Number(item.attempts || 0) + 1;
+    item.lastError = error instanceof Error ? error.message : String(error || 'sync_failed');
+    item.updatedAt = Date.now();
+    await putOfflineItem(item).catch(() => undefined);
   }
   function pickAudioMimeType() {
     if (!window.MediaRecorder || typeof window.MediaRecorder.isTypeSupported !== 'function') return null;
@@ -691,12 +945,41 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
   }
+  function captureFrameBlob() {
+    return new Promise((resolve, reject) => {
+      const sourceWidth = video.videoWidth || 640;
+      const sourceHeight = video.videoHeight || 480;
+      const ratio = Math.min(960 / Math.max(1, sourceWidth), 720 / Math.max(1, sourceHeight), 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(sourceWidth * ratio));
+      canvas.height = Math.max(1, Math.round(sourceHeight * ratio));
+      try {
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('frame_blob_failed'));
+      }, 'image/jpeg', 0.68);
+    });
+  }
   function captureFrameThumb() {
     const canvas = document.createElement('canvas');
     canvas.width = 144;
     canvas.height = 108;
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.46);
+  }
+  function dataUrlToBlob(dataUrl) {
+    const parts = String(dataUrl || '').split(',');
+    const meta = parts[0] || '';
+    const raw = atob(parts[1] || '');
+    const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
   }
   function blobToBase64(blob) {
     return new Promise((resolve) => {
@@ -735,13 +1018,19 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     const frameDataUrl = drawImageData(image, 1280, 1280, 0.78);
     return {
       frame: frameDataUrl.split(',')[1],
+      frameBlob: dataUrlToBlob(frameDataUrl),
       frameThumb: drawImageData(image, 144, 108, 0.46)
     };
   }
-  async function captureAudioForScene() {
+  function captureAudioBlobForScene() {
     const chunks = sceneAudioChunks.splice(0);
     if (!chunks.length) return null;
-    return blobToBase64(new Blob(chunks, { type: preferredMime || 'audio/webm' }));
+    return new Blob(chunks, { type: preferredMime || 'audio/webm' });
+  }
+  async function captureAudioForScene() {
+    const audioBlob = captureAudioBlobForScene();
+    if (!audioBlob) return null;
+    return blobToBase64(audioBlob);
   }
   async function playAudio(base64Pcm) {
     try {
@@ -775,13 +1064,27 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   }
   function addPendingDiscovery(scene) {
     if (noRec) noRec.remove();
-    const li = document.createElement('li');
+    const existing = document.getElementById('scene-' + scene.sceneId);
+    const li = existing || document.createElement('li');
     li.className = 'guide-discovery-item guide-discovery-pending';
     li.id = 'scene-' + scene.sceneId;
     li.innerHTML = '<div class="gdi-thumb-wrap">' + (scene.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(scene.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
       + '<div class="gdi-body"><div class="gdi-kicker">' + escapeInline(copy.trailPending) + '</div>'
       + '<div class="gdi-summary">' + escapeInline(formatCaptured(scene.capturedAt)) + '</div></div>';
-    listEl.prepend(li);
+    if (!existing) listEl.prepend(li);
+    updateTrailPill();
+  }
+  function addQueuedDiscovery(scene) {
+    if (noRec) noRec.remove();
+    const existing = document.getElementById('scene-' + scene.sceneId);
+    const li = existing || document.createElement('li');
+    li.className = 'guide-discovery-item guide-discovery-pending guide-discovery-offline';
+    li.id = 'scene-' + scene.sceneId;
+    li.innerHTML = '<div class="gdi-thumb-wrap">' + (scene.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(scene.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
+      + '<div class="gdi-body"><div class="gdi-kicker">' + escapeInline(copy.offlineSceneQueued) + '</div>'
+      + '<div class="gdi-autosave is-pending"><span>' + escapeInline(formatCopy(copy.offlineQueued, { count: offlineQueuedCount || 1 })) + '</span></div>'
+      + '<div class="gdi-summary">' + escapeInline(formatCaptured(scene.capturedAt)) + '</div></div>';
+    if (!existing) listEl.prepend(li);
     updateTrailPill();
   }
   function formatCaptured(value) {
@@ -992,37 +1295,208 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     clearTimeout(recapTimer);
     recapTimer = setTimeout(refreshRecap, 600);
   }
+  function handleAcceptedScene(sceneRes) {
+    if (sceneRes && sceneRes.sceneId) {
+      pendingScenes.set(sceneRes.sceneId, sceneRes);
+      addPendingDiscovery(sceneRes);
+      void watchScene(sceneRes.sceneId);
+    }
+  }
+  async function postScenePayload(payload) {
+    const frame = await blobToBase64(payload.frameBlob);
+    const audio = payload.audioBlob ? await blobToBase64(payload.audioBlob) : null;
+    const response = await fetch(BASE + '/api/v1/guide/scene', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientSceneId: payload.clientSceneId,
+        frame: frame,
+        frameThumb: payload.frameThumb,
+        audio: audio,
+        lat: payload.lat,
+        lng: payload.lng,
+        lang: payload.lang,
+        sessionId: payload.sessionId,
+        capturedAt: payload.capturedAt,
+        audioPrivacy: {
+          clientSkippedCount: payload.audioPrivacySkippedCount || 0,
+          policy: payload.audioPrivacyPolicy || 'exclude_speech_likely_chunks'
+        }
+      })
+    });
+    if (!response.ok) throw new Error('scene_submit_failed_' + response.status);
+    return response.json();
+  }
+  async function queueScenePayload(payload, reason) {
+    const item = {
+      id: payload.clientSceneId,
+      type: 'scene',
+      clientSceneId: payload.clientSceneId,
+      sessionId: payload.sessionId,
+      capturedAt: payload.capturedAt,
+      lat: payload.lat,
+      lng: payload.lng,
+      lang: payload.lang,
+      frameThumb: payload.frameThumb,
+      frameBlob: payload.frameBlob,
+      audioBlob: payload.audioBlob,
+      audioMimeType: payload.audioBlob ? payload.audioBlob.type : null,
+      audioPrivacySkippedCount: payload.audioPrivacySkippedCount || 0,
+      audioPrivacyPolicy: payload.audioPrivacyPolicy || 'exclude_speech_likely_chunks',
+      lastError: reason || null,
+      createdAt: Date.now()
+    };
+    const queued = await enqueueOfflineItem(item);
+    if (queued) addQueuedDiscovery({ sceneId: payload.clientSceneId, frameThumb: payload.frameThumb, capturedAt: payload.capturedAt });
+    return queued;
+  }
+  async function submitScenePayload(payload) {
+    if (!isOnlineNow()) {
+      await queueScenePayload(payload, 'offline');
+      return null;
+    }
+    try {
+      const sceneRes = await postScenePayload(payload);
+      offlineFailed = false;
+      return sceneRes;
+    } catch (error) {
+      await queueScenePayload(payload, error instanceof Error ? error.message : 'scene_submit_failed');
+      return null;
+    } finally {
+      updateOfflineUi();
+    }
+  }
+  function buildAudioPayload(blob, fingerprint, vad) {
+    return {
+      externalId: newQueueId('guide-audio'),
+      sessionId: sessionId,
+      recordedAt: new Date().toISOString(),
+      durationSec: 2,
+      lat: lastKnownPosition.lat,
+      lng: lastKnownPosition.lng,
+      filename: 'guide-audio.webm',
+      mimeType: blob.type || preferredMime,
+      meta: {
+        captureProfile: 'opus_mono_24khz_32kbps_2s',
+        audioFingerprint: fingerprint,
+        clientVadResult: vad
+      }
+    };
+  }
+  async function postAudioPayload(payload, audioBlob) {
+    const base64Data = await blobToBase64(audioBlob);
+    const response = await fetch(BASE + '/api/v1/fieldscan/audio/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, base64Data: base64Data })
+    });
+    if (!response.ok) throw new Error('audio_submit_failed_' + response.status);
+    return response.json();
+  }
+  async function queueAudioPayload(payload, audioBlob, reason) {
+    return enqueueOfflineItem({
+      id: payload.externalId,
+      type: 'audio',
+      externalId: payload.externalId,
+      sessionId: payload.sessionId,
+      recordedAt: payload.recordedAt,
+      durationSec: payload.durationSec,
+      lat: payload.lat,
+      lng: payload.lng,
+      filename: payload.filename,
+      mimeType: payload.mimeType,
+      meta: payload.meta,
+      audioBlob: audioBlob,
+      lastError: reason || null,
+      createdAt: Date.now()
+    });
+  }
   async function uploadAudioChunk(blob, fingerprint, vad) {
     if (!blob || !blob.size || !preferredMime) return;
+    const payload = buildAudioPayload(blob, fingerprint, vad);
     try {
-      const base64Data = await blobToBase64(blob);
-      const payload = {
-        sessionId: sessionId,
-        recordedAt: new Date().toISOString(),
-        durationSec: 2,
-        lat: lastKnownPosition.lat,
-        lng: lastKnownPosition.lng,
-        filename: 'guide-audio.webm',
-        mimeType: blob.type || preferredMime,
-        base64Data: base64Data,
-        meta: {
-          captureProfile: 'opus_mono_24khz_32kbps_2s',
-          audioFingerprint: fingerprint,
-          clientVadResult: vad
-        }
-      };
-      const response = await fetch(BASE + '/api/v1/fieldscan/audio/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) throw new Error('audio_submit_failed_' + response.status);
+      if (!isOnlineNow()) {
+        await queueAudioPayload(payload, blob, 'offline');
+        if (!cameraOptIn) audioOnlyChunkCount += 1;
+        return;
+      }
+      await postAudioPayload(payload, blob);
+      offlineFailed = false;
       if (!cameraOptIn) audioOnlyChunkCount += 1;
       if (sessionSummary && !sessionSummary.hidden) showSessionSummary();
     } catch (error) {
       console.error('Audio upload error', error);
+      const queued = await queueAudioPayload(payload, blob, error instanceof Error ? error.message : 'audio_submit_failed');
+      if (queued && !cameraOptIn) audioOnlyChunkCount += 1;
+    } finally {
+      scheduleRecapRefresh();
+      updateOfflineUi();
     }
-    scheduleRecapRefresh();
+  }
+  async function replayOfflineItem(item) {
+    if (item.type === 'scene') {
+      const sceneRes = await postScenePayload({
+        clientSceneId: item.clientSceneId,
+        sessionId: item.sessionId,
+        capturedAt: item.capturedAt,
+        lat: item.lat,
+        lng: item.lng,
+        lang: item.lang,
+        frameThumb: item.frameThumb,
+        frameBlob: item.frameBlob,
+        audioBlob: item.audioBlob || null,
+        audioPrivacySkippedCount: item.audioPrivacySkippedCount || 0,
+        audioPrivacyPolicy: item.audioPrivacyPolicy || 'exclude_speech_likely_chunks'
+      });
+      handleAcceptedScene(sceneRes);
+      return;
+    }
+    if (item.type === 'audio') {
+      await postAudioPayload({
+        externalId: item.externalId,
+        sessionId: item.sessionId,
+        recordedAt: item.recordedAt,
+        durationSec: item.durationSec,
+        lat: item.lat,
+        lng: item.lng,
+        filename: item.filename,
+        mimeType: item.mimeType,
+        meta: item.meta
+      }, item.audioBlob);
+    }
+  }
+  async function drainOfflineQueue() {
+    if (offlineSyncing || !isOnlineNow()) {
+      updateOfflineUi();
+      return;
+    }
+    offlineSyncing = true;
+    offlineFailed = false;
+    updateOfflineUi();
+    try {
+      const items = await readAllOfflineItems();
+      items.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      const hadItems = items.length > 0;
+      for (const item of items) {
+        if (!isOnlineNow()) break;
+        try {
+          await replayOfflineItem(item);
+          await deleteOfflineItem(item.id);
+        } catch (error) {
+          offlineFailed = true;
+          await markOfflineItemError(item, error);
+          break;
+        }
+      }
+      if (hadItems && !offlineFailed && isOnlineNow()) offlineLastSynced = true;
+    } catch (error) {
+      offlineFailed = true;
+      console.error('Guide offline sync error', error);
+    } finally {
+      offlineSyncing = false;
+      await refreshQueueStatus();
+      scheduleRecapRefresh();
+    }
   }
   function handleAudioChunk(blob) {
     if (!blob || !blob.size) return;
@@ -1047,36 +1521,27 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     setNowState(copy.analysing);
     try {
       lastKnownPosition = await getLocation();
-      const frame = captureFrame();
+      const frameBlob = await captureFrameBlob();
       const frameThumb = captureFrameThumb();
       const capturedAt = new Date().toISOString();
-      const audio = await captureAudioForScene();
+      const audioBlob = captureAudioBlobForScene();
       const audioPrivacySkippedCount = sceneAudioPrivacySkippedCount;
       sceneAudioPrivacySkippedCount = 0;
       const lang = getLang();
-      const sceneRes = await fetch(BASE + '/api/v1/guide/scene', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frame,
-          frameThumb,
-          audio,
+      const sceneRes = await submitScenePayload({
+          clientSceneId: newQueueId('guide-scene'),
+          sessionId,
+          capturedAt,
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
           lang,
-          sessionId,
-          capturedAt,
-          audioPrivacy: {
-            clientSkippedCount: audioPrivacySkippedCount,
-            policy: 'exclude_speech_likely_chunks'
-          }
-        })
-      }).then((r) => r.json());
-      if (sceneRes && sceneRes.sceneId) {
-        pendingScenes.set(sceneRes.sceneId, sceneRes);
-        addPendingDiscovery(sceneRes);
-        void watchScene(sceneRes.sceneId);
-      }
+          frameThumb,
+          frameBlob,
+          audioBlob,
+          audioPrivacySkippedCount,
+          audioPrivacyPolicy: 'exclude_speech_likely_chunks'
+      });
+      handleAcceptedScene(sceneRes);
       setStatus('');
       setNowState('');
     } catch (e) {
@@ -1085,7 +1550,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       setNowState('');
     }
     scheduleRecapRefresh();
-    if (running) analyseTimer = setTimeout(doAnalyse, 8000);
+    if (running) analyseTimer = setTimeout(doAnalyse, isOnlineNow() && !storagePressureActive ? ONLINE_ANALYSE_INTERVAL_MS : OFFLINE_ANALYSE_INTERVAL_MS);
   }
   async function analyseSelectedPhoto(file) {
     if (!file || !file.type || !file.type.startsWith('image/')) return;
@@ -1097,29 +1562,20 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       const frames = await buildGuideFramesFromFile(file);
       const capturedAt = new Date().toISOString();
       const lang = getLang();
-      const sceneRes = await fetch(BASE + '/api/v1/guide/scene', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frame: frames.frame,
-          frameThumb: frames.frameThumb,
-          audio: null,
+      const sceneRes = await submitScenePayload({
+          clientSceneId: newQueueId('guide-scene'),
+          sessionId,
+          capturedAt,
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
           lang,
-          sessionId,
-          capturedAt,
-          audioPrivacy: {
-            clientSkippedCount: 0,
-            policy: 'photo_fallback_no_audio'
-          }
-        })
-      }).then((r) => r.json());
-      if (sceneRes && sceneRes.sceneId) {
-        pendingScenes.set(sceneRes.sceneId, sceneRes);
-        addPendingDiscovery(sceneRes);
-        void watchScene(sceneRes.sceneId);
-      }
+          frameThumb: frames.frameThumb,
+          frameBlob: frames.frameBlob,
+          audioBlob: null,
+          audioPrivacySkippedCount: 0,
+          audioPrivacyPolicy: 'photo_fallback_no_audio'
+      });
+      handleAcceptedScene(sceneRes);
     } catch (error) {
       console.error('Guide photo fallback error', error);
     } finally {
@@ -1249,7 +1705,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       if (state === 'saved') savedIds.add(sceneId);
       if ((state === 'skipped' || state === 'error') && !savedIds.has(sceneId)) skipped += 1;
     });
-    return { saved: savedIds.size, skipped, audioOnly: audioOnlyChunkCount };
+    return { saved: savedIds.size, skipped, audioOnly: audioOnlyChunkCount, queued: offlineQueuedCount };
   }
   function showSessionSummary() {
     if (!sessionSummary) return;
@@ -1257,7 +1713,8 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     if (summarySaved) summarySaved.textContent = String(counts.saved);
     if (summarySkipped) summarySkipped.textContent = String(counts.skipped);
     if (summaryAudioOnly) summaryAudioOnly.textContent = String(counts.audioOnly);
-    const isEmpty = counts.saved === 0 && counts.skipped === 0 && counts.audioOnly === 0;
+    if (summaryQueued) summaryQueued.textContent = String(counts.queued);
+    const isEmpty = counts.saved === 0 && counts.skipped === 0 && counts.audioOnly === 0 && counts.queued === 0;
     if (summaryEmpty) summaryEmpty.hidden = !isEmpty;
     sessionSummary.hidden = false;
   }
@@ -1382,6 +1839,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       if (photoFallback) photoFallback.hidden = true;
       if (cameraOptIn) analyseTimer = setTimeout(doAnalyse, 5000);
       scheduleRecapRefresh();
+      void drainOfflineQueue();
     } catch (err) {
       permMsg.hidden = false;
       if (photoFallback) photoFallback.hidden = false;
@@ -1436,6 +1894,14 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     showSessionSummary();
     scheduleRecapRefresh();
   });
+  window.addEventListener('online', () => {
+    void refreshQueueStatus();
+    void drainOfflineQueue();
+  });
+  window.addEventListener('offline', () => {
+    updateOfflineUi();
+  });
+  void refreshQueueStatus().then(() => drainOfflineQueue());
   async function playTrailScene(scene) {
     if (!scene) return;
     const ttsRes = await fetch(BASE + '/api/v1/guide/tts', {
@@ -1517,6 +1983,12 @@ export const GUIDE_FLOW_STYLES = `
   .guide-audio-opt-btn.is-on { background: #0f172a; color: #fff; border-color: #0f172a; }
   .guide-privacy-live { margin: -4px 0 0; padding: 8px 10px; border-radius: 8px; background: rgba(254,249,195,.92); color: #854d0e; border: 1px solid rgba(202,138,4,.2); font-size: 12px; line-height: 1.55; font-weight: 850; }
   .guide-privacy-live[hidden] { display: none; }
+  .guide-offline-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 36px; padding: 8px 10px; border-radius: 8px; background: rgba(248,250,252,.92); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; font-weight: 900; }
+  .guide-offline-row[data-state="offline"], .guide-offline-row[data-state="failed"] { background: rgba(255,247,237,.94); border-color: rgba(234,88,12,.22); color: #9a3412; }
+  .guide-offline-row[data-state="syncing"] { background: rgba(239,246,255,.94); border-color: rgba(37,99,235,.18); color: #1d4ed8; }
+  .guide-offline-state, .guide-offline-queued { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.08); }
+  .guide-offline-queued[hidden], .guide-offline-pressure[hidden] { display: none; }
+  .guide-offline-pressure { flex-basis: 100%; color: #b45309; line-height: 1.5; font-weight: 850; }
   .guide-selects { display: flex; gap: 10px; flex-wrap: wrap; }
   .guide-select-label { font-size: 11px; font-weight: 900; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
   .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 13px; font-weight: 800; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
@@ -1571,7 +2043,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-session-summary[hidden] { display: none; }
   .guide-session-summary { margin: 18px 0 22px; padding: 14px; border-radius: 8px; background: rgba(255,255,255,.95); border: 1px solid rgba(15,23,42,.1); box-shadow: 0 8px 20px rgba(15,23,42,.05); display: grid; gap: 11px; }
   .guide-session-summary h2 { margin: 0; color: #0f172a; font-size: 14px; font-weight: 950; line-height: 1.35; }
-  .guide-session-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .guide-session-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .guide-session-summary-grid div { min-width: 0; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); display: grid; gap: 2px; }
   .guide-session-summary-grid strong { color: #059669; font-size: 22px; line-height: 1; font-weight: 950; }
   .guide-session-summary-grid span { color: #475569; font-size: 11px; line-height: 1.35; font-weight: 850; }
@@ -1585,6 +2057,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-no-records { font-size: 13px; color: #94a3b8; padding: 12px 0; }
   .guide-discovery-item { display: flex; gap: 12px; padding: 12px 14px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); border-radius: 8px; box-shadow: 0 8px 20px rgba(15,23,42,.05); }
   .guide-discovery-pending { background: rgba(248,250,252,.94); }
+  .guide-discovery-offline { border-color: rgba(234,88,12,.2); background: rgba(255,247,237,.94); }
   .gdi-thumb-wrap { width: 62px; height: 52px; border-radius: 7px; overflow: hidden; background: #e2e8f0; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
   .gdi-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
   .gdi-icon { font-size: 18px; flex-shrink: 0; }

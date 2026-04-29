@@ -17,6 +17,14 @@ function parseLang(raw: unknown): TtsLang {
   return "ja";
 }
 
+function parseClientSceneId(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  if (value.length < 8 || value.length > 96) return null;
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]+$/.test(value)) return null;
+  return value;
+}
+
 type PendingGuideScene = {
   sceneId: string;
   sessionId: string;
@@ -256,6 +264,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    * Queue video frame (+ optional privacy-filtered natural audio) analysis and immediately return a scene_id.
    * Body (JSON):
    *   frame:       string  base64 JPEG/PNG frame
+   *   clientSceneId?: string stable client id for offline retry idempotency
    *   frameThumb?: string  compact data URL thumbnail for delayed trail cards
    *   audio?:      string  base64 audio buffer after client speech-risk filtering
    *   audioPrivacy?: { clientSkippedCount?: number, policy?: string }
@@ -291,7 +300,14 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const azimuth = typeof azimuthRaw === "number" && Number.isFinite(azimuthRaw)
       ? azimuthRaw
       : (typeof azimuthRaw === "string" && azimuthRaw !== "" && Number.isFinite(Number(azimuthRaw)) ? Number(azimuthRaw) : null);
-    const sceneId = randomUUID();
+    const clientSceneId = parseClientSceneId(body.clientSceneId);
+    if (clientSceneId) {
+      const existingJob = sceneJobs.get(clientSceneId);
+      if (existingJob && existingJob.sessionId === sessionId) {
+        return reply.status(202).send(buildScenePayload(existingJob, null));
+      }
+    }
+    const sceneId = clientSceneId ?? randomUUID();
     const requestedAt = new Date().toISOString();
     const frameThumb = typeof body.frameThumb === "string" ? body.frameThumb : null;
 

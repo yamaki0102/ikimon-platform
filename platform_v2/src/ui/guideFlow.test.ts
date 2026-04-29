@@ -11,7 +11,7 @@ test("guide flow exposes a photo fallback when camera access is unavailable", ()
   assert.match(html, /id="guide-photo-input" type="file" accept="image\/\*" hidden/);
   assert.match(html, /投稿用写真を選ぶ/);
   assert.match(html, /写真を解析中/);
-  assert.match(html, /policy: 'photo_fallback_no_audio'/);
+  assert.match(html, /audioPrivacyPolicy: 'photo_fallback_no_audio'/);
 });
 
 test("guide live capture starts video-only and asks for microphone separately", () => {
@@ -30,12 +30,23 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /let audioOptIn = false/);
   assert.match(html, /let cameraOptIn = true/);
   assert.match(html, /let audioOnlyChunkCount = 0/);
+  assert.match(html, /const OFFLINE_DB_NAME = 'ikimon-guide-offline-v1'/);
+  assert.match(html, /const OFFLINE_STORE = 'queue'/);
+  assert.match(html, /window\.addEventListener\('online'/);
+  assert.match(html, /window\.addEventListener\('offline'/);
+  assert.match(html, /id="guide-offline-queued" hidden/);
+  assert.match(html, /id="guide-summary-queued">0<\/strong>/);
   assert.match(html, /id="guide-audio-opt-btn" type="button" aria-pressed="false"/);
   assert.match(html, /Audio is saved only if you enable natural sound recording below\./);
   assert.match(html, /Field-like discoveries are saved automatically; indoor or person-first scenes are not kept\./);
   assert.match(html, /autoSaveView\(scene\)/);
   assert.match(html, /copy\.autoSaved/);
   assert.match(html, /copy\.manualSave/);
+  assert.match(html, /clientSceneId: payload\.clientSceneId/);
+  assert.match(html, /externalId: newQueueId\('guide-audio'\)/);
+  assert.match(html, /await queueScenePayload\(payload, 'offline'\)/);
+  assert.match(html, /await queueAudioPayload\(payload, blob, 'offline'\)/);
+  assert.match(html, /if \(vad\.speechLikely\)/);
   assert.match(html, /requestEnvironmentCamera\(\)/);
   assert.match(html, /facingMode: \{ exact: 'environment' \}/);
   assert.match(html, /audio: \{ channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false \}/);
@@ -69,4 +80,8 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
   assert.match(html, /保存されたもの/);
   assert.match(html, /保存しなかったもの/);
   assert.match(html, /音声だけで取れたもの/);
+  assert.match(html, /未同期のもの/);
+  assert.match(html, /オフライン中/);
+  assert.match(html, /端末に一時保存中/);
+  assert.match(html, /端末の保存容量に近づいています/);
 });
