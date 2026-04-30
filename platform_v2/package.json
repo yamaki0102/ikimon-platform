@@ -16,6 +16,8 @@
     "test:curator": "tsx --test src/services/aiModelPricing.test.ts src/services/curatorTrustBoundary.test.ts src/services/curatorSqlBuilder.test.ts src/scripts/curatorModelBakeoff.test.ts",
     "eval:navigable-os:generate": "tsx src/scripts/generateNavigableBiodiversityOsEvalCandidate.ts",
     "eval:navigable-os": "tsx src/scripts/scoreNavigableBiodiversityOsEval.ts",
+    "compile:knowledge-navigation": "tsx src/scripts/compileKnowledgeNavigation.ts",
+    "eval:knowledge-navigation": "npm run eval:navigable-os",
     "bakeoff:curator": "tsx src/scripts/curatorModelBakeoff.ts",
     "smoke:curator:invasive": "tsx src/scripts/smokeInvasiveLawCurator.ts",
     "e2e:staging": "playwright test -c playwright.staging.config.ts",

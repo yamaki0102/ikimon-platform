@@ -151,6 +151,30 @@ jobs:
               exit 1
             fi
             IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
+            echo "== npm run compile:knowledge-navigation dry-run =="
+            DRY_RUN_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --dry-run --json)"
+            echo "$DRY_RUN_JSON"
+            echo "== npm run compile:knowledge-navigation first pass =="
+            FIRST_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --json)"
+            echo "$FIRST_JSON"
+            echo "== npm run compile:knowledge-navigation skip verification =="
+            SECOND_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --json)"
+            echo "$SECOND_JSON"
+            DRY_RUN_JSON="$DRY_RUN_JSON" FIRST_JSON="$FIRST_JSON" SECOND_JSON="$SECOND_JSON" node <<'NODE'
+            const dryRun = JSON.parse(process.env.DRY_RUN_JSON || "{}");
+            const first = JSON.parse(process.env.FIRST_JSON || "{}");
+            const second = JSON.parse(process.env.SECOND_JSON || "{}");
+            if (!dryRun.sourceSnapshotHash || dryRun.nodeCount < 1 || dryRun.documentCount < 1) {
+              throw new Error(`invalid dry-run counts: nodes=${dryRun.nodeCount} documents=${dryRun.documentCount}`);
+            }
+            if (first.sourceSnapshotHash !== dryRun.sourceSnapshotHash) {
+              throw new Error("first compile hash differs from dry-run hash");
+            }
+            if (second.sourceSnapshotHash !== dryRun.sourceSnapshotHash || second.skipped !== true) {
+              throw new Error("second compile did not skip unchanged source_snapshot_hash");
+            }
+            console.log(`knowledge-navigation verified nodes=${dryRun.nodeCount} documents=${dryRun.documentCount} hash=${dryRun.sourceSnapshotHash}`);
+NODE
             echo "== update canonical staging env file =="
             mkdir -p "$STAGING_ENV_DIR"
             TMP_ENV="$(mktemp)"
