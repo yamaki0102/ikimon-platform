@@ -224,7 +224,7 @@ async function getAssessmentMap(
             shot_suggestions,
             raw_json,
             run.source_payload AS run_source_payload,
-            generated_at::text,
+            a.generated_at::text,
             a.ai_run_id::text,
             a.pipeline_version,
             a.taxonomy_version,
