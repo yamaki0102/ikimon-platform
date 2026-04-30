@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { newStagingContext, type ViewportProfile } from "./support/staging.js";
+import { newStagingContext, suppressMapLibreForSmoke, type ViewportProfile } from "./support/staging.js";
 
 const HOME_VIEWPORTS: ViewportProfile[] = [
   { slug: "desktop-1536", viewport: { width: 1536, height: 900 } },
@@ -19,6 +19,7 @@ for (const profile of HOME_VIEWPORTS) {
     const page = await context.newPage();
 
     try {
+      await suppressMapLibreForSmoke(page);
       await page.goto("/?lang=ja", { waitUntil: "networkidle" });
       await expect(page.locator(".prototype-hero")).toBeVisible();
       await expect(page.locator("#landing-hero-heading")).toContainText("身近な自然");

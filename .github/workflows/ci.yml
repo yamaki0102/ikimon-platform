@@ -101,6 +101,10 @@ jobs:
         working-directory: platform_v2
         run: npm run test:curator
 
+      - name: Run Navigable Biodiversity OS evaluation gate
+        working-directory: platform_v2
+        run: npm run eval:navigable-os
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest

@@ -30,6 +30,15 @@ import {
   type InvasiveStatusFact,
 } from "./invasiveLookupHelpers.js";
 import { emitAlertsForOccurrence } from "./alertDispatcher.js";
+import {
+  buildObservationPackage,
+  claimRefsForPackage,
+  summarizeObservationPackageForPrompt,
+} from "./observationPackage.js";
+import {
+  formatClaimRefsForPrompt,
+  retrieveBranchKnowledgeClaims,
+} from "./knowledgeClaimRetrieval.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -114,6 +123,7 @@ type GeminiJson = {
   similar_taxa?: Array<{ name?: string; rank?: string }>;
   distinguishing_tips?: string[];
   confirm_more?: string[];
+  claim_refs_used?: string[];
   geographic_context?: string;
   seasonal_context?: string;
   area_inference?: GeminiAreaInference;
@@ -788,6 +798,25 @@ export async function reassessObservation(
       () => ({ summary: "", digestVersion: 0 }),
     );
 
+    const baseObservationPackage = await buildObservationPackage({
+      visitId: target.visitId,
+      targetOccurrenceId: target.primaryOccurrenceId,
+    }, client).catch(() => null);
+    const branchClaimRefs = baseObservationPackage
+      ? await retrieveBranchKnowledgeClaims({
+          branch: "feedback_contract",
+          observationPackage: baseObservationPackage,
+          limit: 8,
+        }, client).catch(() => [])
+      : [];
+    const observationPackage = baseObservationPackage
+      ? claimRefsForPackage(baseObservationPackage, branchClaimRefs)
+      : null;
+    const observationPackageSummary = summarizeObservationPackageForPrompt(observationPackage);
+    const observationPackageCacheRef = observationPackage
+      ? createHash("sha1").update(observationPackageSummary).digest("hex").slice(0, 16)
+      : "none";
+
     // ---- user_output_cache lookup ----
     // Skip when the caller forced a refresh via overridePhotos or explicit
     // sourceTag != "photo". Otherwise build the cache key from the canonical
@@ -799,12 +828,17 @@ export async function reassessObservation(
       .filter((id): id is string => typeof id === "string" && id.length > 0)
       .slice()
       .sort();
-    const knowledgeVersionSet = await buildKnowledgeVersionSet({
+    const baseKnowledgeVersionSet = await buildKnowledgeVersionSet({
       scientificNames: [target.scientificName, target.vernacularName].filter(
         (name): name is string => typeof name === "string" && name.length > 0,
       ),
       placeId: vctx.place_id ?? null,
     }).catch(() => ({ invasive: [], redlist: [], taxonomy: [], placeEnv: [] }));
+    const knowledgeVersionSet = {
+      ...baseKnowledgeVersionSet,
+      claim: branchClaimRefs.map((claim) => claim.claimId).sort(),
+      observation_package: observationPackageCacheRef,
+    };
     const cacheEligible =
       cacheUserId !== null &&
       overridePhotos.length === 0 &&
@@ -852,6 +886,8 @@ export async function reassessObservation(
       existingLabel,
       siteBriefLabel: vctx.place_id ?? "不明",
       profileDigestSummary: profileDigest.summary,
+      observationPackageSummary,
+      knowledgeClaimsContext: formatClaimRefsForPrompt(branchClaimRefs),
     });
 
     const { parsed, modelUsed, rawText } = await runGemini(prompt, photos, {
@@ -878,6 +914,9 @@ export async function reassessObservation(
       : [];
     const distinguishing = Array.isArray(parsed.distinguishing_tips) ? parsed.distinguishing_tips.filter((value) => typeof value === "string") : [];
     const confirmMore = Array.isArray(parsed.confirm_more) ? parsed.confirm_more.filter((value) => typeof value === "string") : [];
+    const claimRefsUsed = Array.isArray(parsed.claim_refs_used)
+      ? parsed.claim_refs_used.filter((value) => typeof value === "string" && branchClaimRefs.some((claim) => claim.claimId === value))
+      : [];
     const areaInference = normalizeAreaInference(parsed.area_inference);
     const shotSuggestions = normalizeShotSuggestions(parsed.shot_suggestions);
     const coexisting = Array.isArray(parsed.coexisting_taxa)
@@ -965,6 +1004,16 @@ export async function reassessObservation(
         selectedOccurrenceId: target.selectedOccurrenceId,
         photoCount: photos.length,
         knowledgeVersionSet,
+        navigableOs: {
+          branch: "feedback_contract",
+          observationPackageId: observationPackage?.packageId ?? null,
+          claimRefCount: branchClaimRefs.length,
+          claimRefs: branchClaimRefs.map((claim) => ({
+            claimId: claim.claimId,
+            claimType: claim.claimType,
+            scopeMatch: claim.scopeMatch,
+          })),
+        },
         invasiveLookup: {
           termCount: invasiveLookupTerms.length,
           factCount: invasiveFacts.length,
@@ -1068,7 +1117,18 @@ export async function reassessObservation(
         String(parsed.seasonal_context ?? "").trim(),
         JSON.stringify(areaInference),
         JSON.stringify(shotSuggestions),
-        JSON.stringify({ raw: rawText.slice(0, 12000), parsed: gatedParsed }),
+        JSON.stringify({
+          raw: rawText.slice(0, 12000),
+          parsed: {
+            ...gatedParsed,
+            claim_refs_used: claimRefsUsed,
+          },
+          navigable_os: {
+            branch: "feedback_contract",
+            observation_package_id: observationPackage?.packageId ?? null,
+            retrieved_claim_ids: branchClaimRefs.map((claim) => claim.claimId),
+          },
+        }),
       ],
     );
 

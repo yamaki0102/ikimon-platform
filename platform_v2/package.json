@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test:node": "tsx --test \"src/**/*.test.ts\"",
     "test:curator": "tsx --test src/services/aiModelPricing.test.ts src/services/curatorTrustBoundary.test.ts src/services/curatorSqlBuilder.test.ts src/scripts/curatorModelBakeoff.test.ts",
+    "eval:navigable-os:generate": "tsx src/scripts/generateNavigableBiodiversityOsEvalCandidate.ts",
+    "eval:navigable-os": "tsx src/scripts/scoreNavigableBiodiversityOsEval.ts",
     "bakeoff:curator": "tsx src/scripts/curatorModelBakeoff.ts",
     "smoke:curator:invasive": "tsx src/scripts/smokeInvasiveLawCurator.ts",
     "e2e:staging": "playwright test -c playwright.staging.config.ts",

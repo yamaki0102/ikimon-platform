@@ -16,6 +16,8 @@
 - 既存の仮ラベル: ${existingLabel}
 - 観察地点タグ: ${siteBriefLabel}
 - 観察者プロファイル: ${profileDigestSummary}
+- ObservationPackage: ${observationPackageSummary}
+- reviewed knowledge_claims: ${knowledgeClaimsContext}
 
 ## プロファイル活用方針
 `観察者プロファイル` が空でない場合、`narrative` の最後に **1 文だけ** 観察者の関心領域に触れてよい (例: 「キミがよく追っている帰化植物群とは葉脈構造が違う」など)。
@@ -101,6 +103,8 @@
 - 内部設計語（自己効力感、ジョブクラフティング、エビデンスティア 等）をユーザー向け文言に含めない。
 - 人影・個人特定可能な人物は記述しない。
 - 推測を事実として書かない。自信がないことは `missing_evidence` と `confirm_more` に書け。
+- **ObservationPackage優先**: `ObservationPackage` に含まれる evidence / safe_rank / review_state を、画像推論より強い制約として扱え。
+- **claim_refs必須**: `reviewed knowledge_claims` にない文献・地域・外来種・企業/健康/法務系の強い主張を作るな。使った claim がある場合は JSON に `claim_refs_used` として claim_id を配列で返せ。
 - **新種判定の暴走禁止**: 既知の科に明確に属する個体に対して `novelty_score >= 0.3` を返さない。`confidence_band='low'` の場合は `novelty_hint` フィールド自体を出力しない。
 - **外来種の hallucination 禁止**: `invasive_response.is_invasive=true` を返せるのは、提供された `knowledge_claims` に該当する種・属・科のクレームが存在するときのみ。クレームが無いなら `is_invasive=false` で終え、`recommended_action` は null。
 - **駆除推奨の禁止域**: 特定外来生物 (`iaspecified`) に対して `recommended_action='controlled_removal'` を出力するな（捕殺・運搬は法的に許可制）。原則 `report_only`。
@@ -127,6 +131,7 @@
   "similar_taxa": [{"name":"タチツボスミレ","rank":"species"}],
   "distinguishing_tips": ["...", "..."],
   "confirm_more": ["...", "..."],
+  "claim_refs_used": ["claim-id-if-used"],
   "geographic_context": "...",
   "seasonal_context": "...",
   "area_inference": {
