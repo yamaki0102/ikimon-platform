@@ -27,6 +27,7 @@ import {
   isDemoFixtureKey,
   type DemoFixtureKey,
 } from "./relationshipScoreFixture.js";
+import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
 
 export type SnapshotSource = "live" | "demo";
 
@@ -43,6 +44,14 @@ export type RelationshipScoreSnapshot = {
   narrative: NarrativeBundle | null;
   diffFromPrevious: Record<RelationshipAxis, number> | null;
   topActions: Array<{ axis: RelationshipAxis; score: number; priority: number }>;
+  claimRefsUsed: Array<{
+    claimId: string;
+    claimType: string | null;
+    scopeMatch: string | null;
+    occurrenceId: string;
+    assessmentId: string;
+    generatedAt: string;
+  }>;
   styleGuideVersion: string | null;
   generatedAt: string;
   fixtureKey: DemoFixtureKey | null;
@@ -71,6 +80,62 @@ function deriveTopActions(
     .filter((it) => it.score < 20)
     .sort((a, b) => b.priority - a.priority)
     .slice(0, 3);
+}
+
+async function loadReportClaimRefs(
+  placeId: string,
+  periodStart: Date,
+  periodEnd: Date,
+): Promise<RelationshipScoreSnapshot["claimRefsUsed"]> {
+  try {
+    const pool = getPool();
+    const result = await pool.query<{
+      assessment_id: string;
+      occurrence_id: string;
+      raw_json: unknown;
+      run_source_payload: unknown;
+      generated_at: string;
+    }>(
+      `select
+          a.assessment_id::text,
+          a.occurrence_id,
+          a.raw_json,
+          run.source_payload as run_source_payload,
+          a.generated_at::text
+         from observation_ai_assessments a
+         join visits v on v.visit_id = a.visit_id
+         left join observation_ai_runs run on run.ai_run_id = a.ai_run_id
+        where v.place_id = $1
+          and v.observed_at >= $2
+          and v.observed_at <= $3
+        order by a.generated_at desc
+        limit 50`,
+      [placeId, periodStart, periodEnd],
+    );
+    const out: RelationshipScoreSnapshot["claimRefsUsed"] = [];
+    const seen = new Set<string>();
+    for (const row of result.rows) {
+      const nav = extractNavigableOsFromAssessmentPayload(row.raw_json, row.run_source_payload);
+      for (const claim of nav?.claimRefsUsed ?? []) {
+        const key = `${claim.claimId}|${row.occurrence_id}|${row.assessment_id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          claimId: claim.claimId,
+          claimType: claim.claimType,
+          scopeMatch: claim.scopeMatch,
+          occurrenceId: row.occurrence_id,
+          assessmentId: row.assessment_id,
+          generatedAt: row.generated_at,
+        });
+        if (out.length >= 20) return out;
+      }
+    }
+    return out;
+  } catch (error) {
+    console.warn("[relationshipScoreSnapshot] report claim refs lookup failed", error);
+    return [];
+  }
 }
 
 export type GetSnapshotOptions = {
@@ -271,6 +336,7 @@ export async function getRelationshipScoreSnapshot(
       narrative,
       diffFromPrevious: null,
       topActions: deriveTopActions(result),
+      claimRefsUsed: [],
       styleGuideVersion: narrative?.styleGuideVersion ?? null,
       generatedAt: new Date().toISOString(),
       fixtureKey: fx.key,
@@ -288,10 +354,11 @@ export async function getRelationshipScoreSnapshot(
     ? (options.bbox ?? (await loadPlaceBbox(placeId)))
     : null;
 
-  const [inputs, placeMeta, previous] = await Promise.all([
+  const [inputs, placeMeta, previous, claimRefsUsed] = await Promise.all([
     loadRelationshipScoreInputs({ placeId, periodStart, periodEnd, bbox }),
     loadPlaceMeta(placeId),
     loadPreviousSnapshot(placeId, periodStart, RELATIONSHIP_SCORE_CALC_VERSION),
+    loadReportClaimRefs(placeId, periodStart, periodEnd),
   ]);
 
   const result = calculateRelationshipScore(inputs);
@@ -322,6 +389,7 @@ export async function getRelationshipScoreSnapshot(
     narrative,
     diffFromPrevious: diff,
     topActions: deriveTopActions(result),
+    claimRefsUsed,
     styleGuideVersion: narrative?.styleGuideVersion ?? null,
     generatedAt: new Date().toISOString(),
     fixtureKey: null,

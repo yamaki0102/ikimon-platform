@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  extractNavigableOsFromAssessmentPayload,
   normalizeInvasiveResponseFromRaw,
   normalizeNoveltyHintFromRaw,
   normalizeSizeAssessmentFromRaw,
@@ -91,4 +92,33 @@ test("normalizeSizeAssessmentFromRaw rejects invalid size_class", () => {
   const out = normalizeSizeAssessmentFromRaw({ typical_size_cm: 5, size_class: "huge" });
   assert.ok(out);
   assert.equal(out!.sizeClass, null);
+});
+
+test("extractNavigableOsFromAssessmentPayload joins parsed claim refs with run metadata", () => {
+  const out = extractNavigableOsFromAssessmentPayload(
+    {
+      parsed: { claim_refs_used: ["claim-a"] },
+      navigable_os: {
+        branch: "feedback_contract",
+        observation_package_id: "obspkg_1",
+        retrieved_claim_ids: ["claim-a", "claim-b"],
+      },
+    },
+    {
+      navigableOs: {
+        claimRefs: [
+          { claimId: "claim-a", claimType: "retake_guidance", scopeMatch: "general" },
+          { claimId: "claim-b", claimType: "risk", scopeMatch: "risk_lane" },
+        ],
+      },
+    },
+  );
+  assert.ok(out);
+  assert.equal(out!.branch, "feedback_contract");
+  assert.equal(out!.claimRefsUsed.length, 1);
+  assert.deepEqual(out!.claimRefsUsed[0], {
+    claimId: "claim-a",
+    claimType: "retake_guidance",
+    scopeMatch: "general",
+  });
 });

@@ -1188,6 +1188,18 @@ function renderSubjectHint(
   const funFact = aiAssessment.funFact
     ? `<div class="obs-hint-fun"><div class="obs-hint-eye">ちょっとした豆知識</div><p>${escapeHtml(aiAssessment.funFact)}</p></div>`
     : "";
+  const claimRefs = aiAssessment.claimRefsUsed.length > 0
+    ? `<div class="obs-hint-sub obs-hint-claims">
+        <div class="obs-hint-eye">このAIメモが参照した知識claim <span class="obs-hint-eye-note">reviewed</span></div>
+        <ul class="obs-hint-tags">${aiAssessment.claimRefsUsed.slice(0, 6).map((claim) =>
+          `<li>${escapeHtml([
+            claim.claimId,
+            claim.claimType,
+            claim.scopeMatch,
+          ].filter(Boolean).join(" / "))}</li>`
+        ).join("")}</ul>
+      </div>`
+    : "";
   const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
     ? `<div class="obs-hint-similar">
          <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
@@ -1212,6 +1224,7 @@ function renderSubjectHint(
     ${threeLens}
     ${rec}${best}
     <div class="obs-hint-grid">${clues}${missingPhoto}${stop}${placeSeason}${boost}${nextStep}</div>
+    ${claimRefs}
     ${areaInference}
     ${shotSuggestions}
     ${funFact}
@@ -6953,12 +6966,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const rows = snapshot.queue.map((item) => {
       const detailHref = withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId));
       const disputeLabel = (item.openDisputeCount ?? 0) > 0 ? ` · open dispute ${item.openDisputeCount}` : "";
+      const claimRefLabel = (item.claimRefCount ?? 0) > 0 ? ` · claim refs ${item.claimRefCount}` : " · no claim refs";
       return `
       <div class="row specialist-queue-row" data-occurrence-id="${escapeHtml(item.occurrenceId)}" data-display-name="${escapeHtml(item.displayName)}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "Municipality unknown")}${escapeHtml(disputeLabel)}</div>
+          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "Municipality unknown")}${escapeHtml(disputeLabel)}${escapeHtml(claimRefLabel)}</div>
         </div>
         <div class="actions">
           <span class="pill">${item.identificationCount} ids</span>

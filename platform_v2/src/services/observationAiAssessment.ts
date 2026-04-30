@@ -57,6 +57,19 @@ export type InvasiveResponse = {
   hedge: string;
 };
 
+export type AssessmentClaimRef = {
+  claimId: string;
+  claimType: string | null;
+  scopeMatch: string | null;
+};
+
+export type AssessmentNavigableOs = {
+  branch: string | null;
+  observationPackageId: string | null;
+  retrievedClaimIds: string[];
+  claimRefsUsed: AssessmentClaimRef[];
+};
+
 export type AiAssessment = {
   assessmentId: string;
   confidenceBand: "high" | "medium" | "low" | "unknown";
@@ -83,6 +96,8 @@ export type AiAssessment = {
   sizeAssessment: SizeAssessment | null;
   noveltyHint: NoveltyHint | null;
   invasiveResponse: InvasiveResponse | null;
+  claimRefsUsed: AssessmentClaimRef[];
+  navigableOs: AssessmentNavigableOs | null;
   generatedAt: string;
 };
 
@@ -116,21 +131,24 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     area_inference: unknown;
     shot_suggestions: unknown;
     raw_json: unknown;
+    run_source_payload: unknown;
     generated_at: string;
   }>(
-    `SELECT assessment_id::text, confidence_band, model_used, recommended_rank,
-            recommended_taxon_name, best_specific_taxon_name,
-            narrative, simple_summary, observer_boost, next_step_text, stop_reason,
-            fun_fact, fun_fact_grounded,
-            diagnostic_features_seen, missing_evidence, similar_taxa,
-            distinguishing_tips, confirm_more,
-            geographic_context, seasonal_context,
-            area_inference, shot_suggestions,
-            raw_json,
-            generated_at::text
-       FROM observation_ai_assessments
-      WHERE occurrence_id = $1
-      ORDER BY generated_at DESC
+    `SELECT a.assessment_id::text, a.confidence_band, a.model_used, a.recommended_rank,
+            a.recommended_taxon_name, a.best_specific_taxon_name,
+            a.narrative, a.simple_summary, a.observer_boost, a.next_step_text, a.stop_reason,
+            a.fun_fact, a.fun_fact_grounded,
+            a.diagnostic_features_seen, a.missing_evidence, a.similar_taxa,
+            a.distinguishing_tips, a.confirm_more,
+            a.geographic_context, a.seasonal_context,
+            a.area_inference, a.shot_suggestions,
+            a.raw_json,
+            run.source_payload AS run_source_payload,
+            a.generated_at::text
+       FROM observation_ai_assessments a
+       LEFT JOIN observation_ai_runs run ON run.ai_run_id = a.ai_run_id
+      WHERE a.occurrence_id = $1
+      ORDER BY a.generated_at DESC
       LIMIT 1`,
     [occurrenceId],
   );
@@ -160,6 +178,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
   const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
   const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
   const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
+  const navigableOs = extractNavigableOsFromAssessmentPayload(r.raw_json, r.run_source_payload);
 
   return {
     assessmentId: r.assessment_id,
@@ -187,6 +206,8 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     sizeAssessment,
     noveltyHint,
     invasiveResponse,
+    claimRefsUsed: navigableOs?.claimRefsUsed ?? [],
+    navigableOs,
     generatedAt: r.generated_at,
   };
 }
@@ -274,6 +295,63 @@ export function pickParsedFromRawJson(value: unknown): Record<string, unknown> |
     return obj;
   }
   return null;
+}
+
+function objOrNull(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean))];
+}
+
+export function extractNavigableOsFromAssessmentPayload(
+  rawJson: unknown,
+  runSourcePayload: unknown,
+): AssessmentNavigableOs | null {
+  const raw = objOrNull(rawJson);
+  const runPayload = objOrNull(runSourcePayload);
+  const rawNav = objOrNull(raw?.["navigable_os"]);
+  const runNav = objOrNull(runPayload?.["navigableOs"]);
+  const parsed = pickParsedFromRawJson(rawJson);
+  const claimIdsUsed = stringArray(parsed?.["claim_refs_used"]);
+  const retrievedClaimIds = stringArray(rawNav?.["retrieved_claim_ids"]);
+  const runClaimRefsRaw = Array.isArray(runNav?.["claimRefs"]) ? runNav?.["claimRefs"] as unknown[] : [];
+  const runClaimRefById = new Map<string, AssessmentClaimRef>();
+  for (const entry of runClaimRefsRaw) {
+    const obj = objOrNull(entry);
+    const claimId = typeof obj?.["claimId"] === "string" ? obj["claimId"].trim() : "";
+    if (!claimId) continue;
+    runClaimRefById.set(claimId, {
+      claimId,
+      claimType: typeof obj?.["claimType"] === "string" ? obj["claimType"] : null,
+      scopeMatch: typeof obj?.["scopeMatch"] === "string" ? obj["scopeMatch"] : null,
+    });
+  }
+  const claimRefsUsed = claimIdsUsed.map((claimId) =>
+    runClaimRefById.get(claimId) ?? { claimId, claimType: null, scopeMatch: null }
+  );
+  const branch = typeof rawNav?.["branch"] === "string"
+    ? rawNav["branch"]
+    : typeof runNav?.["branch"] === "string"
+      ? runNav["branch"]
+      : null;
+  const observationPackageId = typeof rawNav?.["observation_package_id"] === "string"
+    ? rawNav["observation_package_id"]
+    : typeof runNav?.["observationPackageId"] === "string"
+      ? runNav["observationPackageId"]
+      : null;
+  if (!branch && !observationPackageId && retrievedClaimIds.length === 0 && claimRefsUsed.length === 0) {
+    return null;
+  }
+  return {
+    branch,
+    observationPackageId,
+    retrievedClaimIds,
+    claimRefsUsed,
+  };
 }
 
 function trimStr(v: unknown): string {

@@ -34,6 +34,8 @@ type PanelCopy = {
   topActionsHeading: string;
   topActionsLead: string;
   evidenceHeading: string;
+  claimRefsHeading: string;
+  claimRefsEmpty: string;
   metaPeriod: string;
   metaSite: string;
   metaIndustry: string;
@@ -100,6 +102,8 @@ const COPY: Record<SiteLang, PanelCopy> = {
     topActionsHeading: "次に伸ばす — 上位3軸",
     topActionsLead: "ギャップ × 実行コスト × 達成可能性で並べ替え。",
     evidenceHeading: "見え方の補足",
+    claimRefsHeading: "観察AIが参照した知識claim",
+    claimRefsEmpty: "この期間のレポート対象観察では、review済みclaim参照はまだありません。",
     metaPeriod: "期間",
     metaSite: "サイト",
     metaIndustry: "業種",
@@ -164,6 +168,8 @@ const COPY: Record<SiteLang, PanelCopy> = {
     topActionsHeading: "Next to grow — top 3 axes",
     topActionsLead: "Sorted by gap × cost × headroom.",
     evidenceHeading: "Reading notes",
+    claimRefsHeading: "Knowledge claims used by observation AI",
+    claimRefsEmpty: "No reviewed claim references were used by target observations in this period.",
     metaPeriod: "Period",
     metaSite: "Site",
     metaIndustry: "Industry",
@@ -228,6 +234,8 @@ const COPY: Record<SiteLang, PanelCopy> = {
     topActionsHeading: "Siguiente — top 3 ejes",
     topActionsLead: "Ordenado por brecha × costo × margen.",
     evidenceHeading: "Notas de lectura",
+    claimRefsHeading: "Claims de conocimiento usados por la IA",
+    claimRefsEmpty: "No se usaron referencias revisadas en las observaciones objetivo durante este período.",
     metaPeriod: "Período",
     metaSite: "Sitio",
     metaIndustry: "Industria",
@@ -292,6 +300,8 @@ const COPY: Record<SiteLang, PanelCopy> = {
     topActionsHeading: "Próximo — top 3 eixos",
     topActionsLead: "Ordenado por lacuna × custo × margem.",
     evidenceHeading: "Notas de leitura",
+    claimRefsHeading: "Claims de conhecimento usadas pela IA",
+    claimRefsEmpty: "Nenhuma referência revisada foi usada pelas observações alvo neste período.",
     metaPeriod: "Período",
     metaSite: "Local",
     metaIndustry: "Setor",
@@ -412,6 +422,19 @@ function renderTopActions(snapshot: RelationshipScoreSnapshot, copy: PanelCopy):
   return `<ol class="rs-top-actions">${items}</ol>`;
 }
 
+function renderClaimRefsUsed(snapshot: RelationshipScoreSnapshot, copy: PanelCopy): string {
+  const refs = snapshot.claimRefsUsed.slice(0, 8);
+  if (refs.length === 0) {
+    return `<p class="rs-claim-empty">${escapeHtml(copy.claimRefsEmpty)}</p>`;
+  }
+  return `<ul class="rs-claim-list">
+    ${refs.map((ref) => `<li>
+      <span class="rs-claim-id">${escapeHtml(ref.claimId)}</span>
+      <span>${escapeHtml([ref.claimType, ref.scopeMatch].filter(Boolean).join(" / ") || "reviewed")}</span>
+    </li>`).join("")}
+  </ul>`;
+}
+
 function periodLabel(snapshot: RelationshipScoreSnapshot): string {
   return `${snapshot.periodStart} — ${snapshot.periodEnd}`;
 }
@@ -477,6 +500,10 @@ export function renderRelationshipScorePanel(
           ${summaryCard ? `<p class="rs-narrative-summary">${escapeHtml(summaryCard)}</p>` : ""}
           ${seasonalNote ? `<p class="rs-narrative-seasonal">${escapeHtml(seasonalNote)}</p>` : ""}
         </section>` : ""}
+        <section class="rs-side-section">
+          <h3 class="rs-side-heading">${escapeHtml(copy.claimRefsHeading)}</h3>
+          ${renderClaimRefsUsed(snapshot, copy)}
+        </section>
       </div>
     </section>
     <footer class="rs-report-foot">
@@ -622,6 +649,10 @@ export const RELATIONSHIP_SCORE_PANEL_STYLES = `
 .rs-narrative-action { margin: 8px 0 0; padding: 8px 10px; background: #ecfdf5; border-radius: 8px; font-size: 12px; color: #065f46; line-height: 1.55; }
 .rs-narrative-summary, .rs-narrative-seasonal { margin: 0 0 6px; font-size: 12px; color: #1e293b; line-height: 1.55; }
 .rs-fallback-hint { display: inline-block; margin-left: 4px; font-size: 9px; color: #94a3b8; font-weight: 400; }
+.rs-claim-empty { margin: 0; color: #64748b; font-size: 11px; line-height: 1.5; }
+.rs-claim-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rs-claim-list li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dotted #e2e8f0; font-size: 10px; color: #475569; }
+.rs-claim-id { color: #0f172a; font-weight: 700; }
 
 .rs-report-foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .rs-notice {

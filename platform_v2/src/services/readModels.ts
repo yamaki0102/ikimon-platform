@@ -18,6 +18,7 @@ import {
 } from "./observationQualityGate.js";
 import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole.js";
 import type { RegionalStoryCue } from "./regionalStory.js";
+import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
 
 type RecentObservation = {
   occurrenceId: string;
@@ -29,6 +30,8 @@ type RecentObservation = {
   isMultiSubject?: boolean;
   featuredConfidenceBand?: "high" | "medium" | "low" | "unknown" | null;
   displayStability?: "locked" | "stable" | "adaptive" | null;
+  claimRefCount?: number;
+  claimRefsUsed?: string[];
   displayName: string;
   observedAt: string;
   observerName: string;
@@ -1347,6 +1350,8 @@ export async function getSpecialistSnapshot(
       scientific_name: string | null;
       vernacular_name: string | null;
       ai_taxon_name: string | null;
+      ai_raw_json: unknown;
+      ai_run_source_payload: unknown;
       evidence_tier: string | null;
       open_dispute_count: string;
     }>(
@@ -1367,6 +1372,8 @@ export async function getSpecialistSnapshot(
           o.scientific_name,
           o.vernacular_name,
           coalesce(ai.recommended_taxon_name, ai.best_specific_taxon_name) as ai_taxon_name,
+          ai.raw_json as ai_raw_json,
+          ai.run_source_payload as ai_run_source_payload,
           o.evidence_tier::text,
           dispute.open_dispute_count::text
        from occurrences o
@@ -1389,8 +1396,12 @@ export async function getSpecialistSnapshot(
             and d.status = 'open'
        ) dispute on true
        left join lateral (
-         select recommended_taxon_name, best_specific_taxon_name
+         select a.recommended_taxon_name,
+                a.best_specific_taxon_name,
+                a.raw_json,
+                run.source_payload as run_source_payload
          from observation_ai_assessments a
+         left join observation_ai_runs run on run.ai_run_id = a.ai_run_id
          where a.occurrence_id = o.occurrence_id
          order by a.generated_at desc
          limit 1
@@ -1451,23 +1462,28 @@ export async function getSpecialistSnapshot(
       identificationCount: Number(summary?.identification_count ?? 0),
       observationPhotoAssets: Number(summary?.observation_photo_assets ?? 0),
     },
-    queue: scopedRows.slice(0, 12).map((row) => ({
-      occurrenceId: row.occurrence_id,
-      visitId: row.visit_id,
-      displayName: row.display_name ?? "同定待ち",
-      observedAt: row.observed_at,
-      observerName: row.observer_name ?? "Unknown observer",
-      placeName: row.place_name ?? "Unknown place",
-      municipality: row.municipality,
-      publicLocation: buildPublicLocationSummary({
+    queue: scopedRows.slice(0, 12).map((row) => {
+      const navigable = extractNavigableOsFromAssessmentPayload(row.ai_raw_json, row.ai_run_source_payload);
+      return {
+        occurrenceId: row.occurrence_id,
+        visitId: row.visit_id,
+        displayName: row.display_name ?? "同定待ち",
+        observedAt: row.observed_at,
+        observerName: row.observer_name ?? "Unknown observer",
+        placeName: row.place_name ?? "Unknown place",
         municipality: row.municipality,
-        latitude: null,
-        longitude: null,
-      }),
-      photoUrl: normalizeAssetUrl(row.photo_url),
-      identificationCount: Number(row.identification_count),
-      openDisputeCount: Number(row.open_dispute_count ?? 0),
-    })),
+        publicLocation: buildPublicLocationSummary({
+          municipality: row.municipality,
+          latitude: null,
+          longitude: null,
+        }),
+        photoUrl: normalizeAssetUrl(row.photo_url),
+        identificationCount: Number(row.identification_count),
+        openDisputeCount: Number(row.open_dispute_count ?? 0),
+        claimRefCount: navigable?.claimRefsUsed.length ?? 0,
+        claimRefsUsed: navigable?.claimRefsUsed.map((claim) => claim.claimId) ?? [],
+      };
+    }),
   };
 }
 

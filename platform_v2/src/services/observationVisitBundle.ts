@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import {
   getLatestAiAssessment,
+  extractNavigableOsFromAssessmentPayload,
   normalizeInvasiveResponseFromRaw,
   normalizeNoveltyHintFromRaw,
   normalizeSizeAssessmentFromRaw,
@@ -191,6 +192,7 @@ async function getAssessmentMap(
     area_inference: unknown;
     shot_suggestions: unknown;
     raw_json: unknown;
+    run_source_payload: unknown;
     generated_at: string;
     ai_run_id: string | null;
     pipeline_version: string | null;
@@ -221,15 +223,17 @@ async function getAssessmentMap(
             area_inference,
             shot_suggestions,
             raw_json,
+            run.source_payload AS run_source_payload,
             generated_at::text,
-            ai_run_id::text,
-            pipeline_version,
-            taxonomy_version,
-            interpretation_status
-       FROM observation_ai_assessments
-      WHERE occurrence_id = ANY($1::text[])
-        AND ai_run_id = $2::uuid
-      ORDER BY generated_at DESC`,
+            a.ai_run_id::text,
+            a.pipeline_version,
+            a.taxonomy_version,
+            a.interpretation_status
+       FROM observation_ai_assessments a
+       LEFT JOIN observation_ai_runs run ON run.ai_run_id = a.ai_run_id
+      WHERE a.occurrence_id = ANY($1::text[])
+        AND a.ai_run_id = $2::uuid
+      ORDER BY a.generated_at DESC`,
     [occurrenceIds, aiRunId],
   );
 
@@ -314,6 +318,7 @@ async function getAssessmentMap(
     const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
     const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
     const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
+    const navigableOs = extractNavigableOsFromAssessmentPayload(row.raw_json, row.run_source_payload);
     assessmentMap.set(row.occurrence_id, {
       assessmentId: row.assessment_id,
       confidenceBand: row.confidence_band === "high" || row.confidence_band === "medium" || row.confidence_band === "low" ? row.confidence_band : "unknown",
@@ -340,6 +345,8 @@ async function getAssessmentMap(
       sizeAssessment,
       noveltyHint,
       invasiveResponse,
+      claimRefsUsed: navigableOs?.claimRefsUsed ?? [],
+      navigableOs,
       generatedAt: row.generated_at,
       aiRunId: row.ai_run_id,
       pipelineVersion: row.pipeline_version,
