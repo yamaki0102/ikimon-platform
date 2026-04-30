@@ -93,6 +93,23 @@ export async function newStagingContext(
   );
 }
 
+export async function suppressMapLibreForSmoke(page: Page): Promise<void> {
+  await page.route(
+    /https:\/\/(?:cdn\.jsdelivr\.net\/npm|unpkg\.com)\/maplibre-gl@4\.7\.1\/dist\/maplibre-gl\.(?:js|css)$/,
+    async (route) => {
+      const url = route.request().url();
+      await route.fulfill({
+        status: 204,
+        contentType: url.endsWith(".css") ? "text/css; charset=utf-8" : "application/javascript; charset=utf-8",
+        body: "",
+      });
+    },
+  );
+  await page.route(/https:\/\/tile\.openstreetmap\.org\/.*/, async (route) => {
+    await route.abort("blockedbyclient");
+  });
+}
+
 export async function createStagingApiContext(playwright: Playwright): Promise<APIRequestContext> {
   const authHeader = stagingBasicAuthHeader();
   return playwright.request.newContext({
