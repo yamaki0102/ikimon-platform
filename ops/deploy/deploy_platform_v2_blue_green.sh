@@ -266,6 +266,7 @@ prepare_release() {
   systemctl is-active "ikimon-v2-${inactive}.service" >/dev/null
 
   npm run sync:legacy -- --force --source-name=production_legacy_fs --import-version=production_shadow_live
+  npm run repair:location-labels
   npm run verify:production-shadow -- --import-version=production_shadow_live
   npm run report:legacy-drift -- --json
   npm run smoke:v2-lane -- --base-url="http://127.0.0.1:${port}"

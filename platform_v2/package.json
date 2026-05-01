@@ -56,6 +56,7 @@
     "process:video-jobs": "tsx src/scripts/processVideoProcessingJobs.ts",
     "process:audio-segments": "tsx src/scripts/processAudioSegments.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
+    "repair:location-labels": "tsx src/scripts/repairObservationLocationLabels.ts",
     "report:missing-photos": "tsx src/scripts/reportMissingObservationPhotos.ts",
     "audit:locations": "tsx src/scripts/auditObservationLocations.ts",
     "repair:user-password": "tsx src/scripts/setExistingUserPassword.ts",
