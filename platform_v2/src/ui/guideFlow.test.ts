@@ -44,6 +44,11 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /Audio is saved only if you enable natural sound recording below\./);
   assert.match(html, /Field-like discoveries are saved automatically; indoor, person-first, or weak nature signals are not kept\./);
   assert.match(html, /autoSaveView\(scene\)/);
+  assert.match(html, /const trailBundles = new Map\(\)/);
+  assert.match(html, /function upsertTrailBundle\(scene\)/);
+  assert.match(html, /scene-bundle-/);
+  assert.match(html, /代表 ' \+ bundle\.scenes\.length \+ '件/);
+  assert.match(GUIDE_FLOW_STYLES, /\.gdi-bundle/);
   assert.match(html, /copy\.autoSaved/);
   assert.match(html, /copy\.manualSave/);
   assert.match(html, /clientSceneId: payload\.clientSceneId/);
