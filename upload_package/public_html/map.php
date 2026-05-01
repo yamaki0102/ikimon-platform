@@ -505,6 +505,18 @@ Auth::init();
             </div>
         </div>
 
+        <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms
+             class="absolute left-4 md:left-auto md:right-6 bottom-[calc(var(--bottom-nav-height)+32px)] md:bottom-6 z-30 flex flex-col gap-2 pointer-events-auto">
+            <a href="/post.php" class="inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-black text-white shadow-lg shadow-primary/25 no-underline transition hover:bg-primary-dark">
+                <i data-lucide="camera" class="w-5 h-5"></i>
+                <span class="hidden sm:inline">記録する</span>
+            </a>
+            <a href="/guide_results.php" class="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-[var(--color-border)] bg-white/90 px-4 text-xs font-black text-primary shadow-md no-underline transition hover:bg-white">
+                <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">成果</span>
+            </a>
+        </div>
+
         <!-- Heatmap Legend (heatmap tab only) -->
         <div class="heatmap-legend" x-show="activeTab === 'heatmap'" x-transition style="display:none;">
             <div class="font-bold text-text mb-1">観察密度</div>

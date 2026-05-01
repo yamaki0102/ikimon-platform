@@ -11,6 +11,7 @@ require_once __DIR__ . '/../libs/Lang.php';
 
 require_once __DIR__ . '/../libs/Services/EventLogService.php';
 require_once __DIR__ . '/../libs/Services/SurveyLogService.php';
+require_once __DIR__ . '/components/experience_loop.php';
 
 Auth::init();
 Lang::init();
@@ -189,6 +190,15 @@ $meta_description = __('profile_page.meta_description', 'A page where you can re
             </div>
 
         </header>
+
+        <?php renderExperienceLoop([
+            'current' => 'results',
+            'class' => 'mb-12',
+            'title' => __('profile_page.loop_title', 'マイページから次の観察へ'),
+            'lead' => __('profile_page.loop_lead', 'ここで成果を眺めたら、地図で場所を見直し、足りない記録を足し、ガイドで意味を補えます。'),
+            'stat_label' => __('profile_page.loop_stat_label', '記録'),
+            'stat_value' => number_format(count($user_obs)),
+        ]); ?>
 
         <!-- Ambient Presence Section -->
         <section class="mb-12" x-data="ambientProfile()" x-init="loadData()">
