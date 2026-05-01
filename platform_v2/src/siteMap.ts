@@ -104,7 +104,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "ガイド成果確認", en: "Guide outcomes" },
     summary: { ja: "ライブガイドで残した足跡、ルート、環境の手がかりを見返す。", en: "Review saved guide traces, routes, and environment clues." },
     primaryAction: { href: "/guide/outcomes", label: { ja: "成果を見る", en: "Review outcomes" } },
-    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "ガイド記録を見るにはログインが必要です" }, allowStatus: [401, 200], readySelector: "body", screenshot: { baselineName: "registry-guide-outcomes" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "ガイド成果を見るにはログインが必要です" }, allowStatus: [401, 200], readySelector: "body", screenshot: { baselineName: "registry-guide-outcomes" } },
   },
   {
     path: "/lens",
