@@ -2,8 +2,8 @@
 require_once __DIR__ . '/../../libs/Auth.php';
 Auth::init();
 
-$meta_title = '自然共生サイト全420+認定 完全分析｜都道府県・業種・活動類型マップ';
-$meta_description = '環境省の自然共生サイト（OECM）全420+認定サイトをデータ分析。R5〜R7の全認定動向、都道府県分布、トヨタ・サントリー等の企業参加状況、里山型サイトの分類まで。日本のネイチャーポジティブの現在地を数字で読む。';
+$meta_title = '自然共生サイト569認定 完全分析｜都道府県・業種・活動類型マップ';
+$meta_description = '環境省の自然共生サイト569認定をもとに、R5〜R7の認定動向、都道府県分布、企業参加、里山型サイト、認定後の運用フェーズまで整理。日本のネイチャーポジティブの現在地を数字で読む。';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -87,7 +87,7 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
         {
             "@context": "https://schema.org",
             "@type": "Article",
-            "headline": "自然共生サイト全420+認定 完全分析",
+            "headline": "自然共生サイト569認定 完全分析",
             "author": {
                 "@type": "Person",
                 "name": "八巻 毅"
@@ -97,7 +97,7 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                 "name": "ikimon.life"
             },
             "datePublished": "2026-02-27",
-            "dateModified": "2026-02-27"
+            "dateModified": "2026-05-01"
         }
     </script>
     <script type="application/ld+json">
@@ -117,7 +117,7 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                     "name": "自然共生サイトは何サイト認定されている？",
                     "acceptedAnswer": {
                         "@type": "Answer",
-                        "text": "2026年2月時点で累計約420サイトが認定されています。R5（2023年）の122サイトから始まり、R7（2025年）には法制化された増進法のもとで259サイトが認定されました。"
+                        "text": "2026年3月17日時点で累計569サイトが認定されています。同日の環境省発表では108か所が追加認定され、自然共生サイト500以上の早期達成目標に到達しました。"
                     }
                 }
             ]
@@ -150,13 +150,13 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                 <i data-lucide="database" class="w-3.5 h-3.5"></i> Cluster 2 & 5: DATA
             </span>
             <h1 class="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-4">
-                自然共生サイト<span class="stat-number">全420+認定</span><br>完全分析
+                自然共生サイト<span class="stat-number">569認定</span><br>完全分析
             </h1>
             <p class="text-lg text-gray-500 mb-6">都道府県・業種・活動類型マップ｜日本のネイチャーポジティブの現在地</p>
 
             <div class="blockquote-accent rounded-xl p-6 mb-8">
                 <p class="text-gray-700 leading-relaxed">
-                    <strong>2023年の制度開始から3年で、約420サイトが自然共生サイトに認定。</strong>
+                    <strong>2023年の制度開始から3年で、569サイトが自然共生サイトに認定。</strong>
                     トヨタからNPO、個人の庭まで——日本全国で「30by30」が動き始めています。
                     全認定データを分析し、どんな企業が、どの地域で、どんな自然を守っているのかを解き明かします。
                 </p>
@@ -167,7 +167,7 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                 <div>
                     <p class="text-sm font-bold">八巻 毅</p>
                     <p class="text-xs text-gray-400">ikimon 代表 / 自然共生サイト認定企業・愛管株式会社パートナー</p>
-                    <p class="text-xs text-gray-400 mt-0.5">データソース: 環境省PDF (R5-R7) ｜ 最終更新: 2026年2月27日</p>
+                    <p class="text-xs text-gray-400 mt-0.5">データソース: 環境省PDF / 報道発表 (R5-R7) ｜ 最終更新: 2026年5月1日</p>
                 </div>
             </div>
         </div>
@@ -180,6 +180,10 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                 <!-- 全体像 -->
                 <div>
                     <h2 class="text-2xl font-bold mb-6">認定数の推移：3年間の軌跡</h2>
+                    <p class="text-sm text-gray-600 mb-4">
+                        2026年3月17日の環境省発表で <strong>108か所が追加認定</strong>され、自然共生サイトは<strong>合計569か所</strong>になりました。
+                        法施行後の認定回には旧制度サイトからの移行分も含まれるため、回別合計と公式総数は一致しません。対外説明では環境省公表の <strong>569</strong> を優先するのが安全です。
+                    </p>
                     <div class="overflow-x-auto">
                         <table class="data-table">
                             <thead>
@@ -233,16 +237,22 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                                     <td class="font-bold">58</td>
                                     <td>2025年12月（愛管含む）</td>
                                 </tr>
+                                <tr>
+                                    <td>R7 第3回</td>
+                                    <td>増進法</td>
+                                    <td class="font-bold">108</td>
+                                    <td>2026年3月17日認定</td>
+                                </tr>
                                 <tr class="bg-blue-50/50">
                                     <td>R7</td>
                                     <td>小計</td>
-                                    <td class="font-black text-lg text-blue-700">259</td>
-                                    <td>新規+R5-6移行</td>
+                                    <td class="font-black text-lg text-blue-700">367</td>
+                                    <td>認定回ベース / 旧制度サイト移行を含む</td>
                                 </tr>
                                 <tr class="bg-blue-100/30">
-                                    <td colspan="2"><strong>累計ユニーク</strong></td>
-                                    <td class="font-black text-2xl stat-number">~420</td>
-                                    <td>重複排除推定値</td>
+                                    <td colspan="2"><strong>公式総数</strong></td>
+                                    <td class="font-black text-2xl stat-number">569</td>
+                                    <td>環境省公表値（2026年3月17日）</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -439,6 +449,24 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                     </div>
                 </div>
 
+                <div>
+                    <h2 class="text-2xl font-bold mb-6">認定後はいま何が起きているか</h2>
+                    <div class="evidence-card rounded-2xl p-6">
+                        <p class="text-gray-700 leading-relaxed mb-4">
+                            2026年春の現行制度では、自然共生サイトは <strong>認定を取って終わり</strong> ではありません。環境省の支援制度ページでは、認定後の
+                            <strong>支援マッチング</strong> と <strong>支援証明書</strong> を含む運用フェーズが前面に出ています。
+                        </p>
+                        <ul class="text-sm text-gray-600 space-y-2 list-disc pl-5">
+                            <li>令和7年度の支援マッチング・支援証明書の受付は終了済み</li>
+                            <li>次の情報掲載は令和7年8月から令和8年3月中旬予定</li>
+                            <li>認定site側は、モニタリング、研修受入、成果発信、支援獲得の設計が主戦場</li>
+                        </ul>
+                        <p class="text-xs text-gray-500 mt-4">
+                            つまり、愛管のような認定済みsiteの説明では「申請支援」より「運用伴走・支援設計・モニタリング設計」を front に置く方が現行制度と整合します。
+                        </p>
+                    </div>
+                </div>
+
                 <!-- 里山 -->
                 <div>
                     <h2 class="text-2xl font-bold mb-6">注目：里山型サイトの広がり</h2>
@@ -502,11 +530,15 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                     <div class="space-y-4">
                         <details class="evidence-card rounded-2xl overflow-hidden">
                             <summary class="p-5 font-bold cursor-pointer hover:bg-gray-50">Q. 自然共生サイトは何サイト認定されている？</summary>
-                            <div class="px-5 pb-5 text-sm text-gray-600">2026年2月時点で累計約420サイト。R5前期の122サイトから始まり、年々拡大中です。</div>
+                            <div class="px-5 pb-5 text-sm text-gray-600">2026年3月17日時点で累計569サイトです。環境省は同日の第3回認定で108か所を追加し、「早期に500以上認定する」目標を達成しました。</div>
                         </details>
                         <details class="evidence-card rounded-2xl overflow-hidden">
                             <summary class="p-5 font-bold cursor-pointer hover:bg-gray-50">Q. 中小企業でも申請できる？</summary>
                             <div class="px-5 pb-5 text-sm text-gray-600">はい。全認定の約15%が中小企業です。愛管株式会社（浜松市）は約1.3haの敷地で認定を取得しました。<a href="aikan-renri-report.php" class="text-blue-600 hover:underline">→ 詳しい体験談</a></div>
+                        </details>
+                        <details class="evidence-card rounded-2xl overflow-hidden">
+                            <summary class="p-5 font-bold cursor-pointer hover:bg-gray-50">Q. 認定後は何を進める段階なの？</summary>
+                            <div class="px-5 pb-5 text-sm text-gray-600">現行の制度運用では、認定後にモニタリング、支援マッチング、支援証明書、研修受入、成果発信をどう回すかが重要です。令和7年度の支援受付は終了済みですが、次年度スケジュールは環境省ページで案内されています。</div>
                         </details>
                     </div>
                 </div>
