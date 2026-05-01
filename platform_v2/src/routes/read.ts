@@ -66,6 +66,7 @@ import {
   type HomePlace,
   type LandingObservation,
   type LandingSnapshot,
+  type ObservationDetailSnapshot,
   type ProfileSnapshot,
 } from "../services/readModels.js";
 import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
@@ -575,6 +576,44 @@ function verificationStatusLabel(status: IdentificationConsensusResult["identifi
 
 const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
+  .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
+  .obs-reading-media { min-width: 0; }
+  .obs-reading-panel { display: grid; gap: 14px; align-self: start; padding: 18px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+  .obs-reading-kicker { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
+  .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(30px, 4.4vw, 56px); line-height: 1.04; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
+  .obs-reading-lead { margin: 0; color: #475569; font-size: 14px; line-height: 1.75; font-weight: 750; }
+  @media (min-width: 960px) {
+    .obs-reading-hero { grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); align-items: start; gap: 28px; }
+    .obs-reading-panel { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; }
+  }
+  .obs-summary-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .obs-summary-cell { min-width: 0; display: grid; gap: 4px; padding: 10px 11px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.06); }
+  .obs-summary-cell span { color: #64748b; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-summary-cell strong { color: #0f172a; font-size: 13px; line-height: 1.45; font-weight: 900; overflow-wrap: anywhere; }
+  .obs-summary-copy { margin: 0; color: #475569; font-size: 13.5px; line-height: 1.75; font-weight: 720; }
+  .obs-reading-trust { display: grid; gap: 4px; padding: 13px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.88)); border: 1px solid rgba(16,185,129,.18); }
+  .obs-reading-trust span { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
+  .obs-reading-trust strong { color: #0f172a; font-size: 15px; line-height: 1.35; font-weight: 950; }
+  .obs-reading-trust p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+  .obs-next-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .obs-next-action { display: grid; gap: 3px; min-height: 58px; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+  .obs-next-action:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(15,23,42,.08); }
+  .obs-next-action.is-primary { background: #0f172a; color: #fff; border-color: #0f172a; box-shadow: 0 10px 26px rgba(15,23,42,.16); }
+  .obs-next-action-label { font-size: 14px; font-weight: 950; line-height: 1.3; }
+  .obs-next-action-body { color: inherit; opacity: .72; font-size: 12px; line-height: 1.45; font-weight: 760; }
+  .obs-read-progress { position: sticky; top: 56px; z-index: 20; display: flex; gap: 6px; overflow-x: auto; margin: 8px 0 18px; padding: 8px 4px; background: rgba(255,255,255,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(15,23,42,.06); scrollbar-width: none; }
+  .obs-read-progress::-webkit-scrollbar { display: none; }
+  .obs-read-progress a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 38px; padding: 8px 12px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; line-height: 1; font-weight: 900; text-decoration: none; }
+  .obs-read-progress a:hover, .obs-read-progress a:focus-visible { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.24); outline: none; }
+  .obs-reading-flow { display: grid; gap: 18px; max-width: 1120px; margin: 0 auto; }
+  .obs-reading-section { display: grid; gap: 14px; scroll-margin-top: 96px; }
+  .obs-summary-section, .obs-support-panel, .obs-layer, .obs-reading-hero { scroll-margin-top: 96px; }
+  @media (max-width: 720px) {
+    .obs-reading-panel { padding: 15px; border-radius: 16px; }
+    .obs-summary-strip { grid-template-columns: 1fr; }
+    .obs-read-progress { top: 50px; margin-inline: -4px; }
+    .obs-next-action { min-height: 64px; }
+  }
   .obs-hero { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 18px; margin-bottom: 30px; }
   @media (min-width: 860px) {
     .obs-hero { grid-template-columns: minmax(0, 1.16fr) minmax(320px, .84fr); align-items: start; gap: 36px; }
@@ -2040,6 +2079,199 @@ function renderIdentificationParticipation(options: {
       </div>
     </div>
   </section>`;
+}
+
+type ObservationNextAction = {
+  href: string;
+  label: string;
+  body: string;
+  key: string;
+  primary?: boolean;
+};
+
+function renderObservationSummaryStrip(options: {
+  displayName: string;
+  observedAt: string;
+  placeLabel: string;
+  observerDisplay: string;
+  trustStageLabel: string;
+  subjectCount: number;
+  mediaCount: number;
+}): string {
+  const cells = [
+    { label: "見えているもの", value: options.displayName },
+    { label: "観察日", value: formatAbsolute(options.observedAt) },
+    { label: "場所", value: options.placeLabel },
+    { label: "記録者", value: options.observerDisplay },
+    { label: "名前の段階", value: options.trustStageLabel },
+    { label: "対象と証拠", value: `${options.subjectCount} 対象 / ${options.mediaCount} メディア` },
+  ];
+  return `<div class="obs-summary-strip">
+    ${cells.map((cell) => `<div class="obs-summary-cell"><span>${escapeHtml(cell.label)}</span><strong>${escapeHtml(cell.value || "未記録")}</strong></div>`).join("")}
+  </div>`;
+}
+
+function renderObservationNextActionRail(actions: ObservationNextAction[]): string {
+  return `<div class="obs-next-actions" aria-label="次の一歩">
+    ${actions.map((action) => `<a class="obs-next-action${action.primary ? " is-primary" : ""}"
+         href="${escapeHtml(action.href)}"
+         data-observation-primary-cta="${escapeHtml(action.key)}"
+         data-kpi-action="observation:primary:${escapeHtml(action.key)}">
+      <span class="obs-next-action-label">${escapeHtml(action.label)}</span>
+      <span class="obs-next-action-body">${escapeHtml(action.body)}</span>
+    </a>`).join("")}
+  </div>`;
+}
+
+function renderObservationReadingHero(options: {
+  mediaBlock: string;
+  snapshot: ObservationDetailSnapshot;
+  displayName: string;
+  observerDisplay: string;
+  observerHref: string;
+  observedAt: string;
+  placeLabel: string;
+  badges: string[];
+  focusRailBlock: string;
+  summaryStrip: string;
+  nextActionRail: string;
+  trustStageLabel: string;
+  trustLead: string;
+  aiCandidateLearningPanel: string;
+}): string {
+  return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
+    <div class="obs-reading-media">${options.mediaBlock}</div>
+    <aside class="obs-reading-panel" aria-label="観察の要約">
+      <div class="obs-reading-kicker">Observation reading</div>
+      <h1 class="obs-reading-title">${escapeHtml(options.displayName)}</h1>
+      <p class="obs-reading-lead">この1件を読み返して、次に何を見るかまで決められる観察ページです。</p>
+      <div class="obs-hero-byline">
+        <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
+          ${options.snapshot.observerAvatarUrl
+            ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(options.snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((options.observerDisplay || "?").slice(0, 1))}}))" />`
+            : `<span class="obs-hero-avatar">${escapeHtml((options.observerDisplay || "?").slice(0, 1))}</span>`}
+          <span>${escapeHtml(options.observerDisplay)}</span>
+        </a>
+        <span class="obs-hero-when">${escapeHtml(formatAbsolute(options.observedAt))}</span>
+        <span class="obs-hero-place">${escapeHtml(options.placeLabel)}</span>
+      </div>
+      ${options.badges.length > 0 ? `<div class="obs-hero-badges">${options.badges.join("")}</div>` : ""}
+      ${options.summaryStrip}
+      <div class="obs-reading-trust">
+        <span>名前の確かさ</span>
+        <strong>${escapeHtml(options.trustStageLabel)}</strong>
+        <p>${escapeHtml(options.trustLead)}</p>
+      </div>
+      ${options.nextActionRail}
+      ${options.focusRailBlock}
+      ${options.aiCandidateLearningPanel}
+    </aside>
+  </section>`;
+}
+
+function renderObservationReadProgress(options: {
+  basePath: string;
+  observationId: string;
+  subjectId: string;
+  isOwner: boolean;
+}): string {
+  const endpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
+  const sections = [
+    { href: "#summary", key: "summary", label: "要約" },
+    { href: "#photos", key: "photos", label: "写真" },
+    { href: "#trust", key: "trust", label: "確かさ" },
+    { href: "#story", key: "story", label: "メモ" },
+    { href: "#next-hints", key: "next_hints", label: "次に見る" },
+    { href: "#identify", key: "identify", label: "同定" },
+    { href: "#place", key: "place", label: "場所" },
+    { href: "#related", key: "related", label: "関連" },
+  ];
+  return `<nav class="obs-read-progress" aria-label="観察ページの読み進め">
+    ${sections.map((section) => `<a href="${section.href}" data-obs-progress-link="${section.key}">${escapeHtml(section.label)}</a>`).join("")}
+  </nav>
+  <script>(function(){
+    var endpoint = ${JSON.stringify(endpoint)};
+    var observationId = ${JSON.stringify(options.observationId)};
+    var subjectId = ${JSON.stringify(options.subjectId)};
+    var isOwner = ${JSON.stringify(options.isOwner)};
+    var pagePath = location.pathname + location.search;
+    var sessionPrefix = 'ikimon:v2:observation_read:' + observationId + ':' + subjectId + ':';
+    Array.prototype.slice.call(document.querySelectorAll('[data-obs-progress-link]')).forEach(function(link){
+      var href = link.getAttribute('href') || '';
+      if (href.charAt(0) === '#' && !document.querySelector(href)) link.remove();
+    });
+    var send = function(eventName, actionKey, metadata) {
+      try {
+        var payload = {
+          eventName: eventName,
+          pagePath: pagePath,
+          routeKey: '/observations/:id',
+          actionKey: actionKey,
+          metadata: Object.assign({
+            observationId: observationId,
+            subjectId: subjectId,
+            isOwner: isOwner,
+            lang: document.documentElement.lang || 'ja',
+            ts: new Date().toISOString()
+          }, metadata || {})
+        };
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true,
+          credentials: 'same-origin'
+        }).catch(function(){});
+      } catch (_) {}
+    };
+    var seen = {};
+    var remember = function(key) {
+      if (seen[key]) return false;
+      seen[key] = true;
+      try {
+        if (sessionStorage.getItem(sessionPrefix + key) === '1') return false;
+        sessionStorage.setItem(sessionPrefix + key, '1');
+      } catch (_) {}
+      return true;
+    };
+    var sections = Array.prototype.slice.call(document.querySelectorAll('[data-obs-section]'));
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(entry){
+          if (!entry.isIntersecting) return;
+          var key = entry.target.getAttribute('data-obs-section') || '';
+          if (!key || !remember('section:' + key)) return;
+          send('section_view', 'observation:section:' + key, { sectionKey: key });
+        });
+      }, { threshold: 0.45 });
+      sections.forEach(function(section){ io.observe(section); });
+    }
+    var milestones = [25, 50, 75, 90, 100];
+    var ticking = false;
+    var checkDepth = function(){
+      ticking = false;
+      var doc = document.documentElement;
+      var max = Math.max(1, doc.scrollHeight - window.innerHeight);
+      var depth = Math.min(100, Math.round((window.scrollY / max) * 100));
+      milestones.forEach(function(milestone){
+        if (depth >= milestone && remember('depth:' + milestone)) {
+          send('read_depth', 'observation:read_depth:' + milestone, { depthPercent: milestone });
+        }
+      });
+    };
+    window.addEventListener('scroll', function(){
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(checkDepth);
+    }, { passive: true });
+    checkDepth();
+    document.addEventListener('click', function(event){
+      var target = event.target instanceof Element ? event.target.closest('[data-observation-primary-cta]') : null;
+      if (!target) return;
+      var ctaKey = target.getAttribute('data-observation-primary-cta') || '';
+      send('primary_cta_click', 'observation:primary:' + ctaKey, { ctaKey: ctaKey });
+    }, { capture: true, passive: true });
+  })();</script>`;
 }
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -6509,26 +6741,82 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         })()
       : "";
 
-    const heroBlock = `
-      <section class="section obs-hero">
-        <div class="obs-hero-media">${mediaBlock}</div>
-        <div class="obs-hero-meta">
-          <h1 class="obs-hero-title">この観察で見えている生きもの</h1>
-          <div class="obs-hero-byline">
-            <a class="obs-hero-observer" href="${escapeHtml(appendLangToHref(buildObserverProfileHref(basePath, snapshot.observerUserId) ?? "#", lang))}">
-              ${snapshot.observerAvatarUrl
-                ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((observerDisplay || "?").slice(0, 1))}}))" />`
-                : `<span class="obs-hero-avatar">${escapeHtml((observerDisplay || "?").slice(0, 1))}</span>`}
-              <span>${escapeHtml(observerDisplay)}</span>
-            </a>
-            <span class="obs-hero-when">${escapeHtml(formatAbsolute(snapshot.observedAt))}</span>
-            <span class="obs-hero-place">${escapeHtml(heroPlaceLabel)}</span>
-          </div>
-          ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
-          ${focusRailBlock}
-          ${aiCandidateLearningPanel}
-        </div>
-      </section>`;
+    const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
+      placeName: snapshot.placeName || heroPlaceLabel || "この場所",
+      municipality: snapshot.municipality,
+      latitude: snapshot.latitude,
+      longitude: snapshot.longitude,
+      lastRecordMode: snapshot.recordMode,
+      lastSurveyResult: snapshot.surveyResult,
+      revisitReason: snapshot.revisitReason,
+      nextLookFor: snapshotDisplay.primaryLabel,
+      latestDisplayName: snapshotDisplay.primaryLabel,
+      absenceSemantics: snapshot.absenceSemantics,
+    });
+    const nextActions: ObservationNextAction[] = [
+      {
+        href: revisitRecordHref,
+        label: "この場所を再訪する",
+        body: "同じ地点で季節や変化を重ねる",
+        key: "revisit_place",
+        primary: true,
+      },
+      {
+        href: appendLangToHref(withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(bundle.visitId)}`), lang),
+        label: "追加写真を撮る",
+        body: "足りない角度や証拠を補う",
+        key: "add_media",
+      },
+      {
+        href: "#identify",
+        label: "同定を更新する",
+        body: "名前・根拠・証拠不足を足す",
+        key: "identify",
+      },
+      {
+        href: withBasePath(basePath, "/explore"),
+        label: "似た観察を見る",
+        body: "近い記録から読み方を広げる",
+        key: "explore_related",
+      },
+    ];
+    const summaryStrip = renderObservationSummaryStrip({
+      displayName: snapshotDisplay.primaryLabel,
+      observedAt: snapshot.observedAt,
+      placeLabel: heroPlaceLabel,
+      observerDisplay,
+      trustStageLabel,
+      subjectCount,
+      mediaCount: snapshot.photoAssets.length + snapshot.videoAssets.length,
+    });
+    const nextActionRail = renderObservationNextActionRail(nextActions);
+    const heroBlock = renderObservationReadingHero({
+      mediaBlock,
+      snapshot,
+      displayName: snapshotDisplay.primaryLabel,
+      observerDisplay,
+      observerHref: appendLangToHref(buildObserverProfileHref(basePath, snapshot.observerUserId) ?? "#", lang),
+      observedAt: snapshot.observedAt,
+      placeLabel: heroPlaceLabel,
+      badges,
+      focusRailBlock,
+      summaryStrip,
+      nextActionRail,
+      trustStageLabel,
+      trustLead,
+      aiCandidateLearningPanel,
+    });
+    const summaryBlock = `<section id="summary" class="section obs-layer obs-summary-section" data-obs-section="summary">
+      <h2 class="obs-layer-title">観察の要約</h2>
+      ${summaryStrip}
+      <p class="obs-summary-copy">このページは、写真から見えたもの、名前の確かさ、次に撮るべき証拠、同じ場所の履歴を1本の読み順で追えるように並べています。</p>
+    </section>`;
+    const readProgressBlock = renderObservationReadProgress({
+      basePath,
+      observationId: bundle.visitId,
+      subjectId: bundle.canonicalSubjectId,
+      isOwner,
+    });
     const photoRecoveryBlock = renderObservationPhotoRecoveryPanel({
       basePath,
       visitId: bundle.visitId,
@@ -6536,7 +6824,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       existingPhotoCount: snapshot.photoAssets.length,
     });
 
-    const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
+    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
 
     // ===== Layer 1: 物語 =====
@@ -6575,7 +6863,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
          </div>`
       : "";
     const layer1 = (surveySummary || ownerNote || aiFirst || footprintCard)
-      ? `<section class="section obs-layer obs-layer-1">
+      ? `<section id="story" class="section obs-layer obs-layer-1" data-obs-section="story">
            <h2 class="obs-layer-title">この記録について</h2>
            <div class="obs-layer-body">${surveySummary}${ownerNote}${aiFirst}${footprintCard}</div>
          </section>`
@@ -6583,7 +6871,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
     // ===== Layer 2: 同定 =====
     const layer2 = `<div data-obs-switch-taxonomy>${renderSubjectTaxonomy(currentSubject, featuredSubject, subjectCount, bundle)}</div>`;
-    const identifyBlock = `<div data-obs-switch-identify>${renderIdentificationParticipation({
+    const identifyBlock = `<div data-obs-section="identify" data-obs-switch-identify>${renderIdentificationParticipation({
       basePath,
       snapshot,
       consensus,
@@ -6618,7 +6906,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
          </div>`
       : "";
     const layer3 = (nearbyCards || peersLine || seasonalBar)
-      ? `<section class="section obs-layer obs-layer-3">
+      ? `<section id="place" class="section obs-layer obs-layer-3" data-obs-section="place">
            <h2 class="obs-layer-title">この場所の物語</h2>
            ${peersLine}
            ${nearbyCards}
@@ -6628,28 +6916,24 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
     // ===== Layer 5: CTA =====
     const ctaBlock = `
-      <section class="section obs-layer obs-cta">
-        <h2 class="obs-layer-title">次の一歩</h2>
+      <section id="related" class="section obs-layer obs-cta" data-obs-section="related">
+        <h2 class="obs-layer-title">関連と次の一歩</h2>
         <div class="obs-cta-grid">
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/record"))}">
+          <a class="obs-cta-item" href="${escapeHtml(revisitRecordHref)}" data-observation-primary-cta="revisit_place_footer" data-kpi-action="observation:primary:revisit_place_footer">
             <span class="obs-cta-icon">📝</span>
-            <span class="obs-cta-label">似た場面を記録する</span>
+            <span class="obs-cta-label">この場所を再訪する</span>
           </a>
-          ${(snapshot.placeId || snapshot.publicLocation?.cellId) ? `<a class="obs-cta-item" href="${escapeHtml(detailMapHref)}">
+          ${(snapshot.placeId || snapshot.publicLocation?.cellId) ? `<a class="obs-cta-item" href="${escapeHtml(detailMapHref)}" data-observation-primary-cta="open_map" data-kpi-action="observation:primary:open_map">
             <span class="obs-cta-icon">🗺️</span>
             <span class="obs-cta-label">同じ場所を地図で見る</span>
           </a>` : ""}
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/explore"))}">
+          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/explore"))}" data-observation-primary-cta="explore_related_footer" data-kpi-action="observation:primary:explore_related_footer">
             <span class="obs-cta-icon">🔍</span>
             <span class="obs-cta-label">似た観察を探す</span>
           </a>
-          <a class="obs-cta-item" href="#identify">
+          <a class="obs-cta-item" href="#identify" data-observation-primary-cta="identify_footer" data-kpi-action="observation:primary:identify_footer">
             <span class="obs-cta-icon">🧭</span>
             <span class="obs-cta-label">同定に参加する</span>
-          </a>
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?occurrenceId=" + encodeURIComponent(bundle.canonicalSubjectId)))}">
-            <span class="obs-cta-icon">🔬</span>
-            <span class="obs-cta-label">専門家の視点で見る</span>
           </a>
         </div>
       </section>`;
@@ -6696,8 +6980,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         viewerSession,
         canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
       })}</template>`).join("");
-    const layersGrid = `<div class="obs-layers-grid">${layer2}${identifyBlock}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
-    const supportBlock = `<section class="section obs-support-panel" aria-label="補助情報">
+    const supportBlock = `<section id="trust" class="section obs-support-panel" aria-label="名前の確かさ" data-obs-section="trust">
       ${reactionBar
         ? `<div class="obs-support-actions">
              <h2 class="obs-support-title">この記録への反応</h2>
@@ -6978,7 +7261,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
-    const detailBody = `${heroBlock}${photoRecoveryBlock}${reassessBlock}${hintBlock}${regionalStoryBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer2}${layer1}${hintBlock}${identifyBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
+    const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

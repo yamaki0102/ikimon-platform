@@ -176,7 +176,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["qa"],
     title: { ja: "観察詳細", en: "Observation detail" },
     summary: { ja: "1件の観察を、同定・場所・文脈ごと読む。", en: "Read one observation with identification and place context." },
-    visualQa: { smoke: true, viewports: ["desktop-1440"], expectedText: { ja: "この観察" }, requires: "occurrence", allowStatus: [200, 404], screenshot: { baselineName: "registry-observation-detail" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "この観察" }, requires: "occurrence", allowStatus: [200, 404], screenshot: { baselineName: "registry-observation-detail" } },
   },
   {
     path: "/learn",
