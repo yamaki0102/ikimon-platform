@@ -15,3 +15,6 @@
 
 # v2 photo 投稿の AI 同定取りこぼし回収 (毎2分, 最大10件)
 */2 * * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runAiForMissing --limit=10 >> /var/log/ikimon/v2_ai_for_missing.log 2>&1
+
+# ライブガイド地域メッシュ診断・必要時 rebuild・地域仮説更新 (毎日 03:20 JST)
+20 3 * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runGuideEnvironmentPostDeploy --hypothesis-limit=500 >> /var/log/ikimon/v2_guide_environment_postdeploy.log 2>&1
