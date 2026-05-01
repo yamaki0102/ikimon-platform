@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGuideHypothesisPromptImprovements } from "./guideHypothesisPromptImprovements.js";
+import {
+  buildGuideHypothesisPromptImprovements,
+  buildWrongFeedbackQueueCandidates,
+} from "./guideHypothesisPromptImprovements.js";
 import type { GuideHypothesisEvalItem } from "./guideHypothesisEvalSet.js";
 
 function item(overrides: Partial<GuideHypothesisEvalItem>): GuideHypothesisEvalItem {
@@ -57,4 +60,27 @@ test("prompt improvements turn wrong feedback into rewrite and global guardrail"
   assert.ok(improvements.some((improvement) => improvement.improvementType === "guardrail"));
   assert.ok(improvements.every((improvement) => String(improvement.evidence.doNotUseAsEcologicalEvidence) === "true"));
   assert.match(improvements.map((improvement) => improvement.promptPatch).join("\n"), /Never treat guide_interactions helpful\/wrong as ecological evidence/);
+});
+
+test("wrong feedback queue opens only after a claim type crosses threshold", () => {
+  const belowThreshold = buildWrongFeedbackQueueCandidates([
+    item({ interactionId: "w-1", label: "wrong", claimType: "seasonality", hypothesisId: "h-1" }),
+    item({ interactionId: "w-2", label: "wrong", claimType: "seasonality", hypothesisId: "h-2" }),
+  ]);
+
+  assert.equal(belowThreshold.length, 0);
+
+  const candidates = buildWrongFeedbackQueueCandidates([
+    item({ interactionId: "w-1", label: "wrong", claimType: "seasonality", hypothesisId: "h-1" }),
+    item({ interactionId: "w-2", label: "wrong", claimType: "seasonality", hypothesisId: "h-2" }),
+    item({ interactionId: "w-3", label: "wrong", claimType: "seasonality", hypothesisId: "h-3" }),
+    item({ interactionId: "w-4", label: "wrong", claimType: "habitat", hypothesisId: "h-4" }),
+  ]);
+
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0]?.claimType, "seasonality");
+  assert.equal(candidates[0]?.wrongCount, 3);
+  assert.equal(candidates[0]?.thresholdCount, 3);
+  assert.deepEqual(candidates[0]?.evidence.exampleHypothesisIds, ["h-1", "h-2", "h-3"]);
+  assert.equal(candidates[0]?.evidence.doNotUseAsEcologicalEvidence, true);
 });

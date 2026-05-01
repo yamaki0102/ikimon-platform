@@ -92,7 +92,7 @@ jobs:
         run: git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
 
       - name: Open PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

@@ -17,6 +17,20 @@ export type GuideHypothesisPromptImprovement = {
   supportCount: number;
 };
 
+export type GuideHypothesisPromptImprovementQueueItem = {
+  queueId: string;
+  claimType: string;
+  trigger: string;
+  wrongCount: number;
+  thresholdCount: number;
+  queueStatus: "open" | "in_review" | "resolved" | "dismissed";
+  improvementIds: string[];
+  evidence: Record<string, unknown>;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolvedAt: string | null;
+};
+
 type ImprovementRow = {
   improvement_id: string;
   source_key: string;
@@ -32,11 +46,30 @@ type ImprovementRow = {
   generated_at: string;
 };
 
+type QueueRow = {
+  queue_id: string;
+  claim_type: string;
+  trigger: string;
+  wrong_count: number | string;
+  threshold_count: number | string;
+  queue_status: GuideHypothesisPromptImprovementQueueItem["queueStatus"];
+  improvement_ids: unknown;
+  evidence: Record<string, unknown>;
+  first_seen_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+};
+
 export type GuideHypothesisPromptImprovementRecord = GuideHypothesisPromptImprovement & {
   improvementId: string;
   reviewStatus: ImprovementRow["review_status"];
   generatedAt: string;
 };
+
+function normalizeStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => String(item ?? "").trim()).filter(Boolean);
+}
 
 function stableKey(parts: string[]): string {
   return createHash("sha256").update(parts.join(":")).digest("hex").slice(0, 24);
@@ -178,8 +211,36 @@ export function buildGuideHypothesisPromptImprovements(items: GuideHypothesisEva
   return improvements.sort((a, b) => b.supportCount - a.supportCount || a.sourceKey.localeCompare(b.sourceKey));
 }
 
-export async function upsertGuideHypothesisPromptImprovements(improvements: GuideHypothesisPromptImprovement[]): Promise<number> {
+export function buildWrongFeedbackQueueCandidates(
+  items: GuideHypothesisEvalItem[],
+  thresholdCount = 3,
+): Array<{ claimType: string; wrongCount: number; thresholdCount: number; evidence: Record<string, unknown> }> {
+  const wrongByClaim = groupBy(items.filter((item) => item.label === "wrong"), (item) => item.claimType || "unknown");
+  const candidates: Array<{ claimType: string; wrongCount: number; thresholdCount: number; evidence: Record<string, unknown> }> = [];
+  for (const [claimType, group] of wrongByClaim) {
+    if (group.length < thresholdCount) continue;
+    candidates.push({
+      claimType,
+      wrongCount: group.length,
+      thresholdCount,
+      evidence: {
+        commonMissingData: topValues(group.flatMap((item) => item.missingData)),
+        commonBiasWarnings: topValues(group.flatMap((item) => item.biasWarnings)),
+        exampleHypothesisIds: group.map((item) => item.hypothesisId).filter(Boolean).slice(0, 12),
+        examples: compactExamples(group),
+        doNotUseAsEcologicalEvidence: true,
+      },
+    });
+  }
+  return candidates.sort((a, b) => b.wrongCount - a.wrongCount || a.claimType.localeCompare(b.claimType));
+}
+
+export async function upsertGuideHypothesisPromptImprovements(
+  improvements: GuideHypothesisPromptImprovement[],
+  options: { reviewThreshold?: number } = {},
+): Promise<number> {
   let written = 0;
+  const reviewThreshold = Math.max(1, Math.round(options.reviewThreshold ?? 3));
   for (const improvement of improvements) {
     await getPool().query(
       `insert into guide_hypothesis_prompt_improvements (
@@ -205,7 +266,7 @@ export async function upsertGuideHypothesisPromptImprovements(improvements: Guid
           $7,
           $8::jsonb,
           $9,
-          'auto',
+          case when $10::boolean then 'needs_review' else 'auto' end,
           now(),
           now()
        )
@@ -214,6 +275,11 @@ export async function upsertGuideHypothesisPromptImprovements(improvements: Guid
           prompt_patch = excluded.prompt_patch,
           evidence = excluded.evidence,
           support_count = excluded.support_count,
+          review_status = case
+            when guide_hypothesis_prompt_improvements.review_status in ('reviewed', 'rejected') then guide_hypothesis_prompt_improvements.review_status
+            when excluded.review_status = 'needs_review' then 'needs_review'
+            else guide_hypothesis_prompt_improvements.review_status
+          end,
           generated_at = now(),
           updated_at = now()`,
       [
@@ -226,6 +292,72 @@ export async function upsertGuideHypothesisPromptImprovements(improvements: Guid
         improvement.promptPatch,
         JSON.stringify(improvement.evidence),
         improvement.supportCount,
+        improvement.improvementType === "rewrite_pattern" && improvement.supportCount >= reviewThreshold,
+      ],
+    );
+    written += 1;
+  }
+  return written;
+}
+
+export async function upsertWrongFeedbackQueue(
+  candidates: Array<{ claimType: string; wrongCount: number; thresholdCount: number; evidence: Record<string, unknown> }>,
+): Promise<number> {
+  let written = 0;
+  for (const candidate of candidates) {
+    const improvementIds = await getPool().query<{ improvement_id: string }>(
+      `select improvement_id::text
+         from guide_hypothesis_prompt_improvements
+        where claim_type = $1
+          and label = 'wrong'
+          and review_status <> 'rejected'
+        order by support_count desc, generated_at desc
+        limit 10`,
+      [candidate.claimType],
+    );
+    await getPool().query(
+      `insert into guide_hypothesis_prompt_improvement_queue (
+          claim_type,
+          trigger,
+          wrong_count,
+          threshold_count,
+          queue_status,
+          improvement_ids,
+          evidence,
+          first_seen_at,
+          last_seen_at,
+          updated_at
+       ) values (
+          $1,
+          'wrong_feedback_threshold',
+          $2,
+          $3,
+          'open',
+          $4::jsonb,
+          $5::jsonb,
+          now(),
+          now(),
+          now()
+       )
+       on conflict (claim_type, trigger) do update set
+          wrong_count = excluded.wrong_count,
+          threshold_count = excluded.threshold_count,
+          improvement_ids = excluded.improvement_ids,
+          evidence = excluded.evidence,
+          queue_status = case
+            when guide_hypothesis_prompt_improvement_queue.queue_status in ('resolved', 'dismissed')
+             and excluded.wrong_count > guide_hypothesis_prompt_improvement_queue.wrong_count
+              then 'open'
+            else guide_hypothesis_prompt_improvement_queue.queue_status
+          end,
+          last_seen_at = now(),
+          updated_at = now()`,
+      [
+        candidate.claimType,
+        candidate.wrongCount,
+        candidate.thresholdCount,
+        JSON.stringify(improvementIds.rows.map((row) => row.improvement_id)),
+        JSON.stringify(candidate.evidence),
       ],
     );
     written += 1;
@@ -237,14 +369,29 @@ export async function generateAndStoreGuideHypothesisPromptImprovements(limit = 
   evalItems: number;
   generated: number;
   written: number;
+  queued: number;
 }> {
   const items = await loadGuideHypothesisEvalItems(limit);
   const improvements = buildGuideHypothesisPromptImprovements(items);
   const written = await upsertGuideHypothesisPromptImprovements(improvements);
-  return { evalItems: items.length, generated: improvements.length, written };
+  const queueCandidates = buildWrongFeedbackQueueCandidates(items);
+  const queued = await upsertWrongFeedbackQueue(queueCandidates);
+  return { evalItems: items.length, generated: improvements.length, written, queued };
 }
 
-export async function listGuideHypothesisPromptImprovements(limit = 10): Promise<GuideHypothesisPromptImprovementRecord[]> {
+export async function listGuideHypothesisPromptImprovements(
+  limit = 10,
+  options: { reviewStatus?: "auto" | "needs_review" | "reviewed" | "rejected" | "any" } = {},
+): Promise<GuideHypothesisPromptImprovementRecord[]> {
+  const values: unknown[] = [];
+  const clauses = [];
+  if (options.reviewStatus && options.reviewStatus !== "any") {
+    values.push(options.reviewStatus);
+    clauses.push(`review_status = $${values.length}`);
+  } else {
+    clauses.push("review_status <> 'rejected'");
+  }
+  values.push(Math.max(1, Math.min(50, Math.round(limit))));
   const result = await getPool().query<ImprovementRow>(
     `select improvement_id::text,
             source_key,
@@ -259,10 +406,10 @@ export async function listGuideHypothesisPromptImprovements(limit = 10): Promise
             review_status,
             generated_at::text
        from guide_hypothesis_prompt_improvements
-      where review_status <> 'rejected'
+      where ${clauses.join(" and ")}
       order by support_count desc, generated_at desc
-      limit $1`,
-    [Math.max(1, Math.min(50, Math.round(limit)))],
+      limit $${values.length}`,
+    values,
   );
   return result.rows.map((row) => ({
     improvementId: row.improvement_id,
@@ -278,4 +425,67 @@ export async function listGuideHypothesisPromptImprovements(limit = 10): Promise
     reviewStatus: row.review_status,
     generatedAt: row.generated_at,
   }));
+}
+
+export async function updateGuideHypothesisPromptImprovementReviewStatus(
+  improvementId: string,
+  reviewStatus: "auto" | "needs_review" | "reviewed" | "rejected",
+): Promise<boolean> {
+  const result = await getPool().query(
+    `update guide_hypothesis_prompt_improvements
+        set review_status = $2,
+            updated_at = now()
+      where improvement_id = $1`,
+    [improvementId, reviewStatus],
+  );
+  return ((result as unknown as { rowCount?: number | null }).rowCount ?? 0) > 0;
+}
+
+export async function listGuideHypothesisPromptImprovementQueue(limit = 20): Promise<GuideHypothesisPromptImprovementQueueItem[]> {
+  const result = await getPool().query<QueueRow>(
+    `select queue_id::text,
+            claim_type,
+            trigger,
+            wrong_count,
+            threshold_count,
+            queue_status,
+            improvement_ids,
+            evidence,
+            first_seen_at::text,
+            last_seen_at::text,
+            resolved_at::text
+       from guide_hypothesis_prompt_improvement_queue
+      where queue_status in ('open', 'in_review')
+      order by wrong_count desc, last_seen_at desc
+      limit $1`,
+    [Math.max(1, Math.min(100, Math.round(limit)))],
+  );
+  return result.rows.map((row) => ({
+    queueId: row.queue_id,
+    claimType: row.claim_type,
+    trigger: row.trigger,
+    wrongCount: Number(row.wrong_count ?? 0),
+    thresholdCount: Number(row.threshold_count ?? 0),
+    queueStatus: row.queue_status,
+    improvementIds: normalizeStringArray(row.improvement_ids),
+    evidence: row.evidence ?? {},
+    firstSeenAt: row.first_seen_at,
+    lastSeenAt: row.last_seen_at,
+    resolvedAt: row.resolved_at,
+  }));
+}
+
+export async function updateGuideHypothesisPromptImprovementQueueStatus(
+  queueId: string,
+  queueStatus: "open" | "in_review" | "resolved" | "dismissed",
+): Promise<boolean> {
+  const result = await getPool().query(
+    `update guide_hypothesis_prompt_improvement_queue
+        set queue_status = $2,
+            resolved_at = case when $2 in ('resolved', 'dismissed') then now() else null end,
+            updated_at = now()
+      where queue_id = $1`,
+    [queueId, queueStatus],
+  );
+  return ((result as unknown as { rowCount?: number | null }).rowCount ?? 0) > 0;
 }
