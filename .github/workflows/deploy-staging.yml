@@ -174,9 +174,9 @@ jobs:
               throw new Error("second compile did not skip unchanged source_snapshot_hash");
             }
             console.log(`knowledge-navigation verified nodes=${dryRun.nodeCount} documents=${dryRun.documentCount} hash=${dryRun.sourceSnapshotHash}`);
-NODE
+            NODE
             echo "== npm run postdeploy:guide-environment =="
-            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run postdeploy:guide-environment -- --hypothesis-limit=250
+            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run postdeploy:guide-environment -- --hypothesis-limit=250 --trigger=staging
             echo "== update canonical staging env file =="
             mkdir -p "$STAGING_ENV_DIR"
             TMP_ENV="$(mktemp)"
