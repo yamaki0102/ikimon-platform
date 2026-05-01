@@ -48,10 +48,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_shared_root_hygiene.ps1
 差分を commit 前に分類:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\classify_main_diff.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\classify_tracked_diffs.ps1
 ```
 
-`Substantive diff files` が実変更、`Line-ending-only diff files` が改行だけの差分。
+`classify_main_diff.ps1` は `origin/main` との差分を `Stale residue` / `Meaningful` / `New untracked` / `Deletions` に分類する。
+PR 前に `Stale residue` が出たら、古い worktree 由来の残差混入として commit 対象から外す。
+
+`classify_tracked_diffs.ps1` は追跡済みファイルの中で、`Substantive diff files` と `Line-ending-only diff files` を分ける。
 
 ## Shared Documents
 
