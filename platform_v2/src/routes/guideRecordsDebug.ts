@@ -30,7 +30,7 @@ type CorrectionBody = {
 
 function loginGate(nextPath = "/me/guide-records"): string {
   return `
-<main class="grd-wrap">
+<div class="grd-wrap">
   <section class="grd-empty">
     <h1>ガイド成果を見るにはログインが必要です</h1>
     <p>ライブガイドで保存された足跡、植生・土地利用の手がかり、次に見る場所を自分の成果として確認できます。</p>
@@ -44,7 +44,7 @@ function loginGate(nextPath = "/me/guide-records"): string {
       <span><b>3</b>地図から次へ戻る</span>
     </div>
   </section>
-</main>`;
+</div>`;
 }
 
 function featureTypeLabel(type: string): string {
@@ -434,22 +434,23 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
 }
 
 const STYLES = `
-.grd-wrap{max-width:1160px;margin:0 auto;padding:30px 16px 72px;color:#172033;}
-.grd-hero{display:grid;gap:12px;margin-bottom:18px;padding:20px;border:1px solid rgba(16,185,129,.16);background:linear-gradient(135deg,rgba(236,253,245,.88),rgba(240,249,255,.72));border-radius:8px;}
+.grd-wrap{max-width:1160px;margin:0 auto;padding:clamp(24px,4vw,48px) 16px 72px;color:#172033;}
+.grd-wrap,.grd-empty,.grd-card,.grd-panel{overflow-wrap:anywhere;}
+.grd-hero{display:grid;gap:12px;margin-bottom:24px;padding:clamp(20px,3vw,28px);border:1px solid rgba(16,185,129,.16);background:linear-gradient(135deg,rgba(236,253,245,.9),rgba(240,249,255,.76));border-radius:24px;box-shadow:0 16px 36px rgba(15,23,42,.06);}
 .grd-hero-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap;}
-.grd-hero h1{font-size:28px;line-height:1.25;margin:0;color:#0f172a;}
+.grd-hero h1{font-size:clamp(26px,3vw,36px);line-height:1.25;margin:0;color:#0f172a;letter-spacing:0;}
 .grd-hero p{margin:0;color:#475569;font-size:14px;line-height:1.7;}
 .grd-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-.grd-primary-link,.grd-secondary-link{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:9px 13px;font-size:12px;font-weight:950;text-decoration:none;}
-.grd-primary-link{background:#0f172a;color:#fff;}
+.grd-primary-link,.grd-secondary-link{min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:10px 16px;font-size:13px;line-height:1.2;font-weight:950;text-align:center;text-decoration:none;}
+.grd-primary-link{background:#0f172a;color:#fff;box-shadow:0 12px 24px rgba(15,23,42,.16);}
 .grd-secondary-link{border:1px solid rgba(15,23,42,.12);background:#fff;color:#334155;}
 .grd-loop-mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:18px;}
-.grd-loop-mini span{display:grid;gap:7px;border:1px solid rgba(16,185,129,.16);background:#f8fffb;border-radius:8px;padding:10px;color:#334155;font-size:12px;line-height:1.45;font-weight:850;}
+.grd-loop-mini span{display:grid;gap:8px;border:1px solid rgba(16,185,129,.16);background:#f8fffb;border-radius:14px;padding:12px;color:#334155;font-size:12px;line-height:1.45;font-weight:850;}
 .grd-loop-mini b{width:24px;height:24px;display:grid;place-items:center;border-radius:999px;background:#0f766e;color:#fff;font-size:11px;}
 .grd-stats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px;}
 .grd-stat{display:inline-flex;align-items:baseline;gap:5px;border:1px solid #dbe7e2;background:#f8fffb;border-radius:999px;padding:7px 10px;font-size:12px;color:#446055;font-weight:800;}
 .grd-stat strong{font-size:18px;color:#0f766e;}
-.grd-panel{border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:16px;margin-bottom:18px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
+.grd-panel{border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-panel h2{font-size:18px;margin:0 0 12px;color:#0f172a;}
 .grd-session{border-top:1px solid #eef4f1;padding-top:12px;margin-top:12px;}
 .grd-session:first-of-type{border-top:0;padding-top:0;margin-top:0;}
@@ -463,12 +464,12 @@ const STYLES = `
 .grd-step-meta{font-size:11px;color:#64748b;margin-top:2px;}
 .grd-step-pills{margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;}
 .grd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;}
-.grd-card{display:grid;gap:10px;border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:14px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
+.grd-card{display:grid;gap:10px;border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:16px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-card-head,.grd-card footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:#64748b;font-weight:800;}
 .grd-card h2{font-size:15px;line-height:1.65;margin:0;color:#111827;}
 .grd-bundle-meta{display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:6px;border:1px solid #99f6e4;background:#f0fdfa;color:#0f766e;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:950;}
 .grd-bundle-meta strong{font-size:15px;color:#0f172a;}
-.grd-env,.grd-season{margin:0;font-size:13px;line-height:1.65;color:#334155;background:#f8fafc;border-radius:6px;padding:8px;}
+.grd-env,.grd-season{margin:0;font-size:13px;line-height:1.65;color:#334155;background:#f8fafc;border-radius:12px;padding:10px;}
 .grd-season{background:#fff7ed;color:#7c2d12;}
 .grd-species,.grd-features{display:flex;gap:6px;flex-wrap:wrap;}
 .grd-species span{display:inline-flex;align-items:center;gap:5px;border-radius:999px;background:#eef2ff;color:#3730a3;padding:4px 8px;font-size:12px;font-weight:900;}
@@ -480,17 +481,17 @@ const STYLES = `
 .grd-pill.is-structure{background:#f8fafc;color:#475569;border-color:#cbd5e1;}
 .grd-pill.is-sound{background:#fdf4ff;color:#86198f;border-color:#f5d0fe;}
 .grd-muted{color:#94a3b8;font-size:12px;font-weight:800;}
-.grd-empty{max-width:620px;margin:60px auto;border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:22px;}
-.grd-empty h1{font-size:22px;margin:0 0 8px;}
-.grd-empty p{color:#475569;line-height:1.7;}
-@media(max-width:620px){.grd-loop-mini{grid-template-columns:1fr;}.grd-empty{margin:44px auto;}}
+.grd-empty{max-width:620px;margin:clamp(44px,8vw,96px) auto;border:1px solid rgba(16,185,129,.18);background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(240,253,250,.9));border-radius:24px;padding:clamp(22px,4vw,32px);box-shadow:0 16px 36px rgba(15,23,42,.06);}
+.grd-empty h1{font-size:clamp(23px,3vw,30px);line-height:1.35;margin:0 0 12px;letter-spacing:0;color:#0f172a;}
+.grd-empty p{color:#475569;line-height:1.8;margin:0;}
+@media(max-width:620px){.grd-loop-mini{grid-template-columns:1fr;}.grd-empty{margin:36px auto;}.grd-actions{display:grid;grid-template-columns:1fr;}.grd-primary-link,.grd-secondary-link{width:100%;}}
 .grd-map-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px;}
 .grd-map-head h2{margin-bottom:4px;}
 .grd-map-head p{margin:0;color:#64748b;font-size:13px;line-height:1.6;}
 .grd-map-links{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 .grd-map-links a{font-size:12px;font-weight:900;color:#0f766e;border:1px solid #99f6e4;border-radius:999px;padding:5px 9px;text-decoration:none;background:#f0fdfa;}
-.grd-map{height:420px;border:1px solid #dbe7e2;border-radius:8px;overflow:hidden;background:#eef6f2;display:grid;place-items:center;color:#64748b;font-weight:900;}
-.grd-next-sampling{border:1px solid #fde68a;background:#fffbeb;color:#713f12;border-radius:8px;padding:9px 10px;display:grid;gap:4px;}
+.grd-map{height:420px;border:1px solid #dbe7e2;border-radius:16px;overflow:hidden;background:#eef6f2;display:grid;place-items:center;color:#64748b;font-weight:900;}
+.grd-next-sampling{border:1px solid #fde68a;background:#fffbeb;color:#713f12;border-radius:12px;padding:10px 12px;display:grid;gap:4px;}
 .grd-next-sampling b{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#a16207;}
 .grd-next-sampling p{margin:0;font-size:12px;line-height:1.65;font-weight:800;}
 .grd-edit{border-top:1px solid #eef4f1;padding-top:8px;}
@@ -738,7 +739,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
     .map(([label, count]) => `<div class="grd-eval-row"><span>${escapeHtml(label)}</span><strong>${count}</strong></div>`)
     .join("");
   const body = `
-<main class="grd-wrap">
+<div class="grd-wrap">
   <section class="grd-dashboard-grid">
     <div class="grd-dashboard-copy">
       <div class="grd-hero">
@@ -765,7 +766,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
     </div>
     ${renderEnvironmentMeshMap()}
   </section>
-</main><script>${SCRIPT.replace("/api/v1/me/guide-records/route-layer.geojson?limit=500", "/api/v1/guide/environment-mesh.geojson?limit=1000&public=1").replace("guide-route-layer", "guide-route-layer")}</script>`;
+</div><script>${SCRIPT.replace("/api/v1/me/guide-records/route-layer.geojson?limit=500", "/api/v1/guide/environment-mesh.geojson?limit=1000&public=1").replace("guide-route-layer", "guide-route-layer")}</script>`;
   return renderSiteDocument({
     basePath: "",
     title: "地域環境メッシュ — ikimon.life",
@@ -806,7 +807,7 @@ async function renderPage(
   const heading = options.heading ?? "自分のガイド記録";
   const lead = options.lead ?? "ログイン中の user_id に紐づく guide_records 最新件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。";
   const body = `
-<main class="grd-wrap">
+<div class="grd-wrap">
   <header class="grd-hero">
     <div class="grd-hero-top">
       <div>
@@ -821,7 +822,7 @@ async function renderPage(
     </div>
   </header>
   ${errorHtml || `${renderSummaryStats(rows, bundles)}${renderRouteMap()}${renderRouteTransect(bundles)}${renderRecordCards(bundles)}`}
-</main><script>${SCRIPT}</script>`;
+</div><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
     title: options.title ?? "自分のガイド記録 — ikimon.life",

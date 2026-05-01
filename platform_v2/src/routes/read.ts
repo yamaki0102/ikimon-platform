@@ -23,6 +23,12 @@ import {
 } from "../services/authorityRecommendations.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
+import {
+  formatActorDisplay,
+  formatIdentificationCount,
+  formatPlaceDisplay,
+  formatTaxonDisplayName,
+} from "../services/localizedDisplay.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../ui/facePrivacyScript.js";
@@ -173,8 +179,8 @@ const GUIDE_ENTRY_STYLES = `
     grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
     gap: 16px;
     align-items: stretch;
-    padding: 22px;
-    border-radius: 8px;
+    padding: 24px;
+    border-radius: 24px;
     border: 1px solid rgba(16,185,129,.16);
     background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(255,255,255,.96) 58%, rgba(240,249,255,.82));
     box-shadow: 0 16px 38px rgba(15,23,42,.06);
@@ -189,7 +195,7 @@ const GUIDE_ENTRY_STYLES = `
     gap: 10px;
     align-items: center;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 14px;
     background: rgba(255,255,255,.82);
     border: 1px solid rgba(16,185,129,.12);
     color: #334155;
@@ -209,7 +215,7 @@ const GUIDE_ENTRY_STYLES = `
   }
   .guide-loop-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
   @media (max-width: 820px) {
-    .guide-loop-card { grid-template-columns: 1fr; padding: 18px; }
+    .guide-loop-card { grid-template-columns: 1fr; padding: 18px; border-radius: 20px; }
   }
 `;
 
@@ -933,7 +939,7 @@ const OBSERVATION_DETAIL_STYLES = `
 
 function stateCard(eyebrow: string, title: string, body: string): string {
   return `<section class="section">
-    <div class="card is-soft" style="padding:24px;border-radius:24px;background:linear-gradient(135deg,rgba(236,253,245,.92),rgba(240,249,255,.94));border:1px solid rgba(16,185,129,.18);box-shadow:0 16px 36px rgba(15,23,42,.06)">
+    <div class="state-card">
       <div class="eyebrow">${escapeHtml(eyebrow)}</div>
       <h2 style="margin-top:8px">${escapeHtml(title)}</h2>
       <div style="margin-top:8px;color:#475569;line-height:1.7">${body}</div>
@@ -1695,16 +1701,19 @@ const START_STATE_STYLES = `
   .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
   .start-guide-auth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.68); border: 1px solid rgba(15,23,42,.08); }
-  .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .record-capture-dock { display: none; }
   .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; line-height: 1.2; }
   .record-dock-primary { background: #ecfdf5; color: #065f46; }
   .record-dock-icon { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.06); flex: 0 0 auto; }
   .record-dock-primary .record-dock-icon { background: rgba(16,185,129,.14); }
   .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .site-footer { padding-bottom: 104px; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
   @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
-  @media (max-width: 720px) { .start-guide { padding-bottom: 104px; } }
+  @media (max-width: 720px) {
+    .start-guide { padding-bottom: 104px; }
+    .site-footer { padding-bottom: 104px; }
+    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  }
   @media (max-width: 980px) { .start-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 620px) { .start-guide-grid { grid-template-columns: 1fr; } }
 `;
@@ -1885,6 +1894,8 @@ function renderSubjectTaxonomy(
   subjectCount: number,
   bundle: ObservationVisitBundle,
 ): string {
+  const subjectDisplay = formatTaxonDisplayName(subject, "ja");
+  const featuredDisplay = featuredSubject ? formatTaxonDisplayName(featuredSubject, "ja") : null;
   const lineageChips = subject.lineage.length > 0
     ? `<div class="obs-lineage">
          ${subject.lineage.map((lineage) => `<span class="obs-lineage-item"><small>${escapeHtml(lineage.rank)}</small>${escapeHtml(lineage.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
@@ -1892,7 +1903,7 @@ function renderSubjectTaxonomy(
     : "";
   const layer2Title = subjectCount >= 2 ? "今見ている対象の名前と分類" : "名前と分類";
   const layer2Note = featuredSubject && subject.occurrenceId !== featuredSubject.occurrenceId
-    ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(subject.displayName)}</strong> の詳細を表示しています。既定では <strong>${escapeHtml(featuredSubject.displayName)}</strong> が前面ですが、上のレールからすぐ切り替えられます。</p>`
+    ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(subjectDisplay.primaryLabel)}</strong> の詳細を表示しています。既定では <strong>${escapeHtml(featuredDisplay?.primaryLabel ?? featuredSubject.displayName)}</strong> が前面ですが、上のレールからすぐ切り替えられます。</p>`
     : bundle.lockedByHuman
       ? `<p class="obs-layer-note">この観察の既定表示は human / specialist の判断を優先して固定しています。</p>`
       : "";
@@ -1900,14 +1911,14 @@ function renderSubjectTaxonomy(
     ? `<ul class="obs-id-list">
          ${subject.identifications.map((item) => `
            <li class="obs-id-item">
-             <div class="obs-id-avatar">${escapeHtml((item.actorName || "?").slice(0, 1))}</div>
+             <div class="obs-id-avatar">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</div>
              <div class="obs-id-body">
                <div class="obs-id-line">
                  <span class="obs-id-name">${escapeHtml(item.proposedName)}</span>
                  ${item.proposedRank ? `<span class="obs-id-rank">${escapeHtml(item.proposedRank)}</span>` : ""}
                  ${item.acceptedRank ? `<span class="obs-id-accepted">✓ ${escapeHtml(rankLabelJa(item.acceptedRank))}で確定</span>` : ""}
                </div>
-               <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
+               <div class="obs-id-meta">${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</div>
                ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
              </div>
            </li>`).join("")}
@@ -1933,17 +1944,18 @@ function renderIdentificationParticipation(options: {
   canUseSpecialistWorkbench: boolean;
 }): string {
   const { basePath, snapshot, consensus, viewerSession } = options;
+  const snapshotDisplay = formatTaxonDisplayName(snapshot, "ja");
   const community = consensus?.communityTaxon;
   const currentConsensus = community
     ? `${community.name}（${rankLabelJa(community.rank)}、${community.supporterCount}名 / ${Math.round(community.supportRatio * 100)}%）`
     : "まだ分類系列上の合意点はありません";
   const targetLabel = snapshot.scientificName
-    ? `${snapshot.displayName} · ${snapshot.scientificName}`
-    : snapshot.displayName;
+    ? `${snapshotDisplay.primaryLabel} · ${snapshot.scientificName}`
+    : snapshotDisplay.primaryLabel;
   const needed = consensus?.neededEvidence.length
     ? consensus.neededEvidence
     : ["独立した同定、根拠メモ、または専門家レビューを追加する"];
-  const defaultName = snapshot.scientificName || (snapshot.displayName === "同定待ち" ? "" : snapshot.displayName);
+  const defaultName = snapshot.scientificName || (snapshotDisplay.isAwaitingId ? "" : snapshotDisplay.primaryLabel);
   const defaultRank = snapshot.scientificName ? "species" : "";
   const endpointId = encodeURIComponent(snapshot.occurrenceId);
   const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${endpointId}/identifications`);
@@ -1959,7 +1971,7 @@ function renderIdentificationParticipation(options: {
             </div>
             ${item.proposedName ? `<div class="obs-dispute-name">${escapeHtml(item.proposedName)}${item.proposedRank ? ` · ${escapeHtml(item.proposedRank)}` : ""}</div>` : ""}
             ${item.reason ? `<p>${escapeHtml(item.reason)}</p>` : ""}
-            <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
+            <div class="obs-id-meta">${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</div>
           </div>`).join("")}
        </div>`
     : `<p class="obs-empty">反対意見はまだありません。別分類や証拠不足に気づいたら、ここから記録できます。</p>`;
@@ -2563,11 +2575,11 @@ function renderProfileSnapshotBody(
   const observations = snapshot.recentObservations.map((item) => `
       <div class="row">
         <div>
-          <a style="font-weight:800;color:inherit;text-decoration:none" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">${escapeHtml(item.displayName)}</a>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
+          <a style="font-weight:800;color:inherit;text-decoration:none" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">${escapeHtml(formatTaxonDisplayName(item, lang).primaryLabel)}</a>
+          <div class="meta">${escapeHtml(formatPlaceDisplay(item, lang, viewerUserId ? "owner" : "public"))} · ${escapeHtml(item.observedAt)}</div>
         </div>
         <div class="actions">
-          <span class="pill">${item.identificationCount} ids</span>
+          <span class="pill">${escapeHtml(formatIdentificationCount(item.identificationCount, lang))}</span>
           <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)) + "#identify")}">同定する</a>
         </div>
       </div>`).join("");
@@ -2603,11 +2615,12 @@ function notesDetailHref(basePath: string, lang: SiteLang, obs: LandingObservati
   );
 }
 
-function notesPlaceLine(obs: LandingObservation, locationMode: "owner" | "public"): string {
-  if (locationMode === "owner") {
-    return [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
-  }
-  return obs.publicLocation?.label || obs.municipality || "場所をぼかしています";
+function notesPlaceLine(obs: LandingObservation, lang: SiteLang, locationMode: "owner" | "public"): string {
+  return formatPlaceDisplay({
+    placeName: obs.placeName,
+    municipality: obs.municipality,
+    publicLocation: obs.publicLocation,
+  }, lang, locationMode);
 }
 
 function notesPhotoUrls(obs: LandingObservation, preset: "sm" | "md"): string[] {
@@ -2638,18 +2651,24 @@ function renderNotesMiniCard(
   options: { locationMode: "owner" | "public" },
 ): string {
   const href = notesDetailHref(basePath, lang, obs);
-  const displayName = obs.displayName || obs.proposedName || "名前を確かめているページ";
+  const displayName = formatTaxonDisplayName({
+    vernacularName: obs.vernacularName,
+    scientificName: obs.scientificName,
+    displayName: obs.displayName,
+    aiCandidateName: obs.aiCandidateName,
+    fallback: obs.proposedName ?? "名前を確かめているページ",
+  }, lang).primaryLabel;
   const dateLabel = formatShortDate(notesEntryDate(obs), lang === "ja" ? "ja-JP" : "en-US") || notesEntryDate(obs);
-  const placeLine = notesPlaceLine(obs, options.locationMode);
+  const placeLine = notesPlaceLine(obs, lang, options.locationMode);
   const photoUrls = notesPhotoUrls(obs, "sm");
   const photoCount = notesPhotoCount(obs);
   const photo = photoUrls[0]
     ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(String(photoCount))}</b>` : ""}</span>`
     : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>`;
-  const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
+  const observerLine = obs.observerName ? `${formatActorDisplay(obs.observerName, lang)} · ` : "";
   const supportLine = obs.entryType === "identification"
     ? `${observerLine}${obs.proposedName ? `${obs.proposedName} · ` : ""}${dateLabel}`
-    : `${observerLine}${obs.identificationCount > 0 ? `同定 ${obs.identificationCount} 件 · ` : "名前を見返す余地あり · "}${dateLabel}`;
+    : `${observerLine}${obs.identificationCount > 0 ? `${formatIdentificationCount(obs.identificationCount, lang)} · ` : "名前を見返す余地あり · "}${dateLabel}`;
   return `<a class="notes-page-card" href="${escapeHtml(href)}" data-entry-type="${escapeHtml(obs.entryType ?? "observation")}">
     ${photo}
     <span class="notes-page-copy">
@@ -2710,9 +2729,15 @@ function notesLibrarySourceLabel(kind: NonNullable<LandingObservation["librarySo
 
 function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingObservation, options: { locationMode: "owner" | "public" }): string {
   const href = notesDetailHref(basePath, lang, obs);
-  const displayName = obs.displayName || obs.proposedName || "名前を確かめている観察";
-  const placeLine = notesPlaceLine(obs, options.locationMode);
-  const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
+  const displayName = formatTaxonDisplayName({
+    vernacularName: obs.vernacularName,
+    scientificName: obs.scientificName,
+    displayName: obs.displayName,
+    aiCandidateName: obs.aiCandidateName,
+    fallback: obs.proposedName ?? "名前を確かめている観察",
+  }, lang).primaryLabel;
+  const placeLine = notesPlaceLine(obs, lang, options.locationMode);
+  const observerLine = obs.observerName ? `${formatActorDisplay(obs.observerName, lang)} · ` : "";
   const photoUrls = notesPhotoUrls(obs, "md");
   const photoCount = notesPhotoCount(obs);
   const dateLabel = notesLibraryDateLabel(obs, lang);
@@ -2739,7 +2764,7 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
       <span class="notes-library-badges">
         <b class="notes-source-badge is-source-${escapeHtml(sourceKind)}">${escapeHtml(sourceLabel)}</b>
         ${isUncertain ? `<b>名前未確定</b>` : `<b>名前あり</b>`}
-        ${obs.identificationCount > 0 ? `<b>${escapeHtml(String(obs.identificationCount))} ids</b>` : ""}
+        ${obs.identificationCount > 0 ? `<b>${escapeHtml(formatIdentificationCount(obs.identificationCount, lang))}</b>` : ""}
       </span>
       <strong>${escapeHtml(displayName)}</strong>
       <em>${escapeHtml(`${observerLine}${placeLine || "場所未設定"} · ${dateLabel}`)}</em>
@@ -2881,7 +2906,7 @@ function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: Lan
   const ownObservationPages = snapshot.myFeed.filter((obs) => obs.entryType !== "identification").length;
   const latestHref = latest ? notesDetailHref(basePath, lang, latest) : appendLangToHref(withBasePath(basePath, "/notes#notes-nearby"), lang);
   const latestName = latest?.displayName || "近くのページ";
-  const latestPlace = latest ? notesPlaceLine(latest, snapshot.viewerUserId ? "owner" : "public") : "この地域";
+  const latestPlace = latest ? notesPlaceLine(latest, lang, snapshot.viewerUserId ? "owner" : "public") : "この地域";
   const latestDate = latest ? (formatShortDate(notesEntryDate(latest), "ja-JP") || "最近") : "今日";
   const placeName = firstPlace?.placeName ?? "まだ章になっていない場所";
   const digestPlace = digest?.placeChapters[0] ?? null;
@@ -6127,6 +6152,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               occurrenceId: subject.occurrenceId,
               displayName: subject.displayName,
               scientificName: subject.scientificName,
+              vernacularName: subject.vernacularName,
               identifications: subject.identifications,
               disputes: [],
             },
@@ -6139,12 +6165,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
     // ===== Layer 0: ヒーロー =====
     const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject);
+    const currentSubjectDisplay = formatTaxonDisplayName(currentSubject, lang);
+    const featuredSubjectDisplay = formatTaxonDisplayName(featuredSubject, lang);
+    const snapshotDisplay = formatTaxonDisplayName(snapshot, lang);
+    const observerDisplay = formatActorDisplay(snapshot.observerName, lang);
 
     const badges: string[] = [];
     if (subjectCount >= 2) badges.push(`<span class="obs-badge obs-badge-species">🧩 ${subjectCount} 対象</span>`);
-    if (featuredSubject) badges.push(`<span class="obs-badge obs-badge-species">⭐ 有力 ${escapeHtml(featuredSubject.displayName)}</span>`);
+    if (featuredSubject) badges.push(`<span class="obs-badge obs-badge-species">⭐ 有力 ${escapeHtml(featuredSubjectDisplay.primaryLabel)}</span>`);
     if (currentSubject && featuredSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId) {
-      badges.push(`<span class="obs-badge obs-badge-nearby" data-current-subject-badge>👀 表示中 ${escapeHtml(currentSubject.displayName)}</span>`);
+      badges.push(`<span class="obs-badge obs-badge-nearby" data-current-subject-badge>👀 表示中 ${escapeHtml(currentSubjectDisplay.primaryLabel)}</span>`);
     }
     if (currentSubject.identificationCount > 0) badges.push(`<span class="obs-badge obs-badge-consensus">🧭 同定 ${currentSubject.identificationCount} 件</span>`);
     if (heavy && heavy.nearby.length > 0) badges.push(`<span class="obs-badge obs-badge-nearby">📍 同地点 ${heavy.nearby.length} 件</span>`);
@@ -6176,13 +6206,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       observation: {
         observationId: snapshot.occurrenceId,
         observedAt: snapshot.observedAt,
-        displayName: snapshot.displayName,
+        displayName: snapshotDisplay.primaryLabel,
       },
       maxCards: 2,
     }).catch(() => null);
     const heroPlaceLabel = canSeeCanonicalLocation
-      ? (snapshot.placeName || "場所情報なし")
-      : (snapshot.publicLocation?.label || "位置をぼかしています");
+      ? formatPlaceDisplay(snapshot, lang, "owner")
+      : formatPlaceDisplay(snapshot, lang, "public");
     const publicMapHref = buildPublicMapCellHref(withBasePath(basePath, "/map"), snapshot.publicLocation);
     const detailMapHref = canSeeCanonicalLocation
       ? withBasePath(basePath, "/map")
@@ -6278,8 +6308,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const focusRailBlock = featuredSubject
       ? (() => {
           const focusHeading = currentSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId
-            ? `今見ている ${currentSubject.displayName} だけが主役とは限らず、${featuredSubject.displayName} がいちばん有力です。`
-            : `${featuredSubject.displayName} を先に見ると、この観察の意味をつかみやすいです。`;
+            ? `今見ている ${currentSubjectDisplay.primaryLabel} だけが主役とは限らず、${featuredSubjectDisplay.primaryLabel} がいちばん有力です。`
+            : `${featuredSubjectDisplay.primaryLabel} を先に見ると、この観察の意味をつかみやすいです。`;
           const focusLead = `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、同定履歴・AIヒント・分類がその場で切り替わります。" : "この観察で見えている対象を、そのまま確かめられます。"}`;
           const featuredChips: string[] = [];
           if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(featuredSubject.rank)}</span>`);
@@ -6296,6 +6326,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               lang,
             );
             const subjectMeta: string[] = [];
+            const subjectDisplay = formatTaxonDisplayName(subject, lang);
             if (subject.rank) subjectMeta.push(subject.rank);
             if (subject.identificationCount > 0) subjectMeta.push(`同定 ${subject.identificationCount} 件`);
             else if (subject.latestAssessmentBand && subject.latestAssessmentBand !== "unknown") subjectMeta.push(`AI ${confidenceLabel(subject.latestAssessmentBand)}`);
@@ -6313,7 +6344,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 <span class="obs-focus-card-role">${escapeHtml(subject.roleLabel)}</span>
                 ${stateLabel ? `<span class="obs-focus-card-state" data-subject-state>${escapeHtml(stateLabel)}</span>` : `<span class="obs-focus-card-state" data-subject-state hidden></span>`}
               </div>
-              <div class="obs-focus-card-name">${escapeHtml(subject.displayName)}</div>
+              <div class="obs-focus-card-name">${escapeHtml(subjectDisplay.primaryLabel)}</div>
               <div class="obs-focus-card-meta">${escapeHtml(subjectMeta.join(" · ") || subject.focusReason)}</div>
             </a>`;
           }).join("");
@@ -6330,7 +6361,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               <div>
                 <div class="obs-focus-role">${escapeHtml(featuredSubject.roleLabel)}</div>
                 <div class="obs-focus-name-row">
-                  <span class="obs-focus-name">${escapeHtml(featuredSubject.displayName)}</span>
+                  <span class="obs-focus-name">${escapeHtml(featuredSubjectDisplay.primaryLabel)}</span>
                   ${featuredSubject.rank ? `<span class="obs-focus-rank">${escapeHtml(featuredSubject.rank)}</span>` : ""}
                 </div>
                 <div class="obs-focus-meta">${featuredChips.join("")}</div>
@@ -6358,9 +6389,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           <div class="obs-hero-byline">
             <a class="obs-hero-observer" href="${escapeHtml(appendLangToHref(buildObserverProfileHref(basePath, snapshot.observerUserId) ?? "#", lang))}">
               ${snapshot.observerAvatarUrl
-                ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((snapshot.observerName || "?").slice(0, 1))}}))" />`
-                : `<span class="obs-hero-avatar">${escapeHtml((snapshot.observerName || "?").slice(0, 1))}</span>`}
-              <span>${escapeHtml(snapshot.observerName || "観察者")}</span>
+                ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((observerDisplay || "?").slice(0, 1))}}))" />`
+                : `<span class="obs-hero-avatar">${escapeHtml((observerDisplay || "?").slice(0, 1))}</span>`}
+              <span>${escapeHtml(observerDisplay)}</span>
             </a>
             <span class="obs-hero-when">${escapeHtml(formatAbsolute(snapshot.observedAt))}</span>
             <span class="obs-hero-place">${escapeHtml(heroPlaceLabel)}</span>
@@ -6824,7 +6855,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | ikimon`,
+      `${snapshotDisplay.primaryLabel} | ikimon`,
       detailBody,
       "みつける",
       undefined,
@@ -7303,12 +7334,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       return `
       <div class="row specialist-queue-row" data-occurrence-id="${escapeHtml(item.occurrenceId)}" data-display-name="${escapeHtml(item.displayName)}">
         <div>
-          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "Municipality unknown")}${escapeHtml(disputeLabel)}${escapeHtml(claimRefLabel)}</div>
+          <div style="font-weight:800">${escapeHtml(formatTaxonDisplayName(item, lang).primaryLabel)}</div>
+          <div class="meta">${escapeHtml(formatPlaceDisplay(item, lang, "public"))} · ${escapeHtml(item.observedAt)}</div>
+          <div class="meta">${escapeHtml(formatActorDisplay(item.observerName, lang))} · ${escapeHtml(item.municipality || "位置をぼかしています")}${escapeHtml(disputeLabel)}${escapeHtml(claimRefLabel)}</div>
         </div>
         <div class="actions">
-          <span class="pill">${item.identificationCount} ids</span>
+          <span class="pill">${escapeHtml(formatIdentificationCount(item.identificationCount, lang))}</span>
           <button class="btn secondary" type="button" data-queue-action="approve">approve</button>
           <button class="btn secondary" type="button" data-queue-action="alternative">alternative</button>
           <button class="btn secondary" type="button" data-queue-action="needs_more_evidence">needs evidence</button>
@@ -7952,9 +7983,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
-          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${item.identificationCount} ids</div>
+          <div style="font-weight:800">${escapeHtml(formatTaxonDisplayName(item, lang).primaryLabel)}</div>
+          <div class="meta">${escapeHtml(formatPlaceDisplay(item, lang, "public"))} · ${escapeHtml(item.observedAt)}</div>
+          <div class="meta">${escapeHtml(formatActorDisplay(item.observerName, lang))} · ${escapeHtml(formatIdentificationCount(item.identificationCount, lang))}</div>
         </div>
         <span class="pill">Open</span>
       </a>`).join("");
@@ -7995,7 +8026,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       </section>
       <section class="section"><div class="grid">
         <div class="card is-soft"><div class="card-body"><div class="eyebrow">Queue size</div><h2>${snapshot.queue.length}</h2><p class="meta">review shell に表示中の observation sample</p></div></div>
-        <div class="card is-soft"><div class="card-body"><div class="eyebrow">Unresolved</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">unresolved occurrences across v2</p></div></div>
+        <div class="card is-soft"><div class="card-body"><div class="eyebrow">未同定</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">v2 全体で名前を確認中の観察</p></div></div>
       </div></section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">Review sample</div><h2>レビュー対象</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
       <script>
@@ -8064,7 +8095,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const isLoggedIn = Boolean(viewerUserId);
     const libraryEntries = isLoggedIn ? snapshot.myFeed : snapshot.feed;
     const nearbyEntries = isLoggedIn ? snapshot.feed.slice(0, 12) : [];
-    const uniquePlaces = new Set(libraryEntries.map((obs) => notesPlaceLine(obs, isLoggedIn ? "owner" : "public")).filter(Boolean));
+    const uniquePlaces = new Set(libraryEntries.map((obs) => notesPlaceLine(obs, lang, isLoggedIn ? "owner" : "public")).filter(Boolean));
     const placeCount = isLoggedIn ? snapshot.myPlaces.length : uniquePlaces.size;
     const photoCount = libraryEntries.reduce((sum, obs) => sum + notesPhotoCount(obs), 0);
     const namedCount = libraryEntries.filter((obs) => !notesLibraryIsUncertain(obs)).length;
@@ -8179,6 +8210,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       title: mapPageCopy.title,
       activeNav: mapPageCopy.activeNav,
       lang,
+      currentPath: appendLangToHref(withBasePath(basePath, "/map"), lang),
       shellClassName: "shell-bleed shell-map",
       extraStyles: MAP_EXPLORER_STYLES,
       // Deliberately no hero: a map page should land on the map, not on
@@ -8200,6 +8232,7 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       title: guidePageCopy.title,
       activeNav: guidePageCopy.activeNav,
       lang,
+      currentPath: appendLangToHref(withBasePath(basePath, "/guide"), lang),
       extraStyles: `${GUIDE_FLOW_STYLES}\n${GUIDE_ENTRY_STYLES}`,
       body: `${renderGuideFlow(basePath, lang)}${renderGuideLoopPanel(basePath, lang)}`,
       footerNote: guidePageCopy.footerNote,
