@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ikimon platform_v2 guide environment refresh daily
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+RandomizedDelaySec=10m
+Persistent=true
+Unit=ikimon-v2-guide-environment.service
+
+[Install]
+WantedBy=timers.target

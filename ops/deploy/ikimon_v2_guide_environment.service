@@ -1,0 +1,10 @@
+[Unit]
+Description=ikimon platform_v2 guide environment mesh and regional hypothesis refresh
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/ikimon.life/repo
+ExecStart=/var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runGuideEnvironmentPostDeploy --hypothesis-limit=500
+Nice=10
