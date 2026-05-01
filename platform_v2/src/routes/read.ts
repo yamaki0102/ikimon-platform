@@ -2336,6 +2336,27 @@ function notesPlaceLine(obs: LandingObservation, locationMode: "owner" | "public
   return obs.publicLocation?.label || obs.municipality || "場所をぼかしています";
 }
 
+function notesPhotoUrls(obs: LandingObservation, preset: "sm" | "md"): string[] {
+  const sourceUrls = Array.isArray(obs.photoUrls) && obs.photoUrls.length > 0
+    ? obs.photoUrls
+    : (obs.photoUrl ? [obs.photoUrl] : []);
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const sourceUrl of sourceUrls) {
+    const url = toThumbnailUrl(sourceUrl, preset) ?? sourceUrl;
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls;
+}
+
+function notesPhotoCount(obs: LandingObservation): number {
+  const declared = Number(obs.photoCount ?? 0);
+  if (Number.isFinite(declared) && declared > 0) return Math.round(declared);
+  return notesPhotoUrls(obs, "sm").length;
+}
+
 function renderNotesMiniCard(
   basePath: string,
   lang: SiteLang,
@@ -2346,9 +2367,10 @@ function renderNotesMiniCard(
   const displayName = obs.displayName || obs.proposedName || "名前を確かめているページ";
   const dateLabel = formatShortDate(notesEntryDate(obs), lang === "ja" ? "ja-JP" : "en-US") || notesEntryDate(obs);
   const placeLine = notesPlaceLine(obs, options.locationMode);
-  const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "sm") ?? obs.photoUrl) : null;
-  const photo = photoUrl
-    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span></span>`
+  const photoUrls = notesPhotoUrls(obs, "sm");
+  const photoCount = notesPhotoCount(obs);
+  const photo = photoUrls[0]
+    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(String(photoCount))}</b>` : ""}</span>`
     : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>`;
   const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
   const supportLine = obs.entryType === "identification"
@@ -2393,7 +2415,7 @@ function notesLibraryIsUncertain(obs: LandingObservation): boolean {
 function notesLibrarySourceKind(obs: LandingObservation): NonNullable<LandingObservation["librarySourceKind"]> {
   if (obs.librarySourceKind) return obs.librarySourceKind;
   if (obs.hasVideo) return "video";
-  if (obs.photoUrl) return "photo";
+  if (notesPhotoCount(obs) > 0) return "photo";
   return "note";
 }
 
@@ -2417,7 +2439,8 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
   const displayName = obs.displayName || obs.proposedName || "名前を確かめている観察";
   const placeLine = notesPlaceLine(obs, options.locationMode);
   const observerLine = obs.observerName ? `${obs.observerName} · ` : "";
-  const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "md") ?? obs.photoUrl) : null;
+  const photoUrls = notesPhotoUrls(obs, "md");
+  const photoCount = notesPhotoCount(obs);
   const dateLabel = notesLibraryDateLabel(obs, lang);
   const isUncertain = notesLibraryIsUncertain(obs);
   const sourceKind = notesLibrarySourceKind(obs);
@@ -2425,15 +2448,18 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
   const filters = [
     "all",
     sourceKind,
-    photoUrl ? "photos" : "no-photo",
+    photoCount > 0 ? "photos" : "no-photo",
     isUncertain ? "uncertain" : "named",
     obs.identificationCount > 0 || obs.entryType === "identification" ? "identified" : "needs-id",
   ].join(" ");
   const searchable = `${displayName} ${placeLine} ${obs.observerName} ${dateLabel} ${sourceLabel}`.toLowerCase();
-  const photo = photoUrl
-    ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.notes-library-card').classList.add('is-photo-missing');this.remove()" />`
+  const visiblePhotos = photoUrls.slice(0, 4);
+  const photo = visiblePhotos.length > 1
+    ? `<span class="notes-library-photo-stack">${visiblePhotos.map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(`${displayName} 写真${index + 1}`)}" loading="lazy" decoding="async" onerror="this.remove()" />`).join("")}</span><b class="notes-library-photo-count">${escapeHtml(String(photoCount))}枚</b>`
+    : visiblePhotos[0]
+      ? `<img src="${escapeHtml(visiblePhotos[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.notes-library-card').classList.add('is-photo-missing');this.remove()" />${photoCount > 1 ? `<b class="notes-library-photo-count">${escapeHtml(String(photoCount))}枚</b>` : ""}`
     : `<span class="notes-library-placeholder">${escapeHtml(sourceLabel.slice(0, 1))}</span>`;
-  return `<a class="notes-library-card is-source-${escapeHtml(sourceKind)}${photoUrl ? "" : " is-photo-missing"}" href="${escapeHtml(href)}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+  return `<a class="notes-library-card is-source-${escapeHtml(sourceKind)}${photoCount > 0 ? "" : " is-photo-missing"}" href="${escapeHtml(href)}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
     <span class="notes-library-photo">${photo}</span>
     <span class="notes-library-overlay">
       <span class="notes-library-badges">
@@ -2965,8 +2991,9 @@ const NOTES_READING_STYLES = `
     color: inherit;
     text-decoration: none;
   }
-  .notes-thumb { width: 58px; height: 58px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-weight: 950; }
+  .notes-thumb { position: relative; width: 58px; height: 58px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-weight: 950; }
   .notes-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .notes-thumb-count { position: absolute; right: 4px; bottom: 4px; min-width: 21px; height: 21px; display: grid; place-items: center; padding: 0 5px; border-radius: 999px; background: rgba(15,23,42,.78); color: #fff; font-size: 11px; line-height: 1; font-weight: 950; }
   .notes-page-copy { min-width: 0; display: grid; gap: 3px; }
   .notes-page-copy strong { color: #1a2e1f; font-size: 16px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .notes-page-copy span:not(.notes-page-kicker), .notes-page-copy em { color: #64748b; font-size: 12px; line-height: 1.45; font-style: normal; font-weight: 720; }
@@ -3037,6 +3064,9 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-card:hover { transform: translateY(-2px); box-shadow: 0 18px 36px rgba(16,185,129,.12); }
   .notes-library-photo { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(219,234,254,.9)); color: #047857; font-size: 34px; font-weight: 950; }
   .notes-library-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .notes-library-photo-stack { width: 100%; height: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 2px; background: #0f172a; }
+  .notes-library-photo-stack img { min-width: 0; min-height: 0; }
+  .notes-library-photo-count { position: absolute; top: 9px; right: 9px; z-index: 1; padding: 5px 8px; border-radius: 999px; background: rgba(15,23,42,.78); color: #fff; font-size: 11px; line-height: 1; font-weight: 950; box-shadow: 0 6px 16px rgba(15,23,42,.2); }
   .notes-library-card::after { content: ""; position: absolute; inset: 34% 0 0; background: linear-gradient(180deg, transparent, rgba(15,23,42,.78)); pointer-events: none; }
   .notes-library-card.is-photo-missing::after { background: linear-gradient(180deg, rgba(255,255,255,0), rgba(16,37,26,.18)); }
   .notes-library-overlay { position: absolute; inset: auto 0 0; z-index: 1; display: grid; gap: 5px; padding: 12px; }
@@ -7733,7 +7763,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const nearbyEntries = isLoggedIn ? snapshot.feed.slice(0, 12) : [];
     const uniquePlaces = new Set(libraryEntries.map((obs) => notesPlaceLine(obs, isLoggedIn ? "owner" : "public")).filter(Boolean));
     const placeCount = isLoggedIn ? snapshot.myPlaces.length : uniquePlaces.size;
-    const photoCount = libraryEntries.filter((obs) => Boolean(obs.photoUrl)).length;
+    const photoCount = libraryEntries.reduce((sum, obs) => sum + notesPhotoCount(obs), 0);
     const namedCount = libraryEntries.filter((obs) => !notesLibraryIsUncertain(obs)).length;
     const latest = libraryEntries[0] ?? null;
     const latestLine = latest
@@ -7758,7 +7788,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           </div>
           <div class="notes-library-stats" aria-label="観察ライブラリの概要">
             <div><strong>${escapeHtml(formatProfileNumber(libraryEntries.length))}</strong><em>観察データ</em></div>
-            <div><strong>${escapeHtml(formatProfileNumber(photoCount))}</strong><em>画像つき</em></div>
+            <div><strong>${escapeHtml(formatProfileNumber(photoCount))}</strong><em>写真枚数</em></div>
             <div><strong>${escapeHtml(formatProfileNumber(namedCount))}</strong><em>名前あり</em></div>
           </div>
         </section>

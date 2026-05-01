@@ -38,6 +38,19 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
+function normalizeAssetUrls(values: string[] | null | undefined): string[] {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const value of values) {
+    const normalized = normalizeAssetUrl(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    urls.push(normalized);
+  }
+  return urls;
+}
+
 function normalizeDisplayName(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -107,6 +120,8 @@ type FeedRow = {
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
+  photo_urls: string[] | null;
+  photo_count: string | number | null;
   photo_width_px: number | null;
   photo_height_px: number | null;
   photo_bytes: string | number | null;
@@ -161,6 +176,8 @@ const FEED_SQL_BASE = `
     coalesce(v.point_latitude, p.center_latitude) as latitude,
     coalesce(v.point_longitude, p.center_longitude) as longitude,
     photo.public_url as photo_url,
+    photo.photo_urls,
+    photo.photo_count,
     photo.width_px as photo_width_px,
     photo.height_px as photo_height_px,
     photo.bytes as photo_bytes,
@@ -202,15 +219,26 @@ const FEED_SQL_BASE = `
     limit 1
   ) ident on true
   left join lateral (
-    select coalesce(ab.public_url, ab.storage_path) as public_url, ab.width_px, ab.height_px, ab.bytes
-    from evidence_assets ea
-    join asset_blobs ab on ab.blob_id = ea.blob_id
-    where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
-      and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-    order by
-      case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
-      ea.created_at asc
-    limit 1
+    select
+      (array_agg(asset.public_url order by asset.sort_scope, asset.created_at asc))[1] as public_url,
+      coalesce(array_agg(asset.public_url order by asset.sort_scope, asset.created_at asc) filter (where asset.public_url is not null), '{}'::text[]) as photo_urls,
+      count(*)::text as photo_count,
+      (array_agg(asset.width_px order by asset.sort_scope, asset.created_at asc))[1] as width_px,
+      (array_agg(asset.height_px order by asset.sort_scope, asset.created_at asc))[1] as height_px,
+      (array_agg(asset.bytes order by asset.sort_scope, asset.created_at asc))[1] as bytes
+    from (
+      select
+        coalesce(ab.public_url, ab.storage_path) as public_url,
+        ab.width_px,
+        ab.height_px,
+        ab.bytes,
+        ea.created_at,
+        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end as sort_scope
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+    ) asset
   ) photo on true
   left join lateral (
     select count(*)::text as video_count
@@ -295,6 +323,8 @@ function toLandingObservation(row: FeedRow): LandingObservation {
       longitude: safeLng,
     }),
     photoUrl: normalizeAssetUrl(row.photo_url),
+    photoUrls: normalizeAssetUrls(row.photo_urls),
+    photoCount: Math.max(0, Number(row.photo_count ?? 0) || 0),
     identificationCount: Number(row.identification_count),
     librarySourceKind: landingLibrarySourceKind(row),
     hasVideo: Number(row.video_count ?? 0) > 0,

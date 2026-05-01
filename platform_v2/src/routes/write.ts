@@ -98,6 +98,21 @@ function errorStatus(error: unknown, fallback = 400): number {
   return fallback;
 }
 
+function summarizeUploadBody(body: Partial<Omit<ObservationPhotoUploadInput, "observationId">> | null | undefined): {
+  filename: string | null;
+  mimeType: string | null;
+  mediaRole: string | null;
+  base64Length: number;
+} {
+  const base64Data = typeof body?.base64Data === "string" ? body.base64Data : "";
+  return {
+    filename: typeof body?.filename === "string" ? body.filename.slice(0, 160) : null,
+    mimeType: typeof body?.mimeType === "string" ? body.mimeType.slice(0, 80) : null,
+    mediaRole: body?.mediaRole == null ? null : String(body.mediaRole).slice(0, 80),
+    base64Length: base64Data.length,
+  };
+}
+
 function isAuthApiMutationHandledByAuthRoutes(url: string): boolean {
   const path = url.split("?", 1)[0] ?? "";
   return path === "/api/v1/auth/login" || path === "/api/v1/auth/register";
@@ -290,11 +305,13 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { id: string }; Body: Omit<ObservationPhotoUploadInput, "observationId"> }>(
     "/api/v1/observations/:id/photos/upload",
     async (request, reply) => {
+      let sessionUserId: string | null = null;
       try {
         const session = await getSessionFromCookie(request.headers.cookie);
         if (!session) {
           throw new Error("session_required");
         }
+        sessionUserId = session.userId;
         await assertObservationOwnedByUser(request.params.id, session.userId);
         return await uploadObservationPhoto({
           observationId: request.params.id,
@@ -305,6 +322,12 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           facePrivacy: request.body.facePrivacy,
         });
       } catch (error) {
+        request.log.warn({
+          err: error,
+          observationId: request.params.id,
+          sessionUserId,
+          upload: summarizeUploadBody(request.body),
+        }, "observation photo upload failed");
         reply.code(errorStatus(error, 400));
         return {
           ok: false,

@@ -39,6 +39,8 @@ type RecentObservation = {
   municipality: string | null;
   publicLocation: PublicLocationSummary;
   photoUrl: string | null;
+  photoUrls?: string[];
+  photoCount?: number;
   identificationCount: number;
   openDisputeCount?: number;
 };
