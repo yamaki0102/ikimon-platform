@@ -131,6 +131,8 @@
     "ops/deploy/deploy_platform_v2_blue_green.sh",
     "ops/deploy/ikimon_v2_blue.service",
     "ops/deploy/ikimon_v2_green.service",
+    "ops/deploy/ikimon_v2_guide_environment.service",
+    "ops/deploy/ikimon_v2_guide_environment.timer",
     "upload_package/.htaccess",
     "upload_package/public_html/.htaccess",
     "composer.json",
