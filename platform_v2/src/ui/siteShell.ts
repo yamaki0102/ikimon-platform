@@ -449,6 +449,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let recordingStartedAt = 0;
   let recordingTimer = null;
   let directPostInFlight = false;
+  let photoDraftRetryDetailId = '';
+  let photoDraftRetryHasUploadedPhoto = false;
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
   let capturedReviewFile = null;
@@ -755,6 +757,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     capturedPhotoFiles = [];
     capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
     capturedPhotoObjectUrls = [];
+    photoDraftRetryDetailId = '';
+    photoDraftRetryHasUploadedPhoto = false;
     capturedReviewMeta = null;
     resetSheetVideoTrim();
     if (inlineEdit) inlineEdit.hidden = true;
@@ -899,13 +903,36 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     capturedPhotoFiles.splice(target, 1);
     const [url] = capturedPhotoObjectUrls.splice(target, 1);
     if (url) URL.revokeObjectURL(url);
+    if (capturedPhotoFiles.length === 0) {
+      photoDraftRetryDetailId = '';
+      photoDraftRetryHasUploadedPhoto = false;
+    }
     syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
+  };
+  const keepOnlyPhotoDraftIndexes = (indexes) => {
+    const keep = new Set(indexes.map((index) => Number(index)).filter((index) => Number.isInteger(index) && index >= 0));
+    const nextFiles = [];
+    const nextUrls = [];
+    capturedPhotoFiles.forEach((file, index) => {
+      const url = capturedPhotoObjectUrls[index] || '';
+      if (keep.has(index)) {
+        nextFiles.push(file);
+        nextUrls.push(url);
+      } else if (url) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    capturedPhotoFiles = nextFiles;
+    capturedPhotoObjectUrls = nextUrls;
+    capturedReviewFile = nextFiles[0] || null;
   };
   const resetPhotoDraftAfterDirectPost = (message) => {
     capturedReviewFile = null;
     capturedPhotoFiles = [];
     capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
     capturedPhotoObjectUrls = [];
+    photoDraftRetryDetailId = '';
+    photoDraftRetryHasUploadedPhoto = false;
     capturedReviewMeta = null;
     renderPhotoTray();
     setPhotoDraftLayout(false);
@@ -945,16 +972,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
     try {
-      let location = metadata.location || null;
-      if (!location) {
-        setStatus('投稿に使う地点を確認しています...');
-        location = await readCaptureLocation();
-      }
-      if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
-        throw new Error('location_required');
-      }
-      const userId = await getCurrentSessionUserId();
-      const observedAt = String(metadata.capturedAt || new Date().toISOString());
       setStatus('写真を投稿用に整えています...');
       const uploads = [];
       const uploadHashes = [];
@@ -964,51 +981,67 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         uploads.push(upload);
         uploadHashes.push(hash || [upload.filename, upload.mimeType, String(files[index] && files[index].size || 0)].join(':'));
       }
-      const submissionSeed = [
-        userId,
-        observedAt,
-        Number(location.latitude).toFixed(6),
-        Number(location.longitude).toFixed(6),
-        uploadHashes.join(','),
-      ].join('|');
-      const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
-      const observationId = 'record-' + Date.now();
-      setStatus('観察を保存しています...');
-      const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          observationId,
-          legacyObservationId: observationId,
-          clientSubmissionId,
+      let detailId = photoDraftRetryDetailId;
+      if (!detailId) {
+        let location = metadata.location || null;
+        if (!location) {
+          setStatus('投稿に使う地点を確認しています...');
+          location = await readCaptureLocation();
+        }
+        if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
+          throw new Error('location_required');
+        }
+        const userId = await getCurrentSessionUserId();
+        const observedAt = String(metadata.capturedAt || new Date().toISOString());
+        const submissionSeed = [
           userId,
           observedAt,
-          latitude: Number(location.latitude),
-          longitude: Number(location.longitude),
-          prefecture: 'Shizuoka',
-          municipality: '',
-          localityNote: '',
-          note: '',
-          visitMode: 'manual',
-          completeChecklistFlag: false,
-          sourcePayload: {
-            source: 'global_photo_tray',
-            record_mode: 'quick',
-            quick_capture_state: 'present',
-            media_count: files.length,
-            subject_inference: 'ai',
-            client_submission_id: clientSubmissionId,
-            client_photo_sha256s: uploadHashes,
-          },
-          taxon: null,
-        }),
-      });
-      const observationJson = await observationResponse.json().catch(() => ({}));
-      if (!observationResponse.ok || !observationJson.ok) {
-        throw new Error(observationJson.error || 'observation_upsert_failed');
+          Number(location.latitude).toFixed(6),
+          Number(location.longitude).toFixed(6),
+          uploadHashes.join(','),
+        ].join('|');
+        const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
+        const observationId = 'record-' + Date.now();
+        setStatus('観察を保存しています...');
+        const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            observationId,
+            legacyObservationId: observationId,
+            clientSubmissionId,
+            userId,
+            observedAt,
+            latitude: Number(location.latitude),
+            longitude: Number(location.longitude),
+            prefecture: 'Shizuoka',
+            municipality: '',
+            localityNote: '',
+            note: '',
+            visitMode: 'manual',
+            completeChecklistFlag: false,
+            sourcePayload: {
+              source: 'global_photo_tray',
+              record_mode: 'quick',
+              quick_capture_state: 'present',
+              media_count: files.length,
+              subject_inference: 'ai',
+              client_submission_id: clientSubmissionId,
+              client_photo_sha256s: uploadHashes,
+            },
+            taxon: null,
+          }),
+        });
+        const observationJson = await observationResponse.json().catch(() => ({}));
+        if (!observationResponse.ok || !observationJson.ok) {
+          throw new Error(observationJson.error || 'observation_upsert_failed');
+        }
+        detailId = String(observationJson.occurrenceId || observationId);
+        photoDraftRetryDetailId = detailId;
       }
-      const detailId = String(observationJson.occurrenceId || observationId);
+      const failedUploads = [];
+      const uploadedIndexes = [];
       for (let index = 0; index < uploads.length; index += 1) {
         const upload = uploads[index];
         setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(uploads.length));
@@ -1020,14 +1053,30 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             filename: upload.filename,
             mimeType: upload.mimeType,
             base64Data: upload.base64Data,
-            mediaRole: index === 0 ? 'primary_subject' : 'context',
+            mediaRole: !photoDraftRetryHasUploadedPhoto && uploadedIndexes.length === 0 ? 'primary_subject' : 'context',
             facePrivacy: upload.facePrivacy || null,
           }),
         });
         const photoJson = await photoResponse.json().catch(() => ({}));
         if (!photoResponse.ok || !photoJson.ok) {
-          throw new Error('photo_upload_failed_at_' + String(index + 1));
+          failedUploads.push({
+            index,
+            error: String(photoJson.error || photoResponse.status || 'photo_upload_failed'),
+          });
+          continue;
         }
+        uploadedIndexes.push(index);
+        photoDraftRetryHasUploadedPhoto = true;
+      }
+      if (failedUploads.length > 0) {
+        keepOnlyPhotoDraftIndexes(failedUploads.map((item) => item.index));
+        syncPhotoDraftControls();
+        const saved = uploadedIndexes.length;
+        const failed = failedUploads.length;
+        const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + failedUploads[0].error : '';
+        if (captureButton) captureButton.textContent = '失敗した' + String(failed) + '枚を再送';
+        setStatus(String(uploads.length) + '枚中' + String(saved) + '枚を保存しました。失敗した写真は残しています。もう一度押すと同じ観察に再送します。' + reason);
+        return;
       }
       resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
     } finally {
