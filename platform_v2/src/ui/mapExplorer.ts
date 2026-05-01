@@ -87,6 +87,12 @@ export type MapExplorerCopy = {
   shareLabel: string;
   shareCopied: string;
   shareError: string;
+  mapQuickLabel: string;
+  mapQuickNearby: string;
+  mapQuickFrontier: string;
+  mapQuickHeatmap: string;
+  mapQuickSatellite: string;
+  mapQuickStandard: string;
   taxonChips: TaxonGroupChip[];
 };
 
@@ -196,6 +202,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "この表示を共有",
     shareCopied: "共有リンクをコピーした。",
     shareError: "共有リンクを作れなかった。",
+    mapQuickLabel: "地図上のクイック操作",
+    mapQuickNearby: "現在地",
+    mapQuickFrontier: "空白帯",
+    mapQuickHeatmap: "密度",
+    mapQuickSatellite: "衛星",
+    mapQuickStandard: "標準",
     taxonChips: [
       { value: "", label: "すべて", icon: "✨" },
       { value: "insect", label: "昆虫", icon: "🦋" },
@@ -285,6 +297,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "Share this view",
     shareCopied: "Share link copied.",
     shareError: "Could not create a share link.",
+    mapQuickLabel: "Quick map actions",
+    mapQuickNearby: "Nearby",
+    mapQuickFrontier: "Frontier",
+    mapQuickHeatmap: "Density",
+    mapQuickSatellite: "Satellite",
+    mapQuickStandard: "Standard",
     taxonChips: [
       { value: "", label: "All", icon: "✨" },
       { value: "insect", label: "Insects", icon: "🦋" },
@@ -374,6 +392,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "Compartir esta vista",
     shareCopied: "Enlace copiado.",
     shareError: "No pude crear el enlace.",
+    mapQuickLabel: "Acciones rápidas del mapa",
+    mapQuickNearby: "Cerca",
+    mapQuickFrontier: "Frontera",
+    mapQuickHeatmap: "Densidad",
+    mapQuickSatellite: "Satélite",
+    mapQuickStandard: "Estándar",
     taxonChips: [
       { value: "", label: "Todo", icon: "✨" },
       { value: "insect", label: "Insectos", icon: "🦋" },
@@ -463,6 +487,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "Compartilhar esta vista",
     shareCopied: "Link copiado.",
     shareError: "Não foi possível criar o link.",
+    mapQuickLabel: "Ações rápidas do mapa",
+    mapQuickNearby: "Perto",
+    mapQuickFrontier: "Fronteira",
+    mapQuickHeatmap: "Densidade",
+    mapQuickSatellite: "Satélite",
+    mapQuickStandard: "Padrão",
     taxonChips: [
       { value: "", label: "Tudo", icon: "✨" },
       { value: "insect", label: "Insetos", icon: "🦋" },
@@ -880,6 +910,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
+        <div class="me-map-command-deck" role="toolbar" aria-label="${escapeHtml(copy.mapQuickLabel)}">
+          <button type="button" class="me-map-quick" data-map-action="locate"><span aria-hidden="true">⌖</span>${escapeHtml(copy.mapQuickNearby)}</button>
+          <button type="button" class="me-map-quick" data-map-tab="frontier"><span aria-hidden="true">◇</span>${escapeHtml(copy.mapQuickFrontier)}</button>
+          <button type="button" class="me-map-quick" data-map-tab="heatmap"><span aria-hidden="true">≋</span>${escapeHtml(copy.mapQuickHeatmap)}</button>
+          <button type="button" class="me-map-quick" data-map-basemap="esri"><span aria-hidden="true">▧</span>${escapeHtml(copy.mapQuickSatellite)}</button>
+          <button type="button" class="me-map-quick" data-map-basemap="standard"><span aria-hidden="true">▤</span>${escapeHtml(copy.mapQuickStandard)}</button>
+        </div>
         <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
         <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
@@ -972,6 +1009,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     yearAll: copy.yearAll,
     shareCopied: copy.shareCopied,
     shareError: copy.shareError,
+    mapQuickLabel: copy.mapQuickLabel,
     selfLabel: ambient.selfLabel,
     communityLabel: ambient.communityLabel,
     frontierLabel: ambient.frontierLabel,
@@ -1068,11 +1106,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var BASEMAPS = {
     standard: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
       layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
     },
     gsi: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {
         gsi_photo: { type: 'raster', tiles: ['https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'], tileSize: 256, attribution: '国土地理院シームレス空中写真' },
       },
@@ -1080,6 +1120,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     },
     esri: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {
         esri: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' },
       },
@@ -1871,6 +1912,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     });
     map.addLayer({
+      id: 'observation-cell-label',
+      type: 'symbol',
+      source: sourceId,
+      minzoom: 7,
+      layout: {
+        'text-field': ['to-string', ['coalesce', ['get', 'count'], 1]],
+        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 12, 13],
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+      },
+      paint: {
+        'text-color': '#075985',
+        'text-halo-color': 'rgba(255,255,255,0.94)',
+        'text-halo-width': 1.4,
+      },
+    });
+    map.addLayer({
       id: 'observation-cell-selected',
       type: 'line',
       source: sourceId,
@@ -1928,7 +1987,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected'];
+    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-label', 'observation-cell-selected'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var show = function (ids, visible) {
@@ -2356,6 +2415,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
   }
 
+  function syncMapCommandDeckUi() {
+    document.querySelectorAll('.me-map-quick').forEach(function (btn) {
+      var tab = btn.getAttribute('data-map-tab') || '';
+      var basemap = btn.getAttribute('data-map-basemap') || '';
+      var active = (tab && tab === state.tab) || (basemap && basemap === state.basemap);
+      btn.classList.toggle('is-active', !!active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
   function syncUiFromState() {
     document.querySelectorAll('.me-tab').forEach(function (btn) {
       var t = btn.getAttribute('data-tab');
@@ -2399,6 +2468,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       label.classList.toggle('is-on', !!overlayState[id].enabled);
       if (range && overlayState[id].opacity != null) range.value = String(overlayState[id].opacity);
     });
+    syncMapCommandDeckUi();
   }
 
   // Restore from query string, then hash, then localStorage.
@@ -2613,6 +2683,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         applyTab(state.map, state.tab);
         if (state.tab === 'frontier') loadFrontier(state.map);
       }
+      syncMapCommandDeckUi();
       saveMapState();
     });
   });
@@ -2691,6 +2762,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         el.classList.toggle('is-active', el.contains(inp));
       });
       switchBasemap(v);
+      syncMapCommandDeckUi();
       saveMapState();
     });
   });
@@ -3011,6 +3083,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  document.querySelectorAll('.me-map-quick').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var action = btn.getAttribute('data-map-action') || '';
+      var tab = btn.getAttribute('data-map-tab') || '';
+      var basemap = btn.getAttribute('data-map-basemap') || '';
+      if (action === 'locate') {
+        if (locateFab) locateFab.click();
+        return;
+      }
+      if (tab) {
+        var tabBtn = document.querySelector('.me-tab[data-tab="' + tab + '"]');
+        if (tabBtn && typeof tabBtn.click === 'function') tabBtn.click();
+        return;
+      }
+      if (basemap) {
+        var input = document.querySelector('input[name="me-basemap"][value="' + basemap + '"]');
+        if (input) {
+          input.checked = true;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+  });
+  syncMapCommandDeckUi();
+
   // ---- Overlay registry wire-up ------------------------------------------
   // Reads the JSON catalog baked into data-overlay-catalog, then adds /
   // removes raster sources + layers on toggle, and updates raster-opacity
@@ -3276,6 +3373,41 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 18px 42px rgba(15,23,42,.08);
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 620px; }
+  .me-map-command-deck {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: calc(100% - 150px);
+    pointer-events: auto;
+  }
+  .me-map-quick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: rgba(255,255,255,.96);
+    color: #0f172a;
+    box-shadow: 0 10px 24px rgba(15,23,42,.14);
+    backdrop-filter: blur(12px);
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .me-map-quick:hover { transform: translateY(-1px); border-color: rgba(14,165,233,.32); background: #fff; }
+  .me-map-quick.is-active {
+    color: #064e3b;
+    border-color: rgba(16,185,129,.38);
+    background: rgba(236,253,245,.98);
+  }
+  .me-map-quick span { font-size: 14px; line-height: 1; }
   .me-map-panel {
     position: absolute;
     z-index: 5;
@@ -3289,7 +3421,7 @@ export const MAP_EXPLORER_STYLES = `
     transform: translateY(0);
   }
   .me-map-panel-selection {
-    top: 72px;
+    top: 82px;
     left: 18px;
     width: clamp(280px, 28vw, 360px);
     max-width: calc(100% - 36px);
@@ -3358,7 +3490,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-map-insight-item strong { font-size: 14px; font-weight: 900; color: #0f172a; }
   .me-map-insight-item span { font-size: 11px; line-height: 1.45; color: #64748b; }
   .me-map-status {
-    position: absolute; right: 14px; top: 14px; z-index: 4;
+    position: absolute; right: 14px; top: 70px; z-index: 4;
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);
     color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .02em;
     backdrop-filter: blur(8px);
@@ -3426,7 +3558,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-range { display: inline-flex; gap: 10px; color: #64748b; font-weight: 700; }
   .me-search-area-btn {
     position: absolute;
-    top: 14px;
+    top: 68px;
     left: 50%;
     z-index: 5;
     transform: translateX(-50%);
@@ -3544,6 +3676,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-cluster-item strong { font-weight: 800; color: #059669; }
   .me-chip:focus-visible,
   .me-tab:focus-visible,
+  .me-map-quick:focus-visible,
   .me-search-row:focus-visible,
   .me-share-btn:focus-visible,
   .me-locate-fab:focus-visible,
@@ -3593,12 +3726,28 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-panel {
       display: none;
     }
+    .me-map-command-deck {
+      left: 10px;
+      right: 10px;
+      max-width: none;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .me-map-command-deck::-webkit-scrollbar { display: none; }
+    .me-map-quick {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
     .me-side {
       order: 2;
       display: none;
     }
     .me-search-area-btn {
-      top: 72px;
+      top: 70px;
       width: max-content;
       max-width: calc(100% - 28px);
     }
