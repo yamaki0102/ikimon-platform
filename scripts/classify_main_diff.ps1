@@ -73,6 +73,18 @@ function Add-Item {
     }) | Out-Null
 }
 
+function ConvertFrom-GitStatusPath {
+    param([string]$Path)
+
+    if ($Path.Length -ge 2 -and $Path.StartsWith('"') -and $Path.EndsWith('"')) {
+        $Path = $Path.Substring(1, $Path.Length - 2)
+        $Path = $Path.Replace('\"', '"').Replace('\\', '\')
+        $Path = $Path.Replace('\t', "`t").Replace('\n', "`n").Replace('\r', "`r")
+    }
+
+    return $Path
+}
+
 if (-not (Test-Path -LiteralPath $RepoPath)) {
     throw "RepoPath not found: $RepoPath"
 }
@@ -111,6 +123,7 @@ foreach ($entry in $entries) {
     if ($path.Contains(' -> ')) {
         $path = ($path -split ' -> ', 2)[1]
     }
+    $path = ConvertFrom-GitStatusPath $path
 
     $baseExists = Test-BasePath $path
     $baseBlob = if ($baseExists) { Get-BaseBlob $path } else { $null }
