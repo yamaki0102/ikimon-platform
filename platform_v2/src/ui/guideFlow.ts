@@ -692,6 +692,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let freqData = null;
   let timeData = null;
   let audioSampleTimer = null;
+  let audioSliceTimer = null;
   let analyseTimer = null;
   let recapTimer = null;
   let running = false;
@@ -723,6 +724,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const OFFLINE_MAX_AUDIO = 1800;
   const ONLINE_ANALYSE_INTERVAL_MS = 8000;
   const OFFLINE_ANALYSE_INTERVAL_MS = 22000;
+  const AUDIO_CHUNK_TARGET_MS = 2000;
+  const AUDIO_CHUNK_MIN_MS = 1600;
+  const AUDIO_CHUNK_MAX_MS = 3200;
+  const AUDIO_CHUNK_MIN_BYTES = 2048;
+  const AUDIO_QUALITY_GATE_VERSION = 'guide_audio_webm_v1';
 
   const video      = document.getElementById('guide-video');
   const startBtn   = document.getElementById('guide-start-btn');
@@ -1118,6 +1124,51 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       image.src = url;
     });
   }
+  function isWebmMime(mimeType) {
+    return String(mimeType || '').toLowerCase().includes('webm');
+  }
+  function hasWebmEbmlHeader(bytes) {
+    return bytes && bytes.length >= 4
+      && bytes[0] === 0x1a
+      && bytes[1] === 0x45
+      && bytes[2] === 0xdf
+      && bytes[3] === 0xa3;
+  }
+  function buildAudioQualityMeta(blob, chunkMeta) {
+    const durationMs = Math.round(Number(chunkMeta && chunkMeta.durationMs) || AUDIO_CHUNK_TARGET_MS);
+    return {
+      gateVersion: AUDIO_QUALITY_GATE_VERSION,
+      targetDurationMs: AUDIO_CHUNK_TARGET_MS,
+      measuredDurationMs: durationMs,
+      blobBytes: blob.size,
+      mimeType: blob.type || preferredMime || null,
+      acceptedAt: new Date().toISOString()
+    };
+  }
+  async function validateAudioChunkQuality(blob, chunkMeta) {
+    if (!blob || !blob.size) return { ok: false, reason: 'empty_blob' };
+    if (!preferredMime) return { ok: false, reason: 'unsupported_mime' };
+    if (blob.size < AUDIO_CHUNK_MIN_BYTES) return { ok: false, reason: 'too_small' };
+
+    const durationMs = Number(chunkMeta && chunkMeta.durationMs);
+    if (Number.isFinite(durationMs) && durationMs > 0) {
+      if (durationMs < AUDIO_CHUNK_MIN_MS) return { ok: false, reason: 'too_short' };
+      if (durationMs > AUDIO_CHUNK_MAX_MS) return { ok: false, reason: 'too_long' };
+    }
+
+    const mimeType = blob.type || preferredMime || '';
+    if (isWebmMime(mimeType)) {
+      let header;
+      try {
+        header = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+      } catch {
+        return { ok: false, reason: 'unreadable_blob' };
+      }
+      if (!hasWebmEbmlHeader(header)) return { ok: false, reason: 'webm_header_missing' };
+    }
+
+    return { ok: true, quality: buildAudioQualityMeta(blob, chunkMeta) };
+  }
   function drawImageData(image, maxWidth, maxHeight, quality) {
     const canvas = drawImageCanvas(image, maxWidth, maxHeight);
     return canvas.toDataURL('image/jpeg', quality);
@@ -1492,12 +1543,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       updateOfflineUi();
     }
   }
-  function buildAudioPayload(blob, fingerprint, vad) {
+  function buildAudioPayload(blob, fingerprint, vad, quality) {
+    const measuredDurationMs = Number(quality && quality.measuredDurationMs) || AUDIO_CHUNK_TARGET_MS;
     return {
       externalId: newQueueId('guide-audio'),
       sessionId: sessionId,
       recordedAt: new Date().toISOString(),
-      durationSec: 2,
+      durationSec: Math.round(measuredDurationMs / 100) / 10,
       lat: lastKnownPosition.lat,
       lng: lastKnownPosition.lng,
       filename: 'guide-audio.webm',
@@ -1505,7 +1557,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       meta: {
         captureProfile: 'opus_mono_24khz_32kbps_2s',
         audioFingerprint: fingerprint,
-        clientVadResult: vad
+        clientVadResult: vad,
+        clientAudioQuality: quality
       }
     };
   }
@@ -1537,9 +1590,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       createdAt: Date.now()
     });
   }
-  async function uploadAudioChunk(blob, fingerprint, vad) {
+  async function uploadAudioChunk(blob, fingerprint, vad, quality) {
     if (!blob || !blob.size || !preferredMime) return;
-    const payload = buildAudioPayload(blob, fingerprint, vad);
+    const payload = buildAudioPayload(blob, fingerprint, vad, quality);
     try {
       if (!isOnlineNow()) {
         await queueAudioPayload(payload, blob, 'offline');
@@ -1627,7 +1680,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       scheduleRecapRefresh();
     }
   }
-  function handleAudioChunk(blob) {
+  async function handleAudioChunk(blob, chunkMeta) {
     if (!blob || !blob.size) return;
     const fingerprint = summarizeFrames();
     const vad = classifySpeech(fingerprint);
@@ -1641,8 +1694,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       scheduleRecapRefresh();
       return;
     }
-    sceneAudioChunks.push(blob);
-    void uploadAudioChunk(blob, fingerprint, vad);
+    const quality = await validateAudioChunkQuality(blob, chunkMeta);
+    if (!quality.ok) {
+      console.info('Guide audio chunk rejected by quality gate', quality.reason);
+      scheduleRecapRefresh();
+      return;
+    }
+    sceneAudioChunks = [blob];
+    void uploadAudioChunk(blob, fingerprint, vad, quality.quality);
   }
   async function doAnalyse() {
     if (!running) return;
@@ -1852,7 +1911,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   }
   function stopAudioCapture() {
     if (audioSampleTimer) clearInterval(audioSampleTimer);
+    if (audioSliceTimer) clearTimeout(audioSliceTimer);
     audioSampleTimer = null;
+    audioSliceTimer = null;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     mediaRecorder = null;
     if (audioStream) audioStream.getTracks().forEach((track) => track.stop());
@@ -1898,13 +1959,44 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
     if (window.MediaRecorder && preferredMime && audioStream.getAudioTracks().length) {
       try {
-        mediaRecorder = new MediaRecorder(audioStream, { mimeType: preferredMime, audioBitsPerSecond: 32000 });
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            handleAudioChunk(e.data);
+        const startStandaloneRecorderSlice = () => {
+          try {
+            if (!running || !audioOptIn || !audioStream || !audioStream.getAudioTracks().length) return;
+            const chunks = [];
+            const startedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+            const recorder = new MediaRecorder(audioStream, { mimeType: preferredMime, audioBitsPerSecond: 32000 });
+            mediaRecorder = recorder;
+            recorder.ondataavailable = (e) => {
+              if (e.data && e.data.size > 0) chunks.push(e.data);
+            };
+            recorder.onstop = () => {
+              const stoppedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+              const durationMs = Math.max(0, stoppedAt - startedAt);
+              if (mediaRecorder === recorder) mediaRecorder = null;
+              if (chunks.length && running && audioStream) {
+                const blob = chunks.length === 1 ? chunks[0] : new Blob(chunks, { type: recorder.mimeType || preferredMime });
+                void handleAudioChunk(blob, { durationMs: durationMs });
+              }
+              if (running && audioOptIn && audioStream) {
+                audioSliceTimer = setTimeout(startStandaloneRecorderSlice, 0);
+              }
+            };
+            recorder.onerror = (error) => {
+              console.info('Guide audio recorder slice failed', error);
+            };
+            recorder.start();
+            audioSliceTimer = setTimeout(() => {
+              if (recorder.state !== 'inactive') recorder.stop();
+            }, AUDIO_CHUNK_TARGET_MS);
+          } catch (error) {
+            mediaRecorder = null;
+            audioOptIn = false;
+            updateAudioOptButton();
+            showPrivacyNotice(copy.audioUnavailableNotice);
+            console.info('Guide audio recording unavailable; continuing video-only', error);
           }
         };
-        mediaRecorder.start(2000);
+        startStandaloneRecorderSlice();
       } catch (error) {
         mediaRecorder = null;
         audioOptIn = false;

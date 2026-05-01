@@ -1,9 +1,10 @@
 [Unit]
-Description=Run ikimon platform_v2 guide environment refresh daily
+Description=Run ikimon platform_v2 guide environment refresh
 
 [Timer]
-OnCalendar=*-*-* 03:20:00
-RandomizedDelaySec=10m
+OnBootSec=5m
+OnUnitActiveSec=30m
+RandomizedDelaySec=2m
 Persistent=true
 Unit=ikimon-v2-guide-environment.service
 

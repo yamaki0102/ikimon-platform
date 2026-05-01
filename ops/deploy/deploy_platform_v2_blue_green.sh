@@ -178,12 +178,15 @@ install_units() {
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_green.service" /etc/systemd/system/ikimon-v2-green.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_media_worker.service" /etc/systemd/system/ikimon-v2-media-worker.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_media_worker.timer" /etc/systemd/system/ikimon-v2-media-worker.timer
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_audio_worker.service" /etc/systemd/system/ikimon-v2-audio-worker.service
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_audio_worker.timer" /etc/systemd/system/ikimon-v2-audio-worker.timer
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_production_media_smoke.service" /etc/systemd/system/ikimon-v2-production-media-smoke.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_production_media_smoke.timer" /etc/systemd/system/ikimon-v2-production-media-smoke.timer
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_guide_environment.service" /etc/systemd/system/ikimon-v2-guide-environment.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_guide_environment.timer" /etc/systemd/system/ikimon-v2-guide-environment.timer
   systemctl daemon-reload
   systemctl enable --now ikimon-v2-media-worker.timer >/dev/null
+  systemctl enable --now ikimon-v2-audio-worker.timer >/dev/null
   systemctl enable --now ikimon-v2-production-media-smoke.timer >/dev/null
   systemctl enable --now ikimon-v2-guide-environment.timer >/dev/null
 }

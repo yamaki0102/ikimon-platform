@@ -20,6 +20,9 @@ const AUDIO_SUBMIT_BAD_REQUEST_ERRORS = new Set([
 ]);
 
 function audioSubmitStatusCode(message: string): number {
+  if (message.startsWith("audio_quarantined_")) {
+    return 400;
+  }
   if (message.endsWith("_required") || AUDIO_SUBMIT_BAD_REQUEST_ERRORS.has(message)) {
     return 400;
   }

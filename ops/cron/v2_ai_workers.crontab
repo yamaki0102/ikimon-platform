@@ -16,5 +16,10 @@
 # v2 photo 投稿の AI 同定取りこぼし回収 (毎2分, 最大10件)
 */2 * * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runAiForMissing --limit=10 >> /var/log/ikimon/v2_ai_for_missing.log 2>&1
 
-# ライブガイド地域メッシュ診断・必要時 rebuild・地域仮説更新 (毎日 03:20 JST)
-20 3 * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runGuideEnvironmentPostDeploy --hypothesis-limit=500 >> /var/log/ikimon/v2_guide_environment_postdeploy.log 2>&1
+# v2 Live Guide 音声 segment の BirdNET 検出 + fingerprint embedding
+# 正系は ikimon-v2-audio-worker.timer (5分周期)。この cron は旧環境用の手動fallback例。
+# */5 * * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh processAudioSegments --limit=20 --birdnet-url=http://127.0.0.1:8101/analyze --min-confidence=0.25 >> /var/log/ikimon/v2_audio_worker.log 2>&1
+
+# ライブガイド地域メッシュ診断・必要時 rebuild・地域仮説更新
+# 正系は ikimon-v2-guide-environment.timer (30分周期)。この cron は旧環境用の手動fallback例。
+# */30 * * * * /var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runGuideEnvironmentPostDeploy --date=today --trigger=cron-fallback --hypothesis-limit=500 >> /var/log/ikimon/v2_guide_environment_postdeploy.log 2>&1

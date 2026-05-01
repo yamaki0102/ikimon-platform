@@ -6,5 +6,5 @@ After=network-online.target
 Type=oneshot
 User=root
 WorkingDirectory=/var/www/ikimon.life/repo
-ExecStart=/var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runGuideEnvironmentPostDeploy --hypothesis-limit=500 --eval-limit=2000 --trigger=timer
+ExecStart=/var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runGuideEnvironmentPostDeploy --date=today --trigger=timer --hypothesis-limit=500 --eval-limit=2000
 Nice=10

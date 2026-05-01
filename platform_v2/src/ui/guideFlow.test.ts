@@ -51,6 +51,18 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /await queueScenePayload\(payload, 'offline'\)/);
   assert.match(html, /await queueAudioPayload\(payload, blob, 'offline'\)/);
   assert.match(html, /if \(vad\.speechLikely\)/);
+  assert.match(html, /const AUDIO_CHUNK_TARGET_MS = 2000/);
+  assert.match(html, /const AUDIO_CHUNK_MIN_MS = 1600/);
+  assert.match(html, /const AUDIO_CHUNK_MAX_MS = 3200/);
+  assert.match(html, /validateAudioChunkQuality\(blob, chunkMeta\)/);
+  assert.match(html, /webm_header_missing/);
+  assert.match(html, /hasWebmEbmlHeader\(header\)/);
+  assert.match(html, /clientAudioQuality: quality/);
+  assert.match(html, /sceneAudioChunks = \[blob\]/);
+  assert.match(html, /let audioSliceTimer = null/);
+  assert.match(html, /startStandaloneRecorderSlice/);
+  assert.match(html, /recorder\.start\(\)/);
+  assert.match(html, /AUDIO_CHUNK_TARGET_MS\)/);
   assert.match(html, /requestEnvironmentCamera\(\)/);
   assert.match(html, /facingMode: \{ exact: 'environment' \}/);
   assert.match(html, /audio: \{ channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false \}/);
