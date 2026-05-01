@@ -47,6 +47,7 @@ $_fBase = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
                 ],
                 __('footer.group_learn', 'Learn') => [
                     ['/guides.php', __('footer.link_guides', 'Guide list')],
+                    ['/guide_results.php', __('footer.link_guide_results', 'ガイド成果確認')],
                     ['/about.php', __('nav.about')],
                     ['/faq.php', __('nav.faq')],
                     ['/updates.php', __('nav.updates')],

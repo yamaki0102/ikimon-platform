@@ -1232,6 +1232,11 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                         <i data-lucide="eye" class="w-5 h-5"></i>
                         <?= __('post_page.view_detail', 'View observation details') ?>
                     </a>
+                    <a href="guide_results.php"
+                        class="block w-full py-3 rounded-full bg-primary-surface border border-primary/20 text-primary font-bold text-sm text-center hover:bg-primary-surface/80 transition flex items-center justify-center gap-2 active:scale-95">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        <?= __('post_page.view_results', '成果を確かめる') ?>
+                    </a>
                     <a x-show="taxon_slug" :href="'species/' + encodeURIComponent(taxon_slug)"
                         class="block w-full py-3 rounded-full bg-surface border border-border text-text font-bold text-center text-sm hover:bg-white/5 transition flex items-center justify-center gap-2">
                         📖 <span x-text="'<?= addslashes(__('post_page.view_species', 'View the guide for {name}')) ?>'.replace('{name}', taxon_name)"></span>
