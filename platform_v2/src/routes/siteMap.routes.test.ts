@@ -52,6 +52,8 @@ test("qa sitemap uses the canonical registry and legacy redirects point to v2 ro
     const qa = await app.inject({ method: "GET", url: "/qa/site-map?lang=ja" });
     assert.equal(qa.statusCode, 200);
     assert.match(qa.body, /Start \/ Core Journey/);
+    assert.match(qa.body, /ライブガイド/);
+    assert.match(qa.body, /ガイド成果確認/);
     assert.match(qa.body, /みんなで調べる/);
     assert.match(qa.body, /専門家確認/);
     assert.match(qa.body, /XML sitemap/);
@@ -93,6 +95,8 @@ test("visual smoke targets are generated from sitemap metadata", () => {
   const pages = listVisualQaPages();
   const paths = pages.map((page) => page.path);
   assert.ok(paths.includes("/explore"));
+  assert.ok(paths.includes("/guide"));
+  assert.ok(paths.includes("/guide/outcomes"));
   assert.ok(paths.includes("/home"));
   assert.ok(paths.includes("/profile/:userId"));
   assert.ok(paths.includes("/observations/:id"));

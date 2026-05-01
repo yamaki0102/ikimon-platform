@@ -43,7 +43,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
       chips: [
         { icon: ICON_BOOK_OPEN, label: jaLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: jaLabels.record, href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: jaLabels.lens, href: withBasePath(basePath, "/lens") },
+        { icon: ICON_SEARCH, label: jaLabels.lens, href: withBasePath(basePath, "/guide") },
         { icon: ICON_MAP, label: jaLabels.map, href: withBasePath(basePath, "/map") },
       ],
     },

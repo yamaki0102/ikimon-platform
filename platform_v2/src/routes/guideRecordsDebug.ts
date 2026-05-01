@@ -28,13 +28,13 @@ type CorrectionBody = {
   correctionKind?: unknown;
 };
 
-function loginGate(): string {
+function loginGate(nextPath = "/me/guide-records"): string {
   return `
 <main class="grd-wrap">
   <section class="grd-empty">
     <h1>ガイド記録を見るにはログインが必要です</h1>
     <p>ログイン済みのユーザーIDに紐づく guide_records だけを表示します。</p>
-    <a href="/login?next=${encodeURIComponent("/me/guide-records")}">ログインへ</a>
+    <a href="/login?next=${encodeURIComponent(nextPath)}">ログインへ</a>
   </section>
 </main>`;
 }
@@ -757,7 +757,11 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
   });
 }
 
-async function renderPage(request: { headers: Record<string, unknown>; query?: { limit?: string } }, reply: { type: (value: string) => void; code: (value: number) => void }): Promise<string> {
+async function renderPage(
+  request: { headers: Record<string, unknown>; query?: { limit?: string } },
+  reply: { type: (value: string) => void; code: (value: number) => void },
+  options: { nextPath?: string; title?: string; heading?: string; lead?: string } = {},
+): Promise<string> {
   reply.type("text/html; charset=utf-8");
   const rawCookie = request.headers.cookie;
   const cookie = Array.isArray(rawCookie) ? String(rawCookie[0] ?? "") : typeof rawCookie === "string" ? rawCookie : "";
@@ -766,9 +770,9 @@ async function renderPage(request: { headers: Record<string, unknown>; query?: {
     reply.code(401);
     return renderSiteDocument({
       basePath: "",
-      title: "ガイド記録デバッグ — ikimon.life",
+      title: options.title ?? "ガイド記録 — ikimon.life",
       extraStyles: STYLES,
-      body: loginGate(),
+      body: loginGate(options.nextPath),
     });
   }
   const limit = Math.max(1, Math.min(100, Number.parseInt(request.query?.limit ?? "50", 10) || 50));
@@ -780,17 +784,19 @@ async function renderPage(request: { headers: Record<string, unknown>; query?: {
     errorHtml = `<section class="grd-empty"><h1>DBから取得できませんでした</h1><p>${escapeHtml(error instanceof Error ? error.message : String(error))}</p></section>`;
   }
   const bundles = await addNextSamplingToBundles(bundleGuideRecords(rows));
+  const heading = options.heading ?? "自分のガイド記録";
+  const lead = options.lead ?? "ログイン中の user_id に紐づく guide_records 最新件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。";
   const body = `
 <main class="grd-wrap">
   <header class="grd-hero">
-    <h1>自分のガイド記録</h1>
-    <p>ログイン中の user_id に紐づく guide_records 最新${limit}件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。</p>
+    <h1>${escapeHtml(heading)}</h1>
+    <p>${escapeHtml(lead.replace("最新件", `最新${limit}件`))}</p>
   </header>
   ${errorHtml || `${renderSummaryStats(rows, bundles)}${renderRouteMap()}${renderRouteTransect(bundles)}${renderRecordCards(bundles)}`}
 </main><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
-    title: "自分のガイド記録 — ikimon.life",
+    title: options.title ?? "自分のガイド記録 — ikimon.life",
     extraStyles: STYLES,
     body,
   });
@@ -799,6 +805,14 @@ async function renderPage(request: { headers: Record<string, unknown>; query?: {
 export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { limit?: string } }>("/me/guide-records", async (request, reply) => renderPage(request, reply));
   app.get<{ Querystring: { limit?: string } }>("/admin/debug/guide-records", async (request, reply) => renderPage(request, reply));
+  app.get<{ Querystring: { limit?: string } }>("/guide/outcomes", async (request, reply) => renderPage(request, reply, {
+    nextPath: "/guide/outcomes",
+    title: "ガイド成果確認 — ikimon.life",
+    heading: "ガイド成果確認",
+    lead: "ライブガイドで残した最新件の足跡を、代表カード、ルート、環境の手がかりとして見返します。写真投稿や通常記録とは分けて、歩いた場所で何が読めたかを確認するページです。",
+  }));
+  app.get("/guide/results", async (_request, reply) => reply.redirect("/guide/outcomes", 308));
+  app.get("/me/guide-results", async (_request, reply) => reply.redirect("/guide/outcomes", 308));
   app.get("/community/guide-environment", async (_request, reply) => renderEnvironmentDashboard(reply));
   app.get<{ Querystring: { limit?: string } }>("/api/v1/me/guide-records/route-layer.geojson", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
