@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { canonicalizeSpeciesFeatures, canonicalizeTaxonList } from "./guideRecordInsights.js";
 import type { TtsLang } from "./guideTts.js";
 
 export type GuideMode = "walk" | "vehicle";
@@ -392,6 +393,16 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
   const pool = getPool();
   const client = await pool.connect();
   try {
+    const canonicalTaxa = canonicalizeTaxonList(input.detectedSpecies);
+    const detectedSpecies = canonicalTaxa.map((item) => item.canonicalName);
+    const detectedFeatures = canonicalizeSpeciesFeatures(input.detectedFeatures) as DetectedFeature[];
+    const meta = {
+      ...(input.meta ?? {}),
+      guideTaxonCanonicalization: {
+        rawSpecies: input.detectedSpecies,
+        canonicalSpecies: canonicalTaxa,
+      },
+    };
     const result = await client.query<{ guide_record_id: string }>(
       `insert into guide_records
          (session_id, user_id, occurrence_id, lat, lng, scene_hash, scene_summary,
@@ -406,8 +417,8 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
         input.lng,
         input.sceneHash,
         input.sceneSummary,
-        input.detectedSpecies,
-        JSON.stringify(input.detectedFeatures),
+        detectedSpecies,
+        JSON.stringify(detectedFeatures),
         input.ttsScript ?? null,
         input.lang,
       ],
@@ -449,7 +460,7 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
           input.coexistingTaxa ?? [],
           JSON.stringify(input.confidenceContext ?? {}),
           JSON.stringify(input.mediaRefs ?? {}),
-          JSON.stringify(input.meta ?? {}),
+          JSON.stringify(meta),
         ],
       );
     }

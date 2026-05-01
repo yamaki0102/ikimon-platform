@@ -617,7 +617,11 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    */
   app.post("/api/v1/guide/interaction", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
-    const interactionType = parseGuideInteractionType(body.interactionType);
+    const requestedInteractionType = typeof body.interactionType === "string" ? body.interactionType : "";
+    const representativeFeedback = requestedInteractionType === "merge_ok" ? "merge_ok" : null;
+    const interactionType = representativeFeedback
+      ? "helpful"
+      : parseGuideInteractionType(body.interactionType);
     if (!interactionType) {
       return reply.status(400).send({ ok: false, error: "invalid_interaction_type" });
     }
@@ -625,13 +629,16 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
       ? body.payload as Record<string, unknown>
       : {};
+    const normalizedPayload = representativeFeedback
+      ? { ...payload, representativeFeedback, storedInteractionType: interactionType }
+      : payload;
     const interactionId = await recordGuideInteraction({
       guideRecordId: typeof body.guideRecordId === "string" ? body.guideRecordId : null,
       hypothesisId: typeof body.hypothesisId === "string" ? body.hypothesisId : null,
       userId: session?.userId ?? null,
       sessionId: typeof body.sessionId === "string" ? body.sessionId : null,
       interactionType,
-      payload,
+      payload: normalizedPayload,
       occurredAt: typeof body.occurredAt === "string" ? body.occurredAt : null,
     });
     return reply.send({ ok: true, interactionId });

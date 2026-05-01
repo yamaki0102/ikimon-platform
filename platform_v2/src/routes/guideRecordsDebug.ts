@@ -6,27 +6,16 @@ import { loadGuideEnvironmentMeshGeoJson, upsertGuideEnvironmentMeshFromRecord }
 import { loadGuideEnvironmentDashboardMetrics, type GuideEnvironmentDashboardMetrics } from "../services/guideEnvironmentOps.js";
 import { recordGuideInteraction } from "../services/guideInteractions.js";
 import { listGuideHypothesisPromptImprovements } from "../services/guideHypothesisPromptImprovements.js";
+import {
+  bundleGuideRecords,
+  canonicalizeTaxonList,
+  type GuideRecordBundle,
+  type GuideRecordInsightRow,
+} from "../services/guideRecordInsights.js";
 import { listRegionalHypotheses, type RegionalHypothesisRecord } from "../services/regionalHypotheses.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
-type GuideRecordDebugRow = {
-  guide_record_id: string;
-  session_id: string;
-  lat: number | null;
-  lng: number | null;
-  scene_summary: string | null;
-  detected_species: string[] | null;
-  detected_features: Array<{ type?: string; name?: string; confidence?: number; note?: string }> | null;
-  created_at: string;
-  captured_at: string | null;
-  returned_at: string | null;
-  delivery_state: string | null;
-  seen_state: string | null;
-  environment_context: string | null;
-  seasonal_note: string | null;
-  primary_subject: Record<string, unknown> | null;
-  meta: Record<string, unknown> | null;
-};
+type GuideRecordDebugRow = GuideRecordInsightRow;
 
 type EditableFeature = { type: "species" | "vegetation" | "landform" | "structure" | "sound"; name: string; confidence?: number; note?: string };
 
@@ -232,7 +221,23 @@ async function loadGuideRecords(userId: string, limit: number): Promise<GuideRec
   return result.rows;
 }
 
-function renderSummaryStats(rows: GuideRecordDebugRow[]): string {
+async function addNextSamplingToBundles(bundles: GuideRecordBundle[]): Promise<GuideRecordBundle[]> {
+  const meshKeys = Array.from(new Set(bundles.map((bundle) => bundle.meshKey).filter((meshKey): meshKey is string => Boolean(meshKey))));
+  const byMesh = new Map<string, RegionalHypothesisRecord>();
+  await Promise.all(meshKeys.map(async (meshKey) => {
+    const rows = await listRegionalHypotheses({ meshKey, limit: 3, publicOnly: true }).catch(() => []);
+    const hypothesis = rows.find((row) => row.nextSamplingProtocol.trim().length > 0);
+    if (hypothesis) byMesh.set(meshKey, hypothesis);
+  }));
+  return bundles.map((bundle) => ({
+    ...bundle,
+    regionalHypothesisId: bundle.meshKey ? byMesh.get(bundle.meshKey)?.hypothesisId : undefined,
+    regionalHypothesisClaimType: bundle.meshKey ? byMesh.get(bundle.meshKey)?.claimType : undefined,
+    nextSamplingProtocol: bundle.meshKey ? byMesh.get(bundle.meshKey)?.nextSamplingProtocol : undefined,
+  }));
+}
+
+function renderSummaryStats(rows: GuideRecordDebugRow[], bundles: GuideRecordBundle[]): string {
   const featureCounts = new Map<string, number>();
   let withLatLng = 0;
   for (const row of rows) {
@@ -248,6 +253,7 @@ function renderSummaryStats(rows: GuideRecordDebugRow[]): string {
   return `
 <section class="grd-stats">
   <span class="grd-stat"><strong>${rows.length}</strong>最新記録</span>
+  <span class="grd-stat"><strong>${bundles.length}</strong>代表カード</span>
   <span class="grd-stat"><strong>${withLatLng}</strong>位置つき</span>
   ${featureHtml}
 </section>`;
@@ -271,17 +277,17 @@ function featuresToTextarea(features: GuideRecordDebugRow["detected_features"]):
   }).join("\n");
 }
 
-function renderRouteTransect(rows: GuideRecordDebugRow[]): string {
-  const bySession = new Map<string, GuideRecordDebugRow[]>();
-  for (const row of rows) {
-    if (!row.session_id) continue;
-    const list = bySession.get(row.session_id) ?? [];
-    list.push(row);
-    bySession.set(row.session_id, list);
+function renderRouteTransect(bundles: GuideRecordBundle[]): string {
+  const bySession = new Map<string, GuideRecordBundle[]>();
+  for (const bundle of bundles) {
+    if (!bundle.sessionId) continue;
+    const list = bySession.get(bundle.sessionId) ?? [];
+    list.push(bundle);
+    bySession.set(bundle.sessionId, list);
   }
   const sessions = Array.from(bySession.entries())
     .map(([sessionId, items]) => [sessionId, items.slice().reverse()] as const)
-    .filter(([, items]) => items.some((item) => item.lat != null && item.lng != null))
+    .filter(([, items]) => items.some((item) => item.representative.lat != null && item.representative.lng != null))
     .slice(0, 4);
   if (sessions.length === 0) {
     return `<section class="grd-panel"><h2>ルート断面</h2><p class="grd-muted">位置つきのガイド記録がまだありません。</p></section>`;
@@ -289,19 +295,20 @@ function renderRouteTransect(rows: GuideRecordDebugRow[]): string {
   const sessionHtml = sessions.map(([sessionId, items]) => {
     let totalM = 0;
     let prev: { lat: number; lng: number } | null = null;
-    const segments = items.map((item, index) => {
+    const segments = items.map((bundle, index) => {
+      const item = bundle.representative;
       if (item.lat != null && item.lng != null) {
         const current = { lat: item.lat, lng: item.lng };
         if (prev) totalM += metersBetween(prev, current);
         prev = current;
       }
-      const features = (item.detected_features ?? []).filter((feature) => ["vegetation", "landform", "structure"].includes(String(feature.type)));
+      const features = bundle.features.filter((feature) => ["vegetation", "landform", "structure"].includes(String(feature.type)));
       const primary = features[0]?.name ?? item.environment_context ?? item.scene_summary ?? "環境手がかり";
       return `<li class="grd-transect-step">
         <span class="grd-step-dot">${index + 1}</span>
         <div>
           <div class="grd-step-title">${escapeHtml(primary)}</div>
-          <div class="grd-step-meta">${escapeHtml(formatTime(item.captured_at ?? item.created_at))} ${item.lat != null && item.lng != null ? ` / ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}` : ""}</div>
+          <div class="grd-step-meta">${escapeHtml(formatTime(bundle.startAt))} / ${bundle.recordCount}件を代表 ${item.lat != null && item.lng != null ? ` / ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}` : ""}</div>
           <div class="grd-step-pills">${renderFeaturePills(features)}</div>
         </div>
       </li>`;
@@ -345,23 +352,49 @@ function renderEnvironmentMeshMap(): string {
   </section>`;
 }
 
-function renderRecordCards(rows: GuideRecordDebugRow[]): string {
-  if (rows.length === 0) {
+function renderRecordCards(bundles: GuideRecordBundle[]): string {
+  if (bundles.length === 0) {
     return `<section class="grd-empty"><h1>ガイド記録はまだありません</h1><p>ライブガイドで解析が完了したシーンがここに出ます。</p></section>`;
   }
-  return `<section class="grd-grid">${rows.map((row) => {
+  return `<section class="grd-grid">${bundles.map((bundle) => {
+    const row = bundle.representative;
     const guideMode = typeof row.meta?.guideMode === "string" ? row.meta.guideMode : "walk";
-    const species = (row.detected_species ?? []).filter(Boolean);
+    const species = bundle.canonicalTaxa.length > 0 ? bundle.canonicalTaxa : canonicalizeTaxonList(row.detected_species ?? []);
     return `<article class="grd-card">
       <div class="grd-card-head">
-        <span>${escapeHtml(formatTime(row.captured_at ?? row.created_at))}</span>
+        <span>${escapeHtml(formatTime(bundle.startAt))}${bundle.recordCount > 1 ? ` - ${escapeHtml(formatTime(bundle.endAt))}` : ""}</span>
         <span>${escapeHtml(guideMode === "vehicle" ? "車・自転車" : "徒歩")}</span>
       </div>
+      <div class="grd-bundle-meta"><span>代表カード</span><strong>${bundle.recordCount}</strong>件 / ${bundle.durationSec}秒</div>
       <h2>${escapeHtml(row.scene_summary ?? "シーン要約なし")}</h2>
       ${row.environment_context ? `<p class="grd-env">${escapeHtml(row.environment_context)}</p>` : ""}
       ${row.seasonal_note ? `<p class="grd-season">${escapeHtml(row.seasonal_note)}</p>` : ""}
-      <div class="grd-species">${species.length ? species.map((item) => `<span>${escapeHtml(item)}</span>`).join("") : `<span class="grd-muted">種名なし</span>`}</div>
-      <div class="grd-features">${renderFeaturePills(row.detected_features)}</div>
+      <div class="grd-species">${species.length ? species.map((item) => `<span title="${escapeHtml(item.sourceNames.join(", "))}">${escapeHtml(item.canonicalName)}<small>${escapeHtml(item.rank)}</small></span>`).join("") : `<span class="grd-muted">種名なし</span>`}</div>
+      <div class="grd-features">${renderFeaturePills(bundle.features)}</div>
+      ${bundle.nextSamplingProtocol ? `<section class="grd-next-sampling"><b>次に見る</b><p>${escapeHtml(bundle.nextSamplingProtocol)}</p></section>` : ""}
+      <div class="grd-feedback-row" data-feedback-status>
+        <button type="button"
+          data-guide-bundle-feedback="helpful"
+          data-guide-record-id="${escapeHtml(row.guide_record_id)}"
+          data-session-id="${escapeHtml(bundle.sessionId)}"
+          data-bundle-id="${escapeHtml(bundle.bundleId)}"
+          data-bundle-record-count="${bundle.recordCount}"
+          data-hypothesis-id="${escapeHtml(bundle.regionalHypothesisId ?? "")}">役に立つ</button>
+        <button type="button"
+          data-guide-bundle-feedback="merge_ok"
+          data-guide-record-id="${escapeHtml(row.guide_record_id)}"
+          data-session-id="${escapeHtml(bundle.sessionId)}"
+          data-bundle-id="${escapeHtml(bundle.bundleId)}"
+          data-bundle-record-count="${bundle.recordCount}"
+          data-hypothesis-id="${escapeHtml(bundle.regionalHypothesisId ?? "")}">束ね方OK</button>
+        <button type="button"
+          data-guide-bundle-feedback="wrong"
+          data-guide-record-id="${escapeHtml(row.guide_record_id)}"
+          data-session-id="${escapeHtml(bundle.sessionId)}"
+          data-bundle-id="${escapeHtml(bundle.bundleId)}"
+          data-bundle-record-count="${bundle.recordCount}"
+          data-hypothesis-id="${escapeHtml(bundle.regionalHypothesisId ?? "")}">違う</button>
+      </div>
       <details class="grd-edit">
         <summary>誤判定を修正</summary>
         <div class="grd-one-taps" aria-label="ワンタップ分類">
@@ -370,13 +403,13 @@ function renderRecordCards(rows: GuideRecordDebugRow[]): string {
           <button type="button" data-one-tap-correction="landform" data-correction-id="${escapeHtml(row.guide_record_id)}">これは地形・土地</button>
         </div>
         <label>種名（カンマ区切り）
-          <input data-edit-field="species" value="${escapeHtml(species.join(", "))}">
+          <input data-edit-field="species" value="${escapeHtml(species.map((item) => item.canonicalName).join(", "))}">
         </label>
         <label>環境文脈
           <textarea data-edit-field="environment">${escapeHtml(row.environment_context ?? "")}</textarea>
         </label>
         <label>特徴（type | name | confidence | note）
-          <textarea data-edit-field="features">${escapeHtml(featuresToTextarea(row.detected_features))}</textarea>
+          <textarea data-edit-field="features">${escapeHtml(featuresToTextarea(bundle.features))}</textarea>
         </label>
         <label>修正メモ
           <input data-edit-field="note" placeholder="例: 看板のスズキを除外">
@@ -386,7 +419,7 @@ function renderRecordCards(rows: GuideRecordDebugRow[]): string {
       </details>
       <footer>
         <span>${escapeHtml(row.delivery_state ?? "ready")} / ${escapeHtml(row.seen_state ?? "unseen")}</span>
-        <span>${row.lat != null && row.lng != null ? `${row.lat.toFixed(5)}, ${row.lng.toFixed(5)}` : "位置なし"}</span>
+        <span>${bundle.meshKey ? `${escapeHtml(bundle.meshKey)} / ` : ""}${row.lat != null && row.lng != null ? `${row.lat.toFixed(5)}, ${row.lng.toFixed(5)}` : "位置なし"}</span>
       </footer>
     </article>`;
   }).join("")}</section>`;
@@ -417,10 +450,13 @@ const STYLES = `
 .grd-card{display:grid;gap:10px;border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:14px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-card-head,.grd-card footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:#64748b;font-weight:800;}
 .grd-card h2{font-size:15px;line-height:1.65;margin:0;color:#111827;}
+.grd-bundle-meta{display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:6px;border:1px solid #99f6e4;background:#f0fdfa;color:#0f766e;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:950;}
+.grd-bundle-meta strong{font-size:15px;color:#0f172a;}
 .grd-env,.grd-season{margin:0;font-size:13px;line-height:1.65;color:#334155;background:#f8fafc;border-radius:6px;padding:8px;}
 .grd-season{background:#fff7ed;color:#7c2d12;}
 .grd-species,.grd-features{display:flex;gap:6px;flex-wrap:wrap;}
-.grd-species span{border-radius:999px;background:#eef2ff;color:#3730a3;padding:4px 8px;font-size:12px;font-weight:900;}
+.grd-species span{display:inline-flex;align-items:center;gap:5px;border-radius:999px;background:#eef2ff;color:#3730a3;padding:4px 8px;font-size:12px;font-weight:900;}
+.grd-species small{font-size:10px;color:#6366f1;text-transform:uppercase;}
 .grd-pill{display:inline-flex;gap:5px;align-items:center;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:850;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;}
 .grd-pill b{font-size:10px;text-transform:uppercase;color:#64748b;}
 .grd-pill.is-vegetation{background:#ecfdf5;color:#065f46;border-color:#bbf7d0;}
@@ -437,6 +473,9 @@ const STYLES = `
 .grd-map-links{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 .grd-map-links a{font-size:12px;font-weight:900;color:#0f766e;border:1px solid #99f6e4;border-radius:999px;padding:5px 9px;text-decoration:none;background:#f0fdfa;}
 .grd-map{height:420px;border:1px solid #dbe7e2;border-radius:8px;overflow:hidden;background:#eef6f2;display:grid;place-items:center;color:#64748b;font-weight:900;}
+.grd-next-sampling{border:1px solid #fde68a;background:#fffbeb;color:#713f12;border-radius:8px;padding:9px 10px;display:grid;gap:4px;}
+.grd-next-sampling b{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#a16207;}
+.grd-next-sampling p{margin:0;font-size:12px;line-height:1.65;font-weight:800;}
 .grd-edit{border-top:1px solid #eef4f1;padding-top:8px;}
 .grd-edit summary{cursor:pointer;font-size:12px;font-weight:950;color:#0f766e;}
 .grd-one-taps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
@@ -472,7 +511,8 @@ const STYLES = `
 .grd-chip{border:1px solid #cbd5e1;background:#f8fafc;color:#475569;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:900;}
 .grd-feedback-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .grd-feedback-row button{min-height:34px;border:1px solid #99f6e4;border-radius:999px;background:#f0fdfa;color:#0f766e;font-size:12px;font-weight:950;padding:0 10px;cursor:pointer;}
-.grd-feedback-row button+button{border-color:#fecaca;background:#fff1f2;color:#be123c;}
+.grd-feedback-row button[data-guide-bundle-feedback="merge_ok"]{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;}
+.grd-feedback-row button[data-guide-bundle-feedback="wrong"],.grd-feedback-row button[data-guide-hypothesis-feedback="wrong"]{border-color:#fecaca;background:#fff1f2;color:#be123c;}
 @media(max-width:760px){.grd-dashboard-grid,.grd-ops-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}}
 `;
 
@@ -578,6 +618,41 @@ const SCRIPT = `
       } catch (error) {
         feedbackButton.disabled = false;
         feedbackButton.textContent = error instanceof Error ? error.message.slice(0, 18) : '失敗';
+      }
+      return;
+    }
+    var bundleFeedbackButton = event.target.closest('[data-guide-bundle-feedback]');
+    if (bundleFeedbackButton) {
+      var bundleRow = bundleFeedbackButton.closest('[data-feedback-status]');
+      var bundleStatus = bundleRow || bundleFeedbackButton.parentElement;
+      var bundleFeedback = bundleFeedbackButton.getAttribute('data-guide-bundle-feedback') || '';
+      bundleFeedbackButton.disabled = true;
+      try {
+        var bundleFeedbackRes = await fetch('/api/v1/guide/interaction', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            guideRecordId: bundleFeedbackButton.getAttribute('data-guide-record-id') || '',
+            hypothesisId: bundleFeedbackButton.getAttribute('data-hypothesis-id') || '',
+            sessionId: bundleFeedbackButton.getAttribute('data-session-id') || '',
+            interactionType: bundleFeedback,
+            payload: {
+              surface: 'me_guide_records_bundle',
+              bundleId: bundleFeedbackButton.getAttribute('data-bundle-id') || '',
+              bundleRecordCount: Number(bundleFeedbackButton.getAttribute('data-bundle-record-count') || '1'),
+              representativeFeedback: bundleFeedback,
+              feedsRegionalHypothesisQueue: Boolean(bundleFeedbackButton.getAttribute('data-hypothesis-id')),
+              feedsPromptImprovementQueue: true
+            }
+          })
+        });
+        if (!bundleFeedbackRes.ok) throw new Error(await bundleFeedbackRes.text());
+        if (bundleStatus) bundleStatus.setAttribute('data-feedback-saved', 'true');
+        bundleFeedbackButton.textContent = '記録済み';
+      } catch (error) {
+        bundleFeedbackButton.disabled = false;
+        bundleFeedbackButton.textContent = error instanceof Error ? error.message.slice(0, 18) : '失敗';
       }
       return;
     }
@@ -704,13 +779,14 @@ async function renderPage(request: { headers: Record<string, unknown>; query?: {
   } catch (error) {
     errorHtml = `<section class="grd-empty"><h1>DBから取得できませんでした</h1><p>${escapeHtml(error instanceof Error ? error.message : String(error))}</p></section>`;
   }
+  const bundles = await addNextSamplingToBundles(bundleGuideRecords(rows));
   const body = `
 <main class="grd-wrap">
   <header class="grd-hero">
     <h1>自分のガイド記録</h1>
-    <p>ログイン中の user_id に紐づく guide_records 最新${limit}件。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。</p>
+    <p>ログイン中の user_id に紐づく guide_records 最新${limit}件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。</p>
   </header>
-  ${errorHtml || `${renderSummaryStats(rows)}${renderRouteMap()}${renderRouteTransect(rows)}${renderRecordCards(rows)}`}
+  ${errorHtml || `${renderSummaryStats(rows, bundles)}${renderRouteMap()}${renderRouteTransect(bundles)}${renderRecordCards(bundles)}`}
 </main><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
@@ -732,37 +808,47 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
     }
     const limit = Math.max(1, Math.min(1000, Number.parseInt(request.query.limit ?? "500", 10) || 500));
     const rows = await loadGuideRecords(session.userId, limit);
-    const pointRows = rows.filter((row) => row.lat != null && row.lng != null).slice().reverse();
+    const bundles = bundleGuideRecords(rows);
+    const pointBundles = bundles.filter((bundle) => bundle.representative.lat != null && bundle.representative.lng != null).slice().reverse();
     const features: Array<Record<string, unknown>> = [];
-    for (const row of pointRows) {
-      const envFeatures = (row.detected_features ?? []).filter((feature) => ["vegetation", "landform", "structure"].includes(String(feature.type)));
+    for (const bundle of pointBundles) {
+      const row = bundle.representative;
+      if (row.lat == null || row.lng == null) continue;
+      const envFeatures = bundle.features.filter((feature) => ["vegetation", "landform", "structure"].includes(String(feature.type)));
       const dominantType = String(envFeatures[0]?.type ?? "structure");
       features.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [row.lng, row.lat] },
         properties: {
-          kind: "guide_point",
+          kind: "guide_bundle",
+          bundleId: bundle.bundleId,
+          bundleRecordCount: bundle.recordCount,
           guideRecordId: row.guide_record_id,
           sessionId: row.session_id,
-          capturedAt: row.captured_at ?? row.created_at,
+          capturedAt: bundle.startAt,
+          endedAt: bundle.endAt,
           guideMode: typeof row.meta?.guideMode === "string" ? row.meta.guideMode : "walk",
           dominantType,
           summary: row.scene_summary,
           environmentContext: row.environment_context,
+          canonicalTaxa: bundle.canonicalTaxa.map((item) => item.canonicalName),
           vegetation: envFeatures.filter((feature) => feature.type === "vegetation").map((feature) => feature.name),
           landform: envFeatures.filter((feature) => feature.type === "landform").map((feature) => feature.name),
           structure: envFeatures.filter((feature) => feature.type === "structure").map((feature) => feature.name),
         },
       });
     }
-    const bySession = new Map<string, GuideRecordDebugRow[]>();
-    for (const row of pointRows) {
-      const list = bySession.get(row.session_id) ?? [];
-      list.push(row);
-      bySession.set(row.session_id, list);
+    const bySession = new Map<string, GuideRecordBundle[]>();
+    for (const bundle of pointBundles) {
+      const list = bySession.get(bundle.sessionId) ?? [];
+      list.push(bundle);
+      bySession.set(bundle.sessionId, list);
     }
     for (const [sessionId, items] of bySession) {
-      const coords = items.filter((item) => item.lat != null && item.lng != null).map((item) => [item.lng, item.lat]);
+      const coords = items
+        .map((item) => item.representative)
+        .filter((item) => item.lat != null && item.lng != null)
+        .map((item) => [item.lng as number, item.lat as number]);
       if (coords.length < 2) continue;
       features.push({
         type: "Feature",
@@ -771,6 +857,7 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
           kind: "guide_route",
           sessionId,
           pointCount: coords.length,
+          bundled: true,
         },
       });
     }

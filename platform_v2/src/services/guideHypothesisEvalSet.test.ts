@@ -51,3 +51,27 @@ test("guide hypothesis eval item turns wrong feedback into rewrite target and ex
   assert.equal(jsonl.split("\n").length, 1);
   assert.match(jsonl, /"doNotUseAsEcologicalEvidence":true/);
 });
+
+test("guide hypothesis eval item preserves representative merge_ok feedback", () => {
+  const item = rowToGuideHypothesisEvalItem({
+    interaction_id: "i-3",
+    interaction_type: "helpful",
+    payload: { representativeFeedback: "merge_ok", bundleId: "b-1" },
+    hypothesis_id: "h-3",
+    mesh_key: "m-3",
+    claim_type: "sampling_gap",
+    hypothesis_text: "次回は水路を見る",
+    what_we_can_say: "仮説段階",
+    next_sampling_protocol: "夕方に水路沿いを撮る",
+    bias_warnings: [],
+    missing_data: [],
+    guide_record_id: "g-3",
+    scene_summary: "水路沿い",
+    environment_context: "湿った管理地",
+    detected_features: [],
+  });
+
+  assert.equal(item.label, "merge_ok");
+  assert.equal(item.improvementTarget, "keep_next_sampling_protocol");
+  assert.equal(item.feedbackPayload.bundleId, "b-1");
+});

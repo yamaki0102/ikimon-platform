@@ -1,6 +1,6 @@
 import { getPool } from "../db.js";
 
-export type GuideHypothesisEvalLabel = "helpful" | "wrong";
+export type GuideHypothesisEvalLabel = "helpful" | "wrong" | "merge_ok";
 
 export type GuideHypothesisEvalItem = {
   task: "regional_hypothesis_next_sampling_feedback";
@@ -58,10 +58,17 @@ function detectedFeatureNames(raw: unknown): string[] {
     .slice(0, 24);
 }
 
+function evalLabel(row: EvalRow): GuideHypothesisEvalLabel {
+  return row.interaction_type === "helpful" && row.payload?.representativeFeedback === "merge_ok"
+    ? "merge_ok"
+    : row.interaction_type;
+}
+
 export function rowToGuideHypothesisEvalItem(row: EvalRow): GuideHypothesisEvalItem {
+  const label = evalLabel(row);
   return {
     task: "regional_hypothesis_next_sampling_feedback",
-    label: row.interaction_type,
+    label,
     interactionId: row.interaction_id,
     hypothesisId: row.hypothesis_id,
     meshKey: row.mesh_key,
@@ -78,7 +85,7 @@ export function rowToGuideHypothesisEvalItem(row: EvalRow): GuideHypothesisEvalI
       detectedFeatureNames: detectedFeatureNames(row.detected_features),
     },
     feedbackPayload: row.payload ?? {},
-    improvementTarget: row.interaction_type === "helpful" ? "keep_next_sampling_protocol" : "rewrite_next_sampling_protocol",
+    improvementTarget: label === "wrong" ? "rewrite_next_sampling_protocol" : "keep_next_sampling_protocol",
     doNotUseAsEcologicalEvidence: true,
   };
 }
