@@ -54,6 +54,7 @@ const explicitAllowlist = [
   "platform_v2/src/ui/observationFieldList.ts",
   "platform_v2/src/ui/observationMedia.ts",
   "platform_v2/src/ui/officialNoticeCard.ts",
+  "platform_v2/src/ui/placeSnapshot.ts",
   "platform_v2/src/ui/relationshipScorePanel.ts",
   "platform_v2/src/ui/revisitFlow.ts",
   "platform_v2/src/ui/siteShell.ts",

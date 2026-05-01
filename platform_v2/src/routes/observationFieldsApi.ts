@@ -13,6 +13,7 @@ import {
   updateField,
   type FieldSource,
 } from "../services/observationFieldRegistry.js";
+import { getPlaceSnapshot } from "../services/placeSnapshot.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -84,6 +85,13 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     const stats = await getFieldStats(request.params.fieldId);
     if (!stats) return reply.status(404).send({ error: "field not found" });
     return reply.send({ stats });
+  });
+
+  // GET /api/v1/fields/:fieldId/place-snapshot  — 場所のいま / monitoring brief
+  app.get<{ Params: { fieldId: string } }>("/api/v1/fields/:fieldId/place-snapshot", async (request, reply) => {
+    const snapshot = await getPlaceSnapshot(request.params.fieldId);
+    if (!snapshot) return reply.status(404).send({ error: "field not found" });
+    return reply.send({ snapshot });
   });
 
   // PATCH /api/v1/fields/:fieldId  — 自分のフィールドのみ
