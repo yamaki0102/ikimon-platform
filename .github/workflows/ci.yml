@@ -137,6 +137,14 @@ jobs:
         shell: pwsh
         run: ./scripts/check_deploy_manifest_sync.ps1
 
+      - name: Check rescue PR scope
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: ./scripts/check_rescue_pr_scope.ps1 -BaseRef origin/${{ github.base_ref }}
+
       - name: Run PHP Lint
         if: needs.plan.outputs.run_php_lint == 'true'
         run: php tools/lint.php
