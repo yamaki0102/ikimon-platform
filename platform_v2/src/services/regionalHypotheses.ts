@@ -26,8 +26,10 @@ export type RegionalHypothesisDraft = {
   sourceFingerprint: string;
 };
 
-export type RegionalHypothesisRecord = RegionalHypothesisDraft & {
+export type RegionalHypothesisRecord = Omit<RegionalHypothesisDraft, "meshKey"> & {
   hypothesisId: string;
+  meshKey: string | null;
+  placeId: string | null;
   reviewStatus: "draft" | "auto" | "needs_review" | "reviewed" | "rejected";
   generatedAt: string;
 };
@@ -446,7 +448,7 @@ export async function generateAndStoreRegionalHypotheses(limit = 100): Promise<{
   return { scannedMeshes: sources.length, generated: drafts.length, written };
 }
 
-export async function listRegionalHypotheses(opts: { limit?: number; meshKey?: string; publicOnly?: boolean } = {}): Promise<RegionalHypothesisRecord[]> {
+export async function listRegionalHypotheses(opts: { limit?: number; meshKey?: string; placeId?: string; publicOnly?: boolean } = {}): Promise<RegionalHypothesisRecord[]> {
   const values: unknown[] = [];
   const clauses = ["review_status <> 'rejected'"];
   if (opts.publicOnly) {
@@ -456,10 +458,15 @@ export async function listRegionalHypotheses(opts: { limit?: number; meshKey?: s
     values.push(opts.meshKey);
     clauses.push(`mesh_key = $${values.length}`);
   }
+  if (opts.placeId) {
+    values.push(opts.placeId);
+    clauses.push(`place_id = $${values.length}`);
+  }
   values.push(Math.max(1, Math.min(100, Math.round(opts.limit ?? 20))));
   const result = await getPool().query<{
     hypothesis_id: string;
-    mesh_key: string;
+    mesh_key: string | null;
+    place_id: string | null;
     claim_type: RegionalHypothesisClaimType;
     hypothesis_text: string;
     what_we_can_say: string;
@@ -478,6 +485,7 @@ export async function listRegionalHypotheses(opts: { limit?: number; meshKey?: s
   }>(
     `select hypothesis_id::text,
             mesh_key,
+            place_id,
             claim_type,
             hypothesis_text,
             what_we_can_say,
@@ -502,6 +510,7 @@ export async function listRegionalHypotheses(opts: { limit?: number; meshKey?: s
   return result.rows.map((row) => ({
     hypothesisId: row.hypothesis_id,
     meshKey: row.mesh_key,
+    placeId: row.place_id,
     claimType: row.claim_type,
     hypothesisText: row.hypothesis_text,
     whatWeCanSay: row.what_we_can_say,

@@ -1,4 +1,6 @@
 import type { ObservationField, FieldStats } from "../services/observationFieldRegistry.js";
+import type { PlaceSnapshot } from "../services/placeSnapshot.js";
+import { renderPlaceSnapshotTeaser } from "./placeSnapshot.js";
 
 function escapeHtml(str: string): string {
   return str
@@ -21,8 +23,8 @@ function formatDate(iso: string | null): string {
   return d.toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export function renderFieldDetailBody(args: { field: ObservationField; stats: FieldStats }): string {
-  const { field, stats } = args;
+export function renderFieldDetailBody(args: { field: ObservationField; stats: FieldStats; snapshot?: PlaceSnapshot | null }): string {
+  const { field, stats, snapshot } = args;
   const sourceLabel = SOURCE_LABEL[field.source] ?? field.source;
 
   const sessionRows = stats.recentSessions.length === 0
@@ -69,10 +71,13 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
       <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">✨ ここで観察会を作る</a>
+      <a class="evt-btn evt-btn-on-dark" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
       ${field.officialUrl ? `<a class="evt-btn evt-btn-on-dark" href="${escapeHtml(field.officialUrl)}" target="_blank" rel="noopener">📜 公式情報</a>` : ""}
       <a class="evt-btn evt-btn-on-dark" href="/community/fields">フィールド一覧へ</a>
     </div>
   </article>
+
+  ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">

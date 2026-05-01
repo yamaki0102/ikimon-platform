@@ -52,6 +52,11 @@ import {
   searchFieldsByName,
   type FieldSource,
 } from "../services/observationFieldRegistry.js";
+import { getPlaceSnapshot } from "../services/placeSnapshot.js";
+import {
+  PLACE_SNAPSHOT_STYLES,
+  renderPlaceSnapshotBody,
+} from "../ui/placeSnapshot.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -62,13 +67,14 @@ function pageDocument(args: {
   title: string;
   body: string;
   extraScript?: string;
+  extraStyles?: string;
   lang?: SiteLang;
 }): string {
   const scripts = [OBSERVATION_EVENT_BOOT_SCRIPT, args.extraScript ?? ""].filter(Boolean).join("\n");
   return renderSiteDocument({
     basePath: args.basePath,
     title: args.title,
-    extraStyles: OBSERVATION_EVENT_STYLES,
+    extraStyles: `${OBSERVATION_EVENT_STYLES}\n${args.extraStyles ?? ""}`,
     lang: args.lang,
     body: `${args.body}<script>${scripts}</script>`,
   });
@@ -123,6 +129,35 @@ async function loadRecentSessions(limit = 24): Promise<ObservationEventSessionRo
 }
 
 export async function registerObservationEventPagesRoutes(app: FastifyInstance): Promise<void> {
+  // /places/:fieldId/snapshot  --- Place Twin Layer の公開スナップショット
+  app.get<{ Params: { fieldId: string } }>(
+    "/places/:fieldId/snapshot",
+    async (request, reply) => {
+      const lang = langOf(request);
+      const snapshot = await getPlaceSnapshot(request.params.fieldId).catch(() => null);
+      if (!snapshot) {
+        reply.code(404);
+        reply.type("text/html; charset=utf-8");
+        return renderSiteDocument({
+          basePath: "",
+          title: "この場所のいま — 見つかりません",
+          extraStyles: PLACE_SNAPSHOT_STYLES,
+          lang,
+          body: `<main class="ps-shell"><section class="ps-hero"><div><div class="ps-eyebrow">この場所のいま</div><h1>フィールドが見つかりません</h1><p>フィールドDBから対象の場所を選び直してください。</p></div></section></main>`,
+        });
+      }
+      reply.type("text/html; charset=utf-8");
+      return renderSiteDocument({
+        basePath: "",
+        title: `${snapshot.field.name} — この場所のいま — ikimon.life`,
+        description: `${snapshot.field.name}の観察データ、季節、仮説、次の一手を1枚で読む場所のスナップショットです。`,
+        extraStyles: PLACE_SNAPSHOT_STYLES,
+        lang,
+        body: renderPlaceSnapshotBody(snapshot),
+      });
+    },
+  );
+
   // /community/events/new  --- 作成フォーム(主催者ログイン必要)
   app.get("/community/events/new", async (request, reply) => {
     const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
@@ -242,7 +277,10 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           </section>`,
         });
       }
-      const stats = await getFieldStats(field.fieldId).catch(() => null);
+      const [stats, snapshot] = await Promise.all([
+        getFieldStats(field.fieldId).catch(() => null),
+        getPlaceSnapshot(field.fieldId).catch(() => null),
+      ]);
       if (!stats) {
         reply.code(500);
         reply.type("text/html; charset=utf-8");
@@ -257,7 +295,8 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       return pageDocument({
         basePath: "",
         title: `${field.name} — フィールド DB — ikimon.life`,
-        body: renderFieldDetailBody({ field, stats }),
+        body: renderFieldDetailBody({ field, stats, snapshot }),
+        extraStyles: PLACE_SNAPSHOT_STYLES,
         extraScript: fieldDetailScript(),
         lang,
       });
