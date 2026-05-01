@@ -713,6 +713,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let storagePressureActive = false;
   const pendingScenes = new Map();
   const readyScenes = new Map();
+  const trailBundles = new Map();
   const manuallySavedSceneIds = new Set();
   const sessionId = 'guide-' + Math.random().toString(36).slice(2);
   const preferredMime = pickAudioMimeType();
@@ -1279,30 +1280,79 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (state === 'error') return { cls: 'is-error', text: copy.autoSaveError, note: '', showManual: true };
     return { cls: 'is-pending', text: copy.autoSaveBadge, note: '', showManual: true };
   }
+  function normalizeTrailToken(value) {
+    return String(value || '').replace(/\\s+/g, '').replace(/[()]/g, function(ch){ return ch === '(' ? '（' : '）'; });
+  }
+  function trailFeatureTokens(scene) {
+    const tokens = [];
+    (Array.isArray(scene.detectedSpecies) ? scene.detectedSpecies : []).forEach(function(name){ tokens.push(normalizeTrailToken(name)); });
+    (Array.isArray(scene.detectedFeatures) ? scene.detectedFeatures : [])
+      .filter(function(feature){ return ['species','vegetation','landform'].indexOf(String(feature.type || '')) >= 0; })
+      .forEach(function(feature){ tokens.push(normalizeTrailToken(feature.name)); });
+    return Array.from(new Set(tokens.filter(Boolean))).slice(0, 6);
+  }
+  function trailSceneScore(scene) {
+    const species = Array.isArray(scene.detectedSpecies) ? scene.detectedSpecies.length : 0;
+    const features = Array.isArray(scene.detectedFeatures) ? scene.detectedFeatures.length : 0;
+    return species * 2 + features + (scene.environmentContext ? 2 : 0) + (scene.summary ? 1 : 0);
+  }
+  function trailBundleKey(scene) {
+    const ms = Date.parse(scene.capturedAt || scene.returnedAt || new Date().toISOString());
+    const bucket = Math.floor((Number.isFinite(ms) ? ms : Date.now()) / 30000);
+    const token = trailFeatureTokens(scene)[0] || 'place';
+    return bucket + '-' + token;
+  }
+  function upsertTrailBundle(scene) {
+    const key = trailBundleKey(scene);
+    const existing = trailBundles.get(key) || { key: key, scenes: [], representative: scene };
+    if (!existing.scenes.some(function(item){ return item.sceneId === scene.sceneId; })) existing.scenes.push(scene);
+    if (trailSceneScore(scene) >= trailSceneScore(existing.representative || scene)) existing.representative = scene;
+    existing.startAt = existing.scenes.reduce(function(min, item){
+      const ms = Date.parse(item.capturedAt || item.returnedAt || '');
+      return Number.isFinite(ms) ? Math.min(min, ms) : min;
+    }, Date.parse(existing.scenes[0].capturedAt || existing.scenes[0].returnedAt || new Date().toISOString()));
+    existing.endAt = existing.scenes.reduce(function(max, item){
+      const ms = Date.parse(item.capturedAt || item.returnedAt || '');
+      return Number.isFinite(ms) ? Math.max(max, ms) : max;
+    }, existing.startAt);
+    trailBundles.set(key, existing);
+    return existing;
+  }
+  function trailBundleBadge(bundle) {
+    if (!bundle || bundle.scenes.length <= 1) return '';
+    if (getLang() === 'ja') return '代表 ' + bundle.scenes.length + '件';
+    return bundle.scenes.length + ' scenes';
+  }
   function renderReadyDiscovery(scene) {
-    const existing = document.getElementById('scene-' + scene.sceneId);
+    readyScenes.set(scene.sceneId, scene);
+    const bundle = upsertTrailBundle(scene);
+    const representative = bundle.representative || scene;
+    const bundleId = 'scene-bundle-' + bundle.key;
+    const pending = document.getElementById('scene-' + scene.sceneId);
+    const existing = document.getElementById(bundleId) || pending;
+    if (pending && pending !== existing) pending.remove();
     const li = existing || document.createElement('li');
     li.className = 'guide-discovery-item';
-    li.id = 'scene-' + scene.sceneId;
-    const species = Array.isArray(scene.detectedSpecies) ? scene.detectedSpecies : [];
-    const distance = formatDistance(scene.distanceFromCurrentM);
-    const autoSave = autoSaveView(scene);
-    li.innerHTML = '<div class="gdi-thumb-wrap">' + (scene.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(scene.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
+    li.id = bundleId;
+    const species = Array.isArray(representative.detectedSpecies) ? representative.detectedSpecies : [];
+    const distance = formatDistance(representative.distanceFromCurrentM);
+    const autoSave = autoSaveView(representative);
+    const badge = trailBundleBadge(bundle);
+    li.innerHTML = '<div class="gdi-thumb-wrap">' + (representative.frameThumb ? '<img class="gdi-thumb" src="' + escapeInline(representative.frameThumb) + '" alt="">' : '<span class="gdi-icon">📍</span>') + '</div>'
       + '<div class="gdi-body">'
-      + '<div class="gdi-kicker">' + escapeInline(formatCaptured(scene.capturedAt) + distance) + '</div>'
+      + '<div class="gdi-kicker">' + escapeInline(formatCaptured(new Date(bundle.startAt).toISOString()) + distance) + (badge ? '<span class="gdi-bundle">' + escapeInline(badge) + '</span>' : '') + '</div>'
       + '<div class="gdi-autosave ' + escapeInline(autoSave.cls) + '"><span>' + escapeInline(autoSave.text) + '</span>' + (autoSave.note ? '<em>' + escapeInline(autoSave.note) + '</em>' : '') + '</div>'
-      + '<div class="gdi-summary">' + escapeInline(scene.delayedSummary || scene.summary || '') + '</div>'
+      + '<div class="gdi-summary">' + escapeInline(representative.delayedSummary || representative.summary || '') + '</div>'
       + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
-      + (scene.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(scene.uncertaintyReason) + '</div>' : '')
-      + '<div class="gdi-why">' + escapeInline(scene.whyInteresting || '') + '</div>'
-      + '<div class="gdi-next">' + escapeInline(scene.nextLookTarget || '') + '</div>'
-      + (scene.deliveryState === 'deferred' ? '<div class="gdi-deferred">' + escapeInline(copy.trailDeferred) + '</div>' : '')
-      + '<div class="gdi-actions"><button type="button" class="gdi-play" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.playTrail) + '</button>'
-      + (autoSave.showManual ? '<button type="button" class="gdi-save" data-scene-id="' + escapeInline(scene.sceneId) + '">' + escapeInline(copy.manualSave) + '</button>' : '')
+      + (representative.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(representative.uncertaintyReason) + '</div>' : '')
+      + '<div class="gdi-why">' + escapeInline(representative.whyInteresting || '') + '</div>'
+      + '<div class="gdi-next">' + escapeInline(representative.nextLookTarget || '') + '</div>'
+      + (representative.deliveryState === 'deferred' ? '<div class="gdi-deferred">' + escapeInline(copy.trailDeferred) + '</div>' : '')
+      + '<div class="gdi-actions"><button type="button" class="gdi-play" data-scene-id="' + escapeInline(representative.sceneId) + '">' + escapeInline(copy.playTrail) + '</button>'
+      + (autoSave.showManual ? '<button type="button" class="gdi-save" data-scene-id="' + escapeInline(representative.sceneId) + '">' + escapeInline(copy.manualSave) + '</button>' : '')
       + '</div>'
       + '</div>';
     if (!existing) listEl.prepend(li);
-    readyScenes.set(scene.sceneId, scene);
     updateTrailPill();
   }
   function startAnalyser() {
@@ -2303,7 +2353,8 @@ export const GUIDE_FLOW_STYLES = `
   .gdi-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
   .gdi-icon { font-size: 18px; flex-shrink: 0; }
   .gdi-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .gdi-kicker { font-size: 10px; color: #64748b; font-weight: 800; }
+  .gdi-kicker { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 10px; color: #64748b; font-weight: 800; }
+  .gdi-bundle { display: inline-flex; align-items: center; min-height: 20px; padding: 0 7px; border-radius: 999px; background: rgba(5,150,105,.1); color: #047857; border: 1px solid rgba(5,150,105,.16); font-size: 10px; font-weight: 950; }
   .gdi-autosave { width: fit-content; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; border-radius: 999px; padding: 4px 9px; font-size: 10.5px; font-weight: 900; line-height: 1.35; }
   .gdi-autosave span { white-space: nowrap; }
   .gdi-autosave em { font-style: normal; font-weight: 800; opacity: .82; }
