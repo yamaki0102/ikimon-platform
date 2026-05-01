@@ -3,7 +3,9 @@ import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { loadGuideCorrectionEvalItems, summarizeGuideCorrectionEval } from "../services/guideCorrectionEval.js";
 import { loadGuideEnvironmentMeshGeoJson, upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
+import { loadGuideEnvironmentDashboardMetrics, type GuideEnvironmentDashboardMetrics } from "../services/guideEnvironmentOps.js";
 import { recordGuideInteraction } from "../services/guideInteractions.js";
+import { listGuideHypothesisPromptImprovements } from "../services/guideHypothesisPromptImprovements.js";
 import { listRegionalHypotheses, type RegionalHypothesisRecord } from "../services/regionalHypotheses.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
@@ -100,6 +102,65 @@ function renderRegionalHypothesisPanel(rows: RegionalHypothesisRecord[]): string
       <h2>見え始めている地域仮説</h2>
       <p class="grd-muted">ここでは断言ではなく、根拠・バイアス・不足データ・次の観察指示をセットで出します。</p>
       <div class="grd-hypothesis-grid">${cards}</div>
+    </section>`;
+}
+
+function renderGuideEnvironmentOpsPanel(metrics: GuideEnvironmentDashboardMetrics): string {
+  const latest = metrics.latestRun;
+  const latestRows = latest ? [
+    ["status", latest.status],
+    ["trigger", latest.triggerSource],
+    ["diagnosis", latest.diagnosisDate],
+    ["rebuild", latest.rebuildAction],
+    ["guide_records", String(latest.guideRecordCount)],
+    ["public_mesh", String(latest.publicMeshCellCount)],
+    ["threshold_suppressed", String(latest.suppressedMeshCellCount)],
+    ["hypotheses_written", String(latest.hypothesesWritten)],
+    ["eval_items", String(latest.evalItemsCount)],
+    ["prompt_improvements", String(latest.promptImprovementsWritten)],
+  ].map(([label, value]) => `<div class="grd-eval-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")
+    : `<p class="grd-muted">まだ refresh run は記録されていません。次の deploy/timer 実行後にここへ残ります。</p>`;
+  const totals = metrics.totals;
+  return `
+    <section class="grd-panel grd-eval">
+      <h2>地域仮説オペレーション</h2>
+      <div class="grd-ops-grid">
+        <div class="grd-ops-stack">
+          <h3>最新実行</h3>
+          ${latestRows}
+          ${latest?.errorMessage ? `<p class="grd-error">${escapeHtml(latest.errorMessage)}</p>` : ""}
+        </div>
+        <div class="grd-ops-stack">
+          <h3>蓄積状況</h3>
+          <div class="grd-eval-row"><span>mesh_cells</span><strong>${totals.meshCells}</strong></div>
+          <div class="grd-eval-row"><span>public_mesh_cells</span><strong>${totals.publicMeshCells}</strong></div>
+          <div class="grd-eval-row"><span>regional_hypotheses</span><strong>${totals.hypotheses}</strong></div>
+          <div class="grd-eval-row"><span>helpful</span><strong>${totals.helpfulInteractions}</strong></div>
+          <div class="grd-eval-row"><span>wrong</span><strong>${totals.wrongInteractions}</strong></div>
+          <div class="grd-eval-row"><span>prompt_improvements</span><strong>${totals.promptImprovements}</strong></div>
+        </div>
+      </div>
+      <p class="grd-muted">helpful/wrong は生態学的証拠ではなく、次回観察指示の改善だけに使います。</p>
+    </section>`;
+}
+
+function renderPromptImprovementPanel(rows: Array<{ recommendation: string; promptPatch: string; supportCount: number; label: string; claimType: string }>): string {
+  const cards = rows.length === 0
+    ? `<p class="grd-muted">まだ helpful/wrong 由来の prompt 改善候補はありません。</p>`
+    : rows.slice(0, 4).map((row) => `
+      <article class="grd-improvement-card">
+        <div class="grd-card-meta">
+          <span>${escapeHtml(row.label)}</span>
+          <span>${escapeHtml(row.claimType || "global")}</span>
+          <span>${row.supportCount}件</span>
+        </div>
+        <p>${escapeHtml(row.recommendation)}</p>
+        <pre>${escapeHtml(row.promptPatch)}</pre>
+      </article>`).join("");
+  return `
+    <section class="grd-panel">
+      <h2>次回観察指示の改善候補</h2>
+      <div class="grd-improvement-grid">${cards}</div>
     </section>`;
 }
 
@@ -393,6 +454,14 @@ const STYLES = `
 .grd-eval{display:grid;gap:8px;}
 .grd-eval-row{display:flex;justify-content:space-between;gap:12px;border:1px solid #e2e8f0;border-radius:8px;padding:9px 10px;background:#f8fafc;font-size:12px;font-weight:900;color:#334155;}
 .grd-eval-row strong{color:#0f766e;}
+.grd-ops-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.grd-ops-stack{display:grid;gap:7px;align-content:start;}
+.grd-ops-stack h3{font-size:13px;margin:0;color:#334155;}
+.grd-error{border:1px solid #fecaca;background:#fff1f2;color:#be123c;border-radius:8px;padding:8px;margin:0;font-size:12px;font-weight:900;}
+.grd-improvement-grid{display:grid;gap:10px;}
+.grd-improvement-card{border:1px solid #dbe7e2;border-radius:8px;padding:12px;background:#fbfefc;display:grid;gap:8px;}
+.grd-improvement-card p{margin:0;color:#334155;font-size:13px;line-height:1.65;font-weight:800;}
+.grd-improvement-card pre{margin:0;white-space:pre-wrap;word-break:break-word;border:1px solid #e2e8f0;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:10px;font-size:11px;line-height:1.55;}
 .grd-hypotheses{display:grid;gap:10px;}
 .grd-hypothesis-grid{display:grid;gap:10px;}
 .grd-hypothesis-card{border:1px solid #dbe7e2;border-radius:8px;background:#fbfefc;padding:12px;display:grid;gap:8px;}
@@ -404,7 +473,7 @@ const STYLES = `
 .grd-feedback-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .grd-feedback-row button{min-height:34px;border:1px solid #99f6e4;border-radius:999px;background:#f0fdfa;color:#0f766e;font-size:12px;font-weight:950;padding:0 10px;cursor:pointer;}
 .grd-feedback-row button+button{border-color:#fecaca;background:#fff1f2;color:#be123c;}
-@media(max-width:760px){.grd-dashboard-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}}
+@media(max-width:760px){.grd-dashboard-grid,.grd-ops-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}}
 `;
 
 const SCRIPT = `
@@ -568,6 +637,11 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
   const evalItems = await loadGuideCorrectionEvalItems(500).catch(() => []);
   const evalSummary = summarizeGuideCorrectionEval(evalItems);
   const regionalHypotheses = await listRegionalHypotheses({ limit: 6, publicOnly: true }).catch(() => []);
+  const opsMetrics = await loadGuideEnvironmentDashboardMetrics().catch(() => ({
+    latestRun: null,
+    totals: { meshCells: 0, publicMeshCells: 0, hypotheses: 0, helpfulInteractions: 0, wrongInteractions: 0, promptImprovements: 0 },
+  }));
+  const promptImprovements = await listGuideHypothesisPromptImprovements(4).catch(() => []);
   const evalRows = Object.entries(evalSummary.byLabel)
     .map(([label, count]) => `<div class="grd-eval-row"><span>${escapeHtml(label)}</span><strong>${count}</strong></div>`)
     .join("");
@@ -593,7 +667,9 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
         ${evalRows}
         <p class="grd-muted">JSONL は npm run export:guide-correction-eval で出力できます。</p>
       </section>
+      ${renderGuideEnvironmentOpsPanel(opsMetrics)}
       ${renderRegionalHypothesisPanel(regionalHypotheses)}
+      ${renderPromptImprovementPanel(promptImprovements)}
     </div>
     ${renderEnvironmentMeshMap()}
   </section>
@@ -727,6 +803,18 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
         "no_rare_species_claim_from_ai_only",
       ],
       hypotheses,
+    };
+  });
+  app.get("/api/v1/guide/environment-dashboard", async (_request, reply) => {
+    reply.type("application/json; charset=utf-8");
+    const [metrics, promptImprovements] = await Promise.all([
+      loadGuideEnvironmentDashboardMetrics(),
+      listGuideHypothesisPromptImprovements(10).catch(() => []),
+    ]);
+    return {
+      purpose: "regional_hypothesis_operations_dashboard",
+      metrics,
+      promptImprovements,
     };
   });
   app.post<{ Params: { id: string }; Body: CorrectionBody }>("/api/v1/me/guide-records/:id/correction", async (request, reply) => {

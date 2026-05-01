@@ -71,6 +71,7 @@
     "embed:regional-knowledge": "tsx src/scripts/embedRegionalKnowledgeCards.ts",
     "diagnose:guide-environment-mesh": "tsx src/scripts/diagnoseGuideEnvironmentMesh.ts",
     "generate:regional-hypotheses": "tsx src/scripts/generateRegionalHypotheses.ts",
+    "generate:guide-hypothesis-improvements": "tsx src/scripts/generateGuideHypothesisPromptImprovements.ts",
     "postdeploy:guide-environment": "tsx src/scripts/runGuideEnvironmentPostDeploy.ts",
     "backfill:guide-non-biological-species": "tsx src/scripts/backfillGuideNonBiologicalSpecies.ts",
     "export:guide-correction-eval": "tsx src/scripts/exportGuideCorrectionEval.ts",
