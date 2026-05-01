@@ -102,6 +102,8 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
   assert.match(html, /保存しなかったもの/);
   assert.match(html, /音声だけで取れたもの/);
   assert.match(html, /未同期のもの/);
+  assert.match(html, /href="\/guide\/outcomes"/);
+  assert.match(html, /ガイド成果を確認する/);
   assert.match(html, /オフライン中/);
   assert.match(html, /端末に一時保存中/);
   assert.match(html, /端末の保存容量に近づいています/);
