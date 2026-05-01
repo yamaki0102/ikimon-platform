@@ -1023,7 +1023,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             observedAt,
             latitude: Number(location.latitude),
             longitude: Number(location.longitude),
-            prefecture: 'Shizuoka',
+            prefecture: '',
             municipality: '',
             localityNote: '',
             note: '',

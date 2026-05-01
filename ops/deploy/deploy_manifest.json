@@ -133,6 +133,8 @@
     "ops/deploy/ikimon_v2_green.service",
     "ops/deploy/ikimon_v2_guide_environment.service",
     "ops/deploy/ikimon_v2_guide_environment.timer",
+    "ops/deploy/ikimon_v2_location_audit.service",
+    "ops/deploy/ikimon_v2_location_audit.timer",
     "upload_package/.htaccess",
     "upload_package/public_html/.htaccess",
     "composer.json",

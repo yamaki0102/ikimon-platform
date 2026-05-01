@@ -1,0 +1,13 @@
+[Unit]
+Description=Run ikimon platform_v2 observation location audit
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=1h
+RandomizedDelaySec=5m
+Persistent=true
+Unit=ikimon-v2-location-audit.service
+
+[Install]
+WantedBy=timers.target
+

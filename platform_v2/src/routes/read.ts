@@ -3526,6 +3526,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" multiple hidden />
               <input id="record-video-primary-photo-input" type="file" accept="image/*" capture="environment" hidden />
               <input type="hidden" name="recordMode" value="quick" />
+              <input type="hidden" name="prefecture" value="" />
               <div id="record-submit-panel" class="record-submit-panel" hidden>
                 <div>
                   <span class="record-label">送信前チェック</span>
@@ -3881,6 +3882,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         let recordMapMarker = null;
         let recordMapReady = false;
         let locationSearchAbort = null;
+        let localityLookupAbort = null;
+        let localityLookupSequence = 0;
+        let recordLocationProvenance = null;
         let recordSubmitInFlight = false;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
@@ -3931,6 +3935,73 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
         };
 
+        const normalizePrefectureLabel = (value) => {
+          const raw = String(value || '').trim();
+          const lower = raw.toLowerCase().replace(/[-\\s]+/g, ' ');
+          if (raw === '静岡' || raw === '静岡県' || lower === 'shizuoka' || lower === 'shizuoka prefecture') return '静岡県';
+          return raw;
+        };
+
+        const normalizeMunicipalityLabel = (value) => {
+          const raw = String(value || '').trim();
+          const lower = raw.toLowerCase().replace(/[-\\s]+/g, ' ');
+          if (raw === '浜松' || raw === '浜松市' || lower === 'hamamatsu' || lower === 'hamamatsu city' || lower === 'hamamatsu shi') return '浜松市';
+          if (raw === '静岡市' || lower === 'shizuoka city' || lower === 'shizuoka shi') return '静岡市';
+          if (raw === '静岡県' || lower === 'shizuoka' || lower === 'shizuoka prefecture') return '';
+          return raw;
+        };
+
+        const inferLocalityFromCoords = (lat, lng) => {
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return {};
+          if (lat >= 34.55 && lat <= 35.32 && lng >= 137.45 && lng <= 138.08) {
+            return { prefecture: '静岡県', municipality: '浜松市' };
+          }
+          if (lat >= 34.82 && lat <= 35.36 && lng >= 138.15 && lng <= 138.72) {
+            return { prefecture: '静岡県', municipality: '静岡市' };
+          }
+          return {};
+        };
+
+        const localityFromAddress = (address) => {
+          const source = address && typeof address === 'object' ? address : {};
+          const prefecture = normalizePrefectureLabel(source.state || source.province || source.region || '');
+          const municipality = normalizeMunicipalityLabel(
+            source.city || source.town || source.village || source.municipality || source.county || '',
+          );
+          return { prefecture, municipality };
+        };
+
+        const applyLocalityFields = (locality) => {
+          if (!form || !locality) return;
+          const prefField = form.elements.namedItem('prefecture');
+          const muniField = form.elements.namedItem('municipality');
+          const prefecture = normalizePrefectureLabel(locality.prefecture || '');
+          const municipality = normalizeMunicipalityLabel(locality.municipality || '');
+          if (prefField && 'value' in prefField && prefecture) prefField.value = prefecture;
+          if (muniField && 'value' in muniField && municipality) muniField.value = municipality;
+          syncPreview();
+        };
+
+        const lookupLocalityForCoords = async (lat, lng) => {
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          const fallback = inferLocalityFromCoords(lat, lng);
+          if (fallback.prefecture || fallback.municipality) applyLocalityFields(fallback);
+          const sequence = ++localityLookupSequence;
+          if (localityLookupAbort) localityLookupAbort.abort();
+          localityLookupAbort = new AbortController();
+          try {
+            const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=ja&lat='
+              + encodeURIComponent(String(lat)) + '&lon=' + encodeURIComponent(String(lng));
+            const response = await fetch(url, { signal: localityLookupAbort.signal, headers: { Accept: 'application/json' } });
+            if (!response.ok || sequence !== localityLookupSequence) return;
+            const row = await response.json();
+            if (sequence !== localityLookupSequence) return;
+            applyLocalityFields(localityFromAddress(row && row.address));
+          } catch (error) {
+            if (error && error.name === 'AbortError') return;
+          }
+        };
+
         const isFreshMedia = () => {
           const capturedAt = selectedMediaCapturedAt instanceof Date ? selectedMediaCapturedAt : null;
           const firstMedia = firstSelectedMediaFile();
@@ -3958,12 +4029,38 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           locationHelp.textContent = coords.lat.toFixed(6) + ', ' + coords.lng.toFixed(6);
         };
 
+        const setRecordLocationProvenance = (source, lat, lng, details) => {
+          recordLocationProvenance = {
+            source: source || 'unknown',
+            latitude: Number.isFinite(Number(lat)) ? Number(Number(lat).toFixed(6)) : null,
+            longitude: Number.isFinite(Number(lng)) ? Number(Number(lng).toFixed(6)) : null,
+            capturedAt: new Date().toISOString(),
+            details: details && typeof details === 'object' ? details : {},
+          };
+        };
+
         const setRecordLocation = (lat, lng, sourceLabel, opts) => {
           if (!form || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
           const latField = form.elements.namedItem('latitude');
           const lngField = form.elements.namedItem('longitude');
           if (latField && 'value' in latField) latField.value = Number(lat).toFixed(6);
           if (lngField && 'value' in lngField) lngField.value = Number(lng).toFixed(6);
+          if (opts && opts.address) {
+            applyLocalityFields(localityFromAddress(opts.address));
+          } else {
+            void lookupLocalityForCoords(Number(lat), Number(lng));
+          }
+          setRecordLocationProvenance(opts && opts.source ? opts.source : 'manual_or_unknown', lat, lng, {
+            label: sourceLabel || null,
+            reverseGeocode: Boolean(!(opts && opts.address)),
+            address: opts && opts.address ? opts.address : null,
+            accuracyM: opts && Number.isFinite(Number(opts.accuracyM)) ? Number(opts.accuracyM) : null,
+            positionTimestamp: opts && opts.positionTimestamp ? opts.positionTimestamp : null,
+            fileName: opts && opts.fileName ? opts.fileName : null,
+            displayName: opts && opts.displayName ? opts.displayName : null,
+            osmType: opts && opts.osmType ? opts.osmType : null,
+            osmId: opts && opts.osmId ? opts.osmId : null,
+          });
           updateLocationText(sourceLabel);
           syncPreview();
           syncLocationNudge();
@@ -4258,7 +4355,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           try {
             const position = await readCurrentPosition(options);
             if (options && typeof options.guard === 'function' && !options.guard()) return false;
-            setRecordLocation(position.coords.latitude, position.coords.longitude, sourceLabel, { zoom: 16 });
+            setRecordLocation(position.coords.latitude, position.coords.longitude, sourceLabel, {
+              zoom: 16,
+              source: 'browser_geolocation',
+              accuracyM: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+              positionTimestamp: Number.isFinite(position.timestamp) ? new Date(position.timestamp).toISOString() : null,
+            });
             return true;
           } catch (_) {
             if (!silent) alert('位置情報の取得に失敗しました。手動で入力してください。');
@@ -4292,12 +4394,20 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             filled.push(exif.capturedAt || metadataCapturedAt ? '撮影日時' : 'ファイル日時');
           }
           if (Number.isFinite(exif.latitude) && Number.isFinite(exif.longitude)) {
-            setRecordLocation(Number(exif.latitude), Number(exif.longitude), '写真の撮影地点', { zoom: 16 });
+            setRecordLocation(Number(exif.latitude), Number(exif.longitude), '写真の撮影地点', {
+              zoom: 16,
+              source: 'photo_exif_gps',
+              fileName: file && file.name ? String(file.name).slice(0, 180) : null,
+            });
             filled.push('写真の位置');
           } else {
             const metadataLocation = readMetadataLocation(draftMetadata);
             if (metadataLocation) {
-              setRecordLocation(metadataLocation.lat, metadataLocation.lng, '撮影時の現在地', { zoom: 16 });
+              setRecordLocation(metadataLocation.lat, metadataLocation.lng, '撮影時の現在地', {
+                zoom: 16,
+                source: 'capture_metadata_location',
+                fileName: file && file.name ? String(file.name).slice(0, 180) : null,
+              });
               filled.push('撮影時の位置');
             } else if (opts && opts.autoLocateFreshCapture && coordsMissing() && isFreshMedia()) {
               const located = await applyCurrentLocation('撮影時の現在地', true, {
@@ -4357,7 +4467,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const applyPrefillFromQuery = () => {
           if (!form) return;
           const params = new URLSearchParams(window.location.search);
-          const names = ['latitude', 'longitude', 'municipality', 'localityNote', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason'];
+          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason'];
           names.forEach((name) => {
             if (!params.has(name)) return;
             const field = form.elements.namedItem(name);
@@ -4706,13 +4816,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const currentLabel = locationLabel && locationLabel.textContent && locationLabel.textContent !== '地点未指定'
                 ? locationLabel.textContent
                 : '撮影地点を指定済み';
-              setRecordLocation(coords.lat, coords.lng, currentLabel, { zoom: 15 });
+              setRecordLocation(coords.lat, coords.lng, currentLabel, { zoom: 15, source: 'existing_form_coordinates' });
             }
             recordMap.resize();
           });
           recordMap.on('click', (event) => {
             if (!event || !event.lngLat) return;
-            setRecordLocation(event.lngLat.lat, event.lngLat.lng, '地図で指定した撮影地点', { zoom: Math.max(recordMap.getZoom(), 15) });
+            setRecordLocation(event.lngLat.lat, event.lngLat.lng, '地図で指定した撮影地点', {
+              zoom: Math.max(recordMap.getZoom(), 15),
+              source: 'map_click',
+            });
           });
         };
 
@@ -4767,7 +4880,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const lat = Number(row && row.lat);
               const lng = Number(row && row.lon);
               if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-              setRecordLocation(lat, lng, '検索で選んだ撮影地点', { zoom: 16 });
+              setRecordLocation(lat, lng, '検索で選んだ撮影地点', {
+                zoom: 16,
+                source: 'place_search_result',
+                address: row && row.address,
+                displayName: row && row.display_name ? String(row.display_name).slice(0, 240) : null,
+                osmType: row && row.osm_type ? String(row.osm_type).slice(0, 40) : null,
+                osmId: row && row.osm_id ? String(row.osm_id).slice(0, 80) : null,
+              });
               if (locationSearchInput) locationSearchInput.value = row.display_name || '';
               locationResults.innerHTML = '';
               locationResults.hidden = true;
@@ -4789,7 +4909,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             locationResults.innerHTML = '<div class="record-location-empty">検索中...</div>';
           }
           try {
-            const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ja&q=' + encodeURIComponent(query);
+            const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&countrycodes=jp&accept-language=ja&q=' + encodeURIComponent(query);
             const response = await fetch(url, { signal: locationSearchAbort.signal, headers: { Accept: 'application/json' } });
             if (!response.ok) throw new Error('place_search_failed');
             const rows = await response.json();
@@ -5428,6 +5548,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             if (field && field.addEventListener) {
               field.addEventListener('input', () => {
                 updateLocationText('座標を直接編集');
+                const coords = readCoords();
+                if (coords) {
+                  setRecordLocationProvenance('manual_coordinate_edit', coords.lat, coords.lng, {
+                    label: '座標を直接編集',
+                    reverseGeocode: false,
+                  });
+                }
                 syncPreview();
                 syncLocationNudge();
               });
@@ -5535,7 +5662,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 observedAt: observedAtIso,
                 latitude,
                 longitude,
-                prefecture: 'Shizuoka',
+                prefecture: String(data.get('prefecture') || ''),
                 municipality: String(data.get('municipality') || ''),
                 localityNote: String(data.get('localityNote') || ''),
                 note: speciesNote,
@@ -5553,6 +5680,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   media_role: mediaRole,
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
+                  location_provenance: recordLocationProvenance,
                   absence_semantics: recordMode === 'survey'
                     ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
                     : (quickCaptureState === 'no_detection_note'

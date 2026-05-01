@@ -752,8 +752,8 @@ export async function reassessObservation(
               coalesce(v.point_latitude, p.center_latitude) AS latitude,
               coalesce(v.point_longitude, p.center_longitude) AS longitude,
               v.place_id,
-              p.prefecture,
-              p.municipality
+              coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
+              coalesce(v.observed_municipality, p.municipality) AS municipality
          FROM visits v
          LEFT JOIN places p ON p.place_id = v.place_id
         WHERE v.visit_id = $1
@@ -789,8 +789,13 @@ export async function reassessObservation(
       throw new Error("no_photo_for_reassess");
     }
 
-    const lat = vctx.latitude ?? 35.0;
-    const lng = vctx.longitude ?? 138.0;
+    const hasCoordinates = typeof vctx.latitude === "number" &&
+      Number.isFinite(vctx.latitude) &&
+      typeof vctx.longitude === "number" &&
+      Number.isFinite(vctx.longitude);
+    const localityLabel = [vctx.municipality, vctx.prefecture].filter((value) =>
+      typeof value === "string" && value.trim().length > 0,
+    ).join(" / ");
     const existingLabel = target.vernacularName || target.scientificName || "未同定";
     // Hot-path personalization: pull a 240-char digest summary if the user has one.
     // Failures are silenced because new users / DB hiccups must not block re-assess.
@@ -879,12 +884,12 @@ export async function reassessObservation(
 
     const prompt = renderPrompt({
       occurrenceId: target.primaryOccurrenceId,
-      lat: lat.toFixed(5),
-      lng: lng.toFixed(5),
+      lat: hasCoordinates ? Number(vctx.latitude).toFixed(5) : "不明",
+      lng: hasCoordinates ? Number(vctx.longitude).toFixed(5) : "不明",
       observedAt: vctx.observed_at || "不明",
       season: guessSeason(vctx.observed_at || null),
       existingLabel,
-      siteBriefLabel: vctx.place_id ?? "不明",
+      siteBriefLabel: localityLabel || vctx.place_id || "位置未取得",
       profileDigestSummary: profileDigest.summary,
       observationPackageSummary,
       knowledgeClaimsContext: formatClaimRefsForPrompt(branchClaimRefs),

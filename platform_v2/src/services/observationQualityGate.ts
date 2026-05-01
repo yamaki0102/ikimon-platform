@@ -1,3 +1,5 @@
+import { hasUsableObservationCoordinates } from "./localityNormalization.js";
+
 type LegacyTaxonLike = {
   scientific_name?: unknown;
   name?: unknown;
@@ -40,6 +42,11 @@ function hasFiniteCoordinate(value: unknown): boolean {
   return false;
 }
 
+function parseCoordinate(value: unknown): number | null {
+  if (!hasFiniteCoordinate(value)) return null;
+  return Number(value);
+}
+
 export function hasLegacyObservationPhoto(observation: LegacyObservationQualityInput): boolean {
   if (!Array.isArray(observation.photos)) return false;
   return observation.photos.some(hasNonEmptyString);
@@ -48,8 +55,10 @@ export function hasLegacyObservationPhoto(observation: LegacyObservationQualityI
 export function assessLegacyObservationQuality(observation: LegacyObservationQualityInput): ObservationQualitySignals {
   const hasPhoto = hasLegacyObservationPhoto(observation);
   const hasAudio = false;
+  const latitude = parseCoordinate(observation.lat);
+  const longitude = parseCoordinate(observation.lng);
   const hasLocation =
-    (hasFiniteCoordinate(observation.lat) && hasFiniteCoordinate(observation.lng)) ||
+    hasUsableObservationCoordinates(latitude, longitude) ||
     hasNonEmptyString(observation.municipality) ||
     hasNonEmptyString(observation.prefecture) ||
     hasNonEmptyString(observation.site_id) ||

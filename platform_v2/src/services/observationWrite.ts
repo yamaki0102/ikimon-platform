@@ -19,6 +19,11 @@ import {
   upsertVisitQualityReview,
   type ObservationQualitySignals,
 } from "./observationQualityGate.js";
+import {
+  hasUsableObservationCoordinates,
+  normalizeObservationLocality,
+  type NormalizedObservationLocality,
+} from "./localityNormalization.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -171,6 +176,10 @@ function assertObservationInput(input: ObservationUpsertInput): void {
     throw new Error("latitude and longitude are required");
   }
 
+  if (!hasUsableObservationCoordinates(input.latitude, input.longitude)) {
+    throw new Error("valid latitude and longitude are required");
+  }
+
   if (!input.observedAt || input.observedAt.trim() === "") {
     throw new Error("observedAt is required");
   }
@@ -212,7 +221,12 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function requestFingerprint(input: ObservationUpsertInput, subjects: ObservationSubjectInput[], observedAt: string): string {
+function requestFingerprint(
+  input: ObservationUpsertInput,
+  subjects: ObservationSubjectInput[],
+  observedAt: string,
+  locality: NormalizedObservationLocality,
+): string {
   return createHash("sha256").update(stableJson({
     userId: input.userId,
     observedAt,
@@ -220,8 +234,8 @@ function requestFingerprint(input: ObservationUpsertInput, subjects: Observation
     longitude: input.longitude,
     siteId: input.siteId ?? null,
     siteName: input.siteName ?? null,
-    municipality: input.municipality ?? null,
-    prefecture: input.prefecture ?? null,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
     photos: (Array.isArray(input.photos) ? input.photos : []).map((photo) => ({
       sha256: photo.sha256 ?? null,
       bytes: photo.bytes ?? null,
@@ -236,6 +250,12 @@ function requestFingerprint(input: ObservationUpsertInput, subjects: Observation
 }
 
 async function buildObservationImpact(input: ObservationUpsertInput, placeId: string, focusLabel: string | null, quickCaptureState: string | null) {
+  const locality = normalizeObservationLocality({
+    prefecture: input.prefecture,
+    municipality: input.municipality,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  });
   const impactResult = await getPool().query<{
     place_name: string | null;
     visit_count: string;
@@ -266,8 +286,8 @@ async function buildObservationImpact(input: ObservationUpsertInput, placeId: st
   return {
     placeName: impactRow?.place_name ?? buildPlaceName({
       siteName: input.siteName,
-      municipality: input.municipality,
-      prefecture: input.prefecture,
+      municipality: locality.municipality,
+      prefecture: locality.prefecture,
     }),
     visitCount: Number(impactRow?.visit_count ?? "1"),
     previousObservedAt: impactRow?.previous_observed_at ?? null,
@@ -320,12 +340,18 @@ async function existingObservationResult(input: ObservationUpsertInput, clientSu
   if (!row) {
     throw new Error("idempotent_observation_missing");
   }
+  const locality = normalizeObservationLocality({
+    prefecture: input.prefecture,
+    municipality: input.municipality,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  });
   const placeId = row.place_id ?? buildPlaceId({
     siteId: input.siteId,
     latitude: input.latitude,
     longitude: input.longitude,
-    municipality: input.municipality,
-    prefecture: input.prefecture,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
   });
   return {
     visitId: row.visit_id,
@@ -351,6 +377,35 @@ function normalizeOptionalNumber(value: number | null | undefined): number | nul
   return value;
 }
 
+function buildServerLocationAuditPayload(
+  input: ObservationUpsertInput,
+  locality: NormalizedObservationLocality,
+): Record<string, unknown> {
+  const clientPayload = input.sourcePayload && typeof input.sourcePayload === "object"
+    ? input.sourcePayload
+    : {};
+  return {
+    schema: "ikimon.location_audit.v1",
+    savedCoordinates: {
+      latitude: input.latitude,
+      longitude: input.longitude,
+    },
+    savedLocality: {
+      country: input.country ?? "JP",
+      prefecture: locality.prefecture,
+      municipality: locality.municipality,
+      localityNote: input.localityNote ?? null,
+    },
+    submittedLocality: {
+      prefecture: input.prefecture ?? null,
+      municipality: input.municipality ?? null,
+      localityNote: input.localityNote ?? null,
+    },
+    clientProvenance: clientPayload.location_provenance ?? null,
+    normalizedAt: new Date().toISOString(),
+  };
+}
+
 export async function upsertObservation(input: ObservationUpsertInput): Promise<ObservationWriteResult> {
   assertObservationInput(input);
 
@@ -366,7 +421,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const qualitySignals: ObservationQualitySignals = {
     hasPhoto,
     hasAudio: false,
-    hasLocation: Number.isFinite(input.latitude) && Number.isFinite(input.longitude),
+    hasLocation: hasUsableObservationCoordinates(input.latitude, input.longitude),
     hasIdentification: subjects.some((subject) =>
       Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
     ),
@@ -374,7 +429,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     gateReasons: [
       hasPhoto ? null : "missing_photo",
       "missing_audio",
-      Number.isFinite(input.latitude) && Number.isFinite(input.longitude) ? null : "missing_location",
+      hasUsableObservationCoordinates(input.latitude, input.longitude) ? null : "missing_location",
       subjects.some((subject) =>
         Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
       ) ? null : "missing_identification",
@@ -383,6 +438,12 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const publicVisibility = hasPhoto ? "public" : "review";
   const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
+  const locality = normalizeObservationLocality({
+    prefecture: input.prefecture,
+    municipality: input.municipality,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  });
   const completeChecklistFlag = visitMode === "survey" ? Boolean(input.completeChecklistFlag) : false;
   const targetTaxaScope = visitMode === "survey"
     ? normalizeOptionalText(input.targetTaxaScope)
@@ -411,11 +472,11 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     siteId: input.siteId,
     latitude: input.latitude,
     longitude: input.longitude,
-    municipality: input.municipality,
-    prefecture: input.prefecture,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
   });
   const observedAt = normalizeTimestamp(input.observedAt);
-  const fingerprint = requestFingerprint(input, subjects, observedAt);
+  const fingerprint = requestFingerprint(input, subjects, observedAt, locality);
 
   try {
     await client.query("begin");
@@ -510,13 +571,13 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         input.siteId ?? null,
         buildPlaceName({
           siteName: input.siteName,
-          municipality: input.municipality,
-          prefecture: input.prefecture,
+          municipality: locality.municipality,
+          prefecture: locality.prefecture,
         }),
         input.siteName ?? input.localityNote ?? null,
         input.country ?? "JP",
-        input.prefecture ?? null,
-        input.municipality ?? null,
+        locality.prefecture,
+        locality.municipality,
         input.latitude,
         input.longitude,
         JSON.stringify({
@@ -529,8 +590,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       ],
     );
 
+    const locationAudit = buildServerLocationAuditPayload(input, locality);
     const visitSourcePayload = {
       ...(input.sourcePayload ?? {}),
+      location_audit: locationAudit,
       record_mode: visitMode,
       revisit_reason: revisitReason,
     };
@@ -581,8 +644,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         input.latitude,
         input.longitude,
         input.country ?? "JP",
-        input.prefecture ?? null,
-        input.municipality ?? null,
+        locality.prefecture,
+        locality.municipality,
         input.localityNote ?? null,
         input.note ?? null,
         JSON.stringify(visitSourcePayload),
@@ -606,6 +669,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       const occId = occurrenceIds[i]!;
       const occPayload = {
         ...(input.sourcePayload ?? {}),
+        location_audit: locationAudit,
         v2_subject: {
           subject_index: i,
           is_primary: Boolean(subject.isPrimary),

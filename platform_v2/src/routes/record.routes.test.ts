@@ -92,6 +92,14 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /投稿する最大60秒を選ぶ/);
         assert.match(response.body, /動画投稿は最大60秒です/);
         assert.match(response.body, /撮影時の現在地/);
+        assert.match(response.body, /name="prefecture" value=""/);
+        assert.match(response.body, /nominatim\.openstreetmap\.org\/reverse/);
+        assert.match(response.body, /inferLocalityFromCoords/);
+        assert.match(response.body, /recordLocationProvenance/);
+        assert.match(response.body, /location_provenance: recordLocationProvenance/);
+        assert.match(response.body, /photo_exif_gps/);
+        assert.match(response.body, /browser_geolocation/);
+        assert.doesNotMatch(response.body, /prefecture: 'Shizuoka'/);
         assert.match(response.body, /normalizeDraftMetadata/);
         assert.match(response.body, /createTrimmedVideoFile/);
         assert.match(response.body, /video_trim_required/);
