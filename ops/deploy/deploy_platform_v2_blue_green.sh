@@ -184,11 +184,14 @@ install_units() {
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_production_media_smoke.timer" /etc/systemd/system/ikimon-v2-production-media-smoke.timer
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_guide_environment.service" /etc/systemd/system/ikimon-v2-guide-environment.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_guide_environment.timer" /etc/systemd/system/ikimon-v2-guide-environment.timer
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_location_audit.service" /etc/systemd/system/ikimon-v2-location-audit.service
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_location_audit.timer" /etc/systemd/system/ikimon-v2-location-audit.timer
   systemctl daemon-reload
   systemctl enable --now ikimon-v2-media-worker.timer >/dev/null
   systemctl enable --now ikimon-v2-audio-worker.timer >/dev/null
   systemctl enable --now ikimon-v2-production-media-smoke.timer >/dev/null
   systemctl enable --now ikimon-v2-guide-environment.timer >/dev/null
+  systemctl enable --now ikimon-v2-location-audit.timer >/dev/null
 }
 
 ensure_private_uploads_dir() {

@@ -57,6 +57,7 @@
     "process:audio-segments": "tsx src/scripts/processAudioSegments.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
     "report:missing-photos": "tsx src/scripts/reportMissingObservationPhotos.ts",
+    "audit:locations": "tsx src/scripts/auditObservationLocations.ts",
     "repair:user-password": "tsx src/scripts/setExistingUserPassword.ts",
     "sync:legacy": "tsx src/scripts/syncLegacyDelta.ts",
     "write:legacy": "tsx src/scripts/writeLegacyCompatibility.ts",

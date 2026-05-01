@@ -19,6 +19,8 @@
 - ObservationPackage: ${observationPackageSummary}
 - reviewed knowledge_claims: ${knowledgeClaimsContext}
 
+緯度または経度が `不明` の場合、地点を仮定してはいけない。`geographic_context` では「位置情報が未取得のため地域分布は評価保留」のように、位置文脈を使えない事実だけを書く。観察地点タグだけで市区町村・海岸・山地などを断定しない。
+
 ## プロファイル活用方針
 `観察者プロファイル` が空でない場合、`narrative` の最後に **1 文だけ** 観察者の関心領域に触れてよい (例: 「キミがよく追っている帰化植物群とは葉脈構造が違う」など)。
 - 断定や個人特定情報、過去の同定履歴の暴露は禁止。
