@@ -723,8 +723,18 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
   };
 }
 
-export async function getObservationDetailSnapshot(id: string): Promise<ObservationDetailSnapshot | null> {
+export async function getObservationDetailSnapshot(
+  id: string,
+  options: { viewerUserId?: string | null } = {},
+): Promise<ObservationDetailSnapshot | null> {
   const pool = getPool();
+  const params = [id];
+  const visibilitySql = options.viewerUserId
+    ? `(( ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL} ) or v.user_id = $2)`
+    : `(${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL})`;
+  if (options.viewerUserId) {
+    params.push(options.viewerUserId);
+  }
   const detailResult = await pool.query<{
     occurrence_id: string;
     visit_id: string;
@@ -796,11 +806,10 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
      where (o.occurrence_id = $1
         or v.visit_id = $1
         or o.legacy_observation_id = $1)
-       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-       and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
+       and ${visibilitySql}
      order by v.observed_at desc
      limit 1`,
-    [id],
+    params,
   );
 
   const base = detailResult.rows[0];
