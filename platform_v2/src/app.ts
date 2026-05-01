@@ -25,6 +25,7 @@ import { registerAdminAudioApiRoutes } from "./routes/adminAudioApi.js";
 import { registerAdminSoundReviewPagesRoutes } from "./routes/adminSoundReviewPages.js";
 import { registerAdminDataHealthRoutes } from "./routes/adminDataHealth.js";
 import { registerAdminRegionalKnowledgeRoutes } from "./routes/adminRegionalKnowledge.js";
+import { registerAdminGuidePromptImprovementRoutes } from "./routes/adminGuidePromptImprovements.js";
 import { registerKnowledgeNavigationApiRoutes } from "./routes/knowledgeNavigationApi.js";
 import { registerCuratorProposalsRoutes } from "./routes/curatorProposalsApi.js";
 import { registerObservationEventApiRoutes } from "./routes/observationEventApi.js";
@@ -572,6 +573,7 @@ export function buildApp() {
   void registerAdminSoundReviewPagesRoutes(app);
   void registerAdminDataHealthRoutes(app);
   void registerAdminRegionalKnowledgeRoutes(app);
+  void registerAdminGuidePromptImprovementRoutes(app);
   void registerKnowledgeNavigationApiRoutes(app);
   void registerCuratorProposalsRoutes(app);
   void registerObservationEventApiRoutes(app);
