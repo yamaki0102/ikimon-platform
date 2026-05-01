@@ -10,6 +10,7 @@ import { GoogleGenAI } from "@google/genai";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { upsertRegionalKnowledgeEmbedding } from "../services/regionalKnowledgeEmbedding.js";
+import { embeddingBatchSizeForModel, formatEmbeddingDocument } from "../services/geminiEmbeddingPolicy.js";
 
 type CardRow = {
   card_id: string;
@@ -40,13 +41,13 @@ function textForEmbedding(row: CardRow): string {
   const hooks = Array.isArray(row.observation_hooks)
     ? row.observation_hooks.map(String).filter(Boolean).join(" / ")
     : "";
-  return [
-    `title: ${row.title}`,
+  const structuredText = [
     `summary: ${row.summary}`,
     `retrieval_text: ${row.retrieval_text}`,
     `source: ${row.source_label}`,
     hooks ? `observation_hooks: ${hooks}` : "",
   ].filter(Boolean).join("\n").slice(0, 5000);
+  return formatEmbeddingDocument(row.title, structuredText);
 }
 
 async function fetchCards(options: {
@@ -100,12 +101,12 @@ async function main(): Promise<void> {
   const dryRun = Boolean(args["dry-run"]);
   const includeEmbedded = Boolean(args["all"]);
   const limit = asPositiveInt(args["limit"], 50);
-  const batchSize = Math.min(16, asPositiveInt(args["batch-size"], 8));
   const status = typeof args["status"] === "string" ? args["status"] : "approved";
   const regionScope = typeof args["region-scope"] === "string" ? args["region-scope"] : undefined;
   const cfg = loadConfig();
   const model = typeof args["model"] === "string" ? args["model"] : cfg.regionalKnowledgeEmbedding.model;
   const dim = asPositiveInt(args["dim"], cfg.regionalKnowledgeEmbedding.outputDimensionality);
+  const batchSize = embeddingBatchSizeForModel(model, asPositiveInt(args["batch-size"], 8));
   const cards = await fetchCards({ status, limit, includeEmbedded, regionScope });
 
   if (dryRun) {
@@ -115,6 +116,7 @@ async function main(): Promise<void> {
       firstCardId: cards[0]?.card_id ?? null,
       model,
       dim,
+      batchSize,
     }, null, 2));
     await getPool().end();
     return;

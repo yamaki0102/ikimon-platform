@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
 import { upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
+import { parseGuideInteractionType, recordGuideInteraction } from "../services/guideInteractions.js";
 import { createGuideLiveToken } from "../services/guideLiveToken.js";
 import { analyzeScene, saveGuideRecord, type GuideMode, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
@@ -607,6 +608,33 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     );
 
     return reply.send({ script, audioBase64 });
+  });
+
+  /**
+   * POST /api/v1/guide/interaction
+   * Lightweight behavior log for guide scenes and regional hypotheses.
+   * This feeds evaluation loops; it is not used as ecological evidence.
+   */
+  app.post("/api/v1/guide/interaction", async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const interactionType = parseGuideInteractionType(body.interactionType);
+    if (!interactionType) {
+      return reply.status(400).send({ ok: false, error: "invalid_interaction_type" });
+    }
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
+      ? body.payload as Record<string, unknown>
+      : {};
+    const interactionId = await recordGuideInteraction({
+      guideRecordId: typeof body.guideRecordId === "string" ? body.guideRecordId : null,
+      hypothesisId: typeof body.hypothesisId === "string" ? body.hypothesisId : null,
+      userId: session?.userId ?? null,
+      sessionId: typeof body.sessionId === "string" ? body.sessionId : null,
+      interactionType,
+      payload,
+      occurredAt: typeof body.occurredAt === "string" ? body.occurredAt : null,
+    });
+    return reply.send({ ok: true, interactionId });
   });
 
   /**

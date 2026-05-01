@@ -3,6 +3,8 @@ import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { loadGuideCorrectionEvalItems, summarizeGuideCorrectionEval } from "../services/guideCorrectionEval.js";
 import { loadGuideEnvironmentMeshGeoJson, upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
+import { recordGuideInteraction } from "../services/guideInteractions.js";
+import { listRegionalHypotheses, type RegionalHypothesisRecord } from "../services/regionalHypotheses.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
 type GuideRecordDebugRow = {
@@ -70,6 +72,35 @@ function formatTime(value: string | null | undefined): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function renderRegionalHypothesisPanel(rows: RegionalHypothesisRecord[]): string {
+  const cards = rows.length === 0
+    ? `<p class="grd-muted">まだ地域仮説は生成されていません。npm run generate:regional-hypotheses で deterministic な候補を作成できます。</p>`
+    : rows.slice(0, 6).map((row) => `
+      <article class="grd-hypothesis-card">
+        <div class="grd-card-meta">
+          <span>${escapeHtml(row.claimType)}</span>
+          <span>confidence ${Math.round(row.confidence * 100)}%</span>
+        </div>
+        <h3>${escapeHtml(row.hypothesisText)}</h3>
+        <p>${escapeHtml(row.whatWeCanSay)}</p>
+        <div class="grd-chip-row">
+          ${row.missingData.slice(0, 5).map((item) => `<span class="grd-chip">${escapeHtml(item)}</span>`).join("")}
+        </div>
+        <p class="grd-muted">${escapeHtml(row.nextSamplingProtocol)}</p>
+        <div class="grd-feedback-row" data-feedback-status>
+          <button type="button" data-guide-hypothesis-feedback="helpful" data-hypothesis-id="${escapeHtml(row.hypothesisId)}">役に立った</button>
+          <button type="button" data-guide-hypothesis-feedback="wrong" data-hypothesis-id="${escapeHtml(row.hypothesisId)}">違う</button>
+        </div>
+      </article>
+    `).join("");
+  return `
+    <section class="grd-panel grd-hypotheses">
+      <h2>見え始めている地域仮説</h2>
+      <p class="grd-muted">ここでは断言ではなく、根拠・バイアス・不足データ・次の観察指示をセットで出します。</p>
+      <div class="grd-hypothesis-grid">${cards}</div>
+    </section>`;
 }
 
 function metersBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -362,6 +393,17 @@ const STYLES = `
 .grd-eval{display:grid;gap:8px;}
 .grd-eval-row{display:flex;justify-content:space-between;gap:12px;border:1px solid #e2e8f0;border-radius:8px;padding:9px 10px;background:#f8fafc;font-size:12px;font-weight:900;color:#334155;}
 .grd-eval-row strong{color:#0f766e;}
+.grd-hypotheses{display:grid;gap:10px;}
+.grd-hypothesis-grid{display:grid;gap:10px;}
+.grd-hypothesis-card{border:1px solid #dbe7e2;border-radius:8px;background:#fbfefc;padding:12px;display:grid;gap:8px;}
+.grd-hypothesis-card h3{font-size:14px;line-height:1.55;margin:0;color:#0f172a;}
+.grd-hypothesis-card p{margin:0;color:#475569;font-size:12px;line-height:1.65;}
+.grd-card-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#0f766e;font-size:11px;font-weight:950;text-transform:uppercase;}
+.grd-chip-row{display:flex;gap:5px;flex-wrap:wrap;}
+.grd-chip{border:1px solid #cbd5e1;background:#f8fafc;color:#475569;border-radius:999px;padding:4px 7px;font-size:10px;font-weight:900;}
+.grd-feedback-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.grd-feedback-row button{min-height:34px;border:1px solid #99f6e4;border-radius:999px;background:#f0fdfa;color:#0f766e;font-size:12px;font-weight:950;padding:0 10px;cursor:pointer;}
+.grd-feedback-row button+button{border-color:#fecaca;background:#fff1f2;color:#be123c;}
 @media(max-width:760px){.grd-dashboard-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}}
 `;
 
@@ -445,6 +487,31 @@ const SCRIPT = `
     }
   }
   document.addEventListener('click', async function(event){
+    var feedbackButton = event.target.closest('[data-guide-hypothesis-feedback]');
+    if (feedbackButton) {
+      var row = feedbackButton.closest('[data-feedback-status]');
+      var status = row || feedbackButton.parentElement;
+      feedbackButton.disabled = true;
+      try {
+        var feedbackRes = await fetch('/api/v1/guide/interaction', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            hypothesisId: feedbackButton.getAttribute('data-hypothesis-id') || '',
+            interactionType: feedbackButton.getAttribute('data-guide-hypothesis-feedback') || '',
+            payload: { surface: 'community_guide_environment' }
+          })
+        });
+        if (!feedbackRes.ok) throw new Error(await feedbackRes.text());
+        if (status) status.setAttribute('data-feedback-saved', 'true');
+        feedbackButton.textContent = '記録済み';
+      } catch (error) {
+        feedbackButton.disabled = false;
+        feedbackButton.textContent = error instanceof Error ? error.message.slice(0, 18) : '失敗';
+      }
+      return;
+    }
     var button = event.target.closest('[data-correction-id]');
     if (!button) return;
     var card = button.closest('.grd-card');
@@ -500,6 +567,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
   reply.type("text/html; charset=utf-8");
   const evalItems = await loadGuideCorrectionEvalItems(500).catch(() => []);
   const evalSummary = summarizeGuideCorrectionEval(evalItems);
+  const regionalHypotheses = await listRegionalHypotheses({ limit: 6, publicOnly: true }).catch(() => []);
   const evalRows = Object.entries(evalSummary.byLabel)
     .map(([label, count]) => `<div class="grd-eval-row"><span>${escapeHtml(label)}</span><strong>${count}</strong></div>`)
     .join("");
@@ -525,6 +593,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
         ${evalRows}
         <p class="grd-muted">JSONL は npm run export:guide-correction-eval で出力できます。</p>
       </section>
+      ${renderRegionalHypothesisPanel(regionalHypotheses)}
     </div>
     ${renderEnvironmentMeshMap()}
   </section>
@@ -643,6 +712,23 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
     reply.type("application/geo+json; charset=utf-8");
     return loadGuideEnvironmentMeshGeoJson(limit, publicMode ? { publicOnly: true, minRecords: 3, minContributors: 2 } : {});
   });
+  app.get<{ Querystring: { limit?: string; meshKey?: string } }>("/api/v1/guide/regional-hypotheses", async (request, reply) => {
+    const limit = Math.max(1, Math.min(100, Number.parseInt(request.query.limit ?? "20", 10) || 20));
+    const meshKey = typeof request.query.meshKey === "string" && request.query.meshKey.trim()
+      ? request.query.meshKey.trim()
+      : undefined;
+    reply.type("application/json; charset=utf-8");
+    const hypotheses = await listRegionalHypotheses({ limit, meshKey, publicOnly: true }).catch(() => []);
+    return {
+      purpose: "regional_hypothesis_generation_not_assertion",
+      guardrails: [
+        "no_trend_claim_without_effort_correction",
+        "no_absence_claim_without_complete_checklist_and_scope",
+        "no_rare_species_claim_from_ai_only",
+      ],
+      hypotheses,
+    };
+  });
   app.post<{ Params: { id: string }; Body: CorrectionBody }>("/api/v1/me/guide-records/:id/correction", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     if (!session?.userId || session.banned) {
@@ -746,6 +832,13 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
       detectedFeatures: nextFeatures,
       seenAt: row.created_at,
     }).catch((error) => app.log.warn({ error, guideRecordId: request.params.id }, "guide environment mesh update failed"));
+    await recordGuideInteraction({
+      guideRecordId: request.params.id,
+      userId: session.userId,
+      sessionId: "",
+      interactionType: "corrected",
+      payload: { correctionKind, missingDataUse: "evaluation_loop_not_ecological_evidence" },
+    }).catch((error) => app.log.warn({ error, guideRecordId: request.params.id }, "guide interaction correction log failed"));
     return { ok: true, guideRecordId: request.params.id };
   });
 }

@@ -171,7 +171,7 @@ export function loadConfig(): AppConfig {
       provider: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_PROVIDER?.trim().toLowerCase() === "gemini" && geminiApiKey
         ? "gemini"
         : "disabled",
-      model: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_MODEL?.trim() || "text-embedding-004",
+      model: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_MODEL?.trim() || "gemini-embedding-2",
       outputDimensionality: Math.floor(parsePositiveNumber(process.env.REGIONAL_KNOWLEDGE_EMBEDDING_DIM, 1536)),
     },
     aiBudget: {

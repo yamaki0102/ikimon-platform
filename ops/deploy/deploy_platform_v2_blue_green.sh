@@ -246,6 +246,7 @@ prepare_release() {
   export IKIMON_MIGRATION_REPAIR_CHECKSUMS="${IKIMON_MIGRATION_REPAIR_CHECKSUMS:-0012_contact_submissions.sql,0013_video_upload_requests.sql,0014_audio_segments.sql,0015_observation_reactions_and_insights.sql,0016_observation_ai_assessments.sql}"
   npm run migrate
   npm run compile:knowledge-navigation
+  npm run postdeploy:guide-environment
 
   ln -sfn "${release_platform}" "${RUNTIME_DIR}/${inactive}"
   chown -h www-data:www-data "${RUNTIME_DIR}/${inactive}" 2>/dev/null || true
