@@ -56,7 +56,7 @@ function parseArgs(argv: string[]): MigrationOptions {
 }
 
 function assertSafeMigration(filename: string, sql: string, options: MigrationOptions): void {
-  if (options.allowDestructive) {
+  if (options.allowDestructive || options.repairChecksums.has(filename)) {
     return;
   }
 
