@@ -133,3 +133,16 @@ test("site shell does not duplicate the record entry on the record page", () => 
   assert.doesNotMatch(html, /class="global-record-launcher"/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
 });
+
+test("site shell treats guide outcomes as a reading surface with quick record actions", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Guide outcomes",
+    body: "<p>outcomes</p>",
+    lang: "ja",
+    currentPath: "/guide/outcomes?lang=ja",
+  });
+
+  assert.match(html, /class="global-record-launcher"/);
+  assert.match(html, /site-shell has-global-record-launcher/);
+});

@@ -35,6 +35,7 @@ type GuideCopy = {
   sessionSummaryAudioOnly: string;
   queuedRecapLabel: string;
   sessionSummaryEmpty: string;
+  sessionSummaryResultsLink: string;
   offlineOnline: string;
   offlineOffline: string;
   offlineQueued: string;
@@ -124,6 +125,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "音声だけで取れたもの",
     queuedRecapLabel: "未同期のもの",
     sessionSummaryEmpty: "まだ集計できる記録はありません。",
+    sessionSummaryResultsLink: "ガイド成果を確認する",
     offlineOnline: "オンライン",
     offlineOffline: "オフライン中",
     offlineQueued: "未同期 {count}件",
@@ -219,6 +221,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "Audio-only captures",
     queuedRecapLabel: "Waiting to sync",
     sessionSummaryEmpty: "No session activity to summarize yet.",
+    sessionSummaryResultsLink: "Review guide outcomes",
     offlineOnline: "Online",
     offlineOffline: "Offline",
     offlineQueued: "{count} unsynced",
@@ -314,6 +317,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "Capturas solo audio",
     queuedRecapLabel: "Pendiente de sincronizar",
     sessionSummaryEmpty: "Aún no hay actividad para resumir.",
+    sessionSummaryResultsLink: "Revisar resultados de la guía",
     offlineOnline: "En línea",
     offlineOffline: "Sin conexión",
     offlineQueued: "{count} sin sincronizar",
@@ -409,6 +413,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "Capturas só com áudio",
     queuedRecapLabel: "Aguardando sincronização",
     sessionSummaryEmpty: "Ainda não há atividade para resumir.",
+    sessionSummaryResultsLink: "Revisar resultados do guia",
     offlineOnline: "Online",
     offlineOffline: "Offline",
     offlineQueued: "{count} sem sincronizar",
@@ -616,6 +621,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <div><strong id="guide-summary-queued">0</strong><span>${escapeHtml(c.queuedRecapLabel)}</span></div>
     </div>
     <p id="guide-summary-empty" hidden>${escapeHtml(c.sessionSummaryEmpty)}</p>
+    <a class="guide-session-results-link" href="${escapeHtml(basePath ? `${basePath}/guide/outcomes` : "/guide/outcomes")}">${escapeHtml(c.sessionSummaryResultsLink)}</a>
   </section>
 
   <div class="guide-discoveries" id="guide-discoveries">
@@ -2339,6 +2345,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-session-summary-grid strong { color: #059669; font-size: 22px; line-height: 1; font-weight: 950; }
   .guide-session-summary-grid span { color: #475569; font-size: 11px; line-height: 1.35; font-weight: 850; }
   .guide-session-summary p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 800; }
+  .guide-session-results-link { width: fit-content; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: #0f172a; color: #fff; font-size: 12px; font-weight: 950; text-decoration: none; }
   .guide-discoveries { margin-top: 24px; }
   .guide-trail-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .guide-discoveries-title { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; margin: 0 0 12px; }

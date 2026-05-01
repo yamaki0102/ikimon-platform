@@ -32,9 +32,17 @@ function loginGate(nextPath = "/me/guide-records"): string {
   return `
 <main class="grd-wrap">
   <section class="grd-empty">
-    <h1>ガイド記録を見るにはログインが必要です</h1>
-    <p>ログイン済みのユーザーIDに紐づく guide_records だけを表示します。</p>
-    <a href="/login?next=${encodeURIComponent(nextPath)}">ログインへ</a>
+    <h1>ガイド成果を見るにはログインが必要です</h1>
+    <p>ライブガイドで保存された足跡、植生・土地利用の手がかり、次に見る場所を自分の成果として確認できます。</p>
+    <div class="grd-actions">
+      <a class="grd-primary-link" href="/login?redirect=${encodeURIComponent(nextPath)}">ログインして確認する</a>
+      <a class="grd-secondary-link" href="/guide">ライブガイドへ</a>
+    </div>
+    <div class="grd-loop-mini" aria-label="ガイド成果までの流れ">
+      <span><b>1</b>ガイドで足跡を残す</span>
+      <span><b>2</b>成果で見返す</span>
+      <span><b>3</b>地図から次へ戻る</span>
+    </div>
   </section>
 </main>`;
 }
@@ -427,9 +435,17 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
 
 const STYLES = `
 .grd-wrap{max-width:1160px;margin:0 auto;padding:30px 16px 72px;color:#172033;}
-.grd-hero{display:grid;gap:8px;margin-bottom:18px;}
+.grd-hero{display:grid;gap:12px;margin-bottom:18px;padding:20px;border:1px solid rgba(16,185,129,.16);background:linear-gradient(135deg,rgba(236,253,245,.88),rgba(240,249,255,.72));border-radius:8px;}
+.grd-hero-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap;}
 .grd-hero h1{font-size:28px;line-height:1.25;margin:0;color:#0f172a;}
 .grd-hero p{margin:0;color:#475569;font-size:14px;line-height:1.7;}
+.grd-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.grd-primary-link,.grd-secondary-link{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:9px 13px;font-size:12px;font-weight:950;text-decoration:none;}
+.grd-primary-link{background:#0f172a;color:#fff;}
+.grd-secondary-link{border:1px solid rgba(15,23,42,.12);background:#fff;color:#334155;}
+.grd-loop-mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:18px;}
+.grd-loop-mini span{display:grid;gap:7px;border:1px solid rgba(16,185,129,.16);background:#f8fffb;border-radius:8px;padding:10px;color:#334155;font-size:12px;line-height:1.45;font-weight:850;}
+.grd-loop-mini b{width:24px;height:24px;display:grid;place-items:center;border-radius:999px;background:#0f766e;color:#fff;font-size:11px;}
 .grd-stats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px;}
 .grd-stat{display:inline-flex;align-items:baseline;gap:5px;border:1px solid #dbe7e2;background:#f8fffb;border-radius:999px;padding:7px 10px;font-size:12px;color:#446055;font-weight:800;}
 .grd-stat strong{font-size:18px;color:#0f766e;}
@@ -467,6 +483,7 @@ const STYLES = `
 .grd-empty{max-width:620px;margin:60px auto;border:1px solid #dbe7e2;background:#fff;border-radius:8px;padding:22px;}
 .grd-empty h1{font-size:22px;margin:0 0 8px;}
 .grd-empty p{color:#475569;line-height:1.7;}
+@media(max-width:620px){.grd-loop-mini{grid-template-columns:1fr;}.grd-empty{margin:44px auto;}}
 .grd-map-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px;}
 .grd-map-head h2{margin-bottom:4px;}
 .grd-map-head p{margin:0;color:#64748b;font-size:13px;line-height:1.6;}
@@ -771,6 +788,8 @@ async function renderPage(
     return renderSiteDocument({
       basePath: "",
       title: options.title ?? "ガイド記録 — ikimon.life",
+      activeNav: "ノート",
+      currentPath: options.nextPath ?? "/me/guide-records",
       extraStyles: STYLES,
       body: loginGate(options.nextPath),
     });
@@ -789,14 +808,25 @@ async function renderPage(
   const body = `
 <main class="grd-wrap">
   <header class="grd-hero">
-    <h1>${escapeHtml(heading)}</h1>
-    <p>${escapeHtml(lead.replace("最新件", `最新${limit}件`))}</p>
+    <div class="grd-hero-top">
+      <div>
+        <h1>${escapeHtml(heading)}</h1>
+        <p>${escapeHtml(lead.replace("最新件", `最新${limit}件`))}</p>
+      </div>
+      <nav class="grd-actions" aria-label="ガイド成果の次の行動">
+        <a class="grd-primary-link" href="/guide">またガイドを使う</a>
+        <a class="grd-secondary-link" href="/notes">観察ライブラリへ</a>
+        <a class="grd-secondary-link" href="/map">地図で見る</a>
+      </nav>
+    </div>
   </header>
   ${errorHtml || `${renderSummaryStats(rows, bundles)}${renderRouteMap()}${renderRouteTransect(bundles)}${renderRecordCards(bundles)}`}
 </main><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
     title: options.title ?? "自分のガイド記録 — ikimon.life",
+    activeNav: "ノート",
+    currentPath: options.nextPath ?? "/me/guide-records",
     extraStyles: STYLES,
     body,
   });

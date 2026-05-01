@@ -125,6 +125,9 @@ test("notes page is an observation library with separated source lanes", async (
     assert.match(response.body, /スキャン/);
     assert.match(response.body, /場所アルバム/);
     assert.match(response.body, /近くの公開記録/);
+    assert.match(response.body, /Experience loop/);
+    assert.match(response.body, /記録して、読んで、成果を見て、また歩く。/);
+    assert.match(response.body, /\/ja\/guide\/outcomes/);
     assert.match(response.body, /data-testid="notes-own"/);
     assert.match(response.body, /data-testid="notes-nearby"/);
     assert.doesNotMatch(response.body, /ノートを書く/);
@@ -154,8 +157,10 @@ test("guide route connects live use to outcomes and the next record", async () =
 
     const outcomes = await app.inject({ method: "GET", url: "/guide/outcomes?lang=ja", headers: { accept: "text/html" } });
     assert.equal(outcomes.statusCode, 401);
-    assert.match(outcomes.body, /ガイド記録を見るにはログインが必要です/);
-    assert.match(outcomes.body, /next=%2Fguide%2Foutcomes/);
+    assert.match(outcomes.body, /ガイド成果を見るにはログインが必要です/);
+    assert.match(outcomes.body, /redirect=%2Fguide%2Foutcomes/);
+    assert.match(outcomes.body, /ログインして確認する/);
+    assert.match(outcomes.body, /ガイドで足跡を残す/);
 
     const alias = await app.inject({ method: "GET", url: "/guide/results?lang=ja" });
     assert.equal(alias.statusCode, 308);

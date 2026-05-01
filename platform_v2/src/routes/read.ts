@@ -265,6 +265,56 @@ function renderGuideLoopPanel(basePath: string, lang: SiteLang): string {
   </section>`;
 }
 
+function renderNotesExperienceLoop(basePath: string, lang: SiteLang): string {
+  const href = (path: string) => escapeHtml(appendLangToHref(withBasePath(basePath, path), lang));
+  const steps = [
+    {
+      label: "Record",
+      title: "写真・動画を残す",
+      body: "主役、場所、時間を先に保存して、観察データの棚を増やす。",
+      href: href("/record"),
+      cta: "記録する",
+    },
+    {
+      label: "Guide",
+      title: "名前より環境を読む",
+      body: "分からない場面はライブガイドで、植生・水路・道ばたの変化を足跡にする。",
+      href: href("/guide"),
+      cta: "ガイドへ",
+    },
+    {
+      label: "Outcome",
+      title: "歩いた成果を見る",
+      body: "ガイドのルート、代表カード、次に見る場所を成果として確認する。",
+      href: href("/guide/outcomes"),
+      cta: "成果を見る",
+    },
+    {
+      label: "Map",
+      title: "次の場所へ戻る",
+      body: "ノートと地図を見比べて、空白や季節差が見える場所へ戻る。",
+      href: href("/map"),
+      cta: "地図を見る",
+    },
+  ];
+  return `<section class="notes-experience-loop" aria-label="観察体験の流れ">
+    <div class="notes-loop-head">
+      <span>Experience loop</span>
+      <h2>記録して、読んで、成果を見て、また歩く。</h2>
+      <p>観察ライブラリは倉庫ではなく、次の一歩を決める場所です。写真・動画、ライブガイド、ガイド成果、マップを同じ循環として扱います。</p>
+    </div>
+    <div class="notes-loop-steps">
+      ${steps.map((step, index) => `<a class="notes-loop-step" href="${step.href}">
+        <b>${index + 1}</b>
+        <span>${escapeHtml(step.label)}</span>
+        <strong>${escapeHtml(step.title)}</strong>
+        <em>${escapeHtml(step.body)}</em>
+        <i>${escapeHtml(step.cta)}</i>
+      </a>`).join("")}
+    </div>
+  </section>`;
+}
+
 function rankLabelJa(rank: string): string {
   const table: Record<string, string> = {
     kingdom: "界",
@@ -3248,6 +3298,22 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-hero span, .notes-library-section-head span { color: #047857; font-size: 12px; font-weight: 950; }
   .notes-library-hero h1 { margin: 8px 0 0; color: #10251a; font-size: clamp(34px, 5vw, 64px); line-height: 1.03; letter-spacing: 0; }
   .notes-library-hero p { margin: 14px 0 0; max-width: 50em; color: #475569; line-height: 1.8; font-weight: 720; }
+  .notes-library-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+  .notes-library-actions a { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 12px; border-radius: 999px; background: #fff; border: 1px solid rgba(16,185,129,.16); color: #047857; font-size: 12px; font-weight: 950; text-decoration: none; }
+  .notes-library-actions a:first-child { background: #10251a; color: #fff; border-color: #10251a; }
+  .notes-experience-loop { display: grid; grid-template-columns: minmax(0, .32fr) minmax(0, .68fr); gap: 16px; align-items: stretch; padding: 18px; border-radius: 8px; background: #10251a; color: #fff; box-shadow: 0 18px 42px rgba(16,37,26,.13); }
+  .notes-loop-head { display: grid; align-content: center; gap: 9px; }
+  .notes-loop-head span { color: #86efac; font-size: 12px; font-weight: 950; }
+  .notes-loop-head h2 { margin: 0; font-size: clamp(22px, 2.5vw, 34px); line-height: 1.16; letter-spacing: 0; }
+  .notes-loop-head p { margin: 0; color: rgba(255,255,255,.76); line-height: 1.7; font-size: 13px; font-weight: 750; }
+  .notes-loop-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .notes-loop-step { min-height: 190px; display: grid; align-content: start; gap: 8px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #fff; text-decoration: none; }
+  .notes-loop-step:hover { background: rgba(255,255,255,.13); transform: translateY(-1px); }
+  .notes-loop-step b { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; background: #34d399; color: #10251a; font-size: 12px; font-weight: 950; }
+  .notes-loop-step span { color: #86efac; font-size: 11px; font-weight: 950; }
+  .notes-loop-step strong { color: #fff; font-size: 15px; line-height: 1.35; }
+  .notes-loop-step em { color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.55; font-style: normal; font-weight: 730; }
+  .notes-loop-step i { align-self: end; width: fit-content; margin-top: 4px; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; font-size: 11px; line-height: 1; font-style: normal; font-weight: 950; }
   .notes-library-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .notes-library-stats div { padding: 13px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.13); }
   .notes-library-stats strong { display: block; color: #10251a; font-size: 24px; line-height: 1; font-weight: 950; }
@@ -3310,11 +3376,16 @@ const NOTES_LIBRARY_STYLES = `
   .notes-nearby-library .notes-library-card { min-height: 150px; }
   @media (max-width: 980px) {
     .notes-library-hero, .notes-library-controls, .notes-library-section-head { grid-template-columns: 1fr; }
+    .notes-experience-loop { grid-template-columns: 1fr; }
+    .notes-loop-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .notes-library-controls { position: static; }
   }
   @media (max-width: 620px) {
     .notes-library-hero { padding: 22px; }
     .notes-library-hero h1 { font-size: 38px; }
+    .notes-experience-loop { padding: 14px; }
+    .notes-loop-steps { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
+    .notes-loop-step { flex: 0 0 208px; min-height: 184px; scroll-snap-align: start; }
     .notes-library-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .notes-library-stats div { padding: 10px; }
     .notes-library-stats strong { font-size: 19px; }
@@ -8017,6 +8088,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             <span>Observation Library</span>
             <h1>観察ライブラリ</h1>
             <p>写真、動画、ガイド、フィールドスキャンを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。</p>
+            <div class="notes-library-actions">
+              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">写真・動画を記録</a>
+              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide"), lang))}">ライブガイドを使う</a>
+              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide/outcomes"), lang))}">ガイド成果を見る</a>
+            </div>
           </div>
           <div class="notes-library-stats" aria-label="観察ライブラリの概要">
             <div><strong>${escapeHtml(formatProfileNumber(libraryEntries.length))}</strong><em>観察データ</em></div>
@@ -8024,6 +8100,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             <div><strong>${escapeHtml(formatProfileNumber(namedCount))}</strong><em>名前あり</em></div>
           </div>
         </section>
+        ${renderNotesExperienceLoop(basePath, lang)}
         <section id="notes-own" class="section notes-library-main" data-notes-library data-testid="notes-own">
           <div class="notes-library-section-head">
             <div><span>${escapeHtml(isLoggedIn ? "My observations" : "Public sample")}</span><h2>${escapeHtml(isLoggedIn ? "自分の観察データ" : "公開されている観察データ")}</h2></div>
