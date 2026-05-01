@@ -297,10 +297,18 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
 }
 
 function normalizePathname(path: string): string {
+  const stripLangPrefix = (pathname: string): string => {
+    const codes = new Set(supportedLanguages.map((language) => language.code));
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length > 0 && codes.has(segments[0] as SiteLang)) {
+      return `/${segments.slice(1).join("/")}` || "/";
+    }
+    return pathname || "/";
+  };
   try {
-    return new URL(path, "https://ikimon.local").pathname;
+    return stripLangPrefix(new URL(path, "https://ikimon.local").pathname);
   } catch {
-    return path.split("?")[0] || "/";
+    return stripLangPrefix(path.split("?")[0] || "/");
   }
 }
 
@@ -2030,6 +2038,7 @@ ${alternateLinks}
       --color-info: #3b82f6;
       --color-info-soft: rgba(59,130,246,.08);
       --radius-card: 14px;
+      --radius-panel: 24px;
       --radius-pill: 999px;
       --shadow-card: 0 8px 24px rgba(15,23,42,.06);
       --space-card: clamp(16px, 2vw, 24px);
@@ -2083,6 +2092,7 @@ ${alternateLinks}
       margin: 0;
       font-family: "Inter", "Noto Sans JP", "Hiragino Sans", sans-serif;
       color: var(--ink);
+      line-break: strict;
       background:
         radial-gradient(circle at top left, rgba(16,185,129,.07), transparent 36%),
         radial-gradient(circle at top right, rgba(14,165,233,.05), transparent 30%),
@@ -2261,7 +2271,7 @@ ${alternateLinks}
       max-width: 100%;
       overflow-x: auto;
     }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 10px 15px; border-radius: 999px; font-weight: 850; border: 1px solid transparent; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: 999px; font-weight: 850; border: 1px solid transparent; text-align: center; line-height: 1.25; }
     .btn-solid { background: #059669; color: white; box-shadow: 0 9px 20px rgba(5,150,105,.18); }
     .btn-solid-on-light { background: #059669; color: white; box-shadow: 0 10px 22px rgba(5,150,105,.18); }
     .btn-ghost { background: rgba(255,255,255,.86); border-color: var(--border); color: var(--ink); }
@@ -2662,7 +2672,7 @@ ${alternateLinks}
     .actions { display: flex; flex-wrap: wrap; gap: 14px; }
     .card {
       padding: 22px;
-      border-radius: 28px;
+      border-radius: var(--radius-panel);
       background: var(--surface);
       border: 1px solid var(--border);
       box-shadow: 0 12px 28px rgba(15,23,42,.05);
@@ -2699,6 +2709,28 @@ ${alternateLinks}
     }
     .card p, .meta, .muted { color: var(--muted); line-height: 1.7; }
     .meta { font-size: 13px; margin-top: 6px; }
+    .hero-copy,
+    .card,
+    .state-card,
+    .detail-card,
+    .row,
+    .footer-group,
+    .site-mobile-menu-panel {
+      overflow-wrap: anywhere;
+    }
+    .state-card {
+      padding: var(--space-card);
+      border-radius: var(--radius-panel);
+      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(240,249,255,.94));
+      border: 1px solid rgba(16,185,129,.18);
+      box-shadow: 0 16px 36px rgba(15,23,42,.06);
+    }
+    .state-card h2 {
+      margin-bottom: 0;
+      font-size: clamp(21px, 2.8vw, 28px);
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
     .inline-link {
       display: inline-flex;
       align-items: center;
@@ -3652,6 +3684,16 @@ ${alternateLinks}
       .mentor-inline h2 { font-size: 21px; }
       .global-record-launcher {
         display: grid;
+      }
+    }
+    @media (max-width: 430px) {
+      .brand {
+        flex: 0 0 36px;
+        min-width: 36px;
+        max-width: 36px;
+      }
+      .brand > span:last-child {
+        display: none;
       }
     }
     .app-install-prompt {

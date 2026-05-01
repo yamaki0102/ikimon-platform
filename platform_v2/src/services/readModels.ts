@@ -33,6 +33,11 @@ type RecentObservation = {
   claimRefCount?: number;
   claimRefsUsed?: string[];
   displayName: string;
+  scientificName?: string | null;
+  vernacularName?: string | null;
+  aiCandidateName?: string | null;
+  aiCandidateRank?: string | null;
+  isAiCandidate?: boolean;
   observedAt: string;
   observerName: string;
   placeName: string;
@@ -78,6 +83,7 @@ export type ObservationDetailSnapshot = {
   observerAvatarUrl: string | null;
   displayName: string;
   scientificName: string | null;
+  vernacularName: string | null;
   observedAt: string;
   note: string | null;
   visitMode: string | null;
@@ -253,6 +259,8 @@ type VisitSubjectRow = {
   taxon_rank: string | null;
   confidence_score: string | null;
   source_payload: Record<string, unknown> | null;
+  ai_candidate_name: string | null;
+  ai_candidate_rank: string | null;
 };
 
 export type ManualVisitOccurrenceGap = {
@@ -354,7 +362,7 @@ async function loadVisitSummaryObservations(
     `SELECT v.visit_id,
             v.observed_at::text,
             ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
-            coalesce(p.canonical_name, 'Unknown place') AS place_name,
+            p.canonical_name AS place_name,
             coalesce(v.observed_municipality, p.municipality) AS municipality,
             coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
             coalesce(v.point_latitude, p.center_latitude) AS latitude,
@@ -386,15 +394,24 @@ async function loadVisitSummaryObservations(
     `SELECT occurrence_id,
             visit_id,
             subject_index,
-            coalesce(vernacular_name, scientific_name, '同定待ち') AS display_name,
+            coalesce(vernacular_name, scientific_name, nullif(ai.recommended_taxon_name, ''), '同定待ち') AS display_name,
             scientific_name,
             vernacular_name,
             taxon_rank,
             confidence_score::text,
-            source_payload
-       FROM occurrences
-      WHERE visit_id = ANY($1::text[])
-      ORDER BY visit_id ASC, subject_index ASC, created_at ASC`,
+            source_payload,
+            ai.recommended_taxon_name AS ai_candidate_name,
+            ai.recommended_rank AS ai_candidate_rank
+       FROM occurrences o
+       LEFT JOIN LATERAL (
+         SELECT recommended_taxon_name, recommended_rank
+           FROM observation_ai_assessments a
+          WHERE a.occurrence_id = o.occurrence_id
+          ORDER BY generated_at DESC
+          LIMIT 1
+       ) ai ON true
+      WHERE o.visit_id = ANY($1::text[])
+      ORDER BY o.visit_id ASC, o.subject_index ASC, o.created_at ASC`,
     [visitIds],
   );
   const occurrenceIds = subjectRows.rows.map((row) => row.occurrence_id);
@@ -467,6 +484,10 @@ async function loadVisitSummaryObservations(
     subjectIndex: number;
     displayName: string;
     scientificName: string | null;
+    vernacularName: string | null;
+    aiCandidateName: string | null;
+    aiCandidateRank: string | null;
+    isAiCandidate: boolean;
     rank: string | null;
     roleHint: string;
     confidence: number | null;
@@ -484,6 +505,10 @@ async function loadVisitSummaryObservations(
       subjectIndex: row.subject_index,
       displayName: row.display_name ?? "同定待ち",
       scientificName: row.scientific_name,
+      vernacularName: row.vernacular_name,
+      aiCandidateName: row.ai_candidate_name,
+      aiCandidateRank: row.ai_candidate_rank,
+      isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(row.ai_candidate_name),
       rank: row.taxon_rank,
       roleHint: String(v2SubjectPayload?.role_hint ?? (row.subject_index === 0 ? "primary" : "coexisting")),
       confidence: row.confidence_score != null ? Number(row.confidence_score) : null,
@@ -533,9 +558,14 @@ async function loadVisitSummaryObservations(
       featuredConfidenceBand: featuredSubject?.latestAssessmentBand ?? null,
       displayStability: displayState.displayStability,
       displayName: featuredSubject?.displayName ?? "同定待ち",
+      scientificName: featuredSubject?.scientificName ?? null,
+      vernacularName: featuredSubject?.vernacularName ?? null,
+      aiCandidateName: featuredSubject?.aiCandidateName ?? null,
+      aiCandidateRank: featuredSubject?.aiCandidateRank ?? null,
+      isAiCandidate: featuredSubject?.isAiCandidate ?? false,
       observedAt: visitRow.observed_at,
-      observerName: visitRow.observer_name ?? "Unknown observer",
-      placeName: visitRow.place_name ?? "Unknown place",
+      observerName: visitRow.observer_name ?? "",
+      placeName: visitRow.place_name ?? "",
       municipality: visitRow.municipality,
       publicLocation: buildPublicLocationSummary({
         municipality: visitRow.municipality,
@@ -648,7 +678,7 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
         : "";
       return {
         placeId: row.place_id,
-        placeName: row.place_name ?? "Unknown place",
+        placeName: row.place_name ?? "",
         municipality: row.municipality,
         lastObservedAt: row.last_observed_at,
         previousObservedAt: row.previous_observed_at,
@@ -682,7 +712,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
     observation_count: string;
   }>(
     `select
-        coalesce(v.observed_municipality, p.municipality, 'Municipality unknown') as municipality,
+        coalesce(v.observed_municipality, p.municipality) as municipality,
         count(*)::text as observation_count
      from occurrences o
      join visits v on v.visit_id = o.visit_id
@@ -713,7 +743,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
   return {
     recentObservations,
     municipalities: municipalitiesResult.rows.map((row) => ({
-      municipality: row.municipality ?? "Municipality unknown",
+      municipality: row.municipality ?? "位置をぼかしています",
       observationCount: Number(row.observation_count),
     })),
     topTaxa: taxaResult.rows.map((row) => ({
@@ -743,6 +773,7 @@ export async function getObservationDetailSnapshot(
     observer_avatar_url: string | null;
     display_name: string | null;
     scientific_name: string | null;
+    vernacular_name: string | null;
     observed_at: string;
     note: string | null;
     visit_mode: string | null;
@@ -771,6 +802,7 @@ export async function getObservationDetailSnapshot(
           '同定待ち'
         ) as display_name,
         o.scientific_name,
+        o.vernacular_name,
         v.observed_at::text,
         v.note,
         v.visit_mode,
@@ -780,7 +812,7 @@ export async function getObservationDetailSnapshot(
         v.distance_meters,
         v.source_payload,
         ${VISIT_OBSERVER_NAME_SQL} as observer_name,
-        coalesce(p.canonical_name, 'Unknown place') as place_name,
+        p.canonical_name as place_name,
         coalesce(v.observed_municipality, p.municipality) as municipality,
         coalesce(v.observed_prefecture, p.prefecture) as prefecture,
         coalesce(v.point_latitude, p.center_latitude) as latitude,
@@ -1026,6 +1058,7 @@ export async function getObservationDetailSnapshot(
     observerAvatarUrl: normalizeAssetUrl(base.observer_avatar_url),
     displayName: base.display_name ?? "同定待ち",
     scientificName: base.scientific_name,
+    vernacularName: base.vernacular_name,
     observedAt: base.observed_at,
     note: base.note,
     visitMode: base.visit_mode,
@@ -1037,8 +1070,8 @@ export async function getObservationDetailSnapshot(
     surveyResult,
     absenceSemantics,
     revisitReason,
-    observerName: base.observer_name ?? "Unknown observer",
-    placeName: base.place_name ?? "Unknown place",
+    observerName: base.observer_name ?? "",
+    placeName: base.place_name ?? "",
     municipality: base.municipality,
     publicLocation: buildPublicLocationSummary({
       municipality: base.municipality,
@@ -1372,7 +1405,7 @@ export async function getSpecialistSnapshot(
           coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as display_name,
           v.observed_at::text,
           ${VISIT_OBSERVER_NAME_SQL} as observer_name,
-          coalesce(p.canonical_name, 'Unknown place') as place_name,
+          p.canonical_name as place_name,
           coalesce(v.observed_municipality, p.municipality) as municipality,
           photo.public_url as photo_url,
           (
@@ -1479,9 +1512,14 @@ export async function getSpecialistSnapshot(
         occurrenceId: row.occurrence_id,
         visitId: row.visit_id,
         displayName: row.display_name ?? "同定待ち",
+        scientificName: row.scientific_name,
+        vernacularName: row.vernacular_name,
+        aiCandidateName: row.ai_taxon_name,
+        aiCandidateRank: null,
+        isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(row.ai_taxon_name),
         observedAt: row.observed_at,
-        observerName: row.observer_name ?? "Unknown observer",
-        placeName: row.place_name ?? "Unknown place",
+        observerName: row.observer_name ?? "",
+        placeName: row.place_name ?? "",
         municipality: row.municipality,
         publicLocation: buildPublicLocationSummary({
           municipality: row.municipality,

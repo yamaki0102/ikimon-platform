@@ -106,6 +106,8 @@ type FeedRow = {
   occurrence_id: string;
   visit_id: string;
   display_name: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
   identification_display_name: string | null;
   ai_candidate_name: string | null;
   ai_candidate_rank: string | null;
@@ -161,6 +163,8 @@ const FEED_SQL_BASE = `
       nullif(ai.recommended_taxon_name, ''),
       '同定待ち'
     ) as display_name,
+    o.scientific_name,
+    o.vernacular_name,
     ident.display_name as identification_display_name,
     ai.recommended_taxon_name as ai_candidate_name,
     coalesce(ident.proposed_rank, ai.recommended_rank) as ai_candidate_rank,
@@ -170,7 +174,7 @@ const FEED_SQL_BASE = `
     v.user_id as observer_user_id,
     ${FEED_OBSERVER_NAME_SQL} as observer_name,
     avatar.public_url as observer_avatar_url,
-    coalesce(p.canonical_name, 'Unknown place') as place_name,
+    p.canonical_name as place_name,
     coalesce(v.observed_municipality, p.municipality) as municipality,
     coalesce(v.observed_prefecture, p.prefecture) as prefecture,
     coalesce(v.point_latitude, p.center_latitude) as latitude,
@@ -309,12 +313,14 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
     displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
+    scientificName: row.scientific_name,
+    vernacularName: row.vernacular_name,
     aiCandidateName: row.ai_candidate_name ?? null,
     aiCandidateRank: row.ai_candidate_rank ?? null,
     isAiCandidate: Boolean(row.is_ai_candidate),
     observedAt: row.observed_at,
-    observerName: row.observer_name ?? "Unknown observer",
-    placeName: row.place_name ?? "Unknown place",
+    observerName: row.observer_name ?? "",
+    placeName: row.place_name ?? "",
     municipality: row.municipality,
     publicLocation: buildPublicLocationSummary({
       municipality: row.municipality,
@@ -593,6 +599,8 @@ type IdentificationRow = {
   occurrence_id: string;
   visit_id: string;
   observation_display_name: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
   ai_candidate_name: string | null;
   observed_at: string;
   observer_user_id: string | null;
@@ -616,9 +624,12 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
     displayName: resolveLandingDisplayName(row.proposed_name, row.observation_display_name, row.ai_candidate_name),
+    scientificName: row.scientific_name,
+    vernacularName: row.vernacular_name,
+    aiCandidateName: row.ai_candidate_name,
     observedAt: row.observed_at,
-    observerName: row.observer_name ?? "Unknown observer",
-    placeName: row.place_name ?? "Unknown place",
+    observerName: row.observer_name ?? "",
+    placeName: row.place_name ?? "",
     municipality: row.municipality,
     publicLocation: buildPublicLocationSummary({
       municipality: row.municipality,
@@ -800,12 +811,14 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            o.occurrence_id,
            o.visit_id,
            coalesce(o.vernacular_name, o.scientific_name, ident.display_name, ai.recommended_taxon_name, '同定待ち') as observation_display_name,
+           o.scientific_name,
+           o.vernacular_name,
            ai.recommended_taxon_name as ai_candidate_name,
            v.observed_at::text,
            v.user_id as observer_user_id,
            ${FEED_OBSERVER_NAME_SQL} as observer_name,
            avatar.public_url as observer_avatar_url,
-           coalesce(p.canonical_name, 'Unknown place') as place_name,
+           p.canonical_name as place_name,
            coalesce(v.observed_municipality, p.municipality) as municipality,
            coalesce(v.observed_prefecture, p.prefecture) as prefecture,
            coalesce(v.point_latitude, p.center_latitude) as latitude,

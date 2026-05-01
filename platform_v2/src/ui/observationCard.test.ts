@@ -50,4 +50,33 @@ test("renderObservationCard links guest observers to notebook view", () => {
 
   assert.match(html, /href="\/ja\/guest\/guest_abc123"/);
   assert.doesNotMatch(html, /\/profile\/guest_abc123/);
+  assert.match(html, /ゲスト/);
+});
+
+test("renderObservationCard marks scientific-only Japanese labels", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    displayName: "Pieris rapae",
+    scientificName: "Pieris rapae",
+    vernacularName: null,
+  }, { locationMode: "public" });
+
+  assert.match(html, /学名/);
+  assert.match(html, /Pieris rapae/);
+  assert.doesNotMatch(html, /Awaiting ID/);
+});
+
+test("renderObservationCard normalizes unknown public place fallback", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    placeName: "Unknown place",
+    municipality: null,
+    publicLocation: {
+      ...observation.publicLocation,
+      label: "位置をぼかしています",
+    },
+  }, { locationMode: "owner" });
+
+  assert.match(html, /位置をぼかしています/);
+  assert.doesNotMatch(html, /Unknown place/);
 });

@@ -1,5 +1,6 @@
 import { getPool } from "../db.js";
 import { buildObserverNameSql } from "./observerNameSql.js";
+import { formatTaxonDisplayName } from "./localizedDisplay.js";
 import {
   buildPublicCellGeometry,
   buildPublicCellKeyParts,
@@ -445,10 +446,16 @@ async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
           municipality: row.municipality,
           prefecture: row.prefecture,
         });
+        const display = formatTaxonDisplayName({
+          vernacularName: row.vernacular_name,
+          scientificName: row.scientific_name,
+          displayName: row.display_name,
+          aiCandidateName: row.ai_candidate_name,
+        }, "ja");
         return {
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,
-          displayName: row.display_name,
+          displayName: display.primaryLabel,
           aiCandidateName: row.ai_candidate_name ?? null,
           aiCandidateRank: row.ai_candidate_rank ?? null,
           isAiCandidate: Boolean(row.is_ai_candidate),
@@ -602,7 +609,7 @@ export function buildPublicCellRecords(
       visitId: entry.row.visitId,
       displayName: entry.row.displayName,
       isAiCandidate: entry.row.isAiCandidate,
-      isAwaitingId: entry.row.displayName === "同定待ち" || entry.row.displayName === "Unresolved",
+      isAwaitingId: entry.row.displayName === "同定待ち",
       localityLabel: entry.row.localityLabel,
       observedAt: entry.row.observedAt,
       photoUrl: entry.row.photoUrl,

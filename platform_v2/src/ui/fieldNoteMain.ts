@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
+import { formatPlaceDisplay, formatTaxonDisplayName } from "../services/localizedDisplay.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import type { AmbientObserver, LandingObservation, LandingSnapshot } from "../services/readModels.js";
@@ -180,11 +181,12 @@ function liteObservationKind(obs: LandingObservation, lang: SiteLang): string {
   return "Obs.";
 }
 
-function litePlaceLine(obs: LandingObservation, locationMode: "public" | "owner"): string {
-  if (locationMode === "owner") {
-    return [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
-  }
-  return obs.publicLocation?.label || obs.municipality || "";
+function litePlaceLine(obs: LandingObservation, lang: SiteLang, locationMode: "public" | "owner"): string {
+  return formatPlaceDisplay({
+    placeName: obs.placeName,
+    municipality: obs.municipality,
+    publicLocation: obs.publicLocation,
+  }, lang, locationMode);
 }
 
 function renderFieldNoteLiteObservationCard(
@@ -200,9 +202,15 @@ function renderFieldNoteLiteObservationCard(
     ),
     lang,
   );
-  const displayName = obs.displayName || (lang === "ja" ? "同定待ち" : "Awaiting ID");
+  const display = formatTaxonDisplayName({
+    vernacularName: obs.vernacularName,
+    scientificName: obs.scientificName,
+    displayName: obs.displayName,
+    aiCandidateName: obs.aiCandidateName,
+  }, lang);
+  const displayName = display.primaryLabel;
   const dateLabel = formatLiteDate((obs.entryType === "identification" ? obs.identifiedAt : obs.observedAt) ?? obs.observedAt, lang);
-  const placeLine = litePlaceLine(obs, options.locationMode);
+  const placeLine = litePlaceLine(obs, lang, options.locationMode);
   const kindLabel = liteObservationKind(obs, lang);
   const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "sm") ?? obs.photoUrl) : null;
   const photoHtml = photoUrl
