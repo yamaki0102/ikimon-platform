@@ -773,12 +773,12 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     heroCandidateRows = [];
   }
 
-  // Viewer own feed (if logged in) — own observation library, including non-photo media lanes
+  // Viewer own feed (if logged in) — own observation library, including review rows that need media recovery.
   let myFeedRows: FeedRow[] = [];
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} order by v.observed_at desc limit 72`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and coalesce(v.public_visibility, 'public') <> 'hidden' order by v.observed_at desc limit 72`,
         [userId],
       );
       myFeedRows = result.rows;

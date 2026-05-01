@@ -509,6 +509,21 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reassess-hint { color: #475569; font-size: 12px; line-height: 1.4; }
   .obs-reassess-status { font-size: 12px; font-weight: 700; color: #047857; }
   .obs-reassess-status.is-error { color: #b91c1c; }
+  .obs-photo-recovery { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px; border-radius: 16px; background: linear-gradient(135deg, rgba(254,249,195,.78), rgba(236,253,245,.88)); border: 1px solid rgba(234,179,8,.24); margin-top: 0; }
+  .obs-photo-recovery h2 { margin: 4px 0 0; color: #0f172a; font-size: 18px; line-height: 1.28; }
+  .obs-photo-recovery p { margin: 7px 0 0; color: #475569; font-size: 13px; line-height: 1.65; font-weight: 720; }
+  .obs-photo-recovery-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+  .obs-photo-recovery-picker { position: relative; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 14px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.12); color: #334155; font-size: 12px; font-weight: 900; cursor: pointer; overflow: hidden; }
+  .obs-photo-recovery-picker input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .obs-photo-recovery-submit { min-height: 44px; padding: 9px 16px; border-radius: 999px; border: 0; background: #111827; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .obs-photo-recovery-submit[disabled] { opacity: .6; cursor: progress; }
+  .obs-photo-recovery-status { grid-column: 1 / -1; min-height: 22px; color: #047857; font-size: 12px; font-weight: 850; }
+  .obs-photo-recovery-status.is-error { color: #b91c1c; }
+  @media (max-width: 760px) {
+    .obs-photo-recovery { grid-template-columns: 1fr; }
+    .obs-photo-recovery-form { justify-content: stretch; }
+    .obs-photo-recovery-picker, .obs-photo-recovery-submit { width: 100%; min-height: 52px; border-radius: 14px; }
+  }
 
   .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
   @media (min-width: 960px) {
@@ -1409,6 +1424,115 @@ function renderRoleCoverageStrip(photoAssets: { roleTag: string | null }[] | nul
     <div class="obs-role-cov-bar"><span style="width:${pct}%"></span></div>
     <div class="obs-role-cov-chips">${chips}</div>
     </div>`;
+}
+
+function renderObservationPhotoRecoveryPanel(options: {
+  basePath: string;
+  visitId: string;
+  isOwner: boolean;
+  existingPhotoCount: number;
+}): string {
+  if (!options.isOwner) return "";
+  const hasPhotos = options.existingPhotoCount > 0;
+  const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/photos/upload`);
+  return `<section class="section obs-photo-recovery" data-photo-recovery data-upload-endpoint="${escapeHtml(endpoint)}" data-existing-photo-count="${escapeHtml(String(options.existingPhotoCount))}">
+    <div>
+      <div class="obs-story-eyebrow">${hasPhotos ? "Add photos" : "Photo recovery"}</div>
+      <h2>${escapeHtml(hasPhotos ? "この観察に写真を追加" : "この観察に写真を復旧")}</h2>
+      <p>${escapeHtml(hasPhotos ? "別角度や周辺の写真を同じ観察に追加できます。" : "写真投稿が途中で止まった観察は、ここから同じ観察に写真だけ追加できます。")}</p>
+    </div>
+    <form class="obs-photo-recovery-form">
+      <label class="obs-photo-recovery-picker">
+        <span>写真を選ぶ</span>
+        <input type="file" accept="image/*" multiple />
+      </label>
+      <button type="submit" class="obs-photo-recovery-submit">写真を保存</button>
+    </form>
+    <div class="obs-photo-recovery-status" data-photo-recovery-status aria-live="polite"></div>
+  </section>`;
+}
+
+function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
+  if (!isOwner) return "";
+  return `<script>(function(){
+    var root = document.querySelector('[data-photo-recovery]');
+    if (!root) return;
+    var form = root.querySelector('.obs-photo-recovery-form');
+    var input = root.querySelector('input[type="file"]');
+    var button = root.querySelector('.obs-photo-recovery-submit');
+    var status = root.querySelector('[data-photo-recovery-status]');
+    var endpoint = root.getAttribute('data-upload-endpoint') || '';
+    var existingPhotoCount = Number(root.getAttribute('data-existing-photo-count') || '0');
+    var setStatus = function(message, isError) {
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle('is-error', Boolean(isError));
+    };
+    var readFileAsDataUrl = function(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(){ resolve(String(reader.result || '')); };
+        reader.onerror = function(){ reject(new Error('file_read_failed')); };
+        reader.readAsDataURL(file);
+      });
+    };
+    if (!form || !input || !button || !endpoint) return;
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      var files = Array.prototype.slice.call(input.files || []).filter(function(file){
+        return file && file.type && file.type.indexOf('image/') === 0;
+      });
+      if (!files.length) {
+        setStatus('写真を選んでください。', true);
+        return;
+      }
+      button.disabled = true;
+      var uploaded = 0;
+      var failed = [];
+      files.reduce(function(chain, file, index) {
+        return chain.then(function() {
+          setStatus('保存中 ' + String(index + 1) + '/' + String(files.length), false);
+          return readFileAsDataUrl(file).then(function(base64Data) {
+            return fetch(endpoint, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({
+                filename: file.name || ('photo-' + String(index + 1) + '.jpg'),
+                mimeType: file.type || 'image/jpeg',
+                base64Data: base64Data,
+                mediaRole: existingPhotoCount === 0 && uploaded === 0 ? 'primary_subject' : 'context'
+              })
+            }).then(function(response) {
+              return response.json().catch(function(){ return {}; }).then(function(json) {
+                if (!response.ok || !json || json.ok === false) {
+                  failed.push(String((json && json.error) || response.status || 'upload_failed'));
+                  return;
+                }
+                uploaded += 1;
+              });
+            });
+          });
+        });
+      }, Promise.resolve()).then(function() {
+        if (uploaded > 0 && failed.length === 0) {
+          setStatus('保存しました。表示を更新します。', false);
+          setTimeout(function(){ window.location.reload(); }, 700);
+          return;
+        }
+        if (uploaded > 0) {
+          setStatus(String(uploaded) + '枚を保存しました。失敗: ' + failed[0], true);
+          setTimeout(function(){ window.location.reload(); }, 1100);
+          return;
+        }
+        setStatus('保存できませんでした: ' + (failed[0] || 'unknown_error'), true);
+        button.disabled = false;
+      }).catch(function(error) {
+        setStatus('通信エラー: ' + String(error && error.message || 'network'), true);
+        button.disabled = false;
+      });
+    });
+  })();</script>`;
 }
 
 const START_STATE_STYLES = `
@@ -5778,7 +5902,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       return reply.redirect(canonicalHref, 302);
     }
 
-    const snapshot = await getObservationDetailSnapshot(bundle.canonicalSubjectId);
+    const snapshot = await getObservationDetailSnapshot(bundle.canonicalSubjectId, { viewerUserId });
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
@@ -5821,7 +5945,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           return [subject.occurrenceId, { snapshot, consensus }] as const;
         }
         const [subjectSnapshot, subjectConsensus] = await Promise.all([
-          getObservationDetailSnapshot(subject.occurrenceId).catch(() => null),
+          getObservationDetailSnapshot(subject.occurrenceId, { viewerUserId }).catch(() => null),
           getIdentificationConsensus(subject.occurrenceId).catch(() => null),
         ]);
         return [
@@ -6075,6 +6199,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           ${aiCandidateLearningPanel}
         </div>
       </section>`;
+    const photoRecoveryBlock = renderObservationPhotoRecoveryPanel({
+      basePath,
+      visitId: bundle.visitId,
+      isOwner,
+      existingPhotoCount: snapshot.photoAssets.length,
+    });
 
     const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
@@ -6517,7 +6647,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       bindIdentifyForms();
       window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
     })();</script>`;
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${regionalStoryBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
+    const detailBody = `${heroBlock}${photoRecoveryBlock}${reassessBlock}${hintBlock}${regionalStoryBlock}${layersGrid}${supportBlock}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

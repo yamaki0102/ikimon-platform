@@ -52,6 +52,7 @@
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
     "process:video-jobs": "tsx src/scripts/processVideoProcessingJobs.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
+    "report:missing-photos": "tsx src/scripts/reportMissingObservationPhotos.ts",
     "repair:user-password": "tsx src/scripts/setExistingUserPassword.ts",
     "sync:legacy": "tsx src/scripts/syncLegacyDelta.ts",
     "write:legacy": "tsx src/scripts/writeLegacyCompatibility.ts",
