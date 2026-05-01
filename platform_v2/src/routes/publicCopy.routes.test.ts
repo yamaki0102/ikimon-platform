@@ -6,6 +6,7 @@ import { buildApp } from "../app.js";
 const shallowJaRoutes = [
   "/?lang=ja",
   "/notes?lang=ja",
+  "/guide?lang=ja",
   "/lens?lang=ja",
   "/map?lang=ja",
   "/community?lang=ja",
@@ -136,6 +137,29 @@ test("notes page is an observation library with separated source lanes", async (
       response.body.indexOf("観察ライブラリ") < response.body.indexOf("近くの公開記録"),
       "library should appear before nearby public traces",
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test("guide route connects live use to outcomes and the next record", async () => {
+  const app = buildApp();
+  try {
+    const guide = await app.inject({ method: "GET", url: "/guide?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(guide.statusCode, 200);
+    assert.match(guide.body, /ライブガイド/);
+    assert.match(guide.body, /ガイド成果を見る/);
+    assert.match(guide.body, /\/ja\/guide\/outcomes/);
+    assert.match(guide.body, /写真・動画を記録する/);
+
+    const outcomes = await app.inject({ method: "GET", url: "/guide/outcomes?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(outcomes.statusCode, 401);
+    assert.match(outcomes.body, /ガイド記録を見るにはログインが必要です/);
+    assert.match(outcomes.body, /next=%2Fguide%2Foutcomes/);
+
+    const alias = await app.inject({ method: "GET", url: "/guide/results?lang=ja" });
+    assert.equal(alias.statusCode, 308);
+    assert.equal(alias.headers.location, "/guide/outcomes");
   } finally {
     await app.close();
   }

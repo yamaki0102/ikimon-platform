@@ -166,6 +166,105 @@ function renderPublicRouteCardGrid(
     .join("")}</div>`;
 }
 
+const GUIDE_ENTRY_STYLES = `
+  .guide-loop-panel { margin-top: 18px; }
+  .guide-loop-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
+    gap: 16px;
+    align-items: stretch;
+    padding: 22px;
+    border-radius: 8px;
+    border: 1px solid rgba(16,185,129,.16);
+    background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(255,255,255,.96) 58%, rgba(240,249,255,.82));
+    box-shadow: 0 16px 38px rgba(15,23,42,.06);
+  }
+  .guide-loop-card h2 { margin: 6px 0 0; color: #10251a; font-size: clamp(24px, 3vw, 34px); line-height: 1.2; letter-spacing: 0; }
+  .guide-loop-card p { margin: 10px 0 0; color: #475569; line-height: 1.75; font-weight: 720; }
+  .guide-loop-steps { display: grid; gap: 8px; }
+  .guide-loop-step {
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.82);
+    border: 1px solid rgba(16,185,129,.12);
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 780;
+  }
+  .guide-loop-step b {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #047857;
+    color: #fff;
+    font-size: 12px;
+  }
+  .guide-loop-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  @media (max-width: 820px) {
+    .guide-loop-card { grid-template-columns: 1fr; padding: 18px; }
+  }
+`;
+
+function renderGuideLoopPanel(basePath: string, lang: SiteLang): string {
+  const href = (path: string) => escapeHtml(appendLangToHref(withBasePath(basePath, path), lang));
+  const copy = lang === "ja"
+    ? {
+        eyebrow: "loop",
+        title: "ガイドで見たことを、記録と成果確認につなげる",
+        body: "ライブガイドはその場で終わらせず、気づきは記録へ、歩いた足跡は成果確認へ、場所の変化はマップへ戻します。写真・動画・ガイド・観察データが別々の体験にならないよう、ここから一巡できます。",
+        record: "写真・動画を記録する",
+        outcomes: "ガイド成果を見る",
+        map: "マップで場所を見る",
+        aria: "ガイド後の流れ",
+        steps: [
+          "その場でガイドを開始して、環境の手がかりを残す",
+          "残したい発見は写真・動画つきの観察データにする",
+          "ガイド成果確認でルートと代表カードを見返す",
+          "マップとノートから、次に歩く場所へ戻る",
+        ],
+      }
+    : {
+        eyebrow: "loop",
+        title: "Turn Guide traces into records and outcomes",
+        body: "Live Guide should not end in the moment. Save discoveries as records, review the walked trace as outcomes, and return to the map for the next place.",
+        record: "Record photo or video",
+        outcomes: "Review Guide outcomes",
+        map: "Open map",
+        aria: "After Guide flow",
+        steps: [
+          "Start Guide and save field context",
+          "Turn important discoveries into photo or video records",
+          "Review route traces and representative cards",
+          "Return to the map and notebook for the next walk",
+        ],
+      };
+  return `<section class="section guide-loop-panel">
+    <div class="guide-loop-card">
+      <div>
+        <div class="eyebrow">${escapeHtml(copy.eyebrow)}</div>
+        <h2>${escapeHtml(copy.title)}</h2>
+        <p>${escapeHtml(copy.body)}</p>
+        <div class="guide-loop-actions">
+          <a class="btn btn-solid" href="${href("/record")}">${escapeHtml(copy.record)}</a>
+          <a class="btn btn-ghost" href="${href("/guide/outcomes")}">${escapeHtml(copy.outcomes)}</a>
+          <a class="btn btn-ghost" href="${href("/map")}">${escapeHtml(copy.map)}</a>
+        </div>
+      </div>
+      <div class="guide-loop-steps" aria-label="${escapeHtml(copy.aria)}">
+        ${copy.steps.map((step, index) => `<div class="guide-loop-step"><b>${index + 1}</b><span>${escapeHtml(step)}</span></div>`).join("")}
+      </div>
+    </div>
+  </section>`;
+}
+
 function rankLabelJa(rank: string): string {
   const table: Record<string, string> = {
     kingdom: "界",
@@ -2143,6 +2242,7 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
       <div class="profile-reading-actions">
         <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">観察ライブラリを開く</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/guide/outcomes"))}">ガイド成果を見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-places"))}">場所アルバムを見る</a>
       </div>
     </div>
@@ -6775,6 +6875,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
     const heroActions = [
       { href: "/notes#notes-own", label: "観察ライブラリを開く" },
+      { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" as const },
       { href: "/notes#notes-places", label: "場所アルバムを見る", variant: "secondary" as const },
       { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
       { href: "/logout", label: "ログアウト", variant: "secondary" as const },
@@ -8022,8 +8123,8 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       title: guidePageCopy.title,
       activeNav: guidePageCopy.activeNav,
       lang,
-      extraStyles: GUIDE_FLOW_STYLES,
-      body: renderGuideFlow(basePath, lang),
+      extraStyles: `${GUIDE_FLOW_STYLES}\n${GUIDE_ENTRY_STYLES}`,
+      body: `${renderGuideFlow(basePath, lang)}${renderGuideLoopPanel(basePath, lang)}`,
       footerNote: guidePageCopy.footerNote,
     });
   });
