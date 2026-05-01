@@ -21,6 +21,7 @@
     "bakeoff:curator": "tsx src/scripts/curatorModelBakeoff.ts",
     "smoke:curator:invasive": "tsx src/scripts/smokeInvasiveLawCurator.ts",
     "e2e:staging": "playwright test -c playwright.staging.config.ts",
+    "e2e:staging:smoke": "playwright test -c playwright.staging.config.ts e2e/home.staging.spec.ts",
     "e2e:staging:site-map": "playwright test -c playwright.staging.config.ts e2e/sitemap-registry-visual.staging.spec.ts",
     "e2e:staging:update-snapshots": "playwright test -c playwright.staging.config.ts --update-snapshots",
     "e2e:production-smoke": "playwright test -c playwright.production-smoke.config.ts",

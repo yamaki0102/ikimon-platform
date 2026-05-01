@@ -1,4 +1,5 @@
 name: Deploy to Staging
+run-name: Staging ${{ github.event.inputs.verify_level || 'auto-preview' }} · ${{ github.event.inputs.branch || github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -18,13 +19,143 @@ on:
         required: false
         default: ''
         type: string
+      verify_level:
+        description: 'Verification depth: auto is the normal fast path; full is for release/cutover rehearsal'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - fast
+          - full
   push:
     branches: [staging]
 
 jobs:
+  plan:
+    name: Plan Staging Run
+    runs-on: ubuntu-latest
+    outputs:
+      verify_level: ${{ steps.plan.outputs.verify_level }}
+      php_changed: ${{ steps.plan.outputs.php_changed }}
+      v2_changed: ${{ steps.plan.outputs.v2_changed }}
+      migration_changed: ${{ steps.plan.outputs.migration_changed }}
+      deploy_changed: ${{ steps.plan.outputs.deploy_changed }}
+      browser_contract_changed: ${{ steps.plan.outputs.browser_contract_changed }}
+      run_php_lint: ${{ steps.plan.outputs.run_php_lint }}
+      run_manifest_check: ${{ steps.plan.outputs.run_manifest_check }}
+      run_browser_smoke: ${{ steps.plan.outputs.run_browser_smoke }}
+      run_full_browser_e2e: ${{ steps.plan.outputs.run_full_browser_e2e }}
+    steps:
+      - name: Validate and export branch name
+        run: |
+          BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
+          # git ref name allows alnum . _ - / ; reject anything else before shell expansion
+          if ! printf '%s' "$BRANCH" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            echo "Invalid branch name: $BRANCH"
+            exit 1
+          fi
+          echo "STAGING_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Classify staging change scope
+        id: plan
+        run: |
+          set -euo pipefail
+          VERIFY_LEVEL='${{ github.event.inputs.verify_level || 'auto' }}'
+          EVENT_NAME='${{ github.event_name }}'
+          BEFORE_SHA='${{ github.event.before || '' }}'
+          case "$VERIFY_LEVEL" in
+            auto|fast|full) ;;
+            *) echo "Invalid verify_level: $VERIFY_LEVEL"; exit 1 ;;
+          esac
+
+          git fetch origin main --quiet || true
+          if [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && ! printf '%s' "$BEFORE_SHA" | grep -qE '^0+$' && git rev-parse --verify "$BEFORE_SHA" >/dev/null 2>&1; then
+            CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" HEAD || true)"
+          elif git rev-parse --verify origin/main >/dev/null 2>&1; then
+            CHANGED_FILES="$(git diff --name-only origin/main...HEAD || git diff --name-only origin/main HEAD || true)"
+          else
+            CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r HEAD || true)"
+          fi
+
+          matches() {
+            printf '%s\n' "$CHANGED_FILES" | grep -Eq "$1"
+          }
+
+          PHP_CHANGED=false
+          V2_CHANGED=false
+          MIGRATION_CHANGED=false
+          DEPLOY_CHANGED=false
+          BROWSER_CONTRACT_CHANGED=false
+
+          if matches '^(upload_package/|tests/|tools/lint\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
+          if matches '^platform_v2/'; then V2_CHANGED=true; fi
+          if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
+          if matches '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
+          if matches '^platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json)'; then BROWSER_CONTRACT_CHANGED=true; fi
+
+          RUN_PHP_LINT=false
+          RUN_MANIFEST_CHECK=false
+          RUN_BROWSER_SMOKE=false
+          RUN_FULL_BROWSER_E2E=false
+
+          if [ "$VERIFY_LEVEL" = "full" ]; then
+            RUN_PHP_LINT=true
+            RUN_MANIFEST_CHECK=true
+            RUN_BROWSER_SMOKE=true
+            RUN_FULL_BROWSER_E2E=true
+          else
+            if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
+            if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_MANIFEST_CHECK=true; fi
+            if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ] || [ "$PHP_CHANGED" = "true" ]; then RUN_BROWSER_SMOKE=true; fi
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then RUN_BROWSER_SMOKE=true; fi
+            if [ "$VERIFY_LEVEL" = "auto" ] && [ "$BROWSER_CONTRACT_CHANGED" = "true" ]; then RUN_FULL_BROWSER_E2E=true; fi
+          fi
+
+          {
+            echo "verify_level=$VERIFY_LEVEL"
+            echo "php_changed=$PHP_CHANGED"
+            echo "v2_changed=$V2_CHANGED"
+            echo "migration_changed=$MIGRATION_CHANGED"
+            echo "deploy_changed=$DEPLOY_CHANGED"
+            echo "browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
+            echo "run_php_lint=$RUN_PHP_LINT"
+            echo "run_manifest_check=$RUN_MANIFEST_CHECK"
+            echo "run_browser_smoke=$RUN_BROWSER_SMOKE"
+            echo "run_full_browser_e2e=$RUN_FULL_BROWSER_E2E"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "verify_level=$VERIFY_LEVEL"
+          echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED browser_contract_changed=$BROWSER_CONTRACT_CHANGED"
+          echo "run_php_lint=$RUN_PHP_LINT run_manifest_check=$RUN_MANIFEST_CHECK run_browser_smoke=$RUN_BROWSER_SMOKE run_full_browser_e2e=$RUN_FULL_BROWSER_E2E"
+
+          {
+            echo "## Staging profile"
+            echo ""
+            if [ "$VERIFY_LEVEL" = "full" ]; then
+              echo "- Mode: release/full rehearsal"
+            else
+              echo "- Mode: lightweight staging preview"
+            fi
+            echo "- verify_level: $VERIFY_LEVEL"
+            echo "- PHP changed: $PHP_CHANGED"
+            echo "- platform_v2 changed: $V2_CHANGED"
+            echo "- deploy/nginx changed: $DEPLOY_CHANGED"
+            echo "- browser contract changed: $BROWSER_CONTRACT_CHANGED"
+            echo "- PHP lint: $RUN_PHP_LINT"
+            echo "- browser smoke: $RUN_BROWSER_SMOKE"
+            echo "- full browser E2E: $RUN_FULL_BROWSER_E2E"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   pre-flight:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
+    needs: plan
     steps:
       - name: Validate and export branch name
         run: |
@@ -42,6 +173,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup PHP
+        if: needs.plan.outputs.run_php_lint == 'true'
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
@@ -56,16 +188,18 @@ jobs:
         run: ./scripts/check_platform_v2_migration_guardrails.ps1 -BaseRef origin/main
 
       - name: Check staging manifest sync
+        if: needs.plan.outputs.run_manifest_check == 'true'
         shell: pwsh
         run: ./scripts/check_staging_manifest_sync.ps1
 
       - name: PHP Syntax Check
+        if: needs.plan.outputs.run_php_lint == 'true'
         run: php tools/lint.php
 
   deploy:
     name: Deploy via SSH (Staging)
     runs-on: ubuntu-latest
-    needs: pre-flight
+    needs: [plan, pre-flight]
     environment: staging
     steps:
       - name: Validate and export branch name
@@ -78,6 +212,7 @@ jobs:
           fi
           echo "STAGING_BRANCH=$BRANCH" >> "$GITHUB_ENV"
           echo "STAGING_ALLOW_NON_FF=${{ github.event.inputs.allow_non_fast_forward || 'false' }}" >> "$GITHUB_ENV"
+          echo "STAGING_VERIFY_LEVEL=${{ needs.plan.outputs.verify_level }}" >> "$GITHUB_ENV"
 
       - name: Deploy staging PHP lane via SSH
         uses: appleboy/ssh-action@v1
@@ -85,13 +220,41 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: STAGING_BRANCH,STAGING_ALLOW_NON_FF
+          envs: STAGING_BRANCH,STAGING_ALLOW_NON_FF,STAGING_VERIFY_LEVEL
           script: |
-            export STAGING_BRANCH STAGING_ALLOW_NON_FF
+            export STAGING_BRANCH STAGING_ALLOW_NON_FF STAGING_VERIFY_LEVEL
             cd /var/www/ikimon.life-staging/repo
             git fetch origin "$STAGING_BRANCH" >/dev/null
             LOCAL_HEAD="$(git rev-parse HEAD)"
             REMOTE_HEAD="$(git rev-parse "origin/$STAGING_BRANCH")"
+            SCOPE_FILE=/var/www/ikimon.life-staging/.github-deploy-scope.env
+            CHANGED_FILE=/var/www/ikimon.life-staging/.github-deploy-changed-files.txt
+            if [ "$LOCAL_HEAD" = "$REMOTE_HEAD" ]; then
+              : > "$CHANGED_FILE"
+            else
+              git diff --name-only "$LOCAL_HEAD" "$REMOTE_HEAD" > "$CHANGED_FILE"
+            fi
+            V2_CHANGED=false
+            PHP_CHANGED=false
+            DEPLOY_CHANGED=false
+            KNOWLEDGE_CHANGED=false
+            BROWSER_CONTRACT_CHANGED=false
+            if grep -Eq '^platform_v2/' "$CHANGED_FILE"; then V2_CHANGED=true; fi
+            if grep -Eq '^(upload_package/|tests/|tools/lint\.php|composer\.(json|lock)|phpunit\.xml)' "$CHANGED_FILE"; then PHP_CHANGED=true; fi
+            if grep -Eq '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)' "$CHANGED_FILE"; then DEPLOY_CHANGED=true; fi
+            if grep -Eq '^platform_v2/(src/(content|scripts/compileKnowledgeNavigation\.ts|scripts/runGuideEnvironmentPostDeploy\.ts|scripts/rebuildGuideEnvironmentMesh\.ts|services/(regional|guide|landingSnapshot|mapSnapshot))|content/)' "$CHANGED_FILE"; then KNOWLEDGE_CHANGED=true; fi
+            if grep -Eq '^platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json)' "$CHANGED_FILE"; then BROWSER_CONTRACT_CHANGED=true; fi
+            {
+              echo "LOCAL_HEAD=$LOCAL_HEAD"
+              echo "REMOTE_HEAD=$REMOTE_HEAD"
+              echo "VERIFY_LEVEL=${STAGING_VERIFY_LEVEL:-auto}"
+              echo "V2_CHANGED=$V2_CHANGED"
+              echo "PHP_CHANGED=$PHP_CHANGED"
+              echo "DEPLOY_CHANGED=$DEPLOY_CHANGED"
+              echo "KNOWLEDGE_CHANGED=$KNOWLEDGE_CHANGED"
+              echo "BROWSER_CONTRACT_CHANGED=$BROWSER_CONTRACT_CHANGED"
+            } > "$SCOPE_FILE"
+            echo "Deploy scope: verify=${STAGING_VERIFY_LEVEL:-auto} v2=$V2_CHANGED php=$PHP_CHANGED deploy=$DEPLOY_CHANGED knowledge=$KNOWLEDGE_CHANGED browser_contract=$BROWSER_CONTRACT_CHANGED"
             if [ "${STAGING_ALLOW_NON_FF:-false}" != "true" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ] && ! git merge-base --is-ancestor "$LOCAL_HEAD" "$REMOTE_HEAD"; then
               echo "Refusing non-fast-forward staging deploy."
               echo "Current staging HEAD: $LOCAL_HEAD"
@@ -121,9 +284,29 @@ jobs:
             DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
             set -euo pipefail
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            SCOPE_FILE=/var/www/ikimon.life-staging/.github-deploy-scope.env
             STAGING_ENV_DIR=/etc/ikimon
             STAGING_ENV_FILE="$STAGING_ENV_DIR/staging-v2.env"
             SERVICE_NAME=ikimon-v2-staging.service
+            VERIFY_LEVEL=auto
+            V2_CHANGED=true
+            KNOWLEDGE_CHANGED=true
+            DEPLOY_CHANGED=false
+            if [ -f "$SCOPE_FILE" ]; then
+              . "$SCOPE_FILE"
+            fi
+            SHOULD_REBUILD=false
+            SHOULD_RUN_KNOWLEDGE=false
+            if [ "$VERIFY_LEVEL" = "full" ] || [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then
+              SHOULD_REBUILD=true
+            fi
+            if [ "$VERIFY_LEVEL" = "full" ] || [ "$KNOWLEDGE_CHANGED" = "true" ]; then
+              SHOULD_RUN_KNOWLEDGE=true
+            fi
+            if [ "$SHOULD_REBUILD" != "true" ]; then
+              echo "Skip platform_v2 rebuild: deployed diff does not touch v2/deploy runtime files. Use verify_level=full to force."
+              exit 0
+            fi
             if [ ! -d "$V2_DIR" ]; then
               echo "platform_v2 directory missing at $V2_DIR"
               exit 1
@@ -151,32 +334,22 @@ jobs:
               exit 1
             fi
             IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
-            echo "== npm run compile:knowledge-navigation dry-run =="
-            DRY_RUN_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --dry-run --json)"
-            echo "$DRY_RUN_JSON"
-            echo "== npm run compile:knowledge-navigation first pass =="
-            FIRST_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --json)"
-            echo "$FIRST_JSON"
-            echo "== npm run compile:knowledge-navigation skip verification =="
-            SECOND_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --json)"
-            echo "$SECOND_JSON"
-            DRY_RUN_JSON="$DRY_RUN_JSON" FIRST_JSON="$FIRST_JSON" SECOND_JSON="$SECOND_JSON" node <<'NODE'
-            const dryRun = JSON.parse(process.env.DRY_RUN_JSON || "{}");
-            const first = JSON.parse(process.env.FIRST_JSON || "{}");
-            const second = JSON.parse(process.env.SECOND_JSON || "{}");
-            if (!dryRun.sourceSnapshotHash || dryRun.nodeCount < 1 || dryRun.documentCount < 1) {
-              throw new Error(`invalid dry-run counts: nodes=${dryRun.nodeCount} documents=${dryRun.documentCount}`);
-            }
-            if (first.sourceSnapshotHash !== dryRun.sourceSnapshotHash) {
-              throw new Error("first compile hash differs from dry-run hash");
-            }
-            if (second.sourceSnapshotHash !== dryRun.sourceSnapshotHash || second.skipped !== true) {
-              throw new Error("second compile did not skip unchanged source_snapshot_hash");
-            }
-            console.log(`knowledge-navigation verified nodes=${dryRun.nodeCount} documents=${dryRun.documentCount} hash=${dryRun.sourceSnapshotHash}`);
-            NODE
-            echo "== npm run postdeploy:guide-environment =="
-            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run postdeploy:guide-environment -- --hypothesis-limit=250 --trigger=staging
+            if [ "$SHOULD_RUN_KNOWLEDGE" = "true" ]; then
+              echo "== npm run compile:knowledge-navigation dry-run =="
+              DRY_RUN_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --dry-run --json)"
+              echo "$DRY_RUN_JSON"
+              echo "== npm run compile:knowledge-navigation first pass =="
+              FIRST_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --json)"
+              echo "$FIRST_JSON"
+              echo "== npm run compile:knowledge-navigation skip verification =="
+              SECOND_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --json)"
+              echo "$SECOND_JSON"
+              DRY_RUN_JSON="$DRY_RUN_JSON" FIRST_JSON="$FIRST_JSON" SECOND_JSON="$SECOND_JSON" node -e 'const dryRun = JSON.parse(process.env.DRY_RUN_JSON || "{}"); const first = JSON.parse(process.env.FIRST_JSON || "{}"); const second = JSON.parse(process.env.SECOND_JSON || "{}"); if (!dryRun.sourceSnapshotHash || dryRun.nodeCount < 1 || dryRun.documentCount < 1) { throw new Error("invalid dry-run counts: nodes=" + dryRun.nodeCount + " documents=" + dryRun.documentCount); } if (first.sourceSnapshotHash !== dryRun.sourceSnapshotHash) { throw new Error("first compile hash differs from dry-run hash"); } if (second.sourceSnapshotHash !== dryRun.sourceSnapshotHash || second.skipped !== true) { throw new Error("second compile did not skip unchanged source_snapshot_hash"); } console.log("knowledge-navigation verified nodes=" + dryRun.nodeCount + " documents=" + dryRun.documentCount + " hash=" + dryRun.sourceSnapshotHash);'
+              echo "== npm run postdeploy:guide-environment =="
+              DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run postdeploy:guide-environment -- --hypothesis-limit=250 --trigger=staging
+            else
+              echo "Skip knowledge-navigation/postdeploy: deployed diff does not touch knowledge inputs. Use verify_level=full to force."
+            fi
             echo "== update canonical staging env file =="
             mkdir -p "$STAGING_ENV_DIR"
             TMP_ENV="$(mktemp)"
@@ -226,6 +399,16 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
+            SCOPE_FILE=/var/www/ikimon.life-staging/.github-deploy-scope.env
+            VERIFY_LEVEL=auto
+            DEPLOY_CHANGED=true
+            if [ -f "$SCOPE_FILE" ]; then
+              . "$SCOPE_FILE"
+            fi
+            if [ "$VERIFY_LEVEL" != "full" ] && [ "$DEPLOY_CHANGED" != "true" ]; then
+              echo "Skip nginx sync: deployed diff does not touch deploy/nginx files. Use verify_level=full to force."
+              exit 0
+            fi
             SRC=/var/www/ikimon.life-staging/repo/ops/deploy/staging_ikimon_life_tls_reference.conf
             DST=/etc/nginx/sites-available/staging.ikimon.life
             ENABLED_DIR=/etc/nginx/sites-enabled
@@ -369,7 +552,8 @@ jobs:
   verify-e2e:
     name: Verify Staging in Browser
     runs-on: ubuntu-latest
-    needs: verify-ssh
+    needs: [plan, verify-ssh]
+    if: needs.plan.outputs.run_browser_smoke == 'true' || needs.plan.outputs.run_full_browser_e2e == 'true'
     environment: staging
     steps:
       - uses: actions/checkout@v5
@@ -392,6 +576,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run staging registry sitemap smoke
+        if: needs.plan.outputs.run_full_browser_e2e == 'true'
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
@@ -405,7 +590,18 @@ jobs:
             npm run e2e:staging:site-map
           fi
 
+      - name: Run staging browser smoke
+        if: needs.plan.outputs.run_full_browser_e2e != 'true'
+        working-directory: platform_v2
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: npm run e2e:staging:smoke
+
       - name: Run staging browser E2E
+        if: needs.plan.outputs.run_full_browser_e2e == 'true'
         working-directory: platform_v2
         env:
           STAGING_BASE_URL: https://staging.ikimon.life
