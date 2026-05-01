@@ -11,18 +11,21 @@ Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_p
 
 ## Runtime Fast Path
 
-- `ikimon.life` 本番の通常ルート `/` は **`platform_v2` Node runtime**。本番の login / record / map / API 調査は **まず `platform_v2/` から入る**
-- `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **まず `platform_v2/` から入る**
-- legacy PHP (`upload_package/`) は **互換・移行元・`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` と言わない限り、本番/ staging 相談で最初に触らない
+- **Default is always `platform_v2/`. Do not ask whether to use legacy PHP or v2.** For normal ikimon.life work, assume v2 and start from `platform_v2/`.
+- `ikimon.life` 本番の通常ルート `/` は **`platform_v2` Node runtime**。本番の login / record / map / API 調査は **必ず `platform_v2/` から入る**
+- `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **必ず `platform_v2/` から入る**
+- legacy PHP (`upload_package/`) は **互換・移行元・`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` / `upload_package` と言った場合、または `platform_v2` から明確に参照される legacy boundary を調査する場合だけ触る
+- 通常の実装で `upload_package/` の PHP を編集してはいけない。例外が必要な場合は、先に `platform_v2` 側で解けない根拠と legacy boundary を確認してから最小変更に限る
 - staging の正準根拠は `ops/CUTOVER_RUNBOOK.md` と `ops/deploy/staging_ikimon_life_tls_reference.conf`
 - `staging` とだけ言われた場合のデフォルト解釈は **`platform_v2 staging`**。`upload_package` ではない
+- 古い docs / handover / catch-up が PHP 入口を示していても、現在の通常開発入口としては採用しない。`platform_v2` を source of truth として扱う
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Staging primary | Node.js (`platform_v2`) |
-| Backend | PHP 8.2 (vanilla, no framework) |
+| Primary runtime | Node.js (`platform_v2`) |
+| Legacy compatibility | PHP 8.2 (`upload_package`, explicit legacy work only) |
 | Frontend | Alpine.js 3.14.9 + Tailwind CSS (CDN) + Lucide Icons 0.477.0 |
 | Maps | MapLibre GL JS + OpenStreetMap tiles |
 | Data | JSON file storage (partitioned: `data/observations/YYYY-MM.json`) |
@@ -150,11 +153,13 @@ $obs['location']['name']
 ## Testing
 
 ```bash
-composer test            # All tests
-composer test:unit       # Unit tests only
-composer test:feature    # Feature/integration tests
-php tools/lint.php       # Full syntax check
-php -S localhost:8899 -t upload_package/public_html  # Dev server
+npm --prefix platform_v2 run typecheck      # Default verification for normal work
+npm --prefix platform_v2 run test:node      # v2 unit / integration tests
+npm --prefix platform_v2 run dev            # v2 local dev server
+
+# Legacy PHP only when the user explicitly asks for legacy/PHP/upload_package work:
+composer test
+php tools/lint.php
 ```
 
 ## Deployment

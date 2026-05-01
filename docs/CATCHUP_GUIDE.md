@@ -3,6 +3,9 @@
 ikimon.life は `shared-root` 構成で Web と Android が同居している。  
 ファイル数が増えた今は、毎回ディレクトリを手で舐めるより、入口を固定してから深掘りした方が速い。
 
+> **Current default:** 通常の本番 / staging / UI / API / login / record / map 調査は **必ず `platform_v2/` から開始する**。
+> `upload_package/` の legacy PHP は、ユーザーが明示的に `legacy` / `PHP` / `upload_package` と言った場合、または v2 から参照される legacy boundary の調査に限る。開始時に「PHP か v2 か」を確認しない。
+
 ## まず最初の 5 分
 
 1. `README.md` で全体像を確認
@@ -14,9 +17,9 @@ ikimon.life は `shared-root` 構成で Web と Android が同居している。
 7. Claude へ現状を引き継ぐなら `docs/CLAUDE_HANDOVER_2026-04-12_RENEWAL_GATE_STATUS.md` を読む
 8. Claude にレビューや ultra-plan を頼むなら `docs/CLAUDE_FEEDBACK_REQUEST_2026-04-12_RENEWAL.md` を使う
 9. 多言語公開面の完了状況を確認したいときは `docs/MULTILINGUAL_PARITY_AUDIT_2026-04-12.md` を読む
-10. v2 切替条件と PHP / v2 の境界を確認したいときは `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` を読む
-11. タスクの種類に応じて下の「どこを見るか」から入口を選ぶ
-12. 実装前に `composer lint` または対象周辺のテストを回す
+10. v2 切替条件と legacy boundary を確認したいときは `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` を読む
+11. 通常実装は `platform_v2/` を入口にして、タスクの種類に応じて下の「どこを見るか」から補助資料を選ぶ
+12. 実装前に `npm --prefix platform_v2 run typecheck` または対象周辺のテストを回す
 
 ## どこを見るか
 
@@ -31,7 +34,7 @@ ikimon.life は `shared-root` 構成で Web と Android が同居している。
 | 継続動機と collective AI growth の thesis を確認 | `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\domains\ikimon_product_strategy.md` | `自分が学ぶ + みんなの AI を育てる` を product spine にする broader strategy |
 | 直近の続き作業 | `docs/CLAUDE_HANDOVER_2026-04-12_MULTILINGUAL_STAGING_UI.md` | 多言語対応、staging、UI hardening の現行メモ |
 | 多言語公開面の完了状況 | `docs/MULTILINGUAL_PARITY_AUDIT_2026-04-12.md` | staging で確認した公開面 `ja/en/es/pt-BR` parity の監査結果 |
-| v2 切替条件を確認 | `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` | PHP で続ける範囲と cutover readiness gate の運用用 checklist |
+| v2 / legacy boundary を確認 | `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` | legacy PHP を触ってよい例外範囲と cutover readiness gate の運用用 checklist |
 | destructive migration の merge 条件を確認 | `docs/architecture/ikimon_destructive_migration_policy_2026-04-12.md` | rollback plan なしで危険 migration を通さないための運用ルール |
 | 切替条件の当日Todoを実行 | `docs/architecture/ikimon_cutover_day1_todo_2026-04-12.md` | Gate 1 / Gate 2 を1日で前進させる実務用 checklist |
 | legacy write inventory の差分確認 | `scripts/check_legacy_write_inventory.ps1` | known write surface と未棚卸し候補を機械的に見る |
@@ -39,12 +42,12 @@ ikimon.life は `shared-root` 構成で Web と Android が同居している。
 | canonical 契約を確認 | `docs/architecture/ikimon_canonical_contract_table_2026-04-12.md` | place / visit / observation / evidence / condition / follow の保存契約表 |
 | divergence 仕様を確認 | `docs/architecture/ikimon_canonical_divergence_minimum_spec_2026-04-12.md` | JSON と canonical の最小比較観点と pass / warn / fail 条件 |
 | asset drift を確認 | `docs/architecture/ikimon_asset_path_mapping_2026-04-12.md` | `public_html/uploads` と `persistent/uploads` の mapping 表 |
-| 公開ページ改修 | `upload_package/public_html/*.php` | `index.php`, `post.php`, `observation_detail.php`, `field_research.php` が重量級 |
-| API 改修 | `upload_package/public_html/api/` | `admin/`, `affiliate/`, `business/`, `v2/` に分岐 |
-| 業務ロジック追跡 | `upload_package/libs/` | classmap 読み込み。サービス層は `libs/Services/` |
-| UI パーツ確認 | `upload_package/public_html/components/` | ページ内 include の起点 |
-| CLI / 保守系 | `upload_package/scripts/`, `upload_package/tools/`, repo 直下 `scripts/` | ingest / migration / seed / watchdog が混在 |
-| テスト確認 | `tests/Unit`, `tests/Feature` | PHPUnit 10 |
+| 公開ページ改修 | `platform_v2/src/` | 通常の公開 UI は v2 が正本。legacy PHP ページは明示された場合のみ |
+| API 改修 | `platform_v2/src/routes/` | 通常 API は v2 routes から確認。legacy PHP API は明示された場合のみ |
+| 業務ロジック追跡 | `platform_v2/src/services/` | v2 service layer を先に追う。legacy libs は boundary 調査に限る |
+| UI パーツ確認 | `platform_v2/src/ui/` | v2 UI / content / client assets を先に見る |
+| CLI / 保守系 | `platform_v2/src/scripts/`, repo 直下 `scripts/` | migration / seed / ops は v2 側を優先 |
+| テスト確認 | `platform_v2/src/**/*.test.ts` | Node test / typecheck を優先。PHPUnit は legacy 明示時のみ |
 | Android 側 | `mobile/android/ikimon-pocket/app/src/main/` | WebView shell + pocket 機能 |
 | 仕様・引き継ぎ | `docs/`, `readme/`, `要件/` | 最新の運用メモは `docs/` を優先 |
 
@@ -52,8 +55,11 @@ ikimon.life は `shared-root` 構成で Web と Android が同居している。
 
 | パス | 役割 |
 |---|---|
-| `upload_package/public_html/` | 本番公開ルート |
-| `upload_package/libs/` | PHP ドメインロジック |
+| `platform_v2/` | 通常の本番 / staging 正本 runtime |
+| `platform_v2/src/routes/` | v2 API / page route |
+| `platform_v2/src/services/` | v2 domain service |
+| `upload_package/public_html/` | legacy compatibility。通常入口にしない |
+| `upload_package/libs/` | legacy PHP domain logic。通常実装で触らない |
 | `upload_package/config/` | 設定・秘匿情報。原則触らない |
 | `upload_package/data/` | データストア。手編集禁止 |
 | `tests/` | PHPUnit |
@@ -65,9 +71,8 @@ ikimon.life は `shared-root` 構成で Web と Android が同居している。
 ## 日常コマンド
 
 ```powershell
-composer lint
-composer test
-php -S localhost:8899 -t upload_package/public_html
+npm --prefix platform_v2 run typecheck
+npm --prefix platform_v2 run test:node
 powershell -ExecutionPolicy Bypass -File .\scripts\generate_catchup_snapshot.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\generate_workspace_from_manifest.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_catchup_sync.ps1
@@ -75,10 +80,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_catchup_sync.ps1
 
 ## 迷ったときの判断順
 
-1. まず `public_html` の入口ページか API を特定する
-2. そこから `require` / `include` / 利用クラスを辿って `libs` に入る
+1. まず `platform_v2/src/routes/` の入口 route を特定する
+2. そこから v2 の service / UI / content / db migration を辿る
 3. 仕様判断が必要なら `docs/` を見る
 4. 過去経緯まで必要なときだけ `readme/` や `要件/` に降りる
+5. legacy PHP は、明示指示または v2 から参照される boundary が確認できた場合だけ見る
 
 ## 更新ルール
 
