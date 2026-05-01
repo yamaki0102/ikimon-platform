@@ -19,6 +19,12 @@ function isoDateDaysAgo(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function normalizeDateArg(raw: string | undefined): string {
+  if (!raw || raw === "today") return isoDateDaysAgo(0);
+  if (raw === "yesterday") return isoDateDaysAgo(1);
+  return raw;
+}
+
 function parseArgs(): Args {
   const raw = new Set(process.argv.slice(2));
   const dateArg = process.argv.find((arg) => arg.startsWith("--date="));
@@ -34,7 +40,7 @@ function parseArgs(): Args {
     ? trigger as Args["triggerSource"]
     : "manual";
   return {
-    date: dateArg?.slice("--date=".length) || isoDateDaysAgo(1),
+    date: normalizeDateArg(dateArg?.slice("--date=".length)),
     dryRun: raw.has("--dry-run"),
     rebuildLimit: Number.isFinite(rebuildLimit) && rebuildLimit && rebuildLimit > 0 ? Math.round(rebuildLimit) : undefined,
     hypothesisLimit: Number.isFinite(hypothesisLimit) && hypothesisLimit > 0 ? Math.min(1000, Math.round(hypothesisLimit)) : 250,

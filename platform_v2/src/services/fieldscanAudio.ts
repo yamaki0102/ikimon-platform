@@ -1,14 +1,19 @@
+import { execFile as execFileCb } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { recordSegmentEmbedding } from "./audioEmbedding.js";
 import { upsertAssetBlob } from "./writeSupport.js";
 
+const execFile = promisify(execFileCb);
 const AUDIO_STORAGE_BACKEND = "private_audio_fs";
 const DEFAULT_CAPTURE_PROFILE = "opus_mono_24khz_32kbps_2s";
+const AUDIO_FFPROBE_TIMEOUT_MS = 3000;
+const MIN_PROBED_AUDIO_DURATION_SEC = 0.1;
 const ALLOWED_COMPRESSED_AUDIO_MIME_TYPES = new Set([
   "audio/webm",
   "video/webm",
@@ -296,6 +301,128 @@ function audioUploadRelativePath(sessionId: string, recordedAt: string, mimeType
   return path.posix.join("v2-audio", yearMonth, sessionSlug, `${baseName}-${stamped}${extensionForAudioMime(mimeType)}`);
 }
 
+function audioQuarantineRelativePath(
+  sessionId: string,
+  recordedAt: string,
+  mimeType: string,
+  filename: string | undefined,
+  reason: string,
+): string {
+  const date = new Date(recordedAt);
+  const yearMonth = Number.isNaN(date.getTime()) ? "unknown" : date.toISOString().slice(0, 7);
+  const sessionSlug = sessionId.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 80) || "session";
+  const baseName = sanitizeFilename(filename ?? "chunk").replace(/\.[A-Za-z0-9]+$/, "");
+  const safeReason = sanitizeFilename(reason).slice(0, 48) || "invalid";
+  const stamped = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return path.posix.join("v2-audio-quarantine", yearMonth, sessionSlug, `${baseName}-${safeReason}-${stamped}${extensionForAudioMime(mimeType)}`);
+}
+
+function audioProbeRelativePath(sessionId: string, recordedAt: string, mimeType: string): string {
+  const date = new Date(recordedAt);
+  const yearMonth = Number.isNaN(date.getTime()) ? "unknown" : date.toISOString().slice(0, 7);
+  const sessionSlug = sessionId.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 80) || "session";
+  const stamped = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return path.posix.join("v2-audio-probe", yearMonth, sessionSlug, `probe-${stamped}${extensionForAudioMime(mimeType)}`);
+}
+
+function hasWebmEbmlHeader(buffer: Buffer): boolean {
+  return buffer.byteLength >= 4
+    && buffer[0] === 0x1a
+    && buffer[1] === 0x45
+    && buffer[2] === 0xdf
+    && buffer[3] === 0xa3;
+}
+
+function hasOggHeader(buffer: Buffer): boolean {
+  return buffer.byteLength >= 4 && buffer.subarray(0, 4).toString("ascii") === "OggS";
+}
+
+function hasMp4FtypBox(buffer: Buffer): boolean {
+  return buffer.byteLength >= 12 && buffer.subarray(4, 8).toString("ascii") === "ftyp";
+}
+
+export function validateAudioContainerMagic(buffer: Buffer, mimeType: string): { ok: true } | { ok: false; reason: string } {
+  const mime = canonicalAudioMimeType(mimeType);
+  if (mime === "audio/webm") {
+    return hasWebmEbmlHeader(buffer) ? { ok: true } : { ok: false, reason: "audio_container_invalid_webm" };
+  }
+  if (mime === "audio/ogg") {
+    return hasOggHeader(buffer) ? { ok: true } : { ok: false, reason: "audio_container_invalid_ogg" };
+  }
+  if (mime === "audio/mp4") {
+    return hasMp4FtypBox(buffer) ? { ok: true } : { ok: false, reason: "audio_container_invalid_mp4" };
+  }
+  return { ok: false, reason: "unsupported_audio_format" };
+}
+
+async function ffprobeAudioBuffer(buffer: Buffer, input: AudioSegmentSubmitInput, mimeType: string): Promise<{
+  ok: true;
+  durationSec: number | null;
+  codecName: string | null;
+} | { ok: false; reason: string }> {
+  const probePath = audioProbeRelativePath(input.sessionId, input.recordedAt, mimeType);
+  const absoluteProbePath = resolveAudioAbsolutePath(probePath);
+  await mkdir(path.dirname(absoluteProbePath), { recursive: true });
+  await writeFile(absoluteProbePath, buffer);
+  try {
+    const { stdout } = await execFile(
+      "ffprobe",
+      [
+        "-v", "error",
+        "-show_entries", "format=duration:stream=codec_type,codec_name,duration",
+        "-of", "json",
+        absoluteProbePath,
+      ],
+      { timeout: AUDIO_FFPROBE_TIMEOUT_MS, maxBuffer: 128 * 1024 },
+    );
+    const parsed = JSON.parse(stdout) as {
+      format?: { duration?: string | number };
+      streams?: Array<{ codec_type?: string; codec_name?: string; duration?: string | number }>;
+    };
+    const audioStream = Array.isArray(parsed.streams)
+      ? parsed.streams.find((stream) => stream.codec_type === "audio")
+      : null;
+    if (!audioStream) return { ok: false, reason: "audio_probe_no_audio_stream" };
+    const durationCandidate = Number(audioStream.duration ?? parsed.format?.duration ?? 0);
+    const durationSec = Number.isFinite(durationCandidate) && durationCandidate > 0 ? durationCandidate : null;
+    if (durationSec !== null && durationSec < MIN_PROBED_AUDIO_DURATION_SEC) {
+      return { ok: false, reason: "audio_probe_duration_too_short" };
+    }
+    return { ok: true, durationSec, codecName: typeof audioStream.codec_name === "string" ? audioStream.codec_name : null };
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
+    if (code === "ENOENT") return { ok: true, durationSec: null, codecName: null };
+    return { ok: false, reason: "audio_probe_failed" };
+  } finally {
+    await rm(absoluteProbePath, { force: true }).catch(() => undefined);
+  }
+}
+
+async function quarantineRejectedAudio(
+  buffer: Buffer,
+  input: AudioSegmentSubmitInput,
+  mimeType: string,
+  reason: string,
+  meta: AudioSegmentMeta,
+): Promise<string> {
+  const storagePath = audioQuarantineRelativePath(input.sessionId, input.recordedAt, mimeType, input.filename, reason);
+  const absolutePath = resolveAudioAbsolutePath(storagePath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, buffer);
+  await writeFile(`${absolutePath}.json`, JSON.stringify({
+    reason,
+    sessionId: input.sessionId,
+    recordedAt: input.recordedAt,
+    mimeType,
+    filename: input.filename ?? null,
+    bytes: buffer.byteLength,
+    sha256: createHash("sha256").update(buffer).digest("hex"),
+    captureProfile: meta.captureProfile ?? DEFAULT_CAPTURE_PROFILE,
+    quarantinedAt: new Date().toISOString(),
+  }, null, 2));
+  return storagePath;
+}
+
 function buildBundleKey(fingerprint: AudioFingerprintSummary | null, segmentId: string): string {
   if (!fingerprint) return `solo:${segmentId}`;
   const peakBucket = Math.max(0, Math.round((fingerprint.peakHz ?? 0) / 250));
@@ -366,6 +493,25 @@ async function persistInlineAudio(client: PoolClient, input: AudioSegmentSubmitI
   if (buffer.byteLength > 3 * 1024 * 1024) {
     throw new Error("audio_too_large");
   }
+
+  const magic = validateAudioContainerMagic(buffer, mimeType);
+  if (!magic.ok) {
+    await quarantineRejectedAudio(buffer, input, mimeType, magic.reason, meta);
+    throw new Error(`audio_quarantined_${magic.reason}`);
+  }
+
+  const probe = await ffprobeAudioBuffer(buffer, input, mimeType);
+  if (!probe.ok) {
+    await quarantineRejectedAudio(buffer, input, mimeType, probe.reason, meta);
+    throw new Error(`audio_quarantined_${probe.reason}`);
+  }
+  meta.serverAudioProbe = {
+    gateVersion: "fieldscan_audio_probe_v1",
+    checkedAt: new Date().toISOString(),
+    ffprobeAvailable: probe.durationSec !== null || probe.codecName !== null,
+    durationSec: probe.durationSec,
+    codecName: probe.codecName,
+  };
 
   const storagePath = audioUploadRelativePath(input.sessionId, input.recordedAt, mimeType, input.filename);
   const absolutePath = resolveAudioAbsolutePath(storagePath);
