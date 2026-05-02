@@ -1392,8 +1392,12 @@ function renderSubjectHint(
   const boost = aiAssessment.observerBoost
     ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
     : "";
-  const nextStep = aiAssessment.nextStepText
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次にあると絞りやすいもの</div><p>${escapeHtml(aiAssessment.nextStepText)}</p></div>`
+  // 「次にあると絞りやすいもの」「さらに確認するなら」「次に撮る1枚」を「次に撮るべき写真」1個に統合
+  const nextShotItems: string[] = [];
+  if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
+  aiAssessment.confirmMore.forEach((tip) => { if (tip) nextShotItems.push(tip); });
+  const nextStep = nextShotItems.length > 0
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次に撮るべき写真</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(nextShotItems[0])}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul>`}</div>`
     : "";
   const funFact = aiAssessment.funFact
     ? `<div class="obs-hint-fun"><div class="obs-hint-eye">ちょっとした豆知識</div><p>${escapeHtml(aiAssessment.funFact)}</p></div>`
@@ -1410,12 +1414,12 @@ function renderSubjectHint(
         ).join("")}</ul>
       </div>`
     : "";
-  const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
+  // similar: confirmMore は nextStep に統合済みなので、ここでは出さない
+  const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0
     ? `<div class="obs-hint-similar">
          <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
          ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((taxon) => `<li>${escapeHtml(taxon.name)}${taxon.rank ? ` <small>(${escapeHtml(taxon.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
          ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul></div>` : ""}
-         ${aiAssessment.confirmMore.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">さらに確認するなら</div><ul class="obs-hint-bul">${aiAssessment.confirmMore.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul></div>` : ""}
          <p class="obs-hint-reminder">※ AI による参考情報です。確証を得るには実物の観察や図鑑の確認をおすすめします。</p>
        </div>`
     : "";
@@ -1462,7 +1466,6 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
     </div>
     <p class="regional-story-lead">${escapeHtml(story.whyHere)}</p>
     <div class="regional-story-grid">
-      <div><small>次に撮る1枚</small><strong>${escapeHtml(story.nextObservationAngle)}</strong></div>
       <div><small>この場所が育つこと</small><strong>${escapeHtml(story.collectiveNote)}</strong></div>
     </div>
     ${sourceLinks}
@@ -1570,17 +1573,17 @@ function renderAreaInferenceCard(
     })
     .filter(Boolean)
     .join("");
-  return `<section class="obs-area-card" aria-label="この1枚からのエリア推察">
-    <div class="obs-area-head">
+  return `<details class="obs-area-card" aria-label="この1枚からのエリア推察">
+    <summary class="obs-area-head" style="cursor:pointer;list-style:none">
       <div>
-        <div class="obs-hint-eyebrow">この 1 枚からのエリア推察</div>
+        <div class="obs-hint-eyebrow">この 1 枚からのエリア推察 <span class="obs-hint-eye-note">タップで展開</span></div>
         <p class="obs-hint-reminder">AI が写真から読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。</p>
       </div>
       <span class="obs-hint-badge obs-hint-badge-candidate">参考</span>
-    </div>
+    </summary>
     ${briefBanner}
     ${hasAny ? `<div class="obs-area-groups">${groups}</div>` : ""}
-  </section>`;
+  </details>`;
 }
 
 const SHOT_ROLE_META: Record<string, { icon: string; label: string }> = {
@@ -6783,7 +6786,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       subjectCount,
       mediaCount: snapshot.photoAssets.length + snapshot.videoAssets.length,
     });
-    const nextActionRail = renderObservationNextActionRail(nextActions);
+    // 上部のアクション案内を廃止（下部 ctaBlock に「関連と次の一歩」として集約済みのため重複削除）
+    const nextActionRail = "";
+    void nextActions;
     const heroBlock = renderObservationReadingHero({
       mediaBlock,
       snapshot,
@@ -6800,11 +6805,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       trustLead,
       aiCandidateLearningPanel,
     });
-    const summaryBlock = `<section id="summary" class="section obs-layer obs-summary-section" data-obs-section="summary">
-      <h2 class="obs-layer-title">観察の要約</h2>
-      ${summaryStrip}
-      <p class="obs-summary-copy">このページは、写真から見えたもの、名前の確かさ、次に撮るべき証拠、同じ場所の履歴を1本の読み順で追えるように並べています。</p>
-    </section>`;
+    // 下部の「観察の要約」ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
+    const summaryBlock = "";
     const readProgressBlock = renderObservationReadProgress({
       basePath,
       observationId: bundle.visitId,
@@ -6974,15 +6976,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         viewerSession,
         canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
       })}</template>`).join("");
-    const supportBlock = `<section id="trust" class="section obs-support-panel" aria-label="名前の確かさ" data-obs-section="trust">
-      ${reactionBar
-        ? `<div class="obs-support-actions">
+    // supportBlock は reactionBar のみ表示。trustLadderBlock は hero に既出のため重複削除
+    const supportBlock = reactionBar
+      ? `<section id="trust" class="section obs-support-panel" aria-label="この記録への反応" data-obs-section="trust">
+           <div class="obs-support-actions">
              <h2 class="obs-support-title">この記録への反応</h2>
              ${reactionBar}
-           </div>`
-        : ""}
-      ${trustLadderBlock}
-    </section>`;
+           </div>
+         </section>`
+      : "";
+    void trustLadderBlock;
     const reassessButtons: string[] = [];
     if (isOwner) {
       reassessButtons.push(
