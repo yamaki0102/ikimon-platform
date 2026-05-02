@@ -110,7 +110,6 @@ async function main() {
   for (const filename of migrationFiles) {
     const fullPath = path.join(migrationsDir, filename);
     const sql = await readFile(fullPath, "utf8");
-    assertSafeMigration(filename, sql, options);
     const checksum = checksumFor(sql);
     const appliedMigration = applied.get(filename);
 
@@ -129,6 +128,8 @@ async function main() {
       console.log(`skip ${filename}`);
       continue;
     }
+
+    assertSafeMigration(filename, sql, options);
 
     const client = await pool.connect();
     try {
