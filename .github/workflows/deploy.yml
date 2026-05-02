@@ -124,7 +124,7 @@ jobs:
 
       - name: Install Playwright Chromium
         working-directory: platform_v2
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Run production candidate browser smoke
         working-directory: platform_v2
