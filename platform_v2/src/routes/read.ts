@@ -1472,8 +1472,15 @@ function isMeaningfulRegionalSource(card: RegionalKnowledgeCard): boolean {
 
 function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, variant: "observation" | "profile" | "compact" = "observation"): string {
   if (!story) return "";
-  const cards = story.cards.slice(0, variant === "observation" ? 2 : 1);
-  const meaningfulCards = cards.filter(isMeaningfulRegionalSource);
+  const rawCards = story.cards.slice(0, variant === "observation" ? 2 : 1);
+  // Dedupe by sourceUrl + 一般ポータルURLを除外（top/index/単一セグメント）
+  const seenUrls = new Set<string>();
+  const meaningfulCards = rawCards.filter((card) => {
+    if (!card.sourceUrl || seenUrls.has(card.sourceUrl)) return false;
+    if (!isMeaningfulRegionalSource(card)) return false;
+    seenUrls.add(card.sourceUrl);
+    return true;
+  });
   const sourceLinks = meaningfulCards.length > 0
     ? `<div class="regional-story-sources" aria-label="参照した地域資料">
         <small class="regional-story-sources-eye">資料</small>
