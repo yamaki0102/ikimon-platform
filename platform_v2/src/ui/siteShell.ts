@@ -2107,7 +2107,8 @@ ${alternateLinks}
       padding: 22px clamp(16px, 2.4vw, 36px) 24px;
     }
     .shell.shell-map {
-      padding-top: 18px;
+      padding: 0;
+      max-width: none;
     }
     .md-hidden { display: none; }
     .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
@@ -3620,8 +3621,8 @@ ${alternateLinks}
     @media (max-width: 720px) {
       .md-hidden { display: inline; }
       .shell { padding: 16px 16px 18px; }
-      .shell.shell-bleed,
-      .shell.shell-map { padding: 14px 12px 18px; }
+      .shell.shell-bleed { padding: 14px 12px 18px; }
+      .shell.shell-map { padding: 0; }
       .site-header-inner {
         padding: 9px 12px;
         gap: 8px;
