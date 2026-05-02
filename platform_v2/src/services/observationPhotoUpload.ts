@@ -1,16 +1,29 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
 import { recordCompatibilityFailure, upsertAssetBlob } from "./writeSupport.js";
+import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
+import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
+import { enqueueMediaProcessingJobsStandalone } from "./mediaProcessingJobs.js";
 
 export type ObservationPhotoUploadInput = {
   observationId: string;
   filename: string;
   mimeType: string;
   base64Data: string;
+  mediaRole?: MediaRole | string | null;
+  facePrivacy?: FacePrivacySummary | null;
+};
+
+export type FacePrivacySummary = {
+  detector?: string | null;
+  status?: string | null;
+  faceCount?: number | null;
+  error?: string | null;
 };
 
 export type ObservationPhotoUploadResult = {
@@ -23,6 +36,7 @@ export type ObservationPhotoUploadResult = {
     succeeded: boolean;
     error?: string;
   };
+  facePrivacy: FacePrivacySummary | null;
 };
 
 function sanitizeFilename(filename: string): string {
@@ -68,6 +82,50 @@ function assertInput(input: ObservationPhotoUploadInput): void {
   }
 }
 
+function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
+  if (!input || typeof input !== "object") return null;
+  const record = input as Record<string, unknown>;
+  const status = typeof record.status === "string" ? record.status : null;
+  if (status && !["redacted", "no_faces", "unavailable"].includes(status)) return null;
+  const faceCount = Number(record.faceCount);
+  return {
+    detector: typeof record.detector === "string" ? record.detector.slice(0, 80) : null,
+    status,
+    faceCount: Number.isFinite(faceCount) ? Math.max(0, Math.min(100, Math.round(faceCount))) : 0,
+    error: typeof record.error === "string" ? record.error.slice(0, 120) : null,
+  };
+}
+
+async function normalizeObservationImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string; widthPx: number | null; heightPx: number | null }> {
+  const normalizedMime = mimeType.trim().toLowerCase();
+  if (normalizedMime === "image/gif") {
+    return { buffer, mimeType: normalizedMime, widthPx: null, heightPx: null };
+  }
+  try {
+    const image = sharp(buffer, { failOn: "none" }).rotate().resize({
+      width: 2560,
+      height: 2560,
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+    const pipeline = normalizedMime === "image/png"
+      ? image.png({ compressionLevel: 8, adaptiveFiltering: true })
+      : normalizedMime === "image/webp"
+        ? image.webp({ quality: 86, effort: 4 })
+        : image.jpeg({ quality: 88, mozjpeg: true });
+    const output = await pipeline.toBuffer();
+    const metadata = await sharp(output, { failOn: "none" }).metadata();
+    return {
+      buffer: output,
+      mimeType: normalizedMime === "image/png" || normalizedMime === "image/webp" ? normalizedMime : "image/jpeg",
+      widthPx: typeof metadata.width === "number" ? metadata.width : null,
+      heightPx: typeof metadata.height === "number" ? metadata.height : null,
+    };
+  } catch {
+    return { buffer, mimeType: normalizedMime, widthPx: null, heightPx: null };
+  }
+}
+
 export async function uploadObservationPhoto(input: ObservationPhotoUploadInput): Promise<ObservationPhotoUploadResult> {
   assertInput(input);
 
@@ -75,17 +133,24 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   const pool = getPool();
   const client = await pool.connect();
   const normalizedBase64 = normalizeBase64(input.base64Data);
-  const buffer = Buffer.from(normalizedBase64, "base64");
-  if (buffer.byteLength === 0) {
+  const originalBuffer = Buffer.from(normalizedBase64, "base64");
+  if (originalBuffer.byteLength === 0) {
     throw new Error("decoded image is empty");
   }
+  if (originalBuffer.byteLength > 18 * 1024 * 1024) {
+    throw new Error("image exceeds upload preflight limit");
+  }
+  const normalizedImage = await normalizeObservationImage(originalBuffer, input.mimeType);
+  const buffer = normalizedImage.buffer;
   if (buffer.byteLength > 10 * 1024 * 1024) {
-    throw new Error("image exceeds 10MB limit");
+    throw new Error("image exceeds 10MB limit after normalization");
   }
 
   const sha256 = createHash("sha256").update(buffer).digest("hex");
+  const mediaRole = normalizeMediaRole(input.mediaRole);
+  const facePrivacy = normalizeFacePrivacy(input.facePrivacy);
   const safeBase = sanitizeFilename(input.filename).replace(/\.[A-Za-z0-9]+$/, "");
-  const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(input.mimeType)}`;
+  const fileName = `${safeBase}-${sha256.slice(0, 12)}${extensionForMime(normalizedImage.mimeType)}`;
 
   let visitId = "";
   let occurrenceId = "";
@@ -127,18 +192,24 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
       storageBackend: "local_fs",
       storagePath: relativePath,
       mediaType: "image",
-      mimeType: input.mimeType,
+      mimeType: normalizedImage.mimeType,
       publicUrl: `/${relativePath}`,
       sha256,
       bytes: buffer.byteLength,
+      widthPx: normalizedImage.widthPx,
+      heightPx: normalizedImage.heightPx,
       sourcePayload: {
         source: "v2_photo_upload",
         visit_id: visitId,
+        media_role: mediaRole,
+        face_privacy: facePrivacy,
+        normalized_max_edge_px: 2560,
+        original_bytes: originalBuffer.byteLength,
       },
     });
 
     const legacyAssetKey = `observation_photo:${visitId}:upload:${sha256}`;
-    await client.query(
+    const assetResult = await client.query<{ asset_id: string }>(
       `insert into evidence_assets (
           asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
        ) values (
@@ -149,7 +220,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           occurrence_id = excluded.occurrence_id,
           visit_id = excluded.visit_id,
           legacy_relative_path = excluded.legacy_relative_path,
-          source_payload = excluded.source_payload`,
+          source_payload = excluded.source_payload
+       returning asset_id::text`,
       [
         randomUUID(),
         blobId,
@@ -160,8 +232,53 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         JSON.stringify({
           source: "v2_photo_upload",
           filename: input.filename,
+          media_role: mediaRole,
+          face_privacy: facePrivacy,
         }),
       ],
+    );
+    const assetId = assetResult.rows[0]?.asset_id;
+    if (!assetId) {
+      throw new Error("failed_to_upsert_photo_asset");
+    }
+    await upsertEvidenceAssetMediaRole(client, {
+      assetId,
+      occurrenceId,
+      visitId,
+      assetRole: "observation_photo",
+      mediaRole,
+      mediaRoleSource: "user",
+      sourcePayload: {
+        source: "v2_photo_upload",
+        filename: input.filename,
+        face_privacy: facePrivacy,
+      },
+    });
+
+    await client.query(
+      `update visits
+          set public_visibility = 'public',
+              quality_review_status = 'accepted',
+              quality_gate_reasons = coalesce((
+                select jsonb_agg(reason)
+                  from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
+                 where reason <> 'missing_photo'
+              ), '[]'::jsonb),
+              updated_at = now()
+        where visit_id = $1`,
+      [visitId],
+    );
+
+    await client.query(
+      `update observation_quality_reviews
+          set review_status = 'accepted',
+              public_visibility = 'public',
+              reviewed_at = coalesce(reviewed_at, now()),
+              updated_at = now()
+        where visit_id = $1
+          and reason_code = 'native_no_photo'
+          and review_status = 'needs_review'`,
+      [visitId],
     );
 
     await client.query("commit");
@@ -198,11 +315,31 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     }
   }
 
+  try {
+    await enqueueMediaProcessingJobsStandalone([{
+      mediaKind: "photo",
+      mediaUid: occurrenceId,
+      observationId: visitId,
+      occurrenceId,
+      jobType: "photo_ready_reassess",
+      sourcePayload: {
+        source: "v2_photo_upload",
+        uploaded_observation_id: input.observationId,
+        media_role: mediaRole,
+        face_privacy: facePrivacy,
+        relative_path: relativePath,
+      },
+    }]);
+  } catch {
+    // Media jobs are a best-effort follow-up; the photo itself is already durable.
+  }
+
   return {
     visitId,
     occurrenceId,
     relativePath,
     publicUrl: `/${relativePath}`,
     compatibility,
+    facePrivacy,
   };
 }

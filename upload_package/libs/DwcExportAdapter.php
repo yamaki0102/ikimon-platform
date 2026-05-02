@@ -4,7 +4,7 @@
  * DwcExportAdapter — Canonical Schema → Darwin Core Archive エクスポート
  *
  * Canonical Schema (SQLite 5層) のデータを GBIF 準拠の DwC-A 形式にエクスポートする。
- * デフォルトでは Evidence Tier 2 以上のみ公開。
+ * レガシー互換アダプタ。研究公開では原則 Evidence Tier 3+ 相当のみを対象にする。
  *
  * ADR-001, ADR-002 準拠。100年耐久フィールド対応。
  *
@@ -47,7 +47,7 @@ class DwcExportAdapter
     /**
      * Canonical Schema から DwC-A CSV を生成
      *
-     * @param float  $minTier    最低 Evidence Tier (デフォルト 2)
+     * @param float  $minTier    最低 Evidence Tier (レガシー既定 2、研究公開は呼び出し側で 3+ を指定)
      * @param string $siteId     特定サイトのみ (空=全サイト)
      * @param string $format     'csv' | 'archive'
      * @return string CSV 文字列 or ZIP ファイルパス
@@ -280,7 +280,7 @@ XML;
       <para>
         Citizen science biodiversity observations from ikimon.life platform.
         Includes photo observations, audio walk detections (BirdNET), and live scan data.
-        Evidence Tier 2+ records only (community verified or above).
+        Research export is intended for Evidence Tier 3+ / research-grade-like records.
         Records: {$recordCount}
       </para>
     </abstract>

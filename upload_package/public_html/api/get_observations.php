@@ -149,7 +149,7 @@ if (!empty($query)) {
         $name = $obs['taxon']['name'] ?? '';
         $sName = $obs['taxon']['scientific_name'] ?? '';
         $note = $obs['note'] ?? '';
-        $place = $obs['place_name'] ?? '';
+        $place = PrivacyFilter::resolvePublicLocationLabel($obs);
 
         // Existing direct match (unchanged)
         $directMatch = stripos($name, $query) !== false
@@ -193,12 +193,15 @@ foreach ($data as &$obs) {
 
     $originalLat = $obs['lat'] ?? null;
     $originalLng = $obs['lng'] ?? null;
-    $privacyFiltered = PrivacyFilter::autoFilter($obs);
-    $filteredLat = $privacyFiltered['latitude'] ?? $privacyFiltered['lat'] ?? null;
-    $filteredLng = $privacyFiltered['longitude'] ?? $privacyFiltered['lng'] ?? null;
-    $obs['lat'] = is_numeric($filteredLat) ? (float)$filteredLat : null;
-    $obs['lng'] = is_numeric($filteredLng) ? (float)$filteredLng : null;
+    if (!empty($obs['user_id'])) {
+        $obs['user_name'] = BioUtils::getUserName($obs['user_id']);
+    }
+
+    $privacyFiltered = PrivacyFilter::filterForPublicDisplay($obs);
+    $obs = PrivacyFilter::decoratePublicObservation($privacyFiltered, $privacyFiltered);
     $obs['privacy_layer'] = $privacyFiltered['privacy_layer'] ?? 'ambient';
+    $obs['lat'] = $obs['public_location']['lat'] ?? null;
+    $obs['lng'] = $obs['public_location']['lng'] ?? null;
 
     if (isset($obs['taxon']['name'])) {
         $rl = RedList::check($obs['taxon']['name']);
@@ -208,12 +211,8 @@ foreach ($data as &$obs) {
     }
     if (($obs['privacy_layer'] ?? '') === 'ambient'
         && (($obs['lat'] !== $originalLat) || ($obs['lng'] !== $originalLng) || (($obs['location_granularity'] ?? 'exact') !== 'exact'))) {
-        $obs['obscured_radius'] = $privacyFiltered['grid_m'] ?? null;
+        $obs['obscured_radius'] = $obs['public_location']['radius_m'] ?? null;
         $obs['is_obscured'] = true;
-    }
-    // Inject fresh user name
-    if (isset($obs['user_id'])) {
-        $obs['user_name'] = BioUtils::getUserName($obs['user_id']);
     }
     $obs['latest_ai_assessment'] = latestAiAssessmentSummary($obs);
     if (!empty($obs['canonical_view']['enabled'])) {

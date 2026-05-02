@@ -1,6 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -30,8 +31,12 @@ type ImportSummary = {
 
 function parseArgs(argv: string[]): ImportOptions {
   const projectRoot = process.cwd();
+  const legacyRoots = resolveLegacyRoots(projectRoot, {
+    mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
+    legacyDataRoot: process.env.LEGACY_DATA_ROOT,
+  });
   const options: ImportOptions = {
-    legacyDataRoot: path.resolve(projectRoot, "../upload_package/data"),
+    legacyDataRoot: legacyRoots.legacyDataRoot,
     dryRun: false,
     limit: null,
     importVersion: "v0-plan",

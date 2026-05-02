@@ -1,6 +1,6 @@
 # ikimon.life — Agent Guide
 
-Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js frontend.
+Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_package/`) + v2 Node app (`platform_v2/`).
 
 > **共通ルール・デプロイ方針・SSHサーバー構成は `~/.codex/AGENTS.md` を参照。**
 > **（管理元: `antigravity/.agent/global/AGENTS.global.md`）**
@@ -9,11 +9,23 @@ Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js front
 > → `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` → `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` → `docs/KNOWLEDGE_OS_OVERVIEW.md` の順で読む
 > → overview 更新要否は `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` で確認する
 
+## Runtime Fast Path
+
+- **Default is always `platform_v2/`. Do not ask whether to use legacy PHP or v2.** For normal ikimon.life work, assume v2 and start from `platform_v2/`.
+- `ikimon.life` 本番の通常ルート `/` は **`platform_v2` Node runtime**。本番の login / record / map / API 調査は **必ず `platform_v2/` から入る**
+- `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **必ず `platform_v2/` から入る**
+- legacy PHP (`upload_package/`) は **互換・移行元・`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` / `upload_package` と言った場合、または `platform_v2` から明確に参照される legacy boundary を調査する場合だけ触る
+- 通常の実装で `upload_package/` の PHP を編集してはいけない。例外が必要な場合は、先に `platform_v2` 側で解けない根拠と legacy boundary を確認してから最小変更に限る
+- staging の正準根拠は `ops/CUTOVER_RUNBOOK.md` と `ops/deploy/staging_ikimon_life_tls_reference.conf`
+- `staging` とだけ言われた場合のデフォルト解釈は **`platform_v2 staging`**。`upload_package` ではない
+- 古い docs / handover / catch-up が PHP 入口を示していても、現在の通常開発入口としては採用しない。`platform_v2` を source of truth として扱う
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | PHP 8.2 (vanilla, no framework) |
+| Primary runtime | Node.js (`platform_v2`) |
+| Legacy compatibility | PHP 8.2 (`upload_package`, explicit legacy work only) |
 | Frontend | Alpine.js 3.14.9 + Tailwind CSS (CDN) + Lucide Icons 0.477.0 |
 | Maps | MapLibre GL JS + OpenStreetMap tiles |
 | Data | JSON file storage (partitioned: `data/observations/YYYY-MM.json`) |
@@ -141,11 +153,13 @@ $obs['location']['name']
 ## Testing
 
 ```bash
-composer test            # All tests
-composer test:unit       # Unit tests only
-composer test:feature    # Feature/integration tests
-php tools/lint.php       # Full syntax check
-php -S localhost:8899 -t upload_package/public_html  # Dev server
+npm --prefix platform_v2 run typecheck      # Default verification for normal work
+npm --prefix platform_v2 run test:node      # v2 unit / integration tests
+npm --prefix platform_v2 run dev            # v2 local dev server
+
+# Legacy PHP only when the user explicitly asks for legacy/PHP/upload_package work:
+composer test
+php tools/lint.php
 ```
 
 ## Deployment
@@ -163,7 +177,15 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 5. GitHub Actions が自動的に VPS へデプロイ
 ```
 
-**Codex がデプロイのために追加でやることは何もない。** PR を作るだけでよい。
+### GitHub 管理者権限の扱い
+
+- ユーザーが「反映して」「マージして」「本番へ進めて」と明示した場合、Codex は GitHub 管理者権限で進める前提でよい
+- PR が `MERGEABLE` かつ required checks が通過済みで、止まっている理由が `REVIEW_REQUIRED` のみなら、`gh pr merge --admin` で owner review 待ちを bypass してよい
+- ただし、失敗中の CI / deploy guardrail / migration guardrail / production smoke を管理者権限で無視してはいけない
+- `main` への直接 push は引き続き禁止。管理者権限を使う場合も、`codex/<task-name>` → PR → admin merge → GitHub Actions deploy の順序を守る
+
+**Codex がデプロイのために手動SSHで追加作業することは原則ない。** PR を作り、必要なら admin merge し、GitHub Actions の結果を確認する。
+本番反映をユーザーが依頼した場合は、PR 作成や merge で止めず、該当する GitHub Actions deploy workflow が `success` / `failure` などの最終状態になるまで監視し、失敗時はログ確認と止血まで継続する。
 `deploy.sh` はローカルの preflight 用であり、本番 deploy はしない。
 
 ### Deploy Source of Truth

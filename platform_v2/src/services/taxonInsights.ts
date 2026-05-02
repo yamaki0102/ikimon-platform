@@ -67,6 +67,27 @@ function parseResponse(text: string): {
   }
 }
 
+const BACKGROUND_IN_FLIGHT = new Set<string>();
+
+function fireBackgroundInsightGeneration(opts: {
+  scientificName: string;
+  vernacularName?: string;
+  lat?: number;
+  lng?: number;
+  season?: string;
+  lang?: "ja" | "en";
+}): void {
+  const key = `${opts.scientificName || opts.vernacularName || ""}|${opts.lang ?? "ja"}`;
+  if (BACKGROUND_IN_FLIGHT.has(key)) return;
+  BACKGROUND_IN_FLIGHT.add(key);
+  // kick off generation in background; errors are swallowed
+  void getTaxonInsight({ ...opts, cacheOnly: false })
+    .catch(() => undefined)
+    .finally(() => {
+      BACKGROUND_IN_FLIGHT.delete(key);
+    });
+}
+
 export async function getTaxonInsight(opts: {
   scientificName: string;
   vernacularName?: string;
@@ -74,6 +95,8 @@ export async function getTaxonInsight(opts: {
   lng?: number;
   season?: string;
   lang?: "ja" | "en";
+  /** true = cache のみ参照し、キャッシュ miss なら empty を即返し + バックグラウンドで Gemini 生成を発火。SSR path で使う。 */
+  cacheOnly?: boolean;
 }): Promise<TaxonInsight> {
   const lang = opts.lang ?? "ja";
   const sn = opts.scientificName.trim();
@@ -113,6 +136,13 @@ export async function getTaxonInsight(opts: {
       generatedAt: r.generated_at,
       source: "cache",
     };
+  }
+
+  // cacheOnly: キャッシュ miss なら即 empty を返し、バックグラウンドで生成 queue
+  if (opts.cacheOnly) {
+    const { cacheOnly: _ignored, ...fire } = opts;
+    fireBackgroundInsightGeneration(fire);
+    return empty(sn, vn);
   }
 
   // 2. Gemini 生成

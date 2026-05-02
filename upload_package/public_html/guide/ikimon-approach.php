@@ -126,7 +126,7 @@ Auth::init();
             "name": "ikimon.life"
         },
         "datePublished": "2026-03-21",
-        "dateModified": "2026-03-26",
+        "dateModified": "2026-05-01",
         "about": [
             { "@type": "Thing", "name": "市民科学" },
             { "@type": "Thing", "name": "生物多様性モニタリング" },
@@ -156,7 +156,7 @@ Auth::init();
                 "name": "日本でも市民科学は進んでいるのか？",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "2026年1月時点で485サイトが自然共生サイトに認定され、30by30アライアンスには1,000以上の組織が参加しています。市民データと専門家データを50-70%の割合で混合すると最も正確な種分布推定が得られることが研究で示されています。"
+                    "text": "2026年3月17日時点で569サイトが自然共生サイトに認定され、環境省は早期に500以上認定する目標を達成しました。30by30アライアンスには1,000以上の組織が参加しており、市民データと専門家データを50-70%の割合で混合すると最も正確な種分布推定が得られることが研究で示されています。"
                 }
             },
             {
@@ -250,9 +250,9 @@ Auth::init();
                     <p class="text-[10px] text-faint mt-0.5">330万人が参加</p>
                 </div>
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">529</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">569</p>
                     <p class="text-xs text-muted mt-1">自然共生サイト認定</p>
-                    <p class="text-[10px] text-faint mt-0.5">日本 2025年</p>
+                    <p class="text-[10px] text-faint mt-0.5">日本 2026年3月17日時点</p>
                 </div>
                 <div class="evidence-card text-center">
                     <p class="stat-number text-2xl md:text-3xl font-black">62.5%</p>
@@ -409,12 +409,16 @@ Auth::init();
                 </h3>
 
                 <p>
-                    日本では環境省が「自然共生サイト」の認定制度を 2023年に開始しました。2026年1月時点で <strong class="text-text">485サイトが認定</strong>され、うち 282サイト（54,500ヘクタール）が国際データベースに OECM として登録されています。30by30 アライアンスには<strong class="text-text">企業・自治体・NGO など 1,000以上の組織</strong>が参加しています。
+                    日本では環境省が「自然共生サイト」の認定制度を 2023年に開始しました。<strong class="text-text">2026年3月17日時点で 569サイトが認定</strong>され、同日の環境省発表で「早期に500以上認定する」目標が達成されました。30by30 アライアンスには<strong class="text-text">企業・自治体・NGO など 1,000以上の組織</strong>が参加しています。
                 </p>
 
                 <p>
                     興味深い研究結果もあります。生き物の分布を正確に推定するには、専門家のデータだけでも、市民のデータだけでもダメで、<strong class="text-text">両方を 50-70% の割合で混ぜたときがいちばん精度が高い</strong>ことがわかっています。専門家と市民が補い合う関係です。
                     <span class="block text-[11px] text-faint mt-1">出典: eLife 2024 "Boosting biodiversity monitoring using smartphone-driven data"</span>
+                </p>
+
+                <p>
+                    重要なのは、認定がゴールではないことです。現行制度では、認定後に<strong class="text-text">モニタリング設計、支援マッチング、支援証明書、成果発信</strong>へ進む運用フェーズが前面に出ています。自然共生サイトは「いい場所ですね」で終わるラベルではなく、<strong class="text-text">守り続ける仕組みを回す実装単位</strong>になりつつあります。
                 </p>
 
                 <!-- 健康との接点 -->
@@ -875,11 +879,11 @@ Auth::init();
                         <div class="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
                             <i data-lucide="map" class="w-4 h-4 text-violet-600"></i>
                         </div>
-                        <h4 class="font-black text-sm">自然共生サイト 529か所</h4>
+                        <h4 class="font-black text-sm">自然共生サイト 569か所</h4>
                     </div>
                     <p class="text-xs text-muted leading-relaxed">
                         環境省の「30by30」目標のもと、里山・企業林・寺社林など民間管理地も保全エリアとして認定。
-                        2025年の地域生物多様性増進法施行で制度化が加速。
+                        2026年春時点では、認定後のモニタリング、支援マッチング、支援証明書まで含む運用フェーズに入っている。
                     </p>
                 </div>
                 <div class="feature-card">

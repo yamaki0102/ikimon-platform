@@ -8,13 +8,55 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $outputFullPath = if ([System.IO.Path]::IsPathRooted($OutputPath)) { $OutputPath } else { Join-Path $repoRoot $OutputPath }
 $manifestFullPath = if ([System.IO.Path]::IsPathRooted($ManifestPath)) { $ManifestPath } else { Join-Path $repoRoot $ManifestPath }
+$trackedRelativePaths = @()
 
 function Get-RelativePath {
     param([string]$BasePath, [string]$TargetPath)
 
-    $baseUri = [Uri]($BasePath.TrimEnd('\') + '\')
-    $targetUri = [Uri]$TargetPath
-    return [Uri]::UnescapeDataString($baseUri.MakeRelativeUri($targetUri).ToString()).Replace('/', '\')
+    return [System.IO.Path]::GetRelativePath($BasePath, $TargetPath).Replace('/', '\')
+}
+
+function Get-NormalizedRelativePath {
+    param([string]$Path)
+
+    return $Path.Replace('\', '/').TrimStart('/')
+}
+
+function Get-TrackedFilePaths {
+    param(
+        [string]$Path,
+        [string]$Filter = "*",
+        [switch]$Recurse
+    )
+
+    $relativeRoot = Get-NormalizedRelativePath (Get-RelativePath -BasePath $repoRoot -TargetPath $Path)
+    if ($relativeRoot -eq ".") {
+        $relativeRoot = ""
+    }
+    $relativeRoot = $relativeRoot.TrimEnd('/')
+    $prefix = if ([string]::IsNullOrWhiteSpace($relativeRoot)) { "" } else { "$relativeRoot/" }
+
+    $matches = foreach ($relativePath in $trackedRelativePaths) {
+        $normalizedPath = Get-NormalizedRelativePath $relativePath
+        if ($prefix -and -not $normalizedPath.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+            continue
+        }
+
+        if (-not $Recurse) {
+            $remaining = if ($prefix) { $normalizedPath.Substring($prefix.Length) } else { $normalizedPath }
+            if ($remaining.Contains('/')) {
+                continue
+            }
+        }
+
+        if ([System.IO.Path]::GetFileName($normalizedPath) -notlike $Filter) {
+            continue
+        }
+
+        Join-Path $repoRoot $normalizedPath
+    }
+
+    return @($matches | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-Item -LiteralPath $_ -Force })
 }
 
 function Get-FileList {
@@ -28,7 +70,7 @@ function Get-FileList {
         return @()
     }
 
-    return Get-ChildItem -Path $Path -File -Filter $Filter -Recurse:$Recurse
+    return Get-TrackedFilePaths -Path $Path -Filter $Filter -Recurse:$Recurse
 }
 
 if (-not (Test-Path $manifestFullPath)) {
@@ -37,9 +79,16 @@ if (-not (Test-Path $manifestFullPath)) {
 
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
 $excludedTopLevelDirectories = @($manifest.excludeTopLevelDirectories)
+$trackedRelativePaths = @(git -C $repoRoot ls-files)
 
-$topLevelDirectories = Get-ChildItem -Path $repoRoot -Directory |
-    Where-Object { $_.Name -notin $excludedTopLevelDirectories } |
+$trackedTopLevelDirectoryNames = $trackedRelativePaths |
+    ForEach-Object { (Get-NormalizedRelativePath $_).Split('/')[0] } |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -notin $excludedTopLevelDirectories } |
+    Sort-Object -Unique
+
+$topLevelDirectories = $trackedTopLevelDirectoryNames |
+    ForEach-Object { Get-Item -LiteralPath (Join-Path $repoRoot $_) -Force -ErrorAction SilentlyContinue } |
+    Where-Object { $_ -and $_.PSIsContainer } |
     Sort-Object Name
 
 $publicPages = Get-FileList -Path (Join-Path $repoRoot "upload_package\public_html") -Filter "*.php"
@@ -84,7 +133,7 @@ foreach ($section in $manifest.sections) {
     switch ($section.mode) {
         "top_level_directories" {
             foreach ($directory in $topLevelDirectories) {
-                $fileCount = (Get-ChildItem -Path $directory.FullName -File -Recurse -ErrorAction SilentlyContinue | Measure-Object).Count
+                $fileCount = (Get-TrackedFilePaths -Path $directory.FullName -Recurse | Measure-Object).Count
                 $null = $lines.Add("- $($directory.Name)/ : $fileCount files")
             }
         }

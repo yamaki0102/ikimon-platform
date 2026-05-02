@@ -1,6 +1,6 @@
 # ikimon.life Master Status and Development Plan
 
-更新日: 2026-04-12
+更新日: 2026-04-22
 
 目的:
 
@@ -18,13 +18,18 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 ### Layer A. 現行プロダクト改装
 
 - 正本:
+  - `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
   - `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
+- 公開主軸:
+  - `ENJOY NATURE`
 - 主語:
-  - `地元の人`
-  - `近い場所`
-  - `再訪`
+  - `一般ユーザー`
+  - `地元で繰り返し使う人`
+  - `旅先ユーザー`
 - 目標:
-  - `近くの自然が、ちょっとおもしろくなる`
+  - `自然が楽しい`
+  - `世界の解像度が上がる`
+  - `また歩きたくなる`
   - その先で `Place Intelligence OS` へ伸ばす
 
 ### Layer B. 現行 PHP の canonical 改善
@@ -63,7 +68,8 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 
 ### 表の顔
 
-- `近くの自然が、ちょっとおもしろくなる`
+- `ENJOY NATURE`
+- `自然が楽しい。世界の解像度が上がる。`
 
 ### 内部定義
 
@@ -166,14 +172,15 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 
 ### 改装判断
 
-1. `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
-2. `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
-3. `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
-4. `docs/spec/ikimon_long_term_observatory_data_principles_2026-04-11.md`
-5. `docs/strategy/ikimon_nature_site_monitoring_acceleration_plan_2026-04-12.md`
-6. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\notes\ikimon_identification_system_master_note.md`
-7. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\domains\ikimon_product_strategy.md`
-8. `docs/strategy/ikimon_renewal_gate_framework_2026-04-12.md`
+1. `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md`
+2. `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md`
+3. `docs/strategy/ikimon_decision_sheet_2026-04-11.md`
+4. `docs/spec/ikimon_place_first_regional_os_implementation_spec_2026-04-11.md`
+5. `docs/spec/ikimon_long_term_observatory_data_principles_2026-04-11.md`
+6. `docs/strategy/ikimon_nature_site_monitoring_acceleration_plan_2026-04-12.md`
+7. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\notes\ikimon_identification_system_master_note.md`
+8. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\domains\ikimon_product_strategy.md`
+9. `docs/strategy/ikimon_renewal_gate_framework_2026-04-12.md`
 
 ### canonical / migration
 
@@ -221,6 +228,11 @@ ikimon.life はいま、次の 3 レイヤーが並走している。
 
 - Home / Explore / Profile / For Business は整理が進みつつある
 - About / apply / high-density pages はまだ思想統一が弱い
+
+対策:
+
+- `docs/strategy/ikimon_public_surface_canonical_pack_2026-04-22.md` を public IA / message / feature-role の唯一正本にする
+- 以後の UI 実装は canonical pack の page intent と route disposition に従って進める
 
 ### P0. 企業導線は `見える化` ではなく `自然共生サイトの高速起動` に寄せ切る必要がある
 

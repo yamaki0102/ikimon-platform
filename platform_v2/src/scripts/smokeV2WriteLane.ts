@@ -2,6 +2,7 @@ type SmokeOptions = {
   baseUrl: string;
   fixturePrefix: string;
   privilegedWriteApiKey: string;
+  cleanup: boolean;
 };
 
 type SmokeResult = {
@@ -25,6 +26,7 @@ function parseArgs(argv: string[]): SmokeOptions {
     baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
     fixturePrefix: `smoke-${stamp}`,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY ?? "",
+    cleanup: true,
   };
 
   for (const arg of argv) {
@@ -39,6 +41,10 @@ function parseArgs(argv: string[]): SmokeOptions {
     if (arg.startsWith("--privileged-write-api-key=")) {
       options.privilegedWriteApiKey =
         arg.slice("--privileged-write-api-key=".length).trim() || options.privilegedWriteApiKey;
+      continue;
+    }
+    if (arg === "--no-cleanup") {
+      options.cleanup = false;
     }
   }
 
@@ -115,6 +121,50 @@ function validateObservationResponse(payload: unknown): string | null {
   return null;
 }
 
+function validateMapCells(payload: unknown): string | null {
+  if (!isRecord(payload) || payload.type !== "FeatureCollection" || !Array.isArray(payload.features)) {
+    return "map cells payload missing feature collection";
+  }
+  if (!payload.features.length) {
+    return "map cells payload returned no cells";
+  }
+  const first = payload.features[0];
+  if (!isRecord(first) || !isRecord(first.geometry) || first.geometry.type !== "Polygon") {
+    return "map cells payload should expose polygon cells";
+  }
+  if (!isRecord(first.properties) || typeof first.properties.cellId !== "string") {
+    return "map cells payload missing cellId";
+  }
+  return null;
+}
+
+function validateMapContainsVisit(
+  payload: unknown,
+  expectedOccurrenceId: string,
+  expectedVisitId: string,
+): string | null {
+  if (!isRecord(payload) || !Array.isArray(payload.items)) {
+    return "map observations payload missing items";
+  }
+  const hit = payload.items.some((item) => {
+    if (!isRecord(item)) {
+      return false;
+    }
+    return item.occurrenceId === expectedOccurrenceId || item.visitId === expectedVisitId;
+  });
+  if (!hit) {
+    return `map observations missing visit ${expectedVisitId}`;
+  }
+  const leaked = payload.items.some((item) => {
+    if (!isRecord(item)) return false;
+    return "lat" in item || "lng" in item || "placeName" in item || "siteName" in item;
+  });
+  if (leaked) {
+    return "map observations leaked exact or site-level location fields";
+  }
+  return null;
+}
+
 function validatePhotoUploadResponse(payload: unknown): string | null {
   if (!isRecord(payload)) {
     return "photo upload response is not an object";
@@ -171,15 +221,34 @@ function withSessionCookie(cookie: string): Record<string, string> | undefined {
   return cookie ? { cookie } : undefined;
 }
 
+function validateCleanupResponse(payload: unknown): string | null {
+  if (!isRecord(payload) || payload.ok !== true || !isRecord(payload.cleanup)) {
+    return "cleanup response missing cleanup summary";
+  }
+  return null;
+}
+
+function isLocalBaseUrl(baseUrl: string): boolean {
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    return hostname === "127.0.0.1" || hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const userId = `${options.fixturePrefix}-user`;
   const observationId = `${options.fixturePrefix}-obs`;
+  const noteOnlyObservationId = `${options.fixturePrefix}-note-only`;
   const sessionId = `${options.fixturePrefix}-track`;
   const nowIso = new Date().toISOString();
   const rawToken = `${options.fixturePrefix}-remember-token`;
   const tinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
+  const noteOnlyLatitude = 34.7116;
+  const noteOnlyLongitude = 137.7274;
 
   const userPayload = {
     userId,
@@ -217,6 +286,42 @@ async function main(): Promise<void> {
       source: "smoke_v2_write_lane",
     },
   };
+  const noteOnlyObservationPayload = {
+    observationId: noteOnlyObservationId,
+    legacyObservationId: noteOnlyObservationId,
+    userId,
+    observedAt: nowIso,
+    latitude: noteOnlyLatitude,
+    longitude: noteOnlyLongitude,
+    prefecture: "Shizuoka",
+    municipality: "Hamamatsu",
+    localityNote: "Staging write-lane smoke note-only",
+    note: "write lane note-only observation",
+    siteId: "smoke-note-only-site",
+    siteName: "Staging Smoke Note-only Site",
+    dataQuality: "smoke",
+    qualityGrade: "casual",
+    evidenceTags: ["smoke", "note-only"],
+    substrateTags: ["test"],
+    taxon: null,
+    sourcePayload: {
+      source: "smoke_v2_write_lane",
+      scenario: "note_only",
+    },
+  };
+  const noteOnlyMapCellsUrl = `${baseUrl}/api/v1/map/cells?bbox=${[
+    noteOnlyLongitude - 0.01,
+    noteOnlyLatitude - 0.01,
+    noteOnlyLongitude + 0.01,
+    noteOnlyLatitude + 0.01,
+  ].join(",")}&zoom=13&marker_profile=manual_only`;
+
+  const noteOnlyMapUrl = `${baseUrl}/api/v1/map/observations?bbox=${[
+    noteOnlyLongitude - 0.01,
+    noteOnlyLatitude - 0.01,
+    noteOnlyLongitude + 0.01,
+    noteOnlyLatitude + 0.01,
+  ].join(",")}&zoom=13&limit=50&marker_profile=manual_only`;
 
   const trackPayload = {
     sessionId,
@@ -249,6 +354,8 @@ async function main(): Promise<void> {
   const checks: SmokeResult[] = [];
   let failed = false;
   let sessionCookie = "";
+  let noteOnlyOccurrenceId = "";
+  let noteOnlyVisitId = "";
 
   const steps = [
     {
@@ -299,6 +406,34 @@ async function main(): Promise<void> {
       payload: observationPayload,
       validate: validateObservationResponse,
       headers: () => withSessionCookie(sessionCookie),
+    },
+    {
+      name: "observations/upsert note-only",
+      url: `${baseUrl}/api/v1/observations/upsert`,
+      payload: noteOnlyObservationPayload,
+      validate: validateObservationResponse,
+      headers: () => withSessionCookie(sessionCookie),
+      afterSuccess: (response: JsonResponse) => {
+        if (!isRecord(response.payload)) {
+          return;
+        }
+        noteOnlyOccurrenceId = typeof response.payload.occurrenceId === "string" ? response.payload.occurrenceId : "";
+        noteOnlyVisitId = typeof response.payload.visitId === "string" ? response.payload.visitId : "";
+      },
+    },
+    {
+      name: "map/cells note-only",
+      url: noteOnlyMapCellsUrl,
+      method: "GET",
+      payload: null,
+      validate: validateMapCells,
+    },
+    {
+      name: "map/observations note-only",
+      url: noteOnlyMapUrl,
+      method: "GET",
+      payload: null,
+      validate: (payload: unknown) => validateMapContainsVisit(payload, noteOnlyOccurrenceId, noteOnlyVisitId),
     },
     {
       name: "observations/photos/upload",
@@ -379,6 +514,57 @@ async function main(): Promise<void> {
         error: error instanceof Error ? error.message : "unknown_write_lane_failure",
       });
       failed = true;
+    }
+  }
+
+  if (options.cleanup) {
+    const cleanupUrl = `${baseUrl}/api/v1/ops/staging/fixtures/cleanup`;
+    try {
+      const cleanupResponse = await postJson(
+        cleanupUrl,
+        {
+          fixturePrefix: options.fixturePrefix,
+          dryRun: false,
+        },
+        privilegedHeaders(options),
+      );
+      const cleanupError = validateCleanupResponse(cleanupResponse.payload);
+      if (cleanupError) {
+        checks.push({
+          name: "fixtures/cleanup",
+          url: cleanupUrl,
+          ok: false,
+          error: cleanupError,
+          response: cleanupResponse.payload,
+        });
+        failed = true;
+      } else {
+        checks.push({
+          name: "fixtures/cleanup",
+          url: cleanupUrl,
+          ok: true,
+          response: cleanupResponse.payload,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown_fixture_cleanup_failure";
+      const cleanupDisabled = message.includes("staging_fixture_cleanup_disabled");
+      if (cleanupDisabled && isLocalBaseUrl(baseUrl)) {
+        checks.push({
+          name: "fixtures/cleanup",
+          url: cleanupUrl,
+          ok: true,
+          error: "cleanup_skipped_local_env",
+        });
+      } else {
+        checks.push({
+          name: "fixtures/cleanup",
+          url: cleanupUrl,
+          ok: false,
+          error: message,
+        });
+        failed = true;
+      }
     }
   }
 

@@ -31,6 +31,23 @@ $allSites = SiteManager::listAll();
 $redListSpecies = [];
 $dqaCounts = ['A' => 0, 'B' => 0, 'C' => 0, 'D' => 0];
 $dqaTotal = 0;
+$plotMonitoring = [
+    'plot_count' => 0,
+    'plots' => [],
+    'summary' => [
+        'proxy_ready_count' => 0,
+        'proxy_incomplete_count' => 0,
+        'satellite_ready_count' => 0,
+        'satellite_unavailable_count' => 0,
+        'disturbance_flag_count' => 0,
+        'revisit_recommended_count' => 0,
+    ],
+    'site_satellite_context' => [
+        'latest' => null,
+        'previous' => null,
+        'comparison' => ['status' => 'missing_latest', 'messages' => [], 'metric_deltas' => []],
+    ],
+];
 
 if ($siteId) {
     $site = SiteManager::load($siteId);
@@ -54,6 +71,10 @@ if ($siteId) {
             if (isset($dqaCounts[$g])) $dqaCounts[$g]++;
         }
         $dqaTotal = array_sum($dqaCounts);
+
+        $plotMonitoring['disabled'] = true;
+        $plotMonitoring['site_satellite_context']['comparison']['status'] = 'disabled';
+        $plotMonitoring['site_satellite_context']['comparison']['messages'] = ['plot_monitoring_moved_to_platform_v2'];
     }
 }
 $corpId = ($siteId !== '') ? (CorporateAccess::resolveCorporationIdForSite($siteId) ?? '') : '';
@@ -651,6 +672,139 @@ if ($stats) {
                         </div>
                     </div>
                 <?php endif; ?>
+
+                <div class="glass-card p-5 md:p-6 mb-6">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                        <div>
+                            <h2 class="text-sm font-bold text-[#1a2e1f]/70 mb-1 flex items-center gap-2">
+                                <i data-lucide="trees" class="w-4 h-4 text-emerald-600"></i>
+                                固定プロット / 炭素proxy
+                            </h2>
+                            <p class="text-sm text-[#1a2e1f]/65 leading-relaxed">
+                                現地調査を主、衛星時系列を補助にして、固定プロットの変化を読み解くためのセクションです。正式な炭素量や吸収量ではなく proxy 表示に限定しています。
+                            </p>
+                        </div>
+                        <span aria-disabled="true"
+                            class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold transition no-print"
+                            style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
+                            <i data-lucide="lock" class="w-3.5 h-3.5"></i> v2 API only
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        <div class="p-4" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
+                            <div class="text-xs font-bold text-[#1a2e1f]/55 mb-1">固定プロット数</div>
+                            <div class="text-2xl font-black text-[#0f3d2e]"><?php echo (int)($plotMonitoring['plot_count'] ?? 0); ?></div>
+                        </div>
+                        <div class="p-4" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
+                            <div class="text-xs font-bold text-[#1a2e1f]/55 mb-1">proxy 算出済み</div>
+                            <div class="text-2xl font-black text-emerald-700"><?php echo (int)($plotMonitoring['summary']['proxy_ready_count'] ?? 0); ?></div>
+                        </div>
+                        <div class="p-4" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
+                            <div class="text-xs font-bold text-[#1a2e1f]/55 mb-1">衛星コンテキスト準備済み</div>
+                            <div class="text-2xl font-black text-sky-700"><?php echo (int)($plotMonitoring['summary']['satellite_ready_count'] ?? 0); ?></div>
+                        </div>
+                        <div class="p-4" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
+                            <div class="text-xs font-bold text-[#1a2e1f]/55 mb-1">再訪推奨</div>
+                            <div class="text-2xl font-black text-amber-700"><?php echo (int)($plotMonitoring['summary']['revisit_recommended_count'] ?? 0); ?></div>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($plotMonitoring['site_satellite_context']['latest'])): ?>
+                        <?php $siteSatelliteLatest = $plotMonitoring['site_satellite_context']['latest']; ?>
+                        <div class="p-4 rounded-2xl border border-sky-100 bg-sky-50/60 mb-4">
+                            <div class="text-[11px] font-bold text-sky-800 mb-1">site satellite context</div>
+                            <div class="text-sm text-slate-700 leading-relaxed">
+                                site polygon 集約:
+                                NDVI <?php echo htmlspecialchars((string)($siteSatelliteLatest['metrics']['ndvi'] ?? '—')); ?> /
+                                EVI <?php echo htmlspecialchars((string)($siteSatelliteLatest['metrics']['evi'] ?? '—')); ?> /
+                                land cover <?php echo htmlspecialchars((string)($siteSatelliteLatest['metrics']['land_cover_class'] ?? 'unknown')); ?>
+                            </div>
+                            <?php foreach (array_slice((array)($plotMonitoring['site_satellite_context']['comparison']['messages'] ?? []), 0, 2) as $message): ?>
+                                <div class="text-sm text-slate-600 leading-relaxed"><?php echo htmlspecialchars($message); ?></div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($plotMonitoring['plots'])): ?>
+                        <div class="space-y-3">
+                            <?php foreach ($plotMonitoring['plots'] as $plotEntry): ?>
+                                <?php
+                                $plotRecord = $plotEntry['plot'] ?? [];
+                                $latestVisit = $plotEntry['latest_visit'] ?? null;
+                                $latestProxy = $plotEntry['field_metrics']['latest_proxy'] ?? [];
+                                $latestSatellite = $plotEntry['satellite_context']['plot_latest'] ?? null;
+                                $proxyStatus = $latestProxy['status'] ?? 'data_incomplete';
+                                $proxyConfidence = $plotEntry['proxy_confidence'] ?? 'insufficient';
+                                $fieldMessages = array_slice((array)($plotEntry['comparison_flags']['field_change']['messages'] ?? []), 0, 2);
+                                $satelliteMessages = array_slice((array)($plotEntry['comparison_flags']['satellite_change']['messages'] ?? []), 0, 2);
+                                ?>
+                                <div class="p-4 md:p-5 border border-[#1a2e1f]/10" style="border-radius:var(--shape-lg);background:var(--md-surface-container-low);">
+                                    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                                        <div>
+                                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                                <span class="text-base font-black text-[#1a2e1f]"><?php echo htmlspecialchars($plotRecord['name'] ?? '固定プロット'); ?></span>
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold <?php echo $proxyStatus === 'ready' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'; ?>">
+                                                    <?php echo $proxyStatus === 'ready' ? 'proxy ready' : 'data incomplete'; ?>
+                                                </span>
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold bg-slate-100 text-slate-700">
+                                                    confidence: <?php echo htmlspecialchars($proxyConfidence); ?>
+                                                </span>
+                                            </div>
+                                            <div class="text-sm text-[#1a2e1f]/65 leading-relaxed">
+                                                forest type: <?php echo htmlspecialchars($plotRecord['forest_type_baseline'] ?? '未設定'); ?> /
+                                                area: <?php echo number_format((float)($plotRecord['area_m2'] ?? 0), 1); ?> m² /
+                                                visits: <?php echo (int)($plotEntry['visit_count'] ?? 0); ?>
+                                            </div>
+                                            <div class="text-xs text-[#1a2e1f]/55 mt-1">
+                                                <?php echo $latestVisit ? '最新再訪: ' . htmlspecialchars(substr((string)($latestVisit['visited_at'] ?? ''), 0, 10)) : 'まだ再訪記録がありません'; ?>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-3 md:min-w-[260px]">
+                                            <div class="p-3 rounded-2xl bg-white/80 border border-emerald-100">
+                                                <div class="text-[11px] font-bold text-[#1a2e1f]/55 mb-1">relative biomass proxy</div>
+                                                <div class="text-xl font-black text-emerald-700"><?php echo $latestProxy['relative_biomass_proxy'] !== null ? htmlspecialchars((string)$latestProxy['relative_biomass_proxy']) : '—'; ?></div>
+                                            </div>
+                                            <div class="p-3 rounded-2xl bg-white/80 border border-sky-100">
+                                                <div class="text-[11px] font-bold text-[#1a2e1f]/55 mb-1">basal area proxy</div>
+                                                <div class="text-xl font-black text-sky-700"><?php echo htmlspecialchars((string)($latestProxy['basal_area_proxy']['per_ha_m2'] ?? '—')); ?></div>
+                                                <div class="text-[10px] text-[#1a2e1f]/45">m²/ha proxy</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+                                        <div class="p-3 rounded-2xl bg-white/70 border border-[#1a2e1f]/8">
+                                            <div class="text-[11px] font-bold text-[#1a2e1f]/55 mb-2">現地差分</div>
+                                            <?php foreach ($fieldMessages as $message): ?>
+                                                <div class="text-sm text-[#1a2e1f]/70 leading-relaxed"><?php echo htmlspecialchars($message); ?></div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <div class="p-3 rounded-2xl bg-white/70 border border-[#1a2e1f]/8">
+                                            <div class="text-[11px] font-bold text-[#1a2e1f]/55 mb-2">衛星コンテキスト</div>
+                                            <div class="text-sm text-[#1a2e1f]/70 leading-relaxed mb-1">
+                                                <?php if ($latestSatellite): ?>
+                                                    NDVI <?php echo htmlspecialchars((string)($latestSatellite['metrics']['ndvi'] ?? '—')); ?> /
+                                                    EVI <?php echo htmlspecialchars((string)($latestSatellite['metrics']['evi'] ?? '—')); ?> /
+                                                    land cover <?php echo htmlspecialchars((string)($latestSatellite['metrics']['land_cover_class'] ?? 'unknown')); ?>
+                                                <?php else: ?>
+                                                    未取得
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php foreach ($satelliteMessages as $message): ?>
+                                                <div class="text-sm text-[#1a2e1f]/70 leading-relaxed"><?php echo htmlspecialchars($message); ?></div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="p-4 rounded-2xl border border-dashed border-[#1a2e1f]/15 text-sm text-[#1a2e1f]/60">
+                            まだ固定プロットは登録されていません。固定プロット登録は platform_v2 側へ移行中のため、legacy PHP API からの登録は停止しています。
+                        </div>
+                    <?php endif; ?>
+                </div>
 
                 <!-- ④ Record summary memo -->
                 <div class="glass-card bg-emerald-50/30 border-emerald-100 p-6 md:p-8 mb-6 shadow-sm">

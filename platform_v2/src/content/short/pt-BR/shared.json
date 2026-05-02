@@ -1,0 +1,73 @@
+{
+  "publicShared": {
+    "cta": {
+      "record": "Registrar",
+      "startObservation": "Sair para encontrar algo",
+      "openNotebook": "Caderno",
+      "openMap": "Ver o mapa",
+      "readFaq": "Ver FAQ",
+      "openGuide": "Guia de campo",
+      "openScan": "Mapa",
+      "openAbout": "Sobre o ikimon",
+      "openGroupHelp": "Para organizações",
+      "contact": "Contato"
+    },
+    "business": {
+      "nav": "Para organizações"
+    }
+  },
+  "shell": {
+    "brandTagline": "A natureza próxima fica mais interessante.",
+    "skipToContent": "Pular para o conteúdo",
+    "searchPlaceholder": "Buscar espécie ou lugar",
+    "searchLabel": "Busca no site",
+    "menu": "Menu",
+    "nav": {
+      "home": "Início",
+      "explore": "Explorar",
+      "places": "Meus lugares",
+      "community": "Comunidade",
+      "learn": "Aprender",
+      "business": "Para organizações"
+    },
+    "record": "Registrar",
+    "footer": {
+      "tagline": "Caminhe, encontre e guarde o lugar.",
+      "start": "Começar",
+      "startLinks": {
+        "discover": "Explorar",
+        "record": "Registrar",
+        "places": "Meus lugares"
+      },
+      "learn": "Aprender",
+      "learnLinks": {
+        "guides": "Guias",
+        "about": "Sobre",
+        "faq": "Perguntas frequentes",
+        "updates": "Atualizações"
+      },
+      "trust": "Confiança",
+      "trustLinks": {
+        "business": "Para organizações",
+        "contact": "Contato",
+        "terms": "Termos",
+        "privacy": "Privacidade"
+      }
+    }
+  },
+  "quickNav": {
+    "ariaLabel": "Ações principais",
+    "labels": {
+      "notes": "Meus lugares",
+      "record": "Registrar",
+      "lens": "Guia de campo",
+      "scan": "Mapa",
+      "map": "Mapa"
+    }
+  },
+  "footerNotes": {
+    "landing": "Caminhe, encontre e guarde o lugar.",
+    "public": "Guarde o que encontra perto e revisite depois.",
+    "qa": "Percurso de staging para QA visual."
+  }
+}

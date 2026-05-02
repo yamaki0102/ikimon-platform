@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
@@ -12,6 +12,18 @@ import {
 } from "./writeSupport.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
+import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
+import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
+import {
+  hasNativeObservationPhoto,
+  upsertVisitQualityReview,
+  type ObservationQualitySignals,
+} from "./observationQualityGate.js";
+import {
+  hasUsableObservationCoordinates,
+  normalizeObservationLocality,
+  type NormalizedObservationLocality,
+} from "./localityNormalization.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -19,6 +31,7 @@ type ObservationPhotoInput = {
   mimeType?: string | null;
   sha256?: string | null;
   bytes?: number | null;
+  mediaRole?: MediaRole | string | null;
 };
 
 /**
@@ -47,6 +60,7 @@ export type ObservationSubjectInput = {
 export type ObservationUpsertInput = {
   observationId?: string;
   legacyObservationId?: string | null;
+  clientSubmissionId?: string | null;
   userId: string;
   observedAt: string;
   latitude: number;
@@ -75,6 +89,12 @@ export type ObservationUpsertInput = {
   photos?: ObservationPhotoInput[];
   /** ADR-0004: 複数 subject を並列で書き込みたい時に使う。未指定なら従来通り taxon から 1件作る。 */
   subjects?: ObservationSubjectInput[];
+  visitMode?: "manual" | "survey" | null;
+  completeChecklistFlag?: boolean;
+  targetTaxaScope?: string | null;
+  effortMinutes?: number | null;
+  distanceMeters?: number | null;
+  revisitReason?: string | null;
   sourcePayload?: Record<string, unknown>;
 };
 
@@ -85,14 +105,32 @@ export type ObservationWriteResult = {
   /** 全 subject の occurrence_id。primary が先頭。 */
   occurrenceIds: string[];
   placeId: string;
+  impact: {
+    placeName: string;
+    visitCount: number;
+    previousObservedAt: string | null;
+    focusLabel: string | null;
+    captureState: string | null;
+  };
   compatibility: {
     attempted: boolean;
     succeeded: boolean;
     error?: string;
   };
+  idempotency?: {
+    clientSubmissionId: string;
+    reused: boolean;
+  };
 };
 
-/** 入力 subjects から書き込む subject 配列を組み立て。taxon はある場合のみ primary の先頭に差し込む。 */
+/**
+ * 入力 subjects から書き込む subject 配列を組み立てる。
+ *
+ * Contract:
+ * - manual Field Note は taxon 未設定でも primary subject を 1 件持つ
+ * - /notes は visit-first でも、/map は occurrence-first なので
+ *   ここで primary occurrence を欠かさないことが整合条件になる
+ */
 function resolveSubjects(input: ObservationUpsertInput): ObservationSubjectInput[] {
   const inputSubjects = Array.isArray(input.subjects) ? input.subjects : [];
   const fromTaxon = input.taxon
@@ -105,7 +143,8 @@ function resolveSubjects(input: ObservationUpsertInput): ObservationSubjectInput
       } as ObservationSubjectInput)
     : null;
 
-  // subjects 未指定: taxon 1件 or 完全な null subject 1件
+  // subjects 未指定: taxon 1件 or 完全な null primary 1件。
+  // note-only write でも occurrence を作るため、この fallback を崩さない。
   if (inputSubjects.length === 0) {
     return [fromTaxon ?? { isPrimary: true, roleHint: "primary" }];
   }
@@ -137,9 +176,234 @@ function assertObservationInput(input: ObservationUpsertInput): void {
     throw new Error("latitude and longitude are required");
   }
 
+  if (!hasUsableObservationCoordinates(input.latitude, input.longitude)) {
+    throw new Error("valid latitude and longitude are required");
+  }
+
   if (!input.observedAt || input.observedAt.trim() === "") {
     throw new Error("observedAt is required");
   }
+}
+
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized === "" ? null : normalized;
+}
+
+function normalizeClientSubmissionId(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.length > 180) {
+    throw new Error("client_submission_id_too_long");
+  }
+  if (!/^[A-Za-z0-9._:-]+$/.test(normalized)) {
+    throw new Error("client_submission_id_invalid");
+  }
+  return normalized;
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function requestFingerprint(
+  input: ObservationUpsertInput,
+  subjects: ObservationSubjectInput[],
+  observedAt: string,
+  locality: NormalizedObservationLocality,
+): string {
+  return createHash("sha256").update(stableJson({
+    userId: input.userId,
+    observedAt,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    siteId: input.siteId ?? null,
+    siteName: input.siteName ?? null,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
+    photos: (Array.isArray(input.photos) ? input.photos : []).map((photo) => ({
+      sha256: photo.sha256 ?? null,
+      bytes: photo.bytes ?? null,
+      path: photo.path ?? null,
+    })),
+    clientPhotoHashes: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+      ? input.sourcePayload?.client_photo_sha256s
+      : null,
+    subjects,
+    taxon: input.taxon ?? null,
+  })).digest("hex");
+}
+
+async function buildObservationImpact(input: ObservationUpsertInput, placeId: string, focusLabel: string | null, quickCaptureState: string | null) {
+  const locality = normalizeObservationLocality({
+    prefecture: input.prefecture,
+    municipality: input.municipality,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  });
+  const impactResult = await getPool().query<{
+    place_name: string | null;
+    visit_count: string;
+    previous_observed_at: string | null;
+  }>(
+    `select
+        p.canonical_name as place_name,
+        count(v.visit_id)::text as visit_count,
+        previous_visit.previous_observed_at
+     from places p
+     left join visits v
+       on v.place_id = p.place_id
+      and v.user_id = $1
+     left join lateral (
+       select v2.observed_at::text as previous_observed_at
+       from visits v2
+       where v2.user_id = $1
+         and v2.place_id = p.place_id
+       order by v2.observed_at desc, v2.visit_id desc
+       offset 1
+       limit 1
+     ) previous_visit on true
+     where p.place_id = $2
+     group by p.canonical_name, previous_visit.previous_observed_at`,
+    [input.userId, placeId],
+  );
+  const impactRow = impactResult.rows[0];
+  return {
+    placeName: impactRow?.place_name ?? buildPlaceName({
+      siteName: input.siteName,
+      municipality: locality.municipality,
+      prefecture: locality.prefecture,
+    }),
+    visitCount: Number(impactRow?.visit_count ?? "1"),
+    previousObservedAt: impactRow?.previous_observed_at ?? null,
+    focusLabel,
+    captureState: quickCaptureState ?? null,
+  };
+}
+
+async function existingObservationResult(input: ObservationUpsertInput, clientSubmissionId: string, visitId: string): Promise<ObservationWriteResult> {
+  const pool = getPool();
+  const result = await pool.query<{
+    visit_id: string;
+    place_id: string | null;
+    occurrence_id: string;
+    occurrence_ids: string[];
+    quick_capture_state: string | null;
+    focus_label: string | null;
+  }>(
+    `select
+        v.visit_id,
+        v.place_id,
+        primary_occ.occurrence_id,
+        coalesce(occ_ids.occurrence_ids, array[primary_occ.occurrence_id]) as occurrence_ids,
+        v.source_payload ->> 'quick_capture_state' as quick_capture_state,
+        coalesce(
+          v.source_payload ->> 'next_look_for',
+          v.target_taxa_scope,
+          v.source_payload ->> 'revisit_reason',
+          primary_occ.vernacular_name,
+          primary_occ.scientific_name
+        ) as focus_label
+     from visits v
+     join lateral (
+       select occurrence_id, vernacular_name, scientific_name
+       from occurrences
+       where visit_id = v.visit_id
+       order by subject_index asc, created_at asc
+       limit 1
+     ) primary_occ on true
+     left join lateral (
+       select array_agg(occurrence_id order by subject_index asc, created_at asc) as occurrence_ids
+       from occurrences
+       where visit_id = v.visit_id
+     ) occ_ids on true
+     where v.visit_id = $1
+     limit 1`,
+    [visitId],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new Error("idempotent_observation_missing");
+  }
+  const locality = normalizeObservationLocality({
+    prefecture: input.prefecture,
+    municipality: input.municipality,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  });
+  const placeId = row.place_id ?? buildPlaceId({
+    siteId: input.siteId,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
+  });
+  return {
+    visitId: row.visit_id,
+    occurrenceId: row.occurrence_id,
+    occurrenceIds: row.occurrence_ids,
+    placeId,
+    impact: await buildObservationImpact(input, placeId, row.focus_label, row.quick_capture_state),
+    compatibility: {
+      attempted: false,
+      succeeded: false,
+    },
+    idempotency: {
+      clientSubmissionId,
+      reused: true,
+    },
+  };
+}
+
+function normalizeOptionalNumber(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
+}
+
+function buildServerLocationAuditPayload(
+  input: ObservationUpsertInput,
+  locality: NormalizedObservationLocality,
+): Record<string, unknown> {
+  const clientPayload = input.sourcePayload && typeof input.sourcePayload === "object"
+    ? input.sourcePayload
+    : {};
+  return {
+    schema: "ikimon.location_audit.v1",
+    savedCoordinates: {
+      latitude: input.latitude,
+      longitude: input.longitude,
+    },
+    savedLocality: {
+      country: input.country ?? "JP",
+      prefecture: locality.prefecture,
+      municipality: locality.municipality,
+      localityNote: input.localityNote ?? null,
+    },
+    submittedLocality: {
+      prefecture: input.prefecture ?? null,
+      municipality: input.municipality ?? null,
+      localityNote: input.localityNote ?? null,
+    },
+    clientProvenance: clientPayload.location_provenance ?? null,
+    normalizedAt: new Date().toISOString(),
+  };
 }
 
 export async function upsertObservation(input: ObservationUpsertInput): Promise<ObservationWriteResult> {
@@ -147,18 +411,72 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
 
   const pool = getPool();
   const client = await pool.connect();
+  const clientSubmissionId = normalizeClientSubmissionId(input.clientSubmissionId);
   const visitId = input.observationId?.trim() || randomUUID();
   const subjects = resolveSubjects(input);
   const occurrenceId = makeOccurrenceId(visitId, 0);
   const occurrenceIds = subjects.map((_, i) => makeOccurrenceId(visitId, i));
+  const photos = Array.isArray(input.photos) ? input.photos : [];
+  const hasPhoto = hasNativeObservationPhoto(photos);
+  const qualitySignals: ObservationQualitySignals = {
+    hasPhoto,
+    hasAudio: false,
+    hasLocation: hasUsableObservationCoordinates(input.latitude, input.longitude),
+    hasIdentification: subjects.some((subject) =>
+      Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
+    ),
+    isPublicReady: true,
+    gateReasons: [
+      hasPhoto ? null : "missing_photo",
+      "missing_audio",
+      hasUsableObservationCoordinates(input.latitude, input.longitude) ? null : "missing_location",
+      subjects.some((subject) =>
+        Boolean(normalizeOptionalText(subject.scientificName) ?? normalizeOptionalText(subject.vernacularName) ?? normalizeOptionalText(subject.rank)),
+      ) ? null : "missing_identification",
+    ].filter((reason): reason is string => reason !== null),
+  };
+  const publicVisibility = hasPhoto ? "public" : "review";
+  const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
+  const visitMode = input.visitMode === "survey" ? "survey" : "manual";
+  const locality = normalizeObservationLocality({
+    prefecture: input.prefecture,
+    municipality: input.municipality,
+    latitude: input.latitude,
+    longitude: input.longitude,
+  });
+  const completeChecklistFlag = visitMode === "survey" ? Boolean(input.completeChecklistFlag) : false;
+  const targetTaxaScope = visitMode === "survey"
+    ? normalizeOptionalText(input.targetTaxaScope)
+    : null;
+  const effortMinutes = visitMode === "survey"
+    ? normalizeOptionalNumber(input.effortMinutes)
+    : null;
+  const sourcePayload = (input.sourcePayload && typeof input.sourcePayload === "object")
+    ? input.sourcePayload
+    : {};
+  const distanceMeters = normalizeOptionalNumber(input.distanceMeters);
+  const revisitReason = normalizeOptionalText(input.revisitReason);
+  const nextLookFor = typeof sourcePayload.next_look_for === "string"
+    ? normalizeOptionalText(sourcePayload.next_look_for)
+    : null;
+  const quickCaptureState = typeof sourcePayload.quick_capture_state === "string"
+    ? normalizeOptionalText(sourcePayload.quick_capture_state)
+    : null;
+  const focusLabel = nextLookFor
+    ?? targetTaxaScope
+    ?? revisitReason
+    ?? normalizeOptionalText(subjects[0]?.vernacularName)
+    ?? normalizeOptionalText(subjects[0]?.scientificName)
+    ?? null;
   const placeId = buildPlaceId({
     siteId: input.siteId,
     latitude: input.latitude,
     longitude: input.longitude,
-    municipality: input.municipality,
-    prefecture: input.prefecture,
+    municipality: locality.municipality,
+    prefecture: locality.prefecture,
   });
   const observedAt = normalizeTimestamp(input.observedAt);
+  const fingerprint = requestFingerprint(input, subjects, observedAt, locality);
 
   try {
     await client.query("begin");
@@ -169,6 +487,64 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     );
     if (!userExists.rows[0]?.exists) {
       throw new Error(`Unknown userId: ${input.userId}`);
+    }
+
+    if (clientSubmissionId) {
+      const inserted = await client.query<{ client_submission_id: string }>(
+        `insert into observation_write_idempotency (
+            client_submission_id, user_id, request_fingerprint, write_status, source_payload, created_at, updated_at, last_seen_at
+         ) values (
+            $1, $2, $3, 'in_progress', $4::jsonb, now(), now(), now()
+         )
+         on conflict do nothing
+         returning client_submission_id`,
+        [
+          clientSubmissionId,
+          input.userId,
+          fingerprint,
+          JSON.stringify({
+            source: "v2_write_api",
+            observation_id: visitId,
+            client_photo_sha256s: Array.isArray(input.sourcePayload?.client_photo_sha256s)
+              ? input.sourcePayload?.client_photo_sha256s
+              : [],
+          }),
+        ],
+      );
+      if (!inserted.rows[0]?.client_submission_id) {
+        const existing = await client.query<{
+          user_id: string;
+          visit_id: string | null;
+          request_fingerprint: string;
+          write_status: string;
+        }>(
+          `select user_id, visit_id, request_fingerprint, write_status
+             from observation_write_idempotency
+            where client_submission_id = $1
+            for update`,
+          [clientSubmissionId],
+        );
+        const row = existing.rows[0];
+        if (!row || row.user_id !== input.userId) {
+          throw new Error("client_submission_id_conflict");
+        }
+        if (row.visit_id) {
+          await client.query(
+            `update observation_write_idempotency
+                set duplicate_count = duplicate_count + 1,
+                    last_seen_at = now(),
+                    updated_at = now()
+              where client_submission_id = $1`,
+            [clientSubmissionId],
+          );
+          await client.query("commit");
+          return await existingObservationResult(input, clientSubmissionId, row.visit_id);
+        }
+        if (row.request_fingerprint !== fingerprint) {
+          throw new Error("client_submission_id_conflict");
+        }
+        throw new Error("duplicate_submission_in_progress");
+      }
     }
 
     await client.query(
@@ -195,39 +571,53 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         input.siteId ?? null,
         buildPlaceName({
           siteName: input.siteName,
-          municipality: input.municipality,
-          prefecture: input.prefecture,
+          municipality: locality.municipality,
+          prefecture: locality.prefecture,
         }),
         input.siteName ?? input.localityNote ?? null,
         input.country ?? "JP",
-        input.prefecture ?? null,
-        input.municipality ?? null,
+        locality.prefecture,
+        locality.municipality,
         input.latitude,
         input.longitude,
         JSON.stringify({
           source: "v2_write_api",
           site_id: input.siteId ?? null,
           site_name: input.siteName ?? null,
+          record_mode: visitMode,
         }),
         observedAt,
       ],
     );
 
+    const locationAudit = buildServerLocationAuditPayload(input, locality);
+    const visitSourcePayload = {
+      ...(input.sourcePayload ?? {}),
+      location_audit: locationAudit,
+      record_mode: visitMode,
+      revisit_reason: revisitReason,
+    };
+
     await client.query(
       `insert into visits (
           visit_id, legacy_observation_id, place_id, user_id, observed_at, session_mode, visit_mode,
-          complete_checklist_flag, target_taxa_scope, point_latitude, point_longitude,
+          complete_checklist_flag, target_taxa_scope, effort_minutes, distance_meters, point_latitude, point_longitude,
           observed_country, observed_prefecture, observed_municipality, locality_note, note,
-          source_kind, source_payload, created_at, updated_at
+          source_kind, source_payload, public_visibility, quality_review_status, quality_gate_reasons, created_at, updated_at
        ) values (
-          $1, $2, $3, $4, $5, 'standard', 'manual', false, null, $6, $7,
-          $8, $9, $10, $11, $12, 'v2_observation', $13::jsonb, $14, now()
+          $1, $2, $3, $4, $5, 'standard', $6, $7, $8, $9, $10, $11,
+          $12, $13, $14, $15, $16, $17, 'v2_observation', $18::jsonb, $19, $20, $21::jsonb, $22, now()
        )
        on conflict (visit_id) do update set
           legacy_observation_id = excluded.legacy_observation_id,
           place_id = excluded.place_id,
           user_id = excluded.user_id,
           observed_at = excluded.observed_at,
+          visit_mode = excluded.visit_mode,
+          complete_checklist_flag = excluded.complete_checklist_flag,
+          target_taxa_scope = excluded.target_taxa_scope,
+          effort_minutes = excluded.effort_minutes,
+          distance_meters = excluded.distance_meters,
           point_latitude = excluded.point_latitude,
           point_longitude = excluded.point_longitude,
           observed_country = excluded.observed_country,
@@ -236,6 +626,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           locality_note = excluded.locality_note,
           note = excluded.note,
           source_payload = excluded.source_payload,
+          public_visibility = excluded.public_visibility,
+          quality_review_status = excluded.quality_review_status,
+          quality_gate_reasons = excluded.quality_gate_reasons,
           updated_at = now()`,
       [
         visitId,
@@ -243,19 +636,28 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         placeId,
         input.userId,
         observedAt,
+        visitMode,
+        completeChecklistFlag,
+        targetTaxaScope,
+        effortMinutes,
+        distanceMeters,
         input.latitude,
         input.longitude,
         input.country ?? "JP",
-        input.prefecture ?? null,
-        input.municipality ?? null,
+        locality.prefecture,
+        locality.municipality,
         input.localityNote ?? null,
         input.note ?? null,
-        JSON.stringify(input.sourcePayload ?? {}),
+        JSON.stringify(visitSourcePayload),
+        publicVisibility,
+        qualityReviewStatus,
+        JSON.stringify(qualitySignals.gateReasons),
         observedAt,
       ],
     );
 
     // ADR-0004: subjects[] を subject_index 0..N で並列に INSERT。primary=0、背景生物は 1,2,...。
+    // manual Field Note と /map の整合のため、subject_index=0 の primary occurrence は常に必要。
     // 同 visit_id に対して subjects 件数より多い古い occurrence があれば削除（掃除）。
     await client.query(
       `delete from occurrences where visit_id = $1 and subject_index >= $2`,
@@ -267,6 +669,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       const occId = occurrenceIds[i]!;
       const occPayload = {
         ...(input.sourcePayload ?? {}),
+        location_audit: locationAudit,
         v2_subject: {
           subject_index: i,
           is_primary: Boolean(subject.isPrimary),
@@ -326,7 +729,6 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       );
     }
 
-    const photos = Array.isArray(input.photos) ? input.photos : [];
     const legacyPhotoKeys = photos.map((photo, index) => `observation_photo:${visitId}:${index}:${photo.path}`);
     if (legacyPhotoKeys.length > 0) {
       await client.query(
@@ -334,6 +736,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
          where occurrence_id = $1
            and asset_role = 'observation_photo'
            and legacy_asset_key is not null
+           and source_payload ->> 'source' = 'v2_write_api'
            and not (legacy_asset_key = any($2::text[]))`,
         [occurrenceId, legacyPhotoKeys],
       );
@@ -342,7 +745,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         `delete from evidence_assets
          where occurrence_id = $1
            and asset_role = 'observation_photo'
-           and legacy_asset_key is not null`,
+           and legacy_asset_key is not null
+           and source_payload ->> 'source' = 'v2_write_api'`,
         [occurrenceId],
       );
     }
@@ -353,6 +757,13 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         continue;
       }
       const legacyAssetKey = `observation_photo:${visitId}:${index}:${photo.path}`;
+      const mediaRole = normalizeMediaRole(photo.mediaRole);
+      const photoSourcePayload = {
+        source: "v2_write_api",
+        visit_id: visitId,
+        photo_index: index,
+        media_role: mediaRole,
+      };
       const blobId = await upsertAssetBlob(client, {
         storageBackend: "local_fs",
         storagePath: photo.path,
@@ -361,14 +772,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         publicUrl: photo.publicUrl ?? photo.path,
         sha256: photo.sha256 ?? null,
         bytes: photo.bytes ?? null,
-        sourcePayload: {
-          source: "v2_write_api",
-          visit_id: visitId,
-          photo_index: index,
-        },
+        sourcePayload: photoSourcePayload,
       });
 
-      await client.query(
+      const assetResult = await client.query<{ asset_id: string }>(
         `insert into evidence_assets (
             asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
          ) values (
@@ -379,7 +786,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
             occurrence_id = excluded.occurrence_id,
             visit_id = excluded.visit_id,
             legacy_relative_path = excluded.legacy_relative_path,
-            source_payload = excluded.source_payload`,
+            source_payload = excluded.source_payload
+         returning asset_id::text`,
         [
           randomUUID(),
           blobId,
@@ -387,12 +795,50 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           visitId,
           legacyAssetKey,
           photo.path,
-          JSON.stringify({
-            source: "v2_write_api",
-            visit_id: visitId,
-            photo_index: index,
-          }),
+          JSON.stringify(photoSourcePayload),
         ],
+      );
+      const assetId = assetResult.rows[0]?.asset_id;
+      if (!assetId) {
+        throw new Error("failed_to_upsert_photo_asset");
+      }
+      await upsertEvidenceAssetMediaRole(client, {
+        assetId,
+        occurrenceId,
+        visitId,
+        assetRole: "observation_photo",
+        mediaRole,
+        mediaRoleSource: "user",
+        sourcePayload: {
+          source: "v2_write_api",
+          photo_index: index,
+        },
+      });
+    }
+
+    if (!hasPhoto) {
+      await upsertVisitQualityReview(client, {
+        visitId,
+        occurrenceId,
+        reasonCode: "native_no_photo",
+        reasonDetail: "V2 observation was saved without photo evidence and is held for review before public display.",
+        qualitySignals,
+        sourcePayload: {
+          source: "v2_write_api",
+          visit_id: visitId,
+        },
+      });
+    } else {
+      await client.query(
+        `update observation_quality_reviews
+         set review_status = 'accepted',
+             public_visibility = 'public',
+             reviewed_at = coalesce(reviewed_at, now()),
+             updated_at = now()
+         where visit_id = $1
+           and reason_code = 'native_no_photo'
+           and review_status = 'needs_review'`,
+        [visitId],
       );
     }
 
@@ -434,6 +880,27 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       );
     }
 
+    if (clientSubmissionId) {
+      await client.query(
+        `update observation_write_idempotency
+            set visit_id = $2,
+                occurrence_id = $3,
+                occurrence_ids = $4::jsonb,
+                place_id = $5,
+                write_status = 'succeeded',
+                updated_at = now(),
+                last_seen_at = now()
+          where client_submission_id = $1`,
+        [
+          clientSubmissionId,
+          visitId,
+          occurrenceId,
+          JSON.stringify(occurrenceIds),
+          placeId,
+        ],
+      );
+    }
+
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -441,6 +908,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   } finally {
     client.release();
   }
+
+  const impact = await buildObservationImpact(input, placeId, focusLabel, quickCaptureState);
 
   // Non-blocking: capture Site Brief snapshot at observation time.
   // Failures silently drop — never block the observation write path.
@@ -509,6 +978,13 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     occurrenceId,
     occurrenceIds,
     placeId,
+    impact,
     compatibility,
+    idempotency: clientSubmissionId
+      ? {
+          clientSubmissionId,
+          reused: false,
+        }
+      : undefined,
   };
 }

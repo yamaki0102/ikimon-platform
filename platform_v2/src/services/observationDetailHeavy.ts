@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import { buildObserverNameSql } from "./observerNameSql.js";
 
 export type LineageBreadcrumb = {
   rank: string;
@@ -30,6 +31,9 @@ export type SiblingSubject = {
   rank: string | null;
   roleHint: string;
   confidence: number | null;
+  identificationCount: number;
+  latestAssessmentBand: "high" | "medium" | "low" | "unknown" | null;
+  latestAssessmentGeneratedAt: string | null;
   isPrimary: boolean;
 };
 
@@ -40,6 +44,22 @@ export type ObservationDetailHeavy = {
   seasonalHistory: Array<{ month: number; count: number }>;
   subjects: SiblingSubject[];
 };
+
+const DETAIL_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Anonymous",
+});
+
+const DETAIL_PEER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "peer.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "latest.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Observer",
+});
 
 /**
  * 観察詳細ページ Layer 3 (場所の物語) と Layer 4 (あなたの成長) を支えるデータ。
@@ -105,8 +125,8 @@ export async function getObservationDetailHeavy(
         photo_url: string | null;
       }>(
         `SELECT o.occurrence_id,
-                coalesce(nullif(o.vernacular_name,''), o.scientific_name, 'Unresolved') AS display_name,
-                coalesce(u.display_name, 'Anonymous') AS observer_name,
+                coalesce(nullif(o.vernacular_name,''), o.scientific_name, '同定待ち') AS display_name,
+                ${DETAIL_OBSERVER_NAME_SQL} AS observer_name,
                 u.user_id AS observer_user_id,
                 to_char(v.observed_at, 'YYYY-MM-DD') AS observed_at,
                 (SELECT coalesce(ab.public_url, ab.storage_path)
@@ -142,12 +162,27 @@ export async function getObservationDetailHeavy(
   if (placeId) {
     try {
       const rows = await pool.query<{ user_id: string; display_name: string; n: string }>(
-        `SELECT v.user_id, u.display_name, count(*)::text AS n
-           FROM visits v JOIN users u ON u.user_id = v.user_id
-          WHERE v.place_id = $1
-            ${viewerUserId ? "AND v.user_id <> $2" : ""}
-          GROUP BY v.user_id, u.display_name
-          ORDER BY n::int DESC LIMIT 5`,
+        `SELECT peer.user_id,
+                ${DETAIL_PEER_NAME_SQL} AS display_name,
+                peer.n
+           FROM (
+             SELECT v.user_id, count(*)::text AS n
+               FROM visits v
+              WHERE v.place_id = $1
+                ${viewerUserId ? "AND v.user_id <> $2" : ""}
+              GROUP BY v.user_id
+           ) peer
+           JOIN users u ON u.user_id = peer.user_id
+           LEFT JOIN LATERAL (
+             SELECT v2.source_payload
+               FROM visits v2
+              WHERE v2.place_id = $1
+                AND v2.user_id = peer.user_id
+              ORDER BY v2.observed_at DESC
+              LIMIT 1
+           ) latest ON true
+          ORDER BY peer.n::int DESC
+          LIMIT 5`,
         viewerUserId ? [placeId, viewerUserId] : [placeId],
       );
       for (const r of rows.rows) {
@@ -197,17 +232,71 @@ export async function getObservationDetailHeavy(
            FROM occurrences WHERE visit_id = $1 ORDER BY subject_index ASC`,
         [visitId],
       );
+      const occurrenceIds = rows.rows.map((row) => row.occurrence_id);
+      const identificationCounts = new Map<string, number>();
+      if (occurrenceIds.length > 0) {
+        try {
+          const idRows = await pool.query<{ occurrence_id: string; n: string }>(
+            `SELECT occurrence_id, count(*)::text AS n
+               FROM identifications
+              WHERE occurrence_id = ANY($1::text[])
+              GROUP BY occurrence_id`,
+            [occurrenceIds],
+          );
+          for (const row of idRows.rows) {
+            identificationCounts.set(row.occurrence_id, Number(row.n));
+          }
+        } catch {
+          // identifications テーブルが未準備でも subjects 自体は返す
+        }
+      }
+
+      const latestAssessments = new Map<string, {
+        band: "high" | "medium" | "low" | "unknown" | null;
+        generatedAt: string | null;
+      }>();
+      if (occurrenceIds.length > 0) {
+        try {
+          const aiRows = await pool.query<{
+            occurrence_id: string;
+            confidence_band: string | null;
+            generated_at: string;
+          }>(
+            `SELECT DISTINCT ON (occurrence_id)
+                    occurrence_id,
+                    confidence_band,
+                    generated_at::text
+               FROM observation_ai_assessments
+              WHERE occurrence_id = ANY($1::text[])
+              ORDER BY occurrence_id, generated_at DESC`,
+            [occurrenceIds],
+          );
+          for (const row of aiRows.rows) {
+            latestAssessments.set(row.occurrence_id, {
+              band: normalizeAssessmentBand(row.confidence_band),
+              generatedAt: row.generated_at,
+            });
+          }
+        } catch {
+          // assessment テーブル未準備でも subjects 自体は返す
+        }
+      }
+
       for (const r of rows.rows) {
         const v2sub = ((r.source_payload ?? {}) as { v2_subject?: Record<string, unknown> }).v2_subject ?? {};
+        const latestAssessment = latestAssessments.get(r.occurrence_id);
         subjects.push({
           occurrenceId: r.occurrence_id,
           subjectIndex: r.subject_index,
-          displayName: r.vernacular_name || r.scientific_name || "Unresolved",
+          displayName: r.vernacular_name || r.scientific_name || "同定待ち",
           scientificName: r.scientific_name,
           vernacularName: r.vernacular_name,
           rank: r.taxon_rank,
           roleHint: String((v2sub as { role_hint?: string }).role_hint ?? (r.subject_index === 0 ? "primary" : "coexisting")),
           confidence: r.confidence_score != null ? Number(r.confidence_score) : null,
+          identificationCount: identificationCounts.get(r.occurrence_id) ?? 0,
+          latestAssessmentBand: latestAssessment?.band ?? null,
+          latestAssessmentGeneratedAt: latestAssessment?.generatedAt ?? null,
           isPrimary: r.subject_index === 0,
         });
       }
@@ -224,4 +313,13 @@ function normalizeAssetUrl(raw: string | null): string | null {
   if (/^https?:\/\//i.test(raw)) return raw;
   if (raw.startsWith("/")) return raw;
   return "/" + raw;
+}
+
+function normalizeAssessmentBand(
+  raw: string | null | undefined,
+): "high" | "medium" | "low" | "unknown" | null {
+  if (raw === "high" || raw === "medium" || raw === "low" || raw === "unknown") {
+    return raw;
+  }
+  return raw == null ? null : "unknown";
 }

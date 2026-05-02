@@ -10,6 +10,7 @@ type MigrationRecord = {
 
 type MigrationOptions = {
   allowDestructive: boolean;
+  repairChecksums: Set<string>;
 };
 
 const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
@@ -18,7 +19,7 @@ const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\balter\s+table\b[\s\S]*\bdrop\b/i, label: "ALTER TABLE ... DROP" },
   { pattern: /\btruncate\b/i, label: "TRUNCATE" },
   { pattern: /\bdelete\s+from\b/i, label: "DELETE FROM" },
-  { pattern: /\bupdate\b/i, label: "UPDATE" },
+  { pattern: /^\s*update\b/im, label: "UPDATE" },
 ];
 
 function checksumFor(content: string): string {
@@ -30,13 +31,32 @@ function checksumFor(content: string): string {
 }
 
 function parseArgs(argv: string[]): MigrationOptions {
+  const repairChecksums = new Set<string>();
+  const envRepairChecksums = process.env.IKIMON_MIGRATION_REPAIR_CHECKSUMS ?? "";
+  for (const filename of envRepairChecksums.split(",")) {
+    const trimmed = filename.trim();
+    if (trimmed) {
+      repairChecksums.add(trimmed);
+    }
+  }
+  for (const arg of argv) {
+    if (!arg.startsWith("--repair-checksum=")) {
+      continue;
+    }
+    const filename = arg.slice("--repair-checksum=".length).trim();
+    if (filename) {
+      repairChecksums.add(filename);
+    }
+  }
+
   return {
     allowDestructive: argv.includes("--allow-destructive"),
+    repairChecksums,
   };
 }
 
 function assertSafeMigration(filename: string, sql: string, options: MigrationOptions): void {
-  if (options.allowDestructive) {
+  if (options.allowDestructive || options.repairChecksums.has(filename)) {
     return;
   }
 
@@ -96,6 +116,14 @@ async function main() {
 
     if (appliedMigration) {
       if (appliedMigration.checksum !== checksum) {
+        if (options.repairChecksums.has(filename)) {
+          await pool.query("update schema_migrations set checksum = $1 where filename = $2", [
+            checksum,
+            filename,
+          ]);
+          console.warn(`repair checksum ${filename}`);
+          continue;
+        }
         throw new Error(`Migration checksum mismatch for ${filename}`);
       }
       console.log(`skip ${filename}`);

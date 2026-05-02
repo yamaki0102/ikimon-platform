@@ -1,0 +1,99 @@
+{
+  "$schema_version": "1.0",
+  "$comment": "Curator -> table allowlist. read=SELECT only. write_proposal=emits SQL to PR loop. write_direct=bypass PR (status/logs only). knowledge_claims constraints are enforced in code regardless of what the agent asks for.",
+  "agents": {
+    "invasive-law": {
+      "read": [
+        "invasive_status_versions",
+        "taxa_gbif_cache",
+        "freshness_registry",
+        "source_snapshots",
+        "ai_curator_runs"
+      ],
+      "write_proposal": [
+        "invasive_status_versions",
+        "source_snapshots"
+      ],
+      "write_direct": [
+        "freshness_registry",
+        "ai_curator_runs"
+      ]
+    },
+    "redlist": {
+      "read": [
+        "risk_status_versions",
+        "taxa_gbif_cache",
+        "knowledge_claims",
+        "knowledge_sources",
+        "freshness_registry",
+        "source_snapshots",
+        "ai_curator_runs"
+      ],
+      "write_proposal": [
+        "risk_status_versions",
+        "source_snapshots",
+        "knowledge_claims"
+      ],
+      "write_direct": [
+        "freshness_registry",
+        "ai_curator_runs",
+        "claim_review_queue"
+      ],
+      "constraints": {
+        "knowledge_claims.use_in_feedback": false,
+        "knowledge_claims.human_review_status": "pending"
+      }
+    },
+    "paper-research": {
+      "read": [
+        "knowledge_sources",
+        "knowledge_claims",
+        "research_paper_ingest_queue",
+        "freshness_registry",
+        "source_snapshots",
+        "ai_curator_runs"
+      ],
+      "write_proposal": [
+        "knowledge_sources",
+        "knowledge_claims",
+        "source_snapshots"
+      ],
+      "write_direct": [
+        "freshness_registry",
+        "ai_curator_runs",
+        "claim_review_queue",
+        "research_paper_ingest_queue"
+      ],
+      "constraints": {
+        "knowledge_claims.use_in_feedback": false,
+        "knowledge_claims.human_review_status": "pending",
+        "knowledge_claims.claim_text.maxLength": 260,
+        "knowledge_claims.citation_span.maxLength": 320,
+        "knowledge_claims.source_text_policy.allowlist": [
+          "metadata_only",
+          "open_abstract",
+          "oa_license_verified"
+        ]
+      }
+    },
+    "satellite-update": {
+      "read": [
+        "place_environment_snapshots",
+        "plot_monitoring",
+        "inferred_absence_candidates",
+        "freshness_registry",
+        "source_snapshots",
+        "ai_curator_runs"
+      ],
+      "write_proposal": [
+        "place_environment_snapshots",
+        "source_snapshots"
+      ],
+      "write_direct": [
+        "freshness_registry",
+        "ai_curator_runs",
+        "inferred_absence_candidates"
+      ]
+    }
+  }
+}

@@ -47,9 +47,29 @@ const CASES: Case[] = [
     expectId: "urban_seam",
   },
   {
+    name: "urban seam with unknown water distance stays urban",
+    signals: { landcover: ["built_up"], nearbyLandcover: ["built_up"], waterDistanceM: null, elevationM: 24 },
+    expectId: "urban_seam",
+  },
+  {
     name: "on water",
     signals: { landcover: ["water"], nearbyLandcover: ["water"], waterDistanceM: 0, elevationM: 0 },
     expectId: "water_body",
+  },
+  {
+    name: "cropland without water distance stays farmland",
+    signals: { landcover: ["cropland"], nearbyLandcover: ["cropland", "built_up"], waterDistanceM: null, elevationM: 14 },
+    expectId: "farmland",
+  },
+  {
+    name: "high elevation and far from water becomes alpine",
+    signals: { landcover: ["bare"], nearbyLandcover: ["bare"], waterDistanceM: 420, elevationM: 2310 },
+    expectId: "alpine_subalpine",
+  },
+  {
+    name: "far from water but low elevation does not become alpine",
+    signals: { landcover: [], nearbyLandcover: [], waterDistanceM: 420, elevationM: 18 },
+    expectId: "generic",
   },
   {
     name: "no signals → generic",

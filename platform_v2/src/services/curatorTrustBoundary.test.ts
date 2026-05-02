@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { assertNoSecretLeak, dedupeInvasiveRows, looksLikeScientificName, validateInvasiveLawRows } from "./curatorTrustBoundary.js";
+
+test("trust boundary rejects exact secret and sk-like token patterns", () => {
+  assert.doesNotThrow(() => assertNoSecretLeak("provider gemini", ["gemini"]));
+  assert.throws(() => assertNoSecretLeak("payload abc-secret-1234567890", ["abc-secret-1234567890"]), /curator_payload_secret_leak_detected/);
+  assert.throws(() => assertNoSecretLeak("payload sk-abcdefghijklmnopqrstuvwxyz", []), /curator_payload_secret_pattern_detected/);
+});
+
+test("invasive-law row validator accepts only schema-safe rows", () => {
+  const result = validateInvasiveLawRows([
+    {
+      scientific_name: "Solenopsis invicta",
+      vernacular_jp: "ヒアリ",
+      mhlw_category: "iaspecified",
+      source_excerpt: "ヒアリ Solenopsis invicta",
+    },
+    { scientific_name: "bad", mhlw_category: "iaspecified", source_excerpt: "bad" },
+    { scientific_name: "Linepithema humile", mhlw_category: "bad", source_excerpt: "bad" },
+    { scientific_name: "Myocastor coypus", mhlw_category: "priority", source_excerpt: "x".repeat(601) },
+  ]);
+  assert.equal(result.accepted.length, 1);
+  assert.equal(result.dropped.length, 3);
+});
+
+test("scientific name validator accepts official genus-level spp labels", () => {
+  assert.equal(looksLikeScientificName("Erinaceus"), true);
+  assert.equal(looksLikeScientificName("Erinaceus spp."), true);
+  assert.equal(looksLikeScientificName("Sciurus spp"), true);
+  assert.equal(looksLikeScientificName("Lasius sp."), true);
+  assert.equal(looksLikeScientificName("bad"), false);
+});
+
+test("invasive-law dedupe uses scientific name plus category", () => {
+  const rows = dedupeInvasiveRows([
+    {
+      scientific_name: "Solenopsis invicta",
+      mhlw_category: "iaspecified",
+      source_excerpt: "a",
+    },
+    {
+      scientific_name: "Solenopsis invicta",
+      mhlw_category: "iaspecified",
+      source_excerpt: "b",
+    },
+    {
+      scientific_name: "Solenopsis invicta",
+      mhlw_category: "priority",
+      source_excerpt: "c",
+    },
+  ]);
+  assert.equal(rows.length, 2);
+});

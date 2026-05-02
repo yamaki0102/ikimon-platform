@@ -30,6 +30,7 @@ class CorporateSites
             'name' => '浜松城公園 共生エリア',
             'owner' => '浜松市',
             'description' => '都市公園の中にある自然共生サイト。',
+            'public_location_detail' => true,
             'location' => [137.733, 34.711],
             'polygon' => [
                 [137.731, 34.709],

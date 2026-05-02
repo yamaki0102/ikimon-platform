@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { isUiKpiEventName, recordUiKpiEvent } from "../services/uiKpi.js";
 
 type UiKpiBody = {
-  eventName: "first_action" | "task_completion";
+  eventName: "first_action" | "task_completion" | "section_view" | "read_depth" | "primary_cta_click";
   pagePath?: string;
   routeKey?: string;
   actionKey?: string;

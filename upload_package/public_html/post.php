@@ -587,8 +587,8 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                             <div class="flex items-center gap-2">
                                 <label class="text-[10px] font-black text-faint uppercase tracking-widest leading-tight"><?= __('post_page.visibility_label', 'Visibility') ?></label>
                                 <select x-model="locationGranularity" class="flex-1 text-xs font-bold bg-surface border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-primary appearance-none">
-                                    <option value="exact"><?= __('post_page.visibility_exact', '📍 Detailed (default)') ?></option>
-                                    <option value="municipality"><?= __('post_page.visibility_municipality', '🏘️ Municipality level') ?></option>
+                                    <option value="exact"><?= __('post_page.visibility_exact', '📍 Detailed') ?></option>
+                                    <option value="municipality"><?= __('post_page.visibility_municipality', '🏘️ Municipality level (default)') ?></option>
                                     <option value="prefecture"><?= __('post_page.visibility_prefecture', '🗾 Prefecture level') ?></option>
                                     <option value="hidden"><?= __('post_page.visibility_hidden', '🔒 Hide location') ?></option>
                                 </select>
@@ -1231,6 +1231,11 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                         class="block w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black text-center shadow-lg shadow-primary/20 active:scale-95 transition flex items-center justify-center gap-2">
                         <i data-lucide="eye" class="w-5 h-5"></i>
                         <?= __('post_page.view_detail', 'View observation details') ?>
+                    </a>
+                    <a href="guide_results.php"
+                        class="block w-full py-3 rounded-full bg-primary-surface border border-primary/20 text-primary font-bold text-sm text-center hover:bg-primary-surface/80 transition flex items-center justify-center gap-2 active:scale-95">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        <?= __('post_page.view_results', '成果を確かめる') ?>
                     </a>
                     <a x-show="taxon_slug" :href="'species/' + encodeURIComponent(taxon_slug)"
                         class="block w-full py-3 rounded-full bg-surface border border-border text-text font-bold text-center text-sm hover:bg-white/5 transition flex items-center justify-center gap-2">

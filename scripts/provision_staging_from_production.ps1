@@ -75,6 +75,16 @@ ln -sfn "`$STAGE_ROOT/persistent/uploads" "`$STAGE_ROOT/repo/upload_package/publ
 chown -R www-data:www-data "`$STAGE_ROOT/repo/upload_package"
 chown -R www-data:www-data "`$STAGE_ROOT/persistent"
 
+if [ ! -f /etc/nginx/ikimon-staging-allowlist.conf ]; then
+  cat <<'EOF' > /etc/nginx/ikimon-staging-allowlist.conf
+# Optional staging bypass allowlist.
+# Add fixed office/home IPs here to skip Basic Auth.
+# Example:
+# allow 203.0.113.10;
+EOF
+  chmod 644 /etc/nginx/ikimon-staging-allowlist.conf
+fi
+
 if [ ! -f /etc/nginx/.htpasswd-ikimon-staging ]; then
   STAGING_PASS=`$(openssl rand -base64 18 | tr -d '\n' | tr '/+' 'AB' | cut -c1-20)
   printf 'staging:%s\n' "`$(openssl passwd -apr1 "`$STAGING_PASS")" > /etc/nginx/.htpasswd-ikimon-staging
@@ -131,6 +141,13 @@ if [ -f "`$TLS_CERT" ]; then
   FINAL_URL="`$HTTPS_URL"
 else
   FINAL_URL="`$HTTP_URL"
+fi
+
+# Formal staging vhost (`staging.ikimon.life`) already embeds the internal
+# `staging-local` PHP lane. Keep the legacy standalone site disabled to avoid
+# duplicate `server_name staging-local` warnings during nginx validation.
+if [ -f /etc/nginx/sites-available/staging.ikimon.life ]; then
+  rm -f /etc/nginx/sites-enabled/ikimon.life-staging-local
 fi
 
 PASS=`$(sed -n 's/^password=//p' "`$STAGE_ROOT/staging_access.txt" 2>/dev/null | head -n1 || true)

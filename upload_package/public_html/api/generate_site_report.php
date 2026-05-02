@@ -27,6 +27,7 @@ require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/RedListManager.php';
 require_once __DIR__ . '/../../libs/BiodiversityScorer.php';
 require_once __DIR__ . '/../../libs/BioUtils.php';
+require_once __DIR__ . '/../../libs/ReportEngine.php';
 
 // --- Initialization ---
 $siteId = $_GET['site_id'] ?? null;
@@ -256,6 +257,34 @@ if (count($redListSpecies) > 0) {
 }
 
 $reportActions = array_slice($reportActions, 0, 3);
+
+$plotMonitoring = [
+    'plot_count' => 0,
+    'plots' => [],
+    'summary' => [
+        'proxy_ready_count' => 0,
+        'proxy_incomplete_count' => 0,
+        'satellite_ready_count' => 0,
+        'satellite_unavailable_count' => 0,
+        'disturbance_flag_count' => 0,
+        'revisit_recommended_count' => 0,
+    ],
+    'site_satellite_context' => [
+        'latest' => null,
+        'previous' => null,
+        'comparison' => ['status' => 'missing_latest', 'messages' => [], 'metric_deltas' => []],
+    ],
+];
+
+try {
+    $plotMonitoring = (new ReportEngine($siteId, [
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'public_mode' => $isPublicMode,
+    ]))->get('plotMonitoring', $plotMonitoring);
+} catch (Throwable $e) {
+    // Keep report generation resilient even if plot payload fails.
+}
 
 // --- Output HTML ---
 ?>
@@ -822,6 +851,125 @@ $reportActions = array_slice($reportActions, 0, 3);
                     <?php endforeach; ?>
                 </ol>
             </div>
+        <?php endif; ?>
+
+        <h2><span class="icon">🌲</span> 固定プロット・炭素 proxy</h2>
+        <div class="disclaimer" style="margin-top:0; margin-bottom:16px;">
+            固定プロットの現地記録を主、衛星時系列を補助にして変化を読むための補助セクションです。ここで示す値は
+            <strong>proxy</strong> であり、正式な炭素量・吸収量・認証提出値ではありません。
+        </div>
+
+        <div class="summary-grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 12px;">
+            <div class="summary-card">
+                <span class="val"><?php echo (int)($plotMonitoring['plot_count'] ?? 0); ?></span>
+                <span class="lbl">固定プロット数</span>
+            </div>
+            <div class="summary-card">
+                <span class="val"><?php echo (int)($plotMonitoring['summary']['proxy_ready_count'] ?? 0); ?></span>
+                <span class="lbl">proxy 算出済み</span>
+            </div>
+            <div class="summary-card">
+                <span class="val"><?php echo (int)($plotMonitoring['summary']['satellite_ready_count'] ?? 0); ?></span>
+                <span class="lbl">衛星文脈あり</span>
+            </div>
+            <div class="summary-card">
+                <span class="val"><?php echo (int)($plotMonitoring['summary']['revisit_recommended_count'] ?? 0); ?></span>
+                <span class="lbl">再訪推奨</span>
+            </div>
+        </div>
+
+        <?php if (!empty($plotMonitoring['site_satellite_context']['latest'])): ?>
+            <?php $siteSatelliteLatest = $plotMonitoring['site_satellite_context']['latest']; ?>
+            <table style="margin-top: 12px;">
+                <tbody>
+                    <tr>
+                        <th style="width:22%;">site satellite context</th>
+                        <td>
+                            site polygon 集約:
+                            NDVI <?php echo htmlspecialchars((string)($siteSatelliteLatest['metrics']['ndvi'] ?? '—')); ?> /
+                            EVI <?php echo htmlspecialchars((string)($siteSatelliteLatest['metrics']['evi'] ?? '—')); ?> /
+                            land cover <?php echo htmlspecialchars((string)($siteSatelliteLatest['metrics']['land_cover_class'] ?? 'unknown')); ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>site衛星差分</th>
+                        <td><?php echo htmlspecialchars(implode(' / ', array_slice((array)($plotMonitoring['site_satellite_context']['comparison']['messages'] ?? []), 0, 2))); ?></td>
+                    </tr>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <?php if (!empty($plotMonitoring['plots'])): ?>
+            <?php foreach ($plotMonitoring['plots'] as $plotEntry): ?>
+                <?php
+                $plotRecord = $plotEntry['plot'] ?? [];
+                $latestVisit = $plotEntry['latest_visit'] ?? null;
+                $latestProxy = $plotEntry['field_metrics']['latest_proxy'] ?? [];
+                $latestSatellite = $plotEntry['satellite_context']['plot_latest'] ?? null;
+                $fieldMessages = array_slice((array)($plotEntry['comparison_flags']['field_change']['messages'] ?? []), 0, 2);
+                $satelliteMessages = array_slice((array)($plotEntry['comparison_flags']['satellite_change']['messages'] ?? []), 0, 2);
+                ?>
+                <div style="border:1px solid var(--border); border-radius:10px; padding:16px; margin-top:12px; background:var(--surface);">
+                    <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:16px; font-weight:700; color:var(--primary-dark);">
+                                <?php echo htmlspecialchars($plotRecord['name'] ?? '固定プロット'); ?>
+                            </div>
+                            <div style="font-size:12px; color:var(--muted); margin-top:4px;">
+                                forest type: <?php echo htmlspecialchars($plotRecord['forest_type_baseline'] ?? '未設定'); ?> /
+                                area: <?php echo number_format((float)($plotRecord['area_m2'] ?? 0), 1); ?> m² /
+                                visits: <?php echo (int)($plotEntry['visit_count'] ?? 0); ?>
+                            </div>
+                            <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+                                <?php echo $latestVisit ? '最新再訪: ' . htmlspecialchars(substr((string)($latestVisit['visited_at'] ?? ''), 0, 10)) : 'まだ再訪記録がありません'; ?>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:11px; color:var(--muted);">relative biomass proxy</div>
+                            <div style="font-size:28px; font-weight:900; color:var(--primary);">
+                                <?php echo $latestProxy['relative_biomass_proxy'] !== null ? htmlspecialchars((string)$latestProxy['relative_biomass_proxy']) : '—'; ?>
+                            </div>
+                            <div style="font-size:11px; color:var(--muted);">
+                                confidence: <?php echo htmlspecialchars((string)($plotEntry['proxy_confidence'] ?? 'insufficient')); ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table style="margin-top:12px;">
+                        <tbody>
+                            <tr>
+                                <th style="width:22%;">basal area proxy</th>
+                                <td><?php echo htmlspecialchars((string)($latestProxy['basal_area_proxy']['per_ha_m2'] ?? '—')); ?> m²/ha proxy</td>
+                            </tr>
+                            <tr>
+                                <th>現地差分</th>
+                                <td><?php echo htmlspecialchars(implode(' / ', $fieldMessages)); ?></td>
+                            </tr>
+                            <tr>
+                                <th>衛星文脈</th>
+                                <td>
+                                    <?php if ($latestSatellite): ?>
+                                        NDVI <?php echo htmlspecialchars((string)($latestSatellite['metrics']['ndvi'] ?? '—')); ?> /
+                                        EVI <?php echo htmlspecialchars((string)($latestSatellite['metrics']['evi'] ?? '—')); ?> /
+                                        NDWI <?php echo htmlspecialchars((string)($latestSatellite['metrics']['ndwi'] ?? '—')); ?> /
+                                        land cover <?php echo htmlspecialchars((string)($latestSatellite['metrics']['land_cover_class'] ?? 'unknown')); ?>
+                                    <?php else: ?>
+                                        未取得
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>衛星差分</th>
+                                <td><?php echo htmlspecialchars(implode(' / ', $satelliteMessages)); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <p style="color: var(--muted); padding: 20px; text-align: center; background: var(--surface); border-radius: 8px;">
+                固定プロットはまだ登録されていません。plot / visit を追加すると、現地proxyと衛星文脈がこのレポートに並びます。
+            </p>
         <?php endif; ?>
 
         <!-- Red List Assessment -->

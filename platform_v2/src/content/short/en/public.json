@@ -1,0 +1,124 @@
+{
+  "landing": {
+    "title": "ikimon.life — Walk, find, write it in the notebook",
+    "heroEyebrow": "feel the field.",
+    "heroHeadingPlain": "Your usual walk becomes an adventure.",
+    "heroHeadingLine1": "Your usual walk",
+    "heroHeadingEmphasis": "becomes an adventure.",
+    "heroLead": "Walk, find something, and save it with a place. When names and differences become a little clearer, you want to walk again.",
+    "heroPromiseChips": [
+      "Nearby nature gets a little more interesting",
+      "One travel photo becomes a reason to return"
+    ],
+    "heroDailyLabel": "Today's field",
+    "heroLatestLabel": "Latest field note",
+    "heroStatsLabel": "Notebook growing now",
+    "heroPhotoFallback": "Today's nature doorway",
+    "heroReasonLabels": {
+      "seasonal": "Season signal",
+      "nearby": "Local signal",
+      "vividPhoto": "Clear photo",
+      "supported": "Easier to review",
+      "fresh": "Fresh find"
+    },
+    "dailyDashboard": {
+      "eyebrow": "Today's step",
+      "title": "Choose a reason to go outside",
+      "lead": "Record, revisit, or look nearby. The first screen stays focused on enjoying nature today.",
+      "scoreLabel": "Today's pick",
+      "seasonalTitle": "Seasonal clues",
+      "seasonalEmpty": "Seasonal clues are still being collected",
+      "cards": {
+        "recordToday": {
+          "eyebrow": "Record",
+          "title": "Save today's find",
+          "body": "Save what you found with a photo and a short note.",
+          "cta": "Record",
+          "metricLabel": "today"
+        },
+        "revisitPlace": {
+          "eyebrow": "Revisit",
+          "title": "Go back to a place you walked",
+          "body": "The same place changes when the season moves.",
+          "cta": "Open notebook",
+          "metricLabel": "visits"
+        },
+        "nearbyPulse": {
+          "eyebrow": "Nearby",
+          "title": "See where nearby records are moving",
+          "body": "Use active areas as a reason for the next walk.",
+          "cta": "Open map",
+          "metricLabel": "records"
+        },
+        "needsId": {
+          "eyebrow": "Review",
+          "title": "Open a record that needs a name",
+          "body": "Turn an uncertain record into the next discovery.",
+          "cta": "Open record",
+          "metricLabel": "IDs"
+        }
+      }
+    },
+    "numberLocale": "en-US",
+    "toolSectionEyebrow": "Two ways to enjoy it",
+    "toolSectionTitle": "Look on site. Choose from the map.",
+    "toolSectionLead": "Check what caught your eye, or choose where to walk next. Both paths lead back to a record you can revisit.",
+    "tools": {
+      "lens": {
+        "eyebrow": "Lens",
+        "title": "Look closer at what caught your eye",
+        "body": "Point the camera and AI returns candidates and clues. It helps you keep the moment without pretending to be the final answer.",
+        "badge": "AI hint"
+      },
+      "scan": {
+        "eyebrow": "Explore Map",
+        "title": "Choose today's walk from the map",
+        "body": "Use nearby finds, seasonal changes, and gaps to choose the next place worth walking.",
+        "badge": "map"
+      }
+    },
+    "mapSectionEyebrow": "Explore map",
+    "mapSectionTitle": "Find places that make you want to walk again",
+    "mapSectionLead": "Nearby paths and travel stops both hold reasons for the next walk. See what has been found and decide one next step.",
+    "mapEmpty": "No observations on the map yet"
+  },
+  "fieldLoop": {
+    "eyebrow": "How it works",
+    "title": "Find. Learn. Save. Help someone else.",
+    "lead": "Find something, check a few clues, and save it with the place. The more people keep these small records, the easier nearby nature becomes to understand.",
+    "primaryCta": "See the idea",
+    "steps": [
+      { "title": "1. Find", "body": "Notice something on a walk or while traveling." },
+      { "title": "2. Learn", "body": "Use AI clues and your own eyes to look a little closer." },
+      { "title": "3. Save", "body": "Keep the photo, place, time, and a short note together." },
+      { "title": "4. Help", "body": "Small records can become clues for local nature, research, and conservation." }
+    ],
+    "principles": [
+      "Start with enjoyment.",
+      "Keep records even before you know the name.",
+      "Save the place context.",
+      "Turn each record into the next walk."
+    ],
+    "boundaries": [
+      "Blank = not yet observed",
+      "Absence = only with effort logged",
+      "Model updates = validated only"
+    ]
+  },
+  "marketing": {
+    "pages": {
+      "community": {
+        "title": "Community | ikimon",
+        "eyebrow": "Community",
+        "heading": "Join walks and themed surveys",
+        "lead": "Start with a solo walk, then sometimes look at the same place with others. Community events, themed surveys, and small local programs live here.",
+        "activeNav": "community",
+        "bodyPageId": "community",
+        "afterActions": [
+          { "href": "/record", "label": "Record" },
+          { "href": "/contact", "label": "Plan a program" }
+        ]
+      }
+    }
+  }
+}

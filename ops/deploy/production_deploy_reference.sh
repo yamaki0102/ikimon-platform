@@ -23,6 +23,66 @@ PERSISTENT_UPLOADS="$PERSISTENT_ROOT/uploads"
 CURRENT_BRANCH="main"
 BACKUP_DIR="$(mktemp -d /tmp/ikimon-deploy-XXXX)"
 CONFIG_FILES=("config.php" "oauth_config.php" "secret.php")
+RUNTIME_ALLOWLIST="$REPO_DIR/ops/deploy/runtime_persistent_allowlist.txt"
+
+load_runtime_allowlist() {
+    if [ ! -f "$RUNTIME_ALLOWLIST" ]; then
+        echo "Missing runtime allowlist: $RUNTIME_ALLOWLIST"
+        exit 1
+    fi
+    grep -v '^[[:space:]]*#' "$RUNTIME_ALLOWLIST" | sed '/^[[:space:]]*$/d'
+}
+
+rsync_runtime_copy() {
+    local source="$1"
+    local dest="$2"
+    local rc=0
+
+    rsync -a "$source" "$dest" || rc=$?
+    if [ "$rc" -eq 24 ]; then
+        echo "Warning: runtime file vanished during backup/restore: $source"
+        return 0
+    fi
+    return "$rc"
+}
+
+copy_runtime_allowlist() {
+    local src_root="$1"
+    local dst_root="$2"
+    local pattern rel rel_dir match rel_match
+
+    while IFS= read -r pattern; do
+        if [[ "$pattern" != upload_package/data/* ]]; then
+            continue
+        fi
+
+        rel="${pattern#upload_package/data/}"
+
+        if [[ "$rel" == *"/**" ]]; then
+            rel_dir="${rel%/**}"
+            if [ -d "$src_root/$rel_dir" ]; then
+                mkdir -p "$dst_root/$rel_dir"
+                rsync_runtime_copy "$src_root/$rel_dir/" "$dst_root/$rel_dir/"
+            fi
+            continue
+        fi
+
+        if [[ "$rel" == *"*"* || "$rel" == *"?"* || "$rel" == *"["* ]]; then
+            while IFS= read -r match; do
+                [ -z "$match" ] && continue
+                rel_match="${match#$src_root/}"
+                mkdir -p "$dst_root/$(dirname "$rel_match")"
+                rsync_runtime_copy "$match" "$dst_root/$rel_match"
+            done < <(compgen -G "$src_root/$rel" || true)
+            continue
+        fi
+
+        if [ -e "$src_root/$rel" ]; then
+            mkdir -p "$dst_root/$(dirname "$rel")"
+            rsync_runtime_copy "$src_root/$rel" "$dst_root/$rel"
+        fi
+    done < <(load_runtime_allowlist)
+}
 
 cleanup() {
     rm -rf "$BACKUP_DIR"
@@ -47,9 +107,7 @@ fi
 
 echo "[2/8] Back up runtime data"
 mkdir -p "$BACKUP_DIR/data" "$BACKUP_DIR/config" "$PERSISTENT_UPLOADS"
-if [ -d "$DATA_DIR" ]; then
-    rsync -a "$DATA_DIR/" "$BACKUP_DIR/data/"
-fi
+copy_runtime_allowlist "$DATA_DIR" "$BACKUP_DIR/data"
 
 echo "[3/8] Back up runtime config"
 for file_name in "${CONFIG_FILES[@]}"; do
@@ -69,8 +127,7 @@ git reset --hard "origin/$CURRENT_BRANCH"
 
 echo "[6/8] Restore runtime data and config"
 mkdir -p "$DATA_DIR" "$CONFIG_DIR"
-rsync -a "$DATA_DIR/" "$BACKUP_DIR/data/" >/dev/null 2>&1 || true
-rsync -a "$BACKUP_DIR/data/" "$DATA_DIR/" >/dev/null 2>&1 || true
+copy_runtime_allowlist "$BACKUP_DIR/data" "$DATA_DIR"
 for file_name in "${CONFIG_FILES[@]}"; do
     if [ -f "$BACKUP_DIR/config/$file_name" ]; then
         cp -a "$BACKUP_DIR/config/$file_name" "$CONFIG_DIR/$file_name"
@@ -90,10 +147,13 @@ systemctl reload php8.2-fpm
 
 echo "[Verify] Basic health checks"
 for url in \
-    "https://ikimon.life/index.php" \
-    "https://ikimon.life/explore.php" \
-    "https://ikimon.life/post.php" \
-    "https://ikimon.life/api/get_events.php"
+    "https://ikimon.life/healthz" \
+    "https://ikimon.life/readyz" \
+    "https://ikimon.life/" \
+    "https://ikimon.life/explore" \
+    "https://ikimon.life/map" \
+    "https://ikimon.life/learn" \
+    "https://ikimon.life/contact"
 do
     status_code="$(curl -s -o /dev/null -w "%{http_code}" "$url")"
     if [ "$status_code" -lt 200 ] || [ "$status_code" -ge 400 ]; then

@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import { shouldQuarantineLegacyNoPhoto } from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -50,10 +52,16 @@ type ParityMismatch = {
 
 function parseArgs(argv: string[]): VerifyOptions {
   const projectRoot = process.cwd();
+  const legacyRoots = resolveLegacyRoots(projectRoot, {
+    mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
+    legacyDataRoot: process.env.LEGACY_DATA_ROOT,
+    uploadsRoot: process.env.LEGACY_UPLOADS_ROOT,
+    publicRoot: process.env.LEGACY_PUBLIC_ROOT,
+  });
   const options: VerifyOptions = {
-    legacyDataRoot: path.resolve(projectRoot, "../upload_package/data"),
-    uploadsRoot: path.resolve(projectRoot, "../upload_package/public_html/uploads"),
-    publicRoot: path.resolve(projectRoot, "../upload_package/public_html"),
+    legacyDataRoot: legacyRoots.legacyDataRoot,
+    uploadsRoot: legacyRoots.uploadsRoot,
+    publicRoot: legacyRoots.publicRoot,
     limit: null,
     json: false,
     importVersion: "production_shadow_live",
@@ -229,6 +237,17 @@ function countIdentificationCandidates(observations: LegacyObservation[]): numbe
   return count;
 }
 
+function hasImportableTrackCoordinates(point: LegacyTrackPoint): boolean {
+  return Number.isFinite(point.lat) && Number.isFinite(point.lng);
+}
+
+function countImportableTrackPoints(tracks: LegacyTrackSession[]): number {
+  return tracks.reduce((sum, track) => {
+    const points = Array.isArray(track.points) ? track.points : [];
+    return sum + points.filter(hasImportableTrackCoordinates).length;
+  }, 0);
+}
+
 async function createMigrationRun(importVersion: string, limit: number | null): Promise<string> {
   const result = await getPool().query<{ migration_run_id: string }>(
     `insert into migration_runs (
@@ -268,6 +287,8 @@ async function finalizeMigrationRun(
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const observations = await loadLegacyObservations(options);
+  const importableObservations = observations.filter((observation) => !shouldQuarantineLegacyNoPhoto(observation));
+  const quarantinedNoPhotoObservations = observations.length - importableObservations.length;
   const tokens = await loadLegacyAuthTokens(options);
   const tracks = await loadLegacyTracks(options);
   const pool = getPool();
@@ -302,6 +323,14 @@ async function main(): Promise<void> {
       }
     }
 
+    const sourceTokenHashes = [
+      ...new Set(
+        tokens
+          .map((token) => token.token_hash)
+          .filter((tokenHash): tokenHash is string => typeof tokenHash === "string" && tokenHash !== ""),
+      ),
+    ];
+
     const actualCountsResult = await pool.query<{
       remember_tokens: string;
       track_visits: string;
@@ -312,7 +341,7 @@ async function main(): Promise<void> {
       evidence_assets_linked: string;
     }>(
       `select
-          (select count(*)::text from remember_tokens) as remember_tokens,
+          (select count(*)::text from remember_tokens where token_hash = any($1::text[])) as remember_tokens,
           (select count(*)::text from visits where source_kind = 'legacy_track_session') as track_visits,
           (select count(*)::text
            from visit_track_points vtp
@@ -346,6 +375,7 @@ async function main(): Promise<void> {
                where v.visit_id = ea.visit_id
                  and v.source_kind = 'legacy_observation'
            )) as evidence_assets_linked`,
+      [sourceTokenHashes],
     );
 
     const visitRows = await pool.query<{ legacy_observation_id: string; source_payload: JsonRecord | null }>(
@@ -377,10 +407,14 @@ async function main(): Promise<void> {
       options,
       expected: {
         observationsSampled: observations.length,
-        rememberTokens: tokens.length,
+        observationsImportable: importableObservations.length,
+        quarantinedNoPhotoObservations,
+        rememberTokens: sourceTokenHashes.length,
         trackVisits: tracks.length,
-        trackPoints: tracks.reduce((sum, track) => sum + (Array.isArray(track.points) ? track.points.length : 0), 0),
+        trackPoints: countImportableTrackPoints(tracks),
         identificationCandidates: countIdentificationCandidates(observations),
+        importableIdentificationCandidates: countIdentificationCandidates(importableObservations),
+        photoRefs: expectedPhotoRefs,
         existingPhotoRefs: expectedExistingPhotoRefs,
         missingPhotoRefs: expectedMissingPhotoRefs,
       },
@@ -404,10 +438,10 @@ async function main(): Promise<void> {
       { key: "remember_tokens", expected: report.expected.rememberTokens, actual: report.actual.rememberTokens },
       { key: "track_visits", expected: report.expected.trackVisits, actual: report.actual.trackVisits },
       { key: "track_points", expected: report.expected.trackPoints, actual: report.actual.trackPoints },
-      { key: "observation_visits", expected: report.expected.observationsSampled, actual: report.actual.observationVisits },
-      { key: "observation_occurrences", expected: report.expected.observationsSampled, actual: report.actual.observationOccurrences },
-      { key: "identifications_linked", expected: report.expected.identificationCandidates, actual: report.actual.identificationsLinked },
-      { key: "evidence_assets_linked", expected: report.expected.existingPhotoRefs, actual: report.actual.evidenceAssetsLinked },
+      { key: "observation_visits", expected: report.expected.observationsImportable, actual: report.actual.observationVisits },
+      { key: "observation_occurrences", expected: report.expected.observationsImportable, actual: report.actual.observationOccurrences },
+      { key: "identifications_linked", expected: report.expected.importableIdentificationCandidates, actual: report.actual.identificationsLinked },
+      { key: "evidence_assets_linked", expected: report.expected.photoRefs, actual: report.actual.evidenceAssetsLinked },
       { key: "checksum.mismatches", expected: 0, actual: report.checksum.mismatches.length },
     ].filter((mismatch) => mismatch.expected !== mismatch.actual);
 

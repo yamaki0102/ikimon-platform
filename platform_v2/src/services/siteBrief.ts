@@ -17,9 +17,10 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodeGeohash } from "./geohash.js";
+import { resolveOfficialNoticeCards, type OfficialNoticeCard } from "./officialNotices.js";
 import { getCachedSignals, putCachedSignals } from "./siteSignalsCache.js";
 
-type Landcover =
+export type Landcover =
   | "tree_cover"
   | "shrubland"
   | "grassland"
@@ -42,6 +43,7 @@ export type SiteBrief = {
   checks: string[];
   captureHints: string[];
   signals: SiteSignals;
+  officialNotices: OfficialNoticeCard[];
 };
 
 type Rule = {
@@ -57,6 +59,8 @@ type Rule = {
     landcover_pair?: [Landcover[], Landcover[]];
     water_distance_m_lte?: number;
     water_distance_m_gt?: number;
+    elevation_m_gte?: number;
+    elevation_m_lte?: number;
   };
   reasons_ja: string[];
   reasons_en: string[];
@@ -257,7 +261,13 @@ function ruleMatches(rule: Rule, s: SiteSignals): boolean {
     if (s.waterDistanceM == null || s.waterDistanceM > w.water_distance_m_lte) return false;
   }
   if (w.water_distance_m_gt != null) {
-    if (s.waterDistanceM != null && s.waterDistanceM <= w.water_distance_m_gt) return false;
+    if (s.waterDistanceM == null || s.waterDistanceM <= w.water_distance_m_gt) return false;
+  }
+  if (w.elevation_m_gte != null) {
+    if (s.elevationM == null || s.elevationM < w.elevation_m_gte) return false;
+  }
+  if (w.elevation_m_lte != null) {
+    if (s.elevationM == null || s.elevationM > w.elevation_m_lte) return false;
   }
   return true;
 }
@@ -280,6 +290,7 @@ export function composeSiteBrief(signals: SiteSignals, lang: BriefLang = "ja"): 
       captureHints:
         lang === "ja" ? ["広角で1枚", "気になった要素の寄り1枚"] : ["One wide shot", "One close-up of the most interesting element"],
       signals,
+      officialNotices: [],
     };
   }
   const reasons = (lang === "ja" ? hit.reasons_ja : hit.reasons_en).slice(0, 3);
@@ -307,6 +318,7 @@ export function composeSiteBrief(signals: SiteSignals, lang: BriefLang = "ja"): 
     checks: (lang === "ja" ? hit.checks_ja : hit.checks_en).slice(0, 3),
     captureHints: (lang === "ja" ? hit.captures_ja : hit.captures_en).slice(0, 2),
     signals,
+    officialNotices: [],
   };
 }
 
@@ -321,5 +333,10 @@ export async function getSiteBrief(
     waterDistanceM: null,
     elevationM: null,
   }));
-  return composeSiteBrief(signals, lang);
+  const brief = composeSiteBrief(signals, lang);
+  const officialNotices = await resolveOfficialNoticeCards(lat, lng, signals, lang).catch(() => []);
+  return {
+    ...brief,
+    officialNotices,
+  };
 }

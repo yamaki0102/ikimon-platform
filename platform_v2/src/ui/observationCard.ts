@@ -1,7 +1,15 @@
 import { withBasePath } from "../httpBasePath.js";
 import type { SiteLang } from "../i18n.js";
 import { appendLangToHref } from "../i18n.js";
+import {
+  formatActorDisplay,
+  formatPlaceDisplay,
+  formatTaxonDisplayName,
+} from "../services/localizedDisplay.js";
+import { buildObservationDetailPath } from "../services/observationDetailLink.js";
+import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import type { LandingObservation } from "../services/readModels.js";
+import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml } from "./siteShell.js";
 
 function formatObservedAt(raw: string, lang: SiteLang): string {
@@ -42,51 +50,106 @@ export function renderObservationCard(
   basePath: string,
   lang: SiteLang,
   obs: LandingObservation,
-  options: { compact?: boolean } = {},
+  options: { compact?: boolean; locationMode?: "public" | "owner"; showSpecialistCta?: boolean } = {},
 ): string {
   const entryType = obs.entryType ?? "observation";
   const kind = kindCopy[lang][entryType];
   const isIdentification = entryType === "identification";
-  const detailHref = withBasePath(basePath, `/observations/${encodeURIComponent(obs.occurrenceId)}`);
-  const profileHref = obs.observerUserId
-    ? withBasePath(basePath, `/profile/${encodeURIComponent(obs.observerUserId)}`)
-    : null;
+  const detailHref = withBasePath(
+    basePath,
+    buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
+  );
+  const identifyHref = appendLangToHref(`${detailHref}#identify`, lang);
+  const specialistHref = appendLangToHref(
+    withBasePath(basePath, `/specialist/id-workbench?occurrenceId=${encodeURIComponent(obs.featuredOccurrenceId ?? obs.occurrenceId)}`),
+    lang,
+  );
+  const profileHref = buildObserverProfileHref(basePath, obs.observerUserId);
+  const subjectDisplay = formatTaxonDisplayName({
+    vernacularName: obs.vernacularName,
+    scientificName: obs.scientificName,
+    displayName: obs.displayName,
+    aiCandidateName: obs.aiCandidateName,
+  }, lang);
+  const subjectLabel = subjectDisplay.primaryLabel;
+  const subjectQualifier = subjectDisplay.qualifier === "scientific"
+    ? (lang === "ja" ? "学名" : "Scientific")
+    : subjectDisplay.qualifier === "ai"
+      ? (lang === "ja" ? "AI候補" : "AI")
+      : null;
+  const observerLabel = formatActorDisplay(obs.observerName, lang);
   const avatar = obs.observerAvatarUrl
-    ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" />`
-    : `<span class="obs-card-avatar is-placeholder">${escapeHtml((obs.observerName || "?").slice(0, 1))}</span>`;
+    ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'" /><span class="obs-card-avatar is-placeholder obs-card-avatar-fallback">${escapeHtml((observerLabel || "?").slice(0, 1))}</span>`
+    : `<span class="obs-card-avatar is-placeholder">${escapeHtml((observerLabel || "?").slice(0, 1))}</span>`;
   // Broken / missing photo fallback: hand-drawn-style sketch card that looks
   // intentional, not a broken <img>. onerror swaps in the sketch if the URL
   // returns 404 (e.g. when /uploads/ is not yet mounted).
   const sketchFallback = `<div class="obs-card-photo is-sketch" aria-hidden="true">
     <span class="obs-card-sketch-icon">${isIdentification ? "📝" : "📷"}</span>
-    <span class="obs-card-sketch-name">${escapeHtml(obs.displayName)}</span>
+    <span class="obs-card-sketch-name">${escapeHtml(subjectLabel)}</span>
     <span class="obs-card-sketch-note">${lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo"}</span>
   </div>`;
   const photo = obs.photoUrl
-    ? `<img class="obs-card-photo" src="${escapeHtml(obs.photoUrl)}" alt="${escapeHtml(obs.displayName)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
+    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(obs.photoUrl, "md") ?? obs.photoUrl)}" alt="${escapeHtml(subjectLabel)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
     : sketchFallback;
-  const placeLine = [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
+  const locationMode = options.locationMode ?? "public";
+  const placeLine = formatPlaceDisplay({
+    placeName: obs.placeName,
+    municipality: obs.municipality,
+    publicLocation: obs.publicLocation,
+  }, lang, locationMode);
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
-  const attribution = kind.attribution(obs.observerName || "");
+  const attribution = kind.attribution(observerLabel);
+  const multiBadge = obs.isMultiSubject
+    ? `<span class="obs-card-multi">${lang === "ja" ? `複数対象 ${obs.subjectCount ?? ""}`.trim() : "Multi-subject"}</span>`
+    : "";
+  const focusMeta = obs.isMultiSubject
+    ? `<div class="obs-card-focus">
+         <span class="obs-card-focus-label">${lang === "ja" ? "有力対象" : "Featured"}</span>
+         <strong>${escapeHtml(obs.featuredSubjectName ?? subjectLabel)}</strong>
+         ${obs.displayStability
+           ? `<span class="obs-card-stability is-${escapeHtml(obs.displayStability)}">${escapeHtml(
+             obs.displayStability === "locked"
+               ? (lang === "ja" ? "安定表示" : "Stable")
+               : obs.displayStability === "adaptive"
+                 ? (lang === "ja" ? "AI 既定" : "AI default")
+                 : (lang === "ja" ? "既定表示" : "Default"),
+           )}</span>`
+           : ""}
+       </div>`
+    : "";
 
   const tier = obs.evidenceTier;
   const tierBadge = tier != null
     ? `<span class="obs-card-tier" title="Evidence Tier ${tier}">T${tier}</span>`
     : "";
+  const isAi = Boolean(obs.isAiCandidate) || subjectDisplay.qualifier === "ai";
+  const awaitingId = subjectDisplay.isAwaitingId;
+  const speciesClass = `obs-card-species${isAi ? " is-ai-candidate" : ""}${awaitingId ? " is-awaiting" : ""}`;
+  const speciesInnerHtml = awaitingId
+    ? `<span class="obs-card-species-label">${lang === "ja" ? "同定待ち" : "Awaiting ID"}</span>`
+    : `${subjectQualifier ? `<span class="obs-card-species-ai-badge" aria-label="${escapeHtml(subjectQualifier)}">${escapeHtml(subjectQualifier)}</span>` : ""}<span class="obs-card-species-label">${escapeHtml(subjectLabel)}</span>`;
   return `<article class="obs-card${options.compact ? " is-compact" : ""}${isIdentification ? " is-identification" : ""}" data-entry-type="${escapeHtml(entryType)}">
-    <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(obs.displayName)}">
+    <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(subjectLabel)}">
       ${photo}
       <span class="obs-card-kind">${escapeHtml(kind.badge)}</span>
+      ${multiBadge}
       ${tierBadge}
-      <div class="obs-card-species">${escapeHtml(obs.displayName)}</div>
+      <div class="${speciesClass}">${speciesInnerHtml}</div>
     </a>
-    <div class="obs-card-meta">
+    <footer class="obs-card-meta">
       <div class="obs-card-who">
-        ${profileHref ? `<a class="obs-card-observer" href="${escapeHtml(appendLangToHref(profileHref, lang))}">${avatar}<span>${escapeHtml(attribution)}</span></a>` : `<span class="obs-card-observer">${avatar}<span>${escapeHtml(attribution)}</span></span>`}
+        ${avatar}
+        <strong class="obs-card-attribution">${profileHref ? `<a href="${escapeHtml(appendLangToHref(profileHref, lang))}">${escapeHtml(attribution)}</a>` : escapeHtml(attribution)}</strong>
         <time class="obs-card-when">${escapeHtml(formatObservedAt(timestamp, lang))}</time>
       </div>
-      <div class="obs-card-place">${escapeHtml(placeLine || "Unknown place")}</div>
-    </div>
+      <div class="obs-card-place">${escapeHtml(placeLine)}</div>
+      ${focusMeta}
+      <div class="obs-card-actions">
+        <a href="${escapeHtml(identifyHref)}">同定する</a>
+        ${options.showSpecialistCta ? `<a href="${escapeHtml(specialistHref)}">専門レビュー</a>` : ""}
+      </div>
+    </footer>
   </article>`;
 }
 
@@ -117,18 +180,50 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-sketch-note { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
   .obs-card-photo-fallback { display: none; }
   .obs-card-photo-fallback.is-visible { display: flex; }
-  .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .obs-card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; display: inline-flex; align-items: center; gap: 6px; }
+  .obs-card-species-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .obs-card-species.is-awaiting { background: rgba(234,179,8,.88); color: #422006; }
+  .obs-card-species.is-ai-candidate { background: rgba(14,165,233,.88); }
+  .obs-card-species-ai-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,.92); color: #075985; font-size: 9.5px; font-weight: 900; letter-spacing: .06em; flex-shrink: 0; }
+  .obs-card-meta {
+    position: relative;
+    z-index: 2;
+    min-height: 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px 16px;
+    background: #fff;
+    border-top: 2px solid #10b981;
+    color: #0f172a;
+    font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
+  }
   .obs-card-who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .obs-card-observer { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #0f172a; min-width: 0; }
-  .obs-card-observer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 10ch; }
-  .obs-card-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #475569; flex-shrink: 0; }
+  .obs-card-attribution { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #0f172a; font-size: 14px; font-weight: 800; }
+  .obs-card-attribution a { color: #0f172a; text-decoration: none; }
+  .obs-card-attribution a:hover { color: #047857; }
+  .obs-card-observer { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 800; color: #0f172a; min-width: 0; text-decoration: none; }
+  .obs-card-observer:hover { color: #047857; }
+  .obs-card-observer > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14ch; }
+  .obs-card-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #475569; flex-shrink: 0; box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(16,185,129,.25); }
   .obs-card-avatar.is-placeholder { background: linear-gradient(135deg,#d1fae5,#bae6fd); color: #065f46; }
-  .obs-card-when { font-size: 11px; color: #64748b; letter-spacing: .02em; flex-shrink: 0; }
-  .obs-card-place { font-size: 12px; color: #475569; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .obs-card-avatar-fallback { display: none; }
+  .obs-card-when { font-size: 11.5px; color: #475569; letter-spacing: .02em; flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .obs-card-place { font-size: 12.5px; color: #475569; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-weight: 650; }
+  .obs-card-place::before { content: "📍 "; opacity: .7; }
   .obs-card.is-compact .obs-card-media { aspect-ratio: 4 / 3; }
   .obs-card.is-compact .obs-card-meta { padding: 10px 12px 12px; }
   .obs-card-kind { position: absolute; left: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 11px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 4px 10px rgba(15,23,42,.08); backdrop-filter: blur(6px); }
+  .obs-card-multi { position: absolute; right: 10px; bottom: 46px; padding: 4px 10px; border-radius: 999px; background: rgba(2,132,199,.86); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .05em; backdrop-filter: blur(6px); }
+  .obs-card-focus { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #0f172a; }
+  .obs-card-focus-label { font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: #0369a1; }
+  .obs-card-focus strong { font-size: 12px; }
+  .obs-card-stability { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-weight: 800; background: rgba(15,23,42,.06); color: #334155; }
+  .obs-card-stability.is-locked { background: rgba(16,185,129,.12); color: #047857; }
+  .obs-card-stability.is-adaptive { background: rgba(59,130,246,.12); color: #1d4ed8; }
+  .obs-card-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 8px; margin-top: 10px; }
+  .obs-card-actions a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 14px; background: rgba(14,165,233,.1); color: #0369a1 !important; font-size: 12px; line-height: 1.2; font-weight: 900; text-align: center; text-decoration: none; }
+  .obs-card-actions a:hover { background: rgba(14,165,233,.18); }
   .obs-card-tier { position: absolute; right: 10px; top: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(15,23,42,.62); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .05em; backdrop-filter: blur(6px); }
   .obs-card.is-identification .obs-card-tier { background: rgba(14,165,233,.7); }
   .obs-card.is-identification { border-color: rgba(14,165,233,.26); box-shadow: 0 6px 18px rgba(14,165,233,.12); }
