@@ -766,8 +766,36 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       : lang === "pt-BR"
         ? "Buscar nesta área"
         : "Search this area";
+  const sideTabResultsLabel = lang === "ja"
+    ? "一覧"
+    : lang === "es"
+      ? "Lista"
+      : lang === "pt-BR"
+        ? "Lista"
+        : "List";
+  const sideTabSelectionLabel = lang === "ja"
+    ? "この場所"
+    : lang === "es"
+      ? "Este lugar"
+      : lang === "pt-BR"
+        ? "Este local"
+        : "This place";
+  const sideToggleLabel = lang === "ja"
+    ? "サイドパネルを折りたたむ"
+    : lang === "es"
+      ? "Plegar panel lateral"
+      : lang === "pt-BR"
+        ? "Recolher painel"
+        : "Collapse side panel";
+  const sideSelectionEmptyLabel = lang === "ja"
+    ? "地図上のピンや区画をクリックすると、ここに詳細が表示されます。"
+    : lang === "es"
+      ? "Toca un pin o una celda del mapa para ver los detalles aquí."
+      : lang === "pt-BR"
+        ? "Toque em um pino ou célula no mapa para ver os detalhes aqui."
+        : "Tap a pin or cell on the map to see details here.";
 
-  return `<section class="section me-section" aria-label="Map Explorer">
+  return `<section class="section me-section" data-side="open" aria-label="Map Explorer">
     <div class="me-topbar">
       <div class="me-topbar-primary">
         <div class="me-search-shell" role="search">
@@ -901,12 +929,31 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     </div>
 
     <div class="me-main">
-      <aside class="me-side" aria-label="result panel">
-        <div class="me-side-head">
-          <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
-          <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
+      <aside class="me-side" id="me-side" data-tab="results" aria-label="result panel">
+        <button type="button" class="me-side-toggle" id="me-side-toggle" aria-label="${escapeHtml(sideToggleLabel)}" title="${escapeHtml(sideToggleLabel)}" aria-expanded="true">
+          <span class="me-side-toggle-icon" aria-hidden="true">‹</span>
+        </button>
+        <div class="me-side-rail-icons" aria-hidden="true">
+          <span>📋</span>
+          <span class="me-side-rail-count" id="me-side-rail-count">—</span>
         </div>
-        <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
+        <div class="me-side-tabs" role="tablist">
+          <button type="button" class="me-side-tab is-active" data-side-tab="results" role="tab" aria-selected="true">${escapeHtml(sideTabResultsLabel)}</button>
+          <button type="button" class="me-side-tab" data-side-tab="selection" role="tab" aria-selected="false" disabled>${escapeHtml(sideTabSelectionLabel)}</button>
+        </div>
+        <div class="me-side-body">
+          <div class="me-side-pane me-side-pane-results" role="tabpanel">
+            <div class="me-side-head">
+              <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
+              <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
+            </div>
+            <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
+          </div>
+          <div class="me-side-pane me-side-pane-selection" role="tabpanel">
+            <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
+            <div class="me-side-pane-selection-empty" id="me-side-selection-empty">${escapeHtml(sideSelectionEmptyLabel)}</div>
+          </div>
+        </div>
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
@@ -917,7 +964,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <button type="button" class="me-map-quick" data-map-basemap="esri"><span aria-hidden="true">▧</span>${escapeHtml(copy.mapQuickSatellite)}</button>
           <button type="button" class="me-map-quick" data-map-basemap="standard"><span aria-hidden="true">▤</span>${escapeHtml(copy.mapQuickStandard)}</button>
         </div>
-        <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
         <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
@@ -962,6 +1008,55 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var resultsListEl = document.getElementById('me-results-list');
   var selectedCardEl = document.getElementById('me-map-selection-card');
   var mapInsightCardEl = document.getElementById('me-map-insight-card');
+  var sideEl = document.getElementById('me-side');
+  var sideToggleEl = document.getElementById('me-side-toggle');
+  var sideRailCountEl = document.getElementById('me-side-rail-count');
+  var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
+  var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
+  var sideTabBtns = document.querySelectorAll('[data-side-tab]');
+  function setSideTab(name) {
+    if (!sideEl) return;
+    sideEl.setAttribute('data-tab', name);
+    for (var i = 0; i < sideTabBtns.length; i++) {
+      var btn = sideTabBtns[i];
+      var on = btn.getAttribute('data-side-tab') === name;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+  }
+  function setSideSelectionTabAvailable(available) {
+    var btn = document.querySelector('[data-side-tab="selection"]');
+    if (!btn) return;
+    if (available) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'disabled');
+  }
+  function setSideRailMode(rail) {
+    if (!sideSectionEl) return;
+    sideSectionEl.setAttribute('data-side', rail ? 'rail' : 'open');
+    if (sideToggleEl) sideToggleEl.setAttribute('aria-expanded', rail ? 'false' : 'true');
+    try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
+    // Resize map after panel size change so MapLibre picks up new dimensions.
+    setTimeout(function () {
+      try { if (state && state.map && state.map.resize) state.map.resize(); } catch (e) {}
+    }, 280);
+  }
+  if (sideToggleEl) {
+    sideToggleEl.addEventListener('click', function () {
+      var nowRail = !sideSectionEl || sideSectionEl.getAttribute('data-side') !== 'rail';
+      setSideRailMode(nowRail);
+    });
+  }
+  for (var st = 0; st < sideTabBtns.length; st++) {
+    sideTabBtns[st].addEventListener('click', function (ev) {
+      var t = ev.currentTarget;
+      if (t.hasAttribute('disabled')) return;
+      setSideTab(t.getAttribute('data-side-tab') || 'results');
+    });
+  }
+  try {
+    var stored = window.localStorage.getItem('me-side-rail');
+    if (stored === '1') setSideRailMode(true);
+  } catch (e) {}
   var yearRangeEl = document.getElementById('me-year-range');
   var yearLabelEl = document.getElementById('me-year-label');
   var yearAllEl = document.getElementById('me-year-all');
@@ -1445,6 +1540,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!resultsListEl || !sideStatusEl) return;
     var records = Array.isArray(state.records) ? state.records : [];
     var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
+    if (sideRailCountEl) sideRailCountEl.textContent = records.length ? String(records.length) : '—';
     if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
       resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
@@ -1485,17 +1581,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  function clearSideSelection() {
+    if (sideSelectionEmptyEl) sideSelectionEmptyEl.style.display = '';
+    setSideSelectionTabAvailable(false);
+    if (sideEl && sideEl.getAttribute('data-tab') === 'selection') setSideTab('results');
+  }
+  function markSideSelection() {
+    if (sideSelectionEmptyEl) sideSelectionEmptyEl.style.display = 'none';
+    setSideSelectionTabAvailable(true);
+    if (!shouldUseBottomSheet() && sideEl && sideEl.getAttribute('data-tab') !== 'selection') {
+      setSideTab('selection');
+    }
+  }
   function renderSelectedCard() {
     if (!selectedCardEl) return;
     if (shouldUseBottomSheet()) {
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
+      clearSideSelection();
       return;
     }
     var context = getSelectedContext();
     if (!context) {
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
+      clearSideSelection();
       return;
     }
     if (context.kind === 'place') {
@@ -1514,6 +1624,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
         '</div>';
       selectedCardEl.classList.add('is-visible');
+      markSideSelection();
       fetchSiteBrief(context.lat, context.lng, seq, document.getElementById('me-selected-brief-slot'));
       return;
     }
@@ -1537,6 +1648,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
         '</div>';
       selectedCardEl.classList.add('is-visible');
+      markSideSelection();
       fetchSiteBrief(context.lat, context.lng, cellSeq, document.getElementById('me-selected-brief-slot'));
       return;
     }
@@ -1544,6 +1656,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!record) {
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
+      clearSideSelection();
       return;
     }
     var photo = record.photoUrl
@@ -1569,6 +1682,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
       '</div>';
     selectedCardEl.classList.add('is-visible');
+    markSideSelection();
   }
 
   function refreshSelectedAmbient() {
@@ -3196,25 +3310,43 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
 export const MAP_EXPLORER_STYLES = `
   .me-section {
-    --me-map-height: clamp(620px, calc(100vh - 172px), 980px);
+    --me-header-h: 58px;
+    --me-topbar-h: 56px;
+    --me-side-w: 380px;
+    --me-side-rail-w: 52px;
+    --me-side-gap: 0px;
+    --me-map-height: calc(100dvh - var(--me-header-h) - var(--me-topbar-h));
     margin-top: 0;
+    position: relative;
+  }
+  .me-section[data-side="rail"] {
+    --me-side-w: var(--me-side-rail-w);
   }
   .me-topbar {
     display: grid;
-    gap: 14px 18px;
-    grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
-    align-items: start;
-    margin-bottom: 16px;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    margin-bottom: 0;
+    padding: 8px 14px;
+    height: var(--me-topbar-h);
+    background: rgba(255,255,255,.96);
+    border-bottom: 1px solid rgba(15,23,42,.06);
+    position: relative;
+    z-index: 8;
   }
-  .me-topbar-primary,
-  .me-topbar-secondary {
+  .me-topbar-primary {
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    gap: 10px;
     min-width: 0;
   }
   .me-topbar-secondary {
-    justify-content: space-between;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: nowrap;
   }
   .me-search-shell {
     position: relative;
@@ -3223,18 +3355,18 @@ export const MAP_EXPLORER_STYLES = `
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: 56px;
-    padding: 8px 12px 8px 16px;
-    border-radius: 20px;
-    background: rgba(255,255,255,.96);
-    border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 10px 28px rgba(15,23,42,.08);
+    min-height: 40px;
+    padding: 4px 10px 4px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,1);
+    border: 1px solid rgba(15,23,42,.1);
+    box-shadow: 0 1px 4px rgba(15,23,42,.05);
   }
-  .me-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(15,23,42,.04); }
-  .me-tab { min-height: 48px; padding: 8px 16px; border-radius: 12px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; }
+  .me-tabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(15,23,42,.04); }
+  .me-tab { min-height: 36px; padding: 4px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 12.5px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
   .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .me-filter-group-quick { flex: 1 1 auto; min-height: 56px; padding: 4px 0; }
+  .me-filter-group-quick { display: none; }
   .me-filter-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
   .me-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
   .me-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
@@ -3243,12 +3375,12 @@ export const MAP_EXPLORER_STYLES = `
   .me-chip-icon { font-size: 13px; }
   .me-filter-drawer { position: relative; flex: 0 0 auto; }
   .me-filter-toggle {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-height: 56px; min-width: 116px; padding: 0 18px;
-    border-radius: 16px; cursor: pointer; list-style: none;
-    background: #fff; border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 8px 24px rgba(15,23,42,.06);
-    font-size: 13px; font-weight: 800; color: #0f172a;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 38px; min-width: 92px; padding: 0 14px;
+    border-radius: 999px; cursor: pointer; list-style: none;
+    background: #fff; border: 1px solid rgba(15,23,42,.1);
+    box-shadow: 0 1px 4px rgba(15,23,42,.05);
+    font-size: 12.5px; font-weight: 800; color: #0f172a;
   }
   .me-filter-toggle::-webkit-details-marker { display: none; }
   .me-filter-panel {
@@ -3357,32 +3489,32 @@ export const MAP_EXPLORER_STYLES = `
   .me-overlay-opacity-range { flex: 1; }
 
   .me-main {
-    display: grid;
-    gap: 18px;
-    grid-template-columns: clamp(320px, 24vw, 380px) minmax(0, 1fr);
-    align-items: start;
+    position: relative;
+    display: block;
+    height: var(--me-map-height);
   }
   .me-map-wrap {
-    position: sticky;
-    top: 86px;
-    min-height: var(--me-map-height);
-    border-radius: 28px;
+    position: relative;
+    width: 100%;
+    height: var(--me-map-height);
+    border-radius: 0;
     overflow: hidden;
     background: linear-gradient(135deg,#ecfeff,#eff6ff);
-    border: 1px solid rgba(15,23,42,.06);
-    box-shadow: 0 18px 42px rgba(15,23,42,.08);
+    border: 0;
+    box-shadow: none;
   }
-  .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 620px; }
+  .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
   .me-map-command-deck {
     position: absolute;
     top: 14px;
-    left: 14px;
+    left: calc(var(--me-side-w) + 14px);
     z-index: 6;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    max-width: calc(100% - 150px);
+    max-width: calc(100% - var(--me-side-w) - 28px);
     pointer-events: auto;
+    transition: left .25s ease, max-width .25s ease;
   }
   .me-map-quick {
     display: inline-flex;
@@ -3422,18 +3554,19 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-map-panel-selection {
     top: 82px;
-    left: 18px;
+    left: calc(var(--me-side-w) + 18px);
     width: clamp(280px, 28vw, 360px);
-    max-width: calc(100% - 36px);
+    max-width: calc(100% - var(--me-side-w) - 36px);
   }
   .me-map-panel-selection .me-map-card {
     max-height: calc(var(--me-map-height) - 96px);
     overflow-y: auto;
   }
   .me-map-panel-insight {
-    left: 18px;
+    left: calc(var(--me-side-w) + 18px);
     bottom: 18px;
-    width: min(420px, calc(100% - 108px));
+    width: min(420px, calc(100% - var(--me-side-w) - 36px));
+    transition: left .25s ease, width .25s ease;
   }
   .me-map-card {
     display: flex;
@@ -3558,8 +3691,8 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-range { display: inline-flex; gap: 10px; color: #64748b; font-weight: 700; }
   .me-search-area-btn {
     position: absolute;
-    top: 68px;
-    left: 50%;
+    top: 14px;
+    left: calc(50% + (var(--me-side-w) / 2));
     z-index: 5;
     transform: translateX(-50%);
     min-height: 44px;
@@ -3620,17 +3753,156 @@ export const MAP_EXPLORER_STYLES = `
   }
   ${OFFICIAL_NOTICE_CARD_STYLES}
 
-  .me-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-  .me-side-head { padding: 4px 2px 0; }
-  .me-side-title { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 900; color: #0f172a; letter-spacing: -.02em; }
-  .me-side-subtitle { margin-top: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
+  .me-side {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--me-side-w);
+    z-index: 7;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: rgba(255,255,255,.98);
+    border-right: 1px solid rgba(15,23,42,.08);
+    box-shadow: 2px 0 18px rgba(15,23,42,.06);
+    transition: width .25s ease;
+    overflow: hidden;
+  }
+  .me-side-toggle {
+    position: absolute;
+    top: 50%;
+    right: -16px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 56px;
+    border-radius: 0 8px 8px 0;
+    border: 1px solid rgba(15,23,42,.08);
+    border-left: 0;
+    background: rgba(255,255,255,.98);
+    color: #475569;
+    cursor: pointer;
+    box-shadow: 2px 0 6px rgba(15,23,42,.05);
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 800;
+    z-index: 8;
+    line-height: 1;
+    padding: 0;
+  }
+  .me-side-toggle:hover { color: #0f172a; background: #fff; }
+  .me-side-toggle-icon { display: inline-block; transition: transform .25s ease; }
+  .me-section[data-side="rail"] .me-side-toggle-icon { transform: rotate(180deg); }
+
+  .me-side-tabs {
+    display: flex;
+    gap: 0;
+    padding: 8px 12px 0;
+    border-bottom: 1px solid rgba(15,23,42,.06);
+    flex: 0 0 auto;
+  }
+  .me-side-tab {
+    flex: 1 1 auto;
+    min-height: 38px;
+    padding: 6px 10px;
+    border: 0;
+    background: transparent;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .me-side-tab.is-active { color: #0f172a; border-bottom-color: #0ea5e9; }
+  .me-side-tab[disabled] { opacity: .38; cursor: not-allowed; }
+
+  .me-side-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .me-side-pane {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 14px 18px;
+    overflow-y: auto;
+  }
+  .me-side[data-tab="results"] .me-side-pane-selection,
+  .me-side[data-tab="selection"] .me-side-pane-results { display: none; }
+
+  .me-section[data-side="rail"] .me-side-tabs,
+  .me-section[data-side="rail"] .me-side-pane,
+  .me-section[data-side="rail"] .me-side-head { display: none; }
+  .me-section[data-side="rail"] .me-side-rail-icons { display: flex; }
+  .me-side-rail-icons {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 0;
+    color: #475569;
+  }
+  .me-side-rail-icons span { font-size: 20px; line-height: 1; }
+  .me-side-rail-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 30px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(14,165,233,.14);
+    color: #075985;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .me-side-head { padding: 0 2px; flex: 0 0 auto; }
+  .me-side-title { margin: 0; font-size: 17px; line-height: 1.2; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
+  .me-side-subtitle { margin-top: 4px; font-size: 11.5px; color: #64748b; font-weight: 700; }
+
+  .me-side-pane-selection { gap: 10px; }
+  .me-side-pane-selection .me-map-panel-selection {
+    position: static;
+    width: 100%;
+    max-width: none;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+  .me-side-pane-selection .me-map-panel-selection .me-map-card {
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    border: 1px solid rgba(15,23,42,.06);
+    background: #fff;
+    backdrop-filter: none;
+    padding: 14px;
+  }
+  .me-side-pane-selection-empty {
+    padding: 20px 14px;
+    border-radius: 14px;
+    background: rgba(248,250,252,.8);
+    border: 1px dashed rgba(15,23,42,.1);
+    font-size: 12.5px;
+    color: #64748b;
+    line-height: 1.55;
+    text-align: center;
+  }
+
   .me-results-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: var(--me-map-height);
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 2px;
   }
   .me-result-row {
     display: grid;
@@ -3690,41 +3962,39 @@ export const MAP_EXPLORER_STYLES = `
   }
 
   @media (max-width: 1200px) {
-    .me-topbar {
-      grid-template-columns: 1fr;
-    }
-    .me-map-panel-selection {
-      width: clamp(260px, 34vw, 320px);
-    }
-    .me-map-panel-insight {
-      width: min(360px, calc(100% - 96px));
-    }
+    .me-section { --me-side-w: 320px; }
+    .me-map-panel-selection { width: clamp(260px, 30vw, 320px); }
   }
 
   @media (max-width: 900px) {
-    .me-topbar-primary,
-    .me-topbar-secondary { flex-direction: column; }
-    .me-topbar-secondary { justify-content: flex-start; }
-    .me-tabs { width: fit-content; }
-    .me-filter-drawer { width: 100%; }
-    .me-filter-toggle { width: 100%; }
+    .me-section {
+      --me-side-w: 0px;
+      --me-topbar-h: 56px;
+    }
+    .me-topbar {
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 8px 12px;
+    }
+    .me-tabs { display: none; }
+    .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-panel {
-      position: static;
+      position: absolute;
+      right: 8px;
+      left: 8px;
       width: auto;
-      margin-top: 10px;
-      box-shadow: 0 10px 24px rgba(15,23,42,.08);
+      max-width: none;
+      box-shadow: 0 10px 24px rgba(15,23,42,.16);
     }
-    .me-main {
-      grid-template-columns: 1fr;
-    }
-    .me-map-wrap {
-      position: relative;
-      top: auto;
-      order: 1;
-    }
-    .me-map { min-height: 72vh; height: 72vh; }
-    .me-map-panel {
-      display: none;
+    .me-main { display: block; }
+    .me-map-wrap { position: relative; }
+    .me-map { min-height: var(--me-map-height); height: var(--me-map-height); }
+    .me-side { display: none; }
+    .me-side-toggle { display: none; }
+    .me-map-panel-selection { display: none; }
+    .me-map-panel-insight {
+      left: 12px;
+      width: min(360px, calc(100% - 96px));
     }
     .me-map-command-deck {
       left: 10px;
@@ -3742,12 +4012,9 @@ export const MAP_EXPLORER_STYLES = `
       padding: 0 12px;
       font-size: 12px;
     }
-    .me-side {
-      order: 2;
-      display: none;
-    }
     .me-search-area-btn {
-      top: 70px;
+      top: 14px;
+      left: 50%;
       width: max-content;
       max-width: calc(100% - 28px);
     }
