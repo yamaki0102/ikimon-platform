@@ -578,23 +578,23 @@ const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
   .obs-reading-media { min-width: 0; }
-  .obs-reading-panel { display: grid; gap: 14px; align-self: start; padding: 18px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
-  .obs-reading-kicker { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
-  .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(30px, 4.4vw, 56px); line-height: 1.04; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
-  .obs-reading-lead { margin: 0; color: #475569; font-size: 14px; line-height: 1.75; font-weight: 750; }
+  .obs-reading-panel { display: grid; gap: 10px; align-self: start; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+  .obs-reading-kicker { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
+  .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(24px, 3.6vw, 44px); line-height: 1.08; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
+  .obs-reading-lead { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.6; font-weight: 700; }
   @media (min-width: 960px) {
     .obs-reading-hero { grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); align-items: start; gap: 28px; }
     .obs-reading-panel { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; }
   }
-  .obs-summary-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .obs-summary-cell { min-width: 0; display: grid; gap: 4px; padding: 10px 11px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.06); }
-  .obs-summary-cell span { color: #64748b; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
-  .obs-summary-cell strong { color: #0f172a; font-size: 13px; line-height: 1.45; font-weight: 900; overflow-wrap: anywhere; }
+  .obs-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+  .obs-summary-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); font-size: 11.5px; line-height: 1.4; }
+  .obs-summary-chip-label { color: #64748b; font-weight: 900; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+  .obs-summary-chip-value { color: #0f172a; font-weight: 900; }
   .obs-summary-copy { margin: 0; color: #475569; font-size: 13.5px; line-height: 1.75; font-weight: 720; }
-  .obs-reading-trust { display: grid; gap: 4px; padding: 13px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.88)); border: 1px solid rgba(16,185,129,.18); }
-  .obs-reading-trust span { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
-  .obs-reading-trust strong { color: #0f172a; font-size: 15px; line-height: 1.35; font-weight: 950; }
-  .obs-reading-trust p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+  .obs-reading-trust { display: grid; gap: 3px; padding: 10px 12px; border-radius: 12px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.88)); border: 1px solid rgba(16,185,129,.18); }
+  .obs-reading-trust span { color: #047857; font-size: 10px; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
+  .obs-reading-trust strong { color: #0f172a; font-size: 14px; line-height: 1.3; font-weight: 950; }
+  .obs-reading-trust p { margin: 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 700; }
   .obs-next-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .obs-next-action { display: grid; gap: 3px; min-height: 58px; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
   .obs-next-action:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(15,23,42,.08); }
@@ -622,11 +622,12 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hero-placeholder span:first-child { font-size: 40px; }
   .obs-hero-meta { display: flex; flex-direction: column; gap: 15px; padding: 6px 4px 4px; align-self: start; }
   .obs-hero-title { margin: 0; max-width: 18ch; font-size: clamp(30px, 3.1vw, 42px); font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.16; }
-  .obs-hero-byline { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; color: #475569; font-size: 13px; }
-  .obs-hero-observer { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: #0f172a; text-decoration: none; }
-  .obs-hero-avatar { width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 14px; flex-shrink: 0; overflow: hidden; }
+  .obs-hero-byline { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; color: #475569; font-size: 12.5px; line-height: 1.45; }
+  .obs-hero-observer { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: #0f172a; text-decoration: none; }
+  .obs-hero-avatar { width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 11px; flex-shrink: 0; overflow: hidden; }
   .obs-hero-avatar-img { background: transparent; object-fit: cover; }
   .obs-hero-when { font-weight: 700; }
+  .obs-hero-when::before { content: "📅 "; }
   .obs-hero-place::before { content: "📍 "; }
   .obs-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; }
   .obs-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 800; background: rgba(16,185,129,.1); color: #047857; border: 1px solid rgba(16,185,129,.2); }
@@ -2098,16 +2099,11 @@ function renderObservationSummaryStrip(options: {
   subjectCount: number;
   mediaCount: number;
 }): string {
-  const cells = [
-    { label: "見えているもの", value: options.displayName },
-    { label: "観察日", value: formatAbsolute(options.observedAt) },
-    { label: "場所", value: options.placeLabel },
-    { label: "記録者", value: options.observerDisplay },
-    { label: "名前の段階", value: options.trustStageLabel },
-    { label: "対象と証拠", value: `${options.subjectCount} 対象 / ${options.mediaCount} メディア` },
-  ];
-  return `<div class="obs-summary-strip">
-    ${cells.map((cell) => `<div class="obs-summary-cell"><span>${escapeHtml(cell.label)}</span><strong>${escapeHtml(cell.value || "未記録")}</strong></div>`).join("")}
+  // h1 (displayName) / byline (date · place · observer) / trust panel (trustStageLabel) と重複するカードは省略。
+  // 唯一の追加情報「対象と証拠」のみ小さなチップで表示。
+  const evidenceLabel = `${options.subjectCount} 対象 / ${options.mediaCount} メディア`;
+  return `<div class="obs-summary-strip" aria-label="観察の数量情報">
+    <span class="obs-summary-chip"><span class="obs-summary-chip-label">対象と証拠</span><span class="obs-summary-chip-value">${escapeHtml(evidenceLabel)}</span></span>
   </div>`;
 }
 
@@ -2142,9 +2138,7 @@ function renderObservationReadingHero(options: {
   return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
     <div class="obs-reading-media">${options.mediaBlock}</div>
     <aside class="obs-reading-panel" aria-label="観察の要約">
-      <div class="obs-reading-kicker">Observation reading</div>
       <h1 class="obs-reading-title">${escapeHtml(options.displayName)}</h1>
-      <p class="obs-reading-lead">この1件を読み返して、次に何を見るかまで決められる観察ページです。</p>
       <div class="obs-hero-byline">
         <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
           ${options.snapshot.observerAvatarUrl
