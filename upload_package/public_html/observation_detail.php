@@ -590,10 +590,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     </script>
 
     <!-- Main Content -->
-    <main class="pt-24 pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <main class="pt-20 pb-16 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
 
         <!-- Breadcrumb & Stats Header -->
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div class="flex items-center gap-2 text-sm text-muted">
                 <a href="index.php" class="hover:text-primary transition flex items-center gap-1">
                     <i data-lucide="home" class="w-3.5 h-3.5"></i>
@@ -622,10 +622,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
         </div>
 
         <!-- 2-Column Grid Layout (Photo vs Info) -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
 
             <!-- LEFT COLUMN: Visuals (LG: 7 cols - ~58%) -->
-            <div class="lg:col-span-7 space-y-6">
+            <div class="lg:col-span-7 space-y-4">
                 <!-- Main Media Carousel -->
                 <div class="relative bg-black rounded-2xl overflow-hidden shadow-2xl border border-border group aspect-[4/3] flex items-center justify-center"
                     @click="lightbox = true"
@@ -719,23 +719,25 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </div>
                 <?php endif; ?>
 
-                <!-- Owner Narrative -->
+                <!-- Owner Narrative (compact meta + note) -->
                 <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
-                <div class="mt-4" style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
-                    <div class="flex items-center gap-3 mb-3">
+                <div class="mt-3" style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
+                    <div class="flex items-center gap-2.5 mb-2 flex-wrap">
                         <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? '/assets/img/default-avatar.svg'); ?>"
                             alt="<?php echo htmlspecialchars(__('observation_page.user_avatar_alt', '{name} avatar', ['name' => $observerName ?? ''])); ?>"
-                            class="w-10 h-10 rounded-full border-2 border-border shadow-sm object-cover flex-shrink-0"
+                            class="w-7 h-7 rounded-full border border-border shadow-sm object-cover flex-shrink-0"
                             onerror="this.src='/assets/img/default-avatar.svg'">
-                        <div>
-                            <div class="text-sm font-bold text-text leading-none"><?php echo htmlspecialchars($observerName); ?></div>
-                            <div class="text-token-xs text-muted mt-0.5">
-                                <?php echo date('Y年m月d日 H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
-                                <?php if ($publicLocationName !== ''): ?>
-                                    · <?php echo htmlspecialchars($publicLocationName); ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                        <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($observerName); ?></span>
+                        <span class="inline-flex items-center gap-1 text-token-xs text-muted">
+                            <i data-lucide="calendar" class="w-3 h-3" style="pointer-events:none"></i>
+                            <?php echo date('Y.m.d H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
+                        </span>
+                        <?php if ($publicLocationName !== ''): ?>
+                            <span class="inline-flex items-center gap-1 text-token-xs text-muted min-w-0">
+                                <i data-lucide="map-pin" class="w-3 h-3 flex-shrink-0" style="pointer-events:none"></i>
+                                <span class="truncate"><?php echo htmlspecialchars($publicLocationName); ?></span>
+                            </span>
+                        <?php endif; ?>
                     </div>
                     <p class="text-sm text-text leading-relaxed">
                         <?php echo !empty($obs['note']) ? BioUtils::renderMarkdown($obs['note']) : '<span class="text-muted italic">' . htmlspecialchars(__('observation_page.no_note', 'No observation note')) . '</span>'; ?>
@@ -743,10 +745,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </div>
 
                 <?php if ($managedContextType !== '' || $organismOrigin !== ''): ?>
-                    <section style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
-                        <div class="flex items-center justify-between gap-3 mb-3">
+                    <section style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
+                        <div class="flex items-center justify-between gap-3 mb-2">
                             <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest"><?= __('observation_page.context_title', 'Record context') ?></p>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest leading-none"><?= __('observation_page.context_title', 'Record context') ?></p>
                                 <h3 class="text-sm font-bold text-text mt-1"><?= __('observation_page.context_heading', 'Facility origin and wildness') ?></h3>
                             </div>
                             <span class="text-[10px] font-bold px-2 py-1 rounded-full <?php echo ($obs['archive_track'] ?? 'wild_occurrence') === 'managed_collection' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'; ?>">
@@ -768,10 +770,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <?php if ($latestAiAssessment || in_array(($obs['ai_assessment_status'] ?? ''), ['pending', 'queued'], true)): ?>
-                    <section style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
-                        <div class="flex items-start justify-between gap-3 mb-3">
+                    <section style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
+                        <div class="flex items-start justify-between gap-3 mb-2">
                             <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest"><?= __('observation_page.hint_title', 'Observation hints') ?></p>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest leading-none"><?= __('observation_page.hint_title', 'Observation hints') ?></p>
                                 <h3 class="text-sm font-bold text-text mt-1"><?= __('observation_page.hint_heading', 'Notes for narrowing it down together') ?></h3>
                             </div>
                             <?php if ($latestAiAssessment): ?>
@@ -870,10 +872,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         }
                                     }
                                 ?>
-                                <div style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:1rem;margin-bottom:0.75rem;">
+                                <div style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;margin-bottom:0.5rem;">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
-                                            <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-1"><?= __('observation_page.ai_narrowed_title', 'This is as narrow as we can get for now') ?></p>
+                                            <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-1 leading-none"><?= __('observation_page.ai_narrowed_title', 'This is as narrow as we can get for now') ?></p>
                                             <p class="text-lg font-black text-text leading-tight">
                                                 <?php echo htmlspecialchars($recommendedDisplayName); ?>
                                             </p>
@@ -909,15 +911,15 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
-                            <div class="space-y-3 text-sm">
+                            <div class="space-y-2 text-sm">
                                 <?php
                                 $hasSimilar = !empty($latestAiAssessment['similar_taxa_to_compare']);
                                 $hasTips    = !empty($latestAiAssessment['distinguishing_tips']);
                                 $hasMissing = !empty($latestAiAssessment['missing_evidence']);
                                 if ($hasSimilar || $hasTips || $hasMissing):
                                 ?>
-                                    <div class="space-y-3" style="background:var(--md-tertiary-container);border-radius:var(--shape-md);padding:0.75rem;border-left:4px solid var(--color-primary);">
-                                        <p class="text-[10px] font-black text-primary uppercase tracking-widest"><?= __('observation_page.identify_priority', 'Identification keys') ?></p>
+                                    <div class="space-y-2" style="background:var(--md-tertiary-container);border-radius:var(--shape-md);padding:0.625rem 0.75rem;border-left:4px solid var(--color-primary);">
+                                        <p class="text-[10px] font-black text-primary uppercase tracking-widest leading-none"><?= __('observation_page.identify_priority', 'Identification keys') ?></p>
                                         <?php if ($hasTips): ?>
                                             <div>
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_distinguishing_tips', 'How to tell them apart') ?></p>
@@ -934,9 +936,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         <?php if ($hasSimilar): ?>
                                             <div>
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_similar_species', 'Confusingly similar species') ?> <span class="font-normal normal-case">（<?= __('observation_page.ai_reference', 'AI reference') ?>）</span></p>
-                                                <div class="flex flex-wrap gap-2">
+                                                <div class="flex flex-wrap gap-1.5">
                                                     <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
-                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text">
+                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-2.5 py-0.5 text-xs text-text">
                                                             <?php echo htmlspecialchars((string)$candidateName); ?>
                                                         </span>
                                                     <?php endforeach; ?>
@@ -958,17 +960,17 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <p class="text-[10px] text-muted">※ <?= __('observation_page.ai_reference_note', 'This is AI reference information. For confirmation, we recommend detailed observation of the real specimen and checking field guides.') ?></p>
                                     </div>
                                 <?php endif; ?>
-                                <div class="grid gap-3 sm:grid-cols-2">
+                                <div class="grid gap-2 sm:grid-cols-2">
                                     <?php if (!empty($latestAiAssessment['diagnostic_features_seen'])): ?>
-                                        <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
+                                        <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.625rem 0.75rem;">
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_seen_features', 'Clues visible in the photo') ?></p>
-                                            <p class="text-text leading-relaxed"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['diagnostic_features_seen'])); ?></p>
+                                            <p class="text-text leading-snug"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['diagnostic_features_seen'])); ?></p>
                                         </div>
                                     <?php endif; ?>
                                     <?php if (!empty($latestAiAssessment['why_not_more_specific'])): ?>
-                                        <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
+                                        <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.625rem 0.75rem;">
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_stop_reason', 'Why we stop here') ?></p>
-                                            <p class="text-muted leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['why_not_more_specific']); ?></p>
+                                            <p class="text-muted leading-snug"><?php echo htmlspecialchars($latestAiAssessment['why_not_more_specific']); ?></p>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -1054,7 +1056,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <?php if (!empty($learningGuidance['cards'])): ?>
-                    <section class="mt-4" style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
+                    <section style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest"><?= htmlspecialchars((string)($learningGuidance['section_title'] ?? __('observation_page.learning_section_title', 'Turn this observation into learning'))) ?></p>
@@ -1178,7 +1180,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             </div>
 
             <!-- RIGHT COLUMN: Info & Activity (LG: 5 cols - ~42%) -->
-            <div class="lg:col-span-5 flex flex-col gap-8">
+            <div class="lg:col-span-5 flex flex-col gap-4">
 
                 <?php
                 // ── ソース別情報セクション ──
@@ -1192,30 +1194,28 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);overflow:hidden;box-shadow:var(--elev-1);">
 
                     <!-- ヘッダー -->
-                    <div class="px-5 py-4 flex items-center gap-3 border-b" style="border-color:rgba(0,0,0,0.06);">
-                        <div class="w-9 h-9 rounded-full flex items-center justify-center <?php echo $_detailSrcMeta['color_class']; ?> border <?php echo $_detailSrcMeta['border_color_class']; ?>">
-                            <i data-lucide="<?php echo $_detailSrcMeta['icon']; ?>" class="w-4 h-4 <?php echo $_detailSrcMeta['text_color_class']; ?>"></i>
+                    <div class="px-4 py-2.5 flex items-center gap-2.5 border-b" style="border-color:rgba(0,0,0,0.06);">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center <?php echo $_detailSrcMeta['color_class']; ?> border <?php echo $_detailSrcMeta['border_color_class']; ?>">
+                            <i data-lucide="<?php echo $_detailSrcMeta['icon']; ?>" class="w-4 h-4 <?php echo $_detailSrcMeta['text_color_class']; ?>" style="pointer-events:none"></i>
                         </div>
-                        <div>
-                            <p class="text-xs font-black uppercase tracking-widest text-faint">記録方法</p>
-                            <p class="text-sm font-bold text-text"><?php echo htmlspecialchars($_detailSrcMeta['label']); ?></p>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-faint leading-none">記録方法</p>
+                            <p class="text-sm font-bold text-text mt-0.5"><?php echo htmlspecialchars($_detailSrcMeta['label']); ?></p>
                         </div>
-                        <div class="ml-auto">
-                            <?php echo ObservationSourceHelper::renderBadge($_detailSrc, true); ?>
-                        </div>
+                        <?php echo ObservationSourceHelper::renderBadge($_detailSrc, true); ?>
                     </div>
 
                     <!-- 説明 -->
-                    <div class="px-5 py-4">
+                    <div class="px-4 py-2.5">
                         <p class="text-xs text-muted leading-relaxed"><?php echo htmlspecialchars($_detailSrcMeta['description']); ?></p>
                         <?php if ($_detailSrcMeta['evidence_note']): ?>
-                            <p class="text-xs text-faint mt-1.5 leading-relaxed">📋 <?php echo htmlspecialchars($_detailSrcMeta['evidence_note']); ?></p>
+                            <p class="text-[11px] text-faint mt-1 leading-relaxed">📋 <?php echo htmlspecialchars($_detailSrcMeta['evidence_note']); ?></p>
                         <?php endif; ?>
                     </div>
 
                     <!-- AI検出の詳細 -->
                     <?php if ($_detailDetMeta['confidence'] > 0 || $_detailDetMeta['engine_label']): ?>
-                    <div class="px-5 pb-4 grid grid-cols-2 gap-3">
+                    <div class="px-4 pb-3 grid grid-cols-2 gap-2">
 
                         <?php if ($_detailDetMeta['confidence'] > 0): ?>
                         <div class="rounded-xl p-3" style="background:var(--md-surface-container-low);">
@@ -1309,20 +1309,19 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php elseif ($_detailSrc === 'post'): ?>
                 <!-- フィールドノート: 証拠・信頼性バッジ -->
                 <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);overflow:hidden;box-shadow:var(--elev-1);">
-                    <div class="px-5 py-4 flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full flex items-center justify-center bg-blue-500/15 border border-blue-400/30">
-                            <i data-lucide="camera" class="w-4 h-4 text-blue-700"></i>
+                    <div class="px-4 py-2.5 flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center bg-blue-500/15 border border-blue-400/30">
+                            <i data-lucide="camera" class="w-4 h-4 text-blue-700" style="pointer-events:none"></i>
                         </div>
-                        <div class="flex-1">
-                            <p class="text-xs font-black uppercase tracking-widest text-faint">記録方法</p>
-                            <p class="text-sm font-bold text-text">フィールドノート</p>
-                            <p class="text-xs text-muted mt-0.5">あなたが現場で撮影した写真による観察記録です。</p>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-faint leading-none">記録方法</p>
+                            <p class="text-sm font-bold text-text mt-0.5">フィールドノート</p>
                         </div>
                         <?php echo ObservationSourceHelper::renderBadge($_detailSrc, true); ?>
                     </div>
                     <?php if (!empty($obs['quality_flags'])): ?>
-                    <div class="px-5 pb-4">
-                        <p class="text-[10px] font-bold text-faint uppercase tracking-wider mb-2">データ品質フラグ</p>
+                    <div class="px-4 pb-3">
+                        <p class="text-[10px] font-bold text-faint uppercase tracking-wider mb-1.5">データ品質フラグ</p>
                         <div class="flex flex-wrap gap-1.5">
                             <?php
                             $qfLabels = [
@@ -1348,30 +1347,30 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <?php if (!empty($trustGuidance['steps']) && ($trustGuidance['status'] ?? '') !== '種レベル研究用'): ?>
-                    <div style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
+                    <div style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest">この記録を育てる</p>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest leading-none">この記録を育てる</p>
                                 <p class="text-sm font-bold text-text mt-1"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
                             </div>
                             <span class="text-xl leading-none">🌱</span>
                         </div>
-                        <div class="mt-3 flex flex-wrap gap-2">
+                        <div class="mt-2 flex flex-wrap gap-2">
                             <?php foreach (array_slice($trustGuidance['steps'], 0, 2) as $step): ?>
                                 <span class="inline-flex items-center rounded-full bg-white border border-primary/15 px-3 py-1 text-xs text-text">
                                     <?php echo htmlspecialchars($step); ?>
                                 </span>
                             <?php endforeach; ?>
                         </div>
-                        <div class="mt-4 flex flex-wrap gap-2">
+                        <div class="mt-3 flex flex-wrap gap-2">
                             <button @click="idModalOpen = true"
-                                class="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark active:scale-95">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                class="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark active:scale-95">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5" style="pointer-events:none"></i>
                                 名前を提案する
                             </button>
                             <a href="#id-list-container"
-                                class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-text border border-border transition hover:border-primary/30 hover:text-primary">
-                                <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
+                                class="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-text border border-border transition hover:border-primary/30 hover:text-primary">
+                                <i data-lucide="messages-square" class="w-3.5 h-3.5" style="pointer-events:none"></i>
                                 みんなの推測を見る
                             </a>
                         </div>
@@ -1379,18 +1378,18 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <!-- 1. Taxonomy & Identification Header -->
-                <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1.5rem;box-shadow:var(--elev-2);" class="relative overflow-hidden">
+                <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1rem 1.25rem;box-shadow:var(--elev-2);" class="relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-4 opacity-10">
-                        <i data-lucide="dna" class="w-32 h-32 text-primary"></i>
+                        <i data-lucide="dna" class="w-24 h-24 text-primary"></i>
                     </div>
 
                     <!-- Lineage -->
-                    <div class="mb-2 text-xs text-muted font-mono">
+                    <div class="mb-1.5 text-[11px] text-muted font-mono">
                         <?php echo BioUtils::renderLineage($obs['taxon']['lineage'] ?? []); ?>
                     </div>
 
                     <!-- Species Name -->
-                    <h1 class="text-2xl md:text-3xl font-black text-text mb-1 leading-tight tracking-tight">
+                    <h1 class="text-xl md:text-2xl font-black text-text mb-1 leading-tight tracking-tight">
                         <?php if ($speciesLink && $species_name): ?>
                             <a href="<?php echo htmlspecialchars($speciesLink); ?>" class="hover:text-primary-dark transition underline decoration-faint underline-offset-4 hover:decoration-primary/50">
                                 <?php echo htmlspecialchars($species_name); ?>
@@ -1399,7 +1398,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <?php echo htmlspecialchars($species_name ?? __('observation_page.species_pending', 'Species pending')); ?>
                         <?php endif; ?>
                     </h1>
-                    <div class="text-sm text-muted font-serif italic mb-3">
+                    <div class="text-xs text-muted font-serif italic mb-2">
                         <?php echo htmlspecialchars($scientific_name ?? ''); ?>
                         <?php if ($speciesLink): ?>
                             <a href="<?php echo htmlspecialchars($speciesLink); ?>" class="text-primary/70 hover:text-primary ml-2 text-token-xs font-sans not-italic font-bold">📖 <?= __('observation_page.guide', 'Guide') ?></a>
@@ -1407,7 +1406,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </div>
 
                     <!-- Badges: Red List & Invasive -->
-                    <div class="flex flex-wrap gap-2 mb-6">
+                    <div class="flex flex-wrap gap-1.5 mb-3">
                         <?php if ($redlist): ?>
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-token-xs font-bold bg-danger/10 text-danger border border-danger/20">
                                 <i data-lucide="alert-triangle" class="w-3 h-3"></i>
@@ -1478,7 +1477,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php endif; ?>
 
                     <?php if ($canEditObservation || $canSuggestObservationMeta): ?>
-                        <div class="mb-6 flex flex-wrap gap-2">
+                        <div class="mb-4 flex flex-wrap gap-2">
                             <a href="/edit_observation.php?id=<?php echo urlencode($id); ?>"
                                 class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-text transition hover:border-primary/30 hover:text-primary">
                                 <i data-lucide="<?php echo $canEditObservation ? 'pencil' : 'sparkles'; ?>" class="w-3.5 h-3.5"></i>
@@ -1500,37 +1499,27 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                     <?php endif; ?>
 
-                    <!-- Core Attributes -->
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
-                                <i data-lucide="map-pin" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <div class="text-token-xs text-muted uppercase tracking-wider"><?= __('observation_page.label_place', 'Place') ?></div>
-                                <div class="text-sm font-bold text-text" x-text="locationName"><?= __('observation_page.loading', 'Loading...') ?></div>
-                                <?php if ($isOwner && $privacyLayer === 'private'): ?>
-                                    <div class="text-[9px] text-primary flex items-center gap-1 mt-0.5"><i data-lucide="eye" class="w-2.5 h-2.5"></i> <?= __('observation_page.owner_exact_location', 'Only you can see the exact location') ?></div>
-                                <?php endif; ?>
-                                <div class="text-[9px] text-faint mt-1 leading-relaxed"><?php echo htmlspecialchars($privacyExplanation, ENT_QUOTES); ?></div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
-                                <i data-lucide="calendar" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <div class="text-token-xs text-muted uppercase tracking-wider"><?= __('observation_page.observed_at', 'Observed at') ?></div>
-                                <div class="text-sm font-bold text-text"><?php echo date('Y.m.d H:i', strtotime($obs['observed_at'])); ?></div>
-                            </div>
-                        </div>
+                    <!-- Compact meta line: place x-text + privacy note (date/observer in Owner Narrative card) -->
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mb-4 text-token-xs text-muted">
+                        <span class="inline-flex items-center gap-1">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5" style="pointer-events:none"></i>
+                            <span class="font-bold text-text" x-text="locationName"><?= __('observation_page.loading', 'Loading...') ?></span>
+                        </span>
+                        <span class="inline-flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5" style="pointer-events:none"></i>
+                            <span class="font-bold text-text"><?php echo date('Y.m.d H:i', strtotime($obs['observed_at'])); ?></span>
+                        </span>
+                        <?php if ($isOwner && $privacyLayer === 'private'): ?>
+                            <span class="inline-flex items-center gap-1 text-primary"><i data-lucide="eye" class="w-3 h-3" style="pointer-events:none"></i> <?= __('observation_page.owner_exact_location', 'Only you can see the exact location') ?></span>
+                        <?php endif; ?>
+                        <span class="basis-full text-[10px] text-faint leading-snug"><?php echo htmlspecialchars($privacyExplanation, ENT_QUOTES); ?></span>
                     </div>
 
                     <!-- Consensus Display (Simplified) -->
                     <?php $idCount = count($obs['identifications'] ?? []); ?>
                     <?php if ($idCount > 0): ?>
                         <?php $agreementRate = round(($obs['consensus']['agreement_rate'] ?? 0) * 100); ?>
-                        <div class="mb-6 flex items-center gap-3 p-3" style="background:var(--md-primary-container);border-radius:var(--shape-md);">
+                        <div class="mb-4 flex items-center gap-3 p-3" style="background:var(--md-primary-container);border-radius:var(--shape-md);">
                             <span class="text-2xl flex-shrink-0">
                                 <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? '🏆' : '🔍'; ?>
                             </span>
@@ -1555,27 +1544,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                     <?php endif; ?>
 
-                    <?php if (!empty($trustGuidance['steps'])): ?>
-                        <div class="mb-6" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:1rem;">
-                            <div class="flex items-start gap-3">
-                                <span class="text-2xl leading-none">🧭</span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
-                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed"><?php echo htmlspecialchars($trustGuidance['body']); ?></p>
-                                    <div class="mt-3 flex flex-wrap gap-2">
-                                        <?php foreach ($trustGuidance['steps'] as $step): ?>
-                                            <span class="inline-flex items-center rounded-full bg-white border border-emerald-100 px-3 py-1 text-xs text-gray-700">
-                                                <?php echo htmlspecialchars($step); ?>
-                                            </span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
+                    <?php /* trustGuidance はTaxonomyヘッダー前の「この記録を育てる」カードと重複するためここでは省略 */ ?>
 
                     <?php if (!empty($trustProgress)): ?>
-                        <div class="mb-6" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:1rem;">
+                        <div class="mb-4" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                         <p class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars((string)($trustProgress['headline'] ?? __('observation_page.trust_progress_headline', 'Progress toward trusted status'))); ?></p>
@@ -1603,7 +1575,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php endif; ?>
 
                     <?php if (!empty($pendingMetadataProposals)): ?>
-                        <div class="mb-6 rounded-xl border border-primary/15 bg-primary/5 p-4">
+                        <div class="mb-4 rounded-xl border border-primary/15 bg-primary/5 p-3">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl leading-none">🧩</span>
                                 <div class="min-w-0">
@@ -1695,7 +1667,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php endif; ?>
 
                     <?php if (!empty($metadataHistory)): ?>
-                        <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl leading-none">🪴</span>
                                 <div class="min-w-0">
@@ -1789,7 +1761,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             'violet' => 'border-violet-200 bg-violet-50 text-violet-900',
                         ];
                         ?>
-                        <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                        <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl leading-none">🧭</span>
                                 <div class="min-w-0">
@@ -1829,7 +1801,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                     <!-- Status badge when no consensus yet (unidentified) -->
                     <?php if (!isset($obs['consensus']) || empty($obs['identifications'])): ?>
-                        <div class="mb-6 flex items-center gap-3 p-3 rounded-xl bg-orange-500/5 border border-orange-500/15">
+                        <div class="mb-4 flex items-center gap-3 p-3 rounded-xl bg-orange-500/5 border border-orange-500/15">
                             <span class="text-2xl flex-shrink-0">🔍</span>
                             <div>
                             <div class="text-sm font-bold text-text"><?= __('observation_page.identifying_title', 'Identifying the species') ?></div>
