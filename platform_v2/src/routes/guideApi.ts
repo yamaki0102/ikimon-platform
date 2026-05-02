@@ -5,6 +5,7 @@ import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/gui
 import { upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
 import { parseGuideInteractionType, recordGuideInteraction } from "../services/guideInteractions.js";
 import { createGuideLiveToken } from "../services/guideLiveToken.js";
+import { recordGuideRoutePoint } from "../services/guideRouteTrack.js";
 import { analyzeScene, saveGuideRecord, type GuideMode, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
@@ -29,6 +30,16 @@ function parseClientSceneId(raw: unknown): string | null {
 
 function parseGuideMode(raw: unknown): GuideMode {
   return raw === "vehicle" ? "vehicle" : "walk";
+}
+
+function parseFiniteNumber(raw: unknown): number | null {
+  const value = typeof raw === "number" ? raw : (typeof raw === "string" && raw !== "" ? Number(raw) : NaN);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseIsoString(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  return Number.isFinite(Date.parse(raw)) ? raw : null;
 }
 
 function parseDetectedFeatures(raw: unknown): SceneResult["detectedFeatures"] {
@@ -263,8 +274,10 @@ async function applyGuideAutoSave(input: {
   sceneId: string;
   guideMode: GuideMode;
   lang: TtsLang;
+  locationQuality?: Record<string, unknown> | null;
+  sessionDistanceM?: number | null;
 }): Promise<PendingGuideAutoSave> {
-  const decision = decideGuideAutoSave({ result: input.sceneResult, siteBrief: input.siteBrief });
+  const decision = decideGuideAutoSave({ result: input.sceneResult, siteBrief: input.siteBrief, guideMode: input.guideMode });
   if (decision.decision === "skip") {
     return { state: "skipped", ...decision };
   }
@@ -297,6 +310,7 @@ async function applyGuideAutoSave(input: {
         uncertaintyReason: copy.uncertaintyReason,
         autoSave: decision,
         facePrivacy: input.facePrivacy,
+        locationQuality: input.locationQuality ?? null,
       },
       mediaRefs: {
         ...(input.frameThumb ? { frameThumb: input.frameThumb } : {}),
@@ -306,6 +320,8 @@ async function applyGuideAutoSave(input: {
         sceneId: input.sceneId,
         guideMode: input.guideMode,
         facePrivacy: input.facePrivacy,
+        locationQuality: input.locationQuality ?? null,
+        sessionDistanceM: input.sessionDistanceM ?? null,
         whyInteresting: copy.whyInteresting,
         nextLookTarget: copy.nextLookTarget,
         autoSave: decision,
@@ -323,10 +339,13 @@ async function applyGuideAutoSave(input: {
     await upsertGuideEnvironmentMeshFromRecord({
       guideRecordId,
       userId: input.userId,
+      sessionId: input.sessionId,
       lat: input.lat,
       lng: input.lng,
       detectedFeatures: input.sceneResult.detectedFeatures,
       seenAt: input.capturedAt,
+      locationQuality: input.locationQuality ?? null,
+      sessionDistanceM: input.sessionDistanceM ?? null,
     }).catch(() => undefined);
     return { state: "saved", guideRecordId, ...decision };
   } catch (error) {
@@ -393,6 +412,19 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const requestedAt = new Date().toISOString();
     const frameThumb = typeof body.frameThumb === "string" ? body.frameThumb : null;
     const facePrivacy = normalizeFacePrivacy(body.facePrivacy);
+    const locationAccuracyM = parseFiniteNumber(body.locationAccuracyM);
+    const speedMps = parseFiniteNumber(body.speedMps);
+    const headingDegrees = parseFiniteNumber(body.headingDegrees);
+    const sessionDistanceM = parseFiniteNumber(body.sessionDistanceM);
+    const positionCapturedAt = parseIsoString(body.positionCapturedAt);
+    const locationQuality = {
+      accuracyM: locationAccuracyM,
+      speedMps,
+      headingDegrees,
+      positionCapturedAt,
+      ageSec: positionCapturedAt ? Math.max(0, Math.round((Date.parse(capturedAt) - Date.parse(positionCapturedAt)) / 1000)) : null,
+      source: positionCapturedAt ? "watchPosition" : "fallback",
+    };
 
     const job: PendingGuideScene = {
       sceneId,
@@ -457,7 +489,23 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           sceneId,
           guideMode,
           lang,
+          locationQuality,
+          sessionDistanceM,
         });
+        await recordGuideRoutePoint({
+          sessionId,
+          userId,
+          clientSceneId: sceneId,
+          guideMode,
+          lat,
+          lng,
+          observedAt: capturedAt,
+          accuracyM: locationAccuracyM,
+          speedMps,
+          headingDegrees,
+          sessionDistanceM,
+          positionCapturedAt,
+        }).catch((error) => app.log.warn({ error, sceneId, sessionId }, "guide route point write failed"));
         job.status = "ready";
       } catch (error) {
         job.status = "error";
@@ -474,6 +522,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       lng,
       frameThumb,
       facePrivacy,
+      locationQuality,
     });
   });
 
@@ -697,10 +746,19 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     await upsertGuideEnvironmentMeshFromRecord({
       guideRecordId: id,
       userId: session?.userId ?? null,
+      sessionId,
       lat,
       lng,
       detectedFeatures: parseDetectedFeatures(body.detectedFeatures),
       seenAt: typeof body.capturedAt === "string" ? body.capturedAt : null,
+      locationQuality: {
+        accuracyM: parseFiniteNumber(body.locationAccuracyM),
+        speedMps: parseFiniteNumber(body.speedMps),
+        headingDegrees: parseFiniteNumber(body.headingDegrees),
+        positionCapturedAt: parseIsoString(body.positionCapturedAt),
+        source: parseIsoString(body.positionCapturedAt) ? "watchPosition" : "manual",
+      },
+      sessionDistanceM: parseFiniteNumber(body.sessionDistanceM),
     }).catch((error) => app.log.warn({ error, guideRecordId: id }, "guide environment mesh update failed"));
 
     return reply.send({ guideRecordId: id });

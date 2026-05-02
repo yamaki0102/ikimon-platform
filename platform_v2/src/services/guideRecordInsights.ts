@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { meshKey100m } from "./observationEventEffort.js";
+import { cleanGuideCanonicalName, isLikelyGuideNonBiologicalName } from "./guideNonBiological.js";
 
 export type GuideRecordInsightFeature = {
   type?: string;
@@ -98,10 +99,7 @@ function loadSeed(): GuideCanonicalizationSeed {
 }
 
 function cleanName(raw: string): string {
-  return raw
-    .replace(/\s+/g, "")
-    .replace(/[()]/g, (ch) => ch === "(" ? "（" : "）")
-    .trim();
+  return cleanGuideCanonicalName(raw);
 }
 
 function inferRank(name: string): CanonicalTaxon["rank"] {
@@ -136,17 +134,17 @@ export function canonicalizeGuideFeature(feature: GuideRecordInsightFeature): Gu
   return feature;
 }
 
-export function isLikelyGuideNonBiologicalName(name: string): boolean {
+export function isLikelyGuideNonBiologicalSpeciesName(name: string, contextText = ""): boolean {
   const cleaned = cleanName(name);
   if (!cleaned) return true;
   return loadSeed().nonBiologicalSpeciesAliases.map(cleanName).includes(cleaned)
-    || /看板|標識|ロゴ|文字|車両|自動車|店舗|道路|ATM|ENEOS/u.test(cleaned);
+    || isLikelyGuideNonBiologicalName(cleaned, contextText);
 }
 
 export function canonicalizeTaxonList(rawNames: readonly string[]): CanonicalTaxon[] {
   const map = new Map<string, CanonicalTaxon>();
   for (const rawName of rawNames) {
-    if (isLikelyGuideNonBiologicalName(String(rawName ?? ""))) continue;
+    if (isLikelyGuideNonBiologicalSpeciesName(String(rawName ?? ""))) continue;
     const canonical = canonicalizeTaxonName(String(rawName ?? ""));
     if (!canonical) continue;
     const existing = map.get(canonical.canonicalName);
@@ -163,7 +161,8 @@ export function canonicalizeSpeciesFeatures(features: readonly GuideRecordInsigh
   return features.map((feature) => {
     const canonicalFeature = canonicalizeGuideFeature(feature);
     if (canonicalFeature.type !== "species" || typeof canonicalFeature.name !== "string") return canonicalFeature;
-    if (isLikelyGuideNonBiologicalName(canonicalFeature.name)) {
+    const contextText = [canonicalFeature.name, canonicalFeature.note ?? ""].join(" ");
+    if (isLikelyGuideNonBiologicalSpeciesName(canonicalFeature.name, contextText)) {
       return { ...canonicalFeature, type: "structure", note: canonicalFeature.note ?? "辞書補正: 生きものではなく人工物として扱います" };
     }
     const canonical = canonicalizeTaxonName(canonicalFeature.name);

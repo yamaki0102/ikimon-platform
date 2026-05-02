@@ -6,6 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { canonicalizeSpeciesFeatures, canonicalizeTaxonList } from "./guideRecordInsights.js";
+import { isLikelyGuideNonBiologicalName } from "./guideNonBiological.js";
 import type { TtsLang } from "./guideTts.js";
 
 export type GuideMode = "walk" | "vehicle";
@@ -59,6 +60,10 @@ export type SceneResult = {
   sceneHash: string;
 };
 
+function isVehicleModeCoarseVegetationName(name: string): boolean {
+  return /街路樹|植栽|樹木|樹列|草地|雑草|草本|植物|生垣|低木|林縁/u.test(name);
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPT_PATH = resolve(__dirname, "../prompts/guide_scene.md");
 let CACHED_PROMPT_TEMPLATE: string | null = null;
@@ -84,19 +89,6 @@ function renderPrompt(vars: Record<string, string>): string {
 
 function normalizeGuideMode(raw: unknown): GuideMode {
   return raw === "vehicle" ? "vehicle" : "walk";
-}
-
-function hasCommercialOrVehicleContext(value: string): boolean {
-  return /看板|標識|ロゴ|文字|店舗|販売店|車|自動車|バイク|道路|ナンバー|メーカー|ブランド|ディーラー|ショールーム|Suzuki|SUZUKI|Honda|Toyota|Nissan|Mazda|Daihatsu|Subaru|Mitsubishi|Yamaha/i.test(value);
-}
-
-function isLikelyNonBiologicalSpeciesName(name: string, contextText: string): boolean {
-  const normalized = name.trim();
-  if (!normalized) return true;
-  const brandLike = /^(スズキ|SUZUKI|Suzuki|ホンダ|HONDA|Honda|トヨタ|TOYOTA|Toyota|日産|NISSAN|Nissan|マツダ|MAZDA|Mazda|ダイハツ|Daihatsu|スバル|Subaru|三菱|Mitsubishi|ヤマハ|Yamaha)$/i.test(normalized);
-  if (brandLike && hasCommercialOrVehicleContext(contextText)) return true;
-  if (/看板|標識|ロゴ|文字|車両|自動車|店舗|道路/.test(normalized)) return true;
-  return false;
 }
 
 export function sanitizeGuideSceneResult(parsed: {
@@ -127,19 +119,23 @@ export function sanitizeGuideSceneResult(parsed: {
     .filter((feature) => feature && typeof feature.name === "string" && feature.name.trim())
     .map((feature) => {
       const featureContext = `${feature.name} ${feature.note ?? ""} ${contextText}`;
-      if (feature.type === "species" && isLikelyNonBiologicalSpeciesName(feature.name, featureContext)) {
+      if (feature.type === "species" && isLikelyGuideNonBiologicalName(feature.name, featureContext)) {
         return { ...feature, type: "structure" as const, note: feature.note ?? "看板・文字・車両などの人工物として扱います" };
+      }
+      if (guideMode === "vehicle" && feature.type === "species" && isVehicleModeCoarseVegetationName(feature.name)) {
+        return { ...feature, type: "vegetation" as const, note: feature.note ?? "車窓では種名ではなく植生手がかりとして扱います" };
       }
       return feature;
     });
   const speciesFromFeatures = detectedFeatures
     .filter((feature) => feature.type === "species" && (feature.confidence ?? 0) >= (guideMode === "vehicle" ? 0.72 : 0.55))
     .map((feature) => feature.name.trim())
-    .filter((name) => !isLikelyNonBiologicalSpeciesName(name, contextText));
+    .filter((name) => !isLikelyGuideNonBiologicalName(name, contextText));
   const speciesFromModel = Array.isArray(parsed.detectedSpecies) ? parsed.detectedSpecies : [];
   const detectedSpecies = Array.from(new Set([...speciesFromFeatures, ...speciesFromModel]
     .map((name) => String(name).trim())
-    .filter((name) => name && !isLikelyNonBiologicalSpeciesName(name, contextText))))
+    .filter((name) => name && !isLikelyGuideNonBiologicalName(name, contextText))
+    .filter((name) => guideMode !== "vehicle" || !isVehicleModeCoarseVegetationName(name))))
     .slice(0, guideMode === "vehicle" ? 2 : 6);
   const primarySubject = parsed.primarySubject &&
     typeof parsed.primarySubject.name === "string" &&
@@ -154,7 +150,7 @@ export function sanitizeGuideSceneResult(parsed: {
       ? "植生・土地利用・水辺や道路際の状態を手がかりとして記録します。"
       : "";
   const coexistingTaxa = Array.isArray(parsed.coexistingTaxa)
-    ? parsed.coexistingTaxa.map(String).filter((name) => !isLikelyNonBiologicalSpeciesName(name, contextText)).slice(0, 8)
+    ? parsed.coexistingTaxa.map(String).filter((name) => !isLikelyGuideNonBiologicalName(name, contextText)).slice(0, 8)
     : undefined;
   return {
     summary,

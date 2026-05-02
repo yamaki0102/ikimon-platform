@@ -702,23 +702,6 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const hasLocalizedSeoPage = availableLangs.includes(lang);
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
 
-  if (meta.bodyPageId === "learn-updates") {
-    return renderSiteDocument({
-      basePath,
-      title: meta.title,
-      description: meta.lead,
-      activeNav: activeNavLabel(meta.activeNav, lang),
-      lang,
-      currentPath,
-      canonicalPath: appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja"),
-      alternateLangs: availableLangs,
-      noindex: !hasLocalizedSeoPage,
-      extraStyles: LOWER_PAGE_STYLES + CHANGELOG_EXTRA_STYLES,
-      body: renderChangelogBody(basePath, lang),
-      footerNote: meta.footerNote ?? getShortCopy<string>(lang, "shared", "footerNotes.public"),
-    });
-  }
-
   const bodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   return renderSiteDocument({
     basePath,

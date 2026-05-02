@@ -6,6 +6,7 @@ import { loadGuideEnvironmentMeshGeoJson, upsertGuideEnvironmentMeshFromRecord }
 import { loadGuideEnvironmentDashboardMetrics, type GuideEnvironmentDashboardMetrics } from "../services/guideEnvironmentOps.js";
 import { recordGuideInteraction } from "../services/guideInteractions.js";
 import { listGuideHypothesisPromptImprovements } from "../services/guideHypothesisPromptImprovements.js";
+import { loadGuideTransectQualityForSessions, type GuideTransectQuality } from "../services/guideTransectQuality.js";
 import {
   bundleGuideRecords,
   canonicalizeTaxonList,
@@ -245,7 +246,16 @@ async function addNextSamplingToBundles(bundles: GuideRecordBundle[]): Promise<G
   }));
 }
 
-function renderSummaryStats(rows: GuideRecordDebugRow[], bundles: GuideRecordBundle[]): string {
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatMeters(value: number): string {
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}km`;
+  return `${Math.round(value)}m`;
+}
+
+function renderSummaryStats(rows: GuideRecordDebugRow[], bundles: GuideRecordBundle[], qualityBySession: Map<string, GuideTransectQuality>): string {
   const featureCounts = new Map<string, number>();
   let withLatLng = 0;
   for (const row of rows) {
@@ -258,13 +268,72 @@ function renderSummaryStats(rows: GuideRecordDebugRow[], bundles: GuideRecordBun
   const featureHtml = ["vegetation", "landform", "structure", "species", "sound"]
     .map((type) => `<span class="grd-stat"><strong>${featureCounts.get(type) ?? 0}</strong>${escapeHtml(featureTypeLabel(type))}</span>`)
     .join("");
+  const qualities = Array.from(qualityBySession.values());
+  const totalDistance = qualities.reduce((sum, item) => sum + item.distanceM, 0);
+  const avgAccuracy = qualities
+    .map((item) => item.avgAccuracyM)
+    .filter((value): value is number => value != null)
+    .reduce((sum, value, _index, arr) => sum + (value / Math.max(1, arr.length)), 0);
+  const coverageSlots = new Set(qualities.flatMap((item) => item.coverageSlots)).size;
   return `
 <section class="grd-stats">
   <span class="grd-stat"><strong>${rows.length}</strong>最新記録</span>
   <span class="grd-stat"><strong>${bundles.length}</strong>代表カード</span>
   <span class="grd-stat"><strong>${withLatLng}</strong>位置つき</span>
+  <span class="grd-stat"><strong>${formatMeters(totalDistance)}</strong>車ガイド距離</span>
+  <span class="grd-stat"><strong>${avgAccuracy ? `${Math.round(avgAccuracy)}m` : "-"}</strong>平均位置精度</span>
+  <span class="grd-stat"><strong>${coverageSlots}</strong>coverage slots</span>
   ${featureHtml}
 </section>`;
+}
+
+function topCountEntries(values: Record<string, number>, labels: Record<string, string>): string {
+  return Object.entries(values)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 4)
+    .map(([key, count]) => `<span class="grd-chip">${escapeHtml(labels[key] ?? key)} ${count}</span>`)
+    .join("");
+}
+
+function renderGuideQualityPanel(qualityBySession: Map<string, GuideTransectQuality>): string {
+  const qualities = Array.from(qualityBySession.values()).sort((a, b) => b.pointCount - a.pointCount).slice(0, 6);
+  if (qualities.length === 0) {
+    return `<section class="grd-panel"><h2>車ガイド品質</h2><p class="grd-muted">車ガイドの非公開ルート点はまだありません。次回の車モード利用から、位置精度・距離・速度帯・Coverage Cube スロットを確認できます。</p></section>`;
+  }
+  const speedLabels: Record<string, string> = {
+    slow: "低速",
+    urban_slow: "市街地低速",
+    vehicle_transect: "車窓調査",
+    fast_vehicle: "高速移動",
+    unknown_speed: "速度不明",
+  };
+  const timeLabels: Record<string, string> = {
+    morning: "朝",
+    daytime: "昼",
+    evening: "夕方",
+    night: "夜",
+    unknown_time: "時刻不明",
+  };
+  const cards = qualities.map((quality) => `
+    <article class="grd-quality-card">
+      <header>
+        <h3>${escapeHtml(quality.sessionId)}</h3>
+        <strong>${quality.effortQualityScore}</strong>
+      </header>
+      <div class="grd-quality-grid">
+        <span><b>${quality.pointCount}</b> route points</span>
+        <span><b>${formatMeters(quality.distanceM)}</b> distance</span>
+        <span><b>${quality.effortMinutes.toFixed(1)}分</b> effort</span>
+        <span><b>${quality.avgAccuracyM != null ? `${quality.avgAccuracyM}m` : "-"}</b> accuracy</span>
+        <span><b>${pct(quality.goodAccuracyRate)}</b> good GPS</span>
+        <span><b>${pct(quality.duplicateCellRate)}</b> duplicate cells</span>
+        <span><b>${quality.distinctCellCount}</b> mesh cells</span>
+        <span><b>${quality.coverageSlotCount}</b> coverage slots</span>
+      </div>
+      <div class="grd-chip-row">${topCountEntries(quality.speedBands, speedLabels)}${topCountEntries(quality.timeBands, timeLabels)}</div>
+      <p class="grd-muted">Sampling protocol: guide_vehicle_transect_v1。生ルートは本人/管理用、公開面はメッシュ集計のみ。</p>
+    </article>`).join("");
+  return `<section class="grd-panel"><h2>車ガイド品質・Coverage Cube</h2><p class="grd-muted">距離、時間、位置精度、重複セル率、速度帯、時間帯を使い、車窓ガイドを走行調査セッションとして評価します。</p><div class="grd-quality-list">${cards}</div></section>`;
 }
 
 function renderFeaturePills(features: GuideRecordDebugRow["detected_features"]): string {
@@ -285,7 +354,7 @@ function featuresToTextarea(features: GuideRecordDebugRow["detected_features"]):
   }).join("\n");
 }
 
-function renderRouteTransect(bundles: GuideRecordBundle[]): string {
+function renderRouteTransect(bundles: GuideRecordBundle[], qualityBySession: Map<string, GuideTransectQuality>): string {
   const bySession = new Map<string, GuideRecordBundle[]>();
   for (const bundle of bundles) {
     if (!bundle.sessionId) continue;
@@ -322,7 +391,7 @@ function renderRouteTransect(bundles: GuideRecordBundle[]): string {
       </li>`;
     }).join("");
     return `<article class="grd-session">
-      <header><h3>${escapeHtml(sessionId)}</h3><span>${items.length} points / 約${Math.round(totalM)}m</span></header>
+      <header><h3>${escapeHtml(sessionId)}</h3><span>${items.length} points / 約${Math.round(totalM)}m${qualityBySession.get(sessionId) ? ` / GPS ${qualityBySession.get(sessionId)?.pointCount}点 / quality ${qualityBySession.get(sessionId)?.effortQualityScore}` : ""}</span></header>
       <ol class="grd-transect">${segments}</ol>
     </article>`;
   }).join("");
@@ -452,6 +521,14 @@ const STYLES = `
 .grd-stat strong{font-size:18px;color:#0f766e;}
 .grd-panel{border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-panel h2{font-size:18px;margin:0 0 12px;color:#0f172a;}
+.grd-quality-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
+.grd-quality-card{border:1px solid #dbe7e2;background:#fbfefc;border-radius:12px;padding:13px;display:grid;gap:10px;}
+.grd-quality-card header{display:flex;justify-content:space-between;gap:12px;align-items:center;}
+.grd-quality-card h3{font-size:12px;margin:0;color:#334155;font-family:ui-monospace,monospace;word-break:break-all;}
+.grd-quality-card header strong{width:42px;height:42px;border-radius:999px;background:#0f766e;color:#fff;display:grid;place-items:center;font-size:17px;}
+.grd-quality-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+.grd-quality-grid span{border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:7px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;}
+.grd-quality-grid b{display:block;color:#0f172a;font-size:14px;text-transform:none;}
 .grd-session{border-top:1px solid #eef4f1;padding-top:12px;margin-top:12px;}
 .grd-session:first-of-type{border-top:0;padding-top:0;margin-top:0;}
 .grd-session header{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;}
@@ -804,6 +881,7 @@ async function renderPage(
     errorHtml = `<section class="grd-empty"><h1>DBから取得できませんでした</h1><p>${escapeHtml(error instanceof Error ? error.message : String(error))}</p></section>`;
   }
   const bundles = await addNextSamplingToBundles(bundleGuideRecords(rows));
+  const qualityBySession = await loadGuideTransectQualityForSessions(session.userId, bundles.map((bundle) => bundle.sessionId)).catch(() => new Map<string, GuideTransectQuality>());
   const heading = options.heading ?? "自分のガイド記録";
   const lead = options.lead ?? "ログイン中の user_id に紐づく guide_records 最新件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。";
   const body = `
@@ -821,7 +899,7 @@ async function renderPage(
       </nav>
     </div>
   </header>
-  ${errorHtml || `${renderSummaryStats(rows, bundles)}${renderRouteMap()}${renderRouteTransect(bundles)}${renderRecordCards(bundles)}`}
+  ${errorHtml || `${renderSummaryStats(rows, bundles, qualityBySession)}${renderGuideQualityPanel(qualityBySession)}${renderRouteMap()}${renderRouteTransect(bundles, qualityBySession)}${renderRecordCards(bundles)}`}
 </div><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
@@ -854,6 +932,7 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
     const limit = Math.max(1, Math.min(1000, Number.parseInt(request.query.limit ?? "500", 10) || 500));
     const rows = await loadGuideRecords(session.userId, limit);
     const bundles = bundleGuideRecords(rows);
+    const qualityBySession = await loadGuideTransectQualityForSessions(session.userId, bundles.map((bundle) => bundle.sessionId)).catch(() => new Map<string, GuideTransectQuality>());
     const pointBundles = bundles.filter((bundle) => bundle.representative.lat != null && bundle.representative.lng != null).slice().reverse();
     const features: Array<Record<string, unknown>> = [];
     for (const bundle of pointBundles) {
@@ -880,6 +959,7 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
           vegetation: envFeatures.filter((feature) => feature.type === "vegetation").map((feature) => feature.name),
           landform: envFeatures.filter((feature) => feature.type === "landform").map((feature) => feature.name),
           structure: envFeatures.filter((feature) => feature.type === "structure").map((feature) => feature.name),
+          transectQuality: qualityBySession.get(row.session_id) ?? null,
         },
       });
     }
@@ -903,6 +983,7 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
           sessionId,
           pointCount: coords.length,
           bundled: true,
+          transectQuality: qualityBySession.get(sessionId) ?? null,
         },
       });
     }

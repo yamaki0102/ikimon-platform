@@ -701,9 +701,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let audioSliceTimer = null;
   let analyseTimer = null;
   let recapTimer = null;
+  let locationWatchId = null;
   let running = false;
   let lastScene = null;
-  let lastKnownPosition = { lat: 35.68, lng: 139.76 };
+  let lastKnownPosition = { lat: 35.68, lng: 139.76, accuracyM: null, speedMps: null, headingDegrees: null, positionCapturedAt: null, stale: true, source: 'fallback' };
+  let lastRoutePosition = null;
+  let sessionDistanceM = 0;
   let liveAssistToken = null;
   let sceneAudioChunks = [];
   let sceneAudioPrivacySkippedCount = 0;
@@ -1010,16 +1013,69 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
     throw lastError || new Error('camera_unavailable');
   }
+  function normalizePosition(p, source) {
+    return {
+      lat: p.coords.latitude,
+      lng: p.coords.longitude,
+      accuracyM: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null,
+      speedMps: Number.isFinite(p.coords.speed) ? p.coords.speed : null,
+      headingDegrees: Number.isFinite(p.coords.heading) ? p.coords.heading : null,
+      positionCapturedAt: new Date(p.timestamp || Date.now()).toISOString(),
+      stale: false,
+      source: source || 'watchPosition'
+    };
+  }
+  function distanceMeters(a, b) {
+    if (!a || !b) return 0;
+    const toRad = (value) => value * Math.PI / 180;
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const sinLat = Math.sin(dLat / 2);
+    const sinLng = Math.sin(dLng / 2);
+    const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+  }
+  function rememberPosition(position) {
+    const accuracy = Number(position.accuracyM);
+    if (Number.isFinite(accuracy) && accuracy > 200) {
+      lastKnownPosition = { ...position, stale: true };
+      return lastKnownPosition;
+    }
+    if (lastRoutePosition) {
+      const delta = distanceMeters(lastRoutePosition, position);
+      if (delta >= 3 && delta <= 500) sessionDistanceM += delta;
+    }
+    lastRoutePosition = position;
+    lastKnownPosition = position;
+    return position;
+  }
+  function startLocationWatch() {
+    if (!navigator.geolocation || locationWatchId !== null) return;
+    locationWatchId = navigator.geolocation.watchPosition(
+      (p) => { rememberPosition(normalizePosition(p, 'watchPosition')); },
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
+    );
+  }
+  function stopLocationWatch() {
+    if (navigator.geolocation && locationWatchId !== null) navigator.geolocation.clearWatch(locationWatchId);
+    locationWatchId = null;
+    lastRoutePosition = null;
+  }
   async function getLocation() {
+    const capturedAt = Date.parse(lastKnownPosition.positionCapturedAt || '');
+    if (Number.isFinite(capturedAt) && Date.now() - capturedAt <= 10000 && !lastKnownPosition.stale) return lastKnownPosition;
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
-        resolve({ lat: 35.68, lng: 139.76 });
+        resolve(lastKnownPosition);
         return;
       }
       navigator.geolocation.getCurrentPosition(
-        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => resolve({ lat: 35.68, lng: 139.76 }),
-        { maximumAge: 60000, timeout: 8000 }
+        (p) => resolve(rememberPosition(normalizePosition(p, 'getCurrentPosition'))),
+        () => resolve({ ...lastKnownPosition, stale: true }),
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 6000 }
       );
     });
   }
@@ -1545,6 +1601,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         audio: audio,
         lat: payload.lat,
         lng: payload.lng,
+        locationAccuracyM: payload.locationAccuracyM,
+        speedMps: payload.speedMps,
+        headingDegrees: payload.headingDegrees,
+        positionCapturedAt: payload.positionCapturedAt,
+        sessionDistanceM: payload.sessionDistanceM,
         lang: payload.lang,
         guideMode: payload.guideMode || 'walk',
         sessionId: payload.sessionId,
@@ -1567,6 +1628,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       capturedAt: payload.capturedAt,
       lat: payload.lat,
       lng: payload.lng,
+      locationAccuracyM: payload.locationAccuracyM,
+      speedMps: payload.speedMps,
+      headingDegrees: payload.headingDegrees,
+      positionCapturedAt: payload.positionCapturedAt,
+      sessionDistanceM: payload.sessionDistanceM,
       lang: payload.lang,
       guideMode: payload.guideMode || 'walk',
       frameThumb: payload.frameThumb,
@@ -1614,7 +1680,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         captureProfile: 'opus_mono_24khz_32kbps_2s',
         audioFingerprint: fingerprint,
         clientVadResult: vad,
-        clientAudioQuality: quality
+        clientAudioQuality: quality,
+        locationQuality: {
+          accuracyM: lastKnownPosition.accuracyM,
+          speedMps: lastKnownPosition.speedMps,
+          headingDegrees: lastKnownPosition.headingDegrees,
+          positionCapturedAt: lastKnownPosition.positionCapturedAt,
+          sessionDistanceM: Math.round(sessionDistanceM)
+        }
       }
     };
   }
@@ -1676,6 +1749,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         capturedAt: item.capturedAt,
         lat: item.lat,
         lng: item.lng,
+        locationAccuracyM: item.locationAccuracyM,
+        speedMps: item.speedMps,
+        headingDegrees: item.headingDegrees,
+        positionCapturedAt: item.positionCapturedAt,
+        sessionDistanceM: item.sessionDistanceM,
         lang: item.lang,
         guideMode: item.guideMode || 'walk',
         frameThumb: item.frameThumb,
@@ -1777,6 +1855,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           capturedAt,
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
+          locationAccuracyM: lastKnownPosition.accuracyM,
+          speedMps: lastKnownPosition.speedMps,
+          headingDegrees: lastKnownPosition.headingDegrees,
+          positionCapturedAt: lastKnownPosition.positionCapturedAt,
+          sessionDistanceM: Math.round(sessionDistanceM),
           lang,
           guideMode: getGuideMode(),
           frameThumb: framePayload.frameThumb,
@@ -1813,6 +1896,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           capturedAt,
           lat: lastKnownPosition.lat,
           lng: lastKnownPosition.lng,
+          locationAccuracyM: lastKnownPosition.accuracyM,
+          speedMps: lastKnownPosition.speedMps,
+          headingDegrees: lastKnownPosition.headingDegrees,
+          positionCapturedAt: lastKnownPosition.positionCapturedAt,
+          sessionDistanceM: Math.round(sessionDistanceM),
           lang,
           guideMode: getGuideMode(),
           frameThumb: frames.frameThumb,
@@ -2088,6 +2176,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
     closeStartSheet();
     try {
+      startLocationWatch();
       if (cameraOptIn) {
         stream = await requestEnvironmentCamera();
         video.srcObject = stream;
@@ -2123,6 +2212,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       scheduleRecapRefresh();
       void drainOfflineQueue();
     } catch (err) {
+      stopLocationWatch();
       permMsg.hidden = false;
       if (photoFallback) photoFallback.hidden = false;
       console.error('Guide camera unavailable', err);
@@ -2162,6 +2252,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     running = false;
     clearTimeout(analyseTimer);
     clearTimeout(recapTimer);
+    stopLocationWatch();
     if (stream) stream.getTracks().forEach((t) => t.stop());
     stopAudioCapture();
     stream = null;
@@ -2223,6 +2314,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         lang: getLang(),
         lat: scene.lat || lastKnownPosition.lat,
         lng: scene.lng || lastKnownPosition.lng,
+        locationAccuracyM: lastKnownPosition.accuracyM,
+        speedMps: lastKnownPosition.speedMps,
+        headingDegrees: lastKnownPosition.headingDegrees,
+        positionCapturedAt: lastKnownPosition.positionCapturedAt,
+        sessionDistanceM: Math.round(sessionDistanceM),
         capturedAt: scene.capturedAt,
         returnedAt: scene.returnedAt,
         currentDistanceM: scene.distanceFromCurrentM,
