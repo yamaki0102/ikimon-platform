@@ -1081,6 +1081,9 @@ function buildRegionalStoryGeminiPrompt(
   cue: RegionalStoryCue,
   exposures: RecentExposure[],
 ): string {
+  const subjectKind = inferObservationSubjectKind(input.observation);
+  const month = monthFromObservedAt(input.observation?.observedAt);
+  const lifecycle = lifecycleHintFor(subjectKind, month);
   return JSON.stringify({
     task: "regional_story_compose",
     role: "Rewrite an already-grounded regional story for ikimon.life. The output is a 'reason to revisit' panel shown on an observation page; it must motivate the reader to walk the same place again with a clearer eye.",
@@ -1095,11 +1098,14 @@ function buildRegionalStoryGeminiPrompt(
       "Connect the visible observation (today's species) with at least one specific place trait from the cards (landform, water, history, human-life, ecology). No generic platitudes.",
       "Use sensory and concrete language: light, smell, sound, footing, season-shift — not abstract praise.",
       "Avoid jargon and meta words: '生物多様性', 'エビデンス', 'データ駆動', 'コミュニティ' などの抽象語は使わない。代わりに「同じ草むら」「日陰の縁」のように具体的な手がかりで書く。",
+      "place_hook MUST anchor on a concrete next phase the observer can verify (例: つぼみが開く / 種子になる / ヒナが巣立つ / 落葉が始まる). Avoid vague phrases like 'なぜここにいたか'.",
+      "When lifecycleHint is provided, weave its now_phase / next_change / revisit_window into why_here so the reader knows what is visible NOW and what to verify NEXT.",
+      "collective_note MUST describe what becomes visible only when same-place photos are stacked over time. Be concrete (例: 「いつ咲き始めたか」「巣立ちが何日ずれたか」).",
       "Return compact JSON only",
     ],
     outputSchema: {
-      place_hook: "string <= 90 chars — Single line h2. Start from a sensory or temporal hook tied to this place ('夕方のこの斜面', '桜の花のあと'). Avoid the fluffy '〜を見直そう'.",
-      why_here: "string <= 200 chars — 2 sentences max. First sentence: connect today's species to one specific place trait from cards (geography / human use / season). Second sentence: name what changes between visits at this site (light, water, neighbors, succession).",
+      place_hook: "string <= 90 chars — Single line h2. Anchor on a concrete next phase tied to this place ('桜の花のあと', '稲刈りの直後'). Avoid '〜を見直そう' or 'なぜここにいたか'.",
+      why_here: "string <= 200 chars — 2 sentences max. First sentence: connect today's species to one specific place trait from cards (geography / human use / season). Second sentence: name what changes between visits at this site (light, water, neighbors, succession). When lifecycleHint is given, name the next_change explicitly.",
       next_observation_angle: "string <= 140 chars — A concrete next photo or angle. Include WHAT (part / scene), WHERE (relative to the subject), and WHY (what comparison it enables). Example shape: '次は◯◯と一緒に、△△が分かる角度で。比べると□□が読める。'",
       collective_note: "string <= 160 chars — How a second record from the same spot adds to a community-built picture. Tie it to a near-future change the reader can witness (季節差, 管理跡, 水位, 開花段階). Avoid '生物多様性データに貢献' のような抽象表現。",
     },
@@ -1114,6 +1120,16 @@ function buildRegionalStoryGeminiPrompt(
       ? {
           observedAt: input.observation.observedAt?.slice(0, 10) ?? null,
           displayName: input.observation.displayName ?? null,
+          subjectKind,
+          month,
+        }
+      : null,
+    lifecycleHint: lifecycle
+      ? {
+          now_phase: lifecycle.nowPhase,
+          next_change: lifecycle.nextChange,
+          revisit_window: lifecycle.revisitWindow,
+          comparison_anchor: lifecycle.comparisonAnchor,
         }
       : null,
     selectedAngle: {
@@ -1296,10 +1312,148 @@ function formatHookList(hooks: string[], maxItems: number): string {
   return hooks.slice(0, maxItems).map(displayHook).filter(Boolean).join("・");
 }
 
+function monthFromObservedAt(observedAt: string | null | undefined): number | null {
+  if (!observedAt) return null;
+  const ts = Date.parse(observedAt);
+  if (Number.isNaN(ts)) return null;
+  return new Date(ts).getUTCMonth() + 1;
+}
+
+type LifecycleHint = {
+  /** 今 (撮影時点) で何が見えているか */
+  nowPhase: string;
+  /** 次に来た時に確かめられる変化 */
+  nextChange: string;
+  /** 次に行くまでの目安期間 */
+  revisitWindow: string;
+  /** 写真を比べる時に使えるアンカー */
+  comparisonAnchor: string;
+};
+
+function lifecycleHintFor(subjectKind: ObservationSubjectKind, month: number | null): LifecycleHint | null {
+  if (month === null) return null;
+  if (subjectKind === "plant") {
+    if (month >= 3 && month <= 5) return {
+      nowPhase: "つぼみ・開花",
+      nextChange: "花が落ちて子房がふくらむ時期",
+      revisitWindow: "1〜2 週間後",
+      comparisonAnchor: "花柄と葉のつき方",
+    };
+    if (month >= 6 && month <= 8) return {
+      nowPhase: "開花後 / 葉と茎の伸び",
+      nextChange: "種子の形成と散布の始まり",
+      revisitWindow: "2〜3 週間後",
+      comparisonAnchor: "葉と茎の高さ・虫食いの跡",
+    };
+    if (month >= 9 && month <= 11) return {
+      nowPhase: "結実 / 紅葉の入り",
+      nextChange: "落葉と種子散布、株の枯れ込み",
+      revisitWindow: "2〜4 週間後",
+      comparisonAnchor: "果実の色と数、葉の残り方",
+    };
+    return {
+      nowPhase: "休眠 / ロゼット",
+      nextChange: "新芽の動きと早春の開花",
+      revisitWindow: "1〜2 ヶ月後",
+      comparisonAnchor: "地面に近い葉と芽の数",
+    };
+  }
+  if (subjectKind === "bird") {
+    if (month >= 3 && month <= 6) return {
+      nowPhase: "繁殖 / 縄張り行動",
+      nextChange: "巣立ちのヒナや給餌行動",
+      revisitWindow: "2〜3 週間後",
+      comparisonAnchor: "鳴き声の頻度・止まる枝の位置",
+    };
+    if (month >= 9 && month <= 11) return {
+      nowPhase: "渡りの通過 / 群れの再編",
+      nextChange: "越冬群が落ち着く時期",
+      revisitWindow: "2〜4 週間後",
+      comparisonAnchor: "群れの数・主に使う水辺や林縁",
+    };
+    return {
+      nowPhase: "通常活動",
+      nextChange: "季節が進んだ時の食べ物の変化",
+      revisitWindow: "3〜4 週間後",
+      comparisonAnchor: "鳴き声・行動・利用する場所",
+    };
+  }
+  if (subjectKind === "insect") {
+    if (month >= 4 && month <= 6) return {
+      nowPhase: "成虫の発生初期",
+      nextChange: "次世代の幼虫や卵が見える時期",
+      revisitWindow: "1〜2 週間後",
+      comparisonAnchor: "葉の食痕・止まる花の種類",
+    };
+    if (month >= 7 && month <= 9) return {
+      nowPhase: "成虫の最盛期",
+      nextChange: "数の減少と次世代への切り替わり",
+      revisitWindow: "2 週間後",
+      comparisonAnchor: "個体数・羽の傷み具合",
+    };
+    return {
+      nowPhase: "活動の谷間 / 越冬準備",
+      nextChange: "気温が動いた日に再び成虫が見える",
+      revisitWindow: "気温が変わった次の晴天日",
+      comparisonAnchor: "止まる場所・草の倒れ方",
+    };
+  }
+  if (subjectKind === "aquatic") {
+    if (month >= 4 && month <= 7) return {
+      nowPhase: "繁殖 / 幼生の発生",
+      nextChange: "幼生から成体への移行",
+      revisitWindow: "2〜3 週間後",
+      comparisonAnchor: "水位・水の濁り・水際の植物",
+    };
+    return {
+      nowPhase: "通常活動",
+      nextChange: "水量や水温が動いた時の集まり方",
+      revisitWindow: "雨の前後 1 週間",
+      comparisonAnchor: "水位・水の透明度・流れの強さ",
+    };
+  }
+  if (subjectKind === "fungus") {
+    return {
+      nowPhase: "子実体 (キノコ本体) の発生",
+      nextChange: "数日で形が崩れ、別の発生場所に移る",
+      revisitWindow: "雨の 2〜4 日後",
+      comparisonAnchor: "落ち葉の湿り具合・倒木の位置",
+    };
+  }
+  if (month >= 3 && month <= 5) return {
+    nowPhase: "春の活動初期",
+    nextChange: "次の季節への切り替わり",
+    revisitWindow: "2〜3 週間後",
+    comparisonAnchor: "周りの草丈・花の有無",
+  };
+  if (month >= 6 && month <= 8) return {
+    nowPhase: "夏の最盛期",
+    nextChange: "暑さのピーク後の静まり方",
+    revisitWindow: "2〜3 週間後",
+    comparisonAnchor: "草丈・日陰の使い方",
+  };
+  if (month >= 9 && month <= 11) return {
+    nowPhase: "秋の移行期",
+    nextChange: "落葉と冬支度の進み方",
+    revisitWindow: "2〜3 週間後",
+    comparisonAnchor: "葉色・地面の落ち葉",
+  };
+  return {
+    nowPhase: "冬の静かな時期",
+    nextChange: "春の最初の動きが現れる時期",
+    revisitWindow: "1〜2 ヶ月後",
+    comparisonAnchor: "枯れた茎の残り方・地面の様子",
+  };
+}
+
 function nextObservationCopy(angleKey: string, placeLabel: string, observation: RegionalStoryObservationInput | undefined, cards: RegionalKnowledgeCard[] = []): string {
   const observationName = observation?.displayName;
   const target = text(observationName) || "今日見えたもの";
   const hooks = rankedObservationHooksForCards(cards, observation);
+  const subjectKind = inferObservationSubjectKind(observation);
+  const month = monthFromObservedAt(observation?.observedAt);
+  const lifecycle = lifecycleHintFor(subjectKind, month);
+  if (lifecycle) return `次は ${lifecycle.revisitWindow}、${lifecycle.nextChange} を確かめる。${lifecycle.comparisonAnchor} を同じ角度で残すと比べられる。`;
   if (hooks.length >= 3) return `次は、${formatHookList(hooks, 3)}が分かる写真を撮る。`;
   if (hooks.length > 0) return `次は ${target} と一緒に、${formatHookList(hooks, 2)}も残す。`;
   if (angleKey === "landform") return `次は ${target} のすぐ横で、日当たり・湿り気・地面の傾きを写す。`;
@@ -1315,22 +1469,39 @@ function composeStory(input: RegionalStoryInput, cards: RegionalKnowledgeCard[],
   const primary = cards[0];
   const secondary = cards[1];
   const target = text(input.observation?.displayName) || "今日見えたもの";
+  const subjectKind = inferObservationSubjectKind(input.observation);
+  const month = monthFromObservedAt(input.observation?.observedAt);
+  const lifecycle = lifecycleHintFor(subjectKind, month);
   const hooks = rankedObservationHooksForCards(cards, input.observation);
-  const hookLine = hooks.length > 0
-    ? `具体的には、${formatHookList(hooks, 4)}。`
-    : "次は生きものだけでなく、足元・道端・管理の跡を足すと比べやすくなります。";
+
+  const placeHook = lifecycle
+    ? `${target} は今 ${lifecycle.nowPhase}。次は ${lifecycle.nextChange} を、同じ場所で確かめる。`
+    : `${target} を同じ場所でもう一度見ると、季節の進みと環境の変化が同時に読める。`;
+
   const sourceLine = primary
     ? primary.summary
     : "地域資料がまだ少ない場所でも、同じ場所を比べる記録には価値があります。";
+  const lifecycleLine = lifecycle
+    ? `今は ${lifecycle.nowPhase}。${lifecycle.revisitWindow}に来ると、${lifecycle.nextChange}が比べられる。${lifecycle.comparisonAnchor} を同じ角度で残すのが鍵。`
+    : "";
+  const hookLine = hooks.length > 0
+    ? `あわせて、${formatHookList(hooks, 3)} も写しておくと、なぜここに居たかの手がかりが残る。`
+    : "次に来る時は生きものだけでなく、足元・草丈・湿り気・管理の跡まで残すと、後で比べやすい。";
   const whyExtra = secondary && input.surface !== "observation" ? `余裕があれば「${secondary.title}」の角度も後で見られます。` : "";
+  const whyHere = [sourceLine, lifecycleLine, hookLine, whyExtra].filter(Boolean).join(" ");
+
+  const collectiveNote = lifecycle
+    ? `「${target} が ${lifecycle.nowPhase} の時にここにいた」と、次の「${lifecycle.nextChange}」の写真が並ぶと、この場所だけの季節カレンダーが残る。`
+    : `同じ場所で月日違いの写真が並ぶと、${target} がいつ・どんな条件で出てきたかを後から比べられる。`;
+
   return {
     surface: input.surface,
     angleKey: angle.key,
     angleLabel: angle.label,
-    placeHook: `${target}をもう一度見るなら、「なぜここにいたか」まで見る。`,
-    whyHere: `${sourceLine} 次に${placeLabel}を見る時は、花だけで終わらせず、周りの条件も残す。${hookLine}${whyExtra}`,
+    placeHook,
+    whyHere,
     nextObservationAngle: nextObservationCopy(angle.key, placeLabel, input.observation, cards),
-    collectiveNote: `次回も同じ場所で環境メモが増えると、ただの「いた」ではなく、${target}がここで見えた条件をあとから比べられます。`,
+    collectiveNote,
     cards,
     usedCardIds: cards.map((card) => card.cardId),
     sourceMode,
