@@ -73,7 +73,7 @@ export function deriveVisitDisplayState(
     return {
       visitId,
       featuredOccurrenceId: chosen?.occurrenceId ?? null,
-      selectedReason: chosen ? `${chosen.displayName} を最新 AI 参考情報に基づく既定表示にしています。` : "最新 AI 参考情報を既定表示に使っています。",
+      selectedReason: chosen ? `${chosen.displayName} を、写真から読めている手がかりの主な候補として表示しています。` : "写真から読めている手がかりの主な候補を表示しています。",
       selectionSource: "latest_ai_default",
       lockedByHuman: false,
       derivedFromAiRunId: latestAiRunId,

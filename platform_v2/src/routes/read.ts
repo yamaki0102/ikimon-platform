@@ -690,12 +690,28 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-focus-card.is-current .obs-focus-card-state { background: rgba(59,130,246,.12); color: #1d4ed8; }
   .obs-focus-card-name { font-size: 15px; font-weight: 900; color: #0f172a; line-height: 1.35; }
   .obs-focus-card-meta { font-size: 11.5px; line-height: 1.6; color: #64748b; font-weight: 700; }
+  .obs-ai-readout { display: grid; gap: 10px; padding: 14px 16px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-ai-readout.is-low, .obs-ai-readout.is-tent { border-color: rgba(239,68,68,.18); background: linear-gradient(180deg, #fff7f7, #fff); }
+  .obs-ai-readout.is-medium { border-color: rgba(245,158,11,.22); background: linear-gradient(180deg, #fffdf2, #fff); }
+  .obs-ai-readout-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .obs-ai-readout-title { margin: 0; color: #0f172a; font-size: 15.5px; line-height: 1.5; font-weight: 900; }
+  .obs-ai-readout-badge { flex-shrink: 0; padding: 5px 10px; border-radius: 999px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.26); color: #047857; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .obs-ai-readout.is-low .obs-ai-readout-badge, .obs-ai-readout.is-tent .obs-ai-readout-badge { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.22); color: #991b1b; }
+  .obs-ai-readout.is-medium .obs-ai-readout-badge { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.28); color: #92400e; }
+  .obs-ai-readout-rec { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; color: #0f172a; font-size: 14px; font-weight: 900; }
+  .obs-ai-readout-rank { color: #64748b; font-size: 12px; font-weight: 800; }
+  .obs-ai-readout-clues { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .obs-ai-readout-clues li { padding: 4px 9px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11.5px; line-height: 1.35; font-weight: 800; }
+  .obs-ai-readout-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .obs-ai-readout-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(248,250,252,.9); color: #475569; font-size: 12px; line-height: 1.65; font-weight: 700; }
+  .obs-ai-readout-note strong { display: block; margin-bottom: 2px; color: #0f172a; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
   .obs-layer-note { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.14); color: #334155; font-size: 13px; line-height: 1.7; }
   @media (max-width: 720px) {
     .obs-focus-featured { flex-direction: column; }
     .obs-focus-open { width: 100%; }
     .obs-focus-rail { display: flex; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
     .obs-focus-card { min-width: 220px; scroll-snap-align: start; }
+    .obs-ai-readout-grid { grid-template-columns: 1fr; }
   }
   .obs-reassess-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)); border: 1px dashed rgba(59,130,246,.3); margin: 14px 0 0; }
   .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; padding: 10px 18px; background: #111827; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(15,23,42,.25); }
@@ -1359,6 +1375,69 @@ function renderFollowTaxonScript(): string {
 // referenced to keep WeakSet for future per-request dedupe (no-op now)
 void __followScriptEmitted;
 void __followScriptKey;
+
+function compactAiReadoutText(text: string, maxLength = 92): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  const firstSentenceEnd = normalized.search(/[。.!?！？]/);
+  if (firstSentenceEnd > 0 && firstSentenceEnd + 1 <= maxLength) {
+    return normalized.slice(0, firstSentenceEnd + 1);
+  }
+  return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+function renderHeroAiReadout(subject: ObservationVisitSubject): string {
+  const aiAssessment = subject.aiAssessment;
+  if (!aiAssessment) {
+    return `<section class="obs-ai-readout is-tent">
+      <div class="obs-ai-readout-top">
+        <div>
+          <p class="obs-hint-eyebrow">AI がいま読めていること</p>
+          <h3 class="obs-ai-readout-title">この対象はまだ AI の絞り込みメモがありません。</h3>
+        </div>
+        <span class="obs-ai-readout-badge">様子見</span>
+      </div>
+      <p class="obs-ai-readout-note">人の同定や専門家レビューが入るまでは、写真と観察メモを手がかりとして残しておけます。</p>
+    </section>`;
+  }
+
+  const band = aiAssessment.confidenceBand;
+  const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
+  const bandLabel = confidenceLabel(band);
+  const headline = aiAssessment.simpleSummary || aiAssessment.narrative || `${subject.displayName} をAIが候補として読んでいます。`;
+  const rec = aiAssessment.recommendedTaxonName
+    ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-ai-readout-rank">${escapeHtml(aiAssessment.recommendedRank)}まで</span>` : ""}</div>`
+    : "";
+  const clues = aiAssessment.diagnosticFeaturesSeen.slice(0, 3);
+  const clueList = clues.length > 0
+    ? `<ul class="obs-ai-readout-clues">${clues.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul>`
+    : "";
+  const stopReason = aiAssessment.stopReason
+    ? compactAiReadoutText(aiAssessment.stopReason)
+    : aiAssessment.missingEvidence.length > 0
+      ? `${aiAssessment.missingEvidence[0]} が見えないため、ここでは安全側に止めています。`
+      : "";
+  const nextLook = aiAssessment.nextStepText
+    || aiAssessment.confirmMore[0]
+    || (aiAssessment.missingEvidence[0] ? `次は ${aiAssessment.missingEvidence[0]} が見える写真があると絞りやすくなります。` : "");
+  const notes = [
+    stopReason ? `<p class="obs-ai-readout-note"><strong>ここで止める理由</strong>${escapeHtml(compactAiReadoutText(stopReason))}</p>` : "",
+    nextLook ? `<p class="obs-ai-readout-note"><strong>次に見る</strong>${escapeHtml(compactAiReadoutText(nextLook))}</p>` : "",
+  ].filter(Boolean).join("");
+
+  return `<section class="obs-ai-readout ${bandClass}">
+    <div class="obs-ai-readout-top">
+      <div>
+        <p class="obs-hint-eyebrow">AI がいま読めていること</p>
+        <h3 class="obs-ai-readout-title">${escapeHtml(compactAiReadoutText(headline, 104))}</h3>
+      </div>
+      <span class="obs-ai-readout-badge">${escapeHtml(bandLabel)}</span>
+    </div>
+    ${rec}
+    ${clueList}
+    ${notes ? `<div class="obs-ai-readout-grid">${notes}</div>` : ""}
+  </section>`;
+}
 
 function renderSubjectHint(
   subject: ObservationVisitSubject,
@@ -6758,10 +6837,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
     const focusRailBlock = featuredSubject
       ? (() => {
+          const hasAiDefault = bundle.selectionSource === "latest_ai_default";
           const focusHeading = currentSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId
             ? `今見ている ${currentSubjectDisplay.primaryLabel} だけが主役とは限らず、${featuredSubjectDisplay.primaryLabel} がいちばん有力です。`
-            : `${featuredSubjectDisplay.primaryLabel} を先に見ると、この観察の意味をつかみやすいです。`;
-          const focusLead = `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、同定履歴・AIヒント・分類がその場で切り替わります。" : "この観察で見えている対象を、そのまま確かめられます。"}`;
+            : hasAiDefault
+              ? `${featuredSubjectDisplay.primaryLabel} は、いま確認する主な候補です。`
+              : `${featuredSubjectDisplay.primaryLabel} を先に見ると、この観察の状態をつかみやすいです。`;
+          const focusLead = hasAiDefault
+            ? subjectCount >= 2
+              ? "AI の絞り込みメモを起点に、対象ごとの候補・根拠・分類を切り替えて確認できます。"
+              : "写真から読めている手がかりと、まだ止めている理由を先に確認できます。"
+            : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、同定履歴・AIヒント・分類がその場で切り替わります。" : "この対象の状態をそのまま確かめられます。"}`;
           const featuredChips: string[] = [];
           if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(featuredSubject.rank)}</span>`);
           if (featuredSubject.scientificName) featuredChips.push(`<span class="obs-focus-chip">🔬 ${escapeHtml(featuredSubject.scientificName)}</span>`);
@@ -6802,12 +6888,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           return `<div class="obs-focus">
             <div class="obs-focus-head">
               <div>
-                <div class="obs-story-eyebrow">この観察で見えている対象</div>
+                <div class="obs-story-eyebrow">${hasAiDefault ? "AI がいま読めていること" : "いま確認されている対象"}</div>
                 <h2 class="obs-focus-title">${escapeHtml(focusHeading)}</h2>
                 <p class="obs-focus-copy">${escapeHtml(focusLead)}</p>
               </div>
               <span class="obs-focus-pill">${subjectCount} 対象</span>
             </div>
+            <div data-obs-switch-ai-readout>${renderHeroAiReadout(currentSubject)}</div>
             <div class="obs-focus-featured">
               <div>
                 <div class="obs-focus-role">${escapeHtml(featuredSubject.roleLabel)}</div>
@@ -7061,6 +7148,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
     const subjectTemplates = bundle.subjects.map((subject) => `
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
@@ -7112,6 +7200,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
            var regionMap = ${JSON.stringify(subjectRegionMap)};
            var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
            var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
+           var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
            var identifyRoot = document.querySelector('[data-obs-switch-identify]');
@@ -7174,9 +7263,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
              }
            };
            var renderSubject = function(subjectId, push){
+             var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
              var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
+             if (aiReadoutRoot && aiReadoutTemplate) aiReadoutRoot.innerHTML = aiReadoutTemplate.innerHTML;
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
              if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
