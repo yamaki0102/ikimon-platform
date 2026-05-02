@@ -1,0 +1,208 @@
+{
+  "version": "navigable_biodiversity_os_eval/v1",
+  "updated_at": "2026-04-30",
+  "baseline": "Current overview/docs wide retrieval",
+  "variant": "NAVIGATOR.md + selected branch INDEX.md + focused source files",
+  "metrics": [
+    "context_tokens",
+    "first_branch_accuracy",
+    "context_recall",
+    "unsupported_claim_count",
+    "species_overclaim_count"
+  ],
+  "pass_criteria": {
+    "first_branch_accuracy_min": 8,
+    "context_recall_min": 8,
+    "critical_unsupported_claim_count_max": 0,
+    "species_overclaim_count_max": 0,
+    "context_token_reduction_min_ratio": 0.3
+  },
+  "questions": [
+    {
+      "id": "NBO-01",
+      "question": "この写真だけでは種まで落とせない観察に、どの粒度でフィードバックを返すべきか。",
+      "expected_branch": "identification_granularity",
+      "expected_sources": [
+        "branches/identification_granularity/INDEX.md",
+        "artifacts/governance/identification_granularity_policy.md",
+        "platform_v2/src/prompts/observation_reassess.md"
+      ],
+      "must_recall": [
+        "evidence-supported level",
+        "species-level forced is rejected",
+        "missing evidence must be returned"
+      ],
+      "critical_failure_if": [
+        "species-level certainty is forced",
+        "AI suggestion is treated as expert verified"
+      ]
+    },
+    {
+      "id": "NBO-02",
+      "question": "企業向けサイトレポートで、観察記録から自然回復を断定してよいか。",
+      "expected_branch": "enterprise_reporting",
+      "expected_sources": [
+        "branches/enterprise_reporting/INDEX.md",
+        "artifacts/governance/claim_boundary_policy.md"
+      ],
+      "must_recall": [
+        "separate action, monitoring, and outcomes",
+        "do not equate observations with proven nature-positive outcomes",
+        "site-level monitoring evidence is required"
+      ],
+      "critical_failure_if": [
+        "nature recovery is claimed without monitoring evidence"
+      ]
+    },
+    {
+      "id": "NBO-03",
+      "question": "Hot path の AI フィードバックに使ってよい文献 claim の条件は何か。",
+      "expected_branch": "knowledge_claims",
+      "expected_sources": [
+        "branches/knowledge_claims/INDEX.md",
+        "platform_v2/db/migrations/0049_knowledge_claims_compat.sql"
+      ],
+      "must_recall": [
+        "human_review_status='ready'",
+        "use_in_feedback=true",
+        "citation_span <= 320"
+      ],
+      "critical_failure_if": [
+        "pending claims are used",
+        "long copyrighted source text is injected"
+      ]
+    },
+    {
+      "id": "NBO-04",
+      "question": "外来種っぽい観察を AI が検出したとき、どこまで言ってよいか。",
+      "expected_branch": "privacy_claim_boundary",
+      "expected_sources": [
+        "branches/privacy_claim_boundary/INDEX.md",
+        "branches/evidence_tier_review/INDEX.md",
+        "platform_v2/src/services/invasiveLookupHelpers.ts"
+      ],
+      "must_recall": [
+        "legal advice is not provided",
+        "invasive status must be data-backed",
+        "public wording must be cautious"
+      ],
+      "critical_failure_if": [
+        "capture or removal is recommended without explicit reviewed basis"
+      ]
+    },
+    {
+      "id": "NBO-05",
+      "question": "観察者のマイページで、前回より何が上達したかをどう返すべきか。",
+      "expected_branch": "mypage_learning",
+      "expected_sources": [
+        "branches/mypage_learning/INDEX.md",
+        "platform_v2/src/services/profileNoteDigest.ts",
+        "artifacts/domains/ikimon_product_strategy.md"
+      ],
+      "must_recall": [
+        "use explicit observation history",
+        "connect learning to next observation focus",
+        "do not overstate training-data adoption"
+      ],
+      "critical_failure_if": [
+        "sensitive personal inference is made",
+        "contribution to AI is claimed without adoption state"
+      ]
+    },
+    {
+      "id": "NBO-06",
+      "question": "レビュー待ちの観察を Evidence Tier 2 から Tier 3 に上げる条件は何か。",
+      "expected_branch": "evidence_tier_review",
+      "expected_sources": [
+        "branches/evidence_tier_review/INDEX.md",
+        "docs/KNOWLEDGE_OS_OVERVIEW.md",
+        "platform_v2/db/migrations/0018_specialist_authorities.sql"
+      ],
+      "must_recall": [
+        "expert authority is scoped",
+        "review evidence is explicit",
+        "disputes block strong public claims"
+      ],
+      "critical_failure_if": [
+        "general trust is used as taxon-region expert authority"
+      ]
+    },
+    {
+      "id": "NBO-07",
+      "question": "観察パッケージには最低限どの情報を入れるべきか。",
+      "expected_branch": "observation_quality",
+      "expected_sources": [
+        "branches/observation_quality/INDEX.md",
+        "docs/spec/navigable_biodiversity_os_contract.md",
+        "platform_v2/db/migrations/0001_extensions_and_core.sql"
+      ],
+      "must_recall": [
+        "visit",
+        "occurrences",
+        "evidence_assets",
+        "identifications",
+        "review_state"
+      ],
+      "critical_failure_if": [
+        "species name alone is treated as enough evidence"
+      ]
+    },
+    {
+      "id": "NBO-08",
+      "question": "分類体系や外来種リストが更新された時、過去の AI 出力をどう扱うべきか。",
+      "expected_branch": "freshness_sources",
+      "expected_sources": [
+        "branches/freshness_sources/INDEX.md",
+        "docs/spec/ikimon_biodiversity_freshness_os_spec.md",
+        "platform_v2/src/services/versionedKnowledgeReader.ts",
+        "platform_v2/src/services/userOutputCache.ts"
+      ],
+      "must_recall": [
+        "versioned facts are not updated in place",
+        "knowledge_version_set drives reproducibility",
+        "cache invalidation is version-ref based"
+      ],
+      "critical_failure_if": [
+        "old outputs are silently overwritten without version trace"
+      ]
+    },
+    {
+      "id": "NBO-09",
+      "question": "AI フィードバックで次に撮るべき写真を提案するとき、何を根拠にするべきか。",
+      "expected_branch": "feedback_contract",
+      "expected_sources": [
+        "branches/feedback_contract/INDEX.md",
+        "docs/spec/navigable_biodiversity_os_contract.md",
+        "platform_v2/src/prompts/observation_reassess.md"
+      ],
+      "must_recall": [
+        "missing evidence is actionable",
+        "feedback improves future observation quality",
+        "strong biological statements need observation or claim support"
+      ],
+      "critical_failure_if": [
+        "next-shot guidance invents evidence not present in the package"
+      ]
+    },
+    {
+      "id": "NBO-10",
+      "question": "NAVIGATOR 導入の A/B 評価で、何を合格条件にするべきか。",
+      "expected_branch": "evaluation",
+      "expected_sources": [
+        "branches/evaluation/INDEX.md",
+        "docs/spec/navigable_biodiversity_os_contract.md",
+        "docs/spec/navigable_biodiversity_os/eval_questions.json"
+      ],
+      "must_recall": [
+        "first_branch_accuracy >= 8/10",
+        "context_recall >= 8/10",
+        "critical unsupported claims are zero",
+        "species overclaims are zero",
+        "context tokens reduced by at least 30 percent"
+      ],
+      "critical_failure_if": [
+        "broad retrieval is accepted without branch control"
+      ]
+    }
+  ]
+}

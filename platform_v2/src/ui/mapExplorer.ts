@@ -1,6 +1,13 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
+import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import { overlaysForLang, type LocalizedOverlay } from "../services/layerCatalog.js";
+import {
+  buildOfficialNoticeClientRenderer,
+  getOfficialNoticeRenderCopy,
+  OFFICIAL_NOTICE_CARD_STYLES,
+} from "./officialNoticeCard.js";
+import { MAP_EXPLORER_STATE_RUNTIME } from "./mapExplorerState.js";
 import { escapeHtml } from "./siteShell.js";
 
 /**
@@ -8,7 +15,7 @@ import { escapeHtml } from "./siteShell.js";
  *
  * Server emits a shell (hero, filter bar, canvas, side panel, empty bottom sheet)
  * and a boot script that hydrates the MapLibre map client-side. Data comes from
- * /api/v1/map/observations and /api/v1/map/coverage, which the client refetches
+ * /api/v1/map/cells and /api/v1/map/observations, which the client refetches
  * whenever a filter / tab / basemap changes. No Alpine — plain vanilla JS to
  * keep the v2 SSR bundle lean.
  */
@@ -62,6 +69,10 @@ export type MapExplorerCopy = {
   siteBriefReasonsLabel: string;
   siteBriefChecksLabel: string;
   siteBriefCapturesLabel: string;
+  siteBriefWhyHereLabel: string;
+  siteBriefWhyNowLabel: string;
+  siteBriefOneVisitLabel: string;
+  siteBriefNextHookLabel: string;
   siteBriefLoading: string;
   siteBriefError: string;
   searchPlaceholder: string;
@@ -76,6 +87,12 @@ export type MapExplorerCopy = {
   shareLabel: string;
   shareCopied: string;
   shareError: string;
+  mapQuickLabel: string;
+  mapQuickNearby: string;
+  mapQuickFrontier: string;
+  mapQuickHeatmap: string;
+  mapQuickSatellite: string;
+  mapQuickStandard: string;
   taxonChips: TaxonGroupChip[];
 };
 
@@ -108,9 +125,9 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    tabMarkers: "観察ピン",
+    tabMarkers: "観察エリア",
     tabHeatmap: "密度ヒート",
-    tabCoverage: "足跡メッシュ",
+    tabCoverage: "調査前進",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -145,42 +162,52 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "空撮（地理院）",
     basemapSatelliteEsri: "衛星（Esri）",
     legendLabel: "凡例",
-    coverageLegendLow: "まばら",
-    coverageLegendHigh: "積み上がる",
+    coverageLegendLow: "薄い",
+    coverageLegendHigh: "厚い",
     heatmapLegendLow: "薄い",
     heatmapLegendHigh: "濃い",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "この条件に合う観察はまだない。フィルタをゆるめるか、別の年を試す。",
-    sideRecentLabel: "最近の観察",
-    sideRevisitLabel: "積み上がっている場所",
-    crossEyebrow: "この場所で、次の 1 枚を書く",
-    crossLensLabel: "フィールドガイドで見る",
-    crossScanLabel: "フィールドスキャンで見る",
-    crossNotesLabel: "ノートに戻る",
+    empty: "この条件に合う記録はまだありません。条件をゆるめるか、別の年を試してください。",
+    sideRecentLabel: "最近の記録",
+    sideRevisitLabel: "この場所で見つかったもの",
+    crossEyebrow: "この場所で、次の 1 件を残す",
+    crossLensLabel: JA_PUBLIC_SHARED_COPY.cta.openGuide,
+    crossScanLabel: JA_PUBLIC_SHARED_COPY.cta.openScan,
+    crossNotesLabel: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
     popupOpenLabel: "詳細を開く →",
-    bottomSheetRecord: "ここで記録する",
-    bottomSheetNotes: "ノート詳細",
-    bottomSheetLens: "フィールドガイド",
-    bottomSheetScan: "スキャン",
-    siteBriefHeading: "この場所で見るべき3つ",
+    bottomSheetRecord: JA_PUBLIC_SHARED_COPY.cta.record,
+    bottomSheetNotes: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
+    bottomSheetLens: JA_PUBLIC_SHARED_COPY.cta.openGuide,
+    bottomSheetScan: JA_PUBLIC_SHARED_COPY.cta.openScan,
+    siteBriefHeading: "この場所で見てみたいこと",
     siteBriefReasonsLabel: "根拠",
     siteBriefChecksLabel: "現地で確かめる",
     siteBriefCapturesLabel: "撮るなら",
+    siteBriefWhyHereLabel: "ここが気になる理由",
+    siteBriefWhyNowLabel: "今行く理由",
+    siteBriefOneVisitLabel: "1 回の訪問で残せること",
+    siteBriefNextHookLabel: "次にまた行きたくなる理由",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
-    searchPlaceholder: "場所 / 種を探す（例: 静岡市 谷津山、モンシロチョウ）",
+    searchPlaceholder: "場所や生きものを探す（例: 静岡市 谷津山、モンシロチョウ）",
     searchAriaLabel: "場所または種を検索",
     searchNoResult: "見つからなかった。もう一語ゆるめてみる。",
     searchError: "検索に失敗した。しばらく待ってから試す。",
     searchResultSpecies: "種",
     searchResultPlace: "場所",
-    locateLabel: "現在地へ",
+    locateLabel: "現在地を見る",
     locateError: "現在地を取得できなかった。ブラウザの位置情報を許可してほしい。",
     timelineAriaLabel: "年のタイムライン",
     shareLabel: "この表示を共有",
     shareCopied: "共有リンクをコピーした。",
     shareError: "共有リンクを作れなかった。",
+    mapQuickLabel: "地図上のクイック操作",
+    mapQuickNearby: "現在地",
+    mapQuickFrontier: "空白帯",
+    mapQuickHeatmap: "密度",
+    mapQuickSatellite: "衛星",
+    mapQuickStandard: "標準",
     taxonChips: [
       { value: "", label: "すべて", icon: "✨" },
       { value: "insect", label: "昆虫", icon: "🦋" },
@@ -193,9 +220,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
-    tabMarkers: "Pins",
+    tabMarkers: "Areas",
     tabHeatmap: "Heatmap",
-    tabCoverage: "Coverage",
+    tabCoverage: "Frontier",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
@@ -230,28 +257,32 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "Aerial (GSI)",
     basemapSatelliteEsri: "Satellite (Esri)",
     legendLabel: "Legend",
-    coverageLegendLow: "Few",
-    coverageLegendHigh: "Many",
+    coverageLegendLow: "Thin",
+    coverageLegendHigh: "Deep",
     heatmapLegendLow: "Low",
     heatmapLegendHigh: "High",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "Nothing here yet — this could be your page to write.",
-    sideRecentLabel: "Recently recorded",
-    sideRevisitLabel: "Places that keep calling",
+    sideRecentLabel: "My progress",
+    sideRevisitLabel: "Area progress",
     crossEyebrow: "Your next page starts here",
-    crossLensLabel: "Open Field Guide",
-    crossScanLabel: "Open Field Scan",
+    crossLensLabel: "Open Lens",
+    crossScanLabel: "Open Explore Map",
     crossNotesLabel: "Back to notebook",
     popupOpenLabel: "Open detail →",
     bottomSheetRecord: "Record here",
     bottomSheetNotes: "Notebook detail",
-    bottomSheetLens: "Field Guide",
+    bottomSheetLens: "Lens",
     bottomSheetScan: "Scan",
     siteBriefHeading: "Three things to check here",
     siteBriefReasonsLabel: "Why",
     siteBriefChecksLabel: "Check on the ground",
     siteBriefCapturesLabel: "If you shoot",
+    siteBriefWhyHereLabel: "why here",
+    siteBriefWhyNowLabel: "why now",
+    siteBriefOneVisitLabel: "one-visit contribution",
+    siteBriefNextHookLabel: "next revisit hook",
     siteBriefLoading: "Reading this place…",
     siteBriefError: "Could not read this place. Trust your field sense.",
     searchPlaceholder: "Find a place or species (e.g. Shizuoka, swallowtail)",
@@ -266,6 +297,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "Share this view",
     shareCopied: "Share link copied.",
     shareError: "Could not create a share link.",
+    mapQuickLabel: "Quick map actions",
+    mapQuickNearby: "Nearby",
+    mapQuickFrontier: "Frontier",
+    mapQuickHeatmap: "Density",
+    mapQuickSatellite: "Satellite",
+    mapQuickStandard: "Standard",
     taxonChips: [
       { value: "", label: "All", icon: "✨" },
       { value: "insect", label: "Insects", icon: "🦋" },
@@ -278,9 +315,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
-    tabMarkers: "Pines",
+    tabMarkers: "Áreas",
     tabHeatmap: "Mapa de calor",
-    tabCoverage: "Cobertura",
+    tabCoverage: "Frontera",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
@@ -315,15 +352,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "Aérea (GSI)",
     basemapSatelliteEsri: "Satélite (Esri)",
     legendLabel: "Leyenda",
-    coverageLegendLow: "Pocos",
-    coverageLegendHigh: "Muchos",
+    coverageLegendLow: "Ligera",
+    coverageLegendHigh: "Gruesa",
     heatmapLegendLow: "Baja",
     heatmapLegendHigh: "Alta",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Aún no hay nada aquí — podrías ser el primero en registrar algo.",
-    sideRecentLabel: "Registros recientes",
-    sideRevisitLabel: "Lugares que siguen llamando",
+    sideRecentLabel: "Mi avance",
+    sideRevisitLabel: "Avance del área",
     crossEyebrow: "Tu próxima página empieza aquí",
     crossLensLabel: "Abrir Guía de Campo",
     crossScanLabel: "Abrir Escaneo",
@@ -337,6 +374,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Por qué",
     siteBriefChecksLabel: "Verifica en el sitio",
     siteBriefCapturesLabel: "Si disparas",
+    siteBriefWhyHereLabel: "por qué aquí",
+    siteBriefWhyNowLabel: "por qué ahora",
+    siteBriefOneVisitLabel: "aporte de una visita",
+    siteBriefNextHookLabel: "gancho para volver",
     siteBriefLoading: "Leyendo este lugar…",
     siteBriefError: "No pude leer este lugar. Confía en tu campo.",
     searchPlaceholder: "Buscar lugar o especie (p. ej. Shizuoka, mariposa)",
@@ -351,6 +392,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "Compartir esta vista",
     shareCopied: "Enlace copiado.",
     shareError: "No pude crear el enlace.",
+    mapQuickLabel: "Acciones rápidas del mapa",
+    mapQuickNearby: "Cerca",
+    mapQuickFrontier: "Frontera",
+    mapQuickHeatmap: "Densidad",
+    mapQuickSatellite: "Satélite",
+    mapQuickStandard: "Estándar",
     taxonChips: [
       { value: "", label: "Todo", icon: "✨" },
       { value: "insect", label: "Insectos", icon: "🦋" },
@@ -363,9 +410,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
-    tabMarkers: "Pinos",
+    tabMarkers: "Áreas",
     tabHeatmap: "Mapa de calor",
-    tabCoverage: "Cobertura",
+    tabCoverage: "Fronteira",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
@@ -400,15 +447,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "Aérea (GSI)",
     basemapSatelliteEsri: "Satélite (Esri)",
     legendLabel: "Legenda",
-    coverageLegendLow: "Poucos",
-    coverageLegendHigh: "Muitos",
+    coverageLegendLow: "Fina",
+    coverageLegendHigh: "Densa",
     heatmapLegendLow: "Baixa",
     heatmapLegendHigh: "Alta",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Nada registrado aqui ainda — pode ser a sua vez de começar.",
-    sideRecentLabel: "Registros recentes",
-    sideRevisitLabel: "Lugares que continuam chamando",
+    sideRecentLabel: "Meu avanço",
+    sideRevisitLabel: "Avanço da área",
     crossEyebrow: "Sua próxima página começa aqui",
     crossLensLabel: "Abrir Guia de Campo",
     crossScanLabel: "Abrir Escaneamento",
@@ -422,6 +469,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Porquê",
     siteBriefChecksLabel: "Verifique no campo",
     siteBriefCapturesLabel: "Se for fotografar",
+    siteBriefWhyHereLabel: "por que aqui",
+    siteBriefWhyNowLabel: "por que agora",
+    siteBriefOneVisitLabel: "contribuição de uma visita",
+    siteBriefNextHookLabel: "gancho para voltar",
     siteBriefLoading: "Lendo este lugar…",
     siteBriefError: "Não consegui ler este lugar. Confie no campo.",
     searchPlaceholder: "Buscar local ou espécie (ex.: Shizuoka, borboleta)",
@@ -436,6 +487,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareLabel: "Compartilhar esta vista",
     shareCopied: "Link copiado.",
     shareError: "Não foi possível criar o link.",
+    mapQuickLabel: "Ações rápidas do mapa",
+    mapQuickNearby: "Perto",
+    mapQuickFrontier: "Fronteira",
+    mapQuickHeatmap: "Densidade",
+    mapQuickSatellite: "Satélite",
+    mapQuickStandard: "Padrão",
     taxonChips: [
       { value: "", label: "Tudo", icon: "✨" },
       { value: "insect", label: "Insetos", icon: "🦋" },
@@ -467,9 +524,127 @@ function overlayPanelLabels(lang: SiteLang): {
   return { heading: "レイヤー", intro: "ベース地図の上に重ねて、行政 GIS × 市民観察 の視点を組み合わせる。", opacityLabel: "濃度" };
 }
 
+function ambientPanelLabels(lang: SiteLang): {
+  roleLabel: string;
+  roles: Array<{ value: "note" | "guide" | "scan" | "mixed"; label: string; icon: string }>;
+  selfLabel: string;
+  communityLabel: string;
+  frontierLabel: string;
+  roleCardLabel: string;
+} {
+  if (lang === "en") {
+    return {
+      roleLabel: "Role",
+      roles: [
+        { value: "note", label: "Note", icon: "📖" },
+        { value: "guide", label: "Guide", icon: "🔍" },
+        { value: "scan", label: "Scan", icon: "📡" },
+        { value: "mixed", label: "Mixed", icon: "🧭" },
+      ],
+      selfLabel: "My progress",
+      communityLabel: "Area progress",
+      frontierLabel: "Next frontier",
+      roleCardLabel: "Best role here",
+    };
+  }
+  if (lang === "es") {
+    return {
+      roleLabel: "Rol",
+      roles: [
+        { value: "note", label: "Nota", icon: "📖" },
+        { value: "guide", label: "Guía", icon: "🔍" },
+        { value: "scan", label: "Escaneo", icon: "📡" },
+        { value: "mixed", label: "Mixto", icon: "🧭" },
+      ],
+      selfLabel: "Mi avance",
+      communityLabel: "Avance del área",
+      frontierLabel: "Siguiente frontera",
+      roleCardLabel: "Mejor rol aquí",
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      roleLabel: "Papel",
+      roles: [
+        { value: "note", label: "Nota", icon: "📖" },
+        { value: "guide", label: "Guia", icon: "🔍" },
+        { value: "scan", label: "Escanear", icon: "📡" },
+        { value: "mixed", label: "Misto", icon: "🧭" },
+      ],
+      selfLabel: "Meu avanço",
+      communityLabel: "Avanço da área",
+      frontierLabel: "Próxima fronteira",
+      roleCardLabel: "Melhor papel aqui",
+    };
+  }
+  return {
+    roleLabel: "役割",
+    roles: [
+      { value: "note", label: "Note", icon: "📖" },
+      { value: "guide", label: "Guide", icon: "🔍" },
+      { value: "scan", label: "Scan", icon: "📡" },
+      { value: "mixed", label: "Mixed", icon: "🧭" },
+    ],
+    selfLabel: "自分の前進",
+    communityLabel: "地域の前進",
+    frontierLabel: "次の frontier",
+    roleCardLabel: "この場所で最適な役割",
+  };
+}
+
+function actorPanelLabels(lang: SiteLang): {
+  actorLabel: string;
+  actors: Array<{ value: "all" | "local_steward" | "traveler" | "casual"; label: string; icon: string }>;
+} {
+  if (lang === "en") {
+    return {
+      actorLabel: "Actor lens",
+      actors: [
+        { value: "all", label: "All", icon: "🧭" },
+        { value: "local_steward", label: "Local steward", icon: "🏡" },
+        { value: "traveler", label: "Traveler", icon: "🧳" },
+        { value: "casual", label: "Casual", icon: "🚶" },
+      ],
+    };
+  }
+  if (lang === "es") {
+    return {
+      actorLabel: "Lente de actor",
+      actors: [
+        { value: "all", label: "Todo", icon: "🧭" },
+        { value: "local_steward", label: "Cuidador local", icon: "🏡" },
+        { value: "traveler", label: "Viajero", icon: "🧳" },
+        { value: "casual", label: "Casual", icon: "🚶" },
+      ],
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      actorLabel: "Lente do ator",
+      actors: [
+        { value: "all", label: "Tudo", icon: "🧭" },
+        { value: "local_steward", label: "Guardião local", icon: "🏡" },
+        { value: "traveler", label: "Viajante", icon: "🧳" },
+        { value: "casual", label: "Casual", icon: "🚶" },
+      ],
+    };
+  }
+  return {
+    actorLabel: "見る主体",
+    actors: [
+      { value: "all", label: "All", icon: "🧭" },
+      { value: "local_steward", label: "Local steward", icon: "🏡" },
+      { value: "traveler", label: "Traveler", icon: "🧳" },
+      { value: "casual", label: "Casual", icon: "🚶" },
+    ],
+  };
+}
+
 export function renderMapExplorer(props: MapExplorerProps): string {
   const lang = props.lang;
   const copy = MAP_EXPLORER_COPY[lang];
+  const ambientLabels = ambientPanelLabels(lang);
+  const actorLabels = actorPanelLabels(lang);
   const yearTimelineValues = [...props.years].sort((a, b) => a - b);
   const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
@@ -477,11 +652,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
-  const scanHref = appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang);
+  const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
-  const apiCoverage = withBasePath(props.basePath, "/api/v1/map/coverage");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
+  const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
+  const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
 
   const taxonChipsHtml = copy.taxonChips
     .map(
@@ -544,127 +720,57 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     )
     .join("");
 
-  const crossChipsHtml = `<div class="me-cross-chips" aria-label="${escapeHtml(copy.crossEyebrow)}">
-    <span class="me-cross-eyebrow">${escapeHtml(copy.crossEyebrow)}</span>
-    <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens">
-      <span aria-hidden="true">🔍</span> ${escapeHtml(copy.crossLensLabel)}
-    </a>
-    <a class="me-cross-chip" href="${escapeHtml(scanHref)}" data-kpi-action="map:cross-scan">
-      <span aria-hidden="true">📡</span> ${escapeHtml(copy.crossScanLabel)}
-    </a>
-    <a class="me-cross-chip" href="${escapeHtml(notesHref)}" data-kpi-action="map:cross-notes">
-      <span aria-hidden="true">📖</span> ${escapeHtml(copy.crossNotesLabel)}
-    </a>
-  </div>`;
+  const roleChipsHtml = ambientLabels.roles
+    .map(
+      (role, idx) => `<button
+        type="button"
+        class="me-chip me-role-chip${role.value === "mixed" || idx === ambientLabels.roles.length - 1 ? " is-active" : ""}"
+        data-role="${escapeHtml(role.value)}"
+        aria-pressed="${role.value === "mixed" || idx === ambientLabels.roles.length - 1 ? "true" : "false"}">
+        <span class="me-chip-icon" aria-hidden="true">${escapeHtml(role.icon)}</span>
+        <span>${escapeHtml(role.label)}</span>
+      </button>`,
+    )
+    .join("");
+  const actorChipsHtml = actorLabels.actors
+    .map(
+      (actor, idx) => `<button
+        type="button"
+        class="me-chip me-actor-chip${actor.value === "all" || idx === 0 ? " is-active" : ""}"
+        data-actor-class="${escapeHtml(actor.value)}"
+        aria-pressed="${actor.value === "all" || idx === 0 ? "true" : "false"}">
+        <span aria-hidden="true">${escapeHtml(actor.icon)}</span>
+        ${escapeHtml(actor.label)}
+      </button>`,
+    )
+    .join("");
+
+  const filterToggleLabel = lang === "ja"
+    ? "フィルタ"
+    : lang === "es"
+      ? "Filtros"
+      : lang === "pt-BR"
+        ? "Filtros"
+        : "Filters";
+  const listHeading = lang === "ja"
+    ? "この範囲の観察"
+    : lang === "es"
+      ? "Observaciones en esta área"
+      : lang === "pt-BR"
+        ? "Observações nesta área"
+        : "Observations in this area";
+  const searchAreaLabel = lang === "ja"
+    ? "この範囲で再検索"
+    : lang === "es"
+      ? "Buscar en esta área"
+      : lang === "pt-BR"
+        ? "Buscar nesta área"
+        : "Search this area";
 
   return `<section class="section me-section" aria-label="Map Explorer">
-    ${crossChipsHtml}
-    <div class="me-toolbar">
-      <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
-        <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
-        <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
-        <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="coverage">${escapeHtml(copy.tabCoverage)}</button>
-      </div>
-      <div class="me-filter-group">
-        <span class="me-filter-label">${escapeHtml(copy.taxonFilterLabel)}</span>
-        <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
-      </div>
-      <div class="me-filter-group">
-        <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
-        <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
-      </div>
-      <div class="me-filter-group">
-        <span class="me-filter-label">${escapeHtml(copy.yearFilterLabel)}</span>
-        <div class="me-time-controls">
-          <button type="button" class="me-chip me-year-all-chip is-active" id="me-year-all" aria-pressed="true">${escapeHtml(copy.yearAll)}</button>
-          <div class="me-time-slider-wrap">
-            <input
-              type="range"
-              id="me-year-range"
-              class="me-year-range"
-              data-year-values="${yearValuesJson}"
-              min="0"
-              max="${Math.max(yearTimelineValues.length - 1, 0)}"
-              value="${Math.max(yearTimelineValues.length - 1, 0)}"
-              aria-label="${escapeHtml(copy.timelineAriaLabel)}"
-            />
-            <div class="me-year-scale" aria-hidden="true">${yearScaleHtml}</div>
-          </div>
-          <output id="me-year-label" class="me-year-pill">${escapeHtml(copy.yearAll)}</output>
-        </div>
-      </div>
-      <div class="me-filter-group me-basemap-group">
-        <span class="me-filter-label">${escapeHtml(copy.basemapLabel)}</span>
-        <div class="me-basemap-row" role="group" aria-label="${escapeHtml(copy.basemapLabel)}">${basemapRadiosHtml}</div>
-      </div>
-      <div class="me-filter-group">
-        <label class="me-trace-toggle-label" title="${escapeHtml(lang === "ja" ? "歩いた軌跡を地図に重ねる" : lang === "es" ? "Mostrar rutas recorridas" : lang === "pt-BR" ? "Mostrar trilhas percorridas" : "Show walk traces")}">
-          <input type="checkbox" id="me-trace-toggle" class="me-trace-toggle" />
-          <span class="me-filter-label">${escapeHtml(lang === "ja" ? "軌跡" : lang === "es" ? "Trazas" : lang === "pt-BR" ? "Trilhas" : "Traces")}</span>
-        </label>
-      </div>
-      <div class="me-filter-group">
-        <button type="button" class="me-share-btn" id="me-share-state">${escapeHtml(copy.shareLabel)}</button>
-      </div>
-    </div>
-
-    <details class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
-      <summary class="me-region-summary"><span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span><span class="me-region-hint">${escapeHtml(lang === "ja" ? "日本全体 / 静岡市 / 東京 …" : "Japan / Shizuoka / Tokyo …")}</span></summary>
-      <div class="me-region-row">${regionChipsHtml}</div>
-    </details>
-
-    <details class="me-overlay-panel">
-      <summary class="me-overlay-summary">
-        <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
-        <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
-      </summary>
-      <div class="me-overlay-list" data-overlay-catalog='${escapeHtml(
-        JSON.stringify(overlays.map((o) => ({
-          id: o.id,
-          tiles: o.tiles,
-          tileSize: o.tileSize,
-          attribution: o.attribution,
-          minzoom: o.minzoom,
-          maxzoom: o.maxzoom,
-          defaultOpacity: o.defaultOpacity,
-        })))
-      )}'>
-        ${overlays
-          .map(
-            (o) => `<label class="me-overlay-item" data-overlay-id="${escapeHtml(o.id)}">
-              <div class="me-overlay-row">
-                <input type="checkbox" class="me-overlay-toggle" />
-                <span class="me-overlay-label">${escapeHtml(o.label)}</span>
-                <span class="me-overlay-category me-overlay-cat-${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
-              </div>
-              ${o.note ? `<p class="me-overlay-note">${escapeHtml(o.note)}</p>` : ""}
-              ${o.legendGradient ? `<div class="me-overlay-legend">
-                <span class="me-overlay-legend-low">${escapeHtml(o.legendLow ?? "")}</span>
-                <span class="me-overlay-legend-gradient" style="background:${escapeHtml(o.legendGradient)}"></span>
-                <span class="me-overlay-legend-high">${escapeHtml(o.legendHigh ?? "")}</span>
-              </div>` : ""}
-              <div class="me-overlay-opacity">
-                <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
-                <input
-                  type="range"
-                  class="me-overlay-opacity-range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value="${o.defaultOpacity.toString()}"
-                  aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
-                />
-              </div>
-            </label>`,
-          )
-          .join("")}
-      </div>
-    </details>
-
-    <div class="me-main">
-      <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-api-observations="${escapeHtml(apiObservations)}" data-api-coverage="${escapeHtml(apiCoverage)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}"></div>
-        <div class="me-search" role="search">
+    <div class="me-topbar">
+      <div class="me-topbar-primary">
+        <div class="me-search-shell" role="search">
           <span class="me-search-icon" aria-hidden="true">🔍</span>
           <input
             type="search"
@@ -677,6 +783,143 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           />
           <div id="me-search-results" class="me-search-results" role="listbox" aria-label="${escapeHtml(copy.searchAriaLabel)}"></div>
         </div>
+        <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
+          <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
+          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
+          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="frontier">${escapeHtml(copy.tabCoverage)}</button>
+        </div>
+      </div>
+      <div class="me-topbar-secondary">
+        <div class="me-filter-group me-filter-group-quick">
+          <span class="me-filter-label">${escapeHtml(copy.taxonFilterLabel)}</span>
+          <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
+        </div>
+        <details class="me-filter-drawer">
+          <summary class="me-filter-toggle">${escapeHtml(filterToggleLabel)}</summary>
+          <div class="me-filter-panel">
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(ambientLabels.roleLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(ambientLabels.roleLabel)}">${roleChipsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(actorLabels.actorLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(actorLabels.actorLabel)}">${actorChipsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(copy.yearFilterLabel)}</span>
+              <div class="me-time-controls">
+                <button type="button" class="me-chip me-year-all-chip is-active" id="me-year-all" aria-pressed="true">${escapeHtml(copy.yearAll)}</button>
+                <div class="me-time-slider-wrap">
+                  <input
+                    type="range"
+                    id="me-year-range"
+                    class="me-year-range"
+                    data-year-values="${yearValuesJson}"
+                    min="0"
+                    max="${Math.max(yearTimelineValues.length - 1, 0)}"
+                    value="${Math.max(yearTimelineValues.length - 1, 0)}"
+                    aria-label="${escapeHtml(copy.timelineAriaLabel)}"
+                  />
+                  <div class="me-year-scale" aria-hidden="true">${yearScaleHtml}</div>
+                </div>
+                <output id="me-year-label" class="me-year-pill">${escapeHtml(copy.yearAll)}</output>
+              </div>
+            </div>
+            <div class="me-filter-group me-basemap-group">
+              <span class="me-filter-label">${escapeHtml(copy.basemapLabel)}</span>
+              <div class="me-basemap-row" role="group" aria-label="${escapeHtml(copy.basemapLabel)}">${basemapRadiosHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <label class="me-trace-toggle-label" title="${escapeHtml(lang === "ja" ? "歩いた軌跡を地図に重ねる" : lang === "es" ? "Mostrar rutas recorridas" : lang === "pt-BR" ? "Mostrar trilhas percorridas" : "Show walk traces")}">
+                <input type="checkbox" id="me-trace-toggle" class="me-trace-toggle" />
+                <span class="me-filter-label">${escapeHtml(lang === "ja" ? "軌跡" : lang === "es" ? "Trazas" : lang === "pt-BR" ? "Trilhas" : "Traces")}</span>
+              </label>
+            </div>
+            <details class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
+              <summary class="me-region-summary"><span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span><span class="me-region-hint">${escapeHtml(lang === "ja" ? "日本全体 / 静岡市 / 東京 …" : "Japan / Shizuoka / Tokyo …")}</span></summary>
+              <div class="me-region-row">${regionChipsHtml}</div>
+            </details>
+            <details class="me-overlay-panel">
+              <summary class="me-overlay-summary">
+                <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
+                <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
+              </summary>
+              <div class="me-overlay-list" data-overlay-catalog='${escapeHtml(
+                JSON.stringify(overlays.map((o) => ({
+                  id: o.id,
+                  tiles: o.tiles,
+                  tileSize: o.tileSize,
+                  attribution: o.attribution,
+                  minzoom: o.minzoom,
+                  maxzoom: o.maxzoom,
+                  defaultOpacity: o.defaultOpacity,
+                })))
+              )}'>
+                ${overlays
+                  .map(
+                    (o) => `<label class="me-overlay-item" data-overlay-id="${escapeHtml(o.id)}">
+                      <div class="me-overlay-row">
+                        <input type="checkbox" class="me-overlay-toggle" />
+                        <span class="me-overlay-label">${escapeHtml(o.label)}</span>
+                        <span class="me-overlay-category me-overlay-cat-${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
+                      </div>
+                      ${o.note ? `<p class="me-overlay-note">${escapeHtml(o.note)}</p>` : ""}
+                      ${o.legendGradient ? `<div class="me-overlay-legend">
+                        <span class="me-overlay-legend-low">${escapeHtml(o.legendLow ?? "")}</span>
+                        <span class="me-overlay-legend-gradient" style="background:${escapeHtml(o.legendGradient)}"></span>
+                        <span class="me-overlay-legend-high">${escapeHtml(o.legendHigh ?? "")}</span>
+                      </div>` : ""}
+                      <div class="me-overlay-opacity">
+                        <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
+                        <input
+                          type="range"
+                          class="me-overlay-opacity-range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value="${o.defaultOpacity.toString()}"
+                          aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
+                        />
+                      </div>
+                    </label>`,
+                  )
+                  .join("")}
+              </div>
+            </details>
+            <div class="me-filter-group me-filter-group-actions">
+              <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens"><span aria-hidden="true">🔍</span>${escapeHtml(copy.crossLensLabel)}</a>
+              <a class="me-cross-chip" href="${escapeHtml(notesHref)}" data-kpi-action="map:cross-notes"><span aria-hidden="true">📖</span>${escapeHtml(copy.crossNotesLabel)}</a>
+              <button type="button" class="me-share-btn" id="me-share-state">${escapeHtml(copy.shareLabel)}</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="me-main">
+      <aside class="me-side" aria-label="result panel">
+        <div class="me-side-head">
+          <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
+          <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
+        </div>
+        <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
+      </aside>
+      <div class="me-map-wrap">
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
+        <div class="me-map-command-deck" role="toolbar" aria-label="${escapeHtml(copy.mapQuickLabel)}">
+          <button type="button" class="me-map-quick" data-map-action="locate"><span aria-hidden="true">⌖</span>${escapeHtml(copy.mapQuickNearby)}</button>
+          <button type="button" class="me-map-quick" data-map-tab="frontier"><span aria-hidden="true">◇</span>${escapeHtml(copy.mapQuickFrontier)}</button>
+          <button type="button" class="me-map-quick" data-map-tab="heatmap"><span aria-hidden="true">≋</span>${escapeHtml(copy.mapQuickHeatmap)}</button>
+          <button type="button" class="me-map-quick" data-map-basemap="esri"><span aria-hidden="true">▧</span>${escapeHtml(copy.mapQuickSatellite)}</button>
+          <button type="button" class="me-map-quick" data-map-basemap="standard"><span aria-hidden="true">▤</span>${escapeHtml(copy.mapQuickStandard)}</button>
+        </div>
+        <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
+        <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
+        <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
         </button>
@@ -691,22 +934,15 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <div class="me-bottom-inner" id="me-bottom-inner"></div>
         </div>
       </div>
-      <aside class="me-side" aria-label="side info">
-        <div class="me-side-card">
-          <h3 class="me-side-heading">${escapeHtml(copy.sideRecentLabel)}</h3>
-          <div class="me-side-list" id="me-side-recent"></div>
-        </div>
-        <div class="me-side-card">
-          <h3 class="me-side-heading">${escapeHtml(copy.sideRevisitLabel)}</h3>
-          <div class="me-side-list" id="me-side-cluster"></div>
-        </div>
-      </aside>
     </div>
   </section>`;
 }
 
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
+  const ambient = ambientPanelLabels(props.lang);
+  const actor = actorPanelLabels(props.lang);
+  const noticeCopy = getOfficialNoticeRenderCopy(props.lang);
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
 
@@ -722,16 +958,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
-  var sideRecentEl = document.getElementById('me-side-recent');
-  var sideClusterEl = document.getElementById('me-side-cluster');
+  var sideStatusEl = document.getElementById('me-side-status');
+  var resultsListEl = document.getElementById('me-results-list');
+  var selectedCardEl = document.getElementById('me-map-selection-card');
+  var mapInsightCardEl = document.getElementById('me-map-insight-card');
   var yearRangeEl = document.getElementById('me-year-range');
   var yearLabelEl = document.getElementById('me-year-label');
   var yearAllEl = document.getElementById('me-year-all');
   var shareStateEl = document.getElementById('me-share-state');
+  var searchAreaBtnEl = document.getElementById('me-search-area-btn');
+  var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
-  var apiCoverage = root.getAttribute('data-api-coverage') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
+  var apiFrontier = root.getAttribute('data-api-frontier') || '';
+  var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -751,8 +992,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
     siteBriefCapturesLabel: copy.siteBriefCapturesLabel,
+    siteBriefWhyHereLabel: copy.siteBriefWhyHereLabel,
+    siteBriefWhyNowLabel: copy.siteBriefWhyNowLabel,
+    siteBriefOneVisitLabel: copy.siteBriefOneVisitLabel,
+    siteBriefNextHookLabel: copy.siteBriefNextHookLabel,
     siteBriefLoading: copy.siteBriefLoading,
     siteBriefError: copy.siteBriefError,
+    loopHookTravelerFallback: props.lang === "ja" ? "今回の 1 回を、次の寄り道の理由に変える" : props.lang === "es" ? "Convierte esta visita en motivo para volver" : props.lang === "pt-BR" ? "Transforme esta visita em motivo para voltar" : "Turn this one visit into a reason to return",
+    loopHookLocalFallback: props.lang === "ja" ? "次にまた見に来る理由を 1 行残す" : props.lang === "es" ? "Deja una razón breve para volver" : props.lang === "pt-BR" ? "Deixe um motivo curto para voltar" : "Leave one short reason to return",
+    loopHookLocalPrefix: props.lang === "ja" ? "次は " : props.lang === "es" ? "Lo siguiente: " : props.lang === "pt-BR" ? "Próximo: " : "Next: ",
     searchNoResult: copy.searchNoResult,
     searchError: copy.searchError,
     searchResultSpecies: copy.searchResultSpecies,
@@ -761,7 +1009,70 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     yearAll: copy.yearAll,
     shareCopied: copy.shareCopied,
     shareError: copy.shareError,
+    mapQuickLabel: copy.mapQuickLabel,
+    selfLabel: ambient.selfLabel,
+    communityLabel: ambient.communityLabel,
+    frontierLabel: ambient.frontierLabel,
+    roleCardLabel: ambient.roleCardLabel,
+    roleLabel: ambient.roleLabel,
+    roleOptions: ambient.roles,
+    actorLabel: actor.actorLabel,
+    actorOptions: actor.actors,
+    actorLensLabel: props.lang === "ja" ? "主体レンズ" : props.lang === "es" ? "Lente elegido" : props.lang === "pt-BR" ? "Lente ativa" : "Active lens",
+    actor_all: props.lang === "ja" ? "全体" : props.lang === "es" ? "Todo" : props.lang === "pt-BR" ? "Tudo" : "All",
+    actor_local_steward: props.lang === "ja" ? "地元 steward" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
+    actor_traveler: props.lang === "ja" ? "Traveler" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
+    actor_casual: props.lang === "ja" ? "Casual" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
+    actorHint_all: props.lang === "ja" ? "地図全体の frontier を見る" : props.lang === "es" ? "Mirar la frontera total" : props.lang === "pt-BR" ? "Ver a fronteira total" : "Look at the whole frontier",
+    actorHint_local_steward: props.lang === "ja" ? "同じ場所を育てる前提で見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
+    actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
+    actorHint_casual: props.lang === "ja" ? "生活動線の近くで埋められる薄い帯を見る" : props.lang === "es" ? "Ver huecos cercanos a la rutina" : props.lang === "pt-BR" ? "Ver lacunas perto da rotina" : "Look for nearby routine gaps",
+    roleHintScan: props.lang === "ja" ? "空白を埋めるなら Scan" : props.lang === "es" ? "Si quieres abrir huecos, usa Escaneo" : props.lang === "pt-BR" ? "Se quer abrir vazios, use Escaneamento" : "Use Scan to open blank areas",
+    roleHintGuide: props.lang === "ja" ? "確度を上げるなら Guide" : props.lang === "es" ? "Usa Guía para subir la certeza" : props.lang === "pt-BR" ? "Use Guia para subir a certeza" : "Use Guide to raise certainty",
+    roleHintNote: props.lang === "ja" ? "比較可能にするなら Note" : props.lang === "es" ? "Usa Nota para hacer comparables los registros" : props.lang === "pt-BR" ? "Use Nota para tornar comparável" : "Use Note to make it revisitable",
+    roleHintMixed: props.lang === "ja" ? "今日は Mixed で小さく前進する" : props.lang === "es" ? "Hoy avanza poco a poco en modo mixto" : props.lang === "pt-BR" ? "Hoje avance em modo misto" : "Use Mixed for a quiet all-round step",
+    axis_scan_pass: props.lang === "ja" ? "Scan が薄い" : props.lang === "es" ? "Falta Escaneo" : props.lang === "pt-BR" ? "Falta Scan" : "Scan is thin",
+    axis_guide_scene: props.lang === "ja" ? "Guide が薄い" : props.lang === "es" ? "Falta Guía" : props.lang === "pt-BR" ? "Falta Guia" : "Guide is thin",
+    axis_revisit_note: props.lang === "ja" ? "Note が薄い" : props.lang === "es" ? "Falta Nota" : props.lang === "pt-BR" ? "Falta Nota" : "Note is thin",
+    contributorBand_0: props.lang === "ja" ? "まだ集計なし" : props.lang === "es" ? "Sin agregado aún" : props.lang === "pt-BR" ? "Sem agregado ainda" : "No aggregate yet",
+    contributorBand_1_2: props.lang === "ja" ? "1-2人ほど" : props.lang === "es" ? "1-2 personas" : props.lang === "pt-BR" ? "1-2 pessoas" : "about 1-2 people",
+    contributorBand_3_5: props.lang === "ja" ? "3-5人ほど" : props.lang === "es" ? "3-5 personas" : props.lang === "pt-BR" ? "3-5 pessoas" : "about 3-5 people",
+    contributorBand_6p: props.lang === "ja" ? "6人以上" : props.lang === "es" ? "6 o más" : props.lang === "pt-BR" ? "6 ou mais" : "6+ people",
+    winsLabel: props.lang === "ja" ? "前進" : props.lang === "es" ? "Avances" : props.lang === "pt-BR" ? "Avanços" : "wins",
+    revisitLabel: props.lang === "ja" ? "再訪地点" : props.lang === "es" ? "Revisitas" : props.lang === "pt-BR" ? "Revisitas" : "revisits",
+    communityStrengthLabel: props.lang === "ja" ? "最近厚くなった帯" : props.lang === "es" ? "Áreas reforzadas" : props.lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
+    communityProgressLabel: props.lang === "ja" ? "共同前進" : props.lang === "es" ? "Progreso colectivo" : props.lang === "pt-BR" ? "Progresso coletivo" : "collective progress",
+    aggregateContributorLabel: props.lang === "ja" ? "集計された記録者" : props.lang === "es" ? "personas agregadas" : props.lang === "pt-BR" ? "pessoas agregadas" : "aggregated contributors",
+    frontierBlankLabel: props.lang === "ja" ? "薄い帯" : props.lang === "es" ? "bandas vacías" : props.lang === "pt-BR" ? "faixas vazias" : "blank bands",
+    frontierBuildingLabel: props.lang === "ja" ? "育ち始め" : props.lang === "es" ? "en construcción" : props.lang === "pt-BR" ? "em construção" : "building",
+    frontierRepeatableLabel: props.lang === "ja" ? "比較可能" : props.lang === "es" ? "comparables" : props.lang === "pt-BR" ? "comparáveis" : "repeatable",
+    frontierMatureLabel: props.lang === "ja" ? "厚い帯" : props.lang === "es" ? "maduras" : props.lang === "pt-BR" ? "maduras" : "mature",
+    campaign_scan_blank: props.lang === "ja" ? "空白帯をひとつ開く" : props.lang === "es" ? "Abrir una banda vacía" : props.lang === "pt-BR" ? "Abrir uma faixa vazia" : "Open one blank band",
+    campaign_guide_building: props.lang === "ja" ? "育ち始めの場所の確度を上げる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
+    campaign_note_repeatable: props.lang === "ja" ? "比較できる場所をもう一段厚くする" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
+    campaign_mixed_frontier: props.lang === "ja" ? "静かに frontier を前に進める" : props.lang === "es" ? "Empujar la frontera con calma" : props.lang === "pt-BR" ? "Avançar a fronteira com calma" : "Quietly move the frontier forward",
+    priorityCueLabel: props.lang === "ja" ? "priority" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
+    priority_steady_revisit: props.lang === "ja" ? "再訪で厚くする" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
+    priority_fresh_gap: props.lang === "ja" ? "新しい空白を開く" : props.lang === "es" ? "Abrir un hueco nuevo" : props.lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
+    priority_nearby_gap: props.lang === "ja" ? "近場の薄い帯を埋める" : props.lang === "es" ? "Cubrir huecos cercanos" : props.lang === "pt-BR" ? "Cobrir lacunas próximas" : "Fill a nearby thin band",
+    remainingLabel: props.lang === "ja" ? "残り frontier" : props.lang === "es" ? "fronteras restantes" : props.lang === "pt-BR" ? "fronteiras restantes" : "frontier left",
+    aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
+    searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
+    resultHeading: props.lang === "ja" ? "この範囲の観察" : props.lang === "es" ? "Observaciones en esta área" : props.lang === "pt-BR" ? "Observações nesta área" : "Observations in this area",
+    resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
+    movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
+    selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
+    placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
+    selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
+    identifyLabel: props.lang === "ja" ? "同定する" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
+    selectedFieldLabel: props.lang === "ja" ? "この場所で次に見る" : props.lang === "es" ? "Qué mirar aquí" : props.lang === "pt-BR" ? "O que ver aqui" : "What to look for here",
+    selectedRoleLead: props.lang === "ja" ? "次は" : props.lang === "es" ? "Siguiente" : props.lang === "pt-BR" ? "Próximo" : "Next",
+    selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
+    selectionPlaceLabel: props.lang === "ja" ? "この地点の place card" : props.lang === "es" ? "Tarjeta del lugar" : props.lang === "pt-BR" ? "Cartão do lugar" : "Place card",
+    insightHeading: props.lang === "ja" ? "静かな前進" : props.lang === "es" ? "Progreso tranquilo" : props.lang === "pt-BR" ? "Progresso calmo" : "Quiet progress",
+    insightSubhead: props.lang === "ja" ? "この viewport の厚みを一目で見る。" : props.lang === "es" ? "Cómo de densa está esta ventana." : props.lang === "pt-BR" ? "Quanto esta janela já acumulou." : "How this viewport is stacking up.",
   })};
+  ${MAP_EXPLORER_STATE_RUNTIME}
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
   var YEAR_VALUES = [];
   try {
@@ -771,27 +1082,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
-  var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang))};
+  ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
   var MAPLIBRE_JS_SRI  = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
-  var styleHref = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_CSS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
-    link.rel = 'stylesheet'; link.href = styleHref;
+    link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
     link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
     link.referrerPolicy = 'no-referrer'; link.setAttribute('data-maplibre', '1');
+    link.onerror = function () {
+      if (link.getAttribute('data-fallback') === '1') return;
+      link.setAttribute('data-fallback', '1');
+      link.href = MAPLIBRE_CSS_FALLBACK;
+    };
     document.head.appendChild(link);
   }
 
   var BASEMAPS = {
     standard: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
       layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
     },
     gsi: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {
         gsi_photo: { type: 'raster', tiles: ['https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'], tileSize: 256, attribution: '国土地理院シームレス空中写真' },
       },
@@ -799,6 +1120,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     },
     esri: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {
         esri: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' },
       },
@@ -816,42 +1138,44 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   var state = {
     tab: 'markers',
+    role: 'mixed',
+    actorClass: 'all',
+    markerProfile: 'all_research_artifacts',
     taxonGroup: '',
     year: '',
     season: '',
     basemap: 'standard',
     tracesVisible: false,
     map: null,
-    rawFeatures: [],   // unfiltered
-    features: [],      // season-filtered
-    coverage: null,
+    features: [],
+    records: [],
+    frontier: null,
+    effortSummary: null,
+    selectedOccurrenceId: null,
+    selectedCellId: null,
+    selectedPoint: null,
+    lastStats: null,
+    lastCellStats: null,
+    lastSearchedBbox: '',
+    pendingViewportSearch: false,
+    ignoreNextMoveEnd: false,
     lastAbort: null,
+    recordAbort: null,
+    frontierAbort: null,
+    effortAbort: null,
+    _cellsRequestSeq: 0,
+    _cellsAppliedSeq: 0,
+    _recordsRequestSeq: 0,
+    _recordsAppliedSeq: 0,
     _restoredCenter: null,
     _restoredZoom: null,
+    _restoredCellId: null,
     _fittedOnce: false,
     _meMarker: null,
   };
 
-  // Month ranges per season. Using 3/6/9/12 as the season boundaries
-  // keeps the UX simple even if meteorologists prefer finer splits.
-  var SEASON_MONTHS = {
-    spring: [3, 4, 5],
-    summer: [6, 7, 8],
-    autumn: [9, 10, 11],
-    winter: [12, 1, 2],
-  };
-  function filterBySeason(features, season) {
-    if (!season || !SEASON_MONTHS[season]) return features.slice();
-    var months = SEASON_MONTHS[season];
-    return features.filter(function (f) {
-      var ts = f.properties && f.properties.observedAt;
-      if (!ts) return false;
-      var m = new Date(ts).getMonth() + 1;
-      return months.indexOf(m) !== -1;
-    });
-  }
-
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
+  function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
   function formatYearLabel(year) { return year ? String(year) : COPY.yearAll; }
   function syncYearUi() {
     if (yearLabelEl) yearLabelEl.textContent = formatYearLabel(state.year);
@@ -871,27 +1195,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       yearRangeEl.value = String(selectedIndex >= 0 ? selectedIndex : fallbackIndex);
     }
   }
-  function featureNameVariants(feature) {
-    var p = feature && feature.properties ? feature.properties : {};
-    return [p.displayName, p.vernacularName, p.scientificName]
+  function recordNameVariants(record) {
+    return [record && record.displayName]
       .filter(Boolean)
       .map(function (value) { return String(value); });
   }
-  function fitToFeatureSet(features, options) {
+  function maxZoomForGrid(gridM) {
+    if (!isFinite(gridM) || gridM <= 1000) return 13.2;
+    if (gridM <= 3000) return 11.8;
+    return 10.1;
+  }
+  function fitToCellSet(features, options) {
     if (!state.map || !features || !features.length) return;
-    if (features.length === 1) {
-      var one = features[0];
-      if (one && one.geometry && one.geometry.coordinates) {
-        state.map.easeTo({ center: one.geometry.coordinates, zoom: (options && options.zoom) || 13.6, duration: 420 });
-      }
-      if (options && options.openSheet) openBottomSheet(one);
-      return;
-    }
     var bounds = new window.maplibregl.LngLatBounds();
     features.forEach(function (feature) {
-      if (feature && feature.geometry && feature.geometry.coordinates) bounds.extend(feature.geometry.coordinates);
+      var ring = feature && feature.geometry && feature.geometry.coordinates ? feature.geometry.coordinates[0] : null;
+      if (!ring || !ring.length) return;
+      ring.forEach(function (coord) { bounds.extend(coord); });
     });
-    if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 56, maxZoom: 13.5, duration: 520 });
+    var single = features.length === 1 ? features[0] : null;
+    var maxZoom = single && single.properties ? maxZoomForGrid(Number(single.properties.gridM)) : 12.2;
+    if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 56, maxZoom: maxZoom, duration: 520 });
   }
   function showLegend(lowLabel, highLabel, gradient) {
     if (!legendEl) return;
@@ -912,35 +1236,358 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return String(ret) + ' / ' + String(tot);
   }
 
-  function renderSideLists(features) {
-    if (!sideRecentEl || !sideClusterEl) return;
-    // Recent: first 8 sorted by observedAt desc (features already desc from API).
-    var recent = features.slice(0, 8);
-    sideRecentEl.innerHTML = recent.map(function (f) {
-      var p = f.properties;
-      var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
-      return '<a class="me-side-item" href="' + OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(p.occurrenceId)) + '">' +
-        '<strong>' + escapeHtml(p.displayName) + '</strong>' +
-        '<span>' + escapeHtml(place) + '</span>' +
-        '</a>';
-    }).join('');
+  function fmtProvenanceMeta(stats) {
+    if (!stats || !stats.provenance) return '';
+    var visible = stats.provenance.visible || {};
+    var excluded = stats.provenance.excluded || {};
+    var sampleLabel = stats.provenance.sampled ? ('sample ' + String(stats.provenance.sampleSize || 0)) : 'full';
+    return [
+      'profile=' + String(stats.markerProfile || 'all_research_artifacts'),
+      'visible manual=' + String(visible.manual || 0),
+      'legacy=' + String(visible.legacy || 0),
+      'track=' + String(visible.track || 0),
+      'other=' + String(visible.other || 0),
+      'excluded legacy=' + String(excluded.legacy || 0),
+      'track=' + String(excluded.track || 0),
+      'other=' + String(excluded.other || 0),
+      sampleLabel,
+    ].join(' | ');
+  }
 
-    // Cluster-by-municipality
-    var buckets = {};
-    for (var i = 0; i < features.length; i++) {
-      var key = features[i].properties.municipality || '—';
-      buckets[key] = (buckets[key] || 0) + 1;
+  function shouldUseBottomSheet() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+  }
+
+  function updateSearchAreaUi() {
+    if (!searchAreaBtnEl) return;
+    searchAreaBtnEl.classList.toggle('is-hidden', !state.pendingViewportSearch);
+    searchAreaBtnEl.textContent = state.pendingViewportSearch ? COPY.searchArea : COPY.searchArea;
+  }
+
+  function hasPendingMapResults() {
+    return state._cellsRequestSeq !== state._cellsAppliedSeq || state._recordsRequestSeq !== state._recordsAppliedSeq;
+  }
+
+  function updatePendingMapResultsState() {
+    var pending = hasPendingMapResults();
+    if (root) root.setAttribute('data-results-pending', pending ? '1' : '0');
+    if (root) root.setAttribute('aria-busy', pending ? 'true' : 'false');
+    if (resultsListEl) resultsListEl.setAttribute('aria-busy', pending ? 'true' : 'false');
+  }
+
+  updatePendingMapResultsState();
+
+  function contributorBandLabel(band) {
+    if (band === '1-2') return COPY.contributorBand_1_2;
+    if (band === '3-5') return COPY.contributorBand_3_5;
+    if (band === '6+') return COPY.contributorBand_6p;
+    return COPY.contributorBand_0;
+  }
+
+  function progressPercent(value) {
+    return Math.round(Math.max(0, Math.min(1, Number(value || 0))) * 100);
+  }
+
+  function axisLabel(axis) {
+    return COPY[axis ? ('axis_' + axis) : 'axis_scan_pass'] || axis || '—';
+  }
+
+  function roleHintLabel(role) {
+    if (role === 'scan') return COPY.roleHintScan;
+    if (role === 'guide') return COPY.roleHintGuide;
+    if (role === 'note') return COPY.roleHintNote;
+    return COPY.roleHintMixed;
+  }
+
+  function actorLabel(actorClass) {
+    return COPY['actor_' + actorClass] || COPY.actor_all;
+  }
+
+  function actorHintLabel(actorClass) {
+    return COPY['actorHint_' + actorClass] || COPY.actorHint_all;
+  }
+
+  function priorityCueLabel(priorityCue) {
+    return COPY['priority_' + priorityCue] || COPY.priority_fresh_gap;
+  }
+
+  function roleLabel(role) {
+    var opts = Array.isArray(COPY.roleOptions) ? COPY.roleOptions : [];
+    for (var i = 0; i < opts.length; i += 1) {
+      if (opts[i] && opts[i].value === role) return opts[i].label;
     }
-    var bucketArr = Object.keys(buckets).map(function (k) { return { name: k, count: buckets[k] }; });
-    bucketArr.sort(function (a, b) { return b.count - a.count; });
-    sideClusterEl.innerHTML = bucketArr.slice(0, 6).map(function (b) {
-      return '<div class="me-cluster-item"><span>' + escapeHtml(b.name) + '</span><strong>' + b.count + '</strong></div>';
+    return role;
+  }
+
+  function renderSidePanels() {
+    if (!mapInsightCardEl) return;
+    if (shouldUseBottomSheet()) {
+      mapInsightCardEl.innerHTML = '';
+      mapInsightCardEl.classList.remove('is-visible');
+      return;
+    }
+    if (getSelectedContext()) {
+      mapInsightCardEl.innerHTML = '';
+      mapInsightCardEl.classList.remove('is-visible');
+      return;
+    }
+    var summary = state.effortSummary;
+    if (!summary) {
+      mapInsightCardEl.innerHTML =
+        '<div class="me-map-card me-map-card-quiet">' +
+          '<div class="me-map-card-head">' +
+            '<div>' +
+              '<div class="me-map-card-kicker">' + escapeHtml(COPY.insightHeading) + '</div>' +
+              '<strong class="me-map-card-title">' + escapeHtml(COPY.insightHeading) + '</strong>' +
+              '<span class="me-map-card-copy">' + escapeHtml(COPY.insightSubhead) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="me-map-insight-grid">' +
+            '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.loading) + '</span><strong>—</strong><span>…</span></div>' +
+          '</div>' +
+        '</div>';
+      mapInsightCardEl.classList.add('is-visible');
+      return;
+    }
+
+    var ownCell = summary.myProgress
+      ? '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + summary.myProgress.winCount + ' ' + escapeHtml(COPY.winsLabel) + '</strong><span>' + escapeHtml(roleHintLabel(summary.myProgress.focusRole)) + ' · ' + summary.myProgress.revisitCount + ' ' + escapeHtml(COPY.revisitLabel) + '</span></div>'
+      : '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + escapeHtml(roleHintLabel('mixed')) + '</strong><span>' + escapeHtml(COPY.aggregateModeNote) + '</span></div>';
+    var actorCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.actorLensLabel) + '</span><strong>' + escapeHtml(actorLabel(summary.actorLens.actorClass)) + '</strong><span>' + escapeHtml(actorHintLabel(summary.actorLens.actorClass)) + ' · ' + String(summary.actorLens.matchingContributorCount) + '</span></div>';
+    var communityCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.communityLabel) + '</span><strong>' + summary.communityProgress.activeCellCount + '</strong><span>' + escapeHtml(contributorBandLabel(summary.communityProgress.contributorBand)) + ' · ' + progressPercent(summary.communityProgress.progressRatio) + '%</span></div>';
+    var frontierCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.frontierLabel) + '</span><strong>' + summary.frontierRemaining.blankCount + ' / ' + summary.frontierRemaining.buildingCount + '</strong><span>' + escapeHtml(summary.frontierRemaining.topMissingAxes.map(axisLabel).join(' · ') || '—') + ' · ' + escapeHtml(priorityCueLabel(summary.frontierRemaining.priorityCue)) + '</span></div>';
+    var nextCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(roleHintLabel(summary.campaignProgress.recommendedRole)) + '</strong><span>' + escapeHtml(priorityCueLabel(summary.campaignProgress.priorityCue)) + ' · ' + summary.campaignProgress.remainingCount + ' ' + escapeHtml(COPY.remainingLabel) + '</span></div>';
+
+    mapInsightCardEl.innerHTML =
+      '<div class="me-map-card me-map-card-quiet">' +
+        '<div class="me-map-card-head">' +
+          '<div>' +
+            '<div class="me-map-card-kicker">' + escapeHtml(COPY.insightHeading) + '</div>' +
+            '<strong class="me-map-card-title">' + escapeHtml(COPY.insightHeading) + '</strong>' +
+            '<span class="me-map-card-copy">' + escapeHtml(COPY.insightSubhead) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="me-map-insight-grid">' +
+          ownCell +
+          actorCell +
+          communityCell +
+          frontierCell +
+          nextCell +
+        '</div>' +
+      '</div>';
+    mapInsightCardEl.classList.add('is-visible');
+  }
+
+  function findCellFeatureById(cellId) {
+    if (!cellId) return null;
+    for (var i = 0; i < state.features.length; i += 1) {
+      var feature = state.features[i];
+      if (feature && feature.properties && feature.properties.cellId === cellId) return feature;
+    }
+    return null;
+  }
+
+  function getSelectedCellFeature() {
+    return findCellFeatureById(state.selectedCellId);
+  }
+
+  function getSelectedRecord() {
+    if (!state.selectedOccurrenceId) return null;
+    for (var i = 0; i < state.records.length; i += 1) {
+      var record = state.records[i];
+      if (record && record.occurrenceId === state.selectedOccurrenceId) return record;
+    }
+    return null;
+  }
+
+  function cellCenter(feature) {
+    var p = feature && feature.properties ? feature.properties : {};
+    return {
+      lat: Number(p.centroidLat),
+      lng: Number(p.centroidLng),
+    };
+  }
+
+  function getSelectedContext() {
+    if (state.selectedPoint && state.selectedPoint.kind === 'place') return state.selectedPoint;
+    var cellFeature = getSelectedCellFeature();
+    var record = getSelectedRecord();
+    if (record && cellFeature) {
+      var center = cellCenter(cellFeature);
+      return {
+        lat: center.lat,
+        lng: center.lng,
+        kind: 'observation',
+        cellFeature: cellFeature,
+        record: record,
+      };
+    }
+    if (cellFeature) {
+      var cell = cellCenter(cellFeature);
+      return {
+        lat: cell.lat,
+        lng: cell.lng,
+        kind: 'cell',
+        cellFeature: cellFeature,
+      };
+    }
+    if (state.selectedPoint && (state.selectedPoint.kind === 'observation' || state.selectedPoint.kind === 'cell')) {
+      return state.selectedPoint;
+    }
+    return null;
+  }
+
+  function renderResultList() {
+    if (!resultsListEl || !sideStatusEl) return;
+    var records = Array.isArray(state.records) ? state.records : [];
+    var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
+    if (!records.length) {
+      sideStatusEl.textContent = COPY.empty;
+      resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
+      return;
+    }
+    sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll;
+    resultsListEl.innerHTML = records.slice(0, 120).map(function (record) {
+      var active = record.occurrenceId === state.selectedOccurrenceId;
+      var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
+      var thumb = record.photoUrl
+        ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="92" height="92" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
+        : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
+      var displayLabel = record.displayName || '同定待ち';
+      var speciesBadge = record.isAwaitingId
+        ? '<span class="me-result-awaiting">同定待ち</span>'
+        : record.isAiCandidate
+          ? '<span class="me-result-ai">AI候補</span><strong>' + escapeHtml(displayLabel) + '</strong>'
+          : '<strong>' + escapeHtml(displayLabel) + '</strong>';
+      return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
+        thumb +
+        '<span class="me-result-body">' +
+          speciesBadge +
+          '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
+          (date ? '<span>' + escapeHtml(date) + '</span>' : '') +
+        '</span>' +
+      '</button>';
     }).join('');
+    resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
+      rowEl.addEventListener('click', function () {
+        if (hasPendingMapResults()) return;
+        var occurrenceId = rowEl.getAttribute('data-occurrence-id');
+        var record = state.records.find(function (item) {
+          return item && item.occurrenceId === occurrenceId;
+        });
+        if (!record) return;
+        selectRecord(record, { focusMap: true, openSheet: shouldUseBottomSheet() });
+      });
+    });
+  }
+
+  function renderSelectedCard() {
+    if (!selectedCardEl) return;
+    if (shouldUseBottomSheet()) {
+      selectedCardEl.innerHTML = '';
+      selectedCardEl.classList.remove('is-visible');
+      return;
+    }
+    var context = getSelectedContext();
+    if (!context) {
+      selectedCardEl.innerHTML = '';
+      selectedCardEl.classList.remove('is-visible');
+      return;
+    }
+    if (context.kind === 'place') {
+      var seq = ++siteBriefSeq;
+      selectedCardEl.innerHTML =
+        '<div class="me-map-card">' +
+          '<div class="me-map-card-head">' +
+            '<div>' +
+              '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionPlaceLabel) + '</div>' +
+              '<strong class="me-map-card-title">' + escapeHtml(COPY.selectedFieldLabel) + '</strong>' +
+              '<span class="me-map-card-copy">' + escapeHtml(context.lat.toFixed(4) + ', ' + context.lng.toFixed(4)) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="me-selected-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+          renderPlaceActions() +
+          '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
+        '</div>';
+      selectedCardEl.classList.add('is-visible');
+      fetchSiteBrief(context.lat, context.lng, seq, document.getElementById('me-selected-brief-slot'));
+      return;
+    }
+    if (context.kind === 'cell') {
+      var feature = context.cellFeature;
+      var cellProps = feature && feature.properties ? feature.properties : {};
+      var countLabel = Number(cellProps.count || 0) + ' ' + COPY.resultCountLabel;
+      var latest = cellProps.latestObservedAt ? String(cellProps.latestObservedAt).slice(0, 10) : '';
+      var cellSeq = ++siteBriefSeq;
+      selectedCardEl.innerHTML =
+        '<div class="me-map-card">' +
+          '<div class="me-map-card-head">' +
+            '<div>' +
+              '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionPlaceLabel) + '</div>' +
+              '<strong class="me-map-card-title">' + escapeHtml(cellProps.label || '—') + '</strong>' +
+              '<span class="me-map-card-copy">' + escapeHtml(countLabel) + (latest ? ' · ' + escapeHtml(latest) : '') + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="me-selected-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+          renderPlaceActions() +
+          '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
+        '</div>';
+      selectedCardEl.classList.add('is-visible');
+      fetchSiteBrief(context.lat, context.lng, cellSeq, document.getElementById('me-selected-brief-slot'));
+      return;
+    }
+    var record = context.record || getSelectedRecord();
+    if (!record) {
+      selectedCardEl.innerHTML = '';
+      selectedCardEl.classList.remove('is-visible');
+      return;
+    }
+    var photo = record.photoUrl
+      ? '<img class="me-selected-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
+      : '';
+    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
+    var identifyHref = href + '#identify';
+    selectedCardEl.innerHTML =
+      '<div class="me-map-card">' +
+        photo +
+        '<div class="me-map-card-head">' +
+          '<div>' +
+            '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionObservationLabel) + (record.isAiCandidate ? ' · <span class="me-map-card-ai">AI候補</span>' : record.isAwaitingId ? ' · <span class="me-map-card-awaiting">同定待ち</span>' : '') + '</div>' +
+            '<strong class="me-map-card-title">' + escapeHtml(record.displayName || '同定待ち') + '</strong>' +
+            '<span class="me-map-card-copy">' + escapeHtml(record.localityLabel || '—') + (record.observedAt ? ' · ' + escapeHtml(String(record.observedAt).slice(0, 10)) : '') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="me-selected-actions">' +
+          '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.selectedCardLabel) + '</a>' +
+          '<a class="inline-link" href="' + identifyHref + '">' + escapeHtml(COPY.identifyLabel) + '</a>' +
+          '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
+        '</div>' +
+        '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
+      '</div>';
+    selectedCardEl.classList.add('is-visible');
+  }
+
+  function refreshSelectedAmbient() {
+    var slot = document.getElementById('me-selected-ambient-slot');
+    var context = getSelectedContext();
+    if (!slot || !context) return;
+    slot.innerHTML = renderSheetAmbient(context);
   }
 
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function toThumbUrl(url, preset) {
+    if (!url) return url;
+    var m = /^\\/(uploads|data\\/uploads)\\/(.+\\.(?:jpe?g|png|webp|gif))$/i.exec(url);
+    if (!m) return url;
+    return '/thumb/' + preset + '/' + m[2];
   }
 
   // Track the latest Site Brief fetch so older requests can't paint over a
@@ -962,16 +1609,45 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var caps = (brief.captureHints || []).map(function (c) {
       return '<li>' + escapeHtml(c) + '</li>';
     }).join('');
+    var notices = renderMapOfficialNotices(brief.officialNotices || []);
+    var context = getSelectedContext();
+    var frontier = context ? findFrontierAt(context.lng, context.lat) : null;
+    var missingAxes = frontier && frontier.properties && Array.isArray(frontier.properties.missingAxes)
+      ? frontier.properties.missingAxes.map(axisLabel).join(' · ')
+      : '';
+    var whyHere = (brief.reasons && brief.reasons[0]) || h.label;
+    var whyNow = frontier && frontier.properties
+      ? priorityCueLabel(frontier.properties.priorityCue)
+      : (brief.checks && brief.checks[0]) || h.label;
+    var oneVisit = frontier && frontier.properties
+      ? roleHintLabel(frontier.properties.recommendedRole) + (missingAxes ? ' · ' + missingAxes : '')
+      : (brief.captureHints && brief.captureHints[0]) || h.label;
+    var nextHook = state.effortSummary && state.effortSummary.actorLens && state.effortSummary.actorLens.actorClass === 'traveler'
+      ? (frontier && frontier.properties
+          ? priorityCueLabel(frontier.properties.priorityCue) + (missingAxes ? ' · ' + missingAxes : '')
+          : COPY.loopHookTravelerFallback)
+      : (frontier && frontier.properties
+          ? COPY.loopHookLocalPrefix + priorityCueLabel(frontier.properties.priorityCue)
+          : COPY.loopHookLocalFallback);
+    var loopCards = [
+      { label: COPY.siteBriefWhyHereLabel, body: whyHere },
+      { label: COPY.siteBriefWhyNowLabel, body: whyNow },
+      { label: COPY.siteBriefOneVisitLabel, body: oneVisit },
+      { label: COPY.siteBriefNextHookLabel, body: nextHook },
+    ].map(function (item) {
+      return '<div class="me-site-brief-loop-card"><div class="me-site-brief-loop-label">' + escapeHtml(item.label) + '</div><div class="me-site-brief-loop-body">' + escapeHtml(item.body) + '</div></div>';
+    }).join('');
     return '<div class="me-site-brief">' +
       '<div class="me-site-brief-head">' +
         '<span class="me-site-brief-label">' + escapeHtml(h.label) + '</span>' +
         '<span class="me-site-brief-conf" title="confidence">' + confPct + '%</span>' +
       '</div>' +
+      '<div class="me-site-brief-loop-grid">' + loopCards + '</div>' +
       '<div class="me-site-brief-heading">' + escapeHtml(COPY.siteBriefHeading) + '</div>' +
       (checks ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefChecksLabel) + '</div><ul>' + checks + '</ul></div>' : '') +
       (reasons ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefReasonsLabel) + '</div><ul class="me-site-brief-reasons">' + reasons + '</ul></div>' : '') +
       (caps ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefCapturesLabel) + '</div><ul>' + caps + '</ul></div>' : '') +
-      '</div>';
+      '</div>' + notices;
   }
 
   function fetchSiteBrief(lat, lng, seq, target) {
@@ -982,70 +1658,222 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (brief) {
         if (seq !== siteBriefSeq) return; // stale
         if (!target) return;
+        target.classList.remove('is-loading');
         target.innerHTML = renderSiteBriefCard(brief);
       })
       .catch(function () {
         if (seq !== siteBriefSeq || !target) return;
+        target.classList.remove('is-loading');
         target.innerHTML = '<div class="me-site-brief me-site-brief-error">' + escapeHtml(COPY.siteBriefError) + '</div>';
       });
   }
 
-  function renderObservationActions(feature) {
-    var p = feature.properties;
-    var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
-    var photo = p.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(p.photoUrl) + '" alt="" loading="lazy" />' : '';
-    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(p.occurrenceId));
+  function renderObservationActions(record) {
+    var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />' : '';
+    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
+    var identifyHref = href + '#identify';
+    var bottomBadge = record.isAiCandidate
+      ? '<span class="me-result-ai">AI候補</span>'
+      : record.isAwaitingId
+        ? '<span class="me-result-awaiting">同定待ち</span>'
+        : '';
+    var bottomName = record.isAwaitingId ? '' : '<strong>' + escapeHtml(record.displayName) + '</strong>';
     return photo +
       '<div class="me-bottom-meta">' +
-      '<strong>' + escapeHtml(p.displayName) + '</strong>' +
-      '<span>' + escapeHtml(place) + '</span>' +
-      (p.observedAt ? '<span>' + escapeHtml(String(p.observedAt).slice(0, 10)) + '</span>' : '') +
+      bottomBadge + bottomName +
+      '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
+      (record.observedAt ? '<span>' + escapeHtml(String(record.observedAt).slice(0, 10)) + '</span>' : '') +
       '</div>' +
       '<div class="me-bottom-actions">' +
-      '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
+        '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
+      '<a class="inline-link" href="' + identifyHref + '">' + escapeHtml(COPY.identifyLabel) + '</a>' +
       '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
-      '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
-      '<a class="inline-link" href="' + SCAN_HREF + '">' + escapeHtml(COPY.bottomSheetScan) + '</a>' +
       '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '</div>';
   }
 
   function renderPlaceActions() {
-    // No observation context — only Record / Lens / Scan make sense.
+    // No observation context — take the user to act now or review their own notes.
     return '<div class="me-bottom-actions">' +
       '<a class="btn btn-solid" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
-      '<a class="inline-link" href="' + SCAN_HREF + '">' + escapeHtml(COPY.bottomSheetScan) + '</a>' +
+      '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
       '</div>';
   }
 
-  function openBottomSheet(feature) {
+  function findFrontierAt(lng, lat) {
+    if (!state.frontier || !Array.isArray(state.frontier.features)) return null;
+    for (var i = 0; i < state.frontier.features.length; i += 1) {
+      var feature = state.frontier.features[i];
+      var ring = feature && feature.geometry && feature.geometry.coordinates ? feature.geometry.coordinates[0] : null;
+      if (!ring || !ring[0] || !ring[2]) continue;
+      var minLng = Number(ring[0][0]);
+      var minLat = Number(ring[0][1]);
+      var maxLng = Number(ring[2][0]);
+      var maxLat = Number(ring[2][1]);
+      if (lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat) return feature;
+    }
+    return null;
+  }
+
+  function renderSheetAmbient(context) {
+    if (!context) return '';
+    var frontier = findFrontierAt(context.lng, context.lat);
+    var items = [];
+    if (frontier) {
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(roleHintLabel(frontier.properties.recommendedRole)) + '</strong><span>' + escapeHtml((frontier.properties.missingAxes || []).map(axisLabel).join(' · ') || '—') + ' · ' + escapeHtml(priorityCueLabel(frontier.properties.priorityCue)) + '</span></div>');
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(COPY.communityProgressLabel) + ' ' + progressPercent(frontier.properties.communityGain) + '%</strong><span>' + frontier.properties.contributorCount + ' ' + escapeHtml(COPY.aggregateContributorLabel) + '</span></div>');
+    }
+    if (state.effortSummary && state.effortSummary.campaignProgress) {
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(actorLabel(state.effortSummary.actorLens.actorClass)) + '</strong><span>' + escapeHtml(COPY['campaign_' + state.effortSummary.campaignProgress.labelKey]) + ' · ' + escapeHtml(priorityCueLabel(state.effortSummary.campaignProgress.priorityCue)) + '</span></div>');
+    }
+    if (!items.length) return '';
+    return '<div class="me-sheet-ambient">' + items.join('') + '</div>';
+  }
+
+  function refreshSheetAmbient() {
+    if (!sheetInnerEl || !state.selectedPoint) return;
+    var slot = document.getElementById('me-sheet-ambient-slot');
+    if (!slot) return;
+    slot.innerHTML = renderSheetAmbient(state.selectedPoint);
+  }
+
+  function focusCellFeature(feature) {
+    if (!state.map || !feature) return;
+    state.ignoreNextMoveEnd = true;
+    fitToCellSet([feature], { openSheet: false });
+  }
+
+  function highlightSelectedCell() {
+    if (!state.map) return;
+    var filter = state.selectedCellId
+      ? ['==', ['get', 'cellId'], state.selectedCellId]
+      : ['==', ['get', 'cellId'], '__none__'];
+    ['observation-cell-selected', 'obs-cell-heat-selected'].forEach(function (layerId) {
+      if (state.map.getLayer(layerId)) state.map.setFilter(layerId, filter);
+    });
+  }
+
+  function selectCell(feature, options) {
+    if (!feature || !feature.properties) return;
+    state.selectedCellId = feature.properties.cellId || null;
+    state._restoredCellId = null;
+    state.selectedOccurrenceId = null;
+    var center = cellCenter(feature);
+    state.selectedPoint = {
+      lat: center.lat,
+      lng: center.lng,
+      kind: 'cell',
+      cellFeature: feature,
+    };
+    highlightSelectedCell();
+    renderSelectedCard();
+    renderSidePanels();
+    if (state.map && options && options.focusMap !== false) focusCellFeature(feature);
+    loadRecords(state.selectedCellId ? { cellId: state.selectedCellId } : null);
+    if (options && options.openSheet && shouldUseBottomSheet()) openCellSheet(feature);
+    else if (!shouldUseBottomSheet()) closeBottomSheet();
+    saveMapState();
+  }
+
+  function selectRecord(record, options) {
+    if (!record) return;
+    state.selectedOccurrenceId = record.occurrenceId || null;
+    state.selectedCellId = record.cellId || null;
+    var feature = getSelectedCellFeature();
+    if (state.selectedCellId && (!feature || feature.properties.cellId !== state.selectedCellId)) {
+      for (var i = 0; i < state.features.length; i += 1) {
+        if (state.features[i] && state.features[i].properties && state.features[i].properties.cellId === state.selectedCellId) {
+          feature = state.features[i];
+          break;
+        }
+      }
+    }
+    if (!feature) return;
+    var center = cellCenter(feature);
+    state.selectedPoint = {
+      lat: center.lat,
+      lng: center.lng,
+      kind: 'observation',
+      cellFeature: feature,
+      record: record,
+    };
+    highlightSelectedCell();
+    renderResultList();
+    renderSelectedCard();
+    renderSidePanels();
+    if (state.map && options && options.focusMap !== false) focusCellFeature(feature);
+    if (state.lastStats && state.lastStats.selectedCellId !== state.selectedCellId) {
+      loadRecords({ cellId: state.selectedCellId });
+    }
+    if (options && options.openSheet && shouldUseBottomSheet()) openBottomSheet(record);
+    else if (!shouldUseBottomSheet()) closeBottomSheet();
+    saveMapState();
+  }
+
+  function openBottomSheet(record) {
     if (!sheetEl || !sheetInnerEl) return;
-    var geom = feature.geometry;
-    var coords = geom && geom.coordinates ? geom.coordinates : null;
-    var lat = coords ? Number(coords[1]) : null;
-    var lng = coords ? Number(coords[0]) : null;
-    var seq = ++siteBriefSeq;
+    if (!shouldUseBottomSheet()) return;
+    var feature = getSelectedCellFeature();
+    var center = feature ? cellCenter(feature) : { lat: null, lng: null };
+    state.selectedPoint = (center.lat != null && center.lng != null)
+      ? { lat: center.lat, lng: center.lng, kind: 'observation', cellFeature: feature, record: record }
+      : null;
     sheetInnerEl.innerHTML =
-      '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
-      renderObservationActions(feature);
+      renderObservationActions(record) +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: center.lat, lng: center.lng, kind: 'observation', cellFeature: feature, record: record }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
-    if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
-      fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
-    }
+  }
+
+  function openCellSheet(feature) {
+    if (!sheetEl || !sheetInnerEl || !feature || !feature.properties) return;
+    if (!shouldUseBottomSheet()) return;
+    var center = cellCenter(feature);
+    state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature };
+    var seq = ++siteBriefSeq;
+    var p = feature.properties || {};
+    sheetInnerEl.innerHTML =
+      '<div class="me-bottom-meta">' +
+        '<strong>' + escapeHtml(p.label || '—') + '</strong>' +
+        '<span>' + escapeHtml(String(p.count || 0) + ' ' + COPY.resultCountLabel) + '</span>' +
+        (p.latestObservedAt ? '<span>' + escapeHtml(String(p.latestObservedAt).slice(0, 10)) + '</span>' : '') +
+      '</div>' +
+      '<div id="me-site-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+      renderPlaceActions() +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature }) + '</div>';
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.add('is-open');
+    fetchSiteBrief(center.lat, center.lng, seq, document.getElementById('me-site-brief-slot'));
   }
 
   function openPlaceSheet(lat, lng) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    state.selectedOccurrenceId = null;
+    state.selectedCellId = null;
+    if (!shouldUseBottomSheet()) {
+      state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
+      highlightSelectedCell();
+      closeBottomSheet();
+      renderResultList();
+      renderSelectedCard();
+      renderSidePanels();
+      saveMapState();
+      return;
+    }
+    state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
+    highlightSelectedCell();
     var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
-      '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
-      renderPlaceActions();
+      '<div id="me-site-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+      renderPlaceActions() +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'place' }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
+    renderSidePanels();
     fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
+    saveMapState();
   }
   function closeBottomSheet() {
     if (!sheetEl) return;
@@ -1054,112 +1882,100 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
 
-  function loadMarkerImages(map) {
-    var SIZE = 36;
-    var HALF = SIZE / 2;
-    var configs = [
-      { id: 'bird',              color: '#f59e0b', emoji: '🐦' },
-      { id: 'insect',            color: '#f43f5e', emoji: '🦋' },
-      { id: 'plant',             color: '#10b981', emoji: '🌿' },
-      { id: 'amphibian_reptile', color: '#14b8a6', emoji: '🐸' },
-      { id: 'mammal',            color: '#8b5cf6', emoji: '🐾' },
-      { id: 'fungi',             color: '#a16207', emoji: '🍄' },
-      { id: 'other',             color: '#0ea5e9', emoji: '🔍' },
-    ];
-    configs.forEach(function(c) {
-      var canvas = document.createElement('canvas');
-      canvas.width = SIZE; canvas.height = SIZE;
-      var ctx = canvas.getContext('2d');
-      ctx.beginPath(); ctx.arc(HALF, HALF, HALF - 1, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff'; ctx.fill();
-      ctx.beginPath(); ctx.arc(HALF, HALF, HALF - 3, 0, Math.PI * 2);
-      ctx.fillStyle = c.color; ctx.fill();
-      ctx.font = '16px sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(c.emoji, HALF, HALF + 1);
-      var imageData = ctx.getImageData(0, 0, SIZE, SIZE);
-      map.addImage('marker-' + c.id, { width: SIZE, height: SIZE, data: imageData.data });
-    });
-  }
-
-  function ensureObservationSource(map, features) {
-    if (map.getSource('observations')) {
-      map.getSource('observations').setData({ type: 'FeatureCollection', features: features });
+  function ensureCellSource(map, features) {
+    var sourceId = 'observations';
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData({ type: 'FeatureCollection', features: features });
+      highlightSelectedCell();
       return;
     }
-    map.addSource('observations', {
+    map.addSource(sourceId, {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: features },
-      cluster: true,
-      clusterMaxZoom: 13,
-      clusterRadius: 48,
     });
     map.addLayer({
-      id: 'clusters',
-      type: 'circle',
-      source: 'observations',
-      filter: ['has', 'point_count'],
+      id: 'observation-cell-fill',
+      type: 'fill',
+      source: sourceId,
       paint: {
-        'circle-color': '#10b981',
-        'circle-opacity': 0.72,
-        'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 25, 30, 100, 38],
-        'circle-stroke-color': '#fff',
-        'circle-stroke-width': 3,
-      },
-    });
-    // Inner dot used as a subtle "cluster" visual cue. Avoided a symbol layer
-    // with text-field because our raster basemaps don't ship a "glyphs" URL,
-    // which MapLibre requires for text rendering. The outer circle already
-    // communicates cluster presence and size; hover/click reveals the count.
-    map.addLayer({
-      id: 'cluster-inner',
-      type: 'circle',
-      source: 'observations',
-      filter: ['has', 'point_count'],
-      paint: {
-        'circle-color': '#047857',
-        'circle-opacity': 0.9,
-        'circle-radius': ['step', ['get', 'point_count'], 4, 5, 5, 25, 6, 100, 7],
+        'fill-color': 'rgba(14,165,233,0.24)',
+        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 1, 0.12, 4, 0.18, 12, 0.28],
       },
     });
     map.addLayer({
-      id: 'unclustered-point',
+      id: 'observation-cell-outline',
+      type: 'line',
+      source: sourceId,
+      paint: {
+        'line-color': 'rgba(14,165,233,0.55)',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 12, 1.4],
+      },
+    });
+    map.addLayer({
+      id: 'observation-cell-label',
       type: 'symbol',
-      source: 'observations',
-      filter: ['!', ['has', 'point_count']],
+      source: sourceId,
+      minzoom: 7,
       layout: {
-        'icon-image': ['match', ['get', 'taxonGroup'],
-          'bird',              'marker-bird',
-          'insect',            'marker-insect',
-          'plant',             'marker-plant',
-          'amphibian_reptile', 'marker-amphibian_reptile',
-          'mammal',            'marker-mammal',
-          'fungi',             'marker-fungi',
-                               'marker-other',
-        ],
-        'icon-size': 1,
-        'icon-allow-overlap': true,
-        'icon-anchor': 'center',
+        'text-field': ['to-string', ['coalesce', ['get', 'count'], 1]],
+        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 12, 13],
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+      },
+      paint: {
+        'text-color': '#075985',
+        'text-halo-color': 'rgba(255,255,255,0.94)',
+        'text-halo-width': 1.4,
       },
     });
-
-    map.on('click', 'unclustered-point', function (e) {
-      if (!e.features || !e.features[0]) return;
-      openBottomSheet(e.features[0]);
+    map.addLayer({
+      id: 'observation-cell-selected',
+      type: 'line',
+      source: sourceId,
+      filter: ['==', ['get', 'cellId'], '__none__'],
+      paint: {
+        'line-color': 'rgba(5,150,105,0.96)',
+        'line-width': 3,
+      },
     });
-    map.on('click', 'clusters', function (e) {
-      var fs = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
-      if (!fs[0]) return;
-      var clusterId = fs[0].properties.cluster_id;
-      map.getSource('observations').getClusterExpansionZoom(clusterId, function (err, zoom) {
-        if (err) return;
-        map.easeTo({ center: fs[0].geometry.coordinates, zoom: zoom });
+    map.addLayer({
+      id: 'obs-cell-heat',
+      type: 'fill',
+      source: sourceId,
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-color': [
+          'interpolate', ['linear'], ['coalesce', ['get', 'count'], 0],
+          0, 'rgba(56,189,248,0.08)',
+          2, 'rgba(14,165,233,0.22)',
+          6, 'rgba(245,158,11,0.42)',
+          12, 'rgba(239,68,68,0.6)',
+        ],
+        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 0, 0.08, 2, 0.14, 6, 0.26, 12, 0.36],
+      },
+    });
+    map.addLayer({
+      id: 'obs-cell-heat-selected',
+      type: 'line',
+      source: sourceId,
+      layout: { visibility: 'none' },
+      filter: ['==', ['get', 'cellId'], '__none__'],
+      paint: {
+        'line-color': 'rgba(255,255,255,0.96)',
+        'line-width': 2.4,
+      },
+    });
+    ['observation-cell-fill', 'observation-cell-outline', 'obs-cell-heat'].forEach(function (layerId) {
+      map.on('click', layerId, function (e) {
+        if (hasPendingMapResults()) return;
+        if (!e.features || !e.features[0]) return;
+        selectCell(e.features[0], { focusMap: false, openSheet: true });
       });
+      map.on('mouseenter', layerId, function () { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', layerId, function () { map.getCanvas().style.cursor = ''; });
     });
-    map.on('mouseenter', 'unclustered-point', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'unclustered-point', function () { map.getCanvas().style.cursor = ''; });
-    map.on('mouseenter', 'clusters', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'clusters', function () { map.getCanvas().style.cursor = ''; });
+    highlightSelectedCell();
   }
 
   function removeLayerIfExists(map, id) {
@@ -1171,9 +1987,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['clusters', 'cluster-inner', 'unclustered-point'];
-    var heatLayers = ['obs-heat'];
-    var coverageLayers = ['coverage-fill'];
+    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-label', 'observation-cell-selected'];
+    var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
+    var frontierLayers = ['frontier-fill'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
@@ -1181,155 +1997,282 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     };
     show(markerLayers, tab === 'markers');
     show(heatLayers, tab === 'heatmap');
-    show(coverageLayers, tab === 'coverage');
+    show(frontierLayers, tab === 'frontier');
 
     if (tab === 'heatmap') {
       ensureHeatmap(map);
       showLegend(COPY.heatmapLegendLow, COPY.heatmapLegendHigh,
         'linear-gradient(90deg, rgba(56,189,248,0.2), #0ea5e9 40%, #f59e0b 75%, #ef4444)');
-    } else if (tab === 'coverage') {
-      ensureCoverage(map);
+    } else if (tab === 'frontier') {
+      ensureFrontier(map);
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
-        'linear-gradient(90deg, rgba(16,185,129,0.18), #10b981 60%, #059669)');
+        'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else {
       hideLegend();
     }
   }
 
   function ensureHeatmap(map) {
-    if (map.getLayer('obs-heat')) return;
-    map.addLayer({
-      id: 'obs-heat',
-      type: 'heatmap',
-      source: 'observations',
-      filter: ['!', ['has', 'point_count']],
-      paint: {
-        'heatmap-weight': 1,
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 7, 0.6, 12, 1.4],
-        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
-          0, 'rgba(56,189,248,0)',
-          0.2, 'rgba(56,189,248,0.25)',
-          0.45, 'rgba(14,165,233,0.45)',
-          0.7, 'rgba(245,158,11,0.6)',
-          1, 'rgba(239,68,68,0.85)'],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 7, 16, 12, 32],
-        'heatmap-opacity': 0.75,
-      },
-    });
+    highlightSelectedCell();
   }
 
-  function ensureCoverage(map) {
-    if (!state.coverage) {
-      loadCoverage(map);
+  function ensureFrontier(map) {
+    if (!state.frontier) {
+      loadFrontier(map);
       return;
     }
-    paintCoverage(map, state.coverage);
+    paintFrontier(map, state.frontier);
   }
 
-  function paintCoverage(map, collection) {
-    var sourceId = 'coverage';
-    var fillId = 'coverage-fill';
-    // Normalize opacity by count on the JS side so we never feed MapLibre
-    // a non-ascending interpolate (a bug we hit when max was tiny).
-    var max = Math.max(collection.maxCount || 1, 1);
-    var scaled = {
-      type: 'FeatureCollection',
-      features: (collection.features || []).map(function (f) {
-        var c = (f.properties && f.properties.count) || 0;
-        var op = 0.08 + 0.57 * Math.min(1, c / max);
-        return {
-          type: 'Feature',
-          geometry: f.geometry,
-          properties: Object.assign({}, f.properties, { op: op }),
-        };
-      }),
-    };
+  function paintFrontier(map, collection) {
+    var sourceId = 'frontier';
+    var fillId = 'frontier-fill';
     if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: 'geojson', data: scaled });
+      map.addSource(sourceId, { type: 'geojson', data: collection });
       map.addLayer({
         id: fillId,
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': '#10b981',
-          'fill-opacity': ['get', 'op'],
-          'fill-outline-color': 'rgba(5,150,105,0.35)',
+          'fill-color': [
+            'match', ['get', 'stage'],
+            'blank', 'rgba(148,163,184,0.18)',
+            'building', 'rgba(14,165,233,0.28)',
+            'repeatable', 'rgba(16,185,129,0.42)',
+            'rgba(5,150,105,0.72)',
+          ],
+          'fill-opacity': [
+            'match', ['get', 'stage'],
+            'blank', 0.08,
+            'building', 0.18,
+            'repeatable', 0.3,
+            0.42,
+          ],
+          'fill-outline-color': 'rgba(15,23,42,0.12)',
         },
       });
+      map.on('click', 'frontier-fill', function (e) {
+        if (!e.features || !e.features[0]) return;
+        var ring = e.features[0].geometry && e.features[0].geometry.coordinates ? e.features[0].geometry.coordinates[0] : null;
+        if (!ring || !ring[0] || !ring[2]) return;
+        var centerLng = (Number(ring[0][0]) + Number(ring[2][0])) / 2;
+        var centerLat = (Number(ring[0][1]) + Number(ring[2][1])) / 2;
+        openPlaceSheet(centerLat, centerLng);
+      });
+      map.on('mouseenter', 'frontier-fill', function () { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'frontier-fill', function () { map.getCanvas().style.cursor = ''; });
     } else {
-      map.getSource(sourceId).setData(scaled);
+      map.getSource(sourceId).setData(collection);
     }
   }
 
-  function loadCoverage(map) {
-    var qs = '';
-    if (state.year) qs += (qs ? '&' : '?') + 'year=' + encodeURIComponent(state.year);
-    fetch(apiCoverage + qs, { credentials: 'same-origin' })
-      .then(function (r) { return r.json(); })
-      .then(function (coll) {
-        state.coverage = coll;
-        paintCoverage(map, coll);
-      })
-      .catch(function () {});
+  function currentBboxString() {
+    if (!state.map) return '';
+    var bounds = state.map.getBounds();
+    if (!bounds) return '';
+    return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].map(function (n) { return Number(n).toFixed(5); }).join(',');
   }
 
-  function loadObservations() {
-    if (!state.map) return;
-    var qs = '?limit=1500';
-    if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
-    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
-    setStatus(COPY.loading);
-    if (state.lastAbort) { try { state.lastAbort.abort(); } catch(_) {} }
+  function loadFrontier(map) {
+    if (!apiFrontier) return;
+    if (state.frontierAbort) { try { state.frontierAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    state.lastAbort = controller;
-    fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
-      .then(function (r) { return r.json(); })
+    state.frontierAbort = controller;
+    var qs = '?bbox=' + encodeURIComponent(currentBboxString());
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.actorClass && state.actorClass !== 'all') qs += '&actor_class=' + encodeURIComponent(state.actorClass);
+    fetch(apiFrontier + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (coll) {
-        state.rawFeatures = (coll && coll.features) || [];
-        state.features = filterBySeason(state.rawFeatures, state.season);
-        ensureObservationSource(state.map, state.features);
-        renderSideLists(state.features);
-        applyTab(state.map, state.tab);
-        var totalAll = (coll && coll.stats && coll.stats.totalAll) || state.rawFeatures.length;
-        if (state.features.length === 0) {
-          setStatus(COPY.empty);
-        } else {
-          setStatus(fmtStatsLabel(state.features.length, totalAll));
-        }
-        // Fit bounds on first load only.
-        if (state.features.length > 0 && !state._fittedOnce) {
-          var bounds = new window.maplibregl.LngLatBounds();
-          state.features.forEach(function (f) {
-            if (f.geometry && f.geometry.coordinates) bounds.extend(f.geometry.coordinates);
-          });
-          if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 40, maxZoom: 11, duration: 350 });
-          state._fittedOnce = true;
-        }
+        if (!coll) return;
+        state.frontier = coll;
+        paintFrontier(map, coll);
+        refreshSheetAmbient();
+        refreshSelectedAmbient();
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
-        setStatus('—');
       });
   }
 
-  function applySeasonLocal() {
-    state.features = filterBySeason(state.rawFeatures, state.season);
+  function loadEffortSummary() {
+    if (!apiEffortSummary || !state.map) return;
+    var qs = '?bbox=' + encodeURIComponent(currentBboxString());
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.role) qs += '&role=' + encodeURIComponent(state.role);
+    if (state.actorClass && state.actorClass !== 'all') qs += '&actor_class=' + encodeURIComponent(state.actorClass);
+    if (state.effortAbort) { try { state.effortAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.effortAbort = controller;
+    fetch(apiEffortSummary + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (summary) {
+        if (!summary) return;
+        state.effortSummary = summary;
+        renderSidePanels();
+        refreshSheetAmbient();
+        refreshSelectedAmbient();
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+      });
+  }
+
+  function loadCells() {
     if (!state.map) return;
-    ensureObservationSource(state.map, state.features);
-    renderSideLists(state.features);
-    applyTab(state.map, state.tab);
-    if (state.features.length === 0) setStatus(COPY.empty);
-    else setStatus(fmtStatsLabel(state.features.length, state.rawFeatures.length));
+    var bbox = currentBboxString();
+    if (!bbox) return;
+    var qs = '?bbox=' + encodeURIComponent(bbox);
+    qs += '&zoom=' + encodeURIComponent(state.map.getZoom().toFixed(2));
+    if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
+    if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.season) qs += '&season=' + encodeURIComponent(state.season);
+    if (state.lastAbort) { try { state.lastAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var requestSeq = state._cellsRequestSeq + 1;
+    state._cellsRequestSeq = requestSeq;
+    state.lastAbort = controller;
+    updatePendingMapResultsState();
+    fetch(apiCells + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('cells ' + r.status)); })
+      .then(function (coll) {
+        if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._cellsRequestSeq)) return;
+        state._cellsAppliedSeq = requestSeq;
+        state.features = (coll && coll.features) || [];
+        state.lastCellStats = (coll && coll.stats) || null;
+        state.lastSearchedBbox = bbox;
+        state.pendingViewportSearch = false;
+        ensureCellSource(state.map, state.features);
+        var availableCellIds = state.features.map(function (feature) {
+          return feature && feature.properties ? feature.properties.cellId || null : null;
+        }).filter(function (cellId) { return !!cellId; });
+        var selectionOutcome = MapExplorerStateHelpers.reconcileSelectedCellAfterCellsResponse({
+          selectedCellId: state.selectedCellId,
+          availableCellIds: availableCellIds,
+          responseSeq: requestSeq,
+          latestRequestSeq: state._cellsRequestSeq,
+        });
+        if (selectionOutcome.clearSelectedPoint) {
+          state.selectedOccurrenceId = null;
+          state.selectedCellId = selectionOutcome.selectedCellId;
+          if (state.selectedPoint && state.selectedPoint.kind !== 'place') state.selectedPoint = null;
+          closeBottomSheet();
+        }
+        updatePendingMapResultsState();
+        if (state._restoredCellId) {
+          var restoredFeature = findCellFeatureById(state._restoredCellId);
+          if (restoredFeature) {
+            updateSearchAreaUi();
+            applyTab(state.map, state.tab);
+            state._fittedOnce = true;
+            selectCell(restoredFeature, { focusMap: false, openSheet: shouldUseBottomSheet() });
+            return;
+          }
+        }
+        renderSelectedCard();
+        renderSidePanels();
+        updateSearchAreaUi();
+        applyTab(state.map, state.tab);
+        state._fittedOnce = true;
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        if (MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._cellsRequestSeq)) {
+          state._cellsAppliedSeq = requestSeq;
+          updatePendingMapResultsState();
+        }
+      });
+  }
+
+  function loadRecords(scope) {
+    if (!state.map) return;
+    var qs = '?limit=1500';
+    if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
+    if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.season) qs += '&season=' + encodeURIComponent(state.season);
+    if (scope && scope.cellId) {
+      qs += '&cell_id=' + encodeURIComponent(scope.cellId);
+    } else {
+      var bbox = currentBboxString();
+      if (!bbox) return;
+      qs += '&bbox=' + encodeURIComponent(bbox);
+      qs += '&zoom=' + encodeURIComponent(state.map.getZoom().toFixed(2));
+      state.lastSearchedBbox = bbox;
+      state.pendingViewportSearch = false;
+    }
+    setStatus(COPY.loading);
+    if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var requestSeq = state._recordsRequestSeq + 1;
+    state._recordsRequestSeq = requestSeq;
+    state.recordAbort = controller;
+    updatePendingMapResultsState();
+    fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
+      .then(function (list) {
+        if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
+        state._recordsAppliedSeq = requestSeq;
+        state.records = (list && list.items) || [];
+        state.lastStats = (list && list.stats) || null;
+        if (state.selectedOccurrenceId) {
+          var selectedRecord = getSelectedRecord();
+          if (!selectedRecord) {
+            state.selectedOccurrenceId = null;
+            if (state.selectedCellId) {
+              var fallbackCell = findCellFeatureById(state.selectedCellId);
+              if (fallbackCell) {
+                var center = cellCenter(fallbackCell);
+                state.selectedPoint = {
+                  lat: center.lat,
+                  lng: center.lng,
+                  kind: 'cell',
+                  cellFeature: fallbackCell,
+                };
+              } else if (state.selectedPoint && state.selectedPoint.kind === 'observation') {
+                state.selectedPoint = null;
+              }
+            } else if (state.selectedPoint && state.selectedPoint.kind === 'observation') {
+              state.selectedPoint = null;
+            }
+          }
+        }
+        renderResultList();
+        renderSelectedCard();
+        renderSidePanels();
+        updatePendingMapResultsState();
+        updateSearchAreaUi();
+        var totalAll = (list && list.stats && list.stats.totalAll) || state.records.length;
+        if (!state.records.length) setStatus(COPY.empty);
+        else setStatus(fmtStatsLabel(state.records.length, totalAll));
+        setStatusMeta(fmtProvenanceMeta(list && list.stats));
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        if (MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) {
+          state._recordsAppliedSeq = requestSeq;
+          updatePendingMapResultsState();
+        }
+        setStatus('—');
+        setStatusMeta('');
+      });
+  }
+
+  function refreshMapData() {
+    loadCells();
+    loadRecords(null);
   }
 
   function refreshYearDependentData() {
-    state.coverage = null;
-    if (state.map && state.map.getSource('coverage')) {
-      removeLayerIfExists(state.map, 'coverage-fill');
-      removeSourceIfExists(state.map, 'coverage');
+    state.frontier = null;
+    if (state.map && state.map.getSource('frontier')) {
+      removeLayerIfExists(state.map, 'frontier-fill');
+      removeSourceIfExists(state.map, 'frontier');
     }
-    loadObservations();
-    if (state.tab === 'coverage' && state.map) loadCoverage(state.map);
+    refreshMapData();
+    if (state.map) loadFrontier(state.map);
+    loadEffortSummary();
     loadTraces();
     saveMapState();
   }
@@ -1339,10 +2282,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var wasTab = state.tab;
     state.basemap = key;
     state.map.setStyle(BASEMAPS[key]);
-    // Re-add sources/layers after style load.
     state.map.once('style.load', function () {
-      ensureObservationSource(state.map, state.features);
-      if (state.coverage) paintCoverage(state.map, state.coverage);
+      ensureCellSource(state.map, state.features);
+      if (state.frontier) paintFrontier(state.map, state.frontier);
+      highlightSelectedCell();
       applyTab(state.map, wasTab);
     });
   }
@@ -1351,28 +2294,44 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // Keeps map state shareable as a plain URL while preserving unrelated
   // params like lang.
   var STATE_STORAGE_KEY = 'ikimon-map-v2';
-  var MAP_STATE_KEYS = ['tab', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
+  var MAP_STATE_KEYS = MapExplorerStateHelpers.MAP_STATE_KEYS.slice();
 
-  function serializeMapState() {
-    var parts = [];
-    if (state.tab && state.tab !== 'markers') parts.push('tab=' + encodeURIComponent(state.tab));
-    if (state.taxonGroup) parts.push('taxon=' + encodeURIComponent(state.taxonGroup));
-    if (state.year) parts.push('year=' + encodeURIComponent(state.year));
-    if (state.season) parts.push('season=' + encodeURIComponent(state.season));
-    if (state.basemap && state.basemap !== 'standard') parts.push('bm=' + encodeURIComponent(state.basemap));
-    if (state.tracesVisible) parts.push('traces=1');
-    var ovParts = [];
+  function currentOverlayShareState() {
+    var overlays = [];
     overlayCatalog.forEach(function (o) {
       var s = overlayState[o.id];
-      if (s && s.enabled) ovParts.push(o.id + ':' + parseFloat(s.opacity).toFixed(2));
+      overlays.push({
+        id: o.id,
+        enabled: !!(s && s.enabled),
+        opacity: s && typeof s.opacity === 'number' ? s.opacity : null,
+      });
     });
-    if (ovParts.length) parts.push('ov=' + encodeURIComponent(ovParts.join(',')));
+    return overlays;
+  }
+
+  function serializeMapState() {
+    var center = null;
+    var zoom = null;
     if (state.map) {
       var c = state.map.getCenter();
-      var z = state.map.getZoom();
-      parts.push('lng=' + c.lng.toFixed(4) + '&lat=' + c.lat.toFixed(4) + '&z=' + z.toFixed(1));
+      center = { lng: c.lng, lat: c.lat };
+      zoom = state.map.getZoom();
     }
-    return parts.join('&');
+    return MapExplorerStateHelpers.serializeSharedMapState({
+      tab: state.tab,
+      role: state.role,
+      actorClass: state.actorClass,
+      markerProfile: state.markerProfile,
+      taxonGroup: state.taxonGroup,
+      year: state.year,
+      season: state.season,
+      basemap: state.basemap,
+      tracesVisible: state.tracesVisible,
+      selectedCellId: state.selectedCellId,
+      overlays: currentOverlayShareState(),
+      center: center,
+      zoom: zoom,
+    });
   }
 
   function saveMapState() {
@@ -1389,6 +2348,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         window.history.replaceState(null, '', next + (url.hash || ''));
       }
       localStorage.setItem(STATE_STORAGE_KEY, s);
+      if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
+        window.ikimonAppOutbox.enqueue({
+          id: 'map:state',
+          source: 'map',
+          kind: 'state',
+          sourceId: STATE_STORAGE_KEY,
+          status: 'saved',
+          payloadMeta: {
+            stateBytes: s.length,
+            tab: state.tab,
+            role: state.role,
+            selectedCellId: state.selectedCellId || null
+          }
+        }).catch(function () {});
+      }
     } catch (_) {}
   }
 
@@ -1403,17 +2377,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyRestoredParams(params) {
     if (!params || !Object.keys(params).length) return;
-    if (params.tab) state.tab = params.tab;
+    if (params.tab) state.tab = params.tab === 'coverage' ? 'frontier' : params.tab;
+    if (params.role) state.role = params.role;
+    if (params.actor) state.actorClass = params.actor;
+    if (params.mp === 'manual_only' || params.mp === 'trusted_only' || params.mp === 'all_research_artifacts') state.markerProfile = params.mp;
     if (params.taxon !== undefined) state.taxonGroup = params.taxon;
     if (params.year) state.year = params.year;
     if (params.season) state.season = params.season;
     if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
     state.tracesVisible = params.traces === '1' || params.traces === 'true';
+    if (params.cell) state._restoredCellId = params.cell;
     if (params.lng && params.lat && params.z) {
       var lng2 = parseFloat(params.lng);
       var lat2 = parseFloat(params.lat);
       var z2 = parseFloat(params.z);
-      if (isFinite(lng2) && isFinite(lat2) && isFinite(z2)) {
+      if (
+        isFinite(lng2) && isFinite(lat2) && isFinite(z2) &&
+        lng2 >= -180 && lng2 <= 180 &&
+        lat2 >= -85 && lat2 <= 85 &&
+        z2 >= 0 && z2 <= 22
+      ) {
         state._restoredCenter = [lng2, lat2];
         state._restoredZoom = z2;
       }
@@ -1432,11 +2415,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
   }
 
+  function syncMapCommandDeckUi() {
+    document.querySelectorAll('.me-map-quick').forEach(function (btn) {
+      var tab = btn.getAttribute('data-map-tab') || '';
+      var basemap = btn.getAttribute('data-map-basemap') || '';
+      var active = (tab && tab === state.tab) || (basemap && basemap === state.basemap);
+      btn.classList.toggle('is-active', !!active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
   function syncUiFromState() {
     document.querySelectorAll('.me-tab').forEach(function (btn) {
       var t = btn.getAttribute('data-tab');
       btn.classList.toggle('is-active', t === state.tab);
       btn.setAttribute('aria-selected', t === state.tab ? 'true' : 'false');
+    });
+    document.querySelectorAll('.me-role-chip').forEach(function (btn) {
+      var v = btn.getAttribute('data-role') || 'mixed';
+      btn.classList.toggle('is-active', v === state.role);
+      btn.setAttribute('aria-pressed', v === state.role ? 'true' : 'false');
+    });
+    document.querySelectorAll('.me-actor-chip').forEach(function (btn) {
+      var v = btn.getAttribute('data-actor-class') || 'all';
+      btn.classList.toggle('is-active', v === state.actorClass);
+      btn.setAttribute('aria-pressed', v === state.actorClass ? 'true' : 'false');
     });
     document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
       var v = btn.getAttribute('data-taxon-group') || '';
@@ -1465,6 +2468,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       label.classList.toggle('is-on', !!overlayState[id].enabled);
       if (range && overlayState[id].opacity != null) range.value = String(overlayState[id].opacity);
     });
+    syncMapCommandDeckUi();
   }
 
   // Restore from query string, then hash, then localStorage.
@@ -1491,9 +2495,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     map.addSource(srcId, { type: 'geojson', data: coll });
-    // Insert below observation pins so markers stay readable.
-    var insertBefore = map.getLayer('clusters') ? 'clusters'
-      : map.getLayer('unclustered-point') ? 'unclustered-point'
+    // Insert below observation cells so the privacy layer stays visually primary.
+    var insertBefore = map.getLayer('observation-cell-selected') ? 'observation-cell-selected'
+      : map.getLayer('observation-cell-fill') ? 'observation-cell-fill'
       : undefined;
     map.addLayer({
       id: layerId,
@@ -1539,49 +2543,103 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   };
 
   function hydrate() {
-    if (!window.maplibregl) return;
-    state.map = new window.maplibregl.Map({
-      container: root,
-      style: BASEMAPS[state.basemap] || BASEMAPS.standard,
-      center: state._restoredCenter || [138.38, 35.34],
-      zoom: state._restoredZoom != null ? state._restoredZoom : 5.2,
-      attributionControl: true,
-    });
+    if (!window.maplibregl) { showMapLoadFailure(); return; }
+    try {
+      state.map = new window.maplibregl.Map({
+        container: root,
+        style: BASEMAPS[state.basemap] || BASEMAPS.standard,
+        center: state._restoredCenter || [138.38, 35.34],
+        zoom: state._restoredZoom != null ? state._restoredZoom : 5.2,
+        attributionControl: true,
+      });
+    } catch (err) {
+      try { console.error('[map] init failed', err); } catch (_) {}
+      state._restoredCenter = null;
+      state._restoredZoom = null;
+      try {
+        state.map = new window.maplibregl.Map({
+          container: root,
+          style: BASEMAPS.standard,
+          center: [138.38, 35.34],
+          zoom: 5.2,
+          attributionControl: true,
+        });
+      } catch (err2) {
+        showMapLoadFailure();
+        return;
+      }
+    }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('load', function () {
-      loadMarkerImages(state.map);
       // Restore enabled overlays from URL/localStorage state before loading data.
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
-      loadObservations();
+      refreshMapData();
+      loadFrontier(state.map);
+      loadEffortSummary();
       loadTraces();
+      maybeAutoLocateOnFirstOpen();
     });
-    state.map.on('moveend', saveMapState);
+    state.map.on('moveend', function () {
+      if (state.ignoreNextMoveEnd) {
+        state.ignoreNextMoveEnd = false;
+        saveMapState();
+        return;
+      }
+      saveMapState();
+      var bbox = currentBboxString();
+      state.pendingViewportSearch = !!bbox && bbox !== state.lastSearchedBbox;
+      updateSearchAreaUi();
+    });
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
       var layers = [];
-      ['unclustered-point', 'clusters', 'cluster-inner'].forEach(function (id) {
+      ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected', 'obs-cell-heat', 'obs-cell-heat-selected'].forEach(function (id) {
         if (state.map.getLayer(id)) layers.push(id);
       });
+      if (state.map.getLayer('frontier-fill')) layers.push('frontier-fill');
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
     });
   }
 
+  function showMapLoadFailure() {
+    setStatus('—');
+    if (!root || root.querySelector('[data-map-load-error="1"]')) return;
+    var box = document.createElement('div');
+    box.setAttribute('data-map-load-error', '1');
+    box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ecfeff,#eff6ff);color:#0f172a;font:500 14px/1.5 system-ui,sans-serif;text-align:center;z-index:4;';
+    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">地図ライブラリを読み込めませんでした</div><div style="opacity:.75;margin-bottom:12px;">ネットワーク状況を確認のうえ、もう一度開いてください。</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">再読み込み</button></div>';
+    var btn = box.querySelector('button');
+    if (btn) btn.addEventListener('click', function () { window.location.reload(); });
+    root.appendChild(box);
+  }
+
+  function loadMaplibreScript(src, useSri, onload, onfail) {
+    var s = document.createElement('script');
+    s.src = src;
+    if (useSri) {
+      s.integrity = MAPLIBRE_JS_SRI;
+      s.crossOrigin = 'anonymous';
+      s.referrerPolicy = 'no-referrer';
+    }
+    s.defer = true;
+    s.onload = function () {
+      if (window.maplibregl) onload();
+      else onfail();
+    };
+    s.onerror = onfail;
+    document.head.appendChild(s);
+  }
+
   if (window.maplibregl) hydrate();
   else {
-    var s = document.createElement('script');
-    s.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-    s.integrity = MAPLIBRE_JS_SRI;
-    s.crossOrigin = 'anonymous';
-    s.referrerPolicy = 'no-referrer';
-    s.defer = true;
-    s.onload = hydrate;
-    s.onerror = function () { setStatus('—'); };
-    document.head.appendChild(s);
+    loadMaplibreScript(MAPLIBRE_JS_PRIMARY, true, hydrate, function () {
+      loadMaplibreScript(MAPLIBRE_JS_FALLBACK, true, hydrate, showMapLoadFailure);
+    });
   }
 
   // Bind UI events.
@@ -1593,7 +2651,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
-      loadObservations();
+      refreshMapData();
       saveMapState();
     });
   });
@@ -1621,7 +2679,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
       });
-      if (state.map) applyTab(state.map, state.tab);
+      if (state.map) {
+        applyTab(state.map, state.tab);
+        if (state.tab === 'frontier') loadFrontier(state.map);
+      }
+      syncMapCommandDeckUi();
+      saveMapState();
+    });
+  });
+  document.querySelectorAll('.me-role-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-role') || 'mixed';
+      state.role = value;
+      document.querySelectorAll('.me-role-chip').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      loadEffortSummary();
+      saveMapState();
+    });
+  });
+  document.querySelectorAll('.me-actor-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-actor-class') || 'all';
+      state.actorClass = value;
+      document.querySelectorAll('.me-actor-chip').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      refreshMapData();
+      if (state.map && state.tab === 'frontier') loadFrontier(state.map);
+      loadEffortSummary();
       saveMapState();
     });
   });
@@ -1674,6 +2762,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         el.classList.toggle('is-active', el.contains(inp));
       });
       switchBasemap(v);
+      syncMapCommandDeckUi();
       saveMapState();
     });
   });
@@ -1685,7 +2774,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
-      applySeasonLocal();
+      refreshMapData();
+      if (state.map) loadFrontier(state.map);
+      loadEffortSummary();
       saveMapState();
     });
   });
@@ -1700,6 +2791,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     });
   });
+  if (searchAreaBtnEl) {
+    searchAreaBtnEl.addEventListener('click', function () {
+      if (!state.map) return;
+      var bbox = currentBboxString();
+      if (bbox) state.lastSearchedBbox = bbox;
+      state.pendingViewportSearch = false;
+      updateSearchAreaUi();
+      refreshMapData();
+      loadFrontier(state.map);
+      loadEffortSummary();
+    });
+  }
 
   // ---- Unified species + place search ------------------------------------
   // Species hits are resolved locally from the currently visible observation
@@ -1749,28 +2852,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var q = normalizeSearchText(query);
     if (!q || q.length < 2) return [];
     var speciesMap = {};
-    state.features.forEach(function (feature) {
-      var variants = featureNameVariants(feature);
+    state.records.forEach(function (record) {
+      var variants = recordNameVariants(record);
       if (!variants.length) return;
       var matched = variants.some(function (name) { return normalizeSearchText(name).indexOf(q) !== -1; });
       if (!matched) return;
-      var p = feature.properties || {};
-      var key = normalizeSearchText(p.displayName || variants[0]);
+      var key = normalizeSearchText(record.displayName || variants[0]);
       if (!speciesMap[key]) {
         speciesMap[key] = {
           kind: 'species',
           badge: COPY.searchResultSpecies,
-          title: p.displayName || variants[0],
-          subtitle: [p.scientificName, p.municipality].filter(Boolean).join(' · '),
-          featureIds: [],
-          taxonGroup: p.taxonGroup || '',
+          title: record.displayName || variants[0],
+          subtitle: record.localityLabel || '',
+          occurrenceIds: [],
+          cellIds: {},
+          taxonGroup: record.taxonGroup || '',
         };
       }
-      speciesMap[key].featureIds.push(p.occurrenceId);
+      speciesMap[key].occurrenceIds.push(record.occurrenceId);
+      if (record.cellId) speciesMap[key].cellIds[record.cellId] = true;
     });
     return Object.keys(speciesMap)
       .map(function (key) { return speciesMap[key]; })
-      .sort(function (a, b) { return b.featureIds.length - a.featureIds.length; })
+      .sort(function (a, b) { return b.occurrenceIds.length - a.occurrenceIds.length; })
       .slice(0, 5)
       .map(function (row) {
         var hitLabel = SEARCH_LANG === 'ja' ? '件'
@@ -1778,18 +2882,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           : SEARCH_LANG === 'pt-BR' ? ' registros'
           : ' hits';
         row.subtitle = row.subtitle
-          ? row.subtitle + ' · ' + row.featureIds.length + hitLabel
-          : row.featureIds.length + hitLabel;
+          ? row.subtitle + ' · ' + row.occurrenceIds.length + hitLabel
+          : row.occurrenceIds.length + hitLabel;
         row.onSelect = function () {
           if (!state.map) return;
           state.tab = 'markers';
           syncUiFromState();
           applyTab(state.map, state.tab);
-          var matches = state.features.filter(function (feature) {
-            var p = feature.properties || {};
-            return row.featureIds.indexOf(p.occurrenceId) !== -1;
+          var matches = state.records.filter(function (record) {
+            return row.occurrenceIds.indexOf(record.occurrenceId) !== -1;
           });
-          fitToFeatureSet(matches, { zoom: 13.8, openSheet: matches.length === 1 });
+          var seenCells = {};
+          var matchingCells = [];
+          matches.forEach(function (record) {
+            if (!record || !record.cellId || seenCells[record.cellId]) return;
+            var feature = findCellFeatureById(record.cellId);
+            if (!feature) return;
+            seenCells[record.cellId] = true;
+            matchingCells.push(feature);
+          });
+          if (matchingCells.length) fitToCellSet(matchingCells, { openSheet: false });
+          if (matches.length === 1) selectRecord(matches[0], { focusMap: false, openSheet: true });
+          else if (matchingCells.length === 1) selectCell(matchingCells[0], { focusMap: false, openSheet: true });
           if (searchInputEl) searchInputEl.value = row.title;
           searchResultsEl.classList.remove('is-open');
           saveMapState();
@@ -1908,6 +3022,40 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  function dropMeMarker(lng, lat) {
+    if (!state.map || !window.maplibregl) return;
+    if (state._meMarker) state._meMarker.remove();
+    var el = document.createElement('div');
+    el.className = 'me-locate-marker';
+    state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
+  }
+
+  // First-open auto-locate: zoom into the user's location only when no
+  // explicit location was restored from URL/hash/localStorage. Silent on
+  // permission denial or any failure — falls back to the default view.
+  var _autoLocateAttempted = false;
+  function maybeAutoLocateOnFirstOpen() {
+    if (_autoLocateAttempted) return;
+    _autoLocateAttempted = true;
+    if (!state.map || !navigator.geolocation) return;
+    if (state._restoredCenter || state._restoredCellId) return;
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      if (!state.map) return;
+      var lng = pos.coords.longitude;
+      var lat = pos.coords.latitude;
+      if (!isFinite(lng) || !isFinite(lat)) return;
+      if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return;
+      // Suppress later data-driven auto-fit so the user's location wins.
+      state._fittedOnce = true;
+      state.map.flyTo({ center: [lng, lat], zoom: 13, duration: 900, essential: true });
+      dropMeMarker(lng, lat);
+    }, function () { /* silent: keep default view */ }, {
+      enableHighAccuracy: false,
+      maximumAge: 60000,
+      timeout: 6000,
+    });
+  }
+
   // locate-me
   var locateFab = document.getElementById('me-locate-fab');
   if (locateFab) {
@@ -1935,6 +3083,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
+  document.querySelectorAll('.me-map-quick').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var action = btn.getAttribute('data-map-action') || '';
+      var tab = btn.getAttribute('data-map-tab') || '';
+      var basemap = btn.getAttribute('data-map-basemap') || '';
+      if (action === 'locate') {
+        if (locateFab) locateFab.click();
+        return;
+      }
+      if (tab) {
+        var tabBtn = document.querySelector('.me-tab[data-tab="' + tab + '"]');
+        if (tabBtn && typeof tabBtn.click === 'function') tabBtn.click();
+        return;
+      }
+      if (basemap) {
+        var input = document.querySelector('input[name="me-basemap"][value="' + basemap + '"]');
+        if (input) {
+          input.checked = true;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+  });
+  syncMapCommandDeckUi();
+
   // ---- Overlay registry wire-up ------------------------------------------
   // Reads the JSON catalog baked into data-overlay-catalog, then adds /
   // removes raster sources + layers on toggle, and updates raster-opacity
@@ -1955,11 +3128,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         minzoom: def.minzoom || 0,
         maxzoom: def.maxzoom || 22,
       });
-      // Insert below the observation layers so pins stay on top.
+      // Insert below the observation cells so the privacy layer remains primary.
       var firstObsLayer = null;
-      if (map.getLayer('clusters')) firstObsLayer = 'clusters';
-      else if (map.getLayer('unclustered-point')) firstObsLayer = 'unclustered-point';
-      else if (map.getLayer('obs-heat')) firstObsLayer = 'obs-heat';
+      if (map.getLayer('observation-cell-fill')) firstObsLayer = 'observation-cell-fill';
+      else if (map.getLayer('obs-cell-heat')) firstObsLayer = 'obs-cell-heat';
       map.addLayer({
         id: overlayLayerId(def.id),
         type: 'raster',
@@ -2023,44 +3195,77 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 }
 
 export const MAP_EXPLORER_STYLES = `
-  /* Google Maps スタイル: マップ主役、コントロールは軽量オーバーレイ */
-  .me-section { margin-top: 0; }
-  .me-eyebrow-strip { display: none; }
-  .me-cross-chips {
-    display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
-    margin-bottom: 4px; padding: 6px 14px; border-radius: 0;
-    background: rgba(255,255,255,.96); border-bottom: 1px solid rgba(15,23,42,.06);
-    font-size: 12px; overflow-x: auto; scrollbar-width: none;
+  .me-section {
+    --me-map-height: clamp(620px, calc(100vh - 172px), 980px);
+    margin-top: 0;
   }
-  .me-cross-chips::-webkit-scrollbar { display: none; }
-  @media (max-width: 767px) { .me-cross-chips { display: none; } }
-  .me-cross-eyebrow { font-weight: 800; color: #0f172a; letter-spacing: -.01em; flex-shrink: 0; }
-  .me-cross-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: rgba(16,185,129,.08); color: #065f46; font-weight: 700; text-decoration: none; transition: background .15s ease; flex-shrink: 0; white-space: nowrap; }
-  .me-cross-chip:hover { background: rgba(16,185,129,.16); }
-
-  .me-toolbar {
-    display: flex; flex-direction: row; align-items: center; gap: 4px 10px;
-    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
-    margin-bottom: 6px; padding: 8px 14px; border-radius: 14px;
-    background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.05);
-    box-shadow: 0 3px 8px rgba(15,23,42,.04);
-    -webkit-overflow-scrolling: touch;
+  .me-topbar {
+    display: grid;
+    gap: 14px 18px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
+    align-items: start;
+    margin-bottom: 16px;
   }
-  .me-toolbar::-webkit-scrollbar { display: none; }
-  @media (min-width: 900px) { .me-toolbar { gap: 4px 14px; } }
+  .me-topbar-primary,
+  .me-topbar-secondary {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+  }
+  .me-topbar-secondary {
+    justify-content: space-between;
+  }
+  .me-search-shell {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 56px;
+    padding: 8px 12px 8px 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 10px 28px rgba(15,23,42,.08);
+  }
   .me-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(15,23,42,.04); }
-  .me-tab { padding: 8px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
+  .me-tab { min-height: 48px; padding: 8px 16px; border-radius: 12px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
-  .me-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; flex-shrink: 0; }
-  .me-filter-group + .me-filter-group { border-left: 1px solid rgba(15,23,42,.08); padding-left: 10px; }
-  .me-filter-label { display: none; }
-  .me-chip-row { display: flex; flex-wrap: nowrap; gap: 4px; }
-  .me-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
+  .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .me-filter-group-quick { flex: 1 1 auto; min-height: 56px; padding: 4px 0; }
+  .me-filter-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+  .me-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .me-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
   .me-chip:hover { border-color: rgba(16,185,129,.35); }
   .me-chip.is-active { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14)); border-color: rgba(16,185,129,.45); color: #065f46; }
   .me-chip-icon { font-size: 13px; }
-  .me-time-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; min-width: min(100%, 260px); }
-  .me-time-slider-wrap { min-width: 100px; flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px; }
+  .me-filter-drawer { position: relative; flex: 0 0 auto; }
+  .me-filter-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; min-width: 116px; padding: 0 18px;
+    border-radius: 16px; cursor: pointer; list-style: none;
+    background: #fff; border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 8px 24px rgba(15,23,42,.06);
+    font-size: 13px; font-weight: 800; color: #0f172a;
+  }
+  .me-filter-toggle::-webkit-details-marker { display: none; }
+  .me-filter-panel {
+    position: absolute; right: 0; top: calc(100% + 10px); z-index: 20;
+    width: min(92vw, 640px);
+    display: grid; gap: 14px;
+    padding: 16px;
+    border-radius: 24px;
+    background: rgba(255,255,255,.98);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 20px 54px rgba(15,23,42,.16);
+  }
+  .me-filter-group-actions { justify-content: flex-start; }
+  .me-cross-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px; border-radius: 999px; background: rgba(16,185,129,.08); color: #065f46; font-weight: 700; text-decoration: none; transition: background .15s ease; }
+  .me-cross-chip:hover { background: rgba(16,185,129,.16); }
+  .me-time-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: min(100%, 360px); }
+  .me-time-slider-wrap { min-width: 180px; flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px; }
   .me-year-range { width: 100%; accent-color: #10b981; }
   .me-year-scale { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; font-weight: 700; color: #94a3b8; }
   .me-year-pill { min-width: 74px; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.05); font-weight: 800; font-size: 12px; color: #0f172a; text-align: center; }
@@ -2082,13 +3287,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-basemap-opt span { display: inline-block; padding: 6px 10px; border-radius: 9px; font-weight: 700; font-size: 12px; color: #475569; transition: background .15s ease, color .15s ease; }
   .me-basemap-opt.is-active span { background: #fff; color: #0f172a; box-shadow: 0 3px 8px rgba(15,23,42,.08); }
 
-  /* Region bar and overlay panel: hidden to keep map prominent */
-  .me-region-bar { display: none; }
-  .me-overlay-panel { display: none; }
-
-  /* Hidden placeholder — keep selector for JS compat */
-  .me-region-bar-hidden {
-    margin-bottom: 10px;
+  .me-region-bar {
     border-radius: 14px;
     background: rgba(255,255,255,.88);
     border: 1px solid rgba(15,23,42,.05);
@@ -2107,11 +3306,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-region-chip:hover { border-color: rgba(14,165,233,.4); }
   .me-region-chip.is-active { background: linear-gradient(135deg, rgba(14,165,233,.18), rgba(16,185,129,.14)); border-color: rgba(14,165,233,.45); color: #075985; }
 
-  /* Overlay panel stays collapsed by default. Opening it is a
-     deliberate action, not something that walls the user off from the
-     map on first load. */
   .me-overlay-panel {
-    margin-bottom: 10px;
     padding: 0;
     border-radius: 14px;
     background: rgba(255,255,255,.94);
@@ -2161,33 +3356,150 @@ export const MAP_EXPLORER_STYLES = `
   .me-overlay-opacity-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
   .me-overlay-opacity-range { flex: 1; }
 
-  .me-main { display: grid; gap: 0; grid-template-columns: 1fr; }
-  @media (min-width: 1080px) { .me-main { grid-template-columns: 1fr; } }
-  .me-map-wrap { position: relative; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg,#ecfeff,#eff6ff); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 8px 20px rgba(15,23,42,.05); }
-  /* Map takes full remaining viewport — nav(56px) + cross-chips(desktop ~34px) + toolbar(~50px) + section margin */
-  .me-map { width: 100%; height: calc(100vh - 56px - 50px - 10px); min-height: 480px; }
-  @media (min-width: 768px) { .me-map { height: calc(100vh - 56px - 34px - 50px - 10px); } }
-  .me-side { display: none; }
+  .me-main {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: clamp(320px, 24vw, 380px) minmax(0, 1fr);
+    align-items: start;
+  }
+  .me-map-wrap {
+    position: sticky;
+    top: 86px;
+    min-height: var(--me-map-height);
+    border-radius: 28px;
+    overflow: hidden;
+    background: linear-gradient(135deg,#ecfeff,#eff6ff);
+    border: 1px solid rgba(15,23,42,.06);
+    box-shadow: 0 18px 42px rgba(15,23,42,.08);
+  }
+  .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 620px; }
+  .me-map-command-deck {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: calc(100% - 150px);
+    pointer-events: auto;
+  }
+  .me-map-quick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: rgba(255,255,255,.96);
+    color: #0f172a;
+    box-shadow: 0 10px 24px rgba(15,23,42,.14);
+    backdrop-filter: blur(12px);
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .me-map-quick:hover { transform: translateY(-1px); border-color: rgba(14,165,233,.32); background: #fff; }
+  .me-map-quick.is-active {
+    color: #064e3b;
+    border-color: rgba(16,185,129,.38);
+    background: rgba(236,253,245,.98);
+  }
+  .me-map-quick span { font-size: 14px; line-height: 1; }
+  .me-map-panel {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .me-map-panel.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .me-map-panel-selection {
+    top: 82px;
+    left: 18px;
+    width: clamp(280px, 28vw, 360px);
+    max-width: calc(100% - 36px);
+  }
+  .me-map-panel-selection .me-map-card {
+    max-height: calc(var(--me-map-height) - 96px);
+    overflow-y: auto;
+  }
+  .me-map-panel-insight {
+    left: 18px;
+    bottom: 18px;
+    width: min(420px, calc(100% - 108px));
+  }
+  .me-map-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 22px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 18px 40px rgba(15,23,42,.14);
+    backdrop-filter: blur(16px);
+    pointer-events: auto;
+  }
+  .me-map-card-empty,
+  .me-map-card-quiet { gap: 10px; }
+  .me-map-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .me-map-card-kicker {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(14,165,233,.1);
+    color: #0369a1;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .me-map-card-title { display: block; font-size: 19px; line-height: 1.28; font-weight: 900; color: #0f172a; letter-spacing: -.02em; }
+  .me-map-card-copy { display: block; margin-top: 6px; font-size: 12px; line-height: 1.6; color: #64748b; font-weight: 700; }
+  .me-map-insight-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .me-map-insight-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 11px 12px;
+    border-radius: 16px;
+    background: rgba(248,250,252,.88);
+    border: 1px solid rgba(148,163,184,.14);
+  }
+  .me-map-insight-label {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+  .me-map-insight-item strong { font-size: 14px; font-weight: 900; color: #0f172a; }
+  .me-map-insight-item span { font-size: 11px; line-height: 1.45; color: #64748b; }
   .me-map-status {
-    position: absolute; right: 14px; top: 14px; z-index: 4;
+    position: absolute; right: 14px; top: 70px; z-index: 4;
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);
     color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .02em;
     backdrop-filter: blur(8px);
   }
 
-  .me-search {
-    position: absolute; left: 14px; top: 14px; z-index: 5;
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 8px 6px 14px; border-radius: 999px;
-    background: rgba(255,255,255,.95); border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 6px 18px rgba(15,23,42,.08);
-    min-width: 240px;
-    max-width: min(420px, 70%);
-  }
   .me-search-icon { font-size: 13px; color: #475569; }
   .me-search-input {
     flex: 1 1 auto; min-width: 0; border: 0; background: transparent;
-    padding: 6px 4px; font-size: 13px; font-weight: 600; color: #0f172a;
+    padding: 6px 4px; font-size: 14px; font-weight: 700; color: #0f172a;
     outline: none;
   }
   .me-search-input::placeholder { color: #94a3b8; }
@@ -2218,7 +3530,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-search-empty { padding: 14px; font-size: 12px; color: #64748b; }
 
   .me-locate-fab {
-    position: absolute; right: 14px; bottom: 120px; z-index: 5;
+    position: absolute; right: 14px; bottom: 84px; z-index: 5;
     width: 44px; height: 44px; border-radius: 999px; border: 0;
     background: #fff; color: #0f172a; cursor: pointer;
     box-shadow: 0 10px 24px rgba(15,23,42,.16);
@@ -2234,7 +3546,7 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 0 0 6px rgba(14,165,233,.28);
   }
   .me-legend {
-    position: absolute; left: 14px; bottom: 14px; z-index: 4;
+    position: absolute; right: 18px; bottom: 18px; z-index: 4;
     padding: 8px 12px; border-radius: 14px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.06);
     box-shadow: 0 8px 16px rgba(15,23,42,.1);
@@ -2244,6 +3556,24 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-label { color: #475569; letter-spacing: .1em; text-transform: uppercase; }
   .me-legend-gradient { width: 140px; height: 10px; border-radius: 999px; display: inline-block; }
   .me-legend-range { display: inline-flex; gap: 10px; color: #64748b; font-weight: 700; }
+  .me-search-area-btn {
+    position: absolute;
+    top: 68px;
+    left: 50%;
+    z-index: 5;
+    transform: translateX(-50%);
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(14,165,233,.22);
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 12px 30px rgba(15,23,42,.12);
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .me-search-area-btn.is-hidden { display: none; }
 
   .me-bottom-sheet {
     position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 5;
@@ -2262,43 +3592,173 @@ export const MAP_EXPLORER_STYLES = `
   .me-bottom-meta span { font-size: 12px; color: #64748b; font-weight: 600; }
   .me-bottom-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
   .me-bottom-actions .btn { padding: 10px 20px; font-size: 14px; font-weight: 800; }
+  .me-sheet-ambient { display: grid; gap: 8px; margin-top: 12px; }
+  .me-sheet-card { padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 3px; }
+  .me-sheet-card strong { font-size: 12px; font-weight: 800; color: #0f172a; }
+  .me-sheet-card span { font-size: 11px; color: #64748b; line-height: 1.45; }
 
   .me-site-brief { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); }
+  .me-site-brief-slot { margin-bottom: 14px; }
+  .me-site-brief-slot.is-loading { padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); color: #64748b; font-size: 12px; font-weight: 600; }
   .me-site-brief.is-loading { color: #64748b; font-size: 12px; font-weight: 600; }
   .me-site-brief-error { color: #b91c1c; font-size: 12px; font-weight: 600; background: rgba(254,226,226,.5); border-color: rgba(220,38,38,.2); }
   .me-site-brief-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
   .me-site-brief-label { font-size: 14px; font-weight: 800; color: #064e3b; }
   .me-site-brief-conf { font-size: 11px; font-weight: 800; color: #047857; background: rgba(16,185,129,.18); padding: 2px 8px; border-radius: 999px; }
+  .me-site-brief-loop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .me-site-brief-loop-card { padding: 10px 11px; border-radius: 12px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); display: grid; gap: 4px; }
+  .me-site-brief-loop-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
+  .me-site-brief-loop-body { font-size: 11.5px; line-height: 1.45; color: #0f172a; font-weight: 700; }
   .me-site-brief-heading { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #059669; margin-bottom: 6px; }
   .me-site-brief-section { margin-top: 6px; }
   .me-site-brief-sublabel { font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
   .me-site-brief ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
   .me-site-brief ul li { font-size: 12px; color: #0f172a; line-height: 1.45; }
   .me-site-brief-reasons li { color: #475569; font-size: 11px; }
+  @media (max-width: 520px) {
+    .me-site-brief-loop-grid { grid-template-columns: 1fr; }
+  }
+  ${OFFICIAL_NOTICE_CARD_STYLES}
 
-  .me-side { display: flex; flex-direction: column; gap: 14px; }
-  .me-side-card { background: #fff; border: 1px solid rgba(15,23,42,.06); border-radius: 20px; padding: 14px 16px; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
-  .me-side-heading { margin: 0 0 10px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #059669; }
-  .me-side-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
-  .me-side-item { padding: 8px 10px; border-radius: 12px; background: rgba(236,253,245,.4); border: 1px solid rgba(16,185,129,.12); text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 2px; }
-  .me-side-item:hover { background: rgba(236,253,245,.8); }
-  .me-side-item strong { font-size: 13px; font-weight: 800; color: #0f172a; }
-  .me-side-item span { font-size: 11px; color: #64748b; }
+  .me-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .me-side-head { padding: 4px 2px 0; }
+  .me-side-title { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 900; color: #0f172a; letter-spacing: -.02em; }
+  .me-side-subtitle { margin-top: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
+  .me-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: var(--me-map-height);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .me-result-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0,1fr);
+    gap: 12px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(15,23,42,.06);
+    border-radius: 18px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-result-row.is-active { border-color: rgba(14,165,233,.28); box-shadow: 0 12px 28px rgba(14,165,233,.12); }
+  .me-result-thumb {
+    width: 92px;
+    height: 92px;
+    object-fit: cover;
+    border-radius: 14px;
+    background: rgba(241,245,249,.9);
+  }
+  .me-result-thumb-placeholder { display: grid; place-items: center; font-size: 28px; color: #64748b; }
+  .me-result-body { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; }
+  .me-result-body strong { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
+  .me-result-body span { font-size: 12px; color: #64748b; line-height: 1.4; }
+  .me-result-ai { display: inline-block; padding: 1px 7px; border-radius: 999px; background: rgba(14,165,233,.14); color: #075985; font-size: 10px; font-weight: 900; letter-spacing: .04em; margin-right: 6px; vertical-align: middle; }
+  .me-result-awaiting { display: inline-block; padding: 2px 9px; border-radius: 999px; background: rgba(234,179,8,.18); color: #713f12; font-size: 11.5px; font-weight: 900; }
+  .me-map-card-ai { color: #075985; font-weight: 900; }
+  .me-map-card-awaiting { color: #713f12; font-weight: 900; }
+  .me-results-empty, .me-side-empty {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.9);
+    border: 1px solid rgba(15,23,42,.06);
+    font-size: 13px;
+    color: #64748b;
+  }
+  .me-selected-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; margin-bottom: 2px; }
+  .me-selected-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+  .me-selected-ambient { margin-top: 2px; }
   .me-cluster-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 10px; background: rgba(248,250,252,.8); font-size: 12px; }
   .me-cluster-item strong { font-weight: 800; color: #059669; }
   .me-chip:focus-visible,
   .me-tab:focus-visible,
+  .me-map-quick:focus-visible,
   .me-search-row:focus-visible,
   .me-share-btn:focus-visible,
   .me-locate-fab:focus-visible,
   .me-bottom-close:focus-visible,
-  .me-year-range:focus-visible {
+  .me-year-range:focus-visible,
+  .me-result-row:focus-visible,
+  .me-filter-toggle:focus-visible,
+  .me-search-area-btn:focus-visible {
     outline: 3px solid rgba(14,165,233,.32);
     outline-offset: 2px;
   }
 
+  @media (max-width: 1200px) {
+    .me-topbar {
+      grid-template-columns: 1fr;
+    }
+    .me-map-panel-selection {
+      width: clamp(260px, 34vw, 320px);
+    }
+    .me-map-panel-insight {
+      width: min(360px, calc(100% - 96px));
+    }
+  }
+
   @media (max-width: 900px) {
-    .me-side { flex-direction: row; overflow-x: auto; }
-    .me-side-card { min-width: 240px; flex-shrink: 0; }
+    .me-topbar-primary,
+    .me-topbar-secondary { flex-direction: column; }
+    .me-topbar-secondary { justify-content: flex-start; }
+    .me-tabs { width: fit-content; }
+    .me-filter-drawer { width: 100%; }
+    .me-filter-toggle { width: 100%; }
+    .me-filter-panel {
+      position: static;
+      width: auto;
+      margin-top: 10px;
+      box-shadow: 0 10px 24px rgba(15,23,42,.08);
+    }
+    .me-main {
+      grid-template-columns: 1fr;
+    }
+    .me-map-wrap {
+      position: relative;
+      top: auto;
+      order: 1;
+    }
+    .me-map { min-height: 72vh; height: 72vh; }
+    .me-map-panel {
+      display: none;
+    }
+    .me-map-command-deck {
+      left: 10px;
+      right: 10px;
+      max-width: none;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .me-map-command-deck::-webkit-scrollbar { display: none; }
+    .me-map-quick {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
+    .me-side {
+      order: 2;
+      display: none;
+    }
+    .me-search-area-btn {
+      top: 70px;
+      width: max-content;
+      max-width: calc(100% - 28px);
+    }
+    .me-locate-fab { bottom: 96px; }
+    .me-bottom-sheet {
+      display: block;
+      border-radius: 22px 22px 0 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 62%;
+    }
   }
 `;

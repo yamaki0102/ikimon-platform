@@ -50,7 +50,7 @@ export async function generateTts(
 }
 
 /**
- * Build a Field Guide TTS script for a given scene and category.
+ * Build a Live Guide TTS script for a given scene and category.
  * category: "biodiversity" | "land_history" | "buildings" | "people_history"
  */
 export async function buildGuideScript(opts: {
@@ -61,6 +61,7 @@ export async function buildGuideScript(opts: {
   lng: number;
   siteBriefLabel?: string;
   detectedSpecies?: string[];
+  guideMode?: "walk" | "vehicle";
 }): Promise<string> {
   const ai = getClient();
 
@@ -83,18 +84,26 @@ export async function buildGuideScript(opts: {
   const speciesHint =
     opts.detectedSpecies && opts.detectedSpecies.length > 0
       ? `検出種: ${opts.detectedSpecies.join("、")}`
-      : "";
+      : "検出種なし。種名を無理に補わない。";
+  const modeInstruction = opts.guideMode === "vehicle"
+    ? "車・自転車などの移動中モード。個体の種同定より、植生帯、土地被覆、農地、水路、街路樹、草刈り、林縁、道路際の状態を短く読む。看板・ロゴ・車名・店舗名を生きものとして扱わない。"
+    : "徒歩モード。種名だけでなく、植生・土地被覆・管理痕跡・水辺・林縁も観察価値として語る。看板・ロゴ・車名・店舗名を生きものとして扱わない。";
 
-  const systemPrompt = `あなたはフィールドガイドのナレーターです。
-観察者が今いる場所の「${categoryInstructions[opts.category]}」について、自然な語り口で2〜3文のガイドを${langNames[opts.lang]}で生成してください。
+  const systemPrompt = `あなたはライブガイドのナレーターです。
+観察者のフィールド体験を邪魔しないよう、短く自然な語り口で2〜3文のガイドを${langNames[opts.lang]}で生成してください。
 
 ルール:
+- scene summary が「秒前」「分前」「earlier」「before」など過去の地点を示す場合、必ずその時制を保つ。「ここ」「今」「目の前」と言い換えない
+- 移動中に割り込む音声ではなく、ユーザーがカードを開いた時の読み上げとして落ち着いて話す
 - 断定を避け「〜が好む環境です」「〜が見られる可能性があります」のように語る
+- 種名がない場合も失敗扱いしない。衛星画像より細かい植生・土地利用・管理状態の記録として価値を返す
+- 看板・ロゴ・車名・店舗名を生物名として解説しない。例: 車のスズキ看板は魚のスズキではない
 - 海外旅行者にもわかる平易な表現を使う
 - 文字数は100〜200字程度
-- voice tags ([ゆっくり] [静かに] 等) は使わない
+- Gemini 3.1 Flash TTS は表現タグに対応するが、この画面ではタグを出力しない。必要な抑揚は文章で自然に作る
 - 場所: 緯度${opts.lat.toFixed(4)} 経度${opts.lng.toFixed(4)}
 - 仮説ラベル: ${opts.siteBriefLabel ?? "不明"}
+- モード: ${modeInstruction}
 - ${speciesHint}
 - シーン概要: ${opts.sceneSummary}`;
 

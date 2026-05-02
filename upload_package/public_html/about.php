@@ -10,6 +10,7 @@ CspNonce::sendHeader();
 $isLoggedIn = Auth::isLoggedIn();
 $ctaHref = $isLoggedIn ? 'post.php' : 'login.php?redirect=post.php';
 $documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+$documentLangKey = strtolower($documentLang);
 $ctaLabel = $isLoggedIn
     ? __('about_page.cta_primary_logged_in', 'Start observing')
     : __('about_page.cta_primary_logged_out', 'Start free');
@@ -25,10 +26,205 @@ $meta_description = __('about_page.meta_description', $regionalMessaging['about_
 $signatureName = $documentLang === 'ja' ? '八巻 毅' : 'Tsuyoshi Yamaki';
 $signatureTitle = $documentLang === 'ja' ? 'IKIMON株式会社 代表' : 'Founder, IKIMON Co., Ltd.';
 $contactLocation = $documentLang === 'ja' ? '静岡県浜松市' : 'Hamamatsu, Shizuoka';
+$fieldLoopContent = match ($documentLangKey) {
+    'ja' => [
+        'toc' => 'フィールドループ',
+        'title' => 'フィールドループ',
+        'lead' => '不確かな観測を、段階的に解像度の高い知識へ育てていく ikimon.life の仕組みです。',
+        'trust' => 'AI は確定役ではなく、候補を広げる役です。',
+        'intro' => 'ikimon.life は、その場で完璧に種名を当てることより、観測を失わずに残し、あとから検証と学習で精度を上げていくことを重視します。',
+        'stages' => [
+            ['title' => '衛星データ・現地観測', 'body' => '見落としを減らし、観測候補を広く拾います。'],
+            ['title' => 'フィールドスキャン・ガイド・ノート', 'body' => '画像、場所、季節、メモを残し、文脈を失わないようにします。'],
+            ['title' => 'AI同定・市民同定', 'body' => '科・属・種の候補を出し、次に確かめるべき方向を絞ります。'],
+            ['title' => '専門家同定', 'body' => '重要観測を検証し、保留と確定の基準を管理します。'],
+            ['title' => '研究資料化', 'body' => '再利用できる証拠として整理し、出典と条件を固定します。'],
+            ['title' => '集合知アップデート', 'body' => 'ガイド、判別点、地域知を更新します。'],
+            ['title' => 'AIアップデート', 'body' => '検証条件を満たした知見だけを、次の候補提示改善へ戻します。'],
+        ],
+        'after_loop' => 'この循環により、同じ地域・同じ生きものでも、次の観測ほど見つけやすく、学びやすく、確かめやすくなります。',
+        'ladder_title' => '証拠の階段',
+        'ladder_intro' => '有用性と確定性は同じではありません。ikimon.life では、観測の価値と証拠の強さを分けて扱います。',
+        'ladder_use_label' => '使える場面',
+        'ladder_not_label' => '使わない場面',
+        'ladder_rows' => [
+            ['label' => '科・属レベル', 'use' => '分布、季節性、初学者参加、ホットスポット把握', 'avoid' => '稀少種の確定'],
+            ['label' => '種レベル候補', 'use' => '学習、追加観察、レビュー優先順位付け', 'avoid' => '単独での確定判断'],
+            ['label' => '専門家確認', 'use' => '重要観測の確定、基準管理', 'avoid' => '自動大量確定'],
+            ['label' => '研究資料・更新対象', 'use' => 'ガイド更新、モデル更新、分析', 'avoid' => '生データの無差別投入'],
+        ],
+        'roles_title' => 'だれが何をするか',
+        'roles' => [
+            ['title' => '観測者', 'body' => '見つけて、残して、文脈を渡す人。'],
+            ['title' => 'AI', 'body' => '確定せず、候補と見落とし防止を支える道具。'],
+            ['title' => '市民同定者', 'body' => '知識を持ち寄り、候補を絞り込む人。'],
+            ['title' => '専門家', 'body' => '基準を管理し、重要観測を確かめる人。'],
+        ],
+        'coarse_title' => '科・属レベルでも価値がある理由',
+        'coarse_body' => '種名が分からなくても、科や属の情報が集まるだけで、地域の変化、季節の偏り、異変の兆し、観測の空白地帯は見えてきます。',
+        'coarse_points' => [
+            '観測数を増やせる',
+            '初学者が参加しやすい',
+            'あとから解像度を上げられる',
+        ],
+        'coarse_note' => 'ただし、保全上重要な判断や稀少種の確定は、より高い証拠階層で扱います。',
+        'faq_title' => '誤解されやすい点',
+        'faq' => [
+            ['q' => 'AIが勝手に正解を決めるのですか？', 'a' => 'いいえ。AI同定は候補提示であり、確定ではありません。'],
+            ['q' => '多数決で種名が決まるのですか？', 'a' => 'いいえ。市民同定は知識形成に参加する層ですが、重要観測の確定は検証プロセスを通ります。'],
+            ['q' => '間違った観測も学習されるのですか？', 'a' => 'いいえ。更新対象に入るのは、整理と検証条件を満たした知見だけです。'],
+        ],
+    ],
+    'es' => [
+        'toc' => 'Field Loop',
+        'title' => 'Field Loop',
+        'lead' => 'Es el sistema de ikimon.life para convertir observaciones inciertas en conocimiento de mayor resolución paso a paso.',
+        'trust' => 'La IA no decide la respuesta final. Amplía las hipótesis.',
+        'intro' => 'ikimon.life prioriza no perder observaciones y aumentar su resolución después mediante validación y aprendizaje, en lugar de exigir una identificación perfecta en el momento.',
+        'stages' => [
+            ['title' => 'Datos satelitales y observación de campo', 'body' => 'Amplían la captura de señales y reducen omisiones.'],
+            ['title' => 'FieldScan, guías y notas', 'body' => 'Conservan imagen, lugar, estación y contexto.'],
+            ['title' => 'IA e identificación ciudadana', 'body' => 'Proponen familia, género o especie candidata.'],
+            ['title' => 'Identificación experta', 'body' => 'Verifica observaciones importantes y administra el criterio.'],
+            ['title' => 'Conversión en material de investigación', 'body' => 'Ordena la evidencia para que pueda reutilizarse.'],
+            ['title' => 'Actualización del conocimiento colectivo', 'body' => 'Mejora guías, puntos de distinción y conocimiento local.'],
+            ['title' => 'Actualización de IA', 'body' => 'Solo devuelve al modelo conocimiento que superó las condiciones de validación.'],
+        ],
+        'after_loop' => 'Con este ciclo, cada observación futura se vuelve más fácil de encontrar, aprender y verificar.',
+        'ladder_title' => 'Escalera de evidencia',
+        'ladder_intro' => 'Utilidad y certeza no son lo mismo. ikimon.life separa el valor de observación de la fuerza de la evidencia.',
+        'ladder_use_label' => 'Util para',
+        'ladder_not_label' => 'No para',
+        'ladder_rows' => [
+            ['label' => 'Familia o género', 'use' => 'distribución, estacionalidad, participación inicial, puntos calientes', 'avoid' => 'confirmación de especies raras'],
+            ['label' => 'Especie candidata', 'use' => 'aprendizaje, observación adicional, priorización de revisión', 'avoid' => 'confirmación por sí sola'],
+            ['label' => 'Confirmación experta', 'use' => 'confirmación de observaciones importantes, control de criterio', 'avoid' => 'confirmación automática masiva'],
+            ['label' => 'Material de investigación / actualización', 'use' => 'actualización de guías, modelos y análisis', 'avoid' => 'volcado indiscriminado de datos brutos'],
+        ],
+        'roles_title' => 'Quién hace qué',
+        'roles' => [
+            ['title' => 'Observador', 'body' => 'Encuentra, registra y transmite contexto.'],
+            ['title' => 'IA', 'body' => 'Herramienta que sugiere candidatos y reduce omisiones.'],
+            ['title' => 'Identificador ciudadano', 'body' => 'Aporta conocimiento y estrecha candidatos.'],
+            ['title' => 'Experto', 'body' => 'Administra criterios y verifica observaciones importantes.'],
+        ],
+        'coarse_title' => 'Por qué familia o género siguen siendo útiles',
+        'coarse_body' => 'Incluso sin nombre de especie, acumular información de familia o género ya muestra cambios locales, sesgos estacionales, señales anómalas y vacíos de observación.',
+        'coarse_points' => [
+            'Aumenta el volumen de observaciones',
+            'Reduce la barrera de entrada',
+            'Permite aumentar la resolución después',
+        ],
+        'coarse_note' => 'Las decisiones de conservación sensibles y la confirmación de especies raras se tratan en niveles de evidencia más altos.',
+        'faq_title' => 'Puntos que suelen malinterpretarse',
+        'faq' => [
+            ['q' => '¿La IA decide sola la respuesta correcta?', 'a' => 'No. La IA solo propone candidatos.'],
+            ['q' => '¿El nombre se decide por mayoría?', 'a' => 'No. La identificación ciudadana participa en la formación de conocimiento, pero las observaciones importantes pasan por validación.'],
+            ['q' => '¿También se aprende de observaciones erróneas?', 'a' => 'No. Solo entra en actualización el conocimiento que cumple condiciones de organización y validación.'],
+        ],
+    ],
+    'pt-br', 'pt' => [
+        'toc' => 'Field Loop',
+        'title' => 'Field Loop',
+        'lead' => 'Este e o sistema do ikimon.life para transformar observacoes incertas em conhecimento de maior resolucao, etapa por etapa.',
+        'trust' => 'A IA nao decide a resposta final. Ela amplia as hipoteses.',
+        'intro' => 'O ikimon.life prioriza nao perder observacoes e aumentar sua resolucao depois, com validacao e aprendizado, em vez de exigir identificacao perfeita no momento do registro.',
+        'stages' => [
+            ['title' => 'Dados de satelite e observacao de campo', 'body' => 'Ampliam a captura de sinais e reduzem omissoes.'],
+            ['title' => 'FieldScan, guias e notas', 'body' => 'Guardam imagem, lugar, estacao e contexto.'],
+            ['title' => 'IA e identificacao cidada', 'body' => 'Sugerem familia, genero ou especie candidata.'],
+            ['title' => 'Identificacao especializada', 'body' => 'Verifica observacoes importantes e administra o criterio.'],
+            ['title' => 'Material de pesquisa', 'body' => 'Organiza a evidencia para reuso.'],
+            ['title' => 'Atualizacao do conhecimento coletivo', 'body' => 'Melhora guias, pontos de distincao e conhecimento local.'],
+            ['title' => 'Atualizacao de IA', 'body' => 'So devolve ao modelo o conhecimento que passou pelas condicoes de validacao.'],
+        ],
+        'after_loop' => 'Com esse ciclo, cada observacao futura fica mais facil de encontrar, aprender e verificar.',
+        'ladder_title' => 'Escada de evidencia',
+        'ladder_intro' => 'Utilidade e certeza nao sao a mesma coisa. O ikimon.life separa o valor da observacao da forca da evidencia.',
+        'ladder_use_label' => 'Util para',
+        'ladder_not_label' => 'Nao para',
+        'ladder_rows' => [
+            ['label' => 'Familia ou genero', 'use' => 'distribuicao, sazonalidade, entrada de iniciantes, hotspots', 'avoid' => 'confirmacao de especies raras'],
+            ['label' => 'Especie candidata', 'use' => 'aprendizado, observacao adicional, priorizacao de revisao', 'avoid' => 'confirmacao isolada'],
+            ['label' => 'Confirmacao especializada', 'use' => 'confirmacao de observacoes importantes, controle de criterio', 'avoid' => 'confirmacao automatica em massa'],
+            ['label' => 'Material de pesquisa / atualizacao', 'use' => 'atualizacao de guias, modelos e analises', 'avoid' => 'entrada indiscriminada de dados brutos'],
+        ],
+        'roles_title' => 'Quem faz o que',
+        'roles' => [
+            ['title' => 'Observador', 'body' => 'Encontra, registra e transmite contexto.'],
+            ['title' => 'IA', 'body' => 'Ferramenta que sugere candidatos e reduz omissoes.'],
+            ['title' => 'Identificador cidadao', 'body' => 'Traz conhecimento e afunila candidatos.'],
+            ['title' => 'Especialista', 'body' => 'Administra criterios e verifica observacoes importantes.'],
+        ],
+        'coarse_title' => 'Por que familia ou genero ainda tem valor',
+        'coarse_body' => 'Mesmo sem nome de especie, acumular informacao de familia ou genero ja revela mudancas locais, vieses sazonais, sinais anormais e vazios de observacao.',
+        'coarse_points' => [
+            'Aumenta o volume de observacoes',
+            'Reduz a barreira de entrada',
+            'Permite elevar a resolucao depois',
+        ],
+        'coarse_note' => 'Decisoes sensiveis de conservacao e confirmacao de especies raras ficam em niveis de evidencia mais altos.',
+        'faq_title' => 'Pontos que geram mal-entendido',
+        'faq' => [
+            ['q' => 'A IA decide sozinha a resposta correta?', 'a' => 'Nao. A IA apenas sugere candidatos.'],
+            ['q' => 'O nome e decidido por maioria?', 'a' => 'Nao. A identificacao cidada participa da formacao de conhecimento, mas observacoes importantes passam por validacao.'],
+            ['q' => 'Observacoes erradas tambem entram no aprendizado?', 'a' => 'Nao. So entra na atualizacao o conhecimento que cumpre as condicoes de organizacao e validacao.'],
+        ],
+    ],
+    default => [
+        'toc' => 'Field Loop',
+        'title' => 'Field Loop',
+        'lead' => 'This is ikimon.life\'s system for turning uncertain observations into higher-resolution knowledge over time.',
+        'trust' => 'AI does not make the final call. It expands the candidate set.',
+        'intro' => 'ikimon.life prioritizes preserving observations and improving their resolution later through validation and learning, instead of demanding a perfect species name at the moment of capture.',
+        'stages' => [
+            ['title' => 'Satellite data and field observation', 'body' => 'Broaden signal capture and reduce blind spots.'],
+            ['title' => 'FieldScan, guides, and notes', 'body' => 'Preserve image, place, season, and context.'],
+            ['title' => 'AI identification and citizen identification', 'body' => 'Propose family, genus, or species candidates.'],
+            ['title' => 'Expert identification', 'body' => 'Verify important observations and manage the threshold for certainty.'],
+            ['title' => 'Research materialization', 'body' => 'Organize reusable evidence with traceable conditions.'],
+            ['title' => 'Collective knowledge update', 'body' => 'Improve guides, distinction points, and local knowledge.'],
+            ['title' => 'AI update', 'body' => 'Feed back only knowledge that passed validation conditions.'],
+        ],
+        'after_loop' => 'This cycle makes each future observation easier to find, learn from, and verify.',
+        'ladder_title' => 'Evidence Ladder',
+        'ladder_intro' => 'Usefulness and certainty are not the same. ikimon.life separates observation value from evidence strength.',
+        'ladder_use_label' => 'Useful for',
+        'ladder_not_label' => 'Not for',
+        'ladder_rows' => [
+            ['label' => 'Family or genus', 'use' => 'distribution, seasonality, beginner participation, hotspot mapping', 'avoid' => 'rare species confirmation'],
+            ['label' => 'Species candidate', 'use' => 'learning, follow-up observation, review prioritization', 'avoid' => 'standalone confirmation'],
+            ['label' => 'Expert confirmation', 'use' => 'important-record confirmation, threshold management', 'avoid' => 'mass automatic confirmation'],
+            ['label' => 'Research material / update target', 'use' => 'guide updates, model updates, analysis', 'avoid' => 'indiscriminate ingestion of raw data'],
+        ],
+        'roles_title' => 'Who does what',
+        'roles' => [
+            ['title' => 'Observer', 'body' => 'Finds, records, and passes context forward.'],
+            ['title' => 'AI', 'body' => 'A tool that suggests candidates and reduces omissions.'],
+            ['title' => 'Citizen identifier', 'body' => 'Brings knowledge and narrows candidates.'],
+            ['title' => 'Expert', 'body' => 'Manages standards and verifies important observations.'],
+        ],
+        'coarse_title' => 'Why family or genus level still matters',
+        'coarse_body' => 'Even without a species name, accumulating family or genus information can reveal local change, seasonal bias, anomaly signals, and observation gaps.',
+        'coarse_points' => [
+            'It increases observation volume',
+            'It lowers the barrier for beginners',
+            'It keeps the door open for later resolution upgrades',
+        ],
+        'coarse_note' => 'Sensitive conservation decisions and rare-species confirmation are handled at higher evidence tiers.',
+        'faq_title' => 'Common misunderstandings',
+        'faq' => [
+            ['q' => 'Does AI decide the correct answer on its own?', 'a' => 'No. AI identification only proposes candidates.'],
+            ['q' => 'Is the name decided by majority vote?', 'a' => 'No. Citizen identification participates in knowledge formation, but important records still go through validation.'],
+            ['q' => 'Are wrong observations also used for learning?', 'a' => 'No. Only knowledge that meets organization and validation conditions enters the update loop.'],
+        ],
+    ],
+};
 $aboutText = [
     'hero_title' => __('about_page.hero_title', 'Nature connects children and towns.'),
     'hero_sub' => __('about_page.hero_sub', 'The regional revitalization model ikimon.life is aiming for'),
     'toc_label' => __('about_page.toc_label', 'Contents'),
+    'toc_field_loop' => $fieldLoopContent['toc'],
     'toc_origin' => __('about_page.toc_origin', 'Origin story'),
     'toc_regional' => __('about_page.toc_regional', 'Why regional revitalization'),
     'toc_disappearing' => __('about_page.toc_disappearing', 'At-risk municipalities'),
@@ -507,6 +703,156 @@ $formatMultiline = static function (string $text): string {
             flex-shrink: 0;
         }
 
+        /* field loop */
+        .msg-loop-hero {
+            border-radius: 20px;
+            padding: 28px;
+            background:
+                radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 40%),
+                linear-gradient(180deg, rgba(5, 30, 20, 0.96), rgba(7, 16, 12, 0.98));
+            color: #e5e7eb;
+            border: 1px solid rgba(16, 185, 129, 0.18);
+            margin-bottom: 24px;
+        }
+        .msg-loop-hero h2 {
+            color: #ffffff;
+            margin-bottom: 12px;
+        }
+        .msg-loop-lead {
+            font-size: 1rem;
+            line-height: 1.9;
+            color: rgba(255, 255, 255, 0.82);
+            margin-bottom: 16px;
+        }
+        .msg-loop-trust {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.14);
+            color: #d1fae5;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+        .msg-loop-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 14px;
+            margin: 28px 0 20px;
+        }
+        .msg-loop-card,
+        .msg-role-card,
+        .msg-ladder-row,
+        .msg-faq-item {
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 16px;
+            background: var(--md-surface-container);
+        }
+        .msg-loop-card {
+            padding: 18px;
+        }
+        .msg-loop-step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--md-primary);
+            font-size: 0.8125rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        .msg-loop-card-title,
+        .msg-role-title,
+        .msg-ladder-label,
+        .msg-faq-question {
+            font-weight: 700;
+            color: var(--md-on-surface);
+            line-height: 1.6;
+        }
+        .msg-loop-card-title {
+            margin-bottom: 8px;
+        }
+        .msg-loop-card-body,
+        .msg-role-body,
+        .msg-ladder-copy,
+        .msg-faq-answer {
+            font-size: 0.9375rem;
+            color: var(--md-on-surface-variant);
+            line-height: 1.8;
+        }
+        .msg-loop-after {
+            margin-top: 16px;
+            font-size: 0.9375rem;
+            line-height: 1.8;
+            color: var(--md-on-surface);
+        }
+        .msg-subsection-title {
+            font-family: 'Shippori Mincho', serif;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--md-on-surface);
+            margin: 40px 0 14px;
+            line-height: 1.5;
+        }
+        .msg-ladder {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .msg-ladder-row {
+            padding: 18px;
+        }
+        .msg-ladder-meta {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .msg-ladder-copy strong {
+            color: var(--md-on-surface);
+        }
+        .msg-role-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .msg-role-card,
+        .msg-faq-item {
+            padding: 18px;
+        }
+        .msg-coarse-points {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 18px 0 12px;
+        }
+        .msg-coarse-point {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.09);
+            color: var(--md-on-surface);
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .msg-faq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .msg-faq-question {
+            margin-bottom: 8px;
+        }
+
         /* ── responsive ── */
         @media (min-width: 640px) {
             .msg-hero {
@@ -522,6 +868,13 @@ $formatMultiline = static function (string $text): string {
             .msg-cta-buttons .btn-primary,
             .msg-cta-buttons .btn-secondary {
                 flex: 1;
+            }
+            .msg-loop-grid,
+            .msg-role-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .msg-ladder-meta {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
     </style>
@@ -549,6 +902,7 @@ $formatMultiline = static function (string $text): string {
             <div style="background:var(--md-surface-container);border-radius:16px;padding:24px 28px;">
                 <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--md-on-surface-variant);margin-bottom:14px;"><?= htmlspecialchars($aboutText['toc_label']) ?></p>
                 <ol style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;font-size:0.9375rem;">
+                    <li><a href="#field-loop" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_field_loop']) ?></a></li>
                     <li><a href="#origin" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_origin']) ?></a></li>
                     <li><a href="#regional" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_regional']) ?></a></li>
                     <li><a href="#disappearing" style="color:var(--md-primary);text-decoration:none;"><?= htmlspecialchars($aboutText['toc_disappearing']) ?></a></li>
@@ -559,7 +913,84 @@ $formatMultiline = static function (string $text): string {
     </nav>
 
     <!-- ============================================
-         Section 2: 原体験 — 岩内の記憶
+         Section 2: Field Loop
+         ============================================ -->
+    <section id="field-loop" class="msg-section" style="scroll-margin-top:80px;">
+        <div class="msg-section-inner">
+
+            <div class="msg-loop-hero">
+                <h2><?= htmlspecialchars($fieldLoopContent['title']) ?></h2>
+                <p class="msg-loop-lead"><?= htmlspecialchars($fieldLoopContent['lead']) ?></p>
+                <p class="msg-loop-lead" style="margin-bottom:18px;"><?= htmlspecialchars($fieldLoopContent['intro']) ?></p>
+                <span class="msg-loop-trust"><?= htmlspecialchars($fieldLoopContent['trust']) ?></span>
+            </div>
+
+            <div class="msg-loop-grid">
+                <?php foreach ($fieldLoopContent['stages'] as $index => $stage): ?>
+                <article class="msg-loop-card">
+                    <span class="msg-loop-step"><?= $index + 1 ?></span>
+                    <p class="msg-loop-card-title"><?= htmlspecialchars($stage['title']) ?></p>
+                    <p class="msg-loop-card-body"><?= htmlspecialchars($stage['body']) ?></p>
+                </article>
+                <?php endforeach; ?>
+            </div>
+
+            <p class="msg-loop-after"><?= htmlspecialchars($fieldLoopContent['after_loop']) ?></p>
+
+            <h3 class="msg-subsection-title"><?= htmlspecialchars($fieldLoopContent['ladder_title']) ?></h3>
+            <div class="msg-body">
+                <p><?= htmlspecialchars($fieldLoopContent['ladder_intro']) ?></p>
+            </div>
+            <div class="msg-ladder">
+                <?php foreach ($fieldLoopContent['ladder_rows'] as $row): ?>
+                <article class="msg-ladder-row">
+                    <p class="msg-ladder-label"><?= htmlspecialchars($row['label']) ?></p>
+                    <div class="msg-ladder-meta">
+                        <p class="msg-ladder-copy"><strong><?= htmlspecialchars($fieldLoopContent['ladder_use_label']) ?>:</strong> <?= htmlspecialchars($row['use']) ?></p>
+                        <p class="msg-ladder-copy"><strong><?= htmlspecialchars($fieldLoopContent['ladder_not_label']) ?>:</strong> <?= htmlspecialchars($row['avoid']) ?></p>
+                    </div>
+                </article>
+                <?php endforeach; ?>
+            </div>
+
+            <h3 class="msg-subsection-title"><?= htmlspecialchars($fieldLoopContent['roles_title']) ?></h3>
+            <div class="msg-role-grid">
+                <?php foreach ($fieldLoopContent['roles'] as $role): ?>
+                <article class="msg-role-card">
+                    <p class="msg-role-title"><?= htmlspecialchars($role['title']) ?></p>
+                    <p class="msg-role-body"><?= htmlspecialchars($role['body']) ?></p>
+                </article>
+                <?php endforeach; ?>
+            </div>
+
+            <h3 class="msg-subsection-title"><?= htmlspecialchars($fieldLoopContent['coarse_title']) ?></h3>
+            <div class="msg-body">
+                <p><?= htmlspecialchars($fieldLoopContent['coarse_body']) ?></p>
+            </div>
+            <div class="msg-coarse-points">
+                <?php foreach ($fieldLoopContent['coarse_points'] as $point): ?>
+                <span class="msg-coarse-point"><?= htmlspecialchars($point) ?></span>
+                <?php endforeach; ?>
+            </div>
+            <div class="msg-body">
+                <p><?= htmlspecialchars($fieldLoopContent['coarse_note']) ?></p>
+            </div>
+
+            <h3 class="msg-subsection-title"><?= htmlspecialchars($fieldLoopContent['faq_title']) ?></h3>
+            <div class="msg-faq-list">
+                <?php foreach ($fieldLoopContent['faq'] as $item): ?>
+                <article class="msg-faq-item">
+                    <p class="msg-faq-question"><?= htmlspecialchars($item['q']) ?></p>
+                    <p class="msg-faq-answer"><?= htmlspecialchars($item['a']) ?></p>
+                </article>
+                <?php endforeach; ?>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============================================
+         Section 3: 原体験 — 岩内の記憶
          ============================================ -->
     <section id="origin" class="msg-section" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
@@ -760,6 +1191,8 @@ $formatMultiline = static function (string $text): string {
                 <p><?= $formatMultiline($paragraph) ?></p>
                 <?php endforeach; ?>
             </div>
+
+            <p class="msg-accent"><?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
 
             <div class="msg-plans">
                 <?php foreach ($supportPlans as $index => $plan): ?>

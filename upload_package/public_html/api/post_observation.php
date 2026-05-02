@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../libs/GeoUtils.php';
 require_once __DIR__ . '/../../libs/SurveyorManager.php';
 require_once __DIR__ . '/../../libs/CanonicalObservationWriter.php';
 require_once __DIR__ . '/../../libs/CloudflareStream.php';
+require_once __DIR__ . '/../../libs/ThumbnailGenerator.php';
 
 // FB-12: Apply post-specific rate limiting (10 posts / 5 min)
 RateLimiter::check();
@@ -255,12 +256,21 @@ function buildPhotoMediaAssets(array $photos): array
             'media_type' => 'photo',
             'asset_role' => 'observation_photo',
             'media_path' => $photoPath,
-            'thumbnail_url' => $photoPath,
+            'thumbnail_url' => resolvePhotoThumbnailPath($photoPath, 'sm'),
             'upload_status' => 'ready',
             'source' => 'post_upload',
         ];
     }
     return $assets;
+}
+
+function resolvePhotoThumbnailPath(string $photoPath, string $suffix = 'sm'): string
+{
+    if (preg_match('#^(https?:)?//#i', $photoPath)) {
+        return $photoPath;
+    }
+
+    return ThumbnailGenerator::resolve($photoPath, $suffix);
 }
 
 function buildVideoAssetFromRequest(string $observationId, array $post, string $actorId, string $observationDir): ?array
@@ -518,6 +528,14 @@ if (empty($photos) && $videoAsset && empty($videoAsset['poster_path']) && !empty
     $photos[] = $videoAsset['thumbnail_url'];
 }
 
+$localPhotosForThumbs = array_values(array_filter(
+    $photos,
+    static fn($path) => is_string($path) && $path !== '' && !preg_match('#^(https?:)?//#i', $path)
+));
+if ($localPhotosForThumbs !== []) {
+    ThumbnailGenerator::generateForObservation(['photos' => $localPhotosForThumbs]);
+}
+
 if (empty($photos) && $videoAsset === null && $recordMode !== 'surveyor_official') {
     if (!isLightweightSubmission($_POST, $photos, $recordMode)) {
         respond(false, '写真がアップロードされていません');
@@ -658,7 +676,7 @@ $observation = [
     ],
     // NP: GPS coordinate accuracy in meters (for DwC coordinateUncertaintyInMeters)
     'coordinate_accuracy' => !empty($_POST['coordinate_accuracy']) ? (int)$_POST['coordinate_accuracy'] : null,
-    'location_granularity' => in_array($_POST['location_granularity'] ?? 'exact', ['exact', 'municipality', 'prefecture', 'hidden']) ? ($_POST['location_granularity'] ?? 'exact') : 'exact',
+    'location_granularity' => in_array($_POST['location_granularity'] ?? 'municipality', ['exact', 'municipality', 'prefecture', 'hidden']) ? ($_POST['location_granularity'] ?? 'municipality') : 'municipality',
 ];
 
 if ($videoAsset !== null) {
@@ -785,14 +803,15 @@ if (!empty($_POST['taxon_name'])) {
 
 // Save to DataStore (partition by creation month, not observed_at)
 if (DataStore::append('observations', $observation)) {
+    $canonicalDualWriteEnabled = defined('CANONICAL_DUAL_WRITE_ENABLED') && CANONICAL_DUAL_WRITE_ENABLED;
     $canonicalWrite = [
         'success' => false,
-        'skipped' => !CANONICAL_DUAL_WRITE_ENABLED,
+        'skipped' => !$canonicalDualWriteEnabled,
         'event_id' => null,
         'occurrence_id' => null,
         'error' => null,
     ];
-    if (CANONICAL_DUAL_WRITE_ENABLED) {
+    if ($canonicalDualWriteEnabled) {
         try {
             $canonicalResult = CanonicalObservationWriter::writeFromObservation($observation);
             $canonicalWrite['success'] = true;

@@ -5,13 +5,17 @@ import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { canonicalizeSpeciesFeatures, canonicalizeTaxonList } from "./guideRecordInsights.js";
 import type { TtsLang } from "./guideTts.js";
+
+export type GuideMode = "walk" | "vehicle";
 
 export type SceneContext = {
   lat: number;
   lng: number;
   lang: TtsLang;
   sessionId: string;
+  guideMode?: GuideMode;
   userId?: string | null;
   siteBriefLabel?: string | null;
   siteBriefSignals?: Record<string, unknown> | null;
@@ -20,6 +24,13 @@ export type SceneContext = {
   capturedAt?: string | null;
   /** EXIF 方位角（0-360、北=0）。 */
   azimuth?: number | null;
+};
+
+export type GuideSceneSaveRecommendation = {
+  decision: "save" | "skip";
+  confidence?: number;
+  reasonCodes?: string[];
+  note?: string;
 };
 
 export type DetectedFeature = {
@@ -43,6 +54,7 @@ export type SceneResult = {
   environmentContext?: string;
   seasonalNote?: string;
   coexistingTaxa?: string[];
+  saveRecommendation?: GuideSceneSaveRecommendation;
   isNew: boolean;
   sceneHash: string;
 };
@@ -70,16 +82,114 @@ function renderPrompt(vars: Record<string, string>): string {
   return out;
 }
 
+function normalizeGuideMode(raw: unknown): GuideMode {
+  return raw === "vehicle" ? "vehicle" : "walk";
+}
+
+function hasCommercialOrVehicleContext(value: string): boolean {
+  return /看板|標識|ロゴ|文字|店舗|販売店|車|自動車|バイク|道路|ナンバー|メーカー|ブランド|ディーラー|ショールーム|Suzuki|SUZUKI|Honda|Toyota|Nissan|Mazda|Daihatsu|Subaru|Mitsubishi|Yamaha/i.test(value);
+}
+
+function isLikelyNonBiologicalSpeciesName(name: string, contextText: string): boolean {
+  const normalized = name.trim();
+  if (!normalized) return true;
+  const brandLike = /^(スズキ|SUZUKI|Suzuki|ホンダ|HONDA|Honda|トヨタ|TOYOTA|Toyota|日産|NISSAN|Nissan|マツダ|MAZDA|Mazda|ダイハツ|Daihatsu|スバル|Subaru|三菱|Mitsubishi|ヤマハ|Yamaha)$/i.test(normalized);
+  if (brandLike && hasCommercialOrVehicleContext(contextText)) return true;
+  if (/看板|標識|ロゴ|文字|車両|自動車|店舗|道路/.test(normalized)) return true;
+  return false;
+}
+
+export function sanitizeGuideSceneResult(parsed: {
+  summary?: string;
+  detectedSpecies?: string[];
+  detectedFeatures?: DetectedFeature[];
+  primarySubject?: PrimarySubject;
+  environmentContext?: string;
+  seasonalNote?: string;
+  coexistingTaxa?: string[];
+}, guideMode: GuideMode): {
+  summary: string;
+  detectedSpecies: string[];
+  detectedFeatures: DetectedFeature[];
+  primarySubject?: PrimarySubject;
+  environmentContext?: string;
+  seasonalNote?: string;
+  coexistingTaxa?: string[];
+} {
+  const rawFeatures = Array.isArray(parsed.detectedFeatures) ? parsed.detectedFeatures : [];
+  const contextText = [
+    parsed.summary,
+    parsed.environmentContext,
+    parsed.seasonalNote,
+    ...rawFeatures.map((feature) => `${feature.name} ${feature.note ?? ""}`),
+  ].filter(Boolean).join(" ");
+  const detectedFeatures = rawFeatures
+    .filter((feature) => feature && typeof feature.name === "string" && feature.name.trim())
+    .map((feature) => {
+      const featureContext = `${feature.name} ${feature.note ?? ""} ${contextText}`;
+      if (feature.type === "species" && isLikelyNonBiologicalSpeciesName(feature.name, featureContext)) {
+        return { ...feature, type: "structure" as const, note: feature.note ?? "看板・文字・車両などの人工物として扱います" };
+      }
+      return feature;
+    });
+  const speciesFromFeatures = detectedFeatures
+    .filter((feature) => feature.type === "species" && (feature.confidence ?? 0) >= (guideMode === "vehicle" ? 0.72 : 0.55))
+    .map((feature) => feature.name.trim())
+    .filter((name) => !isLikelyNonBiologicalSpeciesName(name, contextText));
+  const speciesFromModel = Array.isArray(parsed.detectedSpecies) ? parsed.detectedSpecies : [];
+  const detectedSpecies = Array.from(new Set([...speciesFromFeatures, ...speciesFromModel]
+    .map((name) => String(name).trim())
+    .filter((name) => name && !isLikelyNonBiologicalSpeciesName(name, contextText))))
+    .slice(0, guideMode === "vehicle" ? 2 : 6);
+  const primarySubject = parsed.primarySubject &&
+    typeof parsed.primarySubject.name === "string" &&
+    detectedSpecies.includes(parsed.primarySubject.name) &&
+    parsed.primarySubject.confidence >= (guideMode === "vehicle" ? 0.72 : 0.5)
+      ? parsed.primarySubject
+      : undefined;
+  const vegetationOrContext = detectedFeatures.some((feature) => feature.type === "vegetation" || feature.type === "landform" || feature.type === "structure");
+  const summary = typeof parsed.summary === "string" && parsed.summary.trim()
+    ? parsed.summary
+    : vegetationOrContext
+      ? "植生・土地利用・水辺や道路際の状態を手がかりとして記録します。"
+      : "";
+  const coexistingTaxa = Array.isArray(parsed.coexistingTaxa)
+    ? parsed.coexistingTaxa.map(String).filter((name) => !isLikelyNonBiologicalSpeciesName(name, contextText)).slice(0, 8)
+    : undefined;
+  return {
+    summary,
+    detectedSpecies,
+    detectedFeatures,
+    primarySubject,
+    environmentContext: typeof parsed.environmentContext === "string" ? parsed.environmentContext : undefined,
+    seasonalNote: typeof parsed.seasonalNote === "string" ? parsed.seasonalNote : undefined,
+    coexistingTaxa,
+  };
+}
+
 export type GuideRecordInput = {
   sessionId: string;
   userId?: string | null;
   occurrenceId?: string | null;
   lat: number;
   lng: number;
+  capturedAt?: string | null;
+  returnedAt?: string | null;
+  currentDistanceM?: number | null;
+  deliveryState?: "pending" | "ready" | "surfaced" | "deferred" | "archived";
+  seenState?: "unseen" | "seen" | "dismissed" | "saved";
+  frameThumb?: string | null;
   sceneHash: string;
   sceneSummary: string;
   detectedSpecies: string[];
   detectedFeatures: DetectedFeature[];
+  primarySubject?: PrimarySubject | null;
+  environmentContext?: string | null;
+  seasonalNote?: string | null;
+  coexistingTaxa?: string[] | null;
+  confidenceContext?: Record<string, unknown> | null;
+  mediaRefs?: Record<string, unknown> | null;
+  meta?: Record<string, unknown> | null;
   ttsScript?: string | null;
   lang: TtsLang;
 };
@@ -171,6 +281,7 @@ export async function analyzeScene(opts: {
   }
 
   const season = opts.context.season ?? guessSeason(opts.context.capturedAt);
+  const guideMode = normalizeGuideMode(opts.context.guideMode);
   const prompt = renderPrompt({
     lat: opts.context.lat.toFixed(5),
     lng: opts.context.lng.toFixed(5),
@@ -178,6 +289,10 @@ export async function analyzeScene(opts: {
     azimuth: opts.context.azimuth != null ? `${opts.context.azimuth.toFixed(0)}°` : "不明",
     season,
     siteBriefLabel: opts.context.siteBriefLabel ?? "不明",
+    guideMode: guideMode === "vehicle" ? "車・自転車などの移動中モード" : "徒歩・立ち止まり観察モード",
+    guideModeRules: guideMode === "vehicle"
+      ? "移動中なので種同定を主目的にしない。車窓から確実に読める植生帯、街路樹、草刈り、農地、水路、林縁、道路際、土地利用の変化を優先する。看板・ロゴ・車名・店舗名を生きものとして扱わない。種名は画像上で生物個体が明確な場合だけ返す。"
+      : "徒歩観察でも、種名だけに寄せず、植生・土地被覆・管理痕跡・水辺・林縁を同じ重さで扱う。看板・ロゴ・車名・店舗名を生きものとして扱わない。",
   });
 
   parts.push({ text: prompt });
@@ -214,6 +329,7 @@ export async function analyzeScene(opts: {
     environmentContext?: string;
     seasonalNote?: string;
     coexistingTaxa?: string[];
+    saveRecommendation?: GuideSceneSaveRecommendation;
   } = {};
   try {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
@@ -222,13 +338,18 @@ export async function analyzeScene(opts: {
     parsed = {};
   }
 
-  const summary = parsed.summary ?? rawText.slice(0, 120);
-  const detectedSpecies = Array.isArray(parsed.detectedSpecies) ? parsed.detectedSpecies : [];
-  const detectedFeatures = Array.isArray(parsed.detectedFeatures) ? parsed.detectedFeatures : [];
-  const primarySubject = parsed.primarySubject && typeof parsed.primarySubject.name === "string" ? parsed.primarySubject : undefined;
-  const environmentContext = typeof parsed.environmentContext === "string" ? parsed.environmentContext : undefined;
-  const seasonalNote = typeof parsed.seasonalNote === "string" ? parsed.seasonalNote : undefined;
-  const coexistingTaxa = Array.isArray(parsed.coexistingTaxa) ? parsed.coexistingTaxa : undefined;
+  const sanitized = sanitizeGuideSceneResult({
+    ...parsed,
+    summary: parsed.summary ?? rawText.slice(0, 120),
+  }, guideMode);
+  const summary = sanitized.summary;
+  const detectedSpecies = sanitized.detectedSpecies;
+  const detectedFeatures = sanitized.detectedFeatures;
+  const primarySubject = sanitized.primarySubject;
+  const environmentContext = sanitized.environmentContext;
+  const seasonalNote = sanitized.seasonalNote;
+  const coexistingTaxa = sanitized.coexistingTaxa;
+  const saveRecommendation = normalizeSaveRecommendation(parsed.saveRecommendation);
 
   const sceneHash = createHash("sha256")
     .update(detectedSpecies.sort().join(",") + detectedFeatures.map((f) => f.name).sort().join(","))
@@ -245,8 +366,25 @@ export async function analyzeScene(opts: {
     environmentContext,
     seasonalNote,
     coexistingTaxa,
+    saveRecommendation,
     isNew,
     sceneHash,
+  };
+}
+
+function normalizeSaveRecommendation(raw: unknown): GuideSceneSaveRecommendation | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const value = raw as Record<string, unknown>;
+  const decision = value.decision === "save" || value.decision === "skip" ? value.decision : null;
+  if (!decision) return undefined;
+  const confidence = Number(value.confidence);
+  return {
+    decision,
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : undefined,
+    reasonCodes: Array.isArray(value.reasonCodes)
+      ? value.reasonCodes.filter((item): item is string => typeof item === "string").slice(0, 8)
+      : undefined,
+    note: typeof value.note === "string" ? value.note.slice(0, 160) : undefined,
   };
 }
 
@@ -255,6 +393,16 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
   const pool = getPool();
   const client = await pool.connect();
   try {
+    const canonicalTaxa = canonicalizeTaxonList(input.detectedSpecies);
+    const detectedSpecies = canonicalTaxa.map((item) => item.canonicalName);
+    const detectedFeatures = canonicalizeSpeciesFeatures(input.detectedFeatures) as DetectedFeature[];
+    const meta = {
+      ...(input.meta ?? {}),
+      guideTaxonCanonicalization: {
+        rawSpecies: input.detectedSpecies,
+        canonicalSpecies: canonicalTaxa,
+      },
+    };
     const result = await client.query<{ guide_record_id: string }>(
       `insert into guide_records
          (session_id, user_id, occurrence_id, lat, lng, scene_hash, scene_summary,
@@ -269,13 +417,55 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
         input.lng,
         input.sceneHash,
         input.sceneSummary,
-        JSON.stringify(input.detectedSpecies),
-        JSON.stringify(input.detectedFeatures),
+        detectedSpecies,
+        JSON.stringify(detectedFeatures),
         input.ttsScript ?? null,
         input.lang,
       ],
     );
-    return result.rows[0]?.guide_record_id ?? "";
+    const guideRecordId = result.rows[0]?.guide_record_id ?? "";
+
+    if (guideRecordId) {
+      await client.query(
+        `insert into guide_record_latency_states
+           (guide_record_id, captured_at, returned_at, current_distance_m, delivery_state, seen_state,
+            frame_thumb, primary_subject, environment_context, seasonal_note, coexisting_taxa,
+            confidence_context, media_refs, meta)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12::jsonb, $13::jsonb, $14::jsonb)
+         on conflict (guide_record_id) do update set
+           captured_at = excluded.captured_at,
+           returned_at = excluded.returned_at,
+           current_distance_m = excluded.current_distance_m,
+           delivery_state = excluded.delivery_state,
+           seen_state = excluded.seen_state,
+           frame_thumb = excluded.frame_thumb,
+           primary_subject = excluded.primary_subject,
+           environment_context = excluded.environment_context,
+           seasonal_note = excluded.seasonal_note,
+           coexisting_taxa = excluded.coexisting_taxa,
+           confidence_context = excluded.confidence_context,
+           media_refs = excluded.media_refs,
+           meta = excluded.meta`,
+        [
+          guideRecordId,
+          input.capturedAt ?? null,
+          input.returnedAt ?? null,
+          input.currentDistanceM ?? null,
+          input.deliveryState ?? "ready",
+          input.seenState ?? "unseen",
+          input.frameThumb ?? null,
+          JSON.stringify(input.primarySubject ?? {}),
+          input.environmentContext ?? null,
+          input.seasonalNote ?? null,
+          input.coexistingTaxa ?? [],
+          JSON.stringify(input.confidenceContext ?? {}),
+          JSON.stringify(input.mediaRefs ?? {}),
+          JSON.stringify(meta),
+        ],
+      );
+    }
+
+    return guideRecordId;
   } finally {
     client.release();
   }

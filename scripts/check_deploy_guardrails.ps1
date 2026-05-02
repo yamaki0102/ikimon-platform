@@ -13,6 +13,43 @@ if (-not (Test-Path $manifestFullPath)) {
 
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
 
+function Get-ManifestPatterns {
+    param(
+        [object]$Manifest,
+        [string]$RepoRoot
+    )
+
+    $patterns = New-Object System.Collections.Generic.List[string]
+
+    if ($Manifest.runtimePersistentAllowlistPath) {
+        $allowlistPath = if ([System.IO.Path]::IsPathRooted($Manifest.runtimePersistentAllowlistPath)) {
+            $Manifest.runtimePersistentAllowlistPath
+        } else {
+            Join-Path $RepoRoot $Manifest.runtimePersistentAllowlistPath
+        }
+
+        if (-not (Test-Path $allowlistPath)) {
+            throw "Runtime persistent allowlist not found: $allowlistPath"
+        }
+
+        foreach ($line in Get-Content -Path $allowlistPath) {
+            $trimmed = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) {
+                continue
+            }
+            $patterns.Add($trimmed)
+        }
+    }
+
+    foreach ($pattern in @($Manifest.persistentPaths)) {
+        if (-not [string]::IsNullOrWhiteSpace($pattern) -and -not $patterns.Contains($pattern)) {
+            $patterns.Add($pattern)
+        }
+    }
+
+    return @($patterns)
+}
+
 function Test-MatchAnyPattern {
     param(
         [string]$Path,
@@ -61,7 +98,8 @@ foreach ($line in $statusLines) {
 
 $forbiddenTracked = @($trackedFiles | Where-Object { Test-MatchAnyPattern -Path $_ -Patterns $manifest.forbiddenPaths })
 $forbiddenChanged = @($changedFiles | Where-Object { Test-MatchAnyPattern -Path $_ -Patterns $manifest.forbiddenPaths })
-$persistentChanged = @($changedFiles | Where-Object { Test-MatchAnyPattern -Path $_ -Patterns $manifest.persistentPaths })
+$persistentPatterns = Get-ManifestPatterns -Manifest $manifest -RepoRoot $repoRoot
+$persistentChanged = @($changedFiles | Where-Object { Test-MatchAnyPattern -Path $_ -Patterns $persistentPatterns })
 
 $issues = New-Object System.Collections.Generic.List[string]
 

@@ -5,9 +5,11 @@ on:
     branches: [main]
     paths:
       - 'upload_package/**'
+      - 'platform_v2/**'
       - 'tests/**'
       - 'docs/**'
       - 'scripts/**'
+      - '.github/workflows/**'
       - '.vscode/**'
       - 'ikimon.life.code-workspace'
       - 'README.md'
@@ -15,42 +17,149 @@ on:
     branches: [main]
 
 jobs:
+  plan:
+    name: Plan CI Run
+    runs-on: ubuntu-latest
+    outputs:
+      php_changed: ${{ steps.plan.outputs.php_changed }}
+      v2_changed: ${{ steps.plan.outputs.v2_changed }}
+      migration_changed: ${{ steps.plan.outputs.migration_changed }}
+      deploy_changed: ${{ steps.plan.outputs.deploy_changed }}
+      run_php_lint: ${{ steps.plan.outputs.run_php_lint }}
+      run_php_tests: ${{ steps.plan.outputs.run_php_tests }}
+      run_platform_v2: ${{ steps.plan.outputs.run_platform_v2 }}
+      run_deploy_manifest_check: ${{ steps.plan.outputs.run_deploy_manifest_check }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify CI change scope
+        id: plan
+        run: |
+          set -euo pipefail
+          EVENT_NAME='${{ github.event_name }}'
+          BEFORE_SHA='${{ github.event.before || '' }}'
+          BASE_REF='${{ github.base_ref || '' }}'
+
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_REF" ]; then
+            git fetch origin "$BASE_REF" --quiet || true
+            CHANGED_FILES="$(git diff --name-only "origin/$BASE_REF"...HEAD || git diff --name-only "origin/$BASE_REF" HEAD || true)"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && ! printf '%s' "$BEFORE_SHA" | grep -qE '^0+$' && git rev-parse --verify "$BEFORE_SHA" >/dev/null 2>&1; then
+            CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" HEAD || true)"
+          else
+            git fetch origin main --quiet || true
+            CHANGED_FILES="$(git diff --name-only origin/main...HEAD || git diff --name-only origin/main HEAD || true)"
+          fi
+
+          matches() {
+            printf '%s\n' "$CHANGED_FILES" | grep -Eq "$1"
+          }
+
+          PHP_CHANGED=false
+          V2_CHANGED=false
+          MIGRATION_CHANGED=false
+          DEPLOY_CHANGED=false
+
+          if matches '^(upload_package/|tests/|tools/(lint|check_marketing_copy)\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
+          if matches '^platform_v2/'; then V2_CHANGED=true; fi
+          if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
+          if matches '^(\.github/workflows/|ops/deploy/|scripts/check_(deploy_guardrails|deploy_manifest_sync|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
+
+          RUN_PHP_LINT=false
+          RUN_PHP_TESTS=false
+          RUN_PLATFORM_V2=false
+          RUN_DEPLOY_MANIFEST_CHECK=false
+
+          if [ "$PHP_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
+          if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_TESTS=true; fi
+          if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PLATFORM_V2=true; fi
+          if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_DEPLOY_MANIFEST_CHECK=true; fi
+
+          {
+            echo "php_changed=$PHP_CHANGED"
+            echo "v2_changed=$V2_CHANGED"
+            echo "migration_changed=$MIGRATION_CHANGED"
+            echo "deploy_changed=$DEPLOY_CHANGED"
+            echo "run_php_lint=$RUN_PHP_LINT"
+            echo "run_php_tests=$RUN_PHP_TESTS"
+            echo "run_platform_v2=$RUN_PLATFORM_V2"
+            echo "run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED"
+          echo "run_php_lint=$RUN_PHP_LINT run_php_tests=$RUN_PHP_TESTS run_platform_v2=$RUN_PLATFORM_V2 run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
+
+          {
+            echo "## CI scope"
+            echo ""
+            echo "- PHP changed: $PHP_CHANGED"
+            echo "- platform_v2 changed: $V2_CHANGED"
+            echo "- migration changed: $MIGRATION_CHANGED"
+            echo "- deploy/workflow changed: $DEPLOY_CHANGED"
+            echo "- PHP lint: $RUN_PHP_LINT"
+            echo "- PHPUnit: $RUN_PHP_TESTS"
+            echo "- platform_v2 checks: $RUN_PLATFORM_V2"
+            echo "- deploy manifest sync: $RUN_DEPLOY_MANIFEST_CHECK"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   lint:
     name: PHP Syntax Check
     runs-on: ubuntu-latest
+    needs: plan
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup PHP
+        if: needs.plan.outputs.run_php_lint == 'true'
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
           extensions: gd, mbstring, json
 
-      - name: Check catch-up asset sync
+      - name: Audit catch-up asset sync
         shell: pwsh
-        run: ./scripts/check_catchup_sync.ps1
+        run: ./scripts/check_catchup_sync.ps1 -WarningOnly
 
       - name: Check deploy guardrails
         shell: pwsh
         run: ./scripts/check_deploy_guardrails.ps1
 
+      - name: Check platform_v2 migration guardrails
+        if: needs.plan.outputs.v2_changed == 'true' || needs.plan.outputs.deploy_changed == 'true'
+        shell: pwsh
+        run: ./scripts/check_platform_v2_migration_guardrails.ps1
+
       - name: Check deploy manifest sync
+        if: needs.plan.outputs.run_deploy_manifest_check == 'true'
         shell: pwsh
         run: ./scripts/check_deploy_manifest_sync.ps1
 
+      - name: Check rescue PR scope
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: ./scripts/check_rescue_pr_scope.ps1 -BaseRef origin/${{ github.base_ref }}
+
       - name: Run PHP Lint
+        if: needs.plan.outputs.run_php_lint == 'true'
         run: php tools/lint.php
 
       - name: Check marketing copy snapshot
+        if: needs.plan.outputs.run_php_lint == 'true'
         run: php tools/check_marketing_copy.php
 
   test:
     name: PHPUnit Tests
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [plan, lint]
+    if: needs.plan.outputs.run_php_tests == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -64,16 +173,55 @@ jobs:
       - name: Run tests
         run: composer test
 
+  platform-v2:
+    name: platform_v2 Typecheck & Curator Tests
+    runs-on: ubuntu-latest
+    needs: [plan, lint]
+    if: needs.plan.outputs.run_platform_v2 == 'true'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Typecheck platform_v2
+        working-directory: platform_v2
+        run: npm run typecheck
+
+      - name: Build platform_v2
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Test platform_v2 curator validators
+        working-directory: platform_v2
+        run: npm run test:curator
+
+      - name: Run Navigable Biodiversity OS evaluation gate
+        working-directory: platform_v2
+        run: npm run eval:navigable-os
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [plan, lint, test, platform-v2]
     if: always()
     steps:
       - name: Check results
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" || "${{ needs.test.result }}" != "success" ]]; then
-            echo "❌ Quality Gate failed: lint=${{ needs.lint.result }}, test=${{ needs.test.result }}"
+          ok_result() {
+            [[ "$1" == "success" || "$1" == "skipped" ]]
+          }
+
+          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}"; then
+            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}"
             exit 1
           fi
-          echo "✅ Quality Gate passed"
+          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}"

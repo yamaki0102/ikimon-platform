@@ -1,0 +1,120 @@
+{
+  "landing": {
+    "title": "ikimon — ENJOY NATURE | A natureza próxima fica mais divertida",
+    "heroEyebrow": "ENJOY NATURE",
+    "heroHeadingPlain": "A caminhada de sempre vira uma aventura.",
+    "heroHeadingLine1": "A caminhada de sempre",
+    "heroHeadingEmphasis": "vira uma aventura.",
+    "heroLead": "Caminhe, encontre algo e guarde com o lugar. Quando nomes e diferenças ficam um pouco mais claros, dá vontade de caminhar de novo.",
+    "heroPromiseChips": [
+      "A natureza próxima fica mais nítida",
+      "Dá vontade de caminhar de novo",
+      "Cada lugar ganha memória"
+    ],
+    "heroDailyLabel": "Campo de hoje",
+    "heroLatestLabel": "Registro recente",
+    "heroStatsLabel": "Caderno crescendo",
+    "heroPhotoFallback": "Entrada de natureza de hoje",
+    "heroReasonLabels": {
+      "seasonal": "Sinal da estação",
+      "nearby": "Sinal local",
+      "vividPhoto": "Foto clara",
+      "supported": "Fácil de revisar",
+      "fresh": "Achado recente"
+    },
+    "dailyDashboard": {
+      "eyebrow": "Passo de hoje",
+      "title": "Escolha um motivo para sair",
+      "lead": "Registrar, revisitar ou olhar por perto. A página inicial fica focada em curtir a natureza de hoje.",
+      "scoreLabel": "Escolha de hoje",
+      "seasonalTitle": "Pistas da estação",
+      "seasonalEmpty": "As pistas da estação ainda estão sendo reunidas",
+      "cards": {
+        "recordToday": {
+          "eyebrow": "Registrar",
+          "title": "Guardar o achado de hoje",
+          "body": "Guarde o que encontrou com uma foto e uma nota curta.",
+          "cta": "Registrar",
+          "metricLabel": "hoje"
+        },
+        "revisitPlace": {
+          "eyebrow": "Revisitar",
+          "title": "Voltar a um lugar onde você caminhou",
+          "body": "O mesmo lugar muda quando a estação se move.",
+          "cta": "Abrir caderno",
+          "metricLabel": "visitas"
+        },
+        "nearbyPulse": {
+          "eyebrow": "Perto",
+          "title": "Ver onde os registros próximos estão se movendo",
+          "body": "Use áreas ativas como motivo para a próxima caminhada.",
+          "cta": "Abrir mapa",
+          "metricLabel": "registros"
+        },
+        "needsId": {
+          "eyebrow": "Revisar",
+          "title": "Abrir um registro que precisa de nome",
+          "body": "Transforme uma dúvida na próxima descoberta.",
+          "cta": "Abrir registro",
+          "metricLabel": "IDs"
+        }
+      }
+    },
+    "numberLocale": "pt-BR",
+    "toolSectionEyebrow": "Duas formas de curtir",
+    "toolSectionTitle": "Olhar no lugar. Escolher pelo mapa.",
+    "toolSectionLead": "Confira o que chamou sua atenção ou escolha onde caminhar depois. Os dois caminhos voltam para um registro que você pode revisitar.",
+    "tools": {
+      "lens": {
+        "eyebrow": "Olhar de perto",
+        "title": "Olhar melhor o que chamou sua atenção",
+        "body": "Aponte a câmera e a IA devolve candidatos e pistas. Ela ajuda a guardar o momento sem fingir ser a resposta final.",
+        "badge": "pista IA"
+      },
+      "scan": {
+        "eyebrow": "Mapa",
+        "title": "Escolher a caminhada de hoje pelo mapa",
+        "body": "Use achados próximos, mudanças de estação e lacunas para escolher o próximo lugar.",
+        "badge": "mapa"
+      }
+    },
+    "mapSectionEyebrow": "Mapa de exploração",
+    "mapSectionTitle": "Encontre lugares que dão vontade de caminhar de novo",
+    "mapSectionLead": "Caminhos próximos e paradas de viagem têm motivos para o próximo passeio. Veja o que foi encontrado e decida um passo.",
+    "mapEmpty": "Ainda não há observações no mapa"
+  },
+  "fieldLoop": {
+    "eyebrow": "Como funciona",
+    "title": "Encontrar. Aprender. Guardar. Ajudar alguém.",
+    "lead": "Encontre algo, veja algumas pistas e guarde com o lugar. Quando muitas pessoas deixam esses pequenos registros, a natureza próxima fica mais fácil de entender.",
+    "primaryCta": "Ver a ideia",
+    "steps": [
+      { "title": "1. Encontrar", "body": "Perceba algo durante uma caminhada ou viagem." },
+      { "title": "2. Aprender", "body": "Use pistas da IA e seus próprios olhos para olhar um pouco melhor." },
+      { "title": "3. Guardar", "body": "Mantenha juntos foto, lugar, horário e uma nota curta." },
+      { "title": "4. Ajudar", "body": "Pequenos registros podem virar pistas para a natureza local, pesquisa e conservação." }
+    ],
+    "principles": [
+      "Começar pelo prazer.",
+      "Guardar mesmo antes de saber o nome.",
+      "Preservar o contexto do lugar.",
+      "Transformar cada registro na próxima caminhada."
+    ]
+  },
+  "marketing": {
+    "pages": {
+      "community": {
+        "title": "Comunidade | ikimon",
+        "eyebrow": "Comunidade",
+        "heading": "Participar de caminhadas e levantamentos temáticos",
+        "lead": "A porta de entrada continua sendo curtir a natureza, mas às vezes olhar o mesmo lugar com outras pessoas cria registros melhores.",
+        "activeNav": "community",
+        "bodyPageId": "community",
+        "afterActions": [
+          { "href": "/record", "label": "Registrar" },
+          { "href": "/contact", "label": "Consultar um programa" }
+        ]
+      }
+    }
+  }
+}

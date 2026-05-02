@@ -16,6 +16,8 @@
  */
 
 require_once LIBS_DIR . '/ObservationSourceHelper.php';
+require_once LIBS_DIR . '/PrivacyFilter.php';
+require_once LIBS_DIR . '/ThumbnailGenerator.php';
 require_once __DIR__ . '/observation_feed_card_helpers.php';
 
 $_src     = ObservationSourceHelper::getSource($cardObs);
@@ -25,7 +27,25 @@ $_detMeta = ObservationSourceHelper::getDetectionMeta($cardObs);
 $_obsId      = $cardObs['id'];
 $_detailUrl  = 'observation_detail.php?id=' . urlencode($_obsId);
 $_taxon      = is_array($cardObs['taxon'] ?? null) ? $cardObs['taxon'] : [];
-$_speciesName = $_taxon['name'] ?? ($cardObs['species_name'] ?? null);
+$_primaryIdentification = null;
+foreach (is_array($cardObs['identifications'] ?? null) ? array_reverse($cardObs['identifications']) : [] as $_identification) {
+    if (!is_array($_identification)) {
+        continue;
+    }
+    $_candidateName = trim((string)($_identification['taxon_name'] ?? $_identification['proposed_name'] ?? $_identification['scientific_name'] ?? ''));
+    if ($_candidateName !== '' && !BioUtils::isUnresolvedTaxonLabel($_candidateName)) {
+        $_primaryIdentification = $_identification;
+        break;
+    }
+}
+$_taxonName = trim((string)($_taxon['name'] ?? ''));
+if ($_taxonName !== '' && BioUtils::isUnresolvedTaxonLabel($_taxonName)) {
+    $_taxonName = '';
+}
+$_speciesName = ($_taxonName !== '' ? $_taxonName : null)
+    ?? ($_primaryIdentification['taxon_name'] ?? null)
+    ?? ($_primaryIdentification['proposed_name'] ?? null)
+    ?? ($cardObs['species_name'] ?? null);
 $_sciName     = $_taxon['scientific_name'] ?? '';
 $_hasId       = BioUtils::hasResolvedTaxon($cardObs);
 $_rawUserName = $cardObs['user_name'] ?? null;
@@ -40,9 +60,14 @@ $_userName    = $cardObs['user_display_name']
     ?? substr($cardObs['user_id'] ?? '?', 0, 4);
 $_avatar      = $cardObs['user_avatar'] ?? '/assets/img/default-avatar.svg';
 $_timeAgo     = BioUtils::timeAgo($cardObs['observed_at'] ?? $cardObs['created_at'] ?? 'now');
-$_place       = htmlspecialchars($cardObs['municipality'] ?? ($cardObs['location']['name'] ?? ''));
+$_publicLocation = is_array($cardObs['public_location'] ?? null) ? $cardObs['public_location'] : PrivacyFilter::buildPublicLocationSummary($cardObs);
+$_place       = htmlspecialchars((string)($_publicLocation['label'] ?? ($cardObs['location_name'] ?? '')));
 $_photos      = $cardObs['photos'] ?? [];
 $_hasPhoto    = !empty($_photos);
+$_photoSrc    = $_hasPhoto ? ThumbnailGenerator::resolve((string)$_photos[0], 'md') : null;
+if ($_photoSrc !== null && !preg_match('#^(https?:)?//#i', $_photoSrc) && $_photoSrc[0] !== '/') {
+    $_photoSrc = '/' . $_photoSrc;
+}
 $_obsComments = count($cardObs['identifications'] ?? []);
 
 $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'];
@@ -86,13 +111,13 @@ $_nuggetIcons = [
                     <p class="text-token-xs text-muted mt-0.5"><?php echo $_timeAgo; ?><?php echo $_place ? ' · ' . $_place : ''; ?></p>
                 </div>
             </div>
-            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_taxon['name'] ?? __('feed_card.observation_record', 'Observation record'), $cardLoggedIn); ?>
+            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_speciesName ?? __('feed_card.observation_record', 'Observation record'), $cardLoggedIn); ?>
         </div>
 
         <!-- 写真 -->
         <div class="aspect-square w-full bg-surface relative overflow-hidden">
             <?php if ($_hasPhoto): ?>
-                <img src="<?php echo htmlspecialchars($_photos[0]); ?>" alt="<?php echo htmlspecialchars($_speciesName ?? __('feed_card.observation_photo', 'Observation photo')); ?>" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                <img src="<?php echo htmlspecialchars($_photoSrc ?? ''); ?>" alt="<?php echo htmlspecialchars($_speciesName ?? __('feed_card.observation_photo', 'Observation photo')); ?>" class="w-full h-full object-cover" loading="lazy" decoding="async">
             <?php else: ?>
                 <div class="w-full h-full flex items-center justify-center bg-primary/5">
                     <i data-lucide="camera-off" class="w-12 h-12 text-faint"></i>
@@ -108,7 +133,7 @@ $_nuggetIcons = [
                         onclick="event.stopPropagation()"
                         class="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 border border-white/20 hover:bg-black/70 transition truncate">
                         <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
-                        <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($_speciesName ?? ''); ?></span>
+                        <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($_speciesName ?: __('feed_card.identifying', 'Identifying')); ?></span>
                     </a>
                     <?php if ($_distStatus): ?>
                         <?php
@@ -195,7 +220,7 @@ $_nuggetIcons = [
                 <!-- 写真あり: 横長レイアウト -->
                 <div class="flex items-center gap-0">
                     <div class="w-24 h-24 flex-shrink-0 bg-surface overflow-hidden">
-                        <img src="<?php echo htmlspecialchars($_photos[0]); ?>" alt="" class="w-full h-full object-cover">
+                        <img src="<?php echo htmlspecialchars($_photoSrc ?? ''); ?>" alt="" class="w-full h-full object-cover">
                     </div>
                     <div class="flex-1 p-3">
                         <?php echo _sensor_detection_body($_speciesName, $_sciName, $_hasId, $_detMeta, $_src); ?>
@@ -275,7 +300,7 @@ $_nuggetIcons = [
             <?php if ($_hasPhoto): ?>
             <div class="flex items-stretch">
                 <div class="w-24 flex-shrink-0 bg-surface overflow-hidden">
-                    <img src="<?php echo htmlspecialchars($_photos[0]); ?>" alt="" class="w-full h-full object-cover">
+                    <img src="<?php echo htmlspecialchars($_photoSrc ?? ''); ?>" alt="" class="w-full h-full object-cover">
                 </div>
                 <div class="flex-1 p-3">
                     <?php echo _sensor_detection_body($_speciesName, $_sciName, $_hasId, $_detMeta, $_src); ?>

@@ -4,6 +4,11 @@ import path from "node:path";
 import type { Pool } from "pg";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import {
+  assessLegacyObservationQuality,
+  shouldQuarantineLegacyNoPhoto,
+  upsertLegacyObservationQualityReview,
+} from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -110,6 +115,7 @@ type ImportSummary = {
   trackPoints: number;
   missingAssets: number;
   orphanUsersFromObservations: number;
+  quarantinedNoPhotoObservations: number;
 };
 
 const summary: ImportSummary = {
@@ -123,6 +129,7 @@ const summary: ImportSummary = {
   trackPoints: 0,
   missingAssets: 0,
   orphanUsersFromObservations: 0,
+  quarantinedNoPhotoObservations: 0,
 };
 
 function parseArgs(argv: string[]): ImportOptions {
@@ -523,10 +530,14 @@ async function loadLegacyTracks(options: ImportOptions): Promise<LegacyTrackSess
 }
 
 function mergeLegacyUser(existing: LegacyUser | undefined, incoming: LegacyUser): LegacyUser {
+  if (!existing) {
+    return incoming;
+  }
+
   return {
-    ...existing,
     ...incoming,
-    observer_rank: incoming.observer_rank ?? existing?.observer_rank,
+    ...existing,
+    observer_rank: existing.observer_rank ?? incoming.observer_rank,
   };
 }
 
@@ -645,8 +656,9 @@ async function importUsers(
   const pool = getPool();
   for (const user of legacyUsers.values()) {
     let avatarAssetId: string | null = null;
+    const normalizedEmail = user.email?.toLowerCase() ?? null;
     if (typeof user.avatar === "string" && user.avatar.startsWith("uploads/")) {
-      avatarAssetId = randomUUID();
+      const candidateAvatarAssetId = randomUUID();
       const legacyAssetKey = `avatar:${user.id}`;
       const candidates = resolveAssetCandidatePaths(user.avatar, options);
       let sha256: string | null = null;
@@ -675,16 +687,17 @@ async function importUsers(
         },
       });
 
-      await pool.query(
+      const avatarAssetResult = await pool.query<{ asset_id: string }>(
         `insert into evidence_assets (
             asset_id, blob_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
          ) values ($1, $2::uuid, 'avatar', $3, $4, $5::jsonb)
          on conflict (legacy_asset_key) do update set
             blob_id = excluded.blob_id,
             legacy_relative_path = excluded.legacy_relative_path,
-            source_payload = excluded.source_payload`,
+            source_payload = excluded.source_payload
+         returning asset_id`,
         [
-          avatarAssetId,
+          candidateAvatarAssetId,
           blobId,
           legacyAssetKey,
           user.avatar,
@@ -693,6 +706,20 @@ async function importUsers(
             legacy_relative_path: user.avatar,
           }),
         ],
+      );
+      avatarAssetId = avatarAssetResult.rows[0]?.asset_id ?? null;
+    }
+
+    if (normalizedEmail) {
+      // Staging can retain stale rows from older rehearsal imports under different user_ids.
+      // The current legacy mirror wins, so release conflicting emails before upserting.
+      await pool.query(
+        `update users
+         set email = null,
+             updated_at = now()
+         where user_id <> $1
+           and lower(coalesce(email, '')) = $2`,
+        [user.id, normalizedEmail],
       );
     }
 
@@ -723,7 +750,7 @@ async function importUsers(
         user.id,
         user.id,
         user.name ?? user.id,
-        user.email?.toLowerCase() ?? null,
+        normalizedEmail,
         user.password_hash ?? null,
         avatarAssetId,
         user.role ?? "Observer",
@@ -763,7 +790,7 @@ async function importUsers(
           user.id,
           user.auth_provider,
           user.oauth_id,
-          user.email?.toLowerCase() ?? null,
+          normalizedEmail,
           JSON.stringify({ source: "legacy_user_record" }),
         ],
       );
@@ -780,6 +807,14 @@ async function importRememberTokens(options: ImportOptions, tokens: LegacyAuthTo
   }
 
   const pool = getPool();
+  const sourceTokenHashes = [
+    ...new Set(
+      tokens
+        .map((token) => token.token_hash)
+        .filter((tokenHash): tokenHash is string => typeof tokenHash === "string" && tokenHash !== ""),
+    ),
+  ];
+
   for (const token of tokens) {
     await pool.query(
       `insert into remember_tokens (
@@ -798,6 +833,15 @@ async function importRememberTokens(options: ImportOptions, tokens: LegacyAuthTo
         toIsoTimestamp(token.expires) ?? new Date(Date.now() + 90 * 86400 * 1000).toISOString(),
         toIsoTimestamp(token.created_at) ?? new Date().toISOString(),
       ],
+    );
+  }
+
+  if (sourceTokenHashes.length > 0) {
+    await pool.query(
+      `delete from remember_tokens
+       where token_family = 'legacy'
+         and not (token_hash = any($1::text[]))`,
+      [sourceTokenHashes],
     );
   }
 }
@@ -840,8 +884,8 @@ async function importInvites(options: ImportOptions, invites: LegacyInvite[]) {
 }
 
 async function importObservations(options: ImportOptions, observations: LegacyObservation[]) {
-  summary.observations = observations.length;
-  summary.occurrences = observations.length;
+  summary.observations = 0;
+  summary.occurrences = 0;
   const pool = options.dryRun ? null : getPool();
 
   if (pool) {
@@ -860,6 +904,30 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
     const observedAt = toIsoTimestamp(observation.observed_at ?? observation.created_at) ?? new Date().toISOString();
     const latitude = asFiniteNumber(observation.lat);
     const longitude = asFiniteNumber(observation.lng);
+    const qualitySignals = assessLegacyObservationQuality(observation);
+
+    if (shouldQuarantineLegacyNoPhoto(observation)) {
+      summary.quarantinedNoPhotoObservations += 1;
+      if (!options.dryRun && pool) {
+        await upsertLegacyObservationQualityReview(pool, {
+          observation,
+          importVersion: options.importVersion,
+          reasonCode: "legacy_no_photo",
+          reasonDetail: "Legacy observation has no photo evidence and is quarantined instead of imported.",
+          legacyPath: "data/observations",
+        });
+        await pool.query(
+          `update visits
+           set public_visibility = 'review',
+               quality_review_status = 'needs_review',
+               quality_gate_reasons = $2::jsonb,
+               updated_at = now()
+           where visit_id = $1`,
+          [visitId, JSON.stringify(qualitySignals.gateReasons)],
+        );
+      }
+      continue;
+    }
 
     if (!options.dryRun && pool) {
       await pool.query(
@@ -908,6 +976,7 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
             $9, $10, $11, $12, $13, $14, 'legacy_observation', $15::jsonb, $16, now()
          )
          on conflict (visit_id) do update set
+            legacy_observation_id = excluded.legacy_observation_id,
             place_id = excluded.place_id,
             user_id = excluded.user_id,
             observed_at = excluded.observed_at,
@@ -918,6 +987,7 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
             observed_prefecture = excluded.observed_prefecture,
             observed_municipality = excluded.observed_municipality,
             note = excluded.note,
+            source_kind = excluded.source_kind,
             source_payload = excluded.source_payload,
             updated_at = now()`,
         [
@@ -1141,7 +1211,12 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
           ],
         );
       }
+
+      summary.observations += 1;
+      summary.occurrences += 1;
     } else {
+      summary.observations += 1;
+      summary.occurrences += 1;
       summary.assets += Array.isArray(observation.photos) ? observation.photos.length : 0;
     }
   }

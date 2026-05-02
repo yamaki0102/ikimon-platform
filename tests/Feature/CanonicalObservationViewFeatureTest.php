@@ -5,10 +5,18 @@ use PHPUnit\Framework\TestCase;
 class CanonicalObservationViewFeatureTest extends TestCase
 {
     private string $dbPath;
+    private string $photoDir;
+    private string $photoPath;
+    private string $thumbSmPath;
+    private string $thumbMdPath;
 
     protected function setUp(): void
     {
         $this->dbPath = DATA_DIR . '/ikimon.db';
+        $this->photoDir = PUBLIC_DIR . '/uploads/photos/obs-view-1';
+        $this->photoPath = $this->photoDir . '/photo_0.webp';
+        $this->thumbSmPath = $this->photoDir . '/photo_0_sm.webp';
+        $this->thumbMdPath = $this->photoDir . '/photo_0_md.webp';
         CanonicalBootstrap::resetForTests();
         $this->resetStaticPdo(CanonicalStore::class, 'pdo');
         $this->resetStaticPdo(AuditLog::class, 'pdo');
@@ -16,6 +24,13 @@ class CanonicalObservationViewFeatureTest extends TestCase
         if (file_exists($this->dbPath)) {
             unlink($this->dbPath);
         }
+
+        if (!is_dir($this->photoDir)) {
+            mkdir($this->photoDir, 0777, true);
+        }
+        file_put_contents($this->photoPath, 'original', LOCK_EX);
+        file_put_contents($this->thumbSmPath, 'thumb-sm', LOCK_EX);
+        file_put_contents($this->thumbMdPath, 'thumb-md', LOCK_EX);
 
         CanonicalObservationWriter::writeFromObservation([
             'id' => 'obs-view-1',
@@ -36,6 +51,19 @@ class CanonicalObservationViewFeatureTest extends TestCase
         ]);
     }
 
+    protected function tearDown(): void
+    {
+        foreach ([$this->thumbMdPath, $this->thumbSmPath, $this->photoPath] as $path) {
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }
+
+        if (is_dir($this->photoDir)) {
+            @rmdir($this->photoDir);
+        }
+    }
+
     public function testHydrateUsesCanonicalAggregateWhenAvailable(): void
     {
         $hydrated = CanonicalObservationView::hydrate([
@@ -53,6 +81,9 @@ class CanonicalObservationViewFeatureTest extends TestCase
         $this->assertSame(138.5, $hydrated['lng']);
         $this->assertSame('prefecture', $hydrated['location_granularity']);
         $this->assertSame(['uploads/photos/obs-view-1/photo_0.webp'], $hydrated['photos']);
+        $this->assertSame('uploads/photos/obs-view-1/photo_0_sm.webp', $hydrated['thumbnail_url']);
+        $this->assertSame('uploads/photos/obs-view-1/photo_0_md.webp', $hydrated['preview_photo_url']);
+        $this->assertSame('uploads/photos/obs-view-1/photo_0_sm.webp', $hydrated['media_assets'][0]['thumbnail_url']);
     }
 
     public function testHydrateSummaryModePreservesCanonicalSummaryWithoutExpandingIds(): void

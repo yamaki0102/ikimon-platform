@@ -1,0 +1,89 @@
+{
+  "publicShared": {
+    "cta": {
+      "record": "Record",
+      "startObservation": "Go find something",
+      "openNotebook": "Field Note",
+      "openMap": "See the map",
+      "readFaq": "See FAQ",
+      "openGuide": "Lens",
+      "openScan": "Explore Map",
+      "openAbout": "About ikimon",
+      "openGroupHelp": "For Business",
+      "contact": "Contact"
+    },
+    "labels": {
+      "notebook": "Notebook",
+      "hint": "Hint",
+      "revisit": "Reason to return",
+      "groupHelp": "For Business",
+      "groupHelpLong": "For organizations"
+    },
+    "ai": {
+      "short": "AI suggests. People decide.",
+      "support": "AI offers candidates and clues. It does not automatically confirm a name.",
+      "supportLong": "AI offers candidates and clues. Human observation stays at the center of the record."
+    },
+    "business": {
+      "nav": "For Business",
+      "eyebrow": "For organizations",
+      "title": "A contact point for schools and local groups",
+      "body": "Before we promise a heavy workspace, we help teams decide where and how to start on the ground.",
+      "cta": "For Business"
+    }
+  },
+  "shell": {
+    "brandTagline": "Nearby nature gets a little more interesting.",
+    "skipToContent": "Skip to content",
+    "searchPlaceholder": "Search species or places",
+    "searchLabel": "Site search",
+    "menu": "Menu",
+    "nav": {
+      "home": "Home",
+      "explore": "Explore",
+      "places": "My Places",
+      "community": "Community",
+      "learn": "Learn",
+      "business": "For Business"
+    },
+    "record": "Record",
+    "footer": {
+      "tagline": "Walk, find, and save the place.",
+      "start": "Start",
+      "startLinks": {
+        "discover": "Explore",
+        "record": "Record",
+        "places": "My Places"
+      },
+      "learn": "Learn",
+      "learnLinks": {
+        "guides": "Guides",
+        "about": "About",
+        "faq": "FAQ",
+        "updates": "Updates"
+      },
+      "trust": "Trust",
+      "trustLinks": {
+        "business": "For Business",
+        "contact": "Contact",
+        "terms": "Terms",
+        "privacy": "Privacy"
+      }
+    }
+  },
+  "quickNav": {
+    "ariaLabel": "Primary actions",
+    "labels": {
+      "notes": "My Places",
+      "record": "Record one",
+      "lens": "Lens",
+      "scan": "Explore Map",
+      "map": "Map"
+    }
+  },
+  "footerNotes": {
+    "landing": "Walk, find, and save the place.",
+    "public": "Save what you find nearby and revisit it later.",
+    "qa": "Staging walkthrough for full-page QA."
+  }
+}

@@ -3,6 +3,7 @@ import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import { shouldQuarantineLegacyNoPhoto } from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -304,6 +305,8 @@ async function finalizeMigrationRun(
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const observations = await loadLegacyObservations(options);
+  const importableObservations = observations.filter((observation) => !shouldQuarantineLegacyNoPhoto(observation));
+  const quarantinedNoPhotoObservations = observations.length - importableObservations.length;
   const tokens = await loadLegacyAuthTokens(options);
   const tracks = await loadLegacyTracks(options);
   const pool = getPool();
@@ -469,11 +472,15 @@ async function main(): Promise<void> {
       options,
       expected: {
         observationsSampled: observations.length,
+        observationsImportable: importableObservations.length,
+        quarantinedNoPhotoObservations,
         rememberTokens: tokens.length,
         trackVisits: tracks.length,
         trackPoints: tracks.reduce((sum, track) => sum + (Array.isArray(track.points) ? track.points.length : 0), 0),
         identificationCandidates: countIdentificationCandidates(observations),
+        importableIdentificationCandidates: countIdentificationCandidates(importableObservations),
         conditionCandidates: observations.length,
+        importableConditionCandidates: importableObservations.length,
         photoRefs: expectedPhotoRefs,
         uniquePhotoRefs: expectedUniquePhotoRefs.size,
         existingPhotoRefs: expectedExistingPhotoRefs,
@@ -543,37 +550,52 @@ async function main(): Promise<void> {
       },
       {
         key: "observation_meaning.imported",
-        expected: report.expected.observationsSampled,
+        expected: report.expected.observationsImportable,
         actual: report.actual.observationMeaning.imported,
       },
       {
+        key: "observation_meaning.skipped",
+        expected: report.expected.quarantinedNoPhotoObservations,
+        actual: report.actual.observationMeaning.skipped,
+      },
+      {
         key: "visitsImported",
-        expected: report.expected.observationsSampled,
+        expected: report.expected.observationsImportable,
         actual: report.actual.visitsImported,
       },
       {
         key: "occurrencesImported",
-        expected: report.expected.observationsSampled,
+        expected: report.expected.observationsImportable,
         actual: report.actual.occurrencesImported,
       },
       {
         key: "identification.imported",
-        expected: report.expected.identificationCandidates,
+        expected: report.expected.importableIdentificationCandidates,
         actual: report.actual.identification.imported,
       },
       {
+        key: "identification.skipped",
+        expected: report.expected.identificationCandidates - report.expected.importableIdentificationCandidates,
+        actual: report.actual.identification.skipped,
+      },
+      {
         key: "identifications.linked",
-        expected: report.expected.identificationCandidates,
+        expected: report.expected.importableIdentificationCandidates,
         actual: report.actual.identificationsLinked,
       },
       {
         key: "place_condition.imported",
-        expected: report.expected.conditionCandidates,
+        expected: report.expected.importableConditionCandidates,
         actual: report.actual.placeCondition.imported,
       },
       {
+        key: "place_condition.skipped",
+        expected: report.expected.conditionCandidates - report.expected.importableConditionCandidates,
+        actual: report.actual.placeCondition.skipped,
+      },
+      {
         key: "place_conditions.linked",
-        expected: report.expected.conditionCandidates,
+        expected: report.expected.importableConditionCandidates,
         actual: report.actual.placeConditionsLinked,
       },
       {

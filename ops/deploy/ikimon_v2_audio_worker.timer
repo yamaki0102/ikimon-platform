@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ikimon platform_v2 audio detection and embedding worker
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+RandomizedDelaySec=30s
+Persistent=true
+Unit=ikimon-v2-audio-worker.service
+
+[Install]
+WantedBy=timers.target

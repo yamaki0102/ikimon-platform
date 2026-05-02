@@ -12,6 +12,7 @@
 
 require_once __DIR__ . '/GeoUtils.php';
 require_once __DIR__ . '/RedListManager.php';
+require_once __DIR__ . '/CorporateSites.php';
 
 class PrivacyFilter
 {
@@ -275,6 +276,160 @@ class PrivacyFilter
 
         // Layer 2: Ambient (default for all public viewers)
         return self::forAmbient($observation, $gridM);
+    }
+
+    /**
+     * Public surfaces should never bypass privacy via owner/admin status.
+     * `exact` is normalized to municipality-level ambient display.
+     */
+    public static function filterForPublicDisplay(array $observation): array
+    {
+        $scope = self::normalizePublicGranularity((string)($observation['location_granularity'] ?? 'exact'));
+
+        if ($scope === 'hidden') {
+            $filtered = $observation;
+            $filtered['latitude'] = null;
+            $filtered['longitude'] = null;
+            $filtered['lat'] = null;
+            $filtered['lng'] = null;
+            $filtered['grid_m'] = null;
+            $filtered['privacy_layer'] = self::LAYER_AMBIENT;
+            unset($filtered['exact_lat'], $filtered['exact_lng'], $filtered['user_id']);
+            return $filtered;
+        }
+
+        if ($scope === 'prefecture') {
+            return self::forAmbient($observation, 10000);
+        }
+
+        return self::forAmbient($observation, 1000);
+    }
+
+    public static function decoratePublicObservation(array $observation, ?array $filteredObservation = null): array
+    {
+        $summary = self::buildPublicLocationSummary($observation, $filteredObservation);
+        $decorated = $observation;
+
+        $decorated['public_location'] = $summary;
+        $decorated['location_name'] = $summary['label'];
+        $decorated['place_name'] = $summary['label'];
+
+        $location = is_array($decorated['location'] ?? null) ? $decorated['location'] : [];
+        $location['name'] = $summary['label'];
+        $location['lat'] = $summary['lat'];
+        $location['lng'] = $summary['lng'];
+        $location['lon'] = $summary['lng'];
+        $decorated['location'] = $location;
+
+        $decorated['site_name'] = $summary['detail_allowed'] ? ($decorated['site_name'] ?? null) : null;
+
+        if (isset($decorated['managed_site_name'])) {
+            $decorated['managed_site_name'] = null;
+        }
+
+        if (isset($decorated['managed_context_note'])) {
+            $decorated['managed_context_note'] = null;
+        }
+
+        if (is_array($decorated['managed_context'] ?? null)) {
+            $decorated['managed_context']['site_name'] = null;
+            $decorated['managed_context']['note'] = null;
+        }
+
+        return $decorated;
+    }
+
+    public static function buildPublicLocationSummary(array $observation, ?array $filteredObservation = null): array
+    {
+        $filtered = $filteredObservation ?? self::filterForPublicDisplay($observation);
+        $scope = self::normalizePublicGranularity((string)($observation['location_granularity'] ?? 'exact'));
+        $detailAllowed = self::isPublicLocationDetailAllowed($observation);
+        $label = self::resolvePublicLocationLabel($observation, $detailAllowed, $scope);
+
+        $latRaw = $filtered['latitude'] ?? $filtered['lat'] ?? null;
+        $lngRaw = $filtered['longitude'] ?? $filtered['lng'] ?? null;
+        $lat = is_numeric($latRaw) ? (float)$latRaw : null;
+        $lng = is_numeric($lngRaw) ? (float)$lngRaw : null;
+        $gridM = isset($filtered['grid_m']) && is_numeric($filtered['grid_m'])
+            ? (int)$filtered['grid_m']
+            : self::describeGranularity($scope)['grid_m'];
+        $isHidden = $lat === null || $lng === null;
+
+        return [
+            'label' => $label,
+            'scope' => $scope,
+            'lat' => $lat,
+            'lng' => $lng,
+            'grid_m' => $gridM,
+            'radius_m' => $gridM !== null ? (int)max(1, round($gridM / 2)) : null,
+            'display_mode' => $isHidden ? 'hidden' : 'area',
+            'is_hidden' => $isHidden,
+            'detail_allowed' => $detailAllowed,
+        ];
+    }
+
+    public static function resolvePublicLocationLabel(array $observation, ?bool $detailAllowed = null, ?string $scope = null): string
+    {
+        $detailAllowed = $detailAllowed ?? self::isPublicLocationDetailAllowed($observation);
+        $scope = $scope ?? self::normalizePublicGranularity((string)($observation['location_granularity'] ?? 'exact'));
+        $siteName = trim((string)($observation['site_name'] ?? ''));
+        $municipality = trim((string)($observation['municipality'] ?? ''));
+        $prefecture = trim((string)($observation['prefecture'] ?? ''));
+
+        if ($detailAllowed && $scope === 'municipality' && $siteName !== '') {
+            return $siteName;
+        }
+        if ($scope === 'prefecture' && $prefecture !== '') {
+            return $prefecture;
+        }
+        if ($municipality !== '') {
+            return $municipality;
+        }
+        if ($prefecture !== '') {
+            return $prefecture;
+        }
+
+        return function_exists('__')
+            ? __('observation_page.location_hidden', 'Location hidden')
+            : 'Location hidden';
+    }
+
+    public static function isPublicLocationDetailAllowed(array $observation): bool
+    {
+        $siteId = trim((string)($observation['site_id'] ?? ''));
+        if ($siteId === '') {
+            return false;
+        }
+
+        $corporateSite = CorporateSites::get($siteId);
+        if (is_array($corporateSite) && !empty($corporateSite['public_location_detail'])) {
+            return true;
+        }
+
+        if (!class_exists('SiteManager')) {
+            $siteManagerPath = __DIR__ . '/SiteManager.php';
+            if (file_exists($siteManagerPath)) {
+                require_once $siteManagerPath;
+            }
+        }
+
+        if (class_exists('SiteManager')) {
+            $site = SiteManager::load($siteId);
+            if (is_array($site) && !empty($site['public_location_detail'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function normalizePublicGranularity(string $granularity): string
+    {
+        return match ($granularity) {
+            'hidden' => 'hidden',
+            'prefecture' => 'prefecture',
+            default => 'municipality',
+        };
     }
 
     public static function describeGranularity(string $granularity): array

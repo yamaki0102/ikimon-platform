@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/Lang.php';
+require_once __DIR__ . '/components/experience_loop.php';
 Auth::init();
 Lang::init();
 
@@ -106,7 +107,7 @@ $guideGroups = [
                     <?= htmlspecialchars(__('guides_page.eyebrow', 'Guides')) ?>
                 </span>
                 <h1 class="mt-6 text-4xl md:text-6xl font-black tracking-tight text-text"><?= htmlspecialchars(__('guides_page.title', 'Guide list')) ?></h1>
-                <p class="mt-5 max-w-3xl text-base md:text-lg leading-8 text-muted">
+                <p class="mt-5 max-w-3xl text-base md:text-lg leading-8" style="color:var(--color-text-muted);">
                     <?= htmlspecialchars(__('guides_page.lead', 'The guide articles that had become hard to reach from the footer are now regrouped by theme. Start here for nature positive, regional revitalization, biodiversity in Japan, health, and organizational adoption.')) ?>
                 </p>
                 <div class="mt-8 flex flex-wrap gap-3 text-sm font-bold text-muted">
@@ -122,6 +123,15 @@ $guideGroups = [
                 </div>
             </div>
         </section>
+
+        <div class="max-w-6xl mx-auto px-4 md:px-6 -mt-6 relative z-10">
+            <?php renderExperienceLoop([
+                'current' => 'guides',
+                'compact' => true,
+                'title' => __('guides_page.loop_title', '読んだら、観察に戻る'),
+                'lead' => __('guides_page.loop_lead', 'ガイドは読み物で終わらせず、次の記録、地図確認、成果確認へつなげます。'),
+            ]); ?>
+        </div>
 
         <section class="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-14 space-y-8">
             <?php foreach ($guideGroups as $group): ?>

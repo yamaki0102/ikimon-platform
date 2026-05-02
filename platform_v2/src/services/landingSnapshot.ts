@@ -1,8 +1,28 @@
 import { getPool } from "../db.js";
 import { getHomeSnapshot } from "./readModels.js";
+import { buildObserverNameSql } from "./observerNameSql.js";
+import {
+  buildPublicCellGeometry,
+  buildPublicLocationSummary,
+  parsePublicCellId,
+  summarizePublicLocalitySet,
+} from "./publicLocation.js";
+import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
+import {
+  PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_PHOTO_ASSET_SQL,
+} from "./observationQualityGate.js";
+import { getRegionalStoryCue } from "./regionalStory.js";
 import type {
   AmbientObserver,
+  LandingDailyCard,
+  LandingDailyDashboard,
+  LandingFeaturedObservation,
+  LandingHeroReason,
+  LandingHeroScoreBreakdown,
   LandingHabitStats,
+  LandingMapPreviewCell,
   LandingObservation,
   LandingSnapshot,
   LandingStats,
@@ -18,85 +38,556 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
+function normalizeAssetUrls(values: string[] | null | undefined): string[] {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const value of values) {
+    const normalized = normalizeAssetUrl(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    urls.push(normalized);
+  }
+  return urls;
+}
+
+function normalizeDisplayName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "unresolved" || lowered === "awaiting id" || trimmed === "同定待ち") {
+    return null;
+  }
+  return trimmed;
+}
+
+export function resolveLandingDisplayName(
+  primaryName: string | null | undefined,
+  identificationName: string | null | undefined,
+  aiCandidateName: string | null | undefined,
+): string {
+  return normalizeDisplayName(primaryName)
+    ?? normalizeDisplayName(identificationName)
+    ?? normalizeDisplayName(aiCandidateName)
+    ?? "同定待ち";
+}
+
+function landingMonthDay(raw: string | null | undefined): string {
+  const value = raw?.trim();
+  if (!value) return "";
+  const direct = value.match(/(?:^|\D)(\d{4})-(\d{2})-(\d{2})(?:\D|$)/);
+  if (direct) return `${direct[2]}-${direct[3]}`;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return `${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+}
+
+function normalizedKnownDummyName(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function isKnownLandingDummyObservation(input: {
+  displayName?: string | null;
+  aiCandidateName?: string | null;
+  observedAt?: string | null;
+}): boolean {
+  const name = normalizedKnownDummyName(input.displayName ?? input.aiCandidateName);
+  const monthDay = landingMonthDay(input.observedAt);
+  if (!monthDay) return false;
+  const isWinterFixtureDate = monthDay === "01-10" || monthDay === "02-17";
+  if (!isWinterFixtureDate) return false;
+  return name === "アブラゼミ" ||
+    name === "graptopsaltria nigrofuscata" ||
+    name === "アジサイ" ||
+    name === "hydrangea macrophylla";
+}
+
 type FeedRow = {
   occurrence_id: string;
   visit_id: string;
   display_name: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  identification_display_name: string | null;
+  ai_candidate_name: string | null;
+  ai_candidate_rank: string | null;
+  is_ai_candidate: boolean | null;
   observed_at: string;
   observer_user_id: string | null;
   observer_name: string | null;
   observer_avatar_url: string | null;
   place_name: string | null;
   municipality: string | null;
+  prefecture: string | null;
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
+  photo_urls: string[] | null;
+  photo_count: string | number | null;
+  photo_width_px: number | null;
+  photo_height_px: number | null;
+  photo_bytes: string | number | null;
+  video_count: string | null;
+  session_mode: string | null;
+  visit_mode: string | null;
+  record_mode: string | null;
   identification_count: string;
   evidence_tier: number | null;
+  quality_grade: string | null;
 };
+
+const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Unknown observer",
+});
+
+const AMBIENT_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "latest.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "latest.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Observer",
+});
 
 const FEED_SQL_BASE = `
   select
     o.occurrence_id,
     o.visit_id,
-    coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+    coalesce(
+      nullif(o.vernacular_name, ''),
+      nullif(o.scientific_name, ''),
+      ident.display_name,
+      nullif(ai.recommended_taxon_name, ''),
+      '同定待ち'
+    ) as display_name,
+    o.scientific_name,
+    o.vernacular_name,
+    ident.display_name as identification_display_name,
+    ai.recommended_taxon_name as ai_candidate_name,
+    coalesce(ident.proposed_rank, ai.recommended_rank) as ai_candidate_rank,
+    (coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, ''), ident.display_name) is null
+      and nullif(ai.recommended_taxon_name, '') is not null) as is_ai_candidate,
     v.observed_at::text,
     v.user_id as observer_user_id,
-    coalesce(u.display_name, 'Unknown observer') as observer_name,
+    ${FEED_OBSERVER_NAME_SQL} as observer_name,
     avatar.public_url as observer_avatar_url,
-    coalesce(p.canonical_name, 'Unknown place') as place_name,
+    p.canonical_name as place_name,
     coalesce(v.observed_municipality, p.municipality) as municipality,
+    coalesce(v.observed_prefecture, p.prefecture) as prefecture,
     coalesce(v.point_latitude, p.center_latitude) as latitude,
     coalesce(v.point_longitude, p.center_longitude) as longitude,
     photo.public_url as photo_url,
+    photo.photo_urls,
+    photo.photo_count,
+    photo.width_px as photo_width_px,
+    photo.height_px as photo_height_px,
+    photo.bytes as photo_bytes,
+    video.video_count,
+    v.session_mode,
+    v.visit_mode,
+    v.source_payload->>'record_mode' as record_mode,
     (
       select count(*)::text
       from identifications i
       where i.occurrence_id = o.occurrence_id
     ) as identification_count,
-    o.evidence_tier
+    o.evidence_tier,
+    o.quality_grade
   from occurrences o
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
   left join places p on p.place_id = v.place_id
   left join lateral (
+    select recommended_taxon_name, recommended_rank
+    from observation_ai_assessments a
+    where a.occurrence_id = o.occurrence_id
+    order by generated_at desc
+    limit 1
+  ) ai on true
+  left join lateral (
+    select
+      case
+        when btrim(i.proposed_name) = '' then null
+        when lower(btrim(i.proposed_name)) in ('unresolved', 'awaiting id') then null
+        when btrim(i.proposed_name) = '同定待ち' then null
+        else btrim(i.proposed_name)
+      end as display_name,
+      i.proposed_rank
+    from identifications i
+    where i.occurrence_id = o.occurrence_id
+      and coalesce(i.is_current, true)
+    order by i.created_at desc
+    limit 1
+  ) ident on true
+  left join lateral (
+    select
+      (array_agg(asset.public_url order by asset.sort_scope, asset.created_at asc))[1] as public_url,
+      coalesce(array_agg(asset.public_url order by asset.sort_scope, asset.created_at asc) filter (where asset.public_url is not null), '{}'::text[]) as photo_urls,
+      count(*)::text as photo_count,
+      (array_agg(asset.width_px order by asset.sort_scope, asset.created_at asc))[1] as width_px,
+      (array_agg(asset.height_px order by asset.sort_scope, asset.created_at asc))[1] as height_px,
+      (array_agg(asset.bytes order by asset.sort_scope, asset.created_at asc))[1] as bytes
+    from (
+      select
+        coalesce(ab.public_url, ab.storage_path) as public_url,
+        ab.width_px,
+        ab.height_px,
+        ab.bytes,
+        ea.created_at,
+        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end as sort_scope
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+    ) asset
+  ) photo on true
+  left join lateral (
+    select count(*)::text as video_count
+    from evidence_assets ea
+    where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+      and ea.asset_role = 'observation_video'
+  ) video on true
+  left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url
     from evidence_assets ea
     join asset_blobs ab on ab.blob_id = ea.blob_id
-    where ea.occurrence_id = o.occurrence_id
-      and ea.asset_role = 'observation_photo'
-    order by ea.created_at asc
-    limit 1
-  ) photo on true
-  left join lateral (
-    select coalesce(ab.public_url, ab.storage_path) as public_url
-    from asset_blobs ab
-    where ab.blob_id = u.avatar_asset_id
+    where ea.asset_id = u.avatar_asset_id
     limit 1
   ) avatar on true
 `;
+
+function landingLibrarySourceKind(row: FeedRow): LandingObservation["librarySourceKind"] {
+  const sessionMode = String(row.session_mode ?? "").toLowerCase();
+  const visitMode = String(row.visit_mode ?? "").toLowerCase();
+  const recordMode = String(row.record_mode ?? "").toLowerCase();
+  if (sessionMode === "fieldscan" || visitMode === "track") return "scan";
+  if (sessionMode.includes("guide") || visitMode.includes("guide") || recordMode.includes("guide")) return "guide";
+  if (Number(row.video_count ?? 0) > 0) return "video";
+  if (row.photo_url) return "photo";
+  return "note";
+}
+
+const PUBLIC_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  occurrenceIdColumn: "o.occurrence_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+  occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
+});
+
+const PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL = `
+  coalesce(u.is_seed, false) = false
+  and coalesce(v.legacy_observation_id, '') !~* '^(dummy|seed|sample[-_])'
+  and coalesce(o.legacy_observation_id, '') !~* '^(dummy|seed|sample[-_])'
+  and coalesce(v.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
+  and coalesce(o.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
+  and coalesce(v.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
+  and coalesce(o.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
+`;
+
+const AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+});
+
+const AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v2.user_id",
+  visitIdColumn: "v2.visit_id",
+  occurrenceIdColumn: "o.occurrence_id",
+  visitSourceColumn: "coalesce(v2.source_payload->>'source', '')",
+  occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
+});
 
 function toLandingObservation(row: FeedRow): LandingObservation {
   const latRaw = row.latitude;
   const lngRaw = row.longitude;
   const lat = latRaw === null || latRaw === undefined ? null : Number(latRaw);
   const lng = lngRaw === null || lngRaw === undefined ? null : Number(lngRaw);
+  const safeLat = lat !== null && Number.isFinite(lat) ? lat : null;
+  const safeLng = lng !== null && Number.isFinite(lng) ? lng : null;
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.display_name ?? "Unresolved",
+    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
+    scientificName: row.scientific_name,
+    vernacularName: row.vernacular_name,
+    aiCandidateName: row.ai_candidate_name ?? null,
+    aiCandidateRank: row.ai_candidate_rank ?? null,
+    isAiCandidate: Boolean(row.is_ai_candidate),
     observedAt: row.observed_at,
-    observerName: row.observer_name ?? "Unknown observer",
-    placeName: row.place_name ?? "Unknown place",
+    observerName: row.observer_name ?? "",
+    placeName: row.place_name ?? "",
     municipality: row.municipality,
+    publicLocation: buildPublicLocationSummary({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+      latitude: safeLat,
+      longitude: safeLng,
+    }),
     photoUrl: normalizeAssetUrl(row.photo_url),
+    photoUrls: normalizeAssetUrls(row.photo_urls),
+    photoCount: Math.max(0, Number(row.photo_count ?? 0) || 0),
     identificationCount: Number(row.identification_count),
-    latitude: lat !== null && Number.isFinite(lat) ? lat : null,
-    longitude: lng !== null && Number.isFinite(lng) ? lng : null,
+    librarySourceKind: landingLibrarySourceKind(row),
+    hasVideo: Number(row.video_count ?? 0) > 0,
+    latitude: safeLat,
+    longitude: safeLng,
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "observation",
     evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
+  };
+}
+
+export type LandingHeroCandidate = LandingObservation & {
+  photoWidthPx: number | null;
+  photoHeightPx: number | null;
+  photoBytes: number | null;
+  qualityGrade: string | null;
+};
+
+export type LandingHeroScoreContext = {
+  dateKey: string;
+  now: Date;
+  preferredMunicipalities: string[];
+};
+
+function toLandingHeroCandidate(row: FeedRow): LandingHeroCandidate {
+  return {
+    ...toLandingObservation(row),
+    photoWidthPx: row.photo_width_px != null ? Number(row.photo_width_px) : null,
+    photoHeightPx: row.photo_height_px != null ? Number(row.photo_height_px) : null,
+    photoBytes: row.photo_bytes != null ? Number(row.photo_bytes) : null,
+    qualityGrade: row.quality_grade ?? null,
+  };
+}
+
+function monthDistance(left: number, right: number): number {
+  const diff = Math.abs(left - right);
+  return Math.min(diff, 12 - diff);
+}
+
+function stableHash(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function scoreSeason(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  const observed = new Date(candidate.observedAt);
+  if (Number.isNaN(observed.getTime())) return 0;
+  const distance = monthDistance(observed.getUTCMonth(), context.now.getUTCMonth());
+  if (distance === 0) return 25;
+  if (distance === 1) return 18;
+  if (distance === 2) return 10;
+  return 4;
+}
+
+function scoreRegion(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  const municipality = candidate.municipality?.trim();
+  if (municipality && context.preferredMunicipalities.includes(municipality)) return 20;
+  if (candidate.publicLocation.scope === "municipality") return context.preferredMunicipalities.length > 0 ? 10 : 14;
+  if (candidate.publicLocation.scope === "prefecture") return context.preferredMunicipalities.length > 0 ? 6 : 10;
+  return 0;
+}
+
+function scorePhoto(candidate: LandingHeroCandidate): number {
+  if (!candidate.photoUrl) return 0;
+  const width = candidate.photoWidthPx;
+  const height = candidate.photoHeightPx;
+  const bytes = candidate.photoBytes;
+  if (!width || !height || width <= 0 || height <= 0) return bytes && bytes >= 90_000 ? 20 : 12;
+  const ratio = width / height;
+  if (ratio < 0.45 || ratio > 2.4) return 0;
+  const pixels = width * height;
+  if (bytes && pixels > 0 && (bytes < 70_000 || bytes / pixels < 0.035)) return 6;
+  const ratioPenalty = ratio < 0.62 || ratio > 1.95 ? 5 : 0;
+  if (pixels >= 1_080_000) return 25 - ratioPenalty;
+  if (pixels >= 480_000) return 22 - ratioPenalty;
+  if (pixels >= 172_800) return 18 - ratioPenalty;
+  return Math.max(10, 14 - ratioPenalty);
+}
+
+function scoreEvidence(candidate: LandingHeroCandidate): number {
+  const tier = candidate.evidenceTier ?? 0;
+  if (tier >= 3) return 15;
+  if (tier >= 2) return 12;
+  if (tier >= 1) return 8;
+  if (candidate.identificationCount >= 2) return 7;
+  if (candidate.identificationCount >= 1) return 5;
+  return 3;
+}
+
+function scoreFreshness(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  const observed = new Date(candidate.observedAt);
+  if (Number.isNaN(observed.getTime())) return 0;
+  const ageDays = Math.max(0, (context.now.getTime() - observed.getTime()) / 86_400_000);
+  if (ageDays <= 7) return 10;
+  if (ageDays <= 30) return 7;
+  if (ageDays <= 90) return 4;
+  return 1;
+}
+
+function scoreDailyVariation(candidate: LandingHeroCandidate, context: LandingHeroScoreContext): number {
+  return stableHash(`${context.dateKey}:${candidate.occurrenceId}:${candidate.visitId}`) % 6;
+}
+
+export function isLandingHeroCandidateEligible(candidate: LandingHeroCandidate): boolean {
+  if (!candidate.photoUrl) return false;
+  if (candidate.publicLocation.scope === "blurred") return false;
+  const width = candidate.photoWidthPx;
+  const height = candidate.photoHeightPx;
+  const bytes = candidate.photoBytes;
+  if (!width || !height || width <= 0 || height <= 0) return !bytes || bytes >= 90_000;
+  const ratio = width / height;
+  const pixels = width * height;
+  if (ratio < 0.45 || ratio > 2.4) return false;
+  if (pixels < 900_000 || Math.max(width, height) < 1000 || Math.min(width, height) < 720) return false;
+  if (bytes && (bytes < 70_000 || bytes / pixels < 0.035)) return false;
+  return true;
+}
+
+export function scoreLandingHeroCandidate(
+  candidate: LandingHeroCandidate,
+  context: LandingHeroScoreContext,
+): LandingHeroScoreBreakdown {
+  const breakdown = {
+    season: scoreSeason(candidate, context),
+    region: scoreRegion(candidate, context),
+    photo: scorePhoto(candidate),
+    evidence: scoreEvidence(candidate),
+    freshness: scoreFreshness(candidate, context),
+    dailyVariation: scoreDailyVariation(candidate, context),
+    total: 0,
+  };
+  breakdown.total = Math.min(100, breakdown.season + breakdown.region + breakdown.photo + breakdown.evidence + breakdown.freshness + breakdown.dailyVariation);
+  return breakdown;
+}
+
+function reasonFromBreakdown(breakdown: LandingHeroScoreBreakdown): LandingHeroReason {
+  const ranked: Array<{ key: LandingHeroReason; score: number }> = [
+    { key: "seasonal", score: breakdown.season },
+    { key: "nearby", score: breakdown.region },
+    { key: "vividPhoto", score: breakdown.photo },
+    { key: "supported", score: breakdown.evidence },
+    { key: "fresh", score: breakdown.freshness },
+  ];
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked[0]?.key ?? "seasonal";
+}
+
+function buildFeaturedObservation(
+  candidates: LandingHeroCandidate[],
+  context: LandingHeroScoreContext,
+): LandingFeaturedObservation | null {
+  const scored = candidates
+    .filter(isLandingHeroCandidateEligible)
+    .map((candidate) => {
+      const scoreBreakdown = scoreLandingHeroCandidate(candidate, context);
+      return {
+        candidate,
+        scoreBreakdown,
+      };
+    })
+    .sort((a, b) => b.scoreBreakdown.total - a.scoreBreakdown.total);
+  const best = scored[0];
+  if (!best) return null;
+  const { photoWidthPx: _photoWidthPx, photoHeightPx: _photoHeightPx, photoBytes: _photoBytes, qualityGrade: _qualityGrade, ...observation } = best.candidate;
+  return {
+    ...observation,
+    score: best.scoreBreakdown.total,
+    reasonKey: reasonFromBreakdown(best.scoreBreakdown),
+    scoreBreakdown: best.scoreBreakdown,
+  };
+}
+
+function buildPreferredMunicipalities(userId: string | null, myPlaces: LandingSnapshot["myPlaces"], publicFeed: LandingObservation[]): string[] {
+  const values = userId
+    ? myPlaces.map((place) => place.municipality).filter((value): value is string => Boolean(value))
+    : publicFeed.map((obs) => obs.municipality).filter((value): value is string => Boolean(value));
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).slice(0, 5);
+}
+
+function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard">): LandingDailyCard[] {
+  const topMapCell = snapshot.mapPreviewCells[0] ?? null;
+  const revisitPlace = snapshot.myPlaces[0] ?? null;
+  const needsId = [...snapshot.myFeed, ...snapshot.feed].find((obs) => obs.isAiCandidate || obs.identificationCount === 0) ?? null;
+  const regionalStory = snapshot.regionalStory ?? null;
+  const cards: LandingDailyCard[] = [
+    {
+      kind: "recordToday",
+      href: snapshot.viewerUserId && (snapshot.habit?.todayCount ?? 0) > 0 ? "/notes" : "/record",
+      primaryText: null,
+      secondaryText: null,
+      metricValue: snapshot.habit?.todayCount ?? null,
+    },
+    {
+      kind: "revisitPlace",
+      href: snapshot.viewerUserId ? "/notes" : "/map",
+      primaryText: revisitPlace?.placeName ?? topMapCell?.label ?? null,
+      secondaryText: regionalStory?.placeHook ?? revisitPlace?.latestDisplayName ?? revisitPlace?.municipality ?? null,
+      metricValue: revisitPlace?.visitCount ?? null,
+      regionalStory,
+    },
+    {
+      kind: "nearbyPulse",
+      href: "/map",
+      primaryText: topMapCell?.label ?? null,
+      secondaryText: regionalStory?.nextObservationAngle ?? null,
+      metricValue: topMapCell?.count ?? null,
+      regionalStory,
+    },
+    {
+      kind: "needsId",
+      href: needsId ? `/observations/${encodeURIComponent(needsId.detailId ?? needsId.visitId ?? needsId.occurrenceId)}` : "/explore",
+      primaryText: needsId?.displayName ?? null,
+      secondaryText: needsId?.publicLocation.label ?? null,
+      metricValue: needsId?.identificationCount ?? null,
+      observation: needsId ?? undefined,
+    },
+  ];
+  return cards;
+}
+
+function buildLandingDailyDashboard(
+  snapshot: Omit<LandingSnapshot, "dailyDashboard">,
+  heroCandidates: LandingHeroCandidate[],
+): LandingDailyDashboard | null {
+  const now = new Date();
+  const dateKey = now.toISOString().slice(0, 10);
+  const context: LandingHeroScoreContext = {
+    dateKey,
+    now,
+    preferredMunicipalities: buildPreferredMunicipalities(snapshot.viewerUserId, snapshot.myPlaces, snapshot.feed),
+  };
+  const featuredObservation = buildFeaturedObservation(heroCandidates, context);
+  const seasonalStrip = heroCandidates
+    .filter(isLandingHeroCandidateEligible)
+    .map((candidate) => {
+      const scoreBreakdown = scoreLandingHeroCandidate(candidate, context);
+      return {
+        observation: candidate,
+        score: scoreBreakdown.total,
+        reasonKey: reasonFromBreakdown(scoreBreakdown),
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  const dailyCards = buildLandingDailyCards(snapshot);
+  return {
+    dateKey,
+    updatedAt: now.toISOString(),
+    featuredObservation,
+    dailyCards,
+    seasonalStrip,
   };
 }
 
@@ -108,12 +599,16 @@ type IdentificationRow = {
   occurrence_id: string;
   visit_id: string;
   observation_display_name: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  ai_candidate_name: string | null;
   observed_at: string;
   observer_user_id: string | null;
   observer_name: string | null;
   observer_avatar_url: string | null;
   place_name: string | null;
   municipality: string | null;
+  prefecture: string | null;
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
@@ -123,24 +618,103 @@ type IdentificationRow = {
 function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   const lat = row.latitude === null || row.latitude === undefined ? null : Number(row.latitude);
   const lng = row.longitude === null || row.longitude === undefined ? null : Number(row.longitude);
+  const safeLat = lat !== null && Number.isFinite(lat) ? lat : null;
+  const safeLng = lng !== null && Number.isFinite(lng) ? lng : null;
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
-    displayName: row.proposed_name,
+    displayName: resolveLandingDisplayName(row.proposed_name, row.observation_display_name, row.ai_candidate_name),
+    scientificName: row.scientific_name,
+    vernacularName: row.vernacular_name,
+    aiCandidateName: row.ai_candidate_name,
     observedAt: row.observed_at,
-    observerName: row.observer_name ?? "Unknown observer",
-    placeName: row.place_name ?? "Unknown place",
+    observerName: row.observer_name ?? "",
+    placeName: row.place_name ?? "",
     municipality: row.municipality,
+    publicLocation: buildPublicLocationSummary({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+      latitude: safeLat,
+      longitude: safeLng,
+    }),
     photoUrl: normalizeAssetUrl(row.photo_url),
     identificationCount: Number(row.identification_count),
-    latitude: lat !== null && Number.isFinite(lat) ? lat : null,
-    longitude: lng !== null && Number.isFinite(lng) ? lng : null,
+    librarySourceKind: "note",
+    hasVideo: false,
+    latitude: safeLat,
+    longitude: safeLng,
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "identification",
     proposedName: row.proposed_name,
     identifiedAt: row.created_at,
   };
+}
+
+function filterLandingDummyObservations<T extends {
+  displayName?: string | null;
+  aiCandidateName?: string | null;
+  observedAt?: string | null;
+}>(observations: T[]): T[] {
+  return observations.filter((observation) => !isKnownLandingDummyObservation(observation));
+}
+
+function filterLandingDummyPlaces(places: LandingSnapshot["myPlaces"]): LandingSnapshot["myPlaces"] {
+  return places.filter((place) =>
+    !isKnownLandingDummyObservation({
+      displayName: place.latestDisplayName,
+      observedAt: place.lastObservedAt,
+    }),
+  );
+}
+
+function buildMapPreviewCells(rows: FeedRow[]): LandingMapPreviewCell[] {
+  const groups = new Map<string, {
+    count: number;
+    localityInputs: Array<{ municipality?: string | null; prefecture?: string | null }>;
+  }>();
+
+  for (const row of rows) {
+    const location = buildPublicLocationSummary({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+      latitude: row.latitude == null ? null : Number(row.latitude),
+      longitude: row.longitude == null ? null : Number(row.longitude),
+    });
+    if (!location.cellId) continue;
+    if (!groups.has(location.cellId)) {
+      groups.set(location.cellId, {
+        count: 0,
+        localityInputs: [],
+      });
+    }
+    const group = groups.get(location.cellId)!;
+    group.count += 1;
+    group.localityInputs.push({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+    });
+  }
+
+  return Array.from(groups.entries())
+    .map(([cellId, group]) => {
+      const parts = parsePublicCellId(cellId);
+      if (!parts) return null;
+      const geometry = buildPublicCellGeometry(parts);
+      const locality = summarizePublicLocalitySet(group.localityInputs);
+      return {
+        cellId,
+        label: locality.label,
+        count: group.count,
+        gridM: parts.gridM,
+        centroidLat: geometry.centroidLat,
+        centroidLng: geometry.centroidLng,
+        polygon: geometry.ring,
+      } satisfies LandingMapPreviewCell;
+    })
+    .filter((cell): cell is LandingMapPreviewCell => Boolean(cell))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 18);
 }
 
 /** Compute streak from a descending list of ISO date strings (YYYY-MM-DD). */
@@ -172,14 +746,20 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   try {
     pool = getPool();
   } catch {
-    return {
+    const emptySnapshot = {
       viewerUserId: userId,
       stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
       feed: [],
       myFeed: [],
       myPlaces: [],
+      mapPreviewCells: [],
       ambient: [],
       habit: null,
+    } satisfies Omit<LandingSnapshot, "dailyDashboard">;
+    return {
+      ...emptySnapshot,
+      dailyDashboard: buildLandingDailyDashboard(emptySnapshot, []),
+      regionalStory: null,
     };
   }
 
@@ -187,19 +767,29 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 12`,
     );
     feedRows = result.rows;
   } catch {
     feedRows = [];
   }
 
-  // Viewer own feed (if logged in) — own observations, photo-only
+  let heroCandidateRows: FeedRow[] = [];
+  try {
+    const result = await pool.query<FeedRow>(
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 60`,
+    );
+    heroCandidateRows = result.rows;
+  } catch {
+    heroCandidateRows = [];
+  }
+
+  // Viewer own feed (if logged in) — own observation library, including review rows that need media recovery.
   let myFeedRows: FeedRow[] = [];
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null order by v.observed_at desc limit 6`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and coalesce(v.public_visibility, 'public') <> 'hidden' order by v.observed_at desc limit 72`,
         [userId],
       );
       myFeedRows = result.rows;
@@ -220,13 +810,17 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            i.proposed_rank,
            o.occurrence_id,
            o.visit_id,
-           coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as observation_display_name,
+           coalesce(o.vernacular_name, o.scientific_name, ident.display_name, ai.recommended_taxon_name, '同定待ち') as observation_display_name,
+           o.scientific_name,
+           o.vernacular_name,
+           ai.recommended_taxon_name as ai_candidate_name,
            v.observed_at::text,
            v.user_id as observer_user_id,
-           coalesce(u.display_name, 'Unknown observer') as observer_name,
+           ${FEED_OBSERVER_NAME_SQL} as observer_name,
            avatar.public_url as observer_avatar_url,
-           coalesce(p.canonical_name, 'Unknown place') as place_name,
+           p.canonical_name as place_name,
            coalesce(v.observed_municipality, p.municipality) as municipality,
+           coalesce(v.observed_prefecture, p.prefecture) as prefecture,
            coalesce(v.point_latitude, p.center_latitude) as latitude,
            coalesce(v.point_longitude, p.center_longitude) as longitude,
            photo.public_url as photo_url,
@@ -244,20 +838,47 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            select coalesce(ab.public_url, ab.storage_path) as public_url
            from evidence_assets ea
            join asset_blobs ab on ab.blob_id = ea.blob_id
-           where ea.occurrence_id = o.occurrence_id
-             and ea.asset_role = 'observation_photo'
-           order by ea.created_at asc
+           where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+             and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+           order by
+             case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+             ea.created_at asc
            limit 1
          ) photo on true
          left join lateral (
+           select
+             case
+               when btrim(i2.proposed_name) = '' then null
+               when lower(btrim(i2.proposed_name)) in ('unresolved', 'awaiting id') then null
+               when btrim(i2.proposed_name) = '同定待ち' then null
+               else btrim(i2.proposed_name)
+             end as display_name
+           from identifications i2
+           where i2.occurrence_id = o.occurrence_id
+             and coalesce(i2.is_current, true)
+           order by i2.created_at desc
+           limit 1
+         ) ident on true
+         left join lateral (
+           select recommended_taxon_name
+           from observation_ai_assessments a
+           where a.occurrence_id = o.occurrence_id
+           order by generated_at desc
+           limit 1
+         ) ai on true
+         left join lateral (
            select coalesce(ab.public_url, ab.storage_path) as public_url
-           from asset_blobs ab
-           where ab.blob_id = u.avatar_asset_id
+           from evidence_assets ea
+           join asset_blobs ab on ab.blob_id = ea.blob_id
+           where ea.asset_id = u.avatar_asset_id
            limit 1
          ) avatar on true
          where i.actor_user_id = $1
+           and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
+           and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
          order by i.created_at desc
-         limit 6`,
+         limit 24`,
         [userId],
       );
       myIdentificationRows = result.rows;
@@ -334,8 +955,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       place_count: string | number;
     }>(
       `select
-         (select count(*) from occurrences) as observation_count,
-         (select count(distinct scientific_name) from occurrences where scientific_name is not null and scientific_name <> '') as species_count,
+         (select count(*) from occurrences o join visits v on v.visit_id = o.visit_id where ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as observation_count,
+         (select count(distinct o.scientific_name) from occurrences o join visits v on v.visit_id = o.visit_id where o.scientific_name is not null and o.scientific_name <> '' and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}) as species_count,
          (select count(*) from places) as place_count`,
     );
     const row = statsResult.rows[0];
@@ -357,45 +978,117 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       user_id: string;
       display_name: string | null;
       avatar_url: string | null;
+      latest_photo_url: string | null;
       latest_observed_at: string;
       latest_display_name: string | null;
     }>(
-      `select
-         u.user_id,
-         u.display_name,
+      `with latest_photo_visits as (
+         select distinct on (v.user_id)
+           v.user_id,
+           v.visit_id,
+           v.observed_at as latest_observed_at,
+           v.source_payload,
+           coalesce(v.observed_municipality, p.municipality) as municipality,
+           coalesce(v.observed_prefecture, p.prefecture) as prefecture,
+           coalesce(v.point_latitude, p.center_latitude) as latitude,
+           coalesce(v.point_longitude, p.center_longitude) as longitude,
+           photo.public_url as latest_photo_url
+         from visits v
+         left join places p on p.place_id = v.place_id
+         join lateral (
+           select coalesce(ab.public_url, ab.storage_path) as public_url
+           from occurrences o
+           join evidence_assets ea
+             on (ea.occurrence_id = o.occurrence_id or ea.visit_id = v.visit_id)
+           join asset_blobs ab on ab.blob_id = ea.blob_id
+           where o.visit_id = v.visit_id
+             and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+           order by ea.created_at asc
+           limit 1
+         ) photo on true
+         where v.user_id is not null
+           and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
+           and coalesce(v.legacy_observation_id, '') !~* '^(dummy|seed|sample[-_])'
+           and coalesce(v.source_payload->>'import_source', '') !~* '^(dummy|seed)$'
+           and coalesce(v.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
+           and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+           and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
+         order by v.user_id, v.observed_at desc
+       )
+       select
+         latest.user_id,
+         ${AMBIENT_OBSERVER_NAME_SQL} as display_name,
          avatar.public_url as avatar_url,
+         latest.latest_photo_url,
          latest.latest_observed_at::text as latest_observed_at,
          latest_obs.display_name as latest_display_name
-       from users u
-       join lateral (
-         select v.user_id, max(v.observed_at) as latest_observed_at
-         from visits v
-         where v.user_id = u.user_id
-         group by v.user_id
-       ) latest on true
+       from latest_photo_visits latest
+       left join users u on u.user_id = latest.user_id
        left join lateral (
-         select coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name
+         select coalesce(
+                  nullif(o.vernacular_name, ''),
+                  nullif(o.scientific_name, ''),
+                  nullif((select recommended_taxon_name from observation_ai_assessments a where a.occurrence_id = o.occurrence_id order by generated_at desc limit 1), ''),
+                  '同定待ち'
+                ) as display_name
          from occurrences o
          join visits v2 on v2.visit_id = o.visit_id
-         where v2.user_id = u.user_id
-         order by v2.observed_at desc
+         where v2.visit_id = latest.visit_id
+           and ${AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL}
+           and coalesce(v2.public_visibility, 'public') = 'public'
+           and coalesce(v2.quality_review_status, 'accepted') = 'accepted'
+         order by o.subject_index asc, o.created_at asc
          limit 1
        ) latest_obs on true
        left join lateral (
+         select count(distinct v3.visit_id)::int as nearby_photo_visits
+         from visits v3
+         left join places p3 on p3.place_id = v3.place_id
+         where coalesce(v3.public_visibility, 'public') = 'public'
+           and coalesce(v3.quality_review_status, 'accepted') = 'accepted'
+           and v3.observed_at >= now() - interval '90 days'
+           and exists (
+             select 1
+             from occurrences o3
+             join evidence_assets ea3
+               on (ea3.occurrence_id = o3.occurrence_id or ea3.visit_id = v3.visit_id)
+              join asset_blobs ab3 on ab3.blob_id = ea3.blob_id
+             where o3.visit_id = v3.visit_id
+              and ea3.asset_role = 'observation_photo'
+              and coalesce(nullif(lower(ea3.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+              and coalesce(nullif(lower(ab3.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
+              and nullif(coalesce(ab3.public_url, ab3.storage_path), '') is not null
+           )
+           and (
+             (latest.municipality is not null and coalesce(v3.observed_municipality, p3.municipality) = latest.municipality)
+             or (
+               latest.latitude is not null
+               and latest.longitude is not null
+               and coalesce(v3.point_latitude, p3.center_latitude) between latest.latitude - 0.12 and latest.latitude + 0.12
+               and coalesce(v3.point_longitude, p3.center_longitude) between latest.longitude - 0.12 and latest.longitude + 0.12
+             )
+           )
+       ) local_activity on true
+       left join lateral (
          select coalesce(ab.public_url, ab.storage_path) as public_url
-         from asset_blobs ab
-         where ab.blob_id = u.avatar_asset_id
+         from evidence_assets ea
+         join asset_blobs ab on ab.blob_id = ea.blob_id
+         where ea.asset_id = u.avatar_asset_id
          limit 1
        ) avatar on true
-       order by latest.latest_observed_at desc
+       order by
+         coalesce(local_activity.nearby_photo_visits, 0) desc,
+         case when latest.latest_observed_at >= now() - interval '14 days' then 1 else 0 end desc,
+         latest.latest_observed_at desc
        limit 8`,
     );
     ambient = ambientResult.rows.map((row) => ({
       userId: row.user_id,
       displayName: row.display_name ?? "Observer",
       avatarUrl: normalizeAssetUrl(row.avatar_url),
+      latestPhotoUrl: normalizeAssetUrl(row.latest_photo_url),
       latestObservedAt: row.latest_observed_at,
-      latestDisplayName: row.latest_display_name ?? "Unresolved",
+      latestDisplayName: row.latest_display_name ?? "同定待ち",
     }));
   } catch {
     ambient = [];
@@ -403,21 +1096,75 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
 
   // Merge own observations + own identifications into myFeed, sorted by timestamp desc,
   // so that the "your notebook" stream shows both kinds of pages in one timeline.
+  const filteredFeedRows = feedRows.filter((row) => !isKnownLandingDummyObservation({
+    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
+    aiCandidateName: row.ai_candidate_name,
+    observedAt: row.observed_at,
+  }));
   const ownObservationEntries = myFeedRows.map(toLandingObservation);
   const ownIdentificationEntries = myIdentificationRows.map(toIdentificationEntry);
-  const combined = [...ownObservationEntries, ...ownIdentificationEntries].sort((a, b) => {
+  const publicFeed = filteredFeedRows.map(toLandingObservation);
+  const combined = filterLandingDummyObservations([...ownObservationEntries, ...ownIdentificationEntries]).sort((a, b) => {
     const aTs = (a.entryType === "identification" ? a.identifiedAt : a.observedAt) ?? "";
     const bTs = (b.entryType === "identification" ? b.identifiedAt : b.observedAt) ?? "";
     return bTs.localeCompare(aTs);
   });
+  const filteredMyPlaces = filterLandingDummyPlaces(myPlaces);
+  const regionalStoryPlace = filteredMyPlaces[0]
+    ? {
+        placeId: filteredMyPlaces[0].placeId,
+        placeName: filteredMyPlaces[0].placeName,
+        municipality: filteredMyPlaces[0].municipality,
+        latitude: filteredMyPlaces[0].latitude,
+        longitude: filteredMyPlaces[0].longitude,
+        allowPrecisePlaceLabel: true,
+      }
+    : publicFeed[0]
+      ? {
+          placeId: null,
+          placeName: publicFeed[0].placeName,
+          municipality: publicFeed[0].municipality,
+          latitude: publicFeed[0].latitude,
+          longitude: publicFeed[0].longitude,
+          publicLabel: publicFeed[0].publicLocation.label,
+          allowPrecisePlaceLabel: false,
+        }
+      : {
+          municipality: "浜松市",
+          publicLabel: "浜松市",
+          allowPrecisePlaceLabel: false,
+        };
+  const regionalStory = await getRegionalStoryCue({
+    surface: "landing",
+    viewerUserId: userId,
+    place: regionalStoryPlace,
+    observation: publicFeed[0]
+      ? {
+          observationId: publicFeed[0].occurrenceId,
+          observedAt: publicFeed[0].observedAt,
+          displayName: publicFeed[0].displayName,
+        }
+      : undefined,
+    maxCards: 1,
+  }).catch(() => null);
 
-  return {
+  const snapshotWithoutDashboard = {
     viewerUserId: userId,
     stats,
-    feed: feedRows.map(toLandingObservation),
-    myFeed: combined.slice(0, 12),
-    myPlaces,
+    feed: publicFeed,
+    myFeed: combined.slice(0, 96),
+    myPlaces: filteredMyPlaces,
+    mapPreviewCells: buildMapPreviewCells(filteredFeedRows),
     ambient,
     habit,
+    regionalStory,
+  } satisfies Omit<LandingSnapshot, "dailyDashboard">;
+
+  return {
+    ...snapshotWithoutDashboard,
+    dailyDashboard: buildLandingDailyDashboard(
+      snapshotWithoutDashboard,
+      filterLandingDummyObservations(heroCandidateRows.map(toLandingHeroCandidate)),
+    ),
   };
 }

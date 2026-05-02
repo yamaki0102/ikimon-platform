@@ -1,0 +1,10 @@
+[Unit]
+Description=ikimon platform_v2 daily production media smoke
+After=network-online.target ikimon-v2-media-worker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/ikimon.life/repo
+ExecStart=/bin/bash /var/www/ikimon.life/repo/ops/cron/run_production_media_smoke.sh
+Nice=10

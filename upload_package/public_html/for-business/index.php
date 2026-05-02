@@ -741,6 +741,21 @@ $supportPolicies = $regionalMessaging['support_policies'];
                 </div>
                 <div class="grid-3">
                     <?php foreach ($personas as $persona): ?>
+                        <?php
+                        $personaCta = $persona['cta'] ?? $workspaceCtaLabel;
+                        $personaHref = $persona['href'] ?? $workspaceCtaHref;
+                        $personaRouteSignal = implode(' ', [
+                            $persona['label'] ?? '',
+                            $persona['plan'] ?? '',
+                            $personaCta,
+                        ]);
+                        if (str_contains($personaRouteSignal, 'Public')) {
+                            $personaHref = $publicCtaHref;
+                        }
+                        if (str_contains($personaRouteSignal, '方針') || str_contains($personaRouteSignal, '無償')) {
+                            $personaHref = '../about.php#disappearing';
+                        }
+                        ?>
                         <article class="card persona-card">
                             <div class="persona-head">
                                 <span class="persona-tag"><i data-lucide="<?= htmlspecialchars($persona['icon']) ?>" class="h-4 w-4"></i><?= htmlspecialchars($persona['label']) ?></span>
@@ -753,7 +768,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
                                         <strong><?= htmlspecialchars($lp['plan_label'] ?? 'Plan:') ?></strong>
                                         <span><?= htmlspecialchars($persona['plan']) ?></span>
                                     </div>
-                                    <a href="<?= htmlspecialchars($persona['href']) ?>" class="lp-btn-primary"><?= htmlspecialchars($persona['cta']) ?></a>
+                                    <a href="<?= htmlspecialchars($personaHref) ?>" class="lp-btn-primary"><?= htmlspecialchars($personaCta) ?></a>
                                 </div>
                             </div>
                         </article>

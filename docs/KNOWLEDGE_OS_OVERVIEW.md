@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-04-16  
+更新日: 2026-04-30
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -27,7 +27,56 @@
 
 ---
 
-## 2. 知識OS コンポーネントマップ
+## 2. Navigable Biodiversity OS（検索前の分岐）
+
+2026-04-30 時点の追加方針:
+
+**RAGを広く強くする前に、観察データと知識claimを分離し、質問を branch に振り分ける。**
+
+正本入口:
+
+- `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\NAVIGATOR.md`
+- `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\branches\*/INDEX.md`
+- `docs/spec/navigable_biodiversity_os_contract.md`
+- `docs/spec/navigable_biodiversity_os/eval_questions.json`
+- `docs/spec/navigable_biodiversity_os/reassess_eval_samples.json`
+
+基本経路:
+
+```
+NAVIGATOR
+  -> branch INDEX
+  -> ObservationPackage
+  -> knowledge_claims
+  -> focused retrieval
+  -> feedback / review / report
+```
+
+branch は以下の10個を正準とする。
+
+| branch | 主用途 |
+|---|---|
+| `observation_quality` | 観察が再利用可能な証拠パッケージか判断 |
+| `identification_granularity` | species / genus / species group / unknown の安全な粒度判断 |
+| `evidence_tier_review` | AI suggestion / community / expert / Tier 昇格 |
+| `knowledge_claims` | 文献claim、citation_span、Hot path 参照条件 |
+| `feedback_contract` | AI観察フィードバック、missing evidence、retake guidance |
+| `mypage_learning` | 学習履歴、profile digest、再訪・上達ループ |
+| `enterprise_reporting` | site report / TNFD / 30by30 / 企業向け出力 |
+| `privacy_claim_boundary` | 希少種位置、健康・法務・greenwashing 境界 |
+| `freshness_sources` | source_snapshot、versioned facts、curator、cache invalidation |
+| `evaluation` | 10問A/B、tokens、unsupported claim、species overclaim |
+
+重要な制約:
+
+- Hot path の `knowledge_claims` は `human_review_status='ready' AND use_in_feedback=TRUE` のみ参照する
+- `ObservationPackage` は `visit / occurrences / evidence_assets / identifications / ai_runs / feedback_payload / claim_refs / review_state / report_outputs` を束ねる契約であり、AI出力そのものを正本化しない
+- species-level の断定は、観察証拠と review state が支える場合だけ許可する
+- 企業レポートや希少種・外来種・健康系の強い主張は claim boundary を通す
+
+---
+
+## 3. 知識OS コンポーネントマップ
 
 ```
 観察投稿 (post.php)
@@ -55,7 +104,7 @@
 
 ---
 
-## 3. Evidence Tier（信頼階層）
+## 4. Evidence Tier（信頼階層）
 
 ```
 Tier 1   → AI単独判定（自動）
@@ -69,7 +118,7 @@ Tier 4   → 論文・標本等の外部エビデンス紐付き
 
 ---
 
-## 4. コンポーネント一覧と実装ファイル
+## 5. コンポーネント一覧と実装ファイル
 
 | クラス | ファイル | 役割 | 状態 |
 |---|---|---|---|
@@ -89,7 +138,7 @@ Tier 4   → 論文・標本等の外部エビデンス紐付き
 
 ---
 
-## 5. データフロー（フルパス）
+## 6. データフロー（フルパス）
 
 ```
 1. 投稿受付
@@ -124,7 +173,7 @@ Tier 4   → 論文・標本等の外部エビデンス紐付き
 
 ---
 
-## 6. Platform v2（TypeScript側）
+## 7. Platform v2（TypeScript側）
 
 ```
 platform_v2/src/
@@ -139,7 +188,15 @@ platform_v2/src/
 │   └── uiKpi.ts             UI KPI events
 ├── services/
 │   ├── authSession.ts       cookie session
+│   ├── observationWrite.ts  quick capture / survey write lane
+│   ├── observationPackage.ts 実DBから ObservationPackage を組み立てる read helper
+│   ├── knowledgeClaimRetrieval.ts branch-aware claim retrieval
+│   ├── observationReassess.ts AI観察feedback / user_output_cache / 3レンズgate
+│   ├── versionedKnowledgeReader.ts freshness facts -> knowledge_version_set
+│   ├── userOutputCache.ts   Hot path 出力cache / version ref invalidation
+│   ├── mapEffort.ts         frontier / effort summary / actor lens
 │   ├── specialistReview.ts  専門家レビュー
+│   ├── visitSubjects.ts     trust lane summary
 │   ├── readiness.ts         cutover gate 集約
 │   └── writeGuards.ts       write / specialist 権限制御
 └── scripts/                 移行スクリプト (import*/verify*)
@@ -148,12 +205,16 @@ platform_v2/src/
 **現状の理解**:
 - v2 は `read-only` ではない。staging lane では minimal write lane / photo upload / session lane まで実測済み
 - ただし **本番正本はまだ legacy 側**。cutover までは rollback / compatibility を前提に扱う
+- `staging /record` は `quick capture` と `survey` を分離し、survey 側で `effort / checklist / scope / revisit reason` を取る方向に入った
+- map は `actor lens` を持ち、`local steward / traveler / casual` ごとに frontier を変える入口ができた
+- observation detail は `AI suggestion -> community support -> authority-backed -> public claim` を段差つきで見せる
+- Navigable Biodiversity OS は `ObservationPackage` 契約、branch INDEX、10問A/B評価、`import:feedback-knowledge`、branch-aware claim retrieval、reassess 出力サンプル生成、reviewer / report への `claim_refs_used` 貫通、CI の `eval:navigable-os` gate まで入っている
 - 切替判断は `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` と
   `docs/architecture/ikimon_v2_final_cutover_runbook_2026-04-15.md` を参照する
 
 ---
 
-## 7. 技術スタック早見表
+## 8. 技術スタック早見表
 
 | 要素 | v1 (現行) | v2 (移行先) |
 |---|---|---|
@@ -170,7 +231,7 @@ platform_v2/src/
 
 ---
 
-## 8. エージェント作業ガイド
+## 9. エージェント作業ガイド
 
 ### タスクに入る前の確認
 
@@ -179,14 +240,15 @@ platform_v2/src/
 2. 既存コンポーネントを使えるか? (上の表を確認)
 3. JSON書込 vs DB書込 どちらが正本か? (現状: JSON が本番正本)
 4. v1のみ / v2のみ / dual-write か?
+5. Navigable OS のどの branch が制御しているか?
 ```
 
 ### いま追加で確認すべきこと
 
 ```
-5. これは public surface / ops readiness / specialist / deploy のどれか?
-6. staging 実測が必要か? それとも doc 更新だけでよいか?
-7. security gate（session / specialist role / privileged write API key）に触る変更か?
+6. これは public surface / ops readiness / specialist / deploy のどれか?
+7. staging 実測が必要か? それとも doc 更新だけでよいか?
+8. security gate（session / specialist role / privileged write API key）に触る変更か?
 ```
 
 ### 禁止事項（再掲）
@@ -208,15 +270,17 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 9. 参照ドキュメント優先順（ikimon タスク）
+## 10. 参照ドキュメント優先順（ikimon タスク）
 
 1. `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` — 文書の正本索引
 2. `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` — 現在地と計画
 3. **このファイル** (`docs/KNOWLEDGE_OS_OVERVIEW.md`) — 用語と層の入口整理
 4. `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md` — `.codex/knowledge` と repo docs の橋渡し
-5. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
-6. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
-7. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
+5. `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\NAVIGATOR.md` — branch 選択
+6. `docs/spec/navigable_biodiversity_os_contract.md` — ObservationPackage / retrieval 契約
+7. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
+8. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
+9. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
 
 ### v2 / cutover を触る場合の追加順
 
@@ -226,14 +290,15 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 10. 蓄積ルール（どのエージェントでも共通）
+## 11. 蓄積ルール（どのエージェントでも共通）
 
 新知見・変更はどのエージェントからでも以下の形で記録する:
 
 | 種別 | 記録先 |
 |---|---|
 | アーキテクチャ決定 | `docs/architecture/ADR-NNN-*.md` 新規作成 |
-| 実装状況の変化 | このファイルの §4 テーブルを更新 |
+| 実装状況の変化 | このファイルのコンポーネント一覧テーブルを更新 |
+| Navigable OS branch変更 | `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\NAVIGATOR.md` と branch `INDEX.md` を更新 |
 | バグ・制約発見 | `AGENTS.md` の Critical Patterns に追記 |
 | 戦略変更 | `docs/IKIMON_MASTER_STATUS_AND_PLAN_*.md` を更新 |
 | エージェント固有メモ | Claude: `~/.claude/projects/.../memory/`、Codex: `~/.codex/knowledge/` |
@@ -260,14 +325,19 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 11. 現時点の注意点（2026-04-16）
+## 12. 現時点の注意点（2026-04-30）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - staging の `/` は v2、`/legacy/` は PHP rollback lane
-- v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する
+- v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する。`near_ready` は rollback safety と audio archive がどちらも成立した時だけ許可する
+- cutover 判定では `parityVerified` / `deltaSyncHealthy` / `driftReportHealthy` / `compatibilityWriteWorking` / `audioArchiveReady` / `rollbackSafetyWindowReady` を必ず見る
+- rollback 再発防止のため、`trackPoints > 0` と `audioArchiveReady=true` は cutover 前の必須条件にする。`private_uploads` は deploy prepare で `www-data` 所有の永続ディレクトリとして作成する
 - v2 write lane には security gate が入っている
   - 一般 write: cookie session の本人のみ
   - specialist: session + specialist role
   - 特権 API (`session issue / user upsert / remember-token issue/revoke`): `V2_PRIVILEGED_WRITE_API_KEY` 必須
+- `survey` は比較可能性を高める入口だが、まだ `absence claim` や `trend-ready claim` ではない
+- iNaturalist 批判への返答境界は `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md` を参照する
+- `dev_tools/observation_feedback_*` は現 repo には存在しない。今後は `platform_v2/src/scripts/importObservationFeedbackKnowledgeClaims.ts` と `knowledge_claims` を通して復元する
 
-この4点を知らずに v2 を触ると、実装・運用・検証のどこかで判断を誤る。
+これらを知らずに v2 を触ると、実装・運用・検証のどこかで判断を誤る。

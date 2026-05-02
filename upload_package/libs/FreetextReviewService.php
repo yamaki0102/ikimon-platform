@@ -2,7 +2,7 @@
 
 /**
  * FreetextReviewService — freetext同定のレビューキュー管理
- * 
+ *
  * observationsの中からsource='freetext'のレコードを集約し、
  * 管理者がレビュー・承認・却下できる仕組みを提供する。
  */
@@ -26,7 +26,7 @@ class FreetextReviewService
     /**
      * レビューキュー取得
      * 全observationsからsource='freetext'を抽出し、レビュー状況と共に返す
-     * 
+     *
      * @param string|null $status  'pending'|'approved'|'rejected'|null(全件)
      * @return array
      */
@@ -71,7 +71,7 @@ class FreetextReviewService
 
     /**
      * Freetext同定を承認し、正式なtaxonデータに置換
-     * 
+     *
      * @param string $obsId         対象観察ID
      * @param array  $resolvedTaxon 正式なtaxonデータ (TaxonData::toObservationTaxon()形式)
      * @return bool
@@ -114,7 +114,7 @@ class FreetextReviewService
 
     /**
      * Freetext同定を却下
-     * 
+     *
      * @param string $obsId   対象観察ID
      * @param string $reason  却下理由
      * @return bool
@@ -133,7 +133,7 @@ class FreetextReviewService
 
     /**
      * 指定された名前でTaxonSearchServiceを使って候補を検索
-     * 
+     *
      * @param string $query  検索クエリ
      * @return array  候補リスト
      */

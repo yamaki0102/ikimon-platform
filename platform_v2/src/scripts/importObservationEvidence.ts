@@ -2,6 +2,7 @@ import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -34,10 +35,16 @@ type EvidenceSummary = {
 
 function parseArgs(argv: string[]): ImportOptions {
   const projectRoot = process.cwd();
+  const legacyRoots = resolveLegacyRoots(projectRoot, {
+    mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
+    legacyDataRoot: process.env.LEGACY_DATA_ROOT,
+    uploadsRoot: process.env.LEGACY_UPLOADS_ROOT,
+    publicRoot: process.env.LEGACY_PUBLIC_ROOT,
+  });
   const options: ImportOptions = {
-    legacyDataRoot: path.resolve(projectRoot, "../upload_package/data"),
-    uploadsRoot: path.resolve(projectRoot, "../upload_package/public_html/uploads"),
-    publicRoot: path.resolve(projectRoot, "../upload_package/public_html"),
+    legacyDataRoot: legacyRoots.legacyDataRoot,
+    uploadsRoot: legacyRoots.uploadsRoot,
+    publicRoot: legacyRoots.publicRoot,
     dryRun: false,
     limit: null,
     importVersion: "v0-plan",
@@ -197,16 +204,22 @@ async function main(): Promise<void> {
   const existingLedger = await pool.query<{
     legacy_relative_path: string;
     import_status: string;
+    asset_id: string | null;
+    evidence_exists: boolean;
   }>(
-    `select legacy_relative_path, import_status
-     from asset_ledger
-     where legacy_source = 'php_fs'
-       and import_version = $1`,
+    `select al.legacy_relative_path,
+            al.import_status,
+            al.asset_id::text,
+            (ea.asset_id is not null) as evidence_exists
+       from asset_ledger al
+       left join evidence_assets ea on ea.asset_id = al.asset_id
+      where al.legacy_source = 'php_fs'
+        and al.import_version = $1`,
     [options.importVersion],
   );
   const completedAssetLedger = new Set<string>();
   for (const row of existingLedger.rows) {
-    if (row.import_status === "imported" || row.import_status === "skipped") {
+    if (row.import_status === "imported" && row.asset_id && row.evidence_exists) {
       completedAssetLedger.add(row.legacy_relative_path);
     }
   }
@@ -215,11 +228,14 @@ async function main(): Promise<void> {
     canonical_id: string;
     canonical_parent_id: string | null;
   }>(
-    `select legacy_id, canonical_id, canonical_parent_id
-     from migration_ledger
-     where entity_type = 'observation_meaning'
-       and import_status = 'imported'
-       and import_version = $1`,
+    `select ml.legacy_id,
+            o.occurrence_id as canonical_id,
+            o.visit_id as canonical_parent_id
+       from migration_ledger ml
+       join occurrences o on o.occurrence_id = ml.canonical_id
+      where ml.entity_type = 'observation_meaning'
+        and ml.import_status = 'imported'
+        and ml.import_version = $1`,
     [options.importVersion],
   );
 

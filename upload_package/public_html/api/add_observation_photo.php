@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/ObservationMeta.php';
+require_once __DIR__ . '/../../libs/ThumbnailGenerator.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -126,6 +127,8 @@ for ($i = 0; $i < $fileCount; $i++) {
 if (empty($addedPhotos)) {
     respond(false, '写真のアップロードに失敗しました。ファイル形式やサイズを確認してください。');
 }
+
+ThumbnailGenerator::generateForObservation(['photos' => $addedPhotos]);
 
 $obs['photos'] = $existingPhotos;
 $obs['updated_at'] = date('c');

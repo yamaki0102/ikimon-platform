@@ -5,7 +5,34 @@ export type AppConfig = {
   port: number;
   databaseUrl?: string;
   privilegedWriteApiKey?: string;
+  oauthStateSecret?: string;
   geminiApiKey?: string;
+  deepseekApiKey?: string;
+  profileDigest: {
+    provider: "disabled" | "deepseek";
+    model: string;
+    maxInputTokens: number;
+    maxOutputTokens: number;
+    monthlyBudgetJpy: number;
+    assumedJpyPerUsd: number;
+  };
+  regionalStory: {
+    provider: "disabled" | "gemini";
+    model: string;
+    maxOutputTokens: number;
+  };
+  regionalKnowledgeEmbedding: {
+    provider: "disabled" | "gemini";
+    model: string;
+    outputDimensionality: number;
+  };
+  aiBudget: {
+    hotMonthlyBudgetJpy: number;
+    warmMonthlyBudgetJpy: number;
+    coldMonthlyBudgetJpy: number;
+    assumedJpyPerUsd: number;
+    overrideActive: boolean;
+  };
   legacyDataRoot: string;
   legacyPublicRoot: string;
   legacyUploadsRoot: string;
@@ -15,6 +42,17 @@ export type AppConfig = {
     accountId: string;
     streamApiToken: string;
     streamCustomerSubdomain: string;
+    streamWebhookSecret?: string;
+  };
+  oauth: {
+    google?: {
+      clientId: string;
+      clientSecret: string;
+    };
+    twitter?: {
+      clientId: string;
+      clientSecret: string;
+    };
   };
 };
 
@@ -49,6 +87,43 @@ function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean 
   return fallback;
 }
 
+function parsePositiveNumber(rawValue: string | undefined, fallback: number): number {
+  if (rawValue === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function parseProfileDigestProvider(rawValue: string | undefined, hasDeepseekKey: boolean): "disabled" | "deepseek" {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (normalized === "deepseek") {
+    return "deepseek";
+  }
+  if (normalized === "disabled" || normalized === "off" || normalized === "0") {
+    return "disabled";
+  }
+  if (hasDeepseekKey) {
+    return "deepseek";
+  }
+  return "disabled";
+}
+
+function parseRegionalStoryProvider(rawValue: string | undefined, hasGeminiKey: boolean): "disabled" | "gemini" {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (normalized === "gemini") {
+    return hasGeminiKey ? "gemini" : "disabled";
+  }
+  if (normalized === "disabled" || normalized === "off" || normalized === "0") {
+    return "disabled";
+  }
+  return "disabled";
+}
+
 export function loadConfig(): AppConfig {
   const baseRoot = process.cwd();
   const legacyRoots = resolveLegacyRoots(baseRoot, {
@@ -60,21 +135,65 @@ export function loadConfig(): AppConfig {
   const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   const cfToken = process.env.CLOUDFLARE_STREAM_API_TOKEN?.trim();
   const cfSubdomain = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN?.trim();
+  const cfWebhookSecret = process.env.CLOUDFLARE_STREAM_WEBHOOK_SECRET?.trim();
   const cloudflare = cfAccount && cfToken && cfSubdomain
-    ? { accountId: cfAccount, streamApiToken: cfToken, streamCustomerSubdomain: cfSubdomain }
+    ? { accountId: cfAccount, streamApiToken: cfToken, streamCustomerSubdomain: cfSubdomain, streamWebhookSecret: cfWebhookSecret || undefined }
     : undefined;
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const twitterClientId = process.env.TWITTER_CLIENT_ID?.trim();
+  const twitterClientSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
+  const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim() || undefined;
+  const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || undefined;
 
   return {
     nodeEnv: process.env.NODE_ENV ?? "development",
     port: parsePort(process.env.PORT),
     databaseUrl: process.env.DATABASE_URL,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
-    geminiApiKey: process.env.GEMINI_API_KEY?.trim() || undefined,
+    oauthStateSecret: process.env.V2_OAUTH_STATE_SECRET?.trim() || process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
+    geminiApiKey,
+    deepseekApiKey,
+    profileDigest: {
+      provider: parseProfileDigestProvider(process.env.PROFILE_DIGEST_LLM_PROVIDER, Boolean(deepseekApiKey)),
+      model: process.env.PROFILE_DIGEST_MODEL?.trim() || "deepseek-v4-flash",
+      maxInputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_INPUT_TOKENS, 2000)),
+      maxOutputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_OUTPUT_TOKENS, 300)),
+      monthlyBudgetJpy: parsePositiveNumber(process.env.PROFILE_DIGEST_MONTHLY_BUDGET_JPY, 1000),
+      assumedJpyPerUsd: parsePositiveNumber(process.env.PROFILE_DIGEST_ASSUMED_JPY_PER_USD, 150),
+    },
+    regionalStory: {
+      provider: parseRegionalStoryProvider(process.env.REGIONAL_STORY_LLM_PROVIDER, Boolean(geminiApiKey)),
+      model: process.env.REGIONAL_STORY_GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite-preview",
+      maxOutputTokens: Math.floor(parsePositiveNumber(process.env.REGIONAL_STORY_MAX_OUTPUT_TOKENS, 360)),
+    },
+    regionalKnowledgeEmbedding: {
+      provider: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_PROVIDER?.trim().toLowerCase() === "gemini" && geminiApiKey
+        ? "gemini"
+        : "disabled",
+      model: process.env.REGIONAL_KNOWLEDGE_EMBEDDING_MODEL?.trim() || "gemini-embedding-2",
+      outputDimensionality: Math.floor(parsePositiveNumber(process.env.REGIONAL_KNOWLEDGE_EMBEDDING_DIM, 1536)),
+    },
+    aiBudget: {
+      hotMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_HOT_MONTHLY_BUDGET_JPY, 10000),
+      warmMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_WARM_MONTHLY_BUDGET_JPY, 5000),
+      coldMonthlyBudgetJpy: parsePositiveNumber(process.env.AI_COLD_MONTHLY_BUDGET_JPY, 5000),
+      assumedJpyPerUsd: parsePositiveNumber(process.env.AI_BUDGET_JPY_PER_USD, 150),
+      overrideActive: parseBoolean(process.env.AI_BUDGET_OVERRIDE, false),
+    },
     legacyDataRoot: legacyRoots.legacyDataRoot,
     legacyPublicRoot: legacyRoots.publicRoot,
     legacyUploadsRoot: legacyRoots.uploadsRoot,
     legacyMirrorRoot: process.env.LEGACY_MIRROR_ROOT,
     compatibilityWriteEnabled: parseBoolean(process.env.COMPATIBILITY_WRITE_ENABLED, true),
     cloudflare,
+    oauth: {
+      google: googleClientId && googleClientSecret
+        ? { clientId: googleClientId, clientSecret: googleClientSecret }
+        : undefined,
+      twitter: twitterClientId && twitterClientSecret
+        ? { clientId: twitterClientId, clientSecret: twitterClientSecret }
+        : undefined,
+    },
   };
 }

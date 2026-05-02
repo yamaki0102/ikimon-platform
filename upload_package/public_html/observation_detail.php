@@ -318,6 +318,8 @@ $metadataHistory = array_values(array_filter(
 // Privacy-aware display coordinates
 $isOwner = $currentUser && ($currentUser['id'] === ($obs['user_id'] ?? ''));
 $filteredObs = PrivacyFilter::autoFilter($obs);
+$publicLocationSummary = PrivacyFilter::buildPublicLocationSummary($obs);
+$publicLocationName = (string)($publicLocationSummary['label'] ?? ($obs['municipality'] ?? ($obs['prefecture'] ?? __('observation_page.location_hidden', 'Location hidden'))));
 $displayLatRaw = $filteredObs['latitude'] ?? $filteredObs['lat'] ?? $obs['lat'] ?? null;
 $displayLngRaw = $filteredObs['longitude'] ?? $filteredObs['lng'] ?? $obs['lng'] ?? null;
 $displayLat = is_numeric($displayLatRaw) ? (float)$displayLatRaw : null;
@@ -343,9 +345,7 @@ $revisitBody = $myFieldName
     : __('observation_page.revisit_body_default', 'One more dated record from the same place makes it easier to compare season, condition, and review progress later.');
 
 // Obscure location
-$location = $hasDisplayCoordinates
-    ? BioUtils::getObscuredLocation($displayLat, $displayLng, null)
-    : ($obs['municipality'] ?? ($obs['prefecture'] ?? __('observation_page.location_hidden', 'Location hidden')));
+$location = $publicLocationName;
 
 // Check Red List & Invasive
 $redlist = $taxon_key ? RedList::check($taxon_key) : null;
@@ -510,13 +510,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <?php include __DIR__ . '/components/map_config.php'; ?>
 </head>
 
-<body class="js-loading font-body min-h-screen antialiased" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($obs['municipality'] ?? ($obs['prefecture'] ?? ''), ENT_QUOTES); ?>' }" x-init="
-    <?php if ($hasDisplayCoordinates): ?>
-    fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo round($displayLat, 2); ?>&lon=<?php echo round($displayLng, 2); ?>&format=json&accept-language=<?php echo rawurlencode($documentLang); ?>&zoom=10')
-        .then(r => r.json())
-        .then(d => { if (d.address) { const city = d.address.city || d.address.town || d.address.village || d.address.county || ''; const state = d.address.state || ''; locationName = city ? city + (state ? ', ' + state : '') : (state || locationName); } })
-        .catch(() => {});
-    <?php endif; ?>
+<body class="js-loading font-body min-h-screen antialiased" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($publicLocationName, ENT_QUOTES); ?>' }" x-init="
     },
     async submitAgree(target) {
         if(!confirm('<?= addslashes(__('observation_page.agree_confirm_prefix', 'Agree with \"{name}\"?')) ?>'.replace('{name}', target.name) + '\n<?= addslashes(__('observation_page.agree_confirm_note', '(Your agreement affects the trust level of this record.)')) ?>')) return;
@@ -727,7 +721,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                 <!-- Owner Narrative (compact meta + note) -->
                 <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
-                <?php $obsLocationLabel = !empty($obs['location']['name']) ? $obs['location']['name'] : ($obs['municipality'] ?? ($obs['prefecture'] ?? '')); ?>
                 <div class="mt-3" style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
                     <div class="flex items-center gap-2.5 mb-2 flex-wrap">
                         <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? '/assets/img/default-avatar.svg'); ?>"
@@ -739,10 +732,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <i data-lucide="calendar" class="w-3 h-3" style="pointer-events:none"></i>
                             <?php echo date('Y.m.d H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
                         </span>
-                        <?php if ($obsLocationLabel !== ''): ?>
+                        <?php if ($publicLocationName !== ''): ?>
                             <span class="inline-flex items-center gap-1 text-token-xs text-muted min-w-0">
                                 <i data-lucide="map-pin" class="w-3 h-3 flex-shrink-0" style="pointer-events:none"></i>
-                                <span class="truncate"><?php echo htmlspecialchars($obsLocationLabel); ?></span>
+                                <span class="truncate"><?php echo htmlspecialchars($publicLocationName); ?></span>
                             </span>
                         <?php endif; ?>
                     </div>
@@ -751,7 +744,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </p>
                 </div>
 
-                <?php if ($managedContextType !== '' || !empty($managedContext['site_name']) || $organismOrigin !== ''): ?>
+                <?php if ($managedContextType !== '' || $organismOrigin !== ''): ?>
                     <section style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:0.75rem 1rem;box-shadow:var(--elev-1);">
                         <div class="flex items-center justify-between gap-3 mb-2">
                             <div>
@@ -770,14 +763,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.facility_context', 'Facility context') ?></p>
                                 <p class="font-bold text-text"><?php echo htmlspecialchars($managedContextLabelMap[$managedContextType] ?? ($managedContextType !== '' ? $managedContextType : __('observation_page.none', 'None'))); ?></p>
-                                <?php if (!empty($managedContext['site_name'])): ?>
-                                    <p class="text-xs text-muted mt-1"><?php echo htmlspecialchars($managedContext['site_name']); ?></p>
-                                <?php endif; ?>
                             </div>
                         </div>
-                        <?php if (!empty($managedContext['note'])): ?>
-                            <p class="mt-3 text-sm text-muted leading-relaxed"><?php echo htmlspecialchars($managedContext['note']); ?></p>
-                        <?php endif; ?>
                         <p class="mt-3 text-[11px] text-faint"><?= __('observation_page.context_note', 'Even inside facilities, wild individuals are stored as wild. Facility context is preserved separately from field distribution so provenance can be traced 100 years from now.') ?></p>
                     </section>
                 <?php endif; ?>
@@ -925,6 +912,54 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 </div>
                             <?php endif; ?>
                             <div class="space-y-2 text-sm">
+                                <?php
+                                $hasSimilar = !empty($latestAiAssessment['similar_taxa_to_compare']);
+                                $hasTips    = !empty($latestAiAssessment['distinguishing_tips']);
+                                $hasMissing = !empty($latestAiAssessment['missing_evidence']);
+                                if ($hasSimilar || $hasTips || $hasMissing):
+                                ?>
+                                    <div class="space-y-2" style="background:var(--md-tertiary-container);border-radius:var(--shape-md);padding:0.625rem 0.75rem;border-left:4px solid var(--color-primary);">
+                                        <p class="text-[10px] font-black text-primary uppercase tracking-widest leading-none"><?= __('observation_page.identify_priority', 'Identification keys') ?></p>
+                                        <?php if ($hasTips): ?>
+                                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_distinguishing_tips', 'How to tell them apart') ?></p>
+                                                <ul class="mt-1 space-y-1">
+                                                    <?php foreach ($latestAiAssessment['distinguishing_tips'] as $tip): ?>
+                                                        <li class="flex items-start gap-1.5 text-xs text-text leading-snug">
+                                                            <span class="mt-0.5 text-faint shrink-0">·</span>
+                                                            <span><?php echo htmlspecialchars($tip); ?></span>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($hasSimilar): ?>
+                                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_similar_species', 'Confusingly similar species') ?> <span class="font-normal normal-case">（<?= __('observation_page.ai_reference', 'AI reference') ?>）</span></p>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
+                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-2.5 py-0.5 text-xs text-text">
+                                                            <?php echo htmlspecialchars((string)$candidateName); ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($hasMissing): ?>
+                                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?php echo $hasTips ? __('observation_page.ai_confirm_more', 'If you want to confirm more') : __('observation_page.ai_missing_evidence', 'Missing evidence to check'); ?></p>
+                                                <div class="flex flex-wrap gap-1.5 mt-1">
+                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
+                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-text">
+                                                            <?php echo htmlspecialchars($point); ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                            <p class="text-[10px] text-muted">※ <?= __('observation_page.ai_reference_note', 'This is AI reference information. For confirmation, we recommend detailed observation of the real specimen and checking field guides.') ?></p>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="grid gap-2 sm:grid-cols-2">
                                     <?php if (!empty($latestAiAssessment['diagnostic_features_seen'])): ?>
                                         <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.625rem 0.75rem;">
@@ -1012,64 +1047,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 </div>
                                 <?php endif; ?>
 
-                                <?php
-                                $hasSimilar = !empty($latestAiAssessment['similar_taxa_to_compare']);
-                                $hasTips    = !empty($latestAiAssessment['distinguishing_tips']);
-                                $hasMissing = !empty($latestAiAssessment['missing_evidence']);
-                                if ($hasSimilar || $hasTips || $hasMissing):
-                                ?>
-                                    <div class="space-y-3" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
-                                        <?php if ($hasSimilar): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_similar_species', 'Confusingly similar species') ?> <span class="font-normal normal-case">（<?= __('observation_page.ai_reference', 'AI reference') ?>）</span></p>
-                                                <div class="flex flex-wrap gap-2">
-                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
-                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text">
-                                                            <?php echo htmlspecialchars((string)$candidateName); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($hasTips): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_distinguishing_tips', 'How to tell them apart') ?></p>
-                                                <ul class="mt-1 space-y-1">
-                                                    <?php foreach ($latestAiAssessment['distinguishing_tips'] as $tip): ?>
-                                                        <li class="flex items-start gap-1.5 text-xs text-text leading-snug">
-                                                            <span class="mt-0.5 text-faint shrink-0">·</span>
-                                                            <span><?php echo htmlspecialchars($tip); ?></span>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
-                                            </div>
-                                        <?php elseif ($hasMissing): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_missing_evidence', 'Missing evidence to check') ?></p>
-                                                <div class="flex flex-wrap gap-1.5 mt-1">
-                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
-                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-text">
-                                                            <?php echo htmlspecialchars($point); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($hasTips && $hasMissing): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_confirm_more', 'If you want to confirm more') ?></p>
-                                                <div class="flex flex-wrap gap-1.5 mt-1">
-                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
-                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-muted">
-                                                            <?php echo htmlspecialchars($point); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                            <p class="text-[10px] text-muted">※ <?= __('observation_page.ai_reference_note', 'This is AI reference information. For confirmation, we recommend detailed observation of the real specimen and checking field guides.') ?></p>
-                                    </div>
-                                <?php endif; ?>
                             </div>
                         <p class="mt-3 text-[11px] text-faint"><?= __('observation_page.ai_footer_note', 'This note is reference information to help move the observation forward. It does not count as a community identification vote.') ?></p>
                         <?php else: ?>
@@ -1648,6 +1625,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                     <?php
                                                     $parts = [];
                                                     foreach (($proposal['changes'] ?? []) as $field => $change) {
+                                                        if (in_array($field, ['managed_site_name', 'managed_context_note'], true)) {
+                                                            continue;
+                                                        }
                                                         $label = $fieldLabels[$field] ?? $field;
                                                         $parts[] = $label . ' → ' . (($change['to'] ?? '') === '' ? __('observation_page.unset', 'Unset') : (string)($change['to'] ?? ''));
                                                     }
@@ -1711,6 +1691,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             };
                                             $changes = [];
                                             foreach (($history['changes'] ?? []) as $field => $change) {
+                                                if (in_array($field, ['managed_site_name', 'managed_context_note'], true)) {
+                                                    continue;
+                                                }
                                                 $fieldMap = [
                                                     'biome' => __('observation_page.field_biome', 'Biome'),
                                                     'organism_origin' => __('observation_page.field_origin', 'Origin'),

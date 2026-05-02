@@ -1,7 +1,84 @@
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { getPool } from "../db.js";
+import { loadConfig } from "../config.js";
+
+type AudioArchiveReadiness = {
+  migration0020Applied: boolean;
+  privateUploadsWritable: boolean;
+  privilegedWriteKeyPresent: boolean;
+  storageRoot: string;
+  privateUploadsError: string | null;
+};
+
+async function checkAudioArchiveReadiness(): Promise<AudioArchiveReadiness> {
+  const pool = getPool();
+  const storageRoot = resolveAudioStorageRoot();
+  const privateUploadsWritable = await checkWritableDirectory(storageRoot);
+  const schemaMigrationResult = await pool.query<{ present: boolean }>(
+    `select to_regclass('public.schema_migrations') is not null as present`,
+  );
+
+  let migration0020Applied = false;
+  if (schemaMigrationResult.rows[0]?.present) {
+    const migrationResult = await pool.query<{ applied: boolean }>(
+      `select exists(
+          select 1
+            from schema_migrations
+           where filename = $1
+       ) as applied`,
+      ["0020_audio_privacy_and_bundles.sql"],
+    );
+    migration0020Applied = Boolean(migrationResult.rows[0]?.applied);
+  }
+
+  return {
+    migration0020Applied,
+    privateUploadsWritable: privateUploadsWritable.ok,
+    privilegedWriteKeyPresent: Boolean(process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim()),
+    storageRoot,
+    privateUploadsError: privateUploadsWritable.error,
+  };
+}
+
+function resolveAudioStorageRoot(): string {
+  const config = loadConfig();
+  return path.resolve(config.legacyDataRoot, "..", "private_uploads");
+}
+
+async function checkWritableDirectory(targetDir: string): Promise<{ ok: boolean; error: string | null }> {
+  const probePath = path.join(targetDir, `.audio-archive-readiness-${process.pid}-${Date.now()}.tmp`);
+  try {
+    await mkdir(targetDir, { recursive: true });
+    await writeFile(probePath, "ok", { encoding: "utf8", flag: "w" });
+    await unlink(probePath);
+    return { ok: true, error: null };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "private_uploads_not_writable",
+    };
+  }
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
 
 export async function getReadinessSnapshot() {
   const pool = getPool();
+  const audioArchive = await checkAudioArchiveReadiness();
 
   const countsResult = await pool.query<{
     users: string;
@@ -115,25 +192,48 @@ export async function getReadinessSnapshot() {
     latestDriftReportRun?.details && typeof latestDriftReportRun.details === "object"
       ? (latestDriftReportRun.details.summary as Record<string, unknown> | undefined)
       : undefined;
+  const driftStaleHours = Math.max(toFiniteNumber(latestDriftSummary?.staleHours) ?? 24, 1);
+  const latestDriftFinishedAt = latestDriftReportRun?.finished_at ?? latestDriftReportRun?.started_at ?? null;
+  const latestDriftAgeHours = latestDriftFinishedAt
+    ? (Date.now() - new Date(latestDriftFinishedAt).getTime()) / 3_600_000
+    : null;
+  const driftReportFresh =
+    latestDriftAgeHours !== null && Number.isFinite(latestDriftAgeHours) && latestDriftAgeHours <= driftStaleHours;
+  const canonicalParityVerified =
+    latestDriftReportRun?.status === "succeeded" &&
+    driftReportFresh &&
+    latestDriftSummary?.parityClean === true &&
+    latestDriftSummary?.verifyFresh === true;
+  const canonicalDeltaHealthy =
+    latestDriftReportRun?.status === "succeeded" &&
+    driftReportFresh &&
+    latestDriftSummary?.deltaHealthy === true &&
+    latestDriftSummary?.deltaFresh === true &&
+    latestDriftSummary?.cursorFresh === true;
+  const canonicalDriftHealthy =
+    latestDriftReportRun?.status === "succeeded" &&
+    driftReportFresh &&
+    latestDriftSummary?.status === "healthy";
 
   const gates = {
-    parityVerified: latestVerifyRun?.status === "succeeded" && latestVerifyMismatches === 0,
-    deltaSyncHealthy:
-      latestDeltaSyncRun?.status === "succeeded" || latestDeltaSyncRun?.status === "skipped",
-    driftReportHealthy:
-      latestDriftReportRun?.status === "succeeded" &&
-      latestDriftSummary?.status === "healthy",
+    parityVerified: canonicalParityVerified,
+    deltaSyncHealthy: canonicalDeltaHealthy,
+    driftReportHealthy: canonicalDriftHealthy,
     compatibilityWriteWorking: latestCompatibilityWrite?.write_status === "succeeded",
+    audioArchiveReady:
+      audioArchive.migration0020Applied &&
+      audioArchive.privateUploadsWritable &&
+      audioArchive.privilegedWriteKeyPresent,
     rollbackSafetyWindowReady:
-      (latestVerifyRun?.status === "succeeded" && latestVerifyMismatches === 0) &&
-      (latestDeltaSyncRun?.status === "succeeded" || latestDeltaSyncRun?.status === "skipped") &&
-      latestDriftReportRun?.status === "succeeded" &&
-      latestDriftSummary?.status === "healthy" &&
+      canonicalParityVerified &&
+      canonicalDeltaHealthy &&
+      canonicalDriftHealthy &&
       latestCompatibilityWrite?.write_status === "succeeded",
   };
+  const allReleaseGatesReady = gates.rollbackSafetyWindowReady && gates.audioArchiveReady;
 
   return {
-    status: gates.rollbackSafetyWindowReady ? "near_ready" : "needs_work",
+    status: allReleaseGatesReady ? "near_ready" : "needs_work",
     gates,
     counts: {
       users: Number(counts?.users ?? 0),
@@ -143,6 +243,7 @@ export async function getReadinessSnapshot() {
       avatarAssets: Number(counts?.avatar_assets ?? 0),
       trackPoints: Number(counts?.track_points ?? 0),
     },
+    audioArchive,
     syncCursors: syncCursorResult.rows,
     recentRuns: runResult.rows.map((row) => ({
       ...row,

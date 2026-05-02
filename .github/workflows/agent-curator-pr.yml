@@ -1,0 +1,143 @@
+name: agent-curator-pr
+
+# Picks up SQL proposal files emitted by ikimon-db-mcp curators and
+# turns them into PRs labeled `agent-generated` for human review.
+#
+# Trigger: repository_dispatch (sent from the VPS after a curator run)
+#          OR manual workflow_dispatch with run_id input.
+
+on:
+  repository_dispatch:
+    types: [agent_curator_proposal_ready]
+  workflow_dispatch:
+    inputs:
+      curator_name:
+        description: "Curator that emitted the proposal (invasive-law / redlist / paper-research / satellite-update)"
+        required: true
+      run_id:
+        description: "ai_curator_runs.run_id UUID"
+        required: true
+      proposals_archive_url:
+        description: "URL of a tarball with platform_v2/mcp_servers/ikimon-db-mcp/out/proposals/<run_id>.sql"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "curator_name=${{ github.event.client_payload.curator_name }}" >> "$GITHUB_OUTPUT"
+            echo "run_id=${{ github.event.client_payload.run_id }}" >> "$GITHUB_OUTPUT"
+            echo "archive_url=${{ github.event.client_payload.proposals_archive_url }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "curator_name=${{ github.event.inputs.curator_name }}" >> "$GITHUB_OUTPUT"
+            echo "run_id=${{ github.event.inputs.run_id }}" >> "$GITHUB_OUTPUT"
+            echo "archive_url=${{ github.event.inputs.proposals_archive_url }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup git identity
+        run: |
+          git config user.name  "ikimon-curator-bot"
+          git config user.email "curator-bot@ikimon.life"
+
+      - name: Create branch
+        id: branch
+        run: |
+          BRANCH="curator/${{ steps.inputs.outputs.curator_name }}/${{ steps.inputs.outputs.run_id }}"
+          git checkout -b "${BRANCH}"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Download proposals archive
+        run: |
+          set -euo pipefail
+          mkdir -p platform_v2/mcp_servers/ikimon-db-mcp/out/proposals
+          curl -fsSL "${{ steps.inputs.outputs.archive_url }}" -o /tmp/proposals.tar.gz
+          tar -xzf /tmp/proposals.tar.gz \
+            -C platform_v2/mcp_servers/ikimon-db-mcp/out/proposals \
+            --strip-components=1
+
+      - name: Stage proposal SQL
+        id: stage
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ steps.inputs.outputs.run_id }}"
+          SRC="platform_v2/mcp_servers/ikimon-db-mcp/out/proposals/${RUN_ID}.sql"
+          if [ ! -f "$SRC" ]; then
+            echo "::error::proposal file not found: ${SRC}"
+            exit 1
+          fi
+          # Determine the next migration number to suggest in the PR body.
+          LAST=$(ls platform_v2/db/migrations | grep -E '^[0-9]+_' | sort | tail -n 1 | cut -d_ -f1)
+          NEXT=$(printf '%04d' "$((10#${LAST} + 1))")
+          echo "next_number=${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "src_path=${SRC}" >> "$GITHUB_OUTPUT"
+
+          git add "$SRC"
+          git commit -m "agent: ${{ steps.inputs.outputs.curator_name }} run ${RUN_ID} proposal"
+
+      - name: Push branch
+        run: git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open PR
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const curator = "${{ steps.inputs.outputs.curator_name }}";
+            const runId   = "${{ steps.inputs.outputs.run_id }}";
+            const branch  = "${{ steps.branch.outputs.branch }}";
+            const next    = "${{ steps.stage.outputs.next_number }}";
+            const src     = "${{ steps.stage.outputs.src_path }}";
+            const body = [
+              `## Agent-generated proposal`,
+              ``,
+              `- **Curator**: \`${curator}\``,
+              `- **Run ID**: \`${runId}\``,
+              `- **Proposal SQL**: \`${src}\``,
+              ``,
+              `### Next steps for the reviewer`,
+              `1. Inspect the SQL diff. Reject the PR if anything looks wrong.`,
+              `2. If accepting, **rename** the proposal file to`,
+              `   \`platform_v2/db/migrations/${next}_${curator}_${runId.slice(0, 8)}.sql\``,
+              `   and amend the commit so it lands as a normal migration.`,
+              `3. Run \`npm run migrate\` against staging first; only after staging passes`,
+              `   should this be merged and rolled to production.`,
+              ``,
+              `### Trust boundary §1.5 checklist`,
+              `- [ ] No \`source_excerpt\` exceeds 600 chars`,
+              `- [ ] No \`claim_text\` exceeds 260 chars`,
+              `- [ ] No \`citation_span\` exceeds 320 chars`,
+              `- [ ] No \`use_in_feedback = true\` is being set in this proposal`,
+              `- [ ] License field on every \`source_snapshots\` row is in the allowlist`,
+              ``,
+              `🤖 Generated by ikimon-curator-bot`,
+            ].join("\n");
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: branch,
+              base: "main",
+              title: `agent(${curator}): proposal ${runId.slice(0, 8)}`,
+              body,
+              maintainer_can_modify: true,
+            });
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: ["agent-generated", `curator:${curator}`],
+            });
+            core.notice(`opened PR #${pr.number}: ${pr.html_url}`);

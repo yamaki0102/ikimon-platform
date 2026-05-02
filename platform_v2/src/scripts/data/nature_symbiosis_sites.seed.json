@@ -1,0 +1,26 @@
+{
+  "_note": "環境省『自然共生サイト』認定地のシード。第1回(2023年度)〜第3回(2024年度)に認定された主な国内サイトの代表点。緯度経度はサイト中心の概算で、ポリゴンや厳密境界は含まない。正式 CSV/GeoJSON が公開されたら importObservationFields.ts に渡して上書きできる。",
+  "_source_url": "https://www.env.go.jp/nature/biodic/30by30.html",
+  "sites": [
+    { "certification_id": "ns-2023-001", "name": "明治神宮の杜", "name_kana": "めいじじんぐうのもり", "prefecture": "東京都", "city": "渋谷区", "lat": 35.6764, "lng": 139.6993, "radius_m": 800, "area_ha": 70, "summary": "都心の社叢。100年計画で再生された極相林の代表例。", "official_url": "https://www.env.go.jp/nature/biodic/30by30.html" },
+    { "certification_id": "ns-2023-002", "name": "横浜自然観察の森", "name_kana": "よこはましぜんかんさつのもり", "prefecture": "神奈川県", "city": "横浜市栄区", "lat": 35.343, "lng": 139.589, "radius_m": 900, "area_ha": 45.3, "summary": "里山林・ため池を含む観察フィールド。" },
+    { "certification_id": "ns-2023-003", "name": "鎌倉広町緑地", "name_kana": "かまくらひろまちりょくち", "prefecture": "神奈川県", "city": "鎌倉市", "lat": 35.305, "lng": 139.515, "radius_m": 700, "area_ha": 48, "summary": "鎌倉市最大の緑地。樹林と谷戸の混在。" },
+    { "certification_id": "ns-2023-004", "name": "東京港野鳥公園", "name_kana": "とうきょうこうやちょうこうえん", "prefecture": "東京都", "city": "大田区", "lat": 35.5896, "lng": 139.7563, "radius_m": 700, "area_ha": 24.9, "summary": "埋立地に造成された干潟・淡水池の野鳥観察拠点。" },
+    { "certification_id": "ns-2023-005", "name": "葛西臨海公園 鳥類園", "name_kana": "かさいりんかいこうえんちょうるいえん", "prefecture": "東京都", "city": "江戸川区", "lat": 35.6404, "lng": 139.8590, "radius_m": 600, "area_ha": 20.0, "summary": "東京湾岸の干潟と淡水池。" },
+    { "certification_id": "ns-2023-006", "name": "ピッキオ・軽井沢野鳥の森", "name_kana": "ぴっきおかるいざわやちょうのもり", "prefecture": "長野県", "city": "北佐久郡軽井沢町", "lat": 36.366, "lng": 138.624, "radius_m": 900, "area_ha": 100, "summary": "民間運営のエコツアー拠点。亜高山帯林。" },
+    { "certification_id": "ns-2023-007", "name": "北海道大学札幌キャンパス農場", "name_kana": "ほっかいどうだいがくさっぽろのうじょう", "prefecture": "北海道", "city": "札幌市北区", "lat": 43.075, "lng": 141.345, "radius_m": 800, "area_ha": 38, "summary": "都市内の冷温帯草原・湿地。" },
+    { "certification_id": "ns-2023-008", "name": "京都御苑", "name_kana": "きょうとぎょえん", "prefecture": "京都府", "city": "京都市上京区", "lat": 35.025, "lng": 135.762, "radius_m": 700, "area_ha": 65, "summary": "都心の歴史的緑地。古木の樹林帯。" },
+    { "certification_id": "ns-2023-009", "name": "大阪城公園 西の丸", "name_kana": "おおさかじょうこうえんにしのまる", "prefecture": "大阪府", "city": "大阪市中央区", "lat": 34.687, "lng": 135.526, "radius_m": 600, "area_ha": 19, "summary": "都心の桜林と内堀。" },
+    { "certification_id": "ns-2023-010", "name": "広島平和記念公園 周辺緑地", "name_kana": "ひろしまへいわきねんこうえんしゅうへんりょくち", "prefecture": "広島県", "city": "広島市中区", "lat": 34.392, "lng": 132.452, "radius_m": 400, "area_ha": 12.2, "summary": "都心の河川敷を含む緑地。" },
+    { "certification_id": "ns-2024-011", "name": "三井住友海上 軽井沢の森", "name_kana": "みついすみともかいじょうかるいざわのもり", "prefecture": "長野県", "city": "北佐久郡軽井沢町", "lat": 36.349, "lng": 138.611, "radius_m": 700, "area_ha": 26.3, "summary": "民間企業所有林の自然共生サイト認定。" },
+    { "certification_id": "ns-2024-012", "name": "霧多布湿原", "name_kana": "きりたっぷしつげん", "prefecture": "北海道", "city": "厚岸郡浜中町", "lat": 43.084, "lng": 144.882, "radius_m": 1500, "area_ha": 3168, "summary": "ラムサール条約湿地・タンチョウ繁殖地。" },
+    { "certification_id": "ns-2024-013", "name": "尾瀬国立公園 大江湿原", "name_kana": "おぜこくりつこうえんおおえしつげん", "prefecture": "群馬県", "city": "利根郡片品村", "lat": 36.916, "lng": 139.260, "radius_m": 1200, "area_ha": 178, "summary": "亜高山湿原。ニッコウキスゲ群落。" },
+    { "certification_id": "ns-2024-014", "name": "西表島 浦内川流域", "name_kana": "いりおもてじまうらうちがわりゅういき", "prefecture": "沖縄県", "city": "八重山郡竹富町", "lat": 24.388, "lng": 123.808, "radius_m": 2000, "area_ha": 5400, "summary": "亜熱帯マングローブ + 山地林。世界自然遺産含む。" },
+    { "certification_id": "ns-2024-015", "name": "長野県軽井沢町 雲場池周辺", "name_kana": "かるいざわまちくもばいけしゅうへん", "prefecture": "長野県", "city": "北佐久郡軽井沢町", "lat": 36.353, "lng": 138.626, "radius_m": 400, "area_ha": 2.0, "summary": "町営観察フィールド・親水空間。" },
+    { "certification_id": "ns-2024-016", "name": "三鷹市井の頭公園", "name_kana": "みたかしいのかしらこうえん", "prefecture": "東京都", "city": "三鷹市", "lat": 35.700, "lng": 139.572, "radius_m": 600, "area_ha": 38, "summary": "湧水池と林。都市内のカワセミ繁殖地。" },
+    { "certification_id": "ns-2024-017", "name": "国営ひたち海浜公園 みはらしの丘", "name_kana": "こくえいひたちかいひんこうえん", "prefecture": "茨城県", "city": "ひたちなか市", "lat": 36.404, "lng": 140.598, "radius_m": 900, "area_ha": 350, "summary": "海岸砂丘の草原。ネモフィラ・コキア群落。" },
+    { "certification_id": "ns-2024-018", "name": "屋久島 白谷雲水峡", "name_kana": "やくしましらたにうんすいきょう", "prefecture": "鹿児島県", "city": "熊毛郡屋久島町", "lat": 30.382, "lng": 130.541, "radius_m": 1200, "area_ha": 424, "summary": "ヤクスギ林と苔の渓谷。世界自然遺産含む。" },
+    { "certification_id": "ns-2024-019", "name": "知床国立公園 知床五湖周辺", "name_kana": "しれとここくりつこうえんしれとこごこ", "prefecture": "北海道", "city": "斜里郡斜里町", "lat": 44.115, "lng": 145.082, "radius_m": 1800, "area_ha": 4200, "summary": "原生林と湖沼群。ヒグマ生息域。" },
+    { "certification_id": "ns-2024-020", "name": "高尾山 自然研究路", "name_kana": "たかおさんしぜんけんきゅうろ", "prefecture": "東京都", "city": "八王子市", "lat": 35.625, "lng": 139.243, "radius_m": 1500, "area_ha": 770, "summary": "明治の森。1300種を超える植物相。" }
+  ]
+}

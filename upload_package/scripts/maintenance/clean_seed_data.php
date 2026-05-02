@@ -1,22 +1,22 @@
 <?php
 
 /**
- * Clean Seed Data — Safely remove test/import data while preserving user content.
- * 
- * SAFETY: Only removes observations with import_source === "seed".
- * User posts (import_source === "user_post" or no marker) are NEVER touched.
- * 
- * Usage: php scripts/clean_seed_data.php [--confirm]
+ * Clean Seed Data — Safely remove seeded/dummy observations while preserving user content.
+ *
+ * SAFETY: Only removes observations with import_source === "seed" or "dummy".
+ * User posts and records without these markers are NEVER touched.
+ *
+ * Usage: php upload_package/scripts/maintenance/clean_seed_data.php [--confirm]
  */
 
 require_once __DIR__ . '/../../config/config.php';
 
 $confirm = in_array('--confirm', $argv);
 
-$obsDir = __DIR__ . '/../data/observations/';
+$obsDir = DATA_DIR . '/observations/';
 $files = glob($obsDir . '*.json');
 
-$stats = ['seed_removed' => 0, 'user_kept' => 0, 'unknown_kept' => 0];
+$stats = ['removable' => 0, 'user_kept' => 0, 'unknown_kept' => 0];
 $seedList = [];
 
 foreach ($files as $file) {
@@ -48,11 +48,11 @@ foreach ($files as $file) {
                 unlink($file);
                 echo "🗑 Removed empty file: " . basename($file) . "\n";
             } else {
-                file_put_contents($file, json_encode($keep, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-                echo "✓ Cleaned: " . basename($file) . " (" . (count($data) - count($keep)) . " seed records removed)\n";
+                file_put_contents($file, json_encode($keep, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+                echo "✓ Cleaned: " . basename($file) . " (" . (count($data) - count($keep)) . " seeded/dummy records removed)\n";
             }
         } else {
-            echo "[PREVIEW] " . basename($file) . ": would remove " . (count($data) - count($keep)) . " seed records, keep " . count($keep) . "\n";
+            echo "[PREVIEW] " . basename($file) . ": would remove " . (count($data) - count($keep)) . " seeded/dummy records, keep " . count($keep) . "\n";
         }
     }
 }
@@ -63,7 +63,7 @@ echo "User records kept:    {$stats['user_kept']}\n";
 echo "Unknown records kept: {$stats['unknown_kept']}\n";
 
 if (!empty($seedList) && !$confirm) {
-    echo "\nSeed records that would be deleted:\n";
+    echo "\nSeeded/dummy records that would be deleted:\n";
     foreach (array_slice($seedList, 0, 20) as $item) {
         echo "  $item\n";
     }

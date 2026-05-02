@@ -1,6 +1,12 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getPool } from "../db.js";
+import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
+import {
+  assessLegacyObservationQuality,
+  shouldQuarantineLegacyNoPhoto,
+  upsertLegacyObservationQualityReview,
+} from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -44,12 +50,17 @@ type ImportSummary = {
   rowsSkipped: number;
   rowsFailed: number;
   rowsAlreadyImported: number;
+  rowsQuarantinedNoPhoto: number;
 };
 
 function parseArgs(argv: string[]): ImportOptions {
   const projectRoot = process.cwd();
+  const legacyRoots = resolveLegacyRoots(projectRoot, {
+    mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
+    legacyDataRoot: process.env.LEGACY_DATA_ROOT,
+  });
   const options: ImportOptions = {
-    legacyDataRoot: path.resolve(projectRoot, "../upload_package/data"),
+    legacyDataRoot: legacyRoots.legacyDataRoot,
     dryRun: false,
     limit: null,
     importVersion: "v0-plan",
@@ -216,12 +227,14 @@ async function main(): Promise<void> {
     rowsSkipped: 0,
     rowsFailed: 0,
     rowsAlreadyImported: 0,
+    rowsQuarantinedNoPhoto: 0,
   };
 
   if (options.dryRun) {
     const pending = [...observationMap.values()].slice(0, options.limit ?? observationMap.size);
     summary.pendingRowsSeen = pending.length;
-    summary.rowsImported = pending.length;
+    summary.rowsQuarantinedNoPhoto = pending.filter((observation) => shouldQuarantineLegacyNoPhoto(observation)).length;
+    summary.rowsImported = pending.length - summary.rowsQuarantinedNoPhoto;
     console.log(JSON.stringify({ options, summary }, null, 2));
     return;
   }
@@ -279,6 +292,45 @@ async function main(): Promise<void> {
 
       if (completedLedger.has(row.legacy_id)) {
         summary.rowsAlreadyImported += 1;
+        continue;
+      }
+
+      if (shouldQuarantineLegacyNoPhoto(observation)) {
+        const qualitySignals = assessLegacyObservationQuality(observation);
+        await upsertLegacyObservationQualityReview(pool, {
+          observation,
+          importVersion: options.importVersion,
+          reasonCode: "legacy_no_photo",
+          reasonDetail: "Legacy observation has no photo evidence and must not be imported into visits/occurrences.",
+          legacyPath: "data/observations",
+        });
+        await pool.query(
+          `update migration_ledger
+           set migration_run_id = $2::uuid,
+               import_status = 'skipped',
+               skipped_reason = 'no_photo_quarantined',
+               imported_at = now(),
+               metadata = coalesce(metadata, '{}'::jsonb) || $4::jsonb
+           where legacy_source = 'php_json' and legacy_entity_type = 'observation' and legacy_id = $1 and import_version = $3`,
+          [
+            row.legacy_id,
+            runId,
+            options.importVersion,
+            JSON.stringify({
+              importer: "importObservationMeaning",
+              quality_gate: qualitySignals,
+            }),
+          ],
+        );
+        await pool.query(
+          `delete from legacy_id_map
+           where legacy_source = 'php_json'
+             and legacy_entity_type = 'observation'
+             and legacy_id = $1`,
+          [row.legacy_id],
+        );
+        summary.rowsQuarantinedNoPhoto += 1;
+        summary.rowsSkipped += 1;
         continue;
       }
 

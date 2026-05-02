@@ -16,6 +16,7 @@ require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/DataStore.php';
 require_once ROOT_DIR . '/libs/AiAssessmentQueue.php';
 require_once ROOT_DIR . '/libs/CanonicalObservationWriter.php';
+require_once ROOT_DIR . '/libs/ThumbnailGenerator.php';
 
 Auth::init();
 if (!Auth::isLoggedIn()) {
@@ -65,6 +66,8 @@ if (!empty($files['name'])) {
 if (empty($savedPhotos)) {
     api_error('No valid photos uploaded', 400);
 }
+
+ThumbnailGenerator::generateForObservation(['photos' => $savedPhotos]);
 
 $lat = isset($_POST['lat']) ? floatval($_POST['lat']) : null;
 $lng = isset($_POST['lng']) ? floatval($_POST['lng']) : null;

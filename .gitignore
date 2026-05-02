@@ -46,6 +46,7 @@ mobile/android/ikimon-pocket/local.properties
 # === Large ML models ===
 *.onnx
 *.tflite
+!upload_package/public_html/assets/face-privacy/blaze_face_short_range.tflite
 
 # === Data (user-generated, server-specific) ===
 upload_package/data/redlists/scraped_production_master.csv
@@ -109,7 +110,10 @@ upload_package/scripts/inspect_photos.php
 # platform_v2 build output & local probes
 platform_v2/dist/
 platform_v2/node_modules/
+platform_v2/playwright-report/
+platform_v2/test-results/
 platform_v2/tmp_*.py
+output/
 
 # forbidden per deploy_manifest.json (must never ship)
 tmp_*

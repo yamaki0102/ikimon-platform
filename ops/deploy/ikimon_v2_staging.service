@@ -1,0 +1,21 @@
+[Unit]
+Description=ikimon platform_v2 staging API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ikimon-staging
+Group=www-data
+WorkingDirectory=/var/www/ikimon.life-staging/repo/platform_v2
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/ikimon/staging-v2.env
+ExecStart=/usr/bin/env node dist/server.js
+Restart=always
+RestartSec=5
+UMask=0002
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

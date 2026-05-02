@@ -96,12 +96,15 @@ async def classify_audio(
     file: UploadFile = File(...),
     lat: Optional[float] = Form(35.0),
     lng: Optional[float] = Form(139.0),
+    include_embedding: Optional[bool] = Form(False),
 ):
     """
     音声ファイルを受け取り、Perch v2 で鳥の種同定を行う。
 
     - file: 音声ファイル (webm/mp4/wav)
     - lat, lng: GPS座標（将来の地理フィルタリング用）
+    - include_embedding: True の場合、各セグメントに 1280 次元の埋め込みベクトル
+      (perch_v2 backbone) をレスポンスに含める。クラスタリング/類似音検索用。
     """
     try:
         # 1. 音声読み込み（32kHz モノラルに変換）
@@ -156,12 +159,33 @@ async def classify_audio(
                     "confidence": round(conf, 4),
                 })
 
-            results.append({
+            segment_result = {
                 "segment": idx,
                 "predictions": predictions,
-            })
+            }
 
-        logger.info(f"Classified {len(segments)} segments, file={file.filename}")
+            if include_embedding:
+                # Perch v2 の backbone embedding を取得。
+                # outputs.embedding が (1, 1280) なので flatten して float のリストに。
+                emb = getattr(outputs, "embedding", None)
+                if emb is None:
+                    emb = outputs.logits.get("embedding")
+                if emb is not None:
+                    vector = np.array(emb).flatten().astype(np.float32).tolist()
+                    segment_result["embedding"] = {
+                        "model_name": "perch_v2",
+                        "model_version": "v2",
+                        "frame_offset_sec": idx * 5.0,
+                        "frame_duration_sec": 5.0,
+                        "vector": vector,
+                    }
+
+            results.append(segment_result)
+
+        logger.info(
+            f"Classified {len(segments)} segments, file={file.filename}, "
+            f"embeddings={'on' if include_embedding else 'off'}"
+        )
         return JSONResponse({"results": results})
 
     except Exception as e:

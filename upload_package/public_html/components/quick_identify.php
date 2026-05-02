@@ -489,7 +489,7 @@ $quickIdentifyState = [
                         lat: String(lat),
                         lng: String(lng),
                     });
-                    const placeName = this.item?.location_name || this.item?.municipality || this.item?.place_name || '';
+                    const placeName = this.item?.public_location?.label || this.item?.location_name || this.item?.municipality || this.item?.place_name || '';
                     if (placeName) {
                         params.set('location_name', placeName);
                     }

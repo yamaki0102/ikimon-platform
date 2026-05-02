@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ikimon platform_v2 guide environment refresh
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=30m
+RandomizedDelaySec=2m
+Persistent=true
+Unit=ikimon-v2-guide-environment.service
+
+[Install]
+WantedBy=timers.target

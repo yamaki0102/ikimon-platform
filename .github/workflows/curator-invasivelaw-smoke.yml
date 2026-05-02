@@ -1,0 +1,33 @@
+name: Curator Invasive-Law Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Official source fetch + Gemini extraction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Test curator validators
+        working-directory: platform_v2
+        run: npm run test:curator
+
+      - name: Run invasive-law curator smoke
+        working-directory: platform_v2
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CURATOR_SMOKE_MAX_CHARS: "30000"
+        run: npm run smoke:curator:invasive

@@ -6,25 +6,16 @@ Auth::init();
 Lang::init();
 
 $documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
-$updatesText = [
-    'meta_title' => __('updates_page.meta_title', 'Update History | ikimon.life'),
-    'meta_description' => __('updates_page.meta_description', 'Track ikimon feature releases and improvements over time.'),
-    'title' => __('updates_page.title', 'Update History'),
-    'lead' => __('updates_page.lead', 'Recent improvements and new features from ikimon.'),
-    'newsletter_title' => __('updates_page.newsletter_title', 'Get the latest updates'),
-    'newsletter_text' => __('updates_page.newsletter_text', 'Sign up to receive update notifications by email.'),
-    'newsletter_button' => __('updates_page.newsletter_button', 'Sign Up'),
-];
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 
 <head>
-    <?php
-    $meta_title = $updatesText['meta_title'];
-    $meta_description = $updatesText['meta_description'];
-    include __DIR__ . '/components/meta.php';
-    ?>
+<?php
+$meta_title = "What's new | ikimon.life";
+$meta_description = 'ikimon の最近の変化。新機能・改善・修正をユーザー目線で記録します。';
+include __DIR__ . '/components/meta.php';
+?>
 </head>
 
 <body class="js-loading pt-14 font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
@@ -34,783 +25,603 @@ $updatesText = [
         document.body.classList.remove('js-loading');
     </script>
 
-    <main>
-    <section class="pt-32 pb-16 px-6">
-        <div class="max-w-3xl mx-auto">
-            <h1 class="text-3xl font-black mb-4"><?php echo $updatesText['title']; ?></h1>
-            <p class="text-gray-500 mb-12"><?php echo $updatesText['lead']; ?></p>
+    <main x-data="{f:'all'}">
 
-            <div class="space-y-8">
+        <!-- Hero -->
+        <section class="pt-24 pb-12 px-6">
+            <div class="max-w-3xl mx-auto">
+                <p class="text-xs font-mono font-semibold tracking-widest uppercase mb-4" style="color:var(--md-primary)">Changelog</p>
+                <h1 class="text-4xl font-black tracking-tight mb-4">ikimon に最近起きた変化</h1>
+                <p class="text-base mb-8" style="color:var(--md-on-surface-variant)">使う人に関係する変化だけを記録します。内部の実装名ではなく、見える変化で書く方針です。</p>
+
+                <div class="flex items-start gap-4 p-5 rounded-2xl" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant)">
+                    <div class="w-2.5 h-2.5 mt-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse"></div>
+                    <div>
+                        <div class="flex items-center gap-3 mb-1.5">
+                            <span class="text-xs font-mono font-semibold" style="color:var(--md-primary)">最新 — v0.11.4</span>
+                            <span class="text-xs" style="color:var(--md-on-surface-variant)">2026年5月2日</span>
+                        </div>
+                        <p class="text-sm font-medium">観察後の体験ループを接続し、位置情報の修正と日本語ラベルの統一を行いました。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters -->
+        <div class="sticky top-14 z-30 px-6 py-3 border-b" style="background:var(--md-surface);border-color:var(--md-outline-variant)">
+            <div class="max-w-3xl mx-auto flex gap-2 flex-wrap">
+                <button @click="f='all'"
+                    :class="f==='all' ? 'bg-gray-900 text-white !border-gray-900' : 'hover:bg-gray-50'"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+                    style="border-color:var(--md-outline-variant);color:var(--md-on-surface-variant)">すべて</button>
+                <button @click="f='feature'"
+                    :class="f==='feature' ? '!bg-emerald-600 text-white !border-emerald-600' : 'text-emerald-700 hover:bg-emerald-50'"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium border border-emerald-200 transition-colors">新機能</button>
+                <button @click="f='improvement'"
+                    :class="f==='improvement' ? '!bg-sky-600 text-white !border-sky-600' : 'text-sky-700 hover:bg-sky-50'"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium border border-sky-200 transition-colors">改善</button>
+                <button @click="f='fix'"
+                    :class="f==='fix' ? '!bg-amber-500 text-white !border-amber-500' : 'text-amber-700 hover:bg-amber-50'"
+                    class="px-3 py-1.5 rounded-full text-xs font-medium border border-amber-200 transition-colors">修正</button>
+            </div>
+        </div>
+
+        <!-- Entries -->
+        <section class="px-6 pb-24">
+            <div class="max-w-3xl mx-auto">
+
+                <!-- v0.11.4 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','fix']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-05-02</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.11.4</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">修正</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年5月2日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">観察後の体験ループを接続、位置情報とラベルを修正</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">観察後の体験ループ</strong> — ガイドセッション終了後に「今日の成果」を確認し、次の観察につながる流れを整えました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">日本語表示を統一</strong> — サイト全体の日本語ラベルをより自然に読めるよう揃え直しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">観察の位置情報を修正</strong> — 記録された場所のデータが正確に保存・表示されるよう直しました。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- v0.11.3 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-04-30</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.11.3</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年4月30日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">スマホで開きやすく、野外でも続けやすい土台を強化</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ホーム画面から使いやすく</strong> — 端末のホーム画面に追加した状態でも、記録・地図・読み物へ自然に進める動線に整えました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">野外での途中再開</strong> — 通信が途切れても途中まで入力した内容を続けられる仕組みの基盤を整えました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ページ間のつながりを改善</strong> — 更新履歴・地図・記録ページが互いに見つかりやすいよう、公開ページの構成を調整しました。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- v0.11.2 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['improvement','fix']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-04-29</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.11.2</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">修正</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年4月29日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">地域ガイドと写真まわりを、野外で使いやすく</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">今いる場所の文脈でガイドが話す</strong> — 地域の自然・歴史・環境の手がかりをもとに、ガイドがより文脈を持って語りかけるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">長いセッションでも記録が途切れない</strong> — 通信が切れたり、散歩が長くなっても記録が壊れにくくなりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ガイド中のおすすめと振り返り</strong> — セッション途中や終了後に「次に見るもの」と「今日の発見」が表示されるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">写真の顔写り込みへの配慮</strong> — 人が写り込む可能性がある写真でも安全に扱えるよう処理を強化しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">カメラが使えないときの代替</strong> — 端末の制約でカメラが起動しない場合でも、写真選択から記録できる流れを用意しました。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- v0.11.1 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-04-28</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.11.1</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年4月28日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">観察記録を「大きさ・珍しさ・外来種」の視点で読み解けるように</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">3つの視点で記録を読む</strong> — ひとつの観察を、発見の大きさ・地域での希少さ・外来種情報の3つの角度から確認できるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">外来種・管理対象種をすぐ確認</strong> — 記録した生きものが法令上注意が必要なものかどうか確認しやすくなりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">気になる種の通知準備</strong> — 特定の生きものやテーマを追いかけたい人向けの通知機能の基盤を整えました。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- v0.11.0 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','fix']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-04-27</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.11.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">修正</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年4月27日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">観察会・音声記録・投稿の安全性をまとめて前進</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">観察会を作れる</strong> — 複数人で同じ場所・テーマを調べる「観察会」の作成・参加・振り返りができるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">鳴き声・環境音を独立した記録として残せる</strong> — 音声を写真とは別の発見として記録できるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">重複投稿を防止</strong> — 連打や通信の揺れで観察が重複しないよう修正しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">野外からの投稿を安定化</strong> — メディア処理と確認の流れを見直し、投稿に失敗しにくくなりました。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
 
                 <!-- v0.10.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.10.1</span>
-                        <time class="text-sm text-gray-500">2026年4月8日</time>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-04-08</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.10.1</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年4月8日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">AI考察 全面強化 — 写真で即分析・見分け方まで表示</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">AI自動提案が復活</strong> — 写真をアップロードするだけで、候補と考察がすぐ返ってくる流れを戻しました。複数枚も一度に扱えます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">見分け方を表示</strong> — 「この種をどう見分けるか」のポイントと、似た種との違いがAI考察に追加されました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">より踏み込んだ判定</strong> — 形質がはっきり写っている場合、属止まりでなく種レベルまで判定しやすくなりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">大きな写真でも止まらない</strong> — AI考察の安定性を改善し、失敗しにくくなりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">デザインを整理</strong> — サイト全体の配色を整理し、記録や考察が読みやすくなりました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">AI考察 全面強化 — 写真で即分析・見分け方まで表示</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AI自動提案復活</strong>: 写真をアップロードするだけでAIが即座に種を分析・提案するように戻りました。複数枚の写真を同時にアップロードして、より正確な同定が可能になりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>見分け方を表示</strong>: AI考察に「この種をどう見分けるか」のポイントが追加されました。似た種との違いも chip 形式でコンパクトに確認できます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AI精度向上</strong>: 形質（色・形・模様）が写真に見えている場合は積極的に種レベルで判定するよう改善。「属止まり」だった判定が種レベルに引き上げられるケースが増えます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>API安定性改善</strong>: タイムアウト・トークン上限・リトライ強化により、AI考察の失敗率を大幅に削減。大きな写真でも正常に分析できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>デザイン統一</strong>: サイト全体をエメラルド単色調のデザインに刷新。多色使いを整理し、より洗練された見た目になりました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.10.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.10.0</span>
-                        <time class="text-sm text-gray-500">2026年4月上旬</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-04上旬</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.10.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年4月上旬</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">おすすめ調査エリア + 鳥の鳴き声AIを二重チェックに</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">「ここ行くと見つかるかも」を地図で表示</strong> — GBIFやiNaturalistのデータと比べて、発見チャンスが高いエリアを地図に出すようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">鳥の鳴き声を2つのAIで確認</strong> — 2つの音声AIが一致した検出だけを採用し、誤検出が大幅に減りました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">スキャン後の結果レビュー</strong> — 終了後に今日の検出種・確信度・音声クリップをまとめて確認できます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">検出候補をより多く表示</strong> — 閾値と地理フィルターを調整し、見逃しと誤検出を同時に減らしました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">フィールドスキャン Perch v2 + おすすめ調査エリア</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>おすすめ調査エリア</strong>: GBIF・iNaturalistの広域データとikimonのローカルデータを比較し、発見チャンスが高い場所を地図上に表示。「この5kmにGBIFで200種・iNaturalistで111種の記録があるのに、ikimonではまだ未確認」というエリアを優先的に提案します</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>フィールドスキャン — Perch v2 デュアル音声エンジン搭載</strong>: Google DeepMind の Perch v2（鳥類特化の学術モデル）を BirdNET と並列動作させるデュアル音声エンジンを搭載。2つのAIが合意した検出のみを採用し、精度が大幅に向上しました。Malerba et al. 2026 の学術エビデンスに基づく品質強化も含みます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>フィールドスキャン — スキャン後の結果シート</strong>: セッション終了後に「今回の検出種・確信度・音声クリップ」を一画面でレビューできるようになりました。後から確認してフィールドノートに昇格させることもできます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AIレンズ 精度向上</strong>: 検出候補の表示閾値を緩和し、これまで見逃していた候補も画面に表示されるようになりました。GeoPlausibilityフィルタにより日本国外の誤検出を自動除去します</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>静岡UXテスト 20項目改善</strong>: 実際の利用シーン（投稿・観察閲覧・センサー起動）でのテストをもとに、画面遷移・ボタン配置・フィードバック表示を改善しました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.9.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.9.0</span>
-                        <time class="text-sm text-gray-500">2026年3月31日</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-31</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.9.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月31日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">散歩しながらAIが語りかける — AIレンズ</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">AIレンズ</strong> — 散歩・自転車・ドライブ中に、近くで検出した生きものの生態・保全の話をAIが音声で語りかけます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">散歩レポート</strong> — セッション後に「今日の検出種・ルート・自然浴スコア」を一画面で振り返れます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">観察詳細にAI豆知識</strong> — 生態・保全情報が観察詳細ページに自動表示されるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">投稿後に写真を追加できる</strong> — 投稿済みの観察に後から写真を足せるようになりました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">AIレンズ — 散歩しながらAIが語りかける</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AIレンズ</strong>: 散歩・自転車・ドライブ中にAIが音声でリアルタイムガイド。近くで検出した生き物の生態・保全の話を自動で語りかけます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>散歩レポート</strong>: セッション終了後に「今日の自然浴スコア」「検出した種のサマリー」「移動ルート」を一画面で振り返れるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>観察詳細にAI豆知識が自動表示</strong>: 生態・生物多様性・保全に関する豆知識をRAGで生成し、観察詳細ページに常時表示するようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>観察に写真を後から追加</strong>: 投稿済みの観察に、追加で写真をアップロードできるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>Sutherland PNAS 2026 学術裏付けを統合</strong>: 最新の市民科学エビデンスをikimonのアプローチページ・観察詳細・100年アーカイブページに反映しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>セキュリティ・パフォーマンス・SEO 全体強化</strong>: 通信の安全性強化・ページ読み込み速度の改善・検索エンジン向け構造化データ(JSON-LD)の充実化を行いました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.8.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.8.1</span>
-                        <time class="text-sm text-gray-500">2026年3月下旬</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03下旬</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.8.1</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月下旬</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">サウンドアーカイブ — 聞いた鳴き声をみんなで同定</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">鳴き声をみんなで同定できる</strong> — 野外で録音した鳴き声を投稿し、コミュニティで種を確認できる機能を追加しました。写真がなくても記録できます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ウォーク中の検出がマイ図鑑に連動</strong> — 散歩中の音声検出がマイ図鑑の種ページから再生できるようになりました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">サウンドアーカイブ — 聞いた鳴き声をみんなで同定</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>サウンドアーカイブを公開</strong>: 野外で録音した鳴き声を投稿し、コミュニティが種を同定する新しいプラットフォームです。写真がなくても記録を残せます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ウォークモードの音声が図鑑と連携</strong>: 散歩中に録音・検出された鳴き声が、マイ図鑑の種ページから再生できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>トップページにサウンドアーカイブへの導線を追加</strong>: 未同定の鳴き声が届いていることをホームから確認できます</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.8.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.8.0</span>
-                        <time class="text-sm text-gray-500">2026年3月中旬</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03中旬</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.8.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月中旬</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">Androidアプリ公開 + 世界11,560種の鳴き声AI同定</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">Androidアプリ（ikimon Pocket）を公開</strong> — カメラ検出・音声同定・ウォークモードをネイティブアプリとして使えます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">世界11,560種の鳥を端末上で同定</strong> — BirdNET V3.0搭載。Pixelではハードウェア加速で高速処理できます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">カメラ・音声・環境センサーを同時動作</strong> — 3つのAIを並列で動かし、検出精度を高めます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">音声ガイド話者を追加</strong> — ずんだもん・もち子さん・青山龍星から選べます。Bluetooth出力にも対応しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ガイドの雰囲気を選べる</strong> — 「自然探索」「歴史文化」「おまかせ」から選択できます。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">Androidアプリ(ikimon Pocket) + 世界11,560種の音声AI同定</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ikimon Pocket Android版を公開</strong>: APKをダウンロードしてインストールできます。カメラ検出・音声同定・ウォークモードをネイティブアプリとして利用可能になりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>BirdNET V3.0 音声AI: 世界11,560種に対応</strong>: 鳥の鳴き声を端末内で即座に同定します。Pixel端末ではTensor G5 NPUを使ったハードウェア加速で高速処理できます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>Triple AI Engine</strong>: BirdNET V3（音声）+ Gemini Nano（映像）+ 環境センサーの3エンジンを並列で動かし、検出精度を大幅に向上しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>リアルタイム検出フィード</strong>: アプリ内でスキャン中に検出された種が分類階層バッジ付きでリアルタイム表示されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>音声ガイド話者を追加 — ずんだもん・もち子さん・青山龍星</strong>: VOICEVOX対応の3話者から選べます。Bluetooth出力にも対応し、スピーカーやイヤホンで自然の中を歩きながら聴けます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ガイド雰囲気を選択</strong>: 「自然探索」「歴史文化」「おまかせ」から選べるようになりました。移動速度に応じてガイドのペーシングも自動調整されます</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.7.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.1</span>
-                        <time class="text-sm text-gray-500">2026年3月中旬</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03中旬</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.7.1</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月中旬</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">AI考察に環境文脈を注入 + データを100年耐久で保存</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">AI考察に環境情報が反映される</strong> — 気温・湿度・バイオーム・過去の検出履歴も考察の材料になりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">撮影地の地形・植生・気候も考慮</strong> — 場所の文脈からより正確な候補を出せるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">スキャンデータを長期保存</strong> — 将来の研究に使える形で環境データを蓄積します。重要な瞬間だけを自動選別して保存します。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">AI文脈解析 + 環境データを100年耐久で保存</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ライブスキャンのAI解析に文脈を注入</strong>: 環境情報（気温・湿度・バイオーム・地面の状態）と過去の検出履歴をAI解析時に参照し、より精度の高い考察を生成できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>環境観測データを完全保存</strong>: スキャン中の環境データを100年後も解析できる構造で永続保存します。将来のデジタルツイン・気候変動研究への提供を見越した設計です</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>キーフレーム選択的保存</strong>: スキャン中の全フレームは保存せず、「新種発見」「高信頼度検出」のフレームのみ自動選別して保存します。ストレージを節約しながら重要な瞬間を記録します</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>GeoContext 環境文脈エンジン</strong>: 撮影地点の地形・植生・気候帯から生物分布の可能性を推定し、AI考察の補助証拠として活用するエンジンを導入しました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.7.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.0</span>
-                        <time class="text-sm text-gray-500">2026年3月上旬</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03中旬</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.7.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月中旬</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">ライブスキャン・ウォーク・ライブマップ・マイ図鑑・クエスト</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ライブスキャン</strong> — カメラで見るだけでAIがリアルタイムに種を検出します。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ウォークモード</strong> — 散歩のルートをGPSで記録しながら、マイクが鳴き声を自動検出します。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ライブマップ（ログイン不要）</strong> — アカウントなしで地域の生物多様性データを地図で見られます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">マイ図鑑</strong> — 自分が観察・スキャン・音声検出で関わった種だけのコレクションになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">クエスト</strong> — 「次に何を見るか」を動機づけるクエストシステムを再設計しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">写真をフルスクリーンで</strong> — スワイプ・ピンチズームに対応しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">4種類のリアクション</strong> — 「足あと」「いいね」「すてき」「学び」を付けられます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">和名で表示</strong> — AIやGBIFの学名・英名を自動で日本語の和名に変換します。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライブスキャン・ウォーク・ライブマップ・マイ図鑑・クエスト</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ライブスキャン</strong>: スマホカメラで映すだけでAIがリアルタイムに生き物を検出します。写真を撮って投稿しなくても、見た生き物を記録できます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ウォークモード</strong>: 散歩中のルートをGPSで記録しながら、マイクが鳥の鳴き声を自動検出します。リアルタイムマップに鳥の検出ポイントが表示されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ライブマップ（ログイン不要）</strong>: アカウント不要でikimonに集まっている観察データを地図で見られます。地域ごとの生物多様性の「今」をリアルタイムで確認できます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>マイ図鑑リニューアル</strong>: 自分が観察・スキャン・音声検出で関わった種だけを集めた個人コレクションになりました。スキャンで撮れたフレーム画像も表示されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>写真ギャラリー + ピンチズーム + スワイプ</strong>: 観察詳細ページで写真を全画面表示できるようになりました。複数枚の写真をスワイプで切り替え、ピンチで拡大できます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>クエスト専用ページ</strong>: 「どんな生き物を次に見るか」を動機付けるクエストシステムを大幅に再設計しました。ライブスキャンの検出結果からクエストが自動生成されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>複数リアクション</strong>: 観察に「👣足あと」「❤️いいね」「✨すてき」「🔬学び」の4種類のリアクションを付けられるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>和名優先表示</strong>: AI・GBIF・BirdNETからの学名・英名を自動で日本語の和名に変換して表示するようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>メソドロジーページを公開</strong>: ikimonのBIS（生物多様性影響スコア）の計算根拠とデータ方針を透明性のあるページで説明しています</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.6.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.6.1</span>
-                        <time class="text-sm text-gray-500">2026年3月30日</time>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.6.1</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">「そうかも！」ワンタップ同定 + ナビゲーション整理</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">AI考察から「そうかも！」でワンタップ同定</strong> — AI提案をそのまま自分の同定票として送れるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">自分の出会い方で種を解説</strong> — 場所・季節・見つけ方に応じたAI解説がマイ図鑑の種ページに生成されます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ナビゲーションをすっきり</strong> — よく使う場所へすばやくたどり着けるようメニューを整理しました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">ナビゲーション整理 + AI考察「そうかも！」ワンタップ同定</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AI考察から「そうかも！」でワンタップ同定</strong>: 観察詳細ページのAI考察に「そうかも！」ボタンを追加。AIの提案をそのまま自分の同定票として送れるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AIパーソナライズ種解説</strong>: マイ図鑑の種ページで、自分の出会いコンテキスト（場所・季節・出会い方）に基づいたAI解説が自動生成されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ナビゲーションを簡素化</strong>: よく使う場所に素早くたどり着けるよう、メニュー構成を整理。調査員向け機能を非公開にし、フォロー中タブを削除してシンプルにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>複数アカウントの重複防止</strong>: Google・X など複数のOAuth手段でログインしても同一ユーザーとして統合されるようになりました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.6.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.6.0</span>
-                        <time class="text-sm text-gray-500">2026年3月14日</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-14</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.6.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月14日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">法人向け導線と図鑑をまとめて強化</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">法人プランに応じた表示切り替え</strong> — 記録ボードやレポートを契約プランに応じた表示に整理しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">関連書籍の導線を追加</strong> — 種や観察に応じた関連書籍が表示されるようになりました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">法人向け導線と図鑑をまとめて強化しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>法人プランごとの見え方を整理</strong>: 記録ボードやレポートで、契約プランに応じて表示内容を切り替えるようにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>図鑑と観察に関連書籍の導線を追加</strong>: 種や文脈に応じた関連書籍を表示し、より深く調べたい人が次の行動へ進みやすくしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>スマホでのホーム画面登録を更新</strong>: アプリアイコンとトップページまわりを見直し、使い始めや再訪がしやすくなりました</span>
-                        </li>
-                    </ul>
                 </article>
 
-                <!-- v0.5.9 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.9</span>
-                        <time class="text-sm text-gray-500">2026年3月12日</time>
+                <!-- v0.5.9 〜 v0.5.1: 改善系まとめ -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-11</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.5.1 – v0.5.9</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月11日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">AIメモ・同定・料金・組織向けを一気に整理</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">AIメモを読みやすく再構成</strong> — 「結論 → 手がかり → 次に確認すること」の順で読みやすくなりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">同定ステータスを2段階化</strong> — 「種まで確定」と「属・科レベルで安定」を区別して表示できるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">料金体系を3プランに整理</strong> — 個別見積りをやめ、公開価格から選べる3段構成にしました。月額39,800円のスタンダードプランを設定しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">組織向け申込みをスムーズに</strong> — 招待リンク方式に変更し、申込み後すぐワークスペースへ入れるようにしました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">AIの候補を同定作業につなげやすく</strong> — 候補名をタップすると近い記録を探せるリンクに変更しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">サイト全体の言葉を整理</strong> — ナビゲーション・フッター・Aboutページのトーンを統一しました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">組織利用の申込み後をスムーズに</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>申込み後すぐ使い始めやすく</strong>: 申込み後にそのままワークスペースへ入れる導線を追加し、運用開始までの流れを明確にしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>招待リンク方式へ変更</strong>: 管理メンバーを招待リンクで受け入れられるようにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>運営側の受付管理も強化</strong>: 契約団体の作成から招待リンク発行まで、一画面で進めやすくしました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.5.8 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.8</span>
-                        <time class="text-sm text-gray-500">2026年3月11日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">AIの候補を、次の同定につなげやすくなりました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>見分け候補をそのまま辿れるように</strong>: 観察詳細で候補名をタップすると、近い記録を探せるリンクに変えました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>同定ワークベンチにフィルタを追加</strong>: AIが複数の可能性を示している観察だけを絞り込んで確認できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>料金表を使い方ベースに整理</strong>: プランごとの説明を「どう使うか」で読める形に整え、Cookie通知もコンパクトにしました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.5.7 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.7</span>
-                        <time class="text-sm text-gray-500">2026年3月11日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">投稿後のAIメモに一本化しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>投稿前のAI機能を整理</strong>: 投稿後に自動でAIメモが付く仕組みに一本化し、流れをシンプルにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>投稿画面の案内を更新</strong>: 「まず投稿して、あとから観察のヒントを見る」流れが分かるよう案内を整理しました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.5.5 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.5</span>
-                        <time class="text-sm text-gray-500">2026年3月11日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">各所の言葉づかいとナビゲーションを整理しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ナビゲーションとフッターを整理</strong>: 組織利用やデータ持ち帰りにも開いた入口へ調整しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>Aboutページの説明を調整</strong>: 認定・評価を前面に出すのではなく、自然の記録を残す土台として読みやすい内容へ整えました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>利用規約とプライバシー説明のトーンも整理</strong>: 機能名や免責表現を現状に合わせて更新しました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.5.3 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.3</span>
-                        <time class="text-sm text-gray-500">2026年3月11日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">料金体系を3プランに整理しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>自治体にも入りやすい入口価格へ</strong>: 月額 39,800円のスタンダードプランを設定し、1サイト・5席の標準導入として公開しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>3プランに簡素化</strong>: 個別見積り前提をやめ、公開価格から選べる3段構成にまとめました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>追加オプションを明示</strong>: 追加サイト・席・AI解析・優先サポートを別立てにし、大規模運用へ伸ばしやすくしました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.5.2 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.2</span>
-                        <time class="text-sm text-gray-500">2026年3月11日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">同定ステータスをわかりやすく2段階化しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>属・科レベルの同定も研究利用可に</strong>: 種まで特定できなくても、コミュニティ合意が安定している記録は研究・モニタリング用途で活用できるようにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>精度と信頼を分けて表示</strong>: 「種まで確定した記録」と「属・科レベルで安定した記録」を別ステータスで区別して見られるようにしました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.5.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.1</span>
-                        <time class="text-sm text-gray-500">2026年3月11日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">AIメモをさらに読みやすく改善しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>観察者寄りの表示に整理</strong>: 「結論 → 手がかり → 次に探すとよいもの」の順で読みやすく再構成しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>候補が複数ある場合の表示を改善</strong>: 共通して言える安全な分類群と、最も有力な候補を分けて示すようになりました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.5.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.5.0</span>
-                        <time class="text-sm text-gray-500">2026年3月10日</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-10</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.5.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月10日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">施設由来の記録に対応 + 投稿後にAI考察が自動生成</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">動物園・植物園の記録に対応</strong> — 施設で見た生きものを「施設由来」として投稿できます。野生記録とは区別して扱われます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">投稿後にAI考察が自動生成</strong> — 写真・位置・季節をもとにAIが考察を自動で付けます。「参考メモ」として機能します。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">場所・季節も考慮した考察</strong> — 撮影地の都道府県・季節も補助証拠として参照されます。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">施設由来の記録対応 & AIメモの自動生成</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>植物園・動物園などの記録に正式対応</strong>: 施設で見た生き物を「施設由来」として投稿・管理できるようになりました。野生記録とは分けて扱われます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>投稿後にAIメモが自動生成</strong>: 観察を投稿すると、写真・位置情報・季節をもとにAIが考察を自動生成し、観察詳細ページに公開表示されます。同定の票としてではなく「参考メモ」として機能します</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>場所・季節も考慮したAI考察</strong>: 形態だけでなく、撮影地の都道府県・季節も補助証拠として参照。「場所から見るヒント」「季節から見るヒント」が反映されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>複数枚写真の一括評価</strong>: 投稿された複数の写真をまとめて評価し、1枚だけでは分かりにくい特徴も補完できるようになりました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.4.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.4.0</span>
-                        <time class="text-sm text-gray-500">2026年3月9日</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['improvement']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-09</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.4.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月9日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">みんなの同定をより賢く集計</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">属・種レベルが混在しても集計できる</strong> — 複数人の同定から共通の分類群を自動で導き出せるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">矛盾した同定を自動検知</strong> — 系統的に矛盾する同定が混在する場合、確定を自動で保留します。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">みんなの同定をより賢く集計できるようになりました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>属・種レベルが混在しても集計できるように</strong>: 「属レベルの同定」と「種レベルの同定」が共存していても、共通する分類群を自動で導き出してコミュニティ合意を決めるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>矛盾した同定を自動検知</strong>: 同じ観察に対して「アブラゼミ」と「ミンミンゼミ」など系統的に矛盾する同定が混在する場合、ステータス確定を自動で保留するようにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>分類体系のバージョン管理に対応</strong>: 将来の名前変更にも対応できる堅牢なデータ構造に移行しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>既存データを一括移行</strong>: 過去の全観察データの同定を新しい仕組みに移行し、合意を再計算しました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.3.4 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.3.4</span>
-                        <time class="text-sm text-gray-500">2026年3月9日</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-09</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.3.4</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月9日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">個体数・環境情報の記録に対応</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">個体数を記録できる</strong> — 周辺の個体数をざっくり選べます。長期的な個体数変動の追跡に使われます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">同定の根拠を記録できる</strong> — 体色・模様・形・行動・鳴き声などの根拠を残せます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">環境バイオームと地面の状態</strong> — 森林・草地・湿地・都市など生息環境を記録できます。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">個体数・環境情報の記録に対応しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>個体数の記録に対応</strong>: 投稿画面で周辺の個体数（1匹、2〜5匹、など）を選択できるようになりました。正確でなくてOK — 長期的な個体数変動の追跡に活用されます</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>同定の根拠を記録できるように</strong>: 名前を入力した際に「体色・模様」「全体的な形」「行動・鳴き声」などの根拠を選択できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>環境バイオームと地面の状態を記録</strong>: 森林・草地・湿地・海岸・都市・農地などの環境分類と、岩場・砂地・落ち葉など地面の状態を記録できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>個体数バッジの表示</strong>: ホーム・探索・観察詳細の各画面に個体数バッジを追加し、記録の情報量が一目で分かるようになりました</span>
-                        </li>
-                    </ul>
                 </article>
 
                 <!-- v0.3.3 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.3.3</span>
-                        <time class="text-sm text-gray-500">2026年3月9日</time>
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['fix']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-09</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.3.3</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">修正</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月9日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">ログイン復旧 & 表示バグ修正</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">Google・Xログインを復旧</strong> — ボタンが一時的に表示されない問題を修正しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">投稿の表示順を修正</strong> — 過去の日付の写真がフィードに表示されない問題を直しました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">ログイン復旧 & 表示バグ修正</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ソーシャルログイン復旧</strong>: Google / Xでのログインボタンが一時的に表示されない問題を修正しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>投稿の表示順を改善</strong>: 過去の日付の写真を投稿した際にフィードに表示されない問題を修正しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>同定カウントの反映を修正</strong>: 同定を追加した際にトップページのカウントに正しく反映されるようになりました</span>
-                        </li>
-                    </ul>
                 </article>
 
-                <!-- v0.3.2 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.3.2</span>
-                        <time class="text-sm text-gray-500">2026年3月8日</time>
+                <!-- v0.3.1 & v0.3.2 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-08</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.3.1 – v0.3.2</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月8日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">AI同定・環境自動推定・ネイチャーポジティブガイド公開</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">「AIにきいてみる」機能</strong> — 写真から生きものの分類候補を返します。種の断定ではなく、参考情報として提案します。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">環境情報の自動入力</strong> — 写真の背景からバイオーム・野生/植栽・ライフステージをAIが推定し、フォームに反映します。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ネイチャーポジティブガイドを公開</strong> — 散歩・生きもの観察・脳活性化の三位一体を科学的エビデンスで解説するページを新設しました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">ネイチャーポジティブガイドを公開しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ネイチャーポジティブ完全ガイド公開</strong>: お散歩×生きもの観察×脳活性化の三位一体を科学的エビデンスとともに解説するページを新設</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>トップページ・フッターに導線を追加</strong>: ネイチャーポジティブガイドへのリンクを各所に追加しました</span>
-                        </li>
-                    </ul>
                 </article>
 
-                <!-- v0.3.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.3.1</span>
-                        <time class="text-sm text-gray-500">2026年3月8日</time>
+                <!-- v0.2.0 〜 v0.3.0 -->
+                <article class="py-10 border-b" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature','improvement','fix']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2026-03-04</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.2.0 – v0.3.0</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">改善</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">修正</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2026年3月4〜7日</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">ダッシュボード刷新 + バッジ・スコア・ソーシャルログイン</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ダッシュボードを全面リニューアル</strong> — ランクカード・デイリークエスト・カテゴリ探索を搭載した新デザインに。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">バッジ・スコアシステムが本格稼働</strong> — 記録数・同定貢献・連続投稿などでバッジが取得できます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">Google・Xログイン対応</strong> — ソーシャルログインでかんたんにアカウントを作れます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">地域達成度をマイルストーン制に</strong> — 遠すぎる目標をやめ、次の一歩が手の届く距離に見えるようになりました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">ヒートマップ・フィルターのバグ修正</strong> — 探索フィルターと地図表示の問題を修正しました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">AI同定 & 環境自動推定</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>「AIにきいてみる」機能を追加</strong>: 写真から生き物の分類をAIが推定。種の断定はせず、参考情報として提案します</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>環境情報の自動入力</strong>: 写真の背景からバイオーム・野生/植栽・ライフステージをAIが推定し、ワンタップでフォームに反映</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>AIモデルをアップグレード</strong>: 応答速度と精度を改善しました</span>
-                        </li>
-                    </ul>
                 </article>
 
-                <!-- v0.3.0 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.3.0</span>
-                        <time class="text-sm text-gray-500">2026年3月7日</time>
+                <!-- v0.1.0 〜 v0.1.2 -->
+                <article class="py-10" style="border-color:var(--md-outline-variant)"
+                    x-data="{tags:['feature']}" x-show="f==='all' || tags.includes(f)" x-transition>
+                    <div class="sm:flex gap-8">
+                        <div class="hidden sm:block w-24 shrink-0 text-right pt-0.5">
+                            <time class="text-xs font-mono" style="color:var(--md-on-surface-variant)">2025-11-01</time>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                                <span class="text-xs font-mono" style="color:var(--md-on-surface-variant)">v0.1.0 – v0.1.2</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">新機能</span>
+                                <time class="text-xs sm:hidden" style="color:var(--md-on-surface-variant)">2025年11月 – 2026年1月</time>
+                            </div>
+                            <h2 class="text-lg font-bold mb-4">プロトタイプ版スタート</h2>
+                            <ul class="space-y-2.5 text-sm" style="color:var(--md-on-surface-variant)">
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">フィールドノート</strong> — 写真から生きものを記録する入口を作りました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">コミュニティ同定</strong> — みんなで種の名前を提案・確認できます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">地図探索</strong> — 周辺の生きものを地図で確認できます。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">企業向けレポート・地図埋め込み</strong> — 生物多様性レポートの自動生成と、自社サイトへの地図埋め込みに対応しました。</span></li>
+                                <li class="flex items-start gap-2"><span class="shrink-0 mt-px">–</span><span><strong style="color:var(--md-on-surface)">PWA対応</strong> — ホーム画面に追加できるようになりました。</span></li>
+                            </ul>
+                        </div>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">達成感の見せ方と地図表示を改善しました</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>地域達成度メーターを刷新</strong>: 遠い目標値を一気に示すのをやめ、次の目標が常に手の届く距離に見えるマイルストーン制に変更しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ヒートマップのバグ修正</strong>: 観察データがない地点に色が広がるバグを修正しました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>テストデータの除去</strong>: 実データのみの表示に整理しました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.2.1 -->
-                <article class="relative pl-8 border-l-2 border-emerald-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.2.1</span>
-                        <time class="text-sm text-gray-500">2026年3月6日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">地域達成度マイルストーン + バッジ・スコア強化</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>バッジ・スコアシステムを本格稼働</strong>: 記録数・同定貢献・連続投稿などに応じてバッジを取得できます。プロフィールページで自分の活動履歴を確認できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>Googleログイン・Xログインに対応</strong>: ソーシャルログインでかんたんにアカウントを作れるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>セキュリティ全体強化</strong>: XSS・CSRF対策の徹底、EXIF情報の自動削除、レートリミット設定など基盤の安全性を高めました</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.2.0 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.2.0</span>
-                        <time class="text-sm text-gray-500">2026年3月4日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">大規模品質改善アップデート</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>ダッシュボード刷新</strong>: ランクカード、デイリークエスト、カテゴリ探索を搭載した新デザインに全面リニューアル</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>ナビゲーション改善</strong>: アイコンの差別化とモバイルボトムナビの操作性向上</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>ヘッダーオーバーラップ修正</strong>: 全ページでコンテンツがヘッダーに隠れる問題を解消</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>探索フィルター修正</strong>: カテゴリフィルター（鳥類・昆虫・植物等）が正しく動作するよう修正</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.1.2 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.2</span>
-                        <time class="text-sm text-gray-500">2026年1月1日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">新年アップデート</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>PWA対応</strong>: ホーム画面に追加できるようになりました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>企業向けレポート</strong>: 生物多様性レポートの自動生成に対応</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>プライバシー保護</strong>: 写真のEXIF位置情報を自動削除するようにしました</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-400 shrink-0">✓</span>
-                            <span><strong>ペルソナ別ページ</strong>: 市民・企業・研究者向けのランディングページを追加</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.1.1 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.1</span>
-                        <time class="text-sm text-gray-500">2025年12月15日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">企業向け機能追加</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-blue-400 shrink-0">✓</span>
-                            <span><strong>企業ダッシュボード</strong>: サイト別の生物多様性を可視化</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-blue-400 shrink-0">✓</span>
-                            <span><strong>参考インデックス</strong>: 観測の厚みと保全シグナルを自動要約</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-blue-400 shrink-0">✓</span>
-                            <span><strong>地図埋め込み</strong>: 自社サイトに地図を埋め込み可能に</span>
-                        </li>
-                    </ul>
-                </article>
-
-                <!-- v0.1.0 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.0</span>
-                        <time class="text-sm text-gray-500">2025年11月1日</time>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">プロトタイプ版スタート</h2>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2">
-                            <span class="text-purple-400 shrink-0">✓</span>
-                            <span><strong>フィールドノート</strong>: 写真から生き物を記録</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-purple-400 shrink-0">✓</span>
-                            <span><strong>コミュニティ同定</strong>: みんなで種の名前を提案・確定</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-purple-400 shrink-0">✓</span>
-                            <span><strong>地図探索</strong>: 周辺の生き物を地図で確認</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-purple-400 shrink-0">✓</span>
-                            <span><strong>バッジとランク</strong>: 記録が増えるほど育つゲーミフィケーション</span>
-                        </li>
-                    </ul>
                 </article>
 
             </div>
+        </section>
 
-            <!-- Newsletter signup -->
-            <div class="mt-16 text-center" style="padding:2rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
-                <h3 class="text-lg font-bold mb-2"><?php echo $updatesText['newsletter_title']; ?></h3>
-                <p class="text-sm text-gray-500 mb-4"><?php echo $updatesText['newsletter_text']; ?></p>
-                <div class="flex gap-2 max-w-md mx-auto">
-                    <input type="email" placeholder="メールアドレス"
-                        class="flex-1 px-4 py-3 rounded-xl focus:outline-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface);">
-                    <button class="btn-primary whitespace-nowrap"><?php echo $updatesText['newsletter_button']; ?></button>
+        <!-- Newsletter CTA -->
+        <section class="px-6 py-16 border-t" style="border-color:var(--md-outline-variant)">
+            <div class="max-w-3xl mx-auto">
+                <div class="p-8 rounded-2xl" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant)">
+                    <h3 class="text-lg font-bold mb-2">更新をメールで受け取る</h3>
+                    <p class="text-sm mb-5" style="color:var(--md-on-surface-variant)">次のアップデートをいち早くお知らせします。</p>
+                    <div class="flex gap-2 max-w-md">
+                        <input type="email" placeholder="メールアドレス"
+                            class="flex-1 px-4 py-3 rounded-xl focus:outline-none text-sm"
+                            style="background:var(--md-surface);border:1px solid var(--md-outline-variant);color:var(--md-on-surface);">
+                        <button class="btn-primary px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap">登録</button>
+                    </div>
                 </div>
             </div>
-
-        </div>
-    </section>
+        </section>
 
     </main>
 
