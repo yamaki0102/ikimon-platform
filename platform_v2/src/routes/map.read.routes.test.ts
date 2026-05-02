@@ -18,6 +18,9 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /serializeSharedMapState/);
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
+    assert.match(html, /class="me-map-command-deck"/);
+    assert.match(html, /data-map-tab="frontier"/);
+    assert.match(html, /data-map-basemap="esri"/);
   } finally {
     await app.close();
   }
