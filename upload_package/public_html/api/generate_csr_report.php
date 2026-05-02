@@ -61,7 +61,7 @@ foreach ($sites as $site) {
     $totalSpecies += $stats['total_species'] ?? 0; // rough simple sum, real logic might deduplicate
     $redlistCount += $stats['redlist_count'] ?? 0;
     $sumScore += $stats['credit_score'] ?? 0;
-    
+
     if (isset($stats['top_species'])) {
         foreach ($stats['top_species'] as $name => $count) {
             $topSpeciesAll[$name] = ($topSpeciesAll[$name] ?? 0) + $count;

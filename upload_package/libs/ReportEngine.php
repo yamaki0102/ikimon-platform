@@ -88,6 +88,31 @@ class ReportEngine
         // --- Photos (top observations with images) ---
         $stats['photos'] = $this->collectPhotos($siteObs, 12);
 
+        // --- Fixed Plot Monitoring / Carbon Proxy ---
+        // The legacy PHP plot stack is frozen; fixed plot data is served by platform_v2.
+        $stats['plotMonitoring'] = [
+            'disabled' => true,
+            'plot_count' => 0,
+            'plots' => [],
+            'summary' => [
+                'proxy_ready_count' => 0,
+                'proxy_incomplete_count' => 0,
+                'satellite_ready_count' => 0,
+                'satellite_unavailable_count' => 0,
+                'disturbance_flag_count' => 0,
+                'revisit_recommended_count' => 0,
+            ],
+            'site_satellite_context' => [
+                'latest' => null,
+                'previous' => null,
+                'comparison' => [
+                    'status' => 'disabled',
+                    'messages' => ['plot_monitoring_moved_to_platform_v2'],
+                    'metric_deltas' => [],
+                ],
+            ],
+        ];
+
         $this->compiled = $stats;
         return $this->compiled;
     }
