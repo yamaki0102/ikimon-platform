@@ -1083,22 +1083,25 @@ function buildRegionalStoryGeminiPrompt(
 ): string {
   return JSON.stringify({
     task: "regional_story_compose",
-    role: "Rewrite an already-grounded regional story for ikimon.life.",
+    role: "Rewrite an already-grounded regional story for ikimon.life. The output is a 'reason to revisit' panel shown on an observation page; it must motivate the reader to walk the same place again with a clearer eye.",
     constraints: [
       "Japanese only",
-      "Do not add historical facts that are not present in cards",
+      "Do not add historical facts, species names, or numbers that are not present in cards",
       "Do not add source names or URLs that are not present in cards",
       "Do not reveal precise location names when allowPrecisePlaceLabel is false",
       "Make the page feel like a reason to revisit the same place, not a lecture",
       "Avoid repeating recent card_id + angle_key combinations",
       "Keep the user's agency first: noticing, choosing, comparing, revisiting",
+      "Connect the visible observation (today's species) with at least one specific place trait from the cards (landform, water, history, human-life, ecology). No generic platitudes.",
+      "Use sensory and concrete language: light, smell, sound, footing, season-shift — not abstract praise.",
+      "Avoid jargon and meta words: '生物多様性', 'エビデンス', 'データ駆動', 'コミュニティ' などの抽象語は使わない。代わりに「同じ草むら」「日陰の縁」のように具体的な手がかりで書く。",
       "Return compact JSON only",
     ],
     outputSchema: {
-      place_hook: "string <= 90 chars",
-      why_here: "string <= 170 chars",
-      next_observation_angle: "string <= 110 chars",
-      collective_note: "string <= 130 chars",
+      place_hook: "string <= 90 chars — Single line h2. Start from a sensory or temporal hook tied to this place ('夕方のこの斜面', '桜の花のあと'). Avoid the fluffy '〜を見直そう'.",
+      why_here: "string <= 200 chars — 2 sentences max. First sentence: connect today's species to one specific place trait from cards (geography / human use / season). Second sentence: name what changes between visits at this site (light, water, neighbors, succession).",
+      next_observation_angle: "string <= 140 chars — A concrete next photo or angle. Include WHAT (part / scene), WHERE (relative to the subject), and WHY (what comparison it enables). Example shape: '次は◯◯と一緒に、△△が分かる角度で。比べると□□が読める。'",
+      collective_note: "string <= 160 chars — How a second record from the same spot adds to a community-built picture. Tie it to a near-future change the reader can witness (季節差, 管理跡, 水位, 開花段階). Avoid '生物多様性データに貢献' のような抽象表現。",
     },
     surface: input.surface,
     place: {
@@ -1198,9 +1201,9 @@ async function composeRegionalStoryWithGemini(
     return {
       ...cue,
       placeHook: compactText(parsed.place_hook, cue.placeHook, 100),
-      whyHere: compactText(parsed.why_here, cue.whyHere, 190),
-      nextObservationAngle: compactText(parsed.next_observation_angle, cue.nextObservationAngle, 130),
-      collectiveNote: compactText(parsed.collective_note, cue.collectiveNote, 150),
+      whyHere: compactText(parsed.why_here, cue.whyHere, 220),
+      nextObservationAngle: compactText(parsed.next_observation_angle, cue.nextObservationAngle, 160),
+      collectiveNote: compactText(parsed.collective_note, cue.collectiveNote, 180),
     };
   } catch {
     return cue;

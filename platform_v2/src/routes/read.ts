@@ -70,7 +70,7 @@ import {
   type ProfileSnapshot,
 } from "../services/readModels.js";
 import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
-import { getRegionalStoryCue, type RegionalStoryCue } from "../services/regionalStory.js";
+import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
   assertSpecialistSession,
@@ -843,10 +843,15 @@ const OBSERVATION_DETAIL_STYLES = `
   .regional-story-head > span { flex: 0 0 auto; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
   .regional-story-lead { margin: 0; color: #475569; line-height: 1.8; font-weight: 720; }
   .regional-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .regional-story-grid:has(> :only-child) { grid-template-columns: 1fr; }
+  .regional-story-grid:empty { display: none; }
   .regional-story-grid div { min-height: 96px; padding: 13px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.12); }
+  .regional-story-next { border-color: rgba(2,132,199,.22) !important; background: linear-gradient(135deg, rgba(240,249,255,.92), rgba(255,255,255,.96)) !important; }
+  .regional-story-next small { color: #0369a1 !important; }
   .regional-story-grid small { display: block; color: #047857; font-size: 11px; font-weight: 950; }
   .regional-story-grid strong { display: block; margin-top: 8px; color: #1f3527; font-size: 14px; line-height: 1.55; }
-  .regional-story-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+  .regional-story-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px dashed rgba(16,185,129,.16); }
+  .regional-story-sources-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
   .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .obs-nearby-card { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); overflow: hidden; text-decoration: none; color: inherit; transition: transform .15s ease; }
@@ -1447,27 +1452,62 @@ function renderSubjectHint(
   </section>`;
 }
 
+function isMeaningfulRegionalSource(card: RegionalKnowledgeCard): boolean {
+  const url = (card.sourceUrl || "").trim();
+  if (!url) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  const path = parsed.pathname.replace(/\/+$/, "");
+  if (path === "" || path === "/") return false;
+  const lastSeg = path.split("/").filter(Boolean).pop() ?? "";
+  if (/^(top|index|home|default)(\.[a-z]+)?$/i.test(lastSeg)) return false;
+  const segs = path.split("/").filter(Boolean);
+  if (segs.length < 2) return false;
+  return true;
+}
+
 function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, variant: "observation" | "profile" | "compact" = "observation"): string {
   if (!story) return "";
   const cards = story.cards.slice(0, variant === "observation" ? 2 : 1);
-  const sourceLinks = cards.length > 0
-    ? `<div class="regional-story-sources">
-        ${cards.map((card) => `<a href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">${escapeHtml(card.sourceLabel)}</a>`).join("")}
+  const meaningfulCards = cards.filter(isMeaningfulRegionalSource);
+  const sourceLinks = meaningfulCards.length > 0
+    ? `<div class="regional-story-sources" aria-label="参照した地域資料">
+        <small class="regional-story-sources-eye">資料</small>
+        ${meaningfulCards.map((card) => `<a href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">${escapeHtml(card.sourceLabel)}</a>`).join("")}
+      </div>`
+    : "";
+  const nextAngle = story.nextObservationAngle?.trim();
+  const nextAngleBlock = nextAngle
+    ? `<div class="regional-story-next">
+        <small>📸 次に撮るならこの角度</small>
+        <strong>${escapeHtml(nextAngle)}</strong>
+      </div>`
+    : "";
+  const collective = story.collectiveNote?.trim();
+  const collectiveBlock = collective
+    ? `<div class="regional-story-collective">
+        <small>🌱 もう1件で見えること</small>
+        <strong>${escapeHtml(collective)}</strong>
       </div>`
     : "";
   const className = `regional-story regional-story--${variant}`;
+  const badge = story.sourceMode === "fallback"
+    ? story.angleLabel
+    : `${story.angleLabel}・地域資料あり`;
   return `<section class="${className}" data-testid="regional-story">
     <div class="regional-story-head">
       <div>
         <div class="regional-story-eyebrow">もう一度見に行く理由</div>
         <h2>${escapeHtml(story.placeHook)}</h2>
       </div>
-      <span>${escapeHtml(story.sourceMode === "fallback" ? story.angleLabel : `出典つき / ${story.angleLabel}`)}</span>
+      <span>${escapeHtml(badge)}</span>
     </div>
     <p class="regional-story-lead">${escapeHtml(story.whyHere)}</p>
-    <div class="regional-story-grid">
-      <div><small>この場所が育つこと</small><strong>${escapeHtml(story.collectiveNote)}</strong></div>
-    </div>
+    <div class="regional-story-grid">${nextAngleBlock}${collectiveBlock}</div>
     ${sourceLinks}
   </section>`;
 }
@@ -2363,10 +2403,15 @@ const PROFILE_HUB_STYLES = `
   .regional-story-head > span { flex: 0 0 auto; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
   .regional-story-lead { margin: 0; color: #475569; line-height: 1.8; font-weight: 720; }
   .regional-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .regional-story-grid:has(> :only-child) { grid-template-columns: 1fr; }
+  .regional-story-grid:empty { display: none; }
   .regional-story-grid div { min-height: 96px; padding: 13px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.12); }
+  .regional-story-next { border-color: rgba(2,132,199,.22) !important; background: linear-gradient(135deg, rgba(240,249,255,.92), rgba(255,255,255,.96)) !important; }
+  .regional-story-next small { color: #0369a1 !important; }
   .regional-story-grid small { display: block; color: #047857; font-size: 11px; font-weight: 950; }
   .regional-story-grid strong { display: block; margin-top: 8px; color: #1f3527; font-size: 14px; line-height: 1.55; }
-  .regional-story-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+  .regional-story-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px dashed rgba(16,185,129,.16); }
+  .regional-story-sources-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
   .profile-place-story-list { display: grid; gap: 12px; }
   .profile-history-shell, .profile-growth-shell, .profile-contribution-shell { display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
