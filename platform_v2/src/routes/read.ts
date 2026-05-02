@@ -853,6 +853,15 @@ const OBSERVATION_DETAIL_STYLES = `
   .regional-story-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px dashed rgba(16,185,129,.16); }
   .regional-story-sources-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
+  .regional-story-cards { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px dashed rgba(16,185,129,.16); }
+  .regional-story-cards-eye { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; padding-top: 4px; }
+  .regional-story-card { display: flex; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(16,185,129,.18); text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease; }
+  .regional-story-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.12); }
+  .regional-story-card-icon { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+  .regional-story-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .regional-story-card-title { font-size: 13.5px; font-weight: 850; color: #10251a; line-height: 1.4; }
+  .regional-story-card-summary { font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .regional-story-card-source { font-size: 11px; color: #047857; font-weight: 800; }
   .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .obs-nearby-card { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); overflow: hidden; text-decoration: none; color: inherit; transition: transform .15s ease; }
   .obs-nearby-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
@@ -1394,14 +1403,15 @@ function renderSubjectHint(
     : "";
   const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief);
   const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets);
+  const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
   const boost = aiAssessment.observerBoost
     ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
     : "";
-  // 「次にあると絞りやすいもの」「さらに確認するなら」「次に撮る1枚」を「次に撮るべき写真」1個に統合
+  // 構造化された shotSuggestions カードがある時は、自由文 nextStep をたたみ重複を避ける
   const nextShotItems: string[] = [];
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
   aiAssessment.confirmMore.forEach((tip) => { if (tip) nextShotItems.push(tip); });
-  const nextStep = nextShotItems.length > 0
+  const nextStep = !hasShotSuggestionsCard && nextShotItems.length > 0
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次に撮るべき写真</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(nextShotItems[0])}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul>`}</div>`
     : "";
   const funFact = aiAssessment.funFact
@@ -1470,6 +1480,19 @@ function isMeaningfulRegionalSource(card: RegionalKnowledgeCard): boolean {
   return true;
 }
 
+const REGIONAL_CATEGORY_ICON: Record<string, string> = {
+  history: "📜",
+  cultural_asset: "🏛️",
+  landform: "⛰️",
+  water: "💧",
+  agriculture: "🌾",
+  industry: "🏭",
+  disaster_memory: "⚠️",
+  ecology: "🌿",
+  policy: "📋",
+  local_life: "🏘️",
+};
+
 function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, variant: "observation" | "profile" | "compact" = "observation"): string {
   if (!story) return "";
   const rawCards = story.cards.slice(0, variant === "observation" ? 2 : 1);
@@ -1481,10 +1504,20 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
     seenUrls.add(card.sourceUrl);
     return true;
   });
-  const sourceLinks = meaningfulCards.length > 0
-    ? `<div class="regional-story-sources" aria-label="参照した地域資料">
-        <small class="regional-story-sources-eye">資料</small>
-        ${meaningfulCards.map((card) => `<a href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">${escapeHtml(card.sourceLabel)}</a>`).join("")}
+  const literatureBlock = meaningfulCards.length > 0
+    ? `<div class="regional-story-cards" aria-label="参照した地域資料">
+        <div class="regional-story-cards-eye">参照した地域資料</div>
+        ${meaningfulCards.map((card) => {
+          const icon = REGIONAL_CATEGORY_ICON[card.category] ?? "📚";
+          return `<a class="regional-story-card" href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">
+            <span class="regional-story-card-icon" aria-hidden="true">${icon}</span>
+            <span class="regional-story-card-body">
+              <span class="regional-story-card-title">${escapeHtml(card.title)}</span>
+              <span class="regional-story-card-summary">${escapeHtml(card.summary)}</span>
+              <span class="regional-story-card-source">${escapeHtml(card.sourceLabel)} ↗</span>
+            </span>
+          </a>`;
+        }).join("")}
       </div>`
     : "";
   const nextAngle = story.nextObservationAngle?.trim();
@@ -1515,7 +1548,7 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
     </div>
     <p class="regional-story-lead">${escapeHtml(story.whyHere)}</p>
     <div class="regional-story-grid">${nextAngleBlock}${collectiveBlock}</div>
-    ${sourceLinks}
+    ${literatureBlock}
   </section>`;
 }
 
@@ -2420,6 +2453,15 @@ const PROFILE_HUB_STYLES = `
   .regional-story-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px dashed rgba(16,185,129,.16); }
   .regional-story-sources-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
+  .regional-story-cards { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px dashed rgba(16,185,129,.16); }
+  .regional-story-cards-eye { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; padding-top: 4px; }
+  .regional-story-card { display: flex; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(16,185,129,.18); text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease; }
+  .regional-story-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.12); }
+  .regional-story-card-icon { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+  .regional-story-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .regional-story-card-title { font-size: 13.5px; font-weight: 850; color: #10251a; line-height: 1.4; }
+  .regional-story-card-summary { font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .regional-story-card-source { font-size: 11px; color: #047857; font-weight: 800; }
   .profile-place-story-list { display: grid; gap: 12px; }
   .profile-history-shell, .profile-growth-shell, .profile-contribution-shell { display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
   .profile-history-line { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
