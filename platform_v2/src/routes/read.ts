@@ -243,6 +243,14 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hint-tags li { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #fff; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; font-size: 12px; font-weight: 700; color: #0f172a; }
   .obs-hint-tags li small { color: #94a3b8; font-size: 10.5px; font-weight: 600; }
   .obs-hint-fun { padding: 12px 14px; background: rgba(99,102,241,.08); border-radius: 12px; border: 1px solid rgba(99,102,241,.18); }
+  .obs-hint-revisit { padding: 16px 18px; background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)); border-radius: 14px; border: 1px solid rgba(59,130,246,.18); display: flex; flex-direction: column; gap: 12px; }
+  .obs-hint-revisit-head { display: flex; flex-direction: column; gap: 4px; }
+  .obs-hint-revisit-lead { margin: 0; font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .obs-hint-revisit-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .obs-hint-revisit-list li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,.85); border-radius: 10px; border: 1px solid rgba(15,23,42,.06); }
+  .obs-hint-revisit-icon { font-size: 18px; line-height: 1.4; flex-shrink: 0; }
+  .obs-hint-revisit-text { font-size: 13.5px; line-height: 1.65; color: #0f172a; font-weight: 600; }
+  .obs-hint-revisit-headline { margin: 0; padding: 10px 14px; background: rgba(15,23,42,.04); border-radius: 10px; border-left: 3px solid #2563eb; font-size: 13px; font-weight: 700; color: #1e3a8a; line-height: 1.6; }
   .obs-hint-similar { padding: 14px 16px; background: rgba(236,72,153,.06); border-radius: 12px; border: 1px solid rgba(236,72,153,.15); display: flex; flex-direction: column; gap: 8px; }
   .obs-hint-inner { margin-top: 4px; }
   .obs-hint-bul { margin: 0; padding-left: 16px; color: #334155; font-size: 13px; line-height: 1.7; }
@@ -1129,8 +1137,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const boost = aiAssessment.observerBoost
             ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
             : "";
-          const nextStep = aiAssessment.nextStepText
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次にあると絞りやすいもの</div><p>${escapeHtml(aiAssessment.nextStepText)}</p></div>`
+          // 「もう一度見に行く理由」: confirm_more（具体的な再訪観点）と next_step_text（最重要 1 行）を統合
+          // 各項目の頭文字で観点を推定してアイコンを付ける（季節/部位/時間帯/経時記録）
+          const inferRevisitIcon = (text: string): string => {
+            const t = text;
+            if (/月|春|夏|秋|冬|初夏|初秋|晩|フェノロジ|開花|蕾|花期|果期/.test(t)) return "🗓️";
+            if (/早朝|朝|午前|午後|夕|夜|時間|時刻|時前|時に/.test(t)) return "⏰";
+            if (/同じ場所|同じ株|定点|月1|月に|毎月|毎週|記録を続け|フェノロジ|経時|開花初日|開花終/.test(t)) return "📈";
+            if (/距|葉裏|花|果実|種子|葯|雄|雌|触角|翅|腹|背|脚|羽|尾|嘴|鱗片|樹皮|根/.test(t)) return "🔍";
+            return "✨";
+          };
+          const revisitItems = aiAssessment.confirmMore.length > 0
+            ? aiAssessment.confirmMore
+            : (aiAssessment.nextStepText ? [aiAssessment.nextStepText] : []);
+          const revisitBlock = revisitItems.length > 0
+            ? `<div class="obs-hint-revisit">
+                 <div class="obs-hint-revisit-head">
+                   <div class="obs-hint-eye">もう一度見に行く理由</div>
+                   <p class="obs-hint-revisit-lead">同じ場所にもう一度足を運ぶなら、こんな観点が記録の決め手になります。</p>
+                 </div>
+                 <ul class="obs-hint-revisit-list">
+                   ${revisitItems.map((t) => `<li><span class="obs-hint-revisit-icon" aria-hidden="true">${inferRevisitIcon(t)}</span><span class="obs-hint-revisit-text">${escapeHtml(t)}</span></li>`).join("")}
+                 </ul>
+                 ${aiAssessment.confirmMore.length > 0 && aiAssessment.nextStepText && !aiAssessment.confirmMore.includes(aiAssessment.nextStepText)
+                   ? `<p class="obs-hint-revisit-headline">${escapeHtml(aiAssessment.nextStepText)}</p>`
+                   : ""}
+               </div>`
             : "";
           const funFact = aiAssessment.funFact
             ? `<div class="obs-hint-fun">
@@ -1138,12 +1170,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                  <p>${escapeHtml(aiAssessment.funFact)}</p>
                </div>`
             : "";
-          const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
+          const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0
             ? `<div class="obs-hint-similar">
                  <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
                  ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((t) => `<li>${escapeHtml(t.name)}${t.rank ? ` <small>(${escapeHtml(t.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
                  ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
-                 ${aiAssessment.confirmMore.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">さらに確認するなら</div><ul class="obs-hint-bul">${aiAssessment.confirmMore.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
                  <p class="obs-hint-reminder">※ AI による参考情報です。確証を得るには実物の観察や図鑑の確認をおすすめします。</p>
                </div>`
             : "";
@@ -1156,7 +1187,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
             </div>
             ${rec}${best}
-            <div class="obs-hint-grid">${clues}${stop}${placeSeason}${boost}${nextStep}</div>
+            <div class="obs-hint-grid">${clues}${stop}${placeSeason}${boost}</div>
+            ${revisitBlock}
             ${funFact}
             ${similar}
             <p class="obs-hint-foot">このメモは観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>
