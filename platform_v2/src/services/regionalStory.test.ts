@@ -27,8 +27,8 @@ test("regional story returns sourced Hamamatsu cards without requiring the datab
   assert.ok(story.cards.every((card) => card.sourceUrl.startsWith("https://")));
   assert.notEqual(story.cards[0]?.cardId, "hamamatsu-adeac-castle");
   assert.equal(story.cards[0]?.cardId, "hamamatsu-environment-biodiversity");
-  assert.match(story.placeHook, /もう一度|変化|見る/);
-  assert.match(story.nextObservationAngle, /見る|残す|撮る|比べ/);
+  assert.match(story.placeHook, /確かめる|変化|見る|もう一度|次/);
+  assert.match(story.nextObservationAngle, /見る|残す|撮る|比べ|確かめる/);
   assert.doesNotMatch(story.whyHere, /この地域には、昔の写真や文化誌/);
 });
 

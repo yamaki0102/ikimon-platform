@@ -848,6 +848,21 @@ const OBSERVATION_DETAIL_STYLES = `
   .regional-story-grid strong { display: block; margin-top: 8px; color: #1f3527; font-size: 14px; line-height: 1.55; }
   .regional-story-sources { display: flex; flex-wrap: wrap; gap: 8px; }
   .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
+  .regional-story-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .regional-story-stack > div { padding: 13px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.12); display: flex; flex-direction: column; gap: 6px; }
+  .regional-story-stack small { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .04em; }
+  .regional-story-stack p { margin: 0; color: #1f3527; font-size: 13.5px; line-height: 1.6; font-weight: 600; }
+  .regional-story-next { border-left: 3px solid #10b981 !important; }
+  .regional-story-collective { border-left: 3px solid #047857 !important; }
+  .regional-story-cards { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+  .regional-story-cards-eye { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .regional-story-card { display: flex; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(16,185,129,.18); text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease; }
+  .regional-story-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.12); }
+  .regional-story-card-icon { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+  .regional-story-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .regional-story-card-title { font-size: 13.5px; font-weight: 850; color: #10251a; line-height: 1.4; }
+  .regional-story-card-summary { font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .regional-story-card-source { font-size: 11px; color: #047857; font-weight: 800; }
   .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .obs-nearby-card { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); overflow: hidden; text-decoration: none; color: inherit; transition: transform .15s ease; }
   .obs-nearby-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
@@ -861,7 +876,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-seasonal { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; align-items: end; height: 60px; margin-top: 6px; }
   .obs-seasonal-bar { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; font-size: 9px; color: #b45309; font-weight: 700; }
   @media (max-width: 680px) {
-    .regional-story-head, .regional-story-grid { grid-template-columns: 1fr; }
+    .regional-story-head, .regional-story-grid, .regional-story-stack { grid-template-columns: 1fr; }
     .regional-story-head { flex-direction: column; }
   }
   .obs-seasonal-bar::before { content: ""; display: block; width: 100%; height: var(--h, 0%); background: linear-gradient(180deg, #f59e0b, #fbbf24); border-radius: 3px 3px 0 0; min-height: 2px; }
@@ -1389,14 +1404,15 @@ function renderSubjectHint(
     : "";
   const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief);
   const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets);
+  const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
   const boost = aiAssessment.observerBoost
     ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
     : "";
-  // 「次にあると絞りやすいもの」「さらに確認するなら」「次に撮る1枚」を「次に撮るべき写真」1個に統合
+  // 構造化された shotSuggestions カードがある時は、自由文 nextStep をたたみ重複を避ける
   const nextShotItems: string[] = [];
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
   aiAssessment.confirmMore.forEach((tip) => { if (tip) nextShotItems.push(tip); });
-  const nextStep = nextShotItems.length > 0
+  const nextStep = !hasShotSuggestionsCard && nextShotItems.length > 0
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次に撮るべき写真</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(nextShotItems[0])}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul>`}</div>`
     : "";
   const funFact = aiAssessment.funFact
@@ -1447,14 +1463,54 @@ function renderSubjectHint(
   </section>`;
 }
 
+const REGIONAL_CATEGORY_ICON: Record<string, string> = {
+  history: "📜",
+  cultural_asset: "🏛️",
+  landform: "⛰️",
+  water: "💧",
+  agriculture: "🌾",
+  industry: "🏭",
+  disaster_memory: "⚠️",
+  ecology: "🌿",
+  policy: "📋",
+  local_life: "🏘️",
+};
+
 function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, variant: "observation" | "profile" | "compact" = "observation"): string {
   if (!story) return "";
   const cards = story.cards.slice(0, variant === "observation" ? 2 : 1);
-  const sourceLinks = cards.length > 0
-    ? `<div class="regional-story-sources">
-        ${cards.map((card) => `<a href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">${escapeHtml(card.sourceLabel)}</a>`).join("")}
+
+  const literatureBlock = cards.length > 0
+    ? `<div class="regional-story-cards">
+        <div class="regional-story-cards-eye">参照した地域資料</div>
+        ${cards.map((card) => {
+          const icon = REGIONAL_CATEGORY_ICON[card.category] ?? "📚";
+          return `<a class="regional-story-card" href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">
+            <span class="regional-story-card-icon" aria-hidden="true">${icon}</span>
+            <span class="regional-story-card-body">
+              <span class="regional-story-card-title">${escapeHtml(card.title)}</span>
+              <span class="regional-story-card-summary">${escapeHtml(card.summary)}</span>
+              <span class="regional-story-card-source">${escapeHtml(card.sourceLabel)} ↗</span>
+            </span>
+          </a>`;
+        }).join("")}
       </div>`
     : "";
+
+  const nextLine = variant === "observation" && story.nextObservationAngle
+    ? `<div class="regional-story-next">
+        <small>次に来るとしたら</small>
+        <p>${escapeHtml(story.nextObservationAngle)}</p>
+      </div>`
+    : "";
+
+  const collectiveLine = story.collectiveNote
+    ? `<div class="regional-story-collective">
+        <small>同じ場所の写真を重ねると見えること</small>
+        <p>${escapeHtml(story.collectiveNote)}</p>
+      </div>`
+    : "";
+
   const className = `regional-story regional-story--${variant}`;
   return `<section class="${className}" data-testid="regional-story">
     <div class="regional-story-head">
@@ -1465,10 +1521,11 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
       <span>${escapeHtml(story.sourceMode === "fallback" ? story.angleLabel : `出典つき / ${story.angleLabel}`)}</span>
     </div>
     <p class="regional-story-lead">${escapeHtml(story.whyHere)}</p>
-    <div class="regional-story-grid">
-      <div><small>この場所が育つこと</small><strong>${escapeHtml(story.collectiveNote)}</strong></div>
+    <div class="regional-story-stack">
+      ${nextLine}
+      ${collectiveLine}
     </div>
-    ${sourceLinks}
+    ${literatureBlock}
   </section>`;
 }
 
@@ -2368,6 +2425,21 @@ const PROFILE_HUB_STYLES = `
   .regional-story-grid strong { display: block; margin-top: 8px; color: #1f3527; font-size: 14px; line-height: 1.55; }
   .regional-story-sources { display: flex; flex-wrap: wrap; gap: 8px; }
   .regional-story-sources a { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 9px; border-radius: 999px; background: rgba(16,185,129,.08); color: #047857; font-size: 11px; font-weight: 850; text-decoration: none; }
+  .regional-story-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .regional-story-stack > div { padding: 13px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.12); display: flex; flex-direction: column; gap: 6px; }
+  .regional-story-stack small { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .04em; }
+  .regional-story-stack p { margin: 0; color: #1f3527; font-size: 13.5px; line-height: 1.6; font-weight: 600; }
+  .regional-story-next { border-left: 3px solid #10b981 !important; }
+  .regional-story-collective { border-left: 3px solid #047857 !important; }
+  .regional-story-cards { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+  .regional-story-cards-eye { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .regional-story-card { display: flex; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(16,185,129,.18); text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease; }
+  .regional-story-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,.12); }
+  .regional-story-card-icon { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+  .regional-story-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .regional-story-card-title { font-size: 13.5px; font-weight: 850; color: #10251a; line-height: 1.4; }
+  .regional-story-card-summary { font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .regional-story-card-source { font-size: 11px; color: #047857; font-weight: 800; }
   .profile-place-story-list { display: grid; gap: 12px; }
   .profile-history-shell, .profile-growth-shell, .profile-contribution-shell { display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
   .profile-history-line { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
