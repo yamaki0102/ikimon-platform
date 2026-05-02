@@ -910,6 +910,54 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 </div>
                             <?php endif; ?>
                             <div class="space-y-3 text-sm">
+                                <?php
+                                $hasSimilar = !empty($latestAiAssessment['similar_taxa_to_compare']);
+                                $hasTips    = !empty($latestAiAssessment['distinguishing_tips']);
+                                $hasMissing = !empty($latestAiAssessment['missing_evidence']);
+                                if ($hasSimilar || $hasTips || $hasMissing):
+                                ?>
+                                    <div class="space-y-3" style="background:var(--md-tertiary-container);border-radius:var(--shape-md);padding:0.75rem;border-left:4px solid var(--color-primary);">
+                                        <p class="text-[10px] font-black text-primary uppercase tracking-widest"><?= __('observation_page.identify_priority', 'Identification keys') ?></p>
+                                        <?php if ($hasTips): ?>
+                                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_distinguishing_tips', 'How to tell them apart') ?></p>
+                                                <ul class="mt-1 space-y-1">
+                                                    <?php foreach ($latestAiAssessment['distinguishing_tips'] as $tip): ?>
+                                                        <li class="flex items-start gap-1.5 text-xs text-text leading-snug">
+                                                            <span class="mt-0.5 text-faint shrink-0">·</span>
+                                                            <span><?php echo htmlspecialchars($tip); ?></span>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($hasSimilar): ?>
+                                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_similar_species', 'Confusingly similar species') ?> <span class="font-normal normal-case">（<?= __('observation_page.ai_reference', 'AI reference') ?>）</span></p>
+                                                <div class="flex flex-wrap gap-2">
+                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
+                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text">
+                                                            <?php echo htmlspecialchars((string)$candidateName); ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($hasMissing): ?>
+                                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?php echo $hasTips ? __('observation_page.ai_confirm_more', 'If you want to confirm more') : __('observation_page.ai_missing_evidence', 'Missing evidence to check'); ?></p>
+                                                <div class="flex flex-wrap gap-1.5 mt-1">
+                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
+                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-text">
+                                                            <?php echo htmlspecialchars($point); ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                            <p class="text-[10px] text-muted">※ <?= __('observation_page.ai_reference_note', 'This is AI reference information. For confirmation, we recommend detailed observation of the real specimen and checking field guides.') ?></p>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="grid gap-3 sm:grid-cols-2">
                                     <?php if (!empty($latestAiAssessment['diagnostic_features_seen'])): ?>
                                         <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
@@ -997,64 +1045,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 </div>
                                 <?php endif; ?>
 
-                                <?php
-                                $hasSimilar = !empty($latestAiAssessment['similar_taxa_to_compare']);
-                                $hasTips    = !empty($latestAiAssessment['distinguishing_tips']);
-                                $hasMissing = !empty($latestAiAssessment['missing_evidence']);
-                                if ($hasSimilar || $hasTips || $hasMissing):
-                                ?>
-                                    <div class="space-y-3" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
-                                        <?php if ($hasSimilar): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_similar_species', 'Confusingly similar species') ?> <span class="font-normal normal-case">（<?= __('observation_page.ai_reference', 'AI reference') ?>）</span></p>
-                                                <div class="flex flex-wrap gap-2">
-                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
-                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text">
-                                                            <?php echo htmlspecialchars((string)$candidateName); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($hasTips): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_distinguishing_tips', 'How to tell them apart') ?></p>
-                                                <ul class="mt-1 space-y-1">
-                                                    <?php foreach ($latestAiAssessment['distinguishing_tips'] as $tip): ?>
-                                                        <li class="flex items-start gap-1.5 text-xs text-text leading-snug">
-                                                            <span class="mt-0.5 text-faint shrink-0">·</span>
-                                                            <span><?php echo htmlspecialchars($tip); ?></span>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
-                                            </div>
-                                        <?php elseif ($hasMissing): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_missing_evidence', 'Missing evidence to check') ?></p>
-                                                <div class="flex flex-wrap gap-1.5 mt-1">
-                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
-                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-text">
-                                                            <?php echo htmlspecialchars($point); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($hasTips && $hasMissing): ?>
-                                            <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.ai_confirm_more', 'If you want to confirm more') ?></p>
-                                                <div class="flex flex-wrap gap-1.5 mt-1">
-                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
-                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-muted">
-                                                            <?php echo htmlspecialchars($point); ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                            <p class="text-[10px] text-muted">※ <?= __('observation_page.ai_reference_note', 'This is AI reference information. For confirmation, we recommend detailed observation of the real specimen and checking field guides.') ?></p>
-                                    </div>
-                                <?php endif; ?>
                             </div>
                         <p class="mt-3 text-[11px] text-faint"><?= __('observation_page.ai_footer_note', 'This note is reference information to help move the observation forward. It does not count as a community identification vote.') ?></p>
                         <?php else: ?>
