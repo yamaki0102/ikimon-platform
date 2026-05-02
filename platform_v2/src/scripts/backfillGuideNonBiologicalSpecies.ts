@@ -3,10 +3,12 @@
  *
  * 使い方:
  *   npm run backfill:guide-non-biological-species -- --dry-run --limit=100
- *   npm run backfill:guide-non-biological-species -- --limit=500
+ *   npm run backfill:guide-non-biological-species -- --limit=500 --rebuild-mesh
+ *   npm run backfill:guide-non-biological-species -- --session-id=guide-m4597eoxd89 --rebuild-mesh
  */
 
 import { getPool } from "../db.js";
+import { rebuildGuideEnvironmentMesh } from "../services/guideEnvironmentMesh.js";
 import { sanitizeGuideSceneResult, type DetectedFeature, type PrimarySubject } from "../services/guideSession.js";
 
 type CandidateRow = {
@@ -41,7 +43,18 @@ function changed(a: unknown, b: unknown): boolean {
   return JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
 }
 
-async function loadCandidates(limit: number): Promise<CandidateRow[]> {
+async function loadCandidates(limit: number, sessionId: string | null): Promise<CandidateRow[]> {
+  const params: unknown[] = [];
+  const where: string[] = [
+    `(array_to_string(gr.detected_species, ' ') ~* '(スズキ|suzuki|ホンダ|honda|トヨタ|toyota|日産|nissan|マツダ|mazda|ダイハツ|daihatsu|スバル|subaru|三菱|mitsubishi|ヤマハ|yamaha|volkswagen|scirocco|車|自動車|車両|バン|ムーヴ|キャンバス)'
+       or gr.detected_features::text ~* '(看板|標識|ロゴ|店舗|販売店|車|自動車|車両|バン|ムーヴ|キャンバス|volkswagen|scirocco|suzuki|honda|toyota|nissan|mazda|daihatsu|subaru|mitsubishi|yamaha)'
+       or coalesce(gr.scene_summary, '') ~* '(看板|標識|ロゴ|店舗|販売店|車|自動車|車両|バン|ムーヴ|キャンバス|volkswagen|scirocco|スズキ|suzuki|ホンダ|honda|トヨタ|toyota)')`,
+  ];
+  if (sessionId) {
+    params.push(sessionId);
+    where.push(`gr.session_id = $${params.length}`);
+  }
+  params.push(limit);
   const result = await getPool().query<CandidateRow>(
     `select gr.guide_record_id::text as guide_record_id,
             gr.scene_summary,
@@ -54,14 +67,27 @@ async function loadCandidates(limit: number): Promise<CandidateRow[]> {
             gls.confidence_context
        from guide_records gr
        left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
-      where array_to_string(gr.detected_species, ' ') ~* '(スズキ|suzuki|ホンダ|honda|トヨタ|toyota|日産|nissan|マツダ|mazda|ダイハツ|daihatsu|スバル|subaru|三菱|mitsubishi|ヤマハ|yamaha)'
-         or gr.detected_features::text ~* '(看板|標識|ロゴ|店舗|販売店|車|自動車|suzuki|honda|toyota|nissan|mazda|daihatsu|subaru|mitsubishi|yamaha)'
-         or coalesce(gr.scene_summary, '') ~* '(看板|標識|ロゴ|店舗|販売店|車|自動車|スズキ|suzuki|ホンダ|honda|トヨタ|toyota)'
+      where ${where.join(" and ")}
       order by gr.created_at desc
-      limit $1`,
-    [limit],
+      limit $${params.length}`,
+    params,
   );
   return result.rows;
+}
+
+async function backupRows(rows: CandidateRow[], dryRun: boolean): Promise<string | null> {
+  if (dryRun || rows.length === 0) return null;
+  const suffix = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+  const tableName = `guide_records_nonbio_backup_${suffix}`;
+  await getPool().query(
+    `create table ${tableName} as
+       select gr.*, gls.primary_subject, gls.coexisting_taxa, gls.confidence_context
+         from guide_records gr
+         left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
+        where gr.guide_record_id = any($1::uuid[])`,
+    [rows.map((row) => row.guide_record_id)],
+  );
+  return tableName;
 }
 
 async function updateRow(row: CandidateRow, dryRun: boolean): Promise<{ changed: boolean; beforeSpecies: string[]; afterSpecies: string[] }> {
@@ -119,7 +145,10 @@ async function main(): Promise<void> {
   const args = parseArgs();
   const dryRun = Boolean(args["dry-run"]);
   const limit = positiveInt(args.limit, 200);
-  const rows = await loadCandidates(limit);
+  const sessionId = typeof args["session-id"] === "string" ? args["session-id"] : null;
+  const rebuildMesh = Boolean(args["rebuild-mesh"]);
+  const rows = await loadCandidates(limit, sessionId);
+  const backupTable = await backupRows(rows, dryRun);
   let changedCount = 0;
   const samples: Array<{ guideRecordId: string; beforeSpecies: string[]; afterSpecies: string[] }> = [];
   for (const row of rows) {
@@ -131,12 +160,19 @@ async function main(): Promise<void> {
       }
     }
   }
-  console.log(JSON.stringify({ dryRun, scanned: rows.length, changed: changedCount, samples }, null, 2));
+  const meshRebuild = !dryRun && rebuildMesh
+    ? await rebuildGuideEnvironmentMesh()
+    : null;
+  console.log(JSON.stringify({ dryRun, sessionId, scanned: rows.length, changed: changedCount, backupTable, meshRebuild, samples }, null, 2));
   await getPool().end();
 }
 
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : String(error));
-  await getPool().end().catch(() => undefined);
+  try {
+    await getPool().end();
+  } catch {
+    // DATABASE_URL が未設定の dry-run でも終了処理で二重例外にしない。
+  }
   process.exit(1);
 });

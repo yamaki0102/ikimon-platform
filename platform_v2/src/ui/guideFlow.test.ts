@@ -70,11 +70,17 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /AUDIO_CHUNK_TARGET_MS\)/);
   assert.match(html, /requestEnvironmentCamera\(\)/);
   assert.match(html, /facingMode: \{ exact: 'environment' \}/);
+  assert.match(html, /navigator\.geolocation\.watchPosition/);
+  assert.match(html, /function startLocationWatch\(\)/);
+  assert.match(html, /locationAccuracyM: payload\.locationAccuracyM/);
+  assert.match(html, /positionCapturedAt: payload\.positionCapturedAt/);
+  assert.match(html, /sessionDistanceM: Math\.round\(sessionDistanceM\)/);
   assert.match(html, /audio: \{ channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false \}/);
   assert.match(html, /startBtn\.addEventListener\('click', openStartSheet\)/);
   assert.match(html, /recommendedApply\.addEventListener\('click', applyRecommendedSettings\)/);
   assert.match(html, /cameraOptIn = selectedChoice\('guide-camera-choice', 'on'\) === 'on'/);
   assert.match(html, /if \(cameraOptIn\) analyseTimer = setTimeout\(doAnalyse, 5000\)/);
+  assert.match(html, /stopLocationWatch\(\)/);
   assert.match(html, /showSessionSummary\(\)/);
   assert.match(GUIDE_FLOW_STYLES, /height: min\(68dvh, 640px\)/);
   assert.match(html, /if \(audioOptIn\) void startOptionalAudioCapture\(\);/);

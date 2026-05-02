@@ -21,6 +21,27 @@ test("vehicle guide mode does not treat Suzuki signage as a species", () => {
   assert.ok(result.detectedFeatures.some((feature) => feature.type === "vegetation" && feature.name === "街路樹列"));
 });
 
+test("vehicle guide mode demotes concrete car names and vehicle descriptions", () => {
+  const result = sanitizeGuideSceneResult({
+    summary: "車窓にVolkswagen Scirocco、ダイハツムーヴキャンバス、黒いバンが見える。道路沿いには街路樹もある。",
+    primarySubject: { name: "VolkswagenScirocco", rank: "species", confidence: 0.88 },
+    detectedSpecies: ["車", "VolkswagenScirocco", "ダイハツムーヴキャンバス", "黒いバン", "街路樹"],
+    detectedFeatures: [
+      { type: "species", name: "VolkswagenScirocco", confidence: 0.88, note: "車名" },
+      { type: "species", name: "ダイハツムーヴキャンバス", confidence: 0.86, note: "車両" },
+      { type: "species", name: "黒いバン", confidence: 0.8, note: "道路上の車" },
+      { type: "vegetation", name: "街路樹列", confidence: 0.74, note: "道路沿い" },
+    ],
+    environmentContext: "車道、店舗、街路樹が混在する道路沿い。",
+  }, "vehicle");
+
+  assert.deepEqual(result.detectedSpecies, []);
+  assert.equal(result.primarySubject, undefined);
+  assert.ok(result.detectedFeatures.some((feature) => feature.type === "structure" && feature.name === "VolkswagenScirocco"));
+  assert.ok(result.detectedFeatures.some((feature) => feature.type === "structure" && feature.name === "ダイハツムーヴキャンバス"));
+  assert.ok(result.detectedFeatures.some((feature) => feature.type === "structure" && feature.name === "黒いバン"));
+});
+
 test("vehicle guide mode keeps coarse vegetation signals valuable without species", () => {
   const result = sanitizeGuideSceneResult({
     summary: "車窓から水路沿いの草地と畑の縁が見える。",

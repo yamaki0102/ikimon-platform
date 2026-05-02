@@ -82,3 +82,23 @@ test("guide auto-save skips duplicate scene hashes", () => {
   assert.equal(decision.decision, "skip");
   assert.match(decision.reasonCodes.join(","), /duplicate_scene/);
 });
+
+test("vehicle guide auto-save skips structure-only scenes", () => {
+  const decision = decideGuideAutoSave({
+    result: scene({
+      summary: "道路沿いに車、看板、店舗の入口が見える",
+      detectedSpecies: [],
+      detectedFeatures: [
+        { type: "structure", name: "車両", confidence: 0.92 },
+        { type: "structure", name: "看板・ロゴ", confidence: 0.88 },
+      ],
+      primarySubject: undefined,
+      environmentContext: "舗装道路と店舗前",
+    }),
+    siteBrief: builtUpBrief,
+    guideMode: "vehicle",
+  });
+
+  assert.equal(decision.decision, "skip");
+  assert.match(decision.reasonCodes.join(","), /vehicle_structure_only_scene|no_field_nature_signal/);
+});

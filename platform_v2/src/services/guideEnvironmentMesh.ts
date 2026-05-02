@@ -17,10 +17,13 @@ type CountMap = Record<string, number>;
 export type GuideEnvironmentMeshInput = {
   guideRecordId: string;
   userId?: string | null;
+  sessionId?: string | null;
   lat: number | null;
   lng: number | null;
   detectedFeatures: GuideEnvironmentFeature[];
   seenAt?: string | null;
+  locationQuality?: Record<string, unknown> | null;
+  sessionDistanceM?: number | null;
 };
 
 type MeshRow = {
@@ -50,7 +53,7 @@ function normalizeCountMap(raw: unknown): CountMap {
   const out: CountMap = {};
   for (const [key, value] of Object.entries(raw)) {
     const count = Number(value);
-    if (key && Number.isFinite(count) && count > 0) out[key] = Math.round(count);
+    if (key && Number.isFinite(count) && count > 0) out[key] = Math.round(count * 1000) / 1000;
   }
   return out;
 }
@@ -60,10 +63,10 @@ function normalizeStringArray(raw: unknown): string[] {
   return raw.map((item) => String(item ?? "").trim()).filter(Boolean);
 }
 
-function mergeCounts(base: CountMap, delta: CountMap): CountMap {
+function mergeCounts(base: CountMap, delta: CountMap, weight = 1): CountMap {
   const next = { ...base };
   for (const [key, value] of Object.entries(delta)) {
-    next[key] = (next[key] ?? 0) + value;
+    next[key] = Math.round(((next[key] ?? 0) + value * weight) * 1000) / 1000;
   }
   return next;
 }
@@ -100,6 +103,33 @@ export function summarizeGuideEnvironmentFeatures(features: GuideEnvironmentFeat
   return grouped;
 }
 
+function locationQualityWeight(locationQuality: Record<string, unknown> | null | undefined): number {
+  const accuracy = Number(locationQuality?.accuracyM);
+  if (!Number.isFinite(accuracy)) return 0.8;
+  if (accuracy <= 30) return 1;
+  if (accuracy <= 75) return 0.75;
+  if (accuracy <= 150) return 0.45;
+  return 0.2;
+}
+
+async function sessionAlreadyRepresentedInCell(
+  client: Pick<PoolClient, "query">,
+  sampleRecordIds: string[],
+  sessionId: string | null | undefined,
+): Promise<boolean> {
+  if (!sessionId || sampleRecordIds.length === 0) return false;
+  const result = await client.query<{ exists: boolean }>(
+    `select exists(
+       select 1
+         from guide_records
+        where guide_record_id = any($1::uuid[])
+          and session_id = $2
+     ) as exists`,
+    [sampleRecordIds, sessionId],
+  );
+  return Boolean(result.rows[0]?.exists);
+}
+
 export async function upsertGuideEnvironmentMeshFromRecord(input: GuideEnvironmentMeshInput, client?: PoolClient): Promise<void> {
   if (input.lat == null || input.lng == null || !Number.isFinite(input.lat) || !Number.isFinite(input.lng)) return;
   const meshKey = meshKey100m(input.lat, input.lng);
@@ -131,13 +161,17 @@ export async function upsertGuideEnvironmentMeshFromRecord(input: GuideEnvironme
   const contributorHashes = new Set(row ? normalizeStringArray(row.contributor_hashes) : []);
   if (userHash) contributorHashes.add(userHash);
   const sampleRecordIds = normalizeStringArray(row?.sample_record_ids);
+  const alreadyRepresented = await sessionAlreadyRepresentedInCell(poolOrClient, sampleRecordIds, input.sessionId);
   if (!sampleRecordIds.includes(input.guideRecordId)) sampleRecordIds.unshift(input.guideRecordId);
   const cappedSampleIds = sampleRecordIds.slice(0, 24);
+  const featureWeight = alreadyRepresented
+    ? Math.min(0.25, locationQualityWeight(input.locationQuality))
+    : locationQualityWeight(input.locationQuality);
 
-  const vegetationCounts = mergeCounts(normalizeCountMap(row?.vegetation_counts), features.vegetation);
-  const landformCounts = mergeCounts(normalizeCountMap(row?.landform_counts), features.landform);
-  const structureCounts = mergeCounts(normalizeCountMap(row?.structure_counts), features.structure);
-  const soundCounts = mergeCounts(normalizeCountMap(row?.sound_counts), features.sound);
+  const vegetationCounts = mergeCounts(normalizeCountMap(row?.vegetation_counts), features.vegetation, featureWeight);
+  const landformCounts = mergeCounts(normalizeCountMap(row?.landform_counts), features.landform, featureWeight);
+  const structureCounts = mergeCounts(normalizeCountMap(row?.structure_counts), features.structure, featureWeight);
+  const soundCounts = mergeCounts(normalizeCountMap(row?.sound_counts), features.sound, featureWeight);
   const firstSeenAt = row?.first_seen_at && Date.parse(row.first_seen_at) <= Date.parse(seenAt) ? row.first_seen_at : seenAt;
   const lastSeenAt = row?.last_seen_at && Date.parse(row.last_seen_at) >= Date.parse(seenAt) ? row.last_seen_at : seenAt;
 
@@ -165,7 +199,7 @@ export async function upsertGuideEnvironmentMeshFromRecord(input: GuideEnvironme
       meshKey,
       center.lat,
       center.lng,
-      (row?.guide_record_count ?? 0) + 1,
+      (row?.guide_record_count ?? 0) + (alreadyRepresented ? 0 : 1),
       JSON.stringify(Array.from(contributorHashes).slice(0, 200)),
       contributorHashes.size,
       JSON.stringify(vegetationCounts),
@@ -176,7 +210,7 @@ export async function upsertGuideEnvironmentMeshFromRecord(input: GuideEnvironme
       firstSeenAt,
       lastSeenAt,
     ],
-  );
+    );
 }
 
 export async function rebuildGuideEnvironmentMesh(opts: { dryRun?: boolean; limit?: number } = {}): Promise<{
@@ -189,6 +223,7 @@ export async function rebuildGuideEnvironmentMesh(opts: { dryRun?: boolean; limi
   const rows = await getPool().query<{
     guide_record_id: string;
     user_id: string | null;
+    session_id: string | null;
     lat: number | null;
     lng: number | null;
     detected_features: unknown;
@@ -197,6 +232,7 @@ export async function rebuildGuideEnvironmentMesh(opts: { dryRun?: boolean; limi
   }>(
     `select gr.guide_record_id::text,
             gr.user_id,
+            gr.session_id,
             gr.lat,
             gr.lng,
             gr.detected_features,
@@ -211,6 +247,9 @@ export async function rebuildGuideEnvironmentMesh(opts: { dryRun?: boolean; limi
 
   let aggregatable = 0;
   let written = 0;
+  if (!opts.dryRun) {
+    await getPool().query("delete from guide_environment_mesh_cells");
+  }
   for (const row of rows.rows) {
     const features = Array.isArray(row.detected_features) ? row.detected_features as GuideEnvironmentFeature[] : [];
     if (row.lat == null || row.lng == null || features.length === 0) continue;
@@ -219,6 +258,7 @@ export async function rebuildGuideEnvironmentMesh(opts: { dryRun?: boolean; limi
     await upsertGuideEnvironmentMeshFromRecord({
       guideRecordId: row.guide_record_id,
       userId: row.user_id,
+      sessionId: row.session_id,
       lat: row.lat,
       lng: row.lng,
       detectedFeatures: features,

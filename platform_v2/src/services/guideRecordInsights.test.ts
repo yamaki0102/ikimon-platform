@@ -42,12 +42,16 @@ test("canonicalizeSpeciesFeatures keeps the original alias in notes", () => {
 });
 
 test("canonicalization seed demotes artificial false positives", () => {
-  const taxa = canonicalizeTaxonList(["スズキ", "イネ科植物"]);
+  const taxa = canonicalizeTaxonList(["スズキ", "車", "VolkswagenScirocco", "ダイハツムーヴキャンバス", "黒いバン", "イネ科植物"]);
   assert.deepEqual(taxa.map((item) => item.canonicalName), ["イネ科草本"]);
 
-  const features = canonicalizeSpeciesFeatures([{ type: "species", name: "SUZUKI", confidence: 0.77 }]);
+  const features = canonicalizeSpeciesFeatures([
+    { type: "species", name: "SUZUKI", confidence: 0.77 },
+    { type: "species", name: "VolkswagenScirocco", confidence: 0.82 },
+  ]);
   assert.equal(features[0]?.type, "structure");
-  assert.match(features[0]?.note ?? "", /人工物/);
+  assert.equal(features[1]?.type, "structure");
+  assert.match(features[0]?.note ?? "", /人工物|canonical/);
 });
 
 test("canonicalization seed normalizes managed-place features", () => {

@@ -1,4 +1,4 @@
-import type { SceneResult } from "./guideSession.js";
+import type { GuideMode, SceneResult } from "./guideSession.js";
 import type { SiteBrief } from "./siteBrief.js";
 
 export type GuideAutoSaveDecision = {
@@ -11,6 +11,7 @@ export type GuideAutoSaveDecision = {
 type AutoSaveInput = {
   result: SceneResult;
   siteBrief?: Pick<SiteBrief, "hypothesis" | "signals"> | null;
+  guideMode?: GuideMode;
 };
 
 const PRIVACY_OR_INDOOR_RE = /(?:室内|屋内|部屋|自室|家の中|店内|車内|天井|蛍光灯|照明|机|テーブル|椅子|壁|床|モニター|パソコン|キーボード|人物|人間|人の顔|顔|自撮り|indoor|room|ceiling|fluorescent|desk|table|chair|wall|floor|monitor|keyboard|person|people|human|face|selfie)/i;
@@ -45,6 +46,18 @@ function hasNatureSignal(result: SceneResult): boolean {
   });
   if (natureFeature) return true;
   return NATURE_WORD_RE.test(sceneText(result));
+}
+
+function hasVehicleModeFieldSignal(result: SceneResult): boolean {
+  if ((result.detectedSpecies ?? []).length > 0) return true;
+  return (result.detectedFeatures ?? []).some((feature) => {
+    if (feature.type !== "vegetation" && feature.type !== "landform" && feature.type !== "sound") return false;
+    return (feature.confidence ?? 0.5) >= 0.35;
+  }) || NATURE_WORD_RE.test([
+    result.summary,
+    result.environmentContext,
+    result.seasonalNote,
+  ].filter(Boolean).join(" "));
 }
 
 function siteIsOnlyBuiltUp(siteBrief?: Pick<SiteBrief, "signals"> | null): boolean {
@@ -84,6 +97,15 @@ export function decideGuideAutoSave(input: AutoSaveInput): GuideAutoSaveDecision
       confidence: 0.86,
       reasonCodes: ["no_field_nature_signal"],
       note: "生きもの・植生・地形・自然音の手がかりが弱いため自動保存しません。",
+    };
+  }
+
+  if (input.guideMode === "vehicle" && !hasVehicleModeFieldSignal(result)) {
+    return {
+      decision: "skip",
+      confidence: 0.84,
+      reasonCodes: ["vehicle_structure_only_scene"],
+      note: "車・看板・道路などの人工物だけに見えるため自動保存しません。",
     };
   }
 
