@@ -259,6 +259,60 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-chip { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 700; color: #111827; }
   .obs-chip-conf { color: #16a34a; font-weight: 800; font-size: 10.5px; }
   .obs-chip-src { font-size: 11px; }
+
+  /* === 観察詳細リデザイン (2026-05) === */
+  .obs-flow { display: flex; flex-direction: column; gap: 14px; }
+  .obs-section { padding: 18px 20px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 1px 2px rgba(15,23,42,.03); }
+  .obs-section-title { margin: 0 0 12px; font-size: 16px; font-weight: 900; color: #0f172a; letter-spacing: .005em; display: flex; align-items: center; gap: 8px; }
+  .obs-section-title small { font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: .04em; }
+  .obs-section-eyebrow { font-size: 10.5px; font-weight: 900; color: #64748b; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+
+  /* AI ヒント — スリム版 */
+  .obs-ai-hint { padding: 18px 20px; border-radius: 16px; border: 1px solid rgba(16,185,129,.18); background: linear-gradient(180deg, #f0fdf4, #ecfdf5); display: flex; flex-direction: column; gap: 12px; }
+  .obs-ai-hint.is-medium { border-color: rgba(245,158,11,.22); background: linear-gradient(180deg, #fffbeb, #fef9c3); }
+  .obs-ai-hint.is-low, .obs-ai-hint.is-tent { border-color: rgba(239,68,68,.18); background: linear-gradient(180deg, #fef2f2, #fff1f2); }
+  .obs-ai-hint-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .obs-ai-hint-rec { font-size: 17px; font-weight: 900; color: #0f172a; line-height: 1.3; }
+  .obs-ai-hint-rec small { font-size: 11.5px; font-weight: 700; color: #64748b; margin-left: 6px; }
+  .obs-ai-hint-summary { margin: 0; font-size: 13.5px; line-height: 1.65; color: #334155; }
+  .obs-ai-hint-cols { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 720px) {
+    .obs-ai-hint-cols { grid-template-columns: 1fr 1fr; gap: 12px; }
+  }
+  .obs-ai-hint-col { padding: 12px 14px; background: rgba(255,255,255,.72); border-radius: 12px; border: 1px solid rgba(15,23,42,.06); }
+  .obs-ai-hint-col h3 { margin: 0 0 6px; font-size: 11px; font-weight: 900; color: #64748b; letter-spacing: .12em; text-transform: uppercase; }
+  .obs-ai-hint-col ul { margin: 0; padding-left: 16px; font-size: 13px; line-height: 1.65; color: #334155; }
+  .obs-ai-hint-col ul li { margin-bottom: 2px; }
+  .obs-ai-hint-col p { margin: 0; font-size: 13px; line-height: 1.65; color: #334155; }
+  .obs-ai-hint-fun { padding: 10px 14px; background: rgba(99,102,241,.08); border-radius: 10px; border: 1px solid rgba(99,102,241,.16); font-size: 13px; line-height: 1.65; color: #312e81; }
+  .obs-ai-hint-fun strong { color: #4338ca; margin-right: 4px; }
+  .obs-ai-hint-foot { margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.5; }
+
+  /* 観察者メモ */
+  .obs-note-block { padding: 14px 16px; border-radius: 12px; background: #fffbeb; border-left: 4px solid #f59e0b; }
+  .obs-note-block p { margin: 0; font-size: 14px; line-height: 1.7; color: #422006; }
+
+  /* アクションレール */
+  .obs-action-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border: 1px solid rgba(15,23,42,.06); }
+  .obs-action { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px; border: 0; border-radius: 12px; background: #fff; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 12.5px; box-shadow: 0 1px 2px rgba(15,23,42,.04); cursor: pointer; transition: transform .12s ease, box-shadow .2s ease; }
+  .obs-action:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,.08); }
+  .obs-action[disabled] { opacity: .55; cursor: progress; }
+  .obs-action-icon { font-size: 20px; line-height: 1; }
+  .obs-action-label { font-size: 12px; text-align: center; }
+  .obs-action.is-primary { background: #111827; color: #fff; }
+  .obs-action.is-primary:hover { background: #1f2937; }
+
+  /* 折り畳み詳細 */
+  .obs-details-acc { border-radius: 14px; border: 1px solid rgba(15,23,42,.08); background: #fff; overflow: hidden; }
+  .obs-details-acc > summary { list-style: none; padding: 14px 18px; font-weight: 900; font-size: 14px; color: #0f172a; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .obs-details-acc > summary::-webkit-details-marker { display: none; }
+  .obs-details-acc > summary::after { content: "▾"; margin-left: auto; color: #94a3b8; transition: transform .2s ease; }
+  .obs-details-acc[open] > summary::after { transform: rotate(180deg); }
+  .obs-details-acc[open] > summary { border-bottom: 1px solid rgba(15,23,42,.06); }
+  .obs-details-body { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .obs-details-sub { padding: 12px 14px; border-radius: 10px; background: #f8fafc; border: 1px solid rgba(15,23,42,.05); }
+  .obs-details-sub h4 { margin: 0 0 6px; font-size: 12px; font-weight: 900; color: #64748b; letter-spacing: .1em; text-transform: uppercase; }
+  .obs-details-sub p { margin: 0 0 4px; font-size: 13px; line-height: 1.65; color: #334155; }
 `;
 
 function stateCard(eyebrow: string, title: string, body: string): string {
@@ -1104,119 +1158,75 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </section>`;
 
-    // ===== Layer 1 (最上段): 絞り込みヒント（legacy ai_assessments 由来） =====
-    const hintBlock = aiAssessment
+    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
+
+    // ===== AI ヒント — 統合スリム版 =====
+    // 統合方針: 推奨種は冒頭、見分け方/紛らわしい種は1ブロック、
+    //           次の手がかりは「次に撮るべき写真」として nextStepText + confirmMore を1個に統合、
+    //           場所/季節/観察者ブースト/止める理由 は折り畳みへ
+    const aiHintBlock = aiAssessment
       ? (() => {
           const band = aiAssessment.confidenceBand;
           const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
           const bandLabel = confidenceLabel(band);
-          const headline = aiAssessment.simpleSummary || aiAssessment.narrative || "";
-          const rec = aiAssessment.recommendedTaxonName
-            ? `<div class="obs-hint-rec"><span class="obs-hint-rec-name">${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-hint-rec-rank">${escapeHtml(aiAssessment.recommendedRank)}まで</span>` : ""}</div>`
+          const recName = aiAssessment.recommendedTaxonName;
+          const recRank = aiAssessment.recommendedRank;
+          const summary = aiAssessment.simpleSummary || aiAssessment.narrative || "";
+          const head = `<div class="obs-ai-hint-head">
+            ${recName ? `<span class="obs-ai-hint-rec">${escapeHtml(recName)}${recRank ? `<small>${escapeHtml(recRank)}まで</small>` : ""}</span>` : `<span class="obs-ai-hint-rec">観察のヒント</span>`}
+            <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
+          </div>`;
+          const summaryP = summary ? `<p class="obs-ai-hint-summary">${escapeHtml(summary)}</p>` : "";
+
+          // 見分け方 + 紛らわしい種 を 1 列に
+          const tipsCol = (aiAssessment.distinguishingTips.length > 0 || aiAssessment.similarTaxa.length > 0)
+            ? `<div class="obs-ai-hint-col">
+                 <h3>見分け方のポイント</h3>
+                 ${aiAssessment.distinguishingTips.length > 0 ? `<ul>${aiAssessment.distinguishingTips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>` : ""}
+                 ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags" style="margin-top:8px">${aiAssessment.similarTaxa.map((t) => `<li>${escapeHtml(t.name)}${t.rank ? ` <small>(${escapeHtml(t.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
+               </div>`
             : "";
-          const best = aiAssessment.bestSpecificTaxonName && aiAssessment.bestSpecificTaxonName !== aiAssessment.recommendedTaxonName
-            ? `<p class="obs-hint-best">候補の中では <strong>${escapeHtml(aiAssessment.bestSpecificTaxonName)}</strong> が有力</p>`
+
+          // 写真から拾えた + 拾えていない を1列に
+          const cluesCol = (aiAssessment.diagnosticFeaturesSeen.length > 0 || aiAssessment.missingEvidence.length > 0)
+            ? `<div class="obs-ai-hint-col">
+                 <h3>写真の手がかり</h3>
+                 ${aiAssessment.diagnosticFeaturesSeen.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((f) => `<li>✓ ${escapeHtml(f)}</li>`).join("")}</ul>` : ""}
+                 ${aiAssessment.missingEvidence.length > 0 ? `<ul class="obs-hint-tags" style="margin-top:8px;opacity:.75">${aiAssessment.missingEvidence.map((f) => `<li>— ${escapeHtml(f)}</li>`).join("")}</ul>` : ""}
+               </div>`
             : "";
-          const clues = aiAssessment.diagnosticFeaturesSeen.length > 0
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">写真から拾えている手がかり</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul></div>`
+
+          // 次に撮るべき写真 — nextStepText + confirmMore を統合（1セクションのみ）
+          const nextItems: string[] = [];
+          if (aiAssessment.nextStepText) nextItems.push(aiAssessment.nextStepText);
+          aiAssessment.confirmMore.forEach((c) => { if (c) nextItems.push(c); });
+          const nextCol = nextItems.length > 0
+            ? `<div class="obs-ai-hint-col">
+                 <h3>次に撮るべき写真</h3>
+                 ${nextItems.length === 1 ? `<p>${escapeHtml(nextItems[0])}</p>` : `<ul>${nextItems.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`}
+               </div>`
             : "";
-          const stop = aiAssessment.stopReason
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">ここで止めておく理由</div><p>${escapeHtml(aiAssessment.stopReason)}</p></div>`
-            : "";
-          const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
-            : "";
-          const boost = aiAssessment.observerBoost
-            ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
-            : "";
-          const nextStep = aiAssessment.nextStepText
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次にあると絞りやすいもの</div><p>${escapeHtml(aiAssessment.nextStepText)}</p></div>`
-            : "";
+
+          const cols = [tipsCol, cluesCol, nextCol].filter(Boolean).join("");
+          const colsBlock = cols ? `<div class="obs-ai-hint-cols">${cols}</div>` : "";
+
           const funFact = aiAssessment.funFact
-            ? `<div class="obs-hint-fun">
-                 <div class="obs-hint-eye">ちょっとした豆知識</div>
-                 <p>${escapeHtml(aiAssessment.funFact)}</p>
-               </div>`
+            ? `<div class="obs-ai-hint-fun"><strong>豆知識:</strong>${escapeHtml(aiAssessment.funFact)}</div>`
             : "";
-          const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
-            ? `<div class="obs-hint-similar">
-                 <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
-                 ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((t) => `<li>${escapeHtml(t.name)}${t.rank ? ` <small>(${escapeHtml(t.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
-                 ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
-                 ${aiAssessment.confirmMore.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">さらに確認するなら</div><ul class="obs-hint-bul">${aiAssessment.confirmMore.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
-                 <p class="obs-hint-reminder">※ AI による参考情報です。確証を得るには実物の観察や図鑑の確認をおすすめします。</p>
-               </div>`
-            : "";
-          return `<section class="section obs-hint-section ${bandClass}">
-            <div class="obs-hint-head">
-              <div>
-                <p class="obs-hint-eyebrow">いっしょに絞るためのメモ</p>
-                <h2 class="obs-hint-title">${escapeHtml(headline || "観察のヒント")}</h2>
-              </div>
-              <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
-            </div>
-            ${rec}${best}
-            <div class="obs-hint-grid">${clues}${stop}${placeSeason}${boost}${nextStep}</div>
-            ${funFact}
-            ${similar}
-            <p class="obs-hint-foot">このメモは観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>
-          </section>`;
+
+          return `<section class="obs-ai-hint ${bandClass}">${head}${summaryP}${colsBlock}${funFact}<p class="obs-ai-hint-foot">※ AI 参考情報。コミュニティ同定の票には入りません。</p></section>`;
         })()
       : "";
 
-    // ===== Layer 1: 物語 =====
-    const ownerNote = snapshot.note
-      ? `<div class="obs-story-block">
-           <div class="obs-story-eyebrow">観察者のメモ</div>
-           <p>${escapeHtml(snapshot.note)}</p>
-         </div>`
-      : "";
-    const aiFirst = obsContext && (obsContext.environmentContexts.length > 0 || obsContext.seasonalNotes.length > 0)
-      ? `<div class="obs-story-block obs-story-ai">
-           <div class="obs-story-eyebrow">🤖 AI が読み取った様子</div>
-           ${obsContext.environmentContexts.map((e) => `<p>${escapeHtml(e)}</p>`).join("")}
-           ${obsContext.seasonalNotes.map((e) => `<p>${escapeHtml(e)}</p>`).join("")}
-           <small class="obs-ai-note">※ 上記は AI による自動解釈です。市民のみなさんの同定と合わせて確認してください。</small>
-         </div>`
-      : "";
-    const footprintCard = observerStats
-      ? `<div class="obs-footprint">
-           <div class="obs-footprint-row">
-             <span class="obs-footprint-num">#${observerStats.totalObservations}</span>
-             <span class="obs-footprint-label">あなたの累計記録</span>
-           </div>
-           <div class="obs-footprint-row">
-             <span class="obs-footprint-num">${observerStats.thisMonthObservations}</span>
-             <span class="obs-footprint-label">今月の記録</span>
-           </div>
-           ${observerStats.placeVisitCount > 1 ? `<div class="obs-footprint-row">
-             <span class="obs-footprint-num">${observerStats.placeVisitCount}</span>
-             <span class="obs-footprint-label">この場所に来た回数</span>
-           </div>` : ""}
-           ${observerStats.currentStreakDays > 1 ? `<div class="obs-footprint-row">
-             <span class="obs-footprint-num">${observerStats.currentStreakDays}</span>
-             <span class="obs-footprint-label">連続観察日数</span>
-           </div>` : ""}
-         </div>`
-      : "";
-    const layer1 = (ownerNote || aiFirst || footprintCard)
-      ? `<section class="section obs-layer obs-layer-1">
-           <h2 class="obs-layer-title">この記録について</h2>
-           <div class="obs-layer-body">${ownerNote}${aiFirst}${footprintCard}</div>
-         </section>`
+    // ===== 観察者メモ =====
+    const ownerNoteBlock = snapshot.note
+      ? `<section class="obs-note-block"><div class="obs-section-eyebrow">観察者のメモ</div><p>${escapeHtml(snapshot.note)}</p></section>`
       : "";
 
-    // ===== Layer 2: 同定 =====
-    const lineageChips = heavy && heavy.lineage.length > 0
-      ? `<div class="obs-lineage">
-           ${heavy.lineage.map((l) => `<span class="obs-lineage-item"><small>${escapeHtml(l.rank)}</small>${escapeHtml(l.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
-         </div>`
-      : "";
-
-    // ADR-0004: 主種 + 共生種グリッド。2以上 subject があれば表示。
-    const subjectGrid = heavy && heavy.subjects.length >= 2
-      ? `<div class="obs-subjects">
-           <div class="obs-story-eyebrow">1枚に写ったほかの生きもの</div>
+    // ===== 組写真カバレッジ (subjects ≥ 2 のみ) =====
+    const subjectsBlock = heavy && heavy.subjects.length >= 2
+      ? `<section class="obs-section">
+           <h2 class="obs-section-title">組写真カバレッジ <small>${heavy.subjects.length} 個体</small></h2>
            <div class="obs-subjects-grid">
              ${heavy.subjects.map((s) => `
                <div class="obs-subject-card${s.isPrimary ? " is-primary" : ""}" data-role="${escapeHtml(s.roleHint)}">
@@ -1226,8 +1236,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                  ${typeof s.confidence === "number" ? `<div class="obs-subject-conf">${Math.round(s.confidence * 100)}%</div>` : ""}
                </div>`).join("")}
            </div>
-           <p class="obs-ai-note">※ 1 回の観察に複数の生きものが写っている時、主被写体とそれ以外を分けて保存しています。</p>
-         </div>`
+         </section>`
+      : "";
+
+    // ===== 同定セクション =====
+    const lineageChips = heavy && heavy.lineage.length > 0
+      ? `<div class="obs-lineage">${heavy.lineage.map((l) => `<span class="obs-lineage-item"><small>${escapeHtml(l.rank)}</small>${escapeHtml(l.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}</div>`
       : "";
     const idsList = snapshot.identifications.length > 0
       ? `<ul class="obs-id-list">
@@ -1245,146 +1259,123 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              </li>`).join("")}
          </ul>`
       : `<p class="obs-empty">まだ名前は確定していません。最初の提案者になれます。</p>`;
-    const layer2 = `
-      <section class="section obs-layer obs-layer-2">
-        <h2 class="obs-layer-title">名前と分類</h2>
-        ${subjectGrid}
+    const idBlock = `<section class="obs-section">
+        <h2 class="obs-section-title">同定 <small>${snapshot.identifications.length} 件</small></h2>
         ${lineageChips}
         ${idsList}
-        <p class="obs-ai-note">🤖 写真から Gemini が複数候補を自動提示しています。市民同定と組み合わせて、もっとも説明力のある名前に近づけます。</p>
       </section>`;
 
-    // ===== Layer 3: 場所の物語 =====
-    const nearbyCards = heavy && heavy.nearby.length > 0
-      ? `<div class="obs-nearby-grid">
-           ${heavy.nearby.map((n) => `
+    // ===== 豆知識 (1個のみ・compact) =====
+    const insightBits: string[] = [];
+    if (insight && insight.etymology) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📖 名前の由来</div><p>${escapeHtml(insight.etymology)}</p></div>`);
+    if (insight && insight.ecologyNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🌿 生き方</div><p>${escapeHtml(insight.ecologyNote)}</p></div>`);
+    if (insight && insight.lookAlikeNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🔍 似た仲間</div><p>${escapeHtml(insight.lookAlikeNote)}</p></div>`);
+    if (insight && insight.rarityNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📍 出会いやすさ</div><p>${escapeHtml(insight.rarityNote)}</p></div>`);
+    const insightBlock = insightBits.length > 0
+      ? `<section class="obs-section">
+           <h2 class="obs-section-title">この生きものについて</h2>
+           <div class="obs-insight-grid">${insightBits.join("")}</div>
+         </section>`
+      : "";
+
+    // ===== アクションレール (アイコンボタン1行) =====
+    const actionItems: string[] = [];
+    if (snapshot.placeId) {
+      actionItems.push(`<a class="obs-action" href="${escapeHtml(withBasePath(basePath, "/map"))}"><span class="obs-action-icon">📍</span><span class="obs-action-label">この場所を再訪</span></a>`);
+    }
+    actionItems.push(`<a class="obs-action" href="${escapeHtml(withBasePath(basePath, "/record"))}"><span class="obs-action-icon">📝</span><span class="obs-action-label">似た場面を記録</span></a>`);
+    actionItems.push(`<a class="obs-action" href="${escapeHtml(withBasePath(basePath, "/explore"))}"><span class="obs-action-icon">🔍</span><span class="obs-action-label">似た観察を見る</span></a>`);
+    if (isOwner) {
+      actionItems.push(`<button type="button" class="obs-action is-primary obs-reassess-btn" data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess"))}" data-loading-text="再判定中…"><span class="obs-action-icon">🔄</span><span class="obs-action-label">写真から再判定</span></button>`);
+      if (snapshot.videoAssets.length > 0) {
+        actionItems.push(`<button type="button" class="obs-action is-primary obs-reassess-btn" data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess-from-video"))}" data-loading-text="再判定中…"><span class="obs-action-icon">🎬</span><span class="obs-action-label">動画から再判定</span></button>`);
+      }
+    }
+    const actionRail = `<nav class="obs-action-rail" aria-label="アクション">${actionItems.join("")}</nav>${isOwner ? `<span class="obs-reassess-status" data-reassess-status hidden style="display:block;text-align:center;margin-top:8px"></span>` : ""}`;
+
+    // ===== 詳細（折り畳み） =====
+    // エリア推察 / 場所と季節 / 共生種 / 観察者統計 / AI 環境読み取り を1個のアコーディオンに集約
+    const grouped = obsContext ? groupFeaturesByLayer(obsContext.features) : { coexistingTaxa: [], environment: [], sounds: [] };
+    const renderFeatureChips = (list: typeof grouped.coexistingTaxa): string =>
+      list.map((f) => `<li class="obs-chip" title="${escapeHtml(f.note ?? "")}"><span class="obs-chip-name">${escapeHtml(f.name)}</span>${
+        typeof f.confidence === "number" ? `<span class="obs-chip-conf">${Math.round(f.confidence * 100)}%</span>` : ""
+      }<span class="obs-chip-src">${f.sourceKind === "audio" ? "🎤" : "📷"}</span></li>`).join("");
+
+    const placeSeasonSub = (aiAssessment && (aiAssessment.geographicContext || aiAssessment.seasonalContext))
+      ? `<div class="obs-details-sub">
+           <h4>場所と季節のヒント</h4>
+           ${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}
+           ${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}
+         </div>` : "";
+
+    const nearbySub = heavy && (heavy.nearby.length > 0 || heavy.peers.length > 0 || heavy.seasonalHistory.length > 0)
+      ? `<div class="obs-details-sub">
+           <h4>この場所の物語</h4>
+           ${heavy.peers.length > 0 ? `<p class="obs-peers">この場所で観察した人は <strong>${heavy.peers.length}</strong> 人（${heavy.peers.map((p) => escapeHtml(p.displayName)).slice(0, 3).join(" / ")} 等）</p>` : ""}
+           ${heavy.nearby.length > 0 ? `<div class="obs-nearby-grid">${heavy.nearby.map((n) => `
              <a class="obs-nearby-card" href="${escapeHtml(withBasePath(basePath, "/observations/" + encodeURIComponent(n.occurrenceId)))}">
                ${n.photoUrl ? `<img src="${escapeHtml(n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" />` : '<div class="obs-nearby-nophoto">📷</div>'}
                <div class="obs-nearby-body">
                  <div class="obs-nearby-name">${escapeHtml(n.displayName)}</div>
                  <div class="obs-nearby-meta">${escapeHtml(n.observerName)} · ${escapeHtml(n.observedAt)}</div>
                </div>
-             </a>`).join("")}
-         </div>`
+             </a>`).join("")}</div>` : ""}
+           ${heavy.seasonalHistory.length > 0 ? `<div class="obs-seasonal-wrap" style="margin-top:10px"><div class="obs-story-eyebrow">同地点の月別観察数</div><div class="obs-seasonal">${
+             Array.from({ length: 12 }, (_, i) => {
+               const h = heavy.seasonalHistory.find((s) => s.month === i + 1);
+               const n = h ? h.count : 0;
+               const max = Math.max(...heavy.seasonalHistory.map((s) => s.count), 1);
+               return `<span class="obs-seasonal-bar" style="--h:${Math.round((n / max) * 100)}%" title="${i + 1}月: ${n}件"><small>${i + 1}</small></span>`;
+             }).join("")
+           }</div></div>` : ""}
+         </div>` : "";
+
+    const featuresSub = (grouped.coexistingTaxa.length > 0 || grouped.sounds.length > 0 || grouped.environment.length > 0)
+      ? `<div class="obs-details-sub">
+           <h4>写真と音声から拾えたこと</h4>
+           ${grouped.coexistingTaxa.length > 0 ? `<details class="obs-fold" open><summary>🌿 同地点の生きもの <span class="obs-fold-count">${grouped.coexistingTaxa.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.coexistingTaxa)}</ul></details>` : ""}
+           ${grouped.sounds.length > 0 ? `<details class="obs-fold"><summary>🎤 音声で拾った <span class="obs-fold-count">${grouped.sounds.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.sounds)}</ul></details>` : ""}
+           ${grouped.environment.length > 0 ? `<details class="obs-fold"><summary>🏞️ 環境の情報 <span class="obs-fold-count">${grouped.environment.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul></details>` : ""}
+         </div>` : "";
+
+    const aiEnvSub = obsContext && (obsContext.environmentContexts.length > 0 || obsContext.seasonalNotes.length > 0)
+      ? `<div class="obs-details-sub">
+           <h4>🤖 AI が読み取った様子</h4>
+           ${obsContext.environmentContexts.map((e) => `<p>${escapeHtml(e)}</p>`).join("")}
+           ${obsContext.seasonalNotes.map((e) => `<p>${escapeHtml(e)}</p>`).join("")}
+         </div>` : "";
+
+    const observerSub = observerStats
+      ? `<div class="obs-details-sub">
+           <h4>あなたの観察フットプリント</h4>
+           <div class="obs-footprint">
+             <div class="obs-footprint-row"><span class="obs-footprint-num">#${observerStats.totalObservations}</span><span class="obs-footprint-label">累計記録</span></div>
+             <div class="obs-footprint-row"><span class="obs-footprint-num">${observerStats.thisMonthObservations}</span><span class="obs-footprint-label">今月の記録</span></div>
+             ${observerStats.placeVisitCount > 1 ? `<div class="obs-footprint-row"><span class="obs-footprint-num">${observerStats.placeVisitCount}</span><span class="obs-footprint-label">この場所</span></div>` : ""}
+             ${observerStats.currentStreakDays > 1 ? `<div class="obs-footprint-row"><span class="obs-footprint-num">${observerStats.currentStreakDays}</span><span class="obs-footprint-label">連続日数</span></div>` : ""}
+           </div>
+         </div>` : "";
+
+    const stopReasonSub = aiAssessment && aiAssessment.stopReason
+      ? `<div class="obs-details-sub"><h4>ここで止めておく理由</h4><p>${escapeHtml(aiAssessment.stopReason)}</p></div>`
       : "";
-    const peersLine = heavy && heavy.peers.length > 0
-      ? `<p class="obs-peers">この場所で観察した人は <strong>${heavy.peers.length}</strong> 人（${heavy.peers.map((p) => escapeHtml(p.displayName)).slice(0, 3).join(" / ")} 等）</p>`
-      : "";
-    const seasonalBar = heavy && heavy.seasonalHistory.length > 0
-      ? `<div class="obs-seasonal">
-           ${Array.from({ length: 12 }, (_, i) => {
-             const h = heavy.seasonalHistory.find((s) => s.month === i + 1);
-             const n = h ? h.count : 0;
-             const max = Math.max(...heavy.seasonalHistory.map((s) => s.count), 1);
-             return `<span class="obs-seasonal-bar" style="--h:${Math.round((n / max) * 100)}%" title="${i + 1}月: ${n}件"><small>${i + 1}</small></span>`;
-           }).join("")}
-         </div>`
-      : "";
-    const layer3 = (nearbyCards || peersLine || seasonalBar)
-      ? `<section class="section obs-layer obs-layer-3">
-           <h2 class="obs-layer-title">この場所の物語</h2>
-           ${peersLine}
-           ${nearbyCards}
-           ${seasonalBar ? `<div class="obs-seasonal-wrap"><div class="obs-story-eyebrow">同地点の月別観察数</div>${seasonalBar}</div>` : ""}
-         </section>`
+    const observerBoostSub = aiAssessment && aiAssessment.observerBoost
+      ? `<div class="obs-details-sub"><h4>この観察ですでに助かるところ</h4><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
       : "";
 
-    // ===== Layer 5: CTA =====
-    const ctaBlock = `
-      <section class="section obs-layer obs-cta">
-        <h2 class="obs-layer-title">次の一歩</h2>
-        <div class="obs-cta-grid">
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/record"))}">
-            <span class="obs-cta-icon">📝</span>
-            <span class="obs-cta-label">似た場面を記録する</span>
-          </a>
-          ${snapshot.placeId ? `<a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/map"))}">
-            <span class="obs-cta-icon">🗺️</span>
-            <span class="obs-cta-label">同じ場所を地図で見る</span>
-          </a>` : ""}
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/explore"))}">
-            <span class="obs-cta-icon">🔍</span>
-            <span class="obs-cta-label">似た観察を探す</span>
-          </a>
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench"))}">
-            <span class="obs-cta-icon">🔬</span>
-            <span class="obs-cta-label">専門家の視点で見る</span>
-          </a>
-        </div>
-      </section>`;
-
-    // ===== Layer 6: 豆知識 =====
-    const insightBits: string[] = [];
-    if (insight && insight.etymology) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📖 名前の由来</div><p>${escapeHtml(insight.etymology)}</p></div>`);
-    if (insight && insight.ecologyNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🌿 生き方</div><p>${escapeHtml(insight.ecologyNote)}</p></div>`);
-    if (insight && insight.lookAlikeNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🔍 似た仲間</div><p>${escapeHtml(insight.lookAlikeNote)}</p></div>`);
-    if (insight && insight.rarityNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📍 出会いやすさ</div><p>${escapeHtml(insight.rarityNote)}</p></div>`);
-    const layer6 = insightBits.length > 0
-      ? `<section class="section obs-layer obs-layer-6">
-           <h2 class="obs-layer-title">この生きものについて</h2>
-           <div class="obs-insight-grid">${insightBits.join("")}</div>
-           <p class="obs-ai-note">🤖 この記述は AI が自動生成した参考情報です。専門書も合わせてご確認ください。</p>
-         </section>`
-      : "";
-
-    // ===== コンテキスト折り畳み (Phase D 既存、保持) =====
-    const grouped = obsContext ? groupFeaturesByLayer(obsContext.features) : { coexistingTaxa: [], environment: [], sounds: [] };
-    const renderFeatureChips = (list: typeof grouped.coexistingTaxa): string =>
-      list.map((f) => `<li class="obs-chip" title="${escapeHtml(f.note ?? "")}"><span class="obs-chip-name">${escapeHtml(f.name)}</span>${
-        typeof f.confidence === "number" ? `<span class="obs-chip-conf">${Math.round(f.confidence * 100)}%</span>` : ""
-      }<span class="obs-chip-src">${f.sourceKind === "audio" ? "🎤" : "📷"}</span></li>`).join("");
-    const coexistingSection = grouped.coexistingTaxa.length > 0
-      ? `<details class="obs-fold" open>
-           <summary>🌿 同地点の生きもの <span class="obs-fold-count">${grouped.coexistingTaxa.length}</span></summary>
-           <ul class="obs-chips">${renderFeatureChips(grouped.coexistingTaxa)}</ul>
+    const detailsBlocks = [placeSeasonSub, nearbySub, featuresSub, aiEnvSub, observerSub, stopReasonSub, observerBoostSub].filter(Boolean).join("");
+    const detailsAccordion = detailsBlocks
+      ? `<details class="obs-details-acc">
+           <summary>📚 詳細情報・エリア推察</summary>
+           <div class="obs-details-body">${detailsBlocks}</div>
          </details>` : "";
-    const soundsSection = grouped.sounds.length > 0
-      ? `<details class="obs-fold"><summary>🎤 音声で拾った <span class="obs-fold-count">${grouped.sounds.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.sounds)}</ul></details>` : "";
-    const envSection = grouped.environment.length > 0
-      ? `<details class="obs-fold"><summary>🏞️ 環境の情報 <span class="obs-fold-count">${grouped.environment.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul></details>` : "";
-    const contextBlock = (coexistingSection || soundsSection || envSection)
-      ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
-    // 表示優先順位:
-    //   1) hintBlock (いっしょに絞るためのメモ) — Hero 直下 全幅
-    //   2) layer2 (名前と分類) — 全幅
-    //   3) layer6 (この生きものについて — 豆知識) — ユーザー指示で ctaBlock より優先。全幅で目立たせる
-    //   4) layer3 (場所の物語) — 全幅
-    //   5) layer1 / contextBlock / ctaBlock は PC 2col で並ぶ
-    const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
-    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
-    const reassessButtons: string[] = [];
-    if (isOwner) {
-      reassessButtons.push(
-        `<button type="button"
-                 class="obs-reassess-btn"
-                 data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess"))}"
-                 data-loading-text="再判定中…（写真を Gemini に渡しています）">🔄 写真から再判定</button>`,
-      );
-      if (snapshot.videoAssets.length > 0) {
-        reassessButtons.push(
-          `<button type="button"
-                   class="obs-reassess-btn"
-                   data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess-from-video"))}"
-                   data-loading-text="再判定中…（動画サムネイルを Gemini に渡しています）">🎬 動画から再判定</button>`,
-        );
-      }
-    }
-    const reassessBlock = isOwner
-      ? `<section class="section obs-reassess-row" aria-label="AI 再判定">
-           ${reassessButtons.join("")}
-           <span class="obs-reassess-hint">${snapshot.videoAssets.length > 0 ? "写真か動画サムネイルを使って判定を更新できます（30秒ほど）。" : "写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。"}</span>
-           <span class="obs-reassess-status" data-reassess-status hidden></span>
-         </section>`
-      : "";
     const reassessScript = isOwner
       ? `<script>(function(){
            var buttons = Array.prototype.slice.call(document.querySelectorAll('.obs-reassess-btn[data-reassess-endpoint]'));
            if (!buttons.length) return;
            var statusEl = document.querySelector('[data-reassess-status]');
-           var setBusy = function(disabled) {
-             buttons.forEach(function(button){ button.disabled = disabled; });
-           };
+           var setBusy = function(disabled) { buttons.forEach(function(b){ b.disabled = disabled; }); };
            buttons.forEach(function(btn){
              btn.addEventListener('click', function(){
                var endpoint = btn.getAttribute('data-reassess-endpoint');
@@ -1411,7 +1402,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${reassessScript}`;
+
+    // 表示順:
+    //   1) heroBlock (写真 + タイトル + メタ + リアクション)
+    //   2) aiHintBlock (見分け方 + 紛らわしい種 + 写真の手がかり + 次に撮るべき写真 + 豆知識)
+    //   3) ownerNoteBlock (観察者メモ)
+    //   4) subjectsBlock (組写真カバレッジ)
+    //   5) insightBlock (この生きものについて — 1個に圧縮)
+    //   6) idBlock (同定セクション)
+    //   7) actionRail (アイコンボタン1行 + reassess)
+    //   8) detailsAccordion (折り畳み: エリア推察・場所季節・共生種・観察者統計)
+    const detailBody = `${heroBlock}<div class="obs-flow">${aiHintBlock}${ownerNoteBlock}${subjectsBlock}${insightBlock}${idBlock}${actionRail}${detailsAccordion}</div>${reassessScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
