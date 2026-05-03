@@ -1191,6 +1191,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
+  var EVENTS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events/new"), props.lang))};
+  var FIELDS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/new"), props.lang))};
   ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
@@ -1774,8 +1776,32 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderPlaceActions() {
     // No observation context — take the user to act now or review their own notes.
-    return '<div class="me-bottom-actions">' +
-      '<a class="btn btn-solid" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
+    var pt = state.selectedPoint;
+    var hasCoord = pt && Number.isFinite(pt.lat) && Number.isFinite(pt.lng);
+    var sep = function (base) { return base.indexOf('?') >= 0 ? '&' : '?'; };
+    var coordQs = hasCoord
+      ? 'lat=' + encodeURIComponent(String(pt.lat)) + '&lng=' + encodeURIComponent(String(pt.lng))
+      : '';
+    var eventHref = hasCoord ? EVENTS_NEW_BASE + sep(EVENTS_NEW_BASE) + coordQs : '';
+    var fieldHref = hasCoord ? FIELDS_NEW_BASE + sep(FIELDS_NEW_BASE) + coordQs : '';
+    var ctaSeamless = hasCoord
+      ? ''
+        + '<div class="me-place-cta-row">'
+        +   '<a class="me-place-cta me-place-cta-primary" href="' + escapeHtml(eventHref) + '">'
+        +     '<span class="me-place-cta-icon" aria-hidden="true">＋</span>'
+        +     '<span class="me-place-cta-body"><strong>この地点で観察会を開く</strong>'
+        +     '<span>参加者と共有して観察を一括記録</span></span>'
+        +   '</a>'
+        +   '<a class="me-place-cta me-place-cta-secondary" href="' + escapeHtml(fieldHref) + '">'
+        +     '<span class="me-place-cta-icon" aria-hidden="true">⛳</span>'
+        +     '<span class="me-place-cta-body"><strong>マイフィールドとして登録</strong>'
+        +     '<span>範囲を描いて再訪・経年比較に使う</span></span>'
+        +   '</a>'
+        + '</div>'
+      : '';
+    return ctaSeamless +
+      '<div class="me-bottom-actions">' +
+      '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
       '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
       '</div>';
@@ -1967,6 +1993,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>エリア情報を読み込み中…</strong></div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
+    // PC では full-width だと地図を覆い隠して圧迫感が出るので area モード専用の狭幅版に。
+    sheetEl.classList.add('me-bottom-sheet--area');
     if (!apiAreaSnapshotTemplate) return;
     var url = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
     fetch(url, { credentials: 'same-origin' })
@@ -1982,6 +2010,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function closeBottomSheet() {
     if (!sheetEl) return;
     sheetEl.classList.remove('is-open');
+    sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.setAttribute('aria-hidden', 'true');
     if (state.map && state.map.getLayer('area-polygon-selected')) {
       state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], '__none__']);
@@ -1989,9 +2018,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
 
-  // Phase 1a placeholder; full year-timeline / effort-cards / sensitive-banner
-  // ship in Phase 1b once /api/v1/fields/:fieldId/area-snapshot returns the
-  // extended payload.
   function renderAreaSheet(snapshot) {
     var f = (snapshot && snapshot.field) || {};
     var summary = (snapshot && snapshot.observationSummary) || {};
@@ -2005,6 +2031,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? Math.round(f.areaHa).toLocaleString('ja-JP') + ' ha'
       : '';
     var officialUrl = String(f.officialUrl || '');
+    var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
+    var ctaHref = fieldId && eventsNewHrefTemplate
+      ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
+      : '';
     var headerHtml = ''
       + '<div class="me-area-sheet-header">'
       +   '<div class="me-area-sheet-title">'
@@ -2016,6 +2046,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>'
         : '')
       + '</div>';
+    // CTA を上に置いて、スクロールせずに「ここで観察会を開く」が見える状態に。
+    var ctaHtml = ctaHref
+      ? ''
+        + '<div class="me-area-sheet-cta">'
+        +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
+        +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
+        +     'この場所で観察会を開く'
+        +   '</a>'
+        +   '<span class="me-area-sheet-cta-hint">参加者と共有できる時間枠を作って、観察を一括で記録</span>'
+        + '</div>'
+      : '';
     var summaryHtml = ''
       + '<div class="me-area-sheet-summary">'
       +   '<div><span>総観察数</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
@@ -2026,13 +2067,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var timelineHtml = renderAreaTimeline(timeline);
     var indicatorsHtml = renderEffortIndicators(indicators);
     var maskingHtml = renderSensitiveBanner(masking);
-    var ctaHref = state.selectedPoint && state.selectedPoint.fieldId && eventsNewHrefTemplate
-      ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(state.selectedPoint.fieldId))
-      : '';
-    var ctaHtml = ctaHref
-      ? '<div class="me-area-sheet-cta"><a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">この場所で観察会を開く →</a></div>'
-      : '';
-    return headerHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml + ctaHtml;
+    return headerHtml + ctaHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -2062,12 +2097,34 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderEffortIndicators(indicators) {
     if (!indicators) return '';
+    // 0% が並んだとき「エリアが悪い」のではなく「記録がまだ薄いだけ」と分かるように、
+    // 各カードに「100% に近づくと何が言えるか」を hint として置く (eBird/iNaturalist 文献ベース)。
     var cards = [
-      { label: '努力量入力率', value: indicators.effortReportedRate, hint: 'effort_minutes/distance あり' },
-      { label: '完全チェックリスト率', value: indicators.completeChecklistRate, hint: '不在も含めて記録' },
-      { label: '時空カバー指数', value: indicators.temporalSpreadIndex, hint: '季節×月×年の網羅' },
-      { label: '観察者多様性', value: indicators.observerDiversity, hint: '寡占の補正' },
-      { label: '非検出記録率', value: indicators.nonDetectionRate, hint: '居なかったの記録' },
+      {
+        label: '努力量の入力',
+        value: indicators.effortReportedRate,
+        hint: '探索時間か距離が記録されている割合。高いほど「調査がどれだけ厚かったか」が分かる',
+      },
+      {
+        label: '完全チェックリスト率',
+        value: indicators.completeChecklistRate,
+        hint: '見たもの全部 + 居なかったものも明示した記録の割合。高いほど「居る/居ない」が研究で使える',
+      },
+      {
+        label: '時空カバー指数',
+        value: indicators.temporalSpreadIndex,
+        hint: '季節 × 月 × 年の網羅度。100% は「年中通して観察されている」状態',
+      },
+      {
+        label: '観察者の多様性',
+        value: indicators.observerDiversity,
+        hint: '何人の観察者で分散しているか。0% は「実質1人だけ」、100% は「みんなで支えている」',
+      },
+      {
+        label: '不在も記録した率',
+        value: indicators.nonDetectionRate,
+        hint: '「探したけど居なかった」を残した割合。30by30 評価では『減ってる』の根拠に必須',
+      },
     ];
     var cardsHtml = cards.map(function (c) {
       var pct = (typeof c.value === 'number' && Number.isFinite(c.value))
@@ -2082,11 +2139,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         +   '<div class="me-area-effort-hint">' + escapeHtml(c.hint) + '</div>'
         + '</div>';
     }).join('');
-    var indexText = (typeof indicators.effortIndex === 'number' && Number.isFinite(indicators.effortIndex))
-      ? Math.round(indicators.effortIndex) + '/100' : '—';
+    var indexValue = (typeof indicators.effortIndex === 'number' && Number.isFinite(indicators.effortIndex))
+      ? Math.round(indicators.effortIndex) : null;
+    var indexText = indexValue == null ? '—' : (indexValue + '/100');
+    var bandText = indexValue == null
+      ? 'まだ評価できない'
+      : indexValue < 30 ? 'まだ薄い (傾向は語れない)'
+      : indexValue < 70 ? '傾向は読める'
+      : '研究利用できる水準';
     return ''
       + '<div class="me-area-effort">'
-      +   '<div class="me-area-effort-title">調査努力量 <span class="me-area-effort-index">合成 ' + escapeHtml(indexText) + '</span></div>'
+      +   '<div class="me-area-effort-title">'
+      +     '<span>このエリアの調査品質</span>'
+      +     '<span class="me-area-effort-index">' + escapeHtml(indexText) + ' · ' + escapeHtml(bandText) + '</span>'
+      +   '</div>'
+      +   '<p class="me-area-effort-explainer">'
+      +     'eBird / iNaturalist / GBIF の評価軸を市民参加向けに圧縮した5指標。<br>'
+      +     '0% は「その軸の記録がまだ無い」だけで、エリアが悪いという意味ではない。'
+      +   '</p>'
       +   '<div class="me-area-effort-grid">' + cardsHtml + '</div>'
       + '</div>';
   }
@@ -4270,7 +4340,44 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-effort-hint { font-size: 10px; color: #64748b; line-height: 1.3; }
   .me-area-sensitive { padding: 10px 12px; border-radius: 12px; background: rgba(254,243,199,.55); border: 1px solid rgba(217,119,6,.28); color: #78350f; font-size: 12px; font-weight: 600; line-height: 1.45; margin-bottom: 12px; }
   .me-area-sensitive.is-privileged { background: rgba(220,252,231,.55); border-color: rgba(22,163,74,.28); color: #14532d; }
-  .me-area-sheet-cta { margin-top: 6px; }
-  .me-area-sheet-cta-btn { display: inline-block; padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #0ea5e9, #0f766e); text-decoration: none; box-shadow: 0 4px 12px rgba(15,118,110,.24); }
+  .me-area-sheet-cta { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 14px; }
+  .me-area-sheet-cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 800; color: #fff !important; background: linear-gradient(135deg, #0ea5e9, #0f766e); text-decoration: none; box-shadow: 0 6px 16px rgba(15,118,110,.28); width: max-content; max-width: 100%; }
   .me-area-sheet-cta-btn:hover { filter: brightness(1.05); }
+  .me-area-sheet-cta-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.22); font-size: 14px; font-weight: 800; }
+  .me-area-sheet-cta-hint { font-size: 11px; color: #475569; line-height: 1.45; padding-left: 4px; }
+  .me-area-effort-title { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; justify-content: space-between; font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .me-area-effort-title > span:first-child { font-size: 13px; }
+  .me-area-effort-explainer { margin: 0 0 10px; font-size: 11px; color: #475569; line-height: 1.5; padding: 8px 10px; border-radius: 10px; background: rgba(241,245,249,.7); border: 1px solid rgba(148,163,184,.18); }
+
+  /* Area mode: PC で全幅取らないようサイドカード化 */
+  .me-bottom-sheet.me-bottom-sheet--area {
+    max-width: 540px;
+    left: 16px;
+    right: auto;
+    bottom: 16px;
+    border-radius: 18px;
+    box-shadow: 0 12px 36px rgba(15,23,42,.18);
+  }
+
+  /* 任意点シートの「観察会を開く / マイフィールド登録」シームレス CTA */
+  .me-place-cta-row { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
+  .me-place-cta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; text-decoration: none; transition: filter .15s; }
+  .me-place-cta:hover { filter: brightness(1.04); }
+  .me-place-cta-primary { background: linear-gradient(135deg, #0ea5e9, #0f766e); color: #fff !important; box-shadow: 0 6px 16px rgba(15,118,110,.28); }
+  .me-place-cta-secondary { background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.28); color: #0f172a !important; }
+  .me-place-cta-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: rgba(255,255,255,.22); font-size: 18px; font-weight: 800; flex-shrink: 0; }
+  .me-place-cta-secondary .me-place-cta-icon { background: rgba(15,118,110,.12); color: #0f766e; }
+  .me-place-cta-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .me-place-cta-body strong { font-size: 14px; font-weight: 800; line-height: 1.2; }
+  .me-place-cta-body span { font-size: 11px; line-height: 1.3; opacity: .85; }
+
+  @media (max-width: 768px) {
+    .me-bottom-sheet.me-bottom-sheet--area {
+      max-width: none;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 22px 22px 0 0;
+    }
+  }
 `;
