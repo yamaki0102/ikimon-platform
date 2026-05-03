@@ -11,7 +11,8 @@ import {
   type TaxonGroup,
 } from "../services/mapSnapshot.js";
 import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
-import { listAreaPolygonsForBbox, type AreaPolygonSource } from "../services/areaPolygons.js";
+import { listAreaPolygonsForBbox, flushAreaPolygonCache, type AreaPolygonSource } from "../services/areaPolygons.js";
+import { loadConfig } from "../config.js";
 
 const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
   "user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm",
@@ -234,6 +235,23 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "public, max-age=60");
     return collection;
+  });
+
+  // Internal: clear the in-memory area-polygons cache so freshly imported
+  // OSM / N03 polygons surface immediately. Guarded by the privileged
+  // write API key (same secret the importer scripts already need).
+  app.post("/api/v1/internal/flush-area-cache", async (request, reply) => {
+    const cfg = loadConfig();
+    const expected = cfg.privilegedWriteApiKey;
+    const got = request.headers["x-v2-privileged-write-api-key"];
+    if (!expected || expected.length < 8) {
+      return reply.code(503).send({ error: "privileged_write_disabled" });
+    }
+    if (got !== expected) {
+      return reply.code(403).send({ error: "invalid_key" });
+    }
+    const cleared = flushAreaPolygonCache();
+    return reply.send({ flushed_entries: cleared });
   });
 
   app.get("/api/v1/map/effort-summary", async (request, reply) => {

@@ -18,8 +18,18 @@
  */
 
 import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createRequire } from "node:module";
 import { getPool } from "../db.js";
 import { computeBbox } from "../services/geoJsonBbox.js";
+
+// stream-json is a CommonJS package whose typings don't expose proper ESM
+// re-exports for the streamer / filter modules. Use createRequire so we get
+// the runtime exports directly without fighting tsc.
+const require_ = createRequire(import.meta.url);
+const { parser } = require_("stream-json") as { parser: () => NodeJS.ReadWriteStream };
+const streamArrayMod = require_("stream-json/streamers/stream-array") as { streamArray: () => NodeJS.ReadWriteStream };
+const pickMod = require_("stream-json/filters/pick") as { pick: (opts: { filter: string }) => NodeJS.ReadWriteStream };
 
 type Options = {
   geojsonPath: string;
@@ -27,6 +37,11 @@ type Options = {
   includeCountry: boolean;
   dryRun: boolean;
   limit: number | null;
+  /** Stream the GeoJSON instead of JSON.parse() — required for the 531MB
+   *  nationwide N03 file. */
+  stream: boolean;
+  /** When streaming, commit every N upserts to keep transactions short. */
+  batchSize: number;
 };
 
 type N03Feature = {
@@ -55,6 +70,8 @@ function parseArgs(argv: string[]): Options {
     includeCountry: false,
     dryRun: false,
     limit: null,
+    stream: false,
+    batchSize: 500,
   };
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -62,6 +79,12 @@ function parseArgs(argv: string[]): Options {
     else if (arg === "--publish-date" && argv[i + 1]) { options.publishDate = argv[i + 1]!; i += 1; }
     else if (arg === "--include-country") { options.includeCountry = true; }
     else if (arg === "--dry-run") { options.dryRun = true; }
+    else if (arg === "--stream") { options.stream = true; }
+    else if (arg === "--batch-size" && argv[i + 1]) {
+      const n = Number.parseInt(argv[i + 1] ?? "", 10);
+      if (Number.isFinite(n) && n > 0) options.batchSize = n;
+      i += 1;
+    }
     else if (arg === "--limit" && argv[i + 1]) {
       const n = Number.parseInt(argv[i + 1] ?? "", 10);
       if (Number.isFinite(n) && n > 0) options.limit = n;
@@ -200,6 +223,21 @@ async function applyJob(client: Awaited<ReturnType<ReturnType<typeof getPool>["c
   return existing ? "superseded" : "inserted";
 }
 
+async function flushAreaCacheRemote(): Promise<void> {
+  const key = process.env.V2_PRIVILEGED_WRITE_API_KEY;
+  if (!key) return;
+  const ports = (process.env.V2_FLUSH_PORTS ?? "3201,3202,3200").split(",").map((p) => p.trim()).filter(Boolean);
+  for (const port of ports) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/api/v1/internal/flush-area-cache`, {
+        method: "POST",
+        headers: { "X-V2-Privileged-Write-Api-Key": key },
+      });
+      if (r.ok) console.log(`[importN03] flushed cache on :${port}`);
+    } catch { /* best-effort */ }
+  }
+}
+
 function distanceKm(bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number }): number {
   // Rough diagonal in km — used only as a `radius_m` placeholder for legacy
   // nearest-neighbour queries (the polygon is the source of truth).
@@ -208,19 +246,92 @@ function distanceKm(bbox: { minLat: number; maxLat: number; minLng: number; maxL
   return Math.sqrt(dLat * dLat + dLng * dLng) / 2;
 }
 
-async function main() {
-  const options = parseArgs(process.argv);
-  console.log(`[importN03] reading ${options.geojsonPath}`);
+async function collectJobsBuffered(options: Options): Promise<UpsertJob[]> {
   const text = await readFile(options.geojsonPath, "utf-8");
   const collection = JSON.parse(text) as N03Collection;
   if (!collection || collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
     throw new Error("Not a GeoJSON FeatureCollection");
   }
-  const allJobs: UpsertJob[] = [];
+  const out: UpsertJob[] = [];
   for (const feature of collection.features) {
-    allJobs.push(...buildJobsForFeature(feature));
-    if (options.limit && allJobs.length >= options.limit) break;
+    out.push(...buildJobsForFeature(feature));
+    if (options.limit && out.length >= options.limit) break;
   }
+  return out;
+}
+
+async function streamFeatures(geojsonPath: string, onFeature: (f: N03Feature) => Promise<void>): Promise<void> {
+  // GeoJSON FeatureCollection root is { type, features: [...] }; pick filter
+  // narrows the parse stream to just the features array, StreamArray emits one
+  // feature at a time so the heap stays bounded even for the 531MB file.
+  await new Promise<void>((resolve, reject) => {
+    const stream = createReadStream(geojsonPath, { highWaterMark: 1 << 20 })
+      .pipe(parser() as unknown as NodeJS.WritableStream) as unknown as NodeJS.ReadWriteStream;
+    const piped = (stream
+      .pipe(pickMod.pick({ filter: "features" }) as unknown as NodeJS.WritableStream) as unknown as NodeJS.ReadWriteStream)
+      .pipe(streamArrayMod.streamArray() as unknown as NodeJS.WritableStream) as unknown as NodeJS.ReadableStream & { pause: () => void; resume: () => void; destroy: (err?: Error) => void };
+    piped.on("data", (data: { key: number; value: N03Feature }) => {
+      piped.pause();
+      onFeature(data.value).then(() => piped.resume(), (err: unknown) => {
+        piped.destroy(err as Error);
+      });
+    });
+    piped.on("end", () => resolve());
+    piped.on("error", (err: unknown) => reject(err));
+  });
+}
+
+async function runStreamingImport(options: Options): Promise<{ inserted: number; superseded: number; skipped: number }> {
+  const pool = getPool();
+  let inserted = 0, superseded = 0, skipped = 0, processed = 0;
+  let client = await pool.connect();
+  await client.query("BEGIN");
+  try {
+    await streamFeatures(options.geojsonPath, async (feature) => {
+      if (options.limit && processed >= options.limit) return;
+      const jobs = buildJobsForFeature(feature);
+      for (const job of jobs) {
+        const result = await applyJob(client, job, options.publishDate);
+        if (result === "inserted") inserted += 1;
+        else if (result === "superseded") superseded += 1;
+        else skipped += 1;
+        processed += 1;
+        // Cycle the transaction every batchSize so one fault doesn't lose
+        // hours of work and Postgres doesn't accumulate long-running tx.
+        if (processed % options.batchSize === 0) {
+          await client.query("COMMIT");
+          client.release();
+          client = await pool.connect();
+          await client.query("BEGIN");
+          if (processed % (options.batchSize * 4) === 0) {
+            console.log(`[importN03/stream] processed=${processed} inserted=${inserted} superseded=${superseded}`);
+          }
+        }
+      }
+    });
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+  return { inserted, superseded, skipped };
+}
+
+async function main() {
+  const options = parseArgs(process.argv);
+  console.log(`[importN03] reading ${options.geojsonPath} stream=${options.stream} dryRun=${options.dryRun}`);
+
+  if (options.stream && !options.dryRun) {
+    const out = await runStreamingImport(options);
+    console.log(`[importN03/stream] done inserted=${out.inserted} superseded=${out.superseded} skipped=${out.skipped}`);
+    await flushAreaCacheRemote();
+    await getPool().end();
+    return;
+  }
+
+  const allJobs = await collectJobsBuffered(options);
   // Add the country-level placeholder once if asked.
   if (options.includeCountry && allJobs.length > 0) {
     const overall = allJobs.reduce(

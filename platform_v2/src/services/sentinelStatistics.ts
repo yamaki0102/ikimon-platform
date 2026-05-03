@@ -16,6 +16,7 @@
  */
 
 const DEFAULT_STAC_BASE = "https://planetarycomputer.microsoft.com/api/stac/v1";
+const DEFAULT_DATA_BASE = "https://planetarycomputer.microsoft.com/api/data/v1";
 
 export interface SentinelIndicesPoint {
   observedOn: string;       // YYYY-MM-DD of the source scene
@@ -95,15 +96,64 @@ async function searchLowCloudScene(
 }
 
 /**
+ * Compute NDVI / NDWI mean+max for a Sentinel-2 scene over a small bbox via
+ * MPC's Statistics API. No raster bytes are fetched in-process — MPC's
+ * server-side reduce returns the summary directly.
+ *
+ *   POST {dataBase}/item/{collection}/{item}/statistics
+ *   Body: { expression, geojson: <Feature> }
+ *
+ * The expression must reference Sentinel-2 L2A asset names. We compute:
+ *   NDVI = (B08 - B04) / (B08 + B04)
+ *   NDWI = (B03 - B08) / (B03 + B08)
+ */
+async function fetchExpressionStatistics(
+  dataBase: string,
+  collection: string,
+  itemId: string,
+  expression: string,
+  bbox: [number, number, number, number],
+): Promise<{ mean: number | null; max: number | null }> {
+  const [w, s, e, n] = bbox;
+  const polygon = {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]],
+    },
+    properties: {},
+  };
+  const url = `${dataBase.replace(/\/$/, "")}/item/${encodeURIComponent(collection)}/${encodeURIComponent(itemId)}/statistics?expression=${encodeURIComponent(expression)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify(polygon),
+  });
+  if (!response.ok) {
+    return { mean: null, max: null };
+  }
+  const payload = await response.json().catch(() => null) as
+    | { properties?: { statistics?: Record<string, { mean?: number; max?: number }> } }
+    | null;
+  const stats = payload?.properties?.statistics ?? null;
+  if (!stats) return { mean: null, max: null };
+  // titiler returns one entry keyed by the expression band name.
+  const firstBand = Object.values(stats)[0];
+  if (!firstBand) return { mean: null, max: null };
+  return {
+    mean: typeof firstBand.mean === "number" && Number.isFinite(firstBand.mean) ? firstBand.mean : null,
+    max: typeof firstBand.max === "number" && Number.isFinite(firstBand.max) ? firstBand.max : null,
+  };
+}
+
+/**
  * Public entrypoint: returns the most recent low-cloud Sentinel-2 scene
  * intersecting a (lat, lng) point with NDVI / NDWI summary statistics, or
  * null when MPC is disabled / the scene cannot be found / fetch fails.
  *
- * Note: this Phase 3-1 cut returns scene-level metadata (datetime, cloud %)
- * and the asset href but defers actual NDVI raster computation to a follow-up
- * (the bands need to be fetched and reduced in-process; for now the worker
- * stores the scene reference into source_snapshots so the data lineage is
- * recorded and a future raster job can fill in metric_value).
+ * Phase 3-1b: ndviMean / ndviMax / ndwiMean are filled by MPC's server-side
+ * Statistics API (no in-process raster fetch). Failures fall back to null so
+ * the writer still records the scene lineage even if statistics are missing.
  */
 export async function fetchSentinelSceneForPoint(
   lat: number,
@@ -128,14 +178,23 @@ export async function fetchSentinelSceneForPoint(
   const visualAsset = feature.assets?.["visual"]?.href
     ?? feature.assets?.["B04"]?.href
     ?? "";
+  const collection = feature.collection ?? "sentinel-2-l2a";
+  const dataBase = process.env.MPC_DATA_API_URL ?? DEFAULT_DATA_BASE;
+  // Fetch NDVI + NDWI in parallel; either can fail independently.
+  const [ndvi, ndwi] = await Promise.all([
+    fetchExpressionStatistics(dataBase, collection, feature.id, "(B08-B04)/(B08+B04)", bbox)
+      .catch(() => ({ mean: null, max: null })),
+    fetchExpressionStatistics(dataBase, collection, feature.id, "(B03-B08)/(B03+B08)", bbox)
+      .catch(() => ({ mean: null, max: null })),
+  ]);
   return {
     observedOn,
-    ndviMean: null,   // Filled by future raster reduce step.
-    ndviMax: null,
-    ndwiMean: null,
+    ndviMean: ndvi.mean,
+    ndviMax: ndvi.max,
+    ndwiMean: ndwi.mean,
     cloudPct,
     itemId: feature.id,
-    collection: feature.collection ?? "sentinel-2-l2a",
+    collection,
     sourceUrl: selfLink,
     rawAssetHref: visualAsset,
   };

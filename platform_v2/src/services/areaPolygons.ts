@@ -178,6 +178,14 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   return payload;
 }
 
+/** Drop the in-memory cache. Used by importer endpoints so that fresh OSM /
+ *  N03 polygons surface immediately instead of waiting on the 60s TTL. */
+export function flushAreaPolygonCache(): number {
+  const before = cache.size;
+  cache.clear();
+  return before;
+}
+
 export const __test__ = {
   cacheKey,
   defaultSourcesForZoom,

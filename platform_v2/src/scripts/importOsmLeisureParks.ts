@@ -98,8 +98,36 @@ function buildQuery(bbox: [number, number, number, number]): string {
   `;
 }
 
-async function fetchOverpass(url: string, query: string): Promise<OverpassResponse> {
-  // Overpass enforces a polite policy: identify the caller and accept JSON explicitly.
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.openstreetmap.ru/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+
+/**
+ * After a successful import, hit each blue/green API port to clear the
+ * in-memory area-polygons cache so the next /ja/map render shows the new
+ * polygons without waiting on the 60s TTL. Skips silently if no key set.
+ */
+async function flushAreaPolygonCacheRemote(): Promise<void> {
+  const key = process.env.V2_PRIVILEGED_WRITE_API_KEY;
+  if (!key) return;
+  const ports = (process.env.V2_FLUSH_PORTS ?? "3201,3202,3200").split(",").map((p) => p.trim()).filter(Boolean);
+  for (const port of ports) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/api/v1/internal/flush-area-cache`, {
+        method: "POST",
+        headers: { "X-V2-Privileged-Write-Api-Key": key },
+      });
+      if (r.ok) console.log(`[importOsmParks] flushed cache on :${port}`);
+    } catch {
+      // Best-effort; the cache will expire on its own.
+    }
+  }
+}
+
+async function fetchOverpassOnce(url: string, query: string): Promise<OverpassResponse> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -114,6 +142,36 @@ async function fetchOverpass(url: string, query: string): Promise<OverpassRespon
     throw new Error(`Overpass HTTP ${response.status}: ${body.slice(0, 240)}`);
   }
   return (await response.json()) as OverpassResponse;
+}
+
+/**
+ * Try each mirror in turn with exponential backoff. overpass-api.de gives
+ * intermittent 504/429 under load; falling through to kumi/openstreetmap.ru
+ * recovers without manual intervention.
+ */
+async function fetchOverpass(primaryUrl: string, query: string): Promise<OverpassResponse> {
+  // Build mirror list: explicit primaryUrl first, then the well-known mirrors
+  // (deduped). This keeps `--source-url` intact when callers pass one.
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+  for (const u of [primaryUrl, ...OVERPASS_MIRRORS]) {
+    if (!seen.has(u)) { candidates.push(u); seen.add(u); }
+  }
+  let lastErr: unknown = null;
+  for (let i = 0; i < candidates.length; i += 1) {
+    const url = candidates[i]!;
+    try {
+      return await fetchOverpassOnce(url, query);
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[importOsmParks] mirror ${i + 1}/${candidates.length} failed (${url}): ${(err as Error).message}`);
+      if (i + 1 < candidates.length) {
+        const backoffMs = 2_000 * (i + 1);
+        await new Promise((r) => setTimeout(r, backoffMs));
+      }
+    }
+  }
+  throw new Error(`All Overpass mirrors failed; last: ${(lastErr as Error)?.message ?? lastErr}`);
 }
 
 function elementToPolygon(element: OverpassElement): Record<string, unknown> | null {
@@ -301,6 +359,7 @@ async function main() {
     }
     await client.query("COMMIT");
     console.log(`[importOsmParks] done inserted=${inserted} refreshed=${refreshed} closed=${closed}`);
+    await flushAreaPolygonCacheRemote();
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

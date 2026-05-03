@@ -89,24 +89,37 @@ async function main(): Promise<void> {
     try {
       const scene = await fetchSentinelSceneForPoint(t.lat, t.lng, t.radiusM, { daysBack: opts.daysBack });
       if (!scene) { miss += 1; continue; }
+      // Build the metric set out of whatever Statistics API returned. NDVI
+      // typically lands in [-1, +1]; NDWI same. Skip metrics whose stats came
+      // back null (e.g. all-cloud window) so we don't pollute the timeline.
+      const metrics: Array<{ kind: "ndvi_mean" | "ndvi_max" | "water_pct"; value: number; unit: string; metadata: Record<string, unknown> }> = [];
+      if (typeof scene.ndviMean === "number") {
+        metrics.push({ kind: "ndvi_mean", value: scene.ndviMean, unit: "index", metadata: { item_id: scene.itemId, cloud_pct: scene.cloudPct } });
+      }
+      if (typeof scene.ndviMax === "number") {
+        metrics.push({ kind: "ndvi_max", value: scene.ndviMax, unit: "index", metadata: { item_id: scene.itemId, cloud_pct: scene.cloudPct } });
+      }
+      // NDWI > 0 ≈ water; map mean to a coarse water_pct proxy.
+      if (typeof scene.ndwiMean === "number") {
+        const waterPct = Math.max(0, Math.min(100, Math.round(((scene.ndwiMean + 1) / 2) * 100)));
+        metrics.push({ kind: "water_pct", value: waterPct, unit: "%", metadata: { ndwi_mean: scene.ndwiMean, item_id: scene.itemId } });
+      }
+      if (metrics.length === 0) {
+        // Lineage row only — keep an ndvi_mean=0 placeholder marked pending so the
+        // year-bucket timeline still shows the scene was attempted.
+        metrics.push({ kind: "ndvi_mean", value: 0, unit: "index", metadata: { pending_stats: true, item_id: scene.itemId } });
+      }
       await writePlaceEnvironmentSnapshot({
         placeId: t.placeId,
         observedOn: scene.observedOn,
         artifact: {
           sourceKind: "planetary_computer",
           sourceUrl: scene.sourceUrl,
-          // We don't materialise the raw bytes — store the asset href as the
-          // logical content size proxy so source_snapshots stays append-only.
           contentBytes: Math.max(1, scene.rawAssetHref.length),
           license: "CC-BY-4.0 (Sentinel-2 / Copernicus)",
           notes: { item_id: scene.itemId, asset_href: scene.rawAssetHref, cloud_pct: scene.cloudPct },
         },
-        // Phase 3-1 骨組み: metric_value はまだ null。後続 raster job が
-        // ndvi_mean / ndvi_max / ndwi_mean を計算して上書きする。今は
-        // observed_on と source_snapshot 紐付けだけ作っておく。
-        metrics: [
-          { kind: "ndvi_mean", value: 0, unit: "index", metadata: { pending_raster: true } },
-        ],
+        metrics,
       });
       ok += 1;
     } catch (err) {
