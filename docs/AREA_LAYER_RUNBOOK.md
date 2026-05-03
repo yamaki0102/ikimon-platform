@@ -208,3 +208,71 @@ DELETE FROM field_managers WHERE field_id = '<uuid>' AND user_id = 'user-123';
 - 種構成 sankey (年→年への種の出入り)
 
 UX 検証は staging で先行公開、研究者協力者からのフィードバックを取った上で本番反映の流れ。
+
+### 6.3 KSJ N03 全国 GeoJSON のストリーミング取り込み
+
+`importN03Administrative.ts` は `JSON.parse(readFile(...))` で全件メモリに載せる実装。
+KSJ N03 2025 の `N03-20250101.geojson` は 531MB あり、Node `--max-old-space-size=4096`
+を渡しても V8 OOM。Phase 3 で stream-json 依存を入れて FeatureCollection を 1 feature
+ずつ流す改修を入れる。
+
+```bash
+# 1. 依存追加
+cd platform_v2
+npm install --save stream-json
+
+# 2. importer に streaming モード追加
+# src/scripts/importN03Administrative.ts に以下を追加:
+import StreamArray from "stream-json/streamers/StreamArray.js";
+import { parser } from "stream-json";
+// readFile / JSON.parse の代わりに createReadStream + pipe(parser()) + StreamArray.withParser()
+# featureGenerator() で 1 件ずつ buildJobsForFeature → applyJob を呼ぶ。
+# transaction は 1000件ごとに commit (long-running tx を避ける)。
+
+# 3. 取り込み手順 (production VPS)
+ssh -i ~/Downloads/ikimon.pem root@162.43.44.131
+cd /tmp
+curl -sSLO "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_GML.zip"
+unzip N03-20250101_GML.zip
+cd /var/www/ikimon.life/repo/platform_v2
+DATABASE_URL=… node --max-old-space-size=2048 \
+  ./node_modules/.bin/tsx src/scripts/importN03Administrative.ts \
+  --geojson /tmp/N03-20250101.geojson \
+  --publish-date 2025-01-01 \
+  --include-country \
+  --batch-size 1000
+
+# 4. データ規模 (見積もり)
+# 約 1900 市町村 × 平均 5KB = 10MB (polygon を含めて)
+# admin_municipality だけで 1900 行追加、area-polygons API のキャッシュは
+# 60s TTL で問題ない範囲
+```
+
+prefecture 境界は別 GeoJSON (`N03-20250101_prefecture.geojson` 376MB) で、importer に
+`--prefecture-mode` を加えて N03_001 をキーに取り込む。47件のみなので軽い。
+
+### 6.4 Overpass rate limit 対応 (OSM 公園 全国網羅)
+
+現状 `importOsmLeisureParks.ts` を 8 都市 bbox で順次走らせると、4都市は
+HTTP 429 / 504 で失敗する (overpass-api.de の rate policy)。
+
+Phase 3 改修案:
+- `--source-url` に kumi.systems / overpass.kumi.systems の代替ミラーを切替できるよう
+  にし、ミラーをローテーション
+- 失敗時に exponential backoff (10s, 30s, 60s) で 3 回再試行
+- 都市 bbox を 47 都道府県全件にする per-prefecture mode を追加
+- 取り込み済み bbox を `osm_import_runs` テーブルに記録して再実行時に skip
+
+### 6.5 area-polygons in-memory キャッシュの invalidation hook
+
+`areaPolygons.ts` は 60s TTL の Map ベースキャッシュ。importer 直後に古い空キャッシュ
+が残る問題を毎回 systemctl restart で対処している。Phase 3 で:
+
+```ts
+// areaPolygons.ts に
+export function flushAreaPolygonCache(): void { cache.clear(); }
+```
+
+を export し、importer (`importOsmLeisureParks.ts` / `importN03Administrative.ts`) の
+最後で `await fetch('http://127.0.0.1:3201/api/v1/internal/flush-area-cache', { method:'POST', headers:{'X-V2-Privileged-Write-Api-Key': key }})` を呼んで blue/green
+両方をクリアする。
