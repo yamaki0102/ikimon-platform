@@ -170,6 +170,7 @@ php tools/lint.php
 以下のフローに従うこと：
 
 ```
+0. deploy 判断前に必ず `powershell -ExecutionPolicy Bypass -File .\scripts\local_deploy_preflight.ps1 -RequireCodexBranch -RequireUpstreamSync` を実行し、ローカル未コミットが残っていないことを確認
 1. codex/<task-name> ブランチで作業・コミット
 2. git push origin codex/<task-name>
 3. PR を作成（タイトル例: [Phase6] feat: xxx の実装）
