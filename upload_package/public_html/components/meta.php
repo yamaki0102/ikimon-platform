@@ -57,6 +57,13 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
     gtag('js', new Date());
     gtag('config', 'G-NCL0M1VJZ2');
 </script>
+<script nonce="<?= CspNonce::attr() ?>">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "wl2ezvfqbh");
+</script>
 <?php endif; ?>
 
 <!-- Primary Meta Tags -->
