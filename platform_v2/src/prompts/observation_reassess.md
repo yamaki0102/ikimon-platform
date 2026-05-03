@@ -60,6 +60,15 @@
   - `moisture_regime_candidates` — 水分環境（例「中生」「湿性」「乾性」）
   - `management_hint_candidates` — 管理履歴の示唆（例「定期刈払」「植栽」「踏圧」）
   読み取れない項目は空配列。全 5 キーを常に返せ（値が空配列でも可）。
+- `management_action_candidates` — **写真・動画フレーム・再訪比較から読み取れる管理行為の候補**。ユーザーに入力させるためではなく、あとで「合ってる / 違う / あとで」で確認してもらう候補。**断定禁止**。水路が写るだけなら `water_management` と断定せず、`label` は「水路まわりが写っています」のように文脈候補に留める。草刈りは、短く均一な草丈・刈り草・刈払機跡・前回比較で草丈が低い等が見える場合のみ出す。単なる草地だけで `mowing` を出すな。
+  - `action_kind` — `mowing | water_management | pruning | planting | harvesting | tilling | cleanup | trampling | invasive_removal | bare_ground | unknown`
+  - `label` — ユーザー向け短文。必ず「可能性」「ように見えます」「写っています」のように非断定にする
+  - `why` — 画像上の根拠（60字以内）
+  - `confidence` — 0.0〜1.0。0.4 未満なら基本出さない
+  - `source` — `photo | video_frame | revisit_comparison | satellite_context`
+  - `source_asset_id` — 分からなければ空文字
+  - `confirm_state` — 初期値は常に `suggested`
+  最大 5 件。推定できない場合は空配列。
 - `shot_suggestions` — この観察の研究的意義（Evidence Tier）を引き上げるための**追加撮影セット**。`missing_evidence`（形質記述）や `confirm_more`（次回観察のアクション）とは役割が違い、**「今この現場であと何枚撮ると組写真が完成するか」**の構造化ガイド。配列要素は次の形:
   - `role` — `full_body` | `close_up_organ` | `habitat_wide` | `substrate` | `scale_reference` のいずれか（1 要素 1 role）
   - `target` — 撮影対象の具体名（20字以内、例「後翅裏面」「全景（3m引き）」「葉裏の毛状突起」「周辺の土壌表面」）
@@ -154,6 +163,17 @@
     "moisture_regime_candidates": [],
     "management_hint_candidates": []
   },
+  "management_action_candidates": [
+    {
+      "action_kind": "mowing",
+      "label": "草が短く刈られた可能性があります",
+      "why": "草丈が均一で刈り草の筋が見える",
+      "confidence": 0.62,
+      "source": "photo",
+      "source_asset_id": "",
+      "confirm_state": "suggested"
+    }
+  ],
   "shot_suggestions": [
     {"role":"close_up_organ","target":"後翅裏面","rationale":"似種識別に必須","priority":"high"},
     {"role":"habitat_wide","target":"周辺3m全景","rationale":"生息環境の文脈記録","priority":"medium"}

@@ -3,10 +3,12 @@ import test from "node:test";
 import {
   extractNavigableOsFromAssessmentPayload,
   normalizeInvasiveResponseFromRaw,
+  normalizeManagementActionCandidatesFromRaw,
   normalizeNoveltyHintFromRaw,
   normalizeSizeAssessmentFromRaw,
   pickParsedFromRawJson,
 } from "./observationAiAssessment.js";
+import { isAutoPersistableManagementActionCandidate } from "./managementActionConfirmation.js";
 
 test("pickParsedFromRawJson reads { raw, parsed } envelope", () => {
   const out = pickParsedFromRawJson({ raw: "...", parsed: { size_assessment: { typical_size_cm: 5 } } });
@@ -92,6 +94,77 @@ test("normalizeSizeAssessmentFromRaw rejects invalid size_class", () => {
   const out = normalizeSizeAssessmentFromRaw({ typical_size_cm: 5, size_class: "huge" });
   assert.ok(out);
   assert.equal(out!.sizeClass, null);
+});
+
+test("normalizeManagementActionCandidatesFromRaw keeps explicit AI candidates", () => {
+  const out = normalizeManagementActionCandidatesFromRaw([
+    {
+      action_kind: "mowing",
+      label: "草が短く刈られた可能性があります",
+      why: "草丈が均一",
+      confidence: 0.62,
+      source: "photo",
+      confirm_state: "suggested",
+    },
+  ]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0]!.actionKind, "mowing");
+  assert.equal(out[0]!.confirmState, "suggested");
+});
+
+test("normalizeManagementActionCandidatesFromRaw falls back from management hints", () => {
+  const out = normalizeManagementActionCandidatesFromRaw(undefined, {
+    vegetationStructureCandidates: [],
+    successionStageCandidates: [],
+    humanInfluenceCandidates: [],
+    moistureRegimeCandidates: [],
+    managementHintCandidates: [{ label: "踏圧", why: "踏み跡が強い", confidence: 0.5 }],
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0]!.actionKind, "trampling");
+  assert.equal(out[0]!.confirmState, "suggested");
+});
+
+test("normalizeManagementActionCandidatesFromRaw keeps waterway context separate from water management", () => {
+  const out = normalizeManagementActionCandidatesFromRaw(undefined, {
+    vegetationStructureCandidates: [],
+    successionStageCandidates: [],
+    humanInfluenceCandidates: [],
+    moistureRegimeCandidates: [],
+    managementHintCandidates: [{ label: "水路まわりが写っています", why: "水路の縁と水面が見える", confidence: 0.58 }],
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0]!.actionKind, "unknown");
+});
+
+test("isAutoPersistableManagementActionCandidate keeps no-input timeline conservative", () => {
+  assert.equal(isAutoPersistableManagementActionCandidate({
+    actionKind: "mowing",
+    label: "草が短く刈られた可能性があります",
+    why: "草丈が均一",
+    confidence: 0.62,
+    source: "photo",
+    sourceAssetId: null,
+    confirmState: "suggested",
+  }), true);
+  assert.equal(isAutoPersistableManagementActionCandidate({
+    actionKind: "unknown",
+    label: "水路まわりが写っています",
+    why: "水路の縁と水面が見える",
+    confidence: 0.7,
+    source: "photo",
+    sourceAssetId: null,
+    confirmState: "suggested",
+  }), false);
+  assert.equal(isAutoPersistableManagementActionCandidate({
+    actionKind: "mowing",
+    label: "草刈りの可能性",
+    why: "根拠が弱い",
+    confidence: 0.4,
+    source: "photo",
+    sourceAssetId: null,
+    confirmState: "suggested",
+  }), false);
 });
 
 test("extractNavigableOsFromAssessmentPayload joins parsed claim refs with run metadata", () => {

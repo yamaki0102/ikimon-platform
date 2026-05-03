@@ -15,6 +15,7 @@ test("pickPlaceFocus prefers next-look guidance over older labels", () => {
 
 test("buildPlaceRecordHref carries quick-mode revisit context", () => {
   const href = buildPlaceRecordHref("", "ja", "user-1", {
+    placeId: "geo:34.710:137.720",
     placeName: "浜松城公園",
     municipality: "浜松市",
     latitude: 34.71,
@@ -28,6 +29,7 @@ test("buildPlaceRecordHref carries quick-mode revisit context", () => {
   });
 
   assert.match(href, /\/record\?/);
+  assert.match(href, /placeId=geo%3A34.710%3A137.720/);
   assert.match(href, /recordMode=quick/);
   assert.match(href, /quickCaptureState=no_detection_note/);
   assert.match(href, /nextLookFor=%E5%85%88%E9%80%B1%E3%81%84%E3%81%9F%E6%B0%B4%E8%BE%BA%E3%81%AE%E9%B3%A5/);
@@ -35,6 +37,7 @@ test("buildPlaceRecordHref carries quick-mode revisit context", () => {
 
 test("buildPlaceRecordHref keeps survey follow-up fields for survey places", () => {
   const href = buildPlaceRecordHref("", "ja", "user-1", {
+    placeId: "site:sanaruko",
     placeName: "佐鳴湖",
     municipality: "浜松市",
     latitude: 34.70,

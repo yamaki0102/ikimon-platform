@@ -14,6 +14,37 @@ export type AreaInference = {
   managementHintCandidates: AreaInferenceCandidate[];
 };
 
+export type ManagementActionKind =
+  | "mowing"
+  | "water_management"
+  | "pruning"
+  | "planting"
+  | "harvesting"
+  | "tilling"
+  | "cleanup"
+  | "trampling"
+  | "invasive_removal"
+  | "bare_ground"
+  | "unknown";
+
+export type ManagementActionCandidateSource =
+  | "photo"
+  | "video_frame"
+  | "revisit_comparison"
+  | "satellite_context";
+
+export type ManagementActionConfirmState = "suggested" | "confirmed" | "rejected";
+
+export type ManagementActionCandidate = {
+  actionKind: ManagementActionKind;
+  label: string;
+  why: string;
+  confidence: number | null;
+  source: ManagementActionCandidateSource;
+  sourceAssetId: string | null;
+  confirmState: ManagementActionConfirmState;
+};
+
 export type ShotSuggestion = {
   role: "full_body" | "close_up_organ" | "habitat_wide" | "substrate" | "scale_reference" | string;
   target: string;
@@ -92,6 +123,7 @@ export type AiAssessment = {
   geographicContext: string;
   seasonalContext: string;
   areaInference: AreaInference;
+  managementActionCandidates: ManagementActionCandidate[];
   shotSuggestions: ShotSuggestion[];
   sizeAssessment: SizeAssessment | null;
   noveltyHint: NoveltyHint | null;
@@ -175,6 +207,10 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
   const areaInference = normalizeAreaInferenceFromDb(r.area_inference);
   const shotSuggestions = normalizeShotSuggestionsFromDb(r.shot_suggestions);
   const parsedFromRaw = pickParsedFromRawJson(r.raw_json);
+  const managementActionCandidates = normalizeManagementActionCandidatesFromRaw(
+    parsedFromRaw?.["management_action_candidates"],
+    areaInference,
+  );
   const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
   const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
   const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
@@ -202,6 +238,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     geographicContext: r.geographic_context,
     seasonalContext: r.seasonal_context,
     areaInference,
+    managementActionCandidates,
     shotSuggestions,
     sizeAssessment,
     noveltyHint,
@@ -220,7 +257,7 @@ const AREA_INFERENCE_DB_KEYS: Array<[keyof AreaInference, string]> = [
   ["managementHintCandidates", "management_hint_candidates"],
 ];
 
-function normalizeAreaInferenceFromDb(raw: unknown): AreaInference {
+export function normalizeAreaInferenceFromDb(raw: unknown): AreaInference {
   const empty: AreaInference = {
     vegetationStructureCandidates: [],
     successionStageCandidates: [],
@@ -280,6 +317,33 @@ const INVASIVE_ACTION_VALUES = new Set<InvasiveRecommendedAction>([
   "report_only",
   "do_not_handle",
   "controlled_removal",
+]);
+
+const MANAGEMENT_ACTION_VALUES = new Set<ManagementActionKind>([
+  "mowing",
+  "water_management",
+  "pruning",
+  "planting",
+  "harvesting",
+  "tilling",
+  "cleanup",
+  "trampling",
+  "invasive_removal",
+  "bare_ground",
+  "unknown",
+]);
+
+const MANAGEMENT_ACTION_SOURCES = new Set<ManagementActionCandidateSource>([
+  "photo",
+  "video_frame",
+  "revisit_comparison",
+  "satellite_context",
+]);
+
+const MANAGEMENT_ACTION_CONFIRM_STATES = new Set<ManagementActionConfirmState>([
+  "suggested",
+  "confirmed",
+  "rejected",
 ]);
 
 /**
@@ -363,6 +427,80 @@ function numOrNull(v: unknown, min?: number, max?: number): number | null {
   if (typeof min === "number" && n < min) return null;
   if (typeof max === "number" && n > max) return null;
   return n;
+}
+
+function managementActionKindFromLabel(label: string): ManagementActionKind {
+  if (/草刈|刈払|刈り|短く刈|mow/i.test(label)) return "mowing";
+  if (/水管理|水位調整|通水|取水|排水管理|用水管理|irrigation|water management|drainage management/i.test(label)) return "water_management";
+  if (/剪定|枝打|伐採|prun/i.test(label)) return "pruning";
+  if (/植栽|植え|苗|plant/i.test(label)) return "planting";
+  if (/収穫|harvest/i.test(label)) return "harvesting";
+  if (/耕|耕起|鋤|till/i.test(label)) return "tilling";
+  if (/清掃|ごみ|cleanup/i.test(label)) return "cleanup";
+  if (/踏圧|踏み跡|踏まれ|trampling|footpath/i.test(label)) return "trampling";
+  if (/外来|駆除|除去|invasive/i.test(label)) return "invasive_removal";
+  if (/裸地|bare/i.test(label)) return "bare_ground";
+  return "unknown";
+}
+
+function normalizeManagementActionCandidate(raw: unknown): ManagementActionCandidate | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const label = trimStr(o["label"]).slice(0, 80);
+  const why = trimStr(o["why"]).slice(0, 160);
+  if (!label && !why) return null;
+  const kindRaw = trimStr(o["action_kind"]);
+  const actionKind = MANAGEMENT_ACTION_VALUES.has(kindRaw as ManagementActionKind)
+    ? (kindRaw as ManagementActionKind)
+    : managementActionKindFromLabel(`${label} ${why}`);
+  const sourceRaw = trimStr(o["source"]);
+  const source = MANAGEMENT_ACTION_SOURCES.has(sourceRaw as ManagementActionCandidateSource)
+    ? (sourceRaw as ManagementActionCandidateSource)
+    : "photo";
+  const stateRaw = trimStr(o["confirm_state"]);
+  const confirmState = MANAGEMENT_ACTION_CONFIRM_STATES.has(stateRaw as ManagementActionConfirmState)
+    ? (stateRaw as ManagementActionConfirmState)
+    : "suggested";
+  return {
+    actionKind,
+    label: label || actionKind,
+    why,
+    confidence: numOrNull(o["confidence"], 0, 1),
+    source,
+    sourceAssetId: trimStr(o["source_asset_id"]) || null,
+    confirmState,
+  };
+}
+
+export function normalizeManagementActionCandidatesFromRaw(
+  raw: unknown,
+  fallbackAreaInference?: AreaInference | null,
+): ManagementActionCandidate[] {
+  const out: ManagementActionCandidate[] = [];
+  const seen = new Set<string>();
+  const push = (candidate: ManagementActionCandidate | null) => {
+    if (!candidate) return;
+    const key = `${candidate.actionKind}|${candidate.label.toLowerCase()}|${candidate.why.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(candidate);
+  };
+  if (Array.isArray(raw)) {
+    raw.map(normalizeManagementActionCandidate).forEach(push);
+  }
+  if (fallbackAreaInference) {
+    for (const item of fallbackAreaInference.managementHintCandidates ?? []) {
+      push(normalizeManagementActionCandidate({
+        action_kind: managementActionKindFromLabel(`${item.label} ${item.why}`),
+        label: item.label,
+        why: item.why,
+        confidence: item.confidence,
+        source: "photo",
+        confirm_state: "suggested",
+      }));
+    }
+  }
+  return out.slice(0, 6);
 }
 
 export function normalizeSizeAssessmentFromRaw(raw: unknown): SizeAssessment | null {

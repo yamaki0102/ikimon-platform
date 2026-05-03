@@ -53,6 +53,7 @@ import {
   mhlwCategoryLabel,
   sizeClassLabel,
   type InvasiveResponse,
+  type ManagementActionCandidate,
   type NoveltyHint,
   type SizeAssessment,
 } from "../services/observationAiAssessment.js";
@@ -958,6 +959,26 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hint-eye-note { font-weight: 700; font-size: 10px; color: #94a3b8; margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: rgba(148,163,184,.12); }
   .obs-hint-badge-candidate { background: rgba(14,165,233,.12) !important; color: #0369a1 !important; border-color: rgba(14,165,233,.28) !important; }
 
+  .obs-management-card { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.78)); border: 1px solid rgba(16,185,129,.22); display: flex; flex-direction: column; gap: 12px; }
+  .obs-management-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .obs-management-head .obs-hint-reminder { margin: 4px 0 0; color: #475569; }
+  .obs-management-list { display: flex; flex-direction: column; gap: 10px; }
+  .obs-management-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); }
+  .obs-management-item[data-confirm-state="confirmed"] { border-color: rgba(16,185,129,.34); background: rgba(236,253,245,.96); }
+  .obs-management-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .obs-management-kind { align-self: flex-start; padding: 2px 8px; border-radius: 999px; background: rgba(14,165,233,.12); color: #0369a1; font-size: 10px; font-weight: 900; }
+  .obs-management-main strong { font-size: 14px; color: #0f172a; line-height: 1.45; }
+  .obs-management-main p { margin: 0; font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .obs-management-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-management-meta span { font-size: 10.5px; font-weight: 800; color: #64748b; padding: 2px 7px; border-radius: 999px; background: rgba(148,163,184,.12); }
+  .obs-management-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .obs-management-actions .btn { min-height: 34px; padding: 6px 10px; font-size: 12px; }
+  @media (max-width: 680px) {
+    .obs-management-item { grid-template-columns: 1fr; }
+    .obs-management-actions { justify-content: stretch; }
+    .obs-management-actions .btn { flex: 1; }
+  }
+
   .obs-area-card { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(240,253,244,.7), rgba(239,246,255,.7)); border: 1px solid rgba(14,165,233,.18); display: flex; flex-direction: column; gap: 12px; }
   .obs-area-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .obs-area-head .obs-hint-reminder { margin: 4px 0 0; color: #475569; }
@@ -1458,6 +1479,7 @@ function renderSubjectHint(
   subject: ObservationVisitSubject,
   siteBrief: SiteBrief | null = null,
   photoAssets: { roleTag: string | null }[] | null = null,
+  basePath = "",
 ): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
@@ -1496,6 +1518,11 @@ function renderSubjectHint(
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
     : "";
   const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief);
+  const managementActions = renderManagementActionCandidateCard(
+    aiAssessment.managementActionCandidates,
+    subject.occurrenceId,
+    basePath,
+  );
   const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets);
   const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
   const boost = aiAssessment.observerBoost
@@ -1548,6 +1575,7 @@ function renderSubjectHint(
     ${rec}${best}
     <div class="obs-hint-grid">${clues}${missingPhoto}${stop}${placeSeason}${boost}${nextStep}</div>
     ${claimRefs}
+    ${managementActions}
     ${areaInference}
     ${shotSuggestions}
     ${funFact}
@@ -1694,6 +1722,121 @@ const AREA_INFERENCE_LABELS: Array<{
   { key: "moistureRegimeCandidates", label: "水分環境", icon: "💧" },
   { key: "managementHintCandidates", label: "管理履歴", icon: "🪚" },
 ];
+
+const MANAGEMENT_ACTION_LABELS: Record<string, string> = {
+  mowing: "草刈り",
+  water_management: "水まわり",
+  pruning: "剪定",
+  planting: "植栽",
+  harvesting: "収穫",
+  tilling: "耕起",
+  cleanup: "清掃",
+  trampling: "踏み跡",
+  invasive_removal: "外来種除去",
+  bare_ground: "裸地化",
+  unknown: "管理の手がかり",
+};
+
+function managementSourceLabel(source: ManagementActionCandidate["source"]): string {
+  switch (source) {
+    case "video_frame": return "動画フレーム";
+    case "revisit_comparison": return "前回比較";
+    case "satellite_context": return "環境データ";
+    default: return "写真";
+  }
+}
+
+function renderManagementActionCandidateCard(
+  candidates: ManagementActionCandidate[] | null | undefined,
+  occurrenceId: string,
+  basePath: string,
+): string {
+  const visible = (candidates ?? [])
+    .map((candidate, index) => ({ candidate, index }))
+    .filter((item) => item.candidate.confirmState !== "rejected");
+  if (visible.length === 0) return "";
+  const endpointBase = withBasePath(
+    basePath,
+    `/api/v1/observations/${encodeURIComponent(occurrenceId)}/management-candidates`,
+  );
+  const rows = visible.map(({ candidate, index }) => {
+    const band = candidate.confidence == null
+      ? "unknown"
+      : candidate.confidence >= 0.7
+        ? "high"
+        : candidate.confidence >= 0.45
+          ? "medium"
+          : "low";
+    const stateLabel = candidate.confirmState === "confirmed" ? "確認済み" : "AI推定";
+    const label = candidate.label || `${MANAGEMENT_ACTION_LABELS[candidate.actionKind] ?? "管理行為"}の可能性`;
+    return `<article class="obs-management-item is-${escapeHtml(band)}" data-management-candidate data-confirm-state="${escapeHtml(candidate.confirmState)}">
+      <div class="obs-management-main">
+        <span class="obs-management-kind">${escapeHtml(MANAGEMENT_ACTION_LABELS[candidate.actionKind] ?? candidate.actionKind)}</span>
+        <strong>${escapeHtml(label)}</strong>
+        ${candidate.why ? `<p>${escapeHtml(candidate.why)}</p>` : ""}
+        <div class="obs-management-meta">
+          <span>${escapeHtml(managementSourceLabel(candidate.source))}</span>
+          ${candidate.confidence != null ? `<span>可能性 ${Math.round(candidate.confidence * 100)}%</span>` : ""}
+          <span data-management-state>${escapeHtml(stateLabel)}</span>
+        </div>
+      </div>
+      <div class="obs-management-actions" data-management-endpoint="${escapeHtml(`${endpointBase}/${index}/confirm`)}">
+        <button type="button" class="btn btn-solid" data-management-action="confirmed">合ってる</button>
+        <button type="button" class="btn secondary" data-management-action="rejected">違う</button>
+        <button type="button" class="btn secondary" data-management-action="suggested">あとで</button>
+      </div>
+    </article>`;
+  }).join("");
+  return `<section class="obs-management-card" aria-label="AIが読み取った場所の変化">
+    <div class="obs-management-head">
+      <div>
+        <div class="obs-hint-eyebrow">AIが読み取った場所の変化</div>
+        <p class="obs-hint-reminder">写真や動画から見える管理行為の候補です。断定ではありません。高信頼の候補は AI推定として Satoyama / 農園の時系列に自動で入ります。</p>
+      </div>
+      <span class="obs-hint-badge obs-hint-badge-candidate">AI推定</span>
+    </div>
+    <div class="obs-management-list">${rows}</div>
+    ${renderManagementCandidateScript()}
+  </section>`;
+}
+
+function renderManagementCandidateScript(): string {
+  return `<script>(function(){
+    if (window.__ikimonManagementCandidateBound) return;
+    window.__ikimonManagementCandidateBound = true;
+    document.addEventListener('click', async function(event){
+      const button = event.target && event.target.closest ? event.target.closest('[data-management-action]') : null;
+      if (!button) return;
+      const actions = button.closest('[data-management-endpoint]');
+      const item = button.closest('[data-management-candidate]');
+      if (!actions || !item) return;
+      const state = button.getAttribute('data-management-action');
+      const stateEl = item.querySelector('[data-management-state]');
+      if (state === 'suggested') {
+        if (stateEl) stateEl.textContent = 'あとで確認';
+        item.dataset.confirmState = 'suggested';
+        return;
+      }
+      button.disabled = true;
+      try {
+        const response = await fetch(actions.getAttribute('data-management-endpoint'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify({ confirmState: state }),
+        });
+        const payload = await response.json().catch(function(){ return {}; });
+        if (!response.ok || !payload.ok) throw new Error(payload.error || 'confirm_failed');
+        item.dataset.confirmState = state;
+        if (stateEl) stateEl.textContent = state === 'confirmed' ? '確認済み' : '違うとして除外';
+        if (state === 'rejected') item.style.display = 'none';
+      } catch (err) {
+        if (stateEl) stateEl.textContent = '保存できませんでした';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  })();</script>`;
+}
 
 function siteBriefAgreement(siteBrief: SiteBrief | null, candidates: { label: string }[]): "match" | "near" | "divergent" | "none" {
   if (!siteBrief || candidates.length === 0) return "none";
@@ -4128,6 +4271,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" multiple hidden />
               <input id="record-video-primary-photo-input" type="file" accept="image/*" capture="environment" hidden />
               <input type="hidden" name="recordMode" value="quick" />
+              <input type="hidden" name="placeId" value="" />
               <input type="hidden" name="prefecture" value="" />
               <input type="hidden" name="revisitOfVisitId" value="" />
               <div id="record-submit-panel" class="record-submit-panel" hidden>
@@ -5108,7 +5252,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const applyPrefillFromQuery = () => {
           if (!form) return;
           const params = new URLSearchParams(window.location.search);
-          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId'];
+          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId'];
           names.forEach((name) => {
             if (!params.has(name)) return;
             const field = form.elements.namedItem(name);
@@ -6249,6 +6393,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const activityIntent = String(data.get('activityIntent') || 'discover').trim();
               const participantRole = String(data.get('participantRole') || 'finder').trim();
               const revisitOfVisitId = String(data.get('revisitOfVisitId') || '').trim();
+              const placeIdHint = String(data.get('placeId') || '').trim();
               const surveyResult = String(data.get('surveyResult') || 'detected');
               if (recordMode === 'survey') {
                 if (!targetTaxaScope) {
@@ -6337,6 +6482,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   quick_capture_state: recordMode === 'survey' ? null : quickCaptureState,
                   next_look_for: recordMode === 'survey' ? null : (nextLookFor || null),
                   media_role: mediaRole,
+                  place_id_hint: placeIdHint || null,
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
                   location_provenance: recordLocationProvenance,
@@ -7192,6 +7338,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       : "";
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
+      placeId: snapshot.placeId,
       placeName: snapshot.placeName || heroPlaceLabel || "この場所",
       municipality: snapshot.municipality,
       latitude: snapshot.latitude,
@@ -7279,7 +7426,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       lang,
     });
 
-    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
+    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath)}</div>`;
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
 
     // ===== Layer 1: 物語 =====
@@ -7432,7 +7579,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject)}</template>
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,

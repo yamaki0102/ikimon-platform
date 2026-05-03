@@ -1,0 +1,47 @@
+name: Setup platform_v2 browser smoke runtime
+description: Install Node, platform_v2 dependencies, and the Chromium browser used by Playwright smoke tests.
+
+inputs:
+  node-version:
+    description: Node.js version used by platform_v2.
+    required: false
+    default: "22"
+  working-directory:
+    description: platform_v2 package directory.
+    required: false
+    default: platform_v2
+  cache-dependency-path:
+    description: npm lockfile path for dependency caching.
+    required: false
+    default: platform_v2/package-lock.json
+  install-with-deps:
+    description: Install browser OS dependencies with Playwright.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Install platform_v2 dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci
+
+    - name: Install Playwright Chromium
+      if: ${{ inputs.install-with-deps == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npx playwright install --with-deps chromium
+
+    - name: Install Playwright Chromium without OS deps
+      if: ${{ inputs.install-with-deps != 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npx playwright install chromium

@@ -40,7 +40,7 @@ export function buildPlaceRecordHref(
   basePath: string,
   lang: SiteLang,
   viewerUserId: string | null | undefined,
-  place: Pick<
+  place: { placeId?: string | null } & Pick<
     HomePlace,
     | "placeName"
     | "municipality"
@@ -57,6 +57,9 @@ export function buildPlaceRecordHref(
   const params = new URLSearchParams();
   if (viewerUserId) {
     params.set("userId", viewerUserId);
+  }
+  if (place.placeId) {
+    params.set("placeId", place.placeId);
   }
   params.set("localityNote", place.placeName);
   if (place.municipality) {

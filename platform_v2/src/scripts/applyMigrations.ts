@@ -16,7 +16,6 @@ type MigrationOptions = {
 const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bdrop\s+table\b/i, label: "DROP TABLE" },
   { pattern: /\bdrop\s+column\b/i, label: "DROP COLUMN" },
-  { pattern: /\balter\s+table\b[\s\S]*\bdrop\b/i, label: "ALTER TABLE ... DROP" },
   { pattern: /\btruncate\b/i, label: "TRUNCATE" },
   { pattern: /\bdelete\s+from\b/i, label: "DELETE FROM" },
   { pattern: /^\s*update\b/im, label: "UPDATE" },

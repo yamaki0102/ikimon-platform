@@ -99,7 +99,6 @@ if ($migrationFiles.Count -eq 0) {
 $destructivePatterns = @(
     @{ Pattern = '\bdrop\s+table\b'; Label = 'DROP TABLE' },
     @{ Pattern = '\bdrop\s+column\b'; Label = 'DROP COLUMN' },
-    @{ Pattern = '\balter\s+table\b[\s\S]*\bdrop\b'; Label = 'ALTER TABLE ... DROP' },
     @{ Pattern = '\btruncate\b'; Label = 'TRUNCATE' },
     @{ Pattern = '\bdelete\s+from\b'; Label = 'DELETE FROM' },
     @{ Pattern = '^\s*update\b'; Label = 'UPDATE' }

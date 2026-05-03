@@ -9,6 +9,7 @@ on:
       - 'tests/**'
       - 'docs/**'
       - 'scripts/**'
+      - '.github/actions/**'
       - '.github/workflows/**'
       - '.vscode/**'
       - 'ikimon.life.code-workspace'
@@ -64,7 +65,7 @@ jobs:
           if matches '^(upload_package/|tests/|tools/(lint|check_marketing_copy)\.php|composer\.(json|lock)|phpunit\.xml)'; then PHP_CHANGED=true; fi
           if matches '^platform_v2/'; then V2_CHANGED=true; fi
           if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
-          if matches '^(\.github/workflows/|ops/deploy/|scripts/check_(deploy_guardrails|deploy_manifest_sync|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
+          if matches '^(\.github/workflows/|\.github/actions/|ops/deploy/|scripts/check_(deploy_guardrails|deploy_manifest_sync|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
 
           RUN_PHP_LINT=false
           RUN_PHP_TESTS=false

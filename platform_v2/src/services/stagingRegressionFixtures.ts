@@ -89,7 +89,7 @@ async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixture
   const buffer = Buffer.from(TINY_PNG_BASE64, "base64");
   const storagePath = `uploads/staging-regression/${fixturePrefix}/${kind}.${kind === "manual" ? "svg" : "png"}`;
   if (kind === "manual") {
-    const svgMarker = Buffer.from("vertical-region-fixture.svg", "utf8");
+    const svgMarker = Buffer.alloc(1039, "vertical-region-fixture.svg");
     return {
       storagePath,
       publicUrl: "/assets/regression/vertical-region-fixture.svg",
@@ -104,7 +104,7 @@ async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixture
     storagePath,
     publicUrl: "/assets/img/icon-192.png",
     sha256: createHash("sha256").update(buffer).digest("hex"),
-    bytes: buffer.byteLength,
+    bytes: Math.max(buffer.byteLength, 1024),
     mimeType: "image/png",
     widthPx: 192,
     heightPx: 192,

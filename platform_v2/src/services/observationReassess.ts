@@ -39,6 +39,9 @@ import {
   formatClaimRefsForPrompt,
   retrieveBranchKnowledgeClaims,
 } from "./knowledgeClaimRetrieval.js";
+import { normalizeManagementActionCandidatesFromRaw } from "./observationAiAssessment.js";
+import { upsertAiInferredManagementActions } from "./managementActionConfirmation.js";
+import { ensureVisitPlaceLink } from "./visitPlaceAutoLink.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -105,6 +108,16 @@ type GeminiShotSuggestion = {
   priority?: string;
 };
 
+type GeminiManagementActionCandidate = {
+  action_kind?: string;
+  label?: string;
+  why?: string;
+  confidence?: number;
+  source?: string;
+  source_asset_id?: string;
+  confirm_state?: string;
+};
+
 type GeminiJson = {
   confidence_band?: string;
   recommended_rank?: string;
@@ -127,6 +140,7 @@ type GeminiJson = {
   geographic_context?: string;
   seasonal_context?: string;
   area_inference?: GeminiAreaInference;
+  management_action_candidates?: GeminiManagementActionCandidate[];
   shot_suggestions?: GeminiShotSuggestion[];
   recommended_media_regions?: GeminiRegion[];
   coexisting_taxa?: Array<{
@@ -768,6 +782,12 @@ export async function reassessObservation(
       prefecture: null,
       municipality: null,
     };
+    if (!vctx.place_id) {
+      const linked = await ensureVisitPlaceLink(client, target.visitId).catch(() => null);
+      if (linked?.placeId) {
+        vctx.place_id = linked.placeId;
+      }
+    }
 
     const overridePhotos = Array.isArray(options.photos)
       ? options.photos
@@ -923,6 +943,16 @@ export async function reassessObservation(
       ? parsed.claim_refs_used.filter((value) => typeof value === "string" && branchClaimRefs.some((claim) => claim.claimId === value))
       : [];
     const areaInference = normalizeAreaInference(parsed.area_inference);
+    const managementActionCandidates = normalizeManagementActionCandidatesFromRaw(
+      parsed.management_action_candidates,
+      {
+        vegetationStructureCandidates: areaInference.vegetation_structure_candidates,
+        successionStageCandidates: areaInference.succession_stage_candidates,
+        humanInfluenceCandidates: areaInference.human_influence_candidates,
+        moistureRegimeCandidates: areaInference.moisture_regime_candidates,
+        managementHintCandidates: areaInference.management_hint_candidates,
+      },
+    );
     const shotSuggestions = normalizeShotSuggestions(parsed.shot_suggestions);
     const coexisting = Array.isArray(parsed.coexisting_taxa)
       ? parsed.coexisting_taxa.filter((value) => {
@@ -1127,6 +1157,15 @@ export async function reassessObservation(
           parsed: {
             ...gatedParsed,
             claim_refs_used: claimRefsUsed,
+            management_action_candidates: managementActionCandidates.map((candidate) => ({
+              action_kind: candidate.actionKind,
+              label: candidate.label,
+              why: candidate.why,
+              confidence: candidate.confidence,
+              source: candidate.source,
+              source_asset_id: candidate.sourceAssetId,
+              confirm_state: candidate.confirmState,
+            })),
           },
           navigable_os: {
             branch: "feedback_contract",
@@ -1140,6 +1179,14 @@ export async function reassessObservation(
     // 0061: gated 3 レンズ値を occurrences の専用列に同期。
     // raw_json への保存とは別に、ランキング・集計用の冗長カラムを更新する。
     await syncOccurrenceThreeLenses(client, target.primaryOccurrenceId, gatedParsed);
+    await upsertAiInferredManagementActions(client, {
+      assessmentId,
+      occurrenceId: target.primaryOccurrenceId,
+      visitId: target.visitId,
+      placeId: vctx.place_id,
+      observedAt: vctx.observed_at || new Date().toISOString(),
+      candidates: managementActionCandidates,
+    });
 
     // Phase 3: 通知ディスパッチ。reassess の主処理を巻き込まないように catch で握りつぶす。
     const noveltyScoreFromGated = (() => {
