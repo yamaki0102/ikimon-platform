@@ -32,9 +32,16 @@ CREATE TABLE IF NOT EXISTS field_managers (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_field_managers_unique
     ON field_managers (field_id, user_id, role);
 
-CREATE INDEX IF NOT EXISTS idx_field_managers_user
+-- expires_at の上限フィルタは IMMUTABLE 制約のため partial index 述部に書けない。
+-- 代わりに「永続権限」(= 主流) を partial index で速く引き、期限付きは
+-- 読み込み側 SQL で `expires_at IS NULL OR expires_at > NOW()` を続ける。
+CREATE INDEX IF NOT EXISTS idx_field_managers_user_active
     ON field_managers (user_id, role)
-    WHERE expires_at IS NULL OR expires_at > NOW();
+    WHERE expires_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_field_managers_user_temp
+    ON field_managers (user_id, role, expires_at)
+    WHERE expires_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_field_managers_field
     ON field_managers (field_id, role);
