@@ -23,13 +23,14 @@ import { createRequire } from "node:module";
 import { getPool } from "../db.js";
 import { computeBbox } from "../services/geoJsonBbox.js";
 
-// stream-json is a CommonJS package whose typings don't expose proper ESM
-// re-exports for the streamer / filter modules. Use createRequire so we get
-// the runtime exports directly without fighting tsc.
+// stream-json is CJS. For the GeoJSON shape we want
+// `chain([parser, pick({filter:'features'}), streamArray()])` to emit one
+// feature at a time. Use createRequire for runtime + cast to keep tsc quiet.
 const require_ = createRequire(import.meta.url);
-const { parser } = require_("stream-json") as { parser: () => NodeJS.ReadWriteStream };
-const streamArrayMod = require_("stream-json/streamers/stream-array") as { streamArray: () => NodeJS.ReadWriteStream };
-const pickMod = require_("stream-json/filters/pick") as { pick: (opts: { filter: string }) => NodeJS.ReadWriteStream };
+const { chain } = require_("stream-chain") as { chain: (links: unknown[]) => NodeJS.ReadWriteStream };
+const { parser } = require_("stream-json") as { parser: () => unknown };
+const { streamArray } = require_("stream-json/streamers/stream-array") as { streamArray: () => unknown };
+const { pick } = require_("stream-json/filters/pick") as { pick: (opts: { filter: string }) => unknown };
 
 type Options = {
   geojsonPath: string;
@@ -265,19 +266,20 @@ async function streamFeatures(geojsonPath: string, onFeature: (f: N03Feature) =>
   // narrows the parse stream to just the features array, StreamArray emits one
   // feature at a time so the heap stays bounded even for the 531MB file.
   await new Promise<void>((resolve, reject) => {
-    const stream = createReadStream(geojsonPath, { highWaterMark: 1 << 20 })
-      .pipe(parser() as unknown as NodeJS.WritableStream) as unknown as NodeJS.ReadWriteStream;
-    const piped = (stream
-      .pipe(pickMod.pick({ filter: "features" }) as unknown as NodeJS.WritableStream) as unknown as NodeJS.ReadWriteStream)
-      .pipe(streamArrayMod.streamArray() as unknown as NodeJS.WritableStream) as unknown as NodeJS.ReadableStream & { pause: () => void; resume: () => void; destroy: (err?: Error) => void };
-    piped.on("data", (data: { key: number; value: N03Feature }) => {
-      piped.pause();
-      onFeature(data.value).then(() => piped.resume(), (err: unknown) => {
-        piped.destroy(err as Error);
+    const pipeline = chain([
+      createReadStream(geojsonPath, { highWaterMark: 1 << 20 }),
+      parser(),
+      pick({ filter: "features" }),
+      streamArray(),
+    ]) as unknown as NodeJS.ReadableStream & { pause: () => void; resume: () => void; destroy: (err?: Error) => void };
+    pipeline.on("data", (data: { key: number; value: N03Feature }) => {
+      pipeline.pause();
+      onFeature(data.value).then(() => pipeline.resume(), (err: unknown) => {
+        pipeline.destroy(err as Error);
       });
     });
-    piped.on("end", () => resolve());
-    piped.on("error", (err: unknown) => reject(err));
+    pipeline.on("end", () => resolve());
+    pipeline.on("error", (err: unknown) => reject(err));
   });
 }
 
