@@ -41,6 +41,8 @@ test("renderFixedPointStationBody shows revisit timeline, environment clues, and
       description: "草刈り",
       linkedVisitId: null,
     }],
+    environmentSnapshots: [],
+    yearlyTimeline: [],
   }, "");
 
   assert.match(html, /定点ページ/);

@@ -263,6 +263,48 @@ Phase 3 改修案:
 - 都市 bbox を 47 都道府県全件にする per-prefecture mode を追加
 - 取り込み済み bbox を `osm_import_runs` テーブルに記録して再実行時に skip
 
+### 6.6 Phase 3-1 骨組み (= 着地済み、運用は手動オプトイン)
+
+`platform_v2/src/services/sentinelStatistics.ts` + `environmentSnapshotWriter.ts`
++ `scripts/runSentinelEnvironmentWorker.ts` で Microsoft Planetary Computer の
+Sentinel-2 L2A STAC を叩く骨組みを実装済み。
+
+#### 動作モード
+- **既定 (worker 未登録)**: 何もしない。production の挙動には影響なし。
+- **MPC_DISABLED=1**: 明示的に no-op。CI / dev 環境用。
+- **手動 1 回実行**:
+  ```bash
+  ssh -i ~/Downloads/ikimon.pem root@162.43.44.131
+  cd /var/www/ikimon.life/runtime/blue
+  DATABASE_URL=… node ./node_modules/.bin/tsx \
+    src/scripts/runSentinelEnvironmentWorker.ts --dry-run --limit 5
+  ```
+  問題なければ `--dry-run` を外して `--limit 50` 程度から本番稼働開始。
+- **systemd timer 化**: `platform_v2/ops/deploy/ikimon_v2_sentinel.service` +
+  `.timer` を `/etc/systemd/system/` に install して
+  `systemctl enable --now ikimon-v2-sentinel.timer`。
+  03:30 JST に nightly 実行 (RandomizedDelaySec=15min)。
+
+#### 現状の制限
+- metric_value はまだ 0 で書く (raster reduce 未実装)。Phase 3-1b で B04/B08
+  の bytes を MPC SAS Token 経由で fetch して NDVI を計算、UPDATE で埋める。
+- source_snapshots には STAC item の self link だけ記録 (storage_path は
+  inline://stac/... の placeholder)。実 raster を保存する場合は `storage_backend`
+  を `s3` に切替えて Cloudflare R2 / AWS S3 に格納する。
+
+### 6.7 Phase 3-2 (= 着地済み、表示は本番反映後すぐ有効)
+
+`fixedPointStation.ts` のレスポンスに以下が追加された:
+- `environmentSnapshots[]`: place_environment_snapshots を読んで versioned で返す
+- `yearlyTimeline[]`: visits / stewardship / env を年バケットに集約
+
+UI (`ui/fixedPointStation.ts`) は hero 直下に「同じ場所の年比較」セクションを
+追加し、年ごとに観察数 / 種数 / 管理行為 / 写真+動画 / 衛星指標 (NDVI 等) を
+1 枚のカードに集約。横スクロールで「去年・5年前と比べる」が即できる UX。
+
+Phase 3-1 worker が走るまで `environmentDigest` は空、UI は「衛星指標はまだ
+この年に届いていません」と表示するフォールバックあり。
+
 ### 6.5 area-polygons in-memory キャッシュの invalidation hook
 
 `areaPolygons.ts` は 60s TTL の Map ベースキャッシュ。importer 直後に古い空キャッシュ

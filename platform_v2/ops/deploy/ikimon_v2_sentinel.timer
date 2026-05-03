@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly Sentinel-2 environment snapshot for ikimon platform_v2
+Requires=ikimon-v2-sentinel.service
+
+[Timer]
+# 03:30 JST: well outside peak observation hours, gives MPC EU/US daytime.
+OnCalendar=*-*-* 03:30:00 Asia/Tokyo
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

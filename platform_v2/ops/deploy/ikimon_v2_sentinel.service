@@ -1,0 +1,19 @@
+[Unit]
+Description=ikimon platform_v2 Sentinel-2 nightly environment worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/ikimon/production-v2.env
+WorkingDirectory=/var/www/ikimon.life/runtime/blue
+ExecStart=/usr/bin/env node --max-old-space-size=2048 ./node_modules/.bin/tsx src/scripts/runSentinelEnvironmentWorker.ts --limit 500 --days-back 14
+StandardOutput=journal
+StandardError=journal
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=2h
+
+[Install]
+WantedBy=multi-user.target

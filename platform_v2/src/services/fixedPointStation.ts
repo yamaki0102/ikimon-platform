@@ -23,6 +23,41 @@ export type FixedPointStationAction = {
   linkedVisitId: string | null;
 };
 
+/**
+ * Versioned environment metric (NDVI mean / forest_pct / etc.) for the place,
+ * sourced from place_environment_snapshots (Phase 3-1).
+ *
+ * Drives the "satellite change" lane in the year-over-year comparison view.
+ */
+export type FixedPointStationEnvironmentSnapshot = {
+  snapshotId: string;
+  metricKind: string;
+  metricValue: number;
+  metricUnit: string;
+  observedOn: string;
+  validFrom: string;
+  validTo: string | null;
+  sourceKind: string;
+};
+
+/**
+ * Time-bucketed roll-up so the UI can render "this year vs last year vs five
+ * years ago" in a single horizontal grid: visits, photos, videos, stewardship
+ * actions, dominant taxa, environment snapshots.
+ */
+export type FixedPointStationYearBucket = {
+  year: number;
+  visitCount: number;
+  photoCount: number;
+  videoCount: number;
+  stewardshipCount: number;
+  uniqueTaxa: number;
+  dominantTaxa: string[];           // up to 5
+  environmentDigest: {              // most recent metric_value per kind in the year
+    [metricKind: string]: { value: number; observedOn: string };
+  };
+};
+
 export type FixedPointStation = {
   place: {
     placeId: string;
@@ -36,6 +71,10 @@ export type FixedPointStation = {
   visits: FixedPointStationVisit[];
   environmentEvidence: PlaceEnvironmentEvidence[];
   stewardshipActions: FixedPointStationAction[];
+  /** Phase 3-1: versioned NDVI / forest_pct / etc. — null when worker hasn't run. */
+  environmentSnapshots: FixedPointStationEnvironmentSnapshot[];
+  /** Phase 3-2: same-place year-over-year comparison data. */
+  yearlyTimeline: FixedPointStationYearBucket[];
 };
 
 function asStringArray(value: unknown): string[] {
@@ -75,7 +114,7 @@ export async function getFixedPointStation(placeId: string): Promise<FixedPointS
   const place = placeResult.rows[0];
   if (!place) return null;
 
-  const [visitResult, environmentEvidence, actionResult] = await Promise.all([
+  const [visitResult, environmentEvidence, actionResult, envSnapshotResult] = await Promise.all([
     pool.query<{
       visit_id: string;
       observed_at: string;
@@ -127,6 +166,31 @@ export async function getFixedPointStation(placeId: string): Promise<FixedPointS
         limit 40`,
       [trimmed],
     ).catch(() => ({ rows: [] })),
+    pool.query<{
+      snapshot_id: string;
+      metric_kind: string;
+      metric_value: string;
+      metric_unit: string;
+      observed_on: string;
+      valid_from: string;
+      valid_to: string | null;
+      source_kind: string | null;
+    }>(
+      `select pes.snapshot_id,
+              pes.metric_kind,
+              pes.metric_value::text as metric_value,
+              pes.metric_unit,
+              pes.observed_on::text,
+              pes.valid_from::text,
+              pes.valid_to::text,
+              ss.source_kind
+         from place_environment_snapshots pes
+         left join source_snapshots ss on ss.snapshot_id = pes.source_snapshot_id
+        where pes.place_id = $1
+        order by pes.observed_on desc, pes.valid_from desc
+        limit 200`,
+      [trimmed],
+    ).catch(() => ({ rows: [] })),
   ]);
 
   return {
@@ -160,5 +224,110 @@ export async function getFixedPointStation(placeId: string): Promise<FixedPointS
       description: row.description,
       linkedVisitId: row.linked_visit_id,
     })),
+    environmentSnapshots: envSnapshotResult.rows.map((row) => ({
+      snapshotId: row.snapshot_id,
+      metricKind: row.metric_kind,
+      metricValue: Number(row.metric_value),
+      metricUnit: row.metric_unit,
+      observedOn: row.observed_on,
+      validFrom: row.valid_from,
+      validTo: row.valid_to,
+      sourceKind: row.source_kind ?? "",
+    })),
+    yearlyTimeline: buildYearlyTimeline({
+      visits: visitResult.rows,
+      actions: actionResult.rows,
+      envSnapshots: envSnapshotResult.rows,
+    }),
   };
 }
+
+interface YearlyTimelineInput {
+  visits: Array<{
+    observed_at: string;
+    taxa: string[] | null;
+    photo_count: string | number;
+    video_count: string | number;
+  }>;
+  actions: Array<{ occurred_at: string }>;
+  envSnapshots: Array<{
+    metric_kind: string;
+    metric_value: string;
+    observed_on: string;
+  }>;
+}
+
+function buildYearlyTimeline(input: YearlyTimelineInput): FixedPointStationYearBucket[] {
+  const byYear = new Map<number, FixedPointStationYearBucket & { _taxa: Map<string, number> }>();
+  const ensure = (year: number): FixedPointStationYearBucket & { _taxa: Map<string, number> } => {
+    let bucket = byYear.get(year);
+    if (!bucket) {
+      bucket = {
+        year,
+        visitCount: 0,
+        photoCount: 0,
+        videoCount: 0,
+        stewardshipCount: 0,
+        uniqueTaxa: 0,
+        dominantTaxa: [],
+        environmentDigest: {},
+        _taxa: new Map(),
+      };
+      byYear.set(year, bucket);
+    }
+    return bucket;
+  };
+
+  for (const v of input.visits) {
+    const year = Number(String(v.observed_at).slice(0, 4));
+    if (!Number.isFinite(year)) continue;
+    const bucket = ensure(year);
+    bucket.visitCount += 1;
+    bucket.photoCount += Number(v.photo_count ?? 0);
+    bucket.videoCount += Number(v.video_count ?? 0);
+    for (const t of asStringArray(v.taxa)) {
+      bucket._taxa.set(t, (bucket._taxa.get(t) ?? 0) + 1);
+    }
+  }
+
+  for (const a of input.actions) {
+    const year = Number(String(a.occurred_at).slice(0, 4));
+    if (!Number.isFinite(year)) continue;
+    ensure(year).stewardshipCount += 1;
+  }
+
+  for (const e of input.envSnapshots) {
+    const year = Number(String(e.observed_on).slice(0, 4));
+    if (!Number.isFinite(year)) continue;
+    const bucket = ensure(year);
+    // Keep the most recent observed_on per metric_kind in this year.
+    const existing = bucket.environmentDigest[e.metric_kind];
+    if (!existing || existing.observedOn < e.observed_on) {
+      bucket.environmentDigest[e.metric_kind] = {
+        value: Number(e.metric_value),
+        observedOn: e.observed_on,
+      };
+    }
+  }
+
+  const buckets = Array.from(byYear.values()).map((b) => {
+    const dominantTaxa = Array.from(b._taxa.entries())
+      .sort((a, c) => c[1] - a[1])
+      .slice(0, 5)
+      .map(([name]) => name);
+    return {
+      year: b.year,
+      visitCount: b.visitCount,
+      photoCount: b.photoCount,
+      videoCount: b.videoCount,
+      stewardshipCount: b.stewardshipCount,
+      uniqueTaxa: b._taxa.size,
+      dominantTaxa,
+      environmentDigest: b.environmentDigest,
+    };
+  });
+  buckets.sort((a, b) => b.year - a.year);
+  return buckets;
+}
+
+export const __test__ = { buildYearlyTimeline };
