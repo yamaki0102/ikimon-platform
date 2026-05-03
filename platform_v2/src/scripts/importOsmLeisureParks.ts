@@ -99,12 +99,20 @@ function buildQuery(bbox: [number, number, number, number]): string {
 }
 
 async function fetchOverpass(url: string, query: string): Promise<OverpassResponse> {
+  // Overpass enforces a polite policy: identify the caller and accept JSON explicitly.
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+      "User-Agent": "ikimon.life-importer (https://ikimon.life — contact: yamaki0102@gmail.com)",
+    },
     body: `data=${encodeURIComponent(query)}`,
   });
-  if (!response.ok) throw new Error(`Overpass HTTP ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Overpass HTTP ${response.status}: ${body.slice(0, 240)}`);
+  }
   return (await response.json()) as OverpassResponse;
 }
 
