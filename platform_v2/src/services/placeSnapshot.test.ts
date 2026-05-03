@@ -10,6 +10,7 @@ function field(overrides: Partial<ObservationField> = {}): ObservationField {
   return {
     fieldId: "11111111-1111-4111-8111-111111111111",
     source: "nature_symbiosis_site",
+    adminLevel: null,
     name: "連理の木の下で",
     nameKana: "",
     summary: "公開範囲と安全導線があるフィールド",

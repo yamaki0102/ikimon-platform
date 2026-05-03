@@ -137,6 +137,23 @@ const SOURCE_LABEL: Record<ObservationField["source"], string> = {
   admin_country: "国",
 };
 
+const ADMIN_LEVEL_LABEL: Record<string, string> = {
+  osm_park: "公園 (OSM)",
+  admin_municipality: "市町村",
+  admin_prefecture: "都道府県",
+  admin_country: "国",
+};
+
+/** OSM/N03 importer は CHECK 制約回避で source='user_defined' で書くため、
+ *  そのままだと「マイフィールド」と誤表示される。admin_level を優先して
+ *  適切なラベルに解決する。 */
+function resolveSourceLabel(field: { source: ObservationField["source"]; adminLevel: string | null }): string {
+  if (field.adminLevel && ADMIN_LEVEL_LABEL[field.adminLevel]) {
+    return ADMIN_LEVEL_LABEL[field.adminLevel]!;
+  }
+  return SOURCE_LABEL[field.source];
+}
+
 const SEASON_LABELS = ["春", "夏", "秋", "冬"];
 
 function clamp01(value: number): number {
@@ -481,7 +498,7 @@ export function composePlaceSnapshot(args: {
       fieldId: args.field.fieldId,
       name: args.field.name,
       source: args.field.source,
-      sourceLabel: SOURCE_LABEL[args.field.source],
+      sourceLabel: resolveSourceLabel(args.field),
       locationLabel: locationLabel(args.field),
       lat: args.field.lat,
       lng: args.field.lng,

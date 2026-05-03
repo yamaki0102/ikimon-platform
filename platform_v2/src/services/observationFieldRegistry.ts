@@ -51,6 +51,11 @@ const SOURCE_TO_ADMIN_LEVEL: Record<FieldSource, string | null> = {
 export interface ObservationField {
   fieldId: string;
   source: FieldSource;
+  /** Layer identity for OSM / KSJ rows (osm_park / admin_municipality / ...).
+   *  For symbiosis / TSUNAG / protected_area / oecm rows this typically mirrors
+   *  the source. UI uses this to label OSM-imported polygons correctly even
+   *  though their `source` column is 'user_defined' (CHECK-constraint policy). */
+  adminLevel: string | null;
   name: string;
   nameKana: string;
   summary: string;
@@ -73,6 +78,7 @@ export interface ObservationField {
 interface RawFieldRow extends Record<string, unknown> {
   field_id: string;
   source: string;
+  admin_level: string | null;
   name: string;
   name_kana: string;
   summary: string;
@@ -93,7 +99,7 @@ interface RawFieldRow extends Record<string, unknown> {
 }
 
 const SELECT = `
-  field_id, source, name, name_kana, summary, prefecture, city,
+  field_id, source, admin_level, name, name_kana, summary, prefecture, city,
   lat::text AS lat, lng::text AS lng, radius_m, polygon,
   area_ha::text AS area_ha, certification_id,
   certified_at::text AS certified_at,
@@ -110,6 +116,7 @@ function mapRow(row: RawFieldRow): ObservationField {
   return {
     fieldId: row.field_id,
     source: isFieldSource(row.source) ? row.source : "user_defined",
+    adminLevel: row.admin_level ?? null,
     name: row.name,
     nameKana: row.name_kana ?? "",
     summary: row.summary ?? "",
