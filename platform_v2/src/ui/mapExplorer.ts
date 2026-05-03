@@ -3995,12 +3995,18 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 0 0 6px rgba(14,165,233,.28);
   }
   .me-legend {
-    /* 右下の locate FAB / 地図ピンドロップアイコンと被らないよう、もう一段上に。 */
-    position: absolute; right: 18px; bottom: 144px; z-index: 4;
-    padding: 8px 12px; border-radius: 14px;
-    background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.06);
-    box-shadow: 0 8px 16px rgba(15,23,42,.1);
-    display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800;
+    /* MapLibre の OpenStreetMap attribution の左隣に並べる。最下端 + 右寄せ。
+       attribution はおおよそ右端から ~210px、その手前に置いて被らないようにする。 */
+    position: absolute; right: 220px; bottom: 4px; z-index: 4;
+    padding: 4px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.06);
+    box-shadow: 0 4px 10px rgba(15,23,42,.08);
+    display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700;
+  }
+  .me-legend-gradient { width: 96px; height: 6px; }
+  @media (max-width: 768px) {
+    /* スマホでは attribution が縦積みになることが多いので、画面下から少し浮かせる */
+    .me-legend { right: 8px; bottom: 22px; }
   }
   .me-legend.is-hidden { display: none; }
   .me-legend-label { color: #475569; letter-spacing: .1em; text-transform: uppercase; }
