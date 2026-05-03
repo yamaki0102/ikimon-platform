@@ -8978,6 +8978,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       // Deliberately no hero: a map page should land on the map, not on
       // a wall of text. The explorer component carries a tight eyebrow
       // strip at the top so context is still one line away.
+      // Footer is also hidden — it competes with the canvas for vertical
+      // space and the user has confirmed it isn't useful here.
+      hideFooter: true,
       body: `${renderMapExplorer({ basePath, lang, years })}
 ${mapExplorerBootScript({ basePath, lang })}`,
       footerNote: mapPageCopy.footerNote,

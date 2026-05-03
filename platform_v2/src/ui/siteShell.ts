@@ -42,6 +42,9 @@ export type SiteShellOptions = {
   alternateLangs?: SiteLang[];
   noindex?: boolean;
   shellClassName?: string;
+  /** Skip the global site footer. Used by map-first pages where the footer
+   *  competes with the canvas for vertical space. */
+  hideFooter?: boolean;
 };
 
 type ShellCopy = {
@@ -3755,7 +3758,7 @@ ${alternateLinks}
       ${options.belowHeroHtml ?? ""}
       ${options.body}
     </main>
-    ${footer(options.basePath, lang, options.footerNote)}
+    ${options.hideFooter ? "" : footer(options.basePath, lang, options.footerNote)}
     ${globalRecordNav}
   </div>
   ${legacyServiceWorkerCleanupScript}
