@@ -123,7 +123,16 @@ async function fetchExpressionStatistics(
     },
     properties: {},
   };
-  const url = `${dataBase.replace(/\/$/, "")}/item/${encodeURIComponent(collection)}/${encodeURIComponent(itemId)}/statistics?expression=${encodeURIComponent(expression)}`;
+  // MPC titiler-pgstac shape: collection / item / expression are query params,
+  // not path params. asset_as_band=true lets the expression reference assets
+  // by name (B04, B08, B03) instead of asset+band index.
+  const params = new URLSearchParams({
+    collection,
+    item: itemId,
+    expression,
+    asset_as_band: "true",
+  });
+  const url = `${dataBase.replace(/\/$/, "")}/item/statistics?${params.toString()}`;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -132,12 +141,12 @@ async function fetchExpressionStatistics(
   if (!response.ok) {
     return { mean: null, max: null };
   }
+  // Response shape (titiler): { type:"Feature", properties: { statistics: { "<expr>": { mean, max, ... } } } }
   const payload = await response.json().catch(() => null) as
     | { properties?: { statistics?: Record<string, { mean?: number; max?: number }> } }
     | null;
   const stats = payload?.properties?.statistics ?? null;
   if (!stats) return { mean: null, max: null };
-  // titiler returns one entry keyed by the expression band name.
   const firstBand = Object.values(stats)[0];
   if (!firstBand) return { mean: null, max: null };
   return {
