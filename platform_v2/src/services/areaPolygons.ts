@@ -124,7 +124,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     polygon: Record<string, unknown> | null;
     polygon_simplified: Record<string, unknown> | null;
   }>(
-    `SELECT field_id, name, source, admin_level, prefecture, city,
+    `SELECT field_id, name, COALESCE(admin_level, source) AS source, admin_level, prefecture, city,
             area_ha::text AS area_ha, official_url,
             lat::text AS lat, lng::text AS lng,
             polygon,
@@ -136,7 +136,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         AND bbox_min_lat <= $2
         AND bbox_max_lng >= $3
         AND bbox_min_lng <= $4
-        AND source = ANY($5)
+        AND COALESCE(admin_level, source) = ANY($5)
         -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
         -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
         AND valid_to IS NULL

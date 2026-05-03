@@ -14,7 +14,7 @@
 | Migration | 役割 |
 |---|---|
 | `db/migrations/0079_observation_fields_polygon_index.sql` | bbox 4列 + admin_level + 複合 BTREE |
-| `db/migrations/0080_observation_fields_admin_layer.sql` | source enum 拡張 (osm_park / admin_*) + parent_field_id + geom_simplified + **valid_from / valid_to / superseded_by / entity_key** (100年スパン版管理) |
+| `db/migrations/0080_observation_fields_admin_layer.sql` | 既存 `source` 制約は維持し、`admin_level` で osm_park / admin_* を表す。parent_field_id + geom_simplified + **valid_from / valid_to / superseded_by / entity_key** (100年スパン版管理) |
 | `db/migrations/0081_field_managers.sql` | `field_managers (owner / steward / viewer_exact)` で「特定権限者だけ希少種の正確値が見える」ゲート |
 | `db/migrations/0082_visit_field_resolution.sql` | `visits.resolved_field_ids UUID[]` + GIN 索引 |
 
@@ -33,8 +33,8 @@
 ### Importer / Backfill
 
 - `src/scripts/backfillFieldPolygonBbox.ts` — 既存 polygon に bbox + admin_level を埋める
-- `src/scripts/importN03Administrative.ts` — KSJ N03 GeoJSON → `admin_municipality` (都道府県・市町村)
-- `src/scripts/importOsmLeisureParks.ts` — Overpass API → `osm_park`、`--sweep` で消滅した公園を `valid_to` で閉じる
+- `src/scripts/importN03Administrative.ts` — KSJ N03 GeoJSON → `source=user_defined`, `admin_level=admin_municipality/admin_prefecture`
+- `src/scripts/importOsmLeisureParks.ts` — Overpass API → `source=user_defined`, `admin_level=osm_park`、`--sweep` で消滅した公園を `valid_to` で閉じる
 
 ### Frontend
 

@@ -1,9 +1,9 @@
 /**
  * Import KSJ N03 (国土数値情報 行政区域) GeoJSON into observation_fields.
  *
- * - 都道府県境界 → source='admin_prefecture', admin_level='admin_prefecture'
- * - 市町村境界   → source='admin_municipality', admin_level='admin_municipality'
- * - 国 (JP)     → source='admin_country' は別途 1 件挿入 (--include-country)
+ * - 都道府県境界 → source='user_defined', admin_level='admin_prefecture'
+ * - 市町村境界   → source='user_defined', admin_level='admin_municipality'
+ * - 国 (JP)     → source='user_defined', admin_level='admin_country' は別途 1 件挿入 (--include-country)
  *
  * 100年スパン耐性:
  *   - entity_key = `n03:<行政区域コード5桁>`
@@ -167,7 +167,7 @@ async function applyJob(client: Awaited<ReturnType<ReturnType<typeof getPool>["c
      ON CONFLICT (source, certification_id) WHERE certification_id <> ''
      DO UPDATE SET updated_at = NOW()`,
     [
-      job.source,
+      "user_defined",
       job.name,
       job.prefecture,
       job.city,

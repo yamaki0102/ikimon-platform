@@ -6,30 +6,15 @@
 --   別テーブルを切らないことで area-snapshot のクエリ層が単純なまま保てる。
 --
 -- 設計:
---   - `source` enum を 'osm_park' / 'admin_municipality' / 'admin_prefecture' / 'admin_country' に拡張
+--   - `source` は既存 CHECK 制約を壊さず、OSM/行政界の表示分類は `admin_level`
+--     ('osm_park' / 'admin_municipality' / 'admin_prefecture' / 'admin_country') に寄せる
 --   - `parent_field_id` で「公園 → 市 → 県 → 国」の階層を持つ (任意、後追い backfill 可)
 --   - `geom_simplified`: 行政界は重い → Douglas-Peucker 等で間引いた版を別 JSONB に
 --     持って tile/zoom 別に出し分け。NULL の場合は polygon を直接返す。
 --
--- owner-sensitive-ok: enum widen + nullable hierarchical column. backward compatible
--- (既存値は影響を受けない、追加 enum を使うのは Phase 2 importer のみ).
-
-ALTER TABLE observation_fields
-    DROP CONSTRAINT IF EXISTS obs_fields_source_chk;
-
-ALTER TABLE observation_fields
-    ADD CONSTRAINT obs_fields_source_chk
-    CHECK (source IN (
-        'user_defined',
-        'nature_symbiosis_site',
-        'tsunag',
-        'protected_area',
-        'oecm',
-        'osm_park',
-        'admin_municipality',
-        'admin_prefecture',
-        'admin_country'
-    ));
+-- owner-sensitive-ok: nullable hierarchy/version columns plus non-destructive
+-- indexes. Existing source CHECK constraints stay intact; importers store
+-- layer identity in admin_level so app DB roles do not need constraint drops.
 
 ALTER TABLE observation_fields
     ADD COLUMN IF NOT EXISTS parent_field_id UUID
@@ -48,29 +33,22 @@ ALTER TABLE observation_fields
     -- 既存行は created_at::text を fallback として埋め、後で人手で正規化可能。
     ADD COLUMN IF NOT EXISTS entity_key TEXT;
 
-UPDATE observation_fields
-   SET valid_from = COALESCE(valid_from, created_at::date)
- WHERE valid_from IS NULL;
-
-UPDATE observation_fields
-   SET entity_key = COALESCE(
-       NULLIF(entity_key, ''),
-       NULLIF(certification_id, ''),
-       'legacy:' || field_id::text
-   )
- WHERE entity_key IS NULL OR entity_key = '';
-
 ALTER TABLE observation_fields
-    ALTER COLUMN valid_from SET NOT NULL,
     ALTER COLUMN valid_from SET DEFAULT current_date,
-    ALTER COLUMN entity_key SET NOT NULL;
+    ALTER COLUMN entity_key SET DEFAULT '';
 
-ALTER TABLE observation_fields
-    DROP CONSTRAINT IF EXISTS obs_fields_valid_range_chk;
-
-ALTER TABLE observation_fields
-    ADD CONSTRAINT obs_fields_valid_range_chk
-    CHECK (valid_to IS NULL OR valid_to >= valid_from);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conname = 'obs_fields_valid_range_chk'
+    ) THEN
+        ALTER TABLE observation_fields
+            ADD CONSTRAINT obs_fields_valid_range_chk
+            CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from);
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_obs_fields_parent
     ON observation_fields (parent_field_id)

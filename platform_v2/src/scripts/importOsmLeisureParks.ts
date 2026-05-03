@@ -219,7 +219,7 @@ async function applyJob(client: any, job: UpsertJob, publishDate: string): Promi
         bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
         admin_level, entity_key, valid_from
      ) VALUES (
-        'osm_park', $1, '', '', $2, $3, $4,
+        'user_defined', $1, '', '', $2, $3, $4,
         $5::jsonb, NULL,
         $6, $7, $8::jsonb,
         $9, $10, $11, $12,
@@ -243,7 +243,7 @@ async function sweep(client: any, foundEntityKeys: Set<string>, bbox: [number, n
   const result = await client.query(
     `SELECT field_id, entity_key
        FROM observation_fields
-      WHERE source = 'osm_park'
+      WHERE admin_level = 'osm_park'
         AND valid_to IS NULL
         AND lat BETWEEN $1 AND $2
         AND lng BETWEEN $3 AND $4`,
