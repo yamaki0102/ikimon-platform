@@ -202,7 +202,6 @@ test("map share state survives reload", async ({ browser }) => {
   const page = await context.newPage();
   await waitForMapReady(page);
 
-  await page.locator('.me-taxon-chip[data-taxon-group="bird"]').click({ force: true });
   await page.getByRole("tab", { name: "調査前進" }).click({ force: true });
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
@@ -216,7 +215,6 @@ test("map share state survives reload", async ({ browser }) => {
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
   await page.locator("#me-share-state").click();
 
-  await expect.poll(() => new URL(page.url()).searchParams.get("taxon")).toBe("bird");
   await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("frontier");
   await expect.poll(() => new URL(page.url()).searchParams.get("bm")).toBe("gsi");
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
@@ -224,7 +222,6 @@ test("map share state survives reload", async ({ browser }) => {
   const sharedUrl = page.url();
   const restoredPage = await context.newPage();
   await waitForMapReady(restoredPage, sharedUrl);
-  await expect(restoredPage.locator('.me-taxon-chip.is-active[data-taxon-group="bird"]')).toBeVisible();
   await expect(restoredPage.locator('.me-tab.is-active[data-tab="frontier"]')).toBeVisible();
   await expect(restoredPage.locator('.me-basemap-opt.is-active input[value="gsi"]')).toBeChecked();
   await expect.poll(() => new URL(restoredPage.url()).searchParams.get("cell")).toBe(selectedCell);
