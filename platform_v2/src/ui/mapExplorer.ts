@@ -3995,9 +3995,9 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 0 0 6px rgba(14,165,233,.28);
   }
   .me-legend {
-    /* MapLibre の OpenStreetMap attribution の真上に、少し余白を空けて配置。
-       attribution の高さがおよそ 20px なので bottom:28px で 8px のゆとり。 */
-    position: absolute; right: 8px; bottom: 28px; z-index: 4;
+    /* MapLibre の OpenStreetMap attribution の上、確実に被らない位置に。
+       attribution は実測で ~24-28px、上に 12px 余白を取って bottom:42px。 */
+    position: absolute; right: 8px; bottom: 42px; z-index: 4;
     padding: 5px 10px; border-radius: 8px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08);
     box-shadow: 0 4px 10px rgba(15,23,42,.08);
