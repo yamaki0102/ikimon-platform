@@ -36,6 +36,7 @@ const explicitAllowlist = [
   "platform_v2/src/ui/communityMeter.ts",
   "platform_v2/src/ui/demoLoginBanner.ts",
   "platform_v2/src/ui/fieldNoteMain.ts",
+  "platform_v2/src/ui/fixedPointStation.ts",
   "platform_v2/src/ui/guideFlow.ts",
   "platform_v2/src/ui/landingTop.ts",
   "platform_v2/src/ui/mapExplorer.ts",

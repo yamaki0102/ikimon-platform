@@ -19,6 +19,11 @@ import { fileURLToPath } from "node:url";
 import { encodeGeohash } from "./geohash.js";
 import { resolveOfficialNoticeCards, type OfficialNoticeCard } from "./officialNotices.js";
 import { getCachedSignals, putCachedSignals } from "./siteSignalsCache.js";
+import {
+  environmentEvidenceFromSiteSignals,
+  getCanonicalPlaceEnvironmentEvidence,
+  type PlaceEnvironmentEvidence,
+} from "./placeEnvironmentSignals.js";
 
 export type Landcover =
   | "tree_cover"
@@ -44,6 +49,7 @@ export type SiteBrief = {
   captureHints: string[];
   signals: SiteSignals;
   officialNotices: OfficialNoticeCard[];
+  environmentEvidence: PlaceEnvironmentEvidence[];
 };
 
 type Rule = {
@@ -272,26 +278,131 @@ function ruleMatches(rule: Rule, s: SiteSignals): boolean {
   return true;
 }
 
+function hasAnySignal(s: SiteSignals): boolean {
+  return (
+    s.landcover.length > 0 ||
+    s.nearbyLandcover.length > 0 ||
+    s.waterDistanceM != null ||
+    s.elevationM != null
+  );
+}
+
+function uniqueLandcover(s: SiteSignals): Landcover[] {
+  return [...new Set<Landcover>([...s.landcover, ...s.nearbyLandcover])];
+}
+
+function landcoverJa(c: Landcover): string {
+  switch (c) {
+    case "tree_cover": return "樹林";
+    case "shrubland": return "低木・やぶ";
+    case "grassland": return "草地";
+    case "cropland": return "農地";
+    case "built_up": return "市街地";
+    case "bare": return "裸地";
+    case "water": return "水域";
+    case "wetland": return "湿地";
+  }
+}
+
+function landcoverEn(c: Landcover): string {
+  switch (c) {
+    case "tree_cover": return "tree cover";
+    case "shrubland": return "shrubland";
+    case "grassland": return "grassland";
+    case "cropland": return "cropland";
+    case "built_up": return "built-up land";
+    case "bare": return "bare ground";
+    case "water": return "water";
+    case "wetland": return "wetland";
+  }
+}
+
+function composeFallbackBrief(signals: SiteSignals, lang: BriefLang): SiteBrief {
+  const covers = uniqueLandcover(signals);
+  const hasSignals = hasAnySignal(signals);
+  const nearWater = signals.waterDistanceM != null && signals.waterDistanceM <= 200;
+  const highOrSloped = signals.elevationM != null && signals.elevationM >= 300;
+  const hasBuilt = covers.includes("built_up");
+  const hasNatural = covers.some((c) => ["tree_cover", "shrubland", "grassland", "wetland", "water"].includes(c));
+
+  if (lang === "en") {
+    const coverText = covers.map(landcoverEn).slice(0, 3).join(" / ");
+    const label = hasSignals
+      ? nearWater
+        ? "Ground-check point near water"
+        : hasNatural && hasBuilt
+          ? "Green edge in a built area"
+          : hasNatural
+            ? "Habitat clue to verify"
+            : highOrSloped
+              ? "Elevation-based check point"
+              : "Field-check point with partial clues"
+      : "Blank field-check point";
+    const reasons = hasSignals
+      ? [
+          coverText ? `Public map clues suggest ${coverText}.` : "Public land-cover tags are thin here.",
+          signals.elevationM != null ? `Elevation is about ${Math.round(signals.elevationM)} m.` : "Elevation is not enough by itself; ground condition matters.",
+          signals.waterDistanceM != null ? `Mapped water is about ${Math.round(signals.waterDistanceM)} m away.` : "Water, shade, and management traces need field confirmation.",
+        ]
+      : [
+          "Public map signals are too thin to infer habitat confidently.",
+          "A first visit can create the baseline for this point.",
+          "Record what the map cannot see: ground layer, moisture, and management traces.",
+        ];
+    return {
+      hypothesis: { id: "generic", label, confidence: hasSignals ? 0.32 : 0.18 },
+      reasons,
+      checks: nearWater
+        ? ["Waterline vegetation or ditch condition", "Moist ground, mud, or flow traces", "Shade and mowing/management marks"]
+        : ["Whether the ground is grass, trees, pavement, bare soil, or water", "Edges between vegetation and built surfaces", "Moisture, shade, mowing, and footpath traces"],
+      captureHints: ["One wide shot that shows the surroundings", "A 10-second clip or close-up of the ground, edge, or waterline"],
+      signals,
+      officialNotices: [],
+      environmentEvidence: [],
+    };
+  }
+
+  const coverText = covers.map(landcoverJa).slice(0, 3).join("・");
+  const label = hasSignals
+    ? nearWater
+      ? "水辺近くの現地確認地点"
+      : hasNatural && hasBuilt
+        ? "市街地に残る緑の境界"
+        : hasNatural
+          ? "環境手がかりの確認地点"
+          : highOrSloped
+            ? "標高から読む確認地点"
+            : "部分的な手がかりの確認地点"
+    : "現地確認が必要な空白地点";
+  const reasons = hasSignals
+    ? [
+        coverText ? `公開地図では ${coverText} の手がかりがある。` : "公開地図の土地被覆手がかりは薄い。",
+        signals.elevationM != null ? `標高は約 ${Math.round(signals.elevationM)} m。` : "標高だけでは判断できず、地表の状態確認が必要。",
+        signals.waterDistanceM != null ? `地図上の水域まで約 ${Math.round(signals.waterDistanceM)} m。` : "水分、日陰、管理痕跡は現地で確認する価値がある。",
+      ]
+    : [
+        "公開地図だけでは環境を読み切れない地点。",
+        "最初の記録が、この場所を比較する基準になる。",
+        "衛星や地図では見えにくい足元、湿り気、管理痕跡を残せる。",
+      ];
+  return {
+    hypothesis: { id: "generic", label, confidence: hasSignals ? 0.32 : 0.18 },
+    reasons,
+    checks: nearWater
+      ? ["水際や水路の植生", "ぬかるみ・流れ・湿り気の有無", "日陰と刈り込み/管理の跡"]
+      : ["地表が草地・樹林・舗装・裸地・水辺のどれか", "植生と人工物の境界", "湿り気、日当たり、刈り込み、踏み跡"],
+    captureHints: ["周囲が分かる広角を1枚", "足元・境界・水際を寄りで1枚、または10秒動画"],
+    signals,
+    officialNotices: [],
+    environmentEvidence: [],
+  };
+}
+
 export function composeSiteBrief(signals: SiteSignals, lang: BriefLang = "ja"): SiteBrief {
   const rules = loadRules();
   const hit = rules.find((r) => ruleMatches(r, signals));
   if (!hit) {
-    return {
-      hypothesis: {
-        id: "generic",
-        label: lang === "ja" ? "一般的な観察ポイント" : "Generic observation point",
-        confidence: 0.2,
-      },
-      reasons: lang === "ja" ? ["手がかりが少ない"] : ["Low signal coverage"],
-      checks:
-        lang === "ja"
-          ? ["周囲の植生層を眺める", "水・岩・人工物の有無", "光と影の方向"]
-          : ["Scan surrounding vegetation layers", "Water, rock, or built surfaces", "Light and shadow direction"],
-      captureHints:
-        lang === "ja" ? ["広角で1枚", "気になった要素の寄り1枚"] : ["One wide shot", "One close-up of the most interesting element"],
-      signals,
-      officialNotices: [],
-    };
+    return composeFallbackBrief(signals, lang);
   }
   const reasons = (lang === "ja" ? hit.reasons_ja : hit.reasons_en).slice(0, 3);
   if (signals.waterDistanceM != null && signals.waterDistanceM <= 200) {
@@ -319,6 +430,7 @@ export function composeSiteBrief(signals: SiteSignals, lang: BriefLang = "ja"): 
     captureHints: (lang === "ja" ? hit.captures_ja : hit.captures_en).slice(0, 2),
     signals,
     officialNotices: [],
+    environmentEvidence: [],
   };
 }
 
@@ -334,9 +446,15 @@ export async function getSiteBrief(
     elevationM: null,
   }));
   const brief = composeSiteBrief(signals, lang);
-  const officialNotices = await resolveOfficialNoticeCards(lat, lng, signals, lang).catch(() => []);
+  const [officialNotices, canonicalEnvironmentEvidence] = await Promise.all([
+    resolveOfficialNoticeCards(lat, lng, signals, lang).catch(() => []),
+    getCanonicalPlaceEnvironmentEvidence(lat, lng).catch(() => []),
+  ]);
   return {
     ...brief,
     officialNotices,
+    environmentEvidence: canonicalEnvironmentEvidence.length > 0
+      ? canonicalEnvironmentEvidence
+      : environmentEvidenceFromSiteSignals(signals),
   };
 }

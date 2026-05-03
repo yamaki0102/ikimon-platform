@@ -131,6 +131,10 @@ const SOURCE_LABEL: Record<ObservationField["source"], string> = {
   tsunag: "TSUNAG",
   protected_area: "保護区",
   oecm: "OECM",
+  osm_park: "公園 (OSM)",
+  admin_municipality: "市町村",
+  admin_prefecture: "都道府県",
+  admin_country: "国",
 };
 
 const SEASON_LABELS = ["春", "夏", "秋", "冬"];
@@ -528,6 +532,7 @@ async function loadStewardshipWindow(
                and (
                  v.source_payload->>'field_id' = $3
                  or ($4::text is not null and v.place_id = $4)
+                 or $3::uuid = ANY(v.resolved_field_ids)
                  or (
                    coalesce(v.point_latitude, p.center_latitude) between $5 and $6
                    and coalesce(v.point_longitude, p.center_longitude) between $7 and $8
@@ -724,6 +729,7 @@ async function loadCanonicalAgg(field: ObservationField, placeId: string | null)
               left join places p on p.place_id = v.place_id
              where v.source_payload->>'field_id' = $1
                 or ($2::text is not null and v.place_id = $2)
+                or $1::uuid = ANY(v.resolved_field_ids)
                 or (
                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6

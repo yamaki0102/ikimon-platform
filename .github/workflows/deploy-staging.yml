@@ -483,9 +483,10 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: V2_PRIVILEGED_WRITE_API_KEY
+          envs: V2_PRIVILEGED_WRITE_API_KEY,STAGING_MIGRATION_REPAIR_CHECKSUMS
           script: |
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
+            STAGING_MIGRATION_REPAIR_CHECKSUMS="${{ github.event.inputs.migration_repair_checksums || '' }}"
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
             if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
@@ -547,6 +548,7 @@ jobs:
             fi
             export V2_PRIVILEGED_WRITE_API_KEY
             export V2_BASE_URL=http://127.0.0.1:3200
+            export IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS"
             bash "$V2_DIR/scripts/ops/run_authority_gate.sh"
 
   verify-e2e:

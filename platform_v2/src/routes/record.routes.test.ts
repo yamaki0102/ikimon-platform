@@ -46,6 +46,14 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /まだ分からないまま残す/);
         assert.match(response.body, /今日は見なかったメモを残す/);
         assert.match(response.body, /次に探すもの/);
+        assert.match(response.body, /この記録の役割/);
+        assert.match(response.body, /name="activityIntent"/);
+        assert.match(response.body, /name="participantRole"/);
+        assert.match(response.body, /name="revisitOfVisitId"/);
+        assert.match(response.body, /civicContext:/);
+        assert.match(response.body, /activityIntent/);
+        assert.match(response.body, /participantRole/);
+        assert.match(response.body, /revisitObservationId/);
         assert.match(response.body, /data-capture-action="photo"/);
         assert.match(response.body, /data-capture-action="video"/);
         assert.match(response.body, /data-capture-action="gallery"/);

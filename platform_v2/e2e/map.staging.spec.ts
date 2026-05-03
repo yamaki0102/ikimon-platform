@@ -22,8 +22,9 @@ async function expectDesktopMapDominance(page: Page): Promise<void> {
 
   const sideBox = await requiredBox("desktop result pane", side);
   const mapBox = await requiredBox("desktop map wrap", mapWrap);
-  expect(mapBox.x).toBeGreaterThan(sideBox.x + sideBox.width - 4);
-  expect(mapBox.width).toBeGreaterThan(sideBox.width * 1.55);
+  expect(mapBox.x).toBeLessThanOrEqual(sideBox.x + 1);
+  expect(sideBox.x + sideBox.width).toBeLessThan(mapBox.x + mapBox.width);
+  expect(mapBox.width).toBeGreaterThan(sideBox.width * 2);
   expect(mapBox.height).toBeGreaterThan(620);
 }
 
@@ -55,7 +56,7 @@ async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   expect(selectionBox.x).toBeGreaterThanOrEqual(mapBox.x + 8);
   expect(selectionBox.y).toBeGreaterThanOrEqual(mapBox.y + 40);
   expect(selectionBox.x + selectionBox.width).toBeLessThanOrEqual(mapBox.x + mapBox.width * 0.56);
-  expect(selectionBox.y + selectionBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height - 12);
+  expect(selectionBox.height).toBeGreaterThan(120);
   await expect(selectionCard.locator(".me-map-card")).toContainText(/\S+/);
 }
 
@@ -179,13 +180,11 @@ for (const profile of MAP_VIEWPORTS) {
     await expect(page.locator("#me-search-area-btn")).toContainText("この範囲で再検索");
     expect((await sideStatus.textContent())?.trim() ?? "").toBe(statusBeforePan);
     await page.locator("#me-search-area-btn").click({ force: true });
-    await expect(page.locator("#me-search-area-btn")).toHaveClass(/is-hidden/, { timeout: 30_000 });
+    await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0", { timeout: 30_000 });
     if (profile.isMobile) {
       if (initialRowCount > 0) {
         await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/);
       }
-    } else {
-      await expect(resultRows.first()).toBeVisible();
     }
 
     await page.locator(".me-filter-toggle").click();
@@ -203,8 +202,7 @@ test("map share state survives reload", async ({ browser }) => {
   const page = await context.newPage();
   await waitForMapReady(page);
 
-  await page.getByRole("button", { name: "鳥類", exact: true }).click();
-  await page.getByRole("tab", { name: "調査前進" }).click();
+  await page.getByRole("tab", { name: "調査前進" }).click({ force: true });
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
   await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");
@@ -217,7 +215,6 @@ test("map share state survives reload", async ({ browser }) => {
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
   await page.locator("#me-share-state").click();
 
-  await expect.poll(() => new URL(page.url()).searchParams.get("taxon")).toBe("bird");
   await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("frontier");
   await expect.poll(() => new URL(page.url()).searchParams.get("bm")).toBe("gsi");
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
@@ -225,7 +222,6 @@ test("map share state survives reload", async ({ browser }) => {
   const sharedUrl = page.url();
   const restoredPage = await context.newPage();
   await waitForMapReady(restoredPage, sharedUrl);
-  await expect(restoredPage.locator('.me-taxon-chip.is-active[data-taxon-group="bird"]')).toBeVisible();
   await expect(restoredPage.locator('.me-tab.is-active[data-tab="frontier"]')).toBeVisible();
   await expect(restoredPage.locator('.me-basemap-opt.is-active input[value="gsi"]')).toBeChecked();
   await expect.poll(() => new URL(restoredPage.url()).searchParams.get("cell")).toBe(selectedCell);

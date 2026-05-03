@@ -256,6 +256,7 @@ async function resolveGuideSiteBrief(
       captureHints: [],
       signals: { landcover: [], nearbyLandcover: [], waterDistanceM: null, elevationM: null },
       officialNotices: [],
+      environmentEvidence: [],
     };
   }
 }

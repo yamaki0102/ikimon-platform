@@ -1,11 +1,52 @@
 import { getPool } from "../db.js";
+import { computeBbox } from "./geoJsonBbox.js";
 
 export type FieldSource =
   | "user_defined"
   | "nature_symbiosis_site"
   | "tsunag"
   | "protected_area"
-  | "oecm";
+  | "oecm"
+  | "osm_park"
+  | "admin_municipality"
+  | "admin_prefecture"
+  | "admin_country";
+
+const ALL_FIELD_SOURCES = [
+  "user_defined",
+  "nature_symbiosis_site",
+  "tsunag",
+  "protected_area",
+  "oecm",
+  "osm_park",
+  "admin_municipality",
+  "admin_prefecture",
+  "admin_country",
+] as const;
+
+function bboxColumnsFromPolygon(polygon: Record<string, unknown> | null | undefined): {
+  minLat: number | null;
+  maxLat: number | null;
+  minLng: number | null;
+  maxLng: number | null;
+} {
+  if (!polygon) return { minLat: null, maxLat: null, minLng: null, maxLng: null };
+  const bbox = computeBbox(polygon);
+  if (!bbox) return { minLat: null, maxLat: null, minLng: null, maxLng: null };
+  return { minLat: bbox.minLat, maxLat: bbox.maxLat, minLng: bbox.minLng, maxLng: bbox.maxLng };
+}
+
+const SOURCE_TO_ADMIN_LEVEL: Record<FieldSource, string | null> = {
+  user_defined: null,
+  nature_symbiosis_site: "symbiosis",
+  tsunag: "tsunag",
+  protected_area: "protected",
+  oecm: "oecm",
+  osm_park: "osm_park",
+  admin_municipality: "admin_municipality",
+  admin_prefecture: "admin_prefecture",
+  admin_country: "admin_country",
+};
 
 export interface ObservationField {
   fieldId: string;
@@ -62,7 +103,7 @@ const SELECT = `
 
 function isFieldSource(value: unknown): value is FieldSource {
   return typeof value === "string" &&
-    ["user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm"].includes(value);
+    (ALL_FIELD_SOURCES as readonly string[]).includes(value);
 }
 
 function mapRow(row: RawFieldRow): ObservationField {
@@ -109,19 +150,24 @@ export interface CreateFieldInput {
 }
 
 export async function createField(input: CreateFieldInput): Promise<ObservationField> {
+  const source = input.source ?? "user_defined";
+  const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
+  const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
        lat, lng, radius_m, polygon, area_ha,
-       certification_id, certified_at, official_url, owner_user_id, payload
+       certification_id, certified_at, official_url, owner_user_id, payload,
+       bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
-       $12, $13, $14, $15, $16::jsonb
+       $12, $13, $14, $15, $16::jsonb,
+       $17, $18, $19, $20, $21
      )
      RETURNING ${SELECT}`,
     [
-      input.source ?? "user_defined",
+      source,
       input.name,
       input.nameKana ?? "",
       input.summary ?? "",
@@ -137,6 +183,11 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
       input.officialUrl ?? "",
       input.ownerUserId ?? null,
       JSON.stringify(input.payload ?? {}),
+      bbox.minLat,
+      bbox.maxLat,
+      bbox.minLng,
+      bbox.maxLng,
+      adminLevel,
     ],
   );
   const row = result.rows[0];
@@ -146,35 +197,45 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
 
 export async function upsertCertifiedField(input: CreateFieldInput): Promise<ObservationField> {
   if (!input.certificationId) return createField(input);
+  const source = input.source ?? "user_defined";
+  const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
+  const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
        lat, lng, radius_m, polygon, area_ha,
-       certification_id, certified_at, official_url, owner_user_id, payload
+       certification_id, certified_at, official_url, owner_user_id, payload,
+       bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
-       $12, $13, $14, $15, $16::jsonb
+       $12, $13, $14, $15, $16::jsonb,
+       $17, $18, $19, $20, $21
      )
      ON CONFLICT (source, certification_id) WHERE certification_id <> ''
      DO UPDATE SET
-       name        = EXCLUDED.name,
-       name_kana   = EXCLUDED.name_kana,
-       summary     = EXCLUDED.summary,
-       prefecture  = EXCLUDED.prefecture,
-       city        = EXCLUDED.city,
-       lat         = EXCLUDED.lat,
-       lng         = EXCLUDED.lng,
-       radius_m    = EXCLUDED.radius_m,
-       polygon     = COALESCE(EXCLUDED.polygon, observation_fields.polygon),
-       area_ha     = COALESCE(EXCLUDED.area_ha, observation_fields.area_ha),
+       name         = EXCLUDED.name,
+       name_kana    = EXCLUDED.name_kana,
+       summary      = EXCLUDED.summary,
+       prefecture   = EXCLUDED.prefecture,
+       city         = EXCLUDED.city,
+       lat          = EXCLUDED.lat,
+       lng          = EXCLUDED.lng,
+       radius_m     = EXCLUDED.radius_m,
+       polygon      = COALESCE(EXCLUDED.polygon, observation_fields.polygon),
+       area_ha      = COALESCE(EXCLUDED.area_ha, observation_fields.area_ha),
        certified_at = COALESCE(EXCLUDED.certified_at, observation_fields.certified_at),
        official_url = EXCLUDED.official_url,
-       payload     = observation_fields.payload || EXCLUDED.payload,
-       updated_at  = NOW()
+       payload      = observation_fields.payload || EXCLUDED.payload,
+       bbox_min_lat = COALESCE(EXCLUDED.bbox_min_lat, observation_fields.bbox_min_lat),
+       bbox_max_lat = COALESCE(EXCLUDED.bbox_max_lat, observation_fields.bbox_max_lat),
+       bbox_min_lng = COALESCE(EXCLUDED.bbox_min_lng, observation_fields.bbox_min_lng),
+       bbox_max_lng = COALESCE(EXCLUDED.bbox_max_lng, observation_fields.bbox_max_lng),
+       admin_level  = COALESCE(EXCLUDED.admin_level, observation_fields.admin_level),
+       updated_at   = NOW()
      RETURNING ${SELECT}`,
     [
-      input.source ?? "user_defined",
+      source,
       input.name,
       input.nameKana ?? "",
       input.summary ?? "",
@@ -190,6 +251,11 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
       input.officialUrl ?? "",
       input.ownerUserId ?? null,
       JSON.stringify(input.payload ?? {}),
+      bbox.minLat,
+      bbox.maxLat,
+      bbox.minLng,
+      bbox.maxLng,
+      adminLevel,
     ],
   );
   const row = result.rows[0];
@@ -235,6 +301,11 @@ export async function updateField(fieldId: string, input: UpdateFieldInput): Pro
   if (input.polygon !== undefined) {
     sets.push(`polygon = $${idx++}::jsonb`);
     values.push(input.polygon == null ? null : JSON.stringify(input.polygon));
+    const bbox = bboxColumnsFromPolygon(input.polygon);
+    sets.push(`bbox_min_lat = $${idx++}`); values.push(bbox.minLat);
+    sets.push(`bbox_max_lat = $${idx++}`); values.push(bbox.maxLat);
+    sets.push(`bbox_min_lng = $${idx++}`); values.push(bbox.minLng);
+    sets.push(`bbox_max_lng = $${idx++}`); values.push(bbox.maxLng);
   }
   if (input.areaHa !== undefined) { sets.push(`area_ha = $${idx++}`); values.push(input.areaHa); }
   if (input.payload !== undefined) { sets.push(`payload = $${idx++}::jsonb`); values.push(JSON.stringify(input.payload)); }
