@@ -102,6 +102,8 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
 export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   coalesce(v.public_visibility, 'public') = 'public'
   and coalesce(v.quality_review_status, 'accepted') = 'accepted'
+  and coalesce(v.source_payload->'taxon'->>'key', '') !~* '^e2e_test_'
+  and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test)([-_]|$)'
 `;
 
 export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
@@ -109,6 +111,9 @@ export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
   and coalesce(nullif(lower(ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
   and coalesce(nullif(lower(ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
   and nullif(coalesce(ab.public_url, ab.storage_path), '') is not null
+  and coalesce(ab.bytes, 1024) > 512
+  and coalesce(ab.width_px, 2) > 1
+  and coalesce(ab.height_px, 2) > 1
 `;
 
 export const VALID_OBSERVATION_VIDEO_ASSET_SQL = `
@@ -126,6 +131,9 @@ export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
        and coalesce(nullif(lower(public_photo_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
        and coalesce(nullif(lower(public_photo_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
        and nullif(coalesce(public_photo_ab.public_url, public_photo_ab.storage_path), '') is not null
+       and coalesce(public_photo_ab.bytes, 1024) > 512
+       and coalesce(public_photo_ab.width_px, 2) > 1
+       and coalesce(public_photo_ab.height_px, 2) > 1
   )
 `;
 
@@ -141,6 +149,9 @@ export const PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL = `
            and coalesce(nullif(lower(public_media_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
            and coalesce(nullif(lower(public_media_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
            and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path), '') is not null
+           and coalesce(public_media_ab.bytes, 1024) > 512
+           and coalesce(public_media_ab.width_px, 2) > 1
+           and coalesce(public_media_ab.height_px, 2) > 1
          )
          or (
            public_media_ea.asset_role = 'observation_video'

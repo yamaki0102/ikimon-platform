@@ -47,6 +47,7 @@ import { toggleReaction, isValidReactionType, type ReactionType } from "../servi
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
+import { hideOwnObservation } from "../services/observationVisibility.js";
 import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
@@ -359,6 +360,29 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return {
           ok: false,
           error: error instanceof Error ? error.message : "candidate_adoption_failed",
+        };
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/observations/:id/hide",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        const result = await hideOwnObservation({
+          observationId: request.params.id,
+          actorUserId: session.userId,
+        });
+        return { ok: true, ...result };
+      } catch (error) {
+        reply.code(errorStatus(error, 400));
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "observation_hide_failed",
         };
       }
     },

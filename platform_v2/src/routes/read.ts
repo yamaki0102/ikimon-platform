@@ -738,10 +738,17 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-photo-recovery-submit[disabled] { opacity: .6; cursor: progress; }
   .obs-photo-recovery-status { grid-column: 1 / -1; min-height: 22px; color: #047857; font-size: 12px; font-weight: 850; }
   .obs-photo-recovery-status.is-error { color: #b91c1c; }
+  .obs-owner-delete { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px; border-radius: 16px; background: #fff7ed; border: 1px solid rgba(234,88,12,.22); }
+  .obs-owner-delete h2 { margin: 4px 0 0; color: #7c2d12; font-size: 18px; line-height: 1.28; }
+  .obs-owner-delete p { margin: 7px 0 0; color: #9a3412; font-size: 13px; line-height: 1.65; font-weight: 720; }
+  .obs-owner-delete-button { min-height: 44px; padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(185,28,28,.22); background: #b91c1c; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .obs-owner-delete-button[disabled] { opacity: .62; cursor: progress; }
+  .obs-owner-delete-status { grid-column: 1 / -1; min-height: 22px; color: #9a3412; font-size: 12px; font-weight: 850; }
+  .obs-owner-delete-status.is-error { color: #b91c1c; }
   @media (max-width: 760px) {
-    .obs-photo-recovery { grid-template-columns: 1fr; }
+    .obs-photo-recovery, .obs-owner-delete { grid-template-columns: 1fr; }
     .obs-photo-recovery-form { justify-content: stretch; }
-    .obs-photo-recovery-picker, .obs-photo-recovery-submit { width: 100%; min-height: 52px; border-radius: 14px; }
+    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button { width: 100%; min-height: 52px; border-radius: 14px; }
   }
 
   .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
@@ -1931,6 +1938,65 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
         button.disabled = false;
       }).catch(function(error) {
         setStatus('通信エラー: ' + String(error && error.message || 'network'), true);
+        button.disabled = false;
+      });
+    });
+  })();</script>`;
+}
+
+function renderObservationOwnerDeletePanel(options: {
+  basePath: string;
+  visitId: string;
+  isOwner: boolean;
+  lang: SiteLang;
+}): string {
+  if (!options.isOwner) return "";
+  const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/hide`);
+  const notesHref = appendLangToHref(withBasePath(options.basePath, "/notes"), options.lang);
+  return `<section class="section obs-owner-delete" data-owner-delete data-delete-endpoint="${escapeHtml(endpoint)}" data-after-delete-href="${escapeHtml(notesHref)}">
+    <div>
+      <div class="obs-story-eyebrow">Delete</div>
+      <h2>この観察を削除</h2>
+      <p>誤投稿はここから自分の一覧と公開ページから外せます。写真ファイルは監査用に残し、表示だけを止めます。</p>
+    </div>
+    <button type="button" class="obs-owner-delete-button" data-owner-delete-button>削除する</button>
+    <div class="obs-owner-delete-status" data-owner-delete-status aria-live="polite"></div>
+  </section>`;
+}
+
+function renderObservationOwnerDeleteScript(isOwner: boolean): string {
+  if (!isOwner) return "";
+  return `<script>(function(){
+    var root = document.querySelector('[data-owner-delete]');
+    if (!root) return;
+    var button = root.querySelector('[data-owner-delete-button]');
+    var status = root.querySelector('[data-owner-delete-status]');
+    var endpoint = root.getAttribute('data-delete-endpoint') || '';
+    var nextHref = root.getAttribute('data-after-delete-href') || '/notes';
+    var setStatus = function(message, isError) {
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle('is-error', Boolean(isError));
+    };
+    if (!button || !endpoint) return;
+    button.addEventListener('click', function() {
+      if (!window.confirm('この観察を一覧と公開ページから削除します。よろしいですか？')) return;
+      button.disabled = true;
+      setStatus('削除中...', false);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { accept: 'application/json' },
+        credentials: 'same-origin'
+      }).then(function(response) {
+        return response.json().catch(function(){ return {}; }).then(function(json) {
+          if (!response.ok || !json || json.ok === false) {
+            throw new Error(String((json && json.error) || response.status || 'delete_failed'));
+          }
+          setStatus('削除しました。観察ライブラリへ戻ります。', false);
+          setTimeout(function(){ window.location.href = nextHref; }, 700);
+        });
+      }).catch(function(error) {
+        setStatus('削除できませんでした: ' + String(error && error.message || 'network'), true);
         button.disabled = false;
       });
     });
@@ -3181,6 +3247,8 @@ function renderNotesLibraryCard(
   options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
 ): string {
   const href = notesDetailHref(basePath, lang, obs);
+  const canOwnerHide = options.locationMode === "owner" && obs.entryType !== "identification";
+  const hideEndpoint = withBasePath(basePath, `/api/v1/observations/${encodeURIComponent(obs.visitId)}/hide`);
   const displayName = formatTaxonDisplayName({
     vernacularName: obs.vernacularName,
     scientificName: obs.scientificName,
@@ -3212,19 +3280,31 @@ function renderNotesLibraryCard(
     : visiblePhotos[0]
       ? `<img src="${escapeHtml(visiblePhotos[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.notes-library-card').classList.add('is-photo-missing');this.remove()" />${photoCount > 1 ? `<b class="notes-library-photo-count">${escapeHtml(String(photoCount))}枚</b>` : ""}`
     : `<span class="notes-library-placeholder">${escapeHtml(sourceLabel.slice(0, 1))}</span>`;
-  return `<a class="notes-library-card is-source-${escapeHtml(sourceKind)}${photoCount > 0 ? "" : " is-photo-missing"}" href="${escapeHtml(href)}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
-    <span class="notes-library-photo">${photo}</span>
-    <span class="notes-library-overlay">
-      <span class="notes-library-badges">
-        <b class="notes-source-badge is-source-${escapeHtml(sourceKind)}">${escapeHtml(sourceLabel)}</b>
-        ${civicLabel ? `<b class="notes-context-badge">${escapeHtml(civicLabel)}</b>` : ""}
-        ${isUncertain ? `<b>名前未確定</b>` : `<b>名前あり</b>`}
-        ${obs.identificationCount > 0 ? `<b>${escapeHtml(formatIdentificationCount(obs.identificationCount, lang))}</b>` : ""}
+  const ownerMenu = canOwnerHide
+    ? `<details class="notes-library-card-menu">
+        <summary aria-label="観察メニュー"><span aria-hidden="true"></span></summary>
+        <div class="notes-library-card-menu-panel">
+          <a href="${escapeHtml(href)}">詳しく見る</a>
+          <button type="button" data-owner-hide-observation data-hide-endpoint="${escapeHtml(hideEndpoint)}">削除する</button>
+        </div>
+      </details>`
+    : "";
+  return `<article class="notes-library-card is-source-${escapeHtml(sourceKind)}${photoCount > 0 ? "" : " is-photo-missing"}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+    <a class="notes-library-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(displayName)}">
+      <span class="notes-library-photo">${photo}</span>
+      <span class="notes-library-overlay">
+        <span class="notes-library-badges">
+          <b class="notes-source-badge is-source-${escapeHtml(sourceKind)}">${escapeHtml(sourceLabel)}</b>
+          ${civicLabel ? `<b class="notes-context-badge">${escapeHtml(civicLabel)}</b>` : ""}
+          ${isUncertain ? `<b>名前未確定</b>` : `<b>名前あり</b>`}
+          ${obs.identificationCount > 0 ? `<b>${escapeHtml(formatIdentificationCount(obs.identificationCount, lang))}</b>` : ""}
+        </span>
+        <strong>${escapeHtml(displayName)}</strong>
+        <em>${escapeHtml(`${observerLine}${placeLine || "場所未設定"} · ${dateLabel}`)}</em>
       </span>
-      <strong>${escapeHtml(displayName)}</strong>
-      <em>${escapeHtml(`${observerLine}${placeLine || "場所未設定"} · ${dateLabel}`)}</em>
-    </span>
-  </a>`;
+    </a>
+    ${ownerMenu}
+  </article>`;
 }
 
 function renderNotesLibraryMonths(
@@ -3327,7 +3407,7 @@ function renderNotesLibraryScript(): string {
       const haystack = String(card.getAttribute('data-search') || '');
       const okFilter = activeFilter === 'all' || filters.split(/\\s+/).indexOf(activeFilter) >= 0;
       const okSearch = !query || haystack.indexOf(query) >= 0;
-      const show = okFilter && okSearch;
+      const show = okFilter && okSearch && card.getAttribute('data-owner-hidden') !== 'true';
       card.hidden = !show;
       if (show) visible += 1;
     });
@@ -3352,6 +3432,50 @@ function renderNotesLibraryScript(): string {
       filterButtons.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-library-filter') === 'all'); });
       root.scrollIntoView({ behavior: 'smooth', block: 'start' });
       apply();
+    });
+  });
+  root.addEventListener('toggle', function (event) {
+    var target = event.target;
+    if (!(target instanceof HTMLDetailsElement) || !target.classList.contains('notes-library-card-menu') || !target.open) return;
+    root.querySelectorAll('.notes-library-card-menu[open]').forEach(function (details) {
+      if (details !== target) details.removeAttribute('open');
+    });
+  }, true);
+  document.addEventListener('click', function (event) {
+    var target = event.target instanceof Element ? event.target : null;
+    if (!target || target.closest('.notes-library-card-menu')) return;
+    root.querySelectorAll('.notes-library-card-menu[open]').forEach(function (details) {
+      details.removeAttribute('open');
+    });
+  });
+  root.addEventListener('click', function (event) {
+    var button = event.target instanceof Element ? event.target.closest('[data-owner-hide-observation]') : null;
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    var endpoint = button.getAttribute('data-hide-endpoint') || '';
+    var card = button.closest('[data-library-card]');
+    if (!endpoint || !card) return;
+    if (!window.confirm('この観察を一覧と公開ページから削除します。よろしいですか？')) return;
+    button.disabled = true;
+    button.textContent = '削除中...';
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { accept: 'application/json' },
+      credentials: 'same-origin'
+    }).then(function (response) {
+      return response.json().catch(function(){ return {}; }).then(function (json) {
+        if (!response.ok || !json || json.ok === false) {
+          throw new Error(String((json && json.error) || response.status || 'delete_failed'));
+        }
+        card.hidden = true;
+        card.setAttribute('data-owner-hidden', 'true');
+        apply();
+      });
+    }).catch(function (error) {
+      button.disabled = false;
+      button.textContent = '削除する';
+      window.alert('削除できませんでした: ' + String(error && error.message || 'network'));
     });
   });
   apply();
@@ -3835,6 +3959,7 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-month-head span { color: #64748b; font-size: 12px; font-weight: 900; }
   .notes-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); grid-auto-flow: dense; gap: 10px; }
   .notes-library-card { position: relative; min-height: 184px; aspect-ratio: 1 / 1.12; overflow: hidden; border-radius: 8px; background: #ecfdf5; color: #fff; text-decoration: none; border: 1px solid rgba(16,185,129,.14); box-shadow: 0 12px 28px rgba(15,23,42,.06); }
+  .notes-library-card-link { position: absolute; inset: 0; display: block; color: inherit; text-decoration: none; }
   .notes-library-card:nth-child(7n + 1) { grid-row: span 2; aspect-ratio: 1 / 1.35; }
   .notes-library-card:hover { transform: translateY(-2px); box-shadow: 0 18px 36px rgba(16,185,129,.12); }
   .notes-library-photo { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(219,234,254,.9)); color: #047857; font-size: 34px; font-weight: 950; }
@@ -3849,6 +3974,22 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-overlay em { color: rgba(255,255,255,.86); font-size: 11px; line-height: 1.35; font-style: normal; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .notes-library-card.is-photo-missing .notes-library-overlay strong { color: #10251a; text-shadow: none; }
   .notes-library-card.is-photo-missing .notes-library-overlay em { color: #475569; }
+  .notes-library-card-menu { position: absolute; top: 8px; right: 8px; z-index: 3; }
+  .notes-library-card-menu summary { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.12); box-shadow: 0 8px 20px rgba(15,23,42,.18); cursor: pointer; list-style: none; }
+  .notes-library-card-menu summary::-webkit-details-marker { display: none; }
+  .notes-library-card-menu summary span,
+  .notes-library-card-menu summary span::before,
+  .notes-library-card-menu summary span::after { width: 4px; height: 4px; border-radius: 999px; background: #10251a; display: block; content: ""; }
+  .notes-library-card-menu summary span { position: relative; }
+  .notes-library-card-menu summary span::before { position: absolute; left: -7px; top: 0; }
+  .notes-library-card-menu summary span::after { position: absolute; right: -7px; top: 0; }
+  .notes-library-card-menu-panel { position: absolute; top: 40px; right: 0; min-width: 132px; display: grid; gap: 4px; padding: 7px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.1); box-shadow: 0 18px 38px rgba(15,23,42,.18); }
+  .notes-library-card-menu-panel a,
+  .notes-library-card-menu-panel button { min-height: 38px; display: flex; align-items: center; justify-content: flex-start; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: #10251a; font: inherit; font-size: 12px; font-weight: 900; text-align: left; text-decoration: none; cursor: pointer; white-space: nowrap; }
+  .notes-library-card-menu-panel a:hover,
+  .notes-library-card-menu-panel button:hover { background: #f1f5f9; }
+  .notes-library-card-menu-panel button { color: #b91c1c; }
+  .notes-library-card-menu-panel button[disabled] { opacity: .65; cursor: progress; }
   .notes-library-badges { display: flex; flex-wrap: wrap; gap: 5px; }
   .notes-library-badges b { width: fit-content; padding: 4px 7px; border-radius: 999px; background: rgba(255,255,255,.86); color: #065f46; font-size: 10px; line-height: 1; font-weight: 950; }
   .notes-library-badges .notes-context-badge { background: rgba(236,253,245,.94); color: #047857; }
@@ -7131,6 +7272,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       isOwner,
       existingPhotoCount: snapshot.photoAssets.length,
     });
+    const ownerDeleteBlock = renderObservationOwnerDeletePanel({
+      basePath,
+      visitId: bundle.visitId,
+      isOwner,
+      lang,
+    });
 
     const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets)}</div>`;
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
@@ -7579,8 +7726,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
+    const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
     const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer2}${layer1}${hintBlock}${identifyBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
-    const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
