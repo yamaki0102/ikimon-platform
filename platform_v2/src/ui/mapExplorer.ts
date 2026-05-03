@@ -2259,6 +2259,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ['observation-cell-fill', 'observation-cell-outline', 'obs-cell-heat'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
+        // 公園ポリゴンが下に重なっているなら、そちらを優先 (西伊場第1公園のような
+        // 小さな OSM polygon を heatmap セル経由でも開けるようにする)。
+        if (state.map && state.map.getLayer('area-polygon-fill')) {
+          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
+          if (areaHits && areaHits.length > 0) {
+            var pick = areaHits[0];
+            var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
+            for (var i = 1; i < areaHits.length; i += 1) {
+              var f = areaHits[i];
+              var area = (f.properties && Number(f.properties.area_ha));
+              if (Number.isFinite(area) && area < pickArea) {
+                pick = f;
+                pickArea = area;
+              }
+            }
+            var fid = pick.properties && pick.properties.field_id;
+            if (fid) {
+              openAreaSheet(fid, e.lngLat.lat, e.lngLat.lng);
+              return;
+            }
+          }
+        }
         if (!e.features || !e.features[0]) return;
         selectCell(e.features[0], { focusMap: false, openSheet: true });
       });
