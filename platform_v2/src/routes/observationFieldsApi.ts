@@ -14,6 +14,9 @@ import {
   type FieldSource,
 } from "../services/observationFieldRegistry.js";
 import { getPlaceSnapshot } from "../services/placeSnapshot.js";
+import { getAreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
+import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
+import { getFieldManagerRole } from "../services/fieldManagers.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -24,8 +27,11 @@ function asNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 function asFieldSource(v: unknown): FieldSource | null {
+  if (typeof v !== "string") return null;
   return v === "user_defined" || v === "nature_symbiosis_site" || v === "tsunag" ||
-    v === "protected_area" || v === "oecm" ? v : null;
+    v === "protected_area" || v === "oecm" || v === "osm_park" ||
+    v === "admin_municipality" || v === "admin_prefecture" || v === "admin_country"
+    ? (v as FieldSource) : null;
 }
 
 export async function registerObservationFieldsApiRoutes(app: FastifyInstance): Promise<void> {
@@ -91,6 +97,23 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
   app.get<{ Params: { fieldId: string } }>("/api/v1/fields/:fieldId/place-snapshot", async (request, reply) => {
     const snapshot = await getPlaceSnapshot(request.params.fieldId);
     if (!snapshot) return reply.status(404).send({ error: "field not found" });
+    return reply.send({ snapshot });
+  });
+
+  // GET /api/v1/fields/:fieldId/area-snapshot  — エリア(公園/保護区/OECM/...)集約
+  //   ベースの place-snapshot に年別タイムライン・努力量5指標・希少種マスキング情報を追加
+  app.get<{ Params: { fieldId: string } }>("/api/v1/fields/:fieldId/area-snapshot", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const isAdminOrAnalyst = session
+      ? isAdminOrAnalystRole(session.roleName, session.rankLabel)
+      : false;
+    const fieldRole = session
+      ? await getFieldManagerRole(session.userId, request.params.fieldId).catch(() => null)
+      : null;
+    const viewer = { isAdminOrAnalyst, fieldRole } as const;
+    const snapshot = await getAreaPlaceSnapshot(request.params.fieldId, { viewer });
+    if (!snapshot) return reply.status(404).send({ error: "field not found" });
+    reply.header("Cache-Control", "no-store");
     return reply.send({ snapshot });
   });
 

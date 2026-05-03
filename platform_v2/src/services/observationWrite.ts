@@ -12,6 +12,7 @@ import {
 } from "./writeSupport.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
 import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
+import { resolveFieldsForPoint } from "./resolveFieldsForPoint.js";
 import { normalizeMediaRole, type MediaRole } from "./mediaRole.js";
 import { upsertEvidenceAssetMediaRole } from "./evidenceAssetMediaRole.js";
 import {
@@ -686,6 +687,21 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         observedAt,
       ],
     );
+
+    // Resolve which observation_fields (parks/admin/OECM/symbiosis/...) contain
+    // this point so area-snapshot aggregations can use a fast UUID[] join later.
+    // Failure here is non-fatal — the bbox+JSONB fallback in placeSnapshot still works.
+    if (Number.isFinite(input.latitude) && Number.isFinite(input.longitude)) {
+      try {
+        const resolvedFieldIds = await resolveFieldsForPoint(input.latitude, input.longitude);
+        await client.query(
+          `update visits set resolved_field_ids = $2::uuid[] where visit_id = $1`,
+          [visitId, resolvedFieldIds],
+        );
+      } catch (err) {
+        console.warn("[observationWrite] resolveFieldsForPoint failed", err);
+      }
+    }
 
     // ADR-0004: subjects[] を subject_index 0..N で並列に INSERT。primary=0、背景生物は 1,2,...。
     // manual Field Note と /map の整合のため、subject_index=0 の primary occurrence は常に必要。

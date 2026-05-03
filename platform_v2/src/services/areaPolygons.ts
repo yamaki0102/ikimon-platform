@@ -122,11 +122,13 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     lat: string;
     lng: string;
     polygon: Record<string, unknown> | null;
+    polygon_simplified: Record<string, unknown> | null;
   }>(
     `SELECT field_id, name, source, admin_level, prefecture, city,
             area_ha::text AS area_ha, official_url,
             lat::text AS lat, lng::text AS lng,
-            polygon
+            polygon,
+            geom_simplified AS polygon_simplified
        FROM observation_fields
       WHERE polygon IS NOT NULL
         AND bbox_min_lat IS NOT NULL
@@ -135,6 +137,9 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         AND bbox_max_lng >= $3
         AND bbox_min_lng <= $4
         AND source = ANY($5)
+        -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
+        -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
+        AND valid_to IS NULL
       ORDER BY area_ha NULLS LAST
       LIMIT $6`,
     [minLat, maxLat, minLng, maxLng, sources, limit + 1],
@@ -143,6 +148,9 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   const rows = result.rows.slice(0, limit);
   const features: AreaPolygonFeature[] = rows.map((row) => {
     const source = (row.source as AreaPolygonSource) ?? "user_defined";
+    const areaHa = row.area_ha == null ? null : Number(row.area_ha);
+    // 行政界 (面積 1000 ha 超) は GeoJSON が重いので、間引いた版があれば優先。
+    const useSimplified = areaHa != null && areaHa > 1000 && row.polygon_simplified;
     return {
       type: "Feature",
       properties: {
@@ -153,11 +161,11 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         admin_level: row.admin_level,
         prefecture: row.prefecture,
         city: row.city,
-        area_ha: row.area_ha == null ? null : Number(row.area_ha),
+        area_ha: areaHa,
         official_url: row.official_url,
         center: [Number(row.lng), Number(row.lat)],
       },
-      geometry: row.polygon,
+      geometry: useSimplified ? row.polygon_simplified : row.polygon,
     };
   });
 

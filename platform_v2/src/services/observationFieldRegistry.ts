@@ -6,7 +6,23 @@ export type FieldSource =
   | "nature_symbiosis_site"
   | "tsunag"
   | "protected_area"
-  | "oecm";
+  | "oecm"
+  | "osm_park"
+  | "admin_municipality"
+  | "admin_prefecture"
+  | "admin_country";
+
+const ALL_FIELD_SOURCES = [
+  "user_defined",
+  "nature_symbiosis_site",
+  "tsunag",
+  "protected_area",
+  "oecm",
+  "osm_park",
+  "admin_municipality",
+  "admin_prefecture",
+  "admin_country",
+] as const;
 
 function bboxColumnsFromPolygon(polygon: Record<string, unknown> | null | undefined): {
   minLat: number | null;
@@ -26,6 +42,10 @@ const SOURCE_TO_ADMIN_LEVEL: Record<FieldSource, string | null> = {
   tsunag: "tsunag",
   protected_area: "protected",
   oecm: "oecm",
+  osm_park: "osm_park",
+  admin_municipality: "admin_municipality",
+  admin_prefecture: "admin_prefecture",
+  admin_country: "admin_country",
 };
 
 export interface ObservationField {
@@ -83,7 +103,7 @@ const SELECT = `
 
 function isFieldSource(value: unknown): value is FieldSource {
   return typeof value === "string" &&
-    ["user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm"].includes(value);
+    (ALL_FIELD_SOURCES as readonly string[]).includes(value);
 }
 
 function mapRow(row: RawFieldRow): ObservationField {
