@@ -40,6 +40,12 @@ import { getObserverStats } from "../services/observerStats.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
+import {
+  civicContextLabel,
+  getCivicObservationContext,
+  listCivicObservationContexts,
+  type CivicObservationContext,
+} from "../services/civicNatureContext.js";
 import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
 import {
   confidenceLabel,
@@ -95,6 +101,8 @@ import {
 } from "../ui/observationMedia.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
+import { getFixedPointStation } from "../services/fixedPointStation.js";
+import { FIXED_POINT_STATION_STYLES, renderFixedPointStationBody } from "../ui/fixedPointStation.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -1539,6 +1547,43 @@ function renderSubjectHint(
     ${similar}
     ${runMeta}
   </section>`;
+}
+
+function renderCivicContextBlock(
+  context: CivicObservationContext | null,
+  snapshot: ObservationDetailSnapshot,
+  basePath: string,
+  lang: SiteLang,
+): string {
+  if (!context) return "";
+  const evidenceItems = [
+    snapshot.photoAssets.length > 0 ? `写真 ${snapshot.photoAssets.length}件` : "",
+    snapshot.videoAssets.length > 0 ? `動画 ${snapshot.videoAssets.length}件` : "",
+    snapshot.note ? "メモあり" : "",
+    context.revisitOfVisitId ? "再記録" : "",
+    context.fieldId ? "区画あり" : "",
+    context.routeId ? "ルートあり" : "",
+    context.plotId ? "プロットあり" : "",
+  ].filter(Boolean);
+  const precisionLabel: Record<CivicObservationContext["publicPrecision"], string> = {
+    exact_private: "正確な位置は非公開",
+    site: "場所単位で公開",
+    mesh: "メッシュ単位で公開",
+    municipality: "市区町村単位で公開",
+    hidden: "位置は公開しない",
+  };
+  const riskLabel = context.riskLane === "normal" ? "通常記録" : "確認対象";
+  const revisitHref = appendLangToHref(
+    withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(snapshot.visitId)}`),
+    lang,
+  );
+  return `<div class="obs-story-block obs-story-civic">
+    <div class="obs-story-eyebrow">地域自然ノート</div>
+    <p><strong>${escapeHtml(civicContextLabel(context))}</strong></p>
+    <p>${escapeHtml([riskLabel, precisionLabel[context.publicPrecision], context.activityIntent ? `目的: ${context.activityIntent}` : ""].filter(Boolean).join(" · "))}</p>
+    ${evidenceItems.length > 0 ? `<p>${escapeHtml(`証拠: ${evidenceItems.join("・")}`)}</p>` : ""}
+    <p><a href="${escapeHtml(revisitHref)}">この場所で再記録</a></p>
+  </div>`;
 }
 
 function isMeaningfulRegionalSource(card: RegionalKnowledgeCard): boolean {
@@ -3129,7 +3174,12 @@ function notesLibrarySourceLabel(kind: NonNullable<LandingObservation["librarySo
   }
 }
 
-function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingObservation, options: { locationMode: "owner" | "public" }): string {
+function renderNotesLibraryCard(
+  basePath: string,
+  lang: SiteLang,
+  obs: LandingObservation,
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+): string {
   const href = notesDetailHref(basePath, lang, obs);
   const displayName = formatTaxonDisplayName({
     vernacularName: obs.vernacularName,
@@ -3146,6 +3196,8 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
   const isUncertain = notesLibraryIsUncertain(obs);
   const sourceKind = notesLibrarySourceKind(obs);
   const sourceLabel = notesLibrarySourceLabel(sourceKind);
+  const civicContext = options.civicContexts?.get(obs.visitId);
+  const civicLabel = civicContext ? civicContextLabel(civicContext) : "";
   const filters = [
     "all",
     sourceKind,
@@ -3153,7 +3205,7 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
     isUncertain ? "uncertain" : "named",
     obs.identificationCount > 0 || obs.entryType === "identification" ? "identified" : "needs-id",
   ].join(" ");
-  const searchable = `${displayName} ${placeLine} ${obs.observerName} ${dateLabel} ${sourceLabel}`.toLowerCase();
+  const searchable = `${displayName} ${placeLine} ${obs.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const visiblePhotos = photoUrls.slice(0, 4);
   const photo = visiblePhotos.length > 1
     ? `<span class="notes-library-photo-stack">${visiblePhotos.map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(`${displayName} 写真${index + 1}`)}" loading="lazy" decoding="async" onerror="this.remove()" />`).join("")}</span><b class="notes-library-photo-count">${escapeHtml(String(photoCount))}枚</b>`
@@ -3165,6 +3217,7 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
     <span class="notes-library-overlay">
       <span class="notes-library-badges">
         <b class="notes-source-badge is-source-${escapeHtml(sourceKind)}">${escapeHtml(sourceLabel)}</b>
+        ${civicLabel ? `<b class="notes-context-badge">${escapeHtml(civicLabel)}</b>` : ""}
         ${isUncertain ? `<b>名前未確定</b>` : `<b>名前あり</b>`}
         ${obs.identificationCount > 0 ? `<b>${escapeHtml(formatIdentificationCount(obs.identificationCount, lang))}</b>` : ""}
       </span>
@@ -3174,7 +3227,12 @@ function renderNotesLibraryCard(basePath: string, lang: SiteLang, obs: LandingOb
   </a>`;
 }
 
-function renderNotesLibraryMonths(basePath: string, lang: SiteLang, entries: LandingObservation[], options: { locationMode: "owner" | "public" }): string {
+function renderNotesLibraryMonths(
+  basePath: string,
+  lang: SiteLang,
+  entries: LandingObservation[],
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+): string {
   if (entries.length === 0) {
     return `<div class="notes-library-empty">まだ観察ライブラリに並べる記録がありません。</div>`;
   }
@@ -3793,6 +3851,7 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-card.is-photo-missing .notes-library-overlay em { color: #475569; }
   .notes-library-badges { display: flex; flex-wrap: wrap; gap: 5px; }
   .notes-library-badges b { width: fit-content; padding: 4px 7px; border-radius: 999px; background: rgba(255,255,255,.86); color: #065f46; font-size: 10px; line-height: 1; font-weight: 950; }
+  .notes-library-badges .notes-context-badge { background: rgba(236,253,245,.94); color: #047857; }
   .notes-source-badge.is-source-video { color: #0369a1; }
   .notes-source-badge.is-source-guide { color: #92400e; }
   .notes-source-badge.is-source-scan { color: #0f766e; }
@@ -3929,6 +3988,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input id="record-video-primary-photo-input" type="file" accept="image/*" capture="environment" hidden />
               <input type="hidden" name="recordMode" value="quick" />
               <input type="hidden" name="prefecture" value="" />
+              <input type="hidden" name="revisitOfVisitId" value="" />
               <div id="record-submit-panel" class="record-submit-panel" hidden>
                 <div>
                   <span class="record-label">送信前チェック</span>
@@ -4047,6 +4107,44 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                         <strong>しっかり記録</strong>
                         <span>比べたい観察の条件も一緒に残す</span>
                       </button>
+                    </div>
+                  </div>
+                  <div class="record-field record-field-wide">
+                    <div class="record-survey-box record-quick-box">
+                      <div class="record-survey-head">
+                        <div>
+                          <span class="record-label">この記録の役割</span>
+                          <p class="record-help">目的と役割を軽く残すと、あとで定点比較・授業・管理記録に束ねやすくなります。</p>
+                        </div>
+                        <span class="record-survey-pill">文脈</span>
+                      </div>
+                      <div class="record-survey-grid">
+                        <label class="record-field">
+                          <span class="record-label">今日の目的</span>
+                          <select name="activityIntent">
+                            <option value="discover">見つける</option>
+                            <option value="revisit">同じ場所をもう一度見る</option>
+                            <option value="compare">前と比べる</option>
+                            <option value="learn">授業・学びに使う</option>
+                            <option value="manage">手入れや管理と結びつける</option>
+                            <option value="confirm">気になる対象を確認する</option>
+                            <option value="share">観察会・共有用に残す</option>
+                          </select>
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">自分の役割</span>
+                          <select name="participantRole">
+                            <option value="finder">見つけた人</option>
+                            <option value="photographer">撮影した人</option>
+                            <option value="context_recorder">周囲を記録する人</option>
+                            <option value="note_taker">メモ係</option>
+                            <option value="student">児童・生徒</option>
+                            <option value="teacher">先生・引率</option>
+                            <option value="manager">管理者</option>
+                            <option value="participant">参加者</option>
+                          </select>
+                        </label>
+                      </div>
                     </div>
                   </div>
                   <div class="record-field record-field-wide record-quick-fields" data-quick-only>
@@ -4869,7 +4967,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const applyPrefillFromQuery = () => {
           if (!form) return;
           const params = new URLSearchParams(window.location.search);
-          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason'];
+          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId'];
           names.forEach((name) => {
             if (!params.has(name)) return;
             const field = form.elements.namedItem(name);
@@ -4891,6 +4989,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           }
           if (params.has('recordMode') && modeInput) {
             modeInput.value = params.get('recordMode') === 'survey' ? 'survey' : 'quick';
+          }
+          if (params.has('revisitObservationId')) {
+            const revisitField = form.elements.namedItem('revisitOfVisitId');
+            if (revisitField && 'value' in revisitField) revisitField.value = params.get('revisitObservationId') || '';
+            const intentField = form.elements.namedItem('activityIntent');
+            if (intentField && 'value' in intentField) intentField.value = 'revisit';
           }
         };
 
@@ -6001,6 +6105,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const revisitReason = String(data.get('revisitReason') || '').trim();
               const nextLookFor = String(data.get('nextLookFor') || '').trim();
               const quickCaptureState = String(data.get('quickCaptureState') || 'present');
+              const activityIntent = String(data.get('activityIntent') || 'discover').trim();
+              const participantRole = String(data.get('participantRole') || 'finder').trim();
+              const revisitOfVisitId = String(data.get('revisitOfVisitId') || '').trim();
               const surveyResult = String(data.get('surveyResult') || 'detected');
               if (recordMode === 'survey') {
                 if (!targetTaxaScope) {
@@ -6056,6 +6163,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 videoFingerprint,
               ].join('|');
               const clientSubmissionId = 'record-form:' + ((await sha256Hex(clientSubmissionSeed)) || observationId);
+              const civicContextKind = activityIntent === 'manage'
+                ? 'satoyama'
+                : activityIntent === 'confirm'
+                  ? 'risk'
+                  : activityIntent === 'learn'
+                    ? 'school'
+                    : activityIntent === 'share'
+                      ? 'event'
+                      : 'ordinary';
               const payload = {
                 observationId,
                 legacyObservationId: observationId,
@@ -6090,6 +6206,20 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                         : quickCaptureState === 'unknown'
                           ? 'needs_followup'
                           : null),
+                },
+                civicContext: {
+                  contextKind: civicContextKind,
+                  activityIntent,
+                  participantRole,
+                  audienceScope: activityIntent === 'learn' ? 'class_group' : activityIntent === 'share' ? 'event_participants' : 'private',
+                  publicPrecision: 'municipality',
+                  riskLane: activityIntent === 'confirm' ? 'danger_candidate' : 'normal',
+                  reportConsent: 'none',
+                  revisitOfVisitId: revisitOfVisitId || null,
+                  sourcePayload: {
+                    source: 'record_form_context',
+                    record_mode: recordMode,
+                  },
                 },
                 taxon: scientificName || vernacularName
                   ? {
@@ -6642,7 +6772,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       return layout(basePath, "Observation not found", stateCard("対象が見つかりません", "この観察の subject を表示できません", "subject 情報がまだ同期中の可能性があります。"), "みつける");
     }
 
-    const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult, consensus] = await Promise.all([
+    const [obsContext, heavy, reactions, observerStats, insight, siteBriefResult, consensus, civicContext] = await Promise.all([
       getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
       subjectCount >= 2 ? Promise.resolve(null) : getReactionSummary(bundle.canonicalSubjectId, viewerUserId).catch(() => null),
@@ -6664,6 +6794,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         ? getSiteBrief(snapshot.latitude, snapshot.longitude, "ja").catch(() => null)
         : Promise.resolve(null),
       getIdentificationConsensus(bundle.canonicalSubjectId).catch(() => null),
+      getCivicObservationContext(bundle.visitId).catch(() => null),
     ]);
     const subjectIdentifyEntries = await Promise.all(
       bundle.subjects.map(async (subject) => {
@@ -7039,10 +7170,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
            </div>` : ""}
          </div>`
       : "";
-    const layer1 = (surveySummary || ownerNote || aiFirst || footprintCard)
+    const civicContextBlock = renderCivicContextBlock(civicContext, snapshot, basePath, lang);
+    const layer1 = (surveySummary || ownerNote || aiFirst || footprintCard || civicContextBlock)
       ? `<section id="story" class="section obs-layer obs-layer-1" data-obs-section="story">
            <h2 class="obs-layer-title">この記録について</h2>
-           <div class="obs-layer-body">${surveySummary}${ownerNote}${aiFirst}${footprintCard}</div>
+           <div class="obs-layer-body">${surveySummary}${ownerNote}${civicContextBlock}${aiFirst}${footprintCard}</div>
          </section>`
       : "";
 
@@ -7103,6 +7235,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           ${(snapshot.placeId || snapshot.publicLocation?.cellId) ? `<a class="obs-cta-item" href="${escapeHtml(detailMapHref)}" data-observation-primary-cta="open_map" data-kpi-action="observation:primary:open_map">
             <span class="obs-cta-icon">🗺️</span>
             <span class="obs-cta-label">同じ場所を地図で見る</span>
+          </a>` : ""}
+          ${snapshot.placeId ? `<a class="obs-cta-item" href="${escapeHtml(appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(snapshot.placeId)}/station`), lang))}" data-observation-primary-cta="fixed_point_station" data-kpi-action="observation:primary:fixed_point_station">
+            <span class="obs-cta-icon">📍</span>
+            <span class="obs-cta-label">定点ページを見る</span>
           </a>` : ""}
           <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/explore"))}" data-observation-primary-cta="explore_related_footer" data-kpi-action="observation:primary:explore_related_footer">
             <span class="obs-cta-icon">🔍</span>
@@ -7521,6 +7657,34 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       },
       PLACE_REVISIT_ROW_STYLES,
       appendLangToHref(withBasePath(basePath, `/profile/${encodeURIComponent(request.params.userId)}`), lang),
+    );
+  });
+
+  app.get<{ Params: { placeId: string } }>("/places/:placeId/station", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const station = await getFixedPointStation(decodeURIComponent(request.params.placeId)).catch(() => null);
+    if (!station) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "定点ページ | ikimon",
+        stateCard("定点ページが見つかりません", "この場所の記録をまだ束ねられません", "観察詳細やマップから、同じ場所の再記録を作ると定点ページが育ちます。"),
+        "ノート",
+        undefined,
+        undefined,
+        appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(request.params.placeId)}/station`), lang),
+      );
+    }
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      `定点ページ | ${station.place.name} | ikimon`,
+      renderFixedPointStationBody(station, basePath),
+      "ノート",
+      undefined,
+      FIXED_POINT_STATION_STYLES,
+      appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(station.place.placeId)}/station`), lang),
     );
   });
 
@@ -8689,6 +8853,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const isLoggedIn = Boolean(viewerUserId);
     const libraryEntries = isLoggedIn ? snapshot.myFeed : snapshot.feed;
     const nearbyEntries = isLoggedIn ? snapshot.feed.slice(0, 12) : [];
+    const civicContexts = await listCivicObservationContexts([
+      ...libraryEntries.map((obs) => obs.visitId),
+      ...nearbyEntries.map((obs) => obs.visitId),
+    ]);
     const uniquePlaces = new Set(libraryEntries.map((obs) => notesPlaceLine(obs, lang, isLoggedIn ? "owner" : "public")).filter(Boolean));
     const placeCount = isLoggedIn ? snapshot.myPlaces.length : uniquePlaces.size;
     const photoCount = libraryEntries.reduce((sum, obs) => sum + notesPhotoCount(obs), 0);
@@ -8712,7 +8880,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           <div>
             <span>Observation Library</span>
             <h1>観察ライブラリ</h1>
-            <p>写真、動画、ガイド、フィールドスキャンを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。</p>
+            <p>写真、動画、ガイド、探索マップを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。</p>
             <div class="notes-library-actions">
               <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">写真・動画を記録</a>
               <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide"), lang))}">ライブガイドを使う</a>
@@ -8733,13 +8901,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           </div>
           ${renderNotesLibraryControls(libraryEntries.length, placeCount)}
           ${renderNotesLibrarySourceLanes(libraryEntries)}
-          ${renderNotesLibraryMonths(basePath, lang, libraryEntries, { locationMode: isLoggedIn ? "owner" : "public" })}
+          ${renderNotesLibraryMonths(basePath, lang, libraryEntries, { locationMode: isLoggedIn ? "owner" : "public", civicContexts })}
         </section>
         ${renderNotesLibraryPlaceAlbums(snapshot)}
         <section id="notes-nearby" class="section notes-nearby-library" data-testid="notes-nearby">
           <div class="notes-library-section-head"><div><span>Nearby traces</span><h2>近くの公開記録</h2></div><p>自分の棚とは分けて、地域の背景として薄く見る。</p></div>
           ${nearbyEntries.length > 0
-            ? renderNotesLibraryMonths(basePath, lang, nearbyEntries, { locationMode: "public" })
+            ? renderNotesLibraryMonths(basePath, lang, nearbyEntries, { locationMode: "public", civicContexts })
             : `<div class="notes-library-empty">${escapeHtml(emptyCopy)}</div>`}
         </section>
         ${renderNotesLibraryScript()}

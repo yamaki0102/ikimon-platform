@@ -11,6 +11,20 @@ import {
   type TaxonGroup,
 } from "../services/mapSnapshot.js";
 import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
+import { listAreaPolygonsForBbox, type AreaPolygonSource } from "../services/areaPolygons.js";
+
+const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
+  "user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm",
+  "osm_park", "admin_municipality", "admin_prefecture", "admin_country",
+];
+
+function parseAreaSources(raw: unknown): AreaPolygonSource[] | undefined {
+  if (typeof raw !== "string") return undefined;
+  const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const allowed = items.filter((v): v is AreaPolygonSource =>
+    (ALLOWED_AREA_SOURCES as readonly string[]).includes(v));
+  return allowed.length > 0 ? allowed : undefined;
+}
 
 const ALLOWED_GROUPS: readonly TaxonGroup[] = [
   "insect",
@@ -197,6 +211,28 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     reply
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "no-store");
+    return collection;
+  });
+
+  app.get("/api/v1/map/area-polygons", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const bbox = parseBbox(q.bbox);
+    if (!bbox) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "missing_or_invalid_bbox" };
+    }
+    const zoom = parseFloat64(q.zoom);
+    const sources = parseAreaSources(q.sources);
+    const limit = parseInt32(q.limit);
+    const collection = await listAreaPolygonsForBbox({
+      bbox,
+      zoom,
+      sources,
+      limit: limit ?? undefined,
+    });
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "public, max-age=60");
     return collection;
   });
 

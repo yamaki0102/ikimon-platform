@@ -69,6 +69,7 @@ export type MapExplorerCopy = {
   siteBriefReasonsLabel: string;
   siteBriefChecksLabel: string;
   siteBriefCapturesLabel: string;
+  siteBriefEnvironmentLabel: string;
   siteBriefWhyHereLabel: string;
   siteBriefWhyNowLabel: string;
   siteBriefOneVisitLabel: string;
@@ -184,6 +185,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "根拠",
     siteBriefChecksLabel: "現地で確かめる",
     siteBriefCapturesLabel: "撮るなら",
+    siteBriefEnvironmentLabel: "衛星・地図の手がかり",
     siteBriefWhyHereLabel: "ここが気になる理由",
     siteBriefWhyNowLabel: "今行く理由",
     siteBriefOneVisitLabel: "1 回の訪問で残せること",
@@ -279,6 +281,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Why",
     siteBriefChecksLabel: "Check on the ground",
     siteBriefCapturesLabel: "If you shoot",
+    siteBriefEnvironmentLabel: "Satellite/map clues",
     siteBriefWhyHereLabel: "why here",
     siteBriefWhyNowLabel: "why now",
     siteBriefOneVisitLabel: "one-visit contribution",
@@ -374,6 +377,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Por qué",
     siteBriefChecksLabel: "Verifica en el sitio",
     siteBriefCapturesLabel: "Si disparas",
+    siteBriefEnvironmentLabel: "Pistas de satélite/mapa",
     siteBriefWhyHereLabel: "por qué aquí",
     siteBriefWhyNowLabel: "por qué ahora",
     siteBriefOneVisitLabel: "aporte de una visita",
@@ -469,6 +473,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Porquê",
     siteBriefChecksLabel: "Verifique no campo",
     siteBriefCapturesLabel: "Se for fotografar",
+    siteBriefEnvironmentLabel: "Pistas de satélite/mapa",
     siteBriefWhyHereLabel: "por que aqui",
     siteBriefWhyNowLabel: "por que agora",
     siteBriefOneVisitLabel: "contribuição de uma visita",
@@ -536,10 +541,10 @@ function ambientPanelLabels(lang: SiteLang): {
     return {
       roleLabel: "Role",
       roles: [
-        { value: "note", label: "Note", icon: "📖" },
-        { value: "guide", label: "Guide", icon: "🔍" },
-        { value: "scan", label: "Scan", icon: "📡" },
-        { value: "mixed", label: "Mixed", icon: "🧭" },
+        { value: "note", label: "Notebook", icon: "📖" },
+        { value: "guide", label: "Check here", icon: "🔍" },
+        { value: "scan", label: "Explore", icon: "📡" },
+        { value: "mixed", label: "All-round", icon: "🧭" },
       ],
       selfLabel: "My progress",
       communityLabel: "Area progress",
@@ -580,14 +585,14 @@ function ambientPanelLabels(lang: SiteLang): {
   return {
     roleLabel: "役割",
     roles: [
-      { value: "note", label: "Note", icon: "📖" },
-      { value: "guide", label: "Guide", icon: "🔍" },
-      { value: "scan", label: "Scan", icon: "📡" },
-      { value: "mixed", label: "Mixed", icon: "🧭" },
+      { value: "note", label: "ノート", icon: "📖" },
+      { value: "guide", label: "その場で調べる", icon: "🔍" },
+      { value: "scan", label: "探索", icon: "📡" },
+      { value: "mixed", label: "ひと通り見る", icon: "🧭" },
     ],
     selfLabel: "自分の前進",
     communityLabel: "地域の前進",
-    frontierLabel: "次の frontier",
+    frontierLabel: "次に見たい薄い場所",
     roleCardLabel: "この場所で最適な役割",
   };
 }
@@ -658,6 +663,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
   const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
+  const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
+  const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
+  const eventsNewHrefTemplate = appendLangToHref(
+    withBasePath(props.basePath, "/community/events/new?field_id=__FIELD_ID__"),
+    props.lang,
+  );
 
   const taxonChipsHtml = copy.taxonChips
     .map(
@@ -956,7 +967,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
         <div class="me-map-command-deck" role="toolbar" aria-label="${escapeHtml(copy.mapQuickLabel)}">
           <button type="button" class="me-map-quick" data-map-action="locate"><span aria-hidden="true">⌖</span>${escapeHtml(copy.mapQuickNearby)}</button>
           <button type="button" class="me-map-quick" data-map-tab="frontier"><span aria-hidden="true">◇</span>${escapeHtml(copy.mapQuickFrontier)}</button>
@@ -1068,6 +1079,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiTraces = root.getAttribute('data-api-traces') || '';
   var apiFrontier = root.getAttribute('data-api-frontier') || '';
   var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
+  var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
+  var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
+  var eventsNewHrefTemplate = root.getAttribute('data-events-new-href') || '';
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -1087,6 +1101,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
     siteBriefCapturesLabel: copy.siteBriefCapturesLabel,
+    siteBriefEnvironmentLabel: copy.siteBriefEnvironmentLabel,
     siteBriefWhyHereLabel: copy.siteBriefWhyHereLabel,
     siteBriefWhyNowLabel: copy.siteBriefWhyNowLabel,
     siteBriefOneVisitLabel: copy.siteBriefOneVisitLabel,
@@ -1118,17 +1133,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     actor_local_steward: props.lang === "ja" ? "地元 steward" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
     actor_traveler: props.lang === "ja" ? "Traveler" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
     actor_casual: props.lang === "ja" ? "Casual" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
-    actorHint_all: props.lang === "ja" ? "地図全体の frontier を見る" : props.lang === "es" ? "Mirar la frontera total" : props.lang === "pt-BR" ? "Ver a fronteira total" : "Look at the whole frontier",
+    actorHint_all: props.lang === "ja" ? "地図全体の薄い場所を見る" : props.lang === "es" ? "Mirar la frontera total" : props.lang === "pt-BR" ? "Ver a fronteira total" : "Look at the whole frontier",
     actorHint_local_steward: props.lang === "ja" ? "同じ場所を育てる前提で見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
     actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
     actorHint_casual: props.lang === "ja" ? "生活動線の近くで埋められる薄い帯を見る" : props.lang === "es" ? "Ver huecos cercanos a la rutina" : props.lang === "pt-BR" ? "Ver lacunas perto da rotina" : "Look for nearby routine gaps",
-    roleHintScan: props.lang === "ja" ? "空白を埋めるなら Scan" : props.lang === "es" ? "Si quieres abrir huecos, usa Escaneo" : props.lang === "pt-BR" ? "Se quer abrir vazios, use Escaneamento" : "Use Scan to open blank areas",
-    roleHintGuide: props.lang === "ja" ? "確度を上げるなら Guide" : props.lang === "es" ? "Usa Guía para subir la certeza" : props.lang === "pt-BR" ? "Use Guia para subir a certeza" : "Use Guide to raise certainty",
-    roleHintNote: props.lang === "ja" ? "比較可能にするなら Note" : props.lang === "es" ? "Usa Nota para hacer comparables los registros" : props.lang === "pt-BR" ? "Use Nota para tornar comparável" : "Use Note to make it revisitable",
-    roleHintMixed: props.lang === "ja" ? "今日は Mixed で小さく前進する" : props.lang === "es" ? "Hoy avanza poco a poco en modo mixto" : props.lang === "pt-BR" ? "Hoje avance em modo misto" : "Use Mixed for a quiet all-round step",
-    axis_scan_pass: props.lang === "ja" ? "Scan が薄い" : props.lang === "es" ? "Falta Escaneo" : props.lang === "pt-BR" ? "Falta Scan" : "Scan is thin",
-    axis_guide_scene: props.lang === "ja" ? "Guide が薄い" : props.lang === "es" ? "Falta Guía" : props.lang === "pt-BR" ? "Falta Guia" : "Guide is thin",
-    axis_revisit_note: props.lang === "ja" ? "Note が薄い" : props.lang === "es" ? "Falta Nota" : props.lang === "pt-BR" ? "Falta Nota" : "Note is thin",
+    roleHintScan: props.lang === "ja" ? "空白を埋めるなら周辺を探索" : props.lang === "es" ? "Explora alrededor para abrir huecos" : props.lang === "pt-BR" ? "Explore ao redor para abrir vazios" : "Explore nearby to open blank areas",
+    roleHintGuide: props.lang === "ja" ? "確度を上げるならその場で調べる" : props.lang === "es" ? "Consulta en el sitio para subir la certeza" : props.lang === "pt-BR" ? "Verifique no local para subir a certeza" : "Check on site to raise certainty",
+    roleHintNote: props.lang === "ja" ? "比較可能にするならノートに残す" : props.lang === "es" ? "Deja una nota para hacerlo comparable" : props.lang === "pt-BR" ? "Registre em nota para tornar comparável" : "Leave a note to make it revisitable",
+    roleHintMixed: props.lang === "ja" ? "今日は周辺写真・足元動画・メモ1行で進める" : props.lang === "es" ? "Hoy avanza con una foto amplia, un video corto y una nota" : props.lang === "pt-BR" ? "Hoje avance com uma foto ampla, um vídeo curto e uma nota" : "Use one wide photo, a short clip, and a note today",
+    axis_scan_pass: props.lang === "ja" ? "周辺探索が薄い" : props.lang === "es" ? "Falta exploración" : props.lang === "pt-BR" ? "Falta exploração" : "exploration is thin",
+    axis_guide_scene: props.lang === "ja" ? "現地確認が薄い" : props.lang === "es" ? "Falta verificación en sitio" : props.lang === "pt-BR" ? "Falta verificação no local" : "field checks are thin",
+    axis_revisit_note: props.lang === "ja" ? "再訪ノートが薄い" : props.lang === "es" ? "Faltan notas de revisita" : props.lang === "pt-BR" ? "Faltam notas de revisita" : "revisit notes are thin",
     contributorBand_0: props.lang === "ja" ? "まだ集計なし" : props.lang === "es" ? "Sin agregado aún" : props.lang === "pt-BR" ? "Sem agregado ainda" : "No aggregate yet",
     contributorBand_1_2: props.lang === "ja" ? "1-2人ほど" : props.lang === "es" ? "1-2 personas" : props.lang === "pt-BR" ? "1-2 pessoas" : "about 1-2 people",
     contributorBand_3_5: props.lang === "ja" ? "3-5人ほど" : props.lang === "es" ? "3-5 personas" : props.lang === "pt-BR" ? "3-5 pessoas" : "about 3-5 people",
@@ -1145,12 +1160,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     campaign_scan_blank: props.lang === "ja" ? "空白帯をひとつ開く" : props.lang === "es" ? "Abrir una banda vacía" : props.lang === "pt-BR" ? "Abrir uma faixa vazia" : "Open one blank band",
     campaign_guide_building: props.lang === "ja" ? "育ち始めの場所の確度を上げる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
     campaign_note_repeatable: props.lang === "ja" ? "比較できる場所をもう一段厚くする" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
-    campaign_mixed_frontier: props.lang === "ja" ? "静かに frontier を前に進める" : props.lang === "es" ? "Empujar la frontera con calma" : props.lang === "pt-BR" ? "Avançar a fronteira com calma" : "Quietly move the frontier forward",
-    priorityCueLabel: props.lang === "ja" ? "priority" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
+    campaign_mixed_frontier: props.lang === "ja" ? "薄い場所を少し厚くする" : props.lang === "es" ? "Hacer un poco más denso un hueco" : props.lang === "pt-BR" ? "Tornar uma lacuna um pouco mais densa" : "Make a thin area a little richer",
+    priorityCueLabel: props.lang === "ja" ? "優先理由" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
     priority_steady_revisit: props.lang === "ja" ? "再訪で厚くする" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
     priority_fresh_gap: props.lang === "ja" ? "新しい空白を開く" : props.lang === "es" ? "Abrir un hueco nuevo" : props.lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
     priority_nearby_gap: props.lang === "ja" ? "近場の薄い帯を埋める" : props.lang === "es" ? "Cubrir huecos cercanos" : props.lang === "pt-BR" ? "Cobrir lacunas próximas" : "Fill a nearby thin band",
-    remainingLabel: props.lang === "ja" ? "残り frontier" : props.lang === "es" ? "fronteras restantes" : props.lang === "pt-BR" ? "fronteiras restantes" : "frontier left",
+    remainingLabel: props.lang === "ja" ? "残りの薄い場所" : props.lang === "es" ? "fronteras restantes" : props.lang === "pt-BR" ? "fronteiras restantes" : "frontier left",
     aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
     resultHeading: props.lang === "ja" ? "この範囲の観察" : props.lang === "es" ? "Observaciones en esta área" : props.lang === "pt-BR" ? "Observações nesta área" : "Observations in this area",
@@ -1723,6 +1738,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var caps = (brief.captureHints || []).map(function (c) {
       return '<li>' + escapeHtml(c) + '</li>';
     }).join('');
+    var environment = (brief.environmentEvidence || []).slice(0, 4).map(function (item) {
+      var meta = [item.value, item.source].filter(Boolean).join(' · ');
+      var limitation = item.limitation ? '<em>' + escapeHtml(item.limitation) + '</em>' : '';
+      return '<li><strong>' + escapeHtml(item.label || 'environment') + '</strong><span>' + escapeHtml(meta) + '</span>' + limitation + '</li>';
+    }).join('');
     var notices = renderMapOfficialNotices(brief.officialNotices || []);
     var context = getSelectedContext();
     var frontier = context ? findFrontierAt(context.lng, context.lat) : null;
@@ -1759,6 +1779,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '<div class="me-site-brief-loop-grid">' + loopCards + '</div>' +
       '<div class="me-site-brief-heading">' + escapeHtml(COPY.siteBriefHeading) + '</div>' +
       (checks ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefChecksLabel) + '</div><ul>' + checks + '</ul></div>' : '') +
+      (environment ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefEnvironmentLabel) + '</div><ul class="me-site-brief-environment">' + environment + '</ul></div>' : '') +
       (reasons ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefReasonsLabel) + '</div><ul class="me-site-brief-reasons">' + reasons + '</ul></div>' : '') +
       (caps ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefCapturesLabel) + '</div><ul>' + caps + '</ul></div>' : '') +
       '</div>' + notices;
@@ -1989,12 +2010,152 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
     saveMapState();
   }
+  function openAreaSheet(fieldId, lat, lng) {
+    if (!sheetEl || !sheetInnerEl) return;
+    if (!fieldId) return;
+    state.selectedOccurrenceId = null;
+    state.selectedCellId = null;
+    state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId };
+    if (state.map && state.map.getLayer('area-polygon-selected')) {
+      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], fieldId]);
+    }
+    sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>エリア情報を読み込み中…</strong></div>';
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.add('is-open');
+    if (!apiAreaSnapshotTemplate) return;
+    var url = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (payload) {
+        if (!payload || !payload.snapshot) return;
+        if (!state.selectedPoint || state.selectedPoint.kind !== 'area' || state.selectedPoint.fieldId !== fieldId) return;
+        sheetInnerEl.innerHTML = renderAreaSheet(payload.snapshot);
+      })
+      .catch(function () { /* noop */ });
+  }
+
   function closeBottomSheet() {
     if (!sheetEl) return;
     sheetEl.classList.remove('is-open');
     sheetEl.setAttribute('aria-hidden', 'true');
+    if (state.map && state.map.getLayer('area-polygon-selected')) {
+      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], '__none__']);
+    }
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
+
+  // Phase 1a placeholder; full year-timeline / effort-cards / sensitive-banner
+  // ship in Phase 1b once /api/v1/fields/:fieldId/area-snapshot returns the
+  // extended payload.
+  function renderAreaSheet(snapshot) {
+    var f = (snapshot && snapshot.field) || {};
+    var summary = (snapshot && snapshot.observationSummary) || {};
+    var timeline = (snapshot && snapshot.yearlyTimeline) || [];
+    var indicators = (snapshot && snapshot.effortIndicators) || null;
+    var masking = (snapshot && snapshot.sensitiveMasking) || null;
+    var name = escapeHtml(String(f.name || ''));
+    var sourceLabel = escapeHtml(String(f.sourceLabel || ''));
+    var locationLabel = escapeHtml(String(f.locationLabel || ''));
+    var areaHa = (typeof f.areaHa === 'number' && Number.isFinite(f.areaHa))
+      ? Math.round(f.areaHa).toLocaleString('ja-JP') + ' ha'
+      : '';
+    var officialUrl = String(f.officialUrl || '');
+    var headerHtml = ''
+      + '<div class="me-area-sheet-header">'
+      +   '<div class="me-area-sheet-title">'
+      +     '<span class="me-area-sheet-source">' + sourceLabel + '</span>'
+      +     '<strong>' + name + '</strong>'
+      +     '<span class="me-area-sheet-loc">' + locationLabel + (areaHa ? ' / ' + escapeHtml(areaHa) : '') + '</span>'
+      +   '</div>'
+      +   (officialUrl
+        ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>'
+        : '')
+      + '</div>';
+    var summaryHtml = ''
+      + '<div class="me-area-sheet-summary">'
+      +   '<div><span>総観察数</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
+      +   '<div><span>記録された種</span><strong>' + escapeHtml(String(summary.uniqueTaxa || 0)) + '</strong></div>'
+      +   '<div><span>訪問</span><strong>' + escapeHtml(String(summary.totalVisits || 0)) + '</strong></div>'
+      +   '<div><span>季節カバー</span><strong>' + escapeHtml(String(summary.seasonsCovered || 0)) + '/4</strong></div>'
+      + '</div>';
+    var timelineHtml = renderAreaTimeline(timeline);
+    var indicatorsHtml = renderEffortIndicators(indicators);
+    var maskingHtml = renderSensitiveBanner(masking);
+    var ctaHref = state.selectedPoint && state.selectedPoint.fieldId && eventsNewHrefTemplate
+      ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(state.selectedPoint.fieldId))
+      : '';
+    var ctaHtml = ctaHref
+      ? '<div class="me-area-sheet-cta"><a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">この場所で観察会を開く →</a></div>'
+      : '';
+    return headerHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml + ctaHtml;
+  }
+
+  function renderAreaTimeline(timeline) {
+    if (!Array.isArray(timeline) || timeline.length === 0) {
+      return '<div class="me-area-sheet-timeline is-empty">年別の蓄積はまだ少ない段階です。</div>';
+    }
+    var maxObs = 1;
+    timeline.forEach(function (row) {
+      if (row && typeof row.observations === 'number' && row.observations > maxObs) maxObs = row.observations;
+    });
+    var bars = timeline.map(function (row) {
+      var obs = (row && row.observations) || 0;
+      var taxa = (row && row.uniqueTaxa) || 0;
+      var height = Math.max(2, Math.round((obs / maxObs) * 48));
+      return ''
+        + '<div class="me-area-tl-bar" title="' + escapeHtml(String(row.year) + '年: ' + obs + '件 / ' + taxa + '種') + '">'
+        +   '<span class="me-area-tl-bar-fill" style="height:' + height + 'px"></span>'
+        +   '<span class="me-area-tl-bar-label">' + escapeHtml(String(row.year).slice(-2)) + '</span>'
+        + '</div>';
+    }).join('');
+    return ''
+      + '<div class="me-area-sheet-timeline">'
+      +   '<div class="me-area-tl-title">年別の観察数 (棒高さ) と種数 (ホバー)</div>'
+      +   '<div class="me-area-tl-row">' + bars + '</div>'
+      + '</div>';
+  }
+
+  function renderEffortIndicators(indicators) {
+    if (!indicators) return '';
+    var cards = [
+      { label: '努力量入力率', value: indicators.effortReportedRate, hint: 'effort_minutes/distance あり' },
+      { label: '完全チェックリスト率', value: indicators.completeChecklistRate, hint: '不在も含めて記録' },
+      { label: '時空カバー指数', value: indicators.temporalSpreadIndex, hint: '季節×月×年の網羅' },
+      { label: '観察者多様性', value: indicators.observerDiversity, hint: '寡占の補正' },
+      { label: '非検出記録率', value: indicators.nonDetectionRate, hint: '居なかったの記録' },
+    ];
+    var cardsHtml = cards.map(function (c) {
+      var pct = (typeof c.value === 'number' && Number.isFinite(c.value))
+        ? Math.round(c.value * 100) : null;
+      var pctText = pct == null ? '—' : pct + '%';
+      var barWidth = pct == null ? 0 : Math.max(2, Math.min(100, pct));
+      return ''
+        + '<div class="me-area-effort-card">'
+        +   '<div class="me-area-effort-label">' + escapeHtml(c.label) + '</div>'
+        +   '<div class="me-area-effort-value">' + escapeHtml(pctText) + '</div>'
+        +   '<div class="me-area-effort-bar"><span style="width:' + barWidth + '%"></span></div>'
+        +   '<div class="me-area-effort-hint">' + escapeHtml(c.hint) + '</div>'
+        + '</div>';
+    }).join('');
+    var indexText = (typeof indicators.effortIndex === 'number' && Number.isFinite(indicators.effortIndex))
+      ? Math.round(indicators.effortIndex) + '/100' : '—';
+    return ''
+      + '<div class="me-area-effort">'
+      +   '<div class="me-area-effort-title">調査努力量 <span class="me-area-effort-index">合成 ' + escapeHtml(indexText) + '</span></div>'
+      +   '<div class="me-area-effort-grid">' + cardsHtml + '</div>'
+      + '</div>';
+  }
+
+  function renderSensitiveBanner(masking) {
+    if (!masking || !masking.maskedSpecies) return '';
+    var n = masking.maskedSpecies | 0;
+    if (n <= 0) return '';
+    var canSee = !!masking.viewerCanSeeExact;
+    var msg = canSee
+      ? '希少種 ' + n + ' 種の正確座標が見える権限です。観察記録を共有する際は配慮してください。'
+      : 'このエリアには希少種 ' + n + ' 種が含まれます。座標は約 1km メッシュに丸めて表示しています。';
+    return '<div class="me-area-sensitive ' + (canSee ? 'is-privileged' : '') + '">' + escapeHtml(msg) + '</div>';
+  }
 
   function ensureCellSource(map, features) {
     var sourceId = 'observations';
@@ -2185,6 +2346,100 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var bounds = state.map.getBounds();
     if (!bounds) return '';
     return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].map(function (n) { return Number(n).toFixed(5); }).join(',');
+  }
+
+  function ensureAreaPolygons(map) {
+    if (map.getSource('area-polygons')) return;
+    map.addSource('area-polygons', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    // Insert below observation-cell-fill so cell clicks still win for marker tab.
+    var beforeId = map.getLayer('observation-cell-fill') ? 'observation-cell-fill' : undefined;
+    map.addLayer({
+      id: 'area-polygon-fill',
+      type: 'fill',
+      source: 'area-polygons',
+      minzoom: 8,
+      paint: {
+        'fill-color': [
+          'match', ['get', 'source'],
+          'protected_area', 'rgba(34,197,94,0.18)',
+          'oecm', 'rgba(132,204,22,0.18)',
+          'nature_symbiosis_site', 'rgba(16,185,129,0.18)',
+          'tsunag', 'rgba(20,184,166,0.18)',
+          'osm_park', 'rgba(56,189,248,0.14)',
+          'admin_municipality', 'rgba(148,163,184,0.10)',
+          'admin_prefecture', 'rgba(148,163,184,0.08)',
+          'admin_country', 'rgba(148,163,184,0.06)',
+          'rgba(148,163,184,0.10)',
+        ],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.32, 14, 0.6],
+      },
+    }, beforeId);
+    map.addLayer({
+      id: 'area-polygon-outline',
+      type: 'line',
+      source: 'area-polygons',
+      minzoom: 8,
+      paint: {
+        'line-color': [
+          'match', ['get', 'source'],
+          'protected_area', '#15803d',
+          'oecm', '#65a30d',
+          'nature_symbiosis_site', '#0f766e',
+          'tsunag', '#0d9488',
+          'osm_park', '#0284c7',
+          '#475569',
+        ],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 14, 1.6],
+      },
+    }, beforeId);
+    map.addLayer({
+      id: 'area-polygon-selected',
+      type: 'line',
+      source: 'area-polygons',
+      filter: ['==', ['get', 'field_id'], '__none__'],
+      paint: {
+        'line-color': '#0f766e',
+        'line-width': 2.6,
+      },
+    });
+    map.on('click', 'area-polygon-fill', function (e) {
+      if (!e.features || !e.features[0]) return;
+      var props = e.features[0].properties || {};
+      var fieldId = props.field_id || '';
+      if (!fieldId) return;
+      openAreaSheet(fieldId, e.lngLat.lat, e.lngLat.lng);
+    });
+    map.on('mouseenter', 'area-polygon-fill', function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'area-polygon-fill', function () { map.getCanvas().style.cursor = ''; });
+  }
+
+  function loadAreaPolygons() {
+    if (!apiAreaPolygons || !state.map) return;
+    var bbox = currentBboxString();
+    if (!bbox) return;
+    var zoom = state.map.getZoom();
+    if (zoom < 8) {
+      // Phase 1: nothing to render under z8 (admin_country/prefecture land in Phase 2).
+      var src = state.map.getSource('area-polygons');
+      if (src) src.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+    if (state.areaPolygonsAbort) { try { state.areaPolygonsAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.areaPolygonsAbort = controller;
+    var qs = '?bbox=' + encodeURIComponent(bbox) + '&zoom=' + encodeURIComponent(zoom.toFixed(2));
+    fetch(apiAreaPolygons + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (collection) {
+        if (!collection) return;
+        ensureAreaPolygons(state.map);
+        var src = state.map.getSource('area-polygons');
+        if (src) src.setData(collection);
+      })
+      .catch(function (err) { if (err && err.name === 'AbortError') return; });
   }
 
   function loadFrontier(map) {
@@ -2693,6 +2948,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadFrontier(state.map);
       loadEffortSummary();
       loadTraces();
+      ensureAreaPolygons(state.map);
+      loadAreaPolygons();
       maybeAutoLocateOnFirstOpen();
     });
     state.map.on('moveend', function () {
@@ -2705,6 +2962,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var bbox = currentBboxString();
       state.pendingViewportSearch = !!bbox && bbox !== state.lastSearchedBbox;
       updateSearchAreaUi();
+      if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
+      state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
     });
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
@@ -2714,6 +2973,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (state.map.getLayer(id)) layers.push(id);
       });
       if (state.map.getLayer('frontier-fill')) layers.push('frontier-fill');
+      if (state.map.getLayer('area-polygon-fill')) layers.push('area-polygon-fill');
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
@@ -3748,6 +4008,11 @@ export const MAP_EXPLORER_STYLES = `
   .me-site-brief ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
   .me-site-brief ul li { font-size: 12px; color: #0f172a; line-height: 1.45; }
   .me-site-brief-reasons li { color: #475569; font-size: 11px; }
+  .me-site-brief-environment { padding-left: 0 !important; list-style: none; gap: 5px !important; }
+  .me-site-brief-environment li { display: grid; gap: 1px; padding: 7px 8px; border-radius: 8px; background: rgba(240,253,250,.76); border: 1px solid rgba(20,184,166,.16); }
+  .me-site-brief-environment strong { color: #0f766e; font-size: 11px; line-height: 1.25; }
+  .me-site-brief-environment span { color: #0f172a; font-size: 11.5px; font-weight: 800; line-height: 1.35; }
+  .me-site-brief-environment em { color: #64748b; font-size: 10.5px; font-style: normal; line-height: 1.35; }
   @media (max-width: 520px) {
     .me-site-brief-loop-grid { grid-template-columns: 1fr; }
   }
@@ -4028,4 +4293,39 @@ export const MAP_EXPLORER_STYLES = `
       max-height: 62%;
     }
   }
+
+  /* Area sidesheet (Phase 1: parks, OECM, symbiosis, TSUNAG, etc.) */
+  .me-area-sheet-header { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+  .me-area-sheet-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .me-area-sheet-source { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #0f766e; background: rgba(20,184,166,.12); padding: 2px 8px; border-radius: 999px; align-self: flex-start; }
+  .me-area-sheet-title strong { font-size: 17px; font-weight: 800; color: #0f172a; }
+  .me-area-sheet-loc { font-size: 11px; color: #64748b; font-weight: 600; }
+  .me-area-sheet-url { font-size: 11px; font-weight: 700; color: #0f766e; text-decoration: none; align-self: center; padding: 6px 10px; border-radius: 8px; background: rgba(20,184,166,.08); white-space: nowrap; }
+  .me-area-sheet-url:hover { background: rgba(20,184,166,.18); }
+  .me-area-sheet-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .me-area-sheet-summary > div { padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 2px; }
+  .me-area-sheet-summary span { font-size: 10px; color: #64748b; font-weight: 600; }
+  .me-area-sheet-summary strong { font-size: 16px; font-weight: 800; color: #0f172a; }
+  .me-area-sheet-timeline { padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); margin-bottom: 12px; }
+  .me-area-sheet-timeline.is-empty { font-size: 12px; color: #64748b; font-weight: 600; }
+  .me-area-tl-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; }
+  .me-area-tl-row { display: flex; gap: 8px; align-items: flex-end; min-height: 60px; }
+  .me-area-tl-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .me-area-tl-bar-fill { display: block; width: 100%; max-width: 28px; min-height: 2px; background: linear-gradient(180deg, #0ea5e9, #0f766e); border-radius: 4px 4px 0 0; }
+  .me-area-tl-bar-label { font-size: 10px; color: #64748b; font-weight: 700; }
+  .me-area-effort { padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); margin-bottom: 12px; }
+  .me-area-effort-title { font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .me-area-effort-index { font-size: 10px; font-weight: 700; color: #0f766e; background: rgba(20,184,166,.12); padding: 2px 8px; border-radius: 999px; }
+  .me-area-effort-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .me-area-effort-card { padding: 8px 10px; border-radius: 10px; background: #fff; border: 1px solid rgba(148,163,184,.18); display: flex; flex-direction: column; gap: 4px; }
+  .me-area-effort-label { font-size: 10px; font-weight: 700; color: #475569; }
+  .me-area-effort-value { font-size: 16px; font-weight: 800; color: #0f172a; }
+  .me-area-effort-bar { height: 4px; border-radius: 999px; background: rgba(148,163,184,.18); overflow: hidden; }
+  .me-area-effort-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #0ea5e9, #0f766e); }
+  .me-area-effort-hint { font-size: 10px; color: #64748b; line-height: 1.3; }
+  .me-area-sensitive { padding: 10px 12px; border-radius: 12px; background: rgba(254,243,199,.55); border: 1px solid rgba(217,119,6,.28); color: #78350f; font-size: 12px; font-weight: 600; line-height: 1.45; margin-bottom: 12px; }
+  .me-area-sensitive.is-privileged { background: rgba(220,252,231,.55); border-color: rgba(22,163,74,.28); color: #14532d; }
+  .me-area-sheet-cta { margin-top: 6px; }
+  .me-area-sheet-cta-btn { display: inline-block; padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #0ea5e9, #0f766e); text-decoration: none; box-shadow: 0 4px 12px rgba(15,118,110,.24); }
+  .me-area-sheet-cta-btn:hover { filter: brightness(1.05); }
 `;

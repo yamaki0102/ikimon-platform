@@ -53,6 +53,7 @@
     "smoke:manual-occurrence-map": "tsx src/scripts/smokeManualOccurrenceMap.ts",
     "smoke:specialist-authority": "tsx src/scripts/smokeSpecialistAuthority.ts",
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
+    "ingest:place-environment": "tsx src/scripts/ingestPlaceEnvironmentSnapshots.ts",
     "process:video-jobs": "tsx src/scripts/processVideoProcessingJobs.ts",
     "process:audio-segments": "tsx src/scripts/processAudioSegments.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",

@@ -24,6 +24,11 @@ import {
   normalizeObservationLocality,
   type NormalizedObservationLocality,
 } from "./localityNormalization.js";
+import {
+  deriveDefaultCivicContext,
+  upsertCivicObservationContext,
+  type CivicObservationContextInput,
+} from "./civicNatureContext.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -96,6 +101,7 @@ export type ObservationUpsertInput = {
   distanceMeters?: number | null;
   revisitReason?: string | null;
   sourcePayload?: Record<string, unknown>;
+  civicContext?: Partial<CivicObservationContextInput> | null;
 };
 
 export type ObservationWriteResult = {
@@ -477,6 +483,31 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   });
   const observedAt = normalizeTimestamp(input.observedAt);
   const fingerprint = requestFingerprint(input, subjects, observedAt, locality);
+  const eventSessionId = (input as unknown as { eventSessionId?: unknown }).eventSessionId;
+  const eventCode = (input as unknown as { eventCode?: unknown }).eventCode;
+  const explicitCivicContext = input.civicContext && typeof input.civicContext === "object"
+    ? input.civicContext
+    : null;
+  const shouldWriteDerivedContext =
+    Boolean(explicitCivicContext) ||
+    typeof eventSessionId === "string" ||
+    typeof eventCode === "string" ||
+    typeof input.sourcePayload?.risk_lane === "string";
+  const pendingCivicContext = shouldWriteDerivedContext
+    ? explicitCivicContext
+      ? {
+          ...explicitCivicContext,
+          visitId,
+          occurrenceId,
+        }
+      : deriveDefaultCivicContext({
+          visitId,
+          occurrenceId,
+          eventSessionId,
+          eventCode,
+          sourcePayload: input.sourcePayload ?? null,
+        })
+    : null;
 
   try {
     await client.query("begin");
@@ -907,6 +938,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     throw error;
   } finally {
     client.release();
+  }
+
+  if (pendingCivicContext) {
+    void upsertCivicObservationContext(pendingCivicContext).catch(() => undefined);
   }
 
   const impact = await buildObservationImpact(input, placeId, focusLabel, quickCaptureState);
