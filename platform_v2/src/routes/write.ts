@@ -47,6 +47,7 @@ import { toggleReaction, isValidReactionType, type ReactionType } from "../servi
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
+import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
 import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
@@ -985,6 +986,39 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return { ok: true, ...result };
       } catch (error) {
         const message = error instanceof Error ? error.message : "reassess_from_video_failed";
+        reply.code(errorStatus(error, 500));
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  app.post<{
+    Params: { id: string; index: string };
+    Body: { confirmState?: string };
+  }>(
+    "/api/v1/observations/:id/management-candidates/:index/confirm",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const confirmState = request.body?.confirmState;
+        if (confirmState !== "suggested" && confirmState !== "confirmed" && confirmState !== "rejected") {
+          reply.code(400);
+          return { ok: false, error: "invalid_confirm_state" };
+        }
+        const result = await confirmManagementActionCandidate({
+          observationId: request.params.id,
+          candidateIndex: Number(request.params.index),
+          confirmState,
+          actorUserId: session.userId,
+        });
+        return { ok: true, ...result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "management_candidate_confirm_failed";
         reply.code(errorStatus(error, 500));
         return { ok: false, error: message };
       }

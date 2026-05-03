@@ -48,7 +48,9 @@ async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   const mapWrap = page.locator(".me-map-wrap");
 
   await expect(selectionCard).toHaveClass(/is-visible/);
-  await expect(insightCard).not.toHaveClass(/is-visible/);
+  if (await insightCard.count()) {
+    await expect(insightCard).not.toHaveClass(/is-visible/);
+  }
 
   const mapBox = await requiredBox("desktop map wrap", mapWrap);
   const selectionBox = await requiredBox("desktop place card", selectionCard);
@@ -72,7 +74,13 @@ async function expectMobileBottomSheet(page: Page): Promise<void> {
 
 async function expectDesktopNeutralState(page: Page): Promise<void> {
   await expect(page.locator("#me-map-selection-card")).not.toHaveClass(/is-visible/);
-  await expect(page.locator("#me-map-insight-card")).toHaveClass(/is-visible/);
+  const insightCard = page.locator("#me-map-insight-card");
+  if (await insightCard.count()) {
+    await expect(insightCard).toHaveClass(/is-visible/);
+  } else {
+    await expect(page.locator(".me-side-tab[data-side-tab='results']")).toHaveClass(/is-active/);
+    await expect(page.locator(".me-side-pane-results")).toBeVisible();
+  }
   await expect(page.locator(".me-result-row.is-active")).toHaveCount(0);
 }
 

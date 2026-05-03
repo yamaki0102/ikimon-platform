@@ -134,6 +134,7 @@ export function renderFixedPointStationBody(station: FixedPointStation, basePath
     ? station.stewardshipActions.map(actionCard).join("")
     : `<article class="fps-empty">草刈り・清掃・管理行為の記録はまだありません。</article>`;
   const recordParams = new URLSearchParams({
+    placeId: station.place.placeId,
     recordMode: "survey",
     activityIntent: "revisit",
     revisitReason: `${station.place.name}を同じ構図で比べる`,

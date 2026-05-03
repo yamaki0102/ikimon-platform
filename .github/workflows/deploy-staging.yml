@@ -97,7 +97,7 @@ jobs:
           if matches '^platform_v2/'; then V2_CHANGED=true; fi
           if matches '^platform_v2/(migrations/|src/scripts/applyMigrations\.ts)'; then MIGRATION_CHANGED=true; fi
           if matches '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)'; then DEPLOY_CHANGED=true; fi
-          if matches '^platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json)'; then BROWSER_CONTRACT_CHANGED=true; fi
+          if matches '^(\.github/actions/setup-platform-v2-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))'; then BROWSER_CONTRACT_CHANGED=true; fi
 
           RUN_PHP_LINT=false
           RUN_MANIFEST_CHECK=false
@@ -243,7 +243,7 @@ jobs:
             if grep -Eq '^(upload_package/|tests/|tools/lint\.php|composer\.(json|lock)|phpunit\.xml)' "$CHANGED_FILE"; then PHP_CHANGED=true; fi
             if grep -Eq '^(\.github/workflows/deploy-staging\.yml|ops/deploy/|scripts/check_(deploy_guardrails|platform_v2_migration_guardrails|staging_manifest_sync)\.ps1)' "$CHANGED_FILE"; then DEPLOY_CHANGED=true; fi
             if grep -Eq '^platform_v2/(src/(content|scripts/compileKnowledgeNavigation\.ts|scripts/runGuideEnvironmentPostDeploy\.ts|scripts/rebuildGuideEnvironmentMesh\.ts|services/(regional|guide|landingSnapshot|mapSnapshot))|content/)' "$CHANGED_FILE"; then KNOWLEDGE_CHANGED=true; fi
-            if grep -Eq '^platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json)' "$CHANGED_FILE"; then BROWSER_CONTRACT_CHANGED=true; fi
+            if grep -Eq '^(\.github/actions/setup-platform-v2-browser/|platform_v2/(e2e/|playwright\.staging\.config\.ts|package(-lock)?\.json))' "$CHANGED_FILE"; then BROWSER_CONTRACT_CHANGED=true; fi
             {
               echo "LOCAL_HEAD=$LOCAL_HEAD"
               echo "REMOTE_HEAD=$REMOTE_HEAD"
@@ -562,20 +562,8 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: platform_v2/package-lock.json
-
-      - name: Install platform_v2 dependencies
-        working-directory: platform_v2
-        run: npm ci
-
-      - name: Install Playwright Chromium
-        working-directory: platform_v2
-        run: npx playwright install --with-deps chromium
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
 
       - name: Run staging registry sitemap smoke
         if: needs.plan.outputs.run_full_browser_e2e == 'true'
