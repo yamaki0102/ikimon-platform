@@ -16,7 +16,13 @@ import {
 import { getPlaceSnapshot } from "../services/placeSnapshot.js";
 import { getAreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
-import { getFieldManagerRole } from "../services/fieldManagers.js";
+import {
+  getFieldManagerRole,
+  listManagersForField,
+  grantFieldManager,
+  revokeFieldManager,
+  type FieldManagerRole,
+} from "../services/fieldManagers.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -116,6 +122,74 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     reply.header("Cache-Control", "no-store");
     return reply.send({ snapshot });
   });
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Field manager grants — admin/analyst のみが操作可能。
+  // 希少種の正確座標を見せたい研究者・地域 steward を field 単位で登録する用途。
+  // ──────────────────────────────────────────────────────────────────────
+  function asFieldManagerRole(v: unknown): FieldManagerRole | null {
+    return v === "owner" || v === "steward" || v === "viewer_exact" ? v : null;
+  }
+
+  app.get<{ Params: { fieldId: string } }>(
+    "/api/v1/fields/:fieldId/managers",
+    async (request, reply) => {
+      const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!session) return reply.status(401).send({ error: "login required" });
+      if (!isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
+        return reply.status(403).send({ error: "admin or analyst only" });
+      }
+      const field = await getField(request.params.fieldId);
+      if (!field) return reply.status(404).send({ error: "field not found" });
+      const managers = await listManagersForField(field.fieldId);
+      return reply.send({ field_id: field.fieldId, managers });
+    },
+  );
+
+  app.post<{
+    Params: { fieldId: string };
+    Body: { user_id?: string; role?: string; expires_at?: string | null; note?: string };
+  }>(
+    "/api/v1/fields/:fieldId/managers",
+    async (request, reply) => {
+      const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!session) return reply.status(401).send({ error: "login required" });
+      if (!isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
+        return reply.status(403).send({ error: "admin or analyst only" });
+      }
+      const field = await getField(request.params.fieldId);
+      if (!field) return reply.status(404).send({ error: "field not found" });
+      const body = request.body ?? {};
+      const userId = asString(body.user_id);
+      const role = asFieldManagerRole(body.role);
+      if (!userId) return reply.status(400).send({ error: "user_id required" });
+      if (!role) return reply.status(400).send({ error: "role must be owner|steward|viewer_exact" });
+      const grant = await grantFieldManager({
+        fieldId: field.fieldId,
+        userId,
+        role,
+        grantedBy: session.userId,
+        expiresAt: typeof body.expires_at === "string" && body.expires_at ? body.expires_at : null,
+        note: typeof body.note === "string" ? body.note : "",
+      });
+      return reply.send({ grant });
+    },
+  );
+
+  app.delete<{ Params: { fieldId: string; userId: string; role: string } }>(
+    "/api/v1/fields/:fieldId/managers/:userId/:role",
+    async (request, reply) => {
+      const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!session) return reply.status(401).send({ error: "login required" });
+      if (!isAdminOrAnalystRole(session.roleName, session.rankLabel)) {
+        return reply.status(403).send({ error: "admin or analyst only" });
+      }
+      const role = asFieldManagerRole(request.params.role);
+      if (!role) return reply.status(400).send({ error: "role must be owner|steward|viewer_exact" });
+      await revokeFieldManager(request.params.fieldId, request.params.userId, role);
+      return reply.send({ revoked: true });
+    },
+  );
 
   // PATCH /api/v1/fields/:fieldId  — 自分のフィールドのみ
   app.patch<{ Params: { fieldId: string }; Body: Record<string, unknown> }>(
