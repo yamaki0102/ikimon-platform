@@ -68,11 +68,11 @@ class CspNonce
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'nonce-{$nonce}' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://cdnjs.cloudflare.com https://www.googletagmanager.com",
+            "script-src 'self' 'nonce-{$nonce}' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://cdnjs.cloudflare.com https://www.googletagmanager.com https://www.clarity.ms",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com",
             "font-src 'self' https://fonts.gstatic.com https://protomaps.github.io data:",
-            "img-src 'self' data: blob: https://i.pravatar.cc https://*.tile.openstreetmap.jp https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://tile.openstreetmap.jp https://lh3.googleusercontent.com https://m.media-amazon.com https://cover.openbd.jp https://protomaps.github.io {$streamImgSrc}",
-            "connect-src 'self' https://api.gbif.org https://tile.openstreetmap.jp https://*.tile.openstreetmap.jp https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://nominatim.openstreetmap.org https://unpkg.com https://protomaps.github.io {$streamConnectSrc}",
+            "img-src 'self' data: blob: https://i.pravatar.cc https://*.tile.openstreetmap.jp https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://tile.openstreetmap.jp https://lh3.googleusercontent.com https://m.media-amazon.com https://cover.openbd.jp https://protomaps.github.io https://www.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.clarity.ms https://*.clarity.ms {$streamImgSrc}",
+            "connect-src 'self' https://api.gbif.org https://tile.openstreetmap.jp https://*.tile.openstreetmap.jp https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://nominatim.openstreetmap.org https://unpkg.com https://protomaps.github.io https://www.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.clarity.ms https://*.clarity.ms {$streamConnectSrc}",
             "worker-src 'self' blob:",
             "frame-src 'self' {$streamCustomerSubdomain}",
             "media-src 'self' blob: {$streamCustomerSubdomain} https://videodelivery.net",

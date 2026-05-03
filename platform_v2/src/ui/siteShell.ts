@@ -1801,6 +1801,29 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   window.ikimonAppOutbox = { put, enqueue: put, delete: remove, remove, all, count };
 })();
 </script>`;
+  const analyticsHeadScript = `<script>
+(function () {
+  const host = window.location.hostname;
+  if (host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
+
+  const googleTagId = 'G-NCL0M1VJZ2';
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', googleTagId);
+
+  const googleScript = document.createElement('script');
+  googleScript.async = true;
+  googleScript.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(googleTagId);
+  document.head.appendChild(googleScript);
+
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments);};
+    t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, 'clarity', 'script', 'wl2ezvfqbh');
+})();
+</script>`;
   const legacyServiceWorkerCleanupScript = `<script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
@@ -2015,6 +2038,7 @@ ${alternateLinks}
   <meta name="twitter:title" content="${escapeHtml(options.title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   ${appOutboxHeadScript}
+  ${analyticsHeadScript}
   <style>
     :root {
       color-scheme: light;

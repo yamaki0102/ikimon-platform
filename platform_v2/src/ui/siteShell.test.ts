@@ -26,6 +26,12 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /registration\.sync\.register\('ikimon-app-outbox-sync'\)/);
   assert.match(html, /ikimon-app-outbox-change/);
   assert.match(html, /ikimon:app-outbox-sync/);
+  assert.match(html, /G-NCL0M1VJZ2/);
+  assert.match(html, /googletagmanager\.com\/gtag\/js/);
+  assert.match(html, /window\.gtag\('config', googleTagId\)/);
+  assert.match(html, /www\.clarity\.ms\/tag/);
+  assert.match(html, /wl2ezvfqbh/);
+  assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
 });
 
 test("site shell renders a global record footer nav outside the record flow", () => {
