@@ -975,7 +975,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <button type="button" class="me-map-quick" data-map-basemap="esri"><span aria-hidden="true">▧</span>${escapeHtml(copy.mapQuickSatellite)}</button>
           <button type="button" class="me-map-quick" data-map-basemap="standard"><span aria-hidden="true">▤</span>${escapeHtml(copy.mapQuickStandard)}</button>
         </div>
-        <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
@@ -1430,66 +1429,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderSidePanels() {
+    // 「静かな前進」フローティングカードはユーザー指示で常時非表示。
+    // マップを開いた瞬間に出るのが邪魔という指摘 (2026-05-03)。
+    // データ供給側 (effortSummary 等) は既存の他フィーチャーで使われているので残す。
     if (!mapInsightCardEl) return;
-    if (shouldUseBottomSheet()) {
-      mapInsightCardEl.innerHTML = '';
-      mapInsightCardEl.classList.remove('is-visible');
-      return;
-    }
-    if (getSelectedContext()) {
-      mapInsightCardEl.innerHTML = '';
-      mapInsightCardEl.classList.remove('is-visible');
-      return;
-    }
-    var summary = state.effortSummary;
-    if (!summary) {
-      mapInsightCardEl.innerHTML =
-        '<div class="me-map-card me-map-card-quiet">' +
-          '<div class="me-map-card-head">' +
-            '<div>' +
-              '<div class="me-map-card-kicker">' + escapeHtml(COPY.insightHeading) + '</div>' +
-              '<strong class="me-map-card-title">' + escapeHtml(COPY.insightHeading) + '</strong>' +
-              '<span class="me-map-card-copy">' + escapeHtml(COPY.insightSubhead) + '</span>' +
-            '</div>' +
-          '</div>' +
-          '<div class="me-map-insight-grid">' +
-            '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.loading) + '</span><strong>—</strong><span>…</span></div>' +
-          '</div>' +
-        '</div>';
-      mapInsightCardEl.classList.add('is-visible');
-      return;
-    }
-
-    var ownCell = summary.myProgress
-      ? '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + summary.myProgress.winCount + ' ' + escapeHtml(COPY.winsLabel) + '</strong><span>' + escapeHtml(roleHintLabel(summary.myProgress.focusRole)) + ' · ' + summary.myProgress.revisitCount + ' ' + escapeHtml(COPY.revisitLabel) + '</span></div>'
-      : '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + escapeHtml(roleHintLabel('mixed')) + '</strong><span>' + escapeHtml(COPY.aggregateModeNote) + '</span></div>';
-    var actorCell =
-      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.actorLensLabel) + '</span><strong>' + escapeHtml(actorLabel(summary.actorLens.actorClass)) + '</strong><span>' + escapeHtml(actorHintLabel(summary.actorLens.actorClass)) + ' · ' + String(summary.actorLens.matchingContributorCount) + '</span></div>';
-    var communityCell =
-      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.communityLabel) + '</span><strong>' + summary.communityProgress.activeCellCount + '</strong><span>' + escapeHtml(contributorBandLabel(summary.communityProgress.contributorBand)) + ' · ' + progressPercent(summary.communityProgress.progressRatio) + '%</span></div>';
-    var frontierCell =
-      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.frontierLabel) + '</span><strong>' + summary.frontierRemaining.blankCount + ' / ' + summary.frontierRemaining.buildingCount + '</strong><span>' + escapeHtml(summary.frontierRemaining.topMissingAxes.map(axisLabel).join(' · ') || '—') + ' · ' + escapeHtml(priorityCueLabel(summary.frontierRemaining.priorityCue)) + '</span></div>';
-    var nextCell =
-      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(roleHintLabel(summary.campaignProgress.recommendedRole)) + '</strong><span>' + escapeHtml(priorityCueLabel(summary.campaignProgress.priorityCue)) + ' · ' + summary.campaignProgress.remainingCount + ' ' + escapeHtml(COPY.remainingLabel) + '</span></div>';
-
-    mapInsightCardEl.innerHTML =
-      '<div class="me-map-card me-map-card-quiet">' +
-        '<div class="me-map-card-head">' +
-          '<div>' +
-            '<div class="me-map-card-kicker">' + escapeHtml(COPY.insightHeading) + '</div>' +
-            '<strong class="me-map-card-title">' + escapeHtml(COPY.insightHeading) + '</strong>' +
-            '<span class="me-map-card-copy">' + escapeHtml(COPY.insightSubhead) + '</span>' +
-          '</div>' +
-        '</div>' +
-        '<div class="me-map-insight-grid">' +
-          ownCell +
-          actorCell +
-          communityCell +
-          frontierCell +
-          nextCell +
-        '</div>' +
-      '</div>';
-    mapInsightCardEl.classList.add('is-visible');
+    mapInsightCardEl.innerHTML = '';
+    mapInsightCardEl.classList.remove('is-visible');
   }
 
   function findCellFeatureById(cellId) {
