@@ -2376,6 +2376,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'fill',
       source: 'area-polygons',
       minzoom: 8,
+      layout: {
+        // 「公園 vs 行政界」のような大小ポリゴン重なりで小さい方を上に描画。
+        // クリック時の queryRenderedFeatures もこの順を尊重するので、
+        // クリック判定でも小ポリゴン (= より具体的な場所) が優先される。
+        'fill-sort-key': ['-', 0, ['coalesce', ['get', 'area_ha'], 0]],
+      },
       paint: {
         'fill-color': [
           'match', ['get', 'source'],
@@ -2421,8 +2427,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     });
     map.on('click', 'area-polygon-fill', function (e) {
-      if (!e.features || !e.features[0]) return;
-      var props = e.features[0].properties || {};
+      if (!e.features || e.features.length === 0) return;
+      // 重なりがあるとき、面積最小 (= より具体的な公園) を優先する。
+      // 大きな行政界に被さった小さな公園をクリックしたつもりが、
+      // 行政界のほうが選ばれる事故を防ぐ。
+      var pick = e.features[0];
+      var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
+      for (var i = 1; i < e.features.length; i += 1) {
+        var f = e.features[i];
+        var area = (f.properties && Number(f.properties.area_ha));
+        if (Number.isFinite(area) && area < pickArea) {
+          pick = f;
+          pickArea = area;
+        }
+      }
+      var props = pick.properties || {};
       var fieldId = props.field_id || '';
       if (!fieldId) return;
       openAreaSheet(fieldId, e.lngLat.lat, e.lngLat.lng);
@@ -3954,7 +3973,8 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 0 0 6px rgba(14,165,233,.28);
   }
   .me-legend {
-    position: absolute; right: 18px; bottom: 18px; z-index: 4;
+    /* 右下の locate FAB / 地図ピンドロップアイコンと被らないよう、もう一段上に。 */
+    position: absolute; right: 18px; bottom: 144px; z-index: 4;
     padding: 8px 12px; border-radius: 14px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.06);
     box-shadow: 0 8px 16px rgba(15,23,42,.1);
@@ -4349,12 +4369,15 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-effort-title > span:first-child { font-size: 13px; }
   .me-area-effort-explainer { margin: 0 0 10px; font-size: 11px; color: #475569; line-height: 1.5; padding: 8px 10px; border-radius: 10px; background: rgba(241,245,249,.7); border: 1px solid rgba(148,163,184,.18); }
 
-  /* Area mode: PC で全幅取らないようサイドカード化 */
+  /* Area mode: PC では縦長サイドバー化。フッター削除でナビ下〜画面下端まで使えるので、
+     スクロールなしでヘッダ・CTA・サマリ・タイムライン・努力量カードまで一望できる。 */
   .me-bottom-sheet.me-bottom-sheet--area {
     max-width: 540px;
     left: 16px;
     right: auto;
+    top: 88px;
     bottom: 16px;
+    max-height: none;
     border-radius: 18px;
     box-shadow: 0 12px 36px rgba(15,23,42,.18);
   }

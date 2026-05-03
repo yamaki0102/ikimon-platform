@@ -179,3 +179,32 @@ DELETE FROM field_managers WHERE field_id = '<uuid>' AND user_id = 'user-123';
 - **field_managers の付与 UI なし**: SQL 直叩き。Phase 3 で admin 用エンドポイント追加
 - **scrapeNatureSymbiosisSites.ts の supersede 連携なし**: 認定取消は手動 UPDATE
 - **国境ポリゴン**: 日本のみ対応。海外は Phase 3 で Natural Earth Admin0 検討
+
+---
+
+## 6. Phase 3 backlog (ユーザー要望、実装待ち)
+
+### 6.1 Sentinel/JAXA/MLIT 取り込みを定期 worker 化
+
+現状 `placeEnvironmentSignals.ts` (siteBrief レーン) は座標毎に Overpass を即時叩く同期型。
+広域の「衛星から見えた変化 (緑地が減った / 水域が変化した)」を `site_environment_snapshots`
+(migration 0077) に蓄える定期 worker を Phase 3 で実装する。
+
+- ソース: Sentinel-2 L2A (ESA Copernicus, NDVI/NDWI)、JAXA ALOS-2 PALSAR、JAXA GSMaP、
+  MLIT 国土数値情報の更新差分
+- 周期: Sentinel-2 は 5日ごとの再訪、worker は 1日 1回 (前夜分を翌朝バッチ)
+- 投入先: `site_environment_snapshots` の `change_hint` (stable / greening / browning /
+  water_change / bare_ground_change) + `vegetation_index` / `water_index`
+- area-snapshot の `environmentChange` フィールドに集約して可視化 (Phase 3 で実装予定)
+
+### 6.2 定点ページを「同じ場所の時系列比較」中心に再設計
+
+現状 `fixedPointStation.ts` は単一スナップショット表示。Phase 3 で「写真・動画・管理行為・
+衛星変化」を 1 画面で時系列比較できる UI に再構成する。
+
+- 写真/動画スワイプ (左右で年を跨ぐ)
+- 管理行為 (`stewardship_actions`) と観察結果の前後比較 (`stewardshipImpact` を強化)
+- 衛星変化 (上記 6.1 から) を年次レイヤとして重ね描画
+- 種構成 sankey (年→年への種の出入り)
+
+UX 検証は staging で先行公開、研究者協力者からのフィードバックを取った上で本番反映の流れ。
