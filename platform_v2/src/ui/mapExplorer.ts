@@ -4369,11 +4369,14 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-effort-title > span:first-child { font-size: 13px; }
   .me-area-effort-explainer { margin: 0 0 10px; font-size: 11px; color: #475569; line-height: 1.5; padding: 8px 10px; border-radius: 10px; background: rgba(241,245,249,.7); border: 1px solid rgba(148,163,184,.18); }
 
-  /* Area mode: PC では縦長サイドバー化。フッター削除でナビ下〜画面下端まで使えるので、
-     スクロールなしでヘッダ・CTA・サマリ・タイムライン・努力量カードまで一望できる。 */
+  /* Area mode: PC では「この場所」タブの右隣に縦長サイドカードとして出す。
+     左パネル (一覧/この場所) と被らないよう --me-side-w 分ずらす。
+     フッター削除でナビ下〜画面下端まで使えるので、スクロールなしでヘッダ・CTA・
+     サマリ・タイムライン・努力量カードまで一望できる。 */
   .me-bottom-sheet.me-bottom-sheet--area {
-    max-width: 540px;
-    left: 16px;
+    width: 460px;
+    max-width: calc(100vw - var(--me-side-w) - 32px);
+    left: calc(var(--me-side-w) + 16px);
     right: auto;
     top: 88px;
     bottom: 16px;
@@ -4396,10 +4399,13 @@ export const MAP_EXPLORER_STYLES = `
 
   @media (max-width: 768px) {
     .me-bottom-sheet.me-bottom-sheet--area {
+      width: auto;
       max-width: none;
       left: 0;
       right: 0;
+      top: auto;
       bottom: 0;
+      max-height: 62%;
       border-radius: 22px 22px 0 0;
     }
   }
