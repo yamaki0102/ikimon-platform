@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 const pages = [
   { path: "/", marker: /ikimon/i },
-  { path: "/explore", marker: /次に歩く場所を探す|今日の散歩先を探す|Explore/i },
+  { path: "/explore", marker: /地域のいのちを見る|Explore/i },
   { path: "/learn", marker: /ikimon|Learn/i },
   { path: "/contact", marker: /送信|Contact/i },
 ];
