@@ -89,6 +89,19 @@ $$;
 
 DO $$
 BEGIN
+    EXECUTE 'ALTER TABLE observation_fields
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ADD COLUMN IF NOT EXISTS valid_from DATE,
+        ADD COLUMN IF NOT EXISTS valid_to DATE,
+        ADD COLUMN IF NOT EXISTS superseded_by UUID
+            REFERENCES observation_fields(field_id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS entity_key TEXT';
+
+    EXECUTE 'ALTER TABLE observation_fields
+        ALTER COLUMN valid_from SET DEFAULT current_date,
+        ALTER COLUMN entity_key SET DEFAULT ''''';
+
     IF NOT EXISTS (
         SELECT 1
           FROM pg_constraint
