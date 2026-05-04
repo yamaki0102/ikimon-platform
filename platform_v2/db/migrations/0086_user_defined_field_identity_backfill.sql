@@ -10,7 +10,7 @@
 -- before the backfill reads them; rollback is dropping only these columns if
 -- they were absent before deploy.
 -- destructive-ok: data backfill only; rollback by restoring observation_fields
--- entity_key/valid_from/updated_at from the pre-deploy database snapshot.
+-- entity_key/valid_from from the pre-deploy database snapshot.
 
 ALTER TABLE observation_fields
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -109,7 +109,7 @@ numbered AS (
         base_key,
         row_number() OVER (
             PARTITION BY base_key, (valid_to IS NULL)
-            ORDER BY created_at ASC, field_id ASC
+            ORDER BY field_id ASC
         ) AS duplicate_no
       FROM candidates
 )
@@ -118,8 +118,7 @@ UPDATE observation_fields f
            WHEN n.duplicate_no = 1 THEN n.base_key
            ELSE n.base_key || ':variant-' || n.duplicate_no::text
        END,
-       valid_from = COALESCE(f.valid_from, f.created_at::date, current_date),
-       updated_at = NOW()
+       valid_from = COALESCE(f.valid_from, current_date)
   FROM numbered n
  WHERE f.field_id = n.field_id;
 
@@ -129,7 +128,7 @@ WITH duplicate_current AS (
         entity_key,
         row_number() OVER (
             PARTITION BY entity_key
-            ORDER BY created_at ASC, field_id ASC
+            ORDER BY field_id ASC
         ) AS duplicate_no
       FROM observation_fields
      WHERE valid_to IS NULL
@@ -142,8 +141,7 @@ renamed AS (
      WHERE duplicate_no > 1
 )
 UPDATE observation_fields f
-   SET entity_key = r.entity_key || ':variant-' || r.duplicate_no::text,
-       updated_at = NOW()
+   SET entity_key = r.entity_key || ':variant-' || r.duplicate_no::text
   FROM renamed r
  WHERE f.field_id = r.field_id;
 
