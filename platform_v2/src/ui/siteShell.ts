@@ -2127,7 +2127,7 @@ ${alternateLinks}
     }
     a { color: inherit; text-decoration: none; }
     .site-shell { min-height: 100vh; }
-    .shell { max-width: 1140px; margin: 0 auto; padding: 28px 24px 24px; }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 28px 24px 24px; }
     .shell.shell-bleed {
       max-width: none;
       width: 100%;
