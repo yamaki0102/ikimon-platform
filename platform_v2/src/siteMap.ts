@@ -71,7 +71,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     summary: { ja: "Enjoy Life の思想から、身近な生きものの観察と地域の自然記録へ進む入口。", en: "The entry point for enjoying life through nearby nature and starting a record." },
     primaryAction: { href: "/record", label: { ja: "記録する", en: "Record" } },
     legacyRedirects: ["/index.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "身近な自然" }, readySelector: "body", screenshot: { baselineName: "registry-top" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "生きものを楽しむ" }, readySelector: "body", screenshot: { baselineName: "registry-top" } },
   },
   {
     path: "/record",
