@@ -11,6 +11,19 @@
 -- destructive-ok: data backfill only; rollback by restoring observation_fields
 -- entity_key/valid_from from the pre-deploy database snapshot.
 
+ALTER TABLE observation_fields
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS valid_from DATE,
+    ADD COLUMN IF NOT EXISTS valid_to DATE,
+    ADD COLUMN IF NOT EXISTS superseded_by UUID
+        REFERENCES observation_fields(field_id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS entity_key TEXT;
+
+ALTER TABLE observation_fields
+    ALTER COLUMN valid_from SET DEFAULT current_date,
+    ALTER COLUMN entity_key SET DEFAULT '';
+
 DROP INDEX IF EXISTS idx_obs_fields_entity_current;
 
 CREATE OR REPLACE FUNCTION obs_user_field_normalized_name(input_name TEXT)
@@ -94,70 +107,74 @@ BEGIN
           FROM pg_constraint
          WHERE conname = 'obs_fields_valid_range_chk'
     ) THEN
-        ALTER TABLE observation_fields
+        EXECUTE 'ALTER TABLE observation_fields
             ADD CONSTRAINT obs_fields_valid_range_chk
-            CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from);
+            CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from)';
     END IF;
+
+    EXECUTE $backfill$
+        WITH candidates AS (
+            SELECT
+                field_id,
+                'user_defined:' || owner_user_id::text || ':' ||
+                    COALESCE(obs_user_field_normalized_name(name), 'unnamed') || ':' ||
+                    obs_geohash6(lat, lng) AS base_key
+              FROM observation_fields
+             WHERE source = 'user_defined'
+               AND owner_user_id IS NOT NULL
+               AND (entity_key IS NULL OR entity_key = '')
+        ),
+        numbered AS (
+            SELECT
+                field_id,
+                base_key,
+                row_number() OVER (
+                    PARTITION BY base_key, (valid_to IS NULL)
+                    ORDER BY field_id ASC
+                ) AS duplicate_no
+              FROM candidates
+        )
+        UPDATE observation_fields f
+           SET entity_key = CASE
+                   WHEN n.duplicate_no = 1 THEN n.base_key
+                   ELSE n.base_key || ':variant-' || n.duplicate_no::text
+               END,
+               valid_from = COALESCE(f.valid_from, current_date)
+          FROM numbered n
+         WHERE f.field_id = n.field_id
+    $backfill$;
+
+    EXECUTE $dedupe$
+        WITH duplicate_current AS (
+            SELECT
+                field_id,
+                entity_key,
+                row_number() OVER (
+                    PARTITION BY entity_key
+                    ORDER BY field_id ASC
+                ) AS duplicate_no
+              FROM observation_fields
+             WHERE valid_to IS NULL
+               AND entity_key IS NOT NULL
+               AND entity_key <> ''
+        ),
+        renamed AS (
+            SELECT field_id, entity_key, duplicate_no
+              FROM duplicate_current
+             WHERE duplicate_no > 1
+        )
+        UPDATE observation_fields f
+           SET entity_key = r.entity_key || ':variant-' || r.duplicate_no::text
+          FROM renamed r
+         WHERE f.field_id = r.field_id
+    $dedupe$;
+
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_obs_fields_entity_history
+        ON observation_fields (entity_key, valid_from DESC)';
+
+    EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_fields_entity_current
+        ON observation_fields (entity_key)
+        WHERE valid_to IS NULL
+          AND entity_key IS NOT NULL
+          AND entity_key <> ''''';
 END $$;
-
-WITH candidates AS (
-    SELECT
-        field_id,
-        'user_defined:' || owner_user_id::text || ':' ||
-            COALESCE(obs_user_field_normalized_name(name), 'unnamed') || ':' ||
-            obs_geohash6(lat, lng) AS base_key
-      FROM observation_fields
-     WHERE source = 'user_defined'
-       AND owner_user_id IS NOT NULL
-       AND (entity_key IS NULL OR entity_key = '')
-),
-numbered AS (
-    SELECT
-        field_id,
-        base_key,
-        row_number() OVER (
-            PARTITION BY base_key, (valid_to IS NULL)
-            ORDER BY field_id ASC
-        ) AS duplicate_no
-      FROM candidates
-)
-UPDATE observation_fields f
-   SET entity_key = CASE
-           WHEN n.duplicate_no = 1 THEN n.base_key
-           ELSE n.base_key || ':variant-' || n.duplicate_no::text
-       END,
-       valid_from = COALESCE(f.valid_from, current_date)
-  FROM numbered n
- WHERE f.field_id = n.field_id;
-
-WITH duplicate_current AS (
-    SELECT
-        field_id,
-        entity_key,
-        row_number() OVER (
-            PARTITION BY entity_key
-            ORDER BY field_id ASC
-        ) AS duplicate_no
-      FROM observation_fields
-     WHERE valid_to IS NULL
-       AND entity_key IS NOT NULL
-       AND entity_key <> ''
-),
-renamed AS (
-    SELECT field_id, entity_key, duplicate_no
-      FROM duplicate_current
-     WHERE duplicate_no > 1
-)
-UPDATE observation_fields f
-   SET entity_key = r.entity_key || ':variant-' || r.duplicate_no::text
-  FROM renamed r
- WHERE f.field_id = r.field_id;
-
-CREATE INDEX IF NOT EXISTS idx_obs_fields_entity_history
-    ON observation_fields (entity_key, valid_from DESC);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_fields_entity_current
-    ON observation_fields (entity_key)
-    WHERE valid_to IS NULL
-      AND entity_key IS NOT NULL
-      AND entity_key <> '';
