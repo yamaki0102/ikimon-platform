@@ -136,7 +136,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "見つける", en: "Explore" },
     summary: { ja: "最近の観察や名前から、身近な自然と次の発見を探す。", en: "Browse observations and names across the service." },
     legacyRedirects: ["/zukan", "/zukan.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "今日の散歩先を探す" }, readySelector: "body", screenshot: { baselineName: "registry-explore" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地域のいのちを見る" }, readySelector: "body", screenshot: { baselineName: "registry-explore" } },
   },
   {
     path: "/notes",
@@ -308,7 +308,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     primaryAction: { href: "/record", label: { ja: "まず1件残す", en: "Record one observation" } },
     marketing: { pageKey: "community" },
     legacyRedirects: ["/events.php", "/survey.php", "/bingo.php", "/event_detail.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "みんなで調べる入口" }, readySelector: "body", screenshot: { baselineName: "registry-community" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "小さな発見を、みんなで残す" }, readySelector: "body", screenshot: { baselineName: "registry-community" } },
   },
   {
     path: "/community/events",
@@ -318,12 +318,12 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["header", "footer", "qa", "xml"],
     title: { ja: "観察会", en: "Observation events" },
     summary: {
-      ja: "AI が現場を読み、班でリアルタイム協力する観察会。",
+      ja: "見つける楽しさを入口に、班で同じ場所を見直し、地域の記録に残す観察会。",
       en: "Realtime cooperative bioblitz where AI reads the field and teams move together.",
     },
     primaryAction: { href: "/community/events", label: { ja: "観察会一覧", en: "Browse events" } },
     legacyRedirects: ["/event_detail.php", "/bioblitz_join.php", "/event_dashboard.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察会 OS" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-events" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "小さな発見を、みんなで地域の記録" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-events" } },
   },
   {
     path: "/community/fields",
@@ -349,7 +349,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     summary: { ja: "楽しんで続く観察を、企業・自治体・地域のアクションへつなげる入口。", en: "Entry point for schools and local groups." },
     marketing: { pageKey: "forBusiness" },
     legacyRedirects: ["/for-business.php", "/for-business/index.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "学校や地域で始めたい" }, readySelector: "body", screenshot: { baselineName: "registry-for-business" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "楽しんで続く観察を、地域のアクションへ" }, readySelector: "body", screenshot: { baselineName: "registry-for-business" } },
   },
   {
     path: "/for-business/pricing",
