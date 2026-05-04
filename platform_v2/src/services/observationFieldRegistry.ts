@@ -1,5 +1,13 @@
 import { getPool } from "../db.js";
+import { encodeGeohash } from "./geohash.js";
 import { computeBbox } from "./geoJsonBbox.js";
+import {
+  bboxOverlaps,
+  entityKeyForUserField,
+  haversineMeters,
+  normalizeFieldName,
+  validateAreaPolygon,
+} from "./observationEventAreaGeometry.js";
 
 export type FieldSource =
   | "user_defined"
@@ -70,6 +78,10 @@ export interface ObservationField {
   certifiedAt: string | null;
   officialUrl: string;
   ownerUserId: string | null;
+  entityKey?: string;
+  validFrom?: string | null;
+  validTo?: string | null;
+  supersededBy?: string | null;
   payload: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -93,6 +105,10 @@ interface RawFieldRow extends Record<string, unknown> {
   certified_at: string | null;
   official_url: string;
   owner_user_id: string | null;
+  entity_key: string | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  superseded_by: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -103,7 +119,11 @@ const SELECT = `
   lat::text AS lat, lng::text AS lng, radius_m, polygon,
   area_ha::text AS area_ha, certification_id,
   certified_at::text AS certified_at,
-  official_url, owner_user_id, payload,
+  official_url, owner_user_id,
+  COALESCE(entity_key, '') AS entity_key,
+  valid_from::text AS valid_from, valid_to::text AS valid_to,
+  superseded_by::text AS superseded_by,
+  payload,
   created_at::text AS created_at, updated_at::text AS updated_at
 `;
 
@@ -131,6 +151,10 @@ function mapRow(row: RawFieldRow): ObservationField {
     certifiedAt: row.certified_at,
     officialUrl: row.official_url ?? "",
     ownerUserId: row.owner_user_id,
+    entityKey: row.entity_key ?? "",
+    validFrom: row.valid_from,
+    validTo: row.valid_to,
+    supersededBy: row.superseded_by,
     payload: row.payload ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -153,24 +177,40 @@ export interface CreateFieldInput {
   certifiedAt?: string | null;
   officialUrl?: string;
   ownerUserId?: string | null;
+  entityKey?: string | null;
+  validFrom?: string | null;
   payload?: Record<string, unknown>;
+}
+
+function defaultEntityKey(input: CreateFieldInput): string {
+  if (input.entityKey) return input.entityKey;
+  if (input.source && input.source !== "user_defined") return input.certificationId ? `${input.source}:${input.certificationId}` : "";
+  if (!input.ownerUserId) return "";
+  return entityKeyForUserField({
+    ownerUserId: input.ownerUserId,
+    name: input.name,
+    geohash6: encodeGeohash(input.lat, input.lng, 6),
+  });
 }
 
 export async function createField(input: CreateFieldInput): Promise<ObservationField> {
   const source = input.source ?? "user_defined";
   const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
   const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
+  const entityKey = defaultEntityKey(input);
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
        lat, lng, radius_m, polygon, area_ha,
        certification_id, certified_at, official_url, owner_user_id, payload,
-       bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level
+       bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
+       entity_key, valid_from
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
        $12, $13, $14, $15, $16::jsonb,
-       $17, $18, $19, $20, $21
+       $17, $18, $19, $20, $21,
+       $22, COALESCE($23::date, current_date)
      )
      RETURNING ${SELECT}`,
     [
@@ -195,6 +235,8 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
       bbox.minLng,
       bbox.maxLng,
       adminLevel,
+      entityKey,
+      input.validFrom ?? null,
     ],
   );
   const row = result.rows[0];
@@ -279,6 +321,186 @@ export async function getField(fieldId: string): Promise<ObservationField | null
   return row ? mapRow(row) : null;
 }
 
+export interface FieldConflict {
+  field: ObservationField;
+  reason: "same_name_nearby" | "overlapping_area" | "same_entity";
+  distanceM: number;
+  overlap: boolean;
+  editableByRequester: boolean;
+}
+
+export interface FindFieldConflictInput {
+  ownerUserId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  radiusM?: number | null;
+  polygon?: Record<string, unknown> | null;
+  excludeFieldId?: string | null;
+}
+
+export async function findFieldConflicts(input: FindFieldConflictInput): Promise<FieldConflict[]> {
+  const normalized = normalizeFieldName(input.name);
+  if (!input.ownerUserId || !normalized) return [];
+  const radiusM = Math.max(100, Math.min(2_000, input.radiusM ?? 500));
+  const rangeKm = Math.max(0.8, radiusM / 1000 + 0.7);
+  const latDelta = rangeKm / 111;
+  const lngDelta = rangeKm / (111 * Math.cos((input.lat * Math.PI) / 180));
+  const validation = input.polygon ? validateAreaPolygon(input.polygon) : null;
+  const entityKey = entityKeyForUserField({
+    ownerUserId: input.ownerUserId,
+    name: input.name,
+    geohash6: encodeGeohash(input.lat, input.lng, 6),
+  });
+  const result = await getPool().query<RawFieldRow & {
+    bbox_min_lat: string | null;
+    bbox_max_lat: string | null;
+    bbox_min_lng: string | null;
+    bbox_max_lng: string | null;
+  }>(
+    `SELECT ${SELECT},
+            bbox_min_lat::text AS bbox_min_lat,
+            bbox_max_lat::text AS bbox_max_lat,
+            bbox_min_lng::text AS bbox_min_lng,
+            bbox_max_lng::text AS bbox_max_lng
+      FROM observation_fields
+     WHERE owner_user_id = $1
+       AND source = 'user_defined'
+       AND valid_to IS NULL
+        AND lat BETWEEN $2::float8 AND $3::float8
+        AND lng BETWEEN $4::float8 AND $5::float8
+        AND ($6::uuid IS NULL OR field_id <> $6::uuid)
+      ORDER BY updated_at DESC
+      LIMIT 20`,
+    [
+      input.ownerUserId,
+      input.lat - latDelta,
+      input.lat + latDelta,
+      input.lng - lngDelta,
+      input.lng + lngDelta,
+      input.excludeFieldId ?? null,
+    ],
+  );
+
+  const out: FieldConflict[] = [];
+  for (const row of result.rows) {
+    const field = mapRow(row);
+    if (normalizeFieldName(field.name) !== normalized && field.entityKey !== entityKey) continue;
+    const distanceM = haversineMeters(input.lat, input.lng, field.lat, field.lng);
+    const rowBbox = row.bbox_min_lat != null && row.bbox_max_lat != null && row.bbox_min_lng != null && row.bbox_max_lng != null
+      ? {
+          minLat: Number(row.bbox_min_lat),
+          maxLat: Number(row.bbox_max_lat),
+          minLng: Number(row.bbox_min_lng),
+          maxLng: Number(row.bbox_max_lng),
+        }
+      : null;
+    const overlap = Boolean(validation?.bbox && rowBbox && bboxOverlaps(validation.bbox, rowBbox));
+    if (field.entityKey === entityKey || distanceM <= radiusM + field.radiusM || overlap) {
+      out.push({
+        field,
+        reason: field.entityKey === entityKey ? "same_entity" : overlap ? "overlapping_area" : "same_name_nearby",
+        distanceM,
+        overlap,
+        editableByRequester: field.ownerUserId === input.ownerUserId && field.source === "user_defined",
+      });
+    }
+  }
+  return out;
+}
+
+export interface CreateFieldVersionInput extends CreateFieldInput {
+  previousFieldId: string;
+}
+
+export async function createFieldVersion(input: CreateFieldVersionInput): Promise<ObservationField> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const previous = await client.query<RawFieldRow>(
+      `SELECT ${SELECT} FROM observation_fields WHERE field_id = $1 FOR UPDATE`,
+      [input.previousFieldId],
+    );
+    const previousField = previous.rows[0] ? mapRow(previous.rows[0]) : null;
+    if (!previousField) throw new Error("previous field not found");
+    if (previousField.source !== "user_defined" || previousField.ownerUserId !== input.ownerUserId) {
+      throw new Error("field version update is owner only");
+    }
+    const source = input.source ?? "user_defined";
+    const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
+    const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
+    const entityKey = previousField.entityKey || defaultEntityKey(input);
+    await client.query(
+      `UPDATE observation_fields
+          SET valid_to = current_date,
+              updated_at = NOW()
+        WHERE field_id = $1`,
+      [previousField.fieldId],
+    );
+    const inserted = await client.query<RawFieldRow>(
+      `INSERT INTO observation_fields (
+         source, name, name_kana, summary, prefecture, city,
+         lat, lng, radius_m, polygon, area_ha,
+         certification_id, certified_at, official_url, owner_user_id, payload,
+         bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
+         entity_key, valid_from
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6,
+         $7, $8, $9, $10::jsonb, $11,
+         $12, $13, $14, $15, $16::jsonb,
+         $17, $18, $19, $20, $21,
+         $22, current_date
+       )
+       RETURNING ${SELECT}`,
+      [
+        source,
+        input.name,
+        input.nameKana ?? previousField.nameKana,
+        input.summary ?? previousField.summary,
+        input.prefecture ?? previousField.prefecture,
+        input.city ?? previousField.city,
+        input.lat,
+        input.lng,
+        input.radiusM ?? previousField.radiusM,
+        input.polygon ? JSON.stringify(input.polygon) : null,
+        input.areaHa ?? null,
+        input.certificationId ?? previousField.certificationId,
+        input.certifiedAt ?? previousField.certifiedAt,
+        input.officialUrl ?? previousField.officialUrl,
+        input.ownerUserId ?? null,
+        JSON.stringify({
+          ...previousField.payload,
+          ...(input.payload ?? {}),
+          previous_field_id: previousField.fieldId,
+        }),
+        bbox.minLat,
+        bbox.maxLat,
+        bbox.minLng,
+        bbox.maxLng,
+        adminLevel,
+        entityKey,
+      ],
+    );
+    const next = inserted.rows[0] ? mapRow(inserted.rows[0]) : null;
+    if (!next) throw new Error("failed to create field version");
+    await client.query(
+      `UPDATE observation_fields
+          SET superseded_by = $2,
+              updated_at = NOW()
+        WHERE field_id = $1`,
+      [previousField.fieldId, next.fieldId],
+    );
+    await client.query("COMMIT");
+    return next;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export interface UpdateFieldInput {
   name?: string;
   nameKana?: string;
@@ -331,6 +553,7 @@ export async function listMyFields(userId: string, limit = 50): Promise<Observat
   const result = await getPool().query<RawFieldRow>(
     `SELECT ${SELECT} FROM observation_fields
      WHERE owner_user_id = $1
+       AND valid_to IS NULL
      ORDER BY updated_at DESC
      LIMIT $2`,
     [userId, Math.min(Math.max(1, limit), 200)],
@@ -370,6 +593,7 @@ export async function listNearbyFields(
      FROM observation_fields
      WHERE lat BETWEEN $1::float8 AND $2::float8
        AND lng BETWEEN $3::float8 AND $4::float8
+       AND valid_to IS NULL
        ${sourceClause}
      ORDER BY distance_km ASC
      LIMIT ${limitPlaceholder}`,
@@ -385,10 +609,13 @@ export async function searchFieldsByName(query: string, limit = 30): Promise<Obs
   if (!q) return [];
   const result = await getPool().query<RawFieldRow>(
     `SELECT ${SELECT} FROM observation_fields
-     WHERE lower(name) LIKE '%' || $1 || '%'
-        OR lower(name_kana) LIKE '%' || $1 || '%'
-        OR lower(prefecture) LIKE '%' || $1 || '%'
-        OR lower(city) LIKE '%' || $1 || '%'
+     WHERE (
+          lower(name) LIKE '%' || $1 || '%'
+       OR lower(name_kana) LIKE '%' || $1 || '%'
+       OR lower(prefecture) LIKE '%' || $1 || '%'
+       OR lower(city) LIKE '%' || $1 || '%'
+     )
+       AND valid_to IS NULL
      ORDER BY
        CASE WHEN lower(name) = $1 THEN 0
             WHEN lower(name) LIKE $1 || '%' THEN 1
@@ -405,7 +632,7 @@ export async function listCertifiedFields(
   options: { prefecture?: string; limit?: number } = {},
 ): Promise<ObservationField[]> {
   const params: unknown[] = [source];
-  let where = "source = $1";
+  let where = "source = $1 AND valid_to IS NULL";
   if (options.prefecture) {
     params.push(options.prefecture);
     where += ` AND prefecture = $${params.length}`;
@@ -465,9 +692,12 @@ export async function listFields(filter: FieldFilter = {}): Promise<ObservationF
   params.push(offset);
   const offsetIdx = params.length;
   const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+  const activeWhereClause = whereClause
+    ? `${whereClause} AND valid_to IS NULL`
+    : "WHERE valid_to IS NULL";
   const result = await getPool().query<RawFieldRow>(
     `SELECT ${SELECT} FROM observation_fields
-     ${whereClause}
+     ${activeWhereClause}
      ORDER BY
        CASE WHEN source = 'user_defined' THEN 1 ELSE 0 END,
        prefecture, city, name
@@ -501,6 +731,7 @@ export async function listPrefectureBuckets(): Promise<PrefectureBucket[]> {
        COUNT(*) FILTER (WHERE source = 'user_defined')::text AS ud
      FROM observation_fields
      WHERE prefecture <> ''
+       AND valid_to IS NULL
      GROUP BY prefecture
      ORDER BY COUNT(*) DESC, prefecture`,
   );

@@ -603,6 +603,109 @@ export const OBSERVATION_EVENT_STYLES = `
   box-shadow: 0 0 0 3px rgba(16,185,129,.18);
 }
 
+/* === 観察会作成: 開催エリア設計 === */
+.evt-area-planner {
+  border: 1px solid var(--evt-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+.evt-area-planner > legend {
+  padding: 0 6px;
+  font-weight: 800;
+  font-size: 13px;
+}
+.evt-area-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+.evt-area-toolbar,
+.evt-area-modebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.evt-area-map-shell {
+  position: relative;
+  min-height: 360px;
+  border-radius: 16px;
+  border: 1px solid var(--evt-line);
+  overflow: hidden;
+  background: #e2e8f0;
+}
+.evt-area-map {
+  position: absolute;
+  inset: 0;
+}
+.evt-area-map-fallback {
+  position: absolute;
+  inset: auto 10px 10px 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15,23,42,.78);
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+}
+.evt-area-status {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(248,250,252,.9);
+  border: 1px solid rgba(148,163,184,.18);
+  color: var(--evt-ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+.evt-area-suggestions,
+.evt-area-conflicts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.evt-area-suggestion,
+.evt-area-conflict {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--evt-line);
+  background: #fff;
+}
+.evt-area-suggestion {
+  cursor: pointer;
+}
+.evt-area-suggestion.is-selected {
+  border-color: var(--evt-accent-discovery);
+  box-shadow: 0 0 0 3px rgba(16,185,129,.18);
+}
+.evt-area-suggestion strong,
+.evt-area-conflict strong {
+  color: var(--evt-ink);
+  font-size: 14px;
+}
+.evt-area-suggestion span,
+.evt-area-conflict span {
+  color: var(--evt-ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.evt-area-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .evt-area-head { grid-template-columns: 1fr; }
+  .evt-area-map-shell { min-height: 320px; }
+  .evt-area-toolbar .evt-btn { flex: 1 1 auto; }
+}
+
 /* === コネクションステータス（オフラインバッジ） === */
 .evt-conn {
   position: fixed; bottom: 16px; right: 16px;

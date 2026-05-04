@@ -4,6 +4,7 @@ import { loadConfig } from "../config.js";
 import { issueRememberToken, revokeRememberToken } from "./rememberTokenWrite.js";
 
 export const SESSION_COOKIE_NAME = "ikimon_v2_session";
+const DEV_DUMMY_ADMIN_USER_ID = "dev-dummy-admin";
 
 export type SessionIssueInput = {
   userId: string;
@@ -21,6 +22,28 @@ export type SessionSnapshot = {
   expiresAt: string;
   tokenHash: string;
 };
+
+function devDummyAdminEnabled(): boolean {
+  return loadConfig().nodeEnv !== "production" &&
+    process.env.ENABLE_DEV_DUMMY_ADMIN === "1" &&
+    Boolean(process.env.DEV_DUMMY_ADMIN_TOKEN?.trim());
+}
+
+function devDummyAdminToken(): string {
+  return process.env.DEV_DUMMY_ADMIN_TOKEN?.trim() || "";
+}
+
+function devDummyAdminSession(): SessionSnapshot {
+  return {
+    userId: DEV_DUMMY_ADMIN_USER_ID,
+    displayName: process.env.DEV_DUMMY_ADMIN_DISPLAY_NAME?.trim() || "Dev Dummy Admin",
+    roleName: "Admin",
+    rankLabel: "Admin",
+    banned: false,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    tokenHash: "dev-dummy-admin",
+  };
+}
 
 function parseCookies(headerValue: string | undefined): Record<string, string> {
   if (!headerValue) {
@@ -65,6 +88,21 @@ export async function issueSession(input: SessionIssueInput) {
     throw new Error("userId is required");
   }
 
+  if (devDummyAdminEnabled() && input.userId === DEV_DUMMY_ADMIN_USER_ID) {
+    const rawToken = devDummyAdminToken();
+    const session = devDummyAdminSession();
+    return {
+      rawToken,
+      cookie: buildSessionCookie(rawToken, session.expiresAt),
+      tokenHash: session.tokenHash,
+      compatibility: {
+        attempted: false,
+        succeeded: false,
+      },
+      session,
+    };
+  }
+
   const ttlHours = Number.isFinite(input.ttlHours) && (input.ttlHours ?? 0) > 0 ? Number(input.ttlHours) : 24 * 30;
   const rawToken = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
@@ -91,6 +129,10 @@ export async function issueSession(input: SessionIssueInput) {
 export async function getSessionByRawToken(rawToken: string): Promise<SessionSnapshot | null> {
   if (!rawToken.trim()) {
     return null;
+  }
+
+  if (devDummyAdminEnabled() && rawToken === devDummyAdminToken()) {
+    return devDummyAdminSession();
   }
 
   const pool = getPool();
@@ -138,6 +180,18 @@ export async function getSessionFromCookie(cookieHeader: string | undefined): Pr
 }
 
 export async function revokeSession(rawToken: string | null) {
+  if (rawToken && devDummyAdminEnabled() && rawToken === devDummyAdminToken()) {
+    return {
+      revoked: true,
+      tokenHash: "dev-dummy-admin",
+      compatibility: {
+        attempted: false,
+        succeeded: false,
+      },
+      clearedCookie: buildClearedSessionCookie(),
+    };
+  }
+
   if (!rawToken) {
     return {
       revoked: false,
