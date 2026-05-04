@@ -29,6 +29,7 @@ jobs:
       run_php_lint: ${{ steps.plan.outputs.run_php_lint }}
       run_php_tests: ${{ steps.plan.outputs.run_php_tests }}
       run_platform_v2: ${{ steps.plan.outputs.run_platform_v2 }}
+      run_record_funnel_browser_qa: ${{ steps.plan.outputs.run_record_funnel_browser_qa }}
       run_deploy_manifest_check: ${{ steps.plan.outputs.run_deploy_manifest_check }}
     steps:
       - uses: actions/checkout@v5
@@ -70,11 +71,13 @@ jobs:
           RUN_PHP_LINT=false
           RUN_PHP_TESTS=false
           RUN_PLATFORM_V2=false
+          RUN_RECORD_FUNNEL_BROWSER_QA=false
           RUN_DEPLOY_MANIFEST_CHECK=false
 
           if [ "$PHP_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
           if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_TESTS=true; fi
           if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PLATFORM_V2=true; fi
+          if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_RECORD_FUNNEL_BROWSER_QA=true; fi
           if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_DEPLOY_MANIFEST_CHECK=true; fi
 
           {
@@ -85,11 +88,12 @@ jobs:
             echo "run_php_lint=$RUN_PHP_LINT"
             echo "run_php_tests=$RUN_PHP_TESTS"
             echo "run_platform_v2=$RUN_PLATFORM_V2"
+            echo "run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA"
             echo "run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
           } >> "$GITHUB_OUTPUT"
 
           echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED"
-          echo "run_php_lint=$RUN_PHP_LINT run_php_tests=$RUN_PHP_TESTS run_platform_v2=$RUN_PLATFORM_V2 run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
+          echo "run_php_lint=$RUN_PHP_LINT run_php_tests=$RUN_PHP_TESTS run_platform_v2=$RUN_PLATFORM_V2 run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
 
           {
             echo "## CI scope"
@@ -101,6 +105,7 @@ jobs:
             echo "- PHP lint: $RUN_PHP_LINT"
             echo "- PHPUnit: $RUN_PHP_TESTS"
             echo "- platform_v2 checks: $RUN_PLATFORM_V2"
+            echo "- /record funnel browser QA: $RUN_RECORD_FUNNEL_BROWSER_QA"
             echo "- deploy manifest sync: $RUN_DEPLOY_MANIFEST_CHECK"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -209,10 +214,41 @@ jobs:
         working-directory: platform_v2
         run: npm run eval:navigable-os
 
+  record-funnel-browser-qa:
+    name: Record Funnel Browser QA
+    runs-on: ubuntu-latest
+    needs: [plan, lint]
+    if: needs.plan.outputs.run_record_funnel_browser_qa == 'true'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup platform_v2 browser QA runtime
+        uses: ./.github/actions/setup-platform-v2-browser
+
+      - name: Run /record funnel staging QA
+        working-directory: platform_v2
+        env:
+          STAGING_BASE_URL: https://staging.ikimon.life
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+          V2_PRIVILEGED_WRITE_API_KEY: ${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}
+        run: npm run e2e:staging:record-funnel
+
+      - name: Upload /record funnel Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: record-funnel-playwright-artifacts
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/staging
+          if-no-files-found: ignore
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [plan, lint, test, platform-v2]
+    needs: [plan, lint, test, platform-v2, record-funnel-browser-qa]
     if: always()
     steps:
       - name: Check results
@@ -221,8 +257,8 @@ jobs:
             [[ "$1" == "success" || "$1" == "skipped" ]]
           }
 
-          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}"; then
-            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}"
+          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}" || ! ok_result "${{ needs.record-funnel-browser-qa.result }}"; then
+            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"
             exit 1
           fi
-          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}"
+          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"

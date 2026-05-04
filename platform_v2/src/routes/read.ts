@@ -4686,6 +4686,64 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const setStatus = (html) => {
           if (status) status.innerHTML = html;
         };
+        const recordKpiEndpoint = withBasePath('/api/v1/ui-kpi/events');
+        const recordKpiStartedAt = Date.now();
+        const recordKpiSessionId = (window.crypto && typeof window.crypto.randomUUID === 'function')
+          ? window.crypto.randomUUID()
+          : 'record-kpi-' + String(Date.now()) + '-' + String(Math.random()).slice(2);
+        const recordStartParams = new URLSearchParams(window.location.search || '');
+        const recordKpiStartMode = recordStartParams.get('start') || 'default';
+
+        const safeAllSelectedMediaFiles = () => {
+          try {
+            return typeof allSelectedMediaFiles === 'function' ? allSelectedMediaFiles() : [];
+          } catch (_) {
+            return [];
+          }
+        };
+
+        const collectRecordKpiDefaults = (extra) => {
+          const coords = readCoords();
+          const files = safeAllSelectedMediaFiles();
+          return Object.assign({
+            recordSessionId: recordKpiSessionId,
+            lang: document.documentElement.lang || 'ja',
+            elapsedMs: Math.max(0, Date.now() - recordKpiStartedAt),
+            captureKind: selectedCaptureKind || 'unknown',
+            startMode: recordKpiStartMode,
+            hasLocation: Boolean(coords),
+            mediaCount: files.length,
+            photoCount: selectedMediaFiles.length,
+            videoCount: selectedVideoFile ? 1 : 0,
+          }, extra || {});
+        };
+
+        const sendRecordKpi = (eventName, actionKey, metadata) => {
+          try {
+            const payload = {
+              eventName,
+              pagePath: window.location.pathname + window.location.search,
+              routeKey: '/record',
+              actionKey,
+              userId: form && form.dataset ? form.dataset.userId || undefined : undefined,
+              metadata: collectRecordKpiDefaults(metadata),
+            };
+            fetch(recordKpiEndpoint, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              credentials: 'include',
+              keepalive: true,
+              body: JSON.stringify(payload),
+            }).catch(() => undefined);
+          } catch (_) {
+            // KPI must never block the record flow.
+          }
+        };
+
+        const sendRecordFunnelStep = (actionKey, metadata) => sendRecordKpi('funnel_step', actionKey, metadata);
+        const sendRecordFunnelError = (actionKey, metadata) => sendRecordKpi('funnel_error', actionKey, metadata);
+        const sendRecordTaskCompletion = (actionKey, metadata) => sendRecordKpi('task_completion', actionKey, metadata);
+        const sendRecordCtaClick = (actionKey, metadata) => sendRecordKpi('primary_cta_click', actionKey, metadata);
         const recordSubmitButtons = () => form ? Array.from(form.querySelectorAll('button[type="submit"]')) : [];
         const setRecordSubmitting = (submitting) => {
           recordSubmitInFlight = Boolean(submitting);
@@ -4849,6 +4907,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           updateLocationText(sourceLabel);
           syncPreview();
           syncLocationNudge();
+          sendRecordFunnelStep('location_set', {
+            locationSource: recordLocationProvenance ? recordLocationProvenance.source : 'unknown',
+            latitude: Number(lat).toFixed(6),
+            longitude: Number(lng).toFixed(6),
+          });
           if (recordMapReady && recordMap && window.maplibregl) {
             recordMap.jumpTo({ center: [Number(lng), Number(lat)], zoom: opts && opts.zoom ? opts.zoom : Math.max(recordMap.getZoom(), 15) });
             if (!recordMapMarker) recordMapMarker = new window.maplibregl.Marker({ color: '#047857' }).addTo(recordMap);
@@ -6219,6 +6282,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         captureButtons.forEach((button) => {
           button.addEventListener('click', () => {
             const action = button.getAttribute('data-capture-action') || 'gallery';
+            sendRecordFunnelStep('capture_method_selected', { captureKind: action });
             const target = document.querySelector('[data-record-media-input][data-capture-kind="' + action + '"]') || mediaInput;
             if (target && typeof target.click === 'function') target.click();
           });
@@ -6231,6 +6295,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             mediaAutofillSequence += 1;
             clearMediaInputsExcept(input);
             const normalized = normalizeSelectedFiles(files, kind);
+            if (normalized.photos.length || normalized.video) {
+              sendRecordFunnelStep('media_selected', {
+                captureKind: kind,
+                mediaCount: normalized.photos.length + (normalized.video ? 1 : 0),
+                photoCount: normalized.photos.length,
+                videoCount: normalized.video ? 1 : 0,
+              });
+            }
             if (!files.length || (!normalized.photos.length && !normalized.video)) {
               selectedMediaFiles = [];
               selectedVideoFile = null;
@@ -6345,6 +6417,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                     label: '座標を直接編集',
                     reverseGeocode: false,
                   });
+                  sendRecordFunnelStep('location_set', {
+                    locationSource: 'manual_coordinate_edit',
+                    latitude: coords.lat.toFixed(6),
+                    longitude: coords.lng.toFixed(6),
+                  });
                 }
                 syncPreview();
                 syncLocationNudge();
@@ -6367,6 +6444,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         resetVideoProgress();
         applyStartModeFromQuery();
         importGlobalRecordDraft();
+        sendRecordFunnelStep('record_open', {
+          hasRevisitContext: Boolean(recordStartParams.get('revisitObservationId') || recordStartParams.get('revisit_of_visit_id')),
+        });
+
+        document.addEventListener('click', (event) => {
+          const target = event.target && event.target.closest ? event.target.closest('[data-record-success-cta]') : null;
+          if (!target) return;
+          sendRecordCtaClick('record_success_' + (target.getAttribute('data-record-success-cta') || 'unknown'), {
+            href: target.getAttribute('href') || '',
+          });
+        });
 
         if (form) {
           form.addEventListener('submit', async (event) => {
@@ -6376,12 +6464,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             const userId = form.dataset.userId || '';
             const observationId = pendingMediaRetryObservationId || 'record-' + Date.now();
             let savedDetailId = '';
+            let savedVisitId = '';
             if (!userId) {
               setStatus('<div class="row"><div>ログイン情報を確認できませんでした。ページを開き直してから、もう一度お試しください。</div></div>');
               return;
             }
             setRecordSubmitting(true);
             setStatus('<div class="row"><div>記録を送信中...</div></div>');
+            sendRecordFunnelStep('submit_attempt', {
+              pendingMediaRetry: Boolean(pendingMediaRetryObservationId),
+              mediaCount: safeAllSelectedMediaFiles().length,
+            });
             try {
               const recordMode = String(data.get('recordMode') || 'quick') === 'survey' ? 'survey' : 'quick';
               const checklistCompletion = String(data.get('checklistCompletion') || 'complete');
@@ -6528,7 +6621,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 throw new Error(observationJson.error || 'observation_upsert_failed');
               }
               const detailId = String(observationJson.occurrenceId || observationId);
+              const visitId = String(observationJson.visitId || observationId);
               savedDetailId = detailId;
+              savedVisitId = visitId;
+              sendRecordFunnelStep('observation_upsert_success', {
+                visitId,
+                occurrenceId: detailId,
+                placeId: observationJson.placeId || null,
+                occurrenceCount: Array.isArray(observationJson.occurrenceIds) ? observationJson.occurrenceIds.length : 1,
+              });
               let extraStatus = '';
 
               const uploadPhotoFile = async (upload, mediaRoleForPhoto, index, total) => {
@@ -6549,6 +6650,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 if (!photoResponse.ok || !photoJson.ok) {
                   throw new Error('photo_upload_failed_at_' + String(index) + ':' + (photoJson.error || 'photo_upload_failed'));
                 }
+                sendRecordFunnelStep('photo_upload_success', {
+                  visitId,
+                  occurrenceId: detailId,
+                  photoIndex: index,
+                  photoTotal: total,
+                  mediaRole: mediaRoleForPhoto,
+                });
               };
 
               for (let index = 0; index < preparedPhotoUploads.length; index += 1) {
@@ -6607,6 +6715,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   if (!finalizeResponse.ok || !finalizeJson.ok) {
                     throw new Error(finalizeJson.error || 'video_finalize_failed');
                   }
+                  sendRecordFunnelStep('video_upload_success', {
+                    visitId,
+                    occurrenceId: detailId,
+                    uploadProtocol,
+                    readyToStream: Boolean(finalizeJson.video && finalizeJson.video.readyToStream),
+                    streamUid: String(issueJson.uid || ''),
+                  });
                   const videoReady = Boolean(finalizeJson.video && finalizeJson.video.readyToStream);
                   if (videoReady) {
                     extraStatus = [extraStatus, '動画は保存済みです。AI 解析は裏側で進めています。'].filter(Boolean).join(' ');
@@ -6619,7 +6734,24 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 ? extraStatus
                 : '';
               const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートを見る</a></div></div></div>');
+              const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
+              const notesHref = withBasePath('/notes');
+              const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + observationHref + '" data-record-success-cta="observation_detail">観察を見る</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件</a> · <a href="' + notesHref + '" data-record-success-cta="notes">ノートを見る</a></div></div></div>');
+              sendRecordFunnelStep('record_success_rendered', {
+                visitId,
+                occurrenceId: detailId,
+                placeId: observationJson.placeId || null,
+                successCtas: ['observation_detail', 'revisit_same_place', 'notes'],
+              });
+              sendRecordTaskCompletion('record_saved', {
+                visitId,
+                occurrenceId: detailId,
+                placeId: observationJson.placeId || null,
+                mediaCount: safeAllSelectedMediaFiles().length,
+                photoUploadCount: preparedPhotoUploads.length,
+                hasVideo: Boolean(selectedVideoFile),
+              });
               pendingMediaRetryObservationId = '';
               form.reset();
               if (modeInput) modeInput.value = 'quick';
@@ -6663,6 +6795,18 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 ? '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(savedDetailId)) + '">保存済みの観察を見る</a> · メディアだけ再試行する場合はこの画面のまま再送信してください。</div>'
                 : '';
               if (savedDetailId) pendingMediaRetryObservationId = observationId;
+              const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
+                ? 'photo_upload_error'
+                : (message.indexOf('video') >= 0 || message.indexOf('cloudflare') >= 0 || message.indexOf('tus') >= 0)
+                  ? 'video_upload_error'
+                  : 'record_submit_error';
+              sendRecordFunnelError(funnelErrorAction, {
+                errorCode: message,
+                userMessage,
+                visitId: savedVisitId || null,
+                occurrenceId: savedDetailId || null,
+                partialRecordSaved: Boolean(savedDetailId),
+              });
               setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + userMessage + '</div>' + partialLink + '</div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
