@@ -1,32 +1,28 @@
-# 研究でデータを使いたいときの申請窓口
+# 観察データを研究やレポートに活かす
 
-ikimon の市民観察データを研究で利用するための窓口です。送信いただいた内容は個別に確認した上で、1–3 営業日を目安にメールで返信します。
+ikimon.life の観察記録は、楽しさを入口にしています。ただし、研究やレポートで使うときは、どの記録をどの強さで扱えるかを分ける必要があります。
 
-## 対象データ
+Evidence Tier 3+ の観察を中心に、Darwin Core 形式での取得、DOI 発行、共同研究、地域レポート、TNFD・30by30・ネイチャーポジティブ文脈への整理について相談できます。
 
-- [`/api/v1/research/occurrences`](/api/v1/research/occurrences) — Evidence Tier 3+ の観察を Darwin Core JSON で返す公開 API（CC-BY）
-- `export_dwca.php` — researcher tier 以上の API キーで DwC-A zip を取得（CC0 / CC-BY）
-- 音声アーカイブ — sound_archive 系、bulk export は相談ベースで個別対応
+## 相談できること
 
-## 申請に含めてほしい情報
+- 研究目的に合う観察データの範囲確認
+- 対象地域、分類群、期間、公開範囲の整理
+- Evidence Tier、同定状態、位置情報、ライセンスの確認
+- Darwin Core / DwC-A 形式での取得相談
+- 企業・自治体向けレポートでの使い方
+- TNFD / 30by30 / ネイチャーポジティブ文脈への接続
 
-「内容」欄に以下を書いてください。構造化フォームは順次整備中です。
+## できないこと
 
-- 所属機関（大学 / 研究所 / NPO / 自治体 / 個人）
-- ORCID iD（あれば審査が早くなります）
-- 希望 tier（researcher / enterprise / government）
-- 希望データ範囲（地域・分類群・期間・音声 bulk の要否など）
-- 利用目的（研究テーマ・投稿先ジャーナル候補・引用方法）
+観察データだけで、不在、増減、改善、因果関係を自動で証明することはしません。強い主張には、努力量、調査設計、同定、期間、場所の条件が必要です。
 
-## データの使い方についてのお願い
+## 送ってほしい情報
 
-ikimon は canonical pack §1.5 trust boundary に従い、AI 候補提示 → 市民記録 → 分類合意 → authority / expert review の段階的信頼レーンを運用しています。既定でお渡しするのは **Evidence Tier 3+** の record です。これは「2 名以上の独立合意、または authority / expert review がある」ことを意味しますが、open dispute、位置秘匿、ライセンス、sampling effort は別途確認します。
+- 利用目的
+- 対象地域・分類群・期間
+- 必要な粒度
+- 研究、報告、社内外発信のどれに使うか
+- ORCID や所属情報があればその情報
 
-- quick capture だけで「いない」「増えた」「減った」を強く言わない
-- AI の候補だけを根拠に確定扱いにしない
-- 種名で割れている記録は、分類系列上の合意点（属・科など）へ戻して読む
-- open dispute がある record は、解決または専門確認まで研究 API / DwC-A の標準対象にしない
-- レッドリスト種の位置情報は `coordinateUncertaintyInMeters` で粗化済み、原位置は提供しません
-- 強い研究主張には effort / evidence / review の 3 条件を運用側で確認させていただきます
-
-詳しくは [研究とデータの考え方](/learn/methodology) をご覧ください。
+内容欄に上記を記入して、[お問い合わせ](/contact) から送ってください。

@@ -1,23 +1,23 @@
 {
   "publicShared": {
     "cta": {
-      "record": "記録する",
-      "startObservation": "見つけに行く",
+      "record": "生きものを記録する",
+      "startObservation": "観察をはじめる",
       "openNotebook": "ノートを見る",
-      "openMap": "マップを見る",
+      "openMap": "地域のいのちを見る",
       "readFaq": "FAQを見る",
       "openGuide": "その場で調べる",
       "openScan": "探索マップを見る",
       "openAbout": "このサービスについて見る",
-      "openGroupHelp": "団体相談を見る",
+      "openGroupHelp": "企業で活用する",
       "contact": "お問い合わせする"
     },
     "labels": {
       "notebook": "ノート",
       "hint": "ヒント",
       "revisit": "また行きたくなる理由",
-      "groupHelp": "団体相談",
-      "groupHelpLong": "地域で使いたい方へ"
+      "groupHelp": "企業・地域で活用",
+      "groupHelpLong": "企業・自治体・団体へ"
     },
     "ai": {
       "short": "AI はヒント役。決めるのは人です。",
@@ -25,33 +25,33 @@
       "supportLong": "AI は主役の候補、周囲の生きもの、環境の手がかりを返します。記録の主役は人の観察です。"
     },
     "business": {
-      "nav": "団体相談",
-      "eyebrow": "地域で使いたい方へ",
-      "title": "学校や地域で始めたいときの相談窓口",
-      "body": "法人・団体向けは、専用画面を売る前に、どこでどう始めるかを一緒に整える入口です。",
-      "cta": "団体相談を見る"
+      "nav": "企業・地域で活用",
+      "eyebrow": "企業・自治体・団体へ",
+      "title": "楽しんで続く観察を、地域のアクションへ",
+      "body": "市民や社員が参加しやすい観察体験を、継続的な記録、レポート、社内外への発信につなげます。",
+      "cta": "企業で活用する"
     }
   },
   "shell": {
-    "brandTagline": "近くの自然が、ちょっとおもしろくなる",
+    "brandTagline": "生きものを楽しみ、地域の自然を記録する",
     "skipToContent": "本文へスキップ",
     "searchPlaceholder": "生きものや場所を探す",
     "searchLabel": "サイト内検索",
     "menu": "メニュー",
     "nav": {
       "home": "ホーム",
-      "explore": "みつける",
+      "explore": "見つける",
       "places": "ノート",
       "community": "みんなで調べる",
       "learn": "読む",
-      "business": "団体相談"
+      "business": "企業・地域"
     },
     "record": "記録する",
     "footer": {
-      "tagline": "歩いて、見つけて、残す。",
+      "tagline": "生きものを楽しむ。暮らしを楽しむ。",
       "start": "はじめる",
       "startLinks": {
-        "discover": "みつける",
+        "discover": "見つける",
         "record": "記録する",
         "places": "ノートを見る"
       },
@@ -64,7 +64,7 @@
       },
       "trust": "安心と案内",
       "trustLinks": {
-        "business": "団体相談",
+        "business": "企業・地域で活用",
         "contact": "お問い合わせ",
         "terms": "利用規約",
         "privacy": "プライバシー"
@@ -80,12 +80,12 @@
       "record": "記録する",
       "lens": "その場で調べる",
       "scan": "次の場所を探す",
-      "map": "マップを見る"
+      "map": "地域のいのちを見る"
     }
   },
   "footerNotes": {
-    "landing": "歩いて、見つけて、残す。",
-    "public": "歩いて見つけた自然を、あとで見返せる形に残す。",
+    "landing": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
+    "public": "いつもの道で見つけた生きものを、地域のいのちの記録として残す。",
     "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
   }
 }

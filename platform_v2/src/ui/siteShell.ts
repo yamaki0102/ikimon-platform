@@ -236,9 +236,9 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
               <small>${escapeHtml(copy.footer.tagline)}</small>
             </span>
           </div>
-            <div class="footer-kicker">見つける、確かめる、残す、また歩く。</div>
-            <h2>足もとの一枚を、<br>世界につながる自然記録へ。</h2>
-            <p>身近な自然を見つけ、確かめ、残し、また歩くための自然観察基盤。個人の発見を、地域と世界の記録につなげる。</p>
+            <div class="footer-kicker">生きものを楽しむ。暮らしを楽しむ。</div>
+            <h2>小さな発見を、<br>地域のいのちの記録へ。</h2>
+            <p>身近な生きものを見つけ、観察し、残し、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
             <div class="footer-actions">
               <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
               <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
@@ -247,7 +247,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
           <div class="footer-chip-row" aria-label="ikimon の価値">
             <span>名前が分からなくても残せる</span>
             <span>公開範囲を安全側で制御</span>
-            <span>学校・研究・地域活動へ接続</span>
+            <span>学校・研究・企業活動へ接続</span>
           </div>
         </div>
         <div class="footer-mini-map" aria-label="観察ルートのイメージ">
@@ -292,7 +292,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ikimon.life｜自然を見つけ、確かめ、残し、また歩く。</span>
+        <span>ikimon.life｜生きものを楽しみ、地域の自然を記録する。</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>

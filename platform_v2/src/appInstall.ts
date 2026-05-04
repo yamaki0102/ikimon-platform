@@ -20,7 +20,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   ja: {
     name: "ikimon.life",
     shortName: "ikimon",
-    description: "身近な自然を記録し、地図とガイドで読み返す地域生物多様性アプリ。",
+    description: "身近な生きものを楽しみ、地域の自然を記録し、地図とガイドで見返す生物多様性アプリ。",
     installTitle: "ikimon を端末に追加",
     installBody: "Guide、記録、地図をすぐ開けます。",
     installAction: "追加",

@@ -4,15 +4,15 @@ import { getObservationEventStrings } from "./observationEventStrings.js";
 
 export const ja: AppStrings = {
   landing: {
-    title: "ikimon — ENJOY NATURE | 近くの自然が、もっと楽しくなる",
-    heroEyebrow: "ENJOY NATURE",
-    heroHeading: "いつもの散歩が、<br><span class=\"hero-emphasis\">冒険になる。</span>",
-    heroHeadingPlain: "いつもの散歩が、冒険になる。",
-    heroLead: "道端の花の名前がわかると、世界の解像度が変わる。歩いて、見つけて、記録しよう。自然が前よりわかると、また歩きたくなる。",
+    title: "ikimon.life | Enjoy Life - 生きものを楽しみ、地域の自然を記録する",
+    heroEyebrow: "Enjoy Life",
+    heroHeading: "生きものを楽しむ。<br><span class=\"hero-emphasis\">暮らしと地球のいのちを楽しむ。</span>",
+    heroHeadingPlain: "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
+    heroLead: "いつもの道で見つけた小さな発見が、地域のいのちを知る記録になる。身近な生きものの観察を通じて、自然を記録し、学び、地域や企業の活動に活かす。",
     heroPromiseChips: [
-      "自然の解像度が上がる",
+      "小さな発見が残る",
       "また歩きたくなる",
-      "場所への愛着が育つ",
+      "地域の自然が見えてくる",
       JA_PUBLIC_SHARED_COPY.ai.short,
     ],
     heroDailyLabel: "今日のフィールド",
@@ -28,13 +28,13 @@ export const ja: AppStrings = {
     },
     dailyDashboard: {
       eyebrow: "今日の操作盤",
-      title: "観察、再訪、近所の変化をここから始める",
-      lead: "いま見る理由がある記録を選び、今日やることに変える。トップを読む場所ではなく、外へ出る入口にします。",
+      title: "小さな発見を、地域の記録に育てる。",
+      lead: "名前をその場で決めきれなくても大丈夫。写真、場所、時刻、気づきを残しておけば、あとから確かめ、見返し、地域の自然を知る手がかりにできます。",
       scoreLabel: "今日の選定",
       seasonalTitle: "季節の手がかり",
       seasonalEmpty: "季節の候補はまだ集計中です",
       cards: {
-        recordToday: { eyebrow: "記録する", title: "今日の 1 枚を書く", body: "見つけたものを、写真とひとことで残す。", cta: "記録する", metricLabel: "今日" },
+        recordToday: { eyebrow: "記録する", title: "今日の発見を残す", body: "見つけた生きものを、写真とひとことで記録する。", cta: "生きものを記録する", metricLabel: "今日" },
         revisitPlace: { eyebrow: "再訪する", title: "前に歩いた場所へ戻る", body: "同じ場所でも、季節が変わると見えるものが変わる。", cta: "ノートを見る", metricLabel: "訪問" },
         nearbyPulse: { eyebrow: "近所を見る", title: "近くで動いている場所を見る", body: "観察が集まっているエリアから、次に歩く理由を探す。", cta: "地図を見る", metricLabel: "記録" },
         needsId: { eyebrow: "確かめる", title: "名前を確かめたい記録を見る", body: "分からない記録を、次の発見につなげる。", cta: "記録を見る", metricLabel: "同定" },

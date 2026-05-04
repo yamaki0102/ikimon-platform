@@ -45,7 +45,7 @@ export function buildLlmsTxt(origin = "https://ikimon.life"): string {
   return [
     "# ikimon.life",
     "",
-    "ikimon.life は、身近な自然の記録を Guide / Record / Map で残し、地域の生物多様性を読み返せる日本語正準の市民科学プラットフォームです。",
+    "ikimon.life は、Enjoy Life を中心思想に、身近な生きものの観察を通じて地域の自然を記録し、学び、企業や地域の生物多様性アクションに活かす日本語正準の市民参加型プラットフォームです。",
     "",
     "## Primary Japanese References",
     `- Guide: ${base}/llms/guide.md`,

@@ -209,7 +209,7 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
   const feedHtml = recentRows || `<div class="prototype-feed-empty">
     <strong>まだ公開できる観察がありません</strong>
     <small>記録が入るまでは、実写真もダミー写真も表示しません。</small>
-    <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/record"))}" data-kpi-action="landing:hero:observation">最初の記録へ</a>
+    <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/record"))}" data-kpi-action="landing:hero:observation">最初の発見を記録する</a>
   </div>`;
 
   const heroMapClass = heroImage ? "prototype-hero-map" : "prototype-hero-map is-empty";
@@ -221,8 +221,8 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
       <h1 id="landing-hero-heading">${copy.heroHeading}</h1>
       <p>${escapeHtml(copy.heroLead)}</p>
       <div class="prototype-actions">
-        <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, actionPrimaryHref))}" data-kpi-action="landing:hero:primary">${escapeHtml(isLoggedIn ? copy.actionPrimaryLoggedIn : "今日の記録を始める")}</a>
-        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:hero:map">近くの発見を見る</a>
+        <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, actionPrimaryHref))}" data-kpi-action="landing:hero:primary">${escapeHtml(isLoggedIn ? copy.actionPrimaryLoggedIn : "観察をはじめる")}</a>
+        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:hero:map">地域のいのちを見る</a>
       </div>
       <div class="prototype-stat-grid" aria-label="${escapeHtml(copy.heroStatsLabel)}">
         <div class="prototype-stat-card"><strong>証拠</strong><span>写真・音・場所・時刻を残す</span></div>
@@ -308,8 +308,8 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
         ${topSmallTiles ? `<div class="prototype-photo-row">${topSmallTiles}</div>` : ""}
         <div class="prototype-thought-card">
           <small>記録の考え方</small>
-          <strong>完璧な投稿より、あとで確かめられる証拠を残す。</strong>
-          <p>写真、音、位置、季節、環境メモを組み合わせることで、観察の根拠をあとから確かめやすくなる。</p>
+          <strong>完璧な投稿より、あとで確かめられる発見を残す。</strong>
+          <p>写真、音、位置、季節、環境メモを組み合わせることで、小さな発見が地域の自然を知る手がかりになる。</p>
         </div>
         ${regionalStoryHtml}
         ${bottomSmallTiles ? `<div class="prototype-photo-row">${bottomSmallTiles}</div>` : ""}
@@ -334,8 +334,8 @@ function renderLinkBand(basePath: string, lang: SiteLang): string {
   return `<aside class="prototype-link-band" aria-label="既存ページへの導線">
     <i>READ</i>
     <div>
-      <strong>はじめてなら、観察の考え方から読めます。</strong>
-      <span>読み物、よくある質問、更新情報、事業・研究向けページへつながります。</span>
+      <strong>はじめてなら、Enjoy Life の考え方から読めます。</strong>
+      <span>読み物、よくある質問、更新情報、企業・研究向けページへつながります。</span>
     </div>
     <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/learn"))}" data-kpi-action="landing:linkband:learn">読み物を見る</a>
   </aside>`;
@@ -399,10 +399,10 @@ function renderLibrarySection(basePath: string, lang: SiteLang): string {
         <div class="prototype-eyebrow">読み物と案内</div>
         <h2 id="prototype-learn-heading">迷った時に、すぐ深められる。</h2>
       </div>
-      <p>トップで体験を伝え、既存の読み物・よくある質問・更新情報へ自然につなぐ。新規ユーザーは理解し、継続ユーザーは変化を追える。</p>
+      <p>観察の楽しみ方、記録の残し方、地域や企業で活かす前提をまとめています。迷ったときに、すぐ次の一歩へ戻れます。</p>
     </div>
     <div class="prototype-library-grid">
-      <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn"))}" data-kpi-action="landing:library:learn"><i>BK</i><h3>読み物の入口</h3><p>ikimon.life の考え方、観察の流れ、用語、方法論をまとめて読める入口。</p><span>読み物へ</span></a>
+      <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn"))}" data-kpi-action="landing:library:learn"><i>BK</i><h3>観察の始め方</h3><p>Enjoy Life の考え方、観察の流れ、用語、信頼性をまとめて読める入口。</p><span>読み物へ</span></a>
       <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn/identification-basics"))}" data-kpi-action="landing:library:identification"><i>ID</i><h3>名前を確かめる基本</h3><p>名前の候補、似た種類、根拠の残し方を、はじめての人にも分かる形で案内する。</p><span>名前の調べ方へ</span></a>
       <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/faq"))}" data-kpi-action="landing:library:faq"><i>QA</i><h3>よくある質問</h3><p>投稿、公開範囲、位置情報、名前の確認、研究利用で迷いやすい点を先回りして解消する。</p><span>質問を見る</span></a>
       <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn/updates"))}" data-kpi-action="landing:library:updates"><i>UP</i><h3>更新情報</h3><p>機能追加、見せ方の改善、公開範囲の変更など、サービスの変化を追える場所。</p><span>更新を見る</span></a>
@@ -417,12 +417,12 @@ function renderTrustSection(): string {
         <div class="prototype-eyebrow">信頼と安全</div>
         <h2 id="prototype-trust-heading">自然も人も、守れる公開へ。</h2>
       </div>
-      <p>地域の自然記録は、残すほど価値が出る。一方で、希少種や個人の行動履歴は扱いを間違えると危険になる。公開範囲は安全側で設計する。</p>
+      <p>地域のいのちの記録は、残すほど価値が出る。一方で、希少種や個人の行動履歴は扱いを間違えると危険になる。公開範囲は安全側で設計する。</p>
     </div>
     <div class="prototype-trust-grid">
       <article><i>SAFE</i><h3>希少種の位置をぼかす</h3><p>保護上配慮が必要な生きものは、詳しい位置をそのまま公開しない。発見の喜びと保全を両立する。</p></article>
       <article><i>PROOF</i><h3>名前の根拠を残す</h3><p>誰が、どの根拠で、どの程度の確信を持って名前を提案したかを分けて扱う。</p></article>
-      <article><i>DATA</i><h3>研究に使いやすくする</h3><p>観察、場所、時刻、証拠写真を整理し、あとから地域調査や教育活動で参照しやすくする。</p></article>
+      <article><i>DATA</i><h3>研究やレポートに使いやすくする</h3><p>観察、場所、時刻、証拠写真を整理し、あとから地域調査、教育活動、企業レポートで参照しやすくする。</p></article>
     </div>
   </section>`;
 }
@@ -430,19 +430,19 @@ function renderTrustSection(): string {
 function renderCommunitySection(basePath: string, lang: SiteLang): string {
   return `<section class="prototype-community" aria-labelledby="prototype-community-heading">
     <div>
-      <div class="prototype-eyebrow">地域で使う</div>
-      <h2 id="prototype-community-heading">個人の発見を、地域の知へ。</h2>
-      <p>ikimon.life は、投稿を集めるだけの場所ではなく、地域の自然を見つけ、確かめ、残し、また歩くための基盤。個人、学校、研究者、自治体が同じ記録を別の視点で参照しやすくする。</p>
+      <div class="prototype-eyebrow">地域・企業で使う</div>
+      <h2 id="prototype-community-heading">個人の発見を、地域のアクションへ。</h2>
+      <p>ikimon.life は、投稿を集めるだけの場所ではなく、地域の自然を見つけ、確かめ、残し、また歩くための基盤。個人、学校、研究者、自治体、企業が同じ記録を別の視点で参照しやすくする。</p>
       <div class="prototype-actions">
-        <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, "/community"))}" data-kpi-action="landing:community:community">コミュニティを見る</a>
-        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/for-business"))}" data-kpi-action="landing:community:business">事業向けを見る</a>
+        <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, "/community"))}" data-kpi-action="landing:community:community">みんなで観察する</a>
+        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/for-business"))}" data-kpi-action="landing:community:business">企業で活用する</a>
       </div>
     </div>
     <div class="prototype-use-grid">
       <article><strong>個人の図鑑</strong><span>自分が見つけた生きものを、場所と季節で見返す。</span></article>
       <article><strong>学校の観察</strong><span>校区や遠足先で見つけた自然を、授業後も残す。</span></article>
       <article><strong>研究の入口</strong><span>市民の記録を、地域調査の手がかりにする。</span></article>
-      <article><strong>地域の記憶</strong><span>まちの自然の変化を、次の世代へ渡せる形で残す。</span></article>
+      <article><strong>企業・地域の活動</strong><span>観察データを、レポートや次のアクションへつなげる。</span></article>
     </div>
   </section>`;
 }
@@ -450,8 +450,8 @@ function renderCommunitySection(basePath: string, lang: SiteLang): string {
 function renderFinalCta(basePath: string, lang: SiteLang): string {
   return `<section class="prototype-cta">
     <div>
-      <h2>今日の散歩を、自然記録に。</h2>
-      <p>特別な調査ではなく、いつもの道で見つけた一枚から。名前が分からなくても、記録はあとから育てられる。</p>
+      <h2>今日の発見を、地域の記録に。</h2>
+      <p>特別な調査ではなく、いつもの道で見つけた生きものから。名前が分からなくても、記録はあとから育てられる。</p>
     </div>
     <a class="prototype-btn prototype-btn-dark" href="${escapeHtml(landingHref(basePath, lang, "/record"))}" data-kpi-action="landing:cta:record">記録する</a>
   </section>`;

@@ -17,7 +17,7 @@ test("observation event list page renders hero", async ({ browser }) => {
     const resp = await page.goto("/community/events", { waitUntil: "networkidle" });
     expect(resp?.status()).toBe(200);
     await expect(page.locator(".evt-hero")).toBeVisible();
-    await expect(page.locator(".evt-hero h1")).toContainText("見つける興奮");
+    await expect(page.locator(".evt-hero h1")).toContainText("小さな発見");
   } finally {
     await context.close();
   }

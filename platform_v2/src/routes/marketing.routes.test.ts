@@ -13,11 +13,11 @@ test("field loop page ja renders the reader-facing definition without external p
 
     assert.equal(response.statusCode, 200);
     const body = response.body;
-    assert.match(body, /フィールドループとは/);
-    assert.match(body, /粗い衛星/);
-    assert.match(body, /知の基盤/);
+    assert.match(body, /観察の流れ/);
+    assert.match(body, /見つける、観察する、記録する、学ぶ、また歩く/);
+    assert.match(body, /小さな発見を暮らしの中で続く自然記録に変えていきます/);
     assert.match(body, /循環/);
-    assert.match(body, /市民の一致/);
+    assert.match(body, /言いすぎないために/);
     assert.doesNotMatch(body, /iNaturalist/i);
     assert.doesNotMatch(body, /いきものログ/);
     assert.doesNotMatch(body, /eBird/i);
@@ -25,7 +25,7 @@ test("field loop page ja renders the reader-facing definition without external p
     assert.doesNotMatch(body, /このページについて/);
     assert.doesNotMatch(body, /このページの前提/);
     assert.doesNotMatch(body, /市民同定は価値があるが/);
-    assert.ok((body.match(/https:\/\/doi\.org\//g) ?? []).length >= 10);
+    assert.doesNotMatch(body, /https:\/\/doi\.org\//);
   } finally {
     await app.close();
   }
@@ -40,8 +40,8 @@ test("about page sends readers to the learn hub", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /使い方を見る/);
-    assert.match(response.body, /研究と信頼性を見る/);
+    assert.match(response.body, /観察の始め方を見る/);
+    assert.match(response.body, /記録の信頼性を見る/);
     assert.match(response.body, /\/learn\/methodology/);
   } finally {
     await app.close();
@@ -58,7 +58,7 @@ test("learn index frames the service in plain language", async () => {
 
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /まず読むページ/);
-    assert.match(response.body, /研究・データ・信頼性について/);
+    assert.match(response.body, /記録・データ・信頼性について/);
     assert.match(response.body, /更新を見る/);
   } finally {
     await app.close();
@@ -126,6 +126,7 @@ test("learn methodology carries the merged trust and research framing", async ()
     assert.match(response.body, /Tier 3\+/);
     assert.match(response.body, /研究用 API \/ DwC-A の標準公開対象/);
     assert.match(response.body, /市民記録を、分類合意・反対意見・専門確認まで追跡できる地域生物データ基盤/);
+    assert.match(response.body, /企業・自治体レポートで使うとき/);
     assert.match(response.body, /1 枚の写真に複数の生物が写っている場合/);
     assert.match(response.body, /open dispute が 1 件でもある record は、Tier 3 へ昇格しません/);
     assert.match(response.body, /\/observations\/:id#identify/);
@@ -140,9 +141,8 @@ test("for researcher apply states the Tier 3 boundary and dispute exclusions", a
     const response = await app.inject({ method: "GET", url: "/for-researcher/apply?lang=ja" });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Evidence Tier 3\+/);
-    assert.match(response.body, /open dispute/);
-    assert.match(response.body, /sampling effort/);
-    assert.match(response.body, /分類系列上の合意点/);
+    assert.match(response.body, /TNFD・30by30・ネイチャーポジティブ文脈/);
+    assert.match(response.body, /観察データだけで、不在、増減、改善、因果関係を自動で証明することはしません/);
   } finally {
     await app.close();
   }
