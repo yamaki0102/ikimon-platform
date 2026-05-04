@@ -23,6 +23,7 @@
     "e2e:staging": "playwright test -c playwright.staging.config.ts",
     "e2e:staging:smoke": "playwright test -c playwright.staging.config.ts e2e/home.staging.spec.ts",
     "e2e:staging:service-loop": "playwright test -c playwright.staging.config.ts e2e/service-loop.staging.spec.ts",
+    "e2e:staging:record-funnel": "playwright test -c playwright.staging.config.ts e2e/record-funnel.staging.spec.ts",
     "e2e:staging:site-map": "playwright test -c playwright.staging.config.ts e2e/sitemap-registry-visual.staging.spec.ts",
     "e2e:visual-regression": "playwright test -c playwright.staging.config.ts e2e/sitemap-registry-visual.staging.spec.ts",
     "e2e:staging:update-snapshots": "playwright test -c playwright.staging.config.ts --update-snapshots",

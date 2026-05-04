@@ -1,9 +1,25 @@
 import { getPool } from "../db.js";
 
-const EVENT_NAMES = new Set(["first_action", "task_completion", "section_view", "read_depth", "primary_cta_click"] as const);
+const EVENT_NAMES = new Set([
+  "first_action",
+  "task_completion",
+  "section_view",
+  "read_depth",
+  "primary_cta_click",
+  "funnel_step",
+  "funnel_error",
+] as const);
 const OBSERVATION_EVENT_NAMES = new Set(["section_view", "read_depth", "primary_cta_click"] as const);
+const RECORD_FUNNEL_EVENT_NAMES = new Set(["funnel_step", "funnel_error"] as const);
 
-type UiKpiEventName = "first_action" | "task_completion" | "section_view" | "read_depth" | "primary_cta_click";
+type UiKpiEventName =
+  | "first_action"
+  | "task_completion"
+  | "section_view"
+  | "read_depth"
+  | "primary_cta_click"
+  | "funnel_step"
+  | "funnel_error";
 
 type RecordUiKpiEventInput = {
   eventName: UiKpiEventName;
@@ -36,9 +52,11 @@ export function isUiKpiEventName(value: unknown): value is UiKpiEventName {
 
 export async function recordUiKpiEvent(input: RecordUiKpiEventInput): Promise<RecordUiKpiEventResult> {
   const pool = getPool();
-  const tableName = OBSERVATION_EVENT_NAMES.has(input.eventName as "section_view" | "read_depth" | "primary_cta_click")
-    ? "observation_ui_kpi_events"
-    : "ui_kpi_events";
+  const tableName = RECORD_FUNNEL_EVENT_NAMES.has(input.eventName as "funnel_step" | "funnel_error")
+    ? "record_ui_kpi_events"
+    : OBSERVATION_EVENT_NAMES.has(input.eventName as "section_view" | "read_depth" | "primary_cta_click")
+      ? "observation_ui_kpi_events"
+      : "ui_kpi_events";
   const result = await pool.query<{ event_id: string }>(
     `insert into ${tableName} (
        event_name,
