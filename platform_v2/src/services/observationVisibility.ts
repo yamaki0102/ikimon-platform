@@ -43,8 +43,8 @@ export async function hideOwnObservation(input: {
           set public_visibility = 'hidden',
               quality_review_status = 'archived',
               source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object(
-                'owner_hidden_at', $2,
-                'owner_hidden_by', $3,
+                'owner_hidden_at', $2::text,
+                'owner_hidden_by', $3::text,
                 'owner_hidden_reason', 'user_requested_delete'
               ),
               updated_at = now()
