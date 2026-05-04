@@ -116,6 +116,7 @@ BEGIN
         WITH candidates AS (
             SELECT
                 field_id,
+                valid_to,
                 'user_defined:' || owner_user_id::text || ':' ||
                     COALESCE(obs_user_field_normalized_name(name), 'unnamed') || ':' ||
                     obs_geohash6(lat, lng) AS base_key
