@@ -550,6 +550,15 @@ jobs:
             export V2_BASE_URL=http://127.0.0.1:3200
             export IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS"
             bash "$V2_DIR/scripts/ops/run_authority_gate.sh"
+            echo "== passive audio ingest smoke =="
+            set -a
+            . "$STAGING_ENV_FILE"
+            set +a
+            runuser -u ikimon-staging -- env \
+              "DATABASE_URL=${DATABASE_URL}" \
+              "V2_PRIVILEGED_WRITE_API_KEY=${V2_PRIVILEGED_WRITE_API_KEY}" \
+              "V2_BASE_URL=http://127.0.0.1:3200" \
+              bash -lc "cd '$V2_DIR' && npx tsx src/scripts/smokePassiveAudioIngest.ts"
 
   verify-e2e:
     name: Verify Staging in Browser
