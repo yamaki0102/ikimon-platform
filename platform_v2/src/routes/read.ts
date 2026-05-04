@@ -4036,13 +4036,17 @@ const NOTES_READING_STYLES = `
 `;
 
 const NOTES_LIBRARY_STYLES = `
-  .notes-library-shell { display: grid; gap: 24px; }
+  .shell.shell-notes-library {
+    max-width: 1240px;
+    padding: 26px 24px 28px;
+  }
+  .notes-library-shell { width: 100%; display: grid; gap: 24px; }
   .notes-library-hero {
     display: grid;
-    grid-template-columns: minmax(0, .72fr) minmax(240px, .28fr);
+    grid-template-columns: minmax(0, .68fr) minmax(280px, .32fr);
     gap: 20px;
-    align-items: end;
-    padding: clamp(22px, 4vw, 42px);
+    align-items: center;
+    padding: clamp(24px, 3vw, 36px);
     border-radius: 8px;
     background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(240,249,255,.78));
     border: 1px solid rgba(16,185,129,.16);
@@ -4066,7 +4070,7 @@ const NOTES_LIBRARY_STYLES = `
   .notes-loop-step strong { color: #fff; font-size: 15px; line-height: 1.35; }
   .notes-loop-step em { color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.55; font-style: normal; font-weight: 730; }
   .notes-loop-step i { align-self: end; width: fit-content; margin-top: 4px; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; font-size: 11px; line-height: 1; font-style: normal; font-weight: 950; }
-  .notes-library-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .notes-library-stats { align-self: center; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .notes-library-stats div { padding: 13px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(16,185,129,.13); }
   .notes-library-stats strong { display: block; color: #10251a; font-size: 24px; line-height: 1; font-weight: 950; }
   .notes-library-stats em { display: block; margin-top: 7px; color: #64748b; font-size: 12px; font-style: normal; font-weight: 850; }
@@ -4145,6 +4149,7 @@ const NOTES_LIBRARY_STYLES = `
   .notes-nearby-library .notes-library-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
   .notes-nearby-library .notes-library-card { min-height: 150px; }
   @media (max-width: 980px) {
+    .shell.shell-notes-library { padding: 20px 16px 22px; }
     .notes-library-hero, .notes-library-controls, .notes-library-section-head { grid-template-columns: 1fr; }
     .notes-experience-loop { grid-template-columns: 1fr; }
     .notes-loop-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -9313,6 +9318,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       activeNav: notesPageCopy.activeNav,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/notes"), lang),
+      shellClassName: "shell-notes-library",
       extraStyles: NOTES_LIBRARY_STYLES,
       body: `<div class="notes-library-shell">
         <section class="notes-library-hero">
