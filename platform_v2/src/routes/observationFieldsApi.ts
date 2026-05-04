@@ -4,6 +4,8 @@ import {
   createField,
   getField,
   getFieldStats,
+  createFieldVersion,
+  findFieldConflicts,
   listCertifiedFields,
   listFields,
   listMyFields,
@@ -41,6 +43,31 @@ function asFieldSource(v: unknown): FieldSource | null {
 }
 
 export async function registerObservationFieldsApiRoutes(app: FastifyInstance): Promise<void> {
+  // POST /api/v1/fields/conflicts — user_defined 保存前の重複検知
+  app.post<{ Body: Record<string, unknown> }>("/api/v1/fields/conflicts", async (request, reply) => {
+    const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    if (!auth) return reply.status(401).send({ error: "login required" });
+    const body = request.body ?? {};
+    const name = asString(body.name);
+    const lat = asNumber(body.lat);
+    const lng = asNumber(body.lng);
+    if (!name || lat === null || lng === null) {
+      return reply.status(400).send({ error: "name, lat, lng required" });
+    }
+    const conflicts = await findFieldConflicts({
+      ownerUserId: auth.userId,
+      name,
+      lat,
+      lng,
+      radiusM: asNumber(body.radius_m) ?? 1000,
+      polygon: (body.polygon && typeof body.polygon === "object")
+        ? (body.polygon as Record<string, unknown>)
+        : null,
+      excludeFieldId: asString(body.exclude_field_id),
+    });
+    return reply.send({ conflicts });
+  });
+
   // POST /api/v1/fields  — 自分のフィールドを登録(user_defined)
   app.post<{ Body: Record<string, unknown> }>("/api/v1/fields", async (request, reply) => {
     const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
@@ -52,6 +79,68 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     if (!name || lat === null || lng === null) {
       return reply.status(400).send({ error: "name, lat, lng required" });
     }
+    const polygon = (body.polygon && typeof body.polygon === "object")
+      ? (body.polygon as Record<string, unknown>)
+      : null;
+    const radiusM = asNumber(body.radius_m) ?? 1000;
+    const resolutionAction = asString(body.resolution_action);
+    const resolutionFieldId = asString(body.resolution_field_id);
+    const conflicts = await findFieldConflicts({
+      ownerUserId: auth.userId,
+      name,
+      lat,
+      lng,
+      radiusM,
+      polygon,
+    });
+    const primaryConflict = conflicts[0];
+    if (primaryConflict && !resolutionAction) {
+      return reply.status(409).send({
+        error: "similar field exists",
+        message: "似たフィールドがあります。今回の観察会ではどの範囲を使うか選んでください。",
+        conflicts,
+      });
+    }
+    if (resolutionAction === "use_existing") {
+      const field = resolutionFieldId
+        ? conflicts.find((c) => c.field.fieldId === resolutionFieldId)?.field
+        : primaryConflict?.field;
+      if (!field) return reply.status(400).send({ error: "resolution_field_id not found in conflicts" });
+      return reply.send({ field, resolution: { action: "use_existing", conflicts } });
+    }
+    if (resolutionAction === "update_existing") {
+      const target = resolutionFieldId
+        ? conflicts.find((c) => c.field.fieldId === resolutionFieldId)
+        : primaryConflict;
+      if (!target) return reply.status(400).send({ error: "resolution_field_id not found in conflicts" });
+      if (!target.editableByRequester) return reply.status(403).send({ error: "owner only" });
+      const field = await createFieldVersion({
+        previousFieldId: target.field.fieldId,
+        source: "user_defined",
+        name,
+        nameKana: asString(body.name_kana) ?? target.field.nameKana,
+        summary: asString(body.summary) ?? target.field.summary,
+        prefecture: asString(body.prefecture) ?? target.field.prefecture,
+        city: asString(body.city) ?? target.field.city,
+        lat,
+        lng,
+        radiusM,
+        polygon,
+        areaHa: asNumber(body.area_ha),
+        ownerUserId: auth.userId,
+        payload: (body.payload && typeof body.payload === "object")
+          ? (body.payload as Record<string, unknown>)
+          : {},
+      });
+      return reply.status(201).send({ field, resolution: { action: "update_existing", conflicts } });
+    }
+    if (resolutionAction === "save_as_new" && primaryConflict && primaryConflict.field.name === name) {
+      return reply.status(409).send({
+        error: "distinct name required",
+        message: "別範囲として保存する場合は、用途が分かる名前を足してください。",
+        conflicts,
+      });
+    }
     try {
       const field = await createField({
         source: "user_defined",
@@ -62,17 +151,15 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
         city: asString(body.city) ?? "",
         lat,
         lng,
-        radiusM: asNumber(body.radius_m) ?? 1000,
-        polygon: (body.polygon && typeof body.polygon === "object")
-          ? (body.polygon as Record<string, unknown>)
-          : null,
+        radiusM,
+        polygon,
         areaHa: asNumber(body.area_ha),
         ownerUserId: auth.userId,
         payload: (body.payload && typeof body.payload === "object")
           ? (body.payload as Record<string, unknown>)
           : {},
       });
-      return reply.status(201).send({ field });
+      return reply.status(201).send({ field, resolution: { action: resolutionAction || "created", conflicts } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "create failed";
       return reply.status(500).send({ error: message });

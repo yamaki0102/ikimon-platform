@@ -35,6 +35,7 @@ type AuthUserRow = {
 };
 
 const DUMMY_BCRYPT_HASH = "$2b$12$4uYgxXJtqQ5dEOR6W9tOIeI/U8P2tDeHV16uTGTfIrMB.j3UMLwUu";
+const DEV_DUMMY_ADMIN_USER_ID = "dev-dummy-admin";
 
 type LegacyUserAuthRecord = {
   email?: unknown;
@@ -90,12 +91,41 @@ function rowToAuthenticatedUser(row: {
   };
 }
 
+function devDummyAdminEnabled(): boolean {
+  return loadConfig().nodeEnv !== "production" &&
+    process.env.ENABLE_DEV_DUMMY_ADMIN === "1" &&
+    Boolean(process.env.DEV_DUMMY_ADMIN_EMAIL?.trim()) &&
+    Boolean(process.env.DEV_DUMMY_ADMIN_PASSWORD);
+}
+
+function devDummyAdminEmail(): string {
+  return normalizeEmail(process.env.DEV_DUMMY_ADMIN_EMAIL || "");
+}
+
+function devDummyAdminPassword(): string {
+  return process.env.DEV_DUMMY_ADMIN_PASSWORD || "";
+}
+
+function devDummyAdminUser(): AuthenticatedUser {
+  return {
+    userId: DEV_DUMMY_ADMIN_USER_ID,
+    displayName: process.env.DEV_DUMMY_ADMIN_DISPLAY_NAME?.trim() || "Dev Dummy Admin",
+    email: devDummyAdminEmail(),
+    roleName: "Admin",
+    rankLabel: "Admin",
+  };
+}
+
 export async function authenticateWithPassword(emailInput: unknown, passwordInput: unknown): Promise<AuthenticatedUser> {
   const email = normalizeEmail(emailInput);
   const password = typeof passwordInput === "string" ? passwordInput : "";
   if (!email || !password) {
     await verifyPasswordAgainstHash("", null);
     throw new Error("invalid_credentials");
+  }
+
+  if (devDummyAdminEnabled() && email === devDummyAdminEmail() && password === devDummyAdminPassword()) {
+    return devDummyAdminUser();
   }
 
   const result = await getPool().query<{

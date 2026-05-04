@@ -24,6 +24,10 @@ import {
   recordMeshVisit,
   summarizeSessionEffort,
 } from "../services/observationEventEffort.js";
+import { planObservationEventArea } from "../services/observationEventAreaPlanner.js";
+import { getAreaLocalSignals } from "../services/observationEventAreaSignals.js";
+import { listNearbyFields } from "../services/observationFieldRegistry.js";
+import { getSiteBrief } from "../services/siteBrief.js";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -120,6 +124,51 @@ function shouldDeliverEvent(row: LiveEventRow, ctx: ParticipantContext): boolean
 }
 
 export async function registerObservationEventApiRoutes(app: FastifyInstance): Promise<void> {
+  // POST /api/v1/observation-events/area-suggestions — 開催範囲のAI補正候補
+  app.post("/api/v1/observation-events/area-suggestions", async (request, reply) => {
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    if (!session) return reply.status(401).send({ error: "login required" });
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const centerRaw = body.center && typeof body.center === "object"
+      ? (body.center as Record<string, unknown>)
+      : {};
+    const lat = asNumber(centerRaw.lat);
+    const lng = asNumber(centerRaw.lng);
+    if (lat === null || lng === null) {
+      return reply.status(400).send({ error: "center.lat and center.lng required" });
+    }
+    const nearbyFieldsPromise = listNearbyFields(lat, lng, 1.2, { limit: 8 }).catch(() => []);
+    const siteBriefPromise = getSiteBrief(lat, lng, "ja").catch(() => null);
+    const nearbyFields = await nearbyFieldsPromise;
+    const [siteBrief, localSignals] = await Promise.all([
+      siteBriefPromise,
+      getAreaLocalSignals({
+        center: { lat, lng },
+        nearbyFields,
+      }).catch(() => null),
+    ]);
+    const plan = await planObservationEventArea({
+      center: { lat, lng },
+      radiusM: asNumber(body.radius_m) ?? asNumber(body.radiusM),
+      drawnPolygon: (body.drawn_polygon && typeof body.drawn_polygon === "object")
+        ? (body.drawn_polygon as Record<string, unknown>)
+        : (body.drawnPolygon && typeof body.drawnPolygon === "object")
+          ? (body.drawnPolygon as Record<string, unknown>)
+          : null,
+      placeLabel: asString(body.place_label) ?? asString(body.placeLabel),
+      intent: asString(body.intent),
+      nearbyFields: nearbyFields.map((f) => ({
+        name: f.name,
+        source: f.adminLevel ?? f.source,
+        distanceKm: f.distanceKm,
+      })),
+      siteBrief,
+      localSignals,
+      userId: session.userId,
+    });
+    return reply.send(plan);
+  });
+
   // POST /api/v1/observation-events  — セッション作成(主催者)
   app.post("/api/v1/observation-events", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
