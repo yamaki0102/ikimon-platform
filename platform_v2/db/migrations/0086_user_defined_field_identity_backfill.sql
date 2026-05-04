@@ -6,8 +6,15 @@
 --
 -- Also tighten the current-entity unique index to ignore blank keys. Migration
 -- 0080 defaulted entity_key to '', and blank keys are not identities.
+-- owner-sensitive-ok: adds missing legacy observation_fields timestamp columns
+-- before the backfill reads them; rollback is dropping only these columns if
+-- they were absent before deploy.
 -- destructive-ok: data backfill only; rollback by restoring observation_fields
 -- entity_key/valid_from/updated_at from the pre-deploy database snapshot.
+
+ALTER TABLE observation_fields
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 DROP INDEX IF EXISTS idx_obs_fields_entity_current;
 
