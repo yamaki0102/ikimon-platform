@@ -300,26 +300,57 @@ export function eventCreateScript(): string {
   function loadMapLibre(){
     return new Promise((resolve, reject) => {
       if (window.maplibregl) return resolve(window.maplibregl);
-      if (!document.querySelector('link[data-evt-maplibre-css]')) {
+      if (window.__evtMapLibrePromise) return window.__evtMapLibrePromise.then(resolve, reject);
+
+      const cssUrls = [
+        "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css",
+        "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css",
+      ];
+      cssUrls.forEach((href, index) => {
+        if (document.querySelector('link[data-evt-maplibre-css="' + index + '"]')) return;
         const css = document.createElement("link");
         css.rel = "stylesheet";
-        css.href = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css";
-        css.setAttribute("data-evt-maplibre-css", "1");
+        css.href = href;
+        css.referrerPolicy = "no-referrer";
+        css.setAttribute("data-evt-maplibre-css", String(index));
         document.head.appendChild(css);
+      });
+
+      const jsUrls = [
+        "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js",
+        "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js",
+      ];
+      function loadScript(src){
+        return new Promise((scriptResolve, scriptReject) => {
+          const s = document.createElement("script");
+          let done = false;
+          const finish = (fn, value) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            fn(value);
+          };
+          const timer = setTimeout(() => {
+            s.remove();
+            finish(scriptReject, new Error("maplibre_timeout"));
+          }, 7000);
+          s.src = src;
+          s.async = true;
+          s.referrerPolicy = "no-referrer";
+          s.setAttribute("data-evt-maplibre-js", src);
+          s.onload = () => window.maplibregl ? finish(scriptResolve, window.maplibregl) : finish(scriptReject, new Error("maplibre_missing"));
+          s.onerror = () => {
+            s.remove();
+            finish(scriptReject, new Error("maplibre_load_failed"));
+          };
+          document.head.appendChild(s);
+        });
       }
-      const existing = document.querySelector('script[data-evt-maplibre-js]');
-      if (existing) {
-        const i = setInterval(() => { if (window.maplibregl){ clearInterval(i); resolve(window.maplibregl); } }, 80);
-        setTimeout(() => { clearInterval(i); window.maplibregl ? resolve(window.maplibregl) : reject(new Error("maplibre_timeout")); }, 7000);
-        return;
-      }
-      const s = document.createElement("script");
-      s.src = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
-      s.async = true;
-      s.setAttribute("data-evt-maplibre-js", "1");
-      s.onload = () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error("maplibre_missing"));
-      s.onerror = () => reject(new Error("maplibre_load_failed"));
-      document.head.appendChild(s);
+      window.__evtMapLibrePromise = jsUrls.reduce(
+        (chain, src) => chain.catch(() => loadScript(src)),
+        Promise.reject(new Error("maplibre_not_started"))
+      );
+      window.__evtMapLibrePromise.then(resolve, reject);
     });
   }
   async function initAreaMap(){
