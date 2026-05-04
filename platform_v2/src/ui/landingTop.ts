@@ -481,7 +481,7 @@ export const LANDING_TOP_STYLES = `
   }
   .site-header { background: rgba(255,255,255,.84); border-bottom-color: rgba(26,46,31,.08); }
   .site-header-inner { max-width: 1480px; min-height: 72px; }
-  .prototype-shell {
+  .shell.shell-bleed.prototype-shell {
     width: min(1480px, calc(100% - 32px));
     max-width: none;
     margin-inline: auto;
@@ -903,7 +903,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .prototype-shell { width: min(100% - 24px, 1480px); padding-top: 18px; }
+    .shell.shell-bleed.prototype-shell { width: min(100% - 24px, 1480px); padding-top: 18px; }
     .prototype-hero { min-height: 0; gap: 20px; }
     .prototype-hero h1 { font-size: clamp(38px, 12vw, 52px); line-height: 1.08; }
     .prototype-stat-grid,

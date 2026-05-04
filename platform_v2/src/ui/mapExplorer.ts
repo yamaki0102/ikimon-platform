@@ -1343,6 +1343,53 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     legendEl.setAttribute('aria-hidden', 'true');
   }
 
+  function parsePublicCellId(cellId) {
+    var match = String(cellId || '').trim().match(/^(\\d+):(-?\\d+):(-?\\d+)$/);
+    if (!match) return null;
+    var gridM = Number(match[1]);
+    var cellX = Number(match[2]);
+    var cellY = Number(match[3]);
+    if (!isFinite(gridM) || !isFinite(cellX) || !isFinite(cellY)) return null;
+    return { gridM: gridM, cellX: cellX, cellY: cellY };
+  }
+
+  function lngFromMercatorX(x) {
+    return (x / 6378137) * 180 / Math.PI;
+  }
+
+  function latFromMercatorY(y) {
+    return (2 * Math.atan(Math.exp(y / 6378137)) - Math.PI / 2) * 180 / Math.PI;
+  }
+
+  function buildCellFeatureFromId(cellId) {
+    var parts = parsePublicCellId(cellId);
+    if (!parts) return null;
+    var minX = parts.cellX * parts.gridM;
+    var minY = parts.cellY * parts.gridM;
+    var maxX = minX + parts.gridM;
+    var maxY = minY + parts.gridM;
+    var ring = [
+      [lngFromMercatorX(minX), latFromMercatorY(minY)],
+      [lngFromMercatorX(maxX), latFromMercatorY(minY)],
+      [lngFromMercatorX(maxX), latFromMercatorY(maxY)],
+      [lngFromMercatorX(minX), latFromMercatorY(maxY)],
+      [lngFromMercatorX(minX), latFromMercatorY(minY)]
+    ];
+    return {
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [ring] },
+      properties: {
+        cellId: cellId,
+        gridM: parts.gridM,
+        radiusM: Math.round((Math.sqrt(2) * parts.gridM) / 2),
+        centroidLng: lngFromMercatorX(minX + parts.gridM / 2),
+        centroidLat: latFromMercatorY(minY + parts.gridM / 2),
+        count: 0,
+        label: ''
+      }
+    };
+  }
+
   function fmtStatsLabel(ret, tot) {
     return String(ret) + ' / ' + String(tot);
   }
@@ -1446,6 +1493,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (feature && feature.properties && feature.properties.cellId === cellId) return feature;
     }
     return null;
+  }
+
+  function findSelectableCellFeatureById(cellId) {
+    return findCellFeatureById(cellId) || buildCellFeatureFromId(cellId);
   }
 
   function getSelectedCellFeature() {
@@ -1886,7 +1937,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!record) return;
     state.selectedOccurrenceId = record.occurrenceId || null;
     state.selectedCellId = record.cellId || null;
-    var feature = getSelectedCellFeature();
+    var feature = findSelectableCellFeatureById(state.selectedCellId);
     if (state.selectedCellId && (!feature || feature.properties.cellId !== state.selectedCellId)) {
       for (var i = 0; i < state.features.length; i += 1) {
         if (state.features[i] && state.features[i].properties && state.features[i].properties.cellId === state.selectedCellId) {
@@ -3625,9 +3676,98 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 }
 
 export const MAP_EXPLORER_STYLES = `
+  .site-header {
+    background: rgba(249,255,254,.9);
+  }
+
+  .site-shell.has-global-record-launcher {
+    padding-bottom: 0;
+  }
+
+  .global-record-launcher {
+    display: none;
+  }
+
+  .site-header-inner {
+    max-width: none;
+    min-height: 58px;
+    padding: 6px 14px;
+    gap: 10px;
+  }
+
+  .site-header .brand {
+    gap: 8px;
+  }
+
+  .site-header .brand-mark {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 10px;
+  }
+
+  .site-header .brand strong {
+    font-size: 14px;
+  }
+
+  .site-header .brand small {
+    font-size: 11px;
+  }
+
+  .site-header .site-nav-link {
+    min-height: 36px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+
+  .site-header .site-search {
+    min-height: 36px;
+    padding: 3px 12px;
+  }
+
+  .site-header .lang-switch {
+    padding: 3px;
+  }
+
+  .site-header .lang-switch-link {
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0 8px;
+  }
+
+  .site-header .btn {
+    min-height: 38px;
+    padding: 8px 14px;
+  }
+
+  .site-header .site-mobile-menu-toggle {
+    min-height: 38px;
+    padding: 0 11px;
+  }
+
+  @media (max-width: 720px) {
+    .site-header-inner {
+      min-height: 54px;
+      padding: 7px 10px;
+    }
+
+    .site-header .brand-mark {
+      width: 32px;
+      height: 32px;
+      flex-basis: 32px;
+      border-radius: 9px;
+    }
+
+    .site-header .btn,
+    .site-header .site-mobile-menu-toggle {
+      min-height: 36px;
+      padding-block: 7px;
+    }
+  }
+
   .me-section {
     --me-header-h: 58px;
-    --me-topbar-h: 56px;
+    --me-topbar-h: 48px;
     --me-side-w: 380px;
     --me-side-rail-w: 52px;
     --me-side-gap: 0px;
@@ -3638,13 +3778,18 @@ export const MAP_EXPLORER_STYLES = `
   .me-section[data-side="rail"] {
     --me-side-w: var(--me-side-rail-w);
   }
+  @media (max-width: 720px) {
+    .me-section {
+      --me-header-h: 54px;
+    }
+  }
   .me-topbar {
     display: grid;
-    gap: 10px;
+    gap: 8px;
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     margin-bottom: 0;
-    padding: 8px 14px;
+    padding: 6px 12px;
     height: var(--me-topbar-h);
     background: rgba(255,255,255,.96);
     border-bottom: 1px solid rgba(15,23,42,.06);
@@ -3654,13 +3799,13 @@ export const MAP_EXPLORER_STYLES = `
   .me-topbar-primary {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
   }
   .me-topbar-secondary {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
     flex-wrap: nowrap;
   }
@@ -3671,15 +3816,15 @@ export const MAP_EXPLORER_STYLES = `
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: 40px;
-    padding: 4px 10px 4px 14px;
+    min-height: 36px;
+    padding: 3px 10px 3px 12px;
     border-radius: 999px;
     background: rgba(255,255,255,1);
     border: 1px solid rgba(15,23,42,.1);
     box-shadow: 0 1px 4px rgba(15,23,42,.05);
   }
-  .me-tabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(15,23,42,.04); }
-  .me-tab { min-height: 36px; padding: 4px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 12.5px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
+  .me-tabs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 11px; background: rgba(15,23,42,.04); }
+  .me-tab { min-height: 34px; padding: 3px 12px; border-radius: 9px; border: 0; background: transparent; font-weight: 800; font-size: 12px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
   .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .me-filter-group-quick { display: none; }
@@ -3692,7 +3837,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-filter-drawer { position: relative; flex: 0 0 auto; }
   .me-filter-toggle {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    min-height: 38px; min-width: 92px; padding: 0 14px;
+    min-height: 36px; min-width: 86px; padding: 0 12px;
     border-radius: 999px; cursor: pointer; list-style: none;
     background: #fff; border: 1px solid rgba(15,23,42,.1);
     box-shadow: 0 1px 4px rgba(15,23,42,.05);
@@ -3702,6 +3847,8 @@ export const MAP_EXPLORER_STYLES = `
   .me-filter-panel {
     position: absolute; right: 0; top: calc(100% + 10px); z-index: 20;
     width: min(92vw, 640px);
+    max-height: min(680px, calc(100dvh - var(--me-header-h) - var(--me-topbar-h) - 24px));
+    overflow: auto;
     display: grid; gap: 14px;
     padding: 16px;
     border-radius: 24px;
@@ -4293,21 +4440,23 @@ export const MAP_EXPLORER_STYLES = `
   @media (max-width: 900px) {
     .me-section {
       --me-side-w: 0px;
-      --me-topbar-h: 56px;
+      --me-topbar-h: 46px;
     }
     .me-topbar {
       grid-template-columns: 1fr auto;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 5px 10px;
     }
     .me-tabs { display: none; }
     .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-panel {
-      position: absolute;
+      position: fixed;
+      top: calc(var(--me-header-h) + var(--me-topbar-h) + 8px);
       right: 8px;
       left: 8px;
       width: auto;
       max-width: none;
+      max-height: min(680px, calc(100dvh - var(--me-header-h) - var(--me-topbar-h) - 18px));
       box-shadow: 0 10px 24px rgba(15,23,42,.16);
     }
     .me-main { display: block; }
