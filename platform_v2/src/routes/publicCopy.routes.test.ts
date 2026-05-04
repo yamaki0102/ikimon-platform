@@ -37,13 +37,13 @@ test("general and group-help pages use the updated ja entry copy", async () => {
   try {
     const about = await app.inject({ method: "GET", url: "/about?lang=ja" });
     assert.equal(about.statusCode, 200);
-    assert.match(about.body, /自然を楽しむ入口から始める/);
-    assert.match(about.body, /研究と信頼性を見る/);
+    assert.match(about.body, /生きものを楽しむことから始める/);
+    assert.match(about.body, /記録の信頼性を見る/);
 
     const business = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
     assert.equal(business.statusCode, 200);
-    assert.match(business.body, /学校や地域で始めたいときの相談窓口/);
-    assert.match(business.body, /団体相談を見る/);
+    assert.match(business.body, /楽しんで続く観察を、地域のアクションへ/);
+    assert.match(business.body, /企業で活用する/);
 
     const businessDemo = await app.inject({ method: "GET", url: "/for-business/demo?lang=ja" });
     assert.equal(businessDemo.statusCode, 200);
@@ -63,7 +63,7 @@ test("community route replaces the legacy event rail on the public shell", async
   try {
     const response = await app.inject({ method: "GET", url: "/community?lang=ja" });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /観察会やテーマ調査に参加する/);
+    assert.match(response.body, /小さな発見を、みんなで残す/);
     assert.match(response.body, /みんなで調べる/);
 
     const redirect = await app.inject({ method: "GET", url: "/events.php?lang=ja" });
@@ -100,11 +100,11 @@ test("home hero and how-it-works copy match the canonical ja surface", async () 
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /ENJOY NATURE/);
-    assert.match(response.body, /身近な自然を、/);
-    assert.match(response.body, /世界につながる記録に。/);
-    assert.match(response.body, /散歩の発見を、自然記録へ。/);
-    assert.match(response.body, /地図で変化を見る。/);
+    assert.match(response.body, /Enjoy Life/);
+    assert.match(response.body, /生きものを楽しむ。/);
+    assert.match(response.body, /地球のいのちを楽しむ。/);
+    assert.match(response.body, /発見を楽しみ、地域の自然記録へ。/);
+    assert.match(response.body, /地域のいのちを、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
   } finally {
     await app.close();

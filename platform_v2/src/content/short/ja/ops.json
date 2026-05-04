@@ -31,10 +31,10 @@
         "lead": "公開面の印象と、business 導線が old PHP URL に落ちず v2 で閉じるかを見る。",
         "cards": [
           { "href": "/about", "label": "About", "note": "サービスの主語と CTA を確認。" },
-          { "href": "/faq", "label": "FAQ", "note": "個人利用・公開・団体相談の FAQ を確認。" },
+          { "href": "/faq", "label": "FAQ", "note": "個人利用・公開・企業や地域での活用 FAQ を確認。" },
           { "href": "/privacy", "label": "Privacy", "note": "trust page の最低限表示を確認。" },
           { "href": "/terms", "label": "Terms", "note": "利用条件の最低限表示を確認。" },
-          { "href": "/contact", "label": "Contact", "note": "contact から団体相談へ繋がるか確認。" },
+          { "href": "/contact", "label": "Contact", "note": "contact から企業・地域相談へ繋がるか確認。" },
           { "href": "/for-business", "label": "For Business", "note": "business の親ページ。pricing / demo / status / apply へ分岐。" },
           { "href": "/for-business/pricing", "label": "Pricing", "note": "小さく始める方針が読めるか確認。" },
           { "href": "/for-business/demo", "label": "Demo", "note": "Explore / Record / Learn の導線を確認。" },

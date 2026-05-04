@@ -2,9 +2,9 @@ import type { ObservationEventStrings } from "./strings.js";
 import type { SiteLang } from "../i18n.js";
 
 const ja: ObservationEventStrings = {
-  listEyebrow: "観察会 OS",
-  listHeroHeading: "「見つける興奮」と「見つからない誠実さ」を、両方データに残す。",
-  listHeroLead: "主催者は告知から自治体提出まで一気通貫。参加者は班でリアルタイム協力。AI が現場を読み、次にやることをそっと提案する。",
+  listEyebrow: "みんなで観察する",
+  listHeroHeading: "小さな発見を、みんなで地域の記録に残す。",
+  listHeroLead: "参加者は見つける楽しさから始め、班で同じ場所を見直します。主催者は観察の流れ、記録、振り返り、地域や企業への共有まで一続きで扱えます。",
   listCreateCta: "観察会を作る",
   listBackToCommunity: "コミュニティへ戻る",
   listLiveSection: "いま開催中",
@@ -82,7 +82,7 @@ const ja: ObservationEventStrings = {
   recapStats: "セッションの数字",
   recapTeamsHeader: "班ごとの達成",
   recapMeFallback: "参加者 URL でアクセスすると、あなたの貢献が見られます。",
-  recapImpactEmpty: "月次バッチで、観察会の記録が地域戦略・TNFD ブリーフにどう使われたかをこの欄に追記します。",
+  recapImpactEmpty: "月次バッチで、観察会の記録が地域の自然理解、活動報告、TNFD ブリーフにどう使われたかをこの欄に追記します。",
 };
 
 const en: ObservationEventStrings = {

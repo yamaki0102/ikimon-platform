@@ -49,7 +49,7 @@ function pageTitle(lang: SiteLang): string {
     case "en": return "Sample Report — Relationship Score";
     case "es": return "Informe de muestra — Indicador de relación";
     case "pt-BR": return "Relatório de amostra — Indicador de relação";
-    default: return "サンプルレポート — 自然との関係指標";
+    default: return "サンプルレポート — 地域の自然を読み解くレポート";
   }
 }
 
@@ -75,9 +75,9 @@ function pageHeading(lang: SiteLang): { eyebrow: string; heading: string; lead: 
       };
     default:
       return {
-        eyebrow: "B2B サンプルレポート",
-        heading: "人と自然の関係",
-        lead: "観察データと、人がそのサイトとどう関わっているかという運用状態を、リアルタイムで補助指標として一緒に見るためのビューです。",
+        eyebrow: "企業・地域向けサンプルレポート",
+        heading: "観察の記録を、次のアクションへ",
+        lead: "生きものの発見を、地域の自然を読み解く手がかりへ。観察データと、人がそのサイトとどう関わっているかという運用状態を、補助指標として一緒に見るためのビューです。",
       };
   }
 }
