@@ -11,19 +11,6 @@
 -- destructive-ok: data backfill only; rollback by restoring observation_fields
 -- entity_key/valid_from from the pre-deploy database snapshot.
 
-ALTER TABLE observation_fields
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ADD COLUMN IF NOT EXISTS valid_from DATE,
-    ADD COLUMN IF NOT EXISTS valid_to DATE,
-    ADD COLUMN IF NOT EXISTS superseded_by UUID
-        REFERENCES observation_fields(field_id) ON DELETE SET NULL,
-    ADD COLUMN IF NOT EXISTS entity_key TEXT;
-
-ALTER TABLE observation_fields
-    ALTER COLUMN valid_from SET DEFAULT current_date,
-    ALTER COLUMN entity_key SET DEFAULT '';
-
 DROP INDEX IF EXISTS idx_obs_fields_entity_current;
 
 CREATE OR REPLACE FUNCTION obs_user_field_normalized_name(input_name TEXT)
