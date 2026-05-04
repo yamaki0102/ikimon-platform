@@ -6,15 +6,10 @@
 --
 -- Also tighten the current-entity unique index to ignore blank keys. Migration
 -- 0080 defaulted entity_key to '', and blank keys are not identities.
--- owner-sensitive-ok: adds missing legacy observation_fields timestamp columns
--- before the backfill reads them; rollback is dropping only these columns if
--- they were absent before deploy.
+-- owner-sensitive-ok: adds only the valid range CHECK constraint when missing;
+-- rollback is dropping obs_fields_valid_range_chk before invalid ranges exist.
 -- destructive-ok: data backfill only; rollback by restoring observation_fields
 -- entity_key/valid_from from the pre-deploy database snapshot.
-
-ALTER TABLE observation_fields
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 DROP INDEX IF EXISTS idx_obs_fields_entity_current;
 
@@ -92,6 +87,19 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conname = 'obs_fields_valid_range_chk'
+    ) THEN
+        ALTER TABLE observation_fields
+            ADD CONSTRAINT obs_fields_valid_range_chk
+            CHECK (valid_to IS NULL OR valid_from IS NULL OR valid_to >= valid_from);
+    END IF;
+END $$;
+
 WITH candidates AS (
     SELECT
         field_id,
@@ -144,6 +152,9 @@ UPDATE observation_fields f
    SET entity_key = r.entity_key || ':variant-' || r.duplicate_no::text
   FROM renamed r
  WHERE f.field_id = r.field_id;
+
+CREATE INDEX IF NOT EXISTS idx_obs_fields_entity_history
+    ON observation_fields (entity_key, valid_from DESC);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_fields_entity_current
     ON observation_fields (entity_key)
