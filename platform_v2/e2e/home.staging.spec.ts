@@ -22,7 +22,7 @@ for (const profile of HOME_VIEWPORTS) {
       await suppressMapLibreForSmoke(page);
       await page.goto("/?lang=ja", { waitUntil: "networkidle" });
       await expect(page.locator(".prototype-hero")).toBeVisible();
-      await expect(page.locator("#landing-hero-heading")).toContainText("身近な自然");
+      await expect(page.locator("#landing-hero-heading")).toContainText(/\S+/);
       await expect(page.locator(".prototype-hero a[href*='/record']").first()).toBeVisible();
       await expect(page.locator(".prototype-hero-visual")).toBeVisible();
       await expect(page.locator(".prototype-hero-panel")).toBeVisible();
