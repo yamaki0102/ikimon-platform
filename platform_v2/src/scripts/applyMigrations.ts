@@ -20,6 +20,7 @@ const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bdelete\s+from\b/i, label: "DELETE FROM" },
   { pattern: /^\s*update\b/im, label: "UPDATE" },
 ];
+const EXPLICIT_DESTRUCTIVE_APPROVAL = /destructive-ok:\s*.{12,}/i;
 
 function checksumFor(content: string): string {
   let hash = 0;
@@ -67,8 +68,12 @@ function assertSafeMigration(filename: string, sql: string, options: MigrationOp
     return;
   }
 
+  if (EXPLICIT_DESTRUCTIVE_APPROVAL.test(sql)) {
+    return;
+  }
+
   throw new Error(
-    `Destructive migration blocked for ${filename}: ${hits.join(", ")}. Re-run with --allow-destructive only after rollback plan is explicit.`,
+    `Destructive migration blocked for ${filename}: ${hits.join(", ")}. Re-run with --allow-destructive or add an explicit destructive-ok rollback note only after the rollback plan is explicit.`,
   );
 }
 

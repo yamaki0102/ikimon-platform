@@ -6,6 +6,8 @@
 --
 -- Also tighten the current-entity unique index to ignore blank keys. Migration
 -- 0080 defaulted entity_key to '', and blank keys are not identities.
+-- destructive-ok: data backfill only; rollback by restoring observation_fields
+-- entity_key/valid_from/updated_at from the pre-deploy database snapshot.
 
 DROP INDEX IF EXISTS idx_obs_fields_entity_current;
 

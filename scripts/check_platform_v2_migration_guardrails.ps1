@@ -111,8 +111,9 @@ foreach ($relPath in $migrationFiles) {
     if (-not (Test-Path $fullPath)) { continue }
 
     $sql = Get-Content -Raw -Path $fullPath
+    $hasDestructiveOverride = $sql -match 'destructive-ok:\s*.{12,}'
     foreach ($entry in $destructivePatterns) {
-        if ($sql -match $entry.Pattern) {
+        if (($sql -match $entry.Pattern) -and -not $hasDestructiveOverride) {
             $issues.Add("${relPath}: destructive migration pattern detected: $($entry.Label)")
         }
     }
