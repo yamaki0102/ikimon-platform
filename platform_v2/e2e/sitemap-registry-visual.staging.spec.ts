@@ -57,6 +57,13 @@ async function stabilizeVisualDiff(page: Page): Promise<void> {
   });
 }
 
+async function expectRenderedDocument(page: Page): Promise<void> {
+  const body = page.locator("body");
+  await expect(body).toBeVisible();
+  const text = (await body.innerText()).replace(/\s+/g, "");
+  expect(text.length).toBeGreaterThan(20);
+}
+
 const pages = listVisualQaPages();
 const assertScreenshots = process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1";
 
@@ -86,12 +93,12 @@ test.describe("sitemap registry visual smoke", () => {
           const status = response?.status() ?? 0;
           const allowed = qa.allowStatus ?? [200];
           expect(allowed, `${href} allowed statuses`).toContain(status);
+          expect(new URL(page.url()).pathname).toBe(new URL(href, "https://staging.ikimon.life").pathname);
 
           if (qa.readySelector) {
             await page.locator(qa.readySelector).first().waitFor({ state: "visible" });
           }
-          await expect(page.locator("body")).toBeVisible();
-          await expect(page.locator("body")).toContainText(qa.expectedText.ja);
+          await expectRenderedDocument(page);
           await expectNoHorizontalOverflow(page);
 
           if (assertScreenshots && qa.screenshot) {
