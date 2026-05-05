@@ -6,8 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,20 +37,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.rememberScrollState
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import life.ikimon.api.AppAuthManager
 import life.ikimon.api.AppLoginState
 import life.ikimon.api.ImmediateUploadDrainer
-import life.ikimon.api.UploadCoordinator
 import life.ikimon.api.InstallIdentityManager
+import life.ikimon.api.MobileApiConfig
+import life.ikimon.api.SessionRecapClient
 import life.ikimon.api.UploadStatusSnapshot
 import life.ikimon.api.UploadStatusStore
+import life.ikimon.data.DetectionEvent
 import life.ikimon.data.EventBuffer
 import life.ikimon.pocket.AudioSnippetStore
 import life.ikimon.pocket.FieldScanService
+import life.ikimon.pocket.FieldSessionCoordinator
 import life.ikimon.pocket.PocketService
+import life.ikimon.pocket.VisionClassifier
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,6 +79,13 @@ class MainActivity : ComponentActivity() {
     private var _timerRunnable: Runnable? = null
     private var _lastSummary = mutableStateOf<EventBuffer.Summary?>(null)
     private var _showResultSheet = mutableStateOf(false)
+    private var _sessionRecap = mutableStateOf<SessionRecapClient.RecapResult?>(null)
+    private var currentMovementMode: String = "walk"
+    private var visionClassifier: VisionClassifier? = null
+    private var visionReady = false
+    private var lastVisionAt = 0L
+    private var lastEnvAt = 0L
+    private var tts: TextToSpeech? = null
 
     private val detectionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -82,9 +96,15 @@ class MainActivity : ComponentActivity() {
                 confidence = intent.getFloatExtra("confidence", 0f),
                 type = intent.getStringExtra("type") ?: "audio",
                 taxonomicClass = intent.getStringExtra("taxonomic_class") ?: "",
+                taxonRank = intent.getStringExtra("taxon_rank") ?: "species",
+                sceneDigest = intent.getStringExtra("scene_digest") ?: "",
+                modelBaseName = intent.getStringExtra("model_base_name") ?: "",
                 isFused = intent.getBooleanExtra("is_fused", false),
             )
             _detections.add(0, item)
+            if (currentMovementMode == "vehicle" && item.sceneDigest.isNotBlank()) {
+                speakDriveCue(item.sceneDigest)
+            }
         }
     }
 
@@ -96,14 +116,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Locale.JAPAN
+            }
+        }
         InstallIdentityManager.getOrCreateInstallId(this)
         _uploadStatus.value = UploadStatusStore.snapshot(this)
         _loginState.value = AppAuthManager.currentState(this)
+        handleRuntimeConfigIntent(intent)
         handleAuthIntent(intent)
 
         setContent {
             IkimonTheme {
-                var selectedMode by remember { mutableStateOf(ScanMode.POCKET) }
+                var selectedMode by remember { mutableStateOf(ScanMode.FIELD) }
                 var fieldSessionIntent by remember { mutableStateOf(FieldSessionIntent.OFFICIAL) }
                 var fieldTestLevel by remember { mutableStateOf(FieldTestLevel.STANDARD) }
                 var movementMode by remember { mutableStateOf(MovementMode.WALK) }
@@ -112,6 +138,7 @@ class MainActivity : ComponentActivity() {
                 var pendingSnippets by remember { mutableStateOf(listOf<AudioSnippetStore.Snippet>()) }
                 val showResultSheet by _showResultSheet
                 val lastSummary by _lastSummary
+                val sessionRecap by _sessionRecap
 
                 LaunchedEffect(showResultSheet) {
                     if (showResultSheet) {
@@ -122,15 +149,15 @@ class MainActivity : ComponentActivity() {
                 }
 
                 if (showAudioReview) {
-                    AudioReviewScreen(
+                    AudioReviewPanel(
                         snippets = pendingSnippets,
-                        onConfirm = { snippet, sci, common ->
+                        onConfirm = { snippet: AudioSnippetStore.Snippet, _: String, _: String ->
                             pendingSnippets = pendingSnippets.filter { it.id != snippet.id }
                             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                                 AudioSnippetStore.confirm(this@MainActivity, snippet.id)
                             }
                         },
-                        onSkip = { snippet ->
+                        onSkip = { snippet: AudioSnippetStore.Snippet ->
                             pendingSnippets = pendingSnippets.filter { it.id != snippet.id }
                             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                                 AudioSnippetStore.skip(this@MainActivity, snippet.id)
@@ -143,18 +170,29 @@ class MainActivity : ComponentActivity() {
                         summary = lastSummary!!,
                         uploadStatus = _uploadStatus.value,
                         pendingAudioCount = pendingSnippets.size,
+                        recap = sessionRecap,
                         onReviewAudio = { showAudioReview = true },
                         onDismiss = {
                             _showResultSheet.value = false
                             _lastSummary.value = null
+                            _sessionRecap.value = null
                         },
                     )
                 } else if (isActive) {
                     ScanActiveScreen(
                         detections = _detections,
                         scanMode = if (selectedMode == ScanMode.FIELD) "field" else "pocket",
+                        movementMode = movementMode.key,
+                        loginState = _loginState.value,
+                        uploadStatus = _uploadStatus.value,
                         elapsedSeconds = _elapsedSeconds.intValue,
                         speciesCount = _detections.map { it.scientificName }.distinct().size,
+                        onCameraFrame = { bitmap ->
+                            if (selectedMode == ScanMode.FIELD) {
+                                handleCameraFrame(bitmap, movementMode.key)
+                            }
+                        },
+                        onRepeatPulse = { repeatLatestPulse() },
                         onStop = {
                             stopTimer()
                             when (selectedMode) {
@@ -163,6 +201,7 @@ class MainActivity : ComponentActivity() {
                             }
                             isActive = false
                             val durationSec = _elapsedSeconds.intValue
+                            val detectionsSnapshot = _detections.toList()
                             val audioCount = _detections.count { it.type == "audio" }
                             val visualCount = _detections.count { it.type == "visual" }
                             val isOfficial = fieldSessionIntent == FieldSessionIntent.OFFICIAL
@@ -179,6 +218,20 @@ class MainActivity : ComponentActivity() {
                                 testProfile = if (!isOfficial) fieldTestLevel.profileKey else "field",
                             )
                             _showResultSheet.value = true
+                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                                val recap = SessionRecapClient.fetch(
+                                    context = this@MainActivity,
+                                    sessionId = FieldSessionCoordinator.currentSessionId(),
+                                    detections = detectionsSnapshot,
+                                    durationSec = durationSec,
+                                    lat = null,
+                                    lng = null,
+                                    movementMode = movementMode.key,
+                                )
+                                withContext(Dispatchers.Main) {
+                                    _sessionRecap.value = recap
+                                }
+                            }
                         },
                     )
                 } else {
@@ -193,6 +246,7 @@ class MainActivity : ComponentActivity() {
                         onMovementModeSelected = { movementMode = it },
                         onStart = {
                             _detections.clear()
+                            _sessionRecap.value = null
                             _elapsedSeconds.intValue = 0
                             when (selectedMode) {
                                 ScanMode.POCKET -> startPocketMode()
@@ -208,13 +262,7 @@ class MainActivity : ComponentActivity() {
                         onRetryPendingUploads = {
                             val retryScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO)
                             retryScope.launch {
-                                val drainResult = ImmediateUploadDrainer.drain(this@MainActivity)
-                                if (drainResult.remainingCount > 0) {
-                                    val queuedCount = UploadCoordinator.enqueuePendingUploads(this@MainActivity)
-                                    if (queuedCount > 0) {
-                                        UploadStatusStore.recordManualRetryQueued(this@MainActivity, queuedCount)
-                                    }
-                                }
+                                ImmediateUploadDrainer.drain(this@MainActivity)
                                 withContext(Dispatchers.Main) {
                                     _uploadStatus.value = UploadStatusStore.snapshot(this@MainActivity)
                                 }
@@ -235,13 +283,7 @@ class MainActivity : ComponentActivity() {
         if (snapshot.isOnline) {
             val drainScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO)
             drainScope.launch {
-                val drainResult = ImmediateUploadDrainer.drain(this@MainActivity)
-                if (drainResult.remainingCount > 0) {
-                    val queuedCount = UploadCoordinator.enqueuePendingUploads(this@MainActivity)
-                    if (queuedCount > 0) {
-                        UploadStatusStore.recordManualRetryQueued(this@MainActivity, queuedCount)
-                    }
-                }
+                ImmediateUploadDrainer.drain(this@MainActivity)
                 withContext(Dispatchers.Main) {
                     _uploadStatus.value = UploadStatusStore.snapshot(this@MainActivity)
                 }
@@ -254,6 +296,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleRuntimeConfigIntent(intent)
         handleAuthIntent(intent)
     }
 
@@ -261,6 +304,12 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         try { unregisterReceiver(detectionReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(uploadStatusReceiver) } catch (_: Exception) {}
+    }
+
+    override fun onDestroy() {
+        visionClassifier?.close()
+        tts?.shutdown()
+        super.onDestroy()
     }
 
     private fun startTimer() {
@@ -298,6 +347,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startFieldScan(intent: FieldSessionIntent, testLevel: FieldTestLevel, movementMode: MovementMode) {
         if (!hasRequiredPermissions()) { requestPermissions(); return }
+        currentMovementMode = movementMode.key
         FieldScanService.start(
             context = this,
             sessionIntent = if (intent == FieldSessionIntent.TEST) "test" else "official",
@@ -318,11 +368,185 @@ class MainActivity : ComponentActivity() {
         _loginState.value = AppAuthManager.currentState(this)
         _uploadStatus.value = UploadStatusStore.snapshot(this)
     }
+
+    private fun handleRuntimeConfigIntent(intent: Intent?) {
+        MobileApiConfig.applyDebugOverrideFromIntent(
+            context = this,
+            rawBase = intent?.getStringExtra(MobileApiConfig.EXTRA_FIELD_SESSION_API_BASE),
+        )
+    }
+
+    private fun handleCameraFrame(bitmap: Bitmap, movementMode: String) {
+        val now = System.currentTimeMillis()
+        val runVision = now - lastVisionAt >= if (movementMode == "vehicle") 10_000L else 5_000L
+        val runEnv = now - lastEnvAt >= if (movementMode == "vehicle") 20_000L else 12_000L
+        if (!runVision && !runEnv) return
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val classifier = visionClassifier ?: VisionClassifier(this@MainActivity).also {
+                visionClassifier = it
+                visionReady = it.initialize()
+            }
+            if (!visionReady) return@launch
+
+            if (runVision) {
+                lastVisionAt = now
+                classifier.classifyFrame(bitmap)?.let { result ->
+                    if (result.confidence >= 0.30f) {
+                        val (lat, lng) = FieldSessionCoordinator.currentLocation()
+                        FieldSessionCoordinator.addEvent(
+                            context = this@MainActivity,
+                            raw = DetectionEvent(
+                                type = "visual",
+                                taxonName = result.commonName.ifEmpty { result.scientificName },
+                                scientificName = result.scientificName,
+                                confidence = result.confidence,
+                                lat = lat,
+                                lng = lng,
+                                timestamp = System.currentTimeMillis(),
+                                model = result.modelSnapshot.baseModelName,
+                                taxonomicClass = result.taxonomicClass,
+                                order = result.order,
+                                photoRef = "scene_${now}_visual",
+                                onDeviceModelBaseName = result.modelSnapshot.baseModelName,
+                                onDeviceReleaseStage = result.modelSnapshot.releaseStage,
+                                onDeviceModelPreference = result.modelSnapshot.preference,
+                                foregroundAiAvailable = result.modelSnapshot.foregroundAiAvailable,
+                                fallbackReason = result.modelSnapshot.fallbackReason,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            if (runEnv) {
+                lastEnvAt = now
+                classifier.analyzeEnvironment(bitmap)?.let { env ->
+                    val (lat, lng) = FieldSessionCoordinator.currentLocation()
+                    FieldSessionCoordinator.addEvent(
+                        context = this@MainActivity,
+                        raw = DetectionEvent(
+                            type = "sensor",
+                            taxonName = env.habitat.ifBlank { "環境コンテキスト" },
+                            scientificName = "environment_context",
+                            confidence = 1.0f,
+                            lat = lat,
+                            lng = lng,
+                            timestamp = System.currentTimeMillis(),
+                            model = env.modelSnapshot.baseModelName,
+                            taxonomicClass = "Environment",
+                            order = env.vegetation,
+                            taxonRank = "context",
+                            photoRef = "scene_${now}_env",
+                            onDeviceModelBaseName = env.modelSnapshot.baseModelName,
+                            onDeviceReleaseStage = env.modelSnapshot.releaseStage,
+                            onDeviceModelPreference = env.modelSnapshot.preference,
+                            foregroundAiAvailable = env.modelSnapshot.foregroundAiAvailable,
+                            fallbackReason = env.modelSnapshot.fallbackReason,
+                            sceneDigest = env.sceneDigest,
+                            areaResolutionSignals = env.areaResolutionSignals,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun repeatLatestPulse() {
+        val latest = _detections
+            .take(3)
+            .mapNotNull { it.sceneDigest.ifBlank { it.taxonName }.takeIf { text -> text.isNotBlank() } }
+            .joinToString("。")
+        if (latest.isNotBlank()) speakDriveCue(latest)
+    }
+
+    private fun speakDriveCue(text: String) {
+        val short = text.replace('\n', ' ').take(120)
+        tts?.speak(short, TextToSpeech.QUEUE_FLUSH, null, "field_pulse")
+    }
+}
+
+@Composable
+private fun AudioReviewPanel(
+    snippets: List<AudioSnippetStore.Snippet>,
+    onConfirm: (AudioSnippetStore.Snippet, String, String) -> Unit,
+    onSkip: (AudioSnippetStore.Snippet) -> Unit,
+    onDone: () -> Unit,
+) {
+    val green = Color(0xFF2E7D32)
+    val ink = Color(0xFF17211B)
+    Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFF6F7F2)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Spacer(modifier = Modifier.height(48.dp))
+            Text("音を確認", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ink)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                if (snippets.isEmpty()) "確認待ちの音はありません。"
+                else "あとで見返すため、必要な音だけ残します。",
+                fontSize = 15.sp,
+                color = ink.copy(alpha = 0.62f),
+                lineHeight = 22.sp,
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+
+            snippets.take(20).forEach { snippet ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(18.dp),
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text("録音 ${"%.1f".format(snippet.durationSec)}秒", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ink)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "候補を確認して、記録に使うか選びます。",
+                            fontSize = 13.sp,
+                            color = ink.copy(alpha = 0.58f),
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedButton(
+                                onClick = { onSkip(snippet) },
+                                modifier = Modifier.weight(1f).height(52.dp),
+                                shape = RoundedCornerShape(14.dp),
+                            ) {
+                                Text("残さない")
+                            }
+                            Button(
+                                onClick = { onConfirm(snippet, "", "") },
+                                modifier = Modifier.weight(1f).height(52.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = green),
+                                shape = RoundedCornerShape(14.dp),
+                            ) {
+                                Text("残す", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            Spacer(modifier = Modifier.weight(1f, fill = false))
+            Button(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth().height(64.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = green),
+                shape = RoundedCornerShape(18.dp),
+            ) {
+                Text("戻る", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
 
 enum class ScanMode(val label: String, val emoji: String, val desc: String) {
-    POCKET("ポケット", "🎧", "ポケットに入れて散歩\n音声AIが自動で検出"),
-    FIELD("フィールドスキャン", "🔭", "Triple AI Engine\n音声+視覚+環境分析"),
+    POCKET("聞くだけ", "🎧", "画面を閉じて\n音と場所を残す"),
+    FIELD("場所を読む", "🔭", "カメラ・音・位置から\n周りの手がかりを集める"),
 }
 
 enum class FieldSessionIntent(
@@ -332,8 +556,8 @@ enum class FieldSessionIntent(
     val buttonLabel: String,
     val color: Color,
 ) {
-    TEST("動作チェック", "🧪", "室内再生や回帰確認用\n本番記録には反映しない", "🧪 動作チェック開始", Color(0xFF0284C7)),
-    OFFICIAL("フィールド記録", "🌿", "本番の観測として保存\n共同データに反映する", "🌿 フィールド記録開始", Color(0xFF2E7D32)),
+    TEST("ためす", "🧪", "動作確認用\n公開記録には入れない", "ためしてみる", Color(0xFF2F7DA1)),
+    OFFICIAL("記録する", "🌿", "自分の記録として保存\n地図にも反映する", "記録をはじめる", Color(0xFF2E7D32)),
 }
 
 enum class FieldTestLevel(
@@ -342,9 +566,9 @@ enum class FieldTestLevel(
     val emoji: String,
     val desc: String,
 ) {
-    QUICK("quick", "クイック", "⚡", "短時間で停止や送信だけ確認\n再現しやすい最小テスト"),
-    STANDARD("standard", "標準", "🎯", "普段の回帰確認に使う\n比較の基準にするレベル"),
-    STRESS("stress", "ストレス", "🔥", "高頻度で回して負荷を見る\n誤検出や再送も出やすい"),
+    QUICK("quick", "短く", "⚡", "すぐ終わる確認"),
+    STANDARD("standard", "ふつう", "🎯", "普段の確認"),
+    STRESS("stress", "しっかり", "🔥", "長めに動かす確認"),
 }
 
 enum class MovementMode(
@@ -353,9 +577,9 @@ enum class MovementMode(
     val emoji: String,
     val desc: String,
 ) {
-    WALK("walk", "歩き", "🚶", "最大ゲイン\n静かな環境向け"),
-    BICYCLE("bicycle", "自転車・バイク", "🚲", "中ゲイン\n移動音を考慮"),
-    VEHICLE("vehicle", "車・電車", "🚗", "標準ゲイン\n車内環境向け"),
+    WALK("walk", "歩く", "🚶", "散歩しながら"),
+    VEHICLE("vehicle", "車", "🚗", "画面を見ない"),
+    FOCUS("focus", "じっくり", "🔎", "立ち止まって"),
 }
 
 @Composable
@@ -377,9 +601,10 @@ fun HomeScreen(
     lastSessionCount: Int,
 ) {
     val green = Color(0xFF2E7D32)
-    val darkBg = Color(0xFF0D1117)
-    val cardBg = Color(0xFF161B22)
-    val borderColor = Color(0xFF30363D)
+    val ink = Color(0xFF17211B)
+    val darkBg = Color(0xFFF6F7F2)
+    val cardBg = Color.White
+    val borderColor = Color(0xFFDCE4D8)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf(loginState.email) }
@@ -393,42 +618,40 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            Text("🌿", fontSize = 40.sp)
+            Text("🌿", fontSize = 36.sp)
             Spacer(modifier = Modifier.height(4.dp))
-            Text("ikimon FieldScan", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text("BirdNET+ V3.0 · Gemini Nano v3", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
+            Text("いきものフィールド", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = ink)
+            Text("散歩や移動中に、場所の手がかりを集めます", fontSize = 12.sp, color = ink.copy(alpha = 0.58f))
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "今いる場所を、見えるもの・聞こえるもの・地図の文脈から読み解く。",
+                color = ink.copy(alpha = 0.72f),
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp,
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // モード選択
-            Row(
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
-                ScanMode.entries.forEach { mode ->
-                    val isSelected = selectedMode == mode
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .then(
-                                if (isSelected) Modifier.border(2.dp, green, RoundedCornerShape(16.dp))
-                                else Modifier.border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                            )
-                            .background(if (isSelected) green.copy(alpha = 0.1f) else cardBg)
-                            .clickable { onModeSelected(mode) }
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(mode.emoji, fontSize = 28.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(mode.label, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                                color = if (isSelected) green else Color.White)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(mode.desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f),
-                                textAlign = TextAlign.Center, lineHeight = 15.sp)
-                        }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFEAF2EA))
+                        .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("🔭", fontSize = 24.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("今の場所を読む", color = ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("カメラ・音・位置から、周りの自然の手がかりをまとめます", color = ink.copy(alpha = 0.62f), fontSize = 12.sp, lineHeight = 17.sp)
                     }
                 }
             }
@@ -436,9 +659,9 @@ fun HomeScreen(
             if (selectedMode == ScanMode.FIELD) {
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    "開始モード",
+                    "保存のしかた",
                     fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.75f),
+                    color = ink.copy(alpha = 0.72f),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(modifier = Modifier.height(10.dp))
@@ -464,9 +687,9 @@ fun HomeScreen(
                             Column {
                                 Text(intent.emoji, fontSize = 24.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(intent.label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isSelected) intent.color else Color.White)
+                                Text(intent.label, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (isSelected) intent.color else ink)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(intent.desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.58f), lineHeight = 15.sp)
+                                Text(intent.desc, fontSize = 12.sp, color = ink.copy(alpha = 0.58f), lineHeight = 17.sp)
                             }
                         }
                     }
@@ -475,9 +698,9 @@ fun HomeScreen(
                 if (fieldSessionIntent == FieldSessionIntent.TEST) {
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
-                        "テストレベル",
+                        "ためし方",
                         fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = ink.copy(alpha = 0.72f),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -503,9 +726,9 @@ fun HomeScreen(
                             ) {
                                 Text(level.emoji, fontSize = 22.sp)
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(level.label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isSelected) Color(0xFF38BDF8) else Color.White)
+                                    Text(level.label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isSelected) Color(0xFF2F7DA1) else ink)
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(level.desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.58f), lineHeight = 15.sp)
+                                    Text(level.desc, fontSize = 12.sp, color = ink.copy(alpha = 0.58f), lineHeight = 17.sp)
                                 }
                             }
                         }
@@ -515,9 +738,9 @@ fun HomeScreen(
                 // 移動手段選択（マイクゲイン制御）
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    "移動手段",
+                    "どう使う？",
                     fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.75f),
+                    color = ink.copy(alpha = 0.72f),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(modifier = Modifier.height(10.dp))
@@ -548,15 +771,15 @@ fun HomeScreen(
                                     mode.label,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) moveColor else Color.White.copy(alpha = 0.8f),
+                                    color = if (isSelected) moveColor else ink.copy(alpha = 0.8f),
                                     textAlign = TextAlign.Center,
                                     lineHeight = 14.sp,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     mode.desc,
-                                    fontSize = 9.sp,
-                                    color = Color.White.copy(alpha = 0.45f),
+                                    fontSize = 10.sp,
+                                    color = ink.copy(alpha = 0.55f),
                                     textAlign = TextAlign.Center,
                                     lineHeight = 12.sp,
                                 )
@@ -641,8 +864,9 @@ private fun LoginCard(
     onGoogleLogin: () -> Unit,
     onLogout: () -> Unit,
 ) {
-    val cardBg = Color(0xFF161B22)
-    val borderColor = Color(0xFF30363D)
+    val ink = Color(0xFF17211B)
+    val cardBg = Color.White
+    val borderColor = Color(0xFFDCE4D8)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = cardBg),
@@ -650,26 +874,26 @@ private fun LoginCard(
         shape = RoundedCornerShape(18.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("アカウント", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text("アカウント", color = ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                if (loginState.isLoggedIn) "ログイン中: ${loginState.userName}" else "未ログイン",
-                color = if (loginState.isLoggedIn) Color(0xFF2E7D32) else Color.White,
+                if (loginState.isLoggedIn) "${loginState.userName} で同期中" else "ログインしていません",
+                color = if (loginState.isLoggedIn) Color(0xFF2E7D32) else ink,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(loginMessage, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, lineHeight = 18.sp)
+            Text(loginMessage, color = ink.copy(alpha = 0.66f), fontSize = 12.sp, lineHeight = 18.sp)
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 if (loginState.isLoggedIn) {
-                    "本番のフィールド記録は、このアカウントの貢献として積み上がる"
+                    "記録はWeb版の地図・ガイド・履歴と同じ場所に保存されます"
                 } else {
-                    "未ログインでも観測はできる。あとでログインすると、この端末の本番記録を自分の貢献へ結び直せる"
+                    "ログインしなくても使えます。ログインすると、あとでWeb版でも見られます"
                 },
-                color = Color.White.copy(alpha = 0.56f),
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
+                color = ink.copy(alpha = 0.58f),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -698,7 +922,7 @@ private fun LoginCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text("ログインして貢献を固定", fontWeight = FontWeight.Bold)
+                    Text("ログインする", fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 OutlinedButton(
@@ -706,7 +930,7 @@ private fun LoginCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                 ) {
-                    Text("Googleで続ける", fontWeight = FontWeight.Bold)
+                    Text("Googleでログイン", fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -727,9 +951,10 @@ private fun UploadStatusCard(
     snapshot: UploadStatusSnapshot,
     onRetryPendingUploads: () -> Unit,
 ) {
-    val cardBg = Color(0xFF161B22)
-    val borderColor = Color(0xFF30363D)
-    val textSubtle = Color.White.copy(alpha = 0.6f)
+    val ink = Color(0xFF17211B)
+    val cardBg = Color.White
+    val borderColor = Color(0xFFDCE4D8)
+    val textSubtle = ink.copy(alpha = 0.6f)
     val accent = when (snapshot.state) {
         "uploaded" -> Color(0xFF2E7D32)
         "uploading" -> Color(0xFF0284C7)
@@ -761,7 +986,7 @@ private fun UploadStatusCard(
         shape = RoundedCornerShape(18.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("反映状態", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text("保存状態", color = ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(10.dp))
 
             Row(
@@ -774,7 +999,7 @@ private fun UploadStatusCard(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(snapshot.detail, color = Color.White.copy(alpha = 0.82f), fontSize = 13.sp, lineHeight = 18.sp)
+            Text(snapshot.detail, color = ink.copy(alpha = 0.76f), fontSize = 13.sp, lineHeight = 18.sp)
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -792,7 +1017,7 @@ private fun UploadStatusCard(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(snapshot.installDetail, color = Color.White.copy(alpha = 0.56f), fontSize = 11.sp, lineHeight = 16.sp)
+            Text(snapshot.installDetail, color = ink.copy(alpha = 0.56f), fontSize = 11.sp, lineHeight = 16.sp)
 
             if (snapshot.pendingCount > 0) {
                 Spacer(modifier = Modifier.height(14.dp))
@@ -818,20 +1043,20 @@ private fun UploadStatusCard(
 @Composable
 private fun RowScope.StatusMetric(label: String, value: String) {
     Column(modifier = Modifier.weight(1f)) {
-        Text(label, color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
+        Text(label, color = Color(0xFF17211B).copy(alpha = 0.5f), fontSize = 11.sp)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(value, color = Color(0xFF17211B), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 fun IkimonTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = darkColorScheme(
+        colorScheme = lightColorScheme(
             primary = Color(0xFF2E7D32),
             onPrimary = Color.White,
-            background = Color(0xFF0D1117),
-            surface = Color(0xFF161B22),
+            background = Color(0xFFF6F7F2),
+            surface = Color.White,
         ),
         content = content,
     )

@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 
 data class AppLoginState(
     val isLoggedIn: Boolean = false,
+    val userId: String = "",
     val userName: String = "未ログイン",
     val email: String = "",
     val token: String = "",
@@ -27,10 +28,11 @@ data class AppLoginResult(
 object AppAuthManager {
     private const val PREFS_NAME = "fieldscan_app_auth"
     private const val KEY_TOKEN = "app_token"
+    private const val KEY_USER_ID = "user_id"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_EMAIL = "email"
     private const val KEY_DETAIL = "detail"
-    private const val LOGIN_API = "https://ikimon.life/api/v2/app_login.php"
+    private const val LOGIN_API = "https://ikimon.life/api/v1/mobile/auth/login"
     private const val APP_OAUTH_START = "https://ikimon.life/app_oauth_start.php"
 
     private val client = OkHttpClient.Builder()
@@ -44,6 +46,7 @@ object AppAuthManager {
         val token = prefs.getString(KEY_TOKEN, "") ?: ""
         return AppLoginState(
             isLoggedIn = token.isNotBlank(),
+            userId = prefs.getString(KEY_USER_ID, "") ?: "",
             userName = prefs.getString(KEY_USER_NAME, "未ログイン") ?: "未ログイン",
             email = prefs.getString(KEY_EMAIL, "") ?: "",
             token = token,
@@ -81,15 +84,17 @@ object AppAuthManager {
             if (!response.isSuccessful || !json.optBoolean("success")) {
                 val message = json.optJSONObject("error")?.optString("message")
                     ?: json.optString("message", "ログインに失敗した")
-                save(context, "", "未ログイン", email.trim(), message)
+                save(context, "", "", "未ログイン", email.trim(), message)
                 return AppLoginResult(false, message)
             }
 
-            val data = json.getJSONObject("data")
-            val token = data.getString("token")
-            val user = data.getJSONObject("user")
-            val userName = user.optString("name", "ikimon user")
-            save(context, token, userName, email.trim(), "ログイン済み。以後の貢献はこのアカウントに紐づく")
+            val data = json.optJSONObject("data") ?: json
+            val token = data.optString("token", data.optString("rawToken", ""))
+            val user = data.optJSONObject("user") ?: data.optJSONObject("session")
+            val userId = user?.optString("userId", user.optString("user_id", "")) ?: ""
+            val userName = user?.optString("name", user.optString("displayName", user.optString("display_name", "ikimon user")))
+                ?: "ikimon user"
+            save(context, token, userId, userName, email.trim(), "ikimon.life アカウントでログイン済み。以後の貢献はこのアカウントに紐づく")
             AppLoginResult(true, "ログイン済み: $userName")
         } catch (_: Exception) {
             AppLoginResult(false, "通信エラーでログインできなかった")
@@ -120,7 +125,7 @@ object AppAuthManager {
         val error = uri.getQueryParameter("error")
         if (!error.isNullOrBlank()) {
             val message = uri.getQueryParameter("message") ?: "ソーシャルログインに失敗した"
-            save(context, "", "未ログイン", "", message)
+            save(context, "", "", "未ログイン", "", message)
             return AppLoginResult(false, message)
         }
 
@@ -134,7 +139,7 @@ object AppAuthManager {
         val message = uri.getQueryParameter("message")
             ?: "ソーシャルログインが完了した。この端末の本番記録はアカウントへ紐づく"
 
-        save(context, token, userName, email, message)
+        save(context, token, uri.getQueryParameter("user_id").orEmpty(), userName, email, message)
         InstallIdentityManager.markRegistered(
             context,
             "この端末は送信済み。以後そのまま反映される"
@@ -143,13 +148,14 @@ object AppAuthManager {
     }
 
     fun logout(context: Context) {
-        save(context, "", "未ログイン", "", "ログインすると貢献が本人の記録として固定される")
+        save(context, "", "", "未ログイン", "", "ログインすると貢献が本人の記録として固定される")
     }
 
-    private fun save(context: Context, token: String, userName: String, email: String, detail: String) {
+    private fun save(context: Context, token: String, userId: String, userName: String, email: String, detail: String) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_TOKEN, token)
+            .putString(KEY_USER_ID, userId)
             .putString(KEY_USER_NAME, userName)
             .putString(KEY_EMAIL, email)
             .putString(KEY_DETAIL, detail)

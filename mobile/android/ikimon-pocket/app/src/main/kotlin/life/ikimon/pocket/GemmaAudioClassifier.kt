@@ -3,11 +3,6 @@ package life.ikimon.pocket
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
-import com.google.mlkit.genai.prompt.Generation
-import com.google.mlkit.genai.prompt.GenerativeModel
-import com.google.mlkit.genai.prompt.ImagePart
-import com.google.mlkit.genai.prompt.TextPart
-import com.google.mlkit.genai.prompt.generateContentRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,7 +11,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.math.*
 
 /**
- * Gemma 4 E4B 音声分類器 — スペクトログラム視覚化 + Gemini Nano on-device
+ * Gemma 4 / Gemini Nano 4 音声分類器 — スペクトログラム視覚化 + on-device AI
  *
  * AudioPart APIが未公開のため、音声 → スペクトログラム画像変換を介して
  * ML Kit Prompt API (ImagePart) 経由でオンデバイス種同定を行う。
@@ -56,10 +51,11 @@ Multiple species: list all. No vocalization detected: []
 ONLY JSON, no explanation."""
     }
 
-    private var generativeModel: GenerativeModel? = null
+    private val fieldAi = OnDeviceFieldAiEngine()
     private var isAvailable = false
     @Volatile private var isClosed = false
     @Volatile private var isWarmedUp = false
+    @Volatile private var lastSnapshot = OnDeviceFieldAiEngine.ModelSnapshot.unavailable("not_run")
 
     // Hann 窓関数（初期化時に一度だけ計算）
     private val hannWindow = FloatArray(FFT_SIZE) { i ->
@@ -71,49 +67,30 @@ ONLY JSON, no explanation."""
     }
 
     private fun initModel() {
-        try {
-            val model = Generation.getClient()
-            generativeModel = model
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                try {
-                    val status = model.checkStatus()
-                    when (status) {
-                        FEATURE_AVAILABLE -> {
-                            isAvailable = true
-                            Log.i(TAG, "GemmaAudioClassifier ready: status=AVAILABLE")
-                            warmUp(model)
-                        }
-                        FEATURE_DOWNLOADABLE -> {
-                            Log.i(TAG, "GemmaAudioClassifier: status=DOWNLOADABLE — starting download")
-                            model.download().collect { ds ->
-                                Log.d(TAG, "Gemma download: $ds")
-                            }
-                            isAvailable = true
-                            Log.i(TAG, "GemmaAudioClassifier: download complete — available=true")
-                            warmUp(model)
-                        }
-                        else -> {
-                            Log.w(TAG, "GemmaAudioClassifier: status=UNKNOWN($status) — unavailable")
-                            isAvailable = false
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "GemmaAudioClassifier checkStatus failed: ${e.message}")
-                    isAvailable = false
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            try {
+                lastSnapshot = fieldAi.snapshotFor(OnDeviceFieldAiEngine.Profile.FAST)
+                isAvailable = lastSnapshot.foregroundAiAvailable
+                if (isAvailable) {
+                    Log.i(TAG, "GemmaAudioClassifier ready: $lastSnapshot")
+                    warmUp()
+                } else {
+                    Log.w(TAG, "GemmaAudioClassifier unavailable: $lastSnapshot")
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "GemmaAudioClassifier checkStatus failed: ${e.message}")
+                isAvailable = false
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "GemmaAudioClassifier init failed: ${e.message}")
-            isAvailable = false
         }
     }
 
     fun isReady(): Boolean = isAvailable && !isClosed
+    fun modelSnapshot(): OnDeviceFieldAiEngine.ModelSnapshot = lastSnapshot
 
     /** モデルを空プロンプトで叩いてNPUをウォームアップ */
-    private suspend fun warmUp(model: GenerativeModel) {
+    private suspend fun warmUp() {
         try {
-            model.generateContent(".")
+            fieldAi.generateText(".", OnDeviceFieldAiEngine.Profile.FAST)
             isWarmedUp = true
             Log.i(TAG, "GemmaAudioClassifier: warmup complete")
         } catch (e: Exception) {
@@ -127,7 +104,6 @@ ONLY JSON, no explanation."""
      */
     suspend fun classify(audioData: FloatArray): List<AudioClassifier.ClassificationResult> {
         if (isClosed || !isAvailable) return emptyList()
-        val model = generativeModel ?: return emptyList()
 
         val timeoutMs = if (isWarmedUp) TIMEOUT_WARM_MS else TIMEOUT_COLD_MS
         return try {
@@ -137,13 +113,14 @@ ONLY JSON, no explanation."""
                 val tSpec = System.currentTimeMillis()
                 Log.d(TAG, "spectrogram generated: ${tSpec - t0}ms size=${bitmap.width}x${bitmap.height}")
 
-                val request = generateContentRequest(ImagePart(bitmap), TextPart(SPECTROGRAM_PROMPT)) {
-                    temperature = 0.1f
-                    topK = 5
-                }
-                val response = model.generateContent(request)
+                val response = fieldAi.generateImageJson(
+                    bitmap = bitmap,
+                    prompt = SPECTROGRAM_PROMPT,
+                    profile = OnDeviceFieldAiEngine.Profile.FAST,
+                )
+                lastSnapshot = response.modelSnapshot
                 val tInfer = System.currentTimeMillis()
-                val rawText = response.candidates.firstOrNull()?.text?.trim() ?: ""
+                val rawText = response.text
                 Log.d(TAG, "inference done: ${tInfer - tSpec}ms raw=\"$rawText\"")
 
                 if (rawText.isEmpty()) return@withTimeout emptyList()
@@ -294,6 +271,6 @@ ONLY JSON, no explanation."""
 
     fun close() {
         isClosed = true
-        generativeModel?.close()
+        fieldAi.close()
     }
 }

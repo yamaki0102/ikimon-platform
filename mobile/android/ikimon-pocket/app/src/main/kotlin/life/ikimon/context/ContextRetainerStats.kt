@@ -1,6 +1,7 @@
 package life.ikimon.context
 
 import android.content.Context
+import android.os.Build
 import android.os.Debug
 import android.os.PowerManager
 import android.util.Log
@@ -118,8 +119,8 @@ class ContextRetainerStats(private val context: Context) {
 
     private fun thermalStatus(): String {
         return try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return "UNKNOWN"
             val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-            // Android 10+ (API 29+)
             when (pm.currentThermalStatus) {
                 PowerManager.THERMAL_STATUS_NONE       -> "NONE"
                 PowerManager.THERMAL_STATUS_LIGHT      -> "LIGHT"

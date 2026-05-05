@@ -3,18 +3,14 @@ package life.ikimon.pocket
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
-import com.google.mlkit.genai.prompt.Generation
-import com.google.mlkit.genai.prompt.GenerativeModel
-import com.google.mlkit.genai.prompt.ImagePart
-import com.google.mlkit.genai.prompt.TextPart
-import com.google.mlkit.genai.prompt.generateContentRequest
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
 /**
- * 視覚AI分類器（Gemini Nano v3 on-device）
+ * 視覚AI分類器（Gemini Nano / Gemma 4 on-device）
  *
- * カメラフレームをGemini Nano v3に渡し、種レベルで生物を同定する。
+ * カメラフレームをAICore Developer Preview優先のNano 4経路に渡し、
+ * 生物候補と環境手がかりを端末内で要約する。
  * 完全オンデバイス推論 — ネットワーク不要。
  * Pixel 10 Pro (Tensor G5) で最高性能。
  */
@@ -37,7 +33,7 @@ Do NOT explain. ONLY JSON."""
 
         private const val ENVIRONMENT_PROMPT = """Analyze the natural environment in this photo for ecological survey.
 Return ONLY a valid JSON object:
-{"habitat":"deciduous_forest","vegetation":"canopy_present","ground":"leaf_litter","water":"stream_nearby","canopy_cover_pct":60,"disturbance":"low","season_cue":"spring_bloom"}
+{"habitat":"deciduous_forest","vegetation":"canopy_present","ground":"leaf_litter","water":"stream_nearby","canopy_cover_pct":60,"disturbance":"low","season_cue":"spring_bloom","area_resolution_signals":["水辺の近さ","落葉広葉樹林","春の開花"],"scene_digest":"落葉広葉樹林の林縁。足元は落ち葉が多く、近くに水音の手がかりがある。"}
 Do NOT explain. ONLY JSON."""
     }
 
@@ -51,6 +47,7 @@ Do NOT explain. ONLY JSON."""
         val genus: String = "",
         val taxonRank: String = "species",  // species/genus/family/order/class
         val habitat: String = "",
+        val modelSnapshot: OnDeviceFieldAiEngine.ModelSnapshot = OnDeviceFieldAiEngine.ModelSnapshot.unavailable("not_run"),
     )
 
     data class EnvironmentResult(
@@ -60,38 +57,22 @@ Do NOT explain. ONLY JSON."""
         val water: String,
         val canopyCoverPct: Int,
         val disturbance: String,
+        val sceneDigest: String = "",
+        val areaResolutionSignals: List<String> = emptyList(),
+        val modelSnapshot: OnDeviceFieldAiEngine.ModelSnapshot = OnDeviceFieldAiEngine.ModelSnapshot.unavailable("not_run"),
     )
 
-    private var generativeModel: GenerativeModel? = null
+    private val fieldAi = OnDeviceFieldAiEngine()
     private var isAvailable = false
 
     suspend fun initialize(): Boolean {
         return try {
-            val model = Generation.getClient()
-            generativeModel = model
-
-            val status = model.checkStatus()
-            when (status) {
-                FEATURE_AVAILABLE -> {
-                    isAvailable = true
-                    Log.i(TAG, "Gemini Nano v3 READY — on-device vision AI active")
-                    true
-                }
-                FEATURE_DOWNLOADABLE -> {
-                    Log.i(TAG, "Gemini Nano model downloading...")
-                    model.download().collect { downloadStatus ->
-                        Log.d(TAG, "Download: $downloadStatus")
-                    }
-                    isAvailable = true
-                    true
-                }
-                else -> {
-                    Log.w(TAG, "Gemini Nano not available on this device (status=$status)")
-                    false
-                }
-            }
+            val snapshot = fieldAi.snapshotFor(OnDeviceFieldAiEngine.Profile.FAST)
+            isAvailable = snapshot.foregroundAiAvailable
+            Log.i(TAG, "On-device vision AI status: $snapshot")
+            isAvailable
         } catch (e: Exception) {
-            Log.e(TAG, "Gemini Nano init failed: ${e.message}")
+            Log.e(TAG, "On-device vision init failed: ${e.message}")
             false
         }
     }
@@ -102,18 +83,16 @@ Do NOT explain. ONLY JSON."""
      * カメラフレームから生物種を同定する。
      */
     suspend fun classifyFrame(bitmap: Bitmap): VisionResult? {
-        val model = generativeModel ?: return null
         if (!isAvailable) return null
 
         return try {
-            val request = generateContentRequest(ImagePart(bitmap), TextPart(SPECIES_PROMPT)) {
-                temperature = 0.1f
-                topK = 5
-            }
-
-            val response = model.generateContent(request)
-            val resultText = response.candidates.firstOrNull()?.text?.trim() ?: return null
-            parseSpeciesResponse(resultText)
+            val response = fieldAi.generateImageJson(
+                bitmap = bitmap,
+                prompt = SPECIES_PROMPT,
+                profile = OnDeviceFieldAiEngine.Profile.FAST,
+            )
+            if (response.text.isBlank()) return null
+            parseSpeciesResponse(response.text, response.modelSnapshot)
         } catch (e: Exception) {
             Log.e(TAG, "Vision classification failed: ${e.message}")
             null
@@ -124,18 +103,16 @@ Do NOT explain. ONLY JSON."""
      * カメラフレームから環境タイプを推定する。
      */
     suspend fun analyzeEnvironment(bitmap: Bitmap): EnvironmentResult? {
-        val model = generativeModel ?: return null
         if (!isAvailable) return null
 
         return try {
-            val request = generateContentRequest(ImagePart(bitmap), TextPart(ENVIRONMENT_PROMPT)) {
-                temperature = 0.1f
-                topK = 5
-            }
-
-            val response = model.generateContent(request)
-            val resultText = response.candidates.firstOrNull()?.text?.trim() ?: return null
-            parseEnvironmentResponse(resultText)
+            val response = fieldAi.generateImageJson(
+                bitmap = bitmap,
+                prompt = ENVIRONMENT_PROMPT,
+                profile = OnDeviceFieldAiEngine.Profile.FULL,
+            )
+            if (response.text.isBlank()) return null
+            parseEnvironmentResponse(response.text, response.modelSnapshot)
         } catch (e: Exception) {
             Log.e(TAG, "Environment analysis failed: ${e.message}")
             null
@@ -157,7 +134,10 @@ Do NOT explain. ONLY JSON."""
         return null
     }
 
-    private fun parseSpeciesResponse(text: String): VisionResult? {
+    private fun parseSpeciesResponse(
+        text: String,
+        modelSnapshot: OnDeviceFieldAiEngine.ModelSnapshot,
+    ): VisionResult? {
         return try {
             val jsonStr = extractJson(text) ?: return null
             val json = JSONObject(jsonStr)
@@ -174,6 +154,7 @@ Do NOT explain. ONLY JSON."""
                 genus = json.optString("genus", ""),
                 taxonRank = json.optString("rank", "species"),
                 habitat = json.optString("habitat", ""),
+                modelSnapshot = modelSnapshot,
             )
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse species response: $text")
@@ -181,10 +162,19 @@ Do NOT explain. ONLY JSON."""
         }
     }
 
-    private fun parseEnvironmentResponse(text: String): EnvironmentResult? {
+    private fun parseEnvironmentResponse(
+        text: String,
+        modelSnapshot: OnDeviceFieldAiEngine.ModelSnapshot,
+    ): EnvironmentResult? {
         return try {
             val jsonStr = extractJson(text) ?: return null
             val json = JSONObject(jsonStr)
+            val signals = json.optJSONArray("area_resolution_signals")
+            val signalList = if (signals == null) {
+                emptyList()
+            } else {
+                (0 until signals.length()).mapNotNull { i -> signals.optString(i).takeIf { it.isNotBlank() } }
+            }
             EnvironmentResult(
                 habitat = json.optString("habitat", "unknown"),
                 vegetation = json.optString("vegetation", ""),
@@ -192,6 +182,9 @@ Do NOT explain. ONLY JSON."""
                 water = json.optString("water", "none"),
                 canopyCoverPct = json.optInt("canopy_cover_pct", 0),
                 disturbance = json.optString("disturbance", "unknown"),
+                sceneDigest = json.optString("scene_digest", ""),
+                areaResolutionSignals = signalList,
+                modelSnapshot = modelSnapshot,
             )
         } catch (e: Exception) {
             Log.w(TAG, "Failed to parse environment response: $text")
@@ -200,6 +193,6 @@ Do NOT explain. ONLY JSON."""
     }
 
     fun close() {
-        generativeModel?.close()
+        fieldAi.close()
     }
 }

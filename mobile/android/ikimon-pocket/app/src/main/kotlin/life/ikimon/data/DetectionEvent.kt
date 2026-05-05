@@ -27,6 +27,18 @@ data class DetectionEvent(
     val perchConfidence: Float? = null,
     val gemmaConfidence: Float? = null,    // null = Gemma 未使用 or AICore 未対応
     val consensusLevel: String? = null,   // "TRIPLE_CONSENSUS" | "DUAL_CONSENSUS" | "SINGLE_STRONG" | "SINGLE_WEAK"
+    val ikimonUserId: String? = null,
+    val installId: String? = null,
+    val userAuthState: String? = null,
+    val onDeviceModelBaseName: String? = null,
+    val onDeviceReleaseStage: String? = null,
+    val onDeviceModelPreference: String? = null,
+    val foregroundAiAvailable: Boolean? = null,
+    val fallbackReason: String? = null,
+    val movementMode: String? = null,
+    val sceneDigest: String? = null,
+    val areaResolutionSignals: List<String> = emptyList(),
+    val monitoringContext: JSONObject? = null,
 ) {
     fun toJSON(): JSONObject = JSONObject().apply {
         put("type", type)
@@ -49,5 +61,19 @@ data class DetectionEvent(
         perchConfidence?.let { put("perch_confidence", it.toDouble()) }
         gemmaConfidence?.let { put("gemma_confidence", it.toDouble()) }
         consensusLevel?.let { put("consensus_level", it) }
+        ikimonUserId?.let { put("ikimon_user_id", it) }
+        installId?.let { put("install_id", it) }
+        userAuthState?.let { put("user_auth_state", it) }
+        onDeviceModelBaseName?.let { put("on_device_model_base_name", it) }
+        onDeviceReleaseStage?.let { put("on_device_release_stage", it) }
+        onDeviceModelPreference?.let { put("on_device_model_preference", it) }
+        foregroundAiAvailable?.let { put("foreground_ai_available", it) }
+        fallbackReason?.let { put("fallback_reason", it) }
+        movementMode?.let { put("movement_mode", it) }
+        sceneDigest?.let { put("scene_digest", it) }
+        if (areaResolutionSignals.isNotEmpty()) {
+            put("area_resolution_signals", org.json.JSONArray(areaResolutionSignals))
+        }
+        monitoringContext?.let { put("monitoring_context", it) }
     }
 }

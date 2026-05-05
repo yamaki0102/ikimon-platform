@@ -143,7 +143,7 @@ object UploadStatusStore {
             .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
             .apply()
 
-        context.sendBroadcast(Intent(ACTION_STATUS_CHANGED))
+        context.sendBroadcast(Intent(ACTION_STATUS_CHANGED).setPackage(context.packageName))
     }
 
     private fun hasInstallId(context: Context): Boolean = !context

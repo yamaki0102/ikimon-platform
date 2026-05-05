@@ -2,6 +2,8 @@ package life.ikimon.data
 
 import android.content.Context
 import android.util.Log
+import life.ikimon.api.AppAuthManager
+import life.ikimon.api.InstallIdentityManager
 import life.ikimon.api.UploadCoordinator
 import life.ikimon.api.UploadStatusStore
 import org.json.JSONArray
@@ -105,7 +107,7 @@ class EventBuffer {
         if (events.isEmpty()) return
 
         // JSON ファイルに保存
-        val json = toJSON()
+        val json = toJSON(context)
         val dir = UploadCoordinator.pendingDirectory(context)
         dir.mkdirs()
         val file = File(dir, "session_${System.currentTimeMillis()}.json")
@@ -119,11 +121,13 @@ class EventBuffer {
         Log.i("EventBuffer", "Upload scheduled via WorkManager")
     }
 
-    private fun toJSON(): JSONObject {
+    private fun toJSON(context: Context): JSONObject {
         val eventsArray = JSONArray()
         for (event in events) {
             eventsArray.put(event.toJSON())
         }
+        val login = AppAuthManager.currentState(context)
+        val installId = InstallIdentityManager.getOrCreateInstallId(context)
 
         return JSONObject().apply {
             put("events", eventsArray)
@@ -134,6 +138,9 @@ class EventBuffer {
                 put("session_intent", sessionIntent)
                 put("official_record", officialRecord)
                 put("test_profile", testProfile)
+                put("user_auth_state", if (login.isLoggedIn) "logged_in" else "anonymous")
+                put("ikimon_user_id", login.userId)
+                put("install_id", installId)
             })
         }
     }

@@ -27,6 +27,13 @@ type AuthBody = {
   redirect?: unknown;
 };
 
+type MobileAuthBody = AuthBody & {
+  install_id?: unknown;
+  platform?: unknown;
+  app_version?: unknown;
+  device?: unknown;
+};
+
 function requestUrl(request: FastifyRequest): string {
   return String(request.raw.url ?? request.url ?? "");
 }
@@ -326,6 +333,34 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const redirect = postAuthRedirect(request.body?.redirect);
       reply.header("set-cookie", session.cookie);
       return { ok: true, redirect, session: session.session };
+    } catch (error) {
+      reply.code(apiErrorStatus(error));
+      return { ok: false, error: publicAuthError(error) };
+    }
+  });
+
+  app.post<{ Body: MobileAuthBody }>("/api/v1/mobile/auth/login", async (request, reply) => {
+    try {
+      const email = normalizeEmail(request.body?.email);
+      assertAuthRateLimit(["mobile-login", request.ip, email || "blank"]);
+      const user = await authenticateWithPassword(email, request.body?.password);
+      const session = await issueUserSession(request, user.userId);
+      return {
+        ok: true,
+        data: {
+          token: session.rawToken,
+          session: session.session,
+          user: {
+            userId: session.session.userId,
+            displayName: session.session.displayName,
+            roleName: session.session.roleName,
+            rankLabel: session.session.rankLabel,
+          },
+          installId: typeof request.body?.install_id === "string" ? request.body.install_id : null,
+          platform: typeof request.body?.platform === "string" ? request.body.platform : "android",
+          appVersion: typeof request.body?.app_version === "string" ? request.body.app_version : null,
+        },
+      };
     } catch (error) {
       reply.code(apiErrorStatus(error));
       return { ok: false, error: publicAuthError(error) };

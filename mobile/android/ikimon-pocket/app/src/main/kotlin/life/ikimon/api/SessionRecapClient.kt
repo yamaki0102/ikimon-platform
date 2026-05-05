@@ -12,13 +12,11 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * session_recap.php クライアント
- * スキャン終了直後に叩いて contribution + narrative を取得する。
+ * Session recap client for current-runtime mobile field sessions.
  */
 object SessionRecapClient {
 
     private const val TAG = "SessionRecapClient"
-    private const val API_URL = "https://ikimon.life/api/v2/session_recap.php"
 
     data class ContributionItem(
         val icon: String,
@@ -40,46 +38,28 @@ object SessionRecapClient {
 
     suspend fun fetch(
         context: Context,
+        sessionId: String,
         detections: List<DetectionItem>,
         durationSec: Int,
         lat: Double?,
         lng: Double?,
         movementMode: String,
     ): RecapResult? {
-        val installId = InstallIdentityManager.getOrCreateInstallId(context)
-
-        // 検出種を集計（scientificName ごとに件数）
-        val speciesMap = mutableMapOf<String, Pair<String, Int>>() // sciName -> (jaName, count)
-        for (d in detections) {
-            val key = d.scientificName.ifEmpty { d.taxonName }
-            val current = speciesMap[key]
-            speciesMap[key] = Pair(d.taxonName, (current?.second ?: 0) + 1)
-        }
-
-        val speciesArray = JSONArray()
-        for ((sci, pair) in speciesMap) {
-            speciesArray.put(JSONObject().apply {
-                put("scientific_name", sci)
-                put("name", pair.first)
-                put("count", pair.second)
-                put("confidence", detections.firstOrNull { it.scientificName == sci }?.confidence ?: 0f)
-            })
-        }
-
         val body = JSONObject().apply {
-            put("species", speciesArray)
             put("duration_sec", durationSec)
-            put("distance_m", 0)
-            put("lat", lat ?: 0.0)
-            put("lng", lng ?: 0.0)
-            put("scan_mode", if (movementMode == "vehicle") "vehicle" else "walk")
-            put("hour", java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY))
+            put("movement_mode", movementMode)
+            put("lat", lat)
+            put("lng", lng)
+            put("local_detection_count", detections.size)
         }
 
         return try {
             val request = Request.Builder()
-                .url("$API_URL?install_id=$installId")
+                .url("${MobileApiConfig.fieldSessionApiBase(context)}/$sessionId/end")
                 .post(body.toString().toRequestBody("application/json".toMediaType()))
+                .apply {
+                    AppAuthManager.authHeader(context)?.let { addHeader("Authorization", it) }
+                }
                 .build()
 
             val response = client.newCall(request).execute()
@@ -90,36 +70,21 @@ object SessionRecapClient {
             }
 
             val json = JSONObject(responseBody)
-            val contributionArr = json.optJSONArray("contribution") ?: JSONArray()
+            val recap = json.optJSONObject("recap") ?: JSONObject()
+            val nextLook = recap.optJSONArray("nextLook") ?: JSONArray()
             val contributions = mutableListOf<ContributionItem>()
-            var newMeshCount = 0
-            var totalUserCount = 0
-
-            for (i in 0 until contributionArr.length()) {
-                val item = contributionArr.getJSONObject(i)
-                val text = item.optString("text", "")
-                contributions.add(ContributionItem(
-                    icon = item.optString("icon", "📊"),
-                    text = text,
-                    highlight = item.optBoolean("highlight", false),
-                ))
-                // メッシュ数を text からパース
-                if (text.contains("メッシュ") || text.contains("mesh")) {
-                    val m = Regex("(\\d+)\\s*メッシュ").find(text)
-                    newMeshCount += m?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
-                }
-                // 累計貢献数
-                if (text.contains("累計データ")) {
-                    val m = Regex("(\\d+)件").find(text)
-                    totalUserCount = m?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
-                }
+            for (i in 0 until nextLook.length()) {
+                val text = nextLook.optString(i)
+                if (text.isNotBlank()) contributions.add(ContributionItem("↗", text, highlight = i == 0))
             }
 
             RecapResult(
-                narrative = json.optString("narrative", ""),
+                narrative = recap.optString("latestDigest", "").ifBlank {
+                    "${recap.optInt("sceneCount", 0)}件のフィールド手がかりをGuide/Mapへ保存しました。"
+                },
                 contributions = contributions,
-                newMeshCount = newMeshCount,
-                totalUserCount = totalUserCount,
+                newMeshCount = recap.optInt("sceneCount", 0),
+                totalUserCount = detections.size,
             )
         } catch (e: Exception) {
             Log.e(TAG, "recap fetch error: ${e.message}")

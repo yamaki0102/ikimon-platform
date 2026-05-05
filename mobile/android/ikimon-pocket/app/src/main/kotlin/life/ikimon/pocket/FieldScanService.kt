@@ -3,14 +3,9 @@ package life.ikimon.pocket
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.os.IBinder
 import android.util.Log
-import android.util.Size
-import androidx.camera.core.*
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 import kotlinx.coroutines.*
 import life.ikimon.IkimonApp
@@ -21,12 +16,10 @@ import life.ikimon.data.EventBuffer
 /**
  * フィールドスキャン Foreground Service
  *
- * Triple AI Engine を同時実行:
+ * Foreground Service はバックグラウンド継続可能な入力だけを担当:
  * 1. 🎧 BirdNET+ V3.0 — 音声 (15秒間隔/10秒録音)
- * 2. 📷 Gemini Nano v3 — 視覚 (5秒間隔/カメラフレーム)
- * 3. 🌡️ Gemini Nano v3 — 環境分析 (60秒間隔)
- *
- * 音声+視覚で同一種検出 → Evidence Tier 自動昇格
+ * 2. 📍 GPS / sensor stream
+ * Nano 4 / CameraX は foreground Activity 側で実行する。
  */
 class FieldScanService : Service() {
 
@@ -35,8 +28,6 @@ class FieldScanService : Service() {
         private const val NOTIFICATION_ID = 1002
         private const val AUDIO_INTERVAL_MS = 15_000L
         private const val AUDIO_DURATION_MS = 10_000L
-        private const val VISION_INTERVAL_MS = 5_000L
-        private const val ENV_INTERVAL_MS = 60_000L
         private const val GPS_INTERVAL_MS = 10_000L
         private const val EXTRA_SESSION_INTENT = "session_intent"
         private const val EXTRA_OFFICIAL_RECORD = "official_record"
@@ -62,13 +53,12 @@ class FieldScanService : Service() {
         fun stop(context: Context) {
             context.stopService(Intent(context, FieldScanService::class.java))
         }
+
     }
 
     private var dualAudio: DualAudioClassifier? = null
-    private var visionClassifier: VisionClassifier? = null
     private var locationTracker: LocationTracker? = null
     private var sensorCollector: SensorCollector? = null
-    private val eventBuffer = EventBuffer()
     private var isRunning = false
     private var currentSessionId: String = ""
 
@@ -88,33 +78,6 @@ class FieldScanService : Service() {
         }
     }
 
-    // 視覚ループ
-    private val visionRunnable = object : Runnable {
-        override fun run() {
-            if (!isRunning) return
-            val self = this
-            scope.launch {
-                captureAndClassifyVision()
-                if (isRunning) handler.postDelayed(self, runtimeConfig.visionIntervalMs)
-            }
-        }
-    }
-
-    // 環境分析ループ
-    private val envRunnable = object : Runnable {
-        override fun run() {
-            if (!isRunning) return
-            val self = this
-            scope.launch {
-                analyzeEnvironment()
-                if (isRunning) handler.postDelayed(self, runtimeConfig.envIntervalMs)
-            }
-        }
-    }
-
-    // 最近の音声検出種（マルチモーダル融合用）
-    private val recentAudioSpecies = mutableMapOf<String, Float>() // scientificName -> confidence
-    private var lastCameraBitmap: Bitmap? = null
     private var sessionIntent: String = "official"
     private var officialRecord: Boolean = true
     private var testProfile: String = "field"
@@ -124,10 +87,7 @@ class FieldScanService : Service() {
     private data class RuntimeConfig(
         val audioIntervalMs: Long,
         val audioDurationMs: Long,
-        val visionIntervalMs: Long,
-        val envIntervalMs: Long,
         val audioMinConfidence: Float,
-        val visualMinConfidence: Float,
         val micGain: Float,           // デジタルゲイン係数
         val label: String,
     ) {
@@ -135,10 +95,7 @@ class FieldScanService : Service() {
             fun quick(): RuntimeConfig = RuntimeConfig(
                 audioIntervalMs = 20_000L,
                 audioDurationMs = 8_000L,
-                visionIntervalMs = 8_000L,
-                envIntervalMs = 75_000L,
                 audioMinConfidence = 0.25f,
-                visualMinConfidence = 0.35f,
                 micGain = 2.0f,
                 label = "クイック"
             )
@@ -146,10 +103,7 @@ class FieldScanService : Service() {
             fun standard(): RuntimeConfig = RuntimeConfig(
                 audioIntervalMs = AUDIO_INTERVAL_MS,
                 audioDurationMs = AUDIO_DURATION_MS,
-                visionIntervalMs = VISION_INTERVAL_MS,
-                envIntervalMs = ENV_INTERVAL_MS,
                 audioMinConfidence = 0.20f,
-                visualMinConfidence = 0.30f,
                 micGain = 2.5f,
                 label = "標準"
             )
@@ -157,10 +111,7 @@ class FieldScanService : Service() {
             fun stress(): RuntimeConfig = RuntimeConfig(
                 audioIntervalMs = 10_000L,
                 audioDurationMs = 10_000L,
-                visionIntervalMs = 3_000L,
-                envIntervalMs = 30_000L,
                 audioMinConfidence = 0.25f,
-                visualMinConfidence = 0.30f,
                 micGain = 2.5f,
                 label = "ストレス"
             )
@@ -168,6 +119,7 @@ class FieldScanService : Service() {
             // 移動モード別ゲインテーブル
             fun micGainForMovement(mode: String): Float = when (mode) {
                 "walk"     -> 2.5f   // 歩き: 高感度
+                "focus"    -> 2.5f   // 立ち止まり: 高感度
                 "bicycle"  -> 1.8f   // 自転車: 風切り音あるので中程度
                 "vehicle"  -> 1.0f   // 車・電車: 環境ノイズ大、感度下げる
                 else       -> 2.5f
@@ -178,21 +130,17 @@ class FieldScanService : Service() {
     override fun onCreate() {
         super.onCreate()
         dualAudio = DualAudioClassifier(this)
-        visionClassifier = VisionClassifier(this)
         locationTracker = LocationTracker(this)
         sensorCollector = SensorCollector(this)
         currentSessionId = "fs_${System.currentTimeMillis()}"
 
         scope.launch {
-            val ready = visionClassifier?.initialize() ?: false
             val perchReady = dualAudio?.isPerchReady() ?: false
             val gemmaReady = dualAudio?.isGemmaReady() ?: false
             val engineLabel = when {
-                ready && perchReady && gemmaReady -> "BirdNET V3 + Perch v2 + Gemma E4B + Gemini Nano v3"
-                ready && perchReady -> "BirdNET V3 + Perch v2 + Gemini Nano v3"
-                ready && gemmaReady -> "BirdNET V3 + Gemma E4B + Gemini Nano v3"
-                ready -> "BirdNET V3 + Gemini Nano v3"
+                perchReady && gemmaReady -> "BirdNET V3 + Perch v2 + Nano 4 audio"
                 perchReady -> "BirdNET V3 + Perch v2"
+                gemmaReady -> "BirdNET V3 + Nano 4 audio"
                 else -> "BirdNET V3"
             }
             Log.i(TAG, "AI Engine ready: $engineLabel")
@@ -217,7 +165,14 @@ class FieldScanService : Service() {
                 cfg.copy(micGain = RuntimeConfig.micGainForMovement(movementMode))
             } else cfg
         }
-        eventBuffer.setSessionMode(sessionIntent, officialRecord, testProfile)
+        FieldSessionCoordinator.start(
+            context = this,
+            sessionId = currentSessionId,
+            sessionIntent = sessionIntent,
+            officialRecord = officialRecord,
+            testProfile = testProfile,
+            movementMode = movementMode,
+        )
         startForeground(
             NOTIFICATION_ID,
             createNotification(if (officialRecord) "🌿 フィールド記録を開始" else "🧪 ${runtimeConfig.label}テストを開始")
@@ -232,12 +187,9 @@ class FieldScanService : Service() {
         stopMonitoring()
         // モデルのclose()はブロッキングの可能性があるためバックグラウンドで実行
         val audioToClose = dualAudio
-        val visionToClose = visionClassifier
         dualAudio = null
-        visionClassifier = null
         CoroutineScope(Dispatchers.IO).launch {
             audioToClose?.close()
-            visionToClose?.close()
         }
         scope.cancel()
         super.onDestroy()
@@ -252,7 +204,7 @@ class FieldScanService : Service() {
         Log.i(TAG, "Field Scan started — intent=$sessionIntent official=$officialRecord profile=$testProfile")
 
         locationTracker?.startTracking(GPS_INTERVAL_MS) { location ->
-            eventBuffer.updateLocation(location.latitude, location.longitude, location.altitude)
+            FieldSessionCoordinator.updateLocation(location)
         }
 
         sensorCollector?.start()
@@ -263,9 +215,6 @@ class FieldScanService : Service() {
             Log.i(TAG, "Audio disabled — vehicle mode")
         }
 
-        // 視覚と環境は少し遅延して開始（Gemini Nano初期化待ち）
-        handler.postDelayed(visionRunnable, 3_000L)
-        handler.postDelayed(envRunnable, 10_000L)
     }
 
     private fun stopMonitoring() {
@@ -274,26 +223,22 @@ class FieldScanService : Service() {
         Log.i(TAG, "stopMonitoring: begin intent=$sessionIntent profile=$testProfile")
 
         handler.removeCallbacks(audioRunnable)
-        handler.removeCallbacks(visionRunnable)
-        handler.removeCallbacks(envRunnable)
         Log.d(TAG, "stopMonitoring: handlers cleared ${System.currentTimeMillis() - t0}ms")
 
         locationTracker?.stopTracking()
         sensorCollector?.stop()
         Log.d(TAG, "stopMonitoring: sensors stopped ${System.currentTimeMillis() - t0}ms")
 
-        val summary = eventBuffer.getSummary()
-        val sessionLog = eventBuffer.persistSessionLog(
+        val summary = FieldSessionCoordinator.summary()
+        val sessionLog = FieldSessionCoordinator.persistSessionLog(
             context = this,
-            sessionId = currentSessionId,
             mode = "field",
             metadata = mapOf(
                 "movement_mode" to movementMode,
                 "runtime_label" to runtimeConfig.label,
                 "audio_interval_ms" to runtimeConfig.audioIntervalMs,
                 "audio_duration_ms" to runtimeConfig.audioDurationMs,
-                "vision_interval_ms" to runtimeConfig.visionIntervalMs,
-                "env_interval_ms" to runtimeConfig.envIntervalMs,
+                "foreground_ai_owner" to "activity",
             ),
         )
         if (summary.totalDetections > 0) {
@@ -306,7 +251,7 @@ class FieldScanService : Service() {
             Log.i(TAG, "stopMonitoring: diagnostics upload queued ${sessionLog.name}")
         }
 
-        eventBuffer.scheduleUpload(this)
+        FieldSessionCoordinator.finish(this)
         Log.i(TAG, "stopMonitoring: complete ${System.currentTimeMillis() - t0}ms")
     }
 
@@ -343,9 +288,6 @@ class FieldScanService : Service() {
             )
 
             for (result in results) {
-                // マルチモーダル融合用に記録
-                recentAudioSpecies[result.scientificName] = result.fusedConfidence
-
                 val engineLabel = when {
                     result.birdnetConfidence != null && result.perchConfidence != null && result.gemmaConfidence != null -> "triple_v3_perch2_gemma"
                     result.birdnetConfidence != null && result.perchConfidence != null -> "dual_v3_perch2"
@@ -371,8 +313,17 @@ class FieldScanService : Service() {
                     perchConfidence = result.perchConfidence,
                     gemmaConfidence = result.gemmaConfidence,
                     consensusLevel = result.consensusLevel.name,
+                    onDeviceModelBaseName = result.gemmaModelSnapshot?.baseModelName,
+                    onDeviceReleaseStage = result.gemmaModelSnapshot?.releaseStage,
+                    onDeviceModelPreference = result.gemmaModelSnapshot?.preference,
+                    foregroundAiAvailable = result.gemmaModelSnapshot?.foregroundAiAvailable,
+                    fallbackReason = result.gemmaModelSnapshot?.fallbackReason,
                 )
-                eventBuffer.add(event)
+                FieldSessionCoordinator.addEvent(
+                    context = this,
+                    raw = event,
+                    isFused = result.consensusLevel != DualAudioClassifier.ConsensusLevel.SINGLE_WEAK,
+                )
 
                 val consensusTag = when (result.consensusLevel) {
                     DualAudioClassifier.ConsensusLevel.TRIPLE_CONSENSUS -> "🔥🔥"
@@ -385,7 +336,7 @@ class FieldScanService : Service() {
                     "perch=${result.perchConfidence?.let { "${(it*100).toInt()}%" } ?: "-"} " +
                     "gemma=${result.gemmaConfidence?.let { "${(it*100).toInt()}%" } ?: "-"}")
 
-                if (result.fusedConfidence >= 0.5f && eventBuffer.isNewSpecies(result.taxonName)) {
+                if (result.fusedConfidence >= 0.5f) {
                     val label = "${result.taxonName} (${(result.fusedConfidence * 100).toInt()}%)"
                     updateNotification("$consensusTag $label")
                 }
@@ -393,77 +344,9 @@ class FieldScanService : Service() {
         }
     }
 
-    /**
-     * 視覚AI（Gemini Nano v3）
-     */
-    private suspend fun captureAndClassifyVision() {
-        if (visionClassifier?.isReady() != true) return
-
-        val bitmap = lastCameraBitmap ?: return
-        val result = visionClassifier?.classifyFrame(bitmap) ?: return
-
-        if (result.confidence < runtimeConfig.visualMinConfidence) return
-
-        val location = locationTracker?.lastLocation
-
-        // マルチモーダル融合: 音声で同種検出済みなら信頼度ブースト
-        val audioConf = recentAudioSpecies[result.scientificName]
-        val fusedConfidence = if (audioConf != null) {
-            // 音声+視覚の両方で検出 → 融合信頼度
-            val fused = 1.0f - (1.0f - result.confidence) * (1.0f - audioConf)
-            Log.i(TAG, "🔥 MULTIMODAL FUSION: ${result.scientificName} " +
-                "audio=${(audioConf * 100).toInt()}% + vision=${(result.confidence * 100).toInt()}% " +
-                "→ fused=${(fused * 100).toInt()}%")
-            fused
-        } else {
-            result.confidence
-        }
-
-        val event = DetectionEvent(
-            type = "visual",
-            taxonName = result.commonName.ifEmpty { result.scientificName },
-            scientificName = result.scientificName,
-            confidence = fusedConfidence,
-            lat = location?.latitude,
-            lng = location?.longitude,
-            timestamp = System.currentTimeMillis(),
-            model = "gemini_nano_v3",
-            taxonomicClass = result.taxonomicClass,
-            order = result.order,
-        )
-        eventBuffer.add(event)
-
-        Log.d(TAG, "📷 ${result.scientificName} (${(fusedConfidence * 100).toInt()}%)" +
-            if (audioConf != null) " [FUSED]" else "")
-
-        if (fusedConfidence >= 0.5f && eventBuffer.isNewSpecies(event.taxonName)) {
-            val prefix = if (audioConf != null) "🔥" else "📷"
-            updateNotification("$prefix ${event.taxonName} (${(fusedConfidence * 100).toInt()}%)")
-        }
-    }
-
-    /**
-     * 環境分析（Gemini Nano v3）— 60秒間隔
-     */
-    private suspend fun analyzeEnvironment() {
-        if (visionClassifier?.isReady() != true) return
-        val bitmap = lastCameraBitmap ?: return
-
-        val env = visionClassifier?.analyzeEnvironment(bitmap) ?: return
-        Log.i(TAG, "🌡️ Environment: ${env.habitat}, canopy=${env.canopyCoverPct}%, " +
-            "disturbance=${env.disturbance}")
-    }
-
-    /**
-     * CameraXからBitmapを受け取る（UIのFieldScanScreenから呼ばれる）
-     */
-    fun updateCameraFrame(bitmap: Bitmap) {
-        lastCameraBitmap = bitmap
-    }
-
     private fun createNotification(text: String): Notification {
         return NotificationCompat.Builder(this, IkimonApp.CHANNEL_POCKET)
-            .setContentTitle("🔭 ikimon フィールドスキャン")
+            .setContentTitle("いきものフィールド")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOngoing(true)
@@ -477,9 +360,9 @@ class FieldScanService : Service() {
 
     private fun activeNotificationText(): String {
         return if (officialRecord) {
-            "🔭 Triple AI — 音声+視覚+環境"
+            "🔭 Field Companion — 音声+位置"
         } else {
-            "🧪 ${runtimeConfig.label}テスト — 音声+視覚+環境"
+            "🧪 ${runtimeConfig.label}テスト — 音声+位置"
         }
     }
 
