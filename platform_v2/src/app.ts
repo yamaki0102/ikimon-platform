@@ -23,6 +23,7 @@ import { registerGuideRecordsDebugRoutes } from "./routes/guideRecordsDebug.js";
 import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
+import { registerMobileFieldSessionsApiRoutes } from "./routes/mobileFieldSessionsApi.js";
 import { registerPassiveAudioIngestApiRoutes } from "./routes/passiveAudioIngestApi.js";
 import { registerAdminAudioApiRoutes } from "./routes/adminAudioApi.js";
 import { registerAdminSoundReviewPagesRoutes } from "./routes/adminSoundReviewPages.js";
@@ -588,6 +589,7 @@ export function buildApp() {
   void registerWalkApiRoutes(app);
   void registerResearchApiRoutes(app);
   void registerFieldscanApiRoutes(app);
+  void registerMobileFieldSessionsApiRoutes(app);
   void registerPassiveAudioIngestApiRoutes(app);
   void registerAdminAudioApiRoutes(app);
   void registerAdminSoundReviewPagesRoutes(app);

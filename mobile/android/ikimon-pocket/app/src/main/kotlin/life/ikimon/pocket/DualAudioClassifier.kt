@@ -28,6 +28,7 @@ class DualAudioClassifier(private val context: Context) {
         val birdnetConfidence: Float?,    // null = BirdNET で未検出
         val perchConfidence: Float?,      // null = Perch  で未検出
         val gemmaConfidence: Float?,      // null = Gemma  で未検出 or AICore 未対応
+        val gemmaModelSnapshot: OnDeviceFieldAiEngine.ModelSnapshot?,
         val consensusLevel: ConsensusLevel,
         val taxonomicClass: String,
         val order: String,
@@ -85,8 +86,9 @@ class DualAudioClassifier(private val context: Context) {
                 Log.e(TAG, "Gemma error: ${it.message}")
                 emptyList()
             }
+            val gemmaSnapshot = if (gemmaResults.isNotEmpty()) gemma.modelSnapshot() else null
 
-            val fused = fuse(birdnetResults, perchResults, gemmaResults, minConfidence)
+            val fused = fuse(birdnetResults, perchResults, gemmaResults, gemmaSnapshot, minConfidence)
 
             withContext(Dispatchers.Main) {
                 callback(fused)
@@ -103,6 +105,7 @@ class DualAudioClassifier(private val context: Context) {
         birdnet: List<AudioClassifier.ClassificationResult>,
         perch: List<PerchClassifier.PerchResult>,
         gemma: List<AudioClassifier.ClassificationResult>,
+        gemmaSnapshot: OnDeviceFieldAiEngine.ModelSnapshot?,
         minConfidence: Float,
     ): List<DualResult> {
         val birdnetMap = birdnet.associateBy { it.scientificName.lowercase() }
@@ -165,6 +168,7 @@ class DualAudioClassifier(private val context: Context) {
                     birdnetConfidence = b?.confidence,
                     perchConfidence = p?.confidence,
                     gemmaConfidence = g?.confidence,
+                    gemmaModelSnapshot = if (g != null) gemmaSnapshot else null,
                     consensusLevel = consensus,
                     taxonomicClass = b?.taxonomicClass ?: g?.taxonomicClass ?: "",
                     order = b?.order ?: g?.order ?: "",

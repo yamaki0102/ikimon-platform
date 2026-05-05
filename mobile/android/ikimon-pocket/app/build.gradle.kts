@@ -16,6 +16,25 @@ android {
         versionName = "0.8.1"
     }
 
+    buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "FIELD_SESSION_API_BASE",
+                "\"${providers.gradleProperty("fieldSessionApiBase").orNull ?: "http://127.0.0.1:3200/api/v1/mobile/field-sessions"}\"",
+            )
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
+        release {
+            buildConfigField(
+                "String",
+                "FIELD_SESSION_API_BASE",
+                "\"https://ikimon.life/api/v1/mobile/field-sessions\"",
+            )
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+        }
+    }
+
     // BirdNET V3 ONNXモデル（541MB）はAPKに含めずaab/asset packで配布
     aaptOptions {
         noCompress += "onnx"
@@ -23,6 +42,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 
@@ -44,6 +64,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
 
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
@@ -55,8 +76,8 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite:2.17.0")
     implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
 
-    // Gemini Nano on-device (視覚AI — Prompt API)
-    implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
+    // Gemini Nano / Gemma 4 on-device (AICore Developer Preview — Prompt API)
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta2")
 
     // CameraX (Scan Mode)
     implementation("androidx.camera:camera-core:1.3.4")
@@ -70,4 +91,6 @@ dependencies {
 
     // WorkManager (Background Sync)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    testImplementation(kotlin("test"))
 }

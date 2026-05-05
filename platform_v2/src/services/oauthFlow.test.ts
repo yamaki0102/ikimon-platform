@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FastifyRequest } from "fastify";
-import { buildOAuthStart, oauthRedirectUri, readOAuthState } from "./oauthFlow.js";
+import { buildAppOAuthStart, buildOAuthStart, oauthRedirectUri, readOAuthState } from "./oauthFlow.js";
 
 async function withEnv(
   overrides: Record<string, string | undefined>,
@@ -83,6 +83,52 @@ test("oauth state reader prefers the newest duplicate state cookie", async () =>
       assert.equal(parsed?.provider, "google");
       assert.equal(parsed?.state, state);
       assert.equal(parsed?.redirect, "/record");
+    },
+  );
+});
+
+test("app oauth start stores the whitelisted Android return URI in state", async () => {
+  await withEnv(
+    {
+      GOOGLE_CLIENT_ID: "google-client",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      V2_OAUTH_STATE_SECRET: "state-secret",
+    },
+    () => {
+      const req = request({ host: "staging.ikimon.life", "x-forwarded-proto": "https" });
+      const start = buildAppOAuthStart("google", req, {
+        returnUri: "ikimonfieldscan://auth/callback",
+        installId: "install-1",
+        platform: "android",
+        appVersion: "0.8.1",
+      });
+      const freshCookiePair = start.cookie.split(";", 1)[0];
+      const parsed = readOAuthState(freshCookiePair);
+      const authUrl = new URL(start.authorizationUrl);
+
+      assert.equal(authUrl.searchParams.get("redirect_uri"), "https://staging.ikimon.life/oauth_callback.php?provider=google");
+      assert.equal(parsed?.provider, "google");
+      assert.equal(parsed?.appReturnUri, "ikimonfieldscan://auth/callback");
+      assert.equal(parsed?.appInstallId, "install-1");
+      assert.equal(parsed?.appPlatform, "android");
+      assert.equal(parsed?.appVersion, "0.8.1");
+    },
+  );
+});
+
+test("app oauth rejects non-app return URIs", async () => {
+  await withEnv(
+    {
+      GOOGLE_CLIENT_ID: "google-client",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      V2_OAUTH_STATE_SECRET: "state-secret",
+    },
+    () => {
+      const req = request({ host: "ikimon.life", "x-forwarded-proto": "https" });
+      assert.throws(
+        () => buildAppOAuthStart("google", req, { returnUri: "https://evil.example/callback" }),
+        /app_return_uri_invalid/,
+      );
     },
   );
 });

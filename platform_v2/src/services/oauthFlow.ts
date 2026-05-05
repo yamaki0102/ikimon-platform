@@ -12,6 +12,10 @@ type OAuthStatePayload = {
   provider: OAuthProvider;
   state: string;
   redirect: string;
+  appReturnUri?: string;
+  appInstallId?: string;
+  appPlatform?: string;
+  appVersion?: string;
   codeVerifier?: string;
   expiresAt: number;
 };
@@ -115,6 +119,23 @@ export function oauthProviderEnabled(provider: OAuthProvider): boolean {
   return Boolean(loadConfig().oauth[provider]);
 }
 
+function appReturnUri(input: unknown): string {
+  const raw = typeof input === "string" ? input.trim() : "";
+  if (!raw) {
+    throw new Error("app_return_uri_required");
+  }
+  const parsed = new URL(raw);
+  if (parsed.protocol !== "ikimonfieldscan:" || parsed.host !== "auth" || parsed.pathname !== "/callback") {
+    throw new Error("app_return_uri_invalid");
+  }
+  return "ikimonfieldscan://auth/callback";
+}
+
+function optionalQueryString(input: unknown, maxLength: number): string | undefined {
+  const raw = typeof input === "string" ? input.trim() : "";
+  return raw ? raw.slice(0, maxLength) : undefined;
+}
+
 export function buildOAuthStart(provider: OAuthProvider, request: FastifyRequest, redirectInput: unknown): {
   cookie: string;
   authorizationUrl: string;
@@ -130,6 +151,62 @@ export function buildOAuthStart(provider: OAuthProvider, request: FastifyRequest
     provider,
     state,
     redirect,
+    codeVerifier,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  };
+  const redirectUri = oauthRedirectUri(request, provider);
+  const params = new URLSearchParams({
+    client_id: config.clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    state,
+  });
+  if (provider === "google") {
+    params.set("scope", "openid email profile");
+    params.set("prompt", "select_account");
+    return {
+      cookie: buildOAuthStateCookie(payload),
+      authorizationUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+    };
+  }
+
+  params.set("scope", "tweet.read users.read offline.access");
+  params.set("code_challenge", codeChallenge(codeVerifier!));
+  params.set("code_challenge_method", "S256");
+  return {
+    cookie: buildOAuthStateCookie(payload),
+    authorizationUrl: `https://twitter.com/i/oauth2/authorize?${params.toString()}`,
+  };
+}
+
+export function buildAppOAuthStart(
+  provider: OAuthProvider,
+  request: FastifyRequest,
+  input: {
+    returnUri?: unknown;
+    installId?: unknown;
+    platform?: unknown;
+    appVersion?: unknown;
+  },
+): {
+  cookie: string;
+  authorizationUrl: string;
+} {
+  const config = loadConfig().oauth[provider];
+  if (!config) {
+    throw new Error("oauth_provider_not_configured");
+  }
+  const state = randomBytes(20).toString("hex");
+  const returnUri = appReturnUri(input.returnUri);
+  const codeVerifier = provider === "twitter" ? generateCodeVerifier() : undefined;
+  const payload: OAuthStatePayload = {
+    provider,
+    state,
+    redirect: "/",
+    appReturnUri: returnUri,
+    appInstallId: optionalQueryString(input.installId, 120),
+    appPlatform: optionalQueryString(input.platform, 40),
+    appVersion: optionalQueryString(input.appVersion, 40),
     codeVerifier,
     expiresAt: Date.now() + 10 * 60 * 1000,
   };

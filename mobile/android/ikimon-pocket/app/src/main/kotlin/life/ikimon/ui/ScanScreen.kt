@@ -1,10 +1,13 @@
 package life.ikimon.ui
 
+import android.app.Activity
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.WindowManager
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,9 +28,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import life.ikimon.api.AppLoginState
+import life.ikimon.api.SessionRecapClient
 import life.ikimon.api.UploadStatusSnapshot
 import life.ikimon.data.EventBuffer
 
@@ -43,6 +55,8 @@ data class DetectionItem(
     val type: String,  // "audio" | "visual"
     val taxonomicClass: String = "",
     val taxonRank: String = "species",  // species/genus/family/order/class
+    val sceneDigest: String = "",
+    val modelBaseName: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val isFused: Boolean = false,
 )
@@ -51,15 +65,43 @@ data class DetectionItem(
 fun ScanActiveScreen(
     detections: List<DetectionItem>,
     scanMode: String,
+    movementMode: String,
+    loginState: AppLoginState,
+    uploadStatus: UploadStatusSnapshot,
     elapsedSeconds: Int,
     speciesCount: Int,
+    onCameraFrame: (Bitmap) -> Unit,
+    onRepeatPulse: (String) -> Unit,
     onStop: () -> Unit,
 ) {
-    val green = Color(0xFF2E7D32)
-    val darkBg = Color(0xFF0D1117)
-    val cardBg = Color(0xFF161B22)
+    val green = Color(0xFF1F7A4D)
+    val ink = Color(0xFF17211B)
+    val paper = Color(0xFFF6F7F2)
+    val water = Color(0xFF2F7DA1)
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val latestContext = detections.firstOrNull { it.sceneDigest.isNotBlank() }
+    val latestAudio = detections.firstOrNull { it.type == "audio" }
+    val latestVisual = detections.firstOrNull { it.type == "visual" }
+    val placeReading = latestContext?.sceneDigest
+        ?: latestVisual?.let { "${it.taxonName} らしい手がかりが見えています。周りの植物や足元も一緒に見てください。" }
+        ?: latestAudio?.let { "${it.taxonName} らしい音が入りました。水辺、林のふち、見通しのよい場所を探すとつながります。" }
+        ?: when (movementMode) {
+            "vehicle" -> "移動中です。画面を見なくても分かるように、景色の変化だけ短く伝えます。"
+            "focus" -> "立ち止まって観察中です。近くの植物、足元、水の気配を順番に見ています。"
+            else -> "周りの音、光、植物、足元の手がかりを集めています。"
+        }
+    val modeLabel = when (movementMode) {
+        "vehicle" -> "車で移動中"
+        "focus" -> "じっくり観察中"
+        else -> "歩いて観察中"
+    }
+
+    DisposableEffect(Unit) {
+        val activity = context as? Activity
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
 
     // 新しい検出が来たら自動スクロール + ハプティック
     LaunchedEffect(detections.size) {
@@ -72,49 +114,77 @@ fun ScanActiveScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(darkBg)
-            .padding(16.dp),
+            .background(paper)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(18.dp),
     ) {
-        // ステータスバー
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 録音中パルスアニメーション
                 PulsingDot()
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    formatElapsed(elapsedSeconds),
-                    color = Color.White.copy(alpha = 0.7f),
+                    "$modeLabel  ${formatElapsed(elapsedSeconds)}",
+                    color = ink.copy(alpha = 0.72f),
                     fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
 
             Text(
-                "$speciesCount 種検出",
+                if (loginState.isLoggedIn) "同期中" else "端末に記録中",
                 color = green,
-                fontSize = 16.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // AI エンジン状態
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CameraFramePump(
+                enabled = scanMode == "field",
+                onFrame = onCameraFrame,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("いま分かっていること", color = ink.copy(alpha = 0.62f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            placeReading,
+            color = ink,
+            fontSize = if (movementMode == "vehicle") 23.sp else 20.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = if (movementMode == "vehicle") 31.sp else 28.sp,
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AiChip("🎧 BirdNET+", true)
-            AiChip("📷 Gemini", scanMode == "field")
-            AiChip("🌡️ ENV", scanMode == "field")
+            FieldPulseMetric("画面", latestVisual?.taxonName ?: "確認中", water)
+            FieldPulseMetric("音", latestAudio?.taxonName ?: "待機中", green)
+            FieldPulseMetric("記録", when (uploadStatus.state) {
+                "uploaded" -> "完了"
+                "queued", "offline_saved" -> "保管"
+                "failed" -> "要確認"
+                else -> "${detections.size}件"
+            }, Color(0xFF8A6B22))
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 検出フィード
         if (detections.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -123,12 +193,15 @@ fun ScanActiveScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🔍", fontSize = 32.sp)
+                    Text("読み取り中", fontSize = 18.sp, color = ink, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "周囲の生物を探しています...",
-                        color = Color.White.copy(alpha = 0.4f),
+                        if (movementMode == "vehicle") "運転中は画面を見なくていいように、短い音声だけにします。"
+                        else "見えているもの、聞こえているもの、今いる場所をまとめています。",
+                        color = ink.copy(alpha = 0.55f),
                         fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
             }
@@ -139,7 +212,7 @@ fun ScanActiveScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 reverseLayout = true,
             ) {
-                items(detections, key = { it.id }) { detection ->
+                items(detections.take(12), key = { it.id }) { detection ->
                     AnimatedVisibility(
                         visible = true,
                         enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
@@ -152,30 +225,106 @@ fun ScanActiveScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 停止ボタン
-        Button(
-            onClick = onStop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            Text("⏹ スキャン停止", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip("見る")
+            AssistChip("聞く")
+            AssistChip("もう一度", onClick = { onRepeatPulse(placeReading) })
+            Button(
+                onClick = onStop,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = green),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text("保存して終了", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
         }
+    }
+}
+
+@Composable
+private fun CameraFramePump(
+    enabled: Boolean,
+    onFrame: (Bitmap) -> Unit,
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val previewView = remember { PreviewView(context) }
+
+    SideEffect {
+        previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
+    }
+
+    LaunchedEffect(enabled, lifecycleOwner) {
+        if (!enabled) return@LaunchedEffect
+        val provider = ProcessCameraProvider.getInstance(context).get()
+        val preview = Preview.Builder().build().also {
+            it.setSurfaceProvider(previewView.surfaceProvider)
+        }
+        runCatching {
+            provider.unbindAll()
+            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview)
+        }
+    }
+
+    LaunchedEffect(enabled) {
+        while (enabled) {
+            delay(4_000)
+            previewView.bitmap?.let(onFrame)
+        }
+    }
+
+    AndroidView(
+        factory = { previewView },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clip(RoundedCornerShape(22.dp)),
+    )
+}
+
+@Composable
+private fun RowScope.FieldPulseMetric(label: String, value: String, color: Color) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(color.copy(alpha = 0.10f))
+            .padding(12.dp),
+    ) {
+        Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(value, color = Color(0xFF17211B), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun RowScope.AssistChip(label: String, onClick: () -> Unit = {}) {
+    Box(
+        modifier = Modifier
+            .weight(0.72f)
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFE7EFE7))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = Color(0xFF1F7A4D), fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun DetectionCard(detection: DetectionItem) {
     val green = Color(0xFF2E7D32)
-    val cardBg = Color(0xFF161B22)
+    val cardBg = Color.White
     val fusedGold = Color(0xFFFFB300)
 
     val borderColor = when {
         detection.isFused -> fusedGold
         detection.confidence >= 0.7f -> green
-        else -> Color(0xFF30363D)
+        else -> Color(0xFFD7DED5)
     }
 
     val icon = when (detection.type) {
@@ -223,7 +372,7 @@ private fun DetectionCard(detection: DetectionItem) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         detection.taxonName,
-                        color = Color.White,
+                        color = Color(0xFF17211B),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -259,7 +408,7 @@ private fun DetectionCard(detection: DetectionItem) {
                     if (detection.isFused) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            "FUSED",
+                            "複数AI",
                             color = fusedGold,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
@@ -272,7 +421,7 @@ private fun DetectionCard(detection: DetectionItem) {
                 }
                 Text(
                     detection.scientificName,
-                    color = Color.White.copy(alpha = 0.4f),
+                    color = Color(0xFF17211B).copy(alpha = 0.48f),
                     fontSize = 11.sp,
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                     maxLines = 1,
@@ -366,11 +515,13 @@ fun ScanResultSheet(
     summary: EventBuffer.Summary,
     uploadStatus: UploadStatusSnapshot,
     pendingAudioCount: Int = 0,
+    recap: SessionRecapClient.RecapResult? = null,
     onReviewAudio: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
-    val darkBg = Color(0xFF0D1117)
-    val cardBg = Color(0xFF161B22)
+    val darkBg = Color(0xFFF6F7F2)
+    val cardBg = Color.White
+    val ink = Color(0xFF17211B)
     val green = Color(0xFF2E7D32)
     val testBlue = Color(0xFF0284C7)
     val isTest = !summary.officialRecord
@@ -382,9 +533,9 @@ fun ScanResultSheet(
             "stress" -> "ストレス"
             else -> "標準"
         }
-        "🧪 動作チェック（$levelLabel）"
+        "ためした記録（$levelLabel）"
     } else {
-        "🌿 フィールド記録"
+        "フィールド記録"
     }
 
     val uploadLabel = when (uploadStatus.state) {
@@ -421,7 +572,6 @@ fun ScanResultSheet(
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        // モードバッジ
         Text(
             modeLabel,
             color = accentColor,
@@ -435,22 +585,42 @@ fun ScanResultSheet(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 検出サマリー
+        Text(
+            "今日のまとめ",
+            color = ink,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            "見えたこと・聞こえたことを、あとで見返せる形に整理しました。",
+            color = ink.copy(alpha = 0.62f),
+            fontSize = 13.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            lineHeight = 19.sp,
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = cardBg),
             shape = RoundedCornerShape(20.dp),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("検出結果", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                Text("今日わかったこと", color = ink.copy(alpha = 0.6f), fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceAround,
                 ) {
-                    ResultMetric("種数", "${summary.speciesCount}", accentColor)
-                    ResultMetric("検出数", "${summary.totalDetections}", Color.White)
-                    ResultMetric("時間", durationLabel, Color.White)
+                    ResultMetric("候補", "${summary.speciesCount}", accentColor)
+                    ResultMetric("手がかり", "${summary.totalDetections}", ink)
+                    ResultMetric("時間", durationLabel, ink)
+                }
+                recap?.narrative?.takeIf { it.isNotBlank() }?.let { narrative ->
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(narrative, color = ink.copy(alpha = 0.82f), fontSize = 13.sp, lineHeight = 19.sp)
                 }
                 if (summary.totalDetections > 0) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -462,10 +632,10 @@ fun ScanResultSheet(
                             Text(
                                 "🎧 音声 ${summary.audioDetections}件",
                                 fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = ink.copy(alpha = 0.6f),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .background(ink.copy(alpha = 0.06f))
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -473,10 +643,10 @@ fun ScanResultSheet(
                             Text(
                                 "📷 視覚 ${summary.visualDetections}件",
                                 fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.6f),
+                                color = ink.copy(alpha = 0.6f),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .background(ink.copy(alpha = 0.06f))
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -494,7 +664,7 @@ fun ScanResultSheet(
             shape = RoundedCornerShape(20.dp),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("データの行き先", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                Text("保存されたこと", color = ink.copy(alpha = 0.6f), fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -512,9 +682,9 @@ fun ScanResultSheet(
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    if (isTest) "🧪 本番データに混入しない（動作チェック隔離済み）"
-                    else "🌿 共同生態系データベースへ反映",
-                    color = Color.White.copy(alpha = 0.75f),
+                    if (isTest) "公開記録には入れていません"
+                    else "Web版の地図・ガイドにも反映されます",
+                    color = ink.copy(alpha = 0.75f),
                     fontSize = 13.sp,
                 )
 
@@ -537,12 +707,24 @@ fun ScanResultSheet(
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("検出種", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text("次に見るとよさそうなこと", color = ink.copy(alpha = 0.6f), fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(10.dp))
+                    recap?.contributions?.take(4)?.forEach { item ->
+                        Text(
+                            "${item.icon} ${item.text}",
+                            color = ink.copy(alpha = if (item.highlight) 0.95f else 0.75f),
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                    }
+                    if (recap?.contributions?.isNotEmpty() == true) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     summary.speciesNames.take(10).forEach { name ->
                         Text(
                             "• $name",
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = ink.copy(alpha = 0.85f),
                             fontSize = 13.sp,
                             modifier = Modifier.padding(vertical = 2.dp),
                         )
@@ -550,7 +732,7 @@ fun ScanResultSheet(
                     if (summary.speciesNames.size > 10) {
                         Text(
                             "他 ${summary.speciesNames.size - 10} 種...",
-                            color = Color.White.copy(alpha = 0.45f),
+                            color = ink.copy(alpha = 0.45f),
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 4.dp),
                         )
@@ -565,7 +747,7 @@ fun ScanResultSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onReviewAudio() },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1F2E)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF2EA)),
                 shape = RoundedCornerShape(20.dp),
             ) {
                 Row(
@@ -585,7 +767,7 @@ fun ScanResultSheet(
                         )
                         Text(
                             "${pendingAudioCount}件 — タップして後同定",
-                            color = Color.White.copy(alpha = 0.65f),
+                            color = ink.copy(alpha = 0.65f),
                             fontSize = 12.sp,
                         )
                     }
@@ -616,6 +798,6 @@ private fun ResultMetric(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = color, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(label, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+        Text(label, color = Color(0xFF17211B).copy(alpha = 0.5f), fontSize = 12.sp)
     }
 }

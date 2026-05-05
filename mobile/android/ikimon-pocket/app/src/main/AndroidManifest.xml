@@ -8,18 +8,23 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
 
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <application
         android:name="life.ikimon.IkimonApp"
-        android:label="ikimon FieldScan"
+        android:label="いきものフィールド"
         android:icon="@android:drawable/ic_menu_compass"
+        android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:theme="@style/Theme.IkimonPocket"
         android:supportsRtl="true">
 
@@ -48,10 +53,10 @@
             android:foregroundServiceType="location|microphone"
             android:exported="false" />
 
-        <!-- Field Scan Foreground Service (Triple AI Engine) -->
+        <!-- Field Companion Foreground Service (audio/location only; Nano 4 vision runs in foreground Activity) -->
         <service
             android:name="life.ikimon.pocket.FieldScanService"
-            android:foregroundServiceType="location|microphone|camera"
+            android:foregroundServiceType="location|microphone"
             android:exported="false" />
 
         <!-- Background Sync Worker -->

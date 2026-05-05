@@ -114,6 +114,7 @@ platform_v2/playwright-report/
 platform_v2/test-results/
 platform_v2/tmp_*.py
 output/
+artifacts/
 
 # forbidden per deploy_manifest.json (must never ship)
 tmp_*

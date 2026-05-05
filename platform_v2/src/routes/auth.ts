@@ -10,6 +10,7 @@ import {
   safeRedirectPath,
 } from "../services/authSecurity.js";
 import {
+  buildAppOAuthStart,
   buildClearedOAuthStateCookie,
   buildOAuthStart,
   exchangeOAuthCode,
@@ -25,6 +26,13 @@ type AuthBody = {
   password?: unknown;
   displayName?: unknown;
   redirect?: unknown;
+};
+
+type MobileAuthBody = AuthBody & {
+  install_id?: unknown;
+  platform?: unknown;
+  app_version?: unknown;
+  device?: unknown;
 };
 
 function requestUrl(request: FastifyRequest): string {
@@ -270,6 +278,16 @@ async function handleOAuthCallback(
     failureStage = "issue_session";
     const session = await issueUserSession(request, user.userId);
     reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
+    if (state.appReturnUri) {
+      const appUrl = new URL(state.appReturnUri);
+      appUrl.searchParams.set("token", session.rawToken);
+      appUrl.searchParams.set("user_id", user.userId);
+      appUrl.searchParams.set("name", user.displayName);
+      if (user.email) appUrl.searchParams.set("email", user.email);
+      appUrl.searchParams.set("message", "ikimon.life アカウントでログインしました");
+      reply.code(303).redirect(appUrl.toString());
+      return;
+    }
     reply.code(303).redirect(withBasePath(requestBasePath(request), state.redirect));
   } catch (error) {
     request.log.warn({
@@ -332,6 +350,34 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.post<{ Body: MobileAuthBody }>("/api/v1/mobile/auth/login", async (request, reply) => {
+    try {
+      const email = normalizeEmail(request.body?.email);
+      assertAuthRateLimit(["mobile-login", request.ip, email || "blank"]);
+      const user = await authenticateWithPassword(email, request.body?.password);
+      const session = await issueUserSession(request, user.userId);
+      return {
+        ok: true,
+        data: {
+          token: session.rawToken,
+          session: session.session,
+          user: {
+            userId: session.session.userId,
+            displayName: session.session.displayName,
+            roleName: session.session.roleName,
+            rankLabel: session.session.rankLabel,
+          },
+          installId: typeof request.body?.install_id === "string" ? request.body.install_id : null,
+          platform: typeof request.body?.platform === "string" ? request.body.platform : "android",
+          appVersion: typeof request.body?.app_version === "string" ? request.body.app_version : null,
+        },
+      };
+    } catch (error) {
+      reply.code(apiErrorStatus(error));
+      return { ok: false, error: publicAuthError(error) };
+    }
+  });
+
   app.post<{ Body: AuthBody }>("/api/v1/auth/register", async (request, reply) => {
     try {
       assertSameOriginRequest(request);
@@ -361,6 +407,32 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       reply.code(303).redirect(start.authorizationUrl);
     } catch {
       reply.code(303).redirect(withBasePath(requestBasePath(request), "/login?error=oauth"));
+    }
+  });
+
+  app.get("/app_oauth_start.php", async (request, reply) => {
+    try {
+      const query = request.query as {
+        provider?: unknown;
+        return_uri?: unknown;
+        install_id?: unknown;
+        platform?: unknown;
+        app_version?: unknown;
+      };
+      const provider = providerFromParam(query.provider);
+      const start = buildAppOAuthStart(provider, request, {
+        returnUri: query.return_uri,
+        installId: query.install_id,
+        platform: query.platform,
+        appVersion: query.app_version,
+      });
+      reply.header("set-cookie", start.cookie);
+      reply.code(303).redirect(start.authorizationUrl);
+    } catch {
+      const errorUrl = new URL("ikimonfieldscan://auth/callback");
+      errorUrl.searchParams.set("error", "oauth");
+      errorUrl.searchParams.set("message", "ソーシャルログインに失敗した");
+      reply.code(303).redirect(errorUrl.toString());
     }
   });
 

@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import type { FastifyRequest } from "fastify";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { issueRememberToken, revokeRememberToken } from "./rememberTokenWrite.js";
@@ -81,6 +82,15 @@ export function readSessionTokenFromCookie(headerValue: string | undefined): str
   const cookies = parseCookies(headerValue);
   const rawToken = cookies[SESSION_COOKIE_NAME];
   return rawToken && rawToken.trim() ? rawToken.trim() : null;
+}
+
+function readBearerToken(headerValue: string | string[] | undefined): string | null {
+  const raw = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+  const token = trimmed.slice(7).trim();
+  return token || null;
 }
 
 export async function issueSession(input: SessionIssueInput) {
@@ -177,6 +187,13 @@ export async function getSessionFromCookie(cookieHeader: string | undefined): Pr
     return null;
   }
   return getSessionByRawToken(rawToken);
+}
+
+export async function getSessionFromMobileAuth(request: FastifyRequest): Promise<SessionSnapshot | null> {
+  const cookieSession = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+  if (cookieSession) return cookieSession;
+  const bearer = readBearerToken(request.headers.authorization);
+  return bearer ? getSessionByRawToken(bearer) : null;
 }
 
 export async function revokeSession(rawToken: string | null) {
