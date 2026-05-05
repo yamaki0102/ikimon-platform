@@ -9,7 +9,6 @@ import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.*
 import kotlinx.coroutines.*
 import life.ikimon.IkimonApp
-import life.ikimon.api.DiagnosticsUploadCoordinator
 import life.ikimon.data.DetectionEvent
 import life.ikimon.data.EventBuffer
 
@@ -246,10 +245,7 @@ class FieldScanService : Service() {
         }
         Log.d(TAG, "stopMonitoring: summary done ${System.currentTimeMillis() - t0}ms detections=${summary.totalDetections}")
         Log.i(TAG, "stopMonitoring: session log saved ${sessionLog.absolutePath}")
-        if (!officialRecord || sessionIntent == "test") {
-            DiagnosticsUploadCoordinator.enqueueSessionLogUpload(this, sessionLog)
-            Log.i(TAG, "stopMonitoring: diagnostics upload queued ${sessionLog.name}")
-        }
+        Log.i(TAG, "stopMonitoring: legacy diagnostics upload skipped; current mobile session API is the source of truth")
 
         FieldSessionCoordinator.finish(this)
         Log.i(TAG, "stopMonitoring: complete ${System.currentTimeMillis() - t0}ms")

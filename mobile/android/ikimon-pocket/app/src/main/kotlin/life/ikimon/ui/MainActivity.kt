@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_DETECTION = "life.ikimon.fieldscan.DETECTION"
+        private const val TAG = "MainActivity"
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -85,23 +87,28 @@ class MainActivity : ComponentActivity() {
     private var visionReady = false
     private var lastVisionAt = 0L
     private var lastEnvAt = 0L
+    private var foregroundFieldAiActive = false
     private var tts: TextToSpeech? = null
 
     private val detectionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
+            val sceneDigest = intent.getStringExtra("scene_digest") ?: ""
+            val taxonName = intent.getStringExtra("taxon_name") ?: ""
+            if (taxonName.isBlank() && sceneDigest.isBlank()) return
             val item = DetectionItem(
-                taxonName = intent.getStringExtra("taxon_name") ?: return,
+                taxonName = taxonName.ifBlank { "エリアの手がかり" },
                 scientificName = intent.getStringExtra("scientific_name") ?: "",
                 confidence = intent.getFloatExtra("confidence", 0f),
                 type = intent.getStringExtra("type") ?: "audio",
                 taxonomicClass = intent.getStringExtra("taxonomic_class") ?: "",
                 taxonRank = intent.getStringExtra("taxon_rank") ?: "species",
-                sceneDigest = intent.getStringExtra("scene_digest") ?: "",
+                sceneDigest = sceneDigest,
                 modelBaseName = intent.getStringExtra("model_base_name") ?: "",
                 isFused = intent.getBooleanExtra("is_fused", false),
             )
             _detections.add(0, item)
+            Log.i(TAG, "detection received type=${item.type} scene=${item.sceneDigest.isNotBlank()} count=${_detections.size}")
             if (currentMovementMode == "vehicle" && item.sceneDigest.isNotBlank()) {
                 speakDriveCue(item.sceneDigest)
             }
@@ -192,9 +199,10 @@ class MainActivity : ComponentActivity() {
                                 handleCameraFrame(bitmap, movementMode.key)
                             }
                         },
-                        onRepeatPulse = { repeatLatestPulse() },
+                        onRepeatPulse = { fallback -> repeatLatestPulse(fallback) },
                         onStop = {
                             stopTimer()
+                            foregroundFieldAiActive = false
                             when (selectedMode) {
                                 ScanMode.POCKET -> PocketService.stop(this@MainActivity)
                                 ScanMode.FIELD -> FieldScanService.stop(this@MainActivity)
@@ -348,6 +356,7 @@ class MainActivity : ComponentActivity() {
     private fun startFieldScan(intent: FieldSessionIntent, testLevel: FieldTestLevel, movementMode: MovementMode) {
         if (!hasRequiredPermissions()) { requestPermissions(); return }
         currentMovementMode = movementMode.key
+        foregroundFieldAiActive = true
         FieldScanService.start(
             context = this,
             sessionIntent = if (intent == FieldSessionIntent.TEST) "test" else "official",
@@ -355,6 +364,9 @@ class MainActivity : ComponentActivity() {
             testProfile = if (intent == FieldSessionIntent.TEST) testLevel.profileKey else "field",
             movementMode = movementMode.key,
         )
+        if (movementMode.key == "vehicle") {
+            speakDriveCue("移動中です。画面を見なくても分かるように、景色の変化だけ短く伝えます。")
+        }
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -377,22 +389,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleCameraFrame(bitmap: Bitmap, movementMode: String) {
+        if (!foregroundFieldAiActive) return
         val now = System.currentTimeMillis()
         val runVision = now - lastVisionAt >= if (movementMode == "vehicle") 10_000L else 5_000L
         val runEnv = now - lastEnvAt >= if (movementMode == "vehicle") 20_000L else 12_000L
         if (!runVision && !runEnv) return
 
         lifecycleScope.launch(Dispatchers.IO) {
+            if (!foregroundFieldAiActive) return@launch
             val classifier = visionClassifier ?: VisionClassifier(this@MainActivity).also {
                 visionClassifier = it
                 visionReady = it.initialize()
             }
             if (!visionReady) return@launch
+            if (!foregroundFieldAiActive) return@launch
 
             if (runVision) {
                 lastVisionAt = now
                 classifier.classifyFrame(bitmap)?.let { result ->
-                    if (result.confidence >= 0.30f) {
+                    if (foregroundFieldAiActive && result.confidence >= 0.30f) {
                         val (lat, lng) = FieldSessionCoordinator.currentLocation()
                         FieldSessionCoordinator.addEvent(
                             context = this@MainActivity,
@@ -422,6 +437,7 @@ class MainActivity : ComponentActivity() {
             if (runEnv) {
                 lastEnvAt = now
                 classifier.analyzeEnvironment(bitmap)?.let { env ->
+                    if (!foregroundFieldAiActive) return@let
                     val (lat, lng) = FieldSessionCoordinator.currentLocation()
                     FieldSessionCoordinator.addEvent(
                         context = this@MainActivity,
@@ -452,16 +468,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun repeatLatestPulse() {
+    private fun repeatLatestPulse(fallback: String = "") {
         val latest = _detections
             .take(3)
             .mapNotNull { it.sceneDigest.ifBlank { it.taxonName }.takeIf { text -> text.isNotBlank() } }
             .joinToString("。")
-        if (latest.isNotBlank()) speakDriveCue(latest)
+        speakDriveCue(latest.ifBlank { fallback })
     }
 
     private fun speakDriveCue(text: String) {
         val short = text.replace('\n', ' ').take(120)
+        if (short.isBlank()) return
+        Log.i(TAG, "DriveTTS speaking: $short")
         tts?.speak(short, TextToSpeech.QUEUE_FLUSH, null, "field_pulse")
     }
 }

@@ -3,6 +3,7 @@ package life.ikimon.pocket
 import android.content.Context
 import android.content.Intent
 import android.location.Location
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,6 +19,7 @@ import org.json.JSONObject
 import java.io.File
 
 object FieldSessionCoordinator {
+    private const val TAG = "FieldSessionCoordinator"
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var eventBuffer = EventBuffer()
     private var sessionId: String = ""
@@ -168,6 +170,7 @@ object FieldSessionCoordinator {
 
     private fun publish(context: Context, event: DetectionEvent, isFused: Boolean) {
         context.sendBroadcast(Intent(MainActivity.ACTION_DETECTION).apply {
+            setPackage(context.packageName)
             putExtra("taxon_name", event.taxonName)
             putExtra("scientific_name", event.scientificName)
             putExtra("confidence", event.confidence)
@@ -178,5 +181,6 @@ object FieldSessionCoordinator {
             putExtra("scene_digest", event.sceneDigest ?: "")
             putExtra("model_base_name", event.onDeviceModelBaseName ?: event.model)
         })
+        Log.i(TAG, "published detection type=${event.type} mode=${event.movementMode} scene=${!event.sceneDigest.isNullOrBlank()}")
     }
 }

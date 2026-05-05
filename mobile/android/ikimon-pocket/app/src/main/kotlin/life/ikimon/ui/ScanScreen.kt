@@ -71,7 +71,7 @@ fun ScanActiveScreen(
     elapsedSeconds: Int,
     speciesCount: Int,
     onCameraFrame: (Bitmap) -> Unit,
-    onRepeatPulse: () -> Unit,
+    onRepeatPulse: (String) -> Unit,
     onStop: () -> Unit,
 ) {
     val green = Color(0xFF1F7A4D)
@@ -228,7 +228,7 @@ fun ScanActiveScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip("見る")
             AssistChip("聞く")
-            AssistChip("もう一度", onClick = onRepeatPulse)
+            AssistChip("もう一度", onClick = { onRepeatPulse(placeReading) })
             Button(
                 onClick = onStop,
                 modifier = Modifier
