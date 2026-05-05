@@ -139,11 +139,94 @@ jobs:
         run: echo "fixture_prefix=smoke-ui-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       - name: Run production candidate browser smoke
+        id: browser-smoke
         working-directory: platform_v2
         env:
           PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
           PRODUCTION_SMOKE_UI_PREFIX: ${{ steps.ui-smoke.outputs.fixture_prefix }}
+          PRODUCTION_SMOKE_CHECKPOINT_FILE: test-results/production-smoke-checkpoints.jsonl
         run: npm run e2e:production-smoke
+
+      - name: Cleanup production candidate UI smoke data
+        id: cleanup-smoke
+        if: always() && steps.ui-smoke.outputs.fixture_prefix != ''
+        run: |
+          mkdir -p platform_v2/test-results
+          prefix="${{ steps.ui-smoke.outputs.fixture_prefix }}"
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --silent --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}" \
+            | tee platform_v2/test-results/production-ui-smoke-cleanup.json
+
+      - name: Write production candidate smoke summary
+        if: always()
+        env:
+          BROWSER_SMOKE_OUTCOME: ${{ steps.browser-smoke.outcome }}
+          CLEANUP_SMOKE_OUTCOME: ${{ steps.cleanup-smoke.outcome }}
+          UI_SMOKE_PREFIX: ${{ steps.ui-smoke.outputs.fixture_prefix }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          const checkpointPath = "platform_v2/test-results/production-smoke-checkpoints.jsonl";
+          const cleanupPath = "platform_v2/test-results/production-ui-smoke-cleanup.json";
+          const labels = {
+            photo_api_contract: "写真API契約 ok:true",
+            photo_ui_post: "写真UI投稿",
+            video_ui_post: "動画UI投稿",
+          };
+          const passed = new Set();
+          if (fs.existsSync(checkpointPath)) {
+            for (const line of fs.readFileSync(checkpointPath, "utf8").split(/\r?\n/)) {
+              if (!line.trim()) continue;
+              try {
+                const row = JSON.parse(line);
+                if (row.status === "passed" && labels[row.phase]) passed.add(row.phase);
+              } catch {
+                // Keep the summary resilient even when the smoke failure truncates output.
+              }
+            }
+          }
+          let cleanup = null;
+          if (fs.existsSync(cleanupPath)) {
+            try {
+              cleanup = JSON.parse(fs.readFileSync(cleanupPath, "utf8"));
+            } catch {
+              cleanup = null;
+            }
+          }
+          const rows = Object.entries(labels).map(([phase, label]) => {
+            return `| ${label} | ${passed.has(phase) ? "PASS" : "NOT COMPLETED"} |`;
+          });
+          const matchedVideos = cleanup?.matched?.videos ?? 0;
+          const cloudflareResults = cleanup?.cloudflare ?? [];
+          const cleanupPassed =
+            process.env.CLEANUP_SMOKE_OUTCOME === "success" &&
+            cleanup &&
+            cleanup.dryRun === false &&
+            (cleanup.matched?.users ?? 0) >= 1 &&
+            (cleanup.deleted?.users ?? 0) >= 1 &&
+            (cleanup.deleted?.visits ?? 0) >= 1 &&
+            (cleanup.deleted?.videoRequests ?? 0) >= 1 &&
+            cloudflareResults.length >= matchedVideos &&
+            cloudflareResults.every((item) => item.status === 200 || item.status === 404);
+          rows.push(`| cleanup成功 | ${cleanupPassed ? "PASS" : "NOT COMPLETED"} |`);
+          const cleanupDetail = cleanup
+            ? `\n\nCleanup matched/deleted: users ${cleanup.matched?.users ?? 0}/${cleanup.deleted?.users ?? 0}, visits ${cleanup.matched?.visits ?? 0}/${cleanup.deleted?.visits ?? 0}, videos ${cleanup.matched?.videos ?? 0}/${cleanup.deleted?.videoRequests ?? 0}, files ${cleanup.matched?.files ?? 0}/${cleanup.deleted?.files ?? 0}.`
+            : "\n\nCleanup detail: cleanup JSON was not available.";
+          fs.appendFileSync(summaryPath, [
+            "## Production Candidate Media Smoke",
+            "",
+            `Fixture prefix: \`${process.env.UI_SMOKE_PREFIX || "n/a"}\``,
+            `Browser smoke outcome: \`${process.env.BROWSER_SMOKE_OUTCOME || "unknown"}\``,
+            `Cleanup outcome: \`${process.env.CLEANUP_SMOKE_OUTCOME || "unknown"}\``,
+            "",
+            "| Layer | Result |",
+            "| --- | --- |",
+            ...rows,
+            cleanupDetail,
+            "",
+          ].join("\n"));
+          NODE
 
       - name: Upload production smoke artifacts
         if: always()
@@ -154,13 +237,6 @@ jobs:
             platform_v2/test-results
             platform_v2/playwright-report/production-smoke
           if-no-files-found: ignore
-
-      - name: Cleanup production candidate UI smoke data
-        if: always() && steps.ui-smoke.outputs.fixture_prefix != ''
-        run: |
-          prefix="${{ steps.ui-smoke.outputs.fixture_prefix }}"
-          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}"
 
   promote:
     name: Promote Production Candidate

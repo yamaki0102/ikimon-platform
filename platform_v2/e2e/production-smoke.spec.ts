@@ -1,4 +1,6 @@
 import { Buffer } from "node:buffer";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
 const pages = [
@@ -27,6 +29,21 @@ function productionSmokeBaseUrl(): string {
 
 function productionSmokePrefix(): string {
   return process.env.PRODUCTION_SMOKE_UI_PREFIX?.trim() || `smoke-ui-local-${Date.now()}`;
+}
+
+function productionSmokeCheckpointFile(): string {
+  return process.env.PRODUCTION_SMOKE_CHECKPOINT_FILE?.trim() ||
+    path.resolve(process.cwd(), "test-results", "production-smoke-checkpoints.jsonl");
+}
+
+async function recordSmokeCheckpoint(phase: string, details: JsonPayload = {}): Promise<void> {
+  const filePath = productionSmokeCheckpointFile();
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(
+    filePath,
+    `${JSON.stringify({ ts: new Date().toISOString(), phase, status: "passed", ...details })}\n`,
+    { flag: "a" },
+  );
 }
 
 function smokePhotoFile(prefix: string) {
@@ -157,8 +174,10 @@ test.describe("production candidate smoke", () => {
       const photoPayload = await jsonFromResponse(photoResponse, "photo upload");
       expect(photoResponse.ok(), `photo upload HTTP status for ${email}`).toBeTruthy();
       expect(photoPayload.ok, "photo upload must keep the shared ok:true contract").toBe(true);
+      await recordSmokeCheckpoint("photo_api_contract", { httpStatus: photoResponse.status() });
       await expect(page.locator("#record-status")).toContainText("記録を保存しました");
       await expect(page.locator("#record-status")).toContainText("写真1枚を同じ観察に保存しました。");
+      await recordSmokeCheckpoint("photo_ui_post");
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja&start=video"), { waitUntil: "domcontentloaded" });
       await page.locator("#record-media-video").setInputFiles(smokeVideoFile(prefix));
@@ -184,6 +203,10 @@ test.describe("production candidate smoke", () => {
       expect(finalizePayload.ok, "video finalize should return ok:true").toBe(true);
       await expect(page.locator("#record-status")).toContainText("記録を保存しました", { timeout: 30_000 });
       await expect(page.locator("#record-status")).toContainText("動画は保存済みです。");
+      await recordSmokeCheckpoint("video_ui_post", {
+        directStatus: directResponse.status(),
+        finalizeStatus: finalizeResponse.status(),
+      });
     } finally {
       await context.close();
     }
