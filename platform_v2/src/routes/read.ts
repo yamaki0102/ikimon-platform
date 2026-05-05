@@ -6839,6 +6839,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const partialLink = savedDetailId
                 ? '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(savedDetailId)) + '">保存済みの観察を見る</a> · メディアだけ再試行する場合はこの画面のまま再送信してください。</div>'
                 : '';
+              const statusHeading = savedDetailId ? '記録本体は保存済みです。' : '送信に失敗しました。';
               if (savedDetailId) pendingMediaRetryObservationId = observationId;
               const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
                 ? 'photo_upload_error'
@@ -6852,7 +6853,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 occurrenceId: savedDetailId || null,
                 partialRecordSaved: Boolean(savedDetailId),
               });
-              setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + userMessage + '</div>' + partialLink + '</div></div>');
+              setStatus('<div class="row"><div>' + statusHeading + '<div class="meta">' + userMessage + '</div>' + partialLink + '</div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
               activeTusUpload = null;
