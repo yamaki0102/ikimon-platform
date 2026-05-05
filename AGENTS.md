@@ -1,6 +1,6 @@
 # ikimon.life — Agent Guide
 
-Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_package/`) + v2 Node app (`platform_v2/`).
+Citizen-science biodiversity platform. The current app is the Node runtime under `platform_v2/`; the old PHP tree is retained only for compatibility, rollback, and data-preservation work.
 
 > **共通ルール・デプロイ方針・SSHサーバー構成は `~/.codex/AGENTS.md` を参照。**
 > **（管理元: `antigravity/.agent/global/AGENTS.global.md`）**
@@ -9,123 +9,43 @@ Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_p
 > → `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` → `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` → `docs/KNOWLEDGE_OS_OVERVIEW.md` の順で読む
 > → overview 更新要否は `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` で確認する
 
-## Runtime Fast Path
+## Current App Fast Path
 
-- **Default is always `platform_v2/`. Do not ask whether to use legacy PHP or v2.** For normal ikimon.life work, assume v2 and start from `platform_v2/`.
-- `ikimon.life` 本番の通常ルート `/` は **`platform_v2` Node runtime**。本番の login / record / map / API 調査は **必ず `platform_v2/` から入る**
-- `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **必ず `platform_v2/` から入る**
-- legacy PHP (`upload_package/`) は **互換・移行元・`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` / `upload_package` と言った場合、または `platform_v2` から明確に参照される legacy boundary を調査する場合だけ触る
-- 通常の実装で `upload_package/` の PHP を編集してはいけない。例外が必要な場合は、先に `platform_v2` 側で解けない根拠と legacy boundary を確認してから最小変更に限る
-- staging の正準根拠は `ops/CUTOVER_RUNBOOK.md` と `ops/deploy/staging_ikimon_life_tls_reference.conf`
-- `staging` とだけ言われた場合のデフォルト解釈は **`platform_v2 staging`**。`upload_package` ではない
-- 古い docs / handover / catch-up が PHP 入口を示していても、現在の通常開発入口としては採用しない。`platform_v2` を source of truth として扱う
+- **Default is always the current app at `platform_v2/`.** Do not ask whether to use the old PHP tree for normal ikimon.life work.
+- For production or staging investigation of `/`, login, record, map, public pages, or APIs, start in `platform_v2/`.
+- Treat older docs, handovers, and catch-up notes that point to PHP files as historical unless this guide explicitly says otherwise.
+- Default `rg` searches intentionally skip `upload_package/` and `docs/archive/` through root `.ignore`; use `rg -uuu` only when compatibility or historical evidence is explicitly needed.
+- `staging` by itself means the staging deployment of the current app.
+- Use `ops/CUTOVER_RUNBOOK.md` and `ops/deploy/staging_ikimon_life_tls_reference.conf` for staging/runtime deployment facts.
+- The physical directory name `platform_v2/` is a deployment contract. Human-facing guidance should call it the current app/current runtime, not a separate product generation.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Primary runtime | Node.js (`platform_v2`) |
-| Legacy compatibility | PHP 8.2 (`upload_package`, explicit legacy work only) |
-| Frontend | Alpine.js 3.14.9 + Tailwind CSS (CDN) + Lucide Icons 0.477.0 |
+| Current runtime | Node.js (`platform_v2`) |
+| Compatibility archive | PHP 8.2 (`upload_package`, explicit legacy work only) |
+| Frontend | Alpine.js + Tailwind CSS (CDN) + Lucide Icons |
 | Maps | MapLibre GL JS + OpenStreetMap tiles |
-| Data | JSON file storage (partitioned: `data/observations/YYYY-MM.json`) |
+| Data | PostgreSQL canonical store + compatibility data bridge |
 | Auth | Session-based + UUID guest accounts |
 
-## Directory Structure
+## Current App Entry Points
 
-```
-upload_package/
-├── config/config.php        # ROOT_DIR, DATA_DIR, PUBLIC_DIR constants
-├── data/                    # JSON datastore (observations, users, sites)
-├── libs/                    # PHP classes (55+ files)
-│   ├── Auth.php             # Session auth
-│   ├── CSRF.php             # CSRF token management
-│   ├── CspNonce.php         # CSP nonce
-│   ├── DataStore.php        # JSON file I/O (fetchAll/get/save/append)
-│   ├── SiteManager.php      # GeoJSON boundaries (ALL METHODS STATIC)
-│   ├── Taxon.php            # GBIF API integration
-│   ├── TrustLevel.php       # User trust calculation
-│   ├── Gamification.php     # Badges & ranks
-│   ├── PrivacyFilter.php    # Rare species location masking
-│   ├── RateLimiter.php      # API rate limiting
-│   └── Services/            # Service layer classes
-├── lang/                    # i18n (ja/en)
-├── public_html/             # ★ Web document root ★
-│   ├── index.php            # Feed (home)
-│   ├── explore.php          # Species grid browser
-│   ├── observation_detail.php # Observation detail + ID timeline
-│   ├── id_workbench.php     # Identification workbench
-│   ├── post.php             # Observation submission
-│   ├── profile.php          # User profile + Life List
-│   ├── dashboard.php        # User dashboard
-│   ├── zukan.php            # Encyclopedia (Bio-Graph)
-│   ├── compass.php          # Leaderboard
-│   ├── wellness.php         # Gamification dashboard
-│   ├── about.php            # About page
-│   ├── for-researcher.php   # For researchers
-│   ├── updates.php          # Changelog
-│   ├── meta.php             # <head> include (CDN, CSP, GA4)
-│   ├── nav.php              # Bottom navigation (5-tab)
-│   ├── style.css            # Global styles + design tokens
-│   ├── api/                 # REST API (50+ endpoints)
-│   ├── admin/               # Admin panel
-│   ├── components/          # PHP UI components
-│   └── assets/              # Static files (CSS/JS/images)
-└── scripts/                 # CLI maintenance scripts
-tests/
-├── Unit/                    # PHPUnit unit tests
-├── Feature/                 # Feature/integration tests
-└── bootstrap.php
-```
+- Routes and pages: `platform_v2/src/routes/`
+- Domain services: `platform_v2/src/services/`
+- UI and rendering helpers: `platform_v2/src/ui/`
+- Public copy/content: `platform_v2/src/content/`
+- Database migrations: `platform_v2/db/migrations/`
+- Runtime config: `platform_v2/src/config.ts`
+- Tests: `platform_v2/src/**/*.test.ts` and `platform_v2/e2e/`
 
-## Do NOT modify (secrets / prod config)
+## Legacy Compatibility Boundary
 
-- `upload_package/config/config.php` — Paths + secrets; change only when explicitly requested
-- `upload_package/config/oauth_config.php` — OAuth credentials; never commit real secrets in PRs
-- `upload_package/config/.htaccess` / `upload_package/public_html/.htaccess` — Access control rules
-- `upload_package/data/` — Production datastore; never hand-edit data in code changes
-- `.env` / `credentials.json` (if present) — Secrets
-- `vendor/` (if present) — Managed dependencies
-
-Rule: never log/echo secret values (tokens, API keys, OAuth client secrets).
-
-## Critical Patterns
-
-### SiteManager is ALL STATIC
-```php
-// ✅ Correct
-SiteManager::load($siteId);
-SiteManager::listAll();
-// ❌ Wrong — never instantiate
-$sm = new SiteManager();
-```
-
-### DataStore methods
-```php
-DataStore::fetchAll($resource)   // All records
-DataStore::get($file)            // Read one file
-DataStore::save($file, $data)    // Write
-DataStore::append($resource, $item) // Append
-// ⚠️ DataStore::getAll() does NOT exist
-```
-
-### Path constants (defined in config.php)
-```php
-ROOT_DIR   // → upload_package/
-DATA_DIR   // → upload_package/data/
-PUBLIC_DIR // → upload_package/public_html/
-```
-
-### Location data format
-```php
-// ✅ Correct — flat fields
-$obs['municipality']  // e.g. "浜松市"
-$obs['prefecture']    // e.g. "静岡県"
-$obs['lat'], $obs['lng']
-
-// ❌ Wrong — this nested structure does NOT exist
-$obs['location']['name']
-```
+- The old PHP tree is `upload_package/`. It is not the normal development entry point.
+- You may inspect or edit it only when the user explicitly says `legacy`, `PHP`, or `upload_package`; when the current app imports, writes, or serves compatibility data and the exact boundary is proven from current-app code; or when deployment, rollback, backup, or production data preservation requires it.
+- Keep secrets, persistent data, OAuth config, and production data stores out of normal edits. Never log or echo secret values.
+- If a normal feature seems to require old PHP edits, first prove why the current app cannot own it, then make the smallest compatibility change.
 
 ## Frontend Conventions
 
@@ -142,9 +62,9 @@ $obs['location']['name']
 
 ## Security Implementation
 
-- **XSS**: `JSON_HEX_TAG` + `htmlspecialchars()` on all output
-- **CSRF**: Token validation on all forms via `CSRF.php`
-- **CSP**: Nonce-based via `CspNonce.php`
+- **XSS**: escape all HTML output and keep JSON serialization safe
+- **CSRF**: token validation on state-changing forms/routes
+- **CSP**: nonce-based where inline scripts are unavoidable
 - **Rate Limiting**: Applied on login API
 - **File Upload**: `finfo` MIME check + extension validation
 - **Rare Species**: Location masking via `PrivacyFilter.php`
@@ -154,8 +74,9 @@ $obs['location']['name']
 
 ```bash
 npm --prefix platform_v2 run typecheck      # Default verification for normal work
-npm --prefix platform_v2 run test:node      # v2 unit / integration tests
-npm --prefix platform_v2 run dev            # v2 local dev server
+npm --prefix platform_v2 run test:node      # Current app unit / integration tests
+npm --prefix platform_v2 run dev            # Local current-app dev server
+powershell -ExecutionPolicy Bypass -File .\scripts\check_legacy_entrypoint_reason.ps1
 
 # Legacy PHP only when the user explicitly asks for legacy/PHP/upload_package work:
 composer test
@@ -213,7 +134,7 @@ php tools/lint.php
 | ワークフロー | `.github/workflows/deploy.yml` |
 | トリガー | `main` への push（PR マージ含む）|
 | デプロイ先 | Xserver VPS `162.43.44.131` |
-| デプロイ方式 | SSH → `/var/www/ikimon.life/deploy.sh`（git pull + PHP-FPM reload）|
+| デプロイ方式 | GitHub Actions → blue/green current-runtime deploy |
 | 本番URL | https://ikimon.life/ |
 
 merge 前に `scripts/check_deploy_guardrails.ps1` が CI で必ず通ること。
@@ -224,16 +145,11 @@ merge 前に `scripts/check_deploy_guardrails.ps1` が CI で必ず通ること�
 /var/www/ikimon.life/
 ├── deploy.sh                      ← GitHub Actions が叩くスクリプト
 └── repo/                          ← git clone 先（= このリポジトリ）
-    └── upload_package/
-        ├── config/                ← Web非公開（config.php, secret.php）
-        ├── libs/                  ← Web非公開（PHPクラス群）
-        ├── data/                  ← Web非公開（JSONデータストア）★消すな★
-        ├── lang/
-        ├── scripts/
-        └── public_html/           ← ★ 真のWebルート ★
+    ├── platform_v2/               ← current runtime
+    └── upload_package/            ← compatibility archive and persistent data bridge
 ```
 
-**Web公開ファイルは必ず `upload_package/public_html/` 配下に置くこと。**
+通常の公開面は current runtime で扱う。旧PHP互換配下を編集するのは、上の Legacy Compatibility Boundary に該当する場合だけ。
 
 ### .gitignore 対象（git 経由では本番に届かないファイル）
 
@@ -252,9 +168,9 @@ merge 前に `scripts/check_deploy_guardrails.ps1` が CI で必ず通ること�
 ## Known Issues to Watch
 
 1. **CDN versions MUST be pinned** — `@latest` is forbidden
-2. **`loading-skeleton`** class on images should be removed after load (explore.php)
-3. **File locking**: `DataStore.php` and most libs use `LOCK_EX`; any new `file_put_contents` must include the `LOCK_EX` flag
-4. **Session GC** on shared hosting — custom timeout via `session.gc_maxlifetime`
+2. Current-app changes should keep `npm --prefix platform_v2 run typecheck` green
+3. Compatibility writes must preserve production data and use the existing compatibility writer patterns
+4. Session, upload, and rare-species handling are security-sensitive and require targeted tests
 
 ## User Collaboration Posture
 

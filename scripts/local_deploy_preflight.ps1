@@ -1,5 +1,6 @@
 param(
     [string]$BaseRef = "origin/main",
+    [string]$LegacyEntryPointReason = $env:IKIMON_LEGACY_ENTRYPOINT_REASON,
     [switch]$RequireCodexBranch,
     [switch]$RequireUpstreamSync,
     [switch]$CheckRemoteDeployReference
@@ -40,6 +41,14 @@ Invoke-PreflightStep -Name "Deploy guardrails" -Script {
 
 Invoke-PreflightStep -Name "Platform v2 migration guardrails" -Script {
     powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_platform_v2_migration_guardrails.ps1") -BaseRef $BaseRef
+}
+
+Invoke-PreflightStep -Name "Legacy entrypoint reason" -Script {
+    $legacyReasonArgs = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "check_legacy_entrypoint_reason.ps1"), "-BaseRef", $BaseRef)
+    if (-not [string]::IsNullOrWhiteSpace($LegacyEntryPointReason)) {
+        $legacyReasonArgs += @("-Reason", $LegacyEntryPointReason)
+    }
+    powershell @legacyReasonArgs
 }
 
 Invoke-PreflightStep -Name "Production manifest/workflow sync" -Script {

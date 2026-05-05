@@ -1,33 +1,42 @@
 {
-  "folders": [
-    {
-      "name": "shared-root",
-      "path": "."
-    },
-    {
-      "name": "web-public",
-      "path": "upload_package/public_html"
-    },
-    {
-      "name": "web-libs",
-      "path": "upload_package/libs"
-    },
-    {
-      "name": "android-app",
-      "path": "mobile/android/ikimon-pocket"
-    }
-  ],
-  "settings": {
-    "remote.autoForwardPorts": false,
-    "remote.portsAttributes": {
-      "8080": {
-        "label": "ikimon Dev Server",
-        "onAutoForward": "openBrowserOnce"
-      }
-    },
-    "files.exclude": {
-      "**/.DS_Store": true,
-      "**/.phpunit.cache": true
-    }
-  }
+    "folders":  [
+                    {
+                        "name":  "shared-root",
+                        "path":  "."
+                    },
+                    {
+                        "name":  "current-app",
+                        "path":  "platform_v2"
+                    },
+                    {
+                        "name":  "docs",
+                        "path":  "docs"
+                    },
+                    {
+                        "name":  "ops",
+                        "path":  "ops"
+                    },
+                    {
+                        "name":  "repo-scripts",
+                        "path":  "scripts"
+                    },
+                    {
+                        "name":  "android-app",
+                        "path":  "mobile/android/ikimon-pocket"
+                    }
+                ],
+    "settings":  {
+                     "remote.autoForwardPorts":  false,
+                     "remote.portsAttributes":  {
+                                                    "8080":  {
+                                                                 "label":  "ikimon Current App",
+                                                                 "onAutoForward":  "openBrowserOnce"
+                                                             }
+                                                },
+                     "files.exclude":  {
+                                           "**/.DS_Store":  true,
+                                           "**/.phpunit.cache":  true,
+                                           "upload_package":  true
+                                       }
+                 }
 }

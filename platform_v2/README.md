@@ -1,35 +1,43 @@
-# ikimon platform v2
+# ikimon.life current app
 
-`platform_v2` は、ikimon のゼロベース再構築用アプリ層。
+`platform_v2/` は、ikimon.life の現行アプリを置く物理ディレクトリ。ディレクトリ名は deploy / CI / systemd との契約として残しているが、人間向けには「現行アプリ」または「current runtime」と呼ぶ。
 
-現時点の役割:
+## Role
 
-- PostgreSQL canonical schema を保持する
-- legacy cutover 前提の migration runner を持つ
-- v2 API の最小骨格を持つ
+- 本番・staging の通常ルートを担う Node.js / Fastify runtime
+- PostgreSQL canonical schema と migration runner を保持する
+- 公開ページ、API、login、record、map、admin/support routes の通常入口
+- 旧PHP互換データの import / compatibility write / asset bridge を current app 側から制御する
 
-まだ本番ルーティングには入っていない。  
-本番切替は [ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md](/E:/Projects/Playground/docs/architecture/ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md) の gate を満たしてから行う。
+## Entry Points
+
+| Area | Path |
+|---|---|
+| Routes and pages | `src/routes/` |
+| Domain services | `src/services/` |
+| UI helpers | `src/ui/` |
+| Public content | `src/content/` |
+| Runtime config | `src/config.ts` |
+| Compatibility boundary | `src/legacy/` |
+| Database migrations | `db/migrations/` |
+| Browser QA | `e2e/` |
 
 ## Commands
 
 ```bash
 npm install
 npm run typecheck
-npm run migrate
+npm run test:node
 npm run dev
 ```
 
-危険側の migration は既定で blocked される。
+Migration commands are intentionally guarded. Destructive SQL is blocked unless the caller explicitly opts in and has a rollback plan.
 
 ```bash
+npm run migrate
 npm run migrate -- --allow-destructive
 ```
 
-`DROP / TRUNCATE / ALTER TABLE ... DROP / DELETE / UPDATE` を含む SQL は、rollback plan が明示されるまで通常実行では通さない。
+## Legacy Boundary
 
-## Notes
-
-- `DATABASE_URL` は PostgreSQL を向く
-- migration は `db/migrations/*.sql` を昇順で実行する
-- `schema_migrations` に実行済み履歴を保存する
+Do not start normal work from `upload_package/`. Inspect it only when a task explicitly asks for legacy/PHP work, when current-app code proves a compatibility boundary, or when backup, rollback, deploy, or data-preservation work requires it.

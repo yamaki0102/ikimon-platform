@@ -1,89 +1,100 @@
 # Catch-Up Snapshot
 
-Manifest: docs/catchup_manifest.json (v1)
+Manifest: docs/catchup_manifest.json (schema 2)
 
 ## Scale
 
 | Area | Count |
 |---|---:|
 | Top-level directories | 13 |
-| Public PHP pages | 94 |
-| API PHP files | 185 |
-| Library PHP files | 150 |
-| Test PHP files | 28 |
+| Current app routes | 52 |
+| Current app services | 216 |
+| Current app UI helpers | 46 |
+| Current app content files | 39 |
+| Current app tests | 115 |
+| Current app E2E specs | 15 |
+| Database migrations | 82 |
 | Android source files | 37 |
-| Repo / app scripts & tools | 193 |
 
-Skipped support directories: .git, vendor, .idea, .gradle, .kotlin, .claude, .phpunit.cache, _archive, _deploy_tmp, _tmp_ux_test_env, android-shell, CLI-Anything, output
+Skipped support directories: .git, vendor, .idea, .gradle, .kotlin, .claude, .phpunit.cache, _archive, _deploy_tmp, _tmp_ux_test_env, android-shell, CLI-Anything, output, upload_package
+Skipped nested path prefixes: docs/archive/
 Refresh policy: structure change = True, review cadence = every 6 months
 
 ## Top-Level Directories
 
 - .agent/ : 6 files
-- .github/ : 3 files
+- .github/ : 8 files
 - .vscode/ : 3 files
 - dev_tools/ : 11 files
-- docs/ : 224 files
+- docs/ : 222 files
 - mobile/ : 69 files
-- ops/ : 21 files
-- platform_v2/ : 317 files
+- ops/ : 35 files
+- platform_v2/ : 642 files
 - readme/ : 22 files
-- scripts/ : 22 files
+- scripts/ : 28 files
 - tests/ : 30 files
+- tmp/ : 11 files
 - tools/ : 10 files
-- upload_package/ : 838 files
 
-## API Namespaces
+## Current App Source Areas
 
-- upload_package\public_html\api\admin/ : 6 files
-- upload_package\public_html\api\affiliate/ : 2 files
-- upload_package\public_html\api\business/ : 1 files
-- upload_package\public_html\api\v2/ : 61 files
+- platform_v2\src\config/ : 0 files
+- platform_v2\src\content/ : 5 files
+- platform_v2\src\copy/ : 1 files
+- platform_v2\src\i18n/ : 8 files
+- platform_v2\src\legacy/ : 4 files
+- platform_v2\src\prompts/ : 0 files
+- platform_v2\src\routes/ : 52 files
+- platform_v2\src\scripts/ : 83 files
+- platform_v2\src\services/ : 216 files
+- platform_v2\src\types/ : 1 files
+- platform_v2\src\ui/ : 46 files
 
-## Heavy Public Pages
-
-| File | Size KB |
-|---|---:|
-| upload_package\public_html\observation_detail.php | 205.5 |
-| upload_package\public_html\post.php | 115.7 |
-| upload_package\public_html\field_research.php | 114.2 |
-| upload_package\public_html\map.php | 111.6 |
-| upload_package\public_html\id_workbench.php | 110.2 |
-| upload_package\public_html\site_dashboard.php | 105.6 |
-| upload_package\public_html\profile.php | 74.1 |
-| upload_package\public_html\guide\ikimon-approach.php | 73.4 |
-| upload_package\public_html\api\v2\voice_guide.php | 71.9 |
-| upload_package\public_html\index.php | 69.5 |
-
-## Heavy Library Files
+## Largest Route Files
 
 | File | Size KB |
 |---|---:|
-| upload_package\libs\AiObservationAssessment.php | 60.4 |
-| upload_package\libs\CanonicalStore.php | 39.3 |
-| upload_package\libs\BioUtils.php | 39.3 |
-| upload_package\libs\ContributionLedger.php | 35.6 |
-| upload_package\libs\OmoikaneInferenceEnhancer.php | 27.7 |
-| upload_package\libs\Services\MyZukanService.php | 26.5 |
-| upload_package\libs\Taxonomy.php | 25.5 |
-| upload_package\libs\Services\ZukanService.php | 23.3 |
-| upload_package\libs\OmoikaneDB.php | 22.7 |
-| upload_package\libs\AiAssessmentQueue.php | 21.4 |
+| platform_v2\src\routes\read.ts | 555 |
+| platform_v2\src\routes\guideRecordsDebug.ts | 64.6 |
+| platform_v2\src\routes\marketing.ts | 45.7 |
+| platform_v2\src\routes\write.ts | 36.5 |
+| platform_v2\src\routes\guideApi.ts | 29.5 |
+| platform_v2\src\routes\observationEventApi.ts | 27.6 |
+| platform_v2\src\routes\adminDataHealth.ts | 21.6 |
+| platform_v2\src\routes\auth.ts | 17.7 |
+| platform_v2\src\routes\observationFieldsApi.ts | 17.2 |
+| platform_v2\src\routes\observationEventPages.ts | 17.1 |
+
+## Largest Service Files
+
+| File | Size KB |
+|---|---:|
+| platform_v2\src\services\regionalStory.ts | 72 |
+| platform_v2\src\services\readModels.ts | 56.7 |
+| platform_v2\src\services\observationReassess.ts | 53.3 |
+| platform_v2\src\services\landingSnapshot.ts | 44.1 |
+| platform_v2\src\services\fieldscanAudio.ts | 41.1 |
+| platform_v2\src\services\observationWrite.ts | 36.7 |
+| platform_v2\src\services\knowledgeNavigation.ts | 34.5 |
+| platform_v2\src\services\placeSnapshot.ts | 30.9 |
+| platform_v2\src\services\observationFieldRegistry.ts | 28.5 |
+| platform_v2\src\services\mapSnapshot.ts | 27.5 |
 
 
 ## Key Entry Points
 
-- upload_package/public_html/index.php : feed / home
-- upload_package/public_html/post.php : observation posting
-- upload_package/public_html/observation_detail.php : observation detail
-- upload_package/public_html/field_research.php : field research flow
-- upload_package/public_html/api/ : API endpoints
-- upload_package/libs/ : domain logic
-- tests/ : PHPUnit suites
-- mobile/android/ikimon-pocket/ : Android
+- platform_v2/src/routes/ : pages and API routes
+- platform_v2/src/services/ : domain services
+- platform_v2/src/ui/ : UI rendering helpers
+- platform_v2/src/content/ : public copy and longform content
+- platform_v2/db/migrations/ : canonical database migrations
+- platform_v2/src/legacy/ : compatibility boundary from the current app
+- platform_v2/e2e/ : browser QA specs
+- mobile/android/ikimon-pocket/ : Android shell
 
 ## Maintenance Rules
 
-- When adding a new stable entry point, update entryPoints in this manifest.
+- When adding a new stable current-app entry point, update entryPoints in this manifest.
 - When adding a support directory, decide whether it should be excluded from the snapshot.
 - Keep docs/CATCHUP_GUIDE.md and ikimon.life.code-workspace aligned with this manifest.
+- Do not add old PHP paths as normal entry points; list them only through a proven compatibility boundary.

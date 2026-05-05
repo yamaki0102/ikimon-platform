@@ -1,0 +1,4 @@
+# Reduce default ripgrep noise for agents.
+# Use `rg -uuu` when compatibility/archive evidence is explicitly needed.
+upload_package/
+docs/archive/

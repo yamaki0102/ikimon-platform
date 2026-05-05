@@ -13,7 +13,12 @@ $trackedRelativePaths = @()
 function Get-RelativePath {
     param([string]$BasePath, [string]$TargetPath)
 
-    return [System.IO.Path]::GetRelativePath($BasePath, $TargetPath).Replace('/', '\')
+    $baseFullPath = (Resolve-Path -LiteralPath $BasePath).Path.TrimEnd('\') + '\'
+    $targetFullPath = (Resolve-Path -LiteralPath $TargetPath).Path
+    $baseUri = [System.Uri]::new($baseFullPath)
+    $targetUri = [System.Uri]::new($targetFullPath)
+
+    return [System.Uri]::UnescapeDataString($baseUri.MakeRelativeUri($targetUri).ToString()).Replace('/', '\')
 }
 
 function Get-NormalizedRelativePath {
@@ -73,13 +78,31 @@ function Get-FileList {
     return Get-TrackedFilePaths -Path $Path -Filter $Filter -Recurse:$Recurse
 }
 
+function Set-Utf8NoBomContent {
+    param(
+        [string]$Path,
+        [string[]]$Value
+    )
+
+    $encoding = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($Path, (($Value -join "`n") + "`n"), $encoding)
+}
+
 if (-not (Test-Path $manifestFullPath)) {
     throw "Manifest not found: $manifestFullPath"
 }
 
 $manifest = Get-Content -Raw -Path $manifestFullPath | ConvertFrom-Json
 $excludedTopLevelDirectories = @($manifest.excludeTopLevelDirectories)
-$trackedRelativePaths = @(git -C $repoRoot ls-files)
+$excludedPathPrefixes = @($manifest.excludePathPrefixes)
+$trackedRelativePaths = @(
+    git -C $repoRoot ls-files |
+        ForEach-Object { Get-NormalizedRelativePath $_ } |
+        Where-Object {
+            $path = $_
+            @($excludedPathPrefixes | Where-Object { $path.StartsWith($_, [System.StringComparison]::Ordinal) }).Count -eq 0
+        }
+)
 
 $trackedTopLevelDirectoryNames = $trackedRelativePaths |
     ForEach-Object { (Get-NormalizedRelativePath $_).Split('/')[0] } |
@@ -91,39 +114,26 @@ $topLevelDirectories = $trackedTopLevelDirectoryNames |
     Where-Object { $_ -and $_.PSIsContainer } |
     Sort-Object Name
 
-$publicPages = Get-FileList -Path (Join-Path $repoRoot "upload_package\public_html") -Filter "*.php"
-$apiFiles = Get-FileList -Path (Join-Path $repoRoot "upload_package\public_html\api") -Filter "*.php" -Recurse
-$libFiles = Get-FileList -Path (Join-Path $repoRoot "upload_package\libs") -Filter "*.php" -Recurse
-$testFiles = Get-FileList -Path (Join-Path $repoRoot "tests") -Filter "*.php" -Recurse
-$androidFiles =
-    (Get-FileList -Path (Join-Path $repoRoot "mobile\android\ikimon-pocket\app\src\main") -Filter "*.kt" -Recurse) +
-    (Get-FileList -Path (Join-Path $repoRoot "mobile\android\ikimon-pocket\app\src\main") -Filter "*.java" -Recurse)
-
-$largestPages = $publicPages | Sort-Object Length -Descending | Select-Object -First 10
-$largestLibs = $libFiles | Sort-Object Length -Descending | Select-Object -First 10
-$scriptFiles =
-    (Get-FileList -Path (Join-Path $repoRoot "scripts") -Recurse) +
-    (Get-FileList -Path (Join-Path $repoRoot "upload_package\scripts") -Recurse) +
-    (Get-FileList -Path (Join-Path $repoRoot "upload_package\tools") -Recurse)
-
 $lines = New-Object System.Collections.Generic.List[string]
 $null = $lines.Add("# Catch-Up Snapshot")
 $null = $lines.Add("")
-$null = $lines.Add("Manifest: $ManifestPath (v$($manifest.version))")
+$null = $lines.Add("Manifest: $ManifestPath (schema $($manifest.version))")
 $null = $lines.Add("")
 $null = $lines.Add("## Scale")
 $null = $lines.Add("")
 $null = $lines.Add("| Area | Count |")
 $null = $lines.Add("|---|---:|")
 $null = $lines.Add("| Top-level directories | $($topLevelDirectories.Count) |")
-$null = $lines.Add("| Public PHP pages | $($publicPages.Count) |")
-$null = $lines.Add("| API PHP files | $($apiFiles.Count) |")
-$null = $lines.Add("| Library PHP files | $($libFiles.Count) |")
-$null = $lines.Add("| Test PHP files | $($testFiles.Count) |")
-$null = $lines.Add("| Android source files | $($androidFiles.Count) |")
-$null = $lines.Add("| Repo / app scripts & tools | $($scriptFiles.Count) |")
+foreach ($scaleItem in @($manifest.scaleItems)) {
+    $scaleRoot = Join-Path $repoRoot $scaleItem.path
+    $scaleFiles = Get-FileList -Path $scaleRoot -Filter $scaleItem.filter -Recurse:([bool]$scaleItem.recurse)
+    $null = $lines.Add("| $($scaleItem.label) | $($scaleFiles.Count) |")
+}
 $null = $lines.Add("")
 $null = $lines.Add("Skipped support directories: " + ($excludedTopLevelDirectories -join ", "))
+if ($excludedPathPrefixes.Count -gt 0) {
+    $null = $lines.Add("Skipped nested path prefixes: " + ($excludedPathPrefixes -join ", "))
+}
 $null = $lines.Add("Refresh policy: structure change = $($manifest.refreshPolicy.runAfterStructureChange), review cadence = every $($manifest.refreshPolicy.reviewEveryMonths) months")
 $null = $lines.Add("")
 foreach ($section in $manifest.sections) {
@@ -144,7 +154,7 @@ foreach ($section in $manifest.sections) {
                 $null = $lines.Add("- none")
             } else {
                 foreach ($directory in $directories) {
-                    $count = (Get-ChildItem -Path $directory.FullName -File -Filter $section.filter -Recurse | Measure-Object).Count
+                    $count = (Get-FileList -Path $directory.FullName -Filter $section.filter -Recurse | Measure-Object).Count
                     $sectionRelativePath = Get-RelativePath -BasePath $repoRoot -TargetPath $directory.FullName
                     $null = $lines.Add("- $sectionRelativePath/ : $count files")
                 }
@@ -190,5 +200,5 @@ if (-not (Test-Path $parentDir)) {
     New-Item -ItemType Directory -Path $parentDir | Out-Null
 }
 
-Set-Content -Path $outputFullPath -Value $lines -Encoding UTF8
+Set-Utf8NoBomContent -Path $outputFullPath -Value $lines
 Write-Output "Generated $outputFullPath"
