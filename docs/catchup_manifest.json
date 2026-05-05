@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "owners": [
     "web",
     "android",
@@ -22,7 +22,61 @@
     "_tmp_ux_test_env",
     "android-shell",
     "CLI-Anything",
-    "output"
+    "output",
+    "upload_package"
+  ],
+  "excludePathPrefixes": [
+    "docs/archive/"
+  ],
+  "scaleItems": [
+    {
+      "label": "Current app routes",
+      "path": "platform_v2/src/routes",
+      "filter": "*.ts",
+      "recurse": true
+    },
+    {
+      "label": "Current app services",
+      "path": "platform_v2/src/services",
+      "filter": "*.ts",
+      "recurse": true
+    },
+    {
+      "label": "Current app UI helpers",
+      "path": "platform_v2/src/ui",
+      "filter": "*.ts",
+      "recurse": true
+    },
+    {
+      "label": "Current app content files",
+      "path": "platform_v2/src/content",
+      "filter": "*",
+      "recurse": true
+    },
+    {
+      "label": "Current app tests",
+      "path": "platform_v2/src",
+      "filter": "*.test.ts",
+      "recurse": true
+    },
+    {
+      "label": "Current app E2E specs",
+      "path": "platform_v2/e2e",
+      "filter": "*.ts",
+      "recurse": true
+    },
+    {
+      "label": "Database migrations",
+      "path": "platform_v2/db/migrations",
+      "filter": "*.sql",
+      "recurse": false
+    },
+    {
+      "label": "Android source files",
+      "path": "mobile/android/ikimon-pocket/app/src/main",
+      "filter": "*.kt",
+      "recurse": true
+    }
   ],
   "sections": [
     {
@@ -30,58 +84,58 @@
       "mode": "top_level_directories"
     },
     {
-      "title": "API Namespaces",
+      "title": "Current App Source Areas",
       "mode": "directory_count",
-      "path": "upload_package/public_html/api",
-      "filter": "*.php"
+      "path": "platform_v2/src",
+      "filter": "*.ts"
     },
     {
-      "title": "Heavy Public Pages",
+      "title": "Largest Route Files",
       "mode": "largest_files",
-      "path": "upload_package/public_html",
-      "filter": "*.php",
+      "path": "platform_v2/src/routes",
+      "filter": "*.ts",
       "limit": 10
     },
     {
-      "title": "Heavy Library Files",
+      "title": "Largest Service Files",
       "mode": "largest_files",
-      "path": "upload_package/libs",
-      "filter": "*.php",
+      "path": "platform_v2/src/services",
+      "filter": "*.ts",
       "limit": 10
     }
   ],
   "entryPoints": [
     {
-      "path": "upload_package/public_html/index.php",
-      "role": "feed / home"
+      "path": "platform_v2/src/routes/",
+      "role": "pages and API routes"
     },
     {
-      "path": "upload_package/public_html/post.php",
-      "role": "observation posting"
+      "path": "platform_v2/src/services/",
+      "role": "domain services"
     },
     {
-      "path": "upload_package/public_html/observation_detail.php",
-      "role": "observation detail"
+      "path": "platform_v2/src/ui/",
+      "role": "UI rendering helpers"
     },
     {
-      "path": "upload_package/public_html/field_research.php",
-      "role": "field research flow"
+      "path": "platform_v2/src/content/",
+      "role": "public copy and longform content"
     },
     {
-      "path": "upload_package/public_html/api/",
-      "role": "API endpoints"
+      "path": "platform_v2/db/migrations/",
+      "role": "canonical database migrations"
     },
     {
-      "path": "upload_package/libs/",
-      "role": "domain logic"
+      "path": "platform_v2/src/legacy/",
+      "role": "compatibility boundary from the current app"
     },
     {
-      "path": "tests/",
-      "role": "PHPUnit suites"
+      "path": "platform_v2/e2e/",
+      "role": "browser QA specs"
     },
     {
       "path": "mobile/android/ikimon-pocket/",
-      "role": "Android"
+      "role": "Android shell"
     }
   ],
   "workspace": {
@@ -92,12 +146,20 @@
         "path": "."
       },
       {
-        "name": "web-public",
-        "path": "upload_package/public_html"
+        "name": "current-app",
+        "path": "platform_v2"
       },
       {
-        "name": "web-libs",
-        "path": "upload_package/libs"
+        "name": "docs",
+        "path": "docs"
+      },
+      {
+        "name": "ops",
+        "path": "ops"
+      },
+      {
+        "name": "repo-scripts",
+        "path": "scripts"
       },
       {
         "name": "android-app",
@@ -108,19 +170,21 @@
       "remote.autoForwardPorts": false,
       "remote.portsAttributes": {
         "8080": {
-          "label": "ikimon Dev Server",
+          "label": "ikimon Current App",
           "onAutoForward": "openBrowserOnce"
         }
       },
       "files.exclude": {
         "**/.DS_Store": true,
-        "**/.phpunit.cache": true
+        "**/.phpunit.cache": true,
+        "upload_package": true
       }
     }
   },
   "watchItems": [
-    "When adding a new stable entry point, update entryPoints in this manifest.",
+    "When adding a new stable current-app entry point, update entryPoints in this manifest.",
     "When adding a support directory, decide whether it should be excluded from the snapshot.",
-    "Keep docs/CATCHUP_GUIDE.md and ikimon.life.code-workspace aligned with this manifest."
+    "Keep docs/CATCHUP_GUIDE.md and ikimon.life.code-workspace aligned with this manifest.",
+    "Do not add old PHP paths as normal entry points; list them only through a proven compatibility boundary."
   ]
 }

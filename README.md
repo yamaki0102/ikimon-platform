@@ -1,82 +1,54 @@
 # ikimon.life — 市民参加型生物多様性プラットフォーム
 
-30by30・TNFD LEAP 対応の生物観察プラットフォーム。市民科学データの収集と、ユーザーの自己効力感を高める設計を両立。
+30by30・TNFD LEAP 対応の生物観察プラットフォーム。市民科学データの収集と、ユーザーの自己効力感を高める設計を両立する。
+
+## 現在の開発入口
+
+通常開発の正本は `platform_v2/` 配下の現行アプリ。旧PHPツリーはバックアップ、互換、移行検証、rollback のために保持しているが、通常の UI / API / login / record / map 調査では入口にしない。
+
+| 領域 | 入口 |
+|---|---|
+| ページ・API route | `platform_v2/src/routes/` |
+| ドメインロジック | `platform_v2/src/services/` |
+| UI / rendering helper | `platform_v2/src/ui/` |
+| 公開 copy / longform content | `platform_v2/src/content/` |
+| DB migration | `platform_v2/db/migrations/` |
+| E2E / browser QA | `platform_v2/e2e/` |
 
 ## 技術スタック
 
 | レイヤー | 技術 |
-|---------|------|
-| Backend | PHP 8.2 |
-| Frontend | Vanilla CSS + Alpine.js |
-| Icons | Lucide Icons |
-| Map | MapLibre GL JS + 地理院タイル |
-| Data | JSON ファイルストレージ（パーティション対応） |
-| Hosting | お名前ドットコム RS Plan |
-
-## プロジェクト構造
-
-```
-ikimon.life/
-├── upload_package/          ← デプロイ対象
-│   ├── config/              # config.php (ROOT_DIR, DATA_DIR 定義)
-│   ├── data/                # JSON データストレージ
-│   ├── lang/                # 多言語ファイル (ja/en)
-│   ├── libs/                # PHP ライブラリ群
-│   ├── public_html/         # Web ドキュメントルート
-│   │   ├── index.php        # フィード（ホーム）
-│   │   ├── api/             # API エンドポイント
-│   │   ├── assets/          # CSS / JS / 画像
-│   │   └── components/      # UI コンポーネント
-│   └── scripts/             # メンテナンススクリプト
-├── tests/                   # PHPUnit テスト
-├── docs/                    # 設計ドキュメント
-├── .agent/                  # AI エージェント設定
-│   ├── workflows/           # /deploy, /pre-release 等
-│   └── skills/              # sitemap_navigator, oreshika_growth 等
-└── .github/workflows/       # CI/CD (GitHub Actions)
-```
+|---|---|
+| Current runtime | Node.js / Fastify |
+| Frontend | Alpine.js + Tailwind CSS + Lucide Icons |
+| Map | MapLibre GL JS + OpenStreetMap |
+| Data | PostgreSQL canonical store + compatibility data bridge |
+| Deploy | GitHub Actions + VPS blue/green runtime |
 
 ## ローカル開発
 
 ```powershell
-# PHP Built-in Server で起動
-php -S localhost:8899 -t upload_package/public_html
-
-# 構文チェック（全ファイル）
-composer lint
-
-# テスト実行
-composer test
+npm --prefix platform_v2 install
+npm --prefix platform_v2 run typecheck
+npm --prefix platform_v2 run test:node
+npm --prefix platform_v2 run dev
 ```
+
+旧PHP互換側の調査・テストは、ユーザーが明示した場合か、現行アプリの互換境界から必要性を確認できた場合だけ行う。
+
+## エージェント導線
+
+- 最初に読む: `AGENTS.md`
+- 通常 catch-up: `docs/CATCHUP_GUIDE.md`
+- 入口定義の正本: `docs/catchup_manifest.json`
+- 生成された俯瞰: `docs/CATCHUP_SNAPSHOT.md`
+- workspace 生成: `powershell -ExecutionPolicy Bypass -File .\scripts\generate_workspace_from_manifest.ps1`
+- 整合性チェック: `powershell -ExecutionPolicy Bypass -File .\scripts\check_catchup_sync.ps1`
 
 ## デプロイ
 
-SCP 経由で RS Plan へ同期。詳細は `.agent/workflows/deploy.md` 参照。
+本番反映は `codex/<task-name>` ブランチから PR を作り、`main` merge 後の GitHub Actions で VPS へ反映する。ローカルから本番へ直接 SSH deploy しない。詳細は `docs/DEPLOYMENT.md` と `ops/deploy/deploy_manifest.json` を正本にする。
 
-## AI エージェント ワークフロー
+## 旧PHPの扱い
 
-| コマンド | 用途 |
-|---------|------|
-| `/deploy` | 本番デプロイ（バックアップ → アップロード → 検証） |
-| `/pre-release` | リリース前品質ゲート（lint + パス + ブラウザ + API） |
-| `/quick-check` | 日常開発用の軽量チェック（30秒） |
-| `/systematic-debug` | 構造化デバッグ（4フェーズ） |
-
-## 現在のフェーズ
-
-- ✅ Phase 13: SiteManager / GeoJSON / Dashboard / Editor
-- ✅ Phase 14A: レポート MVP (RedListManager, BIS, TNFD LEAP)
-- 🔲 Phase 14B: 投稿体験強化 (post.php, 同定ブリッジ)
-
-## キャッチアップ導線
-
-- まず読む: `docs/CATCHUP_GUIDE.md`
-- 入口定義の正本: `docs/catchup_manifest.json`
-- deploy ルールの正本: `ops/deploy/deploy_manifest.json`
-- サーバ側 deploy 参照: `ops/deploy/production_deploy_reference.sh`
-- 実サーバーとの差分確認: `powershell -ExecutionPolicy Bypass -File .\scripts\check_remote_deploy_reference.ps1`
-- 現在の構成を再生成: `powershell -ExecutionPolicy Bypass -File .\scripts\generate_catchup_snapshot.ps1`
-- workspace を再生成: `powershell -ExecutionPolicy Bypass -File .\scripts\generate_workspace_from_manifest.ps1`
-- 整合性チェック: `powershell -ExecutionPolicy Bypass -File .\scripts\check_catchup_sync.ps1`
-- 生成された俯瞰: `docs/CATCHUP_SNAPSHOT.md`
-- VS Code / Codex では `ikimon.life.code-workspace` を開くと Web / API / Android 入口にすぐ飛べる
+`upload_package/` は削除しない。互換書き込み、既存データ、画像、rollback、移行検証に必要な保全対象。通常開発では探索入口にせず、必要な場合だけ根拠を持って最小範囲を参照する。

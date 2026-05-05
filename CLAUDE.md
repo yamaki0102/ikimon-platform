@@ -7,9 +7,9 @@
 ## Shared Source Of Truth
 
 - 共通ルール: `AGENTS.md`
-- 移行方針: `E_drive_agent_migration_plan.md`
 - リポジトリ概要: `README.md`
 - セットアップ補助: `SETUP.md`, `CODEX_SETUP.md`
+- 通常開発入口: `platform_v2/` 配下の現行アプリ
 
 ## Collaboration Rules
 
@@ -18,6 +18,8 @@
 - 調査だけなら同一 worktree で並行可
 - 同時編集するなら branch を分ける
 - 本格的に並行編集するなら `git worktree` を使う
+- UI / API / login / record / map / staging 調査は現行アプリから始める
+- `upload_package/` は legacy boundary が明確な場合だけ参照する
 
 ## Response Style
 

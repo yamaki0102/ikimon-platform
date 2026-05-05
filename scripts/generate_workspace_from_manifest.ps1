@@ -28,6 +28,7 @@ $workspaceObject = [ordered]@{
     settings = $manifest.workspace.settings
 }
 
-$workspaceJson = $workspaceObject | ConvertTo-Json -Depth 20
-Set-Content -Path $workspaceFullPath -Value $workspaceJson -Encoding UTF8
+$workspaceJson = ($workspaceObject | ConvertTo-Json -Depth 20) -replace "`r`n", "`n"
+$encoding = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($workspaceFullPath, $workspaceJson + "`n", $encoding)
 Write-Output "Generated $workspaceFullPath"
