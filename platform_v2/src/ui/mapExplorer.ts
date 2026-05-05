@@ -1833,7 +1833,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var coordQs = hasCoord
       ? 'lat=' + encodeURIComponent(String(pt.lat)) + '&lng=' + encodeURIComponent(String(pt.lng))
       : '';
-    var eventHref = hasCoord ? EVENTS_NEW_BASE + sep(EVENTS_NEW_BASE) + coordQs : '';
+    var eventHref = hasCoord ? buildPointAreaEventHref(pt.lat, pt.lng) || EVENTS_NEW_BASE + sep(EVENTS_NEW_BASE) + coordQs : '';
     var fieldHref = hasCoord ? FIELDS_NEW_BASE + sep(FIELDS_NEW_BASE) + coordQs : '';
     var ctaSeamless = hasCoord
       ? ''
@@ -2075,6 +2075,40 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     if (!parts.length) return base;
     return base + (base.indexOf('?') >= 0 ? '&' : '?') + parts.join('&');
+  }
+  function pointCirclePolygon(lat, lng, radiusM) {
+    var radius = Math.max(80, Math.min(1200, Number(radiusM) || 300));
+    var R = 6371000;
+    var latR = lat * Math.PI / 180;
+    var lngR = lng * Math.PI / 180;
+    var angular = radius / R;
+    var coords = [];
+    for (var i = 0; i < 24; i += 1) {
+      var bearing = 2 * Math.PI * i / 24;
+      var outLat = Math.asin(Math.sin(latR) * Math.cos(angular) + Math.cos(latR) * Math.sin(angular) * Math.cos(bearing));
+      var outLng = lngR + Math.atan2(Math.sin(bearing) * Math.sin(angular) * Math.cos(latR), Math.cos(angular) - Math.sin(latR) * Math.sin(outLat));
+      coords.push([Number((outLng * 180 / Math.PI).toFixed(7)), Number((outLat * 180 / Math.PI).toFixed(7))]);
+    }
+    coords.push(coords[0]);
+    return { type: 'Polygon', coordinates: [coords] };
+  }
+  function buildPointAreaEventHref(lat, lng) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
+    var params = { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6) };
+    if (window.sessionStorage) {
+      try {
+        var draftId = 'point-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+        window.sessionStorage.setItem('ikimon:event-area-draft:' + draftId, JSON.stringify({
+          name: '地図で選んだ地点',
+          center: { lat: Number(lat), lng: Number(lng) },
+          polygon: pointCirclePolygon(Number(lat), Number(lng), 300),
+          source: 'map_point_area',
+        }));
+        params.area_draft = draftId;
+        params.name = '地図で選んだ地点';
+      } catch (_) {}
+    }
+    return appendQueryParams(EVENTS_NEW_BASE, params);
   }
   function buildTransientAreaEventHref(feature, fallbackLat, fallbackLng) {
     var props = (feature && feature.properties) || {};

@@ -83,6 +83,39 @@ function geometryRadiusM(geometry: PolygonGeometry, center: { lat: number; lng: 
   return Math.max(50, Math.round(Math.max(ns, ew) / 2));
 }
 
+function bboxAreaHa(bbox: NonNullable<ReturnType<typeof validateAreaPolygon>["bbox"]>, centerLat: number): number {
+  const ns = Math.abs(bbox.maxLat - bbox.minLat) * 111_000;
+  const ew = Math.abs(bbox.maxLng - bbox.minLng) * 111_000 * Math.cos((centerLat * Math.PI) / 180);
+  return Math.max(0, (ns * ew) / 10_000);
+}
+
+function bboxIntersectionHa(
+  a: NonNullable<ReturnType<typeof validateAreaPolygon>["bbox"]>,
+  b: NonNullable<ReturnType<typeof validateAreaPolygon>["bbox"]>,
+): number {
+  const minLat = Math.max(a.minLat, b.minLat);
+  const maxLat = Math.min(a.maxLat, b.maxLat);
+  const minLng = Math.max(a.minLng, b.minLng);
+  const maxLng = Math.min(a.maxLng, b.maxLng);
+  if (minLat >= maxLat || minLng >= maxLng) return 0;
+  return bboxAreaHa({ minLat, maxLat, minLng, maxLng }, (minLat + maxLat) / 2);
+}
+
+function coversBaseArea(geometry: PolygonGeometry, input: AreaPlanInput, validation = validateAreaPolygon(geometry)): boolean {
+  const base = asPolygonGeometry(input.drawnPolygon) ?? circleToPolygon(input.center.lat, input.center.lng, safeRadius(input));
+  const baseValidation = validateAreaPolygon(base);
+  if (!validation.ok || !validation.bbox || !validation.center || !baseValidation.bbox || !baseValidation.center) return false;
+  const centerDistance = haversineMeters(input.center.lat, input.center.lng, validation.center.lat, validation.center.lng);
+  const maxCenterDistance = Math.max(900, safeRadius(input) * 2.2);
+  if (centerDistance > maxCenterDistance) return false;
+  const baseArea = baseValidation.areaHa ?? bboxAreaHa(baseValidation.bbox, input.center.lat);
+  const candidateArea = validation.areaHa ?? bboxAreaHa(validation.bbox, validation.center.lat);
+  if (baseArea > 0 && candidateArea < baseArea * 0.22) return false;
+  const intersection = bboxIntersectionHa(baseValidation.bbox, validation.bbox);
+  const overlapRatio = baseArea > 0 ? intersection / baseArea : 1;
+  return overlapRatio >= 0.18;
+}
+
 function labelFor(id: AreaPlanSuggestionId, placeLabel?: string | null): string {
   if (id === "facility") return placeLabel ? `${placeLabel}敷地寄せ` : "施設・集合場所寄せ";
   if (id === "safe_walk") return "安全な徒歩圏";
@@ -95,12 +128,12 @@ function fallbackGeometry(input: AreaPlanInput, id: AreaPlanSuggestionId): Polyg
   const radius = safeRadius(input);
   const nearestMajorRoadM = input.localSignals?.majorRoads[0]?.distanceM ?? null;
   if (id === "facility") {
-    const roadFactor = nearestMajorRoadM !== null && nearestMajorRoadM < 180 ? 0.62 : 0.75;
+    const roadFactor = nearestMajorRoadM !== null && nearestMajorRoadM < 180 ? 0.82 : 0.9;
     return circleToPolygon(center.lat, center.lng, Math.max(100, Math.round(radius * roadFactor)), 24);
   }
   if (id === "safe_walk") {
-    const roadFactor = nearestMajorRoadM !== null && nearestMajorRoadM < 220 ? 0.45 : 0.55;
-    return circleToPolygon(center.lat, center.lng, Math.max(140, Math.round(radius * roadFactor)), 24);
+    const roadFactor = nearestMajorRoadM !== null && nearestMajorRoadM < 220 ? 0.62 : 0.72;
+    return circleToPolygon(center.lat, center.lng, Math.max(180, Math.round(radius * roadFactor)), 24);
   }
 
   const nearestPark = input.localSignals?.parks.find((park) => park.distanceM <= 500);
@@ -186,7 +219,7 @@ export function normalizeAreaPlanSuggestions(raw: unknown, input: AreaPlanInput)
     const hit = list.find((s) => isSuggestionId(s.id) && s.id === id);
     const geometry = asPolygonGeometry(hit?.geometry);
     const validation = geometry ? validateAreaPolygon(geometry) : null;
-    if (!hit || !geometry || !validation?.ok) {
+    if (!hit || !geometry || !validation?.ok || !coversBaseArea(geometry, input, validation)) {
       out.push(fallback.find((s) => s.id === id)!);
       continue;
     }
@@ -293,5 +326,6 @@ export const __test__ = {
   parseJsonObject,
   normalizeAreaPlanSuggestions,
   fallbackGeometry,
+  coversBaseArea,
   PROMPT_VERSION,
 };

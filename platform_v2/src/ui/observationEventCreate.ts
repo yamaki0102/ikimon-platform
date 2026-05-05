@@ -90,6 +90,14 @@ export function renderEventCreateBody(args: {
         <button type="button" class="evt-recap-tab" data-evt-area-mode="polygon">指で囲む</button>
       </div>
 
+      <div class="evt-field-search">
+        <div class="evt-field-search-row">
+          <input data-evt-field-search type="search" placeholder="登録スポットを検索（例: 公園名・市区町村・マイフィールド）" />
+          <button type="button" class="evt-btn evt-btn-ghost" data-evt-field-search-run style="min-height:40px; padding:8px 14px;">検索</button>
+        </div>
+        <div data-evt-field-search-results class="evt-field-search-results" style="display:none;"></div>
+      </div>
+
       <div class="evt-area-map-shell">
         <div data-evt-area-map class="evt-area-map" role="application" aria-label="開催エリアを指定する地図"></div>
         <div class="evt-area-map-fallback">
@@ -157,6 +165,17 @@ export function renderEventCreateBody(args: {
       </div>
     </fieldset>
 
+    <section class="evt-announcement-flow">
+      <div class="evt-area-head">
+        <div>
+          <span class="evt-eyebrow">告知文</span>
+          <p class="evt-lead">場所とAI候補を選ぶと、参加者向けの案内文を自動で整えます。</p>
+        </div>
+        <button type="button" class="evt-btn evt-btn-ghost" data-evt-announcement-generate style="min-height:36px; padding:6px 12px;">告知文を作る</button>
+      </div>
+      <textarea name="announcement_text" data-evt-announcement rows="6" placeholder="場所を選ぶと告知文案が入ります。必要に応じて書き換えてください。"></textarea>
+    </section>
+
     <label>プラン
       <select name="plan">
         <option value="community" selected>コミュニティ(無料)</option>
@@ -207,6 +226,16 @@ export function eventCreateScript(): string {
     selectedSuggestion: null,
     resolution: null,
     mapInitialCenter: { lat: 34.6984, lng: 137.7043 },
+    selectedFieldId: null,
+    fieldsAbort: null,
+    fieldsSeq: 0,
+    aiBaseline: null,
+    aiProgressTimer: null,
+    pendingFocus: null,
+    selectedField: null,
+    announcementAutoDraft: "",
+    searchTimer: null,
+    fieldLabelMarkers: [],
   };
   const areaStatus = form.querySelector("[data-evt-area-status]");
   const areaPolygonInput = form.querySelector("[data-evt-area-polygon]");
@@ -244,13 +273,37 @@ export function eventCreateScript(): string {
     const lat = ring.reduce((s,p) => s + p[1], 0) / ring.length;
     return { lat, lng };
   }
-  function pushAreaHistory(){
-    areaState.history.push({
+  function clonePolygon(poly){
+    return poly ? JSON.parse(JSON.stringify(poly)) : null;
+  }
+  function areaSnapshot(){
+    return {
       center: areaState.center ? { ...areaState.center } : null,
-      polygon: areaState.polygon ? JSON.parse(JSON.stringify(areaState.polygon)) : null,
+      polygon: clonePolygon(areaState.polygon),
       selectedSuggestion: areaState.selectedSuggestion,
-    });
-    areaState.history = areaState.history.slice(-3);
+      selectedFieldId: areaState.selectedFieldId,
+      selectedField: areaState.selectedField,
+    };
+  }
+  function restoreAreaSnapshot(snapshot){
+    if (!snapshot) return;
+    areaState.center = snapshot.center ? { ...snapshot.center } : null;
+    areaState.polygon = clonePolygon(snapshot.polygon);
+    areaState.selectedSuggestion = snapshot.selectedSuggestion || null;
+    areaState.selectedFieldId = snapshot.selectedFieldId || null;
+    areaState.selectedField = snapshot.selectedField || null;
+    if (snapshot.selectedField) {
+      applyFieldSummary(snapshot.selectedField);
+    } else if (!areaState.selectedFieldId) {
+      clearField();
+    }
+    setManualInputs(areaState.center, Number(form.querySelector('[name="location_radius_m"]')?.value || 300));
+    syncAreaLayer();
+    syncSelectedFieldLayer();
+  }
+  function pushAreaHistory(){
+    areaState.history.push(areaSnapshot());
+    areaState.history = areaState.history.slice(-10);
   }
   function setManualInputs(center, radius){
     const latI = form.querySelector('[name="location_lat"]');
@@ -274,14 +327,24 @@ export function eventCreateScript(): string {
       }
     }
   }
+  function syncSelectedFieldLayer(){
+    if (!areaState.map) return;
+    const id = areaState.selectedFieldId || "__none__";
+    if (areaState.map.getLayer("evt-field-selected")) {
+      areaState.map.setFilter("evt-field-selected", ["==", ["get", "fieldId"], id]);
+    }
+  }
   function setArea(center, polygon, opts){
     if (!opts || opts.push !== false) pushAreaHistory();
     areaState.center = center || polygonCenter(polygon);
     areaState.polygon = polygon || (areaState.center ? circlePolygon(areaState.center.lat, areaState.center.lng, Number(form.querySelector('[name="location_radius_m"]')?.value || 300)) : null);
+    areaState.selectedFieldId = null;
+    areaState.selectedField = null;
     const radius = Number(form.querySelector('[name="location_radius_m"]')?.value || 300);
     setManualInputs(areaState.center, radius);
     clearField();
     syncAreaLayer();
+    syncSelectedFieldLayer();
     setAreaStatus("開催エリアを設定しました。必要ならAIで整えるか、手動で調整してください。");
   }
   function currentMapCenter(){
@@ -296,6 +359,130 @@ export function eventCreateScript(): string {
     if (Number.isFinite(mapLat) && Number.isFinite(mapLng) && !mapLooksUnset) return { lat: mapLat, lng: mapLng };
     if (Number.isFinite(manualLat) && Number.isFinite(manualLng)) return { lat: manualLat, lng: manualLng };
     return { ...areaState.mapInitialCenter };
+  }
+  function mapViewportKm(){
+    if (!areaState.map) return 2;
+    const b = areaState.map.getBounds();
+    const c = areaState.map.getCenter();
+    if (!b || !c) return 2;
+    const north = b.getNorth(), south = b.getSouth(), east = b.getEast(), west = b.getWest();
+    const latKm = Math.abs(north - south) * 111;
+    const lngKm = Math.abs(east - west) * 111 * Math.cos(Number(c.lat) * Math.PI / 180);
+    return Math.max(0.8, Math.min(20, Math.sqrt(latKm * latKm + lngKm * lngKm) / 2));
+  }
+  function fieldGeometry(field){
+    const polygon = validDraftPolygon(field && field.polygon) ? field.polygon : null;
+    if (polygon) return polygon;
+    const lat = Number(field?.lat), lng = Number(field?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return circlePolygon(lat, lng, field.radiusM ?? field.radius_m ?? 300, 24);
+  }
+  function fieldsToFeatureCollection(fields){
+    return {
+      type: "FeatureCollection",
+      features: (fields || []).map(field => {
+        const geometry = fieldGeometry(field);
+        const fieldId = String(field.fieldId || field.field_id || "");
+        if (!geometry || !fieldId) return null;
+        return {
+          type: "Feature",
+          properties: {
+            fieldId,
+            name: String(field.name || ""),
+            source: String(field.adminLevel || field.source || "user_defined"),
+            areaHa: Number(field.areaHa ?? field.area_ha ?? 0) || 0,
+            radiusM: Number(field.radiusM ?? field.radius_m ?? 0) || 0,
+          },
+          geometry,
+        };
+      }).filter(Boolean),
+    };
+  }
+  function syncFieldLabelMarkers(fields){
+    if (!areaState.map || !window.maplibregl) return;
+    areaState.fieldLabelMarkers.forEach(marker => {
+      try { marker.remove(); } catch (_) {}
+    });
+    areaState.fieldLabelMarkers = [];
+    (fields || []).slice(0, 24).forEach(field => {
+      const lat = Number(field.lat), lng = Number(field.lng);
+      const fieldId = String(field.fieldId || field.field_id || "");
+      if (!fieldId || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "evt-field-map-label";
+      el.textContent = String(field.name || "登録スポット").slice(0, 18);
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        selectField(field);
+        setAreaStatus((field.name || "登録済みスポット") + " を開催エリアとして選びました。");
+      });
+      const marker = new window.maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([lng, lat]).addTo(areaState.map);
+      areaState.fieldLabelMarkers.push(marker);
+    });
+  }
+  function loadRegisteredFieldsForMap(){
+    if (!areaState.map || !areaState.map.getSource("evt-registered-fields")) return;
+    const c = areaState.map.getCenter();
+    if (!c || !Number.isFinite(Number(c.lat)) || !Number.isFinite(Number(c.lng))) return;
+    if (areaState.fieldsAbort) {
+      try { areaState.fieldsAbort.abort(); } catch (_) {}
+    }
+    const seq = ++areaState.fieldsSeq;
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    areaState.fieldsAbort = controller;
+    const km = mapViewportKm();
+    const url = "/api/v1/fields?nearby=" + encodeURIComponent(Number(c.lat).toFixed(6) + "," + Number(c.lng).toFixed(6)) + "&km=" + encodeURIComponent(km.toFixed(2)) + "&limit=80";
+    fetch(url, { credentials: "include", signal: controller ? controller.signal : undefined })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (seq !== areaState.fieldsSeq || !data || !areaState.map) return;
+        const src = areaState.map.getSource("evt-registered-fields");
+        if (src) src.setData(fieldsToFeatureCollection(data.fields || []));
+        syncFieldLabelMarkers(data.fields || []);
+        syncSelectedFieldLayer();
+      })
+      .catch(err => { if (!err || err.name !== "AbortError") return; });
+  }
+  function pickRegisteredField(point){
+    if (!areaState.map || !areaState.map.getLayer("evt-field-fill")) return null;
+    const hits = areaState.map.queryRenderedFeatures(point, { layers: ["evt-field-fill"] }) || [];
+    if (!hits.length) return null;
+    let pick = hits[0];
+    let pickScore = Number(pick.properties?.areaHa || pick.properties?.radiusM || 999999);
+    hits.slice(1).forEach(hit => {
+      const score = Number(hit.properties?.areaHa || hit.properties?.radiusM || 999999);
+      if (Number.isFinite(score) && score < pickScore) {
+        pick = hit;
+        pickScore = score;
+      }
+    });
+    return pick;
+  }
+  function focusPendingArea(){
+    if (!areaState.map || !areaState.pendingFocus) return;
+    const target = areaState.pendingFocus;
+    areaState.pendingFocus = null;
+    if (target.center && Number.isFinite(target.center.lat) && Number.isFinite(target.center.lng)) {
+      areaState.map.flyTo({ center: [target.center.lng, target.center.lat], zoom: target.zoom || 16 });
+    }
+  }
+  async function selectFieldFromMap(feature){
+    const fieldId = String(feature?.properties?.fieldId || "");
+    if (!fieldId) return;
+    setAreaStatus("登録済みスポットを読み込んでいます。");
+    try {
+      const r = await fetch("/api/v1/fields/" + encodeURIComponent(fieldId), { credentials: "include" });
+      if (!r.ok) throw new Error("field_load_failed");
+      const data = await r.json();
+      if (data?.field) {
+        selectField(data.field);
+        setAreaStatus((data.field.name || "登録済みスポット") + " を開催エリアとして選びました。");
+      }
+    } catch (_) {
+      setAreaStatus("登録済みスポットを読み込めませんでした。");
+    }
   }
   function loadMapLibre(){
     return new Promise((resolve, reject) => {
@@ -368,6 +555,7 @@ export function eventCreateScript(): string {
         attributionControl: true,
         style: {
           version: 8,
+          glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
           sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap contributors" } },
           layers: [{ id: "osm", type: "raster", source: "osm" }],
         },
@@ -375,12 +563,28 @@ export function eventCreateScript(): string {
       areaState.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       areaState.map.on("load", () => {
         el.closest(".evt-area-map-shell")?.classList.add("is-map-ready");
+        areaState.map.addSource("evt-registered-fields", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        areaState.map.addLayer({ id: "evt-field-fill", type: "fill", source: "evt-registered-fields", paint: { "fill-color": ["match", ["get", "source"], "user_defined", "#22c55e", "osm_park", "#38bdf8", "admin_municipality", "#94a3b8", "admin_prefecture", "#cbd5e1", "#14b8a6"], "fill-opacity": 0.18 } });
+        areaState.map.addLayer({ id: "evt-field-line", type: "line", source: "evt-registered-fields", paint: { "line-color": ["match", ["get", "source"], "user_defined", "#16a34a", "osm_park", "#0284c7", "admin_municipality", "#64748b", "admin_prefecture", "#94a3b8", "#0f766e"], "line-width": 1.4, "line-opacity": 0.88 } });
+        areaState.map.addLayer({ id: "evt-field-label", type: "symbol", source: "evt-registered-fields", minzoom: 14, layout: { "text-field": ["get", "name"], "text-size": 12, "text-font": ["Open Sans Regular"], "text-max-width": 9, "text-offset": [0, 0.8], "text-anchor": "top" }, paint: { "text-color": "#0f172a", "text-halo-color": "rgba(255,255,255,.92)", "text-halo-width": 1.4 } });
+        areaState.map.addLayer({ id: "evt-field-selected", type: "line", source: "evt-registered-fields", filter: ["==", ["get", "fieldId"], "__none__"], paint: { "line-color": "#0f766e", "line-width": 4 } });
         areaState.map.addSource("evt-area-current", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         areaState.map.addLayer({ id: "evt-area-fill", type: "fill", source: "evt-area-current", paint: { "fill-color": "#10b981", "fill-opacity": 0.24 } });
         areaState.map.addLayer({ id: "evt-area-line", type: "line", source: "evt-area-current", paint: { "line-color": "#059669", "line-width": 3 } });
         syncAreaLayer();
+        syncSelectedFieldLayer();
+        focusPendingArea();
+        loadRegisteredFieldsForMap();
       });
+      areaState.map.on("moveend", loadRegisteredFieldsForMap);
+      areaState.map.on("mouseenter", "evt-field-fill", () => { areaState.map.getCanvas().style.cursor = "pointer"; });
+      areaState.map.on("mouseleave", "evt-field-fill", () => { areaState.map.getCanvas().style.cursor = ""; });
       areaState.map.on("click", (e) => {
+        const hit = pickRegisteredField(e.point);
+        if (hit) {
+          selectFieldFromMap(hit);
+          return;
+        }
         const p = { lat: e.lngLat.lat, lng: e.lngLat.lng };
         const radius = Number(form.querySelector('[name="location_radius_m"]')?.value || 300);
         if (areaState.mode === "circle") {
@@ -407,7 +611,6 @@ export function eventCreateScript(): string {
       setAreaStatus("地図を読み込めませんでした。緯度・経度・半径で作成できます。");
     }
   }
-  initAreaMap();
   const pageParams = new URLSearchParams(window.location.search);
   function validDraftPolygon(poly){
     return poly && poly.type === "Polygon" && Array.isArray(poly.coordinates) && Array.isArray(poly.coordinates[0]) && poly.coordinates[0].length >= 4;
@@ -433,6 +636,7 @@ export function eventCreateScript(): string {
     if (name) {
       const nameInput = form.querySelector('[name="new_field_name"]');
       if (nameInput) nameInput.value = name;
+      suggestTitleFromPlace(name);
     }
     areaState.mapInitialCenter = center;
     const polygon = validDraftPolygon(draft && draft.polygon)
@@ -444,10 +648,12 @@ export function eventCreateScript(): string {
       warnings: [],
     };
     setArea(center, polygon, { push: false });
+    areaState.pendingFocus = { center, zoom: 16 };
     setAreaStatus(name ? name + " を開催エリア案として読み込みました。" : "地図から開催エリア案を読み込みました。");
-    if (areaState.map) areaState.map.flyTo({ center: [center.lng, center.lat], zoom: 16 });
+    focusPendingArea();
   }
   applyAreaDraftFromParams();
+  initAreaMap();
   form.querySelectorAll("[data-evt-area-mode]").forEach(btn => {
     btn.addEventListener("click", () => {
       form.querySelectorAll("[data-evt-area-mode]").forEach(b => b.classList.remove("is-active"));
@@ -467,42 +673,104 @@ export function eventCreateScript(): string {
     setArea({ lat, lng }, circlePolygon(lat, lng, radius));
   });
   form.querySelector("[data-evt-area-undo]")?.addEventListener("click", () => {
+    if (areaState.aiBaseline) {
+      restoreAreaSnapshot(areaState.aiBaseline);
+      areaState.aiBaseline = null;
+      setAreaStatus("AIで整える前の範囲に戻しました。");
+      return;
+    }
     const prev = areaState.history.pop();
     if (!prev) return;
-    areaState.center = prev.center;
-    areaState.polygon = prev.polygon;
-    areaState.selectedSuggestion = prev.selectedSuggestion;
-    setManualInputs(areaState.center, Number(form.querySelector('[name="location_radius_m"]')?.value || 300));
-    syncAreaLayer();
+    restoreAreaSnapshot(prev);
     setAreaStatus("ひとつ前の範囲に戻しました。");
   });
+  function previewPath(poly, bbox){
+    const ring = poly && poly.coordinates && poly.coordinates[0] ? poly.coordinates[0] : [];
+    if (!ring.length || !bbox) return "";
+    const w = Math.max(0.000001, bbox.maxLng - bbox.minLng);
+    const h = Math.max(0.000001, bbox.maxLat - bbox.minLat);
+    return ring.map((p, i) => {
+      const x = 8 + ((Number(p[0]) - bbox.minLng) / w) * 104;
+      const y = 72 - ((Number(p[1]) - bbox.minLat) / h) * 64;
+      return (i === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
+    }).join(" ") + " Z";
+  }
+  function polygonBbox(polys){
+    const pts = [];
+    (polys || []).forEach(poly => {
+      const ring = poly && poly.coordinates && poly.coordinates[0] ? poly.coordinates[0] : [];
+      ring.forEach(p => {
+        const lng = Number(p[0]), lat = Number(p[1]);
+        if (Number.isFinite(lng) && Number.isFinite(lat)) pts.push({ lng, lat });
+      });
+    });
+    if (!pts.length) return null;
+    return {
+      minLng: Math.min(...pts.map(p => p.lng)),
+      maxLng: Math.max(...pts.map(p => p.lng)),
+      minLat: Math.min(...pts.map(p => p.lat)),
+      maxLat: Math.max(...pts.map(p => p.lat)),
+    };
+  }
+  function renderAreaPreview(base, candidate){
+    const bbox = polygonBbox([base, candidate]);
+    const basePath = previewPath(base, bbox);
+    const nextPath = previewPath(candidate, bbox);
+    return '<svg class="evt-area-preview" viewBox="0 0 120 80" aria-hidden="true" focusable="false">' +
+      '<rect x="1" y="1" width="118" height="78" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>' +
+      (basePath ? '<path d="' + basePath + '" fill="rgba(148,163,184,.20)" stroke="rgba(100,116,139,.60)" stroke-width="1.4"/>' : "") +
+      (nextPath ? '<path d="' + nextPath + '" fill="rgba(16,185,129,.22)" stroke="#059669" stroke-width="2.2"/>' : "") +
+      '<circle cx="60" cy="40" r="2.6" fill="#0f766e"/>' +
+      '</svg>';
+  }
   function renderSuggestions(suggestions){
     if (!suggestionBox) return;
     suggestionBox.innerHTML = "";
     suggestionBox.style.display = suggestions && suggestions.length ? "" : "none";
+    const base = areaState.aiBaseline?.polygon || areaState.polygon;
     suggestions.forEach(s => {
       const card = document.createElement("button");
       card.type = "button";
       card.className = "evt-area-suggestion";
-      card.innerHTML = '<strong>' + escapeText(s.label) + '</strong><span>' + escapeText(s.reason) + '</span>' +
+      card.innerHTML = renderAreaPreview(base, s.geometry) +
+        '<strong>' + escapeText(s.label) + '</strong><span>' + escapeText(s.reason) + '</span>' +
         (s.warnings && s.warnings.length ? '<span>' + escapeText(s.warnings[0]) + '</span>' : "");
       card.addEventListener("click", () => {
         suggestionBox.querySelectorAll(".evt-area-suggestion").forEach(x => x.classList.remove("is-selected"));
         card.classList.add("is-selected");
         areaState.selectedSuggestion = s;
         setArea(s.center, s.geometry);
+        refreshAnnouncementDraft(true);
       });
       suggestionBox.appendChild(card);
     });
   }
+  function setAiProgress(active, button){
+    if (areaState.aiProgressTimer) {
+      clearInterval(areaState.aiProgressTimer);
+      areaState.aiProgressTimer = null;
+    }
+    if (!button) return;
+    button.disabled = Boolean(active);
+    if (!active) return;
+    const steps = ["周辺の公園・歩道を見ています。", "候補の形を整えています。", "安全寄せ・自然寄せを比較しています。"];
+    let idx = 0;
+    setAreaStatus(steps[idx]);
+    areaState.aiProgressTimer = setInterval(() => {
+      idx = Math.min(idx + 1, steps.length - 1);
+      setAreaStatus(steps[idx]);
+    }, 1600);
+  }
   form.querySelector("[data-evt-area-suggest]")?.addEventListener("click", async () => {
+    const btn = form.querySelector("[data-evt-area-suggest]");
     const lat = areaState.center?.lat ?? Number(form.querySelector('[name="location_lat"]')?.value);
     const lng = areaState.center?.lng ?? Number(form.querySelector('[name="location_lng"]')?.value);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       setAreaStatus("先に現在地か地図上の場所を選んでください。");
       return;
     }
-    setAreaStatus("AIが範囲候補を作っています。");
+    areaState.aiBaseline = areaSnapshot();
+    setAiProgress(true, btn);
     try {
       const r = await fetch("/api/v1/observation-events/area-suggestions", {
         method: "POST", credentials: "include",
@@ -517,22 +785,35 @@ export function eventCreateScript(): string {
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
       renderSuggestions(data.suggestions || []);
+      setAiProgress(false, btn);
       setAreaStatus(data.provider === "gemini" ? "AI候補を3つ作りました。" : "AIが混雑中のため、安全な補正候補を作りました。");
     } catch (err) {
+      setAiProgress(false, btn);
       setAreaStatus("候補作成に失敗しました。手動範囲のまま作成できます。");
     }
   });
-  function selectField(field){
+  function applyFieldSummary(field){
     if (!field) return;
     if (fieldIdInput) fieldIdInput.value = field.fieldId || field.field_id || "";
     if (fieldSummary) fieldSummary.style.display = "";
     if (fieldNameEl) fieldNameEl.textContent = field.name;
     const meta = [
       field.prefecture, field.city,
-      field.areaHa ? field.areaHa.toFixed(2) + " ha" : null,
+      field.areaHa ? Number(field.areaHa).toFixed(2) + " ha" : null,
       field.source && field.source !== "user_defined" ? field.source : null,
     ].filter(Boolean).join(" • ");
     if (fieldMetaEl) fieldMetaEl.textContent = meta;
+  }
+  function suggestTitleFromPlace(placeName){
+    const titleI = form.querySelector('[name="title"]');
+    if (!titleI || String(titleI.value || "").trim()) return;
+    const base = String(placeName || "").trim();
+    if (base) titleI.value = base + " 観察会";
+  }
+  function selectField(field){
+    if (!field) return;
+    applyFieldSummary(field);
+    suggestTitleFromPlace(field.name);
     const latI = form.querySelector('[name="location_lat"]');
     const lngI = form.querySelector('[name="location_lng"]');
     const rI = form.querySelector('[name="location_radius_m"]');
@@ -541,14 +822,24 @@ export function eventCreateScript(): string {
     if (rI) rI.value = field.radiusM ?? field.radius_m ?? 1000;
     areaState.center = { lat: Number(field.lat), lng: Number(field.lng) };
     areaState.polygon = field.polygon || circlePolygon(Number(field.lat), Number(field.lng), field.radiusM ?? field.radius_m ?? 1000);
+    areaState.selectedFieldId = String(field.fieldId || field.field_id || "");
+    areaState.selectedField = field;
+    areaState.selectedSuggestion = { source: field.source || "registered_field", id: areaState.selectedFieldId, warnings: [] };
     syncAreaLayer();
+    syncSelectedFieldLayer();
+    refreshAnnouncementDraft(false);
     if (areaState.map && Number.isFinite(areaState.center.lat) && Number.isFinite(areaState.center.lng)) {
       areaState.map.flyTo({ center: [areaState.center.lng, areaState.center.lat], zoom: 16 });
+    } else {
+      areaState.pendingFocus = { center: areaState.center, zoom: 16 };
     }
   }
   function clearField(){
     if (fieldIdInput) fieldIdInput.value = "";
     if (fieldSummary) fieldSummary.style.display = "none";
+    areaState.selectedFieldId = null;
+    areaState.selectedField = null;
+    syncSelectedFieldLayer();
   }
   form.querySelector("[data-evt-field-clear]")?.addEventListener("click", clearField);
 
@@ -577,6 +868,42 @@ export function eventCreateScript(): string {
       container.appendChild(card);
     });
   }
+
+  function renderSearchResults(fields){
+    const box = form.querySelector("[data-evt-field-search-results]");
+    if (!box) return;
+    box.innerHTML = "";
+    box.style.display = fields && fields.length ? "" : "none";
+    renderFieldList(box, fields || []);
+  }
+  async function runFieldSearch(){
+    const input = form.querySelector("[data-evt-field-search]");
+    const q = String(input?.value || "").trim();
+    const box = form.querySelector("[data-evt-field-search-results]");
+    if (!q) {
+      if (box) {
+        box.innerHTML = "";
+        box.style.display = "none";
+      }
+      return;
+    }
+    if (box) {
+      box.style.display = "";
+      box.innerHTML = '<p class="evt-lead">検索中...</p>';
+    }
+    try {
+      const r = await fetch("/api/v1/fields?q=" + encodeURIComponent(q) + "&limit=24", { credentials: "include" });
+      const data = r.ok ? await r.json() : null;
+      renderSearchResults(data?.fields || []);
+    } catch (_) {
+      if (box) box.innerHTML = '<p class="evt-lead">検索できませんでした。</p>';
+    }
+  }
+  form.querySelector("[data-evt-field-search-run]")?.addEventListener("click", runFieldSearch);
+  form.querySelector("[data-evt-field-search]")?.addEventListener("input", () => {
+    clearTimeout(areaState.searchTimer);
+    areaState.searchTimer = setTimeout(runFieldSearch, 260);
+  });
 
   // タブ切替
   form.querySelectorAll("[data-field-tab]").forEach(btn => {
@@ -696,6 +1023,7 @@ export function eventCreateScript(): string {
       const lng = pos.coords.longitude;
       const radius = Number(form.querySelector('[name="location_radius_m"]')?.value || 300);
       setArea({ lat, lng }, circlePolygon(lat, lng, radius));
+      refreshAnnouncementDraft(false);
       if (areaState.map) areaState.map.flyTo({ center: [lng, lat], zoom: 17 });
       if (window.evtFanfare) window.evtFanfare("位置を取得した");
     }, (err) => {
@@ -796,8 +1124,55 @@ export function eventCreateScript(): string {
     return out;
   }
 
+  function selectedPlaceName(){
+    return String(areaState.selectedField?.name || form.querySelector('[name="new_field_name"]')?.value || form.querySelector('[name="title"]')?.value || "この場所").trim();
+  }
+  function formatStartForAnnouncement(){
+    const raw = String(form.querySelector('[name="started_at"]')?.value || "");
+    if (!raw) return "日時は調整中";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+    return (d.getMonth() + 1) + "月" + d.getDate() + "日 " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  function buildAnnouncementDraft(){
+    const title = String(form.querySelector('[name="title"]')?.value || "").trim();
+    const place = selectedPlaceName();
+    const species = String(form.querySelector('[name="target_species"]')?.value || "").trim();
+    const mode = form.querySelector('[name="primary_mode"]')?.value || "discovery";
+    const suggestionLabel = areaState.selectedSuggestion?.id === "safe_walk" ? "歩きやすい範囲" : areaState.selectedSuggestion?.id === "nature_rich" ? "自然観察を広げる範囲" : areaState.selectedSuggestion?.id === "facility" ? "集合しやすい範囲" : "今回歩く範囲";
+    const safety = (areaState.selectedSuggestion?.warnings || [])[0] || "立入条件と道路横断は現地で確認しながら進めます。";
+    const modeLine = mode === "bingo" ? "見つけたものをみんなで集めるビンゴ形式です。" : mode === "absence_confirm" ? "見つからないことも大事な記録として残します。" : mode === "effort_maximize" ? "歩いた範囲と見た時間をそろえて、次回と比べやすい記録にします。" : mode === "ai_quest" ? "AIの問いかけを使いながら、見落としやすい環境の手がかりを探します。" : "初参加でも歩きながら見つけやすい観察会です。";
+    const heading = title || place + " 観察会";
+    return [
+      heading,
+      "",
+      formatStartForAnnouncement() + "から、" + place + "で観察会を開きます。",
+      suggestionLabel + "を地図で共有し、写真・場所・気づきをまとめて記録します。",
+      species ? "見たい生きもの: " + species : "見たい生きものは当日、現地の環境を見ながら決めます。",
+      modeLine,
+      safety,
+      "",
+      "持ち物: 歩きやすい靴、飲み物、スマートフォン。"
+    ].join("\\n");
+  }
+  function refreshAnnouncementDraft(force){
+    const textarea = form.querySelector("[data-evt-announcement]");
+    if (!textarea) return;
+    const current = String(textarea.value || "");
+    if (!force && current && current !== areaState.announcementAutoDraft) return;
+    const draft = buildAnnouncementDraft();
+    textarea.value = draft;
+    areaState.announcementAutoDraft = draft;
+  }
+  form.querySelector("[data-evt-announcement-generate]")?.addEventListener("click", () => refreshAnnouncementDraft(true));
+  ["title", "started_at", "target_species", "primary_mode"].forEach(name => {
+    form.querySelector('[name="' + name + '"]')?.addEventListener("input", () => refreshAnnouncementDraft(false));
+    form.querySelector('[name="' + name + '"]')?.addEventListener("change", () => refreshAnnouncementDraft(false));
+  });
+
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
+    refreshAnnouncementDraft(false);
     const fd = new FormData(form);
     const startedAtLocal = String(fd.get("started_at") || "");
     const startedAt = startedAtLocal ? new Date(startedAtLocal).toISOString() : new Date().toISOString();
@@ -819,6 +1194,7 @@ export function eventCreateScript(): string {
 
     const templateFrom = pageParams.get("template_from");
     const suggestion = areaState.selectedSuggestion;
+    const announcementText = String(form.querySelector("[data-evt-announcement]")?.value || fd.get("announcement_text") || "").trim();
 
     const payload = {
       title: fd.get("title"),
@@ -838,6 +1214,8 @@ export function eventCreateScript(): string {
         area_plan_variant: suggestion?.id || null,
         area_plan_warnings: suggestion?.warnings || [],
         field_resolution_action: fieldResolution.action,
+        announcement_text: announcementText,
+        announcement_generated: announcementText === areaState.announcementAutoDraft,
       },
     };
     const r = await fetch("/api/v1/observation-events", {
