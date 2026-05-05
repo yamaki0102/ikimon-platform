@@ -88,6 +88,8 @@
     "rebuild:guide-environment-mesh": "tsx src/scripts/rebuildGuideEnvironmentMesh.ts"
   },
   "dependencies": {
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^10.3.0",
     "@google/genai": "^1.50.1",
     "@mediapipe/tasks-vision": "0.10.35",
     "bcryptjs": "^3.0.3",

@@ -1027,7 +1027,15 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
 
   // /contact フォーム POST。認証不要、Gmail SMTP relay (msmtp) 経由で通知送信。
   // 原文は contact_submissions テーブルに保存される（メール到達と独立に原本確保）。
-  app.post<{ Body: ContactSubmitInput }>("/api/v1/contact/submit", async (request, reply) => {
+  // 公開 endpoint のため @fastify/rate-limit で IP 単位 5 req/hour 制限（FINDING-004）。
+  app.post<{ Body: ContactSubmitInput }>("/api/v1/contact/submit", {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 hour",
+      },
+    },
+  }, async (request, reply) => {
     try {
       const body = request.body ?? ({} as ContactSubmitInput);
       const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
