@@ -313,10 +313,15 @@ export function eventCreateScript(): string {
     if (lngI && center) lngI.value = Number(center.lng).toFixed(6);
     if (rI && radius) rI.value = String(Math.round(radius));
   }
+  function syncRegisteredAreaMode(){
+    form.querySelector(".evt-area-planner")?.classList.toggle("is-registered-area-selected", Boolean(areaState.selectedFieldId));
+  }
   function syncAreaLayer(){
     if (areaPolygonInput) areaPolygonInput.value = areaState.polygon ? JSON.stringify(areaState.polygon) : "";
+    syncRegisteredAreaMode();
     if (!areaState.map || !window.maplibregl) return;
-    const data = { type: "FeatureCollection", features: areaState.polygon ? [{ type: "Feature", properties: {}, geometry: areaState.polygon }] : [] };
+    const showManualArea = !areaState.selectedFieldId;
+    const data = { type: "FeatureCollection", features: showManualArea && areaState.polygon ? [{ type: "Feature", properties: {}, geometry: areaState.polygon }] : [] };
     const src = areaState.map.getSource("evt-area-current");
     if (src) src.setData(data);
     if (areaState.center) {
@@ -327,12 +332,32 @@ export function eventCreateScript(): string {
       }
     }
   }
+  function selectedFieldFeatureCollection(){
+    const field = areaState.selectedField;
+    const geometry = validDraftPolygon(field && field.polygon) ? field.polygon : null;
+    const fieldId = String(field?.fieldId || field?.field_id || areaState.selectedFieldId || "");
+    return {
+      type: "FeatureCollection",
+      features: geometry && fieldId ? [{
+        type: "Feature",
+        properties: { fieldId, name: String(field?.name || "") },
+        geometry,
+      }] : [],
+    };
+  }
+  function syncSelectedFieldDisplayLayer(){
+    if (!areaState.map) return;
+    const src = areaState.map.getSource("evt-field-current-selection");
+    if (src) src.setData(selectedFieldFeatureCollection());
+  }
   function syncSelectedFieldLayer(){
+    syncRegisteredAreaMode();
     if (!areaState.map) return;
     const id = areaState.selectedFieldId || "__none__";
     if (areaState.map.getLayer("evt-field-selected")) {
-      areaState.map.setFilter("evt-field-selected", ["==", ["get", "fieldId"], id]);
+      areaState.map.setFilter("evt-field-selected", ["all", ["==", ["get", "fieldId"], id], ["==", ["get", "hasPolygon"], true]]);
     }
+    syncSelectedFieldDisplayLayer();
   }
   function setArea(center, polygon, opts){
     if (!opts || opts.push !== false) pushAreaHistory();
@@ -382,6 +407,7 @@ export function eventCreateScript(): string {
       type: "FeatureCollection",
       features: (fields || []).map(field => {
         const geometry = fieldGeometry(field);
+        const hasPolygon = Boolean(validDraftPolygon(field && field.polygon));
         const fieldId = String(field.fieldId || field.field_id || "");
         if (!geometry || !fieldId) return null;
         return {
@@ -392,6 +418,7 @@ export function eventCreateScript(): string {
             source: String(field.adminLevel || field.source || "user_defined"),
             areaHa: Number(field.areaHa ?? field.area_ha ?? 0) || 0,
             radiusM: Number(field.radiusM ?? field.radius_m ?? 0) || 0,
+            hasPolygon,
           },
           geometry,
         };
@@ -567,7 +594,10 @@ export function eventCreateScript(): string {
         areaState.map.addLayer({ id: "evt-field-fill", type: "fill", source: "evt-registered-fields", paint: { "fill-color": ["match", ["get", "source"], "user_defined", "#22c55e", "osm_park", "#38bdf8", "admin_municipality", "#94a3b8", "admin_prefecture", "#cbd5e1", "#14b8a6"], "fill-opacity": 0.18 } });
         areaState.map.addLayer({ id: "evt-field-line", type: "line", source: "evt-registered-fields", paint: { "line-color": ["match", ["get", "source"], "user_defined", "#16a34a", "osm_park", "#0284c7", "admin_municipality", "#64748b", "admin_prefecture", "#94a3b8", "#0f766e"], "line-width": 1.4, "line-opacity": 0.88 } });
         areaState.map.addLayer({ id: "evt-field-label", type: "symbol", source: "evt-registered-fields", minzoom: 14, layout: { "text-field": ["get", "name"], "text-size": 12, "text-font": ["Open Sans Regular"], "text-max-width": 9, "text-offset": [0, 0.8], "text-anchor": "top" }, paint: { "text-color": "#0f172a", "text-halo-color": "rgba(255,255,255,.92)", "text-halo-width": 1.4 } });
-        areaState.map.addLayer({ id: "evt-field-selected", type: "line", source: "evt-registered-fields", filter: ["==", ["get", "fieldId"], "__none__"], paint: { "line-color": "#0f766e", "line-width": 4 } });
+        areaState.map.addLayer({ id: "evt-field-selected", type: "line", source: "evt-registered-fields", filter: ["all", ["==", ["get", "fieldId"], "__none__"], ["==", ["get", "hasPolygon"], true]], paint: { "line-color": "#0f766e", "line-width": 4 } });
+        areaState.map.addSource("evt-field-current-selection", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        areaState.map.addLayer({ id: "evt-selected-field-fill", type: "fill", source: "evt-field-current-selection", paint: { "fill-color": "#10b981", "fill-opacity": 0.24 } });
+        areaState.map.addLayer({ id: "evt-selected-field-line", type: "line", source: "evt-field-current-selection", paint: { "line-color": "#0f766e", "line-width": 4 } });
         areaState.map.addSource("evt-area-current", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         areaState.map.addLayer({ id: "evt-area-fill", type: "fill", source: "evt-area-current", paint: { "fill-color": "#10b981", "fill-opacity": 0.24 } });
         areaState.map.addLayer({ id: "evt-area-line", type: "line", source: "evt-area-current", paint: { "line-color": "#059669", "line-width": 3 } });
@@ -839,6 +869,7 @@ export function eventCreateScript(): string {
     if (fieldSummary) fieldSummary.style.display = "none";
     areaState.selectedFieldId = null;
     areaState.selectedField = null;
+    syncAreaLayer();
     syncSelectedFieldLayer();
   }
   form.querySelector("[data-evt-field-clear]")?.addEventListener("click", clearField);
