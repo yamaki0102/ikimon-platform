@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly OSM park and green-area import for ikimon platform_v2
+Requires=ikimon-v2-osm-area-import.service
+
+[Timer]
+# 04:20 JST, after normal deploy/smoke windows and outside peak map usage.
+OnCalendar=*-*-* 04:20:00 Asia/Tokyo
+Persistent=true
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

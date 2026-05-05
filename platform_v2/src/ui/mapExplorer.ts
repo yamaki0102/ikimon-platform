@@ -2032,6 +2032,123 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
     saveMapState();
   }
+  function isTransientAreaFeature(feature) {
+    var props = (feature && feature.properties) || {};
+    var fieldId = String(props.field_id || '');
+    return props.transient === true || props.transient === 'true' || fieldId.indexOf('osm-live:') === 0;
+  }
+  function normalizeAreaGeometryForDraft(geometry) {
+    if (!geometry || !geometry.type || !geometry.coordinates) return null;
+    if (geometry.type === 'Polygon') return geometry;
+    if (geometry.type === 'MultiPolygon' && Array.isArray(geometry.coordinates) && geometry.coordinates[0]) {
+      return { type: 'Polygon', coordinates: geometry.coordinates[0] };
+    }
+    return null;
+  }
+  function areaFeatureCenter(feature, fallbackLat, fallbackLng) {
+    var props = (feature && feature.properties) || {};
+    var center = Array.isArray(props.center) ? props.center : null;
+    if (center && Number.isFinite(Number(center[0])) && Number.isFinite(Number(center[1]))) {
+      return { lat: Number(center[1]), lng: Number(center[0]) };
+    }
+    if (Number.isFinite(fallbackLat) && Number.isFinite(fallbackLng)) {
+      return { lat: fallbackLat, lng: fallbackLng };
+    }
+    var polygon = normalizeAreaGeometryForDraft(feature && feature.geometry);
+    var ring = polygon && polygon.coordinates && polygon.coordinates[0] ? polygon.coordinates[0] : [];
+    if (!ring.length) return null;
+    var lng = 0, lat = 0, count = 0;
+    ring.forEach(function (p) {
+      if (!Array.isArray(p) || p.length < 2) return;
+      var x = Number(p[0]), y = Number(p[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      lng += x; lat += y; count += 1;
+    });
+    return count ? { lat: lat / count, lng: lng / count } : null;
+  }
+  function appendQueryParams(base, params) {
+    var parts = [];
+    Object.keys(params).forEach(function (key) {
+      var value = params[key];
+      if (value == null || value === '') return;
+      parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
+    });
+    if (!parts.length) return base;
+    return base + (base.indexOf('?') >= 0 ? '&' : '?') + parts.join('&');
+  }
+  function buildTransientAreaEventHref(feature, fallbackLat, fallbackLng) {
+    var props = (feature && feature.properties) || {};
+    var center = areaFeatureCenter(feature, fallbackLat, fallbackLng);
+    var name = String(props.name || 'OSMの公園・緑地');
+    var params = center
+      ? { lat: center.lat.toFixed(6), lng: center.lng.toFixed(6), name: name }
+      : { name: name };
+    var polygon = normalizeAreaGeometryForDraft(feature && feature.geometry);
+    if (center && polygon && window.sessionStorage) {
+      try {
+        var draftId = 'area-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+        window.sessionStorage.setItem('ikimon:event-area-draft:' + draftId, JSON.stringify({
+          name: name,
+          center: center,
+          polygon: polygon,
+          source: 'osm_live_area',
+          osm: {
+            entityKey: props.entity_key || '',
+            osmType: props.osm_type || '',
+            osmId: props.osm_id || null,
+          },
+        }));
+        params.area_draft = draftId;
+      } catch (_) {}
+    }
+    return appendQueryParams(EVENTS_NEW_BASE, params);
+  }
+  function openTransientAreaSheet(feature, lat, lng) {
+    if (!sheetEl || !sheetInnerEl || !feature) return;
+    var props = feature.properties || {};
+    var center = areaFeatureCenter(feature, lat, lng);
+    if (!center) return;
+    state.selectedOccurrenceId = null;
+    state.selectedCellId = null;
+    state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || '') };
+    if (state.map && state.map.getLayer('area-polygon-selected')) {
+      state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], String(props.field_id || '__none__')]);
+    }
+    var ctaHref = buildTransientAreaEventHref(feature, center.lat, center.lng);
+    var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
+    var officialUrl = String(props.official_url || '');
+    sheetInnerEl.innerHTML =
+      '<div class="me-area-sheet-header">' +
+        '<div class="me-area-sheet-title">' +
+          '<span class="me-area-sheet-source">' + escapeHtml(sourceLabel) + '</span>' +
+          '<strong>' + escapeHtml(String(props.name || 'OSMの公園・緑地')) + '</strong>' +
+          '<span class="me-area-sheet-loc">' + escapeHtml(center.lat.toFixed(4) + ', ' + center.lng.toFixed(4)) + '</span>' +
+        '</div>' +
+        (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '') +
+      '</div>' +
+      '<div class="me-area-sheet-cta">' +
+        '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">' +
+          '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>' +
+          'この場所で観察会を開く' +
+        '</a>' +
+        '<span class="me-area-sheet-cta-hint">OSM の境界を開催エリア案として読み込み、作成時にフィールドDBへ保存</span>' +
+      '</div>' +
+      '<div class="me-area-sheet-timeline is-empty">このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。</div>';
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.add('is-open');
+    sheetEl.classList.add('me-bottom-sheet--area');
+    renderSidePanels();
+    saveMapState();
+  }
+  function openAreaFeatureSheet(feature, lat, lng) {
+    if (!feature || !feature.properties) return;
+    if (isTransientAreaFeature(feature)) {
+      openTransientAreaSheet(feature, lat, lng);
+      return;
+    }
+    var fieldId = feature.properties.field_id || '';
+    if (fieldId) openAreaSheet(fieldId, lat, lng);
+  }
   function openAreaSheet(fieldId, lat, lng) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!fieldId) return;
@@ -2325,11 +2442,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
                 pickArea = area;
               }
             }
-            var fid = pick.properties && pick.properties.field_id;
-            if (fid) {
-              openAreaSheet(fid, e.lngLat.lat, e.lngLat.lng);
-              return;
-            }
+            openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
+            return;
           }
         }
         if (!e.features || !e.features[0]) return;
@@ -2415,6 +2529,26 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         },
       });
       map.on('click', 'frontier-fill', function (e) {
+        // Frontier cells can cover small park polygons. If the click also hits
+        // a registered area, open the concrete area so the event creator keeps
+        // its field_id instead of falling back to a generic coordinate.
+        if (state.map && state.map.getLayer('area-polygon-fill')) {
+          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
+          if (areaHits && areaHits.length > 0) {
+            var pick = areaHits[0];
+            var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
+            for (var i = 1; i < areaHits.length; i += 1) {
+              var f = areaHits[i];
+              var area = (f.properties && Number(f.properties.area_ha));
+              if (Number.isFinite(area) && area < pickArea) {
+                pick = f;
+                pickArea = area;
+              }
+            }
+            openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
+            return;
+          }
+        }
         if (!e.features || !e.features[0]) return;
         var ring = e.features[0].geometry && e.features[0].geometry.coordinates ? e.features[0].geometry.coordinates[0] : null;
         if (!ring || !ring[0] || !ring[2]) return;
@@ -2514,10 +2648,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           pickArea = area;
         }
       }
-      var props = pick.properties || {};
-      var fieldId = props.field_id || '';
-      if (!fieldId) return;
-      openAreaSheet(fieldId, e.lngLat.lat, e.lngLat.lng);
+      openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
     });
     map.on('mouseenter', 'area-polygon-fill', function () { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'area-polygon-fill', function () { map.getCanvas().style.cursor = ''; });

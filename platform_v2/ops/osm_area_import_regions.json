@@ -1,0 +1,23 @@
+{
+  "schema_version": "osm-area-import-regions-v1",
+  "regions": [
+    { "region_key": "JP-13-Tokyo", "bbox": [35.50, 139.45, 35.90, 140.00], "limit": 5000 },
+    { "region_key": "JP-14-Yokohama-Kawasaki", "bbox": [35.25, 139.45, 35.65, 139.85], "limit": 5000 },
+    { "region_key": "JP-23-Nagoya", "bbox": [35.00, 136.75, 35.35, 137.15], "limit": 5000 },
+    { "region_key": "JP-22-Hamamatsu", "bbox": [34.60, 137.55, 34.85, 137.95], "limit": 5000 },
+    { "region_key": "JP-27-Osaka", "bbox": [34.45, 135.25, 34.85, 135.75], "limit": 5000 },
+    { "region_key": "JP-26-Kyoto", "bbox": [34.85, 135.55, 35.15, 135.95], "limit": 5000 },
+    { "region_key": "JP-28-Kobe", "bbox": [34.55, 135.00, 34.85, 135.35], "limit": 5000 },
+    { "region_key": "JP-40-Fukuoka", "bbox": [33.45, 130.25, 33.75, 130.60], "limit": 5000 },
+    { "region_key": "JP-01-Sapporo", "bbox": [42.90, 141.20, 43.20, 141.55], "limit": 5000 },
+    { "region_key": "JP-04-Sendai", "bbox": [38.15, 140.75, 38.40, 141.05], "limit": 5000 },
+    { "region_key": "US-NY-NewYork", "bbox": [40.45, -74.30, 40.95, -73.65], "limit": 7000 },
+    { "region_key": "US-CA-SanFranciscoBay", "bbox": [37.25, -122.60, 38.05, -121.75], "limit": 7000 },
+    { "region_key": "GB-LND-London", "bbox": [51.25, -0.55, 51.75, 0.30], "limit": 7000 },
+    { "region_key": "FR-IDF-Paris", "bbox": [48.65, 2.10, 49.05, 2.65], "limit": 7000 },
+    { "region_key": "DE-BE-Berlin", "bbox": [52.30, 13.05, 52.70, 13.75], "limit": 7000 },
+    { "region_key": "SG-Singapore", "bbox": [1.20, 103.55, 1.50, 104.10], "limit": 7000 },
+    { "region_key": "AU-NSW-Sydney", "bbox": [-34.10, 150.70, -33.60, 151.35], "limit": 7000 },
+    { "region_key": "BR-SP-SaoPaulo", "bbox": [-24.05, -46.90, -23.30, -46.35], "limit": 7000 }
+  ]
+}
