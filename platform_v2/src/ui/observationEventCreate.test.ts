@@ -34,6 +34,58 @@ test("event create script hydrates MapLibre with CDN fallback and field_id prese
   assert.match(script, /get\("field_id"\)/);
 });
 
+test("event create map can load and select registered fields", () => {
+  const script = eventCreateScript();
+
+  assert.match(script, /evt-registered-fields/);
+  assert.match(script, /evt-field-selected/);
+  assert.match(script, /evt-field-label/);
+  assert.match(script, /evt-field-map-label/);
+  assert.match(script, /\/api\/v1\/fields\?nearby=/);
+  assert.match(script, /selectFieldFromMap/);
+  assert.match(script, /queryRenderedFeatures\(point, \{ layers: \["evt-field-fill"\] \}/);
+});
+
+test("event create form unifies registered field search with map selection", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+
+  assert.match(html, /data-evt-field-search/);
+  assert.match(html, /data-evt-field-search-results/);
+  assert.match(script, /runFieldSearch/);
+  assert.match(script, /\/api\/v1\/fields\?q=/);
+  assert.match(script, /renderSearchResults/);
+});
+
+test("event create script keeps map drafts before MapLibre initialization", () => {
+  const script = eventCreateScript();
+
+  assert.match(script, /applyAreaDraftFromParams\(\);\s*initAreaMap\(\);/s);
+  assert.match(script, /pendingFocus/);
+  assert.match(script, /focusPendingArea/);
+});
+
+test("event create AI suggestions expose baseline undo and shape previews", () => {
+  const script = eventCreateScript();
+
+  assert.match(script, /aiBaseline/);
+  assert.match(script, /AIで整える前の範囲に戻しました/);
+  assert.match(script, /evt-area-preview/);
+  assert.match(script, /setAiProgress/);
+});
+
+test("event create flow generates announcement copy from selected place and AI area", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+
+  assert.match(html, /data-evt-announcement/);
+  assert.match(html, /data-evt-announcement-generate/);
+  assert.match(script, /buildAnnouncementDraft/);
+  assert.match(script, /refreshAnnouncementDraft/);
+  assert.match(script, /announcement_text/);
+  assert.match(script, /suggestTitleFromPlace/);
+});
+
 test("event area map keeps a fixed height after MapLibre CSS loads", () => {
   assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-map-shell\s*\{[^}]*height: 360px/s);
   assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-map-shell > \.evt-area-map\.maplibregl-map\s*\{[^}]*height: 100%/s);

@@ -571,7 +571,8 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-checkin-form label { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
 .evt-checkin-form input,
-.evt-checkin-form select {
+.evt-checkin-form select,
+.evt-checkin-form textarea {
   min-height: 48px; padding: 10px 14px;
   border-radius: 14px;
   border: 1px solid var(--evt-line);
@@ -579,8 +580,13 @@ export const OBSERVATION_EVENT_STYLES = `
   font-size: 16px;
   transition: border-color var(--evt-motion-fast), box-shadow var(--evt-motion-fast);
 }
+.evt-checkin-form textarea {
+  resize: vertical;
+  line-height: 1.65;
+}
 .evt-checkin-form input:focus,
-.evt-checkin-form select:focus {
+.evt-checkin-form select:focus,
+.evt-checkin-form textarea:focus {
   outline: 0;
   border-color: var(--evt-accent-discovery);
   box-shadow: 0 0 0 4px rgba(16,185,129,.18);
@@ -628,6 +634,38 @@ export const OBSERVATION_EVENT_STYLES = `
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+}
+.evt-field-search {
+  display: grid;
+  gap: 8px;
+}
+.evt-field-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.evt-field-search-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+.evt-field-map-label {
+  max-width: 150px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,118,110,.28);
+  background: rgba(255,255,255,.94);
+  color: #0f172a;
+  box-shadow: 0 6px 14px rgba(15,23,42,.14);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 .evt-area-map-shell {
   position: relative;
@@ -689,9 +727,20 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-area-suggestion {
   cursor: pointer;
 }
+.evt-area-toolbar .evt-btn[disabled] {
+  opacity: .66;
+  cursor: progress;
+}
 .evt-area-suggestion.is-selected {
   border-color: var(--evt-accent-discovery);
   box-shadow: 0 0 0 3px rgba(16,185,129,.18);
+}
+.evt-area-preview {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  max-height: 120px;
+  border-radius: 10px;
+  display: block;
 }
 .evt-area-suggestion strong,
 .evt-area-conflict strong {
@@ -709,11 +758,20 @@ export const OBSERVATION_EVENT_STYLES = `
   flex-wrap: wrap;
   gap: 6px;
 }
+.evt-announcement-flow {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(14,165,233,.18);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(240,249,255,.58);
+}
 
 @media (max-width: 720px) {
   .evt-area-head { grid-template-columns: 1fr; }
   .evt-area-map-shell { height: 320px; min-height: 320px; }
   .evt-area-toolbar .evt-btn { flex: 1 1 auto; }
+  .evt-field-search-row { grid-template-columns: 1fr; }
 }
 
 /* === コネクションステータス（オフラインバッジ） === */

@@ -19,6 +19,17 @@ test("fallback area planner always returns the three required variants", () => {
   assert.equal(suggestions.every((s) => s.geometry.type === "Polygon"), true);
 });
 
+test("fallback area planner keeps candidates covering the original area", () => {
+  const suggestions = fallbackAreaPlanSuggestions(input);
+  const facility = suggestions.find((s) => s.id === "facility");
+  const safeWalk = suggestions.find((s) => s.id === "safe_walk");
+
+  assert.ok(facility);
+  assert.ok(safeWalk);
+  assert.ok(facility.radiusM >= 240);
+  assert.ok(safeWalk.radiusM >= 180);
+});
+
 test("LLM normalization preserves required variants and falls back per invalid item", () => {
   const raw = {
     suggestions: [
@@ -43,6 +54,39 @@ test("LLM normalization preserves required variants and falls back per invalid i
 test("LLM normalization parses fenced JSON", () => {
   const parsed = __test__.parseJsonObject("```json\n{\"suggestions\":[]}\n```");
   assert.deepEqual(parsed, { suggestions: [] });
+});
+
+test("LLM normalization rejects candidates that are tiny or far from the requested area", () => {
+  const raw = {
+    suggestions: [
+      {
+        id: "facility",
+        label: "遠すぎる候補",
+        reason: "中心から離れすぎている",
+        geometry: circleToPolygon(34.72, 137.74, 300),
+        warnings: [],
+      },
+      {
+        id: "safe_walk",
+        label: "小さすぎる候補",
+        reason: "集合場所だけに縮みすぎている",
+        geometry: circleToPolygon(34.6984, 137.7043, 40),
+        warnings: [],
+      },
+      {
+        id: "nature_rich",
+        label: "自然観察寄せ",
+        reason: "元の範囲を保って緑地側を見る",
+        geometry: circleToPolygon(34.6985, 137.7044, 360),
+        warnings: [],
+      },
+    ],
+  };
+
+  const suggestions = __test__.normalizeAreaPlanSuggestions(raw, input);
+  assert.equal(suggestions.find((s) => s.id === "facility")?.source, "fallback");
+  assert.equal(suggestions.find((s) => s.id === "safe_walk")?.source, "fallback");
+  assert.equal(suggestions.find((s) => s.id === "nature_rich")?.source, "gemini");
 });
 
 test("fallback area planner uses local OSM signals before LLM", () => {
