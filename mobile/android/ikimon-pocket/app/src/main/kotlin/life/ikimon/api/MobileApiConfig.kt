@@ -22,6 +22,22 @@ object MobileApiConfig {
         return (override ?: BuildConfig.FIELD_SESSION_API_BASE).trimEnd('/')
     }
 
+    fun currentRuntimeOrigin(context: Context): String {
+        val base = fieldSessionApiBase(context)
+        return base
+            .removeSuffix("/api/v1/mobile/field-sessions")
+            .trimEnd('/')
+            .ifBlank { "https://ikimon.life" }
+    }
+
+    fun mobileLoginUrl(context: Context): String {
+        return "${currentRuntimeOrigin(context)}/api/v1/mobile/auth/login"
+    }
+
+    fun appOAuthStartUrl(context: Context): String {
+        return "${currentRuntimeOrigin(context)}/app_oauth_start.php"
+    }
+
     fun applyDebugOverrideFromIntent(context: Context, rawBase: String?): Boolean {
         if (!BuildConfig.DEBUG) return false
         val normalized = rawBase?.trim()?.trimEnd('/') ?: return false

@@ -32,8 +32,6 @@ object AppAuthManager {
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_EMAIL = "email"
     private const val KEY_DETAIL = "detail"
-    private const val LOGIN_API = "https://ikimon.life/api/v1/mobile/auth/login"
-    private const val APP_OAUTH_START = "https://ikimon.life/app_oauth_start.php"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -73,7 +71,7 @@ object AppAuthManager {
 
         return try {
             val request = Request.Builder()
-                .url(LOGIN_API)
+                .url(MobileApiConfig.mobileLoginUrl(context))
                 .post(payload.toString().toRequestBody("application/json".toMediaType()))
                 .addHeader("User-Agent", "ikimon-fieldscan/$appVersion")
                 .build()
@@ -103,7 +101,7 @@ object AppAuthManager {
 
     fun launchGoogleLogin(context: Context, appVersion: String) {
         val installId = InstallIdentityManager.getOrCreateInstallId(context)
-        val uri = Uri.parse(APP_OAUTH_START).buildUpon()
+        val uri = Uri.parse(MobileApiConfig.appOAuthStartUrl(context)).buildUpon()
             .appendQueryParameter("provider", "google")
             .appendQueryParameter("install_id", installId)
             .appendQueryParameter("platform", "android")

@@ -10,6 +10,7 @@ import {
   safeRedirectPath,
 } from "../services/authSecurity.js";
 import {
+  buildAppOAuthStart,
   buildClearedOAuthStateCookie,
   buildOAuthStart,
   exchangeOAuthCode,
@@ -277,6 +278,16 @@ async function handleOAuthCallback(
     failureStage = "issue_session";
     const session = await issueUserSession(request, user.userId);
     reply.header("set-cookie", [session.cookie, buildClearedOAuthStateCookie()]);
+    if (state.appReturnUri) {
+      const appUrl = new URL(state.appReturnUri);
+      appUrl.searchParams.set("token", session.rawToken);
+      appUrl.searchParams.set("user_id", user.userId);
+      appUrl.searchParams.set("name", user.displayName);
+      if (user.email) appUrl.searchParams.set("email", user.email);
+      appUrl.searchParams.set("message", "ikimon.life アカウントでログインしました");
+      reply.code(303).redirect(appUrl.toString());
+      return;
+    }
     reply.code(303).redirect(withBasePath(requestBasePath(request), state.redirect));
   } catch (error) {
     request.log.warn({
@@ -396,6 +407,32 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       reply.code(303).redirect(start.authorizationUrl);
     } catch {
       reply.code(303).redirect(withBasePath(requestBasePath(request), "/login?error=oauth"));
+    }
+  });
+
+  app.get("/app_oauth_start.php", async (request, reply) => {
+    try {
+      const query = request.query as {
+        provider?: unknown;
+        return_uri?: unknown;
+        install_id?: unknown;
+        platform?: unknown;
+        app_version?: unknown;
+      };
+      const provider = providerFromParam(query.provider);
+      const start = buildAppOAuthStart(provider, request, {
+        returnUri: query.return_uri,
+        installId: query.install_id,
+        platform: query.platform,
+        appVersion: query.app_version,
+      });
+      reply.header("set-cookie", start.cookie);
+      reply.code(303).redirect(start.authorizationUrl);
+    } catch {
+      const errorUrl = new URL("ikimonfieldscan://auth/callback");
+      errorUrl.searchParams.set("error", "oauth");
+      errorUrl.searchParams.set("message", "ソーシャルログインに失敗した");
+      reply.code(303).redirect(errorUrl.toString());
     }
   });
 

@@ -337,6 +337,38 @@ test("www host redirects to apex before OAuth cookies are issued", async () => {
   }
 });
 
+test("app OAuth start redirects to Google with an Android callback state", async () => {
+  await withEnv(
+    {
+      GOOGLE_CLIENT_ID: "google-client",
+      GOOGLE_CLIENT_SECRET: "google-secret",
+      V2_OAUTH_STATE_SECRET: "state-secret",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/app_oauth_start.php?provider=google&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-1&platform=android&app_version=0.8.1",
+          headers: {
+            host: "staging.ikimon.life",
+            "x-forwarded-proto": "https",
+            accept: "text/html",
+          },
+        });
+
+        assert.equal(response.statusCode, 303);
+        assert.match(String(response.headers.location), /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
+        const location = new URL(String(response.headers.location));
+        assert.equal(location.searchParams.get("redirect_uri"), "https://staging.ikimon.life/oauth_callback.php?provider=google");
+        assert.match(String(response.headers["set-cookie"]), /^ikimon_oauth_state=/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
 test("failed OAuth callback clears OAuth state without logging out an existing session", async () => {
   const app = buildApp();
   try {
