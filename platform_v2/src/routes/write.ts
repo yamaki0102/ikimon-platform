@@ -315,7 +315,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         }
         sessionUserId = session.userId;
         await assertObservationOwnedByUser(request.params.id, session.userId);
-        return await uploadObservationPhoto({
+        const result = await uploadObservationPhoto({
           observationId: request.params.id,
           filename: request.body.filename,
           mimeType: request.body.mimeType,
@@ -323,6 +323,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           mediaRole: request.body.mediaRole,
           facePrivacy: request.body.facePrivacy,
         });
+        return {
+          ok: true,
+          ...result,
+        };
       } catch (error) {
         request.log.warn({
           err: error,
