@@ -233,8 +233,8 @@ export async function getMobileFieldSessionRecap(sessionId: string, userId?: str
        from mobile_field_scene_receipts r
        left join lateral jsonb_array_elements_text(r.payload->'areaResolutionSignals') as signals(signal) on true
       where r.session_id = $1
-        and ($2::uuid is null or exists (
-          select 1 from guide_records gr where gr.guide_record_id::text = r.guide_record_id::text and gr.user_id = $2::uuid
+        and ($2::text is null or exists (
+          select 1 from guide_records gr where gr.guide_record_id::text = r.guide_record_id::text and gr.user_id::text = $2::text
         ))`,
     [sessionId, userId ?? null],
   );
