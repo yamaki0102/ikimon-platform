@@ -1056,19 +1056,29 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       for (let index = 0; index < uploads.length; index += 1) {
         const upload = uploads[index];
         setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(uploads.length));
-        const photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', accept: 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            filename: upload.filename,
-            mimeType: upload.mimeType,
-            base64Data: upload.base64Data,
-            mediaRole: !photoDraftRetryHasUploadedPhoto && uploadedIndexes.length === 0 ? 'primary_subject' : 'context',
-            facePrivacy: upload.facePrivacy || null,
-          }),
-        });
-        const photoJson = await photoResponse.json().catch(() => ({}));
+        let photoResponse = null;
+        let photoJson = {};
+        try {
+          photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              filename: upload.filename,
+              mimeType: upload.mimeType,
+              base64Data: upload.base64Data,
+              mediaRole: !photoDraftRetryHasUploadedPhoto && uploadedIndexes.length === 0 ? 'primary_subject' : 'context',
+              facePrivacy: upload.facePrivacy || null,
+            }),
+          });
+          photoJson = await photoResponse.json().catch(() => ({}));
+        } catch (error) {
+          failedUploads.push({
+            index,
+            error: String(error && error.message || 'photo_upload_network_failed'),
+          });
+          continue;
+        }
         if (!photoResponse.ok || !photoJson.ok) {
           failedUploads.push({
             index,
@@ -1086,7 +1096,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const failed = failedUploads.length;
         const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + failedUploads[0].error : '';
         if (captureButton) captureButton.textContent = '失敗した' + String(failed) + '枚を再送';
-        setStatus(String(uploads.length) + '枚中' + String(saved) + '枚を保存しました。失敗した写真は残しています。もう一度押すと同じ観察に再送します。' + reason);
+        setStatus('観察本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じ観察に再送します。' + reason);
         return;
       }
       resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
@@ -1539,6 +1549,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         if (message === 'session_required') setStatus('投稿するにはログインが必要です。ログイン後にもう一度試してください。');
         else if (message === 'location_required') setStatus('直接投稿には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
+        else if (photoDraftRetryDetailId) setStatus('観察本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ観察に再送します。');
         else setStatus('投稿に失敗しました。通信状態を確認してもう一度試してください。');
       }
       return;
@@ -2138,7 +2149,7 @@ ${alternateLinks}
       max-width: none;
     }
     .md-hidden { display: none; }
-    .site-header { position: sticky; top: 0; z-index: 20; width: 100%; max-width: 100%; overflow-x: clip; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
+    .site-header { position: sticky; top: 0; z-index: 90; width: 100%; max-width: 100%; overflow: visible; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
     .site-header-inner { width: 100%; max-width: 1240px; min-width: 0; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; box-sizing: border-box; }
     .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; flex: 1 1 260px; }
     .brand-mark { width: 38px; height: 38px; flex: 0 0 38px; aspect-ratio: 1 / 1; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 8px 18px rgba(15,23,42,.07); background: white; }
@@ -2261,6 +2272,7 @@ ${alternateLinks}
     .site-mobile-menu[open] .site-mobile-menu-icon::after { opacity: 0; }
     .site-mobile-menu-panel {
       position: absolute;
+      z-index: 2;
       top: calc(100% + 9px);
       right: 0;
       width: min(340px, calc(100vw - 28px));

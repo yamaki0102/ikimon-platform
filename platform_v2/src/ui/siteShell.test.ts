@@ -34,6 +34,18 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
 });
 
+test("mobile menu panel can render outside the sticky header", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<p>body</p>",
+    lang: "ja",
+  });
+
+  assert.match(html, /\.site-header \{[^}]*z-index: 90;[^}]*overflow: visible;/);
+  assert.match(html, /\.site-mobile-menu-panel \{[^}]*position: absolute;[^}]*z-index: 2;[^}]*top: calc\(100% \+ 9px\);/);
+});
+
 test("site shell renders a global record footer nav outside the record flow", () => {
   const html = renderSiteDocument({
     basePath: "",
@@ -112,6 +124,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/photos\/upload/);
   assert.match(html, /photoJson\.error/);
   assert.match(html, /continue;/);
+  assert.match(html, /photo_upload_network_failed/);
+  assert.match(html, /観察本体は保存済みです。写真は/);
+  assert.match(html, /写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります/);
   assert.match(html, /同じ観察に再送/);
   assert.match(html, /失敗した' \+ String\(failed\) \+ '枚を再送/);
   assert.doesNotMatch(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);

@@ -95,6 +95,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record_submit_error/);
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);
+        assert.match(response.body, /const statusHeading = savedDetailId \? '記録本体は保存済みです。' : '送信に失敗しました。'/);
         assert.match(response.body, /data-record-success-cta="revisit_same_place"/);
         assert.match(response.body, /同じ場所でもう1件/);
         assert.match(response.body, /revisitObservationId=/);
