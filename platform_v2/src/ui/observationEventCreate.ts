@@ -374,6 +374,7 @@ export function eventCreateScript(): string {
       });
       areaState.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       areaState.map.on("load", () => {
+        el.closest(".evt-area-map-shell")?.classList.add("is-map-ready");
         areaState.map.addSource("evt-area-current", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         areaState.map.addLayer({ id: "evt-area-fill", type: "fill", source: "evt-area-current", paint: { "fill-color": "#10b981", "fill-opacity": 0.24 } });
         areaState.map.addLayer({ id: "evt-area-line", type: "line", source: "evt-area-current", paint: { "line-color": "#059669", "line-width": 3 } });

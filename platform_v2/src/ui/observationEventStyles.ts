@@ -631,6 +631,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-area-map-shell {
   position: relative;
+  height: 360px;
   min-height: 360px;
   border-radius: 16px;
   border: 1px solid var(--evt-line);
@@ -641,6 +642,12 @@ export const OBSERVATION_EVENT_STYLES = `
   position: absolute;
   inset: 0;
 }
+.evt-area-map-shell > .evt-area-map.maplibregl-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 .evt-area-map-fallback {
   position: absolute;
   inset: auto 10px 10px 10px;
@@ -650,6 +657,9 @@ export const OBSERVATION_EVENT_STYLES = `
   color: #fff;
   font-size: 12px;
   pointer-events: none;
+}
+.evt-area-map-shell.is-map-ready .evt-area-map-fallback {
+  display: none;
 }
 .evt-area-status {
   padding: 8px 10px;
@@ -702,7 +712,7 @@ export const OBSERVATION_EVENT_STYLES = `
 
 @media (max-width: 720px) {
   .evt-area-head { grid-template-columns: 1fr; }
-  .evt-area-map-shell { min-height: 320px; }
+  .evt-area-map-shell { height: 320px; min-height: 320px; }
   .evt-area-toolbar .evt-btn { flex: 1 1 auto; }
 }
 
