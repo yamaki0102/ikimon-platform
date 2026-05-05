@@ -1,5 +1,12 @@
 import type { CivicObservationContext } from "./civicNatureContext.js";
 import type { ObservationDataRights } from "./observationDataRights.js";
+import type {
+  FieldScanContext,
+  ObservationDataProductChain,
+  ObservationGovernanceContext,
+  ObservationMethodContext,
+  TrendAbundancePolicy,
+} from "./observationPackageDataChain.js";
 import type { WaterRecordExtension } from "./waterRecordExtension.js";
 
 export type ReadinessGate = {
@@ -9,11 +16,15 @@ export type ReadinessGate = {
 };
 
 export type MonitoringReadiness = {
-  schemaVersion: "monitoring_readiness/v1";
+  schemaVersion: "monitoring_readiness/v1" | "monitoring_readiness/v1.1";
   reviewReady: ReadinessGate;
   monitoringReady: ReadinessGate;
   reportReady: ReadinessGate;
   exportReady: ReadinessGate;
+  fieldScanReady?: ReadinessGate;
+  governanceReady?: ReadinessGate;
+  modelReady?: ReadinessGate;
+  indicatorReady?: ReadinessGate;
 };
 
 export type MonitoringReadinessInput = {
@@ -42,6 +53,11 @@ export type MonitoringReadinessInput = {
   civicContext: CivicObservationContext | null;
   dataRights: ObservationDataRights | null;
   waterRecord: WaterRecordExtension | null;
+  methodContext?: ObservationMethodContext | null;
+  fieldScanContext?: FieldScanContext | null;
+  governanceContext?: ObservationGovernanceContext | null;
+  dataProductChain?: ObservationDataProductChain | null;
+  trendAbundancePolicy?: TrendAbundancePolicy | null;
 };
 
 function gate(reasons: string[], blockers: string[]): ReadinessGate {
@@ -75,6 +91,10 @@ function highRisk(input: MonitoringReadinessInput): boolean {
     const lane = occurrence.riskLane ?? "normal";
     return lane !== "normal" && lane !== "unknown";
   }) || input.civicContext?.riskLane === "rare_sensitive";
+}
+
+function hasObject(value: Record<string, unknown> | null | undefined): boolean {
+  return Boolean(value && Object.keys(value).length > 0);
 }
 
 function buildReviewReady(input: MonitoringReadinessInput): ReadinessGate {
@@ -163,12 +183,107 @@ function buildExportReady(input: MonitoringReadinessInput): ReadinessGate {
   return gate(reasons, [...new Set(blockers)]);
 }
 
+function buildFieldScanReady(input: MonitoringReadinessInput): ReadinessGate {
+  const reasons: string[] = [];
+  const blockers: string[] = [];
+  const fieldScan = input.fieldScanContext;
+  if (!fieldScan) {
+    return gate(["not_applicable_non_field_scan_record"], []);
+  }
+  reasons.push(`field_scan_mode_${fieldScan.scanMode}`);
+  const hasAnchor = Boolean(
+    fieldScan.fixedPointId
+    || fieldScan.routeId
+    || fieldScan.areaId
+    || hasObject(fieldScan.footprintGeometry),
+  );
+  if (hasAnchor) reasons.push("has_scan_anchor_or_footprint");
+  else blockers.push("missing_scan_anchor_or_footprint");
+  if (input.methodContext?.siteTimeMethodEffortQuality.hasMethod || hasObject(fieldScan.methodPayload)) reasons.push("has_scan_method");
+  else blockers.push("missing_scan_method");
+  if (hasObject(fieldScan.qualityPayload) || input.evidenceAssets.length > 0) reasons.push("has_quality_evidence");
+  else blockers.push("missing_quality_evidence");
+  if (fieldScan.scanMode === "calibration_evidence") {
+    if (hasObject(fieldScan.calibrationEvidence)) reasons.push("has_calibration_evidence");
+    else blockers.push("missing_calibration_evidence");
+  }
+  return gate(reasons, [...new Set(blockers)]);
+}
+
+function buildGovernanceReady(input: MonitoringReadinessInput): ReadinessGate {
+  const reasons: string[] = [];
+  const blockers: string[] = [];
+  if (input.dataRights) reasons.push("has_consent_record");
+  else blockers.push("missing_consent_record");
+  if (input.civicContext?.publicPrecision) reasons.push(`public_precision_${input.civicContext.publicPrecision}`);
+  else blockers.push("missing_public_precision_policy_output");
+  if (input.governanceContext) {
+    reasons.push(`public_precision_policy_${input.governanceContext.publicPrecisionPolicy}`);
+    if (hasObject(input.governanceContext.sitePolicyContext)) reasons.push("has_site_policy_context");
+    else blockers.push("missing_site_policy_context");
+    if (hasObject(input.governanceContext.reviewScope)) reasons.push("has_review_scope");
+    else blockers.push("missing_review_scope");
+    if (hasObject(input.governanceContext.localKnowledgeContext)) reasons.push("has_local_knowledge_context");
+  } else {
+    blockers.push("missing_governance_context");
+  }
+  if (highRisk(input) && input.governanceContext?.publicPrecisionPolicy !== "system_risk_cap") {
+    blockers.push("system_risk_cap_must_override_for_sensitive_records");
+  }
+  return gate(reasons, [...new Set(blockers)]);
+}
+
+function buildModelReady(input: MonitoringReadinessInput): ReadinessGate {
+  const reasons: string[] = [];
+  const blockers: string[] = [];
+  const keys = input.methodContext?.siteTimeMethodEffortQuality;
+  const hasSite = keys?.hasSite ?? Boolean(input.visit.placeId || input.civicContext?.fieldId || input.waterRecord?.waterbodyId);
+  const hasTime = keys?.hasTime ?? true;
+  const hasMethod = keys?.hasMethod ?? Boolean(input.visit.visitMode === "survey" || input.waterRecord || input.fieldScanContext);
+  const hasEffort = keys?.hasEffort ?? Boolean(input.visit.effortMinutes || input.waterRecord?.effortMinutes);
+  const hasQuality = keys?.hasQualityEvidence ?? input.evidenceAssets.length > 0;
+
+  if (hasSite) reasons.push("has_site");
+  else blockers.push("missing_site");
+  if (hasTime) reasons.push("has_time");
+  else blockers.push("missing_time");
+  if (hasMethod) reasons.push("has_method");
+  else blockers.push("missing_method");
+  if (hasEffort) reasons.push("has_effort");
+  else blockers.push("missing_effort");
+  if (hasQuality) reasons.push("has_quality_evidence");
+  else blockers.push("missing_quality_evidence");
+  if (input.governanceContext || input.civicContext) reasons.push("has_governance_or_civic_context");
+  else blockers.push("missing_governance_or_civic_context");
+  return gate(reasons, [...new Set(blockers)]);
+}
+
+function buildIndicatorReady(input: MonitoringReadinessInput): ReadinessGate {
+  const reasons: string[] = [];
+  const blockers: string[] = [];
+  const policy = input.trendAbundancePolicy;
+  if (input.dataProductChain?.latestStage === "indicator_candidate") reasons.push("has_indicator_candidate_event");
+  if (policy?.claimAllowed) {
+    reasons.push("trend_or_abundance_claim_allowed");
+  } else {
+    reasons.push(`default_claim_limit_${policy?.defaultClaimLimit ?? "presence_only"}`);
+    blockers.push(...(policy?.blockers ?? ["trend_claim_not_allowed_without_repeat_protocol"]));
+  }
+  if (input.reviewState.reviewStatus === "verified") reasons.push("human_reviewed");
+  else blockers.push("human_review_required_for_indicator");
+  return gate(reasons, [...new Set(blockers)]);
+}
+
 export function buildMonitoringReadiness(input: MonitoringReadinessInput): MonitoringReadiness {
   return {
-    schemaVersion: "monitoring_readiness/v1",
+    schemaVersion: "monitoring_readiness/v1.1",
     reviewReady: buildReviewReady(input),
     monitoringReady: buildMonitoringReady(input),
     reportReady: buildReportReady(input),
     exportReady: buildExportReady(input),
+    fieldScanReady: buildFieldScanReady(input),
+    governanceReady: buildGovernanceReady(input),
+    modelReady: buildModelReady(input),
+    indicatorReady: buildIndicatorReady(input),
   };
 }

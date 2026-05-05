@@ -13,8 +13,9 @@ test("runtime version endpoint exposes monitoring package feature flags without 
 
     assert.equal(response.statusCode, 200);
     const body = JSON.parse(response.body);
-    assert.equal(body.schemaVersion, "monitoring_package/v1.1");
+    assert.equal(body.schemaVersion, "monitoring_package/v1.2");
     assert.equal(body.featureFlags.monitoringPackageV11, true);
+    assert.equal(body.featureFlags.monitoringPackageV12, true);
     assert.equal(body.featureFlags.waterRecordExtensionV0, true);
   } finally {
     await app.close();

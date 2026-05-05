@@ -12,4 +12,9 @@ test("research API exposes monitoring readiness and license guard fields", () =>
   assert.match(source, /dataGeneralizations/);
   assert.match(source, /informationWithheld/);
   assert.match(source, /licenseStatus/);
+  assert.match(source, /darwin_core_csv_v0/);
+  assert.match(source, /trendAbundancePolicy/);
+  assert.match(source, /field_scan_contexts/);
+  assert.match(source, /observation_governance_contexts/);
+  assert.match(source, /observation_package_events/);
 });

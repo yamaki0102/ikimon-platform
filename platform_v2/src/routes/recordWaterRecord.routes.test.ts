@@ -13,3 +13,15 @@ test("record form sends water record extension fields without replacing the norm
   assert.match(source, /no_catch_semantics/);
   assert.match(source, /capture_attempt_not_species_absence/);
 });
+
+test("record form sends field scan and governance context without changing the normal route", () => {
+  const source = readFileSync(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+
+  assert.match(source, /name="fieldScanMode"/);
+  assert.match(source, /name="fixedPointId"/);
+  assert.match(source, /name="routeId"/);
+  assert.match(source, /name="areaId"/);
+  assert.match(source, /fieldScan: fieldScanMode/);
+  assert.match(source, /governanceContext: fieldScanMode \|\| recordMode === 'survey'/);
+  assert.match(source, /publicPrecisionPolicy: 'system_risk_cap'/);
+});

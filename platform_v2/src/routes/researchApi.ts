@@ -30,6 +30,17 @@ type OccurrenceRow = {
   media_license: string | null;
   external_export_allowed: boolean | null;
   withdrawal_status: string | null;
+  visit_mode: string | null;
+  effort_minutes: string | null;
+  target_taxa_scope: string | null;
+  water_effort_minutes: string | null;
+  water_target_taxa_scope: string | null;
+  catch_outcome: string | null;
+  field_scan_mode: string | null;
+  governance_context_present: boolean;
+  review_scope_present: boolean;
+  site_policy_context_present: boolean;
+  latest_package_stage: string | null;
   consensus_status: string;
   identification_verification_status: string;
 };
@@ -133,6 +144,17 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            odr.media_license,
            odr.external_export_allowed,
            odr.withdrawal_status,
+           v.visit_mode,
+           v.effort_minutes::text,
+           v.target_taxa_scope,
+           wre.effort_minutes::text as water_effort_minutes,
+           wre.target_taxa_scope as water_target_taxa_scope,
+           wre.catch_outcome,
+           fsc.scan_mode as field_scan_mode,
+           (ogc.governance_context_id is not null) as governance_context_present,
+           (ogc.review_scope <> '{}'::jsonb) as review_scope_present,
+           (ogc.site_policy_context <> '{}'::jsonb) as site_policy_context_present,
+           pkg_event.latest_package_stage,
            case
              when id_meta.authority_count > 0 then 'authority_backed'
              when id_meta.current_count >= 2 then 'community_consensus'
@@ -149,6 +171,9 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
          left join users  u on u.user_id  = v.user_id
          left join observation_data_rights odr on odr.visit_id = v.visit_id
          left join civic_observation_contexts coc on coc.visit_id = v.visit_id
+         left join water_record_extensions wre on wre.visit_id = v.visit_id
+         left join field_scan_contexts fsc on fsc.visit_id = v.visit_id
+         left join observation_governance_contexts ogc on ogc.visit_id = v.visit_id
          left join lateral (
            select coalesce(ab.public_url, ab.storage_path) as public_url,
                   emr.media_role
@@ -171,6 +196,13 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
              and i.actor_kind = 'human'
              and coalesce(i.is_current, true) = true
          ) id_meta on true
+         left join lateral (
+           select event_stage as latest_package_stage
+             from observation_package_events ope
+            where ope.visit_id = v.visit_id
+            order by created_at desc
+            limit 1
+         ) pkg_event on true
          where o.evidence_tier >= $1
            and ${PUBLIC_OBSERVATION_QUALITY_SQL}
            and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
@@ -188,6 +220,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
 
       // Return DarwinCore-inspired structure
       const records = result.rows.map((row) => ({
+        observationMode:       row.field_scan_mode ? "field_scan" : row.visit_mode === "survey" ? "guide_survey" : "image_post",
         occurrenceID:         row.occurrence_id,
         eventID:              row.visit_id,
         scientificName:       row.scientific_name,
@@ -204,7 +237,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
         associatedMediaRole:  row.media_role,
         basisOfRecord:        "HumanObservation",
         datasetName:          "ikimon Field Loop",
-        license:              "CC-BY",
+        license:              row.dataset_license ?? "not_export_ready",
         consensusStatus:      row.consensus_status,
         identificationVerificationStatus: row.identification_verification_status,
         readiness: {
@@ -218,6 +251,43 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
             && (row.consensus_status === "authority_backed" || row.evidence_tier >= 3)
           ),
           reviewReady: row.identification_verification_status !== "tier3_export_candidate" || row.evidence_tier >= 3,
+          modelReady: Boolean(
+            row.place_name
+            && row.observed_at
+            && (row.visit_mode === "survey" || row.field_scan_mode || row.catch_outcome)
+            && (row.effort_minutes || row.water_effort_minutes)
+            && row.photo_url
+          ),
+          indicatorReady: Boolean(
+            row.field_scan_mode
+            && row.review_scope_present
+            && (row.effort_minutes || row.water_effort_minutes)
+            && (row.consensus_status === "authority_backed" || row.identification_verification_status === "authority_reviewed")
+          ),
+          governanceReady: Boolean(row.governance_context_present && row.site_policy_context_present && row.review_scope_present),
+          fieldScanReady: row.field_scan_mode
+            ? Boolean(row.field_scan_mode && row.photo_url && (row.effort_minutes || row.water_effort_minutes))
+            : true,
+        },
+        methodContext: {
+          visitMode: row.visit_mode,
+          fieldScanMode: row.field_scan_mode,
+          catchOutcome: row.catch_outcome,
+          effortMinutes: row.water_effort_minutes !== null ? Number(row.water_effort_minutes) : row.effort_minutes !== null ? Number(row.effort_minutes) : null,
+          targetTaxaScope: row.water_target_taxa_scope ?? row.target_taxa_scope,
+        },
+        dataProductChain: {
+          exportFormat: "darwin_core_csv_v0",
+          latestStage: row.latest_package_stage ?? "raw_observation",
+          reportOutput: "metadata_plus_qa_report",
+        },
+        trendAbundancePolicy: {
+          claimAllowed: Boolean(row.field_scan_mode && row.review_scope_present && row.consensus_status === "authority_backed"),
+          defaultClaimLimit: row.catch_outcome === "no_catch"
+            ? "capture_attempt_only"
+            : row.field_scan_mode
+              ? "indicator_candidate"
+              : "presence_only",
         },
         dataGeneralizations: {
           location: row.public_precision ?? "not_set",
@@ -225,6 +295,7 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
         informationWithheld: [
           row.public_precision && row.public_precision !== "exact_private" ? "precise_coordinates" : null,
           row.civic_risk_lane && row.civic_risk_lane !== "normal" ? "risk_lane_sensitive_context" : null,
+          row.governance_context_present ? "local_knowledge_or_site_policy_context" : null,
         ].filter(Boolean),
         licenseStatus: {
           recordConsent: row.record_consent ?? "missing",

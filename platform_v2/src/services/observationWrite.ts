@@ -38,6 +38,14 @@ import {
   upsertWaterRecordExtension,
   type WaterRecordExtensionInput,
 } from "./waterRecordExtension.js";
+import {
+  appendObservationPackageEvent,
+  upsertFieldScanContext,
+  upsertObservationGovernanceContext,
+  type FieldScanContextInput,
+  type ObservationGovernanceContextInput,
+  type ObservationPackageEventInput,
+} from "./observationPackageDataChain.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -113,6 +121,9 @@ export type ObservationUpsertInput = {
   civicContext?: Partial<CivicObservationContextInput> | null;
   dataRights?: ObservationDataRightsInput | null;
   waterRecord?: WaterRecordExtensionInput | null;
+  fieldScan?: FieldScanContextInput | null;
+  governanceContext?: ObservationGovernanceContextInput | null;
+  packageEvents?: ObservationPackageEventInput[];
 };
 
 export type ObservationWriteResult = {
@@ -525,6 +536,15 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const pendingWaterRecord = input.waterRecord && typeof input.waterRecord === "object"
     ? input.waterRecord
     : null;
+  const pendingFieldScan = input.fieldScan && typeof input.fieldScan === "object"
+    ? input.fieldScan
+    : null;
+  const pendingGovernanceContext = input.governanceContext && typeof input.governanceContext === "object"
+    ? input.governanceContext
+    : null;
+  const pendingPackageEvents = Array.isArray(input.packageEvents)
+    ? input.packageEvents.filter((event) => event && typeof event === "object").slice(0, 12)
+    : [];
 
   try {
     await client.query("begin");
@@ -983,6 +1003,61 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         targetTaxaScope: pendingWaterRecord.targetTaxaScope ?? targetTaxaScope,
         sourcePayload: {
           ...(pendingWaterRecord.sourcePayload ?? {}),
+          source: "v2_observation_write",
+        },
+      }, client);
+    }
+
+    if (pendingFieldScan?.scanMode) {
+      await upsertFieldScanContext({
+        ...pendingFieldScan,
+        visitId,
+        occurrenceId,
+        sourcePayload: {
+          ...(pendingFieldScan.sourcePayload ?? {}),
+          source: "v2_observation_write",
+        },
+      }, client);
+    }
+
+    if (pendingGovernanceContext) {
+      await upsertObservationGovernanceContext({
+        ...pendingGovernanceContext,
+        visitId,
+        occurrenceId,
+        sourcePayload: {
+          ...(pendingGovernanceContext.sourcePayload ?? {}),
+          source: "v2_observation_write",
+        },
+      }, client);
+    }
+
+    await appendObservationPackageEvent({
+      packageEventId: `pkg_event:${visitId}:raw_upsert`,
+      visitId,
+      occurrenceId,
+      eventStage: "raw_observation",
+      eventKind: "observation_upserted",
+      actorKind: "observer",
+      actorUserId: input.userId,
+      decisionAuthority: "observer",
+      humanReviewRequired: !hasPhoto || qualityReviewStatus === "needs_review",
+      eventPayload: {
+        source: "v2_observation_write",
+        visit_mode: visitMode,
+        subject_count: subjects.length,
+        has_water_record: Boolean(pendingWaterRecord?.catchOutcome),
+        has_field_scan: Boolean(pendingFieldScan?.scanMode),
+      },
+    }, client);
+
+    for (const event of pendingPackageEvents) {
+      await appendObservationPackageEvent({
+        ...event,
+        visitId,
+        occurrenceId: event.occurrenceId ?? occurrenceId,
+        eventPayload: {
+          ...(event.eventPayload ?? {}),
           source: "v2_observation_write",
         },
       }, client);

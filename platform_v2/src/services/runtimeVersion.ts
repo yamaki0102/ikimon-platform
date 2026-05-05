@@ -10,7 +10,7 @@ export type RuntimeVersionSnapshot = {
   gitSha: string;
   builtAt: string;
   migrationHead: string | null;
-  schemaVersion: "monitoring_package/v1.1";
+  schemaVersion: "monitoring_package/v1.1" | "monitoring_package/v1.2";
   featureFlags: Record<string, boolean>;
   runtimeEnv: string;
 };
@@ -62,12 +62,16 @@ export async function getRuntimeVersionSnapshot(
     gitSha: fallbackGitSha(),
     builtAt: builtAt(),
     migrationHead: await getMigrationHead(queryable),
-    schemaVersion: "monitoring_package/v1.1",
+    schemaVersion: "monitoring_package/v1.2",
     featureFlags: {
       monitoringPackageV11: true,
+      monitoringPackageV12: true,
       waterRecordExtensionV0: true,
       observationDataRightsV0: true,
       readinessGatesV0: true,
+      observationDataProductChainV0: true,
+      fieldScanContextV0: true,
+      governanceContextV0: true,
     },
     runtimeEnv: config.nodeEnv,
   };

@@ -4,6 +4,23 @@ import { getPool } from "../db.js";
 import { getCivicObservationContext, type CivicObservationContext } from "./civicNatureContext.js";
 import { buildMonitoringReadiness, type MonitoringReadiness } from "./monitoringReadiness.js";
 import { getObservationDataRights, type ObservationDataRights } from "./observationDataRights.js";
+import {
+  buildDataProductChain,
+  buildObservationAiBoundary,
+  buildObservationMethodContext,
+  buildTrendAbundancePolicy,
+  getFieldScanContext,
+  getObservationGovernanceContext,
+  getObservationPackageEvents,
+  inferObservationActionMode,
+  type FieldScanContext,
+  type ObservationActionMode,
+  type ObservationAiBoundary,
+  type ObservationDataProductChain,
+  type ObservationGovernanceContext,
+  type ObservationMethodContext,
+  type TrendAbundancePolicy,
+} from "./observationPackageDataChain.js";
 import { getRuntimeVersionSnapshot, type RuntimeVersionSnapshot } from "./runtimeVersion.js";
 import { getWaterRecordExtension, type WaterRecordExtension } from "./waterRecordExtension.js";
 
@@ -135,7 +152,7 @@ export type ObservationPackageReportOutput = {
 };
 
 export type ObservationPackage = {
-  packageVersion: "observation_package/v1" | "observation_package/v1.1";
+  packageVersion: "observation_package/v1" | "observation_package/v1.1" | "observation_package/v1.2";
   packageId: string;
   generatedAt: string;
   visit: ObservationPackageVisit;
@@ -147,6 +164,13 @@ export type ObservationPackage = {
   claimRefs: ObservationPackageClaimRef[];
   reviewState: ObservationPackageReviewState;
   reportOutputs: ObservationPackageReportOutput[];
+  actionMode?: ObservationActionMode;
+  methodContext?: ObservationMethodContext;
+  fieldScanContext?: FieldScanContext | null;
+  governanceContext?: ObservationGovernanceContext | null;
+  dataProductChain?: ObservationDataProductChain;
+  aiBoundary?: ObservationAiBoundary;
+  trendAbundancePolicy?: TrendAbundancePolicy;
   civicContext?: CivicObservationContext | null;
   dataRights?: ObservationDataRights | null;
   readiness?: MonitoringReadiness;
@@ -482,12 +506,75 @@ export async function buildObservationPackage(
   const rawJson = asObject(latestFeedback?.raw_json);
   const parsed = asObject(rawJson.parsed);
   const claimRefsUsed = asStringArray(parsed.claim_refs_used);
-  const [civicContext, dataRights, waterRecord, runtimeVersion] = await Promise.all([
+  const [civicContext, dataRights, waterRecord, runtimeVersion, fieldScanContext, governanceContext, packageEvents] = await Promise.all([
     getCivicObservationContext(visitId).catch(() => null),
     getObservationDataRights(visitId, queryable).catch(() => null),
     getWaterRecordExtension(visitId, queryable).catch(() => null),
     getRuntimeVersionSnapshot(queryable).catch(async () => getRuntimeVersionSnapshot()),
+    getFieldScanContext(visitId, queryable).catch(() => null),
+    getObservationGovernanceContext(visitId, queryable).catch(() => null),
+    getObservationPackageEvents(visitId, queryable).catch(() => []),
   ]);
+  const visit = {
+    visitId: visitRow.visit_id,
+    legacyObservationId: visitRow.legacy_observation_id,
+    observedAt: visitRow.observed_at,
+    placeId: visitRow.place_id,
+    locationPrecision: inferLocationPrecision(visitRow),
+    observedPrefecture: visitRow.observed_prefecture,
+    observedMunicipality: visitRow.observed_municipality,
+    completeChecklistFlag: Boolean(visitRow.complete_checklist_flag),
+    effortMinutes: toNumber(visitRow.effort_minutes),
+    distanceMeters: toNumber(visitRow.distance_meters),
+    targetTaxaScope: visitRow.target_taxa_scope,
+    visitMode: visitRow.visit_mode,
+    sourceKind: visitRow.source_kind,
+  };
+  const evidenceAssets = assets.rows.map((row) => ({
+    assetId: row.asset_id,
+    blobId: row.blob_id,
+    occurrenceId: row.occurrence_id,
+    visitId: row.visit_id,
+    mediaType: row.media_type ?? "unknown",
+    mimeType: row.mime_type,
+    assetRole: row.asset_role,
+    mediaRole: row.media_role ?? "context",
+    capturedAt: row.captured_at,
+    sha256: row.sha256,
+    publicUrl: row.public_url,
+  }));
+  const mappedIdentifications = identifications.rows.map((row) => {
+    const sourcePayload = asObject(row.source_payload);
+    return {
+      identificationId: row.identification_id,
+      occurrenceId: row.occurrence_id,
+      actorKind: row.actor_kind,
+      actorUserId: row.actor_user_id,
+      proposedName: row.proposed_name,
+      proposedRank: row.proposed_rank,
+      confidenceScore: toNumber(row.confidence_score),
+      isCurrent: row.is_current,
+      rationale: row.notes ?? String(sourcePayload.rationale ?? ""),
+      similarTaxaRuledOut: asStringArray(sourcePayload.similar_taxa_ruled_out),
+      reviewScope: typeof sourcePayload.review_scope === "string" ? sourcePayload.review_scope : null,
+    };
+  });
+  const mappedAiRuns = aiRuns.rows.map((row) => {
+    const sourcePayload = asObject(row.source_payload);
+    return {
+      aiRunId: row.ai_run_id,
+      visitId: row.visit_id,
+      triggerOccurrenceId: row.trigger_occurrence_id,
+      modelProvider: row.model_provider,
+      modelName: row.model_name,
+      promptVersion: row.prompt_version,
+      pipelineVersion: row.pipeline_version,
+      taxonomyVersion: row.taxonomy_version,
+      knowledgeVersionSet: asObject(sourcePayload.knowledgeVersionSet),
+      inputAssetFingerprint: row.input_asset_fingerprint,
+      runStatus: row.run_status,
+    };
+  });
   const feedbackPayload = latestFeedback
     ? {
         simpleSummary: latestFeedback.simple_summary,
@@ -501,76 +588,63 @@ export async function buildObservationPackage(
         publicClaimLimit: reviewStateFor(occurrences).publicClaimLimit,
       }
     : null;
+  const reviewState = reviewStateFor(occurrences);
+  const generatedAt = new Date().toISOString();
+  const actionMode = inferObservationActionMode({
+    visit,
+    evidenceAssets,
+    identifications: mappedIdentifications,
+    civicContext,
+    fieldScanContext,
+  });
+  const methodContext = buildObservationMethodContext({
+    actionMode,
+    visit,
+    evidenceAssets,
+    civicContext,
+    waterRecord,
+    fieldScanContext,
+  });
+  const dataProductChain = buildDataProductChain({
+    visitId,
+    occurrenceId: input.targetOccurrenceId ?? input.occurrenceId ?? occurrences[0]?.occurrenceId ?? null,
+    generatedAt,
+    reviewStatus: reviewState.reviewStatus,
+    events: packageEvents,
+  });
+  const aiBoundary = buildObservationAiBoundary({
+    aiRuns: mappedAiRuns,
+    feedbackPayload,
+    identifications: mappedIdentifications,
+    reviewStatus: reviewState.reviewStatus,
+  });
+  const trendAbundancePolicy = buildTrendAbundancePolicy({
+    actionMode,
+    methodContext,
+    fieldScanContext,
+    reviewStatus: reviewState.reviewStatus,
+  });
 
   return {
-    packageVersion: "observation_package/v1.1",
+    packageVersion: "observation_package/v1.2",
     packageId: packageIdFor(visitId, input.targetOccurrenceId ?? input.occurrenceId),
-    generatedAt: new Date().toISOString(),
-    visit: {
-      visitId: visitRow.visit_id,
-      legacyObservationId: visitRow.legacy_observation_id,
-      observedAt: visitRow.observed_at,
-      placeId: visitRow.place_id,
-      locationPrecision: inferLocationPrecision(visitRow),
-      observedPrefecture: visitRow.observed_prefecture,
-      observedMunicipality: visitRow.observed_municipality,
-      completeChecklistFlag: Boolean(visitRow.complete_checklist_flag),
-      effortMinutes: toNumber(visitRow.effort_minutes),
-      distanceMeters: toNumber(visitRow.distance_meters),
-      targetTaxaScope: visitRow.target_taxa_scope,
-      visitMode: visitRow.visit_mode,
-      sourceKind: visitRow.source_kind,
-    },
+    generatedAt,
+    visit,
     occurrences,
-    evidenceAssets: assets.rows.map((row) => ({
-      assetId: row.asset_id,
-      blobId: row.blob_id,
-      occurrenceId: row.occurrence_id,
-      visitId: row.visit_id,
-      mediaType: row.media_type ?? "unknown",
-      mimeType: row.mime_type,
-      assetRole: row.asset_role,
-      mediaRole: row.media_role ?? "context",
-      capturedAt: row.captured_at,
-      sha256: row.sha256,
-      publicUrl: row.public_url,
-    })),
-    identifications: identifications.rows.map((row) => {
-      const sourcePayload = asObject(row.source_payload);
-      return {
-        identificationId: row.identification_id,
-        occurrenceId: row.occurrence_id,
-        actorKind: row.actor_kind,
-        actorUserId: row.actor_user_id,
-        proposedName: row.proposed_name,
-        proposedRank: row.proposed_rank,
-        confidenceScore: toNumber(row.confidence_score),
-        isCurrent: row.is_current,
-        rationale: row.notes ?? String(sourcePayload.rationale ?? ""),
-        similarTaxaRuledOut: asStringArray(sourcePayload.similar_taxa_ruled_out),
-        reviewScope: typeof sourcePayload.review_scope === "string" ? sourcePayload.review_scope : null,
-      };
-    }),
-    aiRuns: aiRuns.rows.map((row) => {
-      const sourcePayload = asObject(row.source_payload);
-      return {
-        aiRunId: row.ai_run_id,
-        visitId: row.visit_id,
-        triggerOccurrenceId: row.trigger_occurrence_id,
-        modelProvider: row.model_provider,
-        modelName: row.model_name,
-        promptVersion: row.prompt_version,
-        pipelineVersion: row.pipeline_version,
-        taxonomyVersion: row.taxonomy_version,
-        knowledgeVersionSet: asObject(sourcePayload.knowledgeVersionSet),
-        inputAssetFingerprint: row.input_asset_fingerprint,
-        runStatus: row.run_status,
-      };
-    }),
+    evidenceAssets,
+    identifications: mappedIdentifications,
+    aiRuns: mappedAiRuns,
     feedbackPayload,
     claimRefs: [],
-    reviewState: reviewStateFor(occurrences),
+    reviewState,
     reportOutputs: [],
+    actionMode,
+    methodContext,
+    fieldScanContext,
+    governanceContext,
+    dataProductChain,
+    aiBoundary,
+    trendAbundancePolicy,
     civicContext,
     dataRights,
     readiness: buildMonitoringReadiness({
@@ -588,6 +662,11 @@ export async function buildObservationPackage(
       civicContext,
       dataRights,
       waterRecord,
+      methodContext,
+      fieldScanContext,
+      governanceContext,
+      dataProductChain,
+      trendAbundancePolicy,
     }),
     extensions: {
       waterRecord,

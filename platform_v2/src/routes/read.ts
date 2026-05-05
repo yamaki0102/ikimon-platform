@@ -4771,6 +4771,42 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     </div>
                   </div>
                   <div class="record-field record-field-wide">
+                    <div class="record-survey-box">
+                      <div class="record-survey-head">
+                        <div>
+                          <span class="record-label">フィールドスキャン</span>
+                          <p class="record-help">場所の状態、定点、ルート、面、較正証拠を分けて残します。</p>
+                        </div>
+                        <span class="record-survey-pill">スキャン</span>
+                      </div>
+                      <div class="record-survey-grid">
+                        <label class="record-field">
+                          <span class="record-label">種類</span>
+                          <select name="fieldScanMode">
+                            <option value="">指定なし</option>
+                            <option value="site_snapshot">場所</option>
+                            <option value="fixed_point">定点</option>
+                            <option value="route">ルート</option>
+                            <option value="area_footprint">面</option>
+                            <option value="calibration_evidence">較正</option>
+                          </select>
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">定点ID</span>
+                          <input name="fixedPointId" type="text" placeholder="例: fp-park-01" />
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">ルートID</span>
+                          <input name="routeId" type="text" placeholder="例: route-river-01" />
+                        </label>
+                        <label class="record-field">
+                          <span class="record-label">エリアID</span>
+                          <input name="areaId" type="text" placeholder="例: area-wetland-01" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="record-field record-field-wide">
                     <div class="record-survey-box record-water-box">
                       <div class="record-survey-head">
                         <div>
@@ -5616,7 +5652,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const applyPrefillFromQuery = () => {
           if (!form) return;
           const params = new URLSearchParams(window.location.search);
-          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId'];
+          const names = ['latitude', 'longitude', 'prefecture', 'municipality', 'localityNote', 'placeId', 'scientificName', 'vernacularName', 'rank', 'nextLookFor', 'targetTaxaScope', 'revisitReason', 'activityIntent', 'participantRole', 'revisitOfVisitId', 'fieldScanMode', 'fixedPointId', 'routeId', 'areaId'];
           names.forEach((name) => {
             if (!params.has(name)) return;
             const field = form.elements.namedItem(name);
@@ -7064,6 +7100,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const publicWaterbodyLabel = String(data.get('publicWaterbodyLabel') || '').trim();
               const releasedCount = Number(data.get('releasedCount'));
               const keptCount = Number(data.get('keptCount'));
+              const fieldScanMode = String(data.get('fieldScanMode') || '').trim();
+              const fixedPointId = String(data.get('fixedPointId') || '').trim();
+              const routeId = String(data.get('routeId') || '').trim();
+              const areaId = String(data.get('areaId') || '').trim();
               if (recordMode === 'survey') {
                 if (!targetTaxaScope) {
                   throw new Error('survey_target_scope_required');
@@ -7155,6 +7195,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   client_submission_id: clientSubmissionId,
                   client_photo_sha256s: clientPhotoHashes,
                   location_provenance: recordLocationProvenance,
+                  field_scan_requested: Boolean(fieldScanMode),
                   absence_semantics: recordMode === 'survey'
                     ? (surveyResult === 'no_detection_note' ? 'protocol_note_only' : null)
                     : (quickCaptureState === 'no_detection_note'
@@ -7204,6 +7245,48 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                       sourcePayload: {
                         source: 'record_form_water_fields',
                         no_catch_semantics: catchOutcome === 'no_catch' ? 'capture_attempt_not_species_absence' : null,
+                      },
+                    }
+                  : null,
+                fieldScan: fieldScanMode
+                  ? {
+                      scanMode: fieldScanMode,
+                      fixedPointId: fixedPointId || null,
+                      routeId: routeId || null,
+                      areaId: areaId || null,
+                      methodPayload: {
+                        record_mode: recordMode,
+                        target_taxa_scope: targetTaxaScope || null,
+                        effort_minutes: recordMode === 'survey' ? effortMinutes : null,
+                      },
+                      qualityPayload: {
+                        media_role: mediaRole,
+                        photo_count: preparedPhotoUploads.length,
+                        has_video: Boolean(selectedVideoFile),
+                      },
+                      sourcePayload: {
+                        source: 'record_form_field_scan',
+                      },
+                    }
+                  : null,
+                governanceContext: fieldScanMode || recordMode === 'survey'
+                  ? {
+                      localKnowledgeContext: {},
+                      sitePolicyContext: {
+                        publicPrecision: 'municipality',
+                      },
+                      reviewScope: {
+                        mode: fieldScanMode ? 'field_scan' : 'guide_survey',
+                        fieldScanMode: fieldScanMode || null,
+                        targetTaxaScope: targetTaxaScope || null,
+                      },
+                      rolePermissions: {
+                        observer: ['submit'],
+                        reviewer: ['verify', 'generalize_public_precision'],
+                      },
+                      publicPrecisionPolicy: 'system_risk_cap',
+                      sourcePayload: {
+                        source: 'record_form_governance_default',
                       },
                     }
                   : null,
