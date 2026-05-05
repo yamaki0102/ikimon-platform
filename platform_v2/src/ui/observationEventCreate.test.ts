@@ -39,11 +39,23 @@ test("event create map can load and select registered fields", () => {
 
   assert.match(script, /evt-registered-fields/);
   assert.match(script, /evt-field-selected/);
+  assert.match(script, /evt-field-current-selection/);
+  assert.match(script, /evt-selected-field-fill/);
   assert.match(script, /evt-field-label/);
   assert.match(script, /evt-field-map-label/);
   assert.match(script, /\/api\/v1\/fields\?nearby=/);
   assert.match(script, /selectFieldFromMap/);
   assert.match(script, /queryRenderedFeatures\(point, \{ layers: \["evt-field-fill"\] \}/);
+});
+
+test("event create map does not render manual circles while a registered field is selected", () => {
+  const script = eventCreateScript();
+
+  assert.match(script, /showManualArea = !areaState\.selectedFieldId/);
+  assert.match(script, /selectedFieldFeatureCollection/);
+  assert.match(script, /hasPolygon/);
+  assert.match(script, /is-registered-area-selected/);
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-planner\.is-registered-area-selected \.evt-area-modebar\s*\{[^}]*display: none/s);
 });
 
 test("event create form unifies registered field search with map selection", () => {

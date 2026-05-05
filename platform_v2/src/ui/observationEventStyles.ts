@@ -635,6 +635,9 @@ export const OBSERVATION_EVENT_STYLES = `
   gap: 6px;
   align-items: center;
 }
+.evt-area-planner.is-registered-area-selected .evt-area-modebar {
+  display: none;
+}
 .evt-field-search {
   display: grid;
   gap: 8px;
