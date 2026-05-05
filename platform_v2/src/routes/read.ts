@@ -2168,7 +2168,7 @@ const START_STATE_STYLES = `
   @media (max-width: 720px) {
     .start-guide { padding-bottom: 104px; }
     .site-footer { padding-bottom: 104px; }
-    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.2fr repeat(4, minmax(0, .74fr)); gap: 8px; }
   }
   @media (max-width: 980px) { .start-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 620px) { .start-guide-grid { grid-template-columns: 1fr; } }
@@ -2177,13 +2177,13 @@ const START_STATE_STYLES = `
 function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
   const currentParams = new URL(currentUrl, "https://ikimon.local").searchParams;
   const start = currentParams.get("start");
-  const recordStart = start === "photo" || start === "video" || start === "gallery" ? start : "";
+  const recordStart = start === "note" || start === "photo" || start === "video" || start === "gallery" ? start : "";
   const recordParams = new URLSearchParams();
   if (recordStart) recordParams.set("start", recordStart);
   if (currentParams.get("draft") === "1") recordParams.set("draft", "1");
   if (lang) recordParams.set("lang", lang);
   const recordTarget = `/record${recordParams.toString() ? `?${recordParams.toString()}` : ""}`;
-  const recordTargetForStart = (kind: "photo" | "video" | "gallery") => {
+  const recordTargetForStart = (kind: "note" | "photo" | "video" | "gallery") => {
     const params = new URLSearchParams();
     params.set("start", kind);
     if (currentParams.get("draft") === "1" && recordStart === kind) params.set("draft", "1");
@@ -2241,7 +2241,11 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
         </div>
       </section>
       <nav class="record-capture-dock" aria-label="ログインして投稿を始める">
-        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
+        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("note")))}">
+          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
+          <span>メモ</span>
+        </a>
+        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
           <span>写真</span>
         </a>
@@ -4202,7 +4206,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </div>
             <div class="record-capture-launcher" aria-label="投稿の始め方">
-              <button type="button" class="record-capture-option is-primary" data-capture-action="photo">
+              <button type="button" class="record-capture-option is-primary" data-capture-action="note">
+                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
+                <strong>メモだけ始める</strong>
+                <span>写真なしでも場所とひとことで残す</span>
+              </button>
+              <button type="button" class="record-capture-option" data-capture-action="photo">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
                 <strong>写真</strong>
                 <span>その場の1枚をすぐ残す</span>
@@ -4237,7 +4246,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </div>
             <div class="record-capture-dock" aria-label="すぐ投稿する">
-              <button type="button" class="record-dock-action record-dock-primary" data-capture-action="photo">
+              <button type="button" class="record-dock-action record-dock-primary" data-capture-action="note">
+                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
+                <span>メモ</span>
+              </button>
+              <button type="button" class="record-dock-action" data-capture-action="photo">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
                 <span>写真</span>
               </button>
@@ -4678,6 +4691,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         let recordSubmitInFlight = false;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
+          note: { title: 'メモだけ始める', help: '写真なしでも、場所・時間・ひとことで記録できます。' },
           photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
           video: { title: '動画を追加', help: '動画投稿は最大60秒まで。大きい動画や不安定な通信では分割送信します。' },
           gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
@@ -5018,24 +5032,29 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         ];
         const firstSelectedMediaFile = () => allSelectedMediaFiles()[0] || null;
         const hasSelectedMedia = () => allSelectedMediaFiles().length > 0;
+        const hasNoteDraft = () => selectedCaptureKind === 'note';
+        const hasRecordDraft = () => hasSelectedMedia() || hasNoteDraft();
         const selectedMediaSummaryText = () => {
           const parts = [];
           const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
           if (photoCount > 0) parts.push('写真' + String(photoCount) + '枚');
           if (selectedVideoFile instanceof File) parts.push('動画あり');
+          if (hasNoteDraft() && !hasSelectedMedia()) parts.push('メモのみ');
           if (coordsMissing()) parts.push('地点未指定');
           return parts.length ? parts.join(' / ') : 'メディア未選択';
         };
 
         const syncSubmitCta = () => {
-          const hasMedia = hasSelectedMedia();
-          if (submitPanel) submitPanel.hidden = !hasMedia;
+          const hasDraft = hasRecordDraft();
+          if (submitPanel) submitPanel.hidden = !hasDraft;
           const summary = selectedMediaSummaryText();
           if (submitPanelTitle) submitPanelTitle.textContent = summary;
           if (submitPanelHelp) {
-            submitPanelHelp.textContent = hasMedia
+            submitPanelHelp.textContent = hasSelectedMedia()
               ? 'この1件の観察に、選んだ写真と動画をまとめて保存します。'
-              : '写真や動画を選ぶと、ここから投稿できます。';
+              : hasNoteDraft()
+                ? '写真なしの観察メモとして保存します。あとで写真や確認内容を足せます。'
+                : '写真や動画を選ぶと、ここから投稿できます。';
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
         };
@@ -5354,7 +5373,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const applyStartModeFromQuery = () => {
           const params = new URLSearchParams(window.location.search);
           const start = params.get('start');
-          if (start === 'photo' || start === 'video' || start === 'gallery') {
+          if (start === 'note' || start === 'photo' || start === 'video' || start === 'gallery') {
             setPendingCaptureKind(start);
           }
         };
@@ -5826,24 +5845,26 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           selectedVideoFile = normalized.video;
           selectedCaptureKind = kind || '';
           const hasMedia = hasSelectedMedia();
+          const hasDraft = hasRecordDraft();
           if (hasMedia && !selectedMediaRole) setSelectedMediaRole('primary_subject');
           if (selectedVideoFile && selectedMediaFiles.length === 0) setSelectedMediaRole('sound_motion');
           if (selectedMediaFiles.length > 0) selectedPrimaryPhotoFile = null;
-          if (form) form.hidden = !hasMedia;
-          if (captureResult) captureResult.hidden = !hasMedia;
-          document.documentElement.classList.toggle('record-has-media', hasMedia);
-          if (hasMedia) window.requestAnimationFrame(ensureRecordMap);
+          if (!hasMedia) selectedPrimaryPhotoFile = null;
+          if (form) form.hidden = !hasDraft;
+          if (captureResult) captureResult.hidden = !hasDraft;
+          document.documentElement.classList.toggle('record-has-media', hasDraft);
+          if (hasDraft) window.requestAnimationFrame(ensureRecordMap);
           const label = captureLabels[selectedCaptureKind] || captureLabels.gallery;
           const photoCount = selectedMediaFiles.length;
           const mediaSummary = [
             photoCount > 0 ? '写真' + String(photoCount) + '枚' : '',
             selectedVideoFile ? '動画1本' : '',
           ].filter(Boolean).join(' / ');
-          if (captureResultTitle) captureResultTitle.textContent = hasMedia
-            ? label.title + ' - ' + mediaSummary
+          if (captureResultTitle) captureResultTitle.textContent = hasDraft
+            ? (hasMedia ? label.title + ' - ' + mediaSummary : label.title)
             : '未選択';
           const noticeText = [...(notices || []), ...normalized.notices].filter(Boolean).join(' ');
-          if (captureResultHelp) captureResultHelp.textContent = hasMedia
+          if (captureResultHelp) captureResultHelp.textContent = hasDraft
             ? (noticeText || label.help)
             : 'ファイルを選ぶと入力欄が開きます。';
           captureButtons.forEach((button) => {
@@ -5853,7 +5874,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           });
           syncModeUi();
           syncSubmitCta();
-          if (hasMedia && form) {
+          if (hasDraft && form) {
             window.requestAnimationFrame(() => form.scrollIntoView({ block: 'start', behavior: 'auto' }));
           }
           syncVideoPrimaryPhotoUi();
@@ -5861,6 +5882,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
         const setPendingCaptureKind = (kind) => {
           if (!captureLabels[kind]) return;
+          if (kind === 'note') {
+            showRecordFormForMedia([], 'note');
+            renderPreviewFile(null);
+            resetVideoProgress();
+            resetVideoTrim();
+            setAutofillStatus([]);
+            return;
+          }
           selectedMediaFiles = [];
           selectedVideoFile = null;
           selectedCaptureKind = kind;
@@ -6288,6 +6317,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           button.addEventListener('click', () => {
             const action = button.getAttribute('data-capture-action') || 'gallery';
             sendRecordFunnelStep('capture_method_selected', { captureKind: action });
+            if (action === 'note') {
+              selectedMediaCapturedAt = null;
+              mediaAutofillSequence += 1;
+              clearMediaInputsExcept(null);
+              showRecordFormForMedia([], 'note');
+              renderPreviewFile(null);
+              resetVideoProgress();
+              resetVideoTrim();
+              setAutofillStatus([]);
+              return;
+            }
             const target = document.querySelector('[data-record-media-input][data-capture-kind="' + action + '"]') || mediaInput;
             if (target && typeof target.click === 'function') target.click();
           });
@@ -6837,7 +6877,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-session-pill { display: inline-flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); min-width: 180px; }
         .record-session-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
         .record-session-pill strong { font-size: 14px; color: #0f172a; word-break: break-all; }
-        .record-capture-launcher { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding-left: 16px; margin: 0 0 18px; }
+        .record-capture-launcher { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding-left: 16px; margin: 0 0 18px; }
         .record-capture-option { min-height: 132px; display: grid; align-content: start; gap: 8px; text-align: left; padding: 16px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; text-decoration: none; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.045); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
         .record-capture-option:hover, .record-capture-option.is-active { transform: translateY(-2px); border-color: rgba(14,165,233,.34); box-shadow: 0 16px 32px rgba(14,165,233,.1); }
         .record-capture-option.is-primary { background: linear-gradient(180deg, rgba(236,253,245,.96), rgba(240,249,255,.96)); border-color: rgba(16,185,129,.24); }
@@ -6878,7 +6918,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-coordinate-details { display: grid; gap: 10px; }
         .record-coordinate-details summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; border-radius: 14px; background: rgba(248,250,252,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; font-weight: 900; cursor: pointer; }
         .record-coordinate-details .record-gps-inputs { margin-top: 10px; }
-        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: 1.2fr repeat(4, minmax(0, .82fr)); gap: 8px; }
         .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; cursor: pointer; line-height: 1.2; }
         .record-dock-action:hover, .record-dock-action.is-active { border-color: rgba(14,165,233,.28); background: #f0f9ff; }
         .record-dock-primary { background: #ecfdf5; color: #065f46; }
@@ -6991,7 +7031,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-subject-context { margin-left: 0; grid-template-columns: 1fr; align-items: start; }
           .record-subject-context-tags { justify-content: flex-start; max-width: none; }
           .record-has-media .record-subject-context { display: none; }
-          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
+          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: 1.2fr repeat(4, minmax(0, .74fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
           .record-has-media .record-capture-dock { display: none; }
           .record-dock-action { min-height: 58px; }
           .record-dock-icon { width: 28px; height: 28px; }
