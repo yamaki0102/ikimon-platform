@@ -227,7 +227,7 @@ export async function getMobileFieldSessionRecap(sessionId: string, userId?: str
     latest_digest: string | null;
     next_look: string[] | null;
   }>(
-    `select count(*)::text as scene_count,
+    `select count(distinct r.receipt_id)::text as scene_count,
             (array_agg(scene_digest order by created_at desc))[1] as latest_digest,
             coalesce(array_agg(distinct signals.signal) filter (where signals.signal is not null), '{}') as next_look
        from mobile_field_scene_receipts r
