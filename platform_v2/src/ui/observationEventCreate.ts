@@ -408,6 +408,46 @@ export function eventCreateScript(): string {
     }
   }
   initAreaMap();
+  const pageParams = new URLSearchParams(window.location.search);
+  function validDraftPolygon(poly){
+    return poly && poly.type === "Polygon" && Array.isArray(poly.coordinates) && Array.isArray(poly.coordinates[0]) && poly.coordinates[0].length >= 4;
+  }
+  function applyAreaDraftFromParams(){
+    if (pageParams.get("field_id")) return;
+    const draftId = pageParams.get("area_draft");
+    let draft = null;
+    if (draftId && window.sessionStorage) {
+      try {
+        draft = JSON.parse(window.sessionStorage.getItem("ikimon:event-area-draft:" + draftId) || "null");
+      } catch (_) {
+        draft = null;
+      }
+    }
+    const qpLat = Number(pageParams.get("lat"));
+    const qpLng = Number(pageParams.get("lng"));
+    const center = draft && draft.center && Number.isFinite(Number(draft.center.lat)) && Number.isFinite(Number(draft.center.lng))
+      ? { lat: Number(draft.center.lat), lng: Number(draft.center.lng) }
+      : (Number.isFinite(qpLat) && Number.isFinite(qpLng) ? { lat: qpLat, lng: qpLng } : null);
+    if (!center) return;
+    const name = String((draft && draft.name) || pageParams.get("name") || "").trim();
+    if (name) {
+      const nameInput = form.querySelector('[name="new_field_name"]');
+      if (nameInput) nameInput.value = name;
+    }
+    areaState.mapInitialCenter = center;
+    const polygon = validDraftPolygon(draft && draft.polygon)
+      ? draft.polygon
+      : circlePolygon(center.lat, center.lng, Number(form.querySelector('[name="location_radius_m"]')?.value || 300));
+    areaState.selectedSuggestion = {
+      source: (draft && draft.source) || "map_query_area",
+      id: (draft && draft.osm && draft.osm.entityKey) || draftId || null,
+      warnings: [],
+    };
+    setArea(center, polygon, { push: false });
+    setAreaStatus(name ? name + " を開催エリア案として読み込みました。" : "地図から開催エリア案を読み込みました。");
+    if (areaState.map) areaState.map.flyTo({ center: [center.lng, center.lat], zoom: 16 });
+  }
+  applyAreaDraftFromParams();
   form.querySelectorAll("[data-evt-area-mode]").forEach(btn => {
     btn.addEventListener("click", () => {
       form.querySelectorAll("[data-evt-area-mode]").forEach(b => b.classList.remove("is-active"));
@@ -562,7 +602,7 @@ export function eventCreateScript(): string {
   })();
 
   // ?field_id=<uuid> で地図・フォームへ反映
-  const fieldIdParam = new URLSearchParams(window.location.search).get("field_id");
+  const fieldIdParam = pageParams.get("field_id");
   if (fieldIdParam) {
     (async () => {
       try {
@@ -590,7 +630,7 @@ export function eventCreateScript(): string {
   });
 
   // テンプレート prefill: ?template_from=<sessionId> で過去観察会の値を流し込む
-  const templateFromParam = new URLSearchParams(window.location.search).get("template_from");
+  const templateFromParam = pageParams.get("template_from");
   if (templateFromParam) {
     (async () => {
       try {
@@ -777,7 +817,7 @@ export function eventCreateScript(): string {
       return;
     }
 
-    const templateFrom = new URLSearchParams(window.location.search).get("template_from");
+    const templateFrom = pageParams.get("template_from");
     const suggestion = areaState.selectedSuggestion;
 
     const payload = {

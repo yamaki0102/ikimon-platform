@@ -17,6 +17,8 @@
  * Usage:
  *   npx tsx src/scripts/importOsmLeisureParks.ts \
  *     --bbox 34.6,137.6,34.85,137.91 \
+ *     [--region-key JP-22-Hamamatsu]
+ *     [--manifest ops/osm_area_import_regions.json] [--max-regions 5]
  *     [--source-url https://overpass-api.de/api/interpreter] \
  *     [--delay-ms 1500] [--dry-run] [--sweep] [--limit 1000]
  *
@@ -24,11 +26,16 @@
  *   --sweep は import で見つからなかった既存 osm:way:* の現行版を valid_to で閉じる。
  */
 
+import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { getPool } from "../db.js";
 import { computeBbox } from "../services/geoJsonBbox.js";
 
 type Options = {
   bbox: [number, number, number, number];
+  regionKey: string;
+  manifestPath: string | null;
+  maxRegions: number | null;
   sourceUrl: string;
   delayMs: number;
   dryRun: boolean;
@@ -49,9 +56,26 @@ type OverpassResponse = {
   elements: OverpassElement[];
 };
 
+type ImportCounts = {
+  inserted: number;
+  refreshed: number;
+  closed: number;
+  skipped: number;
+};
+
+type ImportRegion = {
+  regionKey: string;
+  bbox: [number, number, number, number];
+  sweep?: boolean;
+  limit?: number | null;
+};
+
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     bbox: [0, 0, 0, 0],
+    regionKey: "manual",
+    manifestPath: null,
+    maxRegions: null,
     sourceUrl: process.env.OVERPASS_API_URL ?? "https://overpass-api.de/api/interpreter",
     delayMs: 1500,
     dryRun: false,
@@ -66,6 +90,12 @@ function parseArgs(argv: string[]): Options {
         options.bbox = parts as [number, number, number, number];
       }
       i += 1;
+    } else if (arg === "--region-key" && argv[i + 1]) { options.regionKey = argv[i + 1]!; i += 1; }
+    else if (arg === "--manifest" && argv[i + 1]) { options.manifestPath = argv[i + 1]!; i += 1; }
+    else if (arg === "--max-regions" && argv[i + 1]) {
+      const n = Number.parseInt(argv[i + 1] ?? "", 10);
+      if (Number.isFinite(n) && n > 0) options.maxRegions = n;
+      i += 1;
     } else if (arg === "--source-url" && argv[i + 1]) { options.sourceUrl = argv[i + 1]!; i += 1; }
     else if (arg === "--delay-ms" && argv[i + 1]) { options.delayMs = Number(argv[i + 1]); i += 1; }
     else if (arg === "--dry-run") { options.dryRun = true; }
@@ -76,10 +106,50 @@ function parseArgs(argv: string[]): Options {
       i += 1;
     }
   }
-  if (options.bbox[0] === 0 && options.bbox[1] === 0 && options.bbox[2] === 0 && options.bbox[3] === 0) {
+  if (!options.manifestPath && options.bbox[0] === 0 && options.bbox[1] === 0 && options.bbox[2] === 0 && options.bbox[3] === 0) {
     throw new Error("Required: --bbox south,west,north,east");
   }
   return options;
+}
+
+function bboxHash(bbox: [number, number, number, number]): string {
+  return createHash("sha256").update(bbox.map((n) => n.toFixed(6)).join(",")).digest("hex").slice(0, 16);
+}
+
+function asBbox(value: unknown): [number, number, number, number] | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+  const parts = value.map((v) => Number(v));
+  return parts.every((n) => Number.isFinite(n)) ? (parts as [number, number, number, number]) : null;
+}
+
+async function loadManifest(path: string): Promise<ImportRegion[]> {
+  const raw = await readFile(path, "utf8");
+  const parsed = JSON.parse(raw) as unknown;
+  const items = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as { regions?: unknown }).regions)
+      ? (parsed as { regions: unknown[] }).regions
+      : [];
+  const regions: ImportRegion[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const bbox = asBbox(row.bbox);
+    const regionKey = typeof row.region_key === "string"
+      ? row.region_key
+      : typeof row.regionKey === "string"
+        ? row.regionKey
+        : "";
+    if (!bbox || !regionKey) continue;
+    const limit = row.limit == null ? null : Number.parseInt(String(row.limit), 10);
+    regions.push({
+      regionKey,
+      bbox,
+      sweep: row.sweep === true,
+      limit: typeof limit === "number" && Number.isFinite(limit) && limit > 0 ? limit : null,
+    });
+  }
+  return regions;
 }
 
 function buildQuery(bbox: [number, number, number, number]): string {
@@ -294,6 +364,56 @@ async function applyJob(client: any, job: UpsertJob, publishDate: string): Promi
   return "inserted";
 }
 
+async function startRun(client: any, args: {
+  regionKey: string;
+  bbox: [number, number, number, number];
+  sourceUrl: string;
+  dryRun: boolean;
+  sweep: boolean;
+  payload?: Record<string, unknown>;
+}): Promise<string | null> {
+  try {
+    const result = await client.query(
+      `INSERT INTO osm_area_import_runs (
+         region_key, bbox_hash, bbox, source_url, status, dry_run, sweep, payload
+       ) VALUES ($1, $2, $3::jsonb, $4, 'running', $5, $6, $7::jsonb)
+       RETURNING run_id`,
+      [
+        args.regionKey,
+        bboxHash(args.bbox),
+        JSON.stringify(args.bbox),
+        args.sourceUrl,
+        args.dryRun,
+        args.sweep,
+        JSON.stringify(args.payload ?? {}),
+      ],
+    );
+    return (result.rows[0] as { run_id?: string } | undefined)?.run_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function finishRun(client: any, runId: string | null, status: "success" | "partial" | "failed", counts: ImportCounts, errorMessage = ""): Promise<void> {
+  if (!runId) return;
+  try {
+    await client.query(
+      `UPDATE osm_area_import_runs
+          SET status = $2,
+              inserted_count = $3,
+              refreshed_count = $4,
+              closed_count = $5,
+              skipped_count = $6,
+              error_message = $7,
+              finished_at = now()
+        WHERE run_id = $1`,
+      [runId, status, counts.inserted, counts.refreshed, counts.closed, counts.skipped, errorMessage],
+    );
+  } catch {
+    // The import itself is more important than run telemetry.
+  }
+}
+
 async function sweep(client: any, foundEntityKeys: Set<string>, bbox: [number, number, number, number], publishDate: string): Promise<number> {
   // Close any current OSM park version inside the imported bbox that wasn't
   // touched in this run (= disappeared from OSM, possibly because the area is
@@ -319,11 +439,13 @@ async function sweep(client: any, foundEntityKeys: Set<string>, bbox: [number, n
   return closed;
 }
 
-async function main() {
-  const options = parseArgs(process.argv);
+async function importRegion(options: Options, region: ImportRegion): Promise<ImportCounts> {
   const publishDate = new Date().toISOString().slice(0, 10);
-  const query = buildQuery(options.bbox);
-  console.log(`[importOsmParks] querying Overpass bbox=${options.bbox.join(",")} dryRun=${options.dryRun}`);
+  const bbox = region.bbox;
+  const sweepEnabled = region.sweep ?? options.sweep;
+  const limit = options.limit ?? region.limit;
+  const query = buildQuery(bbox);
+  console.log(`[importOsmParks] querying Overpass region=${region.regionKey} bbox=${bbox.join(",")} dryRun=${options.dryRun}`);
   const response = await fetchOverpass(options.sourceUrl, query);
   const elements = response.elements ?? [];
   console.log(`[importOsmParks] received elements=${elements.length}`);
@@ -332,41 +454,77 @@ async function main() {
   for (const element of elements) {
     const job = buildJob(element);
     if (job) jobs.push(job);
-    if (options.limit && jobs.length >= options.limit) break;
+    if (limit && jobs.length >= limit) break;
   }
   console.log(`[importOsmParks] candidate jobs=${jobs.length}`);
 
   if (options.dryRun) {
     for (const j of jobs.slice(0, 8)) console.log(`  ${j.entityKey} ${j.name}`);
-    return;
+    return { inserted: 0, refreshed: 0, closed: 0, skipped: jobs.length };
   }
 
   const pool = getPool();
   const client = await pool.connect();
-  let inserted = 0, refreshed = 0;
+  let inserted = 0, refreshed = 0, skipped = 0;
   const found = new Set<string>();
+  let runId: string | null = null;
   try {
+    runId = await startRun(client, {
+      regionKey: region.regionKey,
+      bbox,
+      sourceUrl: options.sourceUrl,
+      dryRun: options.dryRun,
+      sweep: sweepEnabled,
+      payload: { manifest: Boolean(options.manifestPath), limit },
+    });
     await client.query("BEGIN");
     for (const job of jobs) {
       found.add(job.entityKey);
       const result = await applyJob(client, job, publishDate);
-      if (result === "inserted") inserted += 1; else refreshed += 1;
+      if (result === "inserted") inserted += 1;
+      else {
+        refreshed += 1;
+        skipped += 1;
+      }
       if (options.delayMs > 0) await new Promise((r) => setTimeout(r, 0)); // yield only
     }
     let closed = 0;
-    if (options.sweep) {
-      closed = await sweep(client, found, options.bbox, publishDate);
+    if (sweepEnabled) {
+      closed = await sweep(client, found, bbox, publishDate);
     }
+    await finishRun(client, runId, "success", { inserted, refreshed, closed, skipped });
     await client.query("COMMIT");
-    console.log(`[importOsmParks] done inserted=${inserted} refreshed=${refreshed} closed=${closed}`);
-    await flushAreaPolygonCacheRemote();
+    console.log(`[importOsmParks] done region=${region.regionKey} inserted=${inserted} refreshed=${refreshed} closed=${closed}`);
+    return { inserted, refreshed, closed, skipped };
   } catch (err) {
     await client.query("ROLLBACK");
+    await finishRun(client, runId, "failed", { inserted, refreshed, closed: 0, skipped }, err instanceof Error ? err.message.slice(0, 500) : String(err).slice(0, 500));
     throw err;
   } finally {
     client.release();
   }
-  await pool.end();
+}
+
+async function main() {
+  const options = parseArgs(process.argv);
+  const regions = options.manifestPath
+    ? (await loadManifest(options.manifestPath)).slice(0, options.maxRegions ?? undefined)
+    : [{ regionKey: options.regionKey, bbox: options.bbox, sweep: options.sweep, limit: options.limit }];
+  if (regions.length === 0) throw new Error("No valid import regions");
+
+  const totals: ImportCounts = { inserted: 0, refreshed: 0, closed: 0, skipped: 0 };
+  for (const region of regions) {
+    const counts = await importRegion(options, region);
+    totals.inserted += counts.inserted;
+    totals.refreshed += counts.refreshed;
+    totals.closed += counts.closed;
+    totals.skipped += counts.skipped;
+  }
+  console.log(`[importOsmParks] all done regions=${regions.length} inserted=${totals.inserted} refreshed=${totals.refreshed} closed=${totals.closed} skipped=${totals.skipped}`);
+  if (!options.dryRun) {
+    await flushAreaPolygonCacheRemote();
+    await getPool().end();
+  }
 }
 
 main().catch((err) => {
