@@ -134,10 +134,15 @@ jobs:
           echo "Candidate SSH tunnel did not become healthy"
           exit 1
 
+      - name: Generate UI smoke fixture prefix
+        id: ui-smoke
+        run: echo "fixture_prefix=smoke-ui-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
       - name: Run production candidate browser smoke
         working-directory: platform_v2
         env:
           PRODUCTION_SMOKE_BASE_URL: http://127.0.0.1:13202
+          PRODUCTION_SMOKE_UI_PREFIX: ${{ steps.ui-smoke.outputs.fixture_prefix }}
         run: npm run e2e:production-smoke
 
       - name: Upload production smoke artifacts
@@ -149,6 +154,13 @@ jobs:
             platform_v2/test-results
             platform_v2/playwright-report/production-smoke
           if-no-files-found: ignore
+
+      - name: Cleanup production candidate UI smoke data
+        if: always() && steps.ui-smoke.outputs.fixture_prefix != ''
+        run: |
+          prefix="${{ steps.ui-smoke.outputs.fixture_prefix }}"
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}"
 
   promote:
     name: Promote Production Candidate
