@@ -1,6 +1,11 @@
 import type { Pool, PoolClient } from "pg";
 import { createHash } from "node:crypto";
 import { getPool } from "../db.js";
+import { getCivicObservationContext, type CivicObservationContext } from "./civicNatureContext.js";
+import { buildMonitoringReadiness, type MonitoringReadiness } from "./monitoringReadiness.js";
+import { getObservationDataRights, type ObservationDataRights } from "./observationDataRights.js";
+import { getRuntimeVersionSnapshot, type RuntimeVersionSnapshot } from "./runtimeVersion.js";
+import { getWaterRecordExtension, type WaterRecordExtension } from "./waterRecordExtension.js";
 
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
@@ -12,8 +17,11 @@ export type ObservationPackageVisit = {
   locationPrecision: string;
   observedPrefecture: string | null;
   observedMunicipality: string | null;
+  completeChecklistFlag?: boolean;
   effortMinutes: number | null;
+  distanceMeters?: number | null;
   targetTaxaScope: string | null;
+  visitMode?: string | null;
   sourceKind: string;
 };
 
@@ -26,6 +34,7 @@ export type ObservationPackageOccurrence = {
   confidenceScore: number | null;
   evidenceTier: number | null;
   qualityGrade: string | null;
+  occurrenceStatus?: string | null;
   riskLane: string;
   safePublicRank: string;
   sourcePayload: Record<string, unknown>;
@@ -126,7 +135,7 @@ export type ObservationPackageReportOutput = {
 };
 
 export type ObservationPackage = {
-  packageVersion: "observation_package/v1";
+  packageVersion: "observation_package/v1" | "observation_package/v1.1";
   packageId: string;
   generatedAt: string;
   visit: ObservationPackageVisit;
@@ -138,6 +147,13 @@ export type ObservationPackage = {
   claimRefs: ObservationPackageClaimRef[];
   reviewState: ObservationPackageReviewState;
   reportOutputs: ObservationPackageReportOutput[];
+  civicContext?: CivicObservationContext | null;
+  dataRights?: ObservationDataRights | null;
+  readiness?: MonitoringReadiness;
+  extensions?: {
+    waterRecord: WaterRecordExtension | null;
+  };
+  runtimeVersion?: RuntimeVersionSnapshot;
 };
 
 export type BuildObservationPackageInput = {
@@ -235,8 +251,9 @@ async function resolveVisitId(queryable: Queryable, input: BuildObservationPacka
   if (!key) return null;
   const result = await queryable.query<{ visit_id: string }>(
     `SELECT visit_id
-       FROM visits
-      WHERE legacy_observation_id = $1
+     FROM visits
+      WHERE visit_id = $1
+         OR legacy_observation_id = $1
       UNION
      SELECT visit_id
        FROM occurrences
@@ -266,7 +283,10 @@ export async function buildObservationPackage(
     observed_prefecture: string | null;
     observed_municipality: string | null;
     effort_minutes: string | number | null;
+    distance_meters: string | number | null;
+    complete_checklist_flag: boolean | null;
     target_taxa_scope: string | null;
+    visit_mode: string | null;
     source_kind: string;
   }>(
     `SELECT visit_id,
@@ -278,8 +298,11 @@ export async function buildObservationPackage(
             coordinate_uncertainty_m::text AS coordinate_uncertainty_m,
             observed_prefecture,
             observed_municipality,
+            complete_checklist_flag,
             effort_minutes::text AS effort_minutes,
+            distance_meters::text AS distance_meters,
             target_taxa_scope,
+            visit_mode,
             source_kind
        FROM visits
       WHERE visit_id = $1
@@ -298,6 +321,7 @@ export async function buildObservationPackage(
     confidence_score: string | number | null;
     evidence_tier: string | number | null;
     quality_grade: string | null;
+    occurrence_status: string | null;
     source_payload: unknown;
   }>(
     `SELECT occurrence_id,
@@ -308,6 +332,7 @@ export async function buildObservationPackage(
             confidence_score::text AS confidence_score,
             evidence_tier::text AS evidence_tier,
             quality_grade,
+            occurrence_status,
             source_payload
        FROM occurrences
       WHERE visit_id = $1
@@ -328,6 +353,7 @@ export async function buildObservationPackage(
       confidenceScore: toNumber(row.confidence_score),
       evidenceTier,
       qualityGrade: row.quality_grade,
+      occurrenceStatus: row.occurrence_status,
       riskLane,
       safePublicRank: inferSafePublicRank({ taxonRank: row.taxon_rank, evidenceTier, riskLane }),
       sourcePayload,
@@ -456,6 +482,12 @@ export async function buildObservationPackage(
   const rawJson = asObject(latestFeedback?.raw_json);
   const parsed = asObject(rawJson.parsed);
   const claimRefsUsed = asStringArray(parsed.claim_refs_used);
+  const [civicContext, dataRights, waterRecord, runtimeVersion] = await Promise.all([
+    getCivicObservationContext(visitId).catch(() => null),
+    getObservationDataRights(visitId, queryable).catch(() => null),
+    getWaterRecordExtension(visitId, queryable).catch(() => null),
+    getRuntimeVersionSnapshot(queryable).catch(async () => getRuntimeVersionSnapshot()),
+  ]);
   const feedbackPayload = latestFeedback
     ? {
         simpleSummary: latestFeedback.simple_summary,
@@ -471,7 +503,7 @@ export async function buildObservationPackage(
     : null;
 
   return {
-    packageVersion: "observation_package/v1",
+    packageVersion: "observation_package/v1.1",
     packageId: packageIdFor(visitId, input.targetOccurrenceId ?? input.occurrenceId),
     generatedAt: new Date().toISOString(),
     visit: {
@@ -482,8 +514,11 @@ export async function buildObservationPackage(
       locationPrecision: inferLocationPrecision(visitRow),
       observedPrefecture: visitRow.observed_prefecture,
       observedMunicipality: visitRow.observed_municipality,
+      completeChecklistFlag: Boolean(visitRow.complete_checklist_flag),
       effortMinutes: toNumber(visitRow.effort_minutes),
+      distanceMeters: toNumber(visitRow.distance_meters),
       targetTaxaScope: visitRow.target_taxa_scope,
+      visitMode: visitRow.visit_mode,
       sourceKind: visitRow.source_kind,
     },
     occurrences,
@@ -536,6 +571,28 @@ export async function buildObservationPackage(
     claimRefs: [],
     reviewState: reviewStateFor(occurrences),
     reportOutputs: [],
+    civicContext,
+    dataRights,
+    readiness: buildMonitoringReadiness({
+      visit: {
+        locationPrecision: inferLocationPrecision(visitRow),
+        visitMode: visitRow.visit_mode,
+        effortMinutes: toNumber(visitRow.effort_minutes),
+        targetTaxaScope: visitRow.target_taxa_scope,
+        completeChecklistFlag: Boolean(visitRow.complete_checklist_flag),
+        placeId: visitRow.place_id,
+      },
+      occurrences,
+      evidenceAssets: assets.rows,
+      reviewState: reviewStateFor(occurrences),
+      civicContext,
+      dataRights,
+      waterRecord,
+    }),
+    extensions: {
+      waterRecord,
+    },
+    runtimeVersion,
   };
 }
 

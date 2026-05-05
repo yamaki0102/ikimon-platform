@@ -30,6 +30,14 @@ import {
   upsertCivicObservationContext,
   type CivicObservationContextInput,
 } from "./civicNatureContext.js";
+import {
+  upsertObservationDataRights,
+  type ObservationDataRightsInput,
+} from "./observationDataRights.js";
+import {
+  upsertWaterRecordExtension,
+  type WaterRecordExtensionInput,
+} from "./waterRecordExtension.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -103,6 +111,8 @@ export type ObservationUpsertInput = {
   revisitReason?: string | null;
   sourcePayload?: Record<string, unknown>;
   civicContext?: Partial<CivicObservationContextInput> | null;
+  dataRights?: ObservationDataRightsInput | null;
+  waterRecord?: WaterRecordExtensionInput | null;
 };
 
 export type ObservationWriteResult = {
@@ -508,6 +518,12 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           eventCode,
           sourcePayload: input.sourcePayload ?? null,
         })
+    : null;
+  const pendingDataRights = input.dataRights && typeof input.dataRights === "object"
+    ? input.dataRights
+    : null;
+  const pendingWaterRecord = input.waterRecord && typeof input.waterRecord === "object"
+    ? input.waterRecord
     : null;
 
   try {
@@ -946,6 +962,30 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           placeId,
         ],
       );
+    }
+
+    await upsertObservationDataRights({
+      ...(pendingDataRights ?? {}),
+      visitId,
+      occurrenceId,
+      sourcePayload: {
+        ...(pendingDataRights?.sourcePayload ?? {}),
+        source: "v2_observation_write",
+      },
+    }, client);
+
+    if (pendingWaterRecord?.catchOutcome) {
+      await upsertWaterRecordExtension({
+        ...pendingWaterRecord,
+        visitId,
+        occurrenceId,
+        effortMinutes: pendingWaterRecord.effortMinutes ?? effortMinutes,
+        targetTaxaScope: pendingWaterRecord.targetTaxaScope ?? targetTaxaScope,
+        sourcePayload: {
+          ...(pendingWaterRecord.sourcePayload ?? {}),
+          source: "v2_observation_write",
+        },
+      }, client);
     }
 
     await client.query("commit");

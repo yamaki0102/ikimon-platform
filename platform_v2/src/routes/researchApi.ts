@@ -22,6 +22,14 @@ type OccurrenceRow = {
   observer_name: string | null;
   photo_url: string | null;
   media_role: string | null;
+  public_precision: string | null;
+  civic_risk_lane: string | null;
+  record_consent: string | null;
+  research_use_consent: string | null;
+  dataset_license: string | null;
+  media_license: string | null;
+  external_export_allowed: boolean | null;
+  withdrawal_status: string | null;
   consensus_status: string;
   identification_verification_status: string;
 };
@@ -86,6 +94,17 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
       params.push(mediaRole);
       paramIdx++;
     }
+    if (query.export_ready_only === "1" || query.export_ready_only === "true") {
+      whereExtra += ` and coalesce(odr.external_export_allowed, false) = true
+        and odr.withdrawal_status = 'active'
+        and odr.dataset_license is not null
+        and odr.media_license is not null
+        and coalesce(coc.public_precision, '') not in ('', 'exact_private')
+        and (
+          id_meta.authority_count > 0
+          or o.evidence_tier >= 3
+        )`;
+    }
 
     const pool = getPool();
     const client = await pool.connect();
@@ -106,6 +125,14 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
            coalesce(u.display_name, 'Anonymous')                 as observer_name,
            photo.public_url                                       as photo_url,
            photo.media_role                                       as media_role,
+           coc.public_precision,
+           coc.risk_lane                                           as civic_risk_lane,
+           odr.record_consent,
+           odr.research_use_consent,
+           odr.dataset_license,
+           odr.media_license,
+           odr.external_export_allowed,
+           odr.withdrawal_status,
            case
              when id_meta.authority_count > 0 then 'authority_backed'
              when id_meta.current_count >= 2 then 'community_consensus'
@@ -120,6 +147,8 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
          join visits v on v.visit_id = o.visit_id
          left join places p on p.place_id = v.place_id
          left join users  u on u.user_id  = v.user_id
+         left join observation_data_rights odr on odr.visit_id = v.visit_id
+         left join civic_observation_contexts coc on coc.visit_id = v.visit_id
          left join lateral (
            select coalesce(ab.public_url, ab.storage_path) as public_url,
                   emr.media_role
@@ -178,6 +207,33 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
         license:              "CC-BY",
         consensusStatus:      row.consensus_status,
         identificationVerificationStatus: row.identification_verification_status,
+        readiness: {
+          exportReady: Boolean(
+            row.external_export_allowed
+            && row.withdrawal_status === "active"
+            && row.dataset_license
+            && row.media_license
+            && row.public_precision
+            && row.public_precision !== "exact_private"
+            && (row.consensus_status === "authority_backed" || row.evidence_tier >= 3)
+          ),
+          reviewReady: row.identification_verification_status !== "tier3_export_candidate" || row.evidence_tier >= 3,
+        },
+        dataGeneralizations: {
+          location: row.public_precision ?? "not_set",
+        },
+        informationWithheld: [
+          row.public_precision && row.public_precision !== "exact_private" ? "precise_coordinates" : null,
+          row.civic_risk_lane && row.civic_risk_lane !== "normal" ? "risk_lane_sensitive_context" : null,
+        ].filter(Boolean),
+        licenseStatus: {
+          recordConsent: row.record_consent ?? "missing",
+          researchUseConsent: row.research_use_consent ?? "missing",
+          datasetLicense: row.dataset_license,
+          mediaLicense: row.media_license,
+          externalExportAllowed: Boolean(row.external_export_allowed),
+          withdrawalStatus: row.withdrawal_status ?? "missing",
+        },
       }));
 
       reply.header("Cache-Control", "public, max-age=300");
