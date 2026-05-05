@@ -54,6 +54,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);
         assert.match(response.body, /revisitObservationId/);
+        assert.match(response.body, /メモだけ始める/);
+        assert.match(response.body, /data-capture-action="note"/);
         assert.match(response.body, /data-capture-action="photo"/);
         assert.match(response.body, /data-capture-action="video"/);
         assert.match(response.body, /data-capture-action="gallery"/);
@@ -132,7 +134,6 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /timeout: 2500/);
         assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \}\)/);
         assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
-        assert.doesNotMatch(response.body, /メモだけ始める/);
       } finally {
         await app.close();
       }
@@ -159,8 +160,8 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.match(response.body, /名前が分からなくても、記録は始められる/);
         assert.match(response.body, /ログインして記録する/);
         assert.match(response.body, /新しく登録して記録する/);
+        assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dnote/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto/);
-        assert.doesNotMatch(response.body, /redirect=%2Frecord%3Fstart%3Dnote/);
         assert.doesNotMatch(response.body, /Session required/);
       } finally {
         await app.close();
