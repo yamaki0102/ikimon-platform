@@ -22,6 +22,7 @@ test("mobile field session API stores digest-only monitoring context with idempo
   assert.match(serviceSource, /recordGuideRoutePoint\(/);
   assert.match(serviceSource, /monitoringContext: normalizeObject\(body\.monitoring_context\)/);
   assert.match(serviceSource, /monitoringContext: input\.monitoringContext \?\? null/);
+  assert.match(serviceSource, /gr\.user_id = \$2::uuid/);
   assert.match(migrationSource, /unique \(install_id, client_scene_id\)/i);
   assert.doesNotMatch(routeSource + serviceSource, /raw_audio|raw_video|video_blob|audio_blob/);
 });
