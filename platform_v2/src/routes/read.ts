@@ -5428,30 +5428,62 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           return value.toFixed(1) + '秒';
         };
 
+        const isVideoDurationReadError = (error) => {
+          const message = normalizeError(error);
+          return message === 'video_metadata_read_failed' || message === 'video_duration_unknown';
+        };
+
         const getVideoDuration = (file) => new Promise((resolve, reject) => {
           const probe = document.createElement('video');
           const objectUrl = URL.createObjectURL(file);
+          let settled = false;
+          let askedBySeek = false;
           const cleanup = () => {
+            settled = true;
             URL.revokeObjectURL(objectUrl);
             probe.removeAttribute('src');
+            probe.load();
+          };
+          const finishWithDuration = () => {
+            if (settled) return true;
+            const duration = Number(probe.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+              cleanup();
+              resolve(duration);
+              return true;
+            }
+            return false;
+          };
+          const trySeekProbe = () => {
+            if (settled || askedBySeek) return;
+            askedBySeek = true;
+            try {
+              probe.currentTime = 1e101;
+            } catch (_) {
+              // Some mobile browsers only reveal Blob video duration after a large seek.
+            }
+          };
+          const fail = (code) => {
+            if (settled) return;
+            cleanup();
+            reject(new Error(code));
           };
           probe.preload = 'metadata';
           probe.muted = true;
           probe.playsInline = true;
           probe.onloadedmetadata = () => {
-            const duration = Number(probe.duration);
-            cleanup();
-            if (!Number.isFinite(duration) || duration <= 0) {
-              reject(new Error('video_duration_unknown'));
-              return;
-            }
-            resolve(duration);
+            if (!finishWithDuration()) trySeekProbe();
           };
+          probe.ondurationchange = finishWithDuration;
+          probe.onloadeddata = finishWithDuration;
+          probe.oncanplay = finishWithDuration;
+          probe.onseeked = finishWithDuration;
           probe.onerror = () => {
-            cleanup();
-            reject(new Error('video_metadata_read_failed'));
+            fail('video_metadata_read_failed');
           };
+          window.setTimeout(() => fail('video_duration_unknown'), 8000);
           probe.src = objectUrl;
+          probe.load();
         });
 
         const resetVideoTrim = (opts) => {
@@ -5623,7 +5655,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
         const ensureVideoReadyForUpload = async (file) => {
           if (!file || !isVideoFile(file)) return file;
-          const duration = await getVideoDuration(file);
+          let duration = 0;
+          try {
+            duration = await getVideoDuration(file);
+          } catch (error) {
+            if (isVideoDurationReadError(error)) {
+              if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画としてアップロードし、サーバー側の上限で確認します。';
+              return file;
+            }
+            throw error;
+          }
           if (duration > MAX_VIDEO_SECONDS + 0.5 && !selectedVideoWasTrimmed) {
             throw new Error('video_trim_required');
           }
@@ -6157,7 +6198,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             } catch (_) {
               trimReady = false;
               resetVideoTrim();
-              if (videoLive) videoLive.textContent = '動画の長さを確認できませんでした。別の動画で試してください。';
+              if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。';
             }
             videoProgressWrap.hidden = false;
             if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
@@ -6165,7 +6206,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         };
 
         const validateVideoDuration = async (file) => {
-          const duration = await getVideoDuration(file);
+          let duration = 0;
+          try {
+            duration = await getVideoDuration(file);
+          } catch (error) {
+            if (isVideoDurationReadError(error)) return null;
+            throw error;
+          }
           if (duration > MAX_VIDEO_SECONDS + 0.5) {
             throw new Error('video_duration_too_long');
           }
@@ -6377,7 +6424,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               } catch (_) {
                 trimReady = false;
                 resetVideoTrim();
-                if (videoLive) videoLive.textContent = '動画の長さを確認できませんでした。別の動画で試してください。';
+                if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。';
               }
               videoProgressWrap.hidden = false;
               if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
