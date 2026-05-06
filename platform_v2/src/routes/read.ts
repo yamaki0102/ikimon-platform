@@ -7437,7 +7437,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         </section>
         <section class="observations-presets" aria-label="保存条件">
           <div class="observations-preset-save">
-            <input type="text" placeholder="条件名" data-observations-preset-name />
+            <input type="text" placeholder="保存名（任意）" aria-label="保存名（任意）" data-observations-preset-name />
             <button type="button" data-observations-preset-save>保存</button>
           </div>
           <div class="observations-preset-list" data-observations-presets></div>

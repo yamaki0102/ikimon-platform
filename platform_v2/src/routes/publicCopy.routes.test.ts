@@ -128,7 +128,7 @@ test("observations index renders the senior-friendly video grid list", async () 
     assert.match(response.body, /登録エリア/);
     assert.match(response.body, /科・属・種名/);
     assert.match(response.body, /スポット名/);
-    assert.match(response.body, /条件名/);
+    assert.match(response.body, /保存名（任意）/);
     assert.match(response.body, /data-observations-field-chip/);
     assert.match(response.body, /data-observations-preset-save/);
     assert.match(response.body, /同定少ない順/);
