@@ -132,6 +132,11 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
   assert.match(html, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
   assert.match(html, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
+  assert.match(html, /CAMERA_PHOTO_IDEAL_WIDTH = 2560/);
+  assert.match(html, /CAMERA_PHOTO_IDEAL_HEIGHT = 1920/);
+  assert.match(html, /CAMERA_VIDEO_IDEAL_WIDTH = 1280/);
+  assert.match(html, /CAMERA_VIDEO_IDEAL_HEIGHT = 720/);
+  assert.match(html, /video: cameraVideoConstraints\(\)/);
   assert.match(html, /ikimonFacePrivacy/);
   assert.match(html, /ikimonFacePrivacyAssetBase/);
   assert.match(html, /assets\/face-privacy/);
