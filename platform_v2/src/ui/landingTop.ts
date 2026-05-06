@@ -240,7 +240,6 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
 
   return `<section class="prototype-topa" aria-labelledby="landing-hero-heading">
     <div class="prototype-topa-intro">
-      <div class="prototype-live-pill"><span></span>今日のikimon.life</div>
       <h1 id="landing-hero-heading">見つける、確かめる、地図で見る。</h1>
     </div>
     <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/explore"))}" method="get" aria-label="近くの生きものを検索">
@@ -523,15 +522,16 @@ export const LANDING_TOP_STYLES = `
   .prototype-topa-intro {
     display: grid;
     gap: 12px;
-    max-width: 860px;
+    max-width: none;
   }
   .prototype-topa h1 {
     margin: 0;
     color: #10251a;
-    font-size: clamp(34px, 4vw, 60px);
+    font-size: clamp(34px, 3.25vw, 56px);
     line-height: 1.14;
     letter-spacing: 0;
     font-weight: 950;
+    white-space: nowrap;
   }
   .prototype-topa p {
     margin: 0;
@@ -1359,7 +1359,7 @@ export const LANDING_TOP_STYLES = `
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { padding-top: 18px; }
     .prototype-topa { padding-top: 12px; }
-    .prototype-topa h1 { font-size: 34px; }
+    .prototype-topa h1 { font-size: 34px; white-space: normal; }
     .prototype-topa-search { min-height: 58px; border-radius: 8px; grid-template-columns: auto minmax(0, 1fr); }
     .prototype-topa-search button { grid-column: 1 / -1; width: 100%; }
     .prototype-topa-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }

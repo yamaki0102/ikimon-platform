@@ -112,6 +112,7 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /sample_/);
   assert.doesNotMatch(html, /\/uploads\/sample_/);
   assert.match(html, /prototype-topa/);
+  assert.doesNotMatch(html, /今日のikimon\.life/);
   assert.match(html, /観察する/);
   assert.match(html, /同定する/);
   assert.match(html, /地域マップ/);

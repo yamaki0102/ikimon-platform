@@ -92,8 +92,19 @@ export function renderMapMini(props: MapMiniProps): string {
         <span class="map-mini-fallback-count">${escapeHtml(String(cell.count))}</span>
       </a>`)
     .join("");
-  const badges = fallbackCells
-    .slice(0, 4)
+  const badgeGroups = Array.from(fallbackCells.reduce((groups, cell) => {
+    const label = cell.label.trim() || "観察エリア";
+    const group = groups.get(label);
+    if (group) {
+      group.count += cell.count;
+    } else {
+      groups.set(label, { label, count: cell.count, href: cell.href });
+    }
+    return groups;
+  }, new Map<string, { label: string; count: number; href: string }>()).values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
+  const badges = badgeGroups
     .map((cell) => `<a class="map-mini-badge" href="${escapeHtml(cell.href)}"><strong>${escapeHtml(cell.label)}</strong><span>${escapeHtml(`${cell.count}件`)}</span></a>`)
     .join("");
 

@@ -264,7 +264,7 @@ function buildLandingRootHtml(
     body: `${landingTop.heroHtml}
 ${landingTop.dailyDashboardHtml}
 ${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}
-${mapMiniBootScript()}`,
+${mapMiniBootScript("ikimon-topa-map-mini")}`,
     footerNote: copy.footerNote,
   });
 }
