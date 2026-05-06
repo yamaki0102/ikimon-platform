@@ -2153,15 +2153,11 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
 
 const START_STATE_STYLES = `
   .start-guide { display: grid; gap: 20px; }
-  .start-guide-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-  .start-guide-card { min-height: 168px; padding: 22px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
-  .start-guide-card strong { display: block; margin: 8px 0; color: #0f172a; font-size: 18px; }
-  .start-guide-card p { margin: 0; color: #64748b; font-size: 13.5px; line-height: 1.75; }
-  .start-guide-panel { padding: 24px; border-radius: 24px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
+  .start-guide-panel { max-width: 760px; margin: 0 auto; padding: 24px; border-radius: 24px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
   .start-guide-panel h2 { margin: 8px 0; color: #0f172a; }
   .start-guide-panel p { margin: 0; color: #475569; line-height: 1.8; }
   .start-guide-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-  .start-guide-auth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.68); border: 1px solid rgba(15,23,42,.08); }
+  .start-guide-actions .btn-solid { min-width: 210px; }
   .record-capture-dock { display: none; }
   .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; line-height: 1.2; }
   .record-dock-primary { background: #ecfdf5; color: #065f46; }
@@ -2172,10 +2168,8 @@ const START_STATE_STYLES = `
   @media (max-width: 720px) {
     .start-guide { padding-bottom: 104px; }
     .site-footer { padding-bottom: 104px; }
-    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.2fr repeat(4, minmax(0, .74fr)); gap: 8px; }
+    .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); gap: 8px; }
   }
-  @media (max-width: 980px) { .start-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 620px) { .start-guide-grid { grid-template-columns: 1fr; } }
 `;
 
 function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
@@ -2195,7 +2189,8 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
     return `/record?${params.toString()}`;
   };
   const loginFor = (target: string) => withBasePath(basePath, `/login?redirect=${encodeURIComponent(target)}`);
-  const loginHref = loginFor(recordTarget);
+  const loginHref = loginFor(recordStart ? recordTarget : recordTargetForStart("photo"));
+  const memoHref = loginFor(recordTargetForStart("note"));
   const registerHref = withBasePath(basePath, `/register?redirect=${encodeURIComponent(recordTarget)}`);
   const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
     ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
@@ -2209,49 +2204,37 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
     extraStyles: START_STATE_STYLES,
     hero: {
       eyebrow: "record",
-      heading: "記録を始める準備",
-      lead: "名前が分からなくても、記録は始められる。まず主役を1つ決め、周囲の様子も手がかりとして残せば、今日の発見はあとから育てられます。",
+      heading: "写真で記録を始める",
+      lead: "まず写真を1枚残せば十分です。名前や詳しい説明は、あとから足せます。",
       tone: "light",
       align: "center",
       actions: [
-        { href: loginHref, label: "ログインして記録する" },
+        { href: loginHref, label: "ログインして写真で記録" },
         { href: registerHref, label: "新しく登録して記録する", variant: "secondary" },
       ],
     },
     body: `<div class="start-guide">
       <section class="section">
-        <div class="start-guide-grid">
-          <div class="start-guide-card"><div class="eyebrow">photo</div><strong>まず写真を残す</strong><p>全体、近くから見た特徴、いた場所の雰囲気を残すと、あとから確かめやすくなります。</p></div>
-          <div class="start-guide-card"><div class="eyebrow">place</div><strong>場所と時間を残す</strong><p>散歩道、公園、水辺、庭先など、どこでいつ見たかが記録の価値を支えます。</p></div>
-          <div class="start-guide-card"><div class="eyebrow">subject</div><strong>主役と周囲を分ける</strong><p>投稿では主役を1つ選べば十分です。周囲に写った生きものや環境は、AIと人が読む手がかりになります。</p></div>
-          <div class="start-guide-card"><div class="eyebrow">note</div><strong>分からないまま書く</strong><p>名前が未確定でも、色、動き、数、周りの環境を短く書けば次の確認につながります。</p></div>
-        </div>
-      </section>
-      <section class="section">
         <div class="start-guide-panel">
           <div class="eyebrow">sign in required</div>
-          <h2>記録本体は、セッションがあると開きます。</h2>
-          <p>観察はあとから見返せる個人ノートとして残すため、投稿画面はログイン済みの状態で使います。未ログイン時は、ここで準備だけ確認できます。</p>
-          <div class="start-guide-auth-actions">
-            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインして記録する</a>
-            <a class="btn btn-ghost" href="${escapeHtml(registerHref)}">新しく登録して記録する</a>
-          </div>
+          <h2>記録画面はログイン後に開きます。</h2>
+          <p>写真・場所・時間を個人ノートに保存するため、投稿前にログインします。</p>
           <div class="start-guide-actions">
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/faq"))}">FAQを見る</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/map"))}">地図を見る</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインして写真で記録</a>
+            <a class="btn btn-ghost" href="${escapeHtml(memoHref)}">メモで始める</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn"))}">使い方を読む</a>
           </div>
           ${qaHint}
         </div>
       </section>
       <nav class="record-capture-dock" aria-label="ログインして投稿を始める">
-        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("note")))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-          <span>メモ</span>
-        </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
+        <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
           <span>写真</span>
+        </a>
+        <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("note")))}">
+          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
+          <span>メモ</span>
         </a>
         <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("video")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
@@ -2261,13 +2244,9 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
           <span>選ぶ</span>
         </a>
-        <a class="record-dock-action" href="${escapeHtml(loginFor("/guide"))}">
-          <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
-          <span>ガイド</span>
-        </a>
       </nav>
     </div>`,
-    footerNote: "記録はログイン後に保存されます。未ログイン時は、準備と使い方を先に確認できます。",
+    footerNote: "詳しい使い方は読み物ページで確認できます。",
   });
 }
 
@@ -4200,9 +4179,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <section class="record-card record-sheet">
             <div class="record-card-head">
               <div>
-                <div class="eyebrow" id="record-mode-eyebrow">投稿入口</div>
-                <h2>まず、どう残すかを選ぶ</h2>
-                <p class="meta" id="record-mode-lead">写真、動画、手元のファイル、ライブガイドから始められます。まず主役を1つ決め、周囲の様子も手がかりとして残します。</p>
+                <div class="eyebrow" id="record-mode-eyebrow">record</div>
+                <h2>写真で記録する</h2>
+                <p class="meta" id="record-mode-lead">写真を撮るか選ぶだけで始められます。必要な入力はそのあとに出します。</p>
               </div>
               <div class="record-session-pill">
                 <span class="record-session-label">ログイン中</span>
@@ -4210,53 +4189,39 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </div>
             <div class="record-capture-launcher" aria-label="投稿の始め方">
-              <button type="button" class="record-capture-option is-primary" data-capture-action="note">
-                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-                <strong>メモだけ始める</strong>
-                <span>写真なしでも場所とひとことで残す</span>
-              </button>
-              <button type="button" class="record-capture-option" data-capture-action="photo">
+              <button type="button" class="record-capture-option record-capture-photo-primary is-primary" data-capture-action="photo">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-                <strong>写真</strong>
-                <span>その場の1枚をすぐ残す</span>
+                <strong>写真で記録する</strong>
+                <span>撮る / 選ぶ</span>
+              </button>
+              <button type="button" class="record-capture-option" data-capture-action="note">
+                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
+                <strong>メモだけ残す</strong>
+                <span>写真なし</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="video">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-                <strong>動画</strong>
-                <span>動きや鳴き方ごと残す</span>
+                <strong>動画で残す</strong>
+                <span>最大60秒</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="gallery">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-                <strong>選ぶ</strong>
-                <span>撮影済みの写真や動画を使う</span>
+                <strong>ファイルから選ぶ</strong>
+                <span>写真 / 動画</span>
               </button>
-              <a class="record-capture-option record-capture-link" href="${escapeHtml(withBasePath(basePath, "/guide"))}">
-                <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
-                <strong>ガイド</strong>
-                <span>AIのヒントを見ながら探す</span>
-              </a>
             </div>
-            <div class="record-subject-context" aria-label="主役と周囲の残し方">
-              <div>
-                <span class="record-label">主役と周囲</span>
-                <strong>主役は1つ選べばOK</strong>
-                <p>広角写真、環境、鳴き声、同じ画面に写った別の生きものも、AIが補助的な手がかりとして見ます。あとで別の観察に切り出せる余地も残します。</p>
-              </div>
-              <div class="record-subject-context-tags" aria-label="メディアの役割">
-                <span>主役</span>
-                <span>周囲</span>
-                <span>音・動き</span>
-                <span>別対象の候補</span>
-              </div>
+            <div class="record-secondary-links">
+              <a href="${escapeHtml(withBasePath(basePath, "/guide"))}">AIのヒントを見ながら探す</a>
+              <a href="${escapeHtml(withBasePath(basePath, "/learn"))}">使い方を読む</a>
             </div>
             <div class="record-capture-dock" aria-label="すぐ投稿する">
-              <button type="button" class="record-dock-action record-dock-primary" data-capture-action="note">
-                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-                <span>メモ</span>
-              </button>
-              <button type="button" class="record-dock-action" data-capture-action="photo">
+              <button type="button" class="record-dock-action record-dock-primary" data-capture-action="photo">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
                 <span>写真</span>
+              </button>
+              <button type="button" class="record-dock-action" data-capture-action="note">
+                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
+                <span>メモ</span>
               </button>
               <button type="button" class="record-dock-action" data-capture-action="video">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
@@ -4266,16 +4231,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
                 <span>選ぶ</span>
               </button>
-              <a class="record-dock-action" href="${escapeHtml(withBasePath(basePath, "/guide"))}">
-                <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
-                <span>ガイド</span>
-              </a>
             </div>
             <div id="record-capture-result" class="record-capture-result" hidden>
               <div>
-                <span class="record-label">選択中</span>
+                <span class="record-label">自動下書き</span>
                 <strong id="record-capture-result-title">未選択</strong>
-                <p id="record-capture-result-help">ファイルを選ぶと入力欄が開きます。主役以外の周囲も、AIが手がかりとして見ます。</p>
+                <p id="record-capture-result-help">写真・日時・地点だけで保存できます。名前や説明はあとで足せます。</p>
               </div>
               <button type="button" class="btn btn-ghost" id="record-capture-change">選び直す</button>
             </div>
@@ -4300,9 +4261,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <div>
                   <span class="record-label">送信前チェック</span>
                   <strong id="record-submit-panel-title">メディア未選択</strong>
-                  <p id="record-submit-panel-help">写真や動画を選ぶと、ここから投稿できます。</p>
+                  <p id="record-submit-panel-help">日時と地点を確認して保存します。名前や説明はあとで足せます。</p>
                 </div>
-                <button type="submit" class="btn btn-solid">投稿する</button>
+                <button type="submit" class="btn btn-solid">保存してあとで補完</button>
               </div>
               <div id="record-video-primary-photo" class="record-video-primary-photo" hidden>
                 <div>
@@ -4314,32 +4275,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <button type="button" class="btn btn-solid" id="record-video-primary-photo-pick">主役写真を追加</button>
                   <button type="button" class="btn btn-ghost" id="record-video-primary-photo-clear" hidden>外す</button>
                 </div>
-              </div>
-              <div class="record-field record-field-wide record-media-role">
-                <span class="record-label">このメディアの役割</span>
-                <div class="record-media-role-grid" role="radiogroup" aria-label="このメディアの役割">
-                  <label class="record-media-role-chip">
-                    <input type="radio" name="mediaRole" value="primary_subject" checked />
-                    <strong>主役</strong>
-                    <span>この記録の中心</span>
-                  </label>
-                  <label class="record-media-role-chip">
-                    <input type="radio" name="mediaRole" value="context" />
-                    <strong>周囲</strong>
-                    <span>場所・環境の手がかり</span>
-                  </label>
-                  <label class="record-media-role-chip">
-                    <input type="radio" name="mediaRole" value="sound_motion" />
-                    <strong>音・動き</strong>
-                    <span>鳴き声や行動</span>
-                  </label>
-                  <label class="record-media-role-chip">
-                    <input type="radio" name="mediaRole" value="secondary_candidate" />
-                    <strong>別対象候補</strong>
-                    <span>同じ画面の別の生きもの</span>
-                  </label>
-                </div>
-                <p class="record-help">あとで同じ写真や動画から別の観察を切り出せるよう、保存データにも役割を残します。</p>
               </div>
               <div id="record-video-trim" class="record-video-trim" hidden>
                 <div class="record-video-trim-head">
@@ -4395,10 +4330,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   </details>
                 </div>
               </div>
-              <label class="record-field record-field-wide"><span class="record-label">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近 / 水辺の柵のそば" /></label>
-              <details class="record-field record-field-wide record-advanced">
-                <summary>詳しく残す</summary>
-                <div class="record-advanced-grid">
+              <details class="record-field record-field-wide record-later-details">
+                <summary>あとで補完する項目</summary>
+                <div class="record-later-grid">
+                  <label class="record-field record-field-wide"><span class="record-label">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近 / 水辺の柵のそば" /></label>
+                  <div class="record-field record-field-wide record-media-role">
+                    <span class="record-label">このメディアの役割</span>
+                    <div class="record-media-role-grid" role="radiogroup" aria-label="このメディアの役割">
+                      <label class="record-media-role-chip">
+                        <input type="radio" name="mediaRole" value="primary_subject" checked />
+                        <strong>主役</strong>
+                        <span>この記録の中心</span>
+                      </label>
+                      <label class="record-media-role-chip">
+                        <input type="radio" name="mediaRole" value="context" />
+                        <strong>周囲</strong>
+                        <span>場所・環境の手がかり</span>
+                      </label>
+                      <label class="record-media-role-chip">
+                        <input type="radio" name="mediaRole" value="sound_motion" />
+                        <strong>音・動き</strong>
+                        <span>鳴き声や行動</span>
+                      </label>
+                      <label class="record-media-role-chip">
+                        <input type="radio" name="mediaRole" value="secondary_candidate" />
+                        <strong>別対象候補</strong>
+                        <span>同じ画面の別の生きもの</span>
+                      </label>
+                    </div>
+                  </div>
                   <label class="record-field"><span class="record-label">和名 / 通称（分かれば）</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
                   <label class="record-field"><span class="record-label">学名 / 分類（分かれば）</span><input name="scientificName" type="text" placeholder="例: Passer montanus" /></label>
                   <label class="record-field"><span class="record-label">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" /></label>
@@ -4477,10 +4437,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                           <input name="nextLookFor" type="text" placeholder="例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花" />
                         </label>
                       </div>
-                      <div class="record-survey-caution">
-                        <strong>「今日は見なかった」は今日のメモです。</strong>
-                        <span>この 1 回だけで不在を言い切るためには使いません。次に探す軸として残します。</span>
-                      </div>
                     </div>
                   </div>
                   <div class="record-field record-field-wide record-survey-fields" data-survey-only hidden>
@@ -4520,10 +4476,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                           <textarea name="revisitReason" rows="3" placeholder="例: 先月と比べたい / 同じ水路の変化を見たい" data-survey-required disabled></textarea>
                         </label>
                       </div>
-                      <div class="record-survey-caution">
-                        <strong>未観測と不在は別です。</strong>
-                        <span>「見つからなかった」はメモとして残しますが、「いない」と言い切る材料には使いません。</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -4541,62 +4493,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <div id="record-video-live" class="record-video-live" aria-live="polite">動画を選ぶと進捗を表示します。</div>
               </div>
               <div class="record-actions">
-                <button class="btn btn-solid" type="submit">${JA_PUBLIC_SHARED_COPY.cta.record}</button>
-                <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">${JA_PUBLIC_SHARED_COPY.cta.openNotebook}</a>
+                <button class="btn btn-solid" type="submit">保存してあとで補完</button>
+                <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn"))}">記録のコツを読む</a>
               </div>
+              <div id="record-status" class="record-status-inline list" aria-live="polite"></div>
               <div class="record-submit-dock" aria-label="記録を送信する">
                 <button type="button" class="record-submit-location" data-record-locate>現在地</button>
                 <span id="record-submit-dock-meta" class="record-submit-dock-meta">メディア未選択</span>
-                <button type="submit" class="record-submit-primary">投稿する</button>
+                <button type="submit" class="record-submit-primary">保存</button>
               </div>
             </form>
           </section>
-          <aside class="record-sidebar">
-            <section class="record-card record-preview-card">
-              <div class="eyebrow">記録の見え方</div>
-              <h2>あとで見返すと、こう残る</h2>
-              <div class="record-preview">
-                <div class="record-preview-topline">
-                  <span id="record-preview-kicker" class="record-preview-kicker">ふだんの記録</span>
-                  <span id="record-preview-date">今日</span>
-                </div>
-                <h3 id="record-preview-title">名前未確定の観察</h3>
-                <p id="record-preview-place">場所メモが入ると、あとから再訪理由として効きます。</p>
-                <div class="record-preview-meta">
-                  <span id="record-preview-municipality">自治体未入力</span>
-                  <span id="record-preview-coords">34.7108, 137.7261</span>
-                </div>
-                <div id="record-preview-photo" class="record-preview-photo is-empty">写真 / 動画プレビュー</div>
-              </div>
-            </section>
-            <section class="record-card record-guide-card">
-              <div class="eyebrow">この 1 件の意味</div>
-              <h2>この 1 件が効く理由</h2>
-              <div class="list">
-                <div class="row"><div><strong>再訪理由が残る</strong><div class="meta">場所メモと日時が、次に同じ道を歩く理由になる。</div></div></div>
-                <div class="row"><div><strong>見分け方の仮説が残る</strong><div class="meta">写真と名前の仮説が、次に見返したときの手がかりになる。</div></div></div>
-                <div class="row"><div><strong>周囲も手がかりになる</strong><div class="meta">広角、背景、鳴き声、同じ画面の別対象も、AIが補助情報として読む。</div></div></div>
-                <div class="row"><div><strong>ノートとして読み返せる</strong><div class="meta">単発投稿ではなく、前回との差分が見える履歴になる。</div></div></div>
-              </div>
-            </section>
-            <section class="record-card">
-              <div class="eyebrow">信頼のレーン</div>
-              <h2>名前は、段を分けて確かめる</h2>
-              <div class="list">
-                <div class="row"><div><strong>AI のヒント</strong><div class="meta">${JA_PUBLIC_SHARED_COPY.ai.support}</div></div></div>
-                <div class="row"><div><strong>みんなの見立て</strong><div class="meta">人の一致で「強い候補」になる。大きな分類なら正式に残ることもある。</div></div></div>
-                <div class="row"><div><strong>任された人の確認</strong><div class="meta">分類群の担当権限を持つ確認者が、細かい種名を通す段階。</div></div></div>
-                <div class="row"><div><strong>公開前の確認</strong><div class="meta">確認と証拠がそろったものだけ、外に出す前提で扱う。</div></div></div>
-              </div>
-            </section>
-            <section class="record-card">
-              <div class="eyebrow">送信状況</div>
-              <h2>送信ステータス</h2>
-              <div id="record-status" class="list" style="margin-top:16px">
-                <div class="row"><div>入力が完了したら送信してください。</div></div>
-              </div>
-            </section>
-          </aside>
         </div>
       </section>
       <script>
@@ -4695,8 +4602,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         let recordSubmitInFlight = false;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
         const captureLabels = {
-          note: { title: 'メモだけ始める', help: '写真なしでも、場所・時間・ひとことで記録できます。' },
-          photo: { title: '写真を追加', help: '撮影した写真、または端末上の写真を記録に添付します。' },
+          note: { title: 'メモだけ残す', help: '写真なしでも、場所・時間・ひとことで記録できます。' },
+          photo: { title: '写真で記録する', help: '撮った写真、または端末上の写真を記録に添付します。' },
           video: { title: '動画を追加', help: '動画投稿は最大60秒まで。大きい動画や不安定な通信では分割送信します。' },
           gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
         };
@@ -4963,7 +4870,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               ? (survey
                   ? '見た条件も一緒に残して、あとで比べやすくするための入力です。'
                   : '場所・時間・気づいたことを、まず 1 件残すための入力です。')
-              : '写真、動画、手元のファイル、ライブガイドから始められます。選んだあとに必要な入力だけを出します。';
+              : '写真を撮るか選ぶだけで始められます。必要な入力はそのあとに出します。';
           }
           if (previewKicker) previewKicker.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
           if (quickFieldsWrap) quickFieldsWrap.hidden = survey;
@@ -5055,10 +4962,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (submitPanelTitle) submitPanelTitle.textContent = summary;
           if (submitPanelHelp) {
             submitPanelHelp.textContent = hasSelectedMedia()
-              ? 'この1件の観察に、選んだ写真と動画をまとめて保存します。'
+              ? '日時と地点を確認して保存します。名前や説明はあとで足せます。'
               : hasNoteDraft()
-                ? '写真なしの観察メモとして保存します。あとで写真や確認内容を足せます。'
-                : '写真や動画を選ぶと、ここから投稿できます。';
+                ? '写真なしの観察メモとして保存します。あとで写真を足せます。'
+                : '写真を選ぶと、ここから保存できます。';
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
         };
@@ -5906,12 +5813,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             selectedVideoFile ? '動画1本' : '',
           ].filter(Boolean).join(' / ');
           if (captureResultTitle) captureResultTitle.textContent = hasDraft
-            ? (hasMedia ? label.title + ' - ' + mediaSummary : label.title)
+            ? (hasMedia ? '下書き作成済み - ' + mediaSummary : label.title)
             : '未選択';
           const noticeText = [...(notices || []), ...normalized.notices].filter(Boolean).join(' ');
           if (captureResultHelp) captureResultHelp.textContent = hasDraft
             ? (noticeText || label.help)
-            : 'ファイルを選ぶと入力欄が開きます。';
+            : '写真を選ぶと、日時と地点だけで保存できます。';
           captureButtons.forEach((button) => {
             const active = button.getAttribute('data-capture-action') === selectedCaptureKind;
             button.classList.toggle('is-active', active);
@@ -6918,7 +6825,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       undefined,
       `
         .record-page { margin-top: 24px; }
-        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: var(--ikimon-content-max); margin: 0 auto; }
+        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 920px; margin: 0 auto; }
         .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
         .record-sheet { position: relative; overflow: hidden; }
         .record-sheet::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 34px, rgba(14,165,233,.05) 35px, transparent 36px); pointer-events: none; }
@@ -6929,14 +6836,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-session-pill { display: inline-flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); min-width: 180px; }
         .record-session-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
         .record-session-pill strong { font-size: 14px; color: #0f172a; word-break: break-all; }
-        .record-capture-launcher { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding-left: 16px; margin: 0 0 18px; }
+        .record-capture-launcher { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding-left: 16px; margin: 0 0 12px; }
         .record-capture-option { min-height: 132px; display: grid; align-content: start; gap: 8px; text-align: left; padding: 16px; border-radius: 22px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; text-decoration: none; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.045); transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
         .record-capture-option:hover, .record-capture-option.is-active { transform: translateY(-2px); border-color: rgba(14,165,233,.34); box-shadow: 0 16px 32px rgba(14,165,233,.1); }
         .record-capture-option.is-primary { background: linear-gradient(180deg, rgba(236,253,245,.96), rgba(240,249,255,.96)); border-color: rgba(16,185,129,.24); }
+        .record-capture-photo-primary { grid-column: span 2; }
         .record-capture-icon { width: 42px; height: 42px; border-radius: 999px; display: grid; place-items: center; background: rgba(15,23,42,.05); color: #047857; }
         .record-capture-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .record-capture-option strong { font-size: 15px; line-height: 1.25; }
+        .record-capture-photo-primary strong { font-size: 19px; }
         .record-capture-option span:last-child { font-size: 12px; line-height: 1.55; color: #64748b; font-weight: 700; }
+        .record-secondary-links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 0 0 18px 16px; }
+        .record-secondary-links a { color: #047857; font-size: 13px; font-weight: 900; text-decoration: none; }
+        .record-secondary-links a:hover { text-decoration: underline; }
+        .record-has-media .record-capture-launcher,
+        .record-has-media .record-secondary-links { display: none; }
         .record-subject-context { margin: -2px 0 18px 16px; padding: 16px; border-radius: 20px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(239,246,255,.9)); border: 1px solid rgba(16,185,129,.2); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
         .record-subject-context strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-subject-context p { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.7; font-weight: 750; }
@@ -6970,7 +6884,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-coordinate-details { display: grid; gap: 10px; }
         .record-coordinate-details summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; border-radius: 14px; background: rgba(248,250,252,.9); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 13px; font-weight: 900; cursor: pointer; }
         .record-coordinate-details .record-gps-inputs { margin-top: 10px; }
-        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: 1.2fr repeat(4, minmax(0, .82fr)); gap: 8px; }
+        .record-capture-dock { margin: -6px 0 18px 16px; padding: 8px; border-radius: 22px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 38px rgba(15,23,42,.08); display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); gap: 8px; }
         .record-dock-action { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border-radius: 17px; border: 1px solid transparent; background: rgba(248,250,252,.9); color: #0f172a; text-decoration: none; font-size: 11px; font-weight: 900; cursor: pointer; line-height: 1.2; }
         .record-dock-action:hover, .record-dock-action.is-active { border-color: rgba(14,165,233,.28); background: #f0f9ff; }
         .record-dock-primary { background: #ecfdf5; color: #065f46; }
@@ -6992,6 +6906,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-field-wide { grid-column: 1 / -1; }
         .record-label { font-weight: 800; color: #0f172a; font-size: 14px; }
         .record-help { font-size: 12px; line-height: 1.6; color: #64748b; }
+        .record-later-details { padding: 0; }
+        .record-later-details > summary { min-height: 52px; display: flex; align-items: center; padding: 0 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-weight: 900; cursor: pointer; }
+        .record-later-details > summary::after { content: "+"; margin-left: auto; color: #047857; font-size: 18px; line-height: 1; }
+        .record-later-details[open] > summary::after { content: "-"; }
+        .record-later-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; border-radius: 20px; background: rgba(248,250,252,.7); border: 1px solid rgba(15,23,42,.06); }
         .record-advanced { padding: 0; }
         .record-advanced summary { min-height: 52px; display: flex; align-items: center; padding: 0 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-weight: 900; cursor: pointer; }
         .record-advanced-grid { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 16px; border-radius: 20px; background: rgba(248,250,252,.7); border: 1px solid rgba(15,23,42,.06); }
@@ -7042,6 +6961,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-video-progress-meta { display: flex; justify-content: space-between; gap: 12px; color: #334155; font-size: 12px; font-weight: 700; }
         .record-video-live { font-size: 12px; color: #0f766e; line-height: 1.5; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
+        .record-status-inline { grid-column: 1 / -1; margin-top: 0; }
         .record-sidebar { display: grid; gap: 18px; }
         .record-preview-card h2, .record-guide-card h2 { margin: 10px 0 0; font-size: 22px; line-height: 1.3; }
         .record-preview {
@@ -7066,23 +6986,20 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-preview-photo video { width: 100%; height: 100%; display: block; object-fit: cover; background: #020617; }
         .record-preview-photo.is-empty { color: #475569; font-size: 13px; }
         .record-preview-count { position: absolute; right: 10px; bottom: 10px; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.78); color: #fff; font-size: 11px; font-weight: 950; }
-        @media (min-width: 1024px) {
-          .record-shell { grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr); }
-          .record-sidebar { position: sticky; top: 92px; }
-        }
         @media (max-width: 720px) {
           .record-page { padding-bottom: 104px; }
           .record-has-media .record-page { padding-bottom: 118px; }
           .record-has-media .hero-panel { display: none; }
           .record-card { padding: 20px; border-radius: 24px; }
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
-          .record-has-media .record-capture-launcher,
+          .record-capture-photo-primary { grid-column: 1 / -1; }
+          .record-secondary-links { margin-left: 0; }
           .record-has-media .record-card-head { display: none; }
           .record-capture-option { min-height: 124px; padding: 14px; border-radius: 18px; }
           .record-subject-context { margin-left: 0; grid-template-columns: 1fr; align-items: start; }
           .record-subject-context-tags { justify-content: flex-start; max-width: none; }
           .record-has-media .record-subject-context { display: none; }
-          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: 1.2fr repeat(4, minmax(0, .74fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
+          .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
           .record-has-media .record-capture-dock { display: none; }
           .record-dock-action { min-height: 58px; }
           .record-dock-icon { width: 28px; height: 28px; }
@@ -7107,7 +7024,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-video-primary-photo-actions, .record-video-primary-photo-actions .btn { width: 100%; }
           .record-video-trim-controls { grid-template-columns: 1fr; }
           .record-video-trim-actions .btn { width: 100%; }
-          .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-media-role-grid { grid-template-columns: 1fr; }
+          .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-later-grid, .record-media-role-grid { grid-template-columns: 1fr; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }
         }
@@ -7341,6 +7258,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       <a class="observations-chip${item.key === activeFilter ? " is-active" : ""}" href="${escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang))}">
         <span>${escapeHtml(item.label)}</span><b>${escapeHtml(String(item.count))}</b>
       </a>`).join("");
+    const observationsCurrentPath = activeFilter === "all" ? "/observations" : `/observations?filter=${activeFilter}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -7766,7 +7684,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .observations-advanced-grid { grid-template-columns: 1fr; }
         }
       `,
-      "/observations",
+      observationsCurrentPath,
       true,
       activeFilter === "needs_id" ? "shell-immersive shell-identify" : undefined,
     );

@@ -54,7 +54,18 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);
         assert.match(response.body, /revisitObservationId/);
-        assert.match(response.body, /メモだけ始める/);
+        assert.match(response.body, /写真で記録する/);
+        assert.match(response.body, /メモだけ残す/);
+        assert.match(response.body, /動画で残す/);
+        assert.match(response.body, /ファイルから選ぶ/);
+        assert.match(response.body, /自動下書き/);
+        assert.match(response.body, /あとで補完する項目/);
+        assert.match(response.body, /保存してあとで補完/);
+        assert.match(response.body, /記録のコツを読む/);
+        assert.doesNotMatch(response.body, /この 1 件が効く理由/);
+        assert.doesNotMatch(response.body, /信頼のレーン/);
+        assert.doesNotMatch(response.body, /送信ステータス/);
+        assert.doesNotMatch(response.body, /主役は1つ選べばOK/);
         assert.match(response.body, /data-capture-action="note"/);
         assert.match(response.body, /data-capture-action="photo"/);
         assert.match(response.body, /data-capture-action="video"/);
@@ -82,6 +93,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /写真' \+ String\(photoCount\) \+ '枚/);
         assert.match(response.body, /id="record-submit-panel"/);
         assert.match(response.body, /id="record-submit-dock-meta"/);
+        assert.match(response.body, /class="record-submit-primary">保存/);
         assert.match(response.body, /\/api\/v1\/ui-kpi\/events/);
         assert.match(response.body, /recordSessionId/);
         assert.match(response.body, /record_open/);
@@ -157,12 +169,15 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /記録を始める準備/);
-        assert.match(response.body, /名前が分からなくても、記録は始められる/);
-        assert.match(response.body, /ログインして記録する/);
+        assert.match(response.body, /写真で記録を始める/);
+        assert.match(response.body, /ログインして写真で記録/);
+        assert.match(response.body, /メモで始める/);
+        assert.match(response.body, /使い方を読む/);
         assert.match(response.body, /新しく登録して記録する/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dnote/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto/);
+        assert.doesNotMatch(response.body, /まず写真を残す/);
+        assert.doesNotMatch(response.body, /主役と周囲を分ける/);
         assert.doesNotMatch(response.body, /Session required/);
       } finally {
         await app.close();
