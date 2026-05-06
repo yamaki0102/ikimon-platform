@@ -12,7 +12,6 @@ import {
 } from "./reviewerAuthorities.js";
 import {
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
-  PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
@@ -389,14 +388,24 @@ async function loadVisitSummaryObservations(
 ): Promise<RecentObservation[]> {
   const pool = getPool();
   const params: Array<string | number> = [];
-  const whereClauses: string[] = [PUBLIC_OBSERVATION_QUALITY_SQL, PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL];
+  const whereClauses: string[] = [PUBLIC_OBSERVATION_QUALITY_SQL];
   if (options.userId) {
     params.push(options.userId);
     whereClauses.push(`v.user_id = $${params.length}`);
   }
   params.push(limit);
   const visitRows = await pool.query<VisitCardRow>(
-    `SELECT v.visit_id,
+    `WITH valid_photo_assets AS (
+       SELECT DISTINCT ON (ea.visit_id)
+              ea.visit_id,
+              coalesce(ab.public_url, ab.storage_path) AS public_url
+         FROM evidence_assets ea
+         JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+        WHERE ea.visit_id IS NOT NULL
+          AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+        ORDER BY ea.visit_id, ea.created_at ASC
+     )
+     SELECT v.visit_id,
             v.observed_at::text,
             ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
             p.canonical_name AS place_name,
@@ -406,18 +415,10 @@ async function loadVisitSummaryObservations(
             coalesce(v.point_longitude, p.center_longitude) AS longitude,
             photo.public_url AS photo_url,
             coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
-       FROM visits v
+       FROM valid_photo_assets photo
+       JOIN visits v ON v.visit_id = photo.visit_id
        LEFT JOIN users u ON u.user_id = v.user_id
        LEFT JOIN places p ON p.place_id = v.place_id
-       LEFT JOIN LATERAL (
-         SELECT coalesce(ab.public_url, ab.storage_path) AS public_url
-           FROM evidence_assets ea
-           JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-          WHERE ea.visit_id = v.visit_id
-            AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-          ORDER BY ea.created_at ASC
-          LIMIT 1
-       ) photo ON true
        LEFT JOIN LATERAL (
          SELECT jsonb_agg(jsonb_build_object(
                   'fieldId', f.field_id::text,
@@ -758,40 +759,58 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
 
 export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
   const pool = getPool();
-  const recentObservations = await loadVisitSummaryObservations(18);
 
-  const municipalitiesResult = await pool.query<{
+  const municipalitiesQuery = pool.query<{
     municipality: string | null;
     observation_count: string;
   }>(
-    `select
+    `with valid_photo_visits as (
+       select distinct ea.visit_id
+         from evidence_assets ea
+         join asset_blobs ab on ab.blob_id = ea.blob_id
+        where ea.visit_id is not null
+          and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+     )
+     select
         coalesce(v.observed_municipality, p.municipality) as municipality,
         count(*)::text as observation_count
-     from occurrences o
-     join visits v on v.visit_id = o.visit_id
+     from valid_photo_visits photo
+     join visits v on v.visit_id = photo.visit_id
+     join occurrences o on o.visit_id = v.visit_id
      left join places p on p.place_id = v.place_id
      where ${PUBLIC_OBSERVATION_QUALITY_SQL}
-       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
      group by 1
      order by count(*) desc, municipality asc
      limit 6`,
   );
 
-  const taxaResult = await pool.query<{
+  const taxaQuery = pool.query<{
     display_name: string | null;
     observation_count: string;
   }>(
-    `select
+    `with valid_photo_visits as (
+       select distinct ea.visit_id
+         from evidence_assets ea
+         join asset_blobs ab on ab.blob_id = ea.blob_id
+        where ea.visit_id is not null
+          and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+     )
+     select
         coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as display_name,
         count(*)::text as observation_count
-     from occurrences o
-     join visits v on v.visit_id = o.visit_id
+     from valid_photo_visits photo
+     join visits v on v.visit_id = photo.visit_id
+     join occurrences o on o.visit_id = v.visit_id
      where ${PUBLIC_OBSERVATION_QUALITY_SQL}
-       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
      group by 1
      order by count(*) desc, display_name asc
      limit 6`,
   );
+  const [recentObservations, municipalitiesResult, taxaResult] = await Promise.all([
+    loadVisitSummaryObservations(18),
+    municipalitiesQuery,
+    taxaQuery,
+  ]);
 
   return {
     recentObservations,
