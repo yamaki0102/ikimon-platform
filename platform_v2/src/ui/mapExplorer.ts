@@ -1885,7 +1885,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + ' data-href="' + escapeHtml(href || '/map') + '">'
       +   '<span aria-hidden="true">＋</span>'
       +   '<strong>フォロー</strong>'
-      +   '<small>左メニューの「よく見る」に固定</small>'
+      +   '<small>左メニューの「フォロー中」に固定</small>'
       + '</button>';
   }
 

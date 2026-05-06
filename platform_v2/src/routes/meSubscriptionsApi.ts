@@ -89,22 +89,6 @@ function normalizeMenuHref(value: string | null | undefined): string {
   }
 }
 
-function menuLabelFromHref(href: string): string {
-  const normalized = normalizeMenuHref(href);
-  if (normalized === "/observations?filter=needs_id") return "同定";
-  if (normalized.startsWith("/map")) return "マップ";
-  if (normalized.startsWith("/record")) return "記録";
-  if (normalized.startsWith("/notes")) return "観察ライブラリ";
-  if (normalized.startsWith("/observations")) return "観察投稿一覧";
-  if (normalized.startsWith("/learn/updates")) return "更新情報";
-  if (normalized.startsWith("/learn")) return "学ぶ";
-  if (normalized.startsWith("/community")) return "地域";
-  if (normalized.startsWith("/for-business")) return "法人";
-  if (normalized.startsWith("/profile") || normalized.startsWith("/home")) return "マイページ";
-  if (normalized.startsWith("/explore")) return "見つける";
-  return "よく見るページ";
-}
-
 function dedupeMenuItems<T extends { href: string; label: string }>(items: T[]): T[] {
   const seen = new Set<string>();
   const output: T[] = [];
@@ -351,7 +335,7 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
     if (!userId) return;
     const limit = Math.min(Math.max(Number(request.query.limit ?? 10) || 10, 1), 20);
     const pool = getPool();
-    const [taxa, areas, areaStats, history, unreadAlerts] = await Promise.all([
+    const [taxa, areas, areaStats, unreadAlerts] = await Promise.all([
       pool.query<{
         label: string;
         scientific_name: string | null;
@@ -428,34 +412,6 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
           GROUP BY s.target_type, s.target_id`,
         [userId],
       ),
-      pool.query<{
-        href: string;
-        last_seen: string;
-        score: string;
-      }>(
-        `WITH events AS (
-           SELECT COALESCE(NULLIF(route_key, ''), NULLIF(page_path, '')) AS href, created_at
-             FROM ui_kpi_events
-            WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
-           UNION ALL
-           SELECT COALESCE(NULLIF(route_key, ''), NULLIF(page_path, '')) AS href, created_at
-             FROM observation_ui_kpi_events
-            WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
-         )
-         SELECT href,
-                MAX(created_at)::text AS last_seen,
-                COUNT(*)::text AS score
-           FROM events
-          WHERE href IS NOT NULL
-            AND href LIKE '/%'
-            AND href NOT LIKE '/api/%'
-            AND href NOT LIKE '/login%'
-            AND href NOT LIKE '/register%'
-          GROUP BY href
-          ORDER BY COUNT(*) DESC, MAX(created_at) DESC
-          LIMIT 10`,
-        [userId],
-      ),
       pool.query<{ unread_count: string }>(
         `SELECT COUNT(*)::text AS unread_count
            FROM alert_deliveries
@@ -496,15 +452,6 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
           stats: { followed: true },
         };
       }),
-      ...history.rows.map((r) => ({
-        kind: "history",
-        label: menuLabelFromHref(r.href),
-        href: safeMenuHref(r.href, "/"),
-        source: "history",
-        score: Number(r.score) || 0,
-        lastSeen: r.last_seen,
-        stats: { viewCount: Number(r.score) || 0 },
-      })),
     ]).slice(0, limit);
     void reply.send({ ok: true, items, summary: { unreadAlertCount } });
   });
