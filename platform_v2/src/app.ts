@@ -56,17 +56,9 @@ import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import { buildObserverProfileHref } from "./services/observerProfileLink.js";
 import { getStrings } from "./i18n/index.js";
 import type { LandingSnapshot } from "./services/readModels.js";
-import { COMMUNITY_METER_STYLES, renderCommunityMeter } from "./ui/communityMeter.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
-import { FIELD_NOTE_MAIN_STYLES, renderFieldNoteMain } from "./ui/fieldNoteMain.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
 import { MAP_MINI_STYLES, mapMiniBootScript } from "./ui/mapMini.js";
-import { MENTOR_STRIP_STYLES, renderMentorStrip } from "./ui/mentorStrip.js";
-import { OBSERVATION_CARD_STYLES } from "./ui/observationCard.js";
-import { OFFICIAL_NOTICE_CARD_STYLES } from "./ui/officialNoticeCard.js";
-import { QUICK_NAV_STYLES, renderQuickNav } from "./ui/quickNav.js";
-import { REVISIT_FLOW_STYLES, renderRevisitFlow } from "./ui/revisitFlow.js";
-import { TODAY_HABIT_STYLES, renderTodayHabit } from "./ui/todayHabit.js";
 import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 
 type PreviewContext = {
@@ -255,15 +247,7 @@ function buildLandingRootHtml(
   });
 
   const extraStyles = [
-    OBSERVATION_CARD_STYLES,
     MAP_MINI_STYLES,
-    FIELD_NOTE_MAIN_STYLES,
-    OFFICIAL_NOTICE_CARD_STYLES,
-    QUICK_NAV_STYLES,
-    TODAY_HABIT_STYLES,
-    REVISIT_FLOW_STYLES,
-    COMMUNITY_METER_STYLES,
-    MENTOR_STRIP_STYLES,
     LANDING_TOP_STYLES,
     DEMO_LOGIN_BANNER_STYLES,
   ].join("\n");
@@ -280,19 +264,6 @@ function buildLandingRootHtml(
     body: `${landingTop.heroHtml}
 ${landingTop.dailyDashboardHtml}
 ${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}
-${renderQuickNav(options.basePath, lang)}
-${landingTop.linkBandHtml}
-${landingTop.flowSectionHtml}
-${landingTop.mapSectionHtml}
-${renderTodayHabit(options.basePath, lang, snapshot)}
-${renderFieldNoteMain(options.basePath, lang, snapshot)}
-${renderRevisitFlow(options.basePath, lang, snapshot)}
-${renderCommunityMeter(options.basePath, lang, snapshot)}
-${landingTop.librarySectionHtml}
-${landingTop.trustSectionHtml}
-${landingTop.communitySectionHtml}
-${renderMentorStrip(options.basePath, lang)}
-${landingTop.finalCtaHtml}
 ${mapMiniBootScript()}`,
     footerNote: copy.footerNote,
   });

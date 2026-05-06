@@ -127,9 +127,11 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.doesNotMatch(html, /sample_/);
   assert.match(html, /<img src="\/thumb\/md\/real-observation\.jpg" alt="モンシロチョウ" loading="eager"/);
   assert.match(html, /\/observations\/visit-1/);
-  assert.match(html, /data-kpi-action="landing:topA:shelf:nearby"/);
+  assert.match(html, /data-kpi-action="landing:topA:shelf:latest"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:identifyAll"/);
-  assert.match(html, /data-kpi-action="landing:library:identification"/);
+  assert.equal((html.match(/prototype-topa-card-grid/g) ?? []).length, 1);
+  assert.match(html, /prototype-topa-identify-list/);
+  assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
 });
 
 test("landing top A renders local map shelf without making revisit the primary action", () => {
@@ -148,6 +150,6 @@ test("landing top A renders local map shelf without making revisit the primary a
   });
 
   assert.match(html, /id="topa-local-map"/);
-  assert.match(html, /地図から、気になる場所を見る。/);
+  assert.match(html, /地図から探す。/);
   assert.doesNotMatch(html, /landing:topA:primary:revisit/);
 });
