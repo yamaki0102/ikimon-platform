@@ -279,6 +279,28 @@ type VisitSubjectRow = {
   ai_candidate_rank: string | null;
 };
 
+type ObservationListCardRow = {
+  occurrence_id: string;
+  visit_id: string;
+  observed_at: string;
+  observer_name: string | null;
+  place_name: string | null;
+  municipality: string | null;
+  prefecture: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  display_name: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  taxon_rank: string | null;
+  ai_candidate_name: string | null;
+  ai_candidate_rank: string | null;
+  photo_url: string | null;
+  identification_count: string;
+  subject_count: string;
+  field_refs: unknown;
+};
+
 function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs"] {
   if (!Array.isArray(value)) return [];
   const refs: NonNullable<RecentObservation["fieldRefs"]> = [];
@@ -1455,8 +1477,149 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
   };
 }
 
+async function loadObservationListCards(limit: number): Promise<RecentObservation[]> {
+  const pool = getPool();
+  const result = await pool.query<ObservationListCardRow>(
+    `WITH candidate_visits AS (
+       SELECT v.visit_id,
+              v.observed_at AS observed_at_sort
+         FROM visits v
+        WHERE ${PUBLIC_OBSERVATION_QUALITY_SQL}
+          AND EXISTS (
+            SELECT 1
+              FROM occurrences o
+              JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
+              JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+             WHERE o.visit_id = v.visit_id
+               AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+          )
+        ORDER BY v.observed_at DESC, v.visit_id DESC
+        LIMIT $1
+     )
+     SELECT featured.occurrence_id,
+            v.visit_id,
+            v.observed_at::text AS observed_at,
+            ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
+            p.canonical_name AS place_name,
+            coalesce(v.observed_municipality, p.municipality) AS municipality,
+            coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
+            coalesce(v.point_latitude, p.center_latitude) AS latitude,
+            coalesce(v.point_longitude, p.center_longitude) AS longitude,
+            featured.display_name,
+            featured.scientific_name,
+            featured.vernacular_name,
+            featured.taxon_rank,
+            featured.ai_candidate_name,
+            featured.ai_candidate_rank,
+            photo.public_url AS photo_url,
+            coalesce(ids.identification_count, 0)::text AS identification_count,
+            coalesce(subjects.subject_count, 1)::text AS subject_count,
+            coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
+       FROM candidate_visits cv
+       JOIN visits v ON v.visit_id = cv.visit_id
+       LEFT JOIN users u ON u.user_id = v.user_id
+       LEFT JOIN places p ON p.place_id = v.place_id
+       JOIN LATERAL (
+         SELECT o.occurrence_id,
+                coalesce(o.vernacular_name, o.scientific_name, nullif(ai.recommended_taxon_name, ''), '同定待ち') AS display_name,
+                o.scientific_name,
+                o.vernacular_name,
+                o.taxon_rank,
+                ai.recommended_taxon_name AS ai_candidate_name,
+                ai.recommended_rank AS ai_candidate_rank
+           FROM occurrences o
+           LEFT JOIN LATERAL (
+             SELECT recommended_taxon_name, recommended_rank
+               FROM observation_ai_assessments a
+              WHERE a.occurrence_id = o.occurrence_id
+              ORDER BY generated_at DESC
+              LIMIT 1
+           ) ai ON true
+          WHERE o.visit_id = v.visit_id
+            AND EXISTS (
+              SELECT 1
+                FROM evidence_assets ea
+                JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+               WHERE ea.occurrence_id = o.occurrence_id
+                 AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+            )
+          ORDER BY o.subject_index ASC, o.created_at ASC
+          LIMIT 1
+       ) featured ON true
+       JOIN LATERAL (
+         SELECT coalesce(ab.public_url, ab.storage_path) AS public_url
+           FROM evidence_assets ea
+           JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+          WHERE ea.occurrence_id = featured.occurrence_id
+            AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+          ORDER BY ea.created_at ASC
+          LIMIT 1
+       ) photo ON true
+       LEFT JOIN LATERAL (
+         SELECT count(*)::int AS subject_count
+           FROM occurrences o
+          WHERE o.visit_id = v.visit_id
+       ) subjects ON true
+       LEFT JOIN LATERAL (
+         SELECT count(*)::int AS identification_count
+           FROM identifications i
+          WHERE i.occurrence_id = featured.occurrence_id
+       ) ids ON true
+       LEFT JOIN LATERAL (
+         SELECT jsonb_agg(jsonb_build_object(
+                  'fieldId', f.field_id::text,
+                  'name', f.name,
+                  'source', f.source
+                ) ORDER BY f.source, f.name) AS field_refs
+           FROM observation_fields f
+          WHERE f.valid_to IS NULL
+            AND (
+              f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
+              OR f.field_id::text = v.source_payload->>'field_id'
+            )
+       ) fields ON true
+      ORDER BY cv.observed_at_sort DESC, v.visit_id DESC`,
+    [limit],
+  );
+
+  return result.rows.map((row) => {
+    const subjectCount = Number(row.subject_count);
+    return {
+      occurrenceId: row.occurrence_id,
+      visitId: row.visit_id,
+      detailId: row.visit_id,
+      featuredOccurrenceId: row.occurrence_id,
+      featuredSubjectName: row.display_name ?? "同定待ち",
+      subjectCount,
+      isMultiSubject: subjectCount > 1,
+      featuredConfidenceBand: null,
+      displayStability: null,
+      displayName: row.display_name ?? "同定待ち",
+      scientificName: row.scientific_name,
+      vernacularName: row.vernacular_name,
+      featuredTaxonRank: row.taxon_rank,
+      aiCandidateName: row.ai_candidate_name,
+      aiCandidateRank: row.ai_candidate_rank,
+      isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(row.ai_candidate_name),
+      observedAt: row.observed_at,
+      observerName: row.observer_name ?? "",
+      placeName: row.place_name ?? "",
+      municipality: row.municipality,
+      publicLocation: buildPublicLocationSummary({
+        municipality: row.municipality,
+        prefecture: row.prefecture,
+        latitude: row.latitude,
+        longitude: row.longitude,
+      }),
+      photoUrl: normalizeAssetUrl(row.photo_url),
+      identificationCount: Number(row.identification_count),
+      fieldRefs: normalizeFieldRefs(row.field_refs),
+    };
+  });
+}
+
 export async function getObservationListSnapshot(limit = 48): Promise<ObservationListSnapshot> {
-  const observations = await loadVisitSummaryObservations(limit);
+  const observations = await loadObservationListCards(limit);
   const awaitingIdCount = observations.filter((item) =>
     item.displayName === "同定待ち" || item.isAiCandidate,
   ).length;
