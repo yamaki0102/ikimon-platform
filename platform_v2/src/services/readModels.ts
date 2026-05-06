@@ -35,6 +35,7 @@ type RecentObservation = {
   displayName: string;
   scientificName?: string | null;
   vernacularName?: string | null;
+  featuredTaxonRank?: string | null;
   aiCandidateName?: string | null;
   aiCandidateRank?: string | null;
   isAiCandidate?: boolean;
@@ -610,6 +611,7 @@ async function loadVisitSummaryObservations(
       displayName: featuredSubject?.displayName ?? "同定待ち",
       scientificName: featuredSubject?.scientificName ?? null,
       vernacularName: featuredSubject?.vernacularName ?? null,
+      featuredTaxonRank: featuredSubject?.rank ?? null,
       aiCandidateName: featuredSubject?.aiCandidateName ?? null,
       aiCandidateRank: featuredSubject?.aiCandidateRank ?? null,
       isAiCandidate: featuredSubject?.isAiCandidate ?? false,

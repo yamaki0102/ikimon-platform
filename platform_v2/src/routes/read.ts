@@ -7189,7 +7189,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
     const fieldSelectOptions = Array.from(fieldOptions.entries())
       .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name, "ja"))
-      .map(([fieldId, field]) => `<option value="${escapeHtml(fieldId)}">${escapeHtml(`${field.name} (${field.count})`)}</option>`)
+      .map(([fieldId, field]) => `<button type="button" class="observations-spot-chip" data-observations-field-chip="${escapeHtml(fieldId)}" data-field-name="${escapeHtml(field.name.toLowerCase())}">${escapeHtml(field.name)}<b>${escapeHtml(String(field.count))}</b></button>`)
       .join("");
     const cards = visibleObservations.map((item) => {
       const detailHref = appendLangToHref(
@@ -7217,6 +7217,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       const observedMs = Date.parse(item.observedAt);
       const fieldIds = (item.fieldRefs ?? []).map((field) => field.fieldId).join(" ");
       const fieldNames = (item.fieldRefs ?? []).map((field) => field.name).join(" ");
+      const taxonText = [
+        item.displayName,
+        item.featuredSubjectName,
+        item.vernacularName,
+        item.scientificName,
+        item.aiCandidateName,
+      ].filter(Boolean).join(" ").toLowerCase();
+      const rankKey = String(item.featuredTaxonRank ?? item.aiCandidateRank ?? "").trim().toLowerCase();
       const searchText = [
         item.displayName,
         item.featuredSubjectName,
@@ -7240,6 +7248,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         data-status="${escapeHtml(statusKeys)}"
         data-media="${escapeHtml(mediaKey)}"
         data-fields="${escapeHtml(fieldIds)}"
+        data-taxon="${escapeHtml(taxonText)}"
+        data-rank="${escapeHtml(rankKey)}"
         data-id-bucket="${escapeHtml(idBucket)}"
         data-id-count="${escapeHtml(String(item.identificationCount))}"
         data-observed-ms="${escapeHtml(String(Number.isFinite(observedMs) ? observedMs : 0))}">
@@ -7327,10 +7337,18 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 <option value="no-photo">写真なし</option>
               </select>
             </label>
-            <label>登録エリア
-              <select data-observations-filter="field">
+            <label>分類
+              <input type="search" placeholder="科・属・種名" data-observations-taxon />
+            </label>
+            <label>階級
+              <select data-observations-filter="rank">
                 <option value="all">すべて</option>
-                ${fieldSelectOptions}
+                <option value="species">種</option>
+                <option value="genus">属</option>
+                <option value="family">科</option>
+                <option value="order">目</option>
+                <option value="class">綱</option>
+                <option value="phylum">門</option>
               </select>
             </label>
             <label>日付
@@ -7359,6 +7377,24 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             </label>
           </div>
         </details>
+        <section class="observations-spot-filter" aria-label="登録エリア">
+          <div class="observations-spot-search">
+            <span>登録エリア</span>
+            <input type="search" placeholder="スポット名" data-observations-spot-search />
+            <button type="button" data-observations-field-clear hidden>解除</button>
+          </div>
+          <div class="observations-spot-chips" data-observations-field-list>
+            <button type="button" class="observations-spot-chip is-active" data-observations-field-chip="all">すべて</button>
+            ${fieldSelectOptions || `<span class="observations-spot-empty">登録エリアなし</span>`}
+          </div>
+        </section>
+        <section class="observations-presets" aria-label="保存条件">
+          <div class="observations-preset-save">
+            <input type="text" placeholder="条件名" data-observations-preset-name />
+            <button type="button" data-observations-preset-save>保存</button>
+          </div>
+          <div class="observations-preset-list" data-observations-presets></div>
+        </section>
         <section class="observations-grid-section">
           <div class="observations-video-grid" data-observations-grid>
             ${cards || `<div class="observations-empty">まだ表示できる観察投稿がありません。</div>`}
@@ -7375,9 +7411,112 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const grid = root.querySelector('[data-observations-grid]');
   const controls = Array.from(root.querySelectorAll('[data-observations-filter]'));
   const sort = root.querySelector('[data-observations-sort]');
+  const taxon = root.querySelector('[data-observations-taxon]');
+  const spotSearch = root.querySelector('[data-observations-spot-search]');
+  const fieldClear = root.querySelector('[data-observations-field-clear]');
+  const fieldChips = Array.from(root.querySelectorAll('[data-observations-field-chip]'));
+  const presetName = root.querySelector('[data-observations-preset-name]');
+  const presetSave = root.querySelector('[data-observations-preset-save]');
+  const presetList = root.querySelector('[data-observations-presets]');
   const tiles = Array.from(root.querySelectorAll('[data-observation-tile]'));
+  const storageKey = 'ikimon.identify.filterPresets.v1';
+  let activeField = 'all';
+  function readPresets() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      return Array.isArray(parsed) ? parsed.filter(function (item) { return item && typeof item === 'object'; }).slice(0, 24) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  function writePresets(presets) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(presets.slice(0, 24)));
+    } catch (_) {}
+  }
+  function readState() {
+    const active = {};
+    controls.forEach(function (control) {
+      active[control.getAttribute('data-observations-filter') || ''] = String(control.value || 'all');
+    });
+    return {
+      query: search ? String(search.value || '') : '',
+      taxon: taxon ? String(taxon.value || '') : '',
+      field: activeField,
+      filters: active,
+      sort: sort ? String(sort.value || 'newest') : 'newest'
+    };
+  }
+  function setField(value) {
+    activeField = value || 'all';
+    fieldChips.forEach(function (chip) {
+      chip.classList.toggle('is-active', String(chip.getAttribute('data-observations-field-chip') || 'all') === activeField);
+    });
+    if (fieldClear) fieldClear.hidden = activeField === 'all';
+  }
+  function applyState(state) {
+    if (!state || typeof state !== 'object') return;
+    if (search) search.value = String(state.query || '');
+    if (taxon) taxon.value = String(state.taxon || '');
+    if (sort && state.sort) sort.value = String(state.sort || 'newest');
+    const filters = state.filters && typeof state.filters === 'object' ? state.filters : {};
+    controls.forEach(function (control) {
+      const key = control.getAttribute('data-observations-filter') || '';
+      if (Object.prototype.hasOwnProperty.call(filters, key)) control.value = String(filters[key] || 'all');
+    });
+    setField(String(state.field || 'all'));
+    applySearch();
+  }
+  function renderPresets() {
+    if (!presetList) return;
+    const presets = readPresets();
+    presetList.innerHTML = '';
+    presets.forEach(function (preset, index) {
+      const wrap = document.createElement('span');
+      wrap.className = 'observations-preset-chip';
+      const load = document.createElement('button');
+      load.type = 'button';
+      load.textContent = String(preset.name || '条件');
+      load.addEventListener('click', function () { applyState(preset.state); });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', String(preset.name || '条件') + 'を削除');
+      remove.textContent = '×';
+      remove.addEventListener('click', function () {
+        const next = readPresets();
+        next.splice(index, 1);
+        writePresets(next);
+        renderPresets();
+      });
+      wrap.appendChild(load);
+      wrap.appendChild(remove);
+      presetList.appendChild(wrap);
+    });
+  }
+  function savePreset() {
+    const name = presetName ? String(presetName.value || '').trim() : '';
+    const state = readState();
+    const fallback = [state.filters.status, state.taxon, state.field === 'all' ? '' : 'スポット'].filter(Boolean).join(' · ') || '条件';
+    const presets = readPresets().filter(function (item) { return String(item.name || '') !== (name || fallback); });
+    presets.unshift({ name: name || fallback, state: state, savedAt: Date.now() });
+    writePresets(presets);
+    if (presetName) presetName.value = '';
+    renderPresets();
+  }
+  function filterSpotChips() {
+    const query = spotSearch ? String(spotSearch.value || '').trim().toLowerCase() : '';
+    fieldChips.forEach(function (chip) {
+      if (String(chip.getAttribute('data-observations-field-chip') || 'all') === 'all') {
+        chip.hidden = false;
+        return;
+      }
+      const name = String(chip.getAttribute('data-field-name') || '').toLowerCase();
+      chip.hidden = Boolean(query) && name.indexOf(query) < 0;
+    });
+  }
   function applySearch() {
     const query = search ? String(search.value || '').trim().toLowerCase() : '';
+    const taxonQuery = taxon ? String(taxon.value || '').trim().toLowerCase() : '';
     const now = Date.now();
     const active = {};
     controls.forEach(function (control) {
@@ -7389,19 +7528,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       const status = String(tile.getAttribute('data-status') || '');
       const media = String(tile.getAttribute('data-media') || '');
       const fields = String(tile.getAttribute('data-fields') || '');
+      const taxonText = String(tile.getAttribute('data-taxon') || '');
+      const rank = String(tile.getAttribute('data-rank') || '');
       const idBucket = String(tile.getAttribute('data-id-bucket') || '');
       const observedMs = Number(tile.getAttribute('data-observed-ms') || 0);
       const ageDays = observedMs > 0 ? (now - observedMs) / 86400000 : Infinity;
       const okQuery = !query || haystack.indexOf(query) >= 0;
+      const okTaxon = !taxonQuery || taxonText.indexOf(taxonQuery) >= 0;
       const okStatus = !active.status || active.status === 'all' || status.split(/\\s+/).indexOf(active.status) >= 0;
       const okMedia = !active.media || active.media === 'all' || media === active.media;
-      const okField = !active.field || active.field === 'all' || fields.split(/\\s+/).indexOf(active.field) >= 0;
+      const okField = activeField === 'all' || fields.split(/\\s+/).indexOf(activeField) >= 0;
+      const okRank = !active.rank || active.rank === 'all' || rank === active.rank;
       const okIds = !active.ids || active.ids === 'all' || idBucket === active.ids;
       const okDate = !active.date || active.date === 'all'
         || (active.date === '7d' && ageDays <= 7)
         || (active.date === '30d' && ageDays <= 30)
         || (active.date === '90d' && ageDays <= 90);
-      const show = okQuery && okStatus && okMedia && okField && okIds && okDate;
+      const show = okQuery && okTaxon && okStatus && okMedia && okField && okRank && okIds && okDate;
       tile.hidden = !show;
       if (show) visible += 1;
     });
@@ -7422,8 +7565,28 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (empty) empty.hidden = visible !== 0 || tiles.length === 0;
   }
   if (search) search.addEventListener('input', applySearch);
+  if (taxon) taxon.addEventListener('input', applySearch);
+  if (spotSearch) spotSearch.addEventListener('input', filterSpotChips);
+  if (fieldClear) fieldClear.addEventListener('click', function () { setField('all'); applySearch(); });
+  fieldChips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      setField(String(chip.getAttribute('data-observations-field-chip') || 'all'));
+      applySearch();
+    });
+  });
+  if (presetSave) presetSave.addEventListener('click', savePreset);
+  if (presetName) presetName.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      savePreset();
+    }
+  });
   controls.forEach(function (control) { control.addEventListener('change', applySearch); });
   if (sort) sort.addEventListener('change', applySearch);
+  setField('all');
+  filterSpotChips();
+  renderPresets();
+  applySearch();
 })();
 </script>
       </section>`,
@@ -7453,7 +7616,26 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .observations-advanced[open] summary::after { content: "-"; }
         .observations-advanced-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 0 12px 12px; }
         .observations-advanced label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 900; }
-        .observations-advanced select { min-height: 42px; width: 100%; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #f8fafc; color: #0f172a; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 850; }
+        .observations-advanced select,
+        .observations-advanced input,
+        .observations-preset-save input,
+        .observations-spot-search input { min-height: 42px; width: 100%; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #f8fafc; color: #0f172a; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 850; }
+        .observations-spot-filter, .observations-presets { display: grid; gap: 8px; padding: 10px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.09); }
+        .observations-spot-search { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+        .observations-spot-search span { color: #475569; font-size: 12px; font-weight: 950; white-space: nowrap; }
+        .observations-spot-search button,
+        .observations-preset-save button,
+        .observations-preset-chip button { min-height: 40px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #0f172a; border-radius: 999px; padding: 0 13px; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; }
+        .observations-spot-chips, .observations-preset-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+        .observations-spot-chip { min-height: 38px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #0f172a; padding: 0 13px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
+        .observations-spot-chip b { min-width: 20px; padding: 2px 6px; border-radius: 999px; background: rgba(15,23,42,.06); color: #475569; font-size: 11px; line-height: 1.2; }
+        .observations-spot-chip.is-active { background: #ecfdf5; border-color: rgba(6,78,59,.24); color: #064e3b; }
+        .observations-spot-empty { min-height: 38px; display: inline-flex; align-items: center; color: #64748b; font-size: 13px; font-weight: 850; }
+        .observations-preset-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+        .observations-preset-save button { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .observations-preset-chip { flex: 0 0 auto; display: inline-flex; align-items: center; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); overflow: hidden; }
+        .observations-preset-chip button { border: 0; background: transparent; border-radius: 0; }
+        .observations-preset-chip button:last-child { min-width: 36px; padding: 0 10px; color: #64748b; }
         .observations-grid-section { display: grid; gap: 12px; }
         .observations-video-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; align-items: start; }
         .observations-grid-item { position: relative; min-width: 0; }
