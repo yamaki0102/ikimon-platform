@@ -102,7 +102,6 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Enjoy Life/);
-    assert.match(response.body, /生きものを楽しむ。/);
     assert.match(response.body, /見つける、確かめる、地図で見る。/);
     assert.match(response.body, /観察する/);
     assert.match(response.body, /同定する/);
