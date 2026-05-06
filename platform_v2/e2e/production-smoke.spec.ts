@@ -90,11 +90,10 @@ async function registerSmokeUser(api: APIRequestContext, baseUrl: string, prefix
   return email;
 }
 
-async function fillRequiredRecordFields(page: Page, prefix: string, mediaLabel: string): Promise<void> {
+async function fillRequiredRecordFields(page: Page): Promise<void> {
   await page.locator("summary", { hasText: "座標を直接編集" }).click();
   await page.locator("input[name='latitude']").fill("34.710800");
   await page.locator("input[name='longitude']").fill("137.726100");
-  await page.locator("input[name='localityNote']").fill(`${prefix} ${mediaLabel} candidate UI smoke - delete after verification`);
 }
 
 async function thumbUrlsOnPage(page: import("@playwright/test").Page): Promise<string[]> {
@@ -169,7 +168,7 @@ test.describe("production candidate smoke", () => {
       await expect(page.locator("#record-form")).toBeHidden();
       await page.locator("#record-media-photo").setInputFiles(smokePhotoFile(prefix));
       await expect(page.locator("#record-form")).toBeVisible();
-      await fillRequiredRecordFields(page, prefix, "photo");
+      await fillRequiredRecordFields(page);
 
       const photoUpload = page.waitForResponse((response) =>
         response.url().includes("/photos/upload") && response.request().method() === "POST",
@@ -187,7 +186,7 @@ test.describe("production candidate smoke", () => {
       await page.goto(joinUrl(baseUrl, "/record?lang=ja&start=video"), { waitUntil: "domcontentloaded" });
       await page.locator("#record-media-video").setInputFiles(smokeVideoFile(prefix));
       await expect(page.locator("#record-form")).toBeVisible();
-      await fillRequiredRecordFields(page, prefix, "video");
+      await fillRequiredRecordFields(page);
 
       const directUpload = page.waitForResponse((response) =>
         response.url().includes("/api/v1/videos/direct-upload") && response.request().method() === "POST",
