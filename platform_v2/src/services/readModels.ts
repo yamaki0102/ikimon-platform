@@ -395,45 +395,60 @@ async function loadVisitSummaryObservations(
   }
   params.push(limit);
   const visitRows = await pool.query<VisitCardRow>(
-    `WITH valid_photo_assets AS (
-       SELECT DISTINCT ON (ea.visit_id)
-              ea.visit_id,
-              coalesce(ab.public_url, ab.storage_path) AS public_url
-         FROM evidence_assets ea
-         JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-        WHERE ea.visit_id IS NOT NULL
-          AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-        ORDER BY ea.visit_id, ea.created_at ASC
+    `WITH visit_cards AS (
+       SELECT DISTINCT ON (v.visit_id)
+              v.visit_id,
+              v.observed_at AS observed_at_sort,
+              v.observed_at::text AS observed_at,
+              ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
+              p.canonical_name AS place_name,
+              coalesce(v.observed_municipality, p.municipality) AS municipality,
+              coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
+              coalesce(v.point_latitude, p.center_latitude) AS latitude,
+              coalesce(v.point_longitude, p.center_longitude) AS longitude,
+              photo.public_url AS photo_url,
+              coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
+         FROM occurrences o
+         JOIN visits v ON v.visit_id = o.visit_id
+         LEFT JOIN users u ON u.user_id = v.user_id
+         LEFT JOIN places p ON p.place_id = v.place_id
+         JOIN LATERAL (
+           SELECT coalesce(ab.public_url, ab.storage_path) AS public_url
+             FROM evidence_assets ea
+             JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+            WHERE ea.occurrence_id = o.occurrence_id
+              AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+            ORDER BY ea.created_at ASC
+            LIMIT 1
+         ) photo ON true
+         LEFT JOIN LATERAL (
+           SELECT jsonb_agg(jsonb_build_object(
+                    'fieldId', f.field_id::text,
+                    'name', f.name,
+                    'source', f.source
+                  ) ORDER BY f.source, f.name) AS field_refs
+             FROM observation_fields f
+            WHERE f.valid_to IS NULL
+              AND (
+                f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
+                OR f.field_id::text = v.source_payload->>'field_id'
+              )
+         ) fields ON true
+        ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
+        ORDER BY v.visit_id, v.observed_at DESC, o.subject_index ASC, o.created_at ASC
      )
-     SELECT v.visit_id,
-            v.observed_at::text,
-            ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
-            p.canonical_name AS place_name,
-            coalesce(v.observed_municipality, p.municipality) AS municipality,
-            coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
-            coalesce(v.point_latitude, p.center_latitude) AS latitude,
-            coalesce(v.point_longitude, p.center_longitude) AS longitude,
-            photo.public_url AS photo_url,
-            coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
-       FROM valid_photo_assets photo
-       JOIN visits v ON v.visit_id = photo.visit_id
-       LEFT JOIN users u ON u.user_id = v.user_id
-       LEFT JOIN places p ON p.place_id = v.place_id
-       LEFT JOIN LATERAL (
-         SELECT jsonb_agg(jsonb_build_object(
-                  'fieldId', f.field_id::text,
-                  'name', f.name,
-                  'source', f.source
-                ) ORDER BY f.source, f.name) AS field_refs
-           FROM observation_fields f
-          WHERE f.valid_to IS NULL
-            AND (
-              f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
-              OR f.field_id::text = v.source_payload->>'field_id'
-            )
-       ) fields ON true
-       ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
-      ORDER BY v.observed_at DESC
+     SELECT visit_id,
+            observed_at,
+            observer_name,
+            place_name,
+            municipality,
+            prefecture,
+            latitude,
+            longitude,
+            photo_url,
+            field_refs
+       FROM visit_cards
+      ORDER BY observed_at_sort DESC
       LIMIT $${params.length}`,
     params,
   );
@@ -764,23 +779,18 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
     municipality: string | null;
     observation_count: string;
   }>(
-    `with valid_photo_visits as (
-       select distinct ea.visit_id
-         from evidence_assets ea
-         join asset_blobs ab on ab.blob_id = ea.blob_id
-        where ea.visit_id is not null
-          and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-     )
-     select
+    `select
         coalesce(v.observed_municipality, p.municipality) as municipality,
-        count(*)::text as observation_count
-     from valid_photo_visits photo
-     join visits v on v.visit_id = photo.visit_id
-     join occurrences o on o.visit_id = v.visit_id
+        count(distinct o.occurrence_id)::text as observation_count
+     from occurrences o
+     join visits v on v.visit_id = o.visit_id
+     join evidence_assets ea on ea.occurrence_id = o.occurrence_id
+     join asset_blobs ab on ab.blob_id = ea.blob_id
      left join places p on p.place_id = v.place_id
      where ${PUBLIC_OBSERVATION_QUALITY_SQL}
+       and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
      group by 1
-     order by count(*) desc, municipality asc
+     order by count(distinct o.occurrence_id) desc, municipality asc
      limit 6`,
   );
 
@@ -788,22 +798,17 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
     display_name: string | null;
     observation_count: string;
   }>(
-    `with valid_photo_visits as (
-       select distinct ea.visit_id
-         from evidence_assets ea
-         join asset_blobs ab on ab.blob_id = ea.blob_id
-        where ea.visit_id is not null
-          and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-     )
-     select
+    `select
         coalesce(o.vernacular_name, o.scientific_name, '同定待ち') as display_name,
-        count(*)::text as observation_count
-     from valid_photo_visits photo
-     join visits v on v.visit_id = photo.visit_id
-     join occurrences o on o.visit_id = v.visit_id
+        count(distinct o.occurrence_id)::text as observation_count
+     from occurrences o
+     join visits v on v.visit_id = o.visit_id
+     join evidence_assets ea on ea.occurrence_id = o.occurrence_id
+     join asset_blobs ab on ab.blob_id = ea.blob_id
      where ${PUBLIC_OBSERVATION_QUALITY_SQL}
+       and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
      group by 1
-     order by count(*) desc, display_name asc
+     order by count(distinct o.occurrence_id) desc, display_name asc
      limit 6`,
   );
   const [recentObservations, municipalitiesResult, taxaResult] = await Promise.all([
