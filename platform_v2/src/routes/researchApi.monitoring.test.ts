@@ -7,6 +7,9 @@ test("research API exposes monitoring readiness and license guard fields", () =>
   const source = readFileSync(path.join(process.cwd(), "src", "routes", "researchApi.ts"), "utf8");
 
   assert.match(source, /export_ready_only/);
+  assert.match(source, /\/api\/v1\/research\/darwin-core\.csv/);
+  assert.match(source, /\/api\/v1\/research\/export-qa-report/);
+  assert.match(source, /forceExportReadyOnly: true/);
   assert.match(source, /observation_data_rights/);
   assert.match(source, /civic_observation_contexts/);
   assert.match(source, /dataGeneralizations/);

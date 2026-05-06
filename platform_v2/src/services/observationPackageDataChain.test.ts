@@ -47,6 +47,8 @@ test("field scan mode is first-class and produces model-ready method basis", () 
 
   assert.equal(actionMode, "field_scan");
   assert.equal(methodContext.methodKind, "field_scan");
+  assert.equal(methodContext.fixedSurveyTemplate?.templateId, "field_scan_template/fixed_point/v0");
+  assert.equal(methodContext.fixedSurveyTemplate?.outputStage, "indicator_candidate");
   assert.deepEqual(methodContext.modelReadyBasis, ["site", "time", "method", "effort", "quality"]);
 });
 

@@ -71,7 +71,10 @@ export async function getRuntimeVersionSnapshot(
       readinessGatesV0: true,
       observationDataProductChainV0: true,
       fieldScanContextV0: true,
+      fieldScanTemplatesV0: true,
       governanceContextV0: true,
+      darwinCoreCsvExportV0: true,
+      researchExportQaReportV0: true,
     },
     runtimeEnv: config.nodeEnv,
   };

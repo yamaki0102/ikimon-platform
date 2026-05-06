@@ -17,6 +17,8 @@ test("runtime version endpoint exposes monitoring package feature flags without 
     assert.equal(body.featureFlags.monitoringPackageV11, true);
     assert.equal(body.featureFlags.monitoringPackageV12, true);
     assert.equal(body.featureFlags.waterRecordExtensionV0, true);
+    assert.equal(body.featureFlags.fieldScanTemplatesV0, true);
+    assert.equal(body.featureFlags.darwinCoreCsvExportV0, true);
   } finally {
     await app.close();
   }

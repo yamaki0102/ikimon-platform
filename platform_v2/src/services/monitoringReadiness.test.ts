@@ -177,6 +177,16 @@ test("field scan and governance readiness require repeatable context and scoped 
     methodContext: {
       methodKind: "field_scan",
       samplingProtocol: "fixed_point",
+      fixedSurveyTemplate: {
+        templateId: "field_scan_template/fixed_point/v0",
+        scanMode: "fixed_point",
+        label: "Fixed point",
+        repeatability: "repeatable_point",
+        requiredBasis: ["site", "time", "method", "effort", "quality"],
+        minimumEffortMinutes: 5,
+        qualityEvidence: ["fixed_point_id"],
+        outputStage: "indicator_candidate",
+      },
       effortMinutes: 30,
       targetTaxaScope: "plants",
       completeChecklistFlag: true,

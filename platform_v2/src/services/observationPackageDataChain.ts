@@ -56,6 +56,7 @@ export type ObservationPackageEvent = {
 export type ObservationMethodContext = {
   methodKind: "casual_observation" | "guided_survey" | "field_scan" | "water_capture" | "identification_review";
   samplingProtocol: string | null;
+  fixedSurveyTemplate: FieldScanTemplate | null;
   effortMinutes: number | null;
   targetTaxaScope: string | null;
   completeChecklistFlag: boolean;
@@ -103,6 +104,17 @@ export type FieldScanContextInput = Partial<Omit<FieldScanContext, "fieldScanCon
   occurrenceId?: string | null;
 };
 
+export type FieldScanTemplate = {
+  templateId: string;
+  scanMode: FieldScanMode;
+  label: string;
+  repeatability: "one_time_snapshot" | "repeatable_point" | "repeatable_route" | "repeatable_area" | "calibration_only";
+  requiredBasis: Array<"site" | "time" | "method" | "effort" | "quality">;
+  minimumEffortMinutes: number | null;
+  qualityEvidence: string[];
+  outputStage: "raw_observation" | "indicator_candidate";
+};
+
 export type ObservationGovernanceContextInput = Partial<Omit<ObservationGovernanceContext, "governanceContextId" | "visitId" | "occurrenceId">> & {
   governanceContextId?: string | null;
   visitId?: string;
@@ -119,6 +131,63 @@ const FIELD_SCAN_MODES: FieldScanMode[] = ["site_snapshot", "fixed_point", "rout
 const STAGES: DataProductStage[] = ["raw_observation", "reviewed_data", "indicator_candidate", "report_output", "export_package"];
 const DECISION_AUTHORITIES: DecisionAuthority[] = ["human_required", "observer", "trusted_reviewer", "expert_reviewer", "admin", "site_policy", "system_risk_cap"];
 const PUBLIC_PRECISION_POLICIES: PublicPrecisionPolicy[] = ["system_risk_cap", "admin_reviewer", "site_policy", "user_preference"];
+
+export const FIELD_SCAN_TEMPLATES: Record<FieldScanMode, FieldScanTemplate> = {
+  site_snapshot: {
+    templateId: "field_scan_template/site_snapshot/v0",
+    scanMode: "site_snapshot",
+    label: "Site snapshot",
+    repeatability: "one_time_snapshot",
+    requiredBasis: ["site", "time", "method", "quality"],
+    minimumEffortMinutes: null,
+    qualityEvidence: ["wide_context_media", "public_precision_policy"],
+    outputStage: "raw_observation",
+  },
+  fixed_point: {
+    templateId: "field_scan_template/fixed_point/v0",
+    scanMode: "fixed_point",
+    label: "Fixed point",
+    repeatability: "repeatable_point",
+    requiredBasis: ["site", "time", "method", "effort", "quality"],
+    minimumEffortMinutes: 5,
+    qualityEvidence: ["fixed_point_id", "repeatable_framing_or_direction", "evidence_media"],
+    outputStage: "indicator_candidate",
+  },
+  route: {
+    templateId: "field_scan_template/route/v0",
+    scanMode: "route",
+    label: "Route",
+    repeatability: "repeatable_route",
+    requiredBasis: ["site", "time", "method", "effort", "quality"],
+    minimumEffortMinutes: 10,
+    qualityEvidence: ["route_id", "start_end_or_track", "evidence_media"],
+    outputStage: "indicator_candidate",
+  },
+  area_footprint: {
+    templateId: "field_scan_template/area_footprint/v0",
+    scanMode: "area_footprint",
+    label: "Area footprint",
+    repeatability: "repeatable_area",
+    requiredBasis: ["site", "time", "method", "effort", "quality"],
+    minimumEffortMinutes: 10,
+    qualityEvidence: ["area_id_or_footprint", "coverage_note", "evidence_media"],
+    outputStage: "indicator_candidate",
+  },
+  calibration_evidence: {
+    templateId: "field_scan_template/calibration_evidence/v0",
+    scanMode: "calibration_evidence",
+    label: "Calibration evidence",
+    repeatability: "calibration_only",
+    requiredBasis: ["site", "time", "method", "quality"],
+    minimumEffortMinutes: null,
+    qualityEvidence: ["calibration_target", "device_or_method_note", "evidence_media"],
+    outputStage: "raw_observation",
+  },
+};
+
+export function fieldScanTemplateForMode(scanMode: FieldScanMode): FieldScanTemplate {
+  return FIELD_SCAN_TEMPLATES[scanMode];
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -221,6 +290,7 @@ export function buildObservationMethodContext(input: {
   return {
     methodKind,
     samplingProtocol: input.fieldScanContext?.scanMode ?? input.waterRecord?.captureMethod ?? input.visit.visitMode ?? null,
+    fixedSurveyTemplate: input.fieldScanContext ? fieldScanTemplateForMode(input.fieldScanContext.scanMode) : null,
     effortMinutes,
     targetTaxaScope,
     completeChecklistFlag: Boolean(input.visit.completeChecklistFlag),
@@ -354,18 +424,32 @@ export function buildTrendAbundancePolicy(input: {
 export function normalizeFieldScanContext(input: FieldScanContextInput & { visitId: string; occurrenceId?: string | null }): FieldScanContext {
   const visitId = normalizeText(input.visitId);
   if (!visitId) throw new Error("visit_id_required");
+  const scanMode = oneOf(input.scanMode, FIELD_SCAN_MODES, "site_snapshot");
+  const template = fieldScanTemplateForMode(scanMode);
+  const methodPayload = {
+    fieldScanTemplateId: template.templateId,
+    repeatability: template.repeatability,
+    requiredBasis: template.requiredBasis,
+    minimumEffortMinutes: template.minimumEffortMinutes,
+    outputStage: template.outputStage,
+    ...asRecord(input.methodPayload),
+  };
+  const qualityPayload = {
+    templateQualityEvidence: template.qualityEvidence,
+    ...asRecord(input.qualityPayload),
+  };
   return {
     fieldScanContextId: normalizeText(input.fieldScanContextId) ?? `field_scan:${visitId}`,
     visitId,
     occurrenceId: normalizeText(input.occurrenceId),
-    scanMode: oneOf(input.scanMode, FIELD_SCAN_MODES, "site_snapshot"),
+    scanMode,
     fixedPointId: normalizeText(input.fixedPointId),
     routeId: normalizeText(input.routeId),
     areaId: normalizeText(input.areaId),
     footprintGeometry: asRecord(input.footprintGeometry),
     calibrationEvidence: asRecord(input.calibrationEvidence),
-    methodPayload: asRecord(input.methodPayload),
-    qualityPayload: asRecord(input.qualityPayload),
+    methodPayload,
+    qualityPayload,
     sourcePayload: asRecord(input.sourcePayload),
   };
 }
