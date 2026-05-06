@@ -27,6 +27,8 @@ export type TaxonGroupChip = {
 };
 
 export type MapExplorerCopy = {
+  enjoyTitle: string;
+  enjoyLead: string;
   tabMarkers: string;
   tabHeatmap: string;
   tabCoverage: string;
@@ -90,6 +92,9 @@ export type MapExplorerCopy = {
   shareError: string;
   mapQuickLabel: string;
   mapQuickNearby: string;
+  mapQuickSeason: string;
+  mapQuickRevisit: string;
+  mapQuickRecord: string;
   mapQuickFrontier: string;
   mapQuickHeatmap: string;
   mapQuickSatellite: string;
@@ -126,9 +131,11 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
+    enjoyTitle: "見に行きたくなる、地域のいのちマップ",
+    enjoyLead: "季節の気配、最近の発見、まだ知らない場所を眺めながら、次の散歩や寄り道が自然に見つかります。",
     tabMarkers: "観察エリア",
-    tabHeatmap: "密度ヒート",
-    tabCoverage: "調査前進",
+    tabHeatmap: "見つかった気配",
+    tabCoverage: "まだ知らない場所",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -163,13 +170,13 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "空撮（地理院）",
     basemapSatelliteEsri: "衛星（Esri）",
     legendLabel: "凡例",
-    coverageLegendLow: "薄い",
-    coverageLegendHigh: "厚い",
-    heatmapLegendLow: "薄い",
-    heatmapLegendHigh: "濃い",
+    coverageLegendLow: "これから",
+    coverageLegendHigh: "育っている",
+    heatmapLegendLow: "少ない",
+    heatmapLegendHigh: "多い",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "この条件に合う記録はまだありません。条件をゆるめるか、別の年を試してください。",
+    empty: "この条件ではまだ発見が出ていません。季節や地域をゆるめると、別の気配が見つかるかもしれません。",
     sideRecentLabel: "最近の記録",
     sideRevisitLabel: "この場所で見つかったもの",
     crossEyebrow: "この場所で、次の 1 件を残す",
@@ -181,14 +188,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
     bottomSheetLens: JA_PUBLIC_SHARED_COPY.cta.openGuide,
     bottomSheetScan: JA_PUBLIC_SHARED_COPY.cta.openScan,
-    siteBriefHeading: "この場所で見てみたいこと",
-    siteBriefReasonsLabel: "根拠",
-    siteBriefChecksLabel: "現地で確かめる",
+    siteBriefHeading: "見に行きたくなる手がかり",
+    siteBriefReasonsLabel: "最近の発見",
+    siteBriefChecksLabel: "歩きながら見たいこと",
     siteBriefCapturesLabel: "撮るなら",
     siteBriefEnvironmentLabel: "衛星・地図の手がかり",
     siteBriefWhyHereLabel: "ここが気になる理由",
-    siteBriefWhyNowLabel: "今行く理由",
-    siteBriefOneVisitLabel: "1 回の訪問で残せること",
+    siteBriefWhyNowLabel: "今の季節の気配",
+    siteBriefOneVisitLabel: "寄り道で楽しめること",
     siteBriefNextHookLabel: "次にまた行きたくなる理由",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
@@ -205,9 +212,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareCopied: "共有リンクをコピーした。",
     shareError: "共有リンクを作れなかった。",
     mapQuickLabel: "地図上のクイック操作",
-    mapQuickNearby: "現在地",
-    mapQuickFrontier: "空白帯",
-    mapQuickHeatmap: "密度",
+    mapQuickNearby: "近くをながめる",
+    mapQuickSeason: "季節で見つける",
+    mapQuickRevisit: "また行く場所を見る",
+    mapQuickRecord: "ここで記録する",
+    mapQuickFrontier: "まだ知らない場所",
+    mapQuickHeatmap: "見つかった気配",
     mapQuickSatellite: "衛星",
     mapQuickStandard: "標準",
     taxonChips: [
@@ -222,9 +232,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
+    enjoyTitle: "A local life map that makes you want to go outside",
+    enjoyLead: "Browse seasonal clues, recent finds, and places you do not know yet. Your next walk or detour can appear naturally.",
     tabMarkers: "Areas",
     tabHeatmap: "Heatmap",
-    tabCoverage: "Frontier",
+    tabCoverage: "Unknown places",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
@@ -301,8 +313,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareCopied: "Share link copied.",
     shareError: "Could not create a share link.",
     mapQuickLabel: "Quick map actions",
-    mapQuickNearby: "Nearby",
-    mapQuickFrontier: "Frontier",
+    mapQuickNearby: "Look nearby",
+    mapQuickSeason: "Find by season",
+    mapQuickRevisit: "Places to revisit",
+    mapQuickRecord: "Record here",
+    mapQuickFrontier: "Unknown places",
     mapQuickHeatmap: "Density",
     mapQuickSatellite: "Satellite",
     mapQuickStandard: "Standard",
@@ -318,9 +333,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
+    enjoyTitle: "Un mapa de vida local que invita a salir",
+    enjoyLead: "Mira señales de temporada, hallazgos recientes y lugares aún desconocidos. El próximo paseo aparece de forma natural.",
     tabMarkers: "Áreas",
     tabHeatmap: "Mapa de calor",
-    tabCoverage: "Frontera",
+    tabCoverage: "Lugares por conocer",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
@@ -397,8 +414,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareCopied: "Enlace copiado.",
     shareError: "No pude crear el enlace.",
     mapQuickLabel: "Acciones rápidas del mapa",
-    mapQuickNearby: "Cerca",
-    mapQuickFrontier: "Frontera",
+    mapQuickNearby: "Mirar cerca",
+    mapQuickSeason: "Por temporada",
+    mapQuickRevisit: "Volver a lugares",
+    mapQuickRecord: "Registrar aquí",
+    mapQuickFrontier: "Lugares por conocer",
     mapQuickHeatmap: "Densidad",
     mapQuickSatellite: "Satélite",
     mapQuickStandard: "Estándar",
@@ -414,9 +434,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
+    enjoyTitle: "Um mapa da vida local que dá vontade de sair",
+    enjoyLead: "Veja sinais da estação, descobertas recentes e lugares ainda desconhecidos. A próxima caminhada aparece naturalmente.",
     tabMarkers: "Áreas",
     tabHeatmap: "Mapa de calor",
-    tabCoverage: "Fronteira",
+    tabCoverage: "Lugares a conhecer",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
@@ -493,8 +515,11 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     shareCopied: "Link copiado.",
     shareError: "Não foi possível criar o link.",
     mapQuickLabel: "Ações rápidas do mapa",
-    mapQuickNearby: "Perto",
-    mapQuickFrontier: "Fronteira",
+    mapQuickNearby: "Olhar perto",
+    mapQuickSeason: "Por estação",
+    mapQuickRevisit: "Voltar a lugares",
+    mapQuickRecord: "Registrar aqui",
+    mapQuickFrontier: "Lugares a conhecer",
     mapQuickHeatmap: "Densidade",
     mapQuickSatellite: "Satélite",
     mapQuickStandard: "Padrão",
@@ -548,7 +573,7 @@ function ambientPanelLabels(lang: SiteLang): {
       ],
       selfLabel: "My progress",
       communityLabel: "Area progress",
-      frontierLabel: "Next frontier",
+      frontierLabel: "Places you may want to see",
       roleCardLabel: "Best role here",
     };
   }
@@ -563,7 +588,7 @@ function ambientPanelLabels(lang: SiteLang): {
       ],
       selfLabel: "Mi avance",
       communityLabel: "Avance del área",
-      frontierLabel: "Siguiente frontera",
+      frontierLabel: "Lugares que dan ganas de ver",
       roleCardLabel: "Mejor rol aquí",
     };
   }
@@ -578,7 +603,7 @@ function ambientPanelLabels(lang: SiteLang): {
       ],
       selfLabel: "Meu avanço",
       communityLabel: "Avanço da área",
-      frontierLabel: "Próxima fronteira",
+      frontierLabel: "Lugares que dão vontade de ver",
       roleCardLabel: "Melhor papel aqui",
     };
   }
@@ -592,7 +617,7 @@ function ambientPanelLabels(lang: SiteLang): {
     ],
     selfLabel: "自分の前進",
     communityLabel: "地域の前進",
-    frontierLabel: "次に見たい薄い場所",
+    frontierLabel: "見に行きたくなる余白",
     roleCardLabel: "この場所で最適な役割",
   };
 }
@@ -969,8 +994,15 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
+        <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
+          <strong>${escapeHtml(copy.enjoyTitle)}</strong>
+          <span>${escapeHtml(copy.enjoyLead)}</span>
+        </div>
         <div class="me-map-command-deck" role="toolbar" aria-label="${escapeHtml(copy.mapQuickLabel)}">
           <button type="button" class="me-map-quick" data-map-action="locate"><span aria-hidden="true">⌖</span>${escapeHtml(copy.mapQuickNearby)}</button>
+          <button type="button" class="me-map-quick" data-map-action="season"><span aria-hidden="true">✿</span>${escapeHtml(copy.mapQuickSeason)}</button>
+          <a class="me-map-quick" href="${escapeHtml(notesHref)}" data-kpi-action="map:quick-revisit"><span aria-hidden="true">↻</span>${escapeHtml(copy.mapQuickRevisit)}</a>
+          <a class="me-map-quick me-map-quick-record" href="${escapeHtml(recordHref)}" data-kpi-action="map:quick-record"><span aria-hidden="true">＋</span>${escapeHtml(copy.mapQuickRecord)}</a>
           <button type="button" class="me-map-quick" data-map-tab="frontier"><span aria-hidden="true">◇</span>${escapeHtml(copy.mapQuickFrontier)}</button>
           <button type="button" class="me-map-quick" data-map-tab="heatmap"><span aria-hidden="true">≋</span>${escapeHtml(copy.mapQuickHeatmap)}</button>
           <button type="button" class="me-map-quick" data-map-basemap="esri"><span aria-hidden="true">▧</span>${escapeHtml(copy.mapQuickSatellite)}</button>
@@ -1134,17 +1166,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     actor_local_steward: props.lang === "ja" ? "地元 steward" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
     actor_traveler: props.lang === "ja" ? "Traveler" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
     actor_casual: props.lang === "ja" ? "Casual" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
-    actorHint_all: props.lang === "ja" ? "地図全体の薄い場所を見る" : props.lang === "es" ? "Mirar la frontera total" : props.lang === "pt-BR" ? "Ver a fronteira total" : "Look at the whole frontier",
+    actorHint_all: props.lang === "ja" ? "地図全体のまだ知らない場所を眺める" : props.lang === "es" ? "Mirar lugares por conocer en todo el mapa" : props.lang === "pt-BR" ? "Ver lugares a conhecer no mapa todo" : "Browse unknown places across the map",
     actorHint_local_steward: props.lang === "ja" ? "同じ場所を育てる前提で見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
     actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
-    actorHint_casual: props.lang === "ja" ? "生活動線の近くで埋められる薄い帯を見る" : props.lang === "es" ? "Ver huecos cercanos a la rutina" : props.lang === "pt-BR" ? "Ver lacunas perto da rotina" : "Look for nearby routine gaps",
-    roleHintScan: props.lang === "ja" ? "空白を埋めるなら周辺を探索" : props.lang === "es" ? "Explora alrededor para abrir huecos" : props.lang === "pt-BR" ? "Explore ao redor para abrir vazios" : "Explore nearby to open blank areas",
+    actorHint_casual: props.lang === "ja" ? "生活動線の近くにある余白を見る" : props.lang === "es" ? "Ver lugares pendientes cerca de la rutina" : props.lang === "pt-BR" ? "Ver lugares pendentes perto da rotina" : "Look for nearby everyday gaps",
+    roleHintScan: props.lang === "ja" ? "気になる余白を見に行くなら周辺を散歩" : props.lang === "es" ? "Pasea alrededor para conocer huecos" : props.lang === "pt-BR" ? "Caminhe ao redor para conhecer vazios" : "Walk nearby to explore the blank spots",
     roleHintGuide: props.lang === "ja" ? "確度を上げるならその場で調べる" : props.lang === "es" ? "Consulta en el sitio para subir la certeza" : props.lang === "pt-BR" ? "Verifique no local para subir a certeza" : "Check on site to raise certainty",
     roleHintNote: props.lang === "ja" ? "比較可能にするならノートに残す" : props.lang === "es" ? "Deja una nota para hacerlo comparable" : props.lang === "pt-BR" ? "Registre em nota para tornar comparável" : "Leave a note to make it revisitable",
     roleHintMixed: props.lang === "ja" ? "今日は周辺写真・足元動画・メモ1行で進める" : props.lang === "es" ? "Hoy avanza con una foto amplia, un video corto y una nota" : props.lang === "pt-BR" ? "Hoje avance com uma foto ampla, um vídeo curto e uma nota" : "Use one wide photo, a short clip, and a note today",
-    axis_scan_pass: props.lang === "ja" ? "周辺探索が薄い" : props.lang === "es" ? "Falta exploración" : props.lang === "pt-BR" ? "Falta exploração" : "exploration is thin",
-    axis_guide_scene: props.lang === "ja" ? "現地確認が薄い" : props.lang === "es" ? "Falta verificación en sitio" : props.lang === "pt-BR" ? "Falta verificação no local" : "field checks are thin",
-    axis_revisit_note: props.lang === "ja" ? "再訪ノートが薄い" : props.lang === "es" ? "Faltan notas de revisita" : props.lang === "pt-BR" ? "Faltam notas de revisita" : "revisit notes are thin",
+    axis_scan_pass: props.lang === "ja" ? "まだ歩かれていない道がある" : props.lang === "es" ? "Quedan caminos poco recorridos" : props.lang === "pt-BR" ? "Ainda há caminhos pouco vistos" : "some paths are still little explored",
+    axis_guide_scene: props.lang === "ja" ? "現地で見たい手がかりがある" : props.lang === "es" ? "Hay pistas para ver en sitio" : props.lang === "pt-BR" ? "Há pistas para ver no local" : "there are clues to see on site",
+    axis_revisit_note: props.lang === "ja" ? "また行くと変化が見えそう" : props.lang === "es" ? "Volver puede mostrar cambios" : props.lang === "pt-BR" ? "Voltar pode mostrar mudanças" : "returning could reveal changes",
     contributorBand_0: props.lang === "ja" ? "まだ集計なし" : props.lang === "es" ? "Sin agregado aún" : props.lang === "pt-BR" ? "Sem agregado ainda" : "No aggregate yet",
     contributorBand_1_2: props.lang === "ja" ? "1-2人ほど" : props.lang === "es" ? "1-2 personas" : props.lang === "pt-BR" ? "1-2 pessoas" : "about 1-2 people",
     contributorBand_3_5: props.lang === "ja" ? "3-5人ほど" : props.lang === "es" ? "3-5 personas" : props.lang === "pt-BR" ? "3-5 pessoas" : "about 3-5 people",
@@ -1154,19 +1186,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     communityStrengthLabel: props.lang === "ja" ? "最近厚くなった帯" : props.lang === "es" ? "Áreas reforzadas" : props.lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
     communityProgressLabel: props.lang === "ja" ? "共同前進" : props.lang === "es" ? "Progreso colectivo" : props.lang === "pt-BR" ? "Progresso coletivo" : "collective progress",
     aggregateContributorLabel: props.lang === "ja" ? "集計された記録者" : props.lang === "es" ? "personas agregadas" : props.lang === "pt-BR" ? "pessoas agregadas" : "aggregated contributors",
-    frontierBlankLabel: props.lang === "ja" ? "薄い帯" : props.lang === "es" ? "bandas vacías" : props.lang === "pt-BR" ? "faixas vazias" : "blank bands",
+    frontierBlankLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
     frontierBuildingLabel: props.lang === "ja" ? "育ち始め" : props.lang === "es" ? "en construcción" : props.lang === "pt-BR" ? "em construção" : "building",
     frontierRepeatableLabel: props.lang === "ja" ? "比較可能" : props.lang === "es" ? "comparables" : props.lang === "pt-BR" ? "comparáveis" : "repeatable",
     frontierMatureLabel: props.lang === "ja" ? "厚い帯" : props.lang === "es" ? "maduras" : props.lang === "pt-BR" ? "maduras" : "mature",
-    campaign_scan_blank: props.lang === "ja" ? "空白帯をひとつ開く" : props.lang === "es" ? "Abrir una banda vacía" : props.lang === "pt-BR" ? "Abrir uma faixa vazia" : "Open one blank band",
+    campaign_scan_blank: props.lang === "ja" ? "まだ知らない場所をひとつ見に行く" : props.lang === "es" ? "Visitar un lugar por conocer" : props.lang === "pt-BR" ? "Visitar um lugar a conhecer" : "Visit one unknown place",
     campaign_guide_building: props.lang === "ja" ? "育ち始めの場所の確度を上げる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
     campaign_note_repeatable: props.lang === "ja" ? "比較できる場所をもう一段厚くする" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
-    campaign_mixed_frontier: props.lang === "ja" ? "薄い場所を少し厚くする" : props.lang === "es" ? "Hacer un poco más denso un hueco" : props.lang === "pt-BR" ? "Tornar uma lacuna um pouco mais densa" : "Make a thin area a little richer",
+    campaign_mixed_frontier: props.lang === "ja" ? "気になる場所の見え方を少し増やす" : props.lang === "es" ? "Añadir más mirada a un lugar curioso" : props.lang === "pt-BR" ? "Adicionar mais olhar a um lugar curioso" : "Add another view to a curious place",
     priorityCueLabel: props.lang === "ja" ? "優先理由" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
     priority_steady_revisit: props.lang === "ja" ? "再訪で厚くする" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
     priority_fresh_gap: props.lang === "ja" ? "新しい空白を開く" : props.lang === "es" ? "Abrir un hueco nuevo" : props.lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
-    priority_nearby_gap: props.lang === "ja" ? "近場の薄い帯を埋める" : props.lang === "es" ? "Cubrir huecos cercanos" : props.lang === "pt-BR" ? "Cobrir lacunas próximas" : "Fill a nearby thin band",
-    remainingLabel: props.lang === "ja" ? "残りの薄い場所" : props.lang === "es" ? "fronteras restantes" : props.lang === "pt-BR" ? "fronteiras restantes" : "frontier left",
+    priority_nearby_gap: props.lang === "ja" ? "近くにまだ知らない場所がある" : props.lang === "es" ? "Hay lugares cercanos por conocer" : props.lang === "pt-BR" ? "Há lugares perto para conhecer" : "There are unknown places nearby",
+    remainingLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
     aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
     resultHeading: props.lang === "ja" ? "この範囲の観察" : props.lang === "es" ? "Observaciones en esta área" : props.lang === "pt-BR" ? "Observações nesta área" : "Observations in this area",
@@ -1176,12 +1208,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
     selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
     identifyLabel: props.lang === "ja" ? "同定する" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
-    selectedFieldLabel: props.lang === "ja" ? "この場所で次に見る" : props.lang === "es" ? "Qué mirar aquí" : props.lang === "pt-BR" ? "O que ver aqui" : "What to look for here",
-    selectedRoleLead: props.lang === "ja" ? "次は" : props.lang === "es" ? "Siguiente" : props.lang === "pt-BR" ? "Próximo" : "Next",
+    selectedFieldLabel: props.lang === "ja" ? "この場所で見つけたいこと" : props.lang === "es" ? "Qué dan ganas de ver aquí" : props.lang === "pt-BR" ? "O que dá vontade de ver aqui" : "What you may want to see here",
+    selectedRoleLead: props.lang === "ja" ? "見どころ" : props.lang === "es" ? "Para mirar" : props.lang === "pt-BR" ? "Para ver" : "Look for",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
-    selectionPlaceLabel: props.lang === "ja" ? "この地点の place card" : props.lang === "es" ? "Tarjeta del lugar" : props.lang === "pt-BR" ? "Cartão do lugar" : "Place card",
-    insightHeading: props.lang === "ja" ? "静かな前進" : props.lang === "es" ? "Progreso tranquilo" : props.lang === "pt-BR" ? "Progresso calmo" : "Quiet progress",
-    insightSubhead: props.lang === "ja" ? "この viewport の厚みを一目で見る。" : props.lang === "es" ? "Cómo de densa está esta ventana." : props.lang === "pt-BR" ? "Quanto esta janela já acumulou." : "How this viewport is stacking up.",
+    selectionPlaceLabel: props.lang === "ja" ? "行きたくなる理由" : props.lang === "es" ? "Motivos para ir" : props.lang === "pt-BR" ? "Motivos para ir" : "Reasons to go",
+    insightHeading: props.lang === "ja" ? "見えてきた範囲" : props.lang === "es" ? "Lo que ya se ve" : props.lang === "pt-BR" ? "O que já aparece" : "What is coming into view",
+    insightSubhead: props.lang === "ja" ? "この表示範囲の発見の気配を眺める。" : props.lang === "es" ? "Mira las señales de esta ventana." : props.lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
   })};
   ${MAP_EXPLORER_STATE_RUNTIME}
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
@@ -2344,7 +2376,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   '<div><span>総観察数</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
       +   '<div><span>記録された種</span><strong>' + escapeHtml(String(summary.uniqueTaxa || 0)) + '</strong></div>'
       +   '<div><span>訪問</span><strong>' + escapeHtml(String(summary.totalVisits || 0)) + '</strong></div>'
-      +   '<div><span>季節カバー</span><strong>' + escapeHtml(String(summary.seasonsCovered || 0)) + '/4</strong></div>'
+      +   '<div><span>見えてきた季節</span><strong>' + escapeHtml(String(summary.seasonsCovered || 0)) + '/4</strong></div>'
       + '</div>';
     var timelineHtml = renderAreaTimeline(timeline);
     var indicatorsHtml = renderEffortIndicators(indicators);
@@ -2372,7 +2404,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }).join('');
     return ''
       + '<div class="me-area-sheet-timeline">'
-      +   '<div class="me-area-tl-title">年別の観察数 (棒高さ) と種数 (ホバー)</div>'
+      +   '<div class="me-area-tl-title">年ごとの発見の増え方</div>'
       +   '<div class="me-area-tl-row">' + bars + '</div>'
       + '</div>';
   }
@@ -2383,29 +2415,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // 各カードに「100% に近づくと何が言えるか」を hint として置く (eBird/iNaturalist 文献ベース)。
     var cards = [
       {
-        label: '努力量の入力',
+        label: '歩かれ方',
         value: indicators.effortReportedRate,
-        hint: '探索時間か距離が記録されている割合。高いほど「調査がどれだけ厚かったか」が分かる',
+        hint: '歩いた時間や距離が添えられた記録。増えるほど、同じ場所の見え方を比べやすい',
       },
       {
-        label: '完全チェックリスト率',
+        label: '見たものメモの厚み',
         value: indicators.completeChecklistRate,
-        hint: '見たもの全部 + 居なかったものも明示した記録の割合。高いほど「居る/居ない」が研究で使える',
+        hint: '見たものをまとめて残した記録。多いほど、季節ごとの顔が見えやすくなる',
       },
       {
-        label: '時空カバー指数',
+        label: '季節の見え方',
         value: indicators.temporalSpreadIndex,
-        hint: '季節 × 月 × 年の網羅度。100% は「年中通して観察されている」状態',
+        hint: '季節、月、年をまたいだ記録の広がり。高いほど、また行く楽しみが増える',
       },
       {
-        label: '観察者の多様性',
+        label: '見ている人の広がり',
         value: indicators.observerDiversity,
-        hint: '何人の観察者で分散しているか。0% は「実質1人だけ」、100% は「みんなで支えている」',
+        hint: '何人の目で見られているか。広がるほど、場所の表情が立体的になる',
       },
       {
-        label: '不在も記録した率',
+        label: '見つからなかったメモ',
         value: indicators.nonDetectionRate,
-        hint: '「探したけど居なかった」を残した割合。30by30 評価では『減ってる』の根拠に必須',
+        hint: '探したけれど見つからなかった記録。次に訪れたときの変化に気づきやすくなる',
       },
     ];
     var cardsHtml = cards.map(function (c) {
@@ -2426,18 +2458,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var indexText = indexValue == null ? '—' : (indexValue + '/100');
     var bandText = indexValue == null
       ? 'まだ評価できない'
-      : indexValue < 30 ? 'まだ薄い (傾向は語れない)'
-      : indexValue < 70 ? '傾向は読める'
-      : '研究利用できる水準';
+      : indexValue < 30 ? 'まだこれから'
+      : indexValue < 70 ? '季節が見え始めた'
+      : 'また行く理由が育っている';
     return ''
       + '<div class="me-area-effort">'
       +   '<div class="me-area-effort-title">'
-      +     '<span>このエリアの調査品質</span>'
+      +     '<span>このエリアの記録の手がかり</span>'
       +     '<span class="me-area-effort-index">' + escapeHtml(indexText) + ' · ' + escapeHtml(bandText) + '</span>'
       +   '</div>'
       +   '<p class="me-area-effort-explainer">'
-      +     'eBird / iNaturalist / GBIF の評価軸を市民参加向けに圧縮した5指標。<br>'
-      +     '0% は「その軸の記録がまだ無い」だけで、エリアが悪いという意味ではない。'
+      +     '歩かれ方、季節、見ている人の広がりから、この場所の見え方をまとめます。<br>'
+      +     '0% は「まだ記録が少ない」だけで、場所が悪いという意味ではありません。'
       +   '</p>'
       +   '<div class="me-area-effort-grid">' + cardsHtml + '</div>'
       + '</div>';
@@ -3929,6 +3961,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (locateFab) locateFab.click();
         return;
       }
+      if (action === 'season') {
+        var drawer = document.querySelector('.me-filter-drawer');
+        if (drawer) drawer.setAttribute('open', 'open');
+        var seasonChip = document.querySelector('.me-season-chip[data-season="spring"]') || document.querySelector('.me-season-chip');
+        if (seasonChip && typeof seasonChip.focus === 'function') seasonChip.focus();
+        return;
+      }
       if (tab) {
         var tabBtn = document.querySelector('.me-tab[data-tab="' + tab + '"]');
         if (tabBtn && typeof tabBtn.click === 'function') tabBtn.click();
@@ -4381,15 +4420,46 @@ export const MAP_EXPLORER_STYLES = `
     transition: width .25s ease, margin .25s ease;
   }
   .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
-  .me-map-command-deck {
+  .me-enjoy-strip {
     position: absolute;
     top: 14px;
-    left: calc(var(--me-side-w) + 14px);
+    left: 14px;
+    right: 14px;
+    z-index: 6;
+    width: min(720px, calc(100% - 28px));
+    display: grid;
+    gap: 3px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 12px 30px rgba(15,23,42,.13);
+    backdrop-filter: blur(14px);
+    pointer-events: none;
+    transition: left .25s ease, width .25s ease;
+  }
+  .me-enjoy-strip strong {
+    color: #0f172a;
+    font-size: 16px;
+    line-height: 1.25;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-enjoy-strip span {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 750;
+  }
+  .me-map-command-deck {
+    position: absolute;
+    top: 96px;
+    left: 14px;
     z-index: 6;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    max-width: calc(100% - var(--me-side-w) - 28px);
+    max-width: calc(100% - 28px);
     pointer-events: auto;
     transition: left .25s ease, max-width .25s ease;
   }
@@ -4408,12 +4478,18 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 13px;
     font-weight: 900;
     cursor: pointer;
+    text-decoration: none;
     transition: transform .15s ease, background .15s ease, border-color .15s ease;
   }
   .me-map-quick:hover { transform: translateY(-1px); border-color: rgba(14,165,233,.32); background: #fff; }
   .me-map-quick.is-active {
     color: #064e3b;
     border-color: rgba(16,185,129,.38);
+    background: rgba(236,253,245,.98);
+  }
+  .me-map-quick-record {
+    color: #064e3b;
+    border-color: rgba(16,185,129,.32);
     background: rgba(236,253,245,.98);
   }
   .me-map-quick span { font-size: 14px; line-height: 1; }
@@ -4430,19 +4506,19 @@ export const MAP_EXPLORER_STYLES = `
     transform: translateY(0);
   }
   .me-map-panel-selection {
-    top: 82px;
-    left: calc(var(--me-side-w) + 18px);
+    top: 152px;
+    left: 18px;
     width: clamp(280px, 28vw, 360px);
-    max-width: calc(100% - var(--me-side-w) - 36px);
+    max-width: calc(100% - 36px);
   }
   .me-map-panel-selection .me-map-card {
     max-height: calc(var(--me-map-height) - 96px);
     overflow-y: auto;
   }
   .me-map-panel-insight {
-    left: calc(var(--me-side-w) + 18px);
+    left: 18px;
     bottom: 18px;
-    width: min(420px, calc(100% - var(--me-side-w) - 36px));
+    width: min(420px, calc(100% - 36px));
     transition: left .25s ease, width .25s ease;
   }
   .me-map-card {
@@ -4500,7 +4576,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-map-insight-item strong { font-size: 14px; font-weight: 900; color: #0f172a; }
   .me-map-insight-item span { font-size: 11px; line-height: 1.45; color: #64748b; }
   .me-map-status {
-    position: absolute; right: 14px; top: 70px; z-index: 4;
+    position: absolute; right: 14px; top: 158px; z-index: 4;
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);
     color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .02em;
     backdrop-filter: blur(8px);
@@ -4883,7 +4959,23 @@ export const MAP_EXPLORER_STYLES = `
       left: 12px;
       width: min(360px, calc(100% - 96px));
     }
+    .me-enjoy-strip {
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      width: auto;
+      padding: 10px 12px;
+      border-radius: 16px;
+    }
+    .me-enjoy-strip strong {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .me-enjoy-strip span {
+      display: none;
+    }
     .me-map-command-deck {
+      top: 62px;
       left: 10px;
       right: 10px;
       max-width: none;
@@ -4904,6 +4996,10 @@ export const MAP_EXPLORER_STYLES = `
       left: 50%;
       width: max-content;
       max-width: calc(100% - 28px);
+    }
+    .me-map-status {
+      top: 116px;
+      right: 10px;
     }
     .me-locate-fab { bottom: 96px; }
     .me-bottom-sheet {
