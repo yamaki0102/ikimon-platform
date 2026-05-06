@@ -2742,19 +2742,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         paint: {
           'fill-color': [
             'match', ['get', 'stage'],
-            'blank', 'rgba(148,163,184,0.18)',
-            'building', 'rgba(14,165,233,0.28)',
-            'repeatable', 'rgba(16,185,129,0.42)',
-            'rgba(5,150,105,0.72)',
+            'blank', 'rgba(100,116,139,0.12)',
+            'building', 'rgba(14,165,233,0.16)',
+            'repeatable', 'rgba(20,184,166,0.18)',
+            'rgba(5,150,105,0.22)',
           ],
           'fill-opacity': [
             'match', ['get', 'stage'],
-            'blank', 0.08,
-            'building', 0.18,
-            'repeatable', 0.3,
-            0.42,
+            'blank', 0.04,
+            'building', 0.07,
+            'repeatable', 0.09,
+            0.12,
           ],
-          'fill-outline-color': 'rgba(15,23,42,0.12)',
+          'fill-outline-color': 'rgba(15,118,110,0.10)',
         },
       });
       map.on('click', 'frontier-fill', function (e) {
@@ -4353,15 +4353,15 @@ export const MAP_EXPLORER_STYLES = `
     left: 14px;
     right: 14px;
     z-index: 6;
-    width: min(760px, calc(100% - 28px));
+    width: min(580px, calc(100% - 28px));
     display: grid;
-    gap: 3px;
-    padding: 12px 16px;
-    border-radius: 18px;
-    background: rgba(255,255,255,.94);
+    gap: 7px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.9);
     border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 12px 30px rgba(15,23,42,.13);
-    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 18px rgba(15,23,42,.1);
+    backdrop-filter: blur(12px);
     pointer-events: none;
     transition: left .25s ease, width .25s ease;
   }
@@ -4373,6 +4373,7 @@ export const MAP_EXPLORER_STYLES = `
     letter-spacing: 0;
   }
   .me-enjoy-strip > span {
+    display: none;
     color: #475569;
     font-size: 12px;
     line-height: 1.45;
@@ -4381,15 +4382,15 @@ export const MAP_EXPLORER_STYLES = `
   .me-map-cues {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 5px;
+    margin-top: 0;
   }
   .me-map-cues span {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 28px;
-    padding: 0 9px;
+    min-height: 26px;
+    padding: 0 8px;
     border-radius: 999px;
     background: rgba(248,250,252,.92);
     border: 1px solid rgba(15,23,42,.08);
@@ -4432,13 +4433,13 @@ export const MAP_EXPLORER_STYLES = `
     transform: translateY(0);
   }
   .me-map-panel-selection {
-    top: 152px;
+    top: 148px;
     left: 18px;
     width: clamp(280px, 28vw, 360px);
     max-width: calc(100% - 36px);
   }
   .me-map-panel-selection .me-map-card {
-    max-height: calc(var(--me-map-height) - 96px);
+    max-height: calc(var(--me-map-height) - 180px);
     overflow-y: auto;
   }
   .me-map-panel-insight {
