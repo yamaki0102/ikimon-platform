@@ -351,7 +351,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
             { href: "/explore", label: "分類群を探す", match: ["/explore"] },
           ])}
         </div>
-        <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>ログインすると、フォロー中の分類群やよく見る観察エリアをここに固定します。</p>`;
+        <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>ログインすると、フォロー中の分類群や観察エリアをここに固定します。</p>`;
   const groups: SideNavGroup[] = [
     {
       title: "アカウント",
@@ -373,7 +373,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
       ],
     },
     {
-      title: "よく見る",
+      title: "フォロー中",
       className: "desktop-side-nav-section--personalized",
       items: [],
       afterHtml: personalizedLinksHtml,
@@ -2113,17 +2113,14 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
       body: JSON.stringify(activeIds.length ? { ids: activeIds } : {})
     }).then((response) => response.ok ? response.json() : null);
   };
-  const statText = (item, summary) => {
+  const statText = (item) => {
     const stats = item && typeof item.stats === 'object' && item.stats ? item.stats : {};
     const parts = [];
     const observationCount = Number(stats.observationCount || 0);
     const needsIdCount = Number(stats.needsIdCount || 0);
-    const viewCount = Number(stats.viewCount || item.score || 0);
     if (observationCount > 0) parts.push(observationCount + '件');
     if (needsIdCount > 0) parts.push('同定待ち' + needsIdCount);
-    if (viewCount > 0) parts.push('閲覧' + viewCount);
     if (stats.followed) parts.push('フォロー中');
-    if (!parts.length && summary && Number(summary.unreadAlertCount || 0) > 0) parts.push('通知' + Number(summary.unreadAlertCount));
     return parts.slice(0, 2).join(' · ');
   };
   const renderPersonalizedItems = (items, summary) => {
@@ -2146,10 +2143,10 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
         link.href = String(item.href || '/');
         const label = document.createElement('span');
         label.className = 'desktop-side-nav-mini-label';
-        label.textContent = String(item.label || 'よく見る');
+        label.textContent = String(item.label || 'フォロー中');
         const meta = document.createElement('span');
         meta.className = 'desktop-side-nav-mini-meta';
-        meta.textContent = statText(item, summary) || 'よく見る';
+        meta.textContent = statText(item) || 'フォロー中';
         link.appendChild(label);
         link.appendChild(meta);
         link.setAttribute('data-kpi-action', 'personalized_menu_' + String(item.source || item.kind || 'item'));
