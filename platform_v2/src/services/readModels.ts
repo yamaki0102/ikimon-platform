@@ -1898,6 +1898,40 @@ export type LandingDailyDashboard = {
 
 export type LandingTopShelfKind = "today" | "photo" | "video" | "guide" | "scan" | "needsId";
 
+export type LandingTopObservationItem = LandingObservation & {
+  topItemType?: "observation";
+};
+
+export type LandingTopGuideItem = {
+  topItemType: "guide";
+  guideRecordId: string;
+  sessionId: string;
+  displayName: string;
+  summary: string | null;
+  observedAt: string;
+  observerName: string;
+  observerUserId: string | null;
+  observerAvatarUrl: string | null;
+  placeName: string;
+  municipality: string | null;
+  publicLocation: PublicLocationSummary;
+  photoUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  librarySourceKind: "guide";
+  detectedSpecies: string[];
+  identificationCount: 0;
+  isAiCandidate: false;
+  href: string;
+};
+
+export type LandingTopScanItem = LandingObservation & {
+  topItemType: "scan";
+  librarySourceKind: "scan";
+};
+
+export type LandingTopShelfItem = LandingTopObservationItem | LandingTopGuideItem | LandingTopScanItem;
+
 export type LandingTopShelfCta = {
   title: string;
   body: string;
@@ -1910,7 +1944,7 @@ export type LandingTopShelf = {
   title: string;
   eyebrow: string;
   href: string;
-  items: LandingObservation[];
+  items: LandingTopShelfItem[];
   cta?: LandingTopShelfCta;
 };
 
