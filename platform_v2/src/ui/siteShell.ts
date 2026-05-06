@@ -805,6 +805,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const MAX_PHOTO_DRAFT_FILES = 6;
   const PHOTO_UPLOAD_MAX_EDGE = 2560;
   const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+  const CAMERA_PHOTO_IDEAL_WIDTH = 2560;
+  const CAMERA_PHOTO_IDEAL_HEIGHT = 1920;
+  const CAMERA_VIDEO_IDEAL_WIDTH = 1280;
+  const CAMERA_VIDEO_IDEAL_HEIGHT = 720;
   const VIDEO_MAX_SECONDS = 60;
   let activeKind = '';
   let activeStream = null;
@@ -863,6 +867,17 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     },
   };
   const apiPath = (path) => BASE_PATH + path;
+  const cameraVideoConstraints = () => activeKind === 'video'
+    ? {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: CAMERA_VIDEO_IDEAL_WIDTH },
+        height: { ideal: CAMERA_VIDEO_IDEAL_HEIGHT },
+      }
+    : {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: CAMERA_PHOTO_IDEAL_WIDTH },
+        height: { ideal: CAMERA_PHOTO_IDEAL_HEIGHT },
+      };
   const openDraftDb = () => new Promise((resolve, reject) => {
     if (!('indexedDB' in window)) {
       reject(new Error('indexeddb_unavailable'));
@@ -1575,7 +1590,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       if (cameraVideo) cameraVideo.hidden = false;
       if (cameraImage) cameraImage.hidden = true;
       const constraints = {
-        video: { facingMode: { ideal: 'environment' } },
+        video: cameraVideoConstraints(),
         audio: activeKind === 'video',
       };
       activeStream = await navigator.mediaDevices.getUserMedia(constraints);
