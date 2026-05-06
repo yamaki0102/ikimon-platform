@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
+import { suppressMapLibreForSmoke } from "./support/staging.js";
 
 const viewports = [
   { name: "desktop", width: 1440, height: 1200 },
@@ -28,6 +29,7 @@ test.describe("landing top visual regression", () => {
         viewport: { width: viewport.width, height: viewport.height },
       });
 
+      await suppressMapLibreForSmoke(page);
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await page.waitForLoadState("load");
       await page.addStyleTag({
