@@ -137,6 +137,20 @@ foreach ($relPath in $migrationFiles) {
             "${relPath}: ALTER TABLE $tableName may fail under staging/prod app DB roles. Prefer a companion table, or add an explicit 'owner-sensitive-ok: <rollback/deploy note>' comment."
         )
     }
+
+    foreach ($match in Get-RegexMatches -Text $sql -Pattern '^\s*(?:execute\s+[''"])?create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?[A-Za-z0-9_."-]+\s+on\s+(?:only\s+)?([A-Za-z0-9_."-]+)') {
+        $tableName = Normalize-TableName $match.Groups[1].Value
+        if ($createdTables.Contains($tableName)) {
+            continue
+        }
+        if ($hasOwnerSensitiveOverride) {
+            continue
+        }
+
+        $issues.Add(
+            "${relPath}: CREATE INDEX ON $tableName may fail under staging/prod app DB roles. Prefer an owner-role maintenance path, a companion table, or add an explicit 'owner-sensitive-ok: <rollback/deploy note>' comment."
+        )
+    }
 }
 
 if ($issues.Count -gt 0) {
