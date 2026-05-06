@@ -265,9 +265,9 @@ export function renderPlaceSnapshotTeaser(snapshot: PlaceSnapshot): string {
 
 export const PLACE_SNAPSHOT_STYLES = `
 .ps-shell {
-  max-width: 1160px;
+  max-width: var(--ikimon-content-max);
   margin: 0 auto;
-  padding: 28px 16px 64px;
+  padding: 28px 0 64px;
   color: #0f172a;
 }
 .ps-hero {
@@ -552,7 +552,7 @@ export const PLACE_SNAPSHOT_STYLES = `
   }
 }
 @media (max-width: 560px) {
-  .ps-shell { padding: 16px 12px 48px; }
+  .ps-shell { padding: 16px 0 48px; }
   .ps-grid-3,
   .ps-grid-4,
   .ps-grid-5 {

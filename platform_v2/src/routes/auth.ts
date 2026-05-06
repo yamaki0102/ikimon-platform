@@ -98,7 +98,7 @@ function postAuthRedirect(input: unknown): string {
 }
 
 const AUTH_STYLES = `
-  .auth-wrap { max-width: 980px; margin: 24px auto 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr); gap: 22px; align-items: start; }
+  .auth-wrap { max-width: var(--ikimon-content-max); margin: 24px auto 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr); gap: 22px; align-items: start; }
   .auth-panel, .auth-note { border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.07); padding: 24px; }
   .auth-panel h2 { margin: 6px 0 4px; font-size: 28px; line-height: 1.25; color: #0f172a; }
   .auth-panel p, .auth-note p { color: #64748b; line-height: 1.75; }

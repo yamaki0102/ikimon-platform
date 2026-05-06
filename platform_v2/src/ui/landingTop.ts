@@ -490,11 +490,12 @@ export const LANDING_TOP_STYLES = `
     background-size: 48px 48px, 48px 48px, auto;
   }
   .site-header { background: rgba(255,255,255,.84); border-bottom-color: rgba(26,46,31,.08); }
-  .site-header-inner { max-width: 1480px; min-height: 72px; }
+  .site-header-inner { min-height: 58px; }
   .shell.shell-bleed.prototype-shell {
-    width: min(1480px, calc(100% - 32px));
+    width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - var(--ikimon-page-inline)));
     max-width: none;
-    margin-inline: auto;
+    margin-left: var(--ikimon-shell-margin-left);
+    margin-right: var(--ikimon-shell-margin-right);
     padding-top: clamp(24px, 4vw, 56px);
     color: #1a2e1f;
   }
@@ -1242,7 +1243,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .shell.shell-bleed.prototype-shell { width: min(100% - 24px, 1480px); padding-top: 18px; }
+    .shell.shell-bleed.prototype-shell { padding-top: 18px; }
     .prototype-topa { padding-top: 12px; }
     .prototype-topa h1 { font-size: 34px; }
     .prototype-topa-search { min-height: 58px; border-radius: 8px; grid-template-columns: auto minmax(0, 1fr); }

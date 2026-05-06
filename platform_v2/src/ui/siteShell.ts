@@ -118,6 +118,99 @@ function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, cla
   </form>`;
 }
 
+function desktopSideNavIcon(key: string): string {
+  const paths: Record<string, string> = {
+    home: '<path d="m3 10 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    record: '<path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/>',
+    map: '<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
+    notes: '<path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h8"/><path d="M8 11h8"/>',
+    guide: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/>',
+    learn: '<path d="M22 10 12 5 2 10l10 5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
+    community: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    business: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
+    account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  };
+  return `<svg class="desktop-side-nav-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[key] ?? paths.home}</svg>`;
+}
+
+function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: string): string {
+  const normalizedPath = (() => {
+    try {
+      return new URL(currentPath, "https://ikimon.local").pathname;
+    } catch {
+      return currentPath.split("?", 1)[0] || "/";
+    }
+  })();
+  const labels: Record<SiteLang, Record<string, string>> = {
+    ja: {
+      home: "ホーム",
+      record: "記録",
+      map: "マップ",
+      notes: "観察ライブラリ",
+      guide: "ガイド",
+      learn: "学ぶ",
+      community: "地域",
+      business: "法人",
+      account: "ログイン",
+    },
+    en: {
+      home: "Home",
+      record: "Record",
+      map: "Map",
+      notes: "Library",
+      guide: "Guide",
+      learn: "Learn",
+      community: "Community",
+      business: "Business",
+      account: "Sign in",
+    },
+    es: {
+      home: "Inicio",
+      record: "Registro",
+      map: "Mapa",
+      notes: "Biblioteca",
+      guide: "Guia",
+      learn: "Aprender",
+      community: "Comunidad",
+      business: "Empresa",
+      account: "Entrar",
+    },
+    "pt-BR": {
+      home: "Inicio",
+      record: "Registrar",
+      map: "Mapa",
+      notes: "Biblioteca",
+      guide: "Guia",
+      learn: "Aprender",
+      community: "Comunidade",
+      business: "Empresa",
+      account: "Entrar",
+    },
+  };
+  const copy = labels[lang] ?? labels.ja;
+  const items = [
+    { key: "home", href: "/", match: ["/"] },
+    { key: "record", href: "/record", match: ["/record"] },
+    { key: "map", href: "/map", match: ["/map"] },
+    { key: "notes", href: "/notes", match: ["/notes", "/observations"] },
+    { key: "guide", href: "/guide", match: ["/guide"] },
+    { key: "learn", href: "/learn", match: ["/learn", "/about", "/faq"] },
+    { key: "community", href: "/community", match: ["/community"] },
+    { key: "business", href: "/for-business", match: ["/for-business"] },
+    { key: "account", href: "/login?redirect=/profile", match: ["/login", "/register", "/profile"] },
+  ];
+  return items
+    .map((item) => {
+      const isActive = item.match.some((path) => normalizedPath === path || (path !== "/" && normalizedPath.startsWith(`${path}/`)));
+      const activeClass = isActive ? " is-active" : "";
+      const href = escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang));
+      const label = escapeHtml(copy[item.key] ?? item.key);
+      const authClass = item.key === "account" ? " site-login-link" : "";
+      return `<a class="desktop-side-nav-link${authClass}${activeClass}" href="${href}" title="${label}">${desktopSideNavIcon(item.key)}<span class="desktop-side-nav-label">${label}</span></a>`;
+    })
+    .join("");
+}
+
 function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: SiteLang[], className = ""): string {
   const classes = ["lang-switch"];
   if (className) {
@@ -145,43 +238,51 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
 
+  const desktopSideNav = desktopSideNavLinks(basePath, lang, currentPath);
+
   return `<header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
-        <span class="brand-logo-lockup">
-          <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-          <span class="brand-wordmark" aria-label="ikimon.life">
-            <span class="brand-name">ikimon</span>
-            <span class="brand-domain">.life</span>
+      <div class="site-brand-cluster">
+        <button class="desktop-side-nav-toggle" type="button" aria-label="左メニューを切り替える" aria-pressed="false" data-desktop-side-nav-toggle>
+          <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
+        </button>
+        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+          <span class="brand-logo-lockup">
+            <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
+            <span class="brand-wordmark" aria-label="ikimon.life">
+              <span class="brand-name">ikimon</span>
+              <span class="brand-domain">.life</span>
+            </span>
           </span>
-        </span>
-      </a>
+        </a>
+      </div>
       <nav class="site-nav site-nav-desktop">${navLinks}</nav>
       ${desktopSearch}
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
-        <a class="btn btn-ghost site-login-link" href="${loginHref}">ログイン</a>
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
-        <a class="btn btn-ghost site-login-link" href="${loginHref}">ログイン</a>
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
         <details class="site-mobile-menu">
           <summary class="site-mobile-menu-toggle">
             <span class="site-mobile-menu-icon" aria-hidden="true"></span>
-            <span>${escapeHtml(copy.menu)}</span>
           </summary>
           <div class="site-mobile-menu-panel">
             ${mobileSearch}
             <nav class="site-nav site-nav-mobile">${navLinks}</nav>
             <div class="site-mobile-menu-meta">
+              <a class="site-mobile-menu-account site-login-link" href="${loginHref}">ログイン</a>
               ${mobileLangSwitch}
             </div>
           </div>
         </details>
       </div>
     </div>
-  </header>`;
+  </header>
+  <aside class="desktop-side-nav" aria-label="PC primary navigation">
+    <nav class="desktop-side-nav-inner">${desktopSideNav}</nav>
+  </aside>`;
 }
 
 function hero(basePath: string, content?: SiteHero): string {
@@ -1649,9 +1750,12 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     if (!session || !session.userId) return;
     document.documentElement.dataset.auth = 'signed-in';
     document.querySelectorAll('.site-login-link').forEach((link) => {
-      link.textContent = 'マイページ';
+      const label = link.querySelector('.desktop-side-nav-label');
+      if (label) label.textContent = 'マイページ';
+      else link.textContent = 'マイページ';
       link.setAttribute('href', profileHref);
       link.setAttribute('aria-label', (session.displayName || 'マイページ') + ' のマイページ');
+      link.setAttribute('title', 'マイページ');
       link.classList.add('is-authenticated');
     });
   };
@@ -1722,7 +1826,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       <button type="button" class="app-install-dismiss" data-app-install-dismiss aria-label="${escapeHtml(installCopy.dismissAction)}">${escapeHtml(installCopy.dismissAction)}</button>
     </div>
   </div>`;
-  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}`;
+  const shellClassName = options.shellClassName ?? "";
+  const isImmersiveSurface = /\b(?:shell-map|shell-notes-library|shell-immersive)\b/.test(shellClassName);
+  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
   const appOutboxHeadScript = `<script>
 (function () {
   if (window.ikimonAppOutbox) return;
@@ -1865,7 +1971,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const storageKeys = {
     lang: 'ikimon:app-lang',
     localeRedirect: 'ikimon:locale-redirect-v1',
-    installDismissed: 'ikimon:install-dismissed-v1'
+    installDismissed: 'ikimon:install-dismissed-v1',
+    desktopSideNavCollapsed: 'ikimon:desktop-side-nav-collapsed-v1'
   };
   function normalizeLocale(locale) {
     const value = String(locale || '').trim().toLowerCase();
@@ -1897,6 +2004,30 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       return;
     }
   } catch (_) {}
+
+  const desktopSideNavToggle = document.querySelector('[data-desktop-side-nav-toggle]');
+  const isImmersiveSurface = Boolean(document.querySelector('.site-shell.is-immersive-surface'));
+  function setDesktopSideNavCollapsed(collapsed) {
+    document.body.classList.toggle('is-desktop-side-nav-collapsed', collapsed);
+    if (desktopSideNavToggle) {
+      desktopSideNavToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+      desktopSideNavToggle.setAttribute('title', collapsed ? '左メニューを広げる' : '左メニューを畳む');
+    }
+  }
+  try {
+    setDesktopSideNavCollapsed(isImmersiveSurface || localStorage.getItem(storageKeys.desktopSideNavCollapsed) === '1');
+  } catch (_) {
+    setDesktopSideNavCollapsed(isImmersiveSurface);
+  }
+  if (desktopSideNavToggle) {
+    desktopSideNavToggle.addEventListener('click', () => {
+      const nextCollapsed = !document.body.classList.contains('is-desktop-side-nav-collapsed');
+      setDesktopSideNavCollapsed(nextCollapsed);
+      try {
+        if (!isImmersiveSurface) localStorage.setItem(storageKeys.desktopSideNavCollapsed, nextCollapsed ? '1' : '0');
+      } catch (_) {}
+    });
+  }
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -2082,6 +2213,14 @@ ${alternateLinks}
       --radius-pill: 999px;
       --shadow-card: 0 8px 24px rgba(15,23,42,.06);
       --space-card: clamp(16px, 2vw, 24px);
+      --ikimon-page-max: 1480px;
+      --ikimon-content-max: 1240px;
+      --ikimon-reading-max: 880px;
+      --ikimon-form-max: 760px;
+      --ikimon-page-inline: clamp(24px, 3.4vw, 48px);
+      --ikimon-desktop-sidebar-w: 0px;
+      --ikimon-shell-margin-left: auto;
+      --ikimon-shell-margin-right: auto;
     }
     .detail-card { background: var(--surface-strong); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--space-card); }
     .detail-card + .detail-card { margin-top: 14px; }
@@ -2140,19 +2279,60 @@ ${alternateLinks}
     }
     a { color: inherit; text-decoration: none; }
     .site-shell { min-height: 100vh; }
-    .shell { max-width: 1240px; margin: 0 auto; padding: 28px 24px 24px; }
+    .shell {
+      width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
+      max-width: none;
+      margin: 0 var(--ikimon-shell-margin-right) 0 var(--ikimon-shell-margin-left);
+      padding: 28px 0 24px;
+      transition: width .18s ease, margin .18s ease;
+    }
     .shell.shell-bleed {
       max-width: none;
-      width: 100%;
-      padding: 22px clamp(16px, 2.4vw, 36px) 24px;
+      width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
+      padding: 22px 0 24px;
     }
     .shell.shell-map {
+      width: 100%;
       padding: 0;
       max-width: none;
     }
     .md-hidden { display: none; }
     .site-header { position: sticky; top: 0; z-index: 90; width: 100%; max-width: 100%; overflow: visible; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
-    .site-header-inner { width: 100%; max-width: 1240px; min-width: 0; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; box-sizing: border-box; }
+    .site-header-inner { width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline))); max-width: none; min-width: 0; margin: 0 auto; padding: 10px 0; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; box-sizing: border-box; transition: width .18s ease, margin .18s ease, grid-template-columns .18s ease; }
+    .site-brand-cluster { display: inline-flex; align-items: center; gap: 8px; min-width: 0; transition: width .18s ease; }
+    .desktop-side-nav-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #0f172a;
+      cursor: pointer;
+      transition: background .16s ease, color .16s ease, transform .16s ease;
+    }
+    .desktop-side-nav-toggle:hover { background: rgba(15,23,42,.06); }
+    .desktop-side-nav-toggle-lines,
+    .desktop-side-nav-toggle-lines::before,
+    .desktop-side-nav-toggle-lines::after {
+      display: block;
+      width: 18px;
+      height: 2px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+    .desktop-side-nav-toggle-lines { position: relative; }
+    .desktop-side-nav-toggle-lines::before,
+    .desktop-side-nav-toggle-lines::after {
+      content: "";
+      position: absolute;
+      left: 0;
+    }
+    .desktop-side-nav-toggle-lines::before { top: -6px; }
+    .desktop-side-nav-toggle-lines::after { top: 6px; }
     .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; flex: 1 1 220px; }
     .brand-logo-lockup {
       min-height: 44px;
@@ -2264,14 +2444,92 @@ ${alternateLinks}
       color: #0f172a;
     }
     .site-mobile-menu { display: none; }
+    .desktop-side-nav { display: none; }
+    .desktop-side-nav-inner { display: grid; gap: 4px; }
+    .desktop-side-nav-link {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+      border-radius: 10px;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: 0;
+      position: relative;
+      overflow: hidden;
+      transition: background .16s ease, color .16s ease, box-shadow .16s ease, width .18s ease, padding .18s ease, gap .18s ease;
+    }
+    .desktop-side-nav-link::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 10px;
+      bottom: 10px;
+      width: 3px;
+      border-radius: 999px;
+      background: #10b981;
+      opacity: 0;
+      transform: scaleY(.45);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+    .desktop-side-nav-link:hover { background: rgba(15,23,42,.05); }
+    .desktop-side-nav-link.is-active {
+      background: linear-gradient(90deg, rgba(236,253,245,.96), rgba(248,255,252,.82));
+      color: #047857;
+      box-shadow: inset 0 0 0 1px rgba(16,185,129,.12);
+    }
+    .desktop-side-nav-link.is-active::before {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+    .desktop-side-nav-link.site-login-link {
+      margin-top: 8px;
+    }
+    .desktop-side-nav-icon {
+      width: 21px;
+      height: 21px;
+      flex: 0 0 21px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      position: relative;
+      z-index: 1;
+    }
+    .desktop-side-nav-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      position: relative;
+      z-index: 1;
+      transition: opacity .12s ease;
+    }
+    .site-mobile-menu-account {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,.24);
+      background: #ecfdf5;
+      color: #047857;
+      font-size: 13px;
+      font-weight: 900;
+    }
     .site-mobile-menu-toggle { list-style: none; }
     .site-mobile-menu-toggle::-webkit-details-marker { display: none; }
     .site-mobile-menu-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      justify-content: center;
+      gap: 0;
+      width: 42px;
       min-height: 40px;
-      padding: 0 12px;
+      padding: 0;
       border-radius: 999px;
       border: 1px solid rgba(148,163,184,.28);
       background: rgba(255,255,255,.94);
@@ -2281,6 +2539,7 @@ ${alternateLinks}
       cursor: pointer;
       user-select: none;
       box-shadow: 0 8px 18px rgba(15,23,42,.06);
+      transition: background .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
     }
     .site-mobile-menu-icon,
     .site-mobile-menu-icon::before,
@@ -2958,11 +3217,12 @@ ${alternateLinks}
     .footer-inner {
       position: relative;
       z-index: 1;
-      width: min(1480px, calc(100% - 32px));
+      width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
       margin: 0 auto;
       display: grid;
       gap: 18px;
       padding: clamp(36px, 6vw, 72px) 0 26px;
+      transition: width .18s ease, margin .18s ease;
     }
     .footer-hero {
       display: grid;
@@ -3653,10 +3913,165 @@ ${alternateLinks}
       color: #ffffff;
       font-weight: 900;
     }
+    @media (min-width: 1161px) {
+      :root {
+        --ikimon-desktop-sidebar-w: 204px;
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 24px);
+        --ikimon-shell-margin-right: 24px;
+      }
+      body.is-desktop-side-nav-collapsed {
+        --ikimon-desktop-sidebar-w: 72px;
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 24px);
+      }
+      .site-header {
+        background: rgba(255,255,255,.92);
+      }
+      .site-header-inner {
+        width: calc(100% - 32px);
+        min-height: 58px;
+        margin: 0 16px;
+        padding: 7px 0;
+        display: grid;
+        grid-template-columns: var(--ikimon-desktop-sidebar-w) minmax(280px, 640px) auto;
+        gap: 18px;
+        justify-content: stretch;
+      }
+      .site-brand-cluster {
+        width: var(--ikimon-desktop-sidebar-w);
+      }
+      .desktop-side-nav-toggle {
+        display: grid;
+      }
+      .brand {
+        flex: none;
+        max-width: none;
+      }
+      .brand-logo-lockup {
+        min-height: 40px;
+        padding: 2px 8px 2px 0;
+      }
+      .brand-logo-lockup .brand-mark {
+        width: 32px;
+        height: 32px;
+        flex-basis: 32px;
+      }
+      .site-nav-desktop,
+      .lang-switch-desktop {
+        display: none;
+      }
+      .site-search-desktop {
+        width: min(640px, 100%);
+        max-width: none;
+        justify-self: center;
+        min-height: 38px;
+        box-shadow: none;
+      }
+      .site-header-actions-desktop {
+        justify-self: end;
+      }
+      .site-header-actions-desktop .btn {
+        min-height: 38px;
+        padding: 9px 13px;
+        font-size: 13px;
+      }
+      .desktop-side-nav {
+        position: fixed;
+        z-index: 70;
+        top: 67px;
+        left: 16px;
+        bottom: 14px;
+        width: var(--ikimon-desktop-sidebar-w);
+        display: block;
+        padding: 8px 10px 12px 0;
+        overflow-y: auto;
+        border-right: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.50));
+        border-radius: 0 18px 18px 0;
+        box-shadow: 10px 0 28px rgba(15,23,42,.035);
+        backdrop-filter: blur(12px);
+        scrollbar-width: thin;
+        transition: width .18s ease, padding .18s ease, box-shadow .18s ease;
+      }
+      body.is-desktop-side-nav-collapsed .desktop-side-nav {
+        padding-right: 0;
+        box-shadow: 8px 0 22px rgba(15,23,42,.025);
+      }
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-link {
+        width: 48px;
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+      }
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-link::before {
+        left: 3px;
+      }
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-label,
+      body.is-desktop-side-nav-collapsed .brand-wordmark {
+        display: none;
+      }
+      body.is-desktop-side-nav-collapsed .brand-logo-lockup {
+        padding-right: 0;
+      }
+      .shell,
+      .shell.shell-bleed,
+      .footer-inner {
+        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - var(--ikimon-page-inline)));
+      }
+      .shell.shell-map {
+        width: calc(100% - var(--ikimon-desktop-sidebar-w) - 24px);
+        margin-left: calc(var(--ikimon-desktop-sidebar-w) + 24px);
+        margin-right: 0;
+      }
+      .footer-inner {
+        margin-left: var(--ikimon-shell-margin-left);
+        margin-right: var(--ikimon-shell-margin-right);
+      }
+      .site-shell.is-immersive-surface .site-header-inner {
+        grid-template-columns: 204px minmax(280px, 640px) auto;
+      }
+      .site-shell.is-immersive-surface .site-brand-cluster {
+        width: 204px;
+      }
+      body.is-desktop-side-nav-collapsed .site-shell.is-immersive-surface .brand-wordmark {
+        display: inline-flex;
+      }
+      body.is-desktop-side-nav-collapsed .site-shell.is-immersive-surface .brand-logo-lockup {
+        padding-right: 8px;
+      }
+      .site-shell.is-immersive-surface .desktop-side-nav {
+        width: 204px;
+        padding: 8px 10px 12px 0;
+        transform: translateX(-112%);
+        opacity: 0;
+        pointer-events: none;
+        box-shadow: 18px 0 42px rgba(15,23,42,.12);
+        transition: transform .22s ease, opacity .18s ease, box-shadow .18s ease;
+      }
+      body:not(.is-desktop-side-nav-collapsed) .site-shell.is-immersive-surface .desktop-side-nav {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .site-shell.is-immersive-surface .shell,
+      .site-shell.is-immersive-surface .shell.shell-bleed,
+      .site-shell.is-immersive-surface .footer-inner {
+        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .site-shell.is-immersive-surface .shell.shell-map {
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+      }
+    }
     @media (max-width: 1160px) {
       .site-header-inner {
         padding: 10px 18px;
         gap: 10px;
+      }
+      .site-brand-cluster {
+        flex: 1 1 auto;
       }
       .brand {
         max-width: 270px;
@@ -3706,11 +4121,12 @@ ${alternateLinks}
     }
     @media (max-width: 720px) {
       .md-hidden { display: inline; }
-      .shell { padding: 16px 16px 18px; }
-      .shell.shell-bleed { padding: 14px 12px 18px; }
+      :root { --ikimon-page-inline: 24px; }
+      .shell { padding: 16px 0 18px; }
+      .shell.shell-bleed { padding: 14px 0 18px; }
       .shell.shell-map { padding: 0; }
       .site-header-inner {
-        padding: 9px 12px;
+        padding: 9px 0;
         gap: 8px;
         flex-wrap: nowrap;
         align-items: center;
@@ -3719,6 +4135,9 @@ ${alternateLinks}
         min-width: 0;
         flex: 1 1 auto;
         gap: 8px;
+      }
+      .site-brand-cluster {
+        min-width: 0;
       }
       .brand-mark {
         width: 36px;
@@ -3755,7 +4174,7 @@ ${alternateLinks}
       .hero-panel.is-light .hero-media { margin-top: 20px; }
       .hero-photo.tall { grid-row: auto; min-height: 220px; }
       .photo-grid { grid-template-columns: 1fr; }
-      .footer-inner { width: min(100% - 24px, 1480px); padding: 30px 0 22px; }
+      .footer-inner { padding: 30px 0 22px; }
       .footer-hero,
       .footer-directory { grid-template-columns: 1fr; }
       .footer-brand-panel,
@@ -3775,16 +4194,17 @@ ${alternateLinks}
     }
     @media (max-width: 430px) {
       .brand {
-        flex: 0 0 44px;
-        min-width: 44px;
-        max-width: 44px;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: none;
       }
       .brand-logo-lockup {
-        padding-right: 2px;
+        gap: 7px;
+        padding-right: 6px;
       }
-      .brand-wordmark {
-        display: none;
-      }
+      .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
+      .brand-name { font-size: 16px; }
+      .brand-domain { font-size: 11px; }
     }
     .app-install-prompt {
       position: fixed;
