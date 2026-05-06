@@ -81,6 +81,10 @@ test("updates page keeps the full release history on the v2 public shell", async
     const response = await app.inject({ method: "GET", url: "/learn/updates?lang=ja" });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /バージョンの見方/);
+    assert.match(response.body, /v0\.11\.7/);
+    assert.match(response.body, /トップ、記録一覧、ガイド/);
+    assert.match(response.body, /v0\.11\.6/);
+    assert.match(response.body, /現地で記録し、観察会で場所を扱い/);
     assert.match(response.body, /v0\.11\.3/);
     assert.match(response.body, /観察会・音声記録・投稿の安全性/);
     assert.match(response.body, /AI考察 全面強化/);
