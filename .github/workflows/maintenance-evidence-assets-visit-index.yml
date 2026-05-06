@@ -26,7 +26,7 @@ jobs:
           STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
           BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_pre_evidence_assets_visit_index_${STAMP}.dump"
 
-          install -d -m 700 "$BACKUP_DIR"
+          install -d -m 700 -o postgres -g postgres "$BACKUP_DIR"
 
           db_size="$(sudo -u postgres psql -d "$DB_NAME" -At -c "select pg_database_size(current_database())")"
           free_bytes="$(df -P -B1 "$BACKUP_DIR" | awk 'NR==2 { print $4 }')"
