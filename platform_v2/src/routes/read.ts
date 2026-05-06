@@ -68,6 +68,7 @@ import {
   getExploreSnapshot,
   getHomeSnapshot,
   getObservationDetailSnapshot,
+  getObservationListSnapshot,
   getProfileSnapshot,
   getSpecialistSnapshot,
   type HomePlace,
@@ -7138,6 +7139,144 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .explore-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
         @media (max-width: 860px) { .explore-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
         @media (max-width: 480px) { .explore-grid { grid-template-columns: 1fr; } }
+      `,
+    );
+  });
+
+  app.get<{ Querystring: { filter?: string } }>("/observations", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const snapshot = await getObservationListSnapshot(48).catch(() => ({
+      observations: [],
+      summary: {
+        shownCount: 0,
+        awaitingIdCount: 0,
+        identifiedCount: 0,
+        multiSubjectCount: 0,
+      },
+    }));
+    const activeFilter = request.query.filter === "needs_id" || request.query.filter === "identified" || request.query.filter === "multi"
+      ? request.query.filter
+      : "all";
+    const visibleObservations = snapshot.observations.filter((item) => {
+      if (activeFilter === "needs_id") return item.displayName === "同定待ち" || item.isAiCandidate;
+      if (activeFilter === "identified") return item.displayName !== "同定待ち" && !item.isAiCandidate;
+      if (activeFilter === "multi") return Boolean(item.isMultiSubject);
+      return true;
+    });
+    const cards = visibleObservations.map((item) =>
+      renderObservationCard(basePath, lang, {
+        occurrenceId: item.occurrenceId,
+        visitId: item.visitId,
+        detailId: item.detailId,
+        featuredOccurrenceId: item.featuredOccurrenceId,
+        featuredSubjectName: item.featuredSubjectName,
+        subjectCount: item.subjectCount,
+        isMultiSubject: item.isMultiSubject,
+        featuredConfidenceBand: item.featuredConfidenceBand,
+        displayStability: item.displayStability,
+        displayName: item.displayName,
+        observedAt: item.observedAt,
+        observerName: item.observerName,
+        placeName: item.placeName,
+        municipality: item.municipality,
+        publicLocation: item.publicLocation,
+        photoUrl: item.photoUrl,
+        identificationCount: item.identificationCount,
+        latitude: null,
+        longitude: null,
+        observerUserId: null,
+        observerAvatarUrl: null,
+      }, { compact: true, locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }),
+    ).join("");
+    const statCards = [
+      { label: "表示中", value: `${visibleObservations.length}件` },
+      { label: "同定待ち", value: `${snapshot.summary.awaitingIdCount}件` },
+      { label: "名前あり", value: `${snapshot.summary.identifiedCount}件` },
+      { label: "複数対象", value: `${snapshot.summary.multiSubjectCount}件` },
+    ].map((item) => `
+      <div class="observations-stat">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${escapeHtml(item.value)}</strong>
+      </div>`).join("");
+    const filters = [
+      { href: "/observations", label: "すべて", key: "all" },
+      { href: "/observations?filter=needs_id", label: "同定待ち", key: "needs_id" },
+      { href: "/observations?filter=identified", label: "名前あり", key: "identified" },
+      { href: "/observations?filter=multi", label: "複数対象", key: "multi" },
+      { href: "/map", label: "地図で見る", active: false },
+      { href: "/record", label: "投稿する", active: false },
+    ].map((item) => `
+      <a class="observations-chip${"key" in item && item.key === activeFilter ? " is-active" : ""}" href="${escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang))}">
+        ${escapeHtml(item.label)}
+      </a>`).join("");
+
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      "観察投稿一覧 | ikimon",
+      `<section class="observations-page" data-testid="observations-index">
+        <div class="observations-toolbar" aria-label="観察投稿の表示切り替え">
+          ${filters}
+        </div>
+        <div class="observations-stats" aria-label="観察投稿の概要">
+          ${statCards}
+        </div>
+        <section class="observations-grid-section">
+          <div class="observations-section-head">
+            <div>
+              <div class="eyebrow">Observation Grid</div>
+              <h2>新しい観察投稿</h2>
+            </div>
+            <a class="observations-map-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">地図で見る</a>
+          </div>
+          <div class="observations-video-grid">
+            ${cards || `<div class="observations-empty">まだ表示できる観察投稿がありません。</div>`}
+          </div>
+        </section>
+      </section>`,
+      "見つける",
+      {
+        eyebrow: "観察投稿一覧",
+        heading: "写真から、地域の発見をすぐ見る。",
+        lead: "説明を読ませる前に、投稿された観察を大きな写真で並べます。気になる投稿から詳細や同定に進めます。",
+        actions: [
+          { href: "/record", label: "観察を投稿する" },
+          { href: "/map", label: "地図で見る", variant: "secondary" as const },
+        ],
+      },
+      `${OBSERVATION_CARD_STYLES}
+        .observations-page { display: grid; gap: 18px; }
+        .observations-toolbar { display: flex; gap: 10px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: none; }
+        .observations-chip { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 0 18px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; font-size: 15px; font-weight: 900; text-decoration: none; box-shadow: 0 4px 14px rgba(15,23,42,.05); }
+        .observations-chip.is-active { background: #064e3b; border-color: #064e3b; color: #fff; }
+        .observations-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+        .observations-stat { min-height: 72px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 12px 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.07); box-shadow: 0 6px 18px rgba(15,23,42,.05); }
+        .observations-stat span { font-size: 12px; color: #64748b; font-weight: 850; }
+        .observations-stat strong { font-size: 22px; color: #0f172a; line-height: 1.1; }
+        .observations-grid-section { display: grid; gap: 14px; }
+        .observations-section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+        .observations-section-head h2 { margin: 2px 0 0; font-size: clamp(22px, 3vw, 30px); line-height: 1.25; }
+        .observations-map-link { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 14px; font-weight: 900; text-decoration: none; white-space: nowrap; }
+        .observations-video-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
+        .observations-video-grid .obs-card { border-radius: 14px; box-shadow: none; }
+        .observations-video-grid .obs-card-media { aspect-ratio: 16 / 10; }
+        .observations-video-grid .obs-card-meta { padding: 11px 12px 13px; }
+        .observations-video-grid .obs-card-actions { display: none; }
+        .observations-empty { grid-column: 1 / -1; min-height: 140px; display: grid; place-items: center; padding: 22px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #475569; font-weight: 850; }
+        @media (max-width: 1180px) { .observations-video-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+        @media (max-width: 820px) {
+          .observations-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+          .observations-video-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+          .observations-section-head { align-items: flex-start; flex-direction: column; }
+        }
+        @media (max-width: 520px) {
+          .observations-video-grid { grid-template-columns: 1fr; }
+          .observations-stats { gap: 8px; }
+          .observations-stat { min-height: 64px; }
+          .observations-stat strong { font-size: 20px; }
+        }
       `,
     );
   });

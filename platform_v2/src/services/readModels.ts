@@ -184,6 +184,16 @@ export type ExploreSnapshot = {
   }>;
 };
 
+export type ObservationListSnapshot = {
+  observations: RecentObservation[];
+  summary: {
+    shownCount: number;
+    awaitingIdCount: number;
+    identifiedCount: number;
+    multiSubjectCount: number;
+  };
+};
+
 export type SpecialistSnapshot = {
   lane: "default" | "public-claim" | "expert-lane" | "review-queue";
   summary: {
@@ -1353,6 +1363,23 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     lifeListPreview,
     recentPlaces: home.myPlaces,
     recentObservations,
+  };
+}
+
+export async function getObservationListSnapshot(limit = 48): Promise<ObservationListSnapshot> {
+  const observations = await loadVisitSummaryObservations(limit);
+  const awaitingIdCount = observations.filter((item) =>
+    item.displayName === "同定待ち" || item.isAiCandidate,
+  ).length;
+  const multiSubjectCount = observations.filter((item) => item.isMultiSubject).length;
+  return {
+    observations,
+    summary: {
+      shownCount: observations.length,
+      awaitingIdCount,
+      identifiedCount: observations.length - awaitingIdCount,
+      multiSubjectCount,
+    },
   };
 }
 

@@ -5,6 +5,7 @@ import { buildApp } from "../app.js";
 
 const shallowJaRoutes = [
   "/?lang=ja",
+  "/observations?lang=ja",
   "/notes?lang=ja",
   "/guide?lang=ja",
   "/lens?lang=ja",
@@ -109,6 +110,23 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     assert.match(response.body, /発見を楽しみ、地域の自然記録へ。/);
     assert.match(response.body, /地域のいのちを、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("observations index renders the senior-friendly video grid list", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/observations?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /観察投稿一覧/);
+    assert.match(response.body, /写真から、地域の発見をすぐ見る。/);
+    assert.match(response.body, /Observation Grid/);
+    assert.match(response.body, /新しい観察投稿/);
+    assert.match(response.body, /data-testid="observations-index"/);
+    assert.match(response.body, /observations-video-grid/);
+    assert.match(response.body, /\/ja\/observations\?filter=needs_id/);
   } finally {
     await app.close();
   }
