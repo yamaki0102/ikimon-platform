@@ -424,10 +424,10 @@ async function loadVisitSummaryObservations(
         ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
           AND EXISTS (
             SELECT 1
-              FROM occurrences o
-              JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
+              FROM evidence_assets ea
               JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-             WHERE o.visit_id = v.visit_id
+             WHERE ea.visit_id = v.visit_id
+               AND ea.occurrence_id IS NOT NULL
                AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
           )
         ORDER BY v.observed_at DESC, v.visit_id DESC
@@ -1511,7 +1511,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
             featured.taxon_rank,
             featured.ai_candidate_name,
             featured.ai_candidate_rank,
-            photo.public_url AS photo_url,
+            media.public_url AS photo_url,
             coalesce(ids.identification_count, 0)::text AS identification_count,
             coalesce(subjects.subject_count, 1)::text AS subject_count,
             coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
@@ -1519,6 +1519,17 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
        JOIN visits v ON v.visit_id = cv.visit_id
        LEFT JOIN users u ON u.user_id = v.user_id
        LEFT JOIN places p ON p.place_id = v.place_id
+       JOIN LATERAL (
+         SELECT ea.occurrence_id,
+                coalesce(ab.public_url, ab.storage_path) AS public_url
+           FROM evidence_assets ea
+           JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+          WHERE ea.visit_id = v.visit_id
+            AND ea.occurrence_id IS NOT NULL
+            AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+          ORDER BY ea.created_at ASC
+          LIMIT 1
+       ) media ON true
        JOIN LATERAL (
          SELECT o.occurrence_id,
                 coalesce(o.vernacular_name, o.scientific_name, nullif(ai.recommended_taxon_name, ''), '同定待ち') AS display_name,
@@ -1535,26 +1546,9 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
               ORDER BY generated_at DESC
               LIMIT 1
            ) ai ON true
-          WHERE o.visit_id = v.visit_id
-            AND EXISTS (
-              SELECT 1
-                FROM evidence_assets ea
-                JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-               WHERE ea.occurrence_id = o.occurrence_id
-                 AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-            )
-          ORDER BY o.subject_index ASC, o.created_at ASC
+          WHERE o.occurrence_id = media.occurrence_id
           LIMIT 1
        ) featured ON true
-       JOIN LATERAL (
-         SELECT coalesce(ab.public_url, ab.storage_path) AS public_url
-           FROM evidence_assets ea
-           JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-          WHERE ea.occurrence_id = featured.occurrence_id
-            AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-          ORDER BY ea.created_at ASC
-          LIMIT 1
-       ) photo ON true
        LEFT JOIN LATERAL (
          SELECT count(*)::int AS subject_count
            FROM occurrences o
