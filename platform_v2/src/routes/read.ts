@@ -143,6 +143,7 @@ function layout(
   extraStyles?: string,
   currentPath?: string,
   hideFooter = false,
+  shellClassName?: string,
 ): string {
   return renderSiteDocument({
     basePath,
@@ -163,6 +164,7 @@ function layout(
     extraStyles,
     currentPath,
     hideFooter,
+    shellClassName,
     footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
   });
 }
@@ -617,7 +619,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-read-progress::-webkit-scrollbar { display: none; }
   .obs-read-progress a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 38px; padding: 8px 12px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; line-height: 1; font-weight: 900; text-decoration: none; }
   .obs-read-progress a:hover, .obs-read-progress a:focus-visible { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.24); outline: none; }
-  .obs-reading-flow { display: grid; gap: 18px; max-width: 1120px; margin: 0 auto; }
+  .obs-reading-flow { display: grid; gap: 18px; max-width: var(--ikimon-content-max); margin: 0 auto; }
   .obs-reading-section { display: grid; gap: 14px; scroll-margin-top: 96px; }
   .obs-summary-section, .obs-support-panel, .obs-layer, .obs-reading-hero { scroll-margin-top: 96px; }
   @media (max-width: 720px) {
@@ -2167,7 +2169,6 @@ const START_STATE_STYLES = `
   .record-dock-primary .record-dock-icon { background: rgba(16,185,129,.14); }
   .record-dock-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
-  @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
   @media (max-width: 720px) {
     .start-guide { padding-bottom: 104px; }
     .site-footer { padding-bottom: 104px; }
@@ -4044,8 +4045,8 @@ const NOTES_READING_STYLES = `
 
 const NOTES_LIBRARY_STYLES = `
   .shell.shell-notes-library {
-    max-width: 1240px;
-    padding: 26px 24px 28px;
+    max-width: none;
+    padding: 26px 0 28px;
   }
   .notes-library-shell { width: 100%; display: grid; gap: 24px; }
   .notes-library-hero {
@@ -6917,7 +6918,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       undefined,
       `
         .record-page { margin-top: 24px; }
-        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 1180px; }
+        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: var(--ikimon-content-max); margin: 0 auto; }
         .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
         .record-sheet { position: relative; overflow: hidden; }
         .record-sheet::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 34px, rgba(14,165,233,.05) 35px, transparent 36px); pointer-events: none; }
@@ -6985,7 +6986,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-submit-panel .btn { min-width: 140px; }
         .site-footer { padding-bottom: 104px; }
         .site-mobile-menu-panel { max-height: calc(100dvh - 184px); overflow-y: auto; overscroll-behavior: contain; }
-        @media (max-width: 430px) { .brand { flex: 0 0 36px; min-width: 36px; max-width: 36px; } .brand > span:last-child { display: none; } }
         .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; scroll-margin-top: 92px; }
         .record-form[hidden] { display: none; }
         .record-field { display: flex; flex-direction: column; gap: 8px; }
@@ -7352,102 +7352,106 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             <h1>${escapeHtml(pageTitle)}</h1>
             <span data-observations-count>${escapeHtml(pageCountLabel)}</span>
           </div>
-          <nav class="observations-actions" aria-label="関連する操作">
+        <nav class="observations-actions" aria-label="関連する操作">
             <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}" aria-label="地図で見る">地図</a>
             <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="観察を投稿する">＋</a>
           </nav>
         </header>
-        <div class="observations-search" role="search">
-          <span aria-hidden="true">⌕</span>
-          <input type="search" placeholder="名前・場所・人" aria-label="観察を検索" data-observations-search />
+        <div class="observations-workbench">
+          <aside class="observations-control-panel" aria-label="同定と観察の絞り込み">
+            <div class="observations-search" role="search">
+              <span aria-hidden="true">⌕</span>
+              <input type="search" placeholder="名前・場所・人" aria-label="観察を検索" data-observations-search />
+            </div>
+            <nav class="observations-toolbar" aria-label="観察投稿の表示切り替え">
+              ${filters}
+            </nav>
+            <details class="observations-advanced" open>
+              <summary>詳細</summary>
+              <div class="observations-advanced-grid">
+                <label>状態
+                  <select data-observations-filter="status">
+                    <option value="all">すべて</option>
+                    <option value="needs-id">同定待ち</option>
+                    <option value="ai">AI候補</option>
+                    <option value="no-id">未同定</option>
+                    <option value="identified">名前あり</option>
+                    <option value="multi">複数対象</option>
+                  </select>
+                </label>
+                <label>証拠
+                  <select data-observations-filter="media">
+                    <option value="all">すべて</option>
+                    <option value="photo">写真あり</option>
+                    <option value="no-photo">写真なし</option>
+                  </select>
+                </label>
+                <label>分類
+                  <input type="search" placeholder="科・属・種名" data-observations-taxon />
+                </label>
+                <label>階級
+                  <select data-observations-filter="rank">
+                    <option value="all">すべて</option>
+                    <option value="species">種</option>
+                    <option value="genus">属</option>
+                    <option value="family">科</option>
+                    <option value="order">目</option>
+                    <option value="class">綱</option>
+                    <option value="phylum">門</option>
+                  </select>
+                </label>
+                <label>日付
+                  <select data-observations-filter="date">
+                    <option value="all">すべて</option>
+                    <option value="7d">7日</option>
+                    <option value="30d">30日</option>
+                    <option value="90d">90日</option>
+                  </select>
+                </label>
+                <label>同定数
+                  <select data-observations-filter="ids">
+                    <option value="all">すべて</option>
+                    <option value="zero">0件</option>
+                    <option value="one">1件</option>
+                    <option value="two-plus">2件以上</option>
+                  </select>
+                </label>
+                <label>並び
+                  <select data-observations-sort>
+                    <option value="newest">新しい順</option>
+                    <option value="oldest">古い順</option>
+                    <option value="least-id">同定少ない順</option>
+                    <option value="most-id">同定多い順</option>
+                  </select>
+                </label>
+              </div>
+            </details>
+            <section class="observations-spot-filter" aria-label="登録エリア">
+              <div class="observations-spot-search">
+                <span>登録エリア</span>
+                <input type="search" placeholder="スポット名" data-observations-spot-search />
+                <button type="button" data-observations-field-clear hidden>解除</button>
+              </div>
+              <div class="observations-spot-chips" data-observations-field-list>
+                <button type="button" class="observations-spot-chip is-active" data-observations-field-chip="all">すべて</button>
+                ${fieldSelectOptions || `<span class="observations-spot-empty">登録エリアなし</span>`}
+              </div>
+            </section>
+            <section class="observations-presets" aria-label="保存条件">
+              <div class="observations-preset-save">
+                <input type="text" placeholder="保存名（任意）" aria-label="保存名（任意）" data-observations-preset-name />
+                <button type="button" data-observations-preset-save>保存</button>
+              </div>
+              <div class="observations-preset-list" data-observations-presets></div>
+            </section>
+          </aside>
+          <section class="observations-results-panel" aria-label="観察カード">
+            <div class="observations-video-grid" data-observations-grid>
+              ${cards || `<div class="observations-empty">まだ表示できる観察投稿がありません。</div>`}
+            </div>
+            <div class="observations-empty" data-observations-empty hidden>該当する観察がありません。</div>
+          </section>
         </div>
-        <nav class="observations-toolbar" aria-label="観察投稿の表示切り替え">
-          ${filters}
-        </nav>
-        <details class="observations-advanced">
-          <summary>詳細</summary>
-          <div class="observations-advanced-grid">
-            <label>状態
-              <select data-observations-filter="status">
-                <option value="all">すべて</option>
-                <option value="needs-id">同定待ち</option>
-                <option value="ai">AI候補</option>
-                <option value="no-id">未同定</option>
-                <option value="identified">名前あり</option>
-                <option value="multi">複数対象</option>
-              </select>
-            </label>
-            <label>証拠
-              <select data-observations-filter="media">
-                <option value="all">すべて</option>
-                <option value="photo">写真あり</option>
-                <option value="no-photo">写真なし</option>
-              </select>
-            </label>
-            <label>分類
-              <input type="search" placeholder="科・属・種名" data-observations-taxon />
-            </label>
-            <label>階級
-              <select data-observations-filter="rank">
-                <option value="all">すべて</option>
-                <option value="species">種</option>
-                <option value="genus">属</option>
-                <option value="family">科</option>
-                <option value="order">目</option>
-                <option value="class">綱</option>
-                <option value="phylum">門</option>
-              </select>
-            </label>
-            <label>日付
-              <select data-observations-filter="date">
-                <option value="all">すべて</option>
-                <option value="7d">7日</option>
-                <option value="30d">30日</option>
-                <option value="90d">90日</option>
-              </select>
-            </label>
-            <label>同定数
-              <select data-observations-filter="ids">
-                <option value="all">すべて</option>
-                <option value="zero">0件</option>
-                <option value="one">1件</option>
-                <option value="two-plus">2件以上</option>
-              </select>
-            </label>
-            <label>並び
-              <select data-observations-sort>
-                <option value="newest">新しい順</option>
-                <option value="oldest">古い順</option>
-                <option value="least-id">同定少ない順</option>
-                <option value="most-id">同定多い順</option>
-              </select>
-            </label>
-          </div>
-        </details>
-        <section class="observations-spot-filter" aria-label="登録エリア">
-          <div class="observations-spot-search">
-            <span>登録エリア</span>
-            <input type="search" placeholder="スポット名" data-observations-spot-search />
-            <button type="button" data-observations-field-clear hidden>解除</button>
-          </div>
-          <div class="observations-spot-chips" data-observations-field-list>
-            <button type="button" class="observations-spot-chip is-active" data-observations-field-chip="all">すべて</button>
-            ${fieldSelectOptions || `<span class="observations-spot-empty">登録エリアなし</span>`}
-          </div>
-        </section>
-        <section class="observations-presets" aria-label="保存条件">
-          <div class="observations-preset-save">
-            <input type="text" placeholder="保存名（任意）" aria-label="保存名（任意）" data-observations-preset-name />
-            <button type="button" data-observations-preset-save>保存</button>
-          </div>
-          <div class="observations-preset-list" data-observations-presets></div>
-        </section>
-        <section class="observations-grid-section">
-          <div class="observations-video-grid" data-observations-grid>
-            ${cards || `<div class="observations-empty">まだ表示できる観察投稿がありません。</div>`}
-          </div>
-          <div class="observations-empty" data-observations-empty hidden>該当する観察がありません。</div>
-        </section>
         <script>
 (function () {
   const root = document.querySelector('[data-observations-page]');
@@ -7647,6 +7651,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .observations-actions { display: inline-flex; align-items: center; gap: 8px; }
         .observations-actions a { min-width: 46px; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0 13px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; font-size: 14px; font-weight: 950; text-decoration: none; box-shadow: 0 4px 14px rgba(15,23,42,.04); }
         .observations-actions a:last-child { background: #064e3b; border-color: #064e3b; color: #fff; font-size: 22px; line-height: 1; }
+        .observations-workbench { display: grid; gap: 14px; min-width: 0; }
+        .observations-control-panel,
+        .observations-results-panel { min-width: 0; }
+        .observations-control-panel { display: grid; gap: 10px; align-content: start; }
+        .observations-results-panel { display: grid; gap: 12px; }
         .observations-search { min-height: 52px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 16px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.09); box-shadow: 0 5px 18px rgba(15,23,42,.04); }
         .observations-search span { color: #64748b; font-size: 20px; font-weight: 900; }
         .observations-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #0f172a; font: inherit; font-size: 16px; font-weight: 750; }
@@ -7683,7 +7692,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .observations-preset-chip { flex: 0 0 auto; display: inline-flex; align-items: center; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); overflow: hidden; }
         .observations-preset-chip button { border: 0; background: transparent; border-radius: 0; }
         .observations-preset-chip button:last-child { min-width: 36px; padding: 0 10px; color: #64748b; }
-        .observations-grid-section { display: grid; gap: 12px; }
         .observations-video-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; align-items: start; }
         .observations-grid-item { position: relative; min-width: 0; }
         .observations-grid-item[hidden] { display: none; }
@@ -7702,6 +7710,44 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .observations-id-shortcut { position: absolute; right: 8px; top: 8px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 950; text-decoration: none; backdrop-filter: blur(8px); }
         .observations-empty { grid-column: 1 / -1; min-height: 132px; display: grid; place-items: center; padding: 22px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #475569; font-weight: 850; }
         .observations-empty[hidden] { display: none; }
+        @media (min-width: 1161px) {
+          .observations-page.is-identify .observations-workbench {
+            grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+          }
+          .observations-page.is-identify .observations-control-panel {
+            position: sticky;
+            top: 76px;
+            max-height: calc(100dvh - 92px);
+            overflow-y: auto;
+            padding: 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(15,23,42,.08);
+            background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,255,252,.92));
+            box-shadow: 0 16px 42px rgba(15,23,42,.07);
+          }
+          .observations-page.is-identify .observations-toolbar,
+          .observations-page.is-identify .observations-spot-chips,
+          .observations-page.is-identify .observations-preset-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            overflow: visible;
+            padding-bottom: 0;
+          }
+          .observations-page.is-identify .observations-chip,
+          .observations-page.is-identify .observations-spot-chip,
+          .observations-page.is-identify .observations-preset-chip {
+            justify-content: space-between;
+            width: 100%;
+          }
+          .observations-page.is-identify .observations-advanced-grid {
+            grid-template-columns: 1fr;
+          }
+          .observations-page.is-identify .observations-video-grid {
+            grid-template-columns: repeat(4, minmax(0,1fr));
+          }
+        }
         @media (max-width: 1180px) { .observations-video-grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }
         @media (max-width: 820px) {
           .observations-page { gap: 12px; }
@@ -7722,6 +7768,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       `,
       "/observations",
       true,
+      activeFilter === "needs_id" ? "shell-immersive shell-identify" : undefined,
     );
   });
 

@@ -10,7 +10,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
     lang: "ja",
   });
 
-  assert.match(html, /class="btn btn-ghost site-login-link"/);
+  assert.doesNotMatch(html, /class="btn btn-ghost site-login-link"/);
+  assert.match(html, /class="desktop-side-nav-link site-login-link/);
+  assert.match(html, /class="site-mobile-menu-account site-login-link"/);
   assert.match(html, /\/login\?redirect=%2Fprofile/);
   assert.match(html, /\/api\/v1\/auth\/session/);
   assert.match(html, /credentials: 'same-origin'/);
