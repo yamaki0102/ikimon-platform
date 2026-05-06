@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { sanitizeGuideSceneResult } from "./guideSession.js";
+
+const guideSessionPath = fileURLToPath(new URL("./guideSession.ts", import.meta.url));
 
 test("vehicle guide mode does not treat Suzuki signage as a species", () => {
   const result = sanitizeGuideSceneResult({
@@ -56,4 +60,17 @@ test("vehicle guide mode keeps coarse vegetation signals valuable without specie
   assert.deepEqual(result.detectedSpecies, []);
   assert.match(result.summary, /水路|草地|畑/);
   assert.equal(result.detectedFeatures.length, 2);
+});
+
+test("guide scene analysis accepts representative frame bundles without escalating absence to confirmed", () => {
+  const source = readFileSync(guideSessionPath, "utf8");
+
+  assert.match(source, /export type GuideFrameInput/);
+  assert.match(source, /frames\?: GuideFrameInput\[\]/);
+  assert.match(source, /summarizeFrameBundleForPrompt\(frames\)/);
+  assert.match(source, /newSignals\?: string\[\]/);
+  assert.match(source, /continuedSignals\?: string\[\]/);
+  assert.match(source, /coverageHints\?: string\[\]/);
+  assert.match(source, /absenceBoundary\?:/);
+  assert.match(source, /value\.state === "confirmed_absence"\s*\?\s*"absence_candidate"/);
 });

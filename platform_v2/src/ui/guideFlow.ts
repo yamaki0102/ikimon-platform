@@ -595,6 +595,30 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <div class="guide-now-state" id="guide-now-state"></div>
   </div>
 
+  <section class="guide-coverage" id="guide-coverage" hidden aria-live="polite">
+    <div class="guide-coverage-head">
+      <div>
+        <h2 id="guide-coverage-title">調査カバー</h2>
+        <p id="guide-coverage-area">エリア判定中</p>
+      </div>
+      <span class="guide-coverage-badge" id="guide-coverage-absence">通過中</span>
+    </div>
+    <div class="guide-coverage-grid">
+      <div><strong id="guide-coverage-time">0:00</strong><span id="guide-coverage-time-label">見た時間</span></div>
+      <div><strong id="guide-coverage-distance">0m</strong><span id="guide-coverage-distance-label">距離</span></div>
+      <div><strong id="guide-coverage-cells">0</strong><span id="guide-coverage-cells-label">10mセル</span></div>
+      <div><strong id="guide-coverage-ai">0</strong><span id="guide-coverage-ai-label">AI解析</span></div>
+    </div>
+    <div class="guide-coverage-map" id="guide-coverage-map" hidden>
+      <div class="guide-coverage-map-canvas" id="guide-coverage-map-canvas"></div>
+      <div class="guide-coverage-map-legend">
+        <span><i class="is-visited"></i>見た10m</span>
+        <span><i class="is-missing"></i>未踏10m</span>
+      </div>
+    </div>
+    <p class="guide-coverage-hint" id="guide-coverage-hint">10m単位で端末内の見た範囲を推定します。</p>
+  </section>
+
   <div class="guide-camera-wrap" id="guide-camera-wrap" hidden>
     <video class="guide-video" id="guide-video" autoplay playsinline muted></video>
     <div class="guide-audio-only-panel" id="guide-audio-only-panel" hidden>
@@ -700,6 +724,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let audioSampleTimer = null;
   let audioSliceTimer = null;
   let analyseTimer = null;
+  let telemetryTimer = null;
+  let visualSampleTimer = null;
   let recapTimer = null;
   let locationWatchId = null;
   let running = false;
@@ -720,6 +746,26 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let offlineFailed = false;
   let offlineLastSynced = false;
   let storagePressureActive = false;
+  let sessionStartedAt = null;
+  let lastTelemetrySentAt = 0;
+  let lastAiSubmittedAt = 0;
+  let aiSubmitInFlight = false;
+  let visualCandidates = [];
+  let telemetryBuffer = [];
+  let lastVisualMetrics = null;
+  let lastAiPosition = null;
+  const localCoverageCells = new Set();
+  const localCoverageWeakCells = new Set();
+  let latestCoverageFields = [];
+  let latestAbsenceState = 'non_detection_note';
+  let latestCoverageHints = [];
+  const coverageFeatureTypes = { species: 0, vegetation: 0, landform: 0, sound: 0, structure: 0 };
+  const localCoverageCellMap = new Map();
+  let coverageMap = null;
+  let coverageMapReady = false;
+  let coverageMapLoading = false;
+  let coverageMapLastFieldId = null;
+  let coverageMapMarker = null;
   const pendingScenes = new Map();
   const readyScenes = new Map();
   const trailBundles = new Map();
@@ -732,8 +778,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const OFFLINE_MAX_BYTES = 80 * 1024 * 1024;
   const OFFLINE_MAX_SCENES = 120;
   const OFFLINE_MAX_AUDIO = 1800;
-  const ONLINE_ANALYSE_INTERVAL_MS = 8000;
+  const ONLINE_ANALYSE_INTERVAL_MS = 18000;
   const OFFLINE_ANALYSE_INTERVAL_MS = 22000;
+  const TELEMETRY_INTERVAL_MS = 1500;
+  const VISUAL_SAMPLE_INTERVAL_MS = 5000;
+  const AI_MIN_INTERVAL_MS = 15000;
+  const AI_FORCE_INTERVAL_MS = 22000;
+  const LOCAL_COVERAGE_CELL_M = 10;
   const AUDIO_CHUNK_TARGET_MS = 2000;
   const AUDIO_CHUNK_MIN_MS = 1600;
   const AUDIO_CHUNK_MAX_MS = 3200;
@@ -775,6 +826,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const offlineState = document.getElementById('guide-offline-state');
   const offlineQueued = document.getElementById('guide-offline-queued');
   const offlinePressure = document.getElementById('guide-offline-pressure');
+  const coveragePanel = document.getElementById('guide-coverage');
+  const coverageTitle = document.getElementById('guide-coverage-title');
+  const coverageArea = document.getElementById('guide-coverage-area');
+  const coverageAbsence = document.getElementById('guide-coverage-absence');
+  const coverageTime = document.getElementById('guide-coverage-time');
+  const coverageDistance = document.getElementById('guide-coverage-distance');
+  const coverageCells = document.getElementById('guide-coverage-cells');
+  const coverageAi = document.getElementById('guide-coverage-ai');
+  const coverageHint = document.getElementById('guide-coverage-hint');
+  const coverageTimeLabel = document.getElementById('guide-coverage-time-label');
+  const coverageDistanceLabel = document.getElementById('guide-coverage-distance-label');
+  const coverageCellsLabel = document.getElementById('guide-coverage-cells-label');
+  const coverageAiLabel = document.getElementById('guide-coverage-ai-label');
+  const coverageMapWrap = document.getElementById('guide-coverage-map');
+  const coverageMapCanvas = document.getElementById('guide-coverage-map-canvas');
 
   function getLang() { return document.getElementById('guide-lang-select').value; }
   function getGuideMode() { return document.getElementById('guide-mode-select').value || 'walk'; }
@@ -792,6 +858,375 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       text = text.split('{' + key + '}').join(String(values[key]));
     });
     return text;
+  }
+  function coverageCopy() {
+    const lang = getLang();
+    if (lang === 'en') {
+      return {
+        title: 'Survey coverage',
+        areaUnknown: 'Checking registered area',
+        outsideArea: 'No registered area here',
+        timeLabel: 'Time seen',
+        distanceLabel: 'Distance',
+        cellsLabel: '10m cells',
+        aiLabel: 'AI runs',
+        nonDetection: 'Passed, no AI detection',
+        searched: 'Searched, not found',
+        candidate: 'Absence candidate',
+        weakGps: 'GPS is wider than 10m, so coverage is estimated.',
+        defaultHint: 'Device-side coverage uses 10m cells; exact route stays private.',
+        thinPrefix: 'Thin next: '
+      };
+    }
+    return {
+      title: '調査カバー',
+      areaUnknown: '登録エリアを確認中',
+      outsideArea: '登録エリア外',
+      timeLabel: '見た時間',
+      distanceLabel: '距離',
+      cellsLabel: '10mセル',
+      aiLabel: 'AI解析',
+      nonDetection: '通過・AI未検出',
+      searched: '探したが未検出',
+      candidate: '不在候補',
+      weakGps: 'GPS精度が10mより粗いので、カバー率は推定です。',
+      defaultHint: '端末内では10mセルで見た範囲を推定し、exact routeは公開しません。',
+      thinPrefix: '次に薄いところ: '
+    };
+  }
+  function formatDuration(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    return minutes + ':' + String(seconds).padStart(2, '0');
+  }
+  function formatMeters(value) {
+    const meters = Math.max(0, Math.round(Number(value) || 0));
+    if (meters >= 1000) return (meters / 1000).toFixed(1) + 'km';
+    return meters + 'm';
+  }
+  function localCellKey(position) {
+    if (!position || !Number.isFinite(position.lat) || !Number.isFinite(position.lng)) return null;
+    const latStep = LOCAL_COVERAGE_CELL_M / 111320;
+    const lngStep = LOCAL_COVERAGE_CELL_M / Math.max(1, 111320 * Math.cos(position.lat * Math.PI / 180));
+    return Math.floor(position.lat / latStep) + ':' + Math.floor(position.lng / lngStep);
+  }
+  function localCellBounds(position) {
+    if (!position || !Number.isFinite(position.lat) || !Number.isFinite(position.lng)) return null;
+    const latStep = LOCAL_COVERAGE_CELL_M / 111320;
+    const lngStep = LOCAL_COVERAGE_CELL_M / Math.max(1, 111320 * Math.cos(position.lat * Math.PI / 180));
+    const y = Math.floor(position.lat / latStep);
+    const x = Math.floor(position.lng / lngStep);
+    return {
+      minLat: y * latStep,
+      maxLat: (y + 1) * latStep,
+      minLng: x * lngStep,
+      maxLng: (x + 1) * lngStep,
+      centerLat: (y + 0.5) * latStep,
+      centerLng: (x + 0.5) * lngStep
+    };
+  }
+  function rememberCoveragePosition(position) {
+    const key = localCellKey(position);
+    if (!key) return;
+    localCoverageCells.add(key);
+    const bounds = localCellBounds(position);
+    if (bounds) localCoverageCellMap.set(key, bounds);
+    const accuracy = Number(position.accuracyM);
+    if (!Number.isFinite(accuracy) || accuracy > Math.max(15, LOCAL_COVERAGE_CELL_M * 1.5)) {
+      localCoverageWeakCells.add(key);
+    }
+    updateCoverageUi();
+  }
+  function coverageWeakAxes() {
+    const entries = Object.keys(coverageFeatureTypes)
+      .map(function (key) { return { key: key, value: coverageFeatureTypes[key] || 0 }; })
+      .sort(function (a, b) { return a.value - b.value; });
+    const labels = {
+      species: getLang() === 'en' ? 'species' : '生きもの',
+      vegetation: getLang() === 'en' ? 'vegetation' : '草地/植生',
+      landform: getLang() === 'en' ? 'water/landform' : '水辺/地形',
+      sound: getLang() === 'en' ? 'sound' : '音',
+      structure: getLang() === 'en' ? 'edges/structures' : '縁/人工物'
+    };
+    return entries.slice(0, 2).map(function (entry) { return labels[entry.key] || entry.key; });
+  }
+  function emptyFeatureCollection() {
+    return { type: 'FeatureCollection', features: [] };
+  }
+  function cellPolygon(bounds) {
+    return {
+      type: 'Polygon',
+      coordinates: [[
+        [bounds.minLng, bounds.minLat],
+        [bounds.maxLng, bounds.minLat],
+        [bounds.maxLng, bounds.maxLat],
+        [bounds.minLng, bounds.maxLat],
+        [bounds.minLng, bounds.minLat]
+      ]]
+    };
+  }
+  function visitedCellFeatures() {
+    const features = [];
+    localCoverageCellMap.forEach(function (bounds, key) {
+      features.push({
+        type: 'Feature',
+        properties: { key: key },
+        geometry: cellPolygon(bounds)
+      });
+    });
+    return { type: 'FeatureCollection', features: features };
+  }
+  function pointInRing(lng, lat, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      const xi = Number(ring[i][0]);
+      const yi = Number(ring[i][1]);
+      const xj = Number(ring[j][0]);
+      const yj = Number(ring[j][1]);
+      const intersect = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+  function geometryContainsPoint(geometry, lng, lat) {
+    if (!geometry || !geometry.type || !geometry.coordinates) return true;
+    if (geometry.type === 'Polygon') {
+      const rings = geometry.coordinates || [];
+      if (!rings.length || !pointInRing(lng, lat, rings[0])) return false;
+      for (let i = 1; i < rings.length; i += 1) if (pointInRing(lng, lat, rings[i])) return false;
+      return true;
+    }
+    if (geometry.type === 'MultiPolygon') {
+      return (geometry.coordinates || []).some(function (polygon) {
+        return geometryContainsPoint({ type: 'Polygon', coordinates: polygon }, lng, lat);
+      });
+    }
+    return true;
+  }
+  function coverageFieldFeature(field) {
+    if (!field) return null;
+    const geometry = field.geometry && field.geometry.type ? field.geometry : null;
+    if (geometry) {
+      return {
+        type: 'Feature',
+        properties: { fieldId: field.fieldId || '', name: field.name || '' },
+        geometry: geometry
+      };
+    }
+    const center = field.center || {};
+    const lat = Number(center.lat);
+    const lng = Number(center.lng);
+    const radiusM = Math.max(50, Math.min(500, Number(field.radiusM) || 100));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    const points = [];
+    for (let i = 0; i <= 36; i += 1) {
+      const angle = (i / 36) * Math.PI * 2;
+      points.push([
+        lng + Math.cos(angle) * radiusM / Math.max(1, 111320 * Math.cos(lat * Math.PI / 180)),
+        lat + Math.sin(angle) * radiusM / 111320
+      ]);
+    }
+    return {
+      type: 'Feature',
+      properties: { fieldId: field.fieldId || '', name: field.name || '' },
+      geometry: { type: 'Polygon', coordinates: [points] }
+    };
+  }
+  function fieldBbox(field, feature) {
+    if (field && field.bbox) return field.bbox;
+    const coords = [];
+    function collect(value) {
+      if (!Array.isArray(value)) return;
+      if (typeof value[0] === 'number' && typeof value[1] === 'number') coords.push(value);
+      else value.forEach(collect);
+    }
+    if (feature && feature.geometry) collect(feature.geometry.coordinates);
+    if (!coords.length) return null;
+    return coords.reduce(function (bbox, coord) {
+      const lng = Number(coord[0]);
+      const lat = Number(coord[1]);
+      return {
+        minLat: Math.min(bbox.minLat, lat),
+        maxLat: Math.max(bbox.maxLat, lat),
+        minLng: Math.min(bbox.minLng, lng),
+        maxLng: Math.max(bbox.maxLng, lng)
+      };
+    }, { minLat: Infinity, maxLat: -Infinity, minLng: Infinity, maxLng: -Infinity });
+  }
+  function targetCellFeatures(field, feature) {
+    const bbox = fieldBbox(field, feature);
+    if (!bbox || !Number.isFinite(bbox.minLat) || !Number.isFinite(bbox.minLng)) return emptyFeatureCollection();
+    const midLat = (bbox.minLat + bbox.maxLat) / 2;
+    const latStep = LOCAL_COVERAGE_CELL_M / 111320;
+    const lngStep = LOCAL_COVERAGE_CELL_M / Math.max(1, 111320 * Math.cos(midLat * Math.PI / 180));
+    const minY = Math.floor(bbox.minLat / latStep);
+    const maxY = Math.ceil(bbox.maxLat / latStep);
+    const minX = Math.floor(bbox.minLng / lngStep);
+    const maxX = Math.ceil(bbox.maxLng / lngStep);
+    const total = Math.max(0, (maxY - minY) * (maxX - minX));
+    const stride = total > 900 ? Math.ceil(Math.sqrt(total / 900)) : 1;
+    const features = [];
+    for (let y = minY; y < maxY; y += stride) {
+      for (let x = minX; x < maxX; x += stride) {
+        const bounds = {
+          minLat: y * latStep,
+          maxLat: (y + stride) * latStep,
+          minLng: x * lngStep,
+          maxLng: (x + stride) * lngStep,
+          centerLat: (y + stride / 2) * latStep,
+          centerLng: (x + stride / 2) * lngStep
+        };
+        if (!geometryContainsPoint(feature && feature.geometry, bounds.centerLng, bounds.centerLat)) continue;
+        const key = y + ':' + x;
+        let visitedNearby = false;
+        localCoverageCellMap.forEach(function (visited) {
+          if (visitedNearby) return;
+          const dLatM = Math.abs(visited.centerLat - bounds.centerLat) * 111320;
+          const dLngM = Math.abs(visited.centerLng - bounds.centerLng) * Math.max(1, 111320 * Math.cos(bounds.centerLat * Math.PI / 180));
+          visitedNearby = Math.sqrt(dLatM * dLatM + dLngM * dLngM) <= LOCAL_COVERAGE_CELL_M * 1.6;
+        });
+        if (visitedNearby) continue;
+        features.push({ type: 'Feature', properties: { key: key }, geometry: cellPolygon(bounds) });
+      }
+    }
+    return { type: 'FeatureCollection', features: features };
+  }
+  function setGuideCoverageSource(id, data) {
+    if (!coverageMap || !coverageMap.getSource(id)) return;
+    coverageMap.getSource(id).setData(data || emptyFeatureCollection());
+  }
+  function updateCoverageMarker() {
+    if (!coverageMap || !window.maplibregl || !Number.isFinite(lastKnownPosition.lng) || !Number.isFinite(lastKnownPosition.lat)) return;
+    if (!coverageMapMarker) {
+      const el = document.createElement('div');
+      el.className = 'guide-coverage-marker';
+      coverageMapMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lastKnownPosition.lng, lastKnownPosition.lat]).addTo(coverageMap);
+    } else {
+      coverageMapMarker.setLngLat([lastKnownPosition.lng, lastKnownPosition.lat]);
+    }
+  }
+  function updateCoverageMap() {
+    const field = latestCoverageFields[0] || null;
+    const feature = coverageFieldFeature(field);
+    if (!coverageMapWrap) return;
+    coverageMapWrap.hidden = !feature;
+    if (!feature) return;
+    ensureCoverageMap();
+    if (!coverageMapReady || !coverageMap) return;
+    setGuideCoverageSource('guide-coverage-area', { type: 'FeatureCollection', features: [feature] });
+    setGuideCoverageSource('guide-coverage-missing', targetCellFeatures(field, feature));
+    setGuideCoverageSource('guide-coverage-visited', visitedCellFeatures());
+    updateCoverageMarker();
+    if (field && field.fieldId !== coverageMapLastFieldId) {
+      coverageMapLastFieldId = field.fieldId;
+      const bbox = fieldBbox(field, feature);
+      if (bbox && window.maplibregl) {
+        coverageMap.fitBounds([[bbox.minLng, bbox.minLat], [bbox.maxLng, bbox.maxLat]], { padding: 22, duration: 400, maxZoom: 19 });
+      }
+    }
+  }
+  function addCoverageMapLayers() {
+    if (!coverageMap || coverageMap.getSource('guide-coverage-area')) return;
+    coverageMap.addSource('guide-coverage-area', { type: 'geojson', data: emptyFeatureCollection() });
+    coverageMap.addSource('guide-coverage-missing', { type: 'geojson', data: emptyFeatureCollection() });
+    coverageMap.addSource('guide-coverage-visited', { type: 'geojson', data: emptyFeatureCollection() });
+    coverageMap.addLayer({ id: 'guide-coverage-area-fill', type: 'fill', source: 'guide-coverage-area', paint: { 'fill-color': '#10b981', 'fill-opacity': 0.10 } });
+    coverageMap.addLayer({ id: 'guide-coverage-area-line', type: 'line', source: 'guide-coverage-area', paint: { 'line-color': '#047857', 'line-width': 2 } });
+    coverageMap.addLayer({ id: 'guide-coverage-missing-fill', type: 'fill', source: 'guide-coverage-missing', paint: { 'fill-color': '#f97316', 'fill-opacity': 0.18 } });
+    coverageMap.addLayer({ id: 'guide-coverage-missing-line', type: 'line', source: 'guide-coverage-missing', paint: { 'line-color': '#fb923c', 'line-width': 0.5, 'line-opacity': 0.65 } });
+    coverageMap.addLayer({ id: 'guide-coverage-visited-fill', type: 'fill', source: 'guide-coverage-visited', paint: { 'fill-color': '#059669', 'fill-opacity': 0.58 } });
+    coverageMap.addLayer({ id: 'guide-coverage-visited-line', type: 'line', source: 'guide-coverage-visited', paint: { 'line-color': '#ecfdf5', 'line-width': 0.7, 'line-opacity': 0.85 } });
+  }
+  function guideMapStyle() {
+    return {
+      version: 8,
+      sources: {
+        osm: {
+          type: 'raster',
+          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '&copy; OpenStreetMap contributors'
+        }
+      },
+      layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+    };
+  }
+  function ensureCoverageMap() {
+    if (coverageMap || coverageMapLoading || !coverageMapCanvas) return;
+    coverageMapLoading = true;
+    loadCoverageMapLibre(function () {
+      coverageMapLoading = false;
+      if (!window.maplibregl || !coverageMapCanvas) return;
+      coverageMap = new window.maplibregl.Map({
+        container: coverageMapCanvas,
+        style: guideMapStyle(),
+        center: [lastKnownPosition.lng || 139.76, lastKnownPosition.lat || 35.68],
+        zoom: 17,
+        attributionControl: false,
+        interactive: false
+      });
+      coverageMap.on('load', function () {
+        coverageMapReady = true;
+        addCoverageMapLayers();
+        updateCoverageMap();
+      });
+    });
+  }
+  function loadCoverageMapLibre(callback) {
+    if (window.maplibregl) { callback(); return; }
+    if (!document.querySelector('link[data-guide-maplibre="1"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+      link.setAttribute('data-guide-maplibre', '1');
+      document.head.appendChild(link);
+    }
+    const existing = document.querySelector('script[data-guide-maplibre="1"]');
+    if (existing) {
+      existing.addEventListener('load', callback, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+    script.defer = true;
+    script.setAttribute('data-guide-maplibre', '1');
+    script.onload = callback;
+    document.head.appendChild(script);
+  }
+  function updateCoverageUi() {
+    if (!coveragePanel) return;
+    const cc = coverageCopy();
+    coveragePanel.hidden = false;
+    if (coverageTitle) coverageTitle.textContent = cc.title;
+    if (coverageTimeLabel) coverageTimeLabel.textContent = cc.timeLabel;
+    if (coverageDistanceLabel) coverageDistanceLabel.textContent = cc.distanceLabel;
+    if (coverageCellsLabel) coverageCellsLabel.textContent = cc.cellsLabel;
+    if (coverageAiLabel) coverageAiLabel.textContent = cc.aiLabel;
+    const field = latestCoverageFields[0] || null;
+    const areaName = field && field.name ? String(field.name) : (running ? cc.areaUnknown : cc.outsideArea);
+    const coveredAreaM2 = localCoverageCells.size * LOCAL_COVERAGE_CELL_M * LOCAL_COVERAGE_CELL_M;
+    const areaM2 = field && Number.isFinite(Number(field.areaM2)) ? Number(field.areaM2) : null;
+    const pct = areaM2 && areaM2 > 0 ? Math.min(100, Math.round((coveredAreaM2 / areaM2) * 100)) : null;
+    if (coverageArea) coverageArea.textContent = pct == null ? areaName : areaName + ' · 約' + pct + '%';
+    if (coverageAbsence) {
+      coverageAbsence.textContent = latestAbsenceState === 'absence_candidate'
+        ? cc.candidate
+        : latestAbsenceState === 'searched_not_found'
+          ? cc.searched
+          : cc.nonDetection;
+      coverageAbsence.dataset.state = latestAbsenceState;
+    }
+    if (coverageTime) coverageTime.textContent = sessionStartedAt ? formatDuration(Date.now() - sessionStartedAt) : '0:00';
+    if (coverageDistance) coverageDistance.textContent = formatMeters(sessionDistanceM);
+    if (coverageCells) coverageCells.textContent = String(localCoverageCells.size);
+    if (coverageAi) coverageAi.textContent = String(readyScenes.size + pendingScenes.size);
+    if (coverageHint) {
+      const hints = latestCoverageHints.length ? latestCoverageHints.slice(0, 2) : coverageWeakAxes();
+      const weakGps = localCoverageWeakCells.size > 0 ? cc.weakGps : '';
+      coverageHint.textContent = [hints.length ? cc.thinPrefix + hints.join(' / ') : cc.defaultHint, weakGps].filter(Boolean).join(' ');
+    }
+    updateCoverageMap();
   }
   function isOnlineNow() {
     return typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
@@ -907,8 +1342,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     });
   }
   function estimateOfflineItemBytes(item) {
+    const frameBytes = Array.isArray(item.frames)
+      ? item.frames.reduce((sum, frame) => sum + ((frame.frameBlob && frame.frameBlob.size) || 0) + (typeof frame.frameThumb === 'string' ? frame.frameThumb.length * 2 : 0), 0)
+      : 0;
     return Number(item.byteSize || 0)
       || ((item.frameBlob && item.frameBlob.size) || 0)
+      + frameBytes
       + ((item.audioBlob && item.audioBlob.size) || 0)
       + (typeof item.frameThumb === 'string' ? item.frameThumb.length * 2 : 0)
       + JSON.stringify({ type: item.type, id: item.id, meta: item.meta || null }).length;
@@ -1049,6 +1488,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
     lastRoutePosition = position;
     lastKnownPosition = position;
+    rememberCoveragePosition(position);
     return position;
   }
   function startLocationWatch() {
@@ -1155,6 +1595,46 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       frameThumb: frameThumbFromCanvas(canvas),
       facePrivacy
     };
+  }
+  function captureVisualMetrics() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 24;
+    const context = canvas.getContext('2d');
+    if (!context || !video || !video.videoWidth) return { brightness: 0, blurScore: 0, diffScore: 1 };
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let brightness = 0;
+    let edge = 0;
+    let diff = 0;
+    const grays = [];
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+      grays.push(gray);
+      brightness += gray;
+      const prev = lastVisualMetrics && lastVisualMetrics.grays ? lastVisualMetrics.grays[grays.length - 1] : null;
+      if (typeof prev === 'number') diff += Math.abs(gray - prev);
+    }
+    for (let y = 1; y < canvas.height; y += 1) {
+      for (let x = 1; x < canvas.width; x += 1) {
+        const index = y * canvas.width + x;
+        edge += Math.abs(grays[index] - grays[index - 1]) + Math.abs(grays[index] - grays[index - canvas.width]);
+      }
+    }
+    const count = Math.max(1, grays.length);
+    const metrics = {
+      brightness: brightness / count,
+      blurScore: edge / count,
+      diffScore: lastVisualMetrics && lastVisualMetrics.grays ? diff / count : 1,
+      grays
+    };
+    lastVisualMetrics = metrics;
+    return metrics;
+  }
+  function headingDelta(a, b) {
+    if (!Number.isFinite(Number(a)) || !Number.isFinite(Number(b))) return null;
+    const diff = Math.abs(Number(a) - Number(b)) % 360;
+    return diff > 180 ? 360 - diff : diff;
   }
   function dataUrlToBlob(dataUrl) {
     const parts = String(dataUrl || '').split(',');
@@ -1308,6 +1788,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       + '<div class="gdi-body"><div class="gdi-kicker">' + escapeInline(copy.trailPending) + '</div>'
       + '<div class="gdi-summary">' + escapeInline(formatCaptured(scene.capturedAt)) + '</div></div>';
     if (!existing) listEl.prepend(li);
+    (Array.isArray(representative.detectedFeatures) ? representative.detectedFeatures : []).forEach(function (feature) {
+      if (feature && coverageFeatureTypes[String(feature.type)] != null) coverageFeatureTypes[String(feature.type)] += 1;
+    });
+    if (Array.isArray(representative.coverageHints) && representative.coverageHints.length) {
+      latestCoverageHints = representative.coverageHints.slice(0, 4);
+    }
+    if (representative.absenceBoundary && typeof representative.absenceBoundary.state === 'string') {
+      latestAbsenceState = representative.absenceBoundary.state === 'confirmed_absence' ? 'absence_candidate' : representative.absenceBoundary.state;
+    }
+    updateCoverageUi();
     updateTrailPill();
   }
   function addQueuedDiscovery(scene) {
@@ -1588,7 +2078,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
   }
   async function postScenePayload(payload) {
-    const frame = await blobToBase64(payload.frameBlob);
+    const frames = Array.isArray(payload.frames) && payload.frames.length
+      ? await Promise.all(payload.frames.map(async function (frame) {
+          return {
+            frame: await blobToBase64(frame.frameBlob),
+            frameMime: frame.frameBlob.type || 'image/jpeg',
+            capturedAt: frame.capturedAt,
+            lat: frame.lat,
+            lng: frame.lng,
+            accuracyM: frame.locationAccuracyM,
+            speedMps: frame.speedMps,
+            headingDegrees: frame.headingDegrees
+          };
+        }))
+      : null;
+    const frame = frames ? null : await blobToBase64(payload.frameBlob);
     const audio = payload.audioBlob ? await blobToBase64(payload.audioBlob) : null;
     const response = await fetch(BASE + '/api/v1/guide/scene', {
       method: 'POST',
@@ -1596,8 +2100,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       body: JSON.stringify({
         clientSceneId: payload.clientSceneId,
         frame: frame,
+        frames: frames,
+        frameBundleSummary: payload.frameBundleSummary || null,
         frameThumb: payload.frameThumb,
+        frameThumbs: Array.isArray(payload.frames) ? payload.frames.map(function (item) { return item.frameThumb || null; }) : null,
         facePrivacy: payload.facePrivacy || null,
+        visualCandidate: payload.visualCandidate || null,
         audio: audio,
         lat: payload.lat,
         lng: payload.lng,
@@ -1637,6 +2145,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       guideMode: payload.guideMode || 'walk',
       frameThumb: payload.frameThumb,
       frameBlob: payload.frameBlob,
+      frames: payload.frames || null,
+      frameBundleSummary: payload.frameBundleSummary || null,
+      visualCandidate: payload.visualCandidate || null,
       facePrivacy: payload.facePrivacy || null,
       audioBlob: payload.audioBlob,
       audioMimeType: payload.audioBlob ? payload.audioBlob.type : null,
@@ -1664,6 +2175,179 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     } finally {
       updateOfflineUi();
     }
+  }
+  function buildTelemetryPoint(position) {
+    return {
+      clientPointId: newQueueId('guide-tel'),
+      sessionId: sessionId,
+      guideMode: getGuideMode(),
+      observedAt: new Date().toISOString(),
+      lat: position.lat,
+      lng: position.lng,
+      accuracyM: position.accuracyM,
+      speedMps: position.speedMps,
+      headingDegrees: position.headingDegrees,
+      positionCapturedAt: position.positionCapturedAt,
+      sessionDistanceM: Math.round(sessionDistanceM),
+      cameraActive: Boolean(cameraOptIn && stream),
+      visualCandidate: null
+    };
+  }
+  async function postTelemetryPayload(points) {
+    const response = await fetch(BASE + '/api/v1/guide/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: sessionId,
+        guideMode: getGuideMode(),
+        points: points
+      })
+    });
+    if (!response.ok) throw new Error('telemetry_submit_failed_' + response.status);
+    return response.json();
+  }
+  async function queueTelemetryPayload(points, reason) {
+    if (!Array.isArray(points) || !points.length) return false;
+    return enqueueOfflineItem({
+      id: newQueueId('guide-telemetry'),
+      type: 'telemetry',
+      sessionId: sessionId,
+      guideMode: getGuideMode(),
+      points: points,
+      lastError: reason || null,
+      createdAt: Date.now()
+    });
+  }
+  function applyTelemetryResponse(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    if (Array.isArray(payload.fields)) latestCoverageFields = payload.fields;
+    if (typeof payload.absenceState === 'string') latestAbsenceState = payload.absenceState;
+    updateCoverageUi();
+  }
+  async function flushTelemetryBuffer(force) {
+    if (!telemetryBuffer.length) return;
+    const now = Date.now();
+    if (!force && telemetryBuffer.length < 4 && now - lastTelemetrySentAt < 4000) return;
+    const points = telemetryBuffer.splice(0, 12);
+    lastTelemetrySentAt = now;
+    if (!isOnlineNow()) {
+      await queueTelemetryPayload(points, 'offline');
+      return;
+    }
+    try {
+      const payload = await postTelemetryPayload(points);
+      applyTelemetryResponse(payload);
+      offlineFailed = false;
+    } catch (error) {
+      await queueTelemetryPayload(points, error instanceof Error ? error.message : 'telemetry_submit_failed');
+    } finally {
+      updateOfflineUi();
+    }
+  }
+  async function telemetryTick() {
+    if (!running) return;
+    const position = await getLocation();
+    const point = buildTelemetryPoint(position);
+    telemetryBuffer.push(point);
+    updateCoverageUi();
+    await flushTelemetryBuffer(false);
+  }
+  function frameBundleSummary(frames) {
+    return frames.map(function (frame, index) {
+      return '#' + (index + 1)
+        + ' time=' + frame.capturedAt
+        + ' lat=' + Number(frame.lat).toFixed(5)
+        + ' lng=' + Number(frame.lng).toFixed(5)
+        + (Number.isFinite(Number(frame.locationAccuracyM)) ? ' acc=' + Math.round(Number(frame.locationAccuracyM)) + 'm' : '')
+        + (Number.isFinite(Number(frame.speedMps)) ? ' speed=' + Number(frame.speedMps).toFixed(1) + 'm/s' : '')
+        + (Number.isFinite(Number(frame.headingDegrees)) ? ' heading=' + Math.round(Number(frame.headingDegrees)) : '');
+    }).join(' / ');
+  }
+  function candidateLooksWorthAi(candidate) {
+    const now = Date.now();
+    if (!lastAiSubmittedAt) return visualCandidates.length >= 2 || now - (sessionStartedAt || now) >= AI_MIN_INTERVAL_MS;
+    const age = now - lastAiSubmittedAt;
+    if (age < AI_MIN_INTERVAL_MS) return false;
+    if (age >= AI_FORCE_INTERVAL_MS) return true;
+    if (!candidate) return false;
+    if ((candidate.metrics && candidate.metrics.diffScore >= 0.11) || (candidate.distanceFromLastAiM || 0) >= 12) return true;
+    if ((candidate.headingDeltaFromLastAi || 0) >= 28) return true;
+    if (localCoverageCells.size > 0 && readyScenes.size + pendingScenes.size === 0) return true;
+    return false;
+  }
+  async function maybeSubmitRepresentativeScene(reason) {
+    if (!running || !cameraOptIn || aiSubmitInFlight || !visualCandidates.length) return;
+    const candidate = visualCandidates[visualCandidates.length - 1];
+    if (!candidateLooksWorthAi(candidate)) return;
+    aiSubmitInFlight = true;
+    try {
+      const bundle = visualCandidates.slice(-3);
+      visualCandidates = [];
+      await doAnalyse(bundle, reason || 'representative_bundle');
+    } finally {
+      aiSubmitInFlight = false;
+    }
+  }
+  async function captureVisualCandidate() {
+    if (!running || !cameraOptIn || !stream || !video || !video.videoWidth) return;
+    try {
+      const position = await getLocation();
+      const metrics = captureVisualMetrics();
+      const framePayload = await captureFramePayload();
+      const capturedAt = bundle ? framePayload.capturedAt : new Date().toISOString();
+      const distanceFromLastAiM = lastAiPosition ? Math.round(distanceMeters(lastAiPosition, position)) : null;
+      const headingDeltaFromLastAi = lastAiPosition ? headingDelta(lastAiPosition.headingDegrees, position.headingDegrees) : null;
+      const candidate = {
+        capturedAt: capturedAt,
+        lat: position.lat,
+        lng: position.lng,
+        locationAccuracyM: position.accuracyM,
+        speedMps: position.speedMps,
+        headingDegrees: position.headingDegrees,
+        positionCapturedAt: position.positionCapturedAt,
+        sessionDistanceM: Math.round(sessionDistanceM),
+        frameBlob: framePayload.frameBlob,
+        frameThumb: framePayload.frameThumb,
+        facePrivacy: framePayload.facePrivacy,
+        metrics: {
+          brightness: metrics.brightness,
+          blurScore: metrics.blurScore,
+          diffScore: metrics.diffScore
+        },
+        distanceFromLastAiM: distanceFromLastAiM,
+        headingDeltaFromLastAi: headingDeltaFromLastAi,
+        reason: 'visual_sample_5s'
+      };
+      visualCandidates.push(candidate);
+      if (visualCandidates.length > 5) visualCandidates = visualCandidates.slice(-5);
+      await maybeSubmitRepresentativeScene('visual_sample');
+    } catch (error) {
+      console.error('Guide visual candidate error', error);
+    }
+  }
+  function startGuideSampling() {
+    stopGuideSampling();
+    sessionStartedAt = Date.now();
+    lastTelemetrySentAt = 0;
+    lastAiSubmittedAt = 0;
+    lastAiPosition = null;
+    visualCandidates = [];
+    telemetryBuffer = [];
+    updateCoverageUi();
+    void telemetryTick();
+    telemetryTimer = window.setInterval(function () { void telemetryTick(); }, TELEMETRY_INTERVAL_MS);
+    if (cameraOptIn) {
+      visualSampleTimer = window.setInterval(function () { void captureVisualCandidate(); }, VISUAL_SAMPLE_INTERVAL_MS);
+      window.setTimeout(function () { void captureVisualCandidate(); }, 1200);
+    }
+  }
+  function stopGuideSampling() {
+    clearTimeout(analyseTimer);
+    if (telemetryTimer) clearInterval(telemetryTimer);
+    if (visualSampleTimer) clearInterval(visualSampleTimer);
+    analyseTimer = null;
+    telemetryTimer = null;
+    visualSampleTimer = null;
   }
   function buildAudioPayload(blob, fingerprint, vad, quality) {
     const measuredDurationMs = Number(quality && quality.measuredDurationMs) || AUDIO_CHUNK_TARGET_MS;
@@ -1758,6 +2442,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         guideMode: item.guideMode || 'walk',
         frameThumb: item.frameThumb,
         frameBlob: item.frameBlob,
+        frames: item.frames || null,
+        frameBundleSummary: item.frameBundleSummary || null,
+        visualCandidate: item.visualCandidate || null,
         facePrivacy: item.facePrivacy || null,
         audioBlob: item.audioBlob || null,
         audioPrivacySkippedCount: item.audioPrivacySkippedCount || 0,
@@ -1778,6 +2465,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         mimeType: item.mimeType,
         meta: item.meta
       }, item.audioBlob);
+    }
+    if (item.type === 'telemetry') {
+      const payload = await postTelemetryPayload(Array.isArray(item.points) ? item.points : []);
+      applyTelemetryResponse(payload);
     }
   }
   async function drainOfflineQueue() {
@@ -1837,13 +2528,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     sceneAudioChunks = [blob];
     void uploadAudioChunk(blob, fingerprint, vad, quality.quality);
   }
-  async function doAnalyse() {
+  async function doAnalyse(frameBundle, reason) {
     if (!running) return;
     setStatus(copy.analysing);
     setNowState(copy.analysing);
     try {
-      lastKnownPosition = await getLocation();
-      const framePayload = await captureFramePayload();
+      const bundle = Array.isArray(frameBundle) && frameBundle.length ? frameBundle : null;
+      lastKnownPosition = bundle ? {
+        lat: bundle[bundle.length - 1].lat,
+        lng: bundle[bundle.length - 1].lng,
+        accuracyM: bundle[bundle.length - 1].locationAccuracyM,
+        speedMps: bundle[bundle.length - 1].speedMps,
+        headingDegrees: bundle[bundle.length - 1].headingDegrees,
+        positionCapturedAt: bundle[bundle.length - 1].positionCapturedAt,
+        stale: false,
+        source: 'visualCandidate'
+      } : await getLocation();
+      const framePayload = bundle ? bundle[bundle.length - 1] : await captureFramePayload();
       const capturedAt = new Date().toISOString();
       const audioBlob = captureAudioBlobForScene();
       const audioPrivacySkippedCount = sceneAudioPrivacySkippedCount;
@@ -1864,11 +2565,28 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           guideMode: getGuideMode(),
           frameThumb: framePayload.frameThumb,
           frameBlob: framePayload.frameBlob,
+          frames: bundle,
+          frameBundleSummary: bundle ? frameBundleSummary(bundle) : null,
+          visualCandidate: bundle ? {
+            capturedAt: framePayload.capturedAt,
+            brightness: framePayload.metrics && framePayload.metrics.brightness,
+            blurScore: framePayload.metrics && framePayload.metrics.blurScore,
+            diffScore: framePayload.metrics && framePayload.metrics.diffScore,
+            distanceFromLastAiM: framePayload.distanceFromLastAiM,
+            headingDeltaFromLastAi: framePayload.headingDeltaFromLastAi,
+            reason: reason || framePayload.reason || 'representative_bundle'
+          } : null,
           facePrivacy: framePayload.facePrivacy,
           audioBlob,
           audioPrivacySkippedCount,
           audioPrivacyPolicy: 'exclude_speech_likely_chunks'
       });
+      lastAiSubmittedAt = Date.now();
+      lastAiPosition = {
+        lat: lastKnownPosition.lat,
+        lng: lastKnownPosition.lng,
+        headingDegrees: lastKnownPosition.headingDegrees
+      };
       handleAcceptedScene(sceneRes);
       setStatus('');
       setNowState('');
@@ -1878,7 +2596,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       setNowState('');
     }
     scheduleRecapRefresh();
-    if (running) analyseTimer = setTimeout(doAnalyse, isOnlineNow() && !storagePressureActive ? ONLINE_ANALYSE_INTERVAL_MS : OFFLINE_ANALYSE_INTERVAL_MS);
   }
   async function analyseSelectedPhoto(file) {
     if (!file || !file.type || !file.type.startsWith('image/')) return;
@@ -2208,7 +2925,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       startBtn.hidden = true;
       permMsg.hidden = true;
       if (photoFallback) photoFallback.hidden = true;
-      if (cameraOptIn) analyseTimer = setTimeout(doAnalyse, 5000);
+      startGuideSampling();
       scheduleRecapRefresh();
       void drainOfflineQueue();
     } catch (err) {
@@ -2250,7 +2967,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   }
   stopBtn.addEventListener('click', () => {
     running = false;
-    clearTimeout(analyseTimer);
+    stopGuideSampling();
+    void flushTelemetryBuffer(true);
     clearTimeout(recapTimer);
     stopLocationWatch();
     if (stream) stream.getTracks().forEach((t) => t.stop());
@@ -2416,6 +3134,19 @@ export const GUIDE_FLOW_STYLES = `
   .guide-now-title { margin: 0 0 4px; font-size: 13px; font-weight: 900; color: #0f172a; }
   .guide-now-hint { margin: 0; font-size: 12px; color: #64748b; line-height: 1.6; }
   .guide-now-state { min-width: 72px; text-align: right; font-size: 12px; color: #047857; font-weight: 900; }
+  .guide-coverage[hidden] { display: none; }
+  .guide-coverage { margin: 0 0 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.94); border: 1px solid rgba(5,150,105,.16); box-shadow: 0 8px 20px rgba(15,23,42,.05); display: grid; gap: 11px; }
+  .guide-coverage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .guide-coverage-head h2 { margin: 0 0 3px; font-size: 14px; line-height: 1.25; font-weight: 950; color: #0f172a; letter-spacing: 0; }
+  .guide-coverage-head p { margin: 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 850; }
+  .guide-coverage-badge { flex: 0 0 auto; min-height: 28px; display: inline-flex; align-items: center; padding: 0 9px; border-radius: 999px; background: #ecfdf5; color: #047857; border: 1px solid rgba(5,150,105,.18); font-size: 11px; font-weight: 950; white-space: nowrap; }
+  .guide-coverage-badge[data-state="searched_not_found"] { background: #eff6ff; color: #1d4ed8; border-color: rgba(37,99,235,.18); }
+  .guide-coverage-badge[data-state="absence_candidate"] { background: #fff7ed; color: #c2410c; border-color: rgba(234,88,12,.2); }
+  .guide-coverage-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .guide-coverage-grid div { min-width: 0; padding: 9px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); display: grid; gap: 2px; }
+  .guide-coverage-grid strong { color: #059669; font-size: 19px; line-height: 1; font-weight: 950; }
+  .guide-coverage-grid span { color: #64748b; font-size: 10.5px; line-height: 1.25; font-weight: 850; }
+  .guide-coverage-hint { margin: 0; color: #0f766e; font-size: 12px; line-height: 1.55; font-weight: 850; }
   .guide-camera-wrap { position: relative; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 14px 34px rgba(15,23,42,.18); }
   .guide-camera-wrap.is-audio-only { min-height: 172px; display: grid; place-items: center; padding: 18px; background: linear-gradient(135deg, #0f172a, #164e63); }
   .guide-video { width: 100%; display: block; border-radius: 8px; height: min(68dvh, 640px); min-height: 420px; object-fit: cover; }
@@ -2499,6 +3230,7 @@ export const GUIDE_FLOW_STYLES = `
     .guide-start-sheet-actions { flex-direction: column-reverse; }
     .guide-sheet-secondary, .guide-sheet-primary { width: 100%; }
     .guide-video { height: min(70dvh, 620px); min-height: 360px; }
+    .guide-coverage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .guide-session-summary-grid { grid-template-columns: 1fr; }
   }
 `;
