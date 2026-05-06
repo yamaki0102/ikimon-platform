@@ -176,6 +176,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
   if (snapshot.photoAssets.length === 0) return "";
   const first = snapshot.photoAssets[0]!;
   const firstDisplayUrl = photoDisplayUrl(first, "lg");
+  const firstFullUrl = first.url;
   const firstRoleBadge = mediaRoleBadge(first) || `<span class="obs-media-role-badge" data-obs-media-role-badge hidden></span>`;
   const firstSuggestionBadge = mediaRoleSuggestionBadge(first) || `<span class="obs-media-ai-role" data-obs-media-role-suggestion hidden></span>`;
   const thumbsHtml = snapshot.photoAssets.length >= 2
@@ -187,7 +188,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
       const suggestedConfidence = typeof asset.suggestedMediaRoleConfidence === "number" ? asset.suggestedMediaRoleConfidence.toFixed(4) : "";
       const suggestedSource = asset.suggestedMediaRoleSource ?? "";
       return `
-         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}" data-obs-thumb-suggested-role="${escapeHtml(suggestedRole ?? "")}" data-obs-thumb-suggested-confidence="${escapeHtml(suggestedConfidence)}" data-obs-thumb-suggested-source="${escapeHtml(suggestedSource)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
+         <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-full-src="${escapeHtml(asset.url)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}" data-obs-thumb-suggested-role="${escapeHtml(suggestedRole ?? "")}" data-obs-thumb-suggested-confidence="${escapeHtml(suggestedConfidence)}" data-obs-thumb-suggested-source="${escapeHtml(suggestedSource)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
            <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
            ${mediaRoleBadge(asset, true)}
            ${mediaRoleSuggestionBadge(asset, true)}
@@ -202,7 +203,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
       ${firstRoleBadge}
       ${firstSuggestionBadge}
       <span class="obs-hero-image-frame" data-obs-image-frame>
-        <img src="${escapeHtml(firstDisplayUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
+        <img src="${escapeHtml(firstDisplayUrl)}" data-obs-full-src="${escapeHtml(firstFullUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
         <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderObservationRegionBoxes(currentSubject, first.assetId)}</span>
       </span>
       <button type="button" class="obs-hero-zoom" data-obs-zoom aria-label="画像を拡大">
@@ -299,6 +300,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
      var selectThumb = function(t){
        if (!t || t.classList.contains('is-active')) return;
        var src = t.getAttribute('data-obs-thumb-src');
+       var fullSrc = t.getAttribute('data-obs-thumb-full-src');
        var assetId = t.getAttribute('data-obs-thumb-asset-id');
        var imageWidth = t.getAttribute('data-obs-thumb-width');
        var imageHeight = t.getAttribute('data-obs-thumb-height');
@@ -313,6 +315,10 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
          previewImg.removeAttribute('height');
        }
        if (previewImg && src) { previewImg.src = src; }
+       if (previewImg) {
+         if (fullSrc) previewImg.setAttribute('data-obs-full-src', fullSrc);
+         else previewImg.removeAttribute('data-obs-full-src');
+       }
        if (preview && assetId) { preview.setAttribute('data-obs-preview-asset-id', assetId); }
        if (previewRoleBadge) {
          var role = t.getAttribute('data-obs-thumb-media-role') || '';
@@ -367,7 +373,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
      };
      var openLightbox = function(){
        if (!lightbox || !previewImg) return;
-       lightboxImg.src = previewImg.src;
+       lightboxImg.src = previewImg.getAttribute('data-obs-full-src') || previewImg.src;
        setFitMode(true);
        lightbox.classList.add('is-open');
        lightbox.scrollTop = 0;
