@@ -110,11 +110,41 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
   const { mediaBlock } = renderObservationMedia(legacyUploadSnapshot, subject);
 
   assert.match(mediaBlock, /src="\/thumb\/lg\/photos\/visit-1\/photo_0\.webp"/);
+  assert.match(mediaBlock, /data-obs-full-src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);
   assert.match(mediaBlock, /data-obs-thumb-src="\/thumb\/lg\/photos\/visit-1\/photo_1\.jpg"/);
+  assert.match(mediaBlock, /data-obs-thumb-full-src="\/uploads\/photos\/visit-1\/photo_1\.jpg"/);
   assert.match(mediaBlock, /src="\/thumb\/sm\/photos\/visit-1\/photo_1\.jpg"/);
   assert.match(mediaBlock, />周囲<\/span>/);
   assert.match(mediaBlock, />別対象候補<\/span>/);
-  assert.doesNotMatch(mediaBlock, /src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);
+  assert.doesNotMatch(mediaBlock, /<img src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);
+});
+
+test("observation lightbox opens the full uploaded image instead of the lg thumbnail", () => {
+  const legacyUploadSnapshot = {
+    ...snapshot,
+    photoAssets: [
+      {
+        assetId: "asset-upload",
+        url: "/uploads/v2-observations/visit-1/photo.jpg",
+        widthPx: 2560,
+        heightPx: 1920,
+        roleTag: null,
+        roleTagSource: null,
+        organTarget: null,
+        mediaRole: "primary_subject",
+        suggestedMediaRole: null,
+        suggestedMediaRoleConfidence: null,
+        suggestedMediaRoleSource: null,
+        suggestedMediaRoleReason: null,
+      },
+    ],
+  } as unknown as ObservationDetailSnapshot;
+
+  const { mediaBlock, galleryScript } = renderObservationMedia(legacyUploadSnapshot, subject);
+
+  assert.match(mediaBlock, /src="\/thumb\/lg\/v2-observations\/visit-1\/photo\.jpg"/);
+  assert.match(mediaBlock, /data-obs-full-src="\/uploads\/v2-observations\/visit-1\/photo\.jpg"/);
+  assert.match(galleryScript, /getAttribute\('data-obs-full-src'\) \|\| previewImg\.src/);
 });
 
 test("observation media renders video media role badges", () => {
