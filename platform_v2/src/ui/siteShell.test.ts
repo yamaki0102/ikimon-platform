@@ -44,7 +44,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
   assert.match(html, /href="\/ja\/learn\/updates"/);
   assert.match(html, /desktop-side-nav-section-title">自分の記録/);
-  assert.match(html, /desktop-side-nav-section-title">よく見る/);
+  assert.match(html, /desktop-side-nav-section-title">フォロー中/);
   assert.match(html, /desktop-side-nav-section-title">探す・見る/);
   assert.match(html, /desktop-side-nav-section-title">アップデート・連絡/);
   assert.match(html, /html\[data-auth="signed-in"\] \.desktop-side-nav-section--guest/);

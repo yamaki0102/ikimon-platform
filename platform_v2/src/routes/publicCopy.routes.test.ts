@@ -110,7 +110,11 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     assert.match(response.body, /観察する/);
     assert.match(response.body, /同定する/);
     assert.match(response.body, /マイページ/);
-    assert.match(response.body, /新着投稿/);
+    assert.match(response.body, /今日の発見/);
+    assert.match(response.body, /写真/);
+    assert.match(response.body, /動画/);
+    assert.match(response.body, /ガイド/);
+    assert.match(response.body, /スキャン/);
     assert.match(response.body, /同定待ち/);
     assert.match(response.body, /地域マップ/);
     assert.match(response.body, /getElementById\("ikimon-topa-map-mini"\)/);

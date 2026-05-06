@@ -3,9 +3,11 @@ import { appendLangToHref, type SiteLang } from "../i18n.js";
 import type { FieldLoopStrings, LandingStrings } from "../i18n/strings.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import type {
-  LandingDailyCardKind,
   LandingObservation,
   LandingSnapshot,
+  LandingTopOverflowSummary,
+  LandingTopShelf,
+  LandingTopShelfKind,
 } from "../services/readModels.js";
 import { toThumbnailUrl, type ThumbnailPreset } from "../services/thumbnailUrl.js";
 import { renderMapMini, toMapMiniCells } from "./mapMini.js";
@@ -31,13 +33,6 @@ export type LandingTopSections = {
   communitySectionHtml: string;
   finalCtaHtml: string;
 };
-
-const DAILY_CARD_KPI_ACTIONS = {
-  recordToday: "landing:daily:card:recordToday",
-  revisitPlace: "landing:daily:card:revisitPlace",
-  nearbyPulse: "landing:daily:card:nearbyPulse",
-  needsId: "landing:daily:card:needsId",
-} satisfies Record<LandingDailyCardKind, string>;
 
 function localeForLang(lang: SiteLang): string {
   const localeMap: Record<SiteLang, string> = {
@@ -130,6 +125,19 @@ function observationStatusLabel(obs: LandingObservation): { label: string; tone:
   return { label: "同定待ち", tone: "amber" };
 }
 
+function landingShelfAction(kind: LandingTopShelfKind, obs: LandingObservation): string {
+  if (kind === "needsId") return obs.identificationCount > 0 ? "根拠を見に行く" : "名前を確かめる";
+  if (kind === "video") return "動きを見る";
+  if (kind === "guide") return "ガイドの流れを見る";
+  if (kind === "scan") return "現地の手がかりを見る";
+  if (obs.identificationCount === 0 || obs.isAiCandidate) return "名前を確かめる";
+  return "同じ季節に探す";
+}
+
+function landingShelfCardKpi(kind: LandingTopShelfKind): string {
+  return `landing:topA:shelf:${kind}`;
+}
+
 function renderTopAObservationCard(
   basePath: string,
   lang: SiteLang,
@@ -137,6 +145,7 @@ function renderTopAObservationCard(
   obs: LandingObservation,
   index: number,
   kpiAction: string,
+  shelfKind: LandingTopShelfKind = "today",
 ): string {
   const href = observationDetailHref(basePath, lang, obs);
   const imageUrl = observationImageUrl(obs, "md");
@@ -153,6 +162,7 @@ function renderTopAObservationCard(
       <strong>${escapeHtml(title)}</strong>
       <small>${escapeHtml(meta)}</small>
       <em class="prototype-topa-status is-${status.tone}">${escapeHtml(status.label)}</em>
+      <span class="prototype-topa-next">${escapeHtml(landingShelfAction(shelfKind, obs))}</span>
     </span>
   </a>`;
 }
@@ -162,6 +172,101 @@ function renderTopAEmptyCard(basePath: string, lang: SiteLang, title: string, bo
     <strong>${escapeHtml(title)}</strong>
     <span>${escapeHtml(body)}</span>
   </a>`;
+}
+
+function renderLandingShelfCta(basePath: string, lang: SiteLang, shelf: LandingTopShelf): string {
+  if (!shelf.cta) return "";
+  return renderTopAEmptyCard(
+    basePath,
+    lang,
+    shelf.cta.title,
+    shelf.cta.body,
+    shelf.cta.href,
+    `landing:topA:shelf:${shelf.kind}:cta`,
+  );
+}
+
+function renderOverflowSummaryCard(summary: LandingTopOverflowSummary, copy: LandingStrings): string {
+  return `<div class="prototype-topa-summary-card">
+    <small>今日のまとめ</small>
+    <strong>${escapeHtml(summary.observerName)} さんの発見 ${escapeHtml(formatLandingNumber(copy, summary.count))}件をまとめました</strong>
+    <span>${escapeHtml(displayObservationName(summary.sampleObservation, copy.heroPhotoFallback))} など。トップでは個別カードを並べすぎず、地域と種類の幅を優先します。</span>
+  </div>`;
+}
+
+function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
+  const observations = uniqueLandingObservations(snapshot);
+  return [
+    {
+      kind: "today",
+      title: "今日の発見",
+      eyebrow: "ENJOY NATURE",
+      href: "/observations",
+      items: observations.slice(0, 8),
+    },
+    {
+      kind: "photo",
+      title: "写真",
+      eyebrow: "PHOTO",
+      href: "/observations?media=photo",
+      items: observations.filter((obs) => Boolean(obs.photoUrl)).slice(0, 6),
+    },
+    {
+      kind: "video",
+      title: "動画",
+      eyebrow: "VIDEO",
+      href: "/observations?media=video",
+      items: observations.filter((obs) => Boolean(obs.hasVideo) || obs.librarySourceKind === "video").slice(0, 4),
+      cta: { title: "動きのある記録を増やす", body: "鳴き声や歩き方は動画で残せます。", href: "/record", actionLabel: "動画を記録する" },
+    },
+    {
+      kind: "guide",
+      title: "ガイド",
+      eyebrow: "GUIDE",
+      href: "/guide",
+      items: observations.filter((obs) => obs.librarySourceKind === "guide").slice(0, 4),
+      cta: { title: "観察ガイドから歩く", body: "場所や季節に合わせた見どころをたどれます。", href: "/guide", actionLabel: "ガイドを見る" },
+    },
+    {
+      kind: "scan",
+      title: "スキャン",
+      eyebrow: "SCAN",
+      href: "/lens",
+      items: observations.filter((obs) => obs.librarySourceKind === "scan").slice(0, 4),
+      cta: { title: "現地をスキャンする", body: "写真、音、場所の手がかりを束ねます。", href: "/lens", actionLabel: "スキャンを始める" },
+    },
+    {
+      kind: "needsId",
+      title: "同定待ち",
+      eyebrow: "IDENTIFY",
+      href: "/observations?filter=needs_id",
+      items: observations.filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate).slice(0, 6),
+    },
+  ];
+}
+
+function renderLandingShelf(options: LandingTopRenderOptions, shelf: LandingTopShelf, index: number): string {
+  const { basePath, lang, copy, snapshot } = options;
+  const itemsHtml = shelf.items.map((obs, itemIndex) =>
+    renderTopAObservationCard(basePath, lang, copy, obs, itemIndex, landingShelfCardKpi(shelf.kind), shelf.kind),
+  ).join("");
+  const summaryHtml = shelf.kind === "today"
+    ? (snapshot.overflowSummaries ?? []).slice(0, 1).map((summary) => renderOverflowSummaryCard(summary, copy)).join("")
+    : "";
+  const ctaHtml = shelf.cta && shelf.items.length < Math.min(2, 4) ? renderLandingShelfCta(basePath, lang, shelf) : "";
+  const emptyHtml = !itemsHtml && !ctaHtml
+    ? renderTopAEmptyCard(basePath, lang, "まだ公開できる観察がありません", "最初の発見を写真で残せます。", "/record", `landing:topA:shelf:${shelf.kind}:empty`)
+    : "";
+  return `<div class="prototype-topa-shelf prototype-topa-shelf-${escapeHtml(shelf.kind)}" id="topa-${escapeHtml(shelf.kind)}">
+    <div class="prototype-topa-shelf-head">
+      <div>
+        <small>${escapeHtml(shelf.eyebrow)}</small>
+        <h2>${escapeHtml(shelf.title)}</h2>
+      </div>
+      <a href="${escapeHtml(landingHref(basePath, lang, shelf.href))}" data-kpi-action="landing:topA:shelf:${escapeHtml(shelf.kind)}:all">すべて見る</a>
+    </div>
+    <div class="prototype-topa-card-grid${index === 0 ? " is-primary" : ""}">${itemsHtml}${summaryHtml}${ctaHtml}${emptyHtml}</div>
+  </div>`;
 }
 
 function renderObservationThumb(obs: LandingObservation, copy: LandingStrings, preset: ThumbnailPreset, eager = false): string {
@@ -259,28 +364,10 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
-  const observations = uniqueLandingObservations(snapshot);
-  const latestObservations = observations.slice(0, 8);
-  const latestCards = latestObservations.map((obs, index) =>
-    renderTopAObservationCard(basePath, lang, copy, obs, index, "landing:topA:shelf:latest"),
-  ).join("") || renderTopAEmptyCard(
-    basePath,
-    lang,
-    "まだ公開できる観察がありません",
-    "最初の発見を写真で残せます。",
-    "/record",
-    "landing:topA:shelf:latestEmpty",
-  );
-
-  const identificationCards = observations
-    .filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate)
-    .slice(0, 6);
-  const identificationList = identificationCards.length
-    ? identificationCards.map((obs) => `<a href="${escapeHtml(observationDetailHref(basePath, lang, obs))}" data-kpi-action="landing:topA:identify:item">
-        <strong>${escapeHtml(displayObservationName(obs, copy.heroPhotoFallback))}</strong>
-        <span>${escapeHtml(landingObservationMeta(lang, obs) || "公開位置は安全側で表示")}</span>
-      </a>`).join("")
-    : `<div class="prototype-topa-side-empty">いま目立つ同定待ちはありません。</div>`;
+  const shelves = (snapshot.topShelves && snapshot.topShelves.length > 0)
+    ? snapshot.topShelves
+    : fallbackLandingShelves(snapshot);
+  const contentShelvesHtml = shelves.map((shelf, index) => renderLandingShelf(options, shelf, index)).join("");
 
   const regionalStory = snapshot.regionalStory ?? null;
   const mapHref = landingHref(basePath, lang, "/map");
@@ -305,24 +392,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
       </div>`;
 
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
-    <div class="prototype-topa-board">
-      <div class="prototype-topa-shelf" id="topa-latest">
-        <div class="prototype-topa-shelf-head">
-          <h2>新着投稿</h2>
-          <a href="${escapeHtml(landingHref(basePath, lang, "/observations"))}" data-kpi-action="landing:topA:shelf:latestAll">すべて見る</a>
-        </div>
-        <div class="prototype-topa-card-grid">${latestCards}</div>
-      </div>
-
-      <aside class="prototype-topa-side" aria-labelledby="topa-identify-heading">
-        <div class="prototype-topa-side-head">
-          <small>${escapeHtml(formatLandingNumber(copy, identificationCards.length))}件</small>
-          <h2 id="topa-identify-heading">同定待ち</h2>
-          <a href="${escapeHtml(landingHref(basePath, lang, "/observations?filter=needs_id"))}" data-kpi-action="landing:topA:shelf:identifyAll">協力する</a>
-        </div>
-        <div class="prototype-topa-identify-list">${identificationList}</div>
-      </aside>
-    </div>
+    ${contentShelvesHtml}
 
     <div class="prototype-topa-map-shelf" id="topa-local-map">
       <div class="prototype-topa-map-copy">
@@ -686,6 +756,14 @@ export const LANDING_TOP_STYLES = `
     line-height: 1.25;
     font-weight: 950;
   }
+  .prototype-topa-shelf-head small {
+    display: block;
+    margin-bottom: 4px;
+    color: #047857;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
   .prototype-topa-shelf-head a {
     min-height: 44px;
     display: inline-flex;
@@ -701,6 +779,9 @@ export const LANDING_TOP_STYLES = `
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
+  }
+  .prototype-topa-card-grid.is-primary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .prototype-topa-card,
   .prototype-topa-empty-card {
@@ -772,6 +853,28 @@ export const LANDING_TOP_STYLES = `
   .prototype-topa-status.is-green { color: #047857; background: #e7f5ef; }
   .prototype-topa-status.is-blue { color: #1d4ed8; background: #e8f0ff; }
   .prototype-topa-status.is-amber { color: #92400e; background: #fff2d7; }
+  .prototype-topa-next {
+    display: block;
+    color: #047857;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 950;
+  }
+  .prototype-topa-summary-card {
+    min-height: 170px;
+    grid-column: span 2;
+    display: grid;
+    align-content: center;
+    gap: 8px;
+    padding: 18px;
+    border: 1px solid rgba(14,165,233,.18);
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f0f9ff, #ffffff 54%, #ecfdf5);
+    box-shadow: 0 18px 44px rgba(15,23,42,.065);
+  }
+  .prototype-topa-summary-card small { color: #0369a1; font-size: 12px; font-weight: 950; }
+  .prototype-topa-summary-card strong { color: #10251a; font-size: 18px; line-height: 1.35; font-weight: 950; }
+  .prototype-topa-summary-card span { color: #64748b; font-size: 13px; line-height: 1.6; font-weight: 720; }
   .prototype-topa-side {
     position: sticky;
     top: 86px;
@@ -1370,8 +1473,10 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-tabs a { min-height: 52px; }
     .prototype-topa-card-grid { grid-template-columns: 1fr; }
+    .prototype-topa-card-grid.is-primary { grid-template-columns: 1fr; }
     .prototype-topa-card { min-height: 118px; display: grid; grid-template-columns: 128px minmax(0, 1fr); }
     .prototype-topa-thumb { height: 100%; min-height: 116px; }
+    .prototype-topa-summary-card { grid-column: auto; }
     .prototype-topa-map-board { min-height: 320px; }
     .prototype-topa-learn { grid-template-columns: 1fr; }
     .prototype-topa-learn a { width: 100%; justify-content: center; }

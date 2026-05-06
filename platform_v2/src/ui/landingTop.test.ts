@@ -116,6 +116,11 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /観察する/);
   assert.match(html, /同定する/);
   assert.match(html, /地域マップ/);
+  assert.match(html, /今日の発見/);
+  assert.match(html, /写真/);
+  assert.match(html, /動画/);
+  assert.match(html, /ガイド/);
+  assert.match(html, /スキャン/);
   assert.match(html, /まだ公開できる観察がありません/);
   assert.match(html, /\/observations\?filter=needs_id/);
   assert.match(html, /data-kpi-action="landing:topA:primary:record"/);
@@ -128,10 +133,11 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.doesNotMatch(html, /sample_/);
   assert.match(html, /<img src="\/thumb\/md\/real-observation\.jpg" alt="モンシロチョウ" loading="eager"/);
   assert.match(html, /\/observations\/visit-1/);
-  assert.match(html, /data-kpi-action="landing:topA:shelf:latest"/);
-  assert.match(html, /data-kpi-action="landing:topA:shelf:identifyAll"/);
-  assert.equal((html.match(/prototype-topa-card-grid/g) ?? []).length, 1);
-  assert.match(html, /prototype-topa-identify-list/);
+  assert.match(html, /data-kpi-action="landing:topA:shelf:today"/);
+  assert.match(html, /data-kpi-action="landing:topA:shelf:needsId:all"/);
+  assert.ok((html.match(/prototype-topa-card-grid/g) ?? []).length >= 6);
+  assert.match(html, /動きのある記録を増やす/);
+  assert.doesNotMatch(html, /新着投稿/);
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
 });
 

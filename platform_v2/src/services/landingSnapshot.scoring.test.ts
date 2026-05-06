@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildLandingTopShelves,
   isKnownLandingDummyObservation,
   isLandingFixtureObservation,
   isLandingHeroCandidateEligible,
@@ -9,6 +10,7 @@ import {
   type LandingHeroCandidate,
   type LandingHeroScoreContext,
 } from "./landingSnapshot.js";
+import type { LandingObservation } from "./readModels.js";
 
 function candidate(overrides: Partial<LandingHeroCandidate> = {}): LandingHeroCandidate {
   return {
@@ -49,6 +51,42 @@ function context(overrides: Partial<LandingHeroScoreContext> = {}): LandingHeroS
     dateKey: "2026-04-24",
     now: new Date("2026-04-24T00:00:00.000Z"),
     preferredMunicipalities: ["Hamamatsu"],
+    ...overrides,
+  };
+}
+
+function topObservation(index: number, overrides: Partial<LandingObservation> = {}): LandingObservation {
+  const userIndex = Math.floor(index / 2);
+  return {
+    occurrenceId: `top-occ-${index}`,
+    visitId: `top-visit-${index}`,
+    displayName: `発見 ${index}`,
+    observedAt: `2026-04-${String((index % 20) + 1).padStart(2, "0")}T09:00:00.000Z`,
+    observerName: `Observer ${userIndex}`,
+    placeName: `Field ${index % 5}`,
+    municipality: `Area ${index % 5}`,
+    publicLocation: {
+      label: `Area ${index % 5}`,
+      scope: "municipality",
+      cellId: `3000:${index % 5}:${index % 3}`,
+      gridM: 3000,
+      radiusM: 3000,
+      centroidLat: 34.7 + (index % 5) * 0.01,
+      centroidLng: 137.7 + (index % 5) * 0.01,
+      displayMode: "area",
+    },
+    photoUrl: `/uploads/top-${index}.jpg`,
+    photoUrls: [`/uploads/top-${index}.jpg`],
+    photoCount: 1,
+    identificationCount: index % 4,
+    latitude: 34.7,
+    longitude: 137.7,
+    observerUserId: `user-${userIndex}`,
+    observerAvatarUrl: null,
+    librarySourceKind: "photo",
+    hasVideo: false,
+    entryType: "observation",
+    evidenceTier: 2,
     ...overrides,
   };
 }
@@ -145,4 +183,57 @@ test("landing fixture observations stay out of public landing shelves", () => {
     municipality: "浜松市",
     photoUrl: "/uploads/photos/real-observation.jpg",
   }), false);
+});
+
+test("landing top shelf selection caps repeated observers per shelf and across the top", () => {
+  const heavyUser = Array.from({ length: 100 }, (_, index) => topObservation(index, {
+    observerUserId: "power-user",
+    observerName: "Power User",
+    librarySourceKind: index % 3 === 0 ? "video" : "photo",
+    hasVideo: index % 3 === 0,
+    identificationCount: index % 5 === 0 ? 0 : 2,
+  }));
+  const otherUsers = Array.from({ length: 20 }, (_, index) => topObservation(200 + index, {
+    observerUserId: `other-${index}`,
+    observerName: `Other ${index}`,
+    librarySourceKind: index % 4 === 0 ? "guide" : index % 4 === 1 ? "scan" : index % 4 === 2 ? "video" : "photo",
+    hasVideo: index % 4 === 2,
+    identificationCount: index % 3 === 0 ? 0 : 2,
+  }));
+
+  const { shelves, overflowSummaries } = buildLandingTopShelves([...heavyUser, ...otherUsers], {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+    preferredMunicipalities: ["Area 1", "Area 2"],
+  });
+
+  for (const shelf of shelves) {
+    const powerUserCount = shelf.items.filter((item) => item.observerUserId === "power-user").length;
+    assert.ok(powerUserCount <= 1, `${shelf.kind} should include the heavy user at most once`);
+  }
+  const allItems = shelves.flatMap((shelf) => shelf.items);
+  assert.ok(allItems.filter((item) => item.observerUserId === "power-user").length <= 3);
+  assert.ok(overflowSummaries.some((summary) => summary.observerUserId === "power-user" && summary.count >= 97));
+});
+
+test("landing top shelves keep content modes distinct and keep CTA shelves unfilled by photos", () => {
+  const observations = [
+    topObservation(1, { librarySourceKind: "photo", hasVideo: false }),
+    topObservation(2, { librarySourceKind: "video", hasVideo: true }),
+    topObservation(3, { librarySourceKind: "guide", hasVideo: false }),
+    topObservation(4, { librarySourceKind: "scan", hasVideo: false }),
+    topObservation(5, { identificationCount: 0, librarySourceKind: "photo", hasVideo: false }),
+  ];
+  const { shelves } = buildLandingTopShelves(observations, {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+  });
+  assert.ok(shelves.find((shelf) => shelf.kind === "video")?.items.every((item) => item.hasVideo || item.librarySourceKind === "video"));
+  assert.ok(shelves.find((shelf) => shelf.kind === "guide")?.items.every((item) => item.librarySourceKind === "guide"));
+  assert.ok(shelves.find((shelf) => shelf.kind === "scan")?.items.every((item) => item.librarySourceKind === "scan"));
+
+  const photoOnly = buildLandingTopShelves([topObservation(10), topObservation(11)], {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+  });
+  assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "video")?.items.length, 0);
+  assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "guide")?.items.length, 0);
+  assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "scan")?.items.length, 0);
 });
