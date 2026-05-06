@@ -1896,6 +1896,32 @@ export type LandingDailyDashboard = {
   seasonalStrip: LandingSeasonalStripItem[];
 };
 
+export type LandingTopShelfKind = "today" | "photo" | "video" | "guide" | "scan" | "needsId";
+
+export type LandingTopShelfCta = {
+  title: string;
+  body: string;
+  href: string;
+  actionLabel: string;
+};
+
+export type LandingTopShelf = {
+  kind: LandingTopShelfKind;
+  title: string;
+  eyebrow: string;
+  href: string;
+  items: LandingObservation[];
+  cta?: LandingTopShelfCta;
+};
+
+export type LandingTopOverflowSummary = {
+  observerUserId: string;
+  observerName: string;
+  count: number;
+  latestObservedAt: string;
+  sampleObservation: LandingObservation;
+};
+
 export type LandingMapPreviewCell = {
   cellId: string;
   label: string;
@@ -1944,6 +1970,8 @@ export type LandingSnapshot = {
   stats: LandingStats;
   feed: LandingObservation[];
   myFeed: LandingObservation[];
+  topShelves?: LandingTopShelf[];
+  overflowSummaries?: LandingTopOverflowSummary[];
   myPlaces: HomePlace[];
   mapPreviewCells: LandingMapPreviewCell[];
   ambient: AmbientObserver[];

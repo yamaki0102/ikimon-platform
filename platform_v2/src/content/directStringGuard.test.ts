@@ -23,6 +23,7 @@ const explicitAllowlist = [
   "platform_v2/src/routes/guideApi.ts",
   "platform_v2/src/routes/guideRecordsDebug.ts",
   "platform_v2/src/routes/marketing.ts",
+  "platform_v2/src/routes/meSubscriptionsApi.ts",
   "platform_v2/src/routes/observationEventApi.ts",
   "platform_v2/src/routes/observationEventPages.ts",
   "platform_v2/src/routes/observationFieldsApi.ts",

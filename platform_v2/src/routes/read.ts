@@ -71,6 +71,7 @@ import {
   getObservationListSnapshot,
   getProfileSnapshot,
   getSpecialistSnapshot,
+  type HomeSnapshot,
   type HomePlace,
   type LandingObservation,
   type LandingSnapshot,
@@ -2747,7 +2748,29 @@ const PLACE_REVISIT_ROW_STYLES = `
   }
 `;
 
+const PROFILE_CHANNEL_STYLES = `
+  .profile-channel-grid { display: grid; grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .profile-channel-card { min-width: 0; min-height: 248px; display: grid; grid-template-rows: minmax(132px, 1fr) auto; overflow: hidden; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.92); box-shadow: 0 14px 34px rgba(15,23,42,.055); color: inherit; text-decoration: none; }
+  .profile-channel-card:first-child { min-height: 320px; }
+  .profile-channel-media { position: relative; display: grid; place-items: center; min-height: 132px; background: linear-gradient(135deg, #ecfdf5, #f8fafc 58%, #f0f9ff); color: #047857; font-size: 13px; font-weight: 950; }
+  .profile-channel-media img { width: 100%; height: 100%; min-height: 132px; object-fit: cover; display: block; }
+  .profile-channel-media > span { width: 100%; height: 100%; min-height: 132px; display: grid; place-items: center; }
+  .profile-channel-body { display: grid; gap: 6px; align-content: start; padding: 14px; }
+  .profile-channel-body small { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+  .profile-channel-body strong { color: #10251a; font-size: 17px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+  .profile-channel-body em { color: #64748b; font-size: 12.5px; line-height: 1.6; font-style: normal; font-weight: 720; overflow-wrap: anywhere; }
+  @media (max-width: 980px) {
+    .profile-channel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-channel-card:first-child { min-height: 248px; }
+  }
+  @media (max-width: 620px) {
+    .profile-channel-grid { grid-template-columns: 1fr; }
+    .profile-channel-card, .profile-channel-card:first-child { min-height: 220px; }
+  }
+`;
+
 const PROFILE_HUB_STYLES = `
+  ${PROFILE_CHANNEL_STYLES}
   ${PLACE_REVISIT_ROW_STYLES}
   .profile-hub-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-width: 0; }
   .profile-hub-actions .btn { min-height: 44px; max-width: 100%; white-space: normal; }
@@ -2928,6 +2951,125 @@ function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editabl
   </section>`;
 }
 
+function profileObservationHref(basePath: string, item: {
+  occurrenceId: string;
+  visitId: string;
+  detailId?: string;
+  featuredOccurrenceId?: string | null;
+}): string {
+  return withBasePath(basePath, buildObservationDetailPath(
+    item.detailId ?? item.visitId ?? item.occurrenceId,
+    item.featuredOccurrenceId ?? item.occurrenceId,
+  ));
+}
+
+function renderChannelMediaCard(
+  href: string,
+  label: string,
+  title: string,
+  body: string,
+  photoUrl: string | null | undefined,
+  fallback: string,
+): string {
+  const mediaUrl = photoUrl ? (toThumbnailUrl(photoUrl, "md") ?? photoUrl) : null;
+  return `<a class="profile-channel-card" href="${escapeHtml(href)}">
+    <span class="profile-channel-media">
+      ${mediaUrl
+        ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(fallback)}</span>`
+        : `<span>${escapeHtml(fallback)}</span>`}
+    </span>
+    <span class="profile-channel-body">
+      <small>${escapeHtml(label)}</small>
+      <strong>${escapeHtml(title)}</strong>
+      <em>${escapeHtml(body)}</em>
+    </span>
+  </a>`;
+}
+
+function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): string {
+  const latest = snapshot.recentObservations[0] ?? null;
+  const firstPlace = snapshot.myPlaces[0] ?? null;
+  const secondPlace = snapshot.myPlaces[1] ?? null;
+  return `<section class="section" data-testid="home-channel">
+    <div class="profile-channel-grid">
+      ${renderChannelMediaCard(
+        withBasePath(basePath, firstPlace ? "/notes#notes-places" : "/map"),
+        "自分のフィールド",
+        firstPlace?.placeName ?? "これから歩く場所",
+        firstPlace ? buildPlaceNextLine(firstPlace) : "最初の場所を記録すると、ここが自分のフィールドになります。",
+        latest?.photoUrl,
+        "FIELD",
+      )}
+      ${renderChannelMediaCard(
+        latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record"),
+        "最近見た自然",
+        latest?.displayName ?? "今日の発見を待っています",
+        latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "写真とひとことで、あとから見返せるページを作れます。",
+        latest?.photoUrl,
+        "PHOTO",
+      )}
+      ${renderChannelMediaCard(
+        withBasePath(basePath, secondPlace ? "/notes#notes-places" : "/map"),
+        "次に行く場所",
+        secondPlace?.placeName ?? firstPlace?.placeName ?? "地図から探す",
+        secondPlace ? buildPlaceNextLine(secondPlace) : firstPlace ? buildPlaceNextLine(firstPlace) : "近くの発見から、次に歩く場所を選べます。",
+        null,
+        "NEXT",
+      )}
+      ${renderChannelMediaCard(
+        withBasePath(basePath, "/notes#notes-own"),
+        "自分の図鑑",
+        latest ? `${latest.displayName} から広げる` : "まだ空の図鑑",
+        "数を競う場所ではなく、自分が自然とどう関わってきたかを読み返す場所です。",
+        latest?.photoUrl,
+        "LIFE",
+      )}
+    </div>
+  </section>`;
+}
+
+function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): string {
+  const latest = snapshot.recentObservations[0] ?? null;
+  const firstPlace = snapshot.recentPlaces[0] ?? null;
+  const topLife = snapshot.lifeListPreview[0] ?? null;
+  return `<section class="section" data-testid="profile-channel">
+    <div class="profile-channel-grid">
+      ${renderChannelMediaCard(
+        withBasePath(basePath, firstPlace ? "/notes#notes-places" : "/map"),
+        "自分のフィールド",
+        firstPlace?.placeName ?? "これから歩く場所",
+        firstPlace ? buildPlaceNextLine(firstPlace) : "場所の記録が入ると、よく歩くフィールドとして育ちます。",
+        latest?.photoUrl,
+        "FIELD",
+      )}
+      ${renderChannelMediaCard(
+        latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record"),
+        "最近見た自然",
+        latest?.displayName ?? "まだ観察はありません",
+        latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の発見から、自然との関わりが見えるページになります。",
+        latest?.photoUrl,
+        "PHOTO",
+      )}
+      ${renderChannelMediaCard(
+        withBasePath(basePath, firstPlace ? "/record" : "/map"),
+        "次に行く場所",
+        firstPlace ? buildPlaceNextLine(firstPlace) : "地図から探す",
+        firstPlace ? `${firstPlace.placeName} をもう一度見る理由があります。` : "近くの発見から、次の観察地点を選べます。",
+        null,
+        "NEXT",
+      )}
+      ${renderChannelMediaCard(
+        withBasePath(basePath, "/notes#notes-own"),
+        "自分の図鑑",
+        topLife?.displayName ?? "名前が付くと並びます",
+        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の記録から見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
+        topLife?.photoUrl ?? latest?.photoUrl,
+        "LIFE",
+      )}
+    </div>
+  </section>`;
+}
+
 function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null): string {
   const firstPlace = snapshot.recentPlaces[0] ?? null;
   const latestObservation = snapshot.recentObservations[0] ?? null;
@@ -3061,12 +3203,14 @@ function renderProfileLifeList(snapshot: ProfileSnapshot): string {
 }
 
 function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null, regionalStories: RegionalStoryCue[] = []): string {
-  return `${renderProfileSummary(snapshot)}
+  return `${renderProfileChannelHero(basePath, snapshot)}
     ${renderProfileIntro(basePath, snapshot, true)}
     ${renderProfileNextActions(basePath, snapshot, digest)}
+    ${renderProfileLifeList(snapshot)}
     ${renderProfilePlaceStories(regionalStories)}
     ${renderProfileHistory(snapshot)}
     ${renderProfileGrowth(snapshot, digest)}
+    ${renderProfileSummary(snapshot)}
     ${renderProfileContribution(basePath, snapshot, digest)}`;
 }
 
@@ -7788,11 +7932,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     return layout(
       basePath,
       "ホーム | ikimon",
-      `<section class="section">
-        <div class="grid">
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今回の学び</div><h2>前回より見えた点</h2><p class="meta">${escapeHtml(growthCue)}</p></div></div>
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">また行く理由</div><h2>次に訪れる場所</h2><p class="meta">${escapeHtml(revisitCue)}</p></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">積み上がる意味</div><h2>長く残る観察</h2><p class="meta">今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div></div>
+      `${renderHomeChannelDashboard(basePath, snapshot)}
+      <section class="section">
+        <div class="profile-growth-shell">
+          <div class="profile-growth-grid">
+            <div class="profile-growth-card"><span>今回の学び</span><strong>前回より見えた点</strong><p>${escapeHtml(growthCue)}</p></div>
+            <div class="profile-growth-card"><span>また行く理由</span><strong>次に訪れる場所</strong><p>${escapeHtml(revisitCue)}</p></div>
+            <div class="profile-growth-card"><span>積み上がる意味</span><strong>長く残る観察</strong><p>今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div>
+          </div>
         </div>
       </section>
       ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces}</div></section>` : ""}
@@ -7808,7 +7955,19 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         ],
       },
       `${OBSERVATION_CARD_STYLES}
+        .hero-panel { padding-block: 32px 24px; }
+        .hero-panel p { display: none; }
+        .hero-panel .actions { margin-top: 18px; }
         .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        ${PROFILE_CHANNEL_STYLES}
+        .profile-growth-shell { min-width: 0; display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
+        .profile-growth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .profile-growth-card { min-width: 0; min-height: 132px; padding: 15px; border-radius: 8px; border: 1px solid rgba(16,185,129,.13); background: rgba(248,250,252,.82); overflow-wrap: anywhere; }
+        .profile-growth-card span { display: block; color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+        .profile-growth-card strong { display: block; margin-top: 8px; color: #10251a; font-size: 20px; line-height: 1.2; font-weight: 950; }
+        .profile-growth-card p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+        @media (max-width: 980px) { .profile-growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 620px) { .profile-growth-grid { grid-template-columns: 1fr; } .profile-growth-shell { padding: 16px; } }
         ${PLACE_REVISIT_ROW_STYLES}
       `,
     );

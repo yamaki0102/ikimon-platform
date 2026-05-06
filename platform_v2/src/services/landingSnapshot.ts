@@ -26,6 +26,9 @@ import type {
   LandingObservation,
   LandingSnapshot,
   LandingStats,
+  LandingTopOverflowSummary,
+  LandingTopShelf,
+  LandingTopShelfKind,
 } from "./readModels.js";
 
 function normalizeAssetUrl(value: string | null | undefined): string | null {
@@ -634,6 +637,245 @@ function buildLandingDailyDashboard(
   };
 }
 
+type LandingTopShelfDefinition = {
+  kind: LandingTopShelfKind;
+  title: string;
+  eyebrow: string;
+  href: string;
+  limit: number;
+  cta?: LandingTopShelf["cta"];
+  matches: (observation: LandingObservation) => boolean;
+};
+
+const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
+  {
+    kind: "today",
+    title: "今日の発見",
+    eyebrow: "ENJOY NATURE",
+    href: "/observations",
+    limit: 8,
+    matches: () => true,
+  },
+  {
+    kind: "photo",
+    title: "写真",
+    eyebrow: "PHOTO",
+    href: "/observations?media=photo",
+    limit: 6,
+    matches: (observation) => Boolean(observation.photoUrl),
+  },
+  {
+    kind: "video",
+    title: "動画",
+    eyebrow: "VIDEO",
+    href: "/observations?media=video",
+    limit: 4,
+    matches: (observation) => Boolean(observation.hasVideo) || observation.librarySourceKind === "video",
+    cta: {
+      title: "動きのある記録を増やす",
+      body: "鳴き声、歩き方、羽ばたきは写真だけでは残りません。動画で短く残せます。",
+      href: "/record",
+      actionLabel: "動画を記録する",
+    },
+  },
+  {
+    kind: "guide",
+    title: "ガイド",
+    eyebrow: "GUIDE",
+    href: "/guide",
+    limit: 4,
+    matches: (observation) => observation.librarySourceKind === "guide",
+    cta: {
+      title: "観察ガイドから歩く",
+      body: "場所や季節に合わせた見どころをたどると、次に探すものが決まりやすくなります。",
+      href: "/guide",
+      actionLabel: "ガイドを見る",
+    },
+  },
+  {
+    kind: "scan",
+    title: "スキャン",
+    eyebrow: "SCAN",
+    href: "/lens",
+    limit: 4,
+    matches: (observation) => observation.librarySourceKind === "scan",
+    cta: {
+      title: "現地をスキャンする",
+      body: "写真、音、場所の手がかりを束ねて、あとから確かめられる観察にできます。",
+      href: "/lens",
+      actionLabel: "スキャンを始める",
+    },
+  },
+  {
+    kind: "needsId",
+    title: "同定待ち",
+    eyebrow: "IDENTIFY",
+    href: "/observations?filter=needs_id",
+    limit: 6,
+    matches: (observation) => observation.isAiCandidate === true || observation.identificationCount === 0,
+  },
+];
+
+type LandingTopSelectionState = {
+  globalUserCounts: Map<string, number>;
+};
+
+function landingObserverKey(observation: LandingObservation): string | null {
+  const userId = observation.observerUserId?.trim();
+  if (userId) return `user:${userId}`;
+  const observerName = observation.observerName?.trim();
+  return observerName ? `name:${observerName}` : null;
+}
+
+function landingAreaKey(observation: LandingObservation): string {
+  if (observation.publicLocation.cellId) return observation.publicLocation.cellId;
+  return (observation.publicLocation.label || observation.municipality || observation.placeName || "").trim();
+}
+
+function daysSince(observedAt: string, now: Date): number {
+  const observed = new Date(observedAt);
+  if (Number.isNaN(observed.getTime())) return 365;
+  return Math.max(0, (now.getTime() - observed.getTime()) / 86_400_000);
+}
+
+function scoreLandingTopCandidate(
+  observation: LandingObservation,
+  shelfKind: LandingTopShelfKind,
+  now: Date,
+  preferredMunicipalities: string[],
+): number {
+  let score = 0;
+  if (observation.photoUrl) score += 24;
+  if ((observation.photoCount ?? 0) >= 2) score += 4;
+  if (observation.hasVideo || observation.librarySourceKind === "video") score += shelfKind === "video" ? 30 : 8;
+  if (observation.librarySourceKind === shelfKind) score += 26;
+  if (shelfKind === "needsId" && (observation.isAiCandidate || observation.identificationCount === 0)) score += 28;
+  if (observation.identificationCount === 0) score += 7;
+  if (observation.isAiCandidate) score += 5;
+  if (observation.evidenceTier && observation.evidenceTier >= 2) score += 8;
+  const municipality = observation.municipality?.trim();
+  if (municipality && preferredMunicipalities.includes(municipality)) score += 10;
+  else if (observation.publicLocation.scope === "municipality") score += 6;
+  const ageDays = daysSince(observation.observedAt, now);
+  if (ageDays <= 7) score += 14;
+  else if (ageDays <= 30) score += 10;
+  else if (ageDays <= 90) score += 5;
+  const observed = new Date(observation.observedAt);
+  if (!Number.isNaN(observed.getTime())) {
+    const distance = monthDistance(observed.getUTCMonth(), now.getUTCMonth());
+    score += distance === 0 ? 12 : distance === 1 ? 8 : distance === 2 ? 4 : 1;
+  }
+  score += stableHash(`${shelfKind}:${observation.occurrenceId}`) % 5;
+  return score;
+}
+
+function uniqueLandingObservationList(observations: LandingObservation[]): LandingObservation[] {
+  const seen = new Set<string>();
+  const unique: LandingObservation[] = [];
+  for (const observation of observations) {
+    if (seen.has(observation.occurrenceId)) continue;
+    seen.add(observation.occurrenceId);
+    unique.push(observation);
+  }
+  return unique;
+}
+
+function selectLandingShelfItems(
+  candidates: LandingObservation[],
+  definition: LandingTopShelfDefinition,
+  state: LandingTopSelectionState,
+  now: Date,
+  preferredMunicipalities: string[],
+): LandingObservation[] {
+  const ranked = candidates
+    .filter(definition.matches)
+    .map((observation) => ({
+      observation,
+      areaKey: landingAreaKey(observation),
+      observerKey: landingObserverKey(observation),
+      score: scoreLandingTopCandidate(observation, definition.kind, now, preferredMunicipalities),
+    }))
+    .sort((a, b) => b.score - a.score || b.observation.observedAt.localeCompare(a.observation.observedAt));
+
+  const picked: typeof ranked = [];
+  const shelfObserverKeys = new Set<string>();
+  for (let pass = 0; pass < 2 && picked.length < definition.limit; pass += 1) {
+    for (const candidate of ranked) {
+      if (picked.includes(candidate)) continue;
+      if (candidate.observerKey) {
+        if (shelfObserverKeys.has(candidate.observerKey)) continue;
+        if ((state.globalUserCounts.get(candidate.observerKey) ?? 0) >= 3) continue;
+      }
+      const previous = picked[picked.length - 1];
+      if (pass === 0 && previous?.areaKey && candidate.areaKey && previous.areaKey === candidate.areaKey) continue;
+      picked.push(candidate);
+      if (candidate.observerKey) {
+        shelfObserverKeys.add(candidate.observerKey);
+        state.globalUserCounts.set(candidate.observerKey, (state.globalUserCounts.get(candidate.observerKey) ?? 0) + 1);
+      }
+      if (picked.length >= definition.limit) break;
+    }
+  }
+  return picked.map((item) => item.observation);
+}
+
+function buildLandingOverflowSummaries(observations: LandingObservation[]): LandingTopOverflowSummary[] {
+  const groups = new Map<string, LandingObservation[]>();
+  for (const observation of observations) {
+    const userId = observation.observerUserId?.trim();
+    if (!userId) continue;
+    const group = groups.get(userId) ?? [];
+    group.push(observation);
+    groups.set(userId, group);
+  }
+  return Array.from(groups.entries())
+    .map(([observerUserId, group]) => {
+      const sorted = [...group].sort((a, b) => b.observedAt.localeCompare(a.observedAt));
+      const sampleObservation = sorted[0];
+      if (!sampleObservation || sorted.length <= 3) return null;
+      return {
+        observerUserId,
+        observerName: sampleObservation.observerName || "Observer",
+        count: sorted.length - 3,
+        latestObservedAt: sampleObservation.observedAt,
+        sampleObservation,
+      } satisfies LandingTopOverflowSummary;
+    })
+    .filter((summary): summary is LandingTopOverflowSummary => Boolean(summary))
+    .sort((a, b) => b.count - a.count || b.latestObservedAt.localeCompare(a.latestObservedAt))
+    .slice(0, 3);
+}
+
+export function buildLandingTopShelves(
+  observations: LandingObservation[],
+  options: {
+    now?: Date;
+    preferredMunicipalities?: string[];
+  } = {},
+): {
+  shelves: LandingTopShelf[];
+  overflowSummaries: LandingTopOverflowSummary[];
+} {
+  const now = options.now ?? new Date();
+  const preferredMunicipalities = options.preferredMunicipalities ?? [];
+  const candidates = uniqueLandingObservationList(filterLandingDummyObservations(observations));
+  const state: LandingTopSelectionState = {
+    globalUserCounts: new Map<string, number>(),
+  };
+  const shelves = LANDING_TOP_SHELF_DEFINITIONS.map((definition) => ({
+    kind: definition.kind,
+    title: definition.title,
+    eyebrow: definition.eyebrow,
+    href: definition.href,
+    items: selectLandingShelfItems(candidates, definition, state, now, preferredMunicipalities),
+    cta: definition.cta,
+  }));
+  return {
+    shelves,
+    overflowSummaries: buildLandingOverflowSummaries(candidates),
+  };
+}
+
 type IdentificationRow = {
   identification_id: string;
   created_at: string;
@@ -816,6 +1058,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
       feed: [],
       myFeed: [],
+      topShelves: [],
+      overflowSummaries: [],
       myPlaces: [],
       mapPreviewCells: [],
       ambient: [],
@@ -828,11 +1072,12 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     };
   }
 
-  // Public feed (all observers), latest 12 — photo-only (skip sketch/no-photo cards)
+  // Public feed (all observers), fetched wide so the top can select for diversity
+  // before rendering shelves.
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 120`,
     );
     feedRows = result.rows;
   } catch {
@@ -1169,13 +1414,18 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   const filteredFeedRows = feedRows.filter((row) => !isLandingSuppressedFeedRow(row));
   const ownObservationEntries = myFeedRows.map(toLandingObservation);
   const ownIdentificationEntries = myIdentificationRows.map(toIdentificationEntry);
-  const publicFeed = filteredFeedRows.map(toLandingObservation);
+  const publicFeedAll = filteredFeedRows.map(toLandingObservation);
+  const filteredMyPlaces = filterLandingDummyPlaces(myPlaces);
+  const topSelection = buildLandingTopShelves(publicFeedAll, {
+    preferredMunicipalities: buildPreferredMunicipalities(userId, filteredMyPlaces, publicFeedAll),
+  });
+  const selectedFeed = uniqueLandingObservationList(topSelection.shelves.flatMap((shelf) => shelf.items));
+  const publicFeed = selectedFeed.length > 0 ? selectedFeed.slice(0, 24) : publicFeedAll.slice(0, 12);
   const combined = filterLandingDummyObservations([...ownObservationEntries, ...ownIdentificationEntries]).sort((a, b) => {
     const aTs = (a.entryType === "identification" ? a.identifiedAt : a.observedAt) ?? "";
     const bTs = (b.entryType === "identification" ? b.identifiedAt : b.observedAt) ?? "";
     return bTs.localeCompare(aTs);
   });
-  const filteredMyPlaces = filterLandingDummyPlaces(myPlaces);
   const regionalStoryPlace = filteredMyPlaces[0]
     ? {
         placeId: filteredMyPlaces[0].placeId,
@@ -1219,6 +1469,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     stats,
     feed: publicFeed,
     myFeed: combined.slice(0, 96),
+    topShelves: topSelection.shelves,
+    overflowSummaries: topSelection.overflowSummaries,
     myPlaces: filteredMyPlaces,
     mapPreviewCells: buildMapPreviewCells(filteredFeedRows),
     ambient,
