@@ -106,9 +106,11 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     assert.match(response.body, /観察する/);
     assert.match(response.body, /同定する/);
     assert.match(response.body, /マイページ/);
-    assert.match(response.body, /発見を楽しみ、地域の自然記録へ。/);
-    assert.match(response.body, /地域のいのちを、地図で見る。/);
+    assert.match(response.body, /新着投稿/);
+    assert.match(response.body, /同定待ち/);
+    assert.match(response.body, /地域マップ/);
     assert.doesNotMatch(response.body, /フィールドループ/);
+    assert.doesNotMatch(response.body, /信頼と安全/);
   } finally {
     await app.close();
   }

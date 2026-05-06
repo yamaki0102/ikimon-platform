@@ -227,14 +227,21 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
-  const { basePath, lang, isLoggedIn } = options;
+  const { basePath, lang, copy, snapshot, isLoggedIn } = options;
   const profileHref = isLoggedIn ? "/profile" : "/login?redirect=/profile";
+  const stats = [
+    { label: "観察", value: snapshot.stats.observationCount },
+    { label: "種", value: snapshot.stats.speciesCount },
+    { label: "場所", value: snapshot.stats.placeCount },
+  ];
+  const statsHtml = stats
+    .map((stat) => `<span><strong>${escapeHtml(formatLandingNumber(copy, stat.value))}</strong>${escapeHtml(stat.label)}</span>`)
+    .join("");
 
   return `<section class="prototype-topa" aria-labelledby="landing-hero-heading">
     <div class="prototype-topa-intro">
       <div class="prototype-live-pill"><span></span>今日のikimon.life</div>
       <h1 id="landing-hero-heading">見つける、確かめる、地図で見る。</h1>
-      <p>説明を読む前に、まず使える入口を並べました。名前が分からなくても記録できます。</p>
     </div>
     <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/explore"))}" method="get" aria-label="近くの生きものを検索">
       <span aria-hidden="true">🔍</span>
@@ -247,41 +254,34 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
       ${renderTopAAction(basePath, lang, "/map", "◎", "地図", "landing:topA:primary:map")}
       ${renderTopAAction(basePath, lang, profileHref, "人", "マイページ", "landing:topA:primary:me")}
     </nav>
-    <div class="prototype-topa-tabs" aria-label="ホームの棚">
-      <a href="#topa-nearby">おすすめ</a>
-      <a href="#topa-nearby">近く</a>
-      <a href="#topa-identify">同定待ち</a>
-      <a href="#topa-local-map">地域マップ</a>
-    </div>
+    <div class="prototype-topa-metrics" aria-label="ikimon.lifeの公開記録数">${statsHtml}</div>
   </section>`;
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
   const observations = uniqueLandingObservations(snapshot);
-  const nearbyCards = observations.slice(0, 4).map((obs, index) =>
-    renderTopAObservationCard(basePath, lang, copy, obs, index, "landing:topA:shelf:nearby"),
+  const latestObservations = observations.slice(0, 8);
+  const latestCards = latestObservations.map((obs, index) =>
+    renderTopAObservationCard(basePath, lang, copy, obs, index, "landing:topA:shelf:latest"),
   ).join("") || renderTopAEmptyCard(
     basePath,
     lang,
     "まだ公開できる観察がありません",
     "最初の発見を写真で残せます。",
     "/record",
-    "landing:topA:shelf:nearbyEmpty",
+    "landing:topA:shelf:latestEmpty",
   );
 
   const identificationCards = observations
     .filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate)
-    .slice(0, 4)
-    .map((obs, index) => renderTopAObservationCard(basePath, lang, copy, obs, index, "landing:topA:shelf:identify"))
-    .join("") || renderTopAEmptyCard(
-      basePath,
-      lang,
-      "同定待ちはありません",
-      "新しい記録が入ったら、ここに表示します。",
-      "/observations?filter=needs_id",
-      "landing:topA:shelf:identifyEmpty",
-    );
+    .slice(0, 6);
+  const identificationList = identificationCards.length
+    ? identificationCards.map((obs) => `<a href="${escapeHtml(observationDetailHref(basePath, lang, obs))}" data-kpi-action="landing:topA:identify:item">
+        <strong>${escapeHtml(displayObservationName(obs, copy.heroPhotoFallback))}</strong>
+        <span>${escapeHtml(landingObservationMeta(lang, obs) || "公開位置は安全側で表示")}</span>
+      </a>`).join("")
+    : `<div class="prototype-topa-side-empty">いま目立つ同定待ちはありません。</div>`;
 
   const regionalStory = snapshot.regionalStory ?? null;
   const mapHref = landingHref(basePath, lang, "/map");
@@ -306,36 +306,32 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
       </div>`;
 
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
-    <div class="prototype-topa-shelf" id="topa-nearby">
-      <div class="prototype-topa-shelf-head">
-        <h2>近くの観察</h2>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/explore"))}" data-kpi-action="landing:topA:shelf:nearbyAll">すべて見る</a>
+    <div class="prototype-topa-board">
+      <div class="prototype-topa-shelf" id="topa-latest">
+        <div class="prototype-topa-shelf-head">
+          <h2>新着投稿</h2>
+          <a href="${escapeHtml(landingHref(basePath, lang, "/observations"))}" data-kpi-action="landing:topA:shelf:latestAll">すべて見る</a>
+        </div>
+        <div class="prototype-topa-card-grid">${latestCards}</div>
       </div>
-      <div class="prototype-topa-card-grid">${nearbyCards}</div>
-    </div>
 
-    <div class="prototype-topa-shelf" id="topa-identify">
-      <div class="prototype-topa-shelf-head">
-        <h2>同定を待っています</h2>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/observations?filter=needs_id"))}" data-kpi-action="landing:topA:shelf:identifyAll">協力する</a>
-      </div>
-      <div class="prototype-topa-card-grid">${identificationCards}</div>
+      <aside class="prototype-topa-side" aria-labelledby="topa-identify-heading">
+        <div class="prototype-topa-side-head">
+          <small>${escapeHtml(formatLandingNumber(copy, identificationCards.length))}件</small>
+          <h2 id="topa-identify-heading">同定待ち</h2>
+          <a href="${escapeHtml(landingHref(basePath, lang, "/observations?filter=needs_id"))}" data-kpi-action="landing:topA:shelf:identifyAll">協力する</a>
+        </div>
+        <div class="prototype-topa-identify-list">${identificationList}</div>
+      </aside>
     </div>
 
     <div class="prototype-topa-map-shelf" id="topa-local-map">
       <div class="prototype-topa-map-copy">
         <small>地域マップ</small>
-        <h2>地図から、気になる場所を見る。</h2>
-        <p>公開位置は安全側で丸めて表示します。前回記録や季節差分は、地図の中で自然に見つけられる形にします。</p>
+        <h2>地図から探す。</h2>
         ${regionalStoryHtml}
       </div>
       <div class="prototype-topa-map-board">${mapHtml}</div>
-    </div>
-
-    <div class="prototype-topa-learn">
-      <strong>はじめてなら、短い読み物から。</strong>
-      <span>説明や制度の話はトップに広げず、必要な人だけ読める場所にまとめます。</span>
-      <a href="${escapeHtml(landingHref(basePath, lang, "/learn"))}" data-kpi-action="landing:topA:shelf:learn">読み物を見る</a>
     </div>
   </section>`;
 }
@@ -471,13 +467,13 @@ export function renderLandingTopSections(options: LandingTopRenderOptions): Land
   return {
     heroHtml: renderLandingHeroHtml(options),
     dailyDashboardHtml: renderLandingDailyDashboard(options),
-    linkBandHtml: renderLinkBand(options.basePath, options.lang),
-    flowSectionHtml: renderFlowSection(options.fieldLoop),
-    mapSectionHtml: renderMapSection(options),
-    librarySectionHtml: renderLibrarySection(options.basePath, options.lang),
-    trustSectionHtml: renderTrustSection(),
-    communitySectionHtml: renderCommunitySection(options.basePath, options.lang),
-    finalCtaHtml: renderFinalCta(options.basePath, options.lang),
+    linkBandHtml: "",
+    flowSectionHtml: "",
+    mapSectionHtml: "",
+    librarySectionHtml: "",
+    trustSectionHtml: "",
+    communitySectionHtml: "",
+    finalCtaHtml: "",
   };
 }
 
@@ -492,11 +488,15 @@ export const LANDING_TOP_STYLES = `
   .site-header { background: rgba(255,255,255,.84); border-bottom-color: rgba(26,46,31,.08); }
   .site-header-inner { min-height: 58px; }
   .shell.shell-bleed.prototype-shell {
-    width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - var(--ikimon-page-inline)));
+    --ikimon-landing-sidebar-w: var(--ikimon-desktop-sidebar-w, 0px);
+    --ikimon-landing-available-w: calc(100vw - var(--ikimon-landing-sidebar-w));
+    --ikimon-landing-effective-w: min(var(--ikimon-page-max), calc(var(--ikimon-landing-available-w) - var(--ikimon-page-inline)));
+    --ikimon-landing-side-space: max(16px, calc((var(--ikimon-landing-available-w) - var(--ikimon-landing-effective-w)) / 2));
+    width: var(--ikimon-landing-effective-w);
     max-width: none;
-    margin-left: var(--ikimon-shell-margin-left);
-    margin-right: var(--ikimon-shell-margin-right);
-    padding-top: clamp(24px, 4vw, 56px);
+    margin-left: calc(var(--ikimon-landing-sidebar-w) + var(--ikimon-landing-side-space));
+    margin-right: var(--ikimon-landing-side-space);
+    padding-top: clamp(18px, 3vw, 38px);
     color: #1a2e1f;
   }
   .prototype-btn {
@@ -516,7 +516,7 @@ export const LANDING_TOP_STYLES = `
   .prototype-btn-secondary { background: rgba(255,255,255,.78); color: #1a2e1f; border-color: rgba(16,185,129,.28); }
   .prototype-btn-dark { background: #10251a; color: #fff; box-shadow: 0 18px 44px rgba(16,37,26,.18); }
   .prototype-topa {
-    padding: clamp(20px, 4vw, 42px) 0 18px;
+    padding: clamp(14px, 3vw, 30px) 0 16px;
     display: grid;
     gap: 14px;
   }
@@ -528,7 +528,7 @@ export const LANDING_TOP_STYLES = `
   .prototype-topa h1 {
     margin: 0;
     color: #10251a;
-    font-size: clamp(32px, 4vw, 56px);
+    font-size: clamp(34px, 4vw, 60px);
     line-height: 1.14;
     letter-spacing: 0;
     font-weight: 950;
@@ -609,6 +609,31 @@ export const LANDING_TOP_STYLES = `
     line-height: 1.35;
     font-weight: 950;
   }
+  .prototype-topa-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .prototype-topa-metrics span {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(16,185,129,.14);
+    border-radius: 8px;
+    background: rgba(255,255,255,.82);
+    color: #475569;
+    font-size: 13px;
+    font-weight: 850;
+    box-shadow: 0 14px 34px rgba(15,23,42,.055);
+  }
+  .prototype-topa-metrics strong {
+    color: #10251a;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 950;
+  }
   .prototype-topa-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -634,8 +659,14 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-topa-shelves {
     display: grid;
-    gap: 22px;
-    padding: 10px 0 clamp(30px, 5vw, 56px);
+    gap: 18px;
+    padding: 8px 0 clamp(26px, 4vw, 46px);
+  }
+  .prototype-topa-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: 14px;
+    align-items: start;
   }
   .prototype-topa-shelf {
     display: grid;
@@ -741,7 +772,84 @@ export const LANDING_TOP_STYLES = `
   .prototype-topa-status.is-green { color: #047857; background: #e7f5ef; }
   .prototype-topa-status.is-blue { color: #1d4ed8; background: #e8f0ff; }
   .prototype-topa-status.is-amber { color: #92400e; background: #fff2d7; }
+  .prototype-topa-side {
+    position: sticky;
+    top: 86px;
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(16,185,129,.15);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(15,23,42,.075);
+  }
+  .prototype-topa-side-head {
+    display: grid;
+    gap: 6px;
+  }
+  .prototype-topa-side-head small {
+    width: fit-content;
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #fff2d7;
+    color: #92400e;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .prototype-topa-side-head h2 {
+    margin: 0;
+    color: #10251a;
+    font-size: 26px;
+    line-height: 1.22;
+    font-weight: 950;
+  }
+  .prototype-topa-side-head a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #10251a;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 900;
+  }
+  .prototype-topa-identify-list {
+    display: grid;
+    gap: 8px;
+  }
+  .prototype-topa-identify-list a,
+  .prototype-topa-side-empty {
+    display: grid;
+    gap: 3px;
+    min-height: 58px;
+    padding: 10px 11px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .prototype-topa-identify-list strong {
+    color: #10251a;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 950;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prototype-topa-identify-list span,
+  .prototype-topa-side-empty {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 720;
+  }
   .prototype-topa-empty-card {
+    grid-column: 1 / -1;
     min-height: 170px;
     display: grid;
     align-content: center;
@@ -762,7 +870,7 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-topa-map-shelf {
     display: grid;
-    grid-template-columns: minmax(300px, .44fr) minmax(0, .56fr);
+    grid-template-columns: minmax(260px, .34fr) minmax(0, .66fr);
     gap: 14px;
     align-items: stretch;
     scroll-margin-top: 92px;
@@ -1231,6 +1339,12 @@ export const LANDING_TOP_STYLES = `
   .prototype-cta h2 { color: #fff; margin: 0; }
   .prototype-cta p { color: rgba(255,255,255,.84); margin-top: 10px; }
   @media (max-width: 1020px) {
+    .prototype-topa-board {
+      grid-template-columns: 1fr;
+    }
+    .prototype-topa-side {
+      position: static;
+    }
     .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-map-shelf { grid-template-columns: 1fr; }
     .prototype-hero,
@@ -1250,6 +1364,9 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-search button { grid-column: 1 / -1; width: 100%; }
     .prototype-topa-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-action { min-height: 86px; }
+    .prototype-topa-metrics { gap: 8px; }
+    .prototype-topa-metrics span { min-height: 52px; flex-direction: column; gap: 3px; }
+    .prototype-topa-metrics strong { font-size: 18px; }
     .prototype-topa-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-tabs a { min-height: 52px; }
     .prototype-topa-card-grid { grid-template-columns: 1fr; }
