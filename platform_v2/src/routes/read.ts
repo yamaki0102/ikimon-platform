@@ -134,6 +134,15 @@ type PublicRouteCard = {
   ctaLabel?: string;
 };
 
+type ObservationsHtmlCacheEntry = {
+  expiresAt: number;
+  html: string;
+};
+
+const OBSERVATIONS_HTML_CACHE_TTL_MS = 120_000;
+const OBSERVATIONS_HTML_CACHE_MAX_ENTRIES = 32;
+const observationsHtmlCache = new Map<string, ObservationsHtmlCacheEntry>();
+
 function layout(
   basePath: string,
   title: string,
@@ -4496,13 +4505,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <button class="btn btn-solid" type="submit">保存してあとで補完</button>
                 <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn"))}">記録のコツを読む</a>
               </div>
-              <div id="record-status" class="record-status-inline list" aria-live="polite"></div>
               <div class="record-submit-dock" aria-label="記録を送信する">
                 <button type="button" class="record-submit-location" data-record-locate>現在地</button>
                 <span id="record-submit-dock-meta" class="record-submit-dock-meta">メディア未選択</span>
                 <button type="submit" class="record-submit-primary">保存</button>
               </div>
             </form>
+            <div id="record-status" class="record-status-inline list" aria-live="polite"></div>
           </section>
         </div>
       </section>
@@ -6961,7 +6970,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-video-progress-meta { display: flex; justify-content: space-between; gap: 12px; color: #334155; font-size: 12px; font-weight: 700; }
         .record-video-live { font-size: 12px; color: #0f766e; line-height: 1.5; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
-        .record-status-inline { grid-column: 1 / -1; margin-top: 0; }
+        .record-status-inline { grid-column: 1 / -1; margin: 14px 0 0 16px; }
         .record-sidebar { display: grid; gap: 18px; }
         .record-preview-card h2, .record-guide-card h2 { margin: 10px 0 0; font-size: 22px; line-height: 1.3; }
         .record-preview {
@@ -7113,15 +7122,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
-    const snapshot = await getObservationListSnapshot(48).catch(() => ({
-      observations: [],
-      summary: {
-        shownCount: 0,
-        awaitingIdCount: 0,
-        identifiedCount: 0,
-        multiSubjectCount: 0,
-      },
-    }));
     const activeFilter = request.query.filter === "needs_id"
       || request.query.filter === "ai"
       || request.query.filter === "no_id"
@@ -7130,6 +7130,33 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       || request.query.filter === "multi"
       ? request.query.filter
       : "all";
+    const showSpecialistCta = canUseSpecialistWorkbench(session);
+    let canCacheHtml = !showSpecialistCta;
+    const cacheKey = `${basePath}|${lang}|${activeFilter}`;
+    const now = Date.now();
+    if (canCacheHtml) {
+      const cached = observationsHtmlCache.get(cacheKey);
+      if (cached && cached.expiresAt > now) {
+        reply.header("x-ikimon-observations-html-cache", "hit");
+        reply.type("text/html; charset=utf-8");
+        return cached.html;
+      }
+    }
+    let snapshot;
+    try {
+      snapshot = await getObservationListSnapshot(48);
+    } catch {
+      canCacheHtml = false;
+      snapshot = {
+        observations: [],
+        summary: {
+          shownCount: 0,
+          awaitingIdCount: 0,
+          identifiedCount: 0,
+          multiSubjectCount: 0,
+        },
+      };
+    }
     const visibleObservations = snapshot.observations.filter((item) => {
       if (activeFilter === "needs_id") return item.displayName === "同定待ち" || item.isAiCandidate;
       if (activeFilter === "ai") return Boolean(item.isAiCandidate);
@@ -7239,7 +7266,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         longitude: null,
         observerUserId: null,
         observerAvatarUrl: null,
-        }, { compact: true, locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) })}
+        }, { compact: true, locationMode: "public", showSpecialistCta })}
         <a class="observations-id-shortcut" href="${escapeHtml(identifyHref)}" aria-label="${escapeHtml(`${item.displayName}を同定する`)}">${escapeHtml(statusLabel === "同定あり" ? "確認" : "同定")}</a>
       </div>`;
     }).join("");
@@ -7260,8 +7287,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       </a>`).join("");
     const observationsCurrentPath = activeFilter === "all" ? "/observations" : `/observations?filter=${activeFilter}`;
 
-    reply.type("text/html; charset=utf-8");
-    return layout(
+    const html = layout(
       basePath,
       `${pageTitle} | ikimon`,
       `<section class="observations-page${activeFilter === "needs_id" ? " is-identify" : ""}" data-testid="observations-index" data-observations-page>
@@ -7688,6 +7714,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       true,
       activeFilter === "needs_id" ? "shell-immersive shell-identify" : undefined,
     );
+    if (canCacheHtml) {
+      for (const [key, entry] of observationsHtmlCache) {
+        if (entry.expiresAt <= now) observationsHtmlCache.delete(key);
+      }
+      if (!observationsHtmlCache.has(cacheKey) && observationsHtmlCache.size >= OBSERVATIONS_HTML_CACHE_MAX_ENTRIES) {
+        observationsHtmlCache.clear();
+      }
+      observationsHtmlCache.set(cacheKey, {
+        expiresAt: Date.now() + OBSERVATIONS_HTML_CACHE_TTL_MS,
+        html,
+      });
+      reply.header("x-ikimon-observations-html-cache", "miss");
+    }
+    reply.type("text/html; charset=utf-8");
+    return html;
   });
 
   app.get("/home", async (request, reply) => {
