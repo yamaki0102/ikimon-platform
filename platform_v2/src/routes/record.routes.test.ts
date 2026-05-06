@@ -62,6 +62,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /あとで補完する項目/);
         assert.match(response.body, /保存してあとで補完/);
         assert.match(response.body, /記録のコツを読む/);
+        assert.ok(
+          response.body.indexOf('id="record-status"') > response.body.indexOf("</form>"),
+          "record success status must remain visible after the draft form is collapsed",
+        );
         assert.doesNotMatch(response.body, /この 1 件が効く理由/);
         assert.doesNotMatch(response.body, /信頼のレーン/);
         assert.doesNotMatch(response.body, /送信ステータス/);

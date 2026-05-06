@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
 
 test("site shell hydrates the login link from the v2 session endpoint", () => {
@@ -11,10 +12,20 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   });
 
   assert.doesNotMatch(html, /class="btn btn-ghost site-login-link"/);
-  assert.match(html, /class="desktop-side-nav-link site-login-link/);
+  assert.doesNotMatch(html, /class="desktop-side-nav-link site-login-link/);
   assert.match(html, /class="site-mobile-menu-account site-login-link"/);
+  assert.match(html, /class="site-account-icons"/);
+  assert.match(html, /data-account-profile/);
+  assert.match(html, /data-account-alerts/);
+  assert.match(html, /data-account-settings/);
   assert.match(html, /\/login\?redirect=%2Fprofile/);
   assert.match(html, /\/api\/v1\/auth\/session/);
+  assert.match(html, /\/api\/v1\/me\/personalized-menu\?limit=8/);
+  assert.match(html, /\/api\/v1\/me\/alerts/);
+  assert.match(html, /\/api\/v1\/me\/alerts\/read/);
+  assert.match(html, /data-notification-panel/);
+  assert.match(html, /data-notification-toggle/);
+  assert.match(html, /data-notification-read-all/);
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
@@ -22,6 +33,22 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /beforeinstallprompt/);
   assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
   assert.match(html, /data-app-install-prompt/);
+  assert.doesNotMatch(html, /<footer class="site-footer">/);
+  assert.match(html, /desktop-side-nav-section--guest/);
+  assert.match(html, /desktop-side-nav-section--signed-in/);
+  assert.match(html, /desktop-side-nav-section--personalized/);
+  assert.match(html, /data-side-nav-personalized-list/);
+  assert.match(html, /desktop-side-nav-mini-card/);
+  assert.match(html, /class="shell shell-layout-home"/);
+  assert.match(html, /href="\/ja\/observations" title="観察"/);
+  assert.match(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
+  assert.match(html, /href="\/ja\/learn\/updates"/);
+  assert.match(html, /desktop-side-nav-section-title">自分の記録/);
+  assert.match(html, /desktop-side-nav-section-title">よく見る/);
+  assert.match(html, /desktop-side-nav-section-title">探す・見る/);
+  assert.match(html, /desktop-side-nav-section-title">アップデート・連絡/);
+  assert.match(html, /html\[data-auth="signed-in"\] \.desktop-side-nav-section--guest/);
+  assert.match(html, /\.site-mobile-menu-section\.desktop-side-nav-section--signed-in \{[^}]*display: none;/);
   assert.match(html, /window\.ikimonAppOutbox/);
   assert.match(html, /ikimon-app-outbox-v1/);
   assert.match(html, /window\.ikimonRequestAppOutboxSync/);
@@ -46,6 +73,7 @@ test("mobile menu panel can render outside the sticky header", () => {
 
   assert.match(html, /\.site-header \{[^}]*z-index: 90;[^}]*overflow: visible;/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*position: absolute;[^}]*z-index: 2;[^}]*top: calc\(100% \+ 9px\);/);
+  assert.match(html, /\.site-mobile-menu-panel \{[^}]*background: #ffffff;/);
 });
 
 test("site shell renders a global record footer nav outside the record flow", () => {
@@ -67,7 +95,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /files: draftFiles/);
   assert.match(html, /Array\.from\(input\.files\)/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
-  assert.doesNotMatch(html, /aria-expanded="false"/);
+  assert.doesNotMatch(html, /class="global-record-entry"[^>]*aria-expanded="false"/);
   assert.match(html, /data-kpi-action="global_record_photo"/);
   assert.match(html, /data-kpi-action="global_record_video"/);
   assert.match(html, /data-kpi-action="global_record_gallery"/);
@@ -168,4 +196,78 @@ test("site shell treats guide outcomes as a reading surface with quick record ac
 
   assert.match(html, /class="global-record-launcher"/);
   assert.match(html, /site-shell has-global-record-launcher/);
+});
+
+test("desktop side nav is opaque and footerless on immersive surfaces", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Map",
+    body: "<p>map</p>",
+    lang: "ja",
+    currentPath: "/map?lang=ja",
+    shellClassName: "shell-bleed shell-map",
+  });
+
+  assert.match(html, /\.desktop-side-nav \{[^}]*background: #ffffff;[^}]*backdrop-filter: none;/);
+  assert.match(html, /\.site-shell\.is-immersive-surface \.desktop-side-nav \{[^}]*background: #ffffff;[^}]*backdrop-filter: none;/);
+  assert.match(html, /\.site-shell\.is-immersive-surface \.desktop-side-nav \{[^}]*transition: transform \.22s ease, box-shadow \.18s ease;/);
+  assert.match(html, /body\.is-desktop-side-nav-collapsed \.desktop-side-nav-section--secondary/);
+  assert.match(html, /class="site-shell[^"]*is-immersive-surface/);
+  assert.match(html, /class="shell shell-layout-immersive shell-bleed shell-map"/);
+  assert.doesNotMatch(html, /<footer class="site-footer">/);
+});
+
+test("subpages use centered width contracts instead of homepage width", () => {
+  const readingHtml = renderSiteDocument({
+    basePath: "",
+    title: "Learn",
+    body: "<p>learn</p>",
+    lang: "ja",
+    currentPath: "/learn/field-loop?lang=ja",
+  });
+  const wideHtml = renderSiteDocument({
+    basePath: "",
+    title: "Observations",
+    body: "<p>observations</p>",
+    lang: "ja",
+    currentPath: "/observations?lang=ja",
+  });
+
+  assert.match(readingHtml, /class="shell shell-layout-reading"/);
+  assert.match(wideHtml, /class="shell shell-layout-wide"/);
+  assert.match(readingHtml, /\.shell\.shell-layout-reading \{[^}]*--ikimon-shell-target-max: var\(--ikimon-reading-max\);/);
+  assert.match(wideHtml, /--ikimon-shell-side-space: max\(24px, calc\(\(var\(--ikimon-shell-available-w\) - var\(--ikimon-shell-effective-w\)\) \/ 2\)\);/);
+  assert.match(wideHtml, /margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ var\(--ikimon-shell-side-space\)\);/);
+});
+
+test("major routes keep route-metadata layout contracts", () => {
+  const cases = [
+    { path: "/", layout: "home", className: "shell-layout-home" },
+    { path: "/record", layout: "narrow", className: "shell-layout-narrow" },
+    { path: "/guide", layout: "immersive", className: "shell-layout-immersive" },
+    { path: "/map", layout: "immersive", className: "shell-layout-immersive" },
+    { path: "/observations", layout: "wide", className: "shell-layout-wide" },
+    { path: "/observations/demo-id", layout: "wide", className: "shell-layout-wide" },
+    { path: "/notes", layout: "reading", className: "shell-layout-reading" },
+    { path: "/profile/demo-user", layout: "reading", className: "shell-layout-reading" },
+    { path: "/learn/field-loop", layout: "reading", className: "shell-layout-reading" },
+    { path: "/community", layout: "wide", className: "shell-layout-wide" },
+    { path: "/community/events", layout: "wide", className: "shell-layout-wide" },
+    { path: "/community/fields", layout: "wide", className: "shell-layout-wide" },
+    { path: "/for-business", layout: "wide", className: "shell-layout-wide" },
+    { path: "/for-business/demo", layout: "wide", className: "shell-layout-wide" },
+  ] as const;
+  const snapshot = Object.fromEntries(cases.map((entry) => [entry.path, getSiteShellLayoutForPath(entry.path)]));
+
+  assert.deepEqual(snapshot, Object.fromEntries(cases.map((entry) => [entry.path, entry.layout])));
+  for (const entry of cases) {
+    const html = renderSiteDocument({
+      basePath: "",
+      title: entry.path,
+      body: "<p>body</p>",
+      lang: "ja",
+      currentPath: `/ja${entry.path === "/" ? "/" : entry.path}`,
+    });
+    assert.match(html, new RegExp(`class="shell ${entry.className}`), entry.path);
+  }
 });

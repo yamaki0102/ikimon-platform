@@ -665,6 +665,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
+  const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
   const eventsNewHrefTemplate = appendLangToHref(
     withBasePath(props.basePath, "/community/events/new?field_id=__FIELD_ID__"),
     props.lang,
@@ -967,7 +968,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
         <div class="me-map-command-deck" role="toolbar" aria-label="${escapeHtml(copy.mapQuickLabel)}">
           <button type="button" class="me-map-quick" data-map-action="locate"><span aria-hidden="true">⌖</span>${escapeHtml(copy.mapQuickNearby)}</button>
           <button type="button" class="me-map-quick" data-map-tab="frontier"><span aria-hidden="true">◇</span>${escapeHtml(copy.mapQuickFrontier)}</button>
@@ -1080,6 +1081,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
   var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
+  var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
   var eventsNewHrefTemplate = root.getAttribute('data-events-new-href') || '';
 
   var COPY = ${JSON.stringify({
@@ -1193,6 +1195,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var EVENTS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events/new"), props.lang))};
   var FIELDS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/new"), props.lang))};
+  var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
   ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
@@ -1858,6 +1861,71 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '</div>';
   }
 
+  function mapFollowHref(params) {
+    try {
+      var url = new URL(window.location.href);
+      Object.keys(params || {}).forEach(function (key) {
+        var value = params[key];
+        if (value == null || value === '') return;
+        url.searchParams.set(key, String(value));
+      });
+      return url.pathname + url.search;
+    } catch (_) {
+      return '/map';
+    }
+  }
+
+  function renderAreaFollowButton(targetType, targetId, label, href) {
+    if (!targetType || !targetId) return '';
+    return ''
+      + '<button type="button" class="me-area-follow-btn" data-area-follow-button'
+      + ' data-target-type="' + escapeHtml(targetType) + '"'
+      + ' data-target-id="' + escapeHtml(targetId) + '"'
+      + ' data-label="' + escapeHtml(label || '観察エリア') + '"'
+      + ' data-href="' + escapeHtml(href || '/map') + '">'
+      +   '<span aria-hidden="true">＋</span>'
+      +   '<strong>フォロー</strong>'
+      +   '<small>左メニューの「よく見る」に固定</small>'
+      + '</button>';
+  }
+
+  function followAreaFromButton(button) {
+    if (!button || !apiAreaFollow) return;
+    var targetType = button.getAttribute('data-target-type') || '';
+    var targetId = button.getAttribute('data-target-id') || '';
+    var label = button.getAttribute('data-label') || targetId;
+    var href = button.getAttribute('data-href') || '/map';
+    if (!targetType || !targetId) return;
+    button.setAttribute('disabled', 'disabled');
+    button.classList.add('is-loading');
+    fetch(apiAreaFollow, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ targetType: targetType, targetId: targetId, label: label, href: href })
+    })
+      .then(function (response) {
+        if (response.status === 401) {
+          window.location.href = LOGIN_HREF + (LOGIN_HREF.indexOf('?') >= 0 ? '&' : '?') + 'redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+          return null;
+        }
+        return response.ok ? response.json() : null;
+      })
+      .then(function (payload) {
+        if (!payload || !payload.ok) return;
+        button.classList.remove('is-loading');
+        button.classList.add('is-followed');
+        button.innerHTML = '<span aria-hidden="true">✓</span><strong>フォロー中</strong><small>左メニューに反映されます</small>';
+        window.dispatchEvent(new CustomEvent('ikimon:area-followed', { detail: { targetType: targetType, targetId: targetId, label: label } }));
+      })
+      .catch(function () {
+        button.classList.remove('is-loading');
+      })
+      .finally(function () {
+        if (!button.classList.contains('is-followed')) button.removeAttribute('disabled');
+      });
+  }
+
   function findFrontierAt(lng, lat) {
     if (!state.frontier || !Array.isArray(state.frontier.features)) return null;
     for (var i = 0; i < state.frontier.features.length; i += 1) {
@@ -2151,15 +2219,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var ctaHref = buildTransientAreaEventHref(feature, center.lat, center.lng);
     var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
     var officialUrl = String(props.official_url || '');
+    var areaName = String(props.name || 'OSMの公園・緑地');
+    var followId = String(props.entity_key || props.field_id || ('point:' + center.lat.toFixed(5) + ',' + center.lng.toFixed(5)));
     sheetInnerEl.innerHTML =
       '<div class="me-area-sheet-header">' +
         '<div class="me-area-sheet-title">' +
           '<span class="me-area-sheet-source">' + escapeHtml(sourceLabel) + '</span>' +
-          '<strong>' + escapeHtml(String(props.name || 'OSMの公園・緑地')) + '</strong>' +
+          '<strong>' + escapeHtml(areaName) + '</strong>' +
           '<span class="me-area-sheet-loc">' + escapeHtml(center.lat.toFixed(4) + ', ' + center.lng.toFixed(4)) + '</span>' +
         '</div>' +
         (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '') +
       '</div>' +
+      renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) +
       '<div class="me-area-sheet-cta">' +
         '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">' +
           '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>' +
@@ -2219,6 +2290,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var button = target.closest('[data-area-follow-button]');
+    if (!button) return;
+    event.preventDefault();
+    followAreaFromButton(button);
+  });
 
   function renderAreaSheet(snapshot) {
     var f = (snapshot && snapshot.field) || {};
@@ -2237,6 +2316,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var ctaHref = fieldId && eventsNewHrefTemplate
       ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
       : '';
+    var followHtml = renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId }));
     var headerHtml = ''
       + '<div class="me-area-sheet-header">'
       +   '<div class="me-area-sheet-title">'
@@ -2269,7 +2349,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var timelineHtml = renderAreaTimeline(timeline);
     var indicatorsHtml = renderEffortIndicators(indicators);
     var maskingHtml = renderSensitiveBanner(masking);
-    return headerHtml + ctaHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    return headerHtml + followHtml + ctaHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -4867,6 +4947,13 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-effort-hint { font-size: 10px; color: #64748b; line-height: 1.3; }
   .me-area-sensitive { padding: 10px 12px; border-radius: 12px; background: rgba(254,243,199,.55); border: 1px solid rgba(217,119,6,.28); color: #78350f; font-size: 12px; font-weight: 600; line-height: 1.45; margin-bottom: 12px; }
   .me-area-sensitive.is-privileged { background: rgba(220,252,231,.55); border-color: rgba(22,163,74,.28); color: #14532d; }
+  .me-area-follow-btn { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 2px 0 12px; border-radius: 14px; border: 1px solid rgba(15,118,110,.22); background: #f0fdfa; color: #0f172a; cursor: pointer; text-align: left; box-shadow: 0 6px 16px rgba(15,23,42,.06); transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+  .me-area-follow-btn:hover { transform: translateY(-1px); background: #ecfdf5; border-color: rgba(5,150,105,.34); }
+  .me-area-follow-btn[disabled] { cursor: wait; opacity: .86; transform: none; }
+  .me-area-follow-btn.is-followed { background: #dcfce7; border-color: rgba(22,163,74,.30); cursor: default; }
+  .me-area-follow-btn > span { width: 30px; height: 30px; flex: 0 0 30px; display: inline-grid; place-items: center; border-radius: 999px; background: #0f766e; color: #fff; font-size: 16px; font-weight: 900; }
+  .me-area-follow-btn strong { display: block; font-size: 13px; line-height: 1.2; font-weight: 900; }
+  .me-area-follow-btn small { display: block; margin-top: 1px; color: #64748b; font-size: 11px; line-height: 1.3; font-weight: 750; }
   .me-area-sheet-cta { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 14px; }
   .me-area-sheet-cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 800; color: #fff !important; background: linear-gradient(135deg, #0ea5e9, #0f766e); text-decoration: none; box-shadow: 0 6px 16px rgba(15,118,110,.28); width: max-content; max-width: 100%; }
   .me-area-sheet-cta-btn:hover { filter: brightness(1.05); }

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { isUiKpiEventName, recordUiKpiEvent } from "../services/uiKpi.js";
+import { getSessionFromCookie } from "../services/authSession.js";
 
 type UiKpiBody = {
   eventName:
@@ -28,13 +29,14 @@ export async function registerUiKpiRoutes(app: FastifyInstance): Promise<void> {
         };
       }
 
+      const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
       const result = await recordUiKpiEvent({
         eventName: request.body.eventName,
         eventSource: "web",
         pagePath: request.body.pagePath,
         routeKey: request.body.routeKey,
         actionKey: request.body.actionKey,
-        userId: request.body.userId,
+        userId: session?.userId ?? null,
         metadata: request.body.metadata,
       });
 
