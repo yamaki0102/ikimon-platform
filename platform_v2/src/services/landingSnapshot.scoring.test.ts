@@ -10,7 +10,7 @@ import {
   type LandingHeroCandidate,
   type LandingHeroScoreContext,
 } from "./landingSnapshot.js";
-import type { LandingObservation } from "./readModels.js";
+import type { LandingObservation, LandingTopGuideItem } from "./readModels.js";
 
 function candidate(overrides: Partial<LandingHeroCandidate> = {}): LandingHeroCandidate {
   return {
@@ -87,6 +87,41 @@ function topObservation(index: number, overrides: Partial<LandingObservation> = 
     hasVideo: false,
     entryType: "observation",
     evidenceTier: 2,
+    ...overrides,
+  };
+}
+
+function topGuideItem(index: number, overrides: Partial<LandingTopGuideItem> = {}): LandingTopGuideItem {
+  return {
+    topItemType: "guide",
+    guideRecordId: `guide-record-${index}`,
+    sessionId: `guide-session-${index}`,
+    displayName: `ガイド発見 ${index}`,
+    summary: `ガイドで見た環境 ${index}`,
+    observedAt: `2026-04-${String((index % 20) + 1).padStart(2, "0")}T09:30:00.000Z`,
+    observerName: `Guide Observer ${index}`,
+    observerUserId: `guide-user-${index}`,
+    observerAvatarUrl: null,
+    placeName: `Guide Area ${index % 3}`,
+    municipality: null,
+    publicLocation: {
+      label: "位置をぼかしています",
+      scope: "blurred",
+      cellId: `3000:${index % 3}:${index % 4}`,
+      gridM: 3000,
+      radiusM: 3000,
+      centroidLat: 34.7 + index * 0.001,
+      centroidLng: 137.7 + index * 0.001,
+      displayMode: "area",
+    },
+    photoUrl: `/uploads/guide-${index}.jpg`,
+    latitude: 34.7,
+    longitude: 137.7,
+    librarySourceKind: "guide",
+    detectedSpecies: [`ガイド種 ${index}`],
+    identificationCount: 0,
+    isAiCandidate: false,
+    href: "/guide/outcomes",
     ...overrides,
   };
 }
@@ -226,7 +261,7 @@ test("landing top shelves keep content modes distinct and keep CTA shelves unfil
   const { shelves } = buildLandingTopShelves(observations, {
     now: new Date("2026-04-24T00:00:00.000Z"),
   });
-  assert.ok(shelves.find((shelf) => shelf.kind === "video")?.items.every((item) => item.hasVideo || item.librarySourceKind === "video"));
+  assert.ok(shelves.find((shelf) => shelf.kind === "video")?.items.every((item) => "occurrenceId" in item && (item.hasVideo || item.librarySourceKind === "video")));
   assert.ok(shelves.find((shelf) => shelf.kind === "guide")?.items.every((item) => item.librarySourceKind === "guide"));
   assert.ok(shelves.find((shelf) => shelf.kind === "scan")?.items.every((item) => item.librarySourceKind === "scan"));
 
@@ -236,4 +271,21 @@ test("landing top shelves keep content modes distinct and keep CTA shelves unfil
   assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "video")?.items.length, 0);
   assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "guide")?.items.length, 0);
   assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "scan")?.items.length, 0);
+});
+
+test("landing top guide shelf accepts guide records outside observation feed", () => {
+  const guideItem = topGuideItem(1);
+  const { shelves } = buildLandingTopShelves([topObservation(1)], {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+    extraItems: [guideItem],
+  });
+
+  const guideShelf = shelves.find((shelf) => shelf.kind === "guide");
+  assert.ok(guideShelf);
+  assert.ok(guideShelf.items.some((item) => item.topItemType === "guide" && item.guideRecordId === guideItem.guideRecordId));
+
+  const observationOnly = shelves
+    .flatMap((shelf) => shelf.items)
+    .filter((item) => "occurrenceId" in item);
+  assert.ok(observationOnly.every((item) => item.occurrenceId.startsWith("top-occ-")));
 });
