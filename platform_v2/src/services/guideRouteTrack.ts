@@ -3,12 +3,14 @@ import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import { meshKey100m } from "./observationEventEffort.js";
 import { speedBandForMps, timeBandForIso } from "./guideTransectQuality.js";
+import { resolveFieldsForPoint } from "./resolveFieldsForPoint.js";
 import { buildPlaceName, normalizeTimestamp } from "./writeSupport.js";
 
 export type GuideRoutePointInput = {
   sessionId: string;
   userId?: string | null;
   clientSceneId?: string | null;
+  clientPointId?: string | null;
   guideMode: "walk" | "vehicle";
   lat: number;
   lng: number;
@@ -18,6 +20,9 @@ export type GuideRoutePointInput = {
   headingDegrees?: number | null;
   sessionDistanceM?: number | null;
   positionCapturedAt?: string | null;
+  cameraActive?: boolean | null;
+  pointKind?: "scene" | "telemetry";
+  visualCandidate?: Record<string, unknown> | null;
 };
 
 function finiteNumber(value: number | null | undefined): number | null {
@@ -28,22 +33,24 @@ function buildGuideRouteHash(sessionId: string): string {
   return createHash("sha256").update(`guide-route:${sessionId}`).digest("hex").slice(0, 24);
 }
 
-async function pointAlreadyExists(client: PoolClient, visitId: string, clientSceneId: string | null | undefined): Promise<boolean> {
-  if (!clientSceneId) return false;
+async function pointAlreadyExists(client: PoolClient, visitId: string, clientPointId: string | null | undefined): Promise<boolean> {
+  if (!clientPointId) return false;
   const result = await client.query<{ exists: boolean }>(
     `select exists(
        select 1
          from visit_track_points
         where visit_id = $1
-          and raw_payload->>'client_scene_id' = $2
+          and (
+            raw_payload->>'client_point_id' = $2
+            or raw_payload->>'client_scene_id' = $2
+          )
      ) as exists`,
-    [visitId, clientSceneId],
+    [visitId, clientPointId],
   );
   return Boolean(result.rows[0]?.exists);
 }
 
 export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promise<{ visitId: string; inserted: boolean }> {
-  if (input.guideMode !== "vehicle") return { visitId: `guide:${input.sessionId}`, inserted: false };
   if (!input.sessionId || input.sessionId.trim() === "") throw new Error("sessionId is required");
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) throw new Error("lat/lng are required");
 
@@ -53,6 +60,10 @@ export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promis
   const observedAt = normalizeTimestamp(input.positionCapturedAt ?? input.observedAt);
   const speedBand = speedBandForMps(input.speedMps);
   const timeBand = timeBandForIso(observedAt);
+  const movementMode = input.guideMode === "vehicle" ? "vehicle" : "walk";
+  const visitMode = input.guideMode === "vehicle" ? "vehicle_transect" : "walk_effort";
+  const pointKind = input.pointKind ?? "scene";
+  const clientPointId = input.clientPointId ?? input.clientSceneId ?? null;
   const pool = getPool();
   const client = await pool.connect();
 
@@ -76,7 +87,7 @@ export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promis
         buildPlaceName({ municipality: null, prefecture: null }),
         input.lat,
         input.lng,
-        JSON.stringify({ source: "guide_vehicle_route", mesh_key: meshKey, privacy: "private_route_public_mesh" }),
+        JSON.stringify({ source: "guide_route", guide_mode: input.guideMode, mesh_key: meshKey, privacy: "private_route_public_mesh" }),
         observedAt,
       ],
     );
@@ -109,7 +120,7 @@ export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promis
           route_hash, effort_minutes, distance_meters, point_latitude, point_longitude,
           source_kind, source_payload, created_at, updated_at
        ) values (
-          $1, $2, $3, $4, 'guide', 'vehicle_transect', 'vehicle',
+          $1, $2, $3, $4, 'guide', $12, $13,
           $5, $6, $7, $8, $9, 'v2_guide_route', $10::jsonb, $4, $11
        )
        on conflict (visit_id) do update set
@@ -134,31 +145,35 @@ export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promis
         input.lat,
         input.lng,
         JSON.stringify({
-          source: "guide_vehicle_route",
+          source: "guide_route",
           session_id: input.sessionId,
           privacy: "private_route_public_mesh",
           latest_client_scene_id: input.clientSceneId ?? null,
+          latest_client_point_id: clientPointId,
+          latest_point_kind: pointKind,
           latest_accuracy_m: finiteNumber(input.accuracyM),
           latest_speed_mps: finiteNumber(input.speedMps),
           latest_heading_degrees: finiteNumber(input.headingDegrees),
           sampling_protocol: {
-            protocol_id: "guide_vehicle_transect_v1",
-            movement_mode: "vehicle",
+            protocol_id: input.guideMode === "vehicle" ? "guide_vehicle_transect_v1" : "guide_walk_effort_v1",
+            movement_mode: movementMode,
             privacy: "private_route_public_mesh",
             public_surface: "guide_environment_mesh",
           },
           coverage_cube_axes: {
-            modality: "guide_vehicle",
+            modality: input.guideMode === "vehicle" ? "guide_vehicle" : "guide_walk",
             speed_band: speedBand,
             time_band: timeBand,
             effort_metric: "distance_meters_and_minutes",
           },
         }),
         observedAt,
+        visitMode,
+        movementMode,
       ],
     );
 
-    if (await pointAlreadyExists(client, visitId, input.clientSceneId)) {
+    if (await pointAlreadyExists(client, visitId, clientPointId)) {
       await client.query("commit");
       return { visitId, inserted: false };
     }
@@ -181,12 +196,16 @@ export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promis
         finiteNumber(input.speedMps),
         finiteNumber(input.headingDegrees),
         JSON.stringify({
-          source: "guide_vehicle_scene",
+          source: pointKind === "telemetry" ? "guide_telemetry_point" : "guide_scene_point",
           client_scene_id: input.clientSceneId ?? null,
+          client_point_id: clientPointId,
+          point_kind: pointKind,
+          camera_active: input.cameraActive ?? null,
+          visual_candidate: input.visualCandidate ?? null,
           session_distance_m: finiteNumber(input.sessionDistanceM),
           position_captured_at: input.positionCapturedAt ?? null,
           coverage_cube: {
-            modality: "guide_vehicle",
+            modality: input.guideMode === "vehicle" ? "guide_vehicle" : "guide_walk",
             speed_band: speedBand,
             time_band: timeBand,
           },
@@ -194,6 +213,17 @@ export async function recordGuideRoutePoint(input: GuideRoutePointInput): Promis
         }),
       ],
     );
+
+    const resolvedFieldIds = await resolveFieldsForPoint(input.lat, input.lng).catch(() => []);
+    if (resolvedFieldIds.length) {
+      await client.query(
+        `update visits
+            set resolved_field_ids = $2::uuid[],
+                updated_at = now()
+          where visit_id = $1`,
+        [visitId, resolvedFieldIds],
+      );
+    }
 
     await client.query("commit");
     return { visitId, inserted: true };

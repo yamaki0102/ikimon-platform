@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
 import { upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
 import { parseGuideInteractionType, recordGuideInteraction } from "../services/guideInteractions.js";
 import { createGuideLiveToken } from "../services/guideLiveToken.js";
 import { recordGuideRoutePoint } from "../services/guideRouteTrack.js";
-import { analyzeScene, saveGuideRecord, type GuideMode, type SceneResult } from "../services/guideSession.js";
+import { analyzeScene, saveGuideRecord, type GuideFrameInput, type GuideMode, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
+import { meshKey100m } from "../services/observationEventEffort.js";
+import { resolveFieldsForPoint } from "../services/resolveFieldsForPoint.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import type { TtsLang } from "../services/guideTts.js";
 
@@ -40,6 +43,57 @@ function parseFiniteNumber(raw: unknown): number | null {
 function parseIsoString(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   return Number.isFinite(Date.parse(raw)) ? raw : null;
+}
+
+function parseFrameBundle(body: Record<string, unknown>): GuideFrameInput[] {
+  const rawFrames = Array.isArray(body.frames) ? body.frames : null;
+  if (!rawFrames) {
+    const frame = typeof body.frame === "string" ? body.frame : null;
+    return frame ? [{
+      frameBase64: frame,
+      mimeType: typeof body.frameMime === "string" ? body.frameMime : "image/jpeg",
+      capturedAt: parseIsoString(body.capturedAt),
+      lat: parseFiniteNumber(body.lat),
+      lng: parseFiniteNumber(body.lng),
+      accuracyM: parseFiniteNumber(body.locationAccuracyM),
+      speedMps: parseFiniteNumber(body.speedMps),
+      headingDegrees: parseFiniteNumber(body.headingDegrees),
+    }] : [];
+  }
+
+  return rawFrames
+    .map((raw) => raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null)
+    .filter((raw): raw is Record<string, unknown> => Boolean(raw))
+    .map((raw) => ({
+      frameBase64: typeof raw.frame === "string" ? raw.frame : "",
+      mimeType: typeof raw.frameMime === "string" ? raw.frameMime : "image/jpeg",
+      capturedAt: parseIsoString(raw.capturedAt),
+      lat: parseFiniteNumber(raw.lat),
+      lng: parseFiniteNumber(raw.lng),
+      accuracyM: parseFiniteNumber(raw.accuracyM ?? raw.locationAccuracyM),
+      speedMps: parseFiniteNumber(raw.speedMps),
+      headingDegrees: parseFiniteNumber(raw.headingDegrees),
+    }))
+    .filter((frame) => frame.frameBase64.length > 0)
+    .slice(-4);
+}
+
+function latestFrame(frames: GuideFrameInput[]): GuideFrameInput | null {
+  return frames.length ? frames[frames.length - 1] ?? null : null;
+}
+
+function parseVisualCandidate(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const value = raw as Record<string, unknown>;
+  return {
+    capturedAt: parseIsoString(value.capturedAt),
+    brightness: parseFiniteNumber(value.brightness),
+    blurScore: parseFiniteNumber(value.blurScore),
+    diffScore: parseFiniteNumber(value.diffScore),
+    distanceFromLastAiM: parseFiniteNumber(value.distanceFromLastAiM),
+    headingDeltaFromLastAi: parseFiniteNumber(value.headingDeltaFromLastAi),
+    reason: typeof value.reason === "string" ? value.reason.slice(0, 80) : null,
+  };
 }
 
 function parseDetectedFeatures(raw: unknown): SceneResult["detectedFeatures"] {
@@ -228,6 +282,10 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
     seasonalNote: job.result.seasonalNote,
     coexistingTaxa: job.result.coexistingTaxa,
     saveRecommendation: job.result.saveRecommendation,
+    newSignals: job.result.newSignals ?? [],
+    continuedSignals: job.result.continuedSignals ?? [],
+    coverageHints: job.result.coverageHints ?? [],
+    absenceBoundary: job.result.absenceBoundary ?? { state: "non_detection_note", note: "通過中のAI未検出であり、確定不在ではありません。" },
     autoSave: job.autoSave,
     isNew: job.result.isNew,
     sceneHash: job.result.sceneHash,
@@ -326,6 +384,12 @@ async function applyGuideAutoSave(input: {
         whyInteresting: copy.whyInteresting,
         nextLookTarget: copy.nextLookTarget,
         autoSave: decision,
+        guideSignals: {
+          newSignals: input.sceneResult.newSignals ?? [],
+          continuedSignals: input.sceneResult.continuedSignals ?? [],
+          coverageHints: input.sceneResult.coverageHints ?? [],
+          absenceBoundary: input.sceneResult.absenceBoundary ?? null,
+        },
         siteBrief: input.siteBrief
           ? {
               id: input.siteBrief.hypothesis.id,
@@ -382,11 +446,12 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
   app.post("/api/v1/guide/scene", async (request, reply) => {
     pruneSceneJobs();
     const body = request.body as Record<string, unknown>;
-    const frame = typeof body.frame === "string" ? body.frame : null;
-    if (!frame) return reply.status(400).send({ error: "frame is required" });
+    const frames = parseFrameBundle(body);
+    const primaryFrame = latestFrame(frames);
+    if (!primaryFrame) return reply.status(400).send({ error: "frame is required" });
 
-    const lat = Number(body.lat);
-    const lng = Number(body.lng);
+    const lat = Number(body.lat ?? primaryFrame.lat);
+    const lng = Number(body.lng ?? primaryFrame.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return reply.status(400).send({ error: "lat/lng are required" });
     }
@@ -397,7 +462,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const userId = session?.userId ?? null;
 
-    const capturedAt = typeof body.capturedAt === "string" ? body.capturedAt : new Date().toISOString();
+    const capturedAt = parseIsoString(body.capturedAt) ?? primaryFrame.capturedAt ?? new Date().toISOString();
     const azimuthRaw = body.azimuth;
     const azimuth = typeof azimuthRaw === "number" && Number.isFinite(azimuthRaw)
       ? azimuthRaw
@@ -411,13 +476,18 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     }
     const sceneId = clientSceneId ?? randomUUID();
     const requestedAt = new Date().toISOString();
-    const frameThumb = typeof body.frameThumb === "string" ? body.frameThumb : null;
+    const frameThumb = typeof body.frameThumb === "string"
+      ? body.frameThumb
+      : (Array.isArray(body.frameThumbs) && typeof body.frameThumbs[body.frameThumbs.length - 1] === "string"
+        ? body.frameThumbs[body.frameThumbs.length - 1] as string
+        : null);
     const facePrivacy = normalizeFacePrivacy(body.facePrivacy);
-    const locationAccuracyM = parseFiniteNumber(body.locationAccuracyM);
-    const speedMps = parseFiniteNumber(body.speedMps);
-    const headingDegrees = parseFiniteNumber(body.headingDegrees);
+    const locationAccuracyM = parseFiniteNumber(body.locationAccuracyM) ?? (primaryFrame.accuracyM ?? null);
+    const speedMps = parseFiniteNumber(body.speedMps) ?? (primaryFrame.speedMps ?? null);
+    const headingDegrees = parseFiniteNumber(body.headingDegrees) ?? (primaryFrame.headingDegrees ?? null);
     const sessionDistanceM = parseFiniteNumber(body.sessionDistanceM);
-    const positionCapturedAt = parseIsoString(body.positionCapturedAt);
+    const positionCapturedAt = parseIsoString(body.positionCapturedAt) ?? primaryFrame.capturedAt ?? null;
+    const visualCandidate = parseVisualCandidate(body.visualCandidate);
     const locationQuality = {
       accuracyM: locationAccuracyM,
       speedMps,
@@ -456,7 +526,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null,
         );
         const sceneResult = await analyzeScene({
-          frameBase64: frame,
+          frames,
           audioBase64: typeof body.audio === "string" ? body.audio : null,
           frameMimeType: typeof body.frameMime === "string" ? body.frameMime : "image/jpeg",
           context: {
@@ -470,6 +540,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
             guideMode,
             capturedAt,
             azimuth,
+            frameBundleSummary: typeof body.frameBundleSummary === "string" ? body.frameBundleSummary.slice(0, 1200) : null,
           },
         });
 
@@ -497,6 +568,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           sessionId,
           userId,
           clientSceneId: sceneId,
+          clientPointId: sceneId,
           guideMode,
           lat,
           lng,
@@ -506,6 +578,9 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           headingDegrees,
           sessionDistanceM,
           positionCapturedAt,
+          cameraActive: true,
+          pointKind: "scene",
+          visualCandidate,
         }).catch((error) => app.log.warn({ error, sceneId, sessionId }, "guide route point write failed"));
         job.status = "ready";
       } catch (error) {
@@ -586,6 +661,123 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       request.raw.on("close", () => clearInterval(interval));
     },
   );
+
+  app.post("/api/v1/guide/telemetry", async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const userId = session?.userId ?? null;
+    const sessionId = typeof body.sessionId === "string" && body.sessionId.trim() ? body.sessionId : "anonymous";
+    const guideMode = parseGuideMode(body.guideMode);
+    const rawPoints = Array.isArray(body.points) ? body.points : [body];
+    const points = rawPoints
+      .map((raw) => raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null)
+      .filter((raw): raw is Record<string, unknown> => Boolean(raw))
+      .slice(0, 12);
+
+    let accepted = 0;
+    let inserted = 0;
+    const meshKeys = new Set<string>();
+    let latestLat: number | null = null;
+    let latestLng: number | null = null;
+
+    for (const point of points) {
+      const lat = parseFiniteNumber(point.lat);
+      const lng = parseFiniteNumber(point.lng);
+      if (lat == null || lng == null) continue;
+      const observedAt = parseIsoString(point.observedAt) ?? parseIsoString(point.capturedAt) ?? new Date().toISOString();
+      const clientPointId = parseClientSceneId(point.clientPointId) ?? randomUUID();
+      const result = await recordGuideRoutePoint({
+        sessionId,
+        userId,
+        clientPointId,
+        guideMode,
+        lat,
+        lng,
+        observedAt,
+        accuracyM: parseFiniteNumber(point.accuracyM ?? point.locationAccuracyM),
+        speedMps: parseFiniteNumber(point.speedMps),
+        headingDegrees: parseFiniteNumber(point.headingDegrees),
+        sessionDistanceM: parseFiniteNumber(point.sessionDistanceM),
+        positionCapturedAt: parseIsoString(point.positionCapturedAt) ?? observedAt,
+        cameraActive: point.cameraActive === true,
+        pointKind: "telemetry",
+        visualCandidate: parseVisualCandidate(point.visualCandidate),
+      });
+      accepted += 1;
+      if (result.inserted) inserted += 1;
+      const meshKey = meshKey100m(lat, lng);
+      if (meshKey) meshKeys.add(meshKey);
+      latestLat = lat;
+      latestLng = lng;
+    }
+
+    let fields: Array<Record<string, unknown>> = [];
+    if (latestLat != null && latestLng != null) {
+      const fieldIds = await resolveFieldsForPoint(latestLat, latestLng).catch(() => []);
+      if (fieldIds.length) {
+        const result = await getPool().query<{
+          field_id: string;
+          name: string;
+          source: string;
+          area_ha: number | null;
+          radius_m: number | null;
+          lat: number;
+          lng: number;
+          polygon: Record<string, unknown> | null;
+          bbox_min_lat: number | null;
+          bbox_max_lat: number | null;
+          bbox_min_lng: number | null;
+          bbox_max_lng: number | null;
+        }>(
+          `select field_id, name, source, area_ha, radius_m, lat, lng,
+                  polygon, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng
+             from observation_fields
+            where field_id = any($1::uuid[])
+            order by
+              case source when 'user_defined' then 0 when 'protected_area' then 1 when 'oecm' then 2 else 3 end,
+              coalesce(area_ha, 999999),
+              name
+            limit 5`,
+          [fieldIds],
+        );
+        fields = result.rows.map((row) => {
+          const areaM2 = Number.isFinite(Number(row.area_ha)) && Number(row.area_ha) > 0
+            ? Math.round(Number(row.area_ha) * 10000)
+            : Math.round(Math.PI * Math.max(50, Number(row.radius_m ?? 0)) ** 2);
+          return {
+            fieldId: row.field_id,
+            name: row.name,
+            source: row.source,
+            areaM2,
+            center: { lat: row.lat, lng: row.lng },
+            radiusM: row.radius_m,
+            geometry: row.polygon,
+            bbox: row.bbox_min_lat != null && row.bbox_max_lat != null && row.bbox_min_lng != null && row.bbox_max_lng != null
+              ? {
+                  minLat: row.bbox_min_lat,
+                  maxLat: row.bbox_max_lat,
+                  minLng: row.bbox_min_lng,
+                  maxLng: row.bbox_max_lng,
+                }
+              : null,
+          };
+        });
+      }
+    }
+
+    return reply.send({
+      ok: true,
+      accepted,
+      inserted,
+      sessionId,
+      guideMode,
+      meshKeys: Array.from(meshKeys).slice(0, 12),
+      fields,
+      liveCoverageCellSizeM: 10,
+      absenceState: "non_detection_note",
+      privacy: "exact_route_private_public_area_or_100m_mesh",
+    });
+  });
 
   app.post("/api/v1/guide/live-token", async (request, reply) => {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);

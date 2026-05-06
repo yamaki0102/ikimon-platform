@@ -25,6 +25,7 @@ export type SceneContext = {
   capturedAt?: string | null;
   /** EXIF 方位角（0-360、北=0）。 */
   azimuth?: number | null;
+  frameBundleSummary?: string | null;
 };
 
 export type GuideSceneSaveRecommendation = {
@@ -56,8 +57,26 @@ export type SceneResult = {
   seasonalNote?: string;
   coexistingTaxa?: string[];
   saveRecommendation?: GuideSceneSaveRecommendation;
+  newSignals?: string[];
+  continuedSignals?: string[];
+  coverageHints?: string[];
+  absenceBoundary?: {
+    state: "non_detection_note" | "searched_not_found" | "absence_candidate";
+    note: string;
+  };
   isNew: boolean;
   sceneHash: string;
+};
+
+export type GuideFrameInput = {
+  frameBase64: string;
+  mimeType?: string | null;
+  capturedAt?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  accuracyM?: number | null;
+  speedMps?: number | null;
+  headingDegrees?: number | null;
 };
 
 function isVehicleModeCoarseVegetationName(name: string): boolean {
@@ -251,21 +270,27 @@ function getClient(): GoogleGenAI {
  * Returns structured scene data and whether this is a new scene (dedup check).
  */
 export async function analyzeScene(opts: {
-  frameBase64: string;
+  frameBase64?: string;
+  frames?: GuideFrameInput[];
   audioBase64?: string | null;
   frameMimeType?: string;
   context: SceneContext;
 }): Promise<SceneResult> {
   const ai = getClient();
 
-  const parts: Array<Record<string, unknown>> = [
-    {
-      inlineData: {
-        mimeType: opts.frameMimeType ?? "image/jpeg",
-        data: opts.frameBase64,
-      },
+  const frames = (Array.isArray(opts.frames) && opts.frames.length > 0
+    ? opts.frames
+    : (opts.frameBase64 ? [{ frameBase64: opts.frameBase64, mimeType: opts.frameMimeType ?? "image/jpeg", capturedAt: opts.context.capturedAt ?? null }] : []))
+    .filter((frame) => typeof frame.frameBase64 === "string" && frame.frameBase64.length > 0)
+    .slice(-4);
+  if (!frames.length) throw new Error("frameBase64 is required");
+
+  const parts: Array<Record<string, unknown>> = frames.map((frame) => ({
+    inlineData: {
+      mimeType: frame.mimeType ?? opts.frameMimeType ?? "image/jpeg",
+      data: frame.frameBase64,
     },
-  ];
+  }));
 
   if (opts.audioBase64) {
     parts.push({
@@ -285,6 +310,7 @@ export async function analyzeScene(opts: {
     azimuth: opts.context.azimuth != null ? `${opts.context.azimuth.toFixed(0)}°` : "不明",
     season,
     siteBriefLabel: opts.context.siteBriefLabel ?? "不明",
+    frameBundleSummary: opts.context.frameBundleSummary ?? summarizeFrameBundleForPrompt(frames),
     guideMode: guideMode === "vehicle" ? "車・自転車などの移動中モード" : "徒歩・立ち止まり観察モード",
     guideModeRules: guideMode === "vehicle"
       ? "移動中なので種同定を主目的にしない。車窓から確実に読める植生帯、街路樹、草刈り、農地、水路、林縁、道路際、土地利用の変化を優先する。看板・ロゴ・車名・店舗名を生きものとして扱わない。種名は画像上で生物個体が明確な場合だけ返す。"
@@ -326,6 +352,10 @@ export async function analyzeScene(opts: {
     seasonalNote?: string;
     coexistingTaxa?: string[];
     saveRecommendation?: GuideSceneSaveRecommendation;
+    newSignals?: string[];
+    continuedSignals?: string[];
+    coverageHints?: string[];
+    absenceBoundary?: unknown;
   } = {};
   try {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
@@ -346,6 +376,10 @@ export async function analyzeScene(opts: {
   const seasonalNote = sanitized.seasonalNote;
   const coexistingTaxa = sanitized.coexistingTaxa;
   const saveRecommendation = normalizeSaveRecommendation(parsed.saveRecommendation);
+  const newSignals = normalizeStringList(parsed.newSignals, 8);
+  const continuedSignals = normalizeStringList(parsed.continuedSignals, 8);
+  const coverageHints = normalizeStringList(parsed.coverageHints, 8);
+  const absenceBoundary = normalizeAbsenceBoundary(parsed.absenceBoundary);
 
   const sceneHash = createHash("sha256")
     .update(detectedSpecies.sort().join(",") + detectedFeatures.map((f) => f.name).sort().join(","))
@@ -363,9 +397,49 @@ export async function analyzeScene(opts: {
     seasonalNote,
     coexistingTaxa,
     saveRecommendation,
+    newSignals,
+    continuedSignals,
+    coverageHints,
+    absenceBoundary,
     isNew,
     sceneHash,
   };
+}
+
+function summarizeFrameBundleForPrompt(frames: GuideFrameInput[]): string {
+  return frames.map((frame, index) => {
+    const parts = [
+      `#${index + 1}`,
+      frame.capturedAt ? `time=${frame.capturedAt}` : null,
+      Number.isFinite(frame.lat) && Number.isFinite(frame.lng) ? `lat=${Number(frame.lat).toFixed(5)} lng=${Number(frame.lng).toFixed(5)}` : null,
+      Number.isFinite(frame.accuracyM) ? `accuracy=${Number(frame.accuracyM).toFixed(0)}m` : null,
+      Number.isFinite(frame.speedMps) ? `speed=${Number(frame.speedMps).toFixed(1)}m/s` : null,
+      Number.isFinite(frame.headingDegrees) ? `heading=${Number(frame.headingDegrees).toFixed(0)}deg` : null,
+    ].filter(Boolean);
+    return parts.join(" ");
+  }).join(" / ");
+}
+
+function normalizeStringList(raw: unknown, max: number): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => typeof item === "string" ? item.trim() : "")
+    .filter(Boolean)
+    .slice(0, max);
+}
+
+function normalizeAbsenceBoundary(raw: unknown): SceneResult["absenceBoundary"] | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const value = raw as Record<string, unknown>;
+  const state = value.state === "searched_not_found" || value.state === "absence_candidate"
+    ? value.state
+    : value.state === "confirmed_absence"
+      ? "absence_candidate"
+      : "non_detection_note";
+  const note = typeof value.note === "string" && value.note.trim()
+    ? value.note.trim().slice(0, 220)
+    : "通過中のAI未検出であり、確定不在ではありません。";
+  return { state, note };
 }
 
 function normalizeSaveRecommendation(raw: unknown): GuideSceneSaveRecommendation | undefined {
