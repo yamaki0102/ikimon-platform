@@ -4166,8 +4166,8 @@ const NOTES_LIBRARY_STYLES = `
     .notes-library-hero { padding: 22px; }
     .notes-library-hero h1 { font-size: 38px; }
     .notes-experience-loop { padding: 14px; }
-    .notes-loop-steps { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
-    .notes-loop-step { flex: 0 0 208px; min-height: 184px; scroll-snap-align: start; }
+    .notes-loop-steps { grid-template-columns: 1fr; gap: 9px; }
+    .notes-loop-step { min-height: 0; }
     .notes-library-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .notes-library-stats div { padding: 10px; }
     .notes-library-stats strong { font-size: 19px; }
