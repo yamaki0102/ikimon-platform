@@ -19,9 +19,8 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /serializeSharedMapState/);
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
-    assert.match(html, /class="me-map-command-deck"/);
-    assert.match(html, /data-map-tab="frontier"/);
-    assert.match(html, /data-map-basemap="esri"/);
+    assert.match(html, /class="me-map-cues"/);
+    assert.match(html, /丸の大きさ・数字 = 記録の多さ/);
     assert.match(html, /data-api-area-follow="\/api\/v1\/me\/area-subscriptions"/);
     assert.match(html, /data-area-follow-button/);
     assert.match(html, /me-area-follow-btn/);
