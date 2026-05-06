@@ -106,11 +106,15 @@ export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test)([-_]|$)'
 `;
 
+const PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL =
+  '(e2e[-_]?test|fixture[-_]?prefix|prod[-_]?media[-_]?smoke|smoke[-_]?regression[-_]?fixture|smoke[-_]?ui|staging[-_]?regression)';
+
 export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
   ea.asset_role = 'observation_photo'
   and coalesce(nullif(lower(ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
   and coalesce(nullif(lower(ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
   and nullif(coalesce(ab.public_url, ab.storage_path), '') is not null
+  and coalesce(ab.public_url, ab.storage_path, '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
   and coalesce(ab.bytes, 1024) > 512
   and coalesce(ab.width_px, 2) > 1
   and coalesce(ab.height_px, 2) > 1
@@ -119,6 +123,7 @@ export const VALID_OBSERVATION_PHOTO_ASSET_SQL = `
 export const VALID_OBSERVATION_VIDEO_ASSET_SQL = `
   ea.asset_role = 'observation_video'
   and nullif(coalesce(ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url'), '') is not null
+  and coalesce(ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url', '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
 `;
 
 export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
@@ -131,6 +136,7 @@ export const PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL = `
        and coalesce(nullif(lower(public_photo_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
        and coalesce(nullif(lower(public_photo_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
        and nullif(coalesce(public_photo_ab.public_url, public_photo_ab.storage_path), '') is not null
+       and coalesce(public_photo_ab.public_url, public_photo_ab.storage_path, '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
        and coalesce(public_photo_ab.bytes, 1024) > 512
        and coalesce(public_photo_ab.width_px, 2) > 1
        and coalesce(public_photo_ab.height_px, 2) > 1
@@ -149,6 +155,7 @@ export const PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL = `
            and coalesce(nullif(lower(public_media_ea.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
            and coalesce(nullif(lower(public_media_ab.source_payload->>'asset_exists'), ''), 'true') not in ('false', '0', 'no')
            and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path), '') is not null
+           and coalesce(public_media_ab.public_url, public_media_ab.storage_path, '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
            and coalesce(public_media_ab.bytes, 1024) > 512
            and coalesce(public_media_ab.width_px, 2) > 1
            and coalesce(public_media_ab.height_px, 2) > 1
@@ -156,6 +163,7 @@ export const PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL = `
          or (
            public_media_ea.asset_role = 'observation_video'
            and nullif(coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_ab.source_payload->>'iframe_url'), '') is not null
+           and coalesce(public_media_ab.public_url, public_media_ab.storage_path, public_media_ab.source_payload->>'iframe_url', '') !~* '${PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL}'
          )
        )
   )

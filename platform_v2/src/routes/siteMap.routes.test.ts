@@ -95,6 +95,7 @@ test("visual smoke targets are generated from sitemap metadata", () => {
   const pages = listVisualQaPages();
   const paths = pages.map((page) => page.path);
   assert.ok(paths.includes("/explore"));
+  assert.ok(paths.includes("/observations"));
   assert.ok(paths.includes("/guide"));
   assert.ok(paths.includes("/guide/outcomes"));
   assert.ok(paths.includes("/home"));

@@ -139,6 +139,17 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地域のいのちを見る" }, readySelector: "body", screenshot: { baselineName: "registry-explore" } },
   },
   {
+    path: "/observations",
+    lane: "start",
+    audience: "visitor",
+    auth: "public",
+    navVisibility: ["qa", "xml"],
+    title: { ja: "観察投稿一覧", en: "Observations" },
+    summary: { ja: "投稿された観察を写真グリッドで一覧する。", en: "Browse submitted observations in a photo-first grid." },
+    primaryAction: { href: "/record", label: { ja: "観察を投稿する", en: "Record" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察投稿一覧" }, readySelector: "[data-testid='observations-index']", screenshot: { baselineName: "registry-observations" } },
+  },
+  {
     path: "/notes",
     lane: "start",
     audience: "visitor",

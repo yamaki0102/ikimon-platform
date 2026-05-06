@@ -137,6 +137,7 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
 function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[]): string {
   const copy = shellCopyFor(lang);
   const brandMarkSrc = "/assets/img/icon-192.png";
+  const brandWordmarkSrc = "https://ikimon.co.jp/assets/img/logo-white.png";
   const navLinks = buildNavLinks(basePath, lang, activeNav);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop");
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile");
@@ -148,10 +149,9 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   return `<header class="site-header">
     <div class="site-header-inner">
       <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
-        <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="ikimon icon" /></span>
-        <span>
-          <strong>ikimon</strong>
-          <small>${escapeHtml(copy.brandTagline)}</small>
+        <span class="brand-logo-lockup">
+          <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
+          <span class="brand-wordmark"><img src="${escapeHtml(brandWordmarkSrc)}" alt="ikimon.life" /></span>
         </span>
       </a>
       <nav class="site-nav site-nav-desktop">${navLinks}</nav>
@@ -2151,9 +2151,22 @@ ${alternateLinks}
     .md-hidden { display: none; }
     .site-header { position: sticky; top: 0; z-index: 90; width: 100%; max-width: 100%; overflow: visible; backdrop-filter: blur(18px); background: rgba(249,255,254,.92); border-bottom: 1px solid rgba(15,23,42,.05); }
     .site-header-inner { width: 100%; max-width: 1240px; min-width: 0; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: nowrap; box-sizing: border-box; }
-    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; flex: 1 1 260px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; flex: 1 1 220px; }
+    .brand-logo-lockup {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px 7px 8px;
+      border-radius: 8px;
+      background: #047857;
+      box-shadow: 0 10px 22px rgba(4,120,87,.12);
+    }
     .brand-mark { width: 38px; height: 38px; flex: 0 0 38px; aspect-ratio: 1 / 1; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 8px 18px rgba(15,23,42,.07); background: white; }
     .brand-mark img { width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; }
+    .brand-logo-lockup .brand-mark { width: 30px; height: 30px; flex-basis: 30px; border-radius: 8px; padding: 3px; box-shadow: none; }
+    .brand-wordmark { display: inline-flex; align-items: center; min-width: 0; }
+    .brand-wordmark img { display: block; width: 104px; max-height: 26px; object-fit: contain; }
     .brand > span:last-child { min-width: 0; }
     .brand strong { display: block; font-size: 15px; font-weight: 900; }
     .brand small { display: block; max-width: 100%; margin-top: 2px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   isKnownLandingDummyObservation,
+  isLandingFixtureObservation,
   isLandingHeroCandidateEligible,
   resolveLandingDisplayName,
   scoreLandingHeroCandidate,
@@ -125,5 +126,23 @@ test("known winter dummy observations stay out of landing surfaces", () => {
   assert.equal(isKnownLandingDummyObservation({
     displayName: "モンシロチョウ",
     observedAt: "2026-02-17T09:00:00.000Z",
+  }), false);
+});
+
+test("landing fixture observations stay out of public landing shelves", () => {
+  assert.equal(isLandingFixtureObservation({
+    photoUrl: "/thumb/md/v2-observations/record-1778023706920/smoke-ui-local-1778023704507-photo.jpg",
+  }), true);
+  assert.equal(isLandingFixtureObservation({
+    observerName: "候補UIスモーク smoke-ui-local-1778023704507",
+  }), true);
+  assert.equal(isLandingFixtureObservation({
+    occurrenceId: "occ-a",
+    visitId: "visit-a",
+    displayName: "トクサ",
+    observerName: "山田",
+    placeName: "水路沿い",
+    municipality: "浜松市",
+    photoUrl: "/uploads/photos/real-observation.jpg",
   }), false);
 });

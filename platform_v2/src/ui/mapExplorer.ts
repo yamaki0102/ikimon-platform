@@ -2374,16 +2374,78 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return '<div class="me-area-sensitive ' + (canSee ? 'is-privileged' : '') + '">' + escapeHtml(msg) + '</div>';
   }
 
+  function dominantTaxonGroup(taxonMix) {
+    var best = 'other';
+    var bestCount = -1;
+    Object.keys(taxonMix || {}).forEach(function (key) {
+      var count = Number(taxonMix[key] || 0);
+      if (count > bestCount) {
+        best = key;
+        bestCount = count;
+      }
+    });
+    return best;
+  }
+
+  function buildCellPointCollection(features) {
+    return {
+      type: 'FeatureCollection',
+      features: (features || []).map(function (feature) {
+        var props = feature && feature.properties ? feature.properties : {};
+        var lng = Number(props.centroidLng);
+        var lat = Number(props.centroidLat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+        var group = dominantTaxonGroup(props.taxonMix || {});
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lng, lat] },
+          properties: {
+            cellId: props.cellId || '',
+            count: Number(props.count || 0),
+            dominantTaxonGroup: group,
+            label: props.label || '',
+          },
+        };
+      }).filter(Boolean),
+    };
+  }
+
+  function syncCellPointSource(map, features) {
+    var collection = buildCellPointCollection(features);
+    var pointSource = map.getSource('observation-centroids');
+    if (pointSource) pointSource.setData(collection);
+    return collection;
+  }
+
+  function taxonColorExpression(alpha) {
+    var a = typeof alpha === 'number' ? alpha : 1;
+    return [
+      'match', ['get', 'dominantTaxonGroup'],
+      'insect', 'rgba(245,158,11,' + a + ')',
+      'bird', 'rgba(14,165,233,' + a + ')',
+      'plant', 'rgba(16,185,129,' + a + ')',
+      'amphibian_reptile', 'rgba(34,197,94,' + a + ')',
+      'mammal', 'rgba(168,85,247,' + a + ')',
+      'fungi', 'rgba(239,68,68,' + a + ')',
+      'rgba(100,116,139,' + a + ')',
+    ];
+  }
+
   function ensureCellSource(map, features) {
     var sourceId = 'observations';
     if (map.getSource(sourceId)) {
       map.getSource(sourceId).setData({ type: 'FeatureCollection', features: features });
+      syncCellPointSource(map, features);
       highlightSelectedCell();
       return;
     }
     map.addSource(sourceId, {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: features },
+    });
+    map.addSource('observation-centroids', {
+      type: 'geojson',
+      data: buildCellPointCollection(features),
     });
     map.addLayer({
       id: 'observation-cell-fill',
@@ -2401,6 +2463,51 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       paint: {
         'line-color': 'rgba(14,165,233,0.55)',
         'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 12, 1.4],
+      },
+    });
+    map.addLayer({
+      id: 'observation-cell-bloom',
+      type: 'circle',
+      source: 'observation-centroids',
+      paint: {
+        'circle-color': taxonColorExpression(0.26),
+        'circle-radius': [
+          'interpolate', ['linear'], ['zoom'],
+          6, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 8, 8, 14, 24, 24],
+          13, ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 15, 8, 24, 24, 38],
+        ],
+        'circle-stroke-color': taxonColorExpression(0.82),
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 13, 2.4],
+        'circle-opacity': 0.86,
+      },
+    });
+    map.addLayer({
+      id: 'observation-cell-dot',
+      type: 'circle',
+      source: 'observation-centroids',
+      paint: {
+        'circle-color': taxonColorExpression(0.95),
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 13, 7],
+        'circle-stroke-color': 'rgba(255,255,255,0.96)',
+        'circle-stroke-width': 2,
+      },
+    });
+    map.addLayer({
+      id: 'observation-cell-count',
+      type: 'symbol',
+      source: 'observation-centroids',
+      minzoom: 7,
+      layout: {
+        'text-field': ['to-string', ['coalesce', ['get', 'count'], 1]],
+        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 13, 12],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': 'rgba(15,23,42,0.34)',
+        'text-halo-width': 0.8,
       },
     });
     map.addLayer({
@@ -2458,7 +2565,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         'line-width': 2.4,
       },
     });
-    ['observation-cell-fill', 'observation-cell-outline', 'obs-cell-heat'].forEach(function (layerId) {
+    ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'obs-cell-heat'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
         // 公園ポリゴンが下に重なっているなら、そちらを優先 (西伊場第1公園のような
@@ -2481,7 +2588,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           }
         }
         if (!e.features || !e.features[0]) return;
-        selectCell(e.features[0], { focusMap: false, openSheet: true });
+        var selectedFeature = e.features[0];
+        if (selectedFeature.geometry && selectedFeature.geometry.type === 'Point') {
+          selectedFeature = findCellFeatureById(selectedFeature.properties && selectedFeature.properties.cellId) || selectedFeature;
+        }
+        selectCell(selectedFeature, { focusMap: false, openSheet: true });
       });
       map.on('mouseenter', layerId, function () { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layerId, function () { map.getCanvas().style.cursor = ''; });
@@ -2498,7 +2609,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-label', 'observation-cell-selected'];
+    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'observation-cell-label', 'observation-cell-selected'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var show = function (ids, visible) {

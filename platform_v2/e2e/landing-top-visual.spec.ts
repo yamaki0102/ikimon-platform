@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
+import { suppressMapLibreForSmoke } from "./support/staging.js";
 
 const viewports = [
   { name: "desktop", width: 1440, height: 1200 },
@@ -28,6 +29,7 @@ test.describe("landing top visual regression", () => {
         viewport: { width: viewport.width, height: viewport.height },
       });
 
+      await suppressMapLibreForSmoke(page);
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await page.waitForLoadState("load");
       await page.addStyleTag({
@@ -41,7 +43,10 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator(".prototype-hero")).toBeVisible();
+      await expect(page.locator(".prototype-topa")).toBeVisible();
+      await expect(page.locator("#landing-hero-heading")).toContainText("見つける、確かめる、地図で見る。");
+      await expect(page.locator(".prototype-topa-actions")).toBeVisible();
+      await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
       await expect(page.locator(".prototype-flow-grid")).toBeVisible();
       await expect(page.locator(".prototype-map-section")).toBeVisible();
       await expect(page.locator(".site-footer")).toBeVisible();

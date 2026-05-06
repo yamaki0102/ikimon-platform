@@ -22,6 +22,8 @@ test("legacy quality gate does not count zero-zero as a real location", () => {
 test("public quality gate excludes leaked test observations and smoke fixtures", () => {
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /e2e_test_/);
   assert.match(PUBLIC_OBSERVATION_QUALITY_SQL, /prod\[-_\]\?media/);
+  assert.match(VALID_OBSERVATION_PHOTO_ASSET_SQL, /smoke\[-_\]\?ui/);
+  assert.match(PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL, /smoke\[-_\]\?ui/);
 });
 
 test("public photo gates reject known 1x1 placeholder assets without requiring legacy dimensions", () => {

@@ -68,6 +68,7 @@ import {
   getExploreSnapshot,
   getHomeSnapshot,
   getObservationDetailSnapshot,
+  getObservationListSnapshot,
   getProfileSnapshot,
   getSpecialistSnapshot,
   type HomePlace,
@@ -141,6 +142,7 @@ function layout(
   hero?: LayoutHero,
   extraStyles?: string,
   currentPath?: string,
+  hideFooter = false,
 ): string {
   return renderSiteDocument({
     basePath,
@@ -160,6 +162,7 @@ function layout(
       : undefined,
     extraStyles,
     currentPath,
+    hideFooter,
     footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
   });
 }
@@ -5425,30 +5428,62 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           return value.toFixed(1) + '秒';
         };
 
+        const isVideoDurationReadError = (error) => {
+          const message = normalizeError(error);
+          return message === 'video_metadata_read_failed' || message === 'video_duration_unknown';
+        };
+
         const getVideoDuration = (file) => new Promise((resolve, reject) => {
           const probe = document.createElement('video');
           const objectUrl = URL.createObjectURL(file);
+          let settled = false;
+          let askedBySeek = false;
           const cleanup = () => {
+            settled = true;
             URL.revokeObjectURL(objectUrl);
             probe.removeAttribute('src');
+            probe.load();
+          };
+          const finishWithDuration = () => {
+            if (settled) return true;
+            const duration = Number(probe.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+              cleanup();
+              resolve(duration);
+              return true;
+            }
+            return false;
+          };
+          const trySeekProbe = () => {
+            if (settled || askedBySeek) return;
+            askedBySeek = true;
+            try {
+              probe.currentTime = 1e101;
+            } catch (_) {
+              // Some mobile browsers only reveal Blob video duration after a large seek.
+            }
+          };
+          const fail = (code) => {
+            if (settled) return;
+            cleanup();
+            reject(new Error(code));
           };
           probe.preload = 'metadata';
           probe.muted = true;
           probe.playsInline = true;
           probe.onloadedmetadata = () => {
-            const duration = Number(probe.duration);
-            cleanup();
-            if (!Number.isFinite(duration) || duration <= 0) {
-              reject(new Error('video_duration_unknown'));
-              return;
-            }
-            resolve(duration);
+            if (!finishWithDuration()) trySeekProbe();
           };
+          probe.ondurationchange = finishWithDuration;
+          probe.onloadeddata = finishWithDuration;
+          probe.oncanplay = finishWithDuration;
+          probe.onseeked = finishWithDuration;
           probe.onerror = () => {
-            cleanup();
-            reject(new Error('video_metadata_read_failed'));
+            fail('video_metadata_read_failed');
           };
+          window.setTimeout(() => fail('video_duration_unknown'), 8000);
           probe.src = objectUrl;
+          probe.load();
         });
 
         const resetVideoTrim = (opts) => {
@@ -5620,7 +5655,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
         const ensureVideoReadyForUpload = async (file) => {
           if (!file || !isVideoFile(file)) return file;
-          const duration = await getVideoDuration(file);
+          let duration = 0;
+          try {
+            duration = await getVideoDuration(file);
+          } catch (error) {
+            if (isVideoDurationReadError(error)) {
+              if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画としてアップロードし、サーバー側の上限で確認します。';
+              return file;
+            }
+            throw error;
+          }
           if (duration > MAX_VIDEO_SECONDS + 0.5 && !selectedVideoWasTrimmed) {
             throw new Error('video_trim_required');
           }
@@ -6154,7 +6198,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             } catch (_) {
               trimReady = false;
               resetVideoTrim();
-              if (videoLive) videoLive.textContent = '動画の長さを確認できませんでした。別の動画で試してください。';
+              if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。';
             }
             videoProgressWrap.hidden = false;
             if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
@@ -6162,7 +6206,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         };
 
         const validateVideoDuration = async (file) => {
-          const duration = await getVideoDuration(file);
+          let duration = 0;
+          try {
+            duration = await getVideoDuration(file);
+          } catch (error) {
+            if (isVideoDurationReadError(error)) return null;
+            throw error;
+          }
           if (duration > MAX_VIDEO_SECONDS + 0.5) {
             throw new Error('video_duration_too_long');
           }
@@ -6374,7 +6424,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               } catch (_) {
                 trimReady = false;
                 resetVideoTrim();
-                if (videoLive) videoLive.textContent = '動画の長さを確認できませんでした。別の動画で試してください。';
+                if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。';
               }
               videoProgressWrap.hidden = false;
               if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
@@ -7139,6 +7189,539 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         @media (max-width: 860px) { .explore-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
         @media (max-width: 480px) { .explore-grid { grid-template-columns: 1fr; } }
       `,
+    );
+  });
+
+  app.get<{ Querystring: { filter?: string } }>("/observations", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const snapshot = await getObservationListSnapshot(48).catch(() => ({
+      observations: [],
+      summary: {
+        shownCount: 0,
+        awaitingIdCount: 0,
+        identifiedCount: 0,
+        multiSubjectCount: 0,
+      },
+    }));
+    const activeFilter = request.query.filter === "needs_id"
+      || request.query.filter === "ai"
+      || request.query.filter === "no_id"
+      || request.query.filter === "photo"
+      || request.query.filter === "identified"
+      || request.query.filter === "multi"
+      ? request.query.filter
+      : "all";
+    const visibleObservations = snapshot.observations.filter((item) => {
+      if (activeFilter === "needs_id") return item.displayName === "同定待ち" || item.isAiCandidate;
+      if (activeFilter === "ai") return Boolean(item.isAiCandidate);
+      if (activeFilter === "no_id") return item.identificationCount === 0;
+      if (activeFilter === "photo") return Boolean(item.photoUrl);
+      if (activeFilter === "identified") return item.displayName !== "同定待ち" && !item.isAiCandidate;
+      if (activeFilter === "multi") return Boolean(item.isMultiSubject);
+      return true;
+    });
+    const pageTitle = activeFilter === "needs_id" ? "同定" : "観察投稿一覧";
+    const pageCountLabel = `${visibleObservations.length}件`;
+    const fieldOptions = new Map<string, { name: string; count: number }>();
+    for (const item of snapshot.observations) {
+      for (const field of item.fieldRefs ?? []) {
+        const current = fieldOptions.get(field.fieldId);
+        fieldOptions.set(field.fieldId, {
+          name: field.name,
+          count: (current?.count ?? 0) + 1,
+        });
+      }
+    }
+    const fieldSelectOptions = Array.from(fieldOptions.entries())
+      .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name, "ja"))
+      .map(([fieldId, field]) => `<button type="button" class="observations-spot-chip" data-observations-field-chip="${escapeHtml(fieldId)}" data-field-name="${escapeHtml(field.name.toLowerCase())}">${escapeHtml(field.name)}<b>${escapeHtml(String(field.count))}</b></button>`)
+      .join("");
+    const cards = visibleObservations.map((item) => {
+      const detailHref = appendLangToHref(
+        withBasePath(
+          basePath,
+          buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId),
+        ),
+        lang,
+      );
+      const identifyHref = `${detailHref}#identify`;
+      const statusLabel = item.isAiCandidate
+        ? "AI候補"
+        : item.displayName === "同定待ち" || item.identificationCount === 0
+          ? "同定待ち"
+          : "同定あり";
+      const statusKeys = [
+        item.displayName === "同定待ち" || item.isAiCandidate ? "needs-id" : "",
+        item.isAiCandidate ? "ai" : "",
+        item.identificationCount === 0 ? "no-id" : "",
+        item.displayName !== "同定待ち" && !item.isAiCandidate ? "identified" : "",
+        item.isMultiSubject ? "multi" : "",
+      ].filter(Boolean).join(" ");
+      const mediaKey = item.photoUrl ? "photo" : "no-photo";
+      const idBucket = item.identificationCount <= 0 ? "zero" : item.identificationCount === 1 ? "one" : "two-plus";
+      const observedMs = Date.parse(item.observedAt);
+      const fieldIds = (item.fieldRefs ?? []).map((field) => field.fieldId).join(" ");
+      const fieldNames = (item.fieldRefs ?? []).map((field) => field.name).join(" ");
+      const taxonText = [
+        item.displayName,
+        item.featuredSubjectName,
+        item.vernacularName,
+        item.scientificName,
+        item.aiCandidateName,
+      ].filter(Boolean).join(" ").toLowerCase();
+      const rankKey = String(item.featuredTaxonRank ?? item.aiCandidateRank ?? "").trim().toLowerCase();
+      const searchText = [
+        item.displayName,
+        item.featuredSubjectName,
+        item.vernacularName,
+        item.scientificName,
+        item.aiCandidateName,
+        item.observerName,
+        item.placeName,
+        item.municipality,
+        formatPlaceDisplay({
+          placeName: item.placeName,
+          municipality: item.municipality,
+          publicLocation: item.publicLocation,
+        }, lang, "public"),
+        fieldNames,
+        statusLabel,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return `<div class="observations-grid-item"
+        data-observation-tile
+        data-search="${escapeHtml(searchText)}"
+        data-status="${escapeHtml(statusKeys)}"
+        data-media="${escapeHtml(mediaKey)}"
+        data-fields="${escapeHtml(fieldIds)}"
+        data-taxon="${escapeHtml(taxonText)}"
+        data-rank="${escapeHtml(rankKey)}"
+        data-id-bucket="${escapeHtml(idBucket)}"
+        data-id-count="${escapeHtml(String(item.identificationCount))}"
+        data-observed-ms="${escapeHtml(String(Number.isFinite(observedMs) ? observedMs : 0))}">
+        ${renderObservationCard(basePath, lang, {
+        occurrenceId: item.occurrenceId,
+        visitId: item.visitId,
+        detailId: item.detailId,
+        featuredOccurrenceId: item.featuredOccurrenceId,
+        featuredSubjectName: item.featuredSubjectName,
+        subjectCount: item.subjectCount,
+        isMultiSubject: item.isMultiSubject,
+        featuredConfidenceBand: item.featuredConfidenceBand,
+        displayStability: item.displayStability,
+        displayName: item.displayName,
+        observedAt: item.observedAt,
+        observerName: item.observerName,
+        placeName: item.placeName,
+        municipality: item.municipality,
+        publicLocation: item.publicLocation,
+        photoUrl: item.photoUrl,
+        identificationCount: item.identificationCount,
+        latitude: null,
+        longitude: null,
+        observerUserId: null,
+        observerAvatarUrl: null,
+        }, { compact: true, locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) })}
+        <a class="observations-id-shortcut" href="${escapeHtml(identifyHref)}" aria-label="${escapeHtml(`${item.displayName}を同定する`)}">${escapeHtml(statusLabel === "同定あり" ? "確認" : "同定")}</a>
+      </div>`;
+    }).join("");
+    const aiCandidateCount = snapshot.observations.filter((item) => item.isAiCandidate).length;
+    const noIdCount = snapshot.observations.filter((item) => item.identificationCount === 0).length;
+    const photoCount = snapshot.observations.filter((item) => Boolean(item.photoUrl)).length;
+    const filters = [
+      { href: "/observations", label: "すべて", key: "all", count: snapshot.summary.shownCount },
+      { href: "/observations?filter=needs_id", label: "同定待ち", key: "needs_id", count: snapshot.summary.awaitingIdCount },
+      { href: "/observations?filter=ai", label: "AI候補", key: "ai", count: aiCandidateCount },
+      { href: "/observations?filter=no_id", label: "未同定", key: "no_id", count: noIdCount },
+      { href: "/observations?filter=photo", label: "写真あり", key: "photo", count: photoCount },
+      { href: "/observations?filter=multi", label: "複数対象", key: "multi", count: snapshot.summary.multiSubjectCount },
+      { href: "/observations?filter=identified", label: "名前あり", key: "identified", count: snapshot.summary.identifiedCount },
+    ].map((item) => `
+      <a class="observations-chip${item.key === activeFilter ? " is-active" : ""}" href="${escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang))}">
+        <span>${escapeHtml(item.label)}</span><b>${escapeHtml(String(item.count))}</b>
+      </a>`).join("");
+
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      `${pageTitle} | ikimon`,
+      `<section class="observations-page${activeFilter === "needs_id" ? " is-identify" : ""}" data-testid="observations-index" data-observations-page>
+        <header class="observations-titlebar">
+          <div>
+            <h1>${escapeHtml(pageTitle)}</h1>
+            <span data-observations-count>${escapeHtml(pageCountLabel)}</span>
+          </div>
+          <nav class="observations-actions" aria-label="関連する操作">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}" aria-label="地図で見る">地図</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="観察を投稿する">＋</a>
+          </nav>
+        </header>
+        <div class="observations-search" role="search">
+          <span aria-hidden="true">⌕</span>
+          <input type="search" placeholder="名前・場所・人" aria-label="観察を検索" data-observations-search />
+        </div>
+        <nav class="observations-toolbar" aria-label="観察投稿の表示切り替え">
+          ${filters}
+        </nav>
+        <details class="observations-advanced">
+          <summary>詳細</summary>
+          <div class="observations-advanced-grid">
+            <label>状態
+              <select data-observations-filter="status">
+                <option value="all">すべて</option>
+                <option value="needs-id">同定待ち</option>
+                <option value="ai">AI候補</option>
+                <option value="no-id">未同定</option>
+                <option value="identified">名前あり</option>
+                <option value="multi">複数対象</option>
+              </select>
+            </label>
+            <label>証拠
+              <select data-observations-filter="media">
+                <option value="all">すべて</option>
+                <option value="photo">写真あり</option>
+                <option value="no-photo">写真なし</option>
+              </select>
+            </label>
+            <label>分類
+              <input type="search" placeholder="科・属・種名" data-observations-taxon />
+            </label>
+            <label>階級
+              <select data-observations-filter="rank">
+                <option value="all">すべて</option>
+                <option value="species">種</option>
+                <option value="genus">属</option>
+                <option value="family">科</option>
+                <option value="order">目</option>
+                <option value="class">綱</option>
+                <option value="phylum">門</option>
+              </select>
+            </label>
+            <label>日付
+              <select data-observations-filter="date">
+                <option value="all">すべて</option>
+                <option value="7d">7日</option>
+                <option value="30d">30日</option>
+                <option value="90d">90日</option>
+              </select>
+            </label>
+            <label>同定数
+              <select data-observations-filter="ids">
+                <option value="all">すべて</option>
+                <option value="zero">0件</option>
+                <option value="one">1件</option>
+                <option value="two-plus">2件以上</option>
+              </select>
+            </label>
+            <label>並び
+              <select data-observations-sort>
+                <option value="newest">新しい順</option>
+                <option value="oldest">古い順</option>
+                <option value="least-id">同定少ない順</option>
+                <option value="most-id">同定多い順</option>
+              </select>
+            </label>
+          </div>
+        </details>
+        <section class="observations-spot-filter" aria-label="登録エリア">
+          <div class="observations-spot-search">
+            <span>登録エリア</span>
+            <input type="search" placeholder="スポット名" data-observations-spot-search />
+            <button type="button" data-observations-field-clear hidden>解除</button>
+          </div>
+          <div class="observations-spot-chips" data-observations-field-list>
+            <button type="button" class="observations-spot-chip is-active" data-observations-field-chip="all">すべて</button>
+            ${fieldSelectOptions || `<span class="observations-spot-empty">登録エリアなし</span>`}
+          </div>
+        </section>
+        <section class="observations-presets" aria-label="保存条件">
+          <div class="observations-preset-save">
+            <input type="text" placeholder="保存名（任意）" aria-label="保存名（任意）" data-observations-preset-name />
+            <button type="button" data-observations-preset-save>保存</button>
+          </div>
+          <div class="observations-preset-list" data-observations-presets></div>
+        </section>
+        <section class="observations-grid-section">
+          <div class="observations-video-grid" data-observations-grid>
+            ${cards || `<div class="observations-empty">まだ表示できる観察投稿がありません。</div>`}
+          </div>
+          <div class="observations-empty" data-observations-empty hidden>該当する観察がありません。</div>
+        </section>
+        <script>
+(function () {
+  const root = document.querySelector('[data-observations-page]');
+  if (!root) return;
+  const search = root.querySelector('[data-observations-search]');
+  const count = root.querySelector('[data-observations-count]');
+  const empty = root.querySelector('[data-observations-empty]');
+  const grid = root.querySelector('[data-observations-grid]');
+  const controls = Array.from(root.querySelectorAll('[data-observations-filter]'));
+  const sort = root.querySelector('[data-observations-sort]');
+  const taxon = root.querySelector('[data-observations-taxon]');
+  const spotSearch = root.querySelector('[data-observations-spot-search]');
+  const fieldClear = root.querySelector('[data-observations-field-clear]');
+  const fieldChips = Array.from(root.querySelectorAll('[data-observations-field-chip]'));
+  const presetName = root.querySelector('[data-observations-preset-name]');
+  const presetSave = root.querySelector('[data-observations-preset-save]');
+  const presetList = root.querySelector('[data-observations-presets]');
+  const tiles = Array.from(root.querySelectorAll('[data-observation-tile]'));
+  const storageKey = 'ikimon.identify.filterPresets.v1';
+  let activeField = 'all';
+  function readPresets() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      return Array.isArray(parsed) ? parsed.filter(function (item) { return item && typeof item === 'object'; }).slice(0, 24) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  function writePresets(presets) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(presets.slice(0, 24)));
+    } catch (_) {}
+  }
+  function readState() {
+    const active = {};
+    controls.forEach(function (control) {
+      active[control.getAttribute('data-observations-filter') || ''] = String(control.value || 'all');
+    });
+    return {
+      query: search ? String(search.value || '') : '',
+      taxon: taxon ? String(taxon.value || '') : '',
+      field: activeField,
+      filters: active,
+      sort: sort ? String(sort.value || 'newest') : 'newest'
+    };
+  }
+  function setField(value) {
+    activeField = value || 'all';
+    fieldChips.forEach(function (chip) {
+      chip.classList.toggle('is-active', String(chip.getAttribute('data-observations-field-chip') || 'all') === activeField);
+    });
+    if (fieldClear) fieldClear.hidden = activeField === 'all';
+  }
+  function applyState(state) {
+    if (!state || typeof state !== 'object') return;
+    if (search) search.value = String(state.query || '');
+    if (taxon) taxon.value = String(state.taxon || '');
+    if (sort && state.sort) sort.value = String(state.sort || 'newest');
+    const filters = state.filters && typeof state.filters === 'object' ? state.filters : {};
+    controls.forEach(function (control) {
+      const key = control.getAttribute('data-observations-filter') || '';
+      if (Object.prototype.hasOwnProperty.call(filters, key)) control.value = String(filters[key] || 'all');
+    });
+    setField(String(state.field || 'all'));
+    applySearch();
+  }
+  function renderPresets() {
+    if (!presetList) return;
+    const presets = readPresets();
+    presetList.innerHTML = '';
+    presets.forEach(function (preset, index) {
+      const wrap = document.createElement('span');
+      wrap.className = 'observations-preset-chip';
+      const load = document.createElement('button');
+      load.type = 'button';
+      load.textContent = String(preset.name || '条件');
+      load.addEventListener('click', function () { applyState(preset.state); });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', String(preset.name || '条件') + 'を削除');
+      remove.textContent = '×';
+      remove.addEventListener('click', function () {
+        const next = readPresets();
+        next.splice(index, 1);
+        writePresets(next);
+        renderPresets();
+      });
+      wrap.appendChild(load);
+      wrap.appendChild(remove);
+      presetList.appendChild(wrap);
+    });
+  }
+  function savePreset() {
+    const name = presetName ? String(presetName.value || '').trim() : '';
+    const state = readState();
+    const fallback = [state.filters.status, state.taxon, state.field === 'all' ? '' : 'スポット'].filter(Boolean).join(' · ') || '条件';
+    const presets = readPresets().filter(function (item) { return String(item.name || '') !== (name || fallback); });
+    presets.unshift({ name: name || fallback, state: state, savedAt: Date.now() });
+    writePresets(presets);
+    if (presetName) presetName.value = '';
+    renderPresets();
+  }
+  function filterSpotChips() {
+    const query = spotSearch ? String(spotSearch.value || '').trim().toLowerCase() : '';
+    fieldChips.forEach(function (chip) {
+      if (String(chip.getAttribute('data-observations-field-chip') || 'all') === 'all') {
+        chip.hidden = false;
+        return;
+      }
+      const name = String(chip.getAttribute('data-field-name') || '').toLowerCase();
+      chip.hidden = Boolean(query) && name.indexOf(query) < 0;
+    });
+  }
+  function applySearch() {
+    const query = search ? String(search.value || '').trim().toLowerCase() : '';
+    const taxonQuery = taxon ? String(taxon.value || '').trim().toLowerCase() : '';
+    const now = Date.now();
+    const active = {};
+    controls.forEach(function (control) {
+      active[control.getAttribute('data-observations-filter') || ''] = String(control.value || 'all');
+    });
+    let visible = 0;
+    tiles.forEach(function (tile) {
+      const haystack = String(tile.getAttribute('data-search') || '');
+      const status = String(tile.getAttribute('data-status') || '');
+      const media = String(tile.getAttribute('data-media') || '');
+      const fields = String(tile.getAttribute('data-fields') || '');
+      const taxonText = String(tile.getAttribute('data-taxon') || '');
+      const rank = String(tile.getAttribute('data-rank') || '');
+      const idBucket = String(tile.getAttribute('data-id-bucket') || '');
+      const observedMs = Number(tile.getAttribute('data-observed-ms') || 0);
+      const ageDays = observedMs > 0 ? (now - observedMs) / 86400000 : Infinity;
+      const okQuery = !query || haystack.indexOf(query) >= 0;
+      const okTaxon = !taxonQuery || taxonText.indexOf(taxonQuery) >= 0;
+      const okStatus = !active.status || active.status === 'all' || status.split(/\\s+/).indexOf(active.status) >= 0;
+      const okMedia = !active.media || active.media === 'all' || media === active.media;
+      const okField = activeField === 'all' || fields.split(/\\s+/).indexOf(activeField) >= 0;
+      const okRank = !active.rank || active.rank === 'all' || rank === active.rank;
+      const okIds = !active.ids || active.ids === 'all' || idBucket === active.ids;
+      const okDate = !active.date || active.date === 'all'
+        || (active.date === '7d' && ageDays <= 7)
+        || (active.date === '30d' && ageDays <= 30)
+        || (active.date === '90d' && ageDays <= 90);
+      const show = okQuery && okTaxon && okStatus && okMedia && okField && okRank && okIds && okDate;
+      tile.hidden = !show;
+      if (show) visible += 1;
+    });
+    if (grid && sort) {
+      const sorted = tiles.slice().sort(function (a, b) {
+        const av = Number(a.getAttribute('data-observed-ms') || 0);
+        const bv = Number(b.getAttribute('data-observed-ms') || 0);
+        const ai = Number(a.getAttribute('data-id-count') || 0);
+        const bi = Number(b.getAttribute('data-id-count') || 0);
+        if (sort.value === 'oldest') return av - bv;
+        if (sort.value === 'least-id') return ai - bi || bv - av;
+        if (sort.value === 'most-id') return bi - ai || bv - av;
+        return bv - av;
+      });
+      sorted.forEach(function (tile) { grid.appendChild(tile); });
+    }
+    if (count) count.textContent = String(visible) + '件';
+    if (empty) empty.hidden = visible !== 0 || tiles.length === 0;
+  }
+  if (search) search.addEventListener('input', applySearch);
+  if (taxon) taxon.addEventListener('input', applySearch);
+  if (spotSearch) spotSearch.addEventListener('input', filterSpotChips);
+  if (fieldClear) fieldClear.addEventListener('click', function () { setField('all'); applySearch(); });
+  fieldChips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      setField(String(chip.getAttribute('data-observations-field-chip') || 'all'));
+      applySearch();
+    });
+  });
+  if (presetSave) presetSave.addEventListener('click', savePreset);
+  if (presetName) presetName.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      savePreset();
+    }
+  });
+  controls.forEach(function (control) { control.addEventListener('change', applySearch); });
+  if (sort) sort.addEventListener('change', applySearch);
+  setField('all');
+  filterSpotChips();
+  renderPresets();
+  applySearch();
+})();
+</script>
+      </section>`,
+      "見つける",
+      undefined,
+      `${OBSERVATION_CARD_STYLES}
+        .observations-page { display: grid; gap: 14px; margin-top: 4px; }
+        .observations-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+        .observations-titlebar h1 { margin: 0; color: #0f172a; font-size: 28px; line-height: 1.1; letter-spacing: 0; }
+        .observations-titlebar span { display: block; margin-top: 3px; color: #64748b; font-size: 13px; font-weight: 850; }
+        .observations-actions { display: inline-flex; align-items: center; gap: 8px; }
+        .observations-actions a { min-width: 46px; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0 13px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; font-size: 14px; font-weight: 950; text-decoration: none; box-shadow: 0 4px 14px rgba(15,23,42,.04); }
+        .observations-actions a:last-child { background: #064e3b; border-color: #064e3b; color: #fff; font-size: 22px; line-height: 1; }
+        .observations-search { min-height: 52px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 16px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.09); box-shadow: 0 5px 18px rgba(15,23,42,.04); }
+        .observations-search span { color: #64748b; font-size: 20px; font-weight: 900; }
+        .observations-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #0f172a; font: inherit; font-size: 16px; font-weight: 750; }
+        .observations-search input::placeholder { color: #94a3b8; }
+        .observations-toolbar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: none; }
+        .observations-chip { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: 0 0 auto; padding: 0 14px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; font-size: 14px; font-weight: 900; text-decoration: none; }
+        .observations-chip b { min-width: 22px; padding: 2px 7px; border-radius: 999px; background: rgba(15,23,42,.06); color: #475569; font-size: 11px; line-height: 1.2; font-weight: 950; text-align: center; }
+        .observations-chip.is-active { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .observations-chip.is-active b { background: rgba(255,255,255,.18); color: #fff; }
+        .observations-advanced { border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.09); overflow: hidden; }
+        .observations-advanced summary { min-height: 46px; display: flex; align-items: center; padding: 0 16px; color: #0f172a; font-size: 14px; font-weight: 950; cursor: pointer; list-style: none; }
+        .observations-advanced summary::-webkit-details-marker { display: none; }
+        .observations-advanced summary::after { content: "+"; margin-left: auto; font-size: 18px; line-height: 1; }
+        .observations-advanced[open] summary::after { content: "-"; }
+        .observations-advanced-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 0 12px 12px; }
+        .observations-advanced label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 900; }
+        .observations-advanced select,
+        .observations-advanced input,
+        .observations-preset-save input,
+        .observations-spot-search input { min-height: 42px; width: 100%; border-radius: 12px; border: 1px solid rgba(15,23,42,.12); background: #f8fafc; color: #0f172a; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 850; }
+        .observations-spot-filter, .observations-presets { display: grid; gap: 8px; padding: 10px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.09); }
+        .observations-spot-search { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+        .observations-spot-search span { color: #475569; font-size: 12px; font-weight: 950; white-space: nowrap; }
+        .observations-spot-search button,
+        .observations-preset-save button,
+        .observations-preset-chip button { min-height: 40px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #0f172a; border-radius: 999px; padding: 0 13px; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; }
+        .observations-spot-chips, .observations-preset-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+        .observations-spot-chip { min-height: 38px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #f8fafc; color: #0f172a; padding: 0 13px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
+        .observations-spot-chip b { min-width: 20px; padding: 2px 6px; border-radius: 999px; background: rgba(15,23,42,.06); color: #475569; font-size: 11px; line-height: 1.2; }
+        .observations-spot-chip.is-active { background: #ecfdf5; border-color: rgba(6,78,59,.24); color: #064e3b; }
+        .observations-spot-empty { min-height: 38px; display: inline-flex; align-items: center; color: #64748b; font-size: 13px; font-weight: 850; }
+        .observations-preset-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+        .observations-preset-save button { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .observations-preset-chip { flex: 0 0 auto; display: inline-flex; align-items: center; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.1); overflow: hidden; }
+        .observations-preset-chip button { border: 0; background: transparent; border-radius: 0; }
+        .observations-preset-chip button:last-child { min-width: 36px; padding: 0 10px; color: #64748b; }
+        .observations-grid-section { display: grid; gap: 12px; }
+        .observations-video-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; align-items: start; }
+        .observations-grid-item { position: relative; min-width: 0; }
+        .observations-grid-item[hidden] { display: none; }
+        .observations-video-grid .obs-card { border-radius: 8px; box-shadow: none; border-color: rgba(15,23,42,.07); }
+        .observations-video-grid .obs-card:hover { transform: none; box-shadow: 0 6px 18px rgba(15,23,42,.08); }
+        .observations-video-grid .obs-card-media { aspect-ratio: 1 / 1; }
+        .observations-video-grid .obs-card-kind,
+        .observations-video-grid .obs-card-tier,
+        .observations-video-grid .obs-card-avatar { display: none; }
+        .observations-video-grid .obs-card-meta { min-height: 64px; padding: 8px 9px 10px; gap: 4px; border-top: 0; }
+        .observations-video-grid .obs-card-who { gap: 6px; }
+        .observations-video-grid .obs-card-attribution { font-size: 12px; }
+        .observations-video-grid .obs-card-when { font-size: 10.5px; }
+        .observations-video-grid .obs-card-place { font-size: 11px; line-height: 1.35; -webkit-line-clamp: 1; }
+        .observations-video-grid .obs-card-actions { display: none; }
+        .observations-id-shortcut { position: absolute; right: 8px; top: 8px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 950; text-decoration: none; backdrop-filter: blur(8px); }
+        .observations-empty { grid-column: 1 / -1; min-height: 132px; display: grid; place-items: center; padding: 22px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #475569; font-weight: 850; }
+        .observations-empty[hidden] { display: none; }
+        @media (max-width: 1180px) { .observations-video-grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+        @media (max-width: 820px) {
+          .observations-page { gap: 12px; }
+          .observations-titlebar h1 { font-size: 25px; }
+          .observations-advanced-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .observations-video-grid { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+          .observations-video-grid .obs-card-meta { min-height: 58px; padding: 7px 8px 9px; }
+          .observations-video-grid .obs-card-when { display: none; }
+          .observations-id-shortcut { min-height: 32px; padding: 0 9px; font-size: 11px; }
+        }
+        @media (max-width: 520px) {
+          .observations-video-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+          .observations-search { min-height: 50px; }
+          .observations-chip { min-height: 40px; padding: 0 12px; font-size: 13px; }
+          .observations-chip b { display: none; }
+          .observations-advanced-grid { grid-template-columns: 1fr; }
+        }
+      `,
+      "/observations",
+      true,
     );
   });
 

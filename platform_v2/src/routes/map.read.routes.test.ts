@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
@@ -21,7 +22,18 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /class="me-map-command-deck"/);
     assert.match(html, /data-map-tab="frontier"/);
     assert.match(html, /data-map-basemap="esri"/);
+    assert.match(html, /observation-cell-bloom/);
+    assert.match(html, /observation-centroids/);
+    assert.match(html, /dominantTaxonGroup/);
   } finally {
     await app.close();
   }
+});
+
+test("record upload flow lets 60 second videos continue when browser duration metadata is unreadable", () => {
+  const source = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+
+  assert.match(source, /isVideoDurationReadError/);
+  assert.match(source, /サーバー側の上限で確認します/);
+  assert.match(source, /端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。/);
 });

@@ -5,6 +5,7 @@ import { buildApp } from "../app.js";
 
 const shallowJaRoutes = [
   "/?lang=ja",
+  "/observations?lang=ja",
   "/notes?lang=ja",
   "/guide?lang=ja",
   "/lens?lang=ja",
@@ -95,17 +96,62 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home hero and how-it-works copy match the canonical ja surface", async () => {
+test("home hero uses the senior-friendly top A action surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Enjoy Life/);
     assert.match(response.body, /生きものを楽しむ。/);
-    assert.match(response.body, /地球のいのちを楽しむ。/);
+    assert.match(response.body, /見つける、確かめる、地図で見る。/);
+    assert.match(response.body, /観察する/);
+    assert.match(response.body, /同定する/);
+    assert.match(response.body, /マイページ/);
     assert.match(response.body, /発見を楽しみ、地域の自然記録へ。/);
     assert.match(response.body, /地域のいのちを、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("observations index renders the senior-friendly video grid list", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/observations?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /観察投稿一覧/);
+    assert.match(response.body, /名前・場所・人/);
+    assert.match(response.body, /AI候補/);
+    assert.match(response.body, /未同定/);
+    assert.match(response.body, /写真あり/);
+    assert.match(response.body, /登録エリア/);
+    assert.match(response.body, /科・属・種名/);
+    assert.match(response.body, /スポット名/);
+    assert.match(response.body, /保存名（任意）/);
+    assert.match(response.body, /data-observations-field-chip/);
+    assert.match(response.body, /data-observations-preset-save/);
+    assert.match(response.body, /同定少ない順/);
+    assert.match(response.body, /data-testid="observations-index"/);
+    assert.match(response.body, /observations-video-grid/);
+    assert.match(response.body, /\/ja\/observations\?filter=needs_id/);
+    assert.doesNotMatch(response.body, /写真から、地域の発見をすぐ見る。/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("identification queue renders without a hero", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/observations?filter=needs_id&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<h1>同定<\/h1>/);
+    assert.match(response.body, /data-observations-search/);
+    assert.match(response.body, /data-observations-taxon/);
+    assert.match(response.body, /data-observations-presets/);
+    assert.doesNotMatch(response.body, /class="hero-panel/);
+    assert.doesNotMatch(response.body, /Observation Grid/);
   } finally {
     await app.close();
   }
