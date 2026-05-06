@@ -116,6 +116,7 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /同定する/);
   assert.match(html, /地域マップ/);
   assert.match(html, /まだ公開できる観察がありません/);
+  assert.match(html, /\/observations\?filter=needs_id/);
   assert.match(html, /data-kpi-action="landing:topA:primary:record"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
 });

@@ -48,6 +48,11 @@ type RecentObservation = {
   photoCount?: number;
   identificationCount: number;
   openDisputeCount?: number;
+  fieldRefs?: Array<{
+    fieldId: string;
+    name: string;
+    source: string | null;
+  }>;
 };
 
 export type HomePlace = {
@@ -257,6 +262,7 @@ type VisitCardRow = {
   latitude: number | null;
   longitude: number | null;
   photo_url: string | null;
+  field_refs: unknown;
 };
 
 type VisitSubjectRow = {
@@ -272,6 +278,26 @@ type VisitSubjectRow = {
   ai_candidate_name: string | null;
   ai_candidate_rank: string | null;
 };
+
+function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs"] {
+  if (!Array.isArray(value)) return [];
+  const refs: NonNullable<RecentObservation["fieldRefs"]> = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const raw = item as { fieldId?: unknown; field_id?: unknown; name?: unknown; source?: unknown };
+    const fieldId = String(raw.fieldId ?? raw.field_id ?? "").trim();
+    const name = String(raw.name ?? "").trim();
+    if (!fieldId || !name || seen.has(fieldId)) continue;
+    seen.add(fieldId);
+    refs.push({
+      fieldId,
+      name,
+      source: raw.source == null ? null : String(raw.source),
+    });
+  }
+  return refs;
+}
 
 export type ManualVisitOccurrenceGap = {
   visitId: string;
@@ -377,7 +403,8 @@ async function loadVisitSummaryObservations(
             coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
             coalesce(v.point_latitude, p.center_latitude) AS latitude,
             coalesce(v.point_longitude, p.center_longitude) AS longitude,
-            photo.public_url AS photo_url
+            photo.public_url AS photo_url,
+            coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
        FROM visits v
        LEFT JOIN users u ON u.user_id = v.user_id
        LEFT JOIN places p ON p.place_id = v.place_id
@@ -390,6 +417,19 @@ async function loadVisitSummaryObservations(
           ORDER BY ea.created_at ASC
           LIMIT 1
        ) photo ON true
+       LEFT JOIN LATERAL (
+         SELECT jsonb_agg(jsonb_build_object(
+                  'fieldId', f.field_id::text,
+                  'name', f.name,
+                  'source', f.source
+                ) ORDER BY f.source, f.name) AS field_refs
+           FROM observation_fields f
+          WHERE f.valid_to IS NULL
+            AND (
+              f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
+              OR f.field_id::text = v.source_payload->>'field_id'
+            )
+       ) fields ON true
        ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
       ORDER BY v.observed_at DESC
       LIMIT $${params.length}`,
@@ -585,6 +625,7 @@ async function loadVisitSummaryObservations(
       }),
       photoUrl: normalizeAssetUrl(visitRow.photo_url),
       identificationCount: featuredSubject?.identificationCount ?? 0,
+      fieldRefs: normalizeFieldRefs(visitRow.field_refs),
     };
   });
 }

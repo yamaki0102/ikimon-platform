@@ -243,7 +243,7 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
     </form>
     <nav class="prototype-topa-actions" aria-label="主な操作">
       ${renderTopAAction(basePath, lang, "/record", "＋", "観察する", "landing:topA:primary:record")}
-      ${renderTopAAction(basePath, lang, "/explore?filter=needs_id", "ID", "同定する", "landing:topA:primary:identify")}
+      ${renderTopAAction(basePath, lang, "/observations?filter=needs_id", "ID", "同定する", "landing:topA:primary:identify")}
       ${renderTopAAction(basePath, lang, "/map", "◎", "地図", "landing:topA:primary:map")}
       ${renderTopAAction(basePath, lang, profileHref, "人", "マイページ", "landing:topA:primary:me")}
     </nav>
@@ -279,7 +279,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
       lang,
       "同定待ちはありません",
       "新しい記録が入ったら、ここに表示します。",
-      "/explore?filter=needs_id",
+      "/observations?filter=needs_id",
       "landing:topA:shelf:identifyEmpty",
     );
 
@@ -317,7 +317,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
     <div class="prototype-topa-shelf" id="topa-identify">
       <div class="prototype-topa-shelf-head">
         <h2>同定を待っています</h2>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/explore?filter=needs_id"))}" data-kpi-action="landing:topA:shelf:identifyAll">協力する</a>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/observations?filter=needs_id"))}" data-kpi-action="landing:topA:shelf:identifyAll">協力する</a>
       </div>
       <div class="prototype-topa-card-grid">${identificationCards}</div>
     </div>

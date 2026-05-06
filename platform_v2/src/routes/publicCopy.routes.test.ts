@@ -121,12 +121,30 @@ test("observations index renders the senior-friendly video grid list", async () 
     const response = await app.inject({ method: "GET", url: "/observations?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /観察投稿一覧/);
-    assert.match(response.body, /写真から、地域の発見をすぐ見る。/);
-    assert.match(response.body, /Observation Grid/);
-    assert.match(response.body, /新しい観察投稿/);
+    assert.match(response.body, /名前・場所・人/);
+    assert.match(response.body, /AI候補/);
+    assert.match(response.body, /未同定/);
+    assert.match(response.body, /写真あり/);
+    assert.match(response.body, /登録エリア/);
+    assert.match(response.body, /同定少ない順/);
     assert.match(response.body, /data-testid="observations-index"/);
     assert.match(response.body, /observations-video-grid/);
     assert.match(response.body, /\/ja\/observations\?filter=needs_id/);
+    assert.doesNotMatch(response.body, /写真から、地域の発見をすぐ見る。/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("identification queue renders without a hero", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/observations?filter=needs_id&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<h1>同定<\/h1>/);
+    assert.match(response.body, /data-observations-search/);
+    assert.doesNotMatch(response.body, /class="hero-panel/);
+    assert.doesNotMatch(response.body, /Observation Grid/);
   } finally {
     await app.close();
   }
