@@ -69,6 +69,7 @@ function pageDocument(args: {
   extraScript?: string;
   extraStyles?: string;
   lang?: SiteLang;
+  currentPath: string;
 }): string {
   const scripts = [OBSERVATION_EVENT_BOOT_SCRIPT, args.extraScript ?? ""].filter(Boolean).join("\n");
   return renderSiteDocument({
@@ -76,12 +77,17 @@ function pageDocument(args: {
     title: args.title,
     extraStyles: `${OBSERVATION_EVENT_STYLES}\n${args.extraStyles ?? ""}`,
     lang: args.lang,
+    currentPath: args.currentPath,
     body: `${args.body}<script>${scripts}</script>`,
   });
 }
 
 function langOf(request: { url?: string; raw?: { url?: string } }): SiteLang {
   return detectLangFromUrl(String(request.raw?.url ?? request.url ?? ""));
+}
+
+function currentPathOf(request: { url?: string; raw?: { url?: string } }): string {
+  return String(request.raw?.url ?? request.url ?? "/");
 }
 
 async function loadTeamsLite(sessionId: string): Promise<Array<{ teamId: string; name: string; color: string; memberCount: number }>> {
@@ -167,6 +173,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     return pageDocument({
       basePath: "",
       title: `${strings.listCreateCta} — ikimon.life`,
+      currentPath: currentPathOf(request),
       body: renderEventCreateBody({ isAuthenticated: Boolean(auth), strings }),
       extraScript: eventCreateScript(),
       lang,
@@ -184,6 +191,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "観察会 — セッションが見つかりません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
         });
       }
@@ -194,6 +202,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "編集 — 権限がありません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell">
             <article class="evt-card">
               <span class="evt-eyebrow">権限が必要です</span>
@@ -210,6 +219,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       return pageDocument({
         basePath: "",
         title: `${session.title || "観察会"} 編集 — ikimon.life`,
+        currentPath: currentPathOf(request),
         body: renderEventEditBody({ session, strings }),
         extraScript: eventEditScript(),
         lang,
@@ -246,6 +256,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const html = pageDocument({
       basePath: "",
       title: "フィールド DB — ikimon.life",
+      currentPath: currentPathOf(request),
       body: renderFieldListBody({
         fields,
         prefectures,
@@ -268,6 +279,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "フィールド — 見つかりません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell">
             <article class="evt-card">
               <span class="evt-eyebrow">フィールド</span>
@@ -287,6 +299,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "フィールド — 集計できません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">集計に失敗しました</h1></article></section>`,
         });
       }
@@ -295,6 +308,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       return pageDocument({
         basePath: "",
         title: `${field.name} — フィールド DB — ikimon.life`,
+        currentPath: currentPathOf(request),
         body: renderFieldDetailBody({ field, stats, snapshot }),
         extraStyles: PLACE_SNAPSHOT_STYLES,
         extraScript: fieldDetailScript(),
@@ -311,6 +325,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const html = pageDocument({
       basePath: "",
       title: `${strings.listEyebrow} — ikimon.life`,
+      currentPath: currentPathOf(request),
       body: renderEventListBody(sessions, strings, lang),
       lang,
     });
@@ -329,6 +344,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "観察会 — 見つかりません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell">
             <article class="evt-card">
               <span class="evt-eyebrow">観察会</span>
@@ -343,6 +359,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       const html = pageDocument({
         basePath: "",
         title: `${session.title || "観察会"} に参加 — ikimon.life`,
+        currentPath: currentPathOf(request),
         body: renderCheckinBody({ session, teams, isAuthenticated: Boolean(auth) }),
         extraScript: checkinScript(),
       });
@@ -362,6 +379,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "観察会 — セッションが見つかりません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
         });
       }
@@ -369,6 +387,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       const html = pageDocument({
         basePath: "",
         title: `${session.title || "観察会"} ライブ — ikimon.life`,
+        currentPath: currentPathOf(request),
         body: renderObservationEventLiveBody({
           session,
           participantSelfId: null,
@@ -393,6 +412,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "観察会 — セッションが見つかりません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
         });
       }
@@ -403,6 +423,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "観察会 — 権限がありません",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell">
             <article class="evt-card">
               <span class="evt-eyebrow">権限が必要です</span>
@@ -416,6 +437,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       const html = pageDocument({
         basePath: "",
         title: `${session.title || "観察会"} 管制塔 — ikimon.life`,
+        currentPath: currentPathOf(request),
         body: renderOrganizerConsoleBody(session),
         extraScript: organizerConsoleScript(),
       });
@@ -439,12 +461,14 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         return pageDocument({
           basePath: "",
           title: "観察会 — 振り返りなし",
+          currentPath: currentPathOf(request),
           body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">振り返りが見つかりません</h1></article></section>`,
         });
       }
       const html = pageDocument({
         basePath: "",
         title: `${recap.session.title || "観察会"} の振り返り — ikimon.life`,
+        currentPath: currentPathOf(request),
         body: renderRecapBody(recap),
         extraScript: recapScript(),
       });

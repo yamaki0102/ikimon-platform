@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
-import { listVisualQaPages, materializeSitePagePath } from "../siteMap.js";
+import { listVisualQaPages, materializeSitePagePath, sitePageLayout } from "../siteMap.js";
 
 function extractInternalHrefs(html: string): string[] {
   const hrefs = new Set<string>();
@@ -98,10 +98,20 @@ test("visual smoke targets are generated from sitemap metadata", () => {
   assert.ok(paths.includes("/observations"));
   assert.ok(paths.includes("/guide"));
   assert.ok(paths.includes("/guide/outcomes"));
+  assert.ok(paths.includes("/community/events"));
+  assert.ok(paths.includes("/community/fields"));
   assert.ok(paths.includes("/home"));
   assert.ok(paths.includes("/profile/:userId"));
   assert.ok(paths.includes("/observations/:id"));
   assert.ok(paths.includes("/specialist/id-workbench"));
+  assert.deepEqual(
+    pages.filter((page) => !page.layout).map((page) => page.path),
+    [],
+    "visual QA pages must declare layout so width regressions are caught before screenshots",
+  );
+  assert.equal(sitePageLayout(pages.find((page) => page.path === "/guide")!), "immersive");
+  assert.equal(sitePageLayout(pages.find((page) => page.path === "/community/events")!), "wide");
+  assert.equal(sitePageLayout(pages.find((page) => page.path === "/community/fields")!), "wide");
 
   const observation = pages.find((page) => page.path === "/observations/:id");
   assert.ok(observation);
@@ -109,4 +119,22 @@ test("visual smoke targets are generated from sitemap metadata", () => {
     materializeSitePagePath(observation, { visitId: "visit-1", occurrenceId: "occ:visit-1:0" }),
     "/observations/visit-1?subject=occ%3Avisit-1%3A0",
   );
+});
+
+test("visual QA route pages render their declared shell layouts", async () => {
+  const app = buildApp();
+  try {
+    const businessDemo = await app.inject({ method: "GET", url: "/for-business/demo?lang=ja", headers: { accept: "text/html" } });
+    const events = await app.inject({ method: "GET", url: "/community/events?lang=ja", headers: { accept: "text/html" } });
+    const fields = await app.inject({ method: "GET", url: "/community/fields?lang=ja", headers: { accept: "text/html" } });
+
+    assert.equal(businessDemo.statusCode, 200);
+    assert.equal(events.statusCode, 200);
+    assert.equal(fields.statusCode, 200);
+    assert.match(businessDemo.body, /class="shell shell-layout-wide"/);
+    assert.match(events.body, /class="shell shell-layout-wide"/);
+    assert.match(fields.body, /class="shell shell-layout-wide"/);
+  } finally {
+    await app.close();
+  }
 });

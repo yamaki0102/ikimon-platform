@@ -11,11 +11,14 @@ export type RouteLane =
   | "specialist"
   | "ops";
 
+export type SiteShellLayoutKind = "home" | "standard" | "wide" | "reading" | "narrow" | "immersive";
+
 export type SitePageDefinition = {
   path: string;
   lane: RouteLane;
   audience: "public" | "visitor" | "member" | "business" | "researcher" | "specialist" | "operator";
   auth: "public" | "session" | "specialist" | "admin" | "system";
+  layout: SiteShellLayoutKind;
   navVisibility: Array<"header" | "footer" | "qa" | "xml">;
   title: { ja: string; en: string };
   summary: { ja: string; en: string };
@@ -60,10 +63,50 @@ export const VISUAL_QA_VIEWPORTS: Record<VisualQaViewportName, VisualQaViewport>
   "mobile-390": { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 };
 
+function normalizeSiteMapPath(path: string): string {
+  const langCodes = new Set(supportedLanguages.map((language) => language.code.toLowerCase()));
+  let pathname = "/";
+  try {
+    pathname = new URL(path, "https://ikimon.local").pathname;
+  } catch {
+    pathname = path.split("?", 1)[0] || "/";
+  }
+  const segments = pathname.split("/").filter(Boolean);
+  const maybeLang = segments[0];
+  if (maybeLang && langCodes.has(maybeLang.toLowerCase())) {
+    pathname = `/${segments.slice(1).join("/")}` || "/";
+  }
+  return pathname !== "/" ? pathname.replace(/\/+$/, "") : "/";
+}
+
+function routePatternMatches(pattern: string, pathname: string): boolean {
+  const normalizedPattern = normalizeSiteMapPath(pattern);
+  if (!normalizedPattern.includes(":")) {
+    return normalizedPattern === pathname;
+  }
+  const patternParts = normalizedPattern.split("/").filter(Boolean);
+  const pathParts = pathname.split("/").filter(Boolean);
+  if (patternParts.length !== pathParts.length) {
+    return false;
+  }
+  return patternParts.every((part, index) => part.startsWith(":") || part === pathParts[index]);
+}
+
+export function sitePageLayout(page: SitePageDefinition): SiteShellLayoutKind {
+  return page.layout;
+}
+
+export function getSiteShellLayoutForPath(path: string): SiteShellLayoutKind | undefined {
+  const pathname = normalizeSiteMapPath(path);
+  const page = SITE_PAGE_DEFINITIONS.find((definition) => routePatternMatches(definition.path, pathname));
+  return page ? sitePageLayout(page) : undefined;
+}
+
 export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/",
     lane: "start",
+    layout: "home",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -76,6 +119,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/record",
     lane: "start",
+    layout: "narrow",
     audience: "member",
     auth: "session",
     navVisibility: ["footer", "qa"],
@@ -87,6 +131,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/guide",
     lane: "start",
+    layout: "immersive",
     audience: "visitor",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -98,6 +143,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/guide/outcomes",
     lane: "start",
+    layout: "wide",
     audience: "member",
     auth: "session",
     navVisibility: ["qa"],
@@ -109,6 +155,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/lens",
     lane: "start",
+    layout: "immersive",
     audience: "visitor",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -119,6 +166,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/map",
     lane: "start",
+    layout: "immersive",
     audience: "visitor",
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
@@ -130,6 +178,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/explore",
     lane: "start",
+    layout: "wide",
     audience: "visitor",
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
@@ -141,6 +190,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/observations",
     lane: "start",
+    layout: "wide",
     audience: "visitor",
     auth: "public",
     navVisibility: ["qa", "xml"],
@@ -152,6 +202,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/notes",
     lane: "start",
+    layout: "reading",
     audience: "visitor",
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
@@ -162,6 +213,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/home",
     lane: "start",
+    layout: "wide",
     audience: "member",
     auth: "session",
     navVisibility: ["qa"],
@@ -172,6 +224,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/profile/:userId",
     lane: "start",
+    layout: "reading",
     audience: "visitor",
     auth: "public",
     navVisibility: ["qa"],
@@ -182,6 +235,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/observations/:id",
     lane: "start",
+    layout: "wide",
     audience: "visitor",
     auth: "public",
     navVisibility: ["qa"],
@@ -192,6 +246,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/learn",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
@@ -203,6 +258,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/about",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -214,6 +270,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/learn/identification-basics",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -225,6 +282,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/learn/methodology",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -236,6 +294,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/learn/field-loop",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -246,6 +305,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/learn/glossary",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -256,6 +316,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/learn/updates",
     lane: "learn",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -267,6 +328,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/faq",
     lane: "trust",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -278,6 +340,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/privacy",
     lane: "trust",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -289,6 +352,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/terms",
     lane: "trust",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -300,6 +364,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/contact",
     lane: "trust",
+    layout: "reading",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -311,6 +376,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/community",
     lane: "group",
+    layout: "wide",
     audience: "public",
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
@@ -324,6 +390,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/community/events",
     lane: "group",
+    layout: "wide",
     audience: "public",
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
@@ -339,6 +406,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/community/fields",
     lane: "group",
+    layout: "wide",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -353,6 +421,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/for-business",
     lane: "business",
+    layout: "wide",
     audience: "business",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -365,6 +434,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/for-business/pricing",
     lane: "business",
+    layout: "wide",
     audience: "business",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -376,6 +446,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/for-business/demo",
     lane: "business",
+    layout: "wide",
     audience: "business",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -387,6 +458,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/for-business/status",
     lane: "business",
+    layout: "wide",
     audience: "business",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -398,6 +470,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/for-business/apply",
     lane: "business",
+    layout: "wide",
     audience: "business",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -409,6 +482,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/for-researcher/apply",
     lane: "research",
+    layout: "reading",
     audience: "researcher",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -419,6 +493,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/specialist/id-workbench",
     lane: "specialist",
+    layout: "wide",
     audience: "specialist",
     auth: "specialist",
     navVisibility: ["qa"],
@@ -430,6 +505,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/specialist/recommendations",
     lane: "specialist",
+    layout: "wide",
     audience: "specialist",
     auth: "specialist",
     navVisibility: ["qa"],
@@ -439,6 +515,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/specialist/review-queue",
     lane: "specialist",
+    layout: "wide",
     audience: "specialist",
     auth: "specialist",
     navVisibility: ["qa"],
@@ -449,6 +526,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/specialist/authority-admin",
     lane: "specialist",
+    layout: "wide",
     audience: "operator",
     auth: "admin",
     navVisibility: ["qa"],
@@ -458,6 +536,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/specialist/authority-audit",
     lane: "specialist",
+    layout: "wide",
     audience: "operator",
     auth: "admin",
     navVisibility: ["qa"],
@@ -467,6 +546,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/authority/recommendations",
     lane: "specialist",
+    layout: "wide",
     audience: "member",
     auth: "session",
     navVisibility: ["qa"],
@@ -476,6 +556,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/qa/site-map",
     lane: "ops",
+    layout: "wide",
     audience: "operator",
     auth: "public",
     navVisibility: ["qa"],
@@ -485,6 +566,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/healthz",
     lane: "ops",
+    layout: "standard",
     audience: "operator",
     auth: "system",
     navVisibility: ["qa"],
@@ -494,6 +576,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/readyz",
     lane: "ops",
+    layout: "standard",
     audience: "operator",
     auth: "system",
     navVisibility: ["qa"],

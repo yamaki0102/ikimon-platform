@@ -22,6 +22,9 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /class="me-map-command-deck"/);
     assert.match(html, /data-map-tab="frontier"/);
     assert.match(html, /data-map-basemap="esri"/);
+    assert.match(html, /data-api-area-follow="\/api\/v1\/me\/area-subscriptions"/);
+    assert.match(html, /data-area-follow-button/);
+    assert.match(html, /me-area-follow-btn/);
     assert.match(html, /observation-cell-bloom/);
     assert.match(html, /observation-centroids/);
     assert.match(html, /dominantTaxonGroup/);

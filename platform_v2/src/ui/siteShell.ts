@@ -2,7 +2,15 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
 import { appInstallCopy } from "../appInstall.js";
-import { listPagesByLane, listPagesByVisibility, sitePageLabel, type RouteLane, type SitePageDefinition } from "../siteMap.js";
+import {
+  getSiteShellLayoutForPath,
+  listPagesByLane,
+  listPagesByVisibility,
+  sitePageLabel,
+  type RouteLane,
+  type SitePageDefinition,
+  type SiteShellLayoutKind,
+} from "../siteMap.js";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "./facePrivacyScript.js";
 
 export type SiteAction = {
@@ -42,8 +50,8 @@ export type SiteShellOptions = {
   alternateLangs?: SiteLang[];
   noindex?: boolean;
   shellClassName?: string;
-  /** Skip the global site footer. Used by map-first pages where the footer
-   *  competes with the canvas for vertical space. */
+  /** Skip the global site footer. Immersive surfaces also suppress it
+   *  automatically so primary circulation stays in the header/side menu. */
   hideFooter?: boolean;
 };
 
@@ -122,6 +130,8 @@ function desktopSideNavIcon(key: string): string {
   const paths: Record<string, string> = {
     home: '<path d="m3 10 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
     record: '<path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/>',
+    observations: '<rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    identify: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="m8.4 11.2 2.1 2.1 4-4.2"/>',
     map: '<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
     notes: '<path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h8"/><path d="M8 11h8"/>',
     guide: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/>',
@@ -129,22 +139,150 @@ function desktopSideNavIcon(key: string): string {
     community: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     business: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
     account: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    notifications: '<path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>',
+    settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z"/>',
+    explore: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="m13.5 8.5-2 5-2.5 1 1-2.5 5-2z"/>',
   };
   return `<svg class="desktop-side-nav-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[key] ?? paths.home}</svg>`;
 }
 
-function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: string): string {
-  const normalizedPath = (() => {
-    try {
-      return new URL(currentPath, "https://ikimon.local").pathname;
-    } catch {
-      return currentPath.split("?", 1)[0] || "/";
-    }
-  })();
+function siteAccountIcon(basePath: string, lang: SiteLang, key: string, href: string, label: string, dataAttribute: string): string {
+  const safeLabel = escapeHtml(label);
+  const safeHref = escapeHtml(appendLangToHref(withBasePath(basePath, href), lang));
+  return `<a class="site-account-icon" href="${safeHref}" title="${safeLabel}" aria-label="${safeLabel}" ${dataAttribute}>${desktopSideNavIcon(key)}</a>`;
+}
+
+function siteNotificationMenu(basePath: string, lang: SiteLang): string {
+  const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/home"), lang));
+  return `<div class="site-notification-menu" data-notification-menu>
+    <button class="site-account-icon site-notification-button" type="button" title="通知" aria-label="通知" aria-expanded="false" data-account-alerts data-notification-toggle data-login-href="${loginHref}">
+      ${desktopSideNavIcon("notifications")}
+      <span class="site-notification-badge" data-notification-badge hidden>0</span>
+    </button>
+    <div class="site-notification-panel" data-notification-panel hidden>
+      <div class="site-notification-head">
+        <strong>通知</strong>
+        <button type="button" data-notification-read-all hidden>すべて既読</button>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">マイページ</a>
+      </div>
+      <div class="site-notification-list" data-notification-list>
+        <div class="site-notification-empty">ログインすると通知を確認できます。</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function stripLangPrefixFromPathname(pathname: string): string {
+  const codes = new Set(supportedLanguages.map((language) => language.code));
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length > 0 && codes.has(segments[0] as SiteLang)) {
+    return `/${segments.slice(1).join("/")}` || "/";
+  }
+  return pathname || "/";
+}
+
+function normalizeSitePath(path: string): string {
+  try {
+    return stripLangPrefixFromPathname(new URL(path, "https://ikimon.local").pathname);
+  } catch {
+    return stripLangPrefixFromPathname(path.split("?", 1)[0] || "/");
+  }
+}
+
+function normalizeSitePathWithSearch(path: string): string {
+  try {
+    const url = new URL(path, "https://ikimon.local");
+    return `${stripLangPrefixFromPathname(url.pathname)}${url.search}`;
+  } catch {
+    const hashless = path.split("#", 1)[0] || "/";
+    const prefixed = hashless.startsWith("/") ? hashless : `/${hashless}`;
+    const [pathname, search = ""] = prefixed.split("?", 2);
+    return `${stripLangPrefixFromPathname(pathname || "/")}${search ? `?${search}` : ""}`;
+  }
+}
+
+function siteNavMatch(currentPath: string, normalizedPath: string, target: string): boolean {
+  const targetWithSearch = normalizeSitePathWithSearch(target);
+  if (targetWithSearch.includes("?")) {
+    return normalizeSitePathWithSearch(currentPath) === targetWithSearch;
+  }
+  const targetPath = normalizeSitePath(target);
+  return normalizedPath === targetPath || (targetPath !== "/" && normalizedPath.startsWith(`${targetPath}/`));
+}
+
+type SideNavPrimaryItem = {
+  key: string;
+  href: string;
+  match: string[];
+  exclude?: string[];
+};
+
+type SideNavTextItem = {
+  href: string;
+  label: string;
+  match?: string[];
+  className?: string;
+};
+
+type SideNavGroup = {
+  title: string;
+  items: SideNavTextItem[];
+  className?: string;
+  afterHtml?: string;
+};
+
+function sideNavPageItems(lanes: RouteLane[], lang: SiteLang, limit = 8): SideNavTextItem[] {
+  const seen = new Set<string>();
+  return lanes
+    .flatMap((lane) => listPagesByLane(lane))
+    .filter((page) => !page.path.includes(":") && page.auth !== "admin" && page.auth !== "system")
+    .filter((page) => {
+      if (seen.has(page.path)) return false;
+      seen.add(page.path);
+      return true;
+    })
+    .slice(0, limit)
+    .map((page) => ({ href: page.path, label: sitePageLabel(page, lang), match: [page.path] }));
+}
+
+function renderDesktopSideNavLink(
+  basePath: string,
+  lang: SiteLang,
+  currentPath: string,
+  normalizedPath: string,
+  item: SideNavPrimaryItem,
+  label: string,
+): string {
+  const isExcluded = (item.exclude ?? []).some((path) => siteNavMatch(currentPath, normalizedPath, path));
+  const isActive = !isExcluded && item.match.some((path) => siteNavMatch(currentPath, normalizedPath, path));
+  const activeClass = isActive ? " is-active" : "";
+  const href = escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang));
+  const safeLabel = escapeHtml(label);
+  const authClass = item.key === "account" ? " site-login-link" : "";
+  return `<a class="desktop-side-nav-link${authClass}${activeClass}" href="${href}" title="${safeLabel}">${desktopSideNavIcon(item.key)}<span class="desktop-side-nav-label">${safeLabel}</span></a>`;
+}
+
+function renderSideNavTextLinks(basePath: string, lang: SiteLang, currentPath: string, normalizedPath: string, items: SideNavTextItem[]): string {
+  return items
+    .map((item) => {
+      const match = item.match ?? [normalizeSitePath(item.href)];
+      const isActive = match.some((path) => siteNavMatch(currentPath, normalizedPath, path));
+      const activeClass = isActive ? " is-active" : "";
+      const className = item.className ? ` ${item.className}` : "";
+      const href = escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang));
+      return `<a class="desktop-side-nav-text-link${className}${activeClass}" href="${href}">${escapeHtml(item.label)}</a>`;
+    })
+    .join("");
+}
+
+function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: string, mode: "desktop" | "mobile"): string {
+  const normalizedPath = normalizeSitePath(currentPath);
   const labels: Record<SiteLang, Record<string, string>> = {
     ja: {
       home: "ホーム",
       record: "記録",
+      observations: "観察",
+      identify: "同定",
       map: "マップ",
       notes: "観察ライブラリ",
       guide: "ガイド",
@@ -156,6 +294,8 @@ function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: stri
     en: {
       home: "Home",
       record: "Record",
+      observations: "Observations",
+      identify: "Identify",
       map: "Map",
       notes: "Library",
       guide: "Guide",
@@ -167,6 +307,8 @@ function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: stri
     es: {
       home: "Inicio",
       record: "Registro",
+      observations: "Observaciones",
+      identify: "Identificar",
       map: "Mapa",
       notes: "Biblioteca",
       guide: "Guia",
@@ -178,6 +320,8 @@ function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: stri
     "pt-BR": {
       home: "Inicio",
       record: "Registrar",
+      observations: "Observacoes",
+      identify: "Identificar",
       map: "Mapa",
       notes: "Biblioteca",
       guide: "Guia",
@@ -188,27 +332,95 @@ function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: stri
     },
   };
   const copy = labels[lang] ?? labels.ja;
-  const items = [
+  const primaryItems: SideNavPrimaryItem[] = [
     { key: "home", href: "/", match: ["/"] },
     { key: "record", href: "/record", match: ["/record"] },
+    { key: "observations", href: "/observations", match: ["/observations"], exclude: ["/observations?filter=needs_id"] },
+    { key: "identify", href: "/observations?filter=needs_id", match: ["/observations?filter=needs_id"] },
     { key: "map", href: "/map", match: ["/map"] },
-    { key: "notes", href: "/notes", match: ["/notes", "/observations"] },
+    { key: "notes", href: "/notes", match: ["/notes"] },
     { key: "guide", href: "/guide", match: ["/guide"] },
     { key: "learn", href: "/learn", match: ["/learn", "/about", "/faq"] },
     { key: "community", href: "/community", match: ["/community"] },
     { key: "business", href: "/for-business", match: ["/for-business"] },
-    { key: "account", href: "/login?redirect=/profile", match: ["/login", "/register", "/profile"] },
   ];
-  return items
-    .map((item) => {
-      const isActive = item.match.some((path) => normalizedPath === path || (path !== "/" && normalizedPath.startsWith(`${path}/`)));
-      const activeClass = isActive ? " is-active" : "";
-      const href = escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang));
-      const label = escapeHtml(copy[item.key] ?? item.key);
-      const authClass = item.key === "account" ? " site-login-link" : "";
-      return `<a class="desktop-side-nav-link${authClass}${activeClass}" href="${href}" title="${label}">${desktopSideNavIcon(item.key)}<span class="desktop-side-nav-label">${label}</span></a>`;
-    })
+  const personalizedLinksHtml = `<div class="desktop-side-nav-personalized-list" data-side-nav-personalized-list>
+          ${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, [
+            { href: "/map", label: "近くの観察エリア", match: ["/map"] },
+            { href: "/observations?filter=needs_id", label: "同定待ちを見る", match: ["/observations?filter=needs_id"] },
+            { href: "/explore", label: "分類群を探す", match: ["/explore"] },
+          ])}
+        </div>
+        <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>ログインすると、フォロー中の分類群やよく見る観察エリアをここに固定します。</p>`;
+  const groups: SideNavGroup[] = [
+    {
+      title: "アカウント",
+      className: "desktop-side-nav-section--guest",
+      items: [
+        { href: "/register?redirect=/profile", label: "新しく登録", match: ["/register"] },
+        { href: "/login?redirect=/profile", label: "ログイン", match: ["/login"] },
+        { href: "/learn/field-loop", label: "使い方を見る", match: ["/learn/field-loop"] },
+      ],
+    },
+    {
+      title: "自分の記録",
+      className: "desktop-side-nav-section--signed-in",
+      items: [
+        { href: "/home", label: "マイページ", match: ["/home"] },
+        { href: "/notes", label: "観察ライブラリ", match: ["/notes"] },
+        { href: "/guide/outcomes", label: "ガイド成果", match: ["/guide/outcomes"] },
+        { href: "/observations?filter=needs_id", label: "同定待ち", match: ["/observations"] },
+      ],
+    },
+    {
+      title: "よく見る",
+      className: "desktop-side-nav-section--personalized",
+      items: [],
+      afterHtml: personalizedLinksHtml,
+    },
+    {
+      title: "探す・見る",
+      items: [
+        { href: "/explore", label: lang === "en" ? "Explore" : "見つける", match: ["/explore"] },
+        { href: "/observations", label: "観察投稿一覧", match: ["/observations"] },
+        { href: "/lens", label: "その場で見る", match: ["/lens"] },
+        { href: "/guide", label: "ライブガイド", match: ["/guide"] },
+      ],
+    },
+    { title: "学ぶ", items: sideNavPageItems(["learn"], lang, 7) },
+    { title: "地域・法人", items: sideNavPageItems(["group", "business", "research", "specialist"], lang, 8) },
+    {
+      title: "アップデート・連絡",
+      items: [
+        { href: "/learn/updates", label: "更新情報", match: ["/learn/updates"] },
+        ...sideNavPageItems(["trust"], lang, 8),
+      ],
+    },
+  ];
+  const rootClass = mode === "desktop" ? "desktop-side-nav-directory" : "site-mobile-menu-directory";
+  const primaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--primary" : "site-mobile-menu-section";
+  const secondaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--secondary" : "site-mobile-menu-section";
+  const primary = `<div class="${primaryClass}">${primaryItems
+    .map((item) => renderDesktopSideNavLink(basePath, lang, currentPath, normalizedPath, item, copy[item.key] ?? item.key))
+    .join("")}</div>`;
+  const secondary = groups
+    .map(
+      (group) => `<section class="${secondaryClass}${group.className ? ` ${group.className}` : ""}">
+        <h2 class="desktop-side-nav-section-title">${escapeHtml(group.title)}</h2>
+        ${group.items.length ? `<div class="desktop-side-nav-text-links">${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, group.items)}</div>` : ""}
+        ${group.afterHtml ?? ""}
+      </section>`,
+    )
     .join("");
+  const legal = `<div class="desktop-side-nav-legal">
+    <span>ikimon.life</span>
+    <span>身近な自然を記録する。</span>
+  </div>`;
+  return `<div class="${rootClass}">${primary}${secondary}${legal}</div>`;
+}
+
+function desktopSideNavLinks(basePath: string, lang: SiteLang, currentPath: string): string {
+  return renderSideNavDirectory(basePath, lang, currentPath, "desktop");
 }
 
 function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: SiteLang[], className = ""): string {
@@ -237,8 +449,12 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
+  const profileIcon = siteAccountIcon(basePath, lang, "account", "/login?redirect=/profile", "マイページ", "data-account-profile");
+  const notificationIcon = siteNotificationMenu(basePath, lang);
+  const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", "設定", "data-account-settings");
 
   const desktopSideNav = desktopSideNavLinks(basePath, lang, currentPath);
+  const mobileSideNav = renderSideNavDirectory(basePath, lang, currentPath, "mobile");
 
   return `<header class="site-header">
     <div class="site-header-inner">
@@ -261,6 +477,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <nav class="site-account-icons" aria-label="アカウント">${profileIcon}${notificationIcon}${settingsIcon}</nav>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
@@ -270,7 +487,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
           </summary>
           <div class="site-mobile-menu-panel">
             ${mobileSearch}
-            <nav class="site-nav site-nav-mobile">${navLinks}</nav>
+            <nav class="site-nav site-nav-mobile">${mobileSideNav}</nav>
             <div class="site-mobile-menu-meta">
               <a class="site-mobile-menu-account site-login-link" href="${loginHref}">ログイン</a>
               ${mobileLangSwitch}
@@ -403,18 +620,10 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
 }
 
 function normalizePathname(path: string): string {
-  const stripLangPrefix = (pathname: string): string => {
-    const codes = new Set(supportedLanguages.map((language) => language.code));
-    const segments = pathname.split("/").filter(Boolean);
-    if (segments.length > 0 && codes.has(segments[0] as SiteLang)) {
-      return `/${segments.slice(1).join("/")}` || "/";
-    }
-    return pathname || "/";
-  };
   try {
-    return stripLangPrefix(new URL(path, "https://ikimon.local").pathname);
+    return stripLangPrefixFromPathname(new URL(path, "https://ikimon.local").pathname);
   } catch {
-    return stripLangPrefix(path.split("?")[0] || "/");
+    return stripLangPrefixFromPathname(path.split("?")[0] || "/");
   }
 }
 
@@ -437,8 +646,50 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
 }
 
 function isReadingSurface(currentPath: string): boolean {
+  return (getSiteShellLayoutForPath(currentPath) ?? fallbackSiteShellLayoutKind(currentPath)) === "reading";
+}
+
+function fallbackSiteShellLayoutKind(currentPath: string): SiteShellLayoutKind {
   const pathname = normalizePathname(currentPath);
-  return pathname === "/notes" || pathname.startsWith("/notes/") || pathname === "/profile" || pathname.startsWith("/profile/");
+  if (pathname === "/") {
+    return "home";
+  }
+  if (pathname === "/record" || pathname === "/login" || pathname === "/register" || pathname === "/profile/settings") {
+    return "narrow";
+  }
+  if (
+    pathname === "/notes" ||
+    pathname.startsWith("/notes/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/") ||
+    pathname === "/learn" ||
+    pathname.startsWith("/learn/") ||
+    pathname === "/about" ||
+    pathname === "/faq" ||
+    pathname === "/terms" ||
+    pathname === "/privacy" ||
+    pathname === "/contact"
+  ) {
+    return "reading";
+  }
+  if (
+    pathname === "/observations" ||
+    pathname.startsWith("/observations/") ||
+    pathname === "/explore" ||
+    pathname === "/community" ||
+    pathname === "/for-business" ||
+    pathname === "/guide"
+  ) {
+    return "wide";
+  }
+  return "standard";
+}
+
+function siteShellLayoutKind(currentPath: string, shellClassName: string): SiteShellLayoutKind {
+  if (/\b(?:shell-map|shell-notes-library|shell-immersive)\b/.test(shellClassName)) {
+    return "immersive";
+  }
+  return getSiteShellLayoutForPath(currentPath) ?? fallbackSiteShellLayoutKind(currentPath);
 }
 
 function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string): string {
@@ -1741,13 +1992,236 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const sessionEndpoint = withBasePath(basePath, "/api/v1/auth/session");
+  const personalizedEndpoint = withBasePath(basePath, "/api/v1/me/personalized-menu?limit=8");
+  const alertsEndpoint = withBasePath(basePath, "/api/v1/me/alerts");
+  const alertsReadEndpoint = withBasePath(basePath, "/api/v1/me/alerts/read");
   const profileHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
+  const settingsHref = appendLangToHref(withBasePath(basePath, "/profile/settings"), lang);
+  const notificationsHomeHref = appendLangToHref(withBasePath(basePath, "/home"), lang);
+  const observationHrefBase = appendLangToHref(withBasePath(basePath, "/observations/"), lang);
   return `<script>
 (function () {
   const endpoint = ${JSON.stringify(sessionEndpoint)};
+  const personalizedEndpoint = ${JSON.stringify(personalizedEndpoint)};
+  const alertsEndpoint = ${JSON.stringify(alertsEndpoint)};
+  const alertsReadEndpoint = ${JSON.stringify(alertsReadEndpoint)};
   const profileHref = ${JSON.stringify(profileHref)};
+  const settingsHref = ${JSON.stringify(settingsHref)};
+  const notificationsHomeHref = ${JSON.stringify(notificationsHomeHref)};
+  const observationHrefBase = ${JSON.stringify(observationHrefBase)};
+  let signedIn = false;
+  let latestAlerts = [];
+  const setIconHref = (selector, href, label) => {
+    document.querySelectorAll(selector).forEach((link) => {
+      link.setAttribute('href', href);
+      link.setAttribute('aria-label', label);
+      link.setAttribute('title', label);
+    });
+  };
+  const alertTitle = (item) => {
+    const payload = item && typeof item.payload === 'object' && item.payload ? item.payload : {};
+    return String(payload.title || payload.label || item.triggerKind || '新しい通知').trim().slice(0, 80);
+  };
+  const alertBody = (item) => {
+    const payload = item && typeof item.payload === 'object' && item.payload ? item.payload : {};
+    return String(payload.body || payload.summary || payload.message || item.deliveryStatus || '').trim().slice(0, 110);
+  };
+  const alertHref = (item) => {
+    const occurrenceId = item && item.occurrenceId ? String(item.occurrenceId) : '';
+    return occurrenceId ? observationHrefBase + encodeURIComponent(occurrenceId) : notificationsHomeHref;
+  };
+  const renderAlerts = (alerts) => {
+    const active = Array.isArray(alerts) ? alerts.slice(0, 3) : [];
+    latestAlerts = Array.isArray(alerts) ? alerts : [];
+    document.querySelectorAll('[data-notification-list]').forEach((list) => {
+      list.textContent = '';
+      if (!active.length) {
+        const empty = document.createElement('div');
+        empty.className = 'site-notification-empty';
+        empty.textContent = '新しい通知はありません。';
+        list.appendChild(empty);
+        return;
+      }
+      active.forEach((item) => {
+        const link = document.createElement('a');
+        const deliveryId = String(item && item.deliveryId ? item.deliveryId : '');
+        const unread = item && !item.acknowledgedAt;
+        link.className = 'site-notification-item' + (unread ? ' is-unread' : '');
+        link.href = alertHref(item);
+        if (deliveryId) {
+          link.setAttribute('data-notification-id', deliveryId);
+        }
+        const strong = document.createElement('strong');
+        strong.textContent = alertTitle(item);
+        const span = document.createElement('span');
+        span.textContent = alertBody(item);
+        link.appendChild(strong);
+        link.appendChild(span);
+        if (unread) {
+          const mark = document.createElement('em');
+          mark.textContent = '未読';
+          link.appendChild(mark);
+        }
+        list.appendChild(link);
+      });
+    });
+    const unreadCount = Array.isArray(alerts)
+      ? alerts.filter((item) => item && !item.acknowledgedAt).length
+      : 0;
+    document.querySelectorAll('[data-notification-badge]').forEach((badge) => {
+      if (unreadCount > 0) {
+        badge.hidden = false;
+        badge.textContent = String(Math.min(unreadCount, 9));
+      } else {
+        badge.hidden = true;
+      }
+    });
+    document.querySelectorAll('[data-notification-read-all]').forEach((button) => {
+      button.hidden = unreadCount <= 0;
+    });
+  };
+  const markAlertReadLocally = (ids) => {
+    const set = new Set((Array.isArray(ids) ? ids : []).map(String));
+    latestAlerts = latestAlerts.map((item) => {
+      const deliveryId = String(item && item.deliveryId ? item.deliveryId : '');
+      if (!set.has(deliveryId)) return item;
+      return Object.assign({}, item, { acknowledgedAt: item.acknowledgedAt || new Date().toISOString() });
+    });
+    renderAlerts(latestAlerts);
+  };
+  const readAlerts = (ids) => {
+    const activeIds = Array.isArray(ids) ? ids.filter(Boolean).map(String) : [];
+    return fetch(alertsReadEndpoint, {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(activeIds.length ? { ids: activeIds } : {})
+    }).then((response) => response.ok ? response.json() : null);
+  };
+  const statText = (item, summary) => {
+    const stats = item && typeof item.stats === 'object' && item.stats ? item.stats : {};
+    const parts = [];
+    const observationCount = Number(stats.observationCount || 0);
+    const needsIdCount = Number(stats.needsIdCount || 0);
+    const viewCount = Number(stats.viewCount || item.score || 0);
+    if (observationCount > 0) parts.push(observationCount + '件');
+    if (needsIdCount > 0) parts.push('同定待ち' + needsIdCount);
+    if (viewCount > 0) parts.push('閲覧' + viewCount);
+    if (stats.followed) parts.push('フォロー中');
+    if (!parts.length && summary && Number(summary.unreadAlertCount || 0) > 0) parts.push('通知' + Number(summary.unreadAlertCount));
+    return parts.slice(0, 2).join(' · ');
+  };
+  const renderPersonalizedItems = (items, summary) => {
+    const active = Array.isArray(items)
+      ? items.filter((item) => item && item.label && item.href).slice(0, 8)
+      : [];
+    document.querySelectorAll('[data-side-nav-personalized-list]').forEach((list) => {
+      if (!active.length) return;
+      list.textContent = '';
+      const unreadAlertCount = Number(summary && summary.unreadAlertCount ? summary.unreadAlertCount : 0);
+      if (unreadAlertCount > 0) {
+        const summaryNode = document.createElement('div');
+        summaryNode.className = 'desktop-side-nav-mini-summary';
+        summaryNode.innerHTML = '<span>新着通知</span><strong>' + String(Math.min(unreadAlertCount, 99)) + '</strong>';
+        list.appendChild(summaryNode);
+      }
+      active.forEach((item) => {
+        const link = document.createElement('a');
+        link.className = 'desktop-side-nav-mini-card';
+        link.href = String(item.href || '/');
+        const label = document.createElement('span');
+        label.className = 'desktop-side-nav-mini-label';
+        label.textContent = String(item.label || 'よく見る');
+        const meta = document.createElement('span');
+        meta.className = 'desktop-side-nav-mini-meta';
+        meta.textContent = statText(item, summary) || 'よく見る';
+        link.appendChild(label);
+        link.appendChild(meta);
+        link.setAttribute('data-kpi-action', 'personalized_menu_' + String(item.source || item.kind || 'item'));
+        list.appendChild(link);
+      });
+    });
+    if (active.length) {
+      document.querySelectorAll('[data-side-nav-personalized-empty]').forEach((node) => {
+        node.hidden = true;
+      });
+    }
+  };
+  const hydrateAlerts = () => {
+    fetch(alertsEndpoint, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => renderAlerts(payload && payload.ok ? payload.alerts : []))
+      .catch(() => undefined);
+  };
+  const hydratePersonalizedMenu = () => {
+    fetch(personalizedEndpoint, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => renderPersonalizedItems(payload && payload.ok ? payload.items : [], payload && payload.ok ? payload.summary : null))
+      .catch(() => undefined);
+  };
+  window.addEventListener('ikimon:area-followed', () => {
+    if (signedIn) hydratePersonalizedMenu();
+  });
+  document.addEventListener('click', (event) => {
+    const toggle = event.target instanceof Element ? event.target.closest('[data-notification-toggle]') : null;
+    const panel = document.querySelector('[data-notification-panel]');
+    if (toggle) {
+      if (!signedIn) {
+        const loginHref = toggle.getAttribute('data-login-href') || '/login?redirect=/home';
+        window.location.href = loginHref;
+        return;
+      }
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      if (panel) panel.hidden = expanded;
+      return;
+    }
+    const readAll = event.target instanceof Element ? event.target.closest('[data-notification-read-all]') : null;
+    if (readAll) {
+      const ids = latestAlerts.filter((item) => item && !item.acknowledgedAt && item.deliveryId).map((item) => item.deliveryId);
+      if (!ids.length) return;
+      readAll.setAttribute('disabled', 'disabled');
+      readAlerts(ids)
+        .then(() => {
+          markAlertReadLocally(ids);
+          hydratePersonalizedMenu();
+        })
+        .finally(() => readAll.removeAttribute('disabled'));
+      return;
+    }
+    const alertLink = event.target instanceof Element ? event.target.closest('[data-notification-id]') : null;
+    if (alertLink) {
+      const id = alertLink.getAttribute('data-notification-id');
+      if (id) {
+        markAlertReadLocally([id]);
+        readAlerts([id]).catch(() => undefined);
+      }
+      return;
+    }
+    if (panel && !panel.hidden && !(event.target instanceof Element && event.target.closest('[data-notification-menu]'))) {
+      panel.hidden = true;
+      document.querySelectorAll('[data-notification-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    }
+  }, { capture: true });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    document.querySelectorAll('[data-notification-panel]').forEach((panel) => { panel.hidden = true; });
+    document.querySelectorAll('[data-notification-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  });
   const applySignedInState = (session) => {
-    if (!session || !session.userId) return;
+    if (!session || !session.userId) {
+      document.documentElement.dataset.auth = 'guest';
+      return;
+    }
+    signedIn = true;
     document.documentElement.dataset.auth = 'signed-in';
     document.querySelectorAll('.site-login-link').forEach((link) => {
       const label = link.querySelector('.desktop-side-nav-label');
@@ -1758,6 +2232,14 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
       link.setAttribute('title', 'マイページ');
       link.classList.add('is-authenticated');
     });
+    setIconHref('[data-account-profile]', profileHref, (session.displayName || 'マイページ') + ' のマイページ');
+    setIconHref('[data-account-settings]', settingsHref, '設定');
+    document.querySelectorAll('[data-account-alerts]').forEach((button) => {
+      button.setAttribute('aria-label', '通知');
+      button.setAttribute('title', '通知');
+    });
+    hydrateAlerts();
+    hydratePersonalizedMenu();
   };
   fetch(endpoint, {
     method: 'GET',
@@ -1827,7 +2309,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     </div>
   </div>`;
   const shellClassName = options.shellClassName ?? "";
-  const isImmersiveSurface = /\b(?:shell-map|shell-notes-library|shell-immersive)\b/.test(shellClassName);
+  const shellLayoutKind = siteShellLayoutKind(currentPath, shellClassName);
+  const isImmersiveSurface = shellLayoutKind === "immersive";
+  const shellLayoutClassName = `shell-layout-${shellLayoutKind}`;
+  const mainClassName = ["shell", shellLayoutClassName, shellClassName].filter(Boolean).map(escapeHtml).join(" ");
+  const shouldRenderFooter = false;
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
   const appOutboxHeadScript = `<script>
 (function () {
@@ -2280,15 +2766,28 @@ ${alternateLinks}
     a { color: inherit; text-decoration: none; }
     .site-shell { min-height: 100vh; }
     .shell {
-      width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
+      --ikimon-shell-target-max: var(--ikimon-content-max);
+      width: min(var(--ikimon-shell-target-max), calc(100% - var(--ikimon-page-inline)));
       max-width: none;
       margin: 0 var(--ikimon-shell-margin-right) 0 var(--ikimon-shell-margin-left);
       padding: 28px 0 24px;
       transition: width .18s ease, margin .18s ease;
     }
+    .shell.shell-layout-home,
+    .shell.shell-layout-immersive {
+      --ikimon-shell-target-max: var(--ikimon-page-max);
+    }
+    .shell.shell-layout-wide {
+      --ikimon-shell-target-max: var(--ikimon-content-max);
+    }
+    .shell.shell-layout-reading {
+      --ikimon-shell-target-max: var(--ikimon-reading-max);
+    }
+    .shell.shell-layout-narrow {
+      --ikimon-shell-target-max: var(--ikimon-form-max);
+    }
     .shell.shell-bleed {
       max-width: none;
-      width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
       padding: 22px 0 24px;
     }
     .shell.shell-map {
@@ -2385,6 +2884,158 @@ ${alternateLinks}
     .site-nav-link.is-active { color: #047857; background: #ecfdf5; }
     .site-header-actions { display: flex; gap: 8px; flex: 0 0 auto; flex-wrap: nowrap; align-items: center; }
     .site-header-actions-mobile { display: none; }
+    .site-account-icons {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.9);
+      border: 1px solid rgba(148,163,184,.24);
+      box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    }
+    .site-account-icon {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      color: #334155;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      transition: background .16s ease, color .16s ease;
+    }
+    .site-account-icon:hover {
+      background: #ecfdf5;
+      color: #047857;
+    }
+    .site-account-icon .desktop-side-nav-icon {
+      width: 19px;
+      height: 19px;
+      flex-basis: 19px;
+    }
+    .site-notification-menu {
+      position: relative;
+      display: inline-flex;
+    }
+    .site-notification-button[aria-expanded="true"] {
+      background: #ecfdf5;
+      color: #047857;
+    }
+    .site-notification-badge {
+      position: absolute;
+      top: 4px;
+      right: 3px;
+      min-width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: #dc2626;
+      color: #fff;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 950;
+      border: 2px solid #fff;
+    }
+    .site-notification-panel {
+      position: absolute;
+      z-index: 120;
+      top: calc(100% + 10px);
+      right: -46px;
+      width: min(330px, calc(100vw - 24px));
+      padding: 10px;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: 0 22px 48px rgba(15,23,42,.16);
+    }
+    .site-notification-head {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px 8px;
+      border-bottom: 1px solid rgba(15,23,42,.08);
+    }
+    .site-notification-head strong {
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 950;
+    }
+    .site-notification-head a,
+    .site-notification-head button {
+      color: #047857;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .site-notification-head button {
+      border: 0;
+      background: #ecfdf5;
+      border-radius: 999px;
+      min-height: 28px;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+    .site-notification-head button[disabled] {
+      opacity: .55;
+      cursor: wait;
+    }
+    .site-notification-list {
+      display: grid;
+      gap: 6px;
+      padding-top: 8px;
+    }
+    .site-notification-item {
+      display: grid;
+      gap: 3px;
+      padding: 10px;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .site-notification-item:hover {
+      background: #ecfdf5;
+    }
+    .site-notification-item.is-unread {
+      border: 1px solid rgba(14,165,233,.22);
+      background: #f0f9ff;
+    }
+    .site-notification-item strong {
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 950;
+    }
+    .site-notification-item em {
+      width: fit-content;
+      margin-top: 2px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #dc2626;
+      color: #fff;
+      font-size: 10px;
+      line-height: 1;
+      font-style: normal;
+      font-weight: 950;
+    }
+    .site-notification-item span,
+    .site-notification-empty {
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 750;
+    }
+    .site-notification-empty {
+      padding: 12px 10px;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
     .site-login-link.is-authenticated { color: #047857; background: #ecfdf5; border-color: rgba(16,185,129,.18); }
     .site-record-link { white-space: nowrap; }
     .is-reading-surface .site-record-link { display: none; }
@@ -2445,7 +3096,40 @@ ${alternateLinks}
     }
     .site-mobile-menu { display: none; }
     .desktop-side-nav { display: none; }
-    .desktop-side-nav-inner { display: grid; gap: 4px; }
+    .desktop-side-nav-inner,
+    .desktop-side-nav-directory {
+      display: grid;
+      gap: 4px;
+    }
+    .desktop-side-nav-section {
+      display: grid;
+      gap: 4px;
+    }
+    .desktop-side-nav-section--signed-in {
+      display: none;
+    }
+    html[data-auth="signed-in"] .desktop-side-nav-section--signed-in {
+      display: grid;
+    }
+    html[data-auth="signed-in"] .desktop-side-nav-section--guest {
+      display: none;
+    }
+    .desktop-side-nav-section + .desktop-side-nav-section,
+    .desktop-side-nav-legal {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(15,23,42,.08);
+    }
+    .desktop-side-nav-section-title {
+      margin: 0;
+      padding: 8px 14px 4px;
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.3;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
     .desktop-side-nav-link {
       min-height: 42px;
       display: flex;
@@ -2486,6 +3170,117 @@ ${alternateLinks}
     }
     .desktop-side-nav-link.site-login-link {
       margin-top: 8px;
+    }
+    .desktop-side-nav-text-links {
+      display: grid;
+      gap: 2px;
+    }
+    .desktop-side-nav-text-link {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      padding: 7px 14px;
+      border-radius: 10px;
+      color: #334155;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 800;
+      transition: background .16s ease, color .16s ease;
+    }
+    .desktop-side-nav-text-link:hover {
+      background: rgba(15,23,42,.05);
+    }
+    .desktop-side-nav-text-link.is-active {
+      background: #ecfdf5;
+      color: #047857;
+    }
+    .desktop-side-nav-text-link--personalized {
+      color: #0f766e;
+      background: rgba(236,253,245,.72);
+    }
+    .desktop-side-nav-personalized-list {
+      display: grid;
+      gap: 5px;
+    }
+    .desktop-side-nav-mini-summary {
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 2px 10px 2px;
+      padding: 6px 9px;
+      border-radius: 10px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .desktop-side-nav-mini-summary strong {
+      min-width: 22px;
+      height: 22px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 11px;
+    }
+    .desktop-side-nav-mini-card {
+      display: grid;
+      gap: 3px;
+      min-height: 48px;
+      margin: 0 8px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: #f0fdfa;
+      border: 1px solid rgba(20,184,166,.14);
+      color: #0f172a;
+      transition: background .16s ease, border-color .16s ease;
+    }
+    .desktop-side-nav-mini-card:hover {
+      background: #ecfdf5;
+      border-color: rgba(5,150,105,.24);
+    }
+    .desktop-side-nav-mini-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      line-height: 1.25;
+      font-weight: 950;
+    }
+    .desktop-side-nav-mini-meta {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #0f766e;
+      font-size: 10.5px;
+      line-height: 1.25;
+      font-weight: 850;
+    }
+    .desktop-side-nav-personalized-empty {
+      margin: 4px 10px 0;
+      padding: 9px 10px;
+      border-radius: 10px;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.45;
+      font-weight: 750;
+    }
+    .desktop-side-nav-legal {
+      display: grid;
+      gap: 3px;
+      padding: 12px 14px 2px;
+      color: #94a3b8;
+      font-size: 11px;
+      line-height: 1.45;
+      font-weight: 750;
+    }
+    .desktop-side-nav-legal span:first-child {
+      color: #64748b;
+      font-weight: 950;
     }
     .desktop-side-nav-icon {
       width: 21px;
@@ -2580,10 +3375,56 @@ ${alternateLinks}
       padding: 12px;
       border-radius: 20px;
       border: 1px solid rgba(148,163,184,.22);
-      background: rgba(255,255,255,.98);
+      background: #ffffff;
       box-shadow: 0 20px 42px rgba(15,23,42,.16);
       display: grid;
       gap: 12px;
+    }
+    .site-mobile-menu-directory {
+      display: grid;
+      gap: 8px;
+      max-height: min(68vh, 640px);
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .site-mobile-menu-section {
+      display: grid;
+      gap: 4px;
+    }
+    .site-mobile-menu-section.desktop-side-nav-section--signed-in {
+      display: none;
+    }
+    html[data-auth="signed-in"] .site-mobile-menu-section.desktop-side-nav-section--signed-in {
+      display: grid;
+    }
+    html[data-auth="signed-in"] .site-mobile-menu-section.desktop-side-nav-section--guest {
+      display: none;
+    }
+    .site-mobile-menu-section + .site-mobile-menu-section,
+    .site-mobile-menu-directory .desktop-side-nav-legal {
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(15,23,42,.08);
+    }
+    .site-mobile-menu-directory .desktop-side-nav-link {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 12px;
+      background: rgba(15,23,42,.04);
+    }
+    .site-mobile-menu-directory .desktop-side-nav-link.is-active,
+    .site-mobile-menu-directory .desktop-side-nav-text-link.is-active {
+      background: #ecfdf5;
+      color: #047857;
+    }
+    .site-mobile-menu-directory .desktop-side-nav-section-title {
+      padding: 6px 10px 2px;
+    }
+    .site-mobile-menu-directory .desktop-side-nav-text-link {
+      min-height: 36px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(248,250,252,.9);
     }
     .site-search-mobile {
       display: inline-flex;
@@ -3985,16 +4826,17 @@ ${alternateLinks}
         padding: 8px 10px 12px 0;
         overflow-y: auto;
         border-right: 0;
-        background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.50));
+        background: #ffffff;
+        border: 1px solid rgba(15,23,42,.08);
         border-radius: 0 18px 18px 0;
-        box-shadow: 10px 0 28px rgba(15,23,42,.035);
-        backdrop-filter: blur(12px);
+        box-shadow: 12px 0 32px rgba(15,23,42,.10);
+        backdrop-filter: none;
         scrollbar-width: thin;
         transition: width .18s ease, padding .18s ease, box-shadow .18s ease;
       }
       body.is-desktop-side-nav-collapsed .desktop-side-nav {
         padding-right: 0;
-        box-shadow: 8px 0 22px rgba(15,23,42,.025);
+        box-shadow: 10px 0 26px rgba(15,23,42,.08);
       }
       body.is-desktop-side-nav-collapsed .desktop-side-nav-link {
         width: 48px;
@@ -4009,13 +4851,31 @@ ${alternateLinks}
       body.is-desktop-side-nav-collapsed .brand-wordmark {
         display: none;
       }
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-section--secondary,
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-legal {
+        display: none;
+      }
       body.is-desktop-side-nav-collapsed .brand-logo-lockup {
         padding-right: 0;
       }
       .shell,
-      .shell.shell-bleed,
+      .footer-inner {
+        --ikimon-shell-available-w: calc(100vw - var(--ikimon-desktop-sidebar-w));
+        --ikimon-shell-effective-w: min(var(--ikimon-shell-target-max), calc(var(--ikimon-shell-available-w) - var(--ikimon-page-inline)));
+        --ikimon-shell-side-space: max(24px, calc((var(--ikimon-shell-available-w) - var(--ikimon-shell-effective-w)) / 2));
+        width: var(--ikimon-shell-effective-w);
+        margin-left: calc(var(--ikimon-desktop-sidebar-w) + var(--ikimon-shell-side-space));
+        margin-right: var(--ikimon-shell-side-space);
+      }
+      .footer-inner {
+        --ikimon-shell-target-max: var(--ikimon-page-max);
+      }
+      .shell.shell-layout-home,
+      .shell.shell-layout-home.shell-bleed,
       .footer-inner {
         width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - var(--ikimon-page-inline)));
+        margin-left: var(--ikimon-shell-margin-left);
+        margin-right: var(--ikimon-shell-margin-right);
       }
       .shell.shell-map {
         width: calc(100% - var(--ikimon-desktop-sidebar-w) - 24px);
@@ -4041,15 +4901,16 @@ ${alternateLinks}
       .site-shell.is-immersive-surface .desktop-side-nav {
         width: 204px;
         padding: 8px 10px 12px 0;
+        background: #ffffff;
+        border: 1px solid rgba(15,23,42,.08);
+        backdrop-filter: none;
         transform: translateX(-112%);
-        opacity: 0;
         pointer-events: none;
-        box-shadow: 18px 0 42px rgba(15,23,42,.12);
-        transition: transform .22s ease, opacity .18s ease, box-shadow .18s ease;
+        box-shadow: 18px 0 42px rgba(15,23,42,.16);
+        transition: transform .22s ease, box-shadow .18s ease;
       }
       body:not(.is-desktop-side-nav-collapsed) .site-shell.is-immersive-surface .desktop-side-nav {
         transform: translateX(0);
-        opacity: 1;
         pointer-events: auto;
       }
       .site-shell.is-immersive-surface .shell,
@@ -4259,12 +5120,12 @@ ${alternateLinks}
   ${installPromptHtml}
   <div class="${siteShellClassName}">
     ${nav(options.basePath, lang, currentPath, options.activeNav, alternateLangs)}
-    <main id="main-content" class="shell${options.shellClassName ? ` ${escapeHtml(options.shellClassName)}` : ""}" tabindex="-1">
+    <main id="main-content" class="${mainClassName}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
       ${options.belowHeroHtml ?? ""}
       ${options.body}
     </main>
-    ${options.hideFooter ? "" : footer(options.basePath, lang, options.footerNote)}
+    ${shouldRenderFooter ? footer(options.basePath, lang, options.footerNote) : ""}
     ${globalRecordNav}
   </div>
   ${legacyServiceWorkerCleanupScript}
