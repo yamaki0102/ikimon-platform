@@ -1,0 +1,81 @@
+name: Maintenance - Evidence Assets Visit Index
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-index:
+    name: Create owner-only evidence_assets index
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Back up DB and create index
+        run: |
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 <<'REMOTE'
+          set -euo pipefail
+
+          DB_NAME="ikimon_v2"
+          BACKUP_DIR="/var/backups/ikimon-db-maintenance"
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_pre_evidence_assets_visit_index_${STAMP}.dump"
+
+          install -d -m 700 "$BACKUP_DIR"
+
+          db_size="$(sudo -u postgres psql -d "$DB_NAME" -At -c "select pg_database_size(current_database())")"
+          free_bytes="$(df -P -B1 "$BACKUP_DIR" | awk 'NR==2 { print $4 }')"
+          required_bytes="$((db_size * 2))"
+          echo "DB size bytes: ${db_size}"
+          echo "Backup filesystem free bytes: ${free_bytes}"
+          echo "Required free bytes: ${required_bytes}"
+          if [ "$free_bytes" -lt "$required_bytes" ]; then
+            echo "Refusing maintenance: not enough free space for a conservative pre-index backup."
+            exit 1
+          fi
+
+          echo "Creating compressed PostgreSQL backup..."
+          sudo -u postgres pg_dump -Fc -d "$DB_NAME" -f "$BACKUP_FILE"
+          test -s "$BACKUP_FILE"
+          chmod 600 "$BACKUP_FILE"
+          sha256sum "$BACKUP_FILE" > "${BACKUP_FILE}.sha256"
+          ls -lh "$BACKUP_FILE" "${BACKUP_FILE}.sha256"
+
+          sudo -u postgres psql -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT current_database() AS database_name;
+          SELECT tableowner
+            FROM pg_tables
+           WHERE schemaname = 'public'
+             AND tablename = 'evidence_assets';
+          SELECT indexname
+            FROM pg_indexes
+           WHERE schemaname = 'public'
+             AND tablename = 'evidence_assets'
+             AND indexname = 'idx_evidence_assets_visit_role_created';
+          SQL
+
+          sudo -u postgres psql -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+          SET statement_timeout = 0;
+          SET lock_timeout = '5s';
+          CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_evidence_assets_visit_role_created
+              ON public.evidence_assets (visit_id, asset_role, created_at ASC)
+              INCLUDE (blob_id);
+          ANALYZE public.evidence_assets;
+          ANALYZE public.asset_blobs;
+          SQL
+
+          sudo -u postgres psql -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT indexname, indexdef
+            FROM pg_indexes
+           WHERE schemaname = 'public'
+             AND tablename = 'evidence_assets'
+             AND indexname = 'idx_evidence_assets_visit_role_created';
+          SQL
+
+          echo "Backup retained at: ${BACKUP_FILE}"
+          REMOTE
