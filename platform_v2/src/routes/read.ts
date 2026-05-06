@@ -4496,13 +4496,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <button class="btn btn-solid" type="submit">保存してあとで補完</button>
                 <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn"))}">記録のコツを読む</a>
               </div>
-              <div id="record-status" class="record-status-inline list" aria-live="polite"></div>
               <div class="record-submit-dock" aria-label="記録を送信する">
                 <button type="button" class="record-submit-location" data-record-locate>現在地</button>
                 <span id="record-submit-dock-meta" class="record-submit-dock-meta">メディア未選択</span>
                 <button type="submit" class="record-submit-primary">保存</button>
               </div>
             </form>
+            <div id="record-status" class="record-status-inline list" aria-live="polite"></div>
           </section>
         </div>
       </section>
