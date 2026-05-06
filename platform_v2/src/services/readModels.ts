@@ -199,6 +199,12 @@ export type ObservationListSnapshot = {
   };
 };
 
+const OBSERVATION_LIST_SNAPSHOT_TTL_MS = 30_000;
+const observationListSnapshotCache = new Map<string, {
+  expiresAt: number;
+  snapshot: ObservationListSnapshot;
+}>();
+
 export type SpecialistSnapshot = {
   lane: "default" | "public-claim" | "expert-lane" | "review-queue";
   summary: {
@@ -1613,12 +1619,18 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
 }
 
 export async function getObservationListSnapshot(limit = 48): Promise<ObservationListSnapshot> {
+  const cacheKey = `limit:${limit}`;
+  const now = Date.now();
+  const cached = observationListSnapshotCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.snapshot;
+  }
   const observations = await loadObservationListCards(limit);
   const awaitingIdCount = observations.filter((item) =>
     item.displayName === "同定待ち" || item.isAiCandidate,
   ).length;
   const multiSubjectCount = observations.filter((item) => item.isMultiSubject).length;
-  return {
+  const snapshot = {
     observations,
     summary: {
       shownCount: observations.length,
@@ -1627,6 +1639,11 @@ export async function getObservationListSnapshot(limit = 48): Promise<Observatio
       multiSubjectCount,
     },
   };
+  observationListSnapshotCache.set(cacheKey, {
+    expiresAt: now + OBSERVATION_LIST_SNAPSHOT_TTL_MS,
+    snapshot,
+  });
+  return snapshot;
 }
 
 export async function getSpecialistSnapshot(
