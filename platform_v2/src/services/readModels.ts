@@ -395,10 +395,25 @@ async function loadVisitSummaryObservations(
   }
   params.push(limit);
   const visitRows = await pool.query<VisitCardRow>(
-    `WITH visit_cards AS (
-       SELECT DISTINCT ON (v.visit_id)
-              v.visit_id,
-              v.observed_at AS observed_at_sort,
+    `WITH candidate_visits AS (
+       SELECT v.visit_id,
+              v.observed_at AS observed_at_sort
+         FROM visits v
+        ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
+          AND EXISTS (
+            SELECT 1
+              FROM occurrences o
+              JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
+              JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+             WHERE o.visit_id = v.visit_id
+               AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+          )
+        ORDER BY v.observed_at DESC, v.visit_id DESC
+        LIMIT $${params.length}
+     ),
+     visit_cards AS (
+       SELECT v.visit_id,
+              cv.observed_at_sort,
               v.observed_at::text AS observed_at,
               ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
               p.canonical_name AS place_name,
@@ -408,15 +423,25 @@ async function loadVisitSummaryObservations(
               coalesce(v.point_longitude, p.center_longitude) AS longitude,
               photo.public_url AS photo_url,
               coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
-         FROM occurrences o
-         JOIN visits v ON v.visit_id = o.visit_id
+         FROM candidate_visits cv
+         JOIN visits v ON v.visit_id = cv.visit_id
          LEFT JOIN users u ON u.user_id = v.user_id
          LEFT JOIN places p ON p.place_id = v.place_id
+         JOIN LATERAL (
+           SELECT o.occurrence_id
+             FROM occurrences o
+             JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
+             JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+            WHERE o.visit_id = v.visit_id
+              AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+            ORDER BY o.subject_index ASC, o.created_at ASC
+            LIMIT 1
+         ) featured ON true
          JOIN LATERAL (
            SELECT coalesce(ab.public_url, ab.storage_path) AS public_url
              FROM evidence_assets ea
              JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-            WHERE ea.occurrence_id = o.occurrence_id
+            WHERE ea.occurrence_id = featured.occurrence_id
               AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
             ORDER BY ea.created_at ASC
             LIMIT 1
@@ -434,8 +459,6 @@ async function loadVisitSummaryObservations(
                 OR f.field_id::text = v.source_payload->>'field_id'
               )
          ) fields ON true
-        ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
-        ORDER BY v.visit_id, v.observed_at DESC, o.subject_index ASC, o.created_at ASC
      )
      SELECT visit_id,
             observed_at,
@@ -448,8 +471,7 @@ async function loadVisitSummaryObservations(
             photo_url,
             field_refs
        FROM visit_cards
-      ORDER BY observed_at_sort DESC
-      LIMIT $${params.length}`,
+       ORDER BY observed_at_sort DESC, visit_id DESC`,
     params,
   );
   const visitIds = visitRows.rows.map((row) => row.visit_id);
