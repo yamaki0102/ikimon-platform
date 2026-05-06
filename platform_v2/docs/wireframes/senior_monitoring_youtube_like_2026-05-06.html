@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ikimon.life Senior Monitoring Wireframes 2026-05-06</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211b;
+      --muted: #627067;
+      --line: #d8e2db;
+      --bg: #f6f8f5;
+      --panel: #ffffff;
+      --green: #13795b;
+      --blue: #2563eb;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --soft-green: #e7f5ef;
+      --soft-blue: #e8f0ff;
+      --soft-amber: #fff2d7;
+      --shadow: 0 16px 40px rgba(23, 33, 27, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; text-decoration: none; }
+    .page {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 64px;
+    }
+    .doc-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      padding: 24px 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 30px; line-height: 1.25; letter-spacing: 0; }
+    h2 { font-size: 24px; line-height: 1.35; margin-top: 40px; }
+    h3 { font-size: 19px; line-height: 1.35; }
+    .lead { max-width: 76ch; color: var(--muted); font-weight: 650; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 780;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .summary div {
+      min-height: 92px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .summary strong { display: block; font-size: 22px; line-height: 1.2; }
+    .summary span { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .variant-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+      align-items: start;
+    }
+    .wire {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .wire-head {
+      min-height: 74px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdfb;
+    }
+    .wire-head small {
+      display: block;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .wire-head p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      line-height: 1.5;
+    }
+    .mock {
+      min-height: 720px;
+      padding: 14px;
+      background: #f8faf8;
+    }
+    .appbar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 56px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .logo {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px 7px 8px;
+      border-radius: 8px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 950;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .logo img {
+      display: block;
+      height: auto;
+      object-fit: contain;
+    }
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: #fff;
+      padding: 3px;
+    }
+    .logo-word {
+      width: 92px;
+      max-height: 24px;
+    }
+    .search {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: #f5f8f6;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      background: var(--soft-green);
+      border: 1px solid #b7decf;
+    }
+    .hero-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .action {
+      min-height: 76px;
+      display: grid;
+      place-items: center;
+      gap: 4px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+      font-weight: 900;
+      line-height: 1.35;
+    }
+    .action b {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-size: 17px;
+    }
+    .topic-tabs {
+      display: flex;
+      gap: 8px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .topic-tabs span {
+      flex: 0 0 auto;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .topic-tabs span:first-child { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .shelf { margin-top: 18px; }
+    .shelf-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .shelf-title strong { font-size: 18px; line-height: 1.35; }
+    .shelf-title span { color: var(--green); font-size: 13px; font-weight: 850; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .card {
+      min-height: 164px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .thumb {
+      min-height: 104px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(19,121,91,.18), rgba(37,99,235,.14)),
+        repeating-linear-gradient(45deg, rgba(23,33,27,.06) 0 8px, transparent 8px 16px);
+      color: rgba(23,33,27,.72);
+      font-weight: 950;
+    }
+    .thumb.map {
+      min-height: 230px;
+      background:
+        linear-gradient(90deg, rgba(19,121,91,.15) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(37,99,235,.12) 1px, transparent 1px),
+        #edf7f1;
+      background-size: 34px 34px, 34px 34px, auto;
+    }
+    .card-body { padding: 10px; }
+    .card-body strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    .card-body span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .status.blue { background: var(--soft-blue); color: var(--blue); }
+    .status.amber { background: var(--soft-amber); color: var(--amber); }
+    .status.red { background: #fee2e2; color: var(--red); }
+    .task-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .task-panel h4 { margin: 0 0 10px; font-size: 20px; line-height: 1.3; }
+    .task-list { display: grid; gap: 10px; }
+    .task {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 68px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfb;
+    }
+    .task i {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 8px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-style: normal;
+      font-weight: 950;
+    }
+    .task strong { display: block; font-size: 15px; }
+    .task small { display: block; color: var(--muted); font-weight: 700; }
+    .wide-map { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+    .map-caption { padding: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .filterbar {
+      display: flex;
+      gap: 8px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .filterbar span {
+      flex: 0 0 auto;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .filterbar span:first-child { background: var(--green); color: #fff; border-color: var(--green); }
+    .obs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .obs-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .obs-card .thumb { min-height: 132px; }
+    .obs-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+    }
+    .obs-meta strong { display: block; font-size: 15px; line-height: 1.35; }
+    .obs-meta span { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .queue { display: grid; gap: 10px; }
+    .queue-item {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .queue-item .thumb { min-height: 76px; border-radius: 6px; }
+    .queue-body { display: grid; gap: 7px; align-content: start; }
+    .queue-body strong { font-size: 16px; line-height: 1.35; }
+    .queue-body small { color: var(--muted); font-weight: 700; }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+      gap: 10px;
+    }
+    .mini-list { display: grid; gap: 8px; }
+    .mini-list .queue-item { grid-template-columns: 58px minmax(0, 1fr); padding: 8px; }
+    .mini-list .thumb { min-height: 54px; }
+    .note {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .recommend {
+      border: 2px solid #9bd6c1;
+      box-shadow: 0 18px 48px rgba(19, 121, 91, .16);
+    }
+    .implementation {
+      margin-top: 44px;
+      padding: 18px;
+      border: 2px solid #9bd6c1;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(19, 121, 91, .12);
+    }
+    .implementation-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .98fr) minmax(320px, 1.02fr);
+      gap: 18px;
+      margin-top: 16px;
+      align-items: start;
+    }
+    .phone-wire {
+      width: min(420px, 100%);
+      margin: 0 auto;
+      padding: 12px;
+      border: 1px solid #b9d9cb;
+      border-radius: 22px;
+      background: #edf7f1;
+      box-shadow: inset 0 0 0 4px #10251a, 0 18px 40px rgba(23, 33, 27, .16);
+    }
+    .phone-screen {
+      overflow: hidden;
+      border-radius: 16px;
+      background: #f8faf8;
+      border: 1px solid var(--line);
+    }
+    .mobile-topbar {
+      min-height: 64px;
+      display: grid;
+      grid-template-columns: 1fr 52px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .mobile-logo {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      gap: 8px;
+      padding: 7px 12px 7px 8px;
+      border-radius: 8px;
+      background: var(--green);
+    }
+    .mobile-logo img { object-fit: contain; display: block; }
+    .mobile-logo .logo-mark { width: 30px; height: 30px; }
+    .mobile-logo .logo-word { width: 104px; max-height: 26px; }
+    .icon-button {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--green);
+      font-size: 20px;
+      font-weight: 950;
+    }
+    .mobile-search {
+      min-height: 56px;
+      margin: 10px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 760;
+    }
+    .mobile-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 0 10px 10px;
+    }
+    .mobile-action {
+      min-height: 86px;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      gap: 6px;
+      padding: 12px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      text-align: center;
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 920;
+    }
+    .mobile-action i {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--soft-green);
+      color: var(--green);
+      font-style: normal;
+      font-size: 15px;
+      line-height: 1;
+    }
+    .mobile-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px 10px 0;
+    }
+    .mobile-tabs span {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 15px;
+      font-weight: 850;
+    }
+    .mobile-tabs span:first-child { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .mobile-shelf { padding: 14px 10px 0; }
+    .mobile-shelf-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .mobile-shelf-head strong { font-size: 20px; line-height: 1.35; }
+    .mobile-shelf-head span { color: var(--green); font-size: 14px; font-weight: 850; }
+    .mobile-card {
+      display: grid;
+      grid-template-columns: 128px minmax(0, 1fr);
+      gap: 10px;
+      min-height: 118px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .mobile-card + .mobile-card { margin-top: 8px; }
+    .mobile-card .thumb { min-height: 100px; border-radius: 6px; }
+    .mobile-card-body { display: grid; align-content: center; gap: 7px; }
+    .mobile-card-body strong { font-size: 17px; line-height: 1.4; }
+    .mobile-card-body span { color: var(--muted); font-size: 14px; font-weight: 720; line-height: 1.45; }
+    .map-strip {
+      min-height: 178px;
+      display: grid;
+      align-content: end;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(19,121,91,.15) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(37,99,235,.12) 1px, transparent 1px),
+        #edf7f1;
+      background-size: 30px 30px, 30px 30px, auto;
+    }
+    .map-strip strong { font-size: 18px; line-height: 1.35; }
+    .spec-panel {
+      display: grid;
+      gap: 12px;
+    }
+    .spec-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfb;
+    }
+    .spec-card h3 { font-size: 18px; margin-bottom: 8px; }
+    .spec-card ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .standard-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: table;
+    }
+    .standard-table th,
+    .standard-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .standard-table th {
+      background: #f0f7f3;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 950;
+    }
+    .standard-table tr:last-child td { border-bottom: 0; }
+    @media (max-width: 1120px) {
+      .variant-grid { grid-template-columns: 1fr; }
+      .implementation-grid { grid-template-columns: 1fr; }
+      .mock { min-height: 0; }
+    }
+    @media (max-width: 720px) {
+      .page { width: min(100% - 20px, 1440px); padding-top: 10px; }
+      .doc-head { grid-template-columns: 1fr; align-items: start; }
+      .summary { grid-template-columns: 1fr; }
+      .appbar { grid-template-columns: 1fr auto; }
+      .search { grid-column: 1 / -1; order: 3; }
+      .hero-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cards, .obs-grid, .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="doc-head">
+      <div>
+        <h1>ikimon.life UI Wireframes</h1>
+        <p class="lead">年配/熟練モニターが多い前提で、トップは説明を減らし、観察・同定・地図・マイページをYouTube風の棚と大きな入口に再構成する。地域マップはトップ内の主要コンテンツとして扱う。</p>
+      </div>
+      <div class="pill-row" aria-label="design constraints">
+        <span class="pill">56px+ touch</span>
+        <span class="pill">short Japanese</span>
+        <span class="pill">photo first</span>
+        <span class="pill">review ready</span>
+      </div>
+    </header>
+
+    <section class="summary" aria-label="design goals">
+      <div><strong>3秒理解</strong><span>説明文を読まなくても、何をする場所か分かる。</span></div>
+      <div><strong>4大入口</strong><span>観察、同定、地図、マイページを最上段に固定。</span></div>
+      <div><strong>地域把握</strong><span>再訪問の依頼ではなく、近くの変化と地図から興味を作る。</span></div>
+      <div><strong>低負荷</strong><span>大きなカード、少ない文字、状態ラベルで判断する。</span></div>
+    </section>
+
+    <h2>Top Page Variants</h2>
+    <section class="variant-grid" aria-label="top page variants">
+      <article class="wire recommend">
+        <div class="wire-head">
+          <small>推奨 A</small>
+          <h3>YouTube Home + Local Map</h3>
+          <p>ホーム型の棚。説明をサブページへ逃がし、観察・同定・地図を最短で開く。地域マップも棚として入れる。</p>
+        </div>
+        <div class="mock">
+          <div class="appbar">
+            <div class="logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"></div>
+            <div class="search">近くの生きものを検索</div>
+            <div class="avatar" aria-hidden="true"></div>
+          </div>
+          <div class="hero-actions">
+            <a class="action" href="#"><b>＋</b>観察する</a>
+            <a class="action" href="#"><b>ID</b>同定する</a>
+            <a class="action" href="#"><b>◎</b>地図</a>
+            <a class="action" href="#"><b>人</b>マイページ</a>
+          </div>
+          <div class="topic-tabs">
+            <span>おすすめ</span><span>近く</span><span>同定待ち</span><span>地域マップ</span><span>読み物</span>
+          </div>
+          <section class="shelf">
+            <div class="shelf-title"><strong>近くの観察</strong><span>すべて見る</span></div>
+            <div class="cards">
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>モンシロチョウ</strong><span>浜松市 · 今日</span></div></a>
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>名前を確認中</strong><span>藤枝市 · AI候補あり</span></div></a>
+            </div>
+          </section>
+          <section class="shelf">
+            <div class="shelf-title"><strong>同定を待っています</strong><span>協力する</span></div>
+            <div class="cards">
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>クモの仲間</strong><span class="status amber">追加確認</span></div></a>
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>草地の植物</strong><span class="status blue">AI候補</span></div></a>
+            </div>
+          </section>
+          <section class="shelf">
+            <div class="shelf-title"><strong>地域マップ</strong><span>地図で見る</span></div>
+            <div class="cards">
+              <a class="card" href="#"><div class="thumb map">MAP</div><div class="card-body"><strong>近くで記録が増えた場所</strong><span>地図から気になる場所を見る</span></div></a>
+              <a class="card" href="#"><div class="thumb">READ</div><div class="card-body"><strong>はじめての記録</strong><span>読み物はここだけに集約</span></div></a>
+            </div>
+          </section>
+        </div>
+      </article>
+
+      <article class="wire">
+        <div class="wire-head">
+          <small>B</small>
+          <h3>Task Hub + Feed</h3>
+          <p>継続参加者向け。今日やることを先に出し、その下にフィードを置く。</p>
+        </div>
+        <div class="mock">
+          <div class="appbar">
+            <div class="logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"></div>
+            <div class="search">地域・種名で探す</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="task-panel">
+            <h4>今日できること</h4>
+            <div class="task-list">
+              <a class="task" href="#"><i>＋</i><span><strong>写真で記録する</strong><small>名前が分からなくても保存できます</small></span><span class="status">最短</span></a>
+              <a class="task" href="#"><i>ID</i><span><strong>名前を確かめる</strong><small>同定待ち 12件</small></span><span class="status amber">協力</span></a>
+              <a class="task" href="#"><i>◎</i><span><strong>近くの変化を見る</strong><small>地図から気になる場所を選べます</small></span><span class="status blue">地図</span></a>
+            </div>
+          </div>
+          <section class="shelf">
+            <div class="shelf-title"><strong>地域の動き</strong><span>もっと見る</span></div>
+            <div class="cards">
+              <a class="card" href="#"><div class="thumb map">MAP</div><div class="card-body"><strong>水辺の記録が増えています</strong><span>今週 18件</span></div></a>
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>追加写真が必要</strong><span class="status red">要対応</span></div></a>
+            </div>
+          </section>
+          <section class="shelf">
+            <div class="shelf-title"><strong>読み物</strong><span>知る</span></div>
+            <div class="cards">
+              <a class="card" href="#"><div class="thumb">READ</div><div class="card-body"><strong>記録が役に立つ理由</strong><span>3分で読む</span></div></a>
+              <a class="card" href="#"><div class="thumb">READ</div><div class="card-body"><strong>安全な公開範囲</strong><span>希少種・私有地に配慮</span></div></a>
+            </div>
+          </section>
+        </div>
+      </article>
+
+      <article class="wire">
+        <div class="wire-head">
+          <small>C</small>
+          <h3>Map First + Local Feed</h3>
+          <p>改善済みマップを主役にし、地域モニタリングの実在感を先に出す。</p>
+        </div>
+        <div class="mock">
+          <div class="appbar">
+            <div class="logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"></div>
+            <div class="search">場所を探す</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="wide-map">
+            <div class="thumb map">LARGE LOCAL MAP</div>
+            <div class="map-caption">
+              <span class="status">現在地周辺</span>
+              <span class="status blue">公開位置は丸め済み</span>
+              <span class="status amber">変化が見える場所 4件</span>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <a class="action" href="#"><b>＋</b>観察</a>
+            <a class="action" href="#"><b>ID</b>同定</a>
+            <a class="action" href="#"><b>◎</b>地域</a>
+            <a class="action" href="#"><b>人</b>自分</a>
+          </div>
+          <section class="shelf">
+            <div class="shelf-title"><strong>この地図にある記録</strong><span>一覧へ</span></div>
+            <div class="cards">
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>水辺の鳥</strong><span>確認済み</span></div></a>
+              <a class="card" href="#"><div class="thumb">PHOTO</div><div class="card-body"><strong>名前を確認中</strong><span class="status amber">同定待ち</span></div></a>
+            </div>
+          </section>
+        </div>
+      </article>
+    </section>
+
+    <h2>Observation List Variants</h2>
+    <section class="variant-grid" aria-label="observation list variants">
+      <article class="wire recommend">
+        <div class="wire-head">
+          <small>推奨 1</small>
+          <h3>Video Grid Style</h3>
+          <p>写真を大きくし、名前・場所・状態だけで判断する。最も低負荷。</p>
+        </div>
+        <div class="mock">
+          <div class="appbar">
+            <div class="logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"><span>観察一覧</span></div>
+            <div class="search">種名・場所で検索</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="filterbar">
+            <span>すべて</span><span>同定待ち</span><span>近く</span><span>写真あり</span><span>地域マップ</span>
+          </div>
+          <div class="obs-grid">
+            <a class="obs-card" href="#"><div class="thumb">PHOTO</div><div class="obs-meta"><span><strong>モンシロチョウ</strong><span>浜松市 · 今日</span></span><span class="status">確認中</span></div></a>
+            <a class="obs-card" href="#"><div class="thumb">PHOTO</div><div class="obs-meta"><span><strong>名前を確認中</strong><span>藤枝市 · 昨日</span></span><span class="status amber">同定待ち</span></div></a>
+            <a class="obs-card" href="#"><div class="thumb">PHOTO</div><div class="obs-meta"><span><strong>クモの仲間</strong><span>静岡市 · 追加写真</span></span><span class="status red">要確認</span></div></a>
+            <a class="obs-card" href="#"><div class="thumb">PHOTO</div><div class="obs-meta"><span><strong>水辺の鳥</strong><span>公開位置 丸め済み</span></span><span class="status blue">地図</span></div></a>
+          </div>
+        </div>
+      </article>
+
+      <article class="wire">
+        <div class="wire-head">
+          <small>2</small>
+          <h3>Review Queue Style</h3>
+          <p>熟練者/レビュアー向け。同定待ち、追加証拠、公開粒度確認を先に見る。</p>
+        </div>
+        <div class="mock">
+          <div class="appbar">
+            <div class="logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"><span>同定・確認</span></div>
+            <div class="search">未確認だけを検索</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="filterbar">
+            <span>要確認</span><span>AI候補</span><span>追加写真</span><span>専門家へ</span>
+          </div>
+          <div class="queue">
+            <a class="queue-item" href="#"><div class="thumb">PHOTO</div><div class="queue-body"><strong>草地の植物</strong><small>AI候補: キク科 / 場所: 牧之原市</small><div><span class="status amber">同定待ち</span></div></div></a>
+            <a class="queue-item" href="#"><div class="thumb">PHOTO</div><div class="queue-body"><strong>クモの仲間</strong><small>背面写真あり、腹面なし</small><div><span class="status red">追加写真が必要</span></div></div></a>
+            <a class="queue-item" href="#"><div class="thumb">PHOTO</div><div class="queue-body"><strong>水辺の魚</strong><small>釣果/観察の区分確認</small><div><span class="status blue">公開粒度確認</span></div></div></a>
+            <a class="queue-item" href="#"><div class="thumb">PHOTO</div><div class="queue-body"><strong>菌類</strong><small>食毒助言は表示しない</small><div><span class="status red">専門家へ</span></div></div></a>
+          </div>
+        </div>
+      </article>
+
+      <article class="wire">
+        <div class="wire-head">
+          <small>3</small>
+          <h3>Map + List Split</h3>
+          <p>iNaturalist型。地図と一覧を並べ、地域ごとの記録を比較しやすくする。</p>
+        </div>
+        <div class="mock">
+          <div class="appbar">
+            <div class="logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"><span>観察マップ</span></div>
+            <div class="search">地域で絞り込み</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="filterbar">
+            <span>Map</span><span>Grid</span><span>List</span><span>同定待ち</span>
+          </div>
+          <div class="split">
+            <div class="mini-list">
+              <a class="queue-item" href="#"><div class="thumb">P</div><div class="queue-body"><strong>モンシロチョウ</strong><small>浜松市</small></div></a>
+              <a class="queue-item" href="#"><div class="thumb">P</div><div class="queue-body"><strong>名前を確認中</strong><small>藤枝市</small></div></a>
+              <a class="queue-item" href="#"><div class="thumb">P</div><div class="queue-body"><strong>水辺の鳥</strong><small>公開位置丸め</small></div></a>
+            </div>
+            <div class="thumb map">MAP + CLUSTERS</div>
+          </div>
+          <p class="note">スマホでは地図/一覧をセグメント切替。常時2カラムにしない。</p>
+        </div>
+      </article>
+    </section>
+
+    <p class="note">主案: トップは A の YouTube Home + Local Map、観察一覧は 1 の Video Grid Style。再訪問は主CTAにせず、地域マップ内の変化・前回記録・季節差分として見せる。B/C と 2/3 はログイン後の熟練者モード、地域管理者モード、マップ中心導線として段階導入する。</p>
+
+    <section class="implementation" aria-label="top A implementation wire">
+      <div>
+        <div class="pill-row">
+          <span class="pill">Implementation wire</span>
+          <span class="pill">Top A only</span>
+          <span class="pill">Mobile first</span>
+        </div>
+        <h2>Top A Implementation Wire</h2>
+        <p class="lead">実装対象はトップの A案だけ。説明を増やさず、上から順に「ロゴ/検索」「4大入口」「短いタブ」「近くの観察」「同定待ち」「地域マップ」「読み物1本」で構成する。</p>
+      </div>
+
+      <div class="implementation-grid">
+        <div class="phone-wire" aria-label="mobile implementation wire">
+          <div class="phone-screen">
+            <div class="mobile-topbar">
+              <div class="mobile-logo"><img class="logo-mark" src="https://ikimon.life/assets/img/icon-192.png" alt=""><img class="logo-word" src="https://ikimon.co.jp/assets/img/logo-white.png" alt="ikimon.life"></div>
+              <div class="icon-button">人</div>
+            </div>
+            <div class="mobile-search">近くの生きものを検索</div>
+            <div class="mobile-actions">
+              <a class="mobile-action" href="#"><i>＋</i>観察する</a>
+              <a class="mobile-action" href="#"><i>ID</i>同定する</a>
+              <a class="mobile-action" href="#"><i>◎</i>地図</a>
+              <a class="mobile-action" href="#"><i>人</i>マイページ</a>
+            </div>
+            <div class="mobile-tabs">
+              <span>おすすめ</span>
+              <span>近く</span>
+              <span>同定待ち</span>
+              <span>地域マップ</span>
+            </div>
+
+            <section class="mobile-shelf">
+              <div class="mobile-shelf-head"><strong>近くの観察</strong><span>すべて見る</span></div>
+              <a class="mobile-card" href="#"><div class="thumb">PHOTO</div><div class="mobile-card-body"><strong>モンシロチョウ</strong><span>浜松市 · 今日</span><span class="status">確認中</span></div></a>
+              <a class="mobile-card" href="#"><div class="thumb">PHOTO</div><div class="mobile-card-body"><strong>名前を確認中</strong><span>藤枝市 · AI候補あり</span><span class="status amber">同定待ち</span></div></a>
+            </section>
+
+            <section class="mobile-shelf">
+              <div class="mobile-shelf-head"><strong>地域マップ</strong><span>地図で見る</span></div>
+              <div class="map-strip">
+                <strong>近くで記録が増えた場所</strong>
+                <span class="status blue">公開位置は丸め済み</span>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="spec-panel">
+          <article class="spec-card">
+            <h3>実装ブロック</h3>
+            <ul>
+              <li>Header: ロゴ、検索、マイページ入口。長いコピーは置かない。</li>
+              <li>Primary actions: 観察する、同定する、地図、マイページの4つだけ。</li>
+              <li>Topic tabs: おすすめ、近く、同定待ち、地域マップ。読み物はタブではなく棚末尾。</li>
+              <li>Nearby shelf: 写真、候補名、場所丸め、日付、状態ラベル。</li>
+              <li>ID shelf: 同定待ち、追加写真、AI候補を分ける。確認済みと混ぜない。</li>
+              <li>Local map shelf: 再訪問依頼ではなく、地域の変化として見せる。</li>
+            </ul>
+          </article>
+          <article class="spec-card">
+            <h3>ルートとKPI</h3>
+            <ul>
+              <li>`観察する`: `/record`, `landing:topA:primary:record`</li>
+              <li>`同定する`: `/explore?filter=needs_id`, `landing:topA:primary:identify`</li>
+              <li>`地図`: `/map`, `landing:topA:primary:map`</li>
+              <li>`マイページ`: `/profile`, `landing:topA:primary:me`</li>
+              <li>`地域マップ棚`: `/map?focus=local`, `landing:topA:shelf:localMap`</li>
+            </ul>
+          </article>
+          <article class="spec-card">
+            <h3>非採用</h3>
+            <ul>
+              <li>第1ビューに理念文、制度説明、長いヘルプを置かない。</li>
+              <li>`再訪問してください` を主CTAにしない。</li>
+              <li>ランキング、連続日数、投稿数競争をトップ主役にしない。</li>
+              <li>AI候補を確定名のように見せない。</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+
+      <h2>Senior UI Standards</h2>
+      <p class="lead">このワイヤーから実装へ持ち込む、高齢者/低視力/屋外利用向けの最低基準。</p>
+      <table class="standard-table" aria-label="senior UI standards">
+        <thead>
+          <tr><th>項目</th><th>基準</th><th>理由</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>本文</td><td>16px未満禁止。主要本文は17px、行間1.7。</td><td>日本語の読み疲れと屋外視認性を下げる。</td></tr>
+          <tr><td>カード見出し</td><td>17-20px。1行を基本、長い場合は2行まで。</td><td>写真を見てから文字で確認できる密度にする。</td></tr>
+          <tr><td>主要ボタン</td><td>高さ56px以上。A案の4大入口は76px以上。</td><td>高齢者と屋外片手操作で誤タップを減らす。</td></tr>
+          <tr><td>アイコンボタン</td><td>44px単体は禁止。モバイルでは52-56px。</td><td>小さい丸アイコンだけの操作を避ける。</td></tr>
+          <tr><td>チップ/タブ</td><td>高さ48px以上。隠れた横スクロールだけに依存しない。</td><td>フィルタを見失わせない。</td></tr>
+          <tr><td>状態ラベル</td><td>`AI候補`, `同定待ち`, `確認中`, `追加写真` を文字で併記。</td><td>色だけで状態を判断させない。</td></tr>
+          <tr><td>カード情報量</td><td>写真、見出し、場所/日付、状態ラベルまで。説明文は原則置かない。</td><td>トップは読む画面ではなく選ぶ画面にする。</td></tr>
+          <tr><td>余白</td><td>カード間8-12px、セクション間18-24px以上。</td><td>密集による誤認識と誤タップを減らす。</td></tr>
+          <tr><td>文言</td><td>専門語を先に出さない。`review_ready` は `確認しやすい記録` に変換。</td><td>内部品質語を利用者へ直出ししない。</td></tr>
+          <tr><td>地図</td><td>トップでは操作地図より要約地図。詳細操作は `/map` へ送る。</td><td>トップの重さと誤操作を抑える。</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

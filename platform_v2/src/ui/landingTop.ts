@@ -117,6 +117,53 @@ function resolveHeroPhotoObservation(snapshot: LandingSnapshot): LandingObservat
     .find((obs) => Boolean(obs.photoUrl) && !isSameLandingPhoto(obs, dailyMainObservation)) ?? null;
 }
 
+function renderTopAAction(basePath: string, lang: SiteLang, href: string, icon: string, label: string, kpiAction: string): string {
+  return `<a class="prototype-topa-action" href="${escapeHtml(landingHref(basePath, lang, href))}" data-kpi-action="${escapeHtml(kpiAction)}">
+    <span aria-hidden="true">${escapeHtml(icon)}</span>
+    <strong>${escapeHtml(label)}</strong>
+  </a>`;
+}
+
+function observationStatusLabel(obs: LandingObservation): { label: string; tone: "green" | "blue" | "amber" } {
+  if (obs.isAiCandidate) return { label: "AI候補", tone: "blue" };
+  if (obs.identificationCount > 0) return { label: "確認中", tone: "green" };
+  return { label: "同定待ち", tone: "amber" };
+}
+
+function renderTopAObservationCard(
+  basePath: string,
+  lang: SiteLang,
+  copy: LandingStrings,
+  obs: LandingObservation,
+  index: number,
+  kpiAction: string,
+): string {
+  const href = observationDetailHref(basePath, lang, obs);
+  const imageUrl = observationImageUrl(obs, "md");
+  const title = displayObservationName(obs, copy.heroPhotoFallback);
+  const meta = landingObservationMeta(lang, obs) || "公開位置は安全側で表示";
+  const status = observationStatusLabel(obs);
+  const mediaHtml = imageUrl
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />`
+    : `<span class="prototype-topa-empty-thumb" aria-hidden="true">PHOTO</span>`;
+
+  return `<a class="prototype-topa-card" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(kpiAction)}">
+    <span class="prototype-topa-thumb">${mediaHtml}</span>
+    <span class="prototype-topa-card-body">
+      <strong>${escapeHtml(title)}</strong>
+      <small>${escapeHtml(meta)}</small>
+      <em class="prototype-topa-status is-${status.tone}">${escapeHtml(status.label)}</em>
+    </span>
+  </a>`;
+}
+
+function renderTopAEmptyCard(basePath: string, lang: SiteLang, title: string, body: string, href: string, kpiAction: string): string {
+  return `<a class="prototype-topa-empty-card" href="${escapeHtml(landingHref(basePath, lang, href))}" data-kpi-action="${escapeHtml(kpiAction)}">
+    <strong>${escapeHtml(title)}</strong>
+    <span>${escapeHtml(body)}</span>
+  </a>`;
+}
+
 function renderObservationThumb(obs: LandingObservation, copy: LandingStrings, preset: ThumbnailPreset, eager = false): string {
   const imageUrl = observationImageUrl(obs, preset);
   if (!imageUrl) {
@@ -180,153 +227,116 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
-  const { basePath, lang, copy, snapshot, isLoggedIn } = options;
-  const featuredObservation = snapshot.dailyDashboard?.featuredObservation ?? null;
-  const uniqueHeroPool = uniqueLandingObservations(snapshot);
-  const photoObservation = resolveHeroPhotoObservation(snapshot);
-  const heroImage = observationImageUrl(photoObservation, "lg");
-  const actionPrimaryHref = isLoggedIn ? "/notes" : "/record";
+  const { basePath, lang, isLoggedIn } = options;
+  const profileHref = isLoggedIn ? "/profile" : "/login?redirect=/profile";
 
-  const recentRows = uniqueHeroPool.slice(0, 3).map((obs, index) => {
-    const href = observationDetailHref(basePath, lang, obs);
-    const label = featuredObservation?.occurrenceId === obs.occurrenceId
-      ? copy.heroReasonLabels[featuredObservation.reasonKey]
-      : obs.isAiCandidate
-        ? "AI 候補"
-        : obs.identificationCount > 0
-          ? "確認中"
-          : "新着";
-    return `<a class="prototype-feed-row" href="${escapeHtml(href)}" data-kpi-action="landing:hero:observation">
-      ${renderObservationThumb(obs, copy, "sm", index === 0)}
-      <span>
-        <strong>${escapeHtml(displayObservationName(obs, copy.heroPhotoFallback))}</strong>
-        <small>${escapeHtml(landingObservationMeta(lang, obs))}</small>
-      </span>
-      <em>${escapeHtml(label)}</em>
-    </a>`;
-  }).join("");
-
-  const feedHtml = recentRows || `<div class="prototype-feed-empty">
-    <strong>まだ公開できる観察がありません</strong>
-    <small>記録が入るまでは、実写真もダミー写真も表示しません。</small>
-    <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/record"))}" data-kpi-action="landing:hero:observation">最初の発見を記録する</a>
-  </div>`;
-
-  const heroMapClass = heroImage ? "prototype-hero-map" : "prototype-hero-map is-empty";
-  const heroMapStyle = heroImage ? ` style="--hero-image:url('${escapeHtml(heroImage)}')"` : "";
-
-  return `<section class="prototype-hero" aria-labelledby="landing-hero-heading">
-    <div class="prototype-hero-copy">
-      <div class="prototype-live-pill"><span></span>${escapeHtml(copy.heroDailyLabel)}</div>
-      <h1 id="landing-hero-heading">${copy.heroHeading}</h1>
-      <p>${escapeHtml(copy.heroLead)}</p>
-      <div class="prototype-actions">
-        <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, actionPrimaryHref))}" data-kpi-action="landing:hero:primary">${escapeHtml(isLoggedIn ? copy.actionPrimaryLoggedIn : "観察をはじめる")}</a>
-        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:hero:map">地域のいのちを見る</a>
-      </div>
-      <div class="prototype-stat-grid" aria-label="${escapeHtml(copy.heroStatsLabel)}">
-        <div class="prototype-stat-card"><strong>証拠</strong><span>写真・音・場所・時刻を残す</span></div>
-        <div class="prototype-stat-card"><strong>確認</strong><span>名前の候補と根拠を分ける</span></div>
-        <div class="prototype-stat-card"><strong>安全</strong><span>希少種と個人情報に配慮</span></div>
-      </div>
+  return `<section class="prototype-topa" aria-labelledby="landing-hero-heading">
+    <div class="prototype-topa-intro">
+      <div class="prototype-live-pill"><span></span>今日のikimon.life</div>
+      <h1 id="landing-hero-heading">見つける、確かめる、地図で見る。</h1>
+      <p>説明を読む前に、まず使える入口を並べました。名前が分からなくても記録できます。</p>
     </div>
-
-    <div class="prototype-hero-visual" aria-label="自然観測画面のイメージ">
-      <div class="${heroMapClass}"${heroMapStyle}></div>
-      <div class="prototype-scan-line"></div>
-      <div class="prototype-signal-stack">
-        <div class="prototype-signal-card"><i>EV</i><div><strong>音の記録も証拠に</strong><span>鳥・虫の音も、あとから確かめる手がかりに</span></div></div>
-        <div class="prototype-signal-card"><i>ID</i><div><strong>希少種位置を自動マスク</strong><span>公開範囲を安全側で制御</span></div></div>
-      </div>
-      <div class="prototype-hero-panel">
-        <div class="prototype-observation-panel">
-          <div class="prototype-panel-head"><span>${escapeHtml(copy.heroLatestLabel)}</span><span>更新中</span></div>
-          ${feedHtml}
-        </div>
-        <div class="prototype-identify-panel">
-          <div class="prototype-panel-head"><span>名前を確かめる流れ</span><span>${escapeHtml(formatLandingNumber(copy, uniqueHeroPool.reduce((sum, obs) => sum + obs.identificationCount, 0)))}件</span></div>
-          <div class="prototype-name-steps">
-            <div class="prototype-name-step"><b>1</b><span><strong>候補を見る</strong><small>写真や音から近い名前を並べる</small></span></div>
-            <div class="prototype-name-step"><b>2</b><span><strong>特徴を比べる</strong><small>似た種類、季節、場所を確認する</small></span></div>
-            <div class="prototype-name-step"><b>3</b><span><strong>人が確かめる</strong><small>根拠が残る記録として育てる</small></span></div>
-          </div>
-        </div>
-      </div>
+    <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/explore"))}" method="get" aria-label="近くの生きものを検索">
+      <span aria-hidden="true">🔍</span>
+      <input type="search" name="q" placeholder="近くの生きものを検索" aria-label="近くの生きものを検索" />
+      <button type="submit">検索</button>
+    </form>
+    <nav class="prototype-topa-actions" aria-label="主な操作">
+      ${renderTopAAction(basePath, lang, "/record", "＋", "観察する", "landing:topA:primary:record")}
+      ${renderTopAAction(basePath, lang, "/explore?filter=needs_id", "ID", "同定する", "landing:topA:primary:identify")}
+      ${renderTopAAction(basePath, lang, "/map", "◎", "地図", "landing:topA:primary:map")}
+      ${renderTopAAction(basePath, lang, profileHref, "人", "マイページ", "landing:topA:primary:me")}
+    </nav>
+    <div class="prototype-topa-tabs" aria-label="ホームの棚">
+      <a href="#topa-nearby">おすすめ</a>
+      <a href="#topa-nearby">近く</a>
+      <a href="#topa-identify">同定待ち</a>
+      <a href="#topa-local-map">地域マップ</a>
     </div>
   </section>`;
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   const { basePath, lang, copy, snapshot } = options;
-  const dashboard = snapshot.dailyDashboard;
   const observations = uniqueLandingObservations(snapshot);
-  const mainObservation = resolveDailyMainObservation(snapshot);
-  const seasonal = dashboard?.seasonalStrip.map((item) => item.observation) ?? observations.slice(1, 5);
-  const smallObservations = [...seasonal, ...observations].filter((obs, index, list) =>
-    list.findIndex((candidate) => candidate.occurrenceId === obs.occurrenceId) === index
-    && obs.occurrenceId !== mainObservation?.occurrenceId,
-  ).slice(0, 4);
-  const topSmallTiles = smallObservations.slice(0, 2).map((obs, index) =>
-    renderPhotoTile(basePath, lang, copy, obs, index + 1, "small", copy.heroPhotoFallback, "近くの記録", null),
-  ).join("");
-  const bottomSmallTiles = smallObservations.slice(2, 4).map((obs, index) =>
-    renderPhotoTile(basePath, lang, copy, obs, index + 3, "small", copy.heroPhotoFallback, "再訪候補", null),
-  ).join("");
+  const nearbyCards = observations.slice(0, 4).map((obs, index) =>
+    renderTopAObservationCard(basePath, lang, copy, obs, index, "landing:topA:shelf:nearby"),
+  ).join("") || renderTopAEmptyCard(
+    basePath,
+    lang,
+    "まだ公開できる観察がありません",
+    "最初の発見を写真で残せます。",
+    "/record",
+    "landing:topA:shelf:nearbyEmpty",
+  );
 
-  const dailyCards = dashboard?.dailyCards ?? [];
+  const identificationCards = observations
+    .filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate)
+    .slice(0, 4)
+    .map((obs, index) => renderTopAObservationCard(basePath, lang, copy, obs, index, "landing:topA:shelf:identify"))
+    .join("") || renderTopAEmptyCard(
+      basePath,
+      lang,
+      "同定待ちはありません",
+      "新しい記録が入ったら、ここに表示します。",
+      "/explore?filter=needs_id",
+      "landing:topA:shelf:identifyEmpty",
+    );
+
   const regionalStory = snapshot.regionalStory ?? null;
-  const regionalStorySource = regionalStory?.cards[0] ?? null;
+  const mapHref = landingHref(basePath, lang, "/map");
+  const mapCells = toMapMiniCells(snapshot.mapPreviewCells, mapHref);
+  const mapHtml = renderMapMini({
+    id: "ikimon-topa-map-mini",
+    cells: mapCells,
+    mapHref,
+    mapCtaLabel: "地図で見る",
+    mapCtaKpiAction: "landing:topA:shelf:localMap",
+    emptyLabel: "公開できる地図データを準備中です",
+    height: 320,
+  });
   const regionalStoryHtml = regionalStory
-    ? `<div class="prototype-place-story">
-        <small>${escapeHtml(regionalStory.angleLabel)}</small>
+    ? `<div class="prototype-topa-map-note">
         <strong>${escapeHtml(regionalStory.placeHook)}</strong>
-        <p>${escapeHtml(regionalStory.nextObservationAngle)}</p>
-        ${regionalStorySource ? `<a href="${escapeHtml(regionalStorySource.sourceUrl)}" target="_blank" rel="noreferrer noopener">出典: ${escapeHtml(regionalStorySource.sourceLabel)}</a>` : ""}
+        <span>${escapeHtml(regionalStory.nextObservationAngle)}</span>
       </div>`
-    : "";
-  const dailyCardsHtml = dailyCards.slice(0, 4).map((card) => {
-    const cardCopy = copy.dailyDashboard.cards[card.kind];
-    const href = card.observation
-      ? observationDetailHref(basePath, lang, card.observation)
-      : landingHref(basePath, lang, card.href);
-    const metricHtml = card.metricValue !== null && card.metricValue !== undefined
-      ? `<span><strong>${escapeHtml(formatLandingNumber(copy, card.metricValue))}</strong>${escapeHtml(cardCopy.metricLabel)}</span>`
-      : "";
-    return `<a class="prototype-daily-card" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(DAILY_CARD_KPI_ACTIONS[card.kind])}">
-      <small>${escapeHtml(cardCopy.eyebrow)}</small>
-      <strong>${escapeHtml(card.primaryText ?? cardCopy.title)}</strong>
-      <p>${escapeHtml(card.secondaryText ?? cardCopy.body)}</p>
-      ${metricHtml}
-      <em>${escapeHtml(cardCopy.cta)}</em>
-    </a>`;
-  }).join("");
+    : `<div class="prototype-topa-map-note">
+        <strong>近くで記録が増えた場所</strong>
+        <span>再訪問を頼むのではなく、地域の変化が見える場所として表示します。</span>
+      </div>`;
 
-  const mainContentHtml = mainObservation
-    ? `<div class="prototype-daily-grid">
-      ${renderPhotoTile(basePath, lang, copy, mainObservation, 0, "large", "今日の注目記録", copy.heroPhotoFallback, "landing:daily:featured")}
-      <div class="prototype-daily-side">
-        ${topSmallTiles ? `<div class="prototype-photo-row">${topSmallTiles}</div>` : ""}
-        <div class="prototype-thought-card">
-          <small>記録の考え方</small>
-          <strong>完璧な投稿より、あとで確かめられる発見を残す。</strong>
-          <p>写真、音、位置、季節、環境メモを組み合わせることで、小さな発見が地域の自然を知る手がかりになる。</p>
-        </div>
-        ${regionalStoryHtml}
-        ${bottomSmallTiles ? `<div class="prototype-photo-row">${bottomSmallTiles}</div>` : ""}
+  return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
+    <div class="prototype-topa-shelf" id="topa-nearby">
+      <div class="prototype-topa-shelf-head">
+        <h2>近くの観察</h2>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/explore"))}" data-kpi-action="landing:topA:shelf:nearbyAll">すべて見る</a>
       </div>
-    </div>`
-    : renderEmptyDailyState(basePath, lang, copy);
-
-  return `<section class="prototype-section" id="record">
-    <div class="prototype-section-head">
-      <div>
-        <div class="prototype-eyebrow">${escapeHtml(copy.dailyDashboard.eyebrow)}</div>
-        <h2>${escapeHtml(copy.dailyDashboard.title)}</h2>
-      </div>
-      <p>${escapeHtml(copy.dailyDashboard.lead)}</p>
+      <div class="prototype-topa-card-grid">${nearbyCards}</div>
     </div>
-    ${mainContentHtml}
-    ${dailyCardsHtml ? `<div class="prototype-daily-card-grid">${dailyCardsHtml}</div>` : ""}
+
+    <div class="prototype-topa-shelf" id="topa-identify">
+      <div class="prototype-topa-shelf-head">
+        <h2>同定を待っています</h2>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/explore?filter=needs_id"))}" data-kpi-action="landing:topA:shelf:identifyAll">協力する</a>
+      </div>
+      <div class="prototype-topa-card-grid">${identificationCards}</div>
+    </div>
+
+    <div class="prototype-topa-map-shelf" id="topa-local-map">
+      <div class="prototype-topa-map-copy">
+        <small>地域マップ</small>
+        <h2>地図から、気になる場所を見る。</h2>
+        <p>公開位置は安全側で丸めて表示します。前回記録や季節差分は、地図の中で自然に見つけられる形にします。</p>
+        ${regionalStoryHtml}
+      </div>
+      <div class="prototype-topa-map-board">${mapHtml}</div>
+    </div>
+
+    <div class="prototype-topa-learn">
+      <strong>はじめてなら、短い読み物から。</strong>
+      <span>説明や制度の話はトップに広げず、必要な人だけ読める場所にまとめます。</span>
+      <a href="${escapeHtml(landingHref(basePath, lang, "/learn"))}" data-kpi-action="landing:topA:shelf:learn">読み物を見る</a>
+    </div>
   </section>`;
 }
 
@@ -504,6 +514,333 @@ export const LANDING_TOP_STYLES = `
   .prototype-btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 18px 44px rgba(16,185,129,.18); }
   .prototype-btn-secondary { background: rgba(255,255,255,.78); color: #1a2e1f; border-color: rgba(16,185,129,.28); }
   .prototype-btn-dark { background: #10251a; color: #fff; box-shadow: 0 18px 44px rgba(16,37,26,.18); }
+  .prototype-topa {
+    padding: clamp(20px, 4vw, 42px) 0 18px;
+    display: grid;
+    gap: 14px;
+  }
+  .prototype-topa-intro {
+    display: grid;
+    gap: 12px;
+    max-width: 860px;
+  }
+  .prototype-topa h1 {
+    margin: 0;
+    color: #10251a;
+    font-size: clamp(32px, 4vw, 56px);
+    line-height: 1.14;
+    letter-spacing: 0;
+    font-weight: 950;
+  }
+  .prototype-topa p {
+    margin: 0;
+    max-width: 48em;
+    color: #475569;
+    font-size: 17px;
+    line-height: 1.7;
+    font-weight: 680;
+  }
+  .prototype-topa-search {
+    min-height: 64px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 16px;
+    border: 1px solid rgba(16,185,129,.18);
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 16px 42px rgba(15,23,42,.075);
+  }
+  .prototype-topa-search input {
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #10251a;
+    font-size: 17px;
+    font-weight: 720;
+  }
+  .prototype-topa-search input::placeholder { color: #64748b; }
+  .prototype-topa-search button {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: #047857;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 900;
+  }
+  .prototype-topa-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .prototype-topa-action {
+    min-height: 82px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 7px;
+    padding: 12px;
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 38px rgba(15,23,42,.07);
+    text-align: center;
+  }
+  .prototype-topa-action span {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #e7f5ef;
+    color: #047857;
+    font-size: 15px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .prototype-topa-action strong {
+    color: #10251a;
+    font-size: 17px;
+    line-height: 1.35;
+    font-weight: 950;
+  }
+  .prototype-topa-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .prototype-topa-tabs a {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border: 1px solid rgba(16,185,129,.18);
+    border-radius: 999px;
+    background: #fff;
+    color: #10251a;
+    font-size: 15px;
+    font-weight: 900;
+  }
+  .prototype-topa-tabs a:first-child {
+    background: #10251a;
+    color: #fff;
+    border-color: #10251a;
+  }
+  .prototype-topa-shelves {
+    display: grid;
+    gap: 22px;
+    padding: 10px 0 clamp(30px, 5vw, 56px);
+  }
+  .prototype-topa-shelf {
+    display: grid;
+    gap: 12px;
+    scroll-margin-top: 92px;
+  }
+  .prototype-topa-shelf-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 12px;
+  }
+  .prototype-topa-shelf-head h2 {
+    margin: 0;
+    color: #10251a;
+    font-size: clamp(22px, 2.4vw, 32px);
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .prototype-topa-shelf-head a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    color: #047857;
+    background: #e7f5ef;
+    font-size: 14px;
+    font-weight: 900;
+  }
+  .prototype-topa-card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .prototype-topa-card,
+  .prototype-topa-empty-card {
+    min-height: 232px;
+    overflow: hidden;
+    border: 1px solid rgba(16,185,129,.14);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(15,23,42,.075);
+  }
+  .prototype-topa-thumb {
+    height: 142px;
+    display: block;
+    overflow: hidden;
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 28px 28px, 28px 28px, auto;
+  }
+  .prototype-topa-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  .prototype-topa-empty-thumb {
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: #047857;
+    font-size: 14px;
+    font-weight: 950;
+  }
+  .prototype-topa-card-body {
+    min-height: 90px;
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    padding: 12px;
+  }
+  .prototype-topa-card-body strong {
+    color: #10251a;
+    font-size: 17px;
+    line-height: 1.38;
+    font-weight: 950;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .prototype-topa-card-body small {
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 720;
+  }
+  .prototype-topa-status {
+    width: fit-content;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 950;
+  }
+  .prototype-topa-status.is-green { color: #047857; background: #e7f5ef; }
+  .prototype-topa-status.is-blue { color: #1d4ed8; background: #e8f0ff; }
+  .prototype-topa-status.is-amber { color: #92400e; background: #fff2d7; }
+  .prototype-topa-empty-card {
+    min-height: 170px;
+    display: grid;
+    align-content: center;
+    gap: 8px;
+    padding: 18px;
+  }
+  .prototype-topa-empty-card strong {
+    color: #10251a;
+    font-size: 19px;
+    line-height: 1.35;
+    font-weight: 950;
+  }
+  .prototype-topa-empty-card span {
+    color: #64748b;
+    font-size: 15px;
+    line-height: 1.6;
+    font-weight: 700;
+  }
+  .prototype-topa-map-shelf {
+    display: grid;
+    grid-template-columns: minmax(300px, .44fr) minmax(0, .56fr);
+    gap: 14px;
+    align-items: stretch;
+    scroll-margin-top: 92px;
+    padding: 14px;
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f8fffc, #f0f9ff);
+    box-shadow: 0 18px 48px rgba(15,23,42,.065);
+  }
+  .prototype-topa-map-copy {
+    display: grid;
+    align-content: center;
+    gap: 12px;
+    padding: clamp(18px, 3vw, 28px);
+    border: 1px solid rgba(16,185,129,.13);
+    border-radius: 8px;
+    background: rgba(255,255,255,.8);
+  }
+  .prototype-topa-map-copy small {
+    color: #047857;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .prototype-topa-map-copy h2 {
+    margin: 0;
+    color: #10251a;
+    font-size: clamp(24px, 3vw, 38px);
+    line-height: 1.18;
+    font-weight: 950;
+  }
+  .prototype-topa-map-copy p {
+    margin: 0;
+    color: #475569;
+    font-size: 16px;
+    line-height: 1.7;
+    font-weight: 680;
+  }
+  .prototype-topa-map-note {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #e7f5ef;
+  }
+  .prototype-topa-map-note strong { color: #10251a; font-size: 17px; line-height: 1.35; font-weight: 950; }
+  .prototype-topa-map-note span { color: #475569; font-size: 14px; line-height: 1.55; font-weight: 720; }
+  .prototype-topa-map-board {
+    overflow: hidden;
+    min-height: 360px;
+    border: 1px solid rgba(16,185,129,.14);
+    border-radius: 8px;
+    background: #ecfdf5;
+  }
+  .prototype-topa-learn {
+    min-height: 72px;
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(16,185,129,.14);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 14px 34px rgba(15,23,42,.055);
+  }
+  .prototype-topa-learn strong { color: #10251a; font-size: 17px; line-height: 1.35; font-weight: 950; }
+  .prototype-topa-learn span { color: #64748b; font-size: 14px; line-height: 1.55; font-weight: 720; }
+  .prototype-topa-learn a {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #10251a;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
   .prototype-hero {
     min-height: min(820px, calc(100svh - 72px));
     display: grid;
@@ -893,6 +1230,8 @@ export const LANDING_TOP_STYLES = `
   .prototype-cta h2 { color: #fff; margin: 0; }
   .prototype-cta p { color: rgba(255,255,255,.84); margin-top: 10px; }
   @media (max-width: 1020px) {
+    .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .prototype-topa-map-shelf { grid-template-columns: 1fr; }
     .prototype-hero,
     .prototype-daily-grid,
     .prototype-map-section,
@@ -904,6 +1243,20 @@ export const LANDING_TOP_STYLES = `
   }
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { width: min(100% - 24px, 1480px); padding-top: 18px; }
+    .prototype-topa { padding-top: 12px; }
+    .prototype-topa h1 { font-size: 34px; }
+    .prototype-topa-search { min-height: 58px; border-radius: 8px; grid-template-columns: auto minmax(0, 1fr); }
+    .prototype-topa-search button { grid-column: 1 / -1; width: 100%; }
+    .prototype-topa-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .prototype-topa-action { min-height: 86px; }
+    .prototype-topa-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .prototype-topa-tabs a { min-height: 52px; }
+    .prototype-topa-card-grid { grid-template-columns: 1fr; }
+    .prototype-topa-card { min-height: 118px; display: grid; grid-template-columns: 128px minmax(0, 1fr); }
+    .prototype-topa-thumb { height: 100%; min-height: 116px; }
+    .prototype-topa-map-board { min-height: 320px; }
+    .prototype-topa-learn { grid-template-columns: 1fr; }
+    .prototype-topa-learn a { width: 100%; justify-content: center; }
     .prototype-hero { min-height: 0; gap: 20px; }
     .prototype-hero h1 { font-size: clamp(38px, 12vw, 52px); line-height: 1.08; }
     .prototype-stat-grid,

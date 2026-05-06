@@ -102,6 +102,49 @@ export function isKnownLandingDummyObservation(input: {
     name === "hydrangea macrophylla";
 }
 
+const LANDING_FIXTURE_MARKER_RE =
+  /(?:e2e[-_]?test|fixture[-_]?prefix|prod[-_]?media[-_]?smoke|smoke[-_]?regression[-_]?fixture|smoke[-_]?ui(?:[-_]?local)?|staging[-_]?regression)/i;
+
+export function isLandingFixtureObservation(input: {
+  occurrenceId?: string | null;
+  visitId?: string | null;
+  displayName?: string | null;
+  aiCandidateName?: string | null;
+  observerName?: string | null;
+  placeName?: string | null;
+  municipality?: string | null;
+  photoUrl?: string | null;
+  photoUrls?: string[] | null;
+}): boolean {
+  const values = [
+    input.occurrenceId,
+    input.visitId,
+    input.displayName,
+    input.aiCandidateName,
+    input.observerName,
+    input.placeName,
+    input.municipality,
+    input.photoUrl,
+    ...(input.photoUrls ?? []),
+  ];
+  return values.some((value) => typeof value === "string" && LANDING_FIXTURE_MARKER_RE.test(value));
+}
+
+function isLandingSuppressedObservation(input: {
+  occurrenceId?: string | null;
+  visitId?: string | null;
+  displayName?: string | null;
+  aiCandidateName?: string | null;
+  observedAt?: string | null;
+  observerName?: string | null;
+  placeName?: string | null;
+  municipality?: string | null;
+  photoUrl?: string | null;
+  photoUrls?: string[] | null;
+}): boolean {
+  return isKnownLandingDummyObservation(input) || isLandingFixtureObservation(input);
+}
+
 type FeedRow = {
   occurrence_id: string;
   visit_id: string;
@@ -652,20 +695,42 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
 }
 
 function filterLandingDummyObservations<T extends {
+  occurrenceId?: string | null;
+  visitId?: string | null;
   displayName?: string | null;
   aiCandidateName?: string | null;
   observedAt?: string | null;
+  observerName?: string | null;
+  placeName?: string | null;
+  municipality?: string | null;
+  photoUrl?: string | null;
+  photoUrls?: string[] | null;
 }>(observations: T[]): T[] {
-  return observations.filter((observation) => !isKnownLandingDummyObservation(observation));
+  return observations.filter((observation) => !isLandingSuppressedObservation(observation));
 }
 
 function filterLandingDummyPlaces(places: LandingSnapshot["myPlaces"]): LandingSnapshot["myPlaces"] {
   return places.filter((place) =>
-    !isKnownLandingDummyObservation({
+    !isLandingSuppressedObservation({
       displayName: place.latestDisplayName,
       observedAt: place.lastObservedAt,
     }),
   );
+}
+
+function isLandingSuppressedFeedRow(row: FeedRow): boolean {
+  return isLandingSuppressedObservation({
+    occurrenceId: row.occurrence_id,
+    visitId: row.visit_id,
+    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
+    aiCandidateName: row.ai_candidate_name,
+    observedAt: row.observed_at,
+    observerName: row.observer_name,
+    placeName: row.place_name,
+    municipality: row.municipality,
+    photoUrl: row.photo_url,
+    photoUrls: row.photo_urls,
+  });
 }
 
 function buildMapPreviewCells(rows: FeedRow[]): LandingMapPreviewCell[] {
@@ -1089,6 +1154,11 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       latestPhotoUrl: normalizeAssetUrl(row.latest_photo_url),
       latestObservedAt: row.latest_observed_at,
       latestDisplayName: row.latest_display_name ?? "同定待ち",
+    })).filter((observer) => !isLandingFixtureObservation({
+      observerName: observer.displayName,
+      displayName: observer.latestDisplayName,
+      photoUrl: observer.avatarUrl,
+      photoUrls: observer.latestPhotoUrl ? [observer.latestPhotoUrl] : [],
     }));
   } catch {
     ambient = [];
@@ -1096,11 +1166,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
 
   // Merge own observations + own identifications into myFeed, sorted by timestamp desc,
   // so that the "your notebook" stream shows both kinds of pages in one timeline.
-  const filteredFeedRows = feedRows.filter((row) => !isKnownLandingDummyObservation({
-    displayName: resolveLandingDisplayName(row.display_name, row.identification_display_name, row.ai_candidate_name),
-    aiCandidateName: row.ai_candidate_name,
-    observedAt: row.observed_at,
-  }));
+  const filteredFeedRows = feedRows.filter((row) => !isLandingSuppressedFeedRow(row));
   const ownObservationEntries = myFeedRows.map(toLandingObservation);
   const ownIdentificationEntries = myIdentificationRows.map(toIdentificationEntry);
   const publicFeed = filteredFeedRows.map(toLandingObservation);

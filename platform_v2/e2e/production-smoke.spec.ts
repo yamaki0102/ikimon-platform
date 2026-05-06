@@ -147,6 +147,11 @@ test.describe("production candidate smoke", () => {
   test("mobile record UI saves photo and video against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
 
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
     const context = await browser.newContext({

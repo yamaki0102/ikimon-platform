@@ -41,7 +41,10 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator(".prototype-hero")).toBeVisible();
+      await expect(page.locator(".prototype-topa")).toBeVisible();
+      await expect(page.locator("#landing-hero-heading")).toContainText("見つける、確かめる、地図で見る。");
+      await expect(page.locator(".prototype-topa-actions")).toBeVisible();
+      await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
       await expect(page.locator(".prototype-flow-grid")).toBeVisible();
       await expect(page.locator(".prototype-map-section")).toBeVisible();
       await expect(page.locator(".site-footer")).toBeVisible();

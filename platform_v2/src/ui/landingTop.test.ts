@@ -111,29 +111,27 @@ test("landing top empty state does not render sample images", () => {
 
   assert.doesNotMatch(html, /sample_/);
   assert.doesNotMatch(html, /\/uploads\/sample_/);
-  assert.doesNotMatch(html, /prototype-stat-card"><strong>0<\/strong>/);
-  assert.match(html, /<strong>証拠<\/strong>/);
-  assert.match(html, /<strong>確認<\/strong>/);
-  assert.match(html, /<strong>安全<\/strong>/);
+  assert.match(html, /prototype-topa/);
+  assert.match(html, /観察する/);
+  assert.match(html, /同定する/);
+  assert.match(html, /地域マップ/);
   assert.match(html, /まだ公開できる観察がありません/);
-  assert.match(html, /data-kpi-action="landing:hero:primary"/);
-  assert.match(html, /data-kpi-action="landing:daily:card:recordToday"/);
-  assert.match(html, /data-kpi-action="landing:map:open"/);
+  assert.match(html, /data-kpi-action="landing:topA:primary:record"/);
+  assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
 });
 
 test("landing top renders real observation photos and detail CTAs", () => {
   const html = renderTop(photoSnapshot);
 
   assert.doesNotMatch(html, /sample_/);
-  assert.match(html, /<img src="\/uploads\/real-observation\.jpg" alt="モンシロチョウ" loading="eager"/);
-  assert.doesNotMatch(html, /prototype-photo-large[\s\S]*\/thumb\/lg\/real-observation\.jpg/);
+  assert.match(html, /<img src="\/thumb\/md\/real-observation\.jpg" alt="モンシロチョウ" loading="eager"/);
   assert.match(html, /\/observations\/visit-1/);
-  assert.match(html, /data-kpi-action="landing:daily:featured"/);
-  assert.match(html, /data-kpi-action="landing:hero:observation"/);
+  assert.match(html, /data-kpi-action="landing:topA:shelf:nearby"/);
+  assert.match(html, /data-kpi-action="landing:topA:shelf:identifyAll"/);
   assert.match(html, /data-kpi-action="landing:library:identification"/);
 });
 
-test("landing hero image avoids the daily featured observation photo", () => {
+test("landing top A renders local map shelf without making revisit the primary action", () => {
   const html = renderTop({
     ...photoSnapshot,
     stats: { observationCount: 2, speciesCount: 2, placeCount: 1 },
@@ -148,6 +146,7 @@ test("landing hero image avoids the daily featured observation photo", () => {
     },
   });
 
-  assert.match(html, /--hero-image:url\('\/thumb\/lg\/alternate-observation\.jpg'\)/);
-  assert.doesNotMatch(html, /--hero-image:url\('\/thumb\/lg\/real-observation\.jpg'\)/);
+  assert.match(html, /id="topa-local-map"/);
+  assert.match(html, /地図から、気になる場所を見る。/);
+  assert.doesNotMatch(html, /landing:topA:primary:revisit/);
 });
