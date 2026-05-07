@@ -1479,6 +1479,14 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-cta h2 { color: #fff; margin: 0; }
   .prototype-cta p { color: rgba(255,255,255,.84); margin-top: 10px; }
+  @media (min-width: 1161px) {
+    .shell.shell-bleed.prototype-shell {
+      --ikimon-landing-effective-w: min(var(--ikimon-page-max), calc(100vw - var(--ikimon-shell-margin-left) - var(--ikimon-shell-margin-right)));
+      width: var(--ikimon-landing-effective-w);
+      margin-left: var(--ikimon-shell-margin-left);
+      margin-right: var(--ikimon-shell-margin-right);
+    }
+  }
   @media (min-width: 1161px) and (max-width: 1380px) {
     .shell.shell-bleed.prototype-shell {
       padding-top: clamp(14px, 2vw, 24px);

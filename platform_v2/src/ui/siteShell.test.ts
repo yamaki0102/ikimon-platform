@@ -241,7 +241,7 @@ test("subpages use centered width contracts instead of homepage width", () => {
   assert.match(readingHtml, /class="shell shell-layout-reading"/);
   assert.match(wideHtml, /class="shell shell-layout-wide"/);
   assert.match(readingHtml, /\.shell\.shell-layout-reading \{[^}]*--ikimon-shell-target-max: var\(--ikimon-reading-max\);/);
-  assert.match(wideHtml, /--ikimon-shell-side-space: max\(24px, calc\(\(var\(--ikimon-shell-available-w\) - var\(--ikimon-shell-effective-w\)\) \/ 2\)\);/);
+  assert.match(wideHtml, /--ikimon-shell-side-space: max\(48px, calc\(\(var\(--ikimon-shell-available-w\) - var\(--ikimon-shell-effective-w\)\) \/ 2\)\);/);
   assert.match(wideHtml, /margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ var\(--ikimon-shell-side-space\)\);/);
 });
 
@@ -256,7 +256,8 @@ test("desktop shell keeps the side nav expandable at tight desktop widths", () =
 
   assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-desktop-sidebar-w: 72px;/);
   assert.doesNotMatch(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.brand-wordmark,\s*\.desktop-side-nav-label,[\s\S]*display: none;/);
-  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*width: min\(var\(--ikimon-page-max\), calc\(100% - var\(--ikimon-desktop-sidebar-w\) - 36px\)\);/);
+  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*--ikimon-shell-margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ 48px\);/);
+  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*width: min\(var\(--ikimon-page-max\), calc\(100% - var\(--ikimon-shell-margin-left\) - var\(--ikimon-shell-margin-right\)\)\);/);
 });
 
 test("major routes keep route-metadata layout contracts", () => {

@@ -4769,12 +4769,12 @@ ${alternateLinks}
     @media (min-width: 1161px) {
       :root {
         --ikimon-desktop-sidebar-w: 204px;
-        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 24px);
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
         --ikimon-shell-margin-right: 24px;
       }
       body.is-desktop-side-nav-collapsed {
         --ikimon-desktop-sidebar-w: 72px;
-        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 24px);
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
       }
       .site-header {
         background: rgba(255,255,255,.92);
@@ -4874,7 +4874,7 @@ ${alternateLinks}
       .footer-inner {
         --ikimon-shell-available-w: calc(100vw - var(--ikimon-desktop-sidebar-w));
         --ikimon-shell-effective-w: min(var(--ikimon-shell-target-max), calc(var(--ikimon-shell-available-w) - var(--ikimon-page-inline)));
-        --ikimon-shell-side-space: max(24px, calc((var(--ikimon-shell-available-w) - var(--ikimon-shell-effective-w)) / 2));
+        --ikimon-shell-side-space: max(48px, calc((var(--ikimon-shell-available-w) - var(--ikimon-shell-effective-w)) / 2));
         width: var(--ikimon-shell-effective-w);
         margin-left: calc(var(--ikimon-desktop-sidebar-w) + var(--ikimon-shell-side-space));
         margin-right: var(--ikimon-shell-side-space);
@@ -4885,7 +4885,7 @@ ${alternateLinks}
       .shell.shell-layout-home,
       .shell.shell-layout-home.shell-bleed,
       .footer-inner {
-        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - var(--ikimon-page-inline)));
+        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-shell-margin-left) - var(--ikimon-shell-margin-right)));
         margin-left: var(--ikimon-shell-margin-left);
         margin-right: var(--ikimon-shell-margin-right);
       }
@@ -4941,12 +4941,12 @@ ${alternateLinks}
     @media (min-width: 1161px) and (max-width: 1380px) {
       :root {
         --ikimon-page-inline: clamp(20px, 2.4vw, 34px);
-        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 18px);
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
         --ikimon-shell-margin-right: 18px;
       }
       body.is-desktop-side-nav-collapsed {
         --ikimon-desktop-sidebar-w: 72px;
-        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 18px);
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
       }
       .site-header-inner {
         grid-template-columns: var(--ikimon-desktop-sidebar-w) minmax(240px, 1fr) auto;
@@ -4967,7 +4967,7 @@ ${alternateLinks}
       .shell.shell-layout-home,
       .shell.shell-layout-home.shell-bleed,
       .footer-inner {
-        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - 36px));
+        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-shell-margin-left) - var(--ikimon-shell-margin-right)));
         margin-left: var(--ikimon-shell-margin-left);
         margin-right: var(--ikimon-shell-margin-right);
       }
