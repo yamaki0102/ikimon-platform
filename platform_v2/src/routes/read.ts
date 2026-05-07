@@ -7217,6 +7217,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         municipality: item.municipality,
         publicLocation: item.publicLocation,
         photoUrl: item.photoUrl,
+        mediaUrl: item.mediaUrl,
+        hasPhoto: item.hasPhoto,
+        hasVideo: item.hasVideo,
         identificationCount: item.identificationCount,
         latitude: null,
         longitude: null,
@@ -7278,6 +7281,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       || request.query.filter === "ai"
       || request.query.filter === "no_id"
       || request.query.filter === "photo"
+      || request.query.filter === "video"
       || request.query.filter === "identified"
       || request.query.filter === "multi"
       ? request.query.filter
@@ -7313,7 +7317,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       if (activeFilter === "needs_id") return item.displayName === "同定待ち" || item.isAiCandidate;
       if (activeFilter === "ai") return Boolean(item.isAiCandidate);
       if (activeFilter === "no_id") return item.identificationCount === 0;
-      if (activeFilter === "photo") return Boolean(item.photoUrl);
+      if (activeFilter === "photo") return Boolean(item.hasPhoto ?? item.photoUrl);
+      if (activeFilter === "video") return Boolean(item.hasVideo);
       if (activeFilter === "identified") return item.displayName !== "同定待ち" && !item.isAiCandidate;
       if (activeFilter === "multi") return Boolean(item.isMultiSubject);
       return true;
@@ -7355,7 +7360,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         item.displayName !== "同定待ち" && !item.isAiCandidate ? "identified" : "",
         item.isMultiSubject ? "multi" : "",
       ].filter(Boolean).join(" ");
-      const mediaKey = item.photoUrl ? "photo" : "no-photo";
+      const mediaKeys = [
+        (item.hasPhoto ?? item.photoUrl) ? "photo" : "",
+        item.hasVideo ? "video" : "",
+      ].filter(Boolean);
+      const mediaKey = mediaKeys.length > 0 ? mediaKeys.join(" ") : "no-photo";
       const idBucket = item.identificationCount <= 0 ? "zero" : item.identificationCount === 1 ? "one" : "two-plus";
       const observedMs = Date.parse(item.observedAt);
       const fieldIds = (item.fieldRefs ?? []).map((field) => field.fieldId).join(" ");
@@ -7413,6 +7422,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         municipality: item.municipality,
         publicLocation: item.publicLocation,
         photoUrl: item.photoUrl,
+        mediaUrl: item.mediaUrl,
+        hasPhoto: item.hasPhoto,
+        hasVideo: item.hasVideo,
         identificationCount: item.identificationCount,
         latitude: null,
         longitude: null,
@@ -7424,13 +7436,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }).join("");
     const aiCandidateCount = snapshot.observations.filter((item) => item.isAiCandidate).length;
     const noIdCount = snapshot.observations.filter((item) => item.identificationCount === 0).length;
-    const photoCount = snapshot.observations.filter((item) => Boolean(item.photoUrl)).length;
+    const photoCount = snapshot.observations.filter((item) => Boolean(item.hasPhoto ?? item.photoUrl)).length;
+    const videoCount = snapshot.observations.filter((item) => Boolean(item.hasVideo)).length;
     const filters = [
       { href: "/observations", label: "すべて", key: "all", count: snapshot.summary.shownCount },
       { href: "/observations?filter=needs_id", label: "同定待ち", key: "needs_id", count: snapshot.summary.awaitingIdCount },
       { href: "/observations?filter=ai", label: "AI候補", key: "ai", count: aiCandidateCount },
       { href: "/observations?filter=no_id", label: "未同定", key: "no_id", count: noIdCount },
       { href: "/observations?filter=photo", label: "写真あり", key: "photo", count: photoCount },
+      { href: "/observations?filter=video", label: "動画あり", key: "video", count: videoCount },
       { href: "/observations?filter=multi", label: "複数対象", key: "multi", count: snapshot.summary.multiSubjectCount },
       { href: "/observations?filter=identified", label: "名前あり", key: "identified", count: snapshot.summary.identifiedCount },
     ].map((item) => `
@@ -7479,6 +7493,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   <select data-observations-filter="media">
                     <option value="all">すべて</option>
                     <option value="photo">写真あり</option>
+                    <option value="video">動画あり</option>
                     <option value="no-photo">写真なし</option>
                   </select>
                 </label>
@@ -7683,7 +7698,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       const okQuery = !query || haystack.indexOf(query) >= 0;
       const okTaxon = !taxonQuery || taxonText.indexOf(taxonQuery) >= 0;
       const okStatus = !active.status || active.status === 'all' || status.split(/\\s+/).indexOf(active.status) >= 0;
-      const okMedia = !active.media || active.media === 'all' || media === active.media;
+      const okMedia = !active.media || active.media === 'all' || media.split(/\\s+/).indexOf(active.media) >= 0;
       const okField = activeField === 'all' || fields.split(/\\s+/).indexOf(activeField) >= 0;
       const okRank = !active.rank || active.rank === 'all' || rank === active.rank;
       const okIds = !active.ids || active.ids === 'all' || idBucket === active.ids;
@@ -7907,6 +7922,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         municipality: item.municipality,
         publicLocation: item.publicLocation,
         photoUrl: item.photoUrl,
+        mediaUrl: item.mediaUrl,
+        hasPhoto: item.hasPhoto,
+        hasVideo: item.hasVideo,
         identificationCount: item.identificationCount,
         latitude: null,
         longitude: null,

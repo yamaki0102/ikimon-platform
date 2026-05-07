@@ -387,6 +387,114 @@ async function enqueueVideoProcessingJobs(client: PoolClient, record: VideoRecor
   })));
 }
 
+function buildVideoSourcePayload(source: string, record: VideoRecord, mediaRole: string, observationId: string | null, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    source,
+    stream_uid: record.providerUid,
+    media_role: mediaRole,
+    iframe_url: record.iframeUrl,
+    watch_url: record.watchUrl,
+    thumbnail_url: record.thumbnailUrl,
+    upload_status: record.uploadStatus,
+    ready_to_stream: record.readyToStream,
+    observation_id: observationId,
+    ...extra,
+  };
+}
+
+async function upsertObservationVideoAsset(
+  client: PoolClient,
+  record: VideoRecord,
+  target: ObservationTarget,
+  mediaRole: string,
+  sourcePayload: Record<string, unknown>,
+): Promise<string> {
+  const blobId = await upsertAssetBlob(client, {
+    storageBackend: "cloudflare_stream",
+    storagePath: record.providerUid,
+    mediaType: "video",
+    mimeType: "video/mp4",
+    publicUrl: record.watchUrl,
+    bytes: record.bytes > 0 ? record.bytes : null,
+    durationMs: record.durationMs > 0 ? record.durationMs : null,
+    sourcePayload,
+  });
+
+  const legacyAssetKey = `observation_video:${target.visitId}:${record.providerUid}`;
+  const legacyRelativePath = `cloudflare_stream/${record.providerUid}`;
+  const assetResult = await client.query<{ asset_id: string }>(
+    `insert into evidence_assets (
+        asset_id, blob_id, occurrence_id, visit_id, asset_role,
+        legacy_asset_key, legacy_relative_path, source_payload, captured_at
+     ) values (
+        $1::uuid, $2::uuid, $3, $4, 'observation_video',
+        $5, $6, $7::jsonb, $8::timestamptz
+     )
+     on conflict (legacy_asset_key) do update set
+        blob_id = excluded.blob_id,
+        occurrence_id = excluded.occurrence_id,
+        visit_id = excluded.visit_id,
+        legacy_relative_path = excluded.legacy_relative_path,
+        source_payload = coalesce(evidence_assets.source_payload, '{}'::jsonb) || excluded.source_payload,
+        captured_at = coalesce(excluded.captured_at, evidence_assets.captured_at)
+     returning asset_id::text`,
+    [
+      randomUUID(),
+      blobId,
+      target.occurrenceId,
+      target.visitId,
+      legacyAssetKey,
+      legacyRelativePath,
+      JSON.stringify(sourcePayload),
+      record.uploadedAt,
+    ],
+  );
+  const assetId = assetResult.rows[0]?.asset_id;
+  if (!assetId) {
+    throw new Error("failed_to_upsert_video_asset");
+  }
+  await upsertEvidenceAssetMediaRole(client, {
+    assetId,
+    occurrenceId: target.occurrenceId,
+    visitId: target.visitId,
+    assetRole: "observation_video",
+    mediaRole,
+    mediaRoleSource: "user",
+    sourcePayload: {
+      source: String(sourcePayload.source ?? "video_upload"),
+      stream_uid: record.providerUid,
+    },
+  });
+  return assetId;
+}
+
+async function promoteObservationVideoTarget(client: PoolClient, visitId: string): Promise<void> {
+  await client.query(
+    `update visits
+        set public_visibility = 'public',
+            quality_review_status = 'accepted',
+            quality_gate_reasons = coalesce((
+              select jsonb_agg(reason)
+                from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
+               where reason <> 'missing_photo'
+            ), '[]'::jsonb),
+            updated_at = now()
+      where visit_id = $1`,
+    [visitId],
+  );
+  await client.query(
+    `update observation_quality_reviews
+        set review_status = 'accepted',
+            public_visibility = 'public',
+            reviewed_at = coalesce(reviewed_at, now()),
+            updated_at = now()
+      where visit_id = $1
+        and reason_code = 'native_no_photo'
+        and review_status = 'needs_review'`,
+    [visitId],
+  );
+}
+
 export async function handleStreamWebhook(payload: VideoStreamWebhookPayload): Promise<{ ok: true; uid: string; readyToStream: boolean; queuedJobs: number }> {
   const normalizedPayload = normalizeStreamWebhookPayload(payload);
   const record = videoRecordFromWebhook(normalizedPayload);
@@ -412,6 +520,8 @@ export async function handleStreamWebhook(payload: VideoStreamWebhookPayload): P
       iframe_url: record.iframeUrl,
       status: normalizedPayload.status ?? null,
     };
+    const target = row?.observation_id && record.readyToStream ? await resolveObservationTarget(client, row.observation_id) : null;
+    const mediaRole = normalizeMediaRole(row?.meta?.ikimon_media_role ?? row?.meta?.media_role);
     await client.query(
       `insert into video_upload_requests (
           stream_uid, actor_id, observation_id, upload_status, max_duration_seconds,
@@ -456,7 +566,11 @@ export async function handleStreamWebhook(payload: VideoStreamWebhookPayload): P
            or legacy_asset_key like $3`,
       [`cloudflare_stream/${record.providerUid}`, JSON.stringify(sourcePayload), `%:${record.providerUid}`],
     );
-    const queuedJobs = await enqueueVideoProcessingJobs(client, record, row?.observation_id ?? null, sourcePayload);
+    if (target) {
+      await upsertObservationVideoAsset(client, record, target, mediaRole, sourcePayload);
+      await promoteObservationVideoTarget(client, target.visitId);
+    }
+    const queuedJobs = await enqueueVideoProcessingJobs(client, record, target?.visitId ?? row?.observation_id ?? null, sourcePayload);
     await client.query("commit");
     return { ok: true, uid: record.providerUid, readyToStream: record.readyToStream, queuedJobs };
   } catch (error) {
@@ -537,17 +651,7 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
 
     const issuedMeta = issued?.meta && typeof issued.meta === "object" ? issued.meta : {};
     const mediaRole = normalizeMediaRole(input.mediaRole ?? issuedMeta.ikimon_media_role ?? issuedMeta.media_role);
-    const meta = {
-      source: "v2_video_finalize",
-      stream_uid: uid,
-      media_role: mediaRole,
-      iframe_url: record.iframeUrl,
-      watch_url: record.watchUrl,
-      thumbnail_url: record.thumbnailUrl,
-      upload_status: record.uploadStatus,
-      ready_to_stream: record.readyToStream,
-      observation_id: requestedObservationId,
-    };
+    const meta = buildVideoSourcePayload("v2_video_finalize", record, mediaRole, requestedObservationId);
 
     await client.query(
       `insert into video_upload_requests (
@@ -577,87 +681,9 @@ export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Prom
       ],
     );
 
-    const blobId = await upsertAssetBlob(client, {
-      storageBackend: "cloudflare_stream",
-      storagePath: uid,
-      mediaType: "video",
-      mimeType: "video/mp4",
-      publicUrl: record.watchUrl,
-      bytes: record.bytes > 0 ? record.bytes : null,
-      durationMs: record.durationMs > 0 ? record.durationMs : null,
-      sourcePayload: meta,
-    });
-
     if (target) {
-      const legacyAssetKey = `observation_video:${target.visitId}:${uid}`;
-      const legacyRelativePath = `cloudflare_stream/${uid}`;
-      const assetResult = await client.query<{ asset_id: string }>(
-        `insert into evidence_assets (
-            asset_id, blob_id, occurrence_id, visit_id, asset_role,
-            legacy_asset_key, legacy_relative_path, source_payload, captured_at
-         ) values (
-            $1::uuid, $2::uuid, $3, $4, 'observation_video',
-            $5, $6, $7::jsonb, $8::timestamptz
-         )
-         on conflict (legacy_asset_key) do update set
-            blob_id = excluded.blob_id,
-            occurrence_id = excluded.occurrence_id,
-            visit_id = excluded.visit_id,
-            legacy_relative_path = excluded.legacy_relative_path,
-            source_payload = excluded.source_payload,
-            captured_at = excluded.captured_at
-         returning asset_id::text`,
-        [
-          randomUUID(),
-          blobId,
-          target.occurrenceId,
-          target.visitId,
-          legacyAssetKey,
-          legacyRelativePath,
-          JSON.stringify(meta),
-          record.uploadedAt,
-        ],
-      );
-      const assetId = assetResult.rows[0]?.asset_id;
-      if (!assetId) {
-        throw new Error("failed_to_upsert_video_asset");
-      }
-      await upsertEvidenceAssetMediaRole(client, {
-        assetId,
-        occurrenceId: target.occurrenceId,
-        visitId: target.visitId,
-        assetRole: "observation_video",
-        mediaRole,
-        mediaRoleSource: "user",
-        sourcePayload: {
-          source: "v2_video_finalize",
-          stream_uid: uid,
-        },
-      });
-      await client.query(
-        `update visits
-            set public_visibility = 'public',
-                quality_review_status = 'accepted',
-                quality_gate_reasons = coalesce((
-                  select jsonb_agg(reason)
-                    from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
-                   where reason <> 'missing_photo'
-                ), '[]'::jsonb),
-                updated_at = now()
-          where visit_id = $1`,
-        [target.visitId],
-      );
-      await client.query(
-        `update observation_quality_reviews
-            set review_status = 'accepted',
-                public_visibility = 'public',
-                reviewed_at = coalesce(reviewed_at, now()),
-                updated_at = now()
-          where visit_id = $1
-            and reason_code = 'native_no_photo'
-            and review_status = 'needs_review'`,
-        [target.visitId],
-      );
+      await upsertObservationVideoAsset(client, record, target, mediaRole, meta);
+      await promoteObservationVideoTarget(client, target.visitId);
     }
 
     await client.query("commit");

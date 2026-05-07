@@ -14,6 +14,7 @@ import {
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
+  VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole.js";
 import type { RegionalStoryCue } from "./regionalStory.js";
@@ -44,6 +45,9 @@ type RecentObservation = {
   municipality: string | null;
   publicLocation: PublicLocationSummary;
   photoUrl: string | null;
+  mediaUrl?: string | null;
+  hasPhoto?: boolean;
+  hasVideo?: boolean;
   photoUrls?: string[];
   photoCount?: number;
   identificationCount: number;
@@ -302,6 +306,9 @@ type ObservationListCardRow = {
   ai_candidate_name: string | null;
   ai_candidate_rank: string | null;
   photo_url: string | null;
+  media_url: string | null;
+  has_photo: boolean;
+  has_video: boolean;
   identification_count: string;
   subject_count: string;
   field_refs: unknown;
@@ -1497,7 +1504,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
               JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
               JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
              WHERE o.visit_id = v.visit_id
-               AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+               AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
           )
         ORDER BY v.observed_at DESC, v.visit_id DESC
         LIMIT $1
@@ -1517,7 +1524,10 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
             featured.taxon_rank,
             featured.ai_candidate_name,
             featured.ai_candidate_rank,
-            media.public_url AS photo_url,
+            media.photo_url,
+            media.media_url,
+            media.has_photo,
+            media.has_video,
             coalesce(ids.identification_count, 0)::text AS identification_count,
             coalesce(subjects.subject_count, 1)::text AS subject_count,
             coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
@@ -1527,13 +1537,34 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
        LEFT JOIN places p ON p.place_id = v.place_id
        JOIN LATERAL (
          SELECT ea.occurrence_id,
-                coalesce(ab.public_url, ab.storage_path) AS public_url
+                case when ea.asset_role = 'observation_photo'
+                  then coalesce(ab.public_url, ab.storage_path)
+                  else null
+                end AS photo_url,
+                case when ea.asset_role = 'observation_video'
+                  then coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url')
+                  else coalesce(ab.public_url, ab.storage_path)
+                end AS media_url,
+                exists (
+                  select 1
+                    from evidence_assets ea
+                    join asset_blobs ab on ab.blob_id = ea.blob_id
+                   where ea.visit_id = v.visit_id
+                     and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+                ) AS has_photo,
+                exists (
+                  select 1
+                    from evidence_assets ea
+                    join asset_blobs ab on ab.blob_id = ea.blob_id
+                   where ea.visit_id = v.visit_id
+                     and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
+                ) AS has_video
            FROM evidence_assets ea
            JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
           WHERE ea.visit_id = v.visit_id
             AND ea.occurrence_id IS NOT NULL
-            AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-          ORDER BY ea.created_at ASC
+            AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
+          ORDER BY case when ea.asset_role = 'observation_photo' then 0 else 1 end, ea.created_at ASC
           LIMIT 1
        ) media ON true
        JOIN LATERAL (
@@ -1612,6 +1643,9 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
         longitude: row.longitude,
       }),
       photoUrl: normalizeAssetUrl(row.photo_url),
+      mediaUrl: normalizeAssetUrl(row.media_url),
+      hasPhoto: Boolean(row.has_photo),
+      hasVideo: Boolean(row.has_video),
       identificationCount: Number(row.identification_count),
       fieldRefs: normalizeFieldRefs(row.field_refs),
     };
