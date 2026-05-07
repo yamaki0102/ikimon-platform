@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getStrings } from "../i18n/index.js";
 import type { LandingObservation, LandingSnapshot, LandingTopGuideItem } from "../services/readModels.js";
-import { renderLandingTopSections } from "./landingTop.js";
+import { LANDING_TOP_STYLES, renderLandingTopSections } from "./landingTop.js";
 
 function renderTop(snapshot: LandingSnapshot): string {
   const strings = getStrings("ja");
@@ -191,6 +191,12 @@ test("landing top A renders local map shelf without making revisit the primary a
   assert.match(html, /id="topa-local-map"/);
   assert.match(html, /地図から探す。/);
   assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+});
+
+test("landing top has medium desktop width relief", () => {
+  assert.match(LANDING_TOP_STYLES, /--ikimon-landing-effective-w: min\(var\(--ikimon-page-max\), calc\(var\(--ikimon-landing-available-w\) - max\(var\(--ikimon-page-inline\), 32px\)\)\);/);
+  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.prototype-topa h1 \{[\s\S]*white-space: normal;/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-topa-card-grid,\s*\.prototype-topa-card-grid\.is-primary \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
 });
 
 test("landing top renders guide shelf items from guide records", () => {

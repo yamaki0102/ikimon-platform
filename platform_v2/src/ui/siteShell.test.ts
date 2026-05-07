@@ -245,6 +245,20 @@ test("subpages use centered width contracts instead of homepage width", () => {
   assert.match(wideHtml, /margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ var\(--ikimon-shell-side-space\)\);/);
 });
 
+test("desktop shell compacts the side nav at tight desktop widths", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Home",
+    body: "<p>home</p>",
+    lang: "ja",
+    currentPath: "/?lang=ja",
+  });
+
+  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*--ikimon-desktop-sidebar-w: 72px;/);
+  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.desktop-side-nav-label,[\s\S]*\.desktop-side-nav-section--secondary,[\s\S]*display: none;/);
+  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*width: min\(var\(--ikimon-page-max\), calc\(100% - var\(--ikimon-desktop-sidebar-w\) - 36px\)\);/);
+});
+
 test("major routes keep route-metadata layout contracts", () => {
   const cases = [
     { path: "/", layout: "home", className: "shell-layout-home" },
