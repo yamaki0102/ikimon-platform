@@ -5,8 +5,10 @@ import { buildObservationDetailPath } from "../services/observationDetailLink.js
 import type {
   LandingObservation,
   LandingSnapshot,
+  LandingTopGuideItem,
   LandingTopOverflowSummary,
   LandingTopShelf,
+  LandingTopShelfItem,
   LandingTopShelfKind,
 } from "../services/readModels.js";
 import { toThumbnailUrl, type ThumbnailPreset } from "../services/thumbnailUrl.js";
@@ -71,16 +73,43 @@ function observationDetailHref(basePath: string, lang: SiteLang, obs: LandingObs
   );
 }
 
+function isLandingGuideItem(item: LandingTopShelfItem): item is LandingTopGuideItem {
+  return item.topItemType === "guide";
+}
+
+function isLandingObservationItem(item: LandingTopShelfItem): item is LandingObservation {
+  return "occurrenceId" in item;
+}
+
+function landingItemHref(basePath: string, lang: SiteLang, item: LandingTopShelfItem): string {
+  if (isLandingGuideItem(item)) return landingHref(basePath, lang, item.href);
+  return observationDetailHref(basePath, lang, item);
+}
+
+function landingItemPlaceLabel(item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality">): string {
+  return item.publicLocation?.label || [item.placeName, item.municipality].filter(Boolean).join(" · ");
+}
+
+function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality" | "observedAt">): string {
+  return [landingItemPlaceLabel(item), formatLandingObservedAt(lang, item.observedAt)].filter(Boolean).join(" · ");
+}
+
 function observationPlaceLabel(obs: LandingObservation): string {
-  return obs.publicLocation?.label || [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
+  return landingItemPlaceLabel(obs);
 }
 
 function landingObservationMeta(lang: SiteLang, obs: LandingObservation): string {
-  return [observationPlaceLabel(obs), formatLandingObservedAt(lang, obs.observedAt)].filter(Boolean).join(" · ");
+  return landingItemMeta(lang, obs);
 }
 
 function displayObservationName(obs: LandingObservation | null | undefined, fallback: string): string {
   return obs?.displayName || obs?.aiCandidateName || fallback;
+}
+
+function displayLandingItemName(item: LandingTopShelfItem | null | undefined, fallback: string): string {
+  if (!item) return fallback;
+  if (isLandingObservationItem(item)) return displayObservationName(item, fallback);
+  return item.displayName || fallback;
 }
 
 function uniqueLandingObservations(snapshot: LandingSnapshot): LandingObservation[] {
@@ -90,10 +119,14 @@ function uniqueLandingObservations(snapshot: LandingSnapshot): LandingObservatio
   return Array.from(new Map(observations.map((obs) => [obs.occurrenceId, obs])).values());
 }
 
+function itemImageUrl(item: Pick<LandingTopShelfItem, "photoUrl"> | null | undefined, preset: ThumbnailPreset | "original"): string | null {
+  if (!item?.photoUrl) return null;
+  if (preset === "original") return item.photoUrl;
+  return toThumbnailUrl(item.photoUrl, preset) ?? item.photoUrl;
+}
+
 function observationImageUrl(obs: LandingObservation | null | undefined, preset: ThumbnailPreset | "original"): string | null {
-  if (!obs?.photoUrl) return null;
-  if (preset === "original") return obs.photoUrl;
-  return toThumbnailUrl(obs.photoUrl, preset) ?? obs.photoUrl;
+  return itemImageUrl(obs, preset);
 }
 
 function isSameLandingPhoto(left: LandingObservation | null | undefined, right: LandingObservation | null | undefined): boolean {
@@ -119,18 +152,20 @@ function renderTopAAction(basePath: string, lang: SiteLang, href: string, icon: 
   </a>`;
 }
 
-function observationStatusLabel(obs: LandingObservation): { label: string; tone: "green" | "blue" | "amber" } {
+function observationStatusLabel(obs: LandingTopShelfItem): { label: string; tone: "green" | "blue" | "amber" } {
+  if (isLandingGuideItem(obs)) return { label: "ガイド記録", tone: "blue" };
   if (obs.isAiCandidate) return { label: "AI候補", tone: "blue" };
   if (obs.identificationCount > 0) return { label: "確認中", tone: "green" };
   return { label: "同定待ち", tone: "amber" };
 }
 
-function landingShelfAction(kind: LandingTopShelfKind, obs: LandingObservation): string {
-  if (kind === "needsId") return obs.identificationCount > 0 ? "根拠を見に行く" : "名前を確かめる";
+function landingShelfAction(kind: LandingTopShelfKind, item: LandingTopShelfItem): string {
+  if (isLandingGuideItem(item)) return "ガイド成果を見る";
+  if (kind === "needsId") return item.identificationCount > 0 ? "根拠を見に行く" : "名前を確かめる";
   if (kind === "video") return "動きを見る";
   if (kind === "guide") return "ガイドの流れを見る";
   if (kind === "scan") return "現地の手がかりを見る";
-  if (obs.identificationCount === 0 || obs.isAiCandidate) return "名前を確かめる";
+  if (item.identificationCount === 0 || item.isAiCandidate) return "名前を確かめる";
   return "同じ季節に探す";
 }
 
@@ -142,19 +177,22 @@ function renderTopAObservationCard(
   basePath: string,
   lang: SiteLang,
   copy: LandingStrings,
-  obs: LandingObservation,
+  obs: LandingTopShelfItem,
   index: number,
   kpiAction: string,
   shelfKind: LandingTopShelfKind = "today",
 ): string {
-  const href = observationDetailHref(basePath, lang, obs);
-  const imageUrl = observationImageUrl(obs, "md");
-  const title = displayObservationName(obs, copy.heroPhotoFallback);
-  const meta = landingObservationMeta(lang, obs) || "公開位置は安全側で表示";
+  const href = landingItemHref(basePath, lang, obs);
+  const imageUrl = itemImageUrl(obs, "md");
+  const title = displayLandingItemName(obs, copy.heroPhotoFallback);
+  const baseMeta = landingItemMeta(lang, obs) || "公開位置は安全側で表示";
+  const meta = isLandingGuideItem(obs) && obs.summary
+    ? `${baseMeta} · ${obs.summary.slice(0, 42)}`
+    : baseMeta;
   const status = observationStatusLabel(obs);
   const mediaHtml = imageUrl
     ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />`
-    : `<span class="prototype-topa-empty-thumb" aria-hidden="true">PHOTO</span>`;
+    : `<span class="prototype-topa-empty-thumb" aria-hidden="true">${isLandingGuideItem(obs) ? "GUIDE" : "PHOTO"}</span>`;
 
   return `<a class="prototype-topa-card" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(kpiAction)}">
     <span class="prototype-topa-thumb">${mediaHtml}</span>

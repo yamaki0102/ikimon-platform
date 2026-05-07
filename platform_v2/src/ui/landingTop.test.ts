@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getStrings } from "../i18n/index.js";
-import type { LandingObservation, LandingSnapshot } from "../services/readModels.js";
+import type { LandingObservation, LandingSnapshot, LandingTopGuideItem } from "../services/readModels.js";
 import { renderLandingTopSections } from "./landingTop.js";
 
 function renderTop(snapshot: LandingSnapshot): string {
@@ -106,6 +106,38 @@ const alternatePhotoObservation: LandingObservation = {
   identificationCount: 0,
 };
 
+const guideItem: LandingTopGuideItem = {
+  topItemType: "guide",
+  guideRecordId: "guide-record-1",
+  sessionId: "guide-session-1",
+  displayName: "街路樹の若葉",
+  summary: "ガイドが街路樹と草地の手がかりを残しました",
+  observedAt: "2026-04-09T10:00:00.000Z",
+  observerName: "ガイド利用者",
+  observerUserId: "guide-user-1",
+  observerAvatarUrl: null,
+  placeName: "位置をぼかしています",
+  municipality: null,
+  publicLocation: {
+    label: "位置をぼかしています",
+    scope: "blurred",
+    cellId: "3000:1:3",
+    gridM: 3000,
+    radiusM: 2121,
+    centroidLat: 34.72,
+    centroidLng: 137.73,
+    displayMode: "area",
+  },
+  photoUrl: "/uploads/guide-frame.jpg",
+  latitude: 34.72,
+  longitude: 137.73,
+  librarySourceKind: "guide",
+  detectedSpecies: ["街路樹"],
+  identificationCount: 0,
+  isAiCandidate: false,
+  href: "/guide/outcomes",
+};
+
 test("landing top empty state does not render sample images", () => {
   const html = renderTop(emptySnapshot);
 
@@ -159,4 +191,26 @@ test("landing top A renders local map shelf without making revisit the primary a
   assert.match(html, /id="topa-local-map"/);
   assert.match(html, /地図から探す。/);
   assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+});
+
+test("landing top renders guide shelf items from guide records", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    topShelves: [
+      {
+        kind: "guide",
+        title: "ガイド",
+        eyebrow: "GUIDE",
+        href: "/guide",
+        items: [guideItem],
+        cta: { title: "観察ガイドから歩く", body: "場所や季節に合わせた見どころをたどれます。", href: "/guide", actionLabel: "ガイドを見る" },
+      },
+    ],
+  });
+
+  assert.match(html, /街路樹の若葉/);
+  assert.match(html, /ガイド記録/);
+  assert.match(html, /ガイド成果を見る/);
+  assert.match(html, /href="\/ja\/guide\/outcomes"/);
+  assert.match(html, /<img src="\/thumb\/md\/guide-frame\.jpg" alt="街路樹の若葉"/);
 });
