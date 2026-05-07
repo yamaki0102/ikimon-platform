@@ -556,6 +556,27 @@ function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[]): s
   return hash.digest("hex");
 }
 
+function formatInputMediaSummaryForPrompt(sourceTag: string, photos: LoadedPhotoInput[]): string {
+  const videoFrames = photos
+    .map((photo, index) => ({ index, frameTimeMs: photo.frameTimeMs }))
+    .filter((item) => item.frameTimeMs != null && Number.isFinite(Number(item.frameTimeMs)));
+  if (!sourceTag.startsWith("video") || videoFrames.length === 0) {
+    return "";
+  }
+  const lines = videoFrames.map((item) => {
+    const seconds = (Number(item.frameTimeMs) / 1000).toFixed(1).replace(/\.0$/, "");
+    return `- asset_index ${item.index}: video_frame ${seconds}s`;
+  });
+  return `\n\n入力画像メタデータ:\n${lines.join("\n")}\n動画由来の複数フレームです。時間差で見える対象・動き・周辺環境を総合し、領域を返す場合は該当する asset_index と frame_time_ms を使ってください。`;
+}
+
+function triggerKindForSourceTag(sourceTag: string): string {
+  if (sourceTag === "video_thumb" || sourceTag === "video_frames") {
+    return "video_ready_reassess";
+  }
+  return "manual_reassess";
+}
+
 async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<LoadedPhotoInput[]> {
   const rows = await client.query<{
     asset_id: string;
@@ -847,6 +868,7 @@ export async function reassessObservation(
     // sourceTag != "photo". Otherwise build the cache key from the canonical
     // inputs and try to short-circuit the Gemini call entirely.
     const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
+    const sourceTag = options.sourceTag?.trim() || "photo";
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
       .map((p) => p.assetId ?? null)
@@ -913,7 +935,7 @@ export async function reassessObservation(
       profileDigestSummary: profileDigest.summary,
       observationPackageSummary,
       knowledgeClaimsContext: formatClaimRefsForPrompt(branchClaimRefs),
-    });
+    }) + formatInputMediaSummaryForPrompt(sourceTag, photos);
 
     const { parsed, modelUsed, rawText } = await runGemini(prompt, photos, {
       userId: options.triggeredBy ?? null,
@@ -921,7 +943,6 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
     });
     const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
-    const sourceTag = options.sourceTag?.trim() || "photo";
 
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);
@@ -1030,7 +1051,7 @@ export async function reassessObservation(
       promptVersion,
       taxonomyVersion: TAXONOMY_VERSION,
       inputAssetFingerprint: buildAssetFingerprint(sourceTag, photos),
-      triggerKind: sourceTag === "video_thumb" ? "video_thumb_reassess" : "manual_reassess",
+      triggerKind: triggerKindForSourceTag(sourceTag),
       triggeredBy: options.triggeredBy ?? null,
       supersedesRunId: previousRun?.aiRunId ?? null,
       runStatus: "succeeded",

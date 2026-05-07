@@ -144,6 +144,8 @@ export async function processMediaProcessingJobs(limit = 10, staleSeconds = 15 *
           source: "media_processing_worker",
           occurrence_id: reassess.occurrenceId,
           ai_run_id: reassess.aiRunId,
+          frame_count: reassess.frameCount,
+          frame_times_ms: reassess.frameTimesMs,
         });
         result.succeeded += 1;
         continue;
