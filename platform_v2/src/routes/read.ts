@@ -4652,6 +4652,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <span id="record-video-progress-bytes">0 MB / 0 MB</span>
                 </div>
                 <div id="record-video-live" class="record-video-live" aria-live="polite">動画を選ぶと進捗を表示します。</div>
+                <div id="record-video-publication-status" class="record-video-publication-status" hidden>
+                  <div class="record-video-publication-title">
+                    <strong>公開までの状態</strong>
+                    <span id="record-video-publication-badge">待機中</span>
+                  </div>
+                  <ol class="record-video-publication-steps" aria-label="動画公開までの状態">
+                    <li data-video-publication-step="upload"><b>1</b><span>アップロード</span><small>動画を送る</small></li>
+                    <li data-video-publication-step="processing"><b>2</b><span>公開準備</span><small>再生できる形にする</small></li>
+                    <li data-video-publication-step="public"><b>3</b><span>公開完了</span><small>みんなが見られる</small></li>
+                  </ol>
+                  <div id="record-video-publication-help" class="record-video-publication-help">動画を選ぶと、いま待つところをここに表示します。</div>
+                </div>
               </div>
               <div class="record-actions">
                 <button class="btn btn-solid" type="submit">保存してあとで補完</button>
@@ -4711,6 +4723,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const videoProgressLabel = document.getElementById('record-video-progress-label');
         const videoProgressBytes = document.getElementById('record-video-progress-bytes');
         const videoLive = document.getElementById('record-video-live');
+        const videoPublicationStatus = document.getElementById('record-video-publication-status');
+        const videoPublicationBadge = document.getElementById('record-video-publication-badge');
+        const videoPublicationHelp = document.getElementById('record-video-publication-help');
+        const videoPublicationSteps = Array.from(document.querySelectorAll('[data-video-publication-step]'));
         const videoCancel = document.getElementById('record-video-cancel');
         const videoTrimWrap = document.getElementById('record-video-trim');
         const videoTrimPlayer = document.getElementById('record-video-trim-player');
@@ -4742,6 +4758,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         let videoTrimObjectUrl = '';
         let activeTusUpload = null;
         let cancelTusUpload = null;
+        let videoPublicationPollToken = 0;
         let selectedMediaFiles = [];
         let selectedVideoFile = null;
         let selectedPrimaryPhotoFile = null;
@@ -5477,13 +5494,112 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (videoProgressLabel) videoProgressLabel.textContent = '0%';
           if (videoProgressBytes) videoProgressBytes.textContent = '0 MB / 0 MB';
           if (videoLive) videoLive.textContent = '動画を選ぶと進捗を表示します。';
+          if (videoPublicationStatus) videoPublicationStatus.hidden = true;
+          videoPublicationPollToken += 1;
           if (videoCancel) videoCancel.disabled = true;
           activeTusUpload = null;
           cancelTusUpload = null;
         };
 
+        const setVideoPublicationStatus = (stage, detailHref) => {
+          if (!videoPublicationStatus) return;
+          const normalized = stage === 'failed' || stage === 'public' || stage === 'processing' || stage === 'uploaded' || stage === 'uploading'
+            ? stage
+            : 'uploading';
+          const stateByStage = {
+            uploading: { badge: '送信中', help: 'この画面のまま待ってください。動画をサーバーへ送っています。', steps: { upload: 'current', processing: 'pending', public: 'pending' } },
+            uploaded: { badge: '保存中', help: '動画は届きました。観察データに紐づけています。', steps: { upload: 'done', processing: 'current', public: 'pending' } },
+            processing: { badge: '公開準備中', help: '動画は保存済みです。再生準備をしています。画面を閉じても大丈夫です。', steps: { upload: 'done', processing: 'current', public: 'pending' } },
+            public: { badge: '公開できました', help: '動画つき観察を公開しました。観察ページで見られます。', steps: { upload: 'done', processing: 'done', public: 'done' } },
+            failed: { badge: '失敗', help: '動画の公開準備で止まりました。記録本体が保存済みなら、同じ画面から動画だけ再試行できます。', steps: { upload: 'failed', processing: 'pending', public: 'pending' } },
+          };
+          const config = stateByStage[normalized];
+          videoPublicationStatus.hidden = false;
+          videoPublicationStatus.dataset.stage = normalized;
+          if (videoPublicationBadge) videoPublicationBadge.textContent = config.badge;
+          if (videoPublicationHelp) {
+            videoPublicationHelp.innerHTML = config.help + (detailHref && normalized === 'public'
+              ? ' <a href="' + detailHref + '">観察を見る</a>'
+              : '');
+          }
+          videoPublicationSteps.forEach((step) => {
+            const key = step.getAttribute('data-video-publication-step') || '';
+            const stepState = config.steps[key] || 'pending';
+            step.dataset.state = stepState;
+            const marker = step.querySelector('b');
+            if (marker) {
+              const pendingText = key === 'upload' ? '1' : (key === 'processing' ? '2' : '3');
+              marker.textContent = stepState === 'done' ? '✓' : (stepState === 'failed' ? '!' : pendingText);
+            }
+          });
+        };
+
+        const delay = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+        const waitForVideoPublication = async (detailHref, streamUid, observationId) => {
+          if (!detailHref) return false;
+          const token = ++videoPublicationPollToken;
+          setVideoPublicationStatus('processing', detailHref);
+          const waits = [0, 1500, 2500, 4000, 6000, 8000, 10000, 12000];
+          for (const waitMs of waits) {
+            if (token !== videoPublicationPollToken) return false;
+            if (waitMs > 0) await delay(waitMs);
+            if (token !== videoPublicationPollToken) return false;
+            try {
+              if (streamUid) {
+                const response = await fetch(withBasePath('/api/v1/videos/' + encodeURIComponent(streamUid) + '/finalize'), {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json', accept: 'application/json' },
+                  credentials: 'include',
+                  cache: 'no-store',
+                  body: JSON.stringify({
+                    observationId: observationId || null,
+                    mediaRole: 'sound_motion',
+                  }),
+                });
+                const json = await response.json();
+                if (response.ok && json.ok && json.video && json.video.readyToStream) {
+                  setVideoPublicationStatus('public', detailHref);
+                  return true;
+                }
+              } else {
+                const response = await fetch(detailHref, {
+                  method: 'HEAD',
+                  credentials: 'include',
+                  cache: 'no-store',
+                });
+                if (response.ok) {
+                  setVideoPublicationStatus('public', detailHref);
+                  return true;
+                }
+                if (response.status === 405) {
+                  const fallback = await fetch(detailHref, {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-store',
+                  });
+                  if (fallback.ok) {
+                    setVideoPublicationStatus('public', detailHref);
+                    return true;
+                  }
+                }
+              }
+            } catch (_) {
+              // Keep showing processing; transient network errors are not a user failure.
+            }
+          }
+          if (token === videoPublicationPollToken) {
+            setVideoPublicationStatus('processing', detailHref);
+            if (videoPublicationHelp) {
+              videoPublicationHelp.textContent = '動画は保存済みです。公開準備が続いています。画面を閉じても大丈夫です。数分後に観察ページを開いてください。';
+            }
+          }
+          return false;
+        };
+
         const updateVideoProgress = (uploaded, total) => {
           if (videoProgressWrap) videoProgressWrap.hidden = false;
+          setVideoPublicationStatus('uploading');
           const safeTotal = Number(total) > 0 ? Number(total) : 1;
           const percent = Math.max(0, Math.min(100, Math.round((Number(uploaded) / safeTotal) * 100)));
           if (videoProgressBar) videoProgressBar.value = percent;
@@ -6832,6 +6948,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               }
 
               let videoFile = selectedVideoFile instanceof File && selectedVideoFile.size > 0 ? selectedVideoFile : null;
+              let videoStreamUid = '';
+              let videoReadyToStream = false;
               if (videoFile) {
                   videoFile = await ensureVideoReadyForUpload(videoFile);
                   if (videoFile.size > MAX_VIDEO_TUS_BYTES) {
@@ -6839,8 +6957,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   }
                   await validateVideoDuration(videoFile);
                   const uploadProtocol = videoFile.size >= MAX_VIDEO_BASIC_POST_BYTES ? 'tus' : 'post';
+                  const videoDetailHref = withBasePath('/observations/' + encodeURIComponent(detailId));
 
                   setStatus('<div class="row"><div>動画アップロードの準備をしています...</div></div>');
+                  setVideoPublicationStatus('uploading', videoDetailHref);
                   const issueResponse = await fetch(withBasePath('/api/v1/videos/direct-upload'), {
                     method: 'POST',
                     headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -6858,6 +6978,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                   if (!issueResponse.ok || !issueJson.ok || !issueJson.uploadUrl || !issueJson.uid) {
                     throw new Error(issueJson.error || 'video_issue_failed');
                   }
+                  videoStreamUid = String(issueJson.uid || '');
 
                   if (String(issueJson.uploadProtocol || uploadProtocol) === 'tus') {
                     await uploadVideoWithTus(String(issueJson.uploadUrl), videoFile);
@@ -6865,6 +6986,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                     await uploadVideoWithDirectPost(String(issueJson.uploadUrl), videoFile);
                   }
                   setStatus('<div class="row"><div>動画を記録に紐づけています...</div></div>');
+                  setVideoPublicationStatus('uploaded', videoDetailHref);
 
                   const finalizeResponse = await fetch(withBasePath('/api/v1/videos/' + encodeURIComponent(String(issueJson.uid)) + '/finalize'), {
                     method: 'POST',
@@ -6887,10 +7009,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                     streamUid: String(issueJson.uid || ''),
                   });
                   const videoReady = Boolean(finalizeJson.video && finalizeJson.video.readyToStream);
+                  videoReadyToStream = videoReady;
+                  setVideoPublicationStatus('processing', videoDetailHref);
                   if (videoReady) {
-                    extraStatus = [extraStatus, '動画は保存済みです。AI 解析は裏側で進めています。'].filter(Boolean).join(' ');
+                    extraStatus = [extraStatus, '動画は保存済みです。公開までの状態を下に表示しています。'].filter(Boolean).join(' ');
                   } else {
-                    extraStatus = [extraStatus, '動画は保存済みです。再生準備が終わるまで少し待ってから詳細ページを開いてください。'].filter(Boolean).join(' ');
+                    extraStatus = [extraStatus, '動画は保存済みです。再生準備が終わるまで、公開までの状態を下に表示しています。'].filter(Boolean).join(' ');
                   }
               }
 
@@ -6924,6 +7048,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
               }
               clearSelectedMedia();
+              if (videoFile) {
+                const videoDetailHref = withBasePath('/observations/' + encodeURIComponent(detailId));
+                if (videoReadyToStream) {
+                  setVideoPublicationStatus('public', videoDetailHref);
+                } else {
+                  setVideoPublicationStatus('processing', videoDetailHref);
+                  void waitForVideoPublication(videoDetailHref, videoStreamUid, detailId);
+                }
+              }
               syncModeUi();
               syncPreview();
             } catch (error) {
@@ -6965,6 +7098,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 : (message.indexOf('video') >= 0 || message.indexOf('cloudflare') >= 0 || message.indexOf('tus') >= 0)
                   ? 'video_upload_error'
                   : 'record_submit_error';
+              if (funnelErrorAction === 'video_upload_error') {
+                setVideoPublicationStatus('failed', savedDetailId ? withBasePath('/observations/' + encodeURIComponent(savedDetailId)) : '');
+              }
               sendRecordFunnelError(funnelErrorAction, {
                 errorCode: message,
                 userMessage,
@@ -7121,6 +7257,26 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-video-progress progress { width: 100%; height: 13px; }
         .record-video-progress-meta { display: flex; justify-content: space-between; gap: 12px; color: #334155; font-size: 12px; font-weight: 700; }
         .record-video-live { font-size: 12px; color: #0f766e; line-height: 1.5; }
+        .record-video-publication-status { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.78); border: 1px solid rgba(14,165,233,.18); }
+        .record-video-publication-status[hidden] { display: none; }
+        .record-video-publication-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .record-video-publication-title strong { font-size: 13px; }
+        .record-video-publication-title span { flex: 0 0 auto; min-height: 28px; display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #0f766e; color: #fff; font-size: 12px; font-weight: 950; }
+        .record-video-publication-status[data-stage="failed"] .record-video-publication-title span { background: #b91c1c; }
+        .record-video-publication-status[data-stage="public"] .record-video-publication-title span { background: #047857; }
+        .record-video-publication-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-video-publication-steps li { min-height: 82px; display: grid; gap: 4px; align-content: start; padding: 10px 8px; border-radius: 10px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #475569; }
+        .record-video-publication-steps b { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #e2e8f0; color: #334155; font-size: 13px; font-weight: 950; }
+        .record-video-publication-steps span { color: #0f172a; font-size: 12px; font-weight: 950; line-height: 1.25; }
+        .record-video-publication-steps small { color: #64748b; font-size: 11px; line-height: 1.35; font-weight: 800; }
+        .record-video-publication-steps li[data-state="current"] { background: #ecfeff; border-color: rgba(14,165,233,.34); }
+        .record-video-publication-steps li[data-state="current"] b { background: #0ea5e9; color: #fff; }
+        .record-video-publication-steps li[data-state="done"] { background: #ecfdf5; border-color: rgba(16,185,129,.32); }
+        .record-video-publication-steps li[data-state="done"] b { background: #059669; color: #fff; }
+        .record-video-publication-steps li[data-state="failed"] { background: #fef2f2; border-color: rgba(185,28,28,.28); }
+        .record-video-publication-steps li[data-state="failed"] b { background: #b91c1c; color: #fff; }
+        .record-video-publication-help { color: #0f766e; font-size: 12px; line-height: 1.55; font-weight: 850; }
+        .record-video-publication-help a { color: #0369a1; text-decoration: underline; text-underline-offset: 3px; font-weight: 950; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
         .record-status-inline { grid-column: 1 / -1; margin: 14px 0 0 16px; }
         .record-sidebar { display: grid; gap: 18px; }
@@ -7185,6 +7341,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-video-primary-photo-actions, .record-video-primary-photo-actions .btn { width: 100%; }
           .record-video-trim-controls { grid-template-columns: 1fr; }
           .record-video-trim-actions .btn { width: 100%; }
+          .record-video-publication-steps { grid-template-columns: 1fr; }
+          .record-video-publication-steps li { min-height: auto; grid-template-columns: auto 1fr; align-items: center; }
+          .record-video-publication-steps small { grid-column: 2; }
           .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-later-grid, .record-media-role-grid { grid-template-columns: 1fr; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }
