@@ -1618,7 +1618,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function getSelectedContext() {
-    if (state.selectedPoint && state.selectedPoint.kind === 'place') return state.selectedPoint;
+    if (state.selectedPoint && (state.selectedPoint.kind === 'place' || state.selectedPoint.kind === 'area')) return state.selectedPoint;
     var cellFeature = getSelectedCellFeature();
     var record = getSelectedRecord();
     if (record && cellFeature) {
@@ -1957,6 +1957,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
       clearSideSelection();
+      return;
+    }
+    if (context.kind === 'area') {
+      var areaContent = context.areaSnapshot
+        ? renderAreaSheet(context.areaSnapshot)
+        : context.areaFeature
+          ? renderTransientAreaContent(context.areaFeature, { lat: context.lat, lng: context.lng })
+          : '<div class="me-area-sheet-loading">エリア情報を読み込み中…</div>';
+      selectedCardEl.innerHTML =
+        '<article class="me-detail-panel me-detail-panel-area">' +
+          areaContent +
+        '</article>';
+      selectedCardEl.classList.add('is-visible');
+      markSideSelection();
       return;
     }
     if (context.kind === 'place') {
@@ -2622,6 +2636,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     return appendQueryParams(EVENTS_NEW_BASE, params);
   }
+
+  function renderTransientAreaContent(feature, center) {
+    var props = (feature && feature.properties) || {};
+    var safeCenter = center || areaFeatureCenter(feature, null, null);
+    var ctaHref = safeCenter ? buildTransientAreaEventHref(feature, safeCenter.lat, safeCenter.lng) : RECORD_HREF;
+    var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
+    var officialUrl = String(props.official_url || '');
+    var areaName = String(props.name || 'OSMの公園・緑地');
+    var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
+    var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
+    return ''
+      + renderAreaHero({ title: areaName, sourceLabel: sourceLabel, meta: locationLabel, photo: null })
+      + '<div class="me-area-sheet-cta">'
+      +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
+      +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
+      +     escapeHtml(COPY.placeActionRecord)
+      +   '</a>'
+      +   (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '')
+      +   '<span class="me-area-sheet-cta-hint">OSM の境界を開催エリア案として読み込み、作成時にフィールドDBへ保存</span>'
+      + '</div>'
+      + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
+      + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
+      + '<div class="me-area-sheet-timeline is-empty">このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。</div>';
+  }
+
   function openTransientAreaSheet(feature, lat, lng) {
     if (!sheetEl || !sheetInnerEl || !feature) return;
     var props = feature.properties || {};
@@ -2629,34 +2668,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!center) return;
     state.selectedOccurrenceId = null;
     state.selectedCellId = null;
-    state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || '') };
+    state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'area', fieldId: String(props.field_id || ''), areaFeature: feature, transient: true };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
       state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], String(props.field_id || '__none__')]);
     }
-    var ctaHref = buildTransientAreaEventHref(feature, center.lat, center.lng);
-    var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
-    var officialUrl = String(props.official_url || '');
-    var areaName = String(props.name || 'OSMの公園・緑地');
-    var followId = String(props.entity_key || props.field_id || ('point:' + center.lat.toFixed(5) + ',' + center.lng.toFixed(5)));
-    sheetInnerEl.innerHTML =
-      '<div class="me-area-sheet-header">' +
-        '<div class="me-area-sheet-title">' +
-          '<span class="me-area-sheet-source">' + escapeHtml(sourceLabel) + '</span>' +
-          '<strong>' + escapeHtml(areaName) + '</strong>' +
-          '<span class="me-area-sheet-loc">' + escapeHtml(center.lat.toFixed(4) + ', ' + center.lng.toFixed(4)) + '</span>' +
-        '</div>' +
-        (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '') +
-      '</div>' +
-      renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) +
-      renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null) +
-      '<div class="me-area-sheet-cta">' +
-        '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">' +
-          '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>' +
-          escapeHtml(COPY.placeActionRecord) +
-        '</a>' +
-        '<span class="me-area-sheet-cta-hint">OSM の境界を開催エリア案として読み込み、作成時にフィールドDBへ保存</span>' +
-      '</div>' +
-      '<div class="me-area-sheet-timeline is-empty">このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。</div>';
+    if (!shouldUseBottomSheet()) {
+      sheetEl.classList.remove('is-open');
+      sheetEl.classList.remove('me-bottom-sheet--area');
+      sheetEl.classList.remove('me-bottom-sheet--detail');
+      sheetEl.removeAttribute('data-snap');
+      sheetEl.setAttribute('aria-hidden', 'true');
+      renderSelectedCard();
+      renderSidePanels();
+      saveMapState();
+      return;
+    }
+    sheetInnerEl.innerHTML = renderTransientAreaContent(feature, center);
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
     sheetEl.classList.remove('me-bottom-sheet--detail');
@@ -2682,6 +2709,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
       state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], fieldId]);
+    }
+    if (!shouldUseBottomSheet()) {
+      sheetEl.classList.remove('is-open');
+      sheetEl.classList.remove('me-bottom-sheet--area');
+      sheetEl.classList.remove('me-bottom-sheet--detail');
+      sheetEl.removeAttribute('data-snap');
+      sheetEl.setAttribute('aria-hidden', 'true');
+      renderSelectedCard();
+      renderSidePanels();
+      saveMapState();
+      if (!apiAreaSnapshotTemplate) return;
+      var sideUrl = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
+      fetch(sideUrl, { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (payload) {
+          if (!payload || !payload.snapshot) return;
+          if (!state.selectedPoint || state.selectedPoint.kind !== 'area' || state.selectedPoint.fieldId !== fieldId) return;
+          state.selectedPoint.areaSnapshot = payload.snapshot;
+          renderSelectedCard();
+        })
+        .catch(function () { /* noop */ });
+      return;
     }
     sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>エリア情報を読み込み中…</strong></div>';
     sheetEl.setAttribute('aria-hidden', 'false');
@@ -2773,6 +2822,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</figure>';
   }
 
+  function renderAreaHero(options) {
+    var title = String(options && options.title || '観察エリア');
+    var sourceLabel = String(options && options.sourceLabel || '');
+    var meta = String(options && options.meta || '');
+    var photo = options && options.photo;
+    if (photo && photo.photoUrl) {
+      var displayName = String(photo.displayName || COPY.coverFallbackTitle);
+      var locality = String(photo.localityLabel || '');
+      var dateText = photo.observedAt ? String(photo.observedAt).slice(0, 10) : '';
+      var photoMeta = [dateText, locality].filter(Boolean).join(' / ');
+      return ''
+        + '<figure class="me-area-cover me-area-hero is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
+        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-hero&quot;).classList.add(&quot;is-empty&quot;);this.remove()" />'
+        +   '<figcaption>'
+        +     '<span>' + escapeHtml(sourceLabel || coverSourceLabel(photo.source)) + '</span>'
+        +     '<strong>' + escapeHtml(title) + '</strong>'
+        +     '<small>' + escapeHtml(displayName + (photoMeta ? ' · ' + photoMeta : '')) + '</small>'
+        +   '</figcaption>'
+        + '</figure>';
+    }
+    return ''
+      + '<div class="me-area-cover me-area-hero me-area-hero-map">'
+      +   '<div class="me-area-hero-mark" aria-hidden="true">⌖</div>'
+      +   '<div class="me-area-hero-copy">'
+      +     (sourceLabel ? '<span>' + escapeHtml(sourceLabel) + '</span>' : '')
+      +     '<strong>' + escapeHtml(title) + '</strong>'
+      +     (meta ? '<small>' + escapeHtml(meta) + '</small>' : '')
+      +   '</div>'
+      + '</div>';
+  }
+
   function renderPlaceStoryHighlights(field, summary, indicators, representativePhoto) {
     var topTaxa = Array.isArray(summary && summary.topTaxa) ? summary.topTaxa.slice(0, 3) : [];
     var taxaText = topTaxa.length
@@ -2810,7 +2890,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var representativePhoto = (snapshot && snapshot.representativePhoto) || null;
     var name = escapeHtml(String(f.name || ''));
     var sourceLabel = escapeHtml(String(f.sourceLabel || ''));
-    var locationLabel = escapeHtml(String(f.locationLabel || ''));
+    var rawLocationLabel = String(f.locationLabel || '');
+    var locationLabel = escapeHtml(rawLocationLabel);
     var areaHa = (typeof f.areaHa === 'number' && Number.isFinite(f.areaHa))
       ? Math.round(f.areaHa).toLocaleString('ja-JP') + ' ha'
       : '';
@@ -2820,17 +2901,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
       : '';
     var followHtml = renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId }));
-    var headerHtml = ''
-      + '<div class="me-area-sheet-header">'
-      +   '<div class="me-area-sheet-title">'
-      +     '<span class="me-area-sheet-source">' + sourceLabel + '</span>'
-      +     '<strong>' + name + '</strong>'
-      +     '<span class="me-area-sheet-loc">' + locationLabel + (areaHa ? ' / ' + escapeHtml(areaHa) : '') + '</span>'
-      +   '</div>'
-      +   (officialUrl
-        ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>'
-        : '')
-      + '</div>';
+    var areaMeta = rawLocationLabel + (areaHa ? ' / ' + areaHa : '');
+    var heroHtml = renderAreaHero({
+      title: String(f.name || '観察エリア'),
+      sourceLabel: String(f.sourceLabel || ''),
+      meta: areaMeta,
+      photo: representativePhoto,
+    });
     // CTA を上に置いて、スクロールせずに「ここで観察会を開く」が見える状態に。
     var ctaHtml = ctaHref
       ? ''
@@ -2839,6 +2916,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
         +     escapeHtml(COPY.placeActionRecord)
         +   '</a>'
+        +   (officialUrl
+          ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>'
+          : '')
         +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.placeStoryActions) + '</span>'
         + '</div>'
       : '';
@@ -2852,9 +2932,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var timelineHtml = renderAreaTimeline(timeline);
     var indicatorsHtml = renderEffortIndicators(indicators);
     var maskingHtml = renderSensitiveBanner(masking);
-    var coverHtml = renderRepresentativePhoto(representativePhoto);
     var placeStoryHtml = renderPlaceStoryHighlights(f, summary, indicators, representativePhoto);
-    return headerHtml + coverHtml + followHtml + placeStoryHtml + ctaHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    return heroHtml + ctaHtml + followHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -5414,6 +5493,59 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-cover span { width: fit-content; max-width: 100%; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.18); font-size: 10px; line-height: 1.3; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .me-area-cover strong { font-size: 17px; line-height: 1.3; font-weight: 900; text-shadow: 0 1px 10px rgba(15,23,42,.45); overflow-wrap: anywhere; }
   .me-area-cover small { font-size: 11px; line-height: 1.35; font-weight: 750; color: rgba(255,255,255,.9); overflow-wrap: anywhere; }
+  .me-area-hero {
+    min-height: 190px;
+    margin-bottom: 14px;
+    border-radius: 0;
+  }
+  .me-area-hero figcaption {
+    padding: 54px 16px 16px;
+  }
+  .me-area-hero strong {
+    font-size: 23px;
+    line-height: 1.18;
+    font-weight: 950;
+  }
+  .me-area-hero-map {
+    display: grid;
+    align-content: end;
+    background:
+      radial-gradient(circle at 28% 28%, rgba(20,184,166,.24), transparent 34%),
+      radial-gradient(circle at 78% 20%, rgba(14,165,233,.18), transparent 30%),
+      linear-gradient(135deg, #ecfeff, #f0fdf4 58%, #f8fafc);
+  }
+  .me-area-hero-map::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15,23,42,0), rgba(15,23,42,.68));
+  }
+  .me-area-hero-mark {
+    position: absolute;
+    top: 34px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 70px;
+    height: 70px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(20,184,166,.2);
+    color: #0f766e;
+    font-size: 36px;
+    box-shadow: 0 18px 38px rgba(15,23,42,.12);
+  }
+  .me-area-hero-copy {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 3px;
+    padding: 56px 16px 16px;
+    color: #fff;
+  }
+  .me-area-hero-copy span { background: rgba(255,255,255,.2); }
 
   .me-place-story {
     display: grid;
@@ -5581,6 +5713,40 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-detail-section-head span { font-size: 13px; line-height: 1.3; font-weight: 950; color: #0f172a; }
   .me-detail-section-head strong { font-size: 10px; line-height: 1.3; font-weight: 900; color: #0f766e; background: rgba(20,184,166,.12); padding: 3px 8px; border-radius: 999px; }
+  .me-detail-panel-area {
+    gap: 0;
+    min-height: 100%;
+    padding-bottom: 14px;
+  }
+  .me-detail-panel-area .me-area-sheet-header,
+  .me-detail-panel-area .me-area-follow-btn,
+  .me-detail-panel-area .me-place-story,
+  .me-detail-panel-area .me-area-sheet-cta,
+  .me-detail-panel-area .me-area-sheet-summary,
+  .me-detail-panel-area .me-area-sheet-timeline,
+  .me-detail-panel-area .me-area-effort,
+  .me-detail-panel-area .me-area-sensitive,
+  .me-detail-panel-area .me-area-sheet-loading {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+  .me-detail-panel-area .me-area-sheet-header {
+    margin-top: 14px;
+  }
+  .me-detail-panel-area .me-area-cover {
+    border-radius: 0;
+    margin: 0 0 14px;
+  }
+  .me-detail-panel-area .me-area-sheet-loading {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(248,250,252,.94);
+    border: 1px solid rgba(148,163,184,.16);
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+  }
   .me-detail-visit {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6039,11 +6205,11 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-follow-btn > span { width: 30px; height: 30px; flex: 0 0 30px; display: inline-grid; place-items: center; border-radius: 999px; background: #0f766e; color: #fff; font-size: 16px; font-weight: 900; }
   .me-area-follow-btn strong { display: block; font-size: 13px; line-height: 1.2; font-weight: 900; }
   .me-area-follow-btn small { display: block; margin-top: 1px; color: #64748b; font-size: 11px; line-height: 1.3; font-weight: 750; }
-  .me-area-sheet-cta { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 14px; }
+  .me-area-sheet-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 14px; }
   .me-area-sheet-cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 14px; font-size: 14px; font-weight: 800; color: #fff !important; background: linear-gradient(135deg, #0ea5e9, #0f766e); text-decoration: none; box-shadow: 0 6px 16px rgba(15,118,110,.28); width: max-content; max-width: 100%; }
   .me-area-sheet-cta-btn:hover { filter: brightness(1.05); }
   .me-area-sheet-cta-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.22); font-size: 14px; font-weight: 800; }
-  .me-area-sheet-cta-hint { font-size: 11px; color: #475569; line-height: 1.45; padding-left: 4px; }
+  .me-area-sheet-cta-hint { flex-basis: 100%; font-size: 11px; color: #475569; line-height: 1.45; padding-left: 4px; }
   .me-area-effort-title { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; justify-content: space-between; font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
   .me-area-effort-title > span:first-child { font-size: 13px; }
   .me-area-effort-explainer { margin: 0 0 10px; font-size: 11px; color: #475569; line-height: 1.5; padding: 8px 10px; border-radius: 10px; background: rgba(241,245,249,.7); border: 1px solid rgba(148,163,184,.18); }
