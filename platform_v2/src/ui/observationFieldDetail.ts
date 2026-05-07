@@ -1,5 +1,6 @@
 import type { ObservationField, FieldStats } from "../services/observationFieldRegistry.js";
 import type { PlaceSnapshot } from "../services/placeSnapshot.js";
+import type { AreaObservationGalleryItem, AreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
 import { renderPlaceSnapshotTeaser } from "./placeSnapshot.js";
 
 function escapeHtml(str: string): string {
@@ -21,6 +22,51 @@ function formatDate(iso: string | null): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function isAreaSnapshot(snapshot: PlaceSnapshot | null | undefined): snapshot is AreaPlaceSnapshot {
+  return Boolean(snapshot && Array.isArray((snapshot as Partial<AreaPlaceSnapshot>).observationGallery));
+}
+
+function renderAlbumCard(item: AreaObservationGalleryItem): string {
+  const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
+  const meta = [
+    item.isCurrentSeason && item.seasonLabel ? `今の季節・${item.seasonLabel}` : item.seasonLabel ?? "",
+    `${item.observationCount}件`,
+    item.observedAt ? item.observedAt.slice(0, 10) : "",
+  ].filter(Boolean).join(" / ");
+  const media = item.photoUrl
+    ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async" />`
+    : `<span aria-hidden="true">✦</span>`;
+  return `<a class="field-album-card" href="${escapeHtml(href)}">
+    ${media}
+    <strong>${escapeHtml(item.displayName || "同定待ち")}</strong>
+    <small>${escapeHtml(meta)}</small>
+  </a>`;
+}
+
+function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
+  if (!isAreaSnapshot(snapshot)) return "";
+  const gallery = snapshot.observationGallery.slice(0, 12);
+  const current = gallery.filter((item) => item.isCurrentSeason).slice(0, 6);
+  const missing = snapshot.seasonalCoverage.filter((row) => row.observations <= 0);
+  const missingText = missing.length > 0 ? missing.map((row) => row.label).join("・") : "四季の入口あり";
+  const galleryHtml = gallery.length > 0
+    ? gallery.map(renderAlbumCard).join("")
+    : `<article class="evt-card"><span class="evt-eyebrow">Area Album</span><h3 class="evt-heading">まだ観察カードはありません</h3><p class="evt-lead">この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
+  const currentHtml = current.length > 0
+    ? current.map(renderAlbumCard).join("")
+    : `<article class="evt-card"><span class="evt-eyebrow">Season</span><h3 class="evt-heading">今の季節の記録を足す</h3><p class="evt-lead">季節の顔が見えると、地図からこの場所を選ぶ理由が強くなります。</p></article>`;
+  return `<section class="field-album">
+    <header>
+      <div><span class="evt-eyebrow">Area Album</span><h2 class="evt-heading">地域の生きものアルバム</h2></div>
+      <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(snapshot.field.fieldId)}/snapshot">公開図鑑ページ</a>
+    </header>
+    <p class="evt-lead">未記録季節: ${escapeHtml(missingText)}。公園や水辺を見に来た人が、ここで何が観察されているかを写真から眺められる入口です。</p>
+    <div class="field-album-grid">${galleryHtml}</div>
+    <h3 class="evt-heading" style="font-size:18px;margin:18px 0 10px;">今の季節に見えるもの</h3>
+    <div class="field-album-grid field-album-grid-compact">${currentHtml}</div>
+  </section>`;
 }
 
 export function renderFieldDetailBody(args: { field: ObservationField; stats: FieldStats; snapshot?: PlaceSnapshot | null }): string {
@@ -78,6 +124,8 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
   </article>
 
   ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
+
+  ${renderFieldAlbum(snapshot)}
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
@@ -196,3 +244,80 @@ export function fieldDetailScript(): string {
 })();
 `;
 }
+
+export const FIELD_DETAIL_ALBUM_STYLES = `
+.field-album {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(240,249,255,.92));
+  border: 1px solid rgba(16,185,129,.18);
+}
+.field-album > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.field-album-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.field-album-grid-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.field-album-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid rgba(15,23,42,.08);
+  color: #0f172a;
+  text-decoration: none;
+}
+.field-album-card img,
+.field-album-card > span {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 11px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e0f2fe, #dcfce7);
+  color: #0f766e;
+  font-size: 24px;
+}
+.field-album-card strong {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+.field-album-card small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 760;
+}
+@media (max-width: 920px) {
+  .field-album-grid,
+  .field-album-grid-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .field-album > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 560px) {
+  .field-album-grid,
+  .field-album-grid-compact {
+    grid-template-columns: 1fr;
+  }
+}
+`;

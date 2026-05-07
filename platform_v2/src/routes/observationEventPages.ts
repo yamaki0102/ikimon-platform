@@ -42,6 +42,7 @@ import {
 import { renderFieldListBody } from "../ui/observationFieldList.js";
 import {
   renderFieldDetailBody,
+  FIELD_DETAIL_ALBUM_STYLES,
   fieldDetailScript,
 } from "../ui/observationFieldDetail.js";
 import {
@@ -52,11 +53,13 @@ import {
   searchFieldsByName,
   type FieldSource,
 } from "../services/observationFieldRegistry.js";
-import { getPlaceSnapshot } from "../services/placeSnapshot.js";
+import { getAreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
 import {
   PLACE_SNAPSHOT_STYLES,
   renderPlaceSnapshotBody,
 } from "../ui/placeSnapshot.js";
+import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
+import { getFieldManagerRole } from "../services/fieldManagers.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
@@ -134,13 +137,31 @@ async function loadRecentSessions(limit = 24): Promise<ObservationEventSessionRo
   }
 }
 
+async function areaSnapshotViewer(
+  request: { headers: { cookie?: string } },
+  fieldId: string,
+): Promise<{
+  isAdminOrAnalyst: boolean;
+  fieldRole: Awaited<ReturnType<typeof getFieldManagerRole>> | null;
+}> {
+  const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+  const isAdminOrAnalyst = session
+    ? isAdminOrAnalystRole(session.roleName, session.rankLabel)
+    : false;
+  const fieldRole = session
+    ? await getFieldManagerRole(session.userId, fieldId).catch(() => null)
+    : null;
+  return { isAdminOrAnalyst, fieldRole };
+}
+
 export async function registerObservationEventPagesRoutes(app: FastifyInstance): Promise<void> {
   // /places/:fieldId/snapshot  --- Place Twin Layer の公開スナップショット
   app.get<{ Params: { fieldId: string } }>(
     "/places/:fieldId/snapshot",
     async (request, reply) => {
       const lang = langOf(request);
-      const snapshot = await getPlaceSnapshot(request.params.fieldId).catch(() => null);
+      const viewer = await areaSnapshotViewer(request, request.params.fieldId);
+      const snapshot = await getAreaPlaceSnapshot(request.params.fieldId, { viewer }).catch(() => null);
       if (!snapshot) {
         reply.code(404);
         reply.type("text/html; charset=utf-8");
@@ -157,7 +178,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         basePath: "",
         title: `${snapshot.field.name} — この場所のいま — ikimon.life`,
         description: `${snapshot.field.name}の観察データ、季節、仮説、次の一手を1枚で読む場所のスナップショットです。`,
-        extraStyles: PLACE_SNAPSHOT_STYLES,
+        extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,
         lang,
         body: renderPlaceSnapshotBody(snapshot),
       });
@@ -291,7 +312,9 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       }
       const [stats, snapshot] = await Promise.all([
         getFieldStats(field.fieldId).catch(() => null),
-        getPlaceSnapshot(field.fieldId).catch(() => null),
+        areaSnapshotViewer(request, field.fieldId)
+          .then((viewer) => getAreaPlaceSnapshot(field.fieldId, { viewer }))
+          .catch(() => null),
       ]);
       if (!stats) {
         reply.code(500);

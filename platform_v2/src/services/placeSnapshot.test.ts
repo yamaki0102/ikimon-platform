@@ -180,6 +180,73 @@ test("place snapshot teaser embeds a light field-detail entry point", () => {
   assert.match(html, /場所の状態を1枚で見る/);
 });
 
+test("area place snapshot renders a public place album", () => {
+  const snapshot = composePlaceSnapshot({
+    field: field(),
+    stats: stats({ totalObservations: 3, uniqueSpeciesCount: 2, topTaxa: [{ name: "ガマズミ", count: 2 }] }),
+    canonical: {
+      totalObservations: 3,
+      totalVisits: 2,
+      uniqueTaxa: 2,
+      taxonRankCount: 1,
+      months: [5],
+      effortFilled: 1,
+      effortTotal: 2,
+      acceptedCount: 0,
+      reviewTotal: 2,
+      nativeCount: 1,
+      exoticCount: 0,
+      unknownOriginCount: 2,
+      stewardshipActionCount: 0,
+    },
+  });
+  const areaSnapshot = {
+    ...snapshot,
+    representativePhoto: null,
+    observationGallery: [{
+      occurrenceId: "occ-1",
+      visitId: "visit-1",
+      displayName: "ガマズミ",
+      observedAt: "2026-05-06T00:00:00.000Z",
+      photoUrl: "/uploads/photos/gamazumi.jpg",
+      localityLabel: "浜松市 / 静岡県",
+      observationCount: 2,
+      recentObservationCount: 1,
+      season: "spring",
+      seasonLabel: "春",
+      isCurrentSeason: true,
+    }],
+    seasonalCoverage: [
+      { season: "spring", label: "春", observations: 3, isCurrentSeason: true },
+      { season: "summer", label: "夏", observations: 0, isCurrentSeason: false },
+      { season: "autumn", label: "秋", observations: 0, isCurrentSeason: false },
+      { season: "winter", label: "冬", observations: 0, isCurrentSeason: false },
+    ],
+    yearlyTimeline: [],
+    effortIndicators: {
+      effortReportedRate: 0,
+      completeChecklistRate: 0,
+      temporalSpreadIndex: 0,
+      observerDiversity: 0,
+      nonDetectionRate: 0,
+      effortIndex: 0,
+      observerCount: 0,
+      topObserverShare: 0,
+      yearsCovered: 0,
+      monthsCovered: 0,
+      seasonsCovered: 1,
+    },
+    sensitiveMasking: { totalRare: 0, maskedSpecies: 0, viewerCanSeeExact: false },
+    firstSeenSpecies: [],
+    environmentChange: null,
+  } as const;
+  const html = renderPlaceSnapshotBody(areaSnapshot);
+  assert.match(html, /地域の生きものアルバム/);
+  assert.match(html, /今の季節・春/);
+  assert.match(html, /未記録季節: 夏・秋・冬/);
+  assert.match(html, /ガマズミ/);
+});
+
 test("public landing copy is not polluted by digital twin wording", async () => {
   const landingTop = await readFile(path.join(process.cwd(), "src", "ui", "landingTop.ts"), "utf8");
   const siteMap = await readFile(path.join(process.cwd(), "src", "siteMap.ts"), "utf8");

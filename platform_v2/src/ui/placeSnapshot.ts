@@ -1,4 +1,5 @@
 import type { PlaceSnapshot, PlaceSnapshotNextAction, PlaceSnapshotStewardshipComparison } from "../services/placeSnapshot.js";
+import type { AreaObservationGalleryItem, AreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
 import type { RelationshipAxis } from "../services/relationshipScore.js";
 import { escapeHtml } from "./siteShell.js";
 
@@ -8,6 +9,72 @@ function fmtNumber(value: number): string {
 
 function fmtPct(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function isAreaSnapshot(snapshot: PlaceSnapshot): snapshot is AreaPlaceSnapshot {
+  return Array.isArray((snapshot as Partial<AreaPlaceSnapshot>).observationGallery);
+}
+
+function seasonBadge(item: AreaObservationGalleryItem): string {
+  if (!item.seasonLabel) return "";
+  const label = item.isCurrentSeason ? `今の季節・${item.seasonLabel}` : item.seasonLabel;
+  return `<span class="ps-album-season${item.isCurrentSeason ? " is-current" : ""}">${escapeHtml(label)}</span>`;
+}
+
+function albumCard(item: AreaObservationGalleryItem): string {
+  const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
+  const meta = [
+    `${fmtNumber(item.observationCount)}件`,
+    item.observedAt ? item.observedAt.slice(0, 10) : "",
+    item.localityLabel ?? "",
+  ].filter(Boolean).join(" / ");
+  const photo = item.photoUrl
+    ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async" />`
+    : `<span class="ps-album-placeholder" aria-hidden="true">✦</span>`;
+  return `<a class="ps-album-card" href="${escapeHtml(href)}">
+    ${photo}
+    ${seasonBadge(item)}
+    <strong>${escapeHtml(item.displayName || "同定待ち")}</strong>
+    <small>${escapeHtml(meta)}</small>
+  </a>`;
+}
+
+function renderAreaAlbum(snapshot: PlaceSnapshot): string {
+  if (!isAreaSnapshot(snapshot)) return "";
+  const gallery = snapshot.observationGallery.slice(0, 12);
+  const currentSeason = gallery.filter((item) => item.isCurrentSeason).slice(0, 6);
+  const recent = gallery.slice()
+    .sort((a, b) => b.recentObservationCount - a.recentObservationCount || b.observationCount - a.observationCount)
+    .filter((item) => item.recentObservationCount > 0)
+    .slice(0, 6);
+  const missing = snapshot.seasonalCoverage.filter((row) => row.observations <= 0);
+  const missingText = missing.length > 0
+    ? missing.map((row) => row.label).join("・")
+    : "四季の入口あり";
+  const galleryHtml = gallery.length > 0
+    ? gallery.map(albumCard).join("")
+    : `<article class="ps-card"><span class="ps-badge">最初の発見</span><h3>まだ観察カードはありません</h3><p>この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
+  const currentHtml = currentSeason.length > 0
+    ? currentSeason.map(albumCard).join("")
+    : `<article class="ps-card"><span class="ps-badge">今の季節</span><h3>今の季節の記録を足す</h3><p>春夏秋冬の同じ時期を比べられると、この場所の顔が見えやすくなります。</p></article>`;
+  const recentHtml = recent.length > 0
+    ? recent.map(albumCard).join("")
+    : `<article class="ps-card"><span class="ps-badge">最近増えた記録</span><h3>直近90日の増加はまだ薄い</h3><p>次の観察で新しい写真を足すと、地図からこの場所を選ぶ理由が強くなります。</p></article>`;
+  return `<section class="ps-section ps-album" aria-label="地域の生きものアルバム">
+    <div class="ps-section-head">
+      <div>
+        <div class="ps-eyebrow">Area Album</div>
+        <h2>地域の生きものアルバム</h2>
+      </div>
+      <span class="ps-source">未記録季節: ${escapeHtml(missingText)}</span>
+    </div>
+    <p class="ps-section-lead">公園や水辺をクリックした人が、この場所で何が観察されているかを写真から眺められる公開図鑑です。</p>
+    <div class="ps-album-grid">${galleryHtml}</div>
+    <div class="ps-album-tabs">
+      <section><h3>今の季節に見えるもの</h3><div class="ps-album-grid ps-album-grid-compact">${currentHtml}</div></section>
+      <section><h3>最近増えた記録</h3><div class="ps-album-grid ps-album-grid-compact">${recentHtml}</div></section>
+    </div>
+  </section>`;
 }
 
 const AXIS_LABEL: Record<RelationshipAxis, string> = {
@@ -172,6 +239,8 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
       ${metric("分類群", fmtNumber(s.uniqueTaxa))}
       ${metric("季節", seasonText)}
     </section>
+
+    ${renderAreaAlbum(snapshot)}
 
     <section class="ps-section">
       <div class="ps-section-head">
@@ -444,6 +513,75 @@ export const PLACE_SNAPSHOT_STYLES = `
   gap: 8px;
   margin-top: 14px;
 }
+.ps-album-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.ps-album-grid-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.ps-album-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 8px 22px rgba(15,23,42,.06);
+  color: #0f172a;
+  text-decoration: none;
+}
+.ps-album-card img,
+.ps-album-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 11px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e0f2fe, #dcfce7);
+  color: #0f766e;
+  font-size: 26px;
+}
+.ps-album-card strong {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+.ps-album-card small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 760;
+}
+.ps-album-season {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(14,165,233,.10);
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 900;
+}
+.ps-album-season.is-current {
+  background: rgba(20,184,166,.14);
+  color: #0f766e;
+}
+.ps-album-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.ps-album-tabs h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
 .ps-steward-card {
   border: 1px solid rgba(15,23,42,.08);
   border-radius: 16px;
@@ -544,8 +682,13 @@ export const PLACE_SNAPSHOT_STYLES = `
   }
   .ps-grid-3,
   .ps-grid-4,
-  .ps-grid-5 {
+  .ps-grid-5,
+  .ps-album-grid,
+  .ps-album-grid-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ps-album-tabs {
+    grid-template-columns: 1fr;
   }
   .ps-teaser {
     grid-template-columns: 1fr;
@@ -555,7 +698,9 @@ export const PLACE_SNAPSHOT_STYLES = `
   .ps-shell { padding: 16px 0 48px; }
   .ps-grid-3,
   .ps-grid-4,
-  .ps-grid-5 {
+  .ps-grid-5,
+  .ps-album-grid,
+  .ps-album-grid-compact {
     grid-template-columns: 1fr;
   }
   .ps-section-head {

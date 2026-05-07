@@ -43,6 +43,29 @@ export type AreaRepresentativePhoto = {
   visitId: string;
 };
 
+export type AreaObservationGalleryItem = {
+  occurrenceId: string;
+  visitId: string;
+  displayName: string;
+  observedAt: string | null;
+  photoUrl: string | null;
+  localityLabel: string | null;
+  observationCount: number;
+  recentObservationCount: number;
+  season: AreaSeasonKey | null;
+  seasonLabel: string | null;
+  isCurrentSeason: boolean;
+};
+
+export type AreaSeasonKey = "spring" | "summer" | "autumn" | "winter";
+
+export type AreaSeasonCoverage = {
+  season: AreaSeasonKey;
+  label: string;
+  observations: number;
+  isCurrentSeason: boolean;
+};
+
 export type AreaYearlyRow = {
   year: number;
   observations: number;
@@ -74,6 +97,8 @@ export type AreaSensitiveMasking = {
 
 export type AreaPlaceSnapshot = PlaceSnapshot & {
   representativePhoto: AreaRepresentativePhoto | null;
+  observationGallery: AreaObservationGalleryItem[];
+  seasonalCoverage: AreaSeasonCoverage[];
   yearlyTimeline: AreaYearlyRow[];
   effortIndicators: AreaEffortIndicators;
   sensitiveMasking: AreaSensitiveMasking;
@@ -114,6 +139,26 @@ function monthToSeason(month: number): number {
   if (month >= 6 && month <= 8) return 1;
   if (month >= 9 && month <= 11) return 2;
   return 3;
+}
+
+function monthToSeasonKey(month: number): AreaSeasonKey {
+  if (month >= 3 && month <= 5) return "spring";
+  if (month >= 6 && month <= 8) return "summer";
+  if (month >= 9 && month <= 11) return "autumn";
+  return "winter";
+}
+
+function seasonLabel(key: AreaSeasonKey): string {
+  switch (key) {
+    case "spring": return "春";
+    case "summer": return "夏";
+    case "autumn": return "秋";
+    case "winter": return "冬";
+  }
+}
+
+function currentSeasonKey(now = new Date()): AreaSeasonKey {
+  return monthToSeasonKey(now.getMonth() + 1);
 }
 
 function normalizeAssetUrl(value: string | null | undefined): string | null {
@@ -238,6 +283,130 @@ async function loadRepresentativePhoto(
   );
 }
 
+async function loadObservationGallery(
+  field: { fieldId: string; lat: number; lng: number; radiusM: number },
+  placeId: string | null,
+): Promise<AreaObservationGalleryItem[]> {
+  const bbox = fieldBbox(field);
+  const pool = getPool();
+  return safeQuery(
+    "observation_gallery",
+    async () => {
+      const result = await pool.query<{
+        occurrence_id: string;
+        visit_id: string;
+        display_name: string | null;
+        observed_at: string | null;
+        locality_label: string | null;
+        photo_url: string | null;
+        observation_count: string;
+        recent_observation_count: string;
+      }>(
+        `with field_visits as (
+            select v.*
+              from visits v
+              left join places p on p.place_id = v.place_id
+             where v.observed_at is not null
+               and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+               and (
+                 v.source_payload->>'field_id' = $1
+                 or ($2::text is not null and v.place_id = $2)
+                 or $1::uuid = ANY(v.resolved_field_ids)
+                 or (
+                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
+                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
+                 )
+               )
+          ),
+          field_occ as (
+            select
+              o.occurrence_id,
+              fv.visit_id,
+              coalesce(
+                nullif(o.vernacular_name, ''),
+                nullif(o.scientific_name, ''),
+                nullif(ai.recommended_taxon_name, ''),
+                '同定待ち'
+              ) as display_name,
+              lower(coalesce(nullif(o.scientific_name, ''), nullif(o.vernacular_name, ''), o.occurrence_id::text)) as taxon_key,
+              fv.observed_at::text as observed_at,
+              concat_ws(' / ', nullif(fv.observed_municipality, ''), nullif(fv.observed_prefecture, '')) as locality_label,
+              photo.public_url as photo_url
+            from occurrences o
+            join field_visits fv on fv.visit_id = o.visit_id
+            left join lateral (
+              select recommended_taxon_name
+                from observation_ai_assessments a
+               where a.occurrence_id = o.occurrence_id
+               order by generated_at desc
+               limit 1
+            ) ai on true
+            left join lateral (
+              select coalesce(ab.public_url, ab.storage_path) as public_url
+                from evidence_assets ea
+                join asset_blobs ab on ab.blob_id = ea.blob_id
+               where ea.occurrence_id = o.occurrence_id
+                 and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+                 and coalesce(lower(ea.source_payload->'facePrivacy'->>'hasFace'), 'false') not in ('true', '1', 'yes')
+                 and coalesce(lower(ab.source_payload->'facePrivacy'->>'hasFace'), 'false') not in ('true', '1', 'yes')
+               order by ea.created_at asc
+               limit 1
+            ) photo on true
+            where not exists (
+              select 1
+                from civic_observation_contexts c
+               where c.visit_id = fv.visit_id
+                 and c.risk_lane = 'rare_sensitive'
+            )
+          ),
+          ranked as (
+            select
+              fo.*,
+              count(*) over (partition by fo.taxon_key)::text as observation_count,
+              count(*) filter (where fo.observed_at::timestamptz >= now() - interval '90 days')
+                over (partition by fo.taxon_key)::text as recent_observation_count,
+              row_number() over (
+                partition by fo.taxon_key
+                order by case when fo.photo_url is null then 1 else 0 end,
+                         fo.observed_at desc,
+                         fo.occurrence_id
+              ) as representative_rank
+            from field_occ fo
+          )
+          select occurrence_id, visit_id, display_name, observed_at,
+                 nullif(locality_label, '') as locality_label, photo_url, observation_count, recent_observation_count
+            from ranked
+           where representative_rank = 1
+           order by recent_observation_count::int desc, observation_count::int desc, observed_at desc
+           limit 12`,
+        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+      );
+
+      const current = currentSeasonKey();
+      return result.rows.map((row) => {
+        const observed = row.observed_at ? new Date(row.observed_at) : null;
+        const season = observed && !Number.isNaN(observed.getTime())
+          ? monthToSeasonKey(observed.getUTCMonth() + 1)
+          : null;
+        return {
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          displayName: row.display_name || "同定待ち",
+          observedAt: row.observed_at,
+          photoUrl: normalizeAssetUrl(row.photo_url),
+          localityLabel: row.locality_label,
+          observationCount: Number(row.observation_count) || 1,
+          recentObservationCount: Number(row.recent_observation_count) || 0,
+          season,
+          seasonLabel: season ? seasonLabel(season) : null,
+          isCurrentSeason: season === current,
+        };
+      });
+    },
+    [] as AreaObservationGalleryItem[],
+  );
+}
+
 async function loadYearlyTimeline(
   field: { fieldId: string; lat: number; lng: number; radiusM: number },
   placeId: string | null,
@@ -297,6 +466,64 @@ async function loadYearlyTimeline(
       }));
     },
     [] as AreaYearlyRow[],
+  );
+}
+
+async function loadSeasonalCoverage(
+  field: { fieldId: string; lat: number; lng: number; radiusM: number },
+  placeId: string | null,
+): Promise<AreaSeasonCoverage[]> {
+  const bbox = fieldBbox(field);
+  const pool = getPool();
+  const current = currentSeasonKey();
+  const empty: AreaSeasonCoverage[] = (["spring", "summer", "autumn", "winter"] as AreaSeasonKey[]).map((season) => ({
+    season,
+    label: seasonLabel(season),
+    observations: 0,
+    isCurrentSeason: season === current,
+  }));
+  return safeQuery(
+    "seasonal_coverage",
+    async () => {
+      const result = await pool.query<{ season: AreaSeasonKey; observations: string }>(
+        `with field_visits as (
+            select v.*
+              from visits v
+              left join places p on p.place_id = v.place_id
+             where v.observed_at is not null
+               and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+               and (
+                 v.source_payload->>'field_id' = $1
+                 or ($2::text is not null and v.place_id = $2)
+                 or $1::uuid = ANY(v.resolved_field_ids)
+                 or (
+                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
+                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
+                 )
+               )
+          ),
+          seasonal as (
+            select case
+                when extract(month from fv.observed_at) in (3,4,5) then 'spring'
+                when extract(month from fv.observed_at) in (6,7,8) then 'summer'
+                when extract(month from fv.observed_at) in (9,10,11) then 'autumn'
+                else 'winter'
+              end as season,
+              count(o.occurrence_id)::text as observations
+            from field_visits fv
+            join occurrences o on o.visit_id = fv.visit_id
+            group by 1
+          )
+          select season, observations from seasonal`,
+        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+      );
+      const counts = new Map(result.rows.map((row) => [row.season, Number(row.observations) || 0]));
+      return empty.map((row) => ({
+        ...row,
+        observations: counts.get(row.season) ?? 0,
+      }));
+    },
+    empty,
   );
 }
 
@@ -525,8 +752,10 @@ export async function getAreaPlaceSnapshot(
   if (!field) return null;
   const placeId = base.relationshipScore.placeId ?? null;
   const fieldForBbox = { fieldId, lat: field.lat, lng: field.lng, radiusM: field.radiusM, createdAt: field.createdAt };
-  const [representativePhoto, yearlyTimeline, effortIndicators, sensitiveMasking] = await Promise.all([
+  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking] = await Promise.all([
     loadRepresentativePhoto(fieldForBbox, placeId),
+    loadObservationGallery(fieldForBbox, placeId),
+    loadSeasonalCoverage(fieldForBbox, placeId),
     loadYearlyTimeline(fieldForBbox, placeId),
     loadEffortIndicators(fieldForBbox, placeId),
     loadSensitiveMasking(fieldForBbox, placeId, options.viewer),
@@ -534,6 +763,8 @@ export async function getAreaPlaceSnapshot(
   return {
     ...base,
     representativePhoto,
+    observationGallery,
+    seasonalCoverage,
     yearlyTimeline,
     effortIndicators,
     sensitiveMasking,
