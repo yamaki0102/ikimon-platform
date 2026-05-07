@@ -4418,6 +4418,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <input type="hidden" name="placeId" value="" />
               <input type="hidden" name="prefecture" value="" />
               <input type="hidden" name="revisitOfVisitId" value="" />
+              <div id="record-video-guide" class="record-video-guide" hidden>
+                <div class="record-video-guide-head">
+                  <div>
+                    <span class="record-label">動画投稿ナビ</span>
+                    <strong id="record-video-guide-title">動画を選ぶと、ここに次の行動を出します。</strong>
+                    <p id="record-video-guide-help">長い動画でも、使う60秒を選べばそのまま保存できます。</p>
+                  </div>
+                  <span id="record-video-guide-badge">待機中</span>
+                </div>
+                <ol class="record-video-guide-steps" aria-label="動画投稿の手順">
+                  <li data-video-guide-step="pick"><b>1</b><span>動画を選ぶ</span></li>
+                  <li data-video-guide-step="length"><b>2</b><span>60秒以内にする</span></li>
+                  <li data-video-guide-step="save"><b>3</b><span>保存する</span></li>
+                </ol>
+              </div>
               <div id="record-submit-panel" class="record-submit-panel" hidden>
                 <div>
                   <span class="record-label">送信前チェック</span>
@@ -4440,13 +4455,24 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div id="record-video-trim" class="record-video-trim" hidden>
                 <div class="record-video-trim-head">
                   <div>
-                    <strong>投稿する最大60秒を選ぶ</strong>
-                    <p>動画投稿は最大60秒です。長めに撮った動画から、見せたい動きや鳴き声の区間だけを切り出します。</p>
+                    <strong>動画の長さを確認</strong>
+                    <p>青い範囲が投稿されます。60秒以内ならそのまま保存できます。</p>
                   </div>
                   <span id="record-video-trim-duration">0.0秒</span>
                 </div>
+                <div class="record-video-length-meter" data-video-length-state="ok">
+                  <div class="record-video-length-row">
+                    <span id="record-video-length-label">使う長さ 0秒</span>
+                    <strong id="record-video-length-limit">60秒まで</strong>
+                  </div>
+                  <div class="record-video-length-track" aria-hidden="true"><span id="record-video-length-fill"></span></div>
+                </div>
                 <div class="record-video-trim-preview">
                   <video id="record-video-trim-player" controls playsinline preload="metadata" aria-label="動画トリミングプレビュー"></video>
+                </div>
+                <div class="record-video-trim-shortcuts" aria-label="使う区間をすばやく選ぶ">
+                  <button type="button" id="record-video-trim-first">はじめの60秒</button>
+                  <button type="button" id="record-video-trim-last">おわりの60秒</button>
                 </div>
                 <div class="record-video-trim-controls">
                   <label>
@@ -4459,8 +4485,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   </label>
                 </div>
                 <div class="record-video-trim-actions">
-                  <button type="button" class="btn btn-solid" id="record-video-trim-apply">この区間で使う</button>
-                  <span id="record-video-trim-status" aria-live="polite">投稿は最大60秒です。区間を選ぶと投稿前に短い動画を作ります。</span>
+                  <button type="button" class="btn btn-solid" id="record-video-trim-apply">この長さでOK</button>
+                  <span id="record-video-trim-status" aria-live="polite">動画を選ぶと、長さと保存できる状態を表示します。</span>
                 </div>
               </div>
               <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
@@ -4718,6 +4744,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const locationSearchInput = document.getElementById('record-location-search');
         const locationSearchButton = document.getElementById('record-location-search-btn');
         const locationResults = document.getElementById('record-location-results');
+        const videoGuide = document.getElementById('record-video-guide');
+        const videoGuideTitle = document.getElementById('record-video-guide-title');
+        const videoGuideHelp = document.getElementById('record-video-guide-help');
+        const videoGuideBadge = document.getElementById('record-video-guide-badge');
+        const videoGuideSteps = Array.from(document.querySelectorAll('[data-video-guide-step]'));
         const videoProgressWrap = document.getElementById('record-video-progress');
         const videoProgressBar = document.getElementById('record-video-progressbar');
         const videoProgressLabel = document.getElementById('record-video-progress-label');
@@ -4732,11 +4763,18 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const videoTrimPlayer = document.getElementById('record-video-trim-player');
         const videoTrimStart = document.getElementById('record-video-trim-start');
         const videoTrimEnd = document.getElementById('record-video-trim-end');
+        const videoTrimControls = videoTrimWrap ? videoTrimWrap.querySelector('.record-video-trim-controls') : null;
         const videoTrimStartLabel = document.getElementById('record-video-trim-start-label');
         const videoTrimEndLabel = document.getElementById('record-video-trim-end-label');
         const videoTrimDuration = document.getElementById('record-video-trim-duration');
         const videoTrimApply = document.getElementById('record-video-trim-apply');
         const videoTrimStatus = document.getElementById('record-video-trim-status');
+        const videoLengthLabel = document.getElementById('record-video-length-label');
+        const videoLengthLimit = document.getElementById('record-video-length-limit');
+        const videoLengthFill = document.getElementById('record-video-length-fill');
+        const videoLengthMeter = videoLengthFill ? videoLengthFill.closest('.record-video-length-meter') : null;
+        const videoTrimFirst = document.getElementById('record-video-trim-first');
+        const videoTrimLast = document.getElementById('record-video-trim-last');
         const videoPrimaryPhotoWrap = document.getElementById('record-video-primary-photo');
         const videoPrimaryPhotoInput = document.getElementById('record-video-primary-photo-input');
         const videoPrimaryPhotoPick = document.getElementById('record-video-primary-photo-pick');
@@ -4782,7 +4820,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const captureLabels = {
           note: { title: 'メモだけ残す', help: '写真なしでも、場所・時間・ひとことで記録できます。' },
           photo: { title: '写真で記録する', help: '撮った写真、または端末上の写真を記録に添付します。' },
-          video: { title: '動画を追加', help: '動画投稿は最大60秒まで。大きい動画や不安定な通信では分割送信します。' },
+          video: { title: '動画で記録する', help: '動画を選ぶと、長さ・地点・公開までの状態を順番に案内します。' },
           gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
         };
 
@@ -5160,7 +5198,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (videoPrimaryPhotoHelp) {
             videoPrimaryPhotoHelp.textContent = selectedPrimaryPhotoFile
               ? 'この写真を主役として保存し、動画は音・動きの証拠として同じ観察に添付します。'
-              : '動画だけでは「どれが主役か」が曖昧になりやすいので、主役がよく写った写真を1枚添えると同定しやすくなります。';
+              : '写真は任意です。名前を調べやすくしたいときだけ、主役が写った写真を1枚足せます。';
           }
           if (videoPrimaryPhotoClear) videoPrimaryPhotoClear.hidden = !selectedPrimaryPhotoFile;
         };
@@ -5613,6 +5651,30 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           return value.toFixed(1) + '秒';
         };
 
+        const setVideoGuideState = (state, title, help, badge) => {
+          if (!videoGuide) return;
+          const hasVideo = selectedVideoFile instanceof File && isVideoFile(selectedVideoFile);
+          videoGuide.hidden = !hasVideo;
+          if (!hasVideo) return;
+          videoGuide.dataset.state = state || 'picked';
+          if (videoGuideTitle) videoGuideTitle.textContent = title || '動画を確認しています。';
+          if (videoGuideHelp) videoGuideHelp.textContent = help || '長さと地点を確認して保存できます。';
+          if (videoGuideBadge) videoGuideBadge.textContent = badge || '確認中';
+          const doneByState = {
+            picked: ['pick'],
+            ok: ['pick', 'length'],
+            trim: ['pick'],
+            ready: ['pick', 'length'],
+            saving: ['pick', 'length', 'save'],
+          };
+          const done = doneByState[state] || ['pick'];
+          videoGuideSteps.forEach((step) => {
+            const key = step.getAttribute('data-video-guide-step') || '';
+            const active = (state === 'trim' && key === 'length') || (state === 'ready' && key === 'save');
+            step.dataset.state = done.includes(key) ? 'done' : (active ? 'current' : 'pending');
+          });
+        };
+
         const isVideoDurationReadError = (error) => {
           const message = normalizeError(error);
           return message === 'video_metadata_read_failed' || message === 'video_duration_unknown';
@@ -5682,8 +5744,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             videoTrimPlayer.load();
           }
           if (videoTrimWrap) videoTrimWrap.hidden = true;
-          if (videoTrimStatus) videoTrimStatus.textContent = '投稿は最大60秒です。区間を選ぶと投稿前に短い動画を作ります。';
+          if (videoTrimStatus) videoTrimStatus.textContent = '動画を選ぶと、長さと保存できる状態を表示します。';
+          if (videoLengthFill) videoLengthFill.style.width = '0%';
+          if (videoLengthLabel) videoLengthLabel.textContent = '使う長さ 0秒';
+          if (videoLengthLimit) videoLengthLimit.textContent = '60秒まで';
+          if (videoLengthMeter) videoLengthMeter.dataset.videoLengthState = 'ok';
           if (videoTrimApply) videoTrimApply.disabled = false;
+          if (videoTrimApply) videoTrimApply.hidden = false;
+          if (videoTrimControls) videoTrimControls.hidden = false;
+          if (videoTrimFirst) videoTrimFirst.hidden = true;
+          if (videoTrimLast) videoTrimLast.hidden = true;
           videoTrimState = null;
           selectedOriginalVideoFile = null;
           if (!(opts && opts.keepTrimmedFlag)) selectedVideoWasTrimmed = false;
@@ -5713,15 +5783,38 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (videoTrimStartLabel) videoTrimStartLabel.textContent = formatVideoSeconds(start);
           if (videoTrimEndLabel) videoTrimEndLabel.textContent = formatVideoSeconds(end);
           if (videoTrimDuration) videoTrimDuration.textContent = formatVideoSeconds(end - start);
+          if (videoLengthFill) {
+            const ratio = Math.max(0, Math.min(1, (end - start) / MAX_VIDEO_SECONDS));
+            videoLengthFill.style.width = String(Math.round(ratio * 100)) + '%';
+          }
+          if (videoLengthLabel) videoLengthLabel.textContent = '使う長さ ' + formatVideoSeconds(end - start);
+          if (videoLengthLimit) {
+            videoLengthLimit.textContent = duration > MAX_VIDEO_SECONDS + 0.5
+              ? '全体 ' + formatVideoSeconds(duration)
+              : '60秒以内';
+          }
           if (videoTrimPlayer && Math.abs(Number(videoTrimPlayer.currentTime || 0) - start) > 0.4) {
             videoTrimPlayer.currentTime = start;
           }
-          const needsClip = duration > MAX_VIDEO_SECONDS + 0.5 || start > 0.15 || end < duration - 0.15;
+          const isLongVideo = duration > MAX_VIDEO_SECONDS + 0.5;
+          const needsClip = isLongVideo || start > 0.15 || end < duration - 0.15;
+          if (videoLengthMeter) videoLengthMeter.dataset.videoLengthState = end - start > MAX_VIDEO_SECONDS + 0.5 ? 'warn' : 'ok';
+          if (videoTrimApply) videoTrimApply.textContent = needsClip ? 'この60秒でOK' : 'このままOK';
+          if (videoTrimApply) videoTrimApply.hidden = !isLongVideo;
+          if (videoTrimControls) videoTrimControls.hidden = !isLongVideo;
+          if (videoTrimFirst) videoTrimFirst.hidden = !isLongVideo;
+          if (videoTrimLast) videoTrimLast.hidden = !isLongVideo;
           if (videoTrimStatus) {
             videoTrimStatus.textContent = needsClip
-              ? '選んだ最大60秒だけの動画を作ってから投稿できます。'
-              : '60秒以内なのでこのまま投稿できます。必要なら区間を選べます。';
+              ? '長い動画です。青い範囲だけを保存します。このまま保存を押しても自動で切り出します。'
+              : '60秒以内です。このまま保存できます。';
           }
+          setVideoGuideState(
+            needsClip ? 'trim' : 'ready',
+            needsClip ? '使う60秒を選べば保存できます。' : 'この動画はそのまま保存できます。',
+            needsClip ? '迷ったら「はじめの60秒」のままで大丈夫です。' : '次は撮影地点を確認して保存します。',
+            needsClip ? '60秒選択中' : 'OK',
+          );
         };
 
         const loadVideoTrimEditor = async (file) => {
@@ -5742,6 +5835,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             videoTrimPlayer.currentTime = 0;
           }
           videoTrimWrap.hidden = false;
+          syncVideoTrimControls();
+        };
+
+        const setVideoTrimRange = (start, end) => {
+          if (!videoTrimState || !videoTrimStart || !videoTrimEnd) return;
+          videoTrimStart.value = String(Math.max(0, Number(start) || 0));
+          videoTrimEnd.value = String(Math.max(0.1, Number(end) || Math.min(videoTrimState.duration, MAX_VIDEO_SECONDS)));
           syncVideoTrimControls();
         };
 
@@ -5851,7 +5951,24 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             throw error;
           }
           if (duration > MAX_VIDEO_SECONDS + 0.5 && !selectedVideoWasTrimmed) {
-            throw new Error('video_trim_required');
+            if (!videoTrimState || !selectedOriginalVideoFile) {
+              throw new Error('video_trim_required');
+            }
+            if (videoTrimApply) videoTrimApply.disabled = true;
+            if (videoTrimStatus) videoTrimStatus.textContent = '選んだ60秒を作ってから保存します。少し待ってください。';
+            if (videoLive) videoLive.textContent = '長い動画から選んだ60秒を作成中です。';
+            setVideoGuideState('saving', '選んだ60秒を作っています。', '終わると自動でアップロードに進みます。', '作成中');
+            try {
+              const trimmedFile = await createTrimmedVideoFile();
+              selectedVideoFile = trimmedFile;
+              selectedVideoWasTrimmed = true;
+              renderPreviewFile(trimmedFile);
+              resetVideoTrim({ keepTrimmedFlag: true });
+              return trimmedFile;
+            } catch (error) {
+              if (videoTrimApply) videoTrimApply.disabled = false;
+              throw error;
+            }
           }
           return file;
         };
@@ -5865,13 +5982,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (!needsClip) {
             selectedVideoFile = selectedOriginalVideoFile;
             selectedVideoWasTrimmed = false;
-            if (videoTrimStatus) videoTrimStatus.textContent = 'このまま投稿できます。';
+            if (videoTrimStatus) videoTrimStatus.textContent = 'このまま保存できます。';
             if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+            setVideoGuideState('ready', 'この動画はそのまま保存できます。', '次は撮影地点を確認して保存します。', 'OK');
             syncSubmitCta();
             return;
           }
           if (videoTrimApply) videoTrimApply.disabled = true;
-          if (videoTrimStatus) videoTrimStatus.textContent = '選んだ区間の動画を作成中です...';
+          if (videoTrimStatus) videoTrimStatus.textContent = '選んだ60秒の動画を作成中です...';
+          setVideoGuideState('saving', '選んだ60秒を作っています。', '終わると保存できる状態になります。', '作成中');
           try {
             const trimmedFile = await createTrimmedVideoFile();
             selectedVideoFile = trimmedFile;
@@ -5881,6 +6000,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             resetVideoTrim({ keepTrimmedFlag: true });
             if (videoProgressWrap) videoProgressWrap.hidden = false;
             if (videoLive) videoLive.textContent = '切り出した動画をアップロードできます。送信すると開始します。';
+            setVideoGuideState('ready', '60秒の動画にできました。', '次は撮影地点を確認して保存します。', 'OK');
           } catch (error) {
             if (videoTrimApply) videoTrimApply.disabled = false;
             const message = normalizeError(error);
@@ -6106,6 +6226,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (hasDraft && form) {
             window.requestAnimationFrame(() => form.scrollIntoView({ block: 'start', behavior: 'auto' }));
           }
+          if (selectedVideoFile) {
+            setVideoGuideState('picked', '動画を確認しています。', '長さを読んで、保存できる状態か表示します。', '確認中');
+          } else if (videoGuide) {
+            videoGuide.hidden = true;
+          }
           syncVideoPrimaryPhotoUi();
         };
 
@@ -6163,6 +6288,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           renderPreviewFile(null);
           resetVideoTrim();
           resetVideoProgress();
+          if (videoGuide) videoGuide.hidden = true;
           syncVideoPrimaryPhotoUi();
           syncSubmitCta();
           syncModeUi();
@@ -6610,9 +6736,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 trimReady = false;
                 resetVideoTrim();
                 if (videoLive) videoLive.textContent = '端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。';
+                setVideoGuideState('ready', '動画を選べました。', '端末で秒数を読めませんでした。60秒以内の動画として保存時に確認します。', '確認中');
               }
               videoProgressWrap.hidden = false;
-              if (trimReady && videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+              if (trimReady && videoLive) videoLive.textContent = '長さを確認しました。保存を押すとアップロードします。';
             }
           });
         });
@@ -6651,6 +6778,19 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         }
         if (videoTrimEnd) {
           videoTrimEnd.addEventListener('input', () => syncVideoTrimControls('end'));
+        }
+        if (videoTrimFirst) {
+          videoTrimFirst.addEventListener('click', () => {
+            if (!videoTrimState) return;
+            setVideoTrimRange(0, Math.min(videoTrimState.duration, MAX_VIDEO_SECONDS));
+          });
+        }
+        if (videoTrimLast) {
+          videoTrimLast.addEventListener('click', () => {
+            if (!videoTrimState) return;
+            const end = Number(videoTrimState.duration || 0);
+            setVideoTrimRange(Math.max(0, end - MAX_VIDEO_SECONDS), end);
+          });
         }
         if (videoTrimPlayer) {
           videoTrimPlayer.addEventListener('timeupdate', () => {
@@ -7217,6 +7357,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-mode-chip span { font-size: 12px; line-height: 1.6; color: #64748b; font-weight: 700; }
         .record-mode-chip.is-active { border-color: rgba(14,165,233,.36); box-shadow: 0 10px 24px rgba(14,165,233,.1); transform: translateY(-1px); }
         .record-media-role { padding: 14px; border-radius: 20px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
+        .record-video-guide { grid-column: 1 / -1; display: grid; gap: 12px; padding: 16px; border-radius: 18px; background: #f0f9ff; border: 1px solid rgba(14,165,233,.22); }
+        .record-video-guide[hidden] { display: none; }
+        .record-video-guide-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .record-video-guide-head strong { display: block; margin-top: 4px; color: #0f172a; font-size: 16px; line-height: 1.35; }
+        .record-video-guide-head p { margin: 5px 0 0; color: #475569; font-size: 13px; line-height: 1.6; font-weight: 780; }
+        .record-video-guide-head > span { flex: 0 0 auto; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border-radius: 999px; background: #0369a1; color: #fff; font-size: 12px; font-weight: 950; white-space: nowrap; }
+        .record-video-guide[data-state="trim"] .record-video-guide-head > span { background: #b45309; }
+        .record-video-guide[data-state="ready"] .record-video-guide-head > span,
+        .record-video-guide[data-state="saving"] .record-video-guide-head > span { background: #047857; }
+        .record-video-guide-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-video-guide-steps li { min-height: 58px; display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.74); border: 1px solid rgba(15,23,42,.08); color: #475569; font-weight: 900; }
+        .record-video-guide-steps b { flex: 0 0 26px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #e2e8f0; color: #334155; font-size: 12px; }
+        .record-video-guide-steps span { font-size: 12px; line-height: 1.25; }
+        .record-video-guide-steps li[data-state="done"] { background: #ecfdf5; border-color: rgba(16,185,129,.28); color: #064e3b; }
+        .record-video-guide-steps li[data-state="done"] b { background: #059669; color: #fff; }
+        .record-video-guide-steps li[data-state="current"] { background: #fffbeb; border-color: rgba(245,158,11,.34); color: #78350f; }
+        .record-video-guide-steps li[data-state="current"] b { background: #f59e0b; color: #fff; }
         .record-video-primary-photo { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; border-radius: 20px; background: linear-gradient(135deg, rgba(236,253,245,.95), rgba(239,246,255,.95)); border: 1px solid rgba(16,185,129,.22); }
         .record-video-primary-photo[hidden] { display: none; }
         .record-video-primary-photo strong { display: block; margin-top: 4px; color: #0f172a; font-size: 14px; line-height: 1.4; word-break: break-word; }
@@ -7239,17 +7396,28 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-video-trim { grid-column: 1 / -1; display: grid; gap: 12px; padding: 14px; border-radius: 18px; background: linear-gradient(180deg, rgba(236,253,245,.92), rgba(239,246,255,.92)); border: 1px solid rgba(14,165,233,.2); }
         .record-video-trim[hidden] { display: none; }
         .record-video-trim-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-        .record-video-trim-head strong { display: block; color: #0f172a; font-size: 15px; }
-        .record-video-trim-head p { margin: 4px 0 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
-        .record-video-trim-head span { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #fff; color: #047857; font-size: 12px; font-weight: 950; border: 1px solid rgba(16,185,129,.2); }
+        .record-video-trim-head strong { display: block; color: #0f172a; font-size: 16px; }
+        .record-video-trim-head p { margin: 4px 0 0; color: #475569; font-size: 13px; line-height: 1.55; font-weight: 780; }
+        .record-video-trim-head span { flex: 0 0 auto; min-width: 96px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border-radius: 999px; background: #064e3b; color: #fff; font-size: 13px; font-weight: 950; border: 1px solid rgba(16,185,129,.2); }
+        .record-video-length-meter { display: grid; gap: 7px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
+        .record-video-length-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: #0f172a; font-size: 13px; font-weight: 950; }
+        .record-video-length-row strong { color: #047857; font-size: 12px; white-space: nowrap; }
+        .record-video-length-meter[data-video-length-state="warn"] .record-video-length-row strong { color: #b45309; }
+        .record-video-length-track { height: 12px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+        .record-video-length-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: #059669; transition: width .18s ease, background .18s ease; }
+        .record-video-length-meter[data-video-length-state="warn"] .record-video-length-track span { background: #f59e0b; }
         .record-video-trim-preview { aspect-ratio: 16 / 9; min-height: 160px; border-radius: 16px; overflow: hidden; background: #020617; }
         .record-video-trim-preview video { width: 100%; height: 100%; display: block; object-fit: contain; background: #020617; }
+        .record-video-trim-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .record-video-trim-shortcuts button { min-height: 48px; border: 1px solid rgba(14,165,233,.24); border-radius: 14px; background: #fff; color: #075985; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; }
+        .record-video-trim-shortcuts button[hidden] { display: none; }
         .record-video-trim-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .record-video-trim-controls label { display: grid; gap: 7px; color: #0f172a; font-size: 12px; font-weight: 900; }
+        .record-video-trim-controls[hidden] { display: none; }
+        .record-video-trim-controls label { display: grid; gap: 7px; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.76); color: #0f172a; font-size: 12px; font-weight: 900; }
         .record-video-trim-controls label span { display: flex; justify-content: space-between; gap: 8px; }
         .record-video-trim-controls input { width: 100%; accent-color: #047857; }
         .record-video-trim-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-        .record-video-trim-actions span { color: #0f766e; font-size: 12px; line-height: 1.55; font-weight: 800; }
+        .record-video-trim-actions span { flex: 1 1 240px; color: #0f766e; font-size: 13px; line-height: 1.55; font-weight: 850; }
         .record-video-progress { grid-column: 1 / -1; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.2); display: grid; gap: 8px; }
         .record-video-progress[hidden] { display: none; }
         .record-video-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -7337,8 +7505,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-submit-panel .btn { width: 100%; }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
+          .record-video-guide-head { flex-direction: column; }
+          .record-video-guide-head > span { width: 100%; }
+          .record-video-guide-steps { grid-template-columns: 1fr; }
+          .record-video-guide-steps li { min-height: 48px; }
           .record-video-primary-photo { align-items: flex-start; flex-direction: column; }
           .record-video-primary-photo-actions, .record-video-primary-photo-actions .btn { width: 100%; }
+          .record-video-trim-head { flex-direction: column; }
+          .record-video-trim-head span { width: 100%; }
+          .record-video-trim-shortcuts { grid-template-columns: 1fr; }
           .record-video-trim-controls { grid-template-columns: 1fr; }
           .record-video-trim-actions .btn { width: 100%; }
           .record-video-publication-steps { grid-template-columns: 1fr; }
