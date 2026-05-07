@@ -7,6 +7,7 @@ import {
   parsePublicCellId,
   summarizePublicLocalitySet,
 } from "./publicLocation.js";
+import { buildPublicMapCellName } from "./publicMapCellNaming.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import {
   PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
@@ -1167,24 +1168,35 @@ function buildMapPreviewCells(rows: FeedRow[]): LandingMapPreviewCell[] {
     });
   }
 
-  return Array.from(groups.entries())
+  const cells: LandingMapPreviewCell[] = Array.from(groups.entries())
     .map(([cellId, group]) => {
       const parts = parsePublicCellId(cellId);
       if (!parts) return null;
       const geometry = buildPublicCellGeometry(parts);
       const locality = summarizePublicLocalitySet(group.localityInputs);
-      return {
+      const name = buildPublicMapCellName({
+        localityLabel: locality.label,
+        localityScope: locality.scope,
+        gridM: parts.gridM,
+        count: group.count,
+      });
+      const cell: LandingMapPreviewCell = {
         cellId,
         label: locality.label,
+        albumName: name.albumName,
+        themeLabel: name.themeLabel,
+        scaleLabel: name.scaleLabel,
         count: group.count,
         gridM: parts.gridM,
         centroidLat: geometry.centroidLat,
         centroidLng: geometry.centroidLng,
         polygon: geometry.ring,
-      } satisfies LandingMapPreviewCell;
+      };
+      return cell;
     })
     .filter((cell): cell is LandingMapPreviewCell => Boolean(cell))
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b.count - a.count);
+  return cells
     .slice(0, 18);
 }
 

@@ -19,6 +19,7 @@ import {
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
+import { buildPublicMapCellName } from "./publicMapCellNaming.js";
 
 /**
  * Public map snapshot for `/map`.
@@ -59,10 +60,17 @@ export type PublicMapCellFeature = {
   properties: {
     cellId: string;
     label: string;
+    albumName: string;
+    localityLabel: string;
+    themeLabel: string;
+    scaleLabel: string;
+    nearbyAreaName: string | null;
+    nameEraLabel: string | null;
     scope: PublicLocalityScope;
     gridM: number;
     radiusM: number;
     count: number;
+    firstObservedAt: string | null;
     latestObservedAt: string | null;
     taxonMix: Partial<Record<TaxonGroup, number>>;
     centroidLat: number;
@@ -175,6 +183,7 @@ type PublicCellGroup = {
   cellX: number;
   cellY: number;
   count: number;
+  firstObservedAt: string | null;
   latestObservedAt: string | null;
   localityInputs: Array<{ municipality?: string | null; prefecture?: string | null }>;
   taxonMix: Partial<Record<TaxonGroup, number>>;
@@ -522,6 +531,7 @@ export function buildPublicMapCells(
         cellX: cell.cellX,
         cellY: cell.cellY,
         count: 0,
+        firstObservedAt: null,
         latestObservedAt: null,
         localityInputs: [],
         taxonMix: {},
@@ -533,6 +543,9 @@ export function buildPublicMapCells(
       municipality: row.municipality,
       prefecture: row.prefecture,
     });
+    if (!group.firstObservedAt || row.observedAt < group.firstObservedAt) {
+      group.firstObservedAt = row.observedAt;
+    }
     if (!group.latestObservedAt || row.observedAt > group.latestObservedAt) {
       group.latestObservedAt = row.observedAt;
     }
@@ -544,6 +557,13 @@ export function buildPublicMapCells(
     .map((group) => {
       const locality = summarizePublicLocalitySet(group.localityInputs);
       const polygon = buildPublicCellGeometry(group);
+      const name = buildPublicMapCellName({
+        localityLabel: locality.label,
+        localityScope: locality.scope,
+        gridM: group.gridM,
+        count: group.count,
+        taxonMix: group.taxonMix,
+      });
       return {
         type: "Feature" as const,
         geometry: {
@@ -553,10 +573,17 @@ export function buildPublicMapCells(
         properties: {
           cellId: group.cellId,
           label: locality.label,
+          albumName: name.albumName,
+          localityLabel: name.localityLabel,
+          themeLabel: name.themeLabel,
+          scaleLabel: name.scaleLabel,
+          nearbyAreaName: name.nearbyAreaName,
+          nameEraLabel: name.nameEraLabel,
           scope: locality.scope,
           gridM: group.gridM,
           radiusM: radiusForGrid(group.gridM),
           count: group.count,
+          firstObservedAt: group.firstObservedAt,
           latestObservedAt: group.latestObservedAt,
           taxonMix: group.taxonMix,
           centroidLat: polygon.centroidLat,
@@ -635,11 +662,191 @@ export function buildPublicCellRecords(
   };
 }
 
+export type PublicAreaNameCandidate = {
+  name: string;
+  admin_level: string | null;
+  source: string;
+  entity_key: string | null;
+  area_ha: string | number | null;
+  bbox_min_lat: string | number | null;
+  bbox_max_lat: string | number | null;
+  bbox_min_lng: string | number | null;
+  bbox_max_lng: string | number | null;
+  valid_from: string | null;
+  valid_to: string | null;
+};
+
+export type NearbyAreaChoice = {
+  name: string;
+  nameEraLabel: string | null;
+};
+
+function boundsFromFeature(feature: PublicMapCellFeature): [number, number, number, number] | null {
+  const ring = feature.geometry.coordinates[0];
+  if (!Array.isArray(ring) || ring.length === 0) return null;
+  let minLng = Number.POSITIVE_INFINITY;
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLng = Number.NEGATIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+  for (const coord of ring) {
+    const lng = Number(coord[0]);
+    const lat = Number(coord[1]);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    minLng = Math.min(minLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLng = Math.max(maxLng, lng);
+    maxLat = Math.max(maxLat, lat);
+  }
+  if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return null;
+  return [minLng, minLat, maxLng, maxLat];
+}
+
+function bboxOverlapsCell(row: PublicAreaNameCandidate, bounds: [number, number, number, number]): boolean {
+  const [minLng, minLat, maxLng, maxLat] = bounds;
+  const rowMinLat = Number(row.bbox_min_lat);
+  const rowMaxLat = Number(row.bbox_max_lat);
+  const rowMinLng = Number(row.bbox_min_lng);
+  const rowMaxLng = Number(row.bbox_max_lng);
+  if (![rowMinLat, rowMaxLat, rowMinLng, rowMaxLng].every(Number.isFinite)) return false;
+  return rowMinLat <= maxLat && rowMaxLat >= minLat && rowMinLng <= maxLng && rowMaxLng >= minLng;
+}
+
+function isPublicNearbyNameCandidate(row: PublicAreaNameCandidate): boolean {
+  const level = row.admin_level ?? row.source;
+  return ["osm_park", "nature_symbiosis_site", "tsunag", "protected", "oecm"].includes(level);
+}
+
+function dateKey(value: string | null | undefined): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const key = raw.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
+}
+
+function rangeOverlapsCandidate(
+  row: PublicAreaNameCandidate,
+  period: { firstObservedAt?: string | null; latestObservedAt?: string | null },
+): boolean {
+  const first = dateKey(period.firstObservedAt);
+  const latest = dateKey(period.latestObservedAt) ?? first;
+  if (!first || !latest) return row.valid_to === null;
+  const validFrom = dateKey(row.valid_from);
+  const validTo = dateKey(row.valid_to);
+  return (!validFrom || validFrom <= latest) && (!validTo || validTo >= first);
+}
+
+function candidateValidAt(row: PublicAreaNameCandidate, observedAt: string | null | undefined): boolean {
+  const observed = dateKey(observedAt);
+  if (!observed) return row.valid_to === null;
+  const validFrom = dateKey(row.valid_from);
+  const validTo = dateKey(row.valid_to);
+  return (!validFrom || validFrom <= observed) && (!validTo || validTo >= observed);
+}
+
+function chooseNearbyAreaName(
+  rows: PublicAreaNameCandidate[],
+  bounds: [number, number, number, number],
+  period: { firstObservedAt?: string | null; latestObservedAt?: string | null } = {},
+): NearbyAreaChoice | null {
+  const candidates = rows
+    .filter((row) => row.name && isPublicNearbyNameCandidate(row) && bboxOverlapsCell(row, bounds))
+    .filter((row) => rangeOverlapsCandidate(row, period) || row.valid_to === null)
+    .sort((a, b) => {
+      const aLatest = candidateValidAt(a, period.latestObservedAt);
+      const bLatest = candidateValidAt(b, period.latestObservedAt);
+      if (aLatest !== bLatest) return aLatest ? -1 : 1;
+      const aOverlaps = rangeOverlapsCandidate(a, period);
+      const bOverlaps = rangeOverlapsCandidate(b, period);
+      if (aOverlaps !== bOverlaps) return aOverlaps ? -1 : 1;
+      const areaA = Number(a.area_ha);
+      const areaB = Number(b.area_ha);
+      const safeA = Number.isFinite(areaA) ? areaA : 999999;
+      const safeB = Number.isFinite(areaB) ? areaB : 999999;
+      return safeA - safeB || a.name.localeCompare(b.name, "ja");
+    });
+  const selected = candidates[0];
+  if (!selected) return null;
+  return {
+    name: selected.name,
+    nameEraLabel: selected.valid_to === null ? null : "観察当時の地名",
+  };
+}
+
+async function enrichPublicMapCellNames(collection: PublicMapCellFeatureCollection): Promise<void> {
+  const featureBounds = collection.features
+    .map((feature) => ({ feature, bounds: boundsFromFeature(feature) }))
+    .filter((entry): entry is { feature: PublicMapCellFeature; bounds: [number, number, number, number] } => entry.bounds !== null);
+  if (featureBounds.length === 0) return;
+
+  const minLng = Math.min(...featureBounds.map((entry) => entry.bounds[0]));
+  const minLat = Math.min(...featureBounds.map((entry) => entry.bounds[1]));
+  const maxLng = Math.max(...featureBounds.map((entry) => entry.bounds[2]));
+  const maxLat = Math.max(...featureBounds.map((entry) => entry.bounds[3]));
+  const observedStarts = featureBounds
+    .map((entry) => dateKey(entry.feature.properties.firstObservedAt))
+    .filter((value): value is string => value !== null);
+  const observedEnds = featureBounds
+    .map((entry) => dateKey(entry.feature.properties.latestObservedAt))
+    .filter((value): value is string => value !== null);
+  observedStarts.sort();
+  observedEnds.sort();
+  const observedMin = observedStarts.length > 0 ? observedStarts[0]! : "0001-01-01";
+  const observedMax = observedEnds.length > 0 ? observedEnds[observedEnds.length - 1]! : "9999-12-31";
+
+  const result = await getPool().query<PublicAreaNameCandidate>(
+    `select name, admin_level, source, entity_key, area_ha::text as area_ha,
+            bbox_min_lat::text as bbox_min_lat, bbox_max_lat::text as bbox_max_lat,
+            bbox_min_lng::text as bbox_min_lng, bbox_max_lng::text as bbox_max_lng,
+            valid_from::text as valid_from, valid_to::text as valid_to
+       from observation_fields
+      where bbox_min_lat is not null
+        and bbox_min_lat <= $1
+        and bbox_max_lat >= $2
+        and bbox_min_lng <= $3
+        and bbox_max_lng >= $4
+        and coalesce(admin_level, source) in ('osm_park', 'nature_symbiosis_site', 'tsunag', 'protected', 'oecm')
+        and (
+          ((valid_from is null or valid_from <= $5::date) and (valid_to is null or valid_to >= $6::date))
+          or valid_to is null
+        )
+      limit 500`,
+    [maxLat, minLat, maxLng, minLng, observedMax, observedMin],
+  );
+
+  for (const entry of featureBounds) {
+    const props = entry.feature.properties;
+    const nearbyArea = props.gridM <= 3000
+      ? chooseNearbyAreaName(result.rows, entry.bounds, {
+        firstObservedAt: props.firstObservedAt,
+        latestObservedAt: props.latestObservedAt,
+      })
+      : null;
+    const name = buildPublicMapCellName({
+      localityLabel: props.localityLabel || props.label,
+      localityScope: props.scope,
+      gridM: props.gridM,
+      count: props.count,
+      taxonMix: props.taxonMix,
+      nearbyAreaName: nearbyArea?.name ?? null,
+      nameEraLabel: nearbyArea?.nameEraLabel ?? null,
+    });
+    props.albumName = name.albumName;
+    props.localityLabel = name.localityLabel;
+    props.themeLabel = name.themeLabel;
+    props.scaleLabel = name.scaleLabel;
+    props.nearbyAreaName = name.nearbyAreaName;
+    props.nameEraLabel = name.nameEraLabel;
+  }
+}
+
 export async function getMapCells(
   filters: MapQueryFilters & { zoom?: number },
 ): Promise<PublicMapCellFeatureCollection> {
   const prepared = await fetchPublicMapRows(filters);
   const collection = buildPublicMapCells(prepared.rows, filters.zoom);
+  await enrichPublicMapCellNames(collection).catch((error) => {
+    console.warn("[mapSnapshot] public map cell naming enrichment failed", error);
+  });
   collection.stats.markerProfile = prepared.markerProfile;
   collection.stats.provenance = prepared.provenance;
   return collection;
@@ -662,6 +869,10 @@ export async function getMapObservations(
   list.stats.provenance = prepared.provenance;
   return list;
 }
+
+export const __test__ = {
+  chooseNearbyAreaName,
+};
 
 /**
  * Coverage mesh — aggregate observations at mesh4 (or mesh3) granularity to

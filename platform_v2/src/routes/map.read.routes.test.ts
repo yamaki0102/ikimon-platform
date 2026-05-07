@@ -15,7 +15,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     const html = response.body;
     assert.match(html, /id="me-share-state"/);
     assert.match(html, /MapExplorerStateHelpers/);
-    assert.match(html, /MAP_STATE_KEYS = \[[^\]]*"cell"/);
+    assert.match(html, /MAP_STATE_KEYS = \[[^\]]*"areas"/);
     assert.match(html, /serializeSharedMapState/);
     assert.match(html, /source: 'map'/);
     assert.match(html, /id: 'map:state'/);
@@ -32,7 +32,7 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /Enjoy Nature Map/);
     assert.match(html, />最近の発見</);
     assert.match(html, />季節の気配</);
-    assert.match(html, />公園・水辺</);
+    assert.match(html, />エリア図鑑</);
     assert.match(html, />記録の余白</);
     assert.match(html, /写真カード = 最近の発見/);
     assert.match(html, /id="me-contribution-panel"/);
@@ -65,6 +65,10 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /最近増えた/);
     assert.match(html, /未記録季節/);
     assert.match(html, /エリア図鑑を見る/);
+    assert.match(html, /エリア種別/);
+    assert.match(html, /自然共生サイト/);
+    assert.match(html, /学校・キャンパス/);
+    assert.match(html, /このエリアで観察会/);
     assert.match(html, /admin_curated/);
     assert.match(html, /community_curated/);
     assert.match(html, /auto_observation/);

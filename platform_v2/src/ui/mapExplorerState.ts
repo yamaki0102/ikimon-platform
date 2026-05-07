@@ -13,6 +13,7 @@ export const MAP_EXPLORER_STATE_KEYS = [
   "z",
   "traces",
   "cell",
+  "areas",
 ] as const;
 
 export type MapExplorerOverlayShareState = {
@@ -32,6 +33,7 @@ export type MapExplorerShareStateInput = {
   basemap?: string | null;
   tracesVisible?: boolean;
   selectedCellId?: string | null;
+  areaSources?: string[] | null;
   overlays?: MapExplorerOverlayShareState[];
   center?: { lng: number; lat: number } | null;
   zoom?: number | null;
@@ -86,6 +88,19 @@ function overlayShareEntries(
   return entries;
 }
 
+function normalizeStateList(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const value of values) {
+    const text = normalizeStateText(value);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    normalized.push(text);
+  }
+  return normalized;
+}
+
 export function shouldApplyAsyncResponse(responseSeq: number, latestRequestSeq: number): boolean {
   return Number.isFinite(responseSeq) && Number.isFinite(latestRequestSeq) && responseSeq === latestRequestSeq;
 }
@@ -133,6 +148,7 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
   const season = normalizeStateText(input.season);
   const basemap = normalizeStateText(input.basemap);
   const selectedCellId = normalizeStateText(input.selectedCellId);
+  const areaSources = normalizeStateList(input.areaSources);
   const center = input.center ?? null;
   const zoom = normalizeFiniteNumber(input.zoom);
 
@@ -146,6 +162,9 @@ export function serializeSharedMapState(input: MapExplorerShareStateInput): stri
   pushStateParam(parts, "bm", basemap && basemap !== "standard" ? basemap : null);
   if (input.tracesVisible) parts.push("traces=1");
   pushStateParam(parts, "cell", selectedCellId);
+  if (areaSources.length > 0) {
+    pushStateParam(parts, "areas", areaSources.join(","));
+  }
 
   const overlayEntries = overlayShareEntries(input.overlays);
   if (overlayEntries.length > 0) {
@@ -166,6 +185,7 @@ const RUNTIME_HELPERS = [
   pushStateParam,
   pushStateFloat,
   overlayShareEntries,
+  normalizeStateList,
   shouldApplyAsyncResponse,
   reconcileSelectedCellAfterCellsResponse,
   serializeSharedMapState,

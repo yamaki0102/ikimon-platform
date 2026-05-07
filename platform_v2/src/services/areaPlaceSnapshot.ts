@@ -30,6 +30,7 @@ import {
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
+import { loadAreaSnapshotVisitIds } from "./areaSnapshotVisitScope.js";
 
 export type AreaCoverSource = "admin_curated" | "community_curated" | "auto_observation";
 
@@ -174,10 +175,8 @@ async function safeQuery<T>(label: string, runner: () => Promise<T>, fallback: T
 }
 
 async function loadRepresentativePhoto(
-  field: { fieldId: string; lat: number; lng: number; radiusM: number },
-  placeId: string | null,
+  scopedVisitIds: string[],
 ): Promise<AreaRepresentativePhoto | null> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "representative_photo",
@@ -193,18 +192,9 @@ async function loadRepresentativePhoto(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and (
-                 v.source_payload->>'field_id' = $1
-                 or ($2::text is not null and v.place_id = $2)
-                 or $1::uuid = ANY(v.resolved_field_ids)
-                 or (
-                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                 )
-               )
+               and v.visit_id = any($1::uuid[])
           ),
           candidates as (
             select
@@ -263,7 +253,7 @@ async function loadRepresentativePhoto(
            where observer_rank = 1
            order by cover_score desc, observed_at desc
            limit 1`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
       const row = result.rows[0];
       const photoUrl = normalizeAssetUrl(row?.photo_url);
@@ -283,10 +273,8 @@ async function loadRepresentativePhoto(
 }
 
 async function loadObservationGallery(
-  field: { fieldId: string; lat: number; lng: number; radiusM: number },
-  placeId: string | null,
+  scopedVisitIds: string[],
 ): Promise<AreaObservationGalleryItem[]> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "observation_gallery",
@@ -304,18 +292,9 @@ async function loadObservationGallery(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and (
-                 v.source_payload->>'field_id' = $1
-                 or ($2::text is not null and v.place_id = $2)
-                 or $1::uuid = ANY(v.resolved_field_ids)
-                 or (
-                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                 )
-               )
+               and v.visit_id = any($1::uuid[])
           ),
           field_occ as (
             select
@@ -378,7 +357,7 @@ async function loadObservationGallery(
            where representative_rank = 1
            order by recent_observation_count::int desc, observation_count::int desc, observed_at desc
            limit 12`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
 
       const current = currentSeasonKey();
@@ -407,10 +386,8 @@ async function loadObservationGallery(
 }
 
 async function loadYearlyTimeline(
-  field: { fieldId: string; lat: number; lng: number; radiusM: number },
-  placeId: string | null,
+  scopedVisitIds: string[],
 ): Promise<AreaYearlyRow[]> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "yearly_timeline",
@@ -426,17 +403,8 @@ async function loadYearlyTimeline(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
              where v.observed_at is not null
-               and (
-                 v.source_payload->>'field_id' = $1
-                 or ($2::text is not null and v.place_id = $2)
-                 or $1::uuid = ANY(v.resolved_field_ids)
-                 or (
-                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                 )
-               )
+               and v.visit_id = any($1::uuid[])
           ),
           field_occ as (
             select o.*, fv.observed_at
@@ -453,7 +421,7 @@ async function loadYearlyTimeline(
            group by extract(year from observed_at)
            order by year desc
            limit 12`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
       return result.rows.map((row) => ({
         year: Number(row.year),
@@ -469,10 +437,8 @@ async function loadYearlyTimeline(
 }
 
 async function loadSeasonalCoverage(
-  field: { fieldId: string; lat: number; lng: number; radiusM: number },
-  placeId: string | null,
+  scopedVisitIds: string[],
 ): Promise<AreaSeasonCoverage[]> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   const current = currentSeasonKey();
   const empty: AreaSeasonCoverage[] = (["spring", "summer", "autumn", "winter"] as AreaSeasonKey[]).map((season) => ({
@@ -488,18 +454,9 @@ async function loadSeasonalCoverage(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and (
-                 v.source_payload->>'field_id' = $1
-                 or ($2::text is not null and v.place_id = $2)
-                 or $1::uuid = ANY(v.resolved_field_ids)
-                 or (
-                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                 )
-               )
+               and v.visit_id = any($1::uuid[])
           ),
           seasonal as (
             select case
@@ -514,7 +471,7 @@ async function loadSeasonalCoverage(
             group by 1
           )
           select season, observations from seasonal`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
       const counts = new Map(result.rows.map((row) => [row.season, Number(row.observations) || 0]));
       return empty.map((row) => ({
@@ -527,10 +484,9 @@ async function loadSeasonalCoverage(
 }
 
 async function loadEffortIndicators(
-  field: { fieldId: string; lat: number; lng: number; radiusM: number; createdAt: string },
-  placeId: string | null,
+  field: { createdAt: string },
+  scopedVisitIds: string[],
 ): Promise<AreaEffortIndicators> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "effort_indicators",
@@ -546,14 +502,7 @@ async function loadEffortIndicators(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
-             where v.source_payload->>'field_id' = $1
-                or ($2::text is not null and v.place_id = $2)
-                or $1::uuid = ANY(v.resolved_field_ids)
-                or (
-                  coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                  and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                )
+             where v.visit_id = any($1::uuid[])
           ),
           observer_counts as (
             select coalesce(user_id, source_payload->>'observer_id', source_payload->>'recorded_by', 'anonymous') as observer_id,
@@ -570,37 +519,23 @@ async function loadEffortIndicators(
                     join field_visits fv on fv.visit_id = o.visit_id
                    where o.occurrence_status = 'absent') as absent_records
             from field_visits`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
       const monthsRow = await pool.query<{ months: number[] | null; years: number[] | null }>(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
-             where v.source_payload->>'field_id' = $1
-                or ($2::text is not null and v.place_id = $2)
-                or $1::uuid = ANY(v.resolved_field_ids)
-                or (
-                  coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                  and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                )
+             where v.visit_id = any($1::uuid[])
           )
           select array(select distinct extract(month from observed_at)::int from field_visits where observed_at is not null order by 1) as months,
                  array(select distinct extract(year from observed_at)::int from field_visits where observed_at is not null order by 1) as years`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
       const observerHHI = await pool.query<{ hhi: string }>(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
-             where v.source_payload->>'field_id' = $1
-                or ($2::text is not null and v.place_id = $2)
-                or $1::uuid = ANY(v.resolved_field_ids)
-                or (
-                  coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                  and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                )
+             where v.visit_id = any($1::uuid[])
           ),
           observer_share as (
             select coalesce(user_id, source_payload->>'observer_id', source_payload->>'recorded_by', 'anonymous') as observer_id,
@@ -609,7 +544,7 @@ async function loadEffortIndicators(
              group by 1
           )
           select coalesce(sum(share * share), 0)::text as hhi from observer_share`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
 
       const totalVisits = Number(visitsRow.rows[0]?.total_visits ?? 0);
@@ -668,11 +603,9 @@ async function loadEffortIndicators(
 }
 
 async function loadSensitiveMasking(
-  field: { fieldId: string; lat: number; lng: number; radiusM: number },
-  placeId: string | null,
+  scopedVisitIds: string[],
   viewer: ViewerContext,
 ): Promise<AreaSensitiveMasking> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "sensitive_masking",
@@ -689,14 +622,7 @@ async function loadSensitiveMasking(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
-             where v.source_payload->>'field_id' = $1
-                or ($2::text is not null and v.place_id = $2)
-                or $1::uuid = ANY(v.resolved_field_ids)
-                or (
-                  coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                  and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                )
+             where v.visit_id = any($1::uuid[])
           )
           select distinct lower(coalesce(o.scientific_name, '')) as scientific_name,
                  (select max(c.public_precision)
@@ -708,7 +634,7 @@ async function loadSensitiveMasking(
             from occurrences o
             join field_visits fv on fv.visit_id = o.visit_id
            where coalesce(o.scientific_name, '') <> ''`,
-        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [scopedVisitIds],
       );
 
       const sensitiveNames = new Set<string>();
@@ -750,14 +676,15 @@ export async function getAreaPlaceSnapshot(
   const field = await getField(fieldId);
   if (!field) return null;
   const placeId = base.relationshipScore.placeId ?? null;
-  const fieldForBbox = { fieldId, lat: field.lat, lng: field.lng, radiusM: field.radiusM, createdAt: field.createdAt };
+  const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
+  const fieldForEffort = { createdAt: field.createdAt };
   const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking] = await Promise.all([
-    loadRepresentativePhoto(fieldForBbox, placeId),
-    loadObservationGallery(fieldForBbox, placeId),
-    loadSeasonalCoverage(fieldForBbox, placeId),
-    loadYearlyTimeline(fieldForBbox, placeId),
-    loadEffortIndicators(fieldForBbox, placeId),
-    loadSensitiveMasking(fieldForBbox, placeId, options.viewer),
+    loadRepresentativePhoto(scopedVisitIds),
+    loadObservationGallery(scopedVisitIds),
+    loadSeasonalCoverage(scopedVisitIds),
+    loadYearlyTimeline(scopedVisitIds),
+    loadEffortIndicators(fieldForEffort, scopedVisitIds),
+    loadSensitiveMasking(scopedVisitIds, options.viewer),
   ]);
   return {
     ...base,

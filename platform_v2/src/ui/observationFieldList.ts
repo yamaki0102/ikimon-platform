@@ -12,6 +12,7 @@ const SOURCE_LABEL: Record<string, string> = {
   tsunag: "TSUNAG",
   protected_area: "保護区",
   oecm: "OECM",
+  school: "学校",
 };
 
 const SOURCE_BADGE: Record<string, string> = {
@@ -20,6 +21,7 @@ const SOURCE_BADGE: Record<string, string> = {
   tsunag: "evt-mode-quest",
   protected_area: "evt-mode-absence",
   oecm: "evt-mode-bingo",
+  school: "evt-mode-effort",
 };
 
 export interface RenderFieldListArgs {
@@ -48,6 +50,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     { key: "any", label: "すべて" },
     { key: "nature_symbiosis_site", label: "自然共生サイト" },
     { key: "tsunag", label: "TSUNAG" },
+    { key: "school", label: "学校" },
     { key: "user_defined", label: "マイ" },
   ];
   const sourceChips = sources.map((s) => {

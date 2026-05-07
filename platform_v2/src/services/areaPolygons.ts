@@ -31,6 +31,7 @@ export interface AreaPolygonFeatureProps {
   area_ha: number | null;
   official_url: string;
   center: [number, number]; // [lng, lat]
+  access?: string;
   transient?: boolean;
   entity_key?: string;
   osm_type?: string;
@@ -62,6 +63,7 @@ const SOURCE_LABEL: Record<AreaPolygonSource, string> = {
   tsunag: "TSUNAG",
   protected_area: "保護区",
   oecm: "OECM",
+  school: "学校",
   osm_park: "公園 (OSM)",
   admin_municipality: "市町村",
   admin_prefecture: "都道府県",
@@ -74,7 +76,7 @@ const CACHE_TTL_MS = 60_000;
 const LIVE_OSM_TIMEOUT_MS = 4_500;
 const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
-const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "user_defined"]);
+const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school", "user_defined"]);
 const LIVE_OSM_TILE_Z = 14;
 const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v1";
 const LIVE_OSM_TILE_SOURCE = "overpass";
@@ -118,7 +120,7 @@ function defaultSourcesForZoom(zoom: number | undefined): AreaPolygonSource[] {
   ];
   return [
     "admin_municipality", "admin_prefecture",
-    "protected_area", "oecm", "nature_symbiosis_site", "tsunag",
+    "protected_area", "oecm", "nature_symbiosis_site", "tsunag", "school",
     "osm_park", "user_defined",
   ];
 }
@@ -141,6 +143,8 @@ function buildLiveOsmAreaQuery(bbox: [number, number, number, number]): string {
   way["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
   relation["leisure"~"^(park|garden|nature_reserve|playground)$"](${bb});
   relation["boundary"="national_park"](${bb});
+  way["amenity"~"^(school|college|university)$"](${bb});
+  relation["amenity"~"^(school|college|university)$"](${bb});
 );
 out tags geom;
 `;
@@ -177,9 +181,17 @@ function liveElementToPolygon(element: OverpassElement): Record<string, unknown>
   return null;
 }
 
-function liveElementName(element: OverpassElement): string {
+function liveElementSource(element: OverpassElement): { source: AreaPolygonSource; label: string; fallbackName: string } {
+  const amenity = element.tags?.amenity ?? "";
+  if (amenity === "school" || amenity === "college" || amenity === "university") {
+    return { source: "school", label: "学校・キャンパス (OSM live)", fallbackName: "OSMの学校・キャンパス" };
+  }
+  return { source: "osm_park", label: "公園・緑地 (OSM live)", fallbackName: "OSMの公園・緑地" };
+}
+
+function liveElementDisplayName(element: OverpassElement): string {
   const tags = element.tags ?? {};
-  return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? "OSMの公園・緑地";
+  return tags["name:ja"] ?? tags.name ?? tags.alt_name ?? liveElementSource(element).fallbackName;
 }
 
 function liveElementCenter(element: OverpassElement, geometry: Record<string, unknown>): [number, number] | null {
@@ -218,19 +230,21 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
   if (!center) return null;
   const tags = element.tags ?? {};
   const entityKey = `osm:${element.type}:${element.id}`;
+  const source = liveElementSource(element);
   return {
     type: "Feature",
     properties: {
       field_id: `osm-live:${element.type}:${element.id}`,
-      name: liveElementName(element),
-      source: "osm_park",
-      source_label: "公園・緑地 (OSM live)",
-      admin_level: "osm_park",
+      name: liveElementDisplayName(element),
+      source: source.source,
+      source_label: source.label,
+      admin_level: source.source,
       prefecture: "",
       city: "",
       area_ha: null,
       official_url: tags.website ?? tags["contact:website"] ?? "",
       center,
+      access: tags.access ?? "",
       transient: true,
       entity_key: entityKey,
       osm_type: element.type,
@@ -521,8 +535,12 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     };
   });
 
-  const hasRegisteredOsmPark = features.some((feature) => feature.properties.source === "osm_park");
-  if (!hasRegisteredOsmPark && shouldFetchLiveOsm(query, sources) && features.length < limit) {
+  const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
+    (sources.includes("osm_park") && !features.some((feature) => feature.properties.source === "osm_park")) ||
+    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school")) ||
+    sources.includes("user_defined")
+  );
+  if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? cached.freshFeatures : [];
     if (cached.freshComplete) {

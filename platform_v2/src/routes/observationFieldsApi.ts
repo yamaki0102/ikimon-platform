@@ -37,7 +37,7 @@ function asNumber(v: unknown): number | null {
 function asFieldSource(v: unknown): FieldSource | null {
   if (typeof v !== "string") return null;
   return v === "user_defined" || v === "nature_symbiosis_site" || v === "tsunag" ||
-    v === "protected_area" || v === "oecm" || v === "osm_park" ||
+    v === "protected_area" || v === "oecm" || v === "school" || v === "osm_park" ||
     v === "admin_municipality" || v === "admin_prefecture" || v === "admin_country"
     ? (v as FieldSource) : null;
 }

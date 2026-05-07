@@ -35,6 +35,8 @@
 - `src/scripts/backfillFieldPolygonBbox.ts` — 既存 polygon に bbox + admin_level を埋める
 - `src/scripts/importN03Administrative.ts` — KSJ N03 GeoJSON → `source=user_defined`, `admin_level=admin_municipality/admin_prefecture`
 - `src/scripts/importOsmLeisureParks.ts` — Overpass API → `source=user_defined`, `admin_level=osm_park`、`--sweep` で消滅した公園を `valid_to` で閉じる
+- `src/scripts/importObservationFields.ts --source=school` — 国土数値情報 P29「学校」GeoJSON/CSV → `source=school`。文科省学校コードは `entity_key=mext_school:<学校コード>` として保持する
+- `src/scripts/importGlobalAdministrativeAreas.ts` — GADM / GeoNames / Wikidata / OSM relation / ISO 3166 キー付き GeoJSON → `admin_country/admin_prefecture/admin_municipality`
 
 ### Frontend
 
@@ -75,6 +77,63 @@ sudo systemctl restart ikimon-v2-staging.service
 # 6. 動作確認
 curl -fsS "https://staging.ikimon.life/api/v1/map/area-polygons?bbox=137.6,34.6,137.91,34.85&zoom=12" | jq '.features | length'
 # > 0 以上が返れば OK
+```
+
+# 2.5 学校フィールドの取り込み
+
+国内の学校は国土数値情報 P29「学校」を使う。P29 は学校の位置、行政区域コード、
+学校コード、学校分類コード、名称、所在地を持つため、全国の小中高・高専・短大・大学・
+特別支援学校などを `source=school` として取り込める。
+
+```powershell
+npm --prefix platform_v2 run import:schools -- --file=./data/P29-13.geojson
+npm --prefix platform_v2 run audit:field-entity-keys -- --fail-on-error
+```
+
+静岡県分だけ先行投入する場合は、全国または中部ブロックの P29 GeoJSON を渡して
+JIS 都道府県コード `22` で絞る。
+
+```powershell
+npm --prefix platform_v2 run import:schools:shizuoka -- --file=./data/P29-schools.geojson --dry-run
+DATABASE_URL=... npm --prefix platform_v2 run import:schools:shizuoka -- --file=./data/P29-schools.geojson
+```
+
+`entity_key` は `mext_school:<学校コード>` を優先する。海外や大学キャンパスの独自
+GeoJSON では `wikidata`, `geonameid`, `GID_2`, `ISO3166-2`, `osm_type/osm_id`
+などを属性に入れておけば、同じ監査・履歴管理に乗る。
+
+## 2.5.1 学校境界の精度改善
+
+P29 は主に学校の代表点なので、校地境界は OSM relation / way や自治体公開ポリゴンで
+補強する。GeoJSON FeatureCollection を用意し、点がポリゴン内に入る、または近距離かつ
+名称が近い学校フィールドへ `polygon` / `bbox_*` / `area_ha` / `radius_m` を反映する。
+
+```powershell
+npm --prefix platform_v2 run enhance:school-boundaries -- `
+  --file=./data/hamamatsu-school-boundaries.geojson `
+  --boundary-source=osm `
+  --prefecture=静岡県 `
+  --dry-run
+
+DATABASE_URL=... npm --prefix platform_v2 run enhance:school-boundaries -- `
+  --file=./data/hamamatsu-school-boundaries.geojson `
+  --boundary-source=osm `
+  --prefecture=静岡県
+```
+
+学校フィールドは `学校ビオトープ図鑑` / `通学路いきもの図鑑` /
+`キャンパス季節図鑑` の導線を自動生成する。教育機関向けの提案では、まず P29 点で
+全国網羅し、導入校や重点自治体から境界ポリゴンを厚くする。
+
+# 2.6 海外行政界の取り込み
+
+GADM、GeoNames、Wikidata、OSM relation、ISO 3166 などの安定IDを持つ
+GeoJSON は、国・州県・市町村レベルの履歴付き行政界として取り込める。
+
+```powershell
+npm --prefix platform_v2 run import:admin-global -- --file=./data/gadm_usa_states.geojson --admin-level=prefecture --valid-from=2026-01-01
+npm --prefix platform_v2 run import:admin-global -- --file=./data/world_countries.geojson --admin-level=country --dry-run
+npm --prefix platform_v2 run audit:field-entity-keys -- --fail-on-error
 ```
 
 ### 2.2 production

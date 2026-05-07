@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import type { ObservationField, FieldStats } from "./observationFieldRegistry.js";
-import { composePlaceSnapshot } from "./placeSnapshot.js";
+import { composePlaceSnapshot, __test__ } from "./placeSnapshot.js";
 import { renderPlaceSnapshotBody, renderPlaceSnapshotTeaser } from "../ui/placeSnapshot.js";
 
 function field(overrides: Partial<ObservationField> = {}): ObservationField {
@@ -73,6 +73,7 @@ test("empty place snapshot keeps claims modest and points to first event", () =>
   assert.equal(snapshot.framing.publicLabel, "この場所のいま");
   assert.equal(snapshot.observationSummary.totalObservations, 0);
   assert.equal(snapshot.relationshipScore.source, "field_fallback");
+  assert.equal(snapshot.field.accessGuidance.status, "unknown");
   assert.ok(snapshot.nextActions.some((action) => action.title === "最初の観察会を作る"));
   assert.ok(snapshot.claimBoundary.cannotSayYet.some((claim) => claim.includes("増減や不在はまだ判断できません")));
 });
@@ -180,6 +181,43 @@ test("place snapshot teaser embeds a light field-detail entry point", () => {
   assert.match(html, /場所の状態を1枚で見る/);
 });
 
+test("school place snapshot exposes education-specific album profiles", () => {
+  const snapshot = composePlaceSnapshot({
+    field: field({
+      source: "school",
+      adminLevel: "school",
+      name: "浜松市立いきもの小学校",
+      certificationId: "mext-school:B122210001234",
+      entityKey: "mext_school:B122210001234",
+    }),
+    stats: stats(),
+    canonical: {
+      totalObservations: 0,
+      totalVisits: 0,
+      uniqueTaxa: 0,
+      taxonRankCount: 0,
+      months: [],
+      effortFilled: 0,
+      effortTotal: 0,
+      acceptedCount: 0,
+      reviewTotal: 0,
+      nativeCount: 0,
+      exoticCount: 0,
+      unknownOriginCount: 0,
+      stewardshipActionCount: 0,
+    },
+  });
+
+  assert.equal(snapshot.field.schoolAlbumProfiles.length, 3);
+  assert.equal(snapshot.field.accessGuidance.status, "permission_required");
+  assert.equal(snapshot.field.schoolAlbumProfiles[0]?.title, "学校ビオトープ図鑑");
+  const html = renderPlaceSnapshotBody(snapshot);
+  assert.match(html, /学校ビオトープ図鑑/);
+  assert.match(html, /通学路いきもの図鑑/);
+  assert.match(html, /キャンパス季節図鑑/);
+  assert.match(html, /無許可で敷地内に入らず/);
+});
+
 test("area place snapshot renders a public place album", () => {
   const snapshot = composePlaceSnapshot({
     field: field(),
@@ -245,6 +283,27 @@ test("area place snapshot renders a public place album", () => {
   assert.match(html, /今の季節・春/);
   assert.match(html, /未記録季節: 夏・秋・冬/);
   assert.match(html, /ガマズミ/);
+});
+
+test("mesh-like snapshot names become locality-led album names", () => {
+  assert.equal(
+    __test__.friendlyAlbumName({
+      ...field(),
+      name: "34.8140:137.7320",
+      city: "浜松市中央区",
+      prefecture: "静岡県",
+    }, null),
+    "浜松市中央区・発見の小径",
+  );
+  assert.equal(
+    __test__.friendlyAlbumName({
+      ...field(),
+      name: "浜松城公園",
+      city: "浜松市中央区",
+      prefecture: "静岡県",
+    }, null),
+    "浜松城公園",
+  );
 });
 
 test("public landing copy is not polluted by digital twin wording", async () => {

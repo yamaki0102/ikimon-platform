@@ -1993,6 +1993,9 @@ export type LandingTopOverflowSummary = {
 export type LandingMapPreviewCell = {
   cellId: string;
   label: string;
+  albumName?: string;
+  themeLabel?: string;
+  scaleLabel?: string;
   count: number;
   gridM: number;
   centroidLat: number;
