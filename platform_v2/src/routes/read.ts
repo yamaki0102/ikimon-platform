@@ -1100,15 +1100,18 @@ function renderAiCandidateLearningPanel(options: {
   visitId: string;
   candidates: ObservationVisitCandidate[];
   isOwner: boolean;
+  mediaContext?: ObservationMediaCopyContext;
 }): string {
   const candidates = highLearningCandidates(options.candidates);
   if (candidates.length === 0) return "";
   const identifyHref = appendLangToHref(withBasePath(options.basePath, `/observations/${encodeURIComponent(options.visitId)}#identify`), options.lang);
+  const mediaCopy = observationMediaCopy(options.mediaContext ?? photoOnlyMediaContext());
+  const isVideoOnly = Boolean(options.mediaContext?.hasVideos && !options.mediaContext.hasPhotos);
   return `<section class="obs-ai-cutout" data-ai-cutout-panel>
     <div class="obs-ai-cutout-head">
       <div>
         <p class="obs-ai-cutout-eye">AI が見つけたかもしれないもの</p>
-        <h2 class="obs-ai-cutout-title">写真の中に、別の観察として残せそうな候補があります</h2>
+        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、別の観察として残せそうな候補があります" : "記録メディアの中に、別の観察として残せそうな候補があります")}</h2>
         <p class="obs-ai-cutout-copy">いきものに詳しくなくても大丈夫です。AI が自信の高いものだけ先に整理しています。名前は候補なので、あとから人の確認で直せます。</p>
       </div>
       <span class="obs-ai-cutout-pill">${candidates.length} 件</span>
@@ -1133,13 +1136,13 @@ function renderAiCandidateLearningPanel(options: {
           <div>
             <strong>${escapeHtml(candidate.displayName)}</strong>
             ${meta.length > 0 ? `<div class="obs-ai-cutout-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
-            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">同じ写真から切り出せる候補です。まずは仮の観察として残し、あとで確かめます。</p>`}
+            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(isVideoOnly ? "同じ映像フレームから切り出せる候補です。まずは仮の観察として残し、あとで確かめます。" : "同じ記録メディアから切り出せる候補です。まずは仮の観察として残し、あとで確かめます。")}</p>`}
           </div>
           ${action}
         </div>`;
       }).join("")}
     </div>
-    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? "残すと、同じ日時・同じ場所・同じ写真に紐づく別対象として追加されます。" : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? escapeHtml(`残すと、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に紐づく別対象として追加されます。`) : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
   </section>`;
 }
 
@@ -1490,11 +1493,103 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
   </section>`;
 }
 
+type ObservationMediaCopyContext = {
+  hasPhotos: boolean;
+  hasVideos: boolean;
+};
+
+function photoOnlyMediaContext(): ObservationMediaCopyContext {
+  return { hasPhotos: true, hasVideos: false };
+}
+
+function mediaContextForSnapshot(snapshot: ObservationDetailSnapshot): ObservationMediaCopyContext {
+  return {
+    hasPhotos: snapshot.photoAssets.length > 0,
+    hasVideos: snapshot.videoAssets.length > 0,
+  };
+}
+
+function observationMediaCopy(context: ObservationMediaCopyContext): {
+  clueHeading: string;
+  missingHeading: string;
+  nextEvidenceHeading: string;
+  areaLabel: string;
+  areaReminder: string;
+  shotAriaLabel: string;
+  shotHeading: string;
+  shotReminder: string;
+  focusLead: string;
+  contextHeading: string;
+  reassessHint: string;
+  videoReassessLoadingText: string;
+  photoRecoveryEyebrow: string;
+  photoRecoveryTitle: string;
+  photoRecoveryBody: string;
+} {
+  const isVideoOnly = context.hasVideos && !context.hasPhotos;
+  if (isVideoOnly) {
+    return {
+      clueHeading: "映像フレームから拾えている手がかり",
+      missingHeading: "この映像からは読み取れないもの",
+      nextEvidenceHeading: "次に足すべき証拠カット",
+      areaLabel: "映像フレームからのエリア推察",
+      areaReminder: "AI が映像フレームから読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。",
+      shotAriaLabel: "追撮すると研究価値が上がる証拠カット",
+      shotHeading: "こういう追加カットも撮ると研究的意義が上がる",
+      shotReminder: "静止画や短い映像カットが揃うと、AI 同定の精度とコミュニティ検証のやりやすさが上がります。",
+      focusLead: "映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
+      contextHeading: "映像・音声から拾えたこと",
+      reassessHint: "動画フレームを使って判定を更新できます（30秒ほど）。",
+      videoReassessLoadingText: "再判定中…（動画フレームを Gemini に渡しています）",
+      photoRecoveryEyebrow: "Add supporting photos",
+      photoRecoveryTitle: "この動画観察に写真を追加",
+      photoRecoveryBody: "総苞や葉などの止まった証拠写真を同じ観察に追加できます。",
+    };
+  }
+  if (context.hasVideos) {
+    return {
+      clueHeading: "写真・映像フレームから拾えている手がかり",
+      missingHeading: "この記録メディアからは読み取れないもの",
+      nextEvidenceHeading: "次に足すべき写真・映像",
+      areaLabel: "写真・映像フレームからのエリア推察",
+      areaReminder: "AI が写真・映像フレームから読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。",
+      shotAriaLabel: "追撮すると研究価値が上がる写真・映像",
+      shotHeading: "こういう写真・映像も撮ると研究的意義が上がる",
+      shotReminder: "写真や映像カットが揃うと、AI 同定の精度とコミュニティ検証のやりやすさが上がります。",
+      focusLead: "写真・映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
+      contextHeading: "写真・映像・音声から拾えたこと",
+      reassessHint: "写真または動画フレームを使って判定を更新できます（30秒ほど）。",
+      videoReassessLoadingText: "再判定中…（動画フレームを Gemini に渡しています）",
+      photoRecoveryEyebrow: "Add photos",
+      photoRecoveryTitle: "この観察に写真を追加",
+      photoRecoveryBody: "別角度や周辺の写真を同じ観察に追加できます。",
+    };
+  }
+  return {
+    clueHeading: "写真から拾えている手がかり",
+    missingHeading: "この写真からは読み取れないもの",
+    nextEvidenceHeading: "次に撮るべき写真",
+    areaLabel: "この 1 枚からのエリア推察",
+    areaReminder: "AI が写真から読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。",
+    shotAriaLabel: "追撮すると研究価値が上がる写真",
+    shotHeading: "こういう写真も撮ると研究的意義が上がる",
+    shotReminder: "写真が揃うと、AI 同定の精度とコミュニティ検証のやりやすさが上がります。",
+    focusLead: "写真から読めている手がかりと、まだ止めている理由を先に確認できます。",
+    contextHeading: "写真と音声から拾えたこと",
+    reassessHint: "写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。",
+    videoReassessLoadingText: "再判定中…（動画フレームを Gemini に渡しています）",
+    photoRecoveryEyebrow: "Photo recovery",
+    photoRecoveryTitle: "この観察に写真を復旧",
+    photoRecoveryBody: "写真投稿が途中で止まった観察は、ここから同じ観察に写真だけ追加できます。",
+  };
+}
+
 function renderSubjectHint(
   subject: ObservationVisitSubject,
   siteBrief: SiteBrief | null = null,
   photoAssets: { roleTag: string | null }[] | null = null,
   basePath = "",
+  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
 ): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
@@ -1520,11 +1615,12 @@ function renderSubjectHint(
   const best = aiAssessment.bestSpecificTaxonName && aiAssessment.bestSpecificTaxonName !== aiAssessment.recommendedTaxonName
     ? `<p class="obs-hint-best">候補の中では <strong>${escapeHtml(aiAssessment.bestSpecificTaxonName)}</strong> が有力</p>`
     : "";
+  const mediaCopy = observationMediaCopy(mediaContext);
   const clues = aiAssessment.diagnosticFeaturesSeen.length > 0
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">写真から拾えている手がかり</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul></div>`
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.clueHeading)}</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul></div>`
     : "";
   const missingPhoto = aiAssessment.missingEvidence.length > 0
-    ? `<div class="obs-hint-sub obs-hint-missing"><div class="obs-hint-eye">この写真からは読み取れないもの <span class="obs-hint-eye-note">AI参考</span></div><ul class="obs-hint-tags is-muted">${aiAssessment.missingEvidence.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`
+    ? `<div class="obs-hint-sub obs-hint-missing"><div class="obs-hint-eye">${escapeHtml(mediaCopy.missingHeading)} <span class="obs-hint-eye-note">AI参考</span></div><ul class="obs-hint-tags is-muted">${aiAssessment.missingEvidence.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`
     : "";
   const stop = aiAssessment.stopReason
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">ここで止めておく理由</div><p>${escapeHtml(aiAssessment.stopReason)}</p></div>`
@@ -1532,13 +1628,13 @@ function renderSubjectHint(
   const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
     : "";
-  const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief);
+  const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief, mediaContext);
   const managementActions = renderManagementActionCandidateCard(
     aiAssessment.managementActionCandidates,
     subject.occurrenceId,
     basePath,
   );
-  const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets);
+  const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets, mediaContext);
   const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
   const boost = aiAssessment.observerBoost
     ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
@@ -1548,7 +1644,7 @@ function renderSubjectHint(
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
   aiAssessment.confirmMore.forEach((tip) => { if (tip) nextShotItems.push(tip); });
   const nextStep = !hasShotSuggestionsCard && nextShotItems.length > 0
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次に撮るべき写真</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(nextShotItems[0])}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul>`}</div>`
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.nextEvidenceHeading)}</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(nextShotItems[0])}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul>`}</div>`
     : "";
   const funFact = aiAssessment.funFact
     ? `<div class="obs-hint-fun"><div class="obs-hint-eye">ちょっとした豆知識</div><p>${escapeHtml(aiAssessment.funFact)}</p></div>`
@@ -1884,6 +1980,7 @@ function siteBriefAgreement(siteBrief: SiteBrief | null, candidates: { label: st
 function renderAreaInferenceCard(
   areaInference: import("../services/observationAiAssessment.js").AreaInference | null | undefined,
   siteBrief: SiteBrief | null = null,
+  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
 ): string {
   if (!areaInference) return "";
   const hasAny = AREA_INFERENCE_LABELS.some(({ key }) => (areaInference[key] ?? []).length > 0);
@@ -1942,11 +2039,12 @@ function renderAreaInferenceCard(
     })
     .filter(Boolean)
     .join("");
-  return `<details class="obs-area-card" aria-label="この1枚からのエリア推察">
+  const mediaCopy = observationMediaCopy(mediaContext);
+  return `<details class="obs-area-card" aria-label="${escapeHtml(mediaCopy.areaLabel)}">
     <summary class="obs-area-head" style="cursor:pointer;list-style:none">
       <div>
-        <div class="obs-hint-eyebrow">この 1 枚からのエリア推察 <span class="obs-hint-eye-note">タップで展開</span></div>
-        <p class="obs-hint-reminder">AI が写真から読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。</p>
+        <div class="obs-hint-eyebrow">${escapeHtml(mediaCopy.areaLabel)} <span class="obs-hint-eye-note">タップで展開</span></div>
+        <p class="obs-hint-reminder">${escapeHtml(mediaCopy.areaReminder)}</p>
       </div>
       <span class="obs-hint-badge obs-hint-badge-candidate">参考</span>
     </summary>
@@ -1998,15 +2096,20 @@ function renderObservationPhotoRecoveryPanel(options: {
   visitId: string;
   isOwner: boolean;
   existingPhotoCount: number;
+  mediaContext?: ObservationMediaCopyContext;
 }): string {
   if (!options.isOwner) return "";
   const hasPhotos = options.existingPhotoCount > 0;
+  const mediaCopy = observationMediaCopy(options.mediaContext ?? {
+    hasPhotos,
+    hasVideos: false,
+  });
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/photos/upload`);
   return `<section class="section obs-photo-recovery" data-photo-recovery data-upload-endpoint="${escapeHtml(endpoint)}" data-existing-photo-count="${escapeHtml(String(options.existingPhotoCount))}">
     <div>
-      <div class="obs-story-eyebrow">${hasPhotos ? "Add photos" : "Photo recovery"}</div>
-      <h2>${escapeHtml(hasPhotos ? "この観察に写真を追加" : "この観察に写真を復旧")}</h2>
-      <p>${escapeHtml(hasPhotos ? "別角度や周辺の写真を同じ観察に追加できます。" : "写真投稿が途中で止まった観察は、ここから同じ観察に写真だけ追加できます。")}</p>
+      <div class="obs-story-eyebrow">${escapeHtml(mediaCopy.photoRecoveryEyebrow)}</div>
+      <h2>${escapeHtml(mediaCopy.photoRecoveryTitle)}</h2>
+      <p>${escapeHtml(mediaCopy.photoRecoveryBody)}</p>
     </div>
     <form class="obs-photo-recovery-form">
       <label class="obs-photo-recovery-picker">
@@ -2263,10 +2366,12 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
 function renderShotSuggestionsCard(
   shotSuggestions: import("../services/observationAiAssessment.js").ShotSuggestion[] | null | undefined,
   photoAssets: { roleTag: string | null }[] | null | undefined = null,
+  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
 ): string {
   const hasSuggestions = shotSuggestions && shotSuggestions.length > 0;
   const coverageStrip = renderRoleCoverageStrip(photoAssets);
   if (!hasSuggestions && !coverageStrip) return "";
+  const mediaCopy = observationMediaCopy(mediaContext);
   const items = hasSuggestions ? (shotSuggestions as import("../services/observationAiAssessment.js").ShotSuggestion[]).map((suggestion) => {
     const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
     const priorityBadge = suggestion.priority === "high"
@@ -2279,11 +2384,11 @@ function renderShotSuggestionsCard(
       ${priorityBadge}
     </li>`;
   }).join("") : "";
-  return `<section class="obs-shot-card" aria-label="追撮すると研究価値が上がる写真">
+  return `<section class="obs-shot-card" aria-label="${escapeHtml(mediaCopy.shotAriaLabel)}">
     <div class="obs-shot-head">
       <div>
-        <div class="obs-hint-eyebrow">こういう写真も撮ると研究的意義が上がる</div>
-        <p class="obs-hint-reminder">写真が揃うと、AI 同定の精度とコミュニティ検証のやりやすさが上がります。</p>
+        <div class="obs-hint-eyebrow">${escapeHtml(mediaCopy.shotHeading)}</div>
+        <p class="obs-hint-reminder">${escapeHtml(mediaCopy.shotReminder)}</p>
       </div>
     </div>
     ${coverageStrip}
@@ -8349,6 +8454,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
 
+    const mediaContext = mediaContextForSnapshot(snapshot);
+    const mediaCopy = observationMediaCopy(mediaContext);
     const currentSubject = bundle.subjects.find((subject) => subject.occurrenceId === bundle.canonicalSubjectId) ?? bundle.subjects[0] ?? null;
     const featuredSubject = bundle.subjects.find((subject) => subject.occurrenceId === bundle.featuredOccurrenceId) ?? bundle.subjects[0] ?? null;
     const subjectCount = bundle.subjects.length;
@@ -8435,6 +8542,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       visitId: bundle.visitId,
       candidates: bundle.aiCandidates,
       isOwner,
+      mediaContext,
     });
     const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
     const regionalStory = await getRegionalStoryCue({
@@ -8562,7 +8670,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const focusLead = hasAiDefault
             ? subjectCount >= 2
               ? "AI の絞り込みメモを起点に、対象ごとの候補・根拠・分類を切り替えて確認できます。"
-              : "写真から読めている手がかりと、まだ止めている理由を先に確認できます。"
+              : mediaCopy.focusLead
             : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、同定履歴・AIヒント・分類がその場で切り替わります。" : "この対象の状態をそのまま確かめられます。"}`;
           const featuredChips: string[] = [];
           if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(featuredSubject.rank)}</span>`);
@@ -8716,6 +8824,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       visitId: bundle.visitId,
       isOwner,
       existingPhotoCount: snapshot.photoAssets.length,
+      mediaContext,
     });
     const ownerDeleteBlock = renderObservationOwnerDeletePanel({
       basePath,
@@ -8724,7 +8833,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       lang,
     });
 
-    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath)}</div>`;
+    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</div>`;
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
 
     // ===== Layer 1: 物語 =====
@@ -8873,11 +8982,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const envSection = grouped.environment.length > 0
       ? `<details class="obs-fold"><summary>🏞️ 環境の情報 <span class="obs-fold-count">${grouped.environment.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul></details>` : "";
     const contextBlock = (coexistingSection || soundsSection || envSection)
-      ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
+      ? `<section class="section obs-layer"><h2 class="obs-layer-title">${escapeHtml(mediaCopy.contextHeading)}</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject)}</template>
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
@@ -8898,25 +9007,27 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     void trustLadderBlock;
     const reassessButtons: string[] = [];
     if (isOwner) {
-      reassessButtons.push(
-        `<button type="button"
-                 class="obs-reassess-btn"
-                 data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess"))}"
-                 data-loading-text="再判定中…（写真を Gemini に渡しています）">🔄 写真から再判定</button>`,
-      );
+      if (snapshot.photoAssets.length > 0) {
+        reassessButtons.push(
+          `<button type="button"
+                   class="obs-reassess-btn"
+                   data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess"))}"
+                   data-loading-text="再判定中…（写真を Gemini に渡しています）">🔄 写真から再判定</button>`,
+        );
+      }
       if (snapshot.videoAssets.length > 0) {
         reassessButtons.push(
           `<button type="button"
                    class="obs-reassess-btn"
                    data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess-from-video"))}"
-                   data-loading-text="再判定中…（動画サムネイルを Gemini に渡しています）">🎬 動画から再判定</button>`,
+                   data-loading-text="${escapeHtml(mediaCopy.videoReassessLoadingText)}">🎬 動画から再判定</button>`,
         );
       }
     }
-    const reassessBlock = isOwner
+    const reassessBlock = isOwner && reassessButtons.length > 0
       ? `<section class="section obs-reassess-row" aria-label="AI 再判定">
            ${reassessButtons.join("")}
-           <span class="obs-reassess-hint">${snapshot.videoAssets.length > 0 ? "写真か動画サムネイルを使って判定を更新できます（30秒ほど）。" : "写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。"}</span>
+           <span class="obs-reassess-hint">${escapeHtml(mediaCopy.reassessHint)}</span>
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
       : "";
