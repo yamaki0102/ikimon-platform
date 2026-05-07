@@ -89,7 +89,16 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /uploadProtocol = videoFile\.size >= MAX_VIDEO_BASIC_POST_BYTES \? 'tus' : 'post'/);
         assert.match(response.body, /uploadVideoWithTus/);
         assert.match(response.body, /Tus-Resumable', '1\.0\.0'/);
-        assert.match(response.body, /動画を処理しています|再生準備が終わるまで少し待って/);
+        assert.match(response.body, /公開準備中|再生準備をしています/);
+        assert.match(response.body, /公開までの状態/);
+        assert.match(response.body, /data-video-publication-step="upload"/);
+        assert.match(response.body, /data-video-publication-step="processing"/);
+        assert.match(response.body, /data-video-publication-step="public"/);
+        assert.match(response.body, /setVideoPublicationStatus\('uploading'/);
+        assert.match(response.body, /setVideoPublicationStatus\('processing'/);
+        assert.match(response.body, /waitForVideoPublication/);
+        assert.match(response.body, /動画は保存済みです。公開までの状態を下に表示しています。/);
+        assert.match(response.body, /動画は保存済みです。公開準備が続いています。画面を閉じても大丈夫です。/);
         assert.match(response.body, /preparePhotoUpload/);
         assert.match(response.body, /canvas\.toDataURL\('image\/jpeg', PHOTO_UPLOAD_JPEG_QUALITY\)/);
         assert.match(response.body, /let selectedMediaFiles = \[\]/);
