@@ -1484,8 +1484,8 @@ export const LANDING_TOP_STYLES = `
       padding-top: clamp(14px, 2vw, 24px);
     }
     .prototype-topa h1 {
-      max-width: 16ch;
-      font-size: clamp(34px, 3.8vw, 48px);
+      max-width: none;
+      font-size: clamp(34px, 3.35vw, 50px);
       white-space: normal;
       text-wrap: balance;
     }

@@ -245,7 +245,7 @@ test("subpages use centered width contracts instead of homepage width", () => {
   assert.match(wideHtml, /margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ var\(--ikimon-shell-side-space\)\);/);
 });
 
-test("desktop shell compacts the side nav at tight desktop widths", () => {
+test("desktop shell keeps the side nav expandable at tight desktop widths", () => {
   const html = renderSiteDocument({
     basePath: "",
     title: "Home",
@@ -254,8 +254,8 @@ test("desktop shell compacts the side nav at tight desktop widths", () => {
     currentPath: "/?lang=ja",
   });
 
-  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*--ikimon-desktop-sidebar-w: 72px;/);
-  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.desktop-side-nav-label,[\s\S]*\.desktop-side-nav-section--secondary,[\s\S]*display: none;/);
+  assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-desktop-sidebar-w: 72px;/);
+  assert.doesNotMatch(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.brand-wordmark,\s*\.desktop-side-nav-label,[\s\S]*display: none;/);
   assert.match(html, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*width: min\(var\(--ikimon-page-max\), calc\(100% - var\(--ikimon-desktop-sidebar-w\) - 36px\)\);/);
 });
 
