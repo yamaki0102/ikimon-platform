@@ -333,6 +333,7 @@ jobs:
               echo "Invalid migration_repair_checksums: $STAGING_MIGRATION_REPAIR_CHECKSUMS"
               exit 1
             fi
+            DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
             IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
             if [ "$SHOULD_RUN_KNOWLEDGE" = "true" ]; then
               echo "== npm run compile:knowledge-navigation dry-run =="
