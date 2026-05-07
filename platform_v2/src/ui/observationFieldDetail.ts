@@ -15,6 +15,7 @@ const SOURCE_LABEL: Record<string, string> = {
   tsunag: "TSUNAG",
   protected_area: "保護区",
   oecm: "OECM",
+  school: "学校",
 };
 
 function formatDate(iso: string | null): string {

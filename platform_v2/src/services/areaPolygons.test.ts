@@ -28,6 +28,7 @@ test("defaultSourcesForZoom widens with zoom level", () => {
   assert.ok(!zMid.includes("osm_park"));
 
   assert.ok(zHigh.includes("osm_park"));
+  assert.ok(zHigh.includes("school"));
   assert.ok(zHigh.includes("admin_municipality"));
 });
 
@@ -53,6 +54,7 @@ test("buildLiveOsmAreaQuery uses Overpass south,west,north,east order", () => {
   const query = buildLiveOsmAreaQuery([137.39, 34.73, 137.43, 34.75]);
   assert.match(query, /\(34\.73,137\.39,34\.75,137\.43\)/);
   assert.match(query, /leisure/);
+  assert.match(query, /amenity/);
 });
 
 test("liveElementToFeature converts OSM way into transient area feature", () => {
@@ -70,6 +72,22 @@ test("liveElementToFeature converts OSM way into transient area feature", () => 
   assert.equal(feature?.properties.transient, true);
   assert.equal(feature?.properties.name, "亀城公園");
   assert.equal(feature?.geometry?.type, "Polygon");
+});
+
+test("liveElementToFeature converts OSM schools into transient school areas", () => {
+  const feature = liveElementToFeature({
+    type: "way",
+    id: 789,
+    tags: { name: "浜松第一小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  assert.equal(feature?.properties.source, "school");
+  assert.equal(feature?.properties.source_label, "学校・キャンパス (OSM live)");
+  assert.equal(feature?.properties.entity_key, "osm:way:789");
 });
 
 test("tilesForBbox returns bounded web mercator tile keys", () => {
@@ -99,7 +117,7 @@ test("featureTouchesBbox keeps cached tile features local to the current viewpor
 test("SOURCE_LABEL covers every supported source", () => {
   const required = [
     "user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm",
-    "osm_park", "admin_municipality", "admin_prefecture", "admin_country",
+    "school", "osm_park", "admin_municipality", "admin_prefecture", "admin_country",
   ] as const;
   for (const src of required) {
     assert.ok(SOURCE_LABEL[src] && SOURCE_LABEL[src].length > 0, `missing label for ${src}`);

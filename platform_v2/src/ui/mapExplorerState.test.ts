@@ -41,6 +41,7 @@ test("serializeSharedMapState keeps share-critical params including cell", () =>
     taxonGroup: "bird",
     basemap: "gsi",
     selectedCellId: "3000:5121:1377",
+    areaSources: ["school", "nature_symbiosis_site"],
     center: { lng: 137.8589, lat: 34.7219 },
     zoom: 10.6,
   });
@@ -50,6 +51,7 @@ test("serializeSharedMapState keeps share-critical params including cell", () =>
   assert.equal(params.get("taxon"), "bird");
   assert.equal(params.get("bm"), "gsi");
   assert.equal(params.get("cell"), "3000:5121:1377");
+  assert.equal(params.get("areas"), "school,nature_symbiosis_site");
   assert.equal(params.get("lng"), "137.8589");
   assert.equal(params.get("lat"), "34.7219");
   assert.equal(params.get("z"), "10.6");

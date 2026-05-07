@@ -8,7 +8,7 @@ export type MapMiniCell = LandingMapPreviewCell & {
 
 function asHref(mapHref: string, cell: LandingMapPreviewCell): string {
   return buildPublicMapCellHref(mapHref, {
-    label: cell.label,
+    label: cell.albumName || cell.label,
     scope: "blurred",
     cellId: cell.cellId,
     gridM: cell.gridM,
@@ -93,7 +93,7 @@ export function renderMapMini(props: MapMiniProps): string {
       </a>`)
     .join("");
   const badgeGroups = Array.from(fallbackCells.reduce((groups, cell) => {
-    const label = cell.label.trim() || "観察エリア";
+    const label = (cell.albumName || cell.label).trim() || "観察エリア";
     const group = groups.get(label);
     if (group) {
       group.count += cell.count;
@@ -111,7 +111,7 @@ export function renderMapMini(props: MapMiniProps): string {
   const payload = JSON.stringify({
     cells: props.cells.slice(0, 18).map((cell) => ({
       cellId: cell.cellId,
-      label: cell.label,
+      label: cell.albumName || cell.label,
       count: cell.count,
       gridM: cell.gridM,
       centroidLat: cell.centroidLat,
@@ -172,7 +172,7 @@ export function mapMiniBootScript(id: string = "ikimon-map-mini"): string {
           geometry: { type: 'Polygon', coordinates: [cell.polygon] },
           properties: {
             cellId: cell.cellId,
-            label: cell.label,
+            label: cell.albumName || cell.label,
             count: cell.count,
             href: cell.href
           }

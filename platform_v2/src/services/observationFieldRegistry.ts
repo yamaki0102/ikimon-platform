@@ -1,6 +1,7 @@
 import { getPool } from "../db.js";
 import { encodeGeohash } from "./geohash.js";
 import { computeBbox } from "./geoJsonBbox.js";
+import { defaultCertifiedEntityKey } from "./observationFieldIdentity.js";
 import {
   bboxOverlaps,
   entityKeyForUserField,
@@ -15,6 +16,7 @@ export type FieldSource =
   | "tsunag"
   | "protected_area"
   | "oecm"
+  | "school"
   | "osm_park"
   | "admin_municipality"
   | "admin_prefecture"
@@ -26,6 +28,7 @@ const ALL_FIELD_SOURCES = [
   "tsunag",
   "protected_area",
   "oecm",
+  "school",
   "osm_park",
   "admin_municipality",
   "admin_prefecture",
@@ -50,6 +53,7 @@ const SOURCE_TO_ADMIN_LEVEL: Record<FieldSource, string | null> = {
   tsunag: "tsunag",
   protected_area: "protected",
   oecm: "oecm",
+  school: "school",
   osm_park: "osm_park",
   admin_municipality: "admin_municipality",
   admin_prefecture: "admin_prefecture",
@@ -184,7 +188,14 @@ export interface CreateFieldInput {
 
 function defaultEntityKey(input: CreateFieldInput): string {
   if (input.entityKey) return input.entityKey;
-  if (input.source && input.source !== "user_defined") return input.certificationId ? `${input.source}:${input.certificationId}` : "";
+  if (input.source && input.source !== "user_defined") {
+    return defaultCertifiedEntityKey({
+      source: input.source,
+      certificationId: input.certificationId,
+      entityKey: input.entityKey,
+      payload: input.payload,
+    });
+  }
   if (!input.ownerUserId) return "";
   return entityKeyForUserField({
     ownerUserId: input.ownerUserId,
@@ -249,17 +260,20 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
   const source = input.source ?? "user_defined";
   const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
   const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
+  const entityKey = defaultEntityKey(input);
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
        lat, lng, radius_m, polygon, area_ha,
        certification_id, certified_at, official_url, owner_user_id, payload,
-       bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level
+       bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
+       entity_key, valid_from
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
        $12, $13, $14, $15, $16::jsonb,
-       $17, $18, $19, $20, $21
+       $17, $18, $19, $20, $21,
+       $22, COALESCE($23::date, current_date)
      )
      ON CONFLICT (source, certification_id) WHERE certification_id <> ''
      DO UPDATE SET
@@ -281,6 +295,8 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
        bbox_min_lng = COALESCE(EXCLUDED.bbox_min_lng, observation_fields.bbox_min_lng),
        bbox_max_lng = COALESCE(EXCLUDED.bbox_max_lng, observation_fields.bbox_max_lng),
        admin_level  = COALESCE(EXCLUDED.admin_level, observation_fields.admin_level),
+       entity_key   = COALESCE(NULLIF(EXCLUDED.entity_key, ''), observation_fields.entity_key),
+       valid_from   = COALESCE(observation_fields.valid_from, EXCLUDED.valid_from),
        updated_at   = NOW()
      RETURNING ${SELECT}`,
     [
@@ -305,6 +321,8 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
       bbox.minLng,
       bbox.maxLng,
       adminLevel,
+      entityKey,
+      input.validFrom ?? null,
     ],
   );
   const row = result.rows[0];
@@ -712,6 +730,7 @@ export interface PrefectureBucket {
   total: number;
   natureSymbiosisSite: number;
   tsunag: number;
+  school: number;
   userDefined: number;
 }
 
@@ -721,6 +740,7 @@ export async function listPrefectureBuckets(): Promise<PrefectureBucket[]> {
     total: string;
     nss: string;
     tsu: string;
+    school: string;
     ud: string;
   }>(
     `SELECT
@@ -728,6 +748,7 @@ export async function listPrefectureBuckets(): Promise<PrefectureBucket[]> {
        COUNT(*)::text AS total,
        COUNT(*) FILTER (WHERE source = 'nature_symbiosis_site')::text AS nss,
        COUNT(*) FILTER (WHERE source = 'tsunag')::text AS tsu,
+       COUNT(*) FILTER (WHERE source = 'school')::text AS school,
        COUNT(*) FILTER (WHERE source = 'user_defined')::text AS ud
      FROM observation_fields
      WHERE prefecture <> ''
@@ -740,6 +761,7 @@ export async function listPrefectureBuckets(): Promise<PrefectureBucket[]> {
     total: Number(r.total),
     natureSymbiosisSite: Number(r.nss),
     tsunag: Number(r.tsu),
+    school: Number(r.school),
     userDefined: Number(r.ud),
   }));
 }

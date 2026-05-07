@@ -200,6 +200,36 @@ function renderStewardshipImpact(snapshot: PlaceSnapshot): string {
   </section>`;
 }
 
+function renderSchoolAlbumProfiles(snapshot: PlaceSnapshot): string {
+  const profiles = snapshot.field.schoolAlbumProfiles ?? [];
+  if (profiles.length === 0) return "";
+  return `<section class="ps-section ps-school-albums">
+    <div class="ps-section-head">
+      <div>
+        <div class="ps-eyebrow">School Albums</div>
+        <h2>学校の図鑑を育てる</h2>
+      </div>
+      <span class="ps-source">教育機関向け</span>
+    </div>
+    <div class="ps-grid ps-grid-3">
+      ${profiles.map((profile) => `<a class="ps-school-album-card" href="${escapeHtml(profile.href)}">
+        <span>${escapeHtml(profile.kind)}</span>
+        <h3>${escapeHtml(profile.title)}</h3>
+        <p>${escapeHtml(profile.lead)}</p>
+      </a>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderAccessGuidance(snapshot: PlaceSnapshot): string {
+  const guidance = snapshot.field.accessGuidance;
+  if (!guidance) return "";
+  return `<section class="ps-access-guidance ps-access-${escapeHtml(guidance.status)}">
+    <span>${escapeHtml(guidance.label)}</span>
+    <p>${escapeHtml(guidance.body)}</p>
+  </section>`;
+}
+
 export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
   const s = snapshot.observationSummary;
   const seasonText = s.seasonLabels.length > 0 ? s.seasonLabels.join("・") : "これから";
@@ -241,6 +271,8 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
     </section>
 
     ${renderAreaAlbum(snapshot)}
+    ${renderAccessGuidance(snapshot)}
+    ${renderSchoolAlbumProfiles(snapshot)}
 
     <section class="ps-section">
       <div class="ps-section-head">
@@ -336,7 +368,7 @@ export const PLACE_SNAPSHOT_STYLES = `
 .ps-shell {
   max-width: var(--ikimon-content-max);
   margin: 0 auto;
-  padding: 28px 0 64px;
+  padding: 28px 16px 64px;
   color: #0f172a;
 }
 .ps-hero {
@@ -388,6 +420,30 @@ export const PLACE_SNAPSHOT_STYLES = `
 .ps-hero-side strong {
   font-size: clamp(34px, 5vw, 56px);
   line-height: 1;
+}
+.ps-access-guidance {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255,251,235,.92);
+  border: 1px solid rgba(245,158,11,.26);
+  color: #78350f;
+}
+.ps-access-guidance span {
+  display: inline-flex;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.ps-access-guidance p {
+  margin: 0;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.ps-access-public_access {
+  background: rgba(236,253,245,.92);
+  border-color: rgba(16,185,129,.24);
+  color: #064e3b;
 }
 .ps-section {
   margin-top: 28px;
@@ -490,6 +546,42 @@ export const PLACE_SNAPSHOT_STYLES = `
   margin: 8px 0 8px;
   font-size: 16px;
   line-height: 1.45;
+}
+.ps-school-album-card {
+  display: block;
+  min-height: 160px;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,251,235,.96), rgba(240,249,255,.96));
+  border: 1px solid rgba(245,158,11,.24);
+  text-decoration: none;
+  color: #0f172a;
+  box-shadow: 0 10px 24px rgba(15,23,42,.06);
+}
+.ps-school-album-card:hover {
+  border-color: rgba(14,165,233,.36);
+  transform: translateY(-1px);
+}
+.ps-school-album-card span {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(245,158,11,.14);
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 850;
+}
+.ps-school-album-card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  line-height: 1.35;
+}
+.ps-school-album-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.65;
+  font-size: 13px;
 }
 .ps-badge,
 .ps-chip {
@@ -695,13 +787,32 @@ export const PLACE_SNAPSHOT_STYLES = `
   }
 }
 @media (max-width: 560px) {
-  .ps-shell { padding: 16px 0 48px; }
+  .ps-shell { padding: 12px 12px 48px; }
+  .ps-hero {
+    padding: 20px;
+    border-radius: 14px;
+  }
+  .ps-hero-side {
+    min-height: 112px;
+    border-radius: 12px;
+  }
   .ps-grid-3,
   .ps-grid-4,
-  .ps-grid-5,
+  .ps-grid-5 {
+    grid-template-columns: 1fr;
+  }
   .ps-album-grid,
   .ps-album-grid-compact {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .ps-album-card {
+    padding: 7px;
+    border-radius: 10px;
+  }
+  .ps-album-card img,
+  .ps-album-placeholder {
+    border-radius: 8px;
   }
   .ps-section-head {
     display: block;

@@ -16,7 +16,7 @@ import { loadConfig } from "../config.js";
 
 const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
   "user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm",
-  "osm_park", "admin_municipality", "admin_prefecture", "admin_country",
+  "school", "osm_park", "admin_municipality", "admin_prefecture", "admin_country",
 ];
 
 function parseAreaSources(raw: unknown): AreaPolygonSource[] | undefined {

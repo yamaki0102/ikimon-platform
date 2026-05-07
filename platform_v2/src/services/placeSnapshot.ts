@@ -9,6 +9,10 @@ import {
 } from "./relationshipScore.js";
 import { getRelationshipScoreSnapshot, type RelationshipScoreSnapshot } from "./relationshipScoreSnapshot.js";
 import { listRegionalHypotheses, type RegionalHypothesisRecord } from "./regionalHypotheses.js";
+import { loadAreaSnapshotVisitIds } from "./areaSnapshotVisitScope.js";
+import { buildPublicMapCellName, isGenericMeshAlbumName } from "./publicMapCellNaming.js";
+import { buildSchoolAlbumProfiles, type SchoolAlbumProfile } from "./schoolAlbumProfiles.js";
+import { buildAreaAccessGuidance, type AreaAccessGuidance } from "./areaAccessGuidance.js";
 
 export type PlaceSnapshotField = {
   fieldId: string;
@@ -22,6 +26,9 @@ export type PlaceSnapshotField = {
   areaHa: number | null;
   visibility: "public" | "limited" | "private";
   officialUrl: string;
+  originalName: string;
+  schoolAlbumProfiles: SchoolAlbumProfile[];
+  accessGuidance: AreaAccessGuidance;
 };
 
 export type PlaceSnapshotObservationSummary = {
@@ -131,6 +138,7 @@ const SOURCE_LABEL: Record<ObservationField["source"], string> = {
   tsunag: "TSUNAG",
   protected_area: "保護区",
   oecm: "OECM",
+  school: "学校",
   osm_park: "公園 (OSM)",
   admin_municipality: "市町村",
   admin_prefecture: "都道府県",
@@ -138,6 +146,7 @@ const SOURCE_LABEL: Record<ObservationField["source"], string> = {
 };
 
 const ADMIN_LEVEL_LABEL: Record<string, string> = {
+  school: "学校",
   osm_park: "公園 (OSM)",
   admin_municipality: "市町村",
   admin_prefecture: "都道府県",
@@ -179,6 +188,34 @@ function fieldVisibility(field: ObservationField): PlaceSnapshotField["visibilit
 function locationLabel(field: ObservationField): string {
   const parts = [field.prefecture, field.city].filter(Boolean);
   return parts.length > 0 ? parts.join(" / ") : `${field.lat.toFixed(4)}, ${field.lng.toFixed(4)}`;
+}
+
+function friendlyAlbumName(field: ObservationField, localityHint?: { municipality?: string | null; prefecture?: string | null } | null): string {
+  if (!isGenericMeshAlbumName(field.name)) return field.name;
+  const municipality = (localityHint?.municipality || field.city || "").trim();
+  if (municipality) {
+    return buildPublicMapCellName({
+      localityLabel: municipality,
+      localityScope: "municipality",
+      gridM: field.radiusM <= 1200 ? 1000 : field.radiusM <= 3500 ? 3000 : 10000,
+      count: 0,
+    }).albumName;
+  }
+  const prefecture = (localityHint?.prefecture || field.prefecture || "").trim();
+  if (prefecture) {
+    return buildPublicMapCellName({
+      localityLabel: prefecture,
+      localityScope: "prefecture",
+      gridM: field.radiusM <= 3500 ? 3000 : 10000,
+      count: 0,
+    }).albumName;
+  }
+  return buildPublicMapCellName({
+    localityLabel: "このあたり",
+    localityScope: "blurred",
+    gridM: field.radiusM <= 1200 ? 1000 : 3000,
+    count: 0,
+  }).albumName;
 }
 
 function monthToSeason(month: number): number {
@@ -454,6 +491,7 @@ export function composePlaceSnapshot(args: {
   field: ObservationField;
   stats: FieldStats;
   canonical: CanonicalAgg;
+  localityHint?: { municipality?: string | null; prefecture?: string | null } | null;
   relationshipSnapshot?: RelationshipScoreSnapshot | null;
   placeId?: string | null;
   hypotheses?: RegionalHypothesisRecord[];
@@ -496,7 +534,7 @@ export function composePlaceSnapshot(args: {
     },
     field: {
       fieldId: args.field.fieldId,
-      name: args.field.name,
+      name: friendlyAlbumName(args.field, args.localityHint),
       source: args.field.source,
       sourceLabel: resolveSourceLabel(args.field),
       locationLabel: locationLabel(args.field),
@@ -506,6 +544,9 @@ export function composePlaceSnapshot(args: {
       areaHa: args.field.areaHa,
       visibility: fieldVisibility(args.field),
       officialUrl: args.field.officialUrl,
+      originalName: args.field.name,
+      schoolAlbumProfiles: buildSchoolAlbumProfiles(args.field),
+      accessGuidance: buildAreaAccessGuidance(args.field),
     },
     observationSummary: summary,
     relationshipScore: relationship,
@@ -523,12 +564,10 @@ export function composePlaceSnapshot(args: {
 }
 
 async function loadStewardshipWindow(
-  field: ObservationField,
-  placeId: string | null,
+  scopedVisitIds: string[],
   start: Date,
   end: Date,
 ): Promise<PlaceSnapshotStewardshipWindow> {
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "stewardship_window",
@@ -543,18 +582,9 @@ async function loadStewardshipWindow(
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
              where v.observed_at >= $1
                and v.observed_at < $2
-               and (
-                 v.source_payload->>'field_id' = $3
-                 or ($4::text is not null and v.place_id = $4)
-                 or $3::uuid = ANY(v.resolved_field_ids)
-                 or (
-                   coalesce(v.point_latitude, p.center_latitude) between $5 and $6
-                   and coalesce(v.point_longitude, p.center_longitude) between $7 and $8
-                 )
-               )
+               and v.visit_id = any($3::uuid[])
           ),
           field_occ as (
             select o.*
@@ -567,7 +597,7 @@ async function loadStewardshipWindow(
             (select count(distinct coalesce(nullif(scientific_name, ''), nullif(vernacular_name, ''), occurrence_id))::text from field_occ) as unique_taxa,
             (select count(*) filter (where effort_minutes is not null or distance_meters is not null)::text from field_visits) as effort_visits,
             (select count(*) filter (where occurrence_status = 'absent')::text from field_occ) as absent_records`,
-        [start, end, field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+        [start, end, scopedVisitIds],
       );
       const row = result.rows[0];
       return {
@@ -582,7 +612,7 @@ async function loadStewardshipWindow(
   );
 }
 
-async function loadStewardshipImpact(field: ObservationField, placeId: string | null): Promise<PlaceSnapshotStewardshipImpact> {
+async function loadStewardshipImpact(placeId: string | null, scopedVisitIds: string[]): Promise<PlaceSnapshotStewardshipImpact> {
   if (!placeId) return emptyStewardshipImpact();
   const pool = getPool();
   const actions = await safeQuery(
@@ -628,8 +658,8 @@ async function loadStewardshipImpact(field: ObservationField, placeId: string | 
     const afterEnd = new Date(occurredAt);
     afterEnd.setUTCDate(afterEnd.getUTCDate() + 30);
     const [before, after] = await Promise.all([
-      loadStewardshipWindow(field, placeId, beforeStart, occurredAt),
-      loadStewardshipWindow(field, placeId, occurredAt, afterEnd),
+      loadStewardshipWindow(scopedVisitIds, beforeStart, occurredAt),
+      loadStewardshipWindow(scopedVisitIds, occurredAt, afterEnd),
     ]);
     comparisons.push({
       actionId: action.action_id,
@@ -704,7 +734,7 @@ async function resolvePlaceIdForField(field: ObservationField): Promise<string |
   );
 }
 
-async function loadCanonicalAgg(field: ObservationField, placeId: string | null): Promise<CanonicalAgg> {
+async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null): Promise<CanonicalAgg> {
   const empty: CanonicalAgg = {
     totalObservations: 0,
     totalVisits: 0,
@@ -720,7 +750,6 @@ async function loadCanonicalAgg(field: ObservationField, placeId: string | null)
     unknownOriginCount: 0,
     stewardshipActionCount: 0,
   };
-  const bbox = fieldBbox(field);
   const pool = getPool();
   return safeQuery(
     "canonical_agg",
@@ -743,14 +772,7 @@ async function loadCanonicalAgg(field: ObservationField, placeId: string | null)
         `with field_visits as (
             select v.*
               from visits v
-              left join places p on p.place_id = v.place_id
-             where v.source_payload->>'field_id' = $1
-                or ($2::text is not null and v.place_id = $2)
-                or $1::uuid = ANY(v.resolved_field_ids)
-                or (
-                  coalesce(v.point_latitude, p.center_latitude) between $3 and $4
-                  and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
-                )
+             where v.visit_id = any($1::uuid[])
           ),
           field_occ as (
             select o.*
@@ -776,14 +798,7 @@ async function loadCanonicalAgg(field: ObservationField, placeId: string | null)
             (select count(*) filter (where lower(coalesce(organism_origin, source_payload->>'native_exotic_status', source_payload->>'origin', '')) in ('exotic', 'introduced', '外来'))::text from field_occ) as exotic_count,
             (select count(*) filter (where coalesce(organism_origin, source_payload->>'native_exotic_status', source_payload->>'origin', '') = '')::text from field_occ) as unknown_origin_count,
             (select count from stewardship) as stewardship_count`,
-        [
-          field.fieldId,
-          placeId,
-          bbox.minLat,
-          bbox.maxLat,
-          bbox.minLng,
-          bbox.maxLng,
-        ],
+        [scopedVisitIds, placeId],
       );
       const row = result.rows[0];
       if (!row) return empty;
@@ -807,6 +822,29 @@ async function loadCanonicalAgg(field: ObservationField, placeId: string | null)
   );
 }
 
+async function loadLocalityHint(scopedVisitIds: string[]): Promise<{ municipality: string | null; prefecture: string | null } | null> {
+  if (scopedVisitIds.length === 0) return null;
+  const pool = getPool();
+  return safeQuery(
+    "locality_hint",
+    async () => {
+      const result = await pool.query<{ municipality: string | null; prefecture: string | null }>(
+        `select nullif(observed_municipality, '') as municipality,
+                nullif(observed_prefecture, '') as prefecture
+           from visits
+          where visit_id = any($1::uuid[])
+            and (nullif(observed_municipality, '') is not null or nullif(observed_prefecture, '') is not null)
+          group by nullif(observed_municipality, ''), nullif(observed_prefecture, '')
+          order by count(*) desc, municipality asc nulls last, prefecture asc nulls last
+          limit 1`,
+        [scopedVisitIds],
+      );
+      return result.rows[0] ?? null;
+    },
+    null,
+  );
+}
+
 async function loadFieldHypotheses(field: ObservationField, placeId: string | null): Promise<RegionalHypothesisRecord[]> {
   const byPlace = placeId
     ? await listRegionalHypotheses({ placeId, publicOnly: true, limit: 6 }).catch(() => [])
@@ -827,11 +865,13 @@ export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot |
     resolvePlaceIdForField(field),
   ]);
   if (!stats) return null;
-  const [canonical, hypotheses] = await Promise.all([
-    loadCanonicalAgg(field, placeId),
+  const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
+  const [canonical, hypotheses, localityHint] = await Promise.all([
+    loadCanonicalAgg(scopedVisitIds, placeId),
     loadFieldHypotheses(field, placeId),
+    loadLocalityHint(scopedVisitIds),
   ]);
-  const stewardshipImpact = await loadStewardshipImpact(field, placeId);
+  const stewardshipImpact = await loadStewardshipImpact(placeId, scopedVisitIds);
   const relationshipSnapshot = placeId
     ? await getRelationshipScoreSnapshot({
         placeId,
@@ -845,6 +885,7 @@ export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot |
     field,
     stats,
     canonical,
+    localityHint,
     relationshipSnapshot,
     placeId,
     hypotheses,
@@ -857,5 +898,7 @@ export const __test__ = {
   fieldBbox,
   fieldVisibility,
   meshKeyForField,
+  friendlyAlbumName,
+  isGenericMeshAlbumName,
   seasonLabelsFromMonths,
 };

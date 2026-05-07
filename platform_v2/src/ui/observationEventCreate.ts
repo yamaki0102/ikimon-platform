@@ -135,12 +135,13 @@ export function renderEventCreateBody(args: {
       </div>
 
       <div data-field-panel="certified" style="display:none;">
-        <p class="evt-lead">環境省「自然共生サイト」と国交省 TSUNAG（優良緑地確保計画認定制度）から検索。</p>
+        <p class="evt-lead">自然共生サイト、TSUNAG、学校・キャンパスから検索。</p>
         <div style="display:grid; grid-template-columns: 1fr auto; gap:6px;">
           <input data-evt-cert-search placeholder="例: 東京都 / 渋谷区 / サイト名" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px;" />
           <select data-evt-cert-source style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px;">
             <option value="nature_symbiosis_site">自然共生サイト</option>
             <option value="tsunag">TSUNAG</option>
+            <option value="school">学校</option>
           </select>
         </div>
         <div data-field-list-certified style="display:grid; gap:6px; max-height:240px; overflow:auto; margin-top:8px;"></div>

@@ -130,10 +130,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     enjoyLead: "写真、公園、季節の手がかりから、次に行きたい自然を見つける地図。場所を選ぶと、今見られるものと次にできることが出ます。",
     visualCueCount: "写真カード = 最近の発見",
     visualCueColor: "色 = 生きものの気配",
-    visualCuePlace: "緑の面 = 公園・TSUNAG・保護区",
+    visualCuePlace: "面 = 公園・自然共生サイト・学校",
     tabMarkers: "最近の発見",
     tabHeatmap: "季節の気配",
-    tabPlaces: "公園・水辺",
+    tabPlaces: "エリア図鑑",
     tabCoverage: "記録の余白",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
@@ -226,10 +226,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     enjoyLead: "Find the next place you want to visit through photos, parks, seasons, and field clues. Pick a place to see what is visible now and what to do next.",
     visualCueCount: "Photo cards = recent finds",
     visualCueColor: "Color = signs of life",
-    visualCuePlace: "Green areas = parks / TSUNAG / protected places",
+    visualCuePlace: "Areas = parks / symbiosis sites / schools",
     tabMarkers: "Recent finds",
     tabHeatmap: "Seasonal signs",
-    tabPlaces: "Parks & water",
+    tabPlaces: "Area Albums",
     tabCoverage: "Open gaps",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
@@ -322,10 +322,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     enjoyLead: "Encuentra el próximo lugar para visitar a partir de fotos, parques, estaciones y pistas de campo. Elige un lugar para ver qué hay ahora y qué hacer después.",
     visualCueCount: "Tarjetas con foto = hallazgos recientes",
     visualCueColor: "Color = señales de vida",
-    visualCuePlace: "Zonas verdes = parques / TSUNAG / áreas protegidas",
+    visualCuePlace: "Zonas = parques / sitios de simbiosis / escuelas",
     tabMarkers: "Hallazgos recientes",
     tabHeatmap: "Señales de estación",
-    tabPlaces: "Parques y agua",
+    tabPlaces: "Álbumes de áreas",
     tabCoverage: "Huecos por mirar",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
@@ -418,10 +418,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     enjoyLead: "Encontre o próximo lugar para visitar por fotos, parques, estações e pistas de campo. Escolha um lugar para ver o que aparece agora e o que fazer depois.",
     visualCueCount: "Cartões com foto = descobertas recentes",
     visualCueColor: "Cor = sinais de vida",
-    visualCuePlace: "Áreas verdes = parques / TSUNAG / áreas protegidas",
+    visualCuePlace: "Áreas = parques / sítios de simbiose / escolas",
     tabMarkers: "Descobertas recentes",
     tabHeatmap: "Sinais da estação",
-    tabPlaces: "Parques e água",
+    tabPlaces: "Álbuns de áreas",
     tabCoverage: "Lacunas para olhar",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
@@ -738,6 +738,50 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     )
     .join("");
 
+  const areaSourceFilterLabel = lang === "ja"
+    ? "エリア種別"
+    : lang === "es"
+      ? "Tipo de área"
+      : lang === "pt-BR"
+        ? "Tipo de área"
+        : "Area type";
+  const areaSourceAllLabel = lang === "ja"
+    ? "すべて"
+    : lang === "es"
+      ? "Todo"
+      : lang === "pt-BR"
+        ? "Tudo"
+        : "All";
+  const areaSourceOptions = [
+    {
+      value: "nature_symbiosis_site",
+      label: lang === "ja" ? "自然共生サイト" : lang === "es" ? "Sitios de simbiosis" : lang === "pt-BR" ? "Sítios de simbiose" : "Symbiosis sites",
+      icon: "🌱",
+    },
+    { value: "tsunag", label: "TSUNAG", icon: "🔗" },
+    {
+      value: "school",
+      label: lang === "ja" ? "学校・キャンパス" : lang === "es" ? "Escuelas/campus" : lang === "pt-BR" ? "Escolas/campus" : "Schools/campuses",
+      icon: "🏫",
+    },
+    {
+      value: "protected_area,oecm,osm_park,user_defined",
+      label: lang === "ja" ? "公園・保護区" : lang === "es" ? "Parques/protegidas" : lang === "pt-BR" ? "Parques/protegidas" : "Parks/protected",
+      icon: "🌳",
+    },
+  ];
+  const areaSourceFiltersHtml = `<label class="me-area-source-opt is-active" data-area-source-all>
+      <input type="checkbox" id="me-area-source-all" checked />
+      <span aria-hidden="true">◎</span>
+      <strong>${escapeHtml(areaSourceAllLabel)}</strong>
+    </label>` + areaSourceOptions
+      .map((opt) => `<label class="me-area-source-opt" data-area-source-opt>
+        <input type="checkbox" class="me-area-source-toggle" data-area-source="${escapeHtml(opt.value)}" />
+        <span aria-hidden="true">${escapeHtml(opt.icon)}</span>
+        <strong>${escapeHtml(opt.label)}</strong>
+      </label>`)
+      .join("");
+
   const roleChipsHtml = ambientLabels.roles
     .map(
       (role, idx) => `<button
@@ -855,6 +899,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
               <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
+            </div>
+            <div class="me-filter-group me-area-source-group">
+              <span class="me-filter-label">${escapeHtml(areaSourceFilterLabel)}</span>
+              <div class="me-area-source-row" role="group" aria-label="${escapeHtml(areaSourceFilterLabel)}">${areaSourceFiltersHtml}</div>
             </div>
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(copy.yearFilterLabel)}</span>
@@ -1229,6 +1277,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaMissingSeasonLead: props.lang === "ja" ? "この季節の記録を足すと、場所の図鑑が一段強くなる。" : props.lang === "es" ? "Sumar registros de estas temporadas fortalece el álbum del lugar." : props.lang === "pt-BR" ? "Adicionar registros destas estações fortalece o álbum do lugar." : "Adding these seasons makes the place album stronger.",
     areaCompleteSeasonLead: props.lang === "ja" ? "四季の入口があります。次は同じ季節の再訪で厚みを出せます。" : props.lang === "es" ? "Ya hay entrada para las cuatro temporadas. Ahora conviene revisitar." : props.lang === "pt-BR" ? "Já há entrada para as quatro estações. Agora vale revisitar." : "All seasons have an entry. Revisit to add depth.",
     areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
+    areaEventCreateLabel: props.lang === "ja" ? "このエリアで観察会" : props.lang === "es" ? "Crear salida aquí" : props.lang === "pt-BR" ? "Criar saída aqui" : "Create event here",
+    areaEventCreateHint: props.lang === "ja" ? "この範囲を開催エリアにして、観察会と図鑑を育てる" : props.lang === "es" ? "Usa esta área para la salida y su álbum." : props.lang === "pt-BR" ? "Use esta área para a saída e o álbum." : "Use this area for an event and its album.",
     placeActionRecord: props.lang === "ja" ? "この場所で記録" : props.lang === "es" ? "Registrar aquí" : props.lang === "pt-BR" ? "Registrar aqui" : "Record here",
     placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
     placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
@@ -1304,6 +1354,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   } catch (_) { overlayCatalog = []; }
   var overlayState = {};
   overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
+  var AREA_SOURCE_VALUES = [
+    'nature_symbiosis_site', 'tsunag', 'school',
+    'protected_area', 'oecm', 'osm_park', 'user_defined',
+  ];
 
   var state = {
     tab: 'markers',
@@ -1313,6 +1367,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     taxonGroup: '',
     year: '',
     season: '',
+    areaSources: [],
     basemap: 'standard',
     tracesVisible: false,
     map: null,
@@ -1351,6 +1406,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
+  function normalizeAreaSources(values) {
+    var out = [];
+    (values || []).forEach(function (raw) {
+      String(raw || '').split(',').forEach(function (value) {
+        var source = value.trim();
+        if (!source || AREA_SOURCE_VALUES.indexOf(source) < 0 || out.indexOf(source) >= 0) return;
+        out.push(source);
+      });
+    });
+    return out;
+  }
+  function setAreaSources(values) {
+    state.areaSources = normalizeAreaSources(values);
+  }
+  function areaSourcesQueryValue() {
+    var sources = normalizeAreaSources(state.areaSources);
+    return sources.length ? sources.join(',') : '';
+  }
+  function switchToPlacesForAreaFilter() {
+    if (state.tab !== 'places') state.tab = 'places';
+    syncUiFromState();
+    if (state.map) applyTab(state.map, state.tab);
+  }
   function formatYearLabel(year) { return year ? String(year) : COPY.yearAll; }
   function syncYearUi() {
     if (yearLabelEl) yearLabelEl.textContent = formatYearLabel(state.year);
@@ -2012,10 +2090,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var cellProps = feature && feature.properties ? feature.properties : {};
       var countLabel = Number(cellProps.count || 0) + ' ' + COPY.resultCountLabel;
       var latest = cellProps.latestObservedAt ? String(cellProps.latestObservedAt).slice(0, 10) : '';
+      var era = cellProps.nameEraLabel ? String(cellProps.nameEraLabel) : '';
       var cellSeq = ++siteBriefSeq;
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-cell">' +
-          renderDetailHero({ title: cellProps.label || COPY.selectedFieldLabel, meta: countLabel + (latest ? ' · ' + latest : ''), badge: COPY.selectionPlaceLabel }) +
+          renderDetailHero({ title: cellProps.albumName || cellProps.label || COPY.selectedFieldLabel, meta: (cellProps.scaleLabel || countLabel) + ' · ' + countLabel + (latest ? ' · ' + latest : '') + (era ? ' · ' + era : ''), badge: cellProps.localityLabel || COPY.selectionPlaceLabel }) +
           renderDetailVisitReasons(context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -2484,9 +2563,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetInnerEl.innerHTML =
       '<article class="me-detail-panel me-bottom-detail me-detail-panel-cell">' +
         renderDetailHero({
-          title: p.label || COPY.selectedFieldLabel,
-          meta: String(p.count || 0) + ' ' + COPY.resultCountLabel + (p.latestObservedAt ? ' · ' + String(p.latestObservedAt).slice(0, 10) : ''),
-          badge: COPY.selectionPlaceLabel,
+          title: p.albumName || p.label || COPY.selectedFieldLabel,
+          meta: (p.scaleLabel || '') + (p.scaleLabel ? ' · ' : '') + String(p.count || 0) + ' ' + COPY.resultCountLabel + (p.latestObservedAt ? ' · ' + String(p.latestObservedAt).slice(0, 10) : '') + (p.nameEraLabel ? ' · ' + String(p.nameEraLabel) : ''),
+          badge: p.localityLabel || COPY.selectionPlaceLabel,
         }) +
         renderDetailVisitReasons(detailContext) +
         renderDetailRecentFinds(detailContext) +
@@ -2663,11 +2742,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '<div class="me-area-sheet-cta">'
       +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
       +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
-      +     escapeHtml(COPY.placeActionRecord)
+      +     escapeHtml(COPY.areaEventCreateLabel)
       +   '</a>'
       +   (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '')
-      +   '<span class="me-area-sheet-cta-hint">OSM の境界を開催エリア案として読み込み、作成時にフィールドDBへ保存</span>'
+      +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
       + '</div>'
+      + renderAreaAccessGuidance(transientAccessGuidance(props))
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
       + renderAreaObservationGallery(transientAreaGalleryItems(safeCenter), { label: COPY.areaGalleryTitle })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
@@ -2909,6 +2989,51 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</div>';
   }
 
+  function renderSchoolAlbumEntrypoints(field) {
+    var profiles = Array.isArray(field && field.schoolAlbumProfiles) ? field.schoolAlbumProfiles : [];
+    if (!profiles.length) return '';
+    return ''
+      + '<section class="me-school-albums" aria-label="学校の図鑑">'
+      +   '<div class="me-area-gallery-head">'
+      +     '<span>学校の図鑑を育てる</span>'
+      +     '<strong>授業、通学路、季節比較に分けて記録を集める。</strong>'
+      +   '</div>'
+      +   '<div class="me-school-albums-grid">'
+      + profiles.map(function (profile) {
+        return '<a class="me-school-album-card" href="' + escapeHtml(String(profile.href || '#')) + '">'
+          + '<span>' + escapeHtml(String(profile.kind || 'school')) + '</span>'
+          + '<strong>' + escapeHtml(String(profile.title || '学校図鑑')) + '</strong>'
+          + '<small>' + escapeHtml(String(profile.lead || 'この学校の自然を記録する。')) + '</small>'
+          + '</a>';
+      }).join('')
+      +   '</div>'
+      + '</section>';
+  }
+
+  function renderAreaAccessGuidance(guidance) {
+    if (!guidance) return '';
+    return ''
+      + '<section class="me-area-access me-area-access-' + escapeHtml(String(guidance.status || 'unknown')) + '">'
+      +   '<span>' + escapeHtml(String(guidance.label || '立入可否 不明')) + '</span>'
+      +   '<p>' + escapeHtml(String(guidance.body || 'このエリアが私有地か、無許可で入れる場所かは未確認です。立入前に現地の案内、管理者、公開範囲を確認してください。')) + '</p>'
+      + '</section>';
+  }
+
+  function transientAccessGuidance(props) {
+    var source = String(props && props.source || '');
+    var access = String(props && props.access || '').toLowerCase();
+    if (access === 'private' || access === 'no' || access === 'restricted') {
+      return { status: 'private_or_restricted', label: '立入注意', body: '私有地または立入制限のある区域の可能性があります。管理者の許可なく入らず、道路・公開園路など入れる場所から観察してください。' };
+    }
+    if (source === 'school') {
+      return { status: 'permission_required', label: '学校・キャンパス', body: '学校やキャンパスは関係者区域を含むことがあります。無許可で敷地内に入らず、公開範囲・学校行事・管理者許可のある観察だけにしてください。' };
+    }
+    if (access === 'yes' || access === 'public' || access === 'permissive') {
+      return { status: 'public_access', label: '公開範囲を確認', body: '公開されている範囲でも、夜間閉鎖・保護区域・立入禁止ロープなど現地ルールが優先です。案内板と管理者の指示に従ってください。' };
+    }
+    return { status: 'unknown', label: '立入可否 不明', body: 'このエリアが私有地か、無許可で入れる場所かは未確認です。立入前に現地の案内、管理者、公開範囲を確認してください。' };
+  }
+
   function renderAreaObservationGallery(items, options) {
     var records = Array.isArray(items) ? items.slice(0, 8) : [];
     var label = options && options.label ? String(options.label) : COPY.areaGalleryTitle;
@@ -3129,12 +3254,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         + '<div class="me-area-sheet-cta">'
         +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
         +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
-        +     escapeHtml(COPY.placeActionRecord)
+        +     escapeHtml(COPY.areaEventCreateLabel)
         +   '</a>'
         +   (officialUrl
           ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>'
           : '')
-        +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.placeStoryActions) + '</span>'
+        +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
         + '</div>'
       : '';
     var summaryHtml = ''
@@ -3149,11 +3274,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var maskingHtml = renderSensitiveBanner(masking);
     var placeStoryHtml = renderPlaceStoryHighlights(f, summary, indicators, representativePhoto);
     var galleryHtml = renderAreaObservationGallery(gallery, { label: COPY.areaGalleryTitle });
+    var schoolAlbumHtml = renderSchoolAlbumEntrypoints(f);
+    var accessHtml = renderAreaAccessGuidance(f.accessGuidance);
     var storyTabsHtml = renderAreaStoryTabs(snapshot);
     var publicPageHtml = fieldId
       ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
       : '';
-    return heroHtml + ctaHtml + followHtml + publicPageHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    return heroHtml + ctaHtml + accessHtml + followHtml + publicPageHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -3287,7 +3414,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
             cellId: props.cellId || '',
             count: Number(props.count || 0),
             dominantTaxonGroup: group,
-            label: props.label || '',
+            label: props.albumName || props.label || '',
           },
         };
       }).filter(Boolean),
@@ -3747,6 +3874,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'oecm', 'rgba(132,204,22,0.18)',
           'nature_symbiosis_site', 'rgba(16,185,129,0.18)',
           'tsunag', 'rgba(20,184,166,0.18)',
+          'school', 'rgba(245,158,11,0.16)',
           'osm_park', 'rgba(56,189,248,0.14)',
           'admin_municipality', 'rgba(148,163,184,0.10)',
           'admin_prefecture', 'rgba(148,163,184,0.08)',
@@ -3768,6 +3896,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           'oecm', '#65a30d',
           'nature_symbiosis_site', '#0f766e',
           'tsunag', '#0d9488',
+          'school', '#b45309',
           'osm_park', '#0284c7',
           '#475569',
         ],
@@ -3820,6 +3949,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     state.areaPolygonsAbort = controller;
     var qs = '?bbox=' + encodeURIComponent(bbox) + '&zoom=' + encodeURIComponent(zoom.toFixed(2));
+    var selectedSources = areaSourcesQueryValue();
+    if (selectedSources) qs += '&sources=' + encodeURIComponent(selectedSources);
     fetch(apiAreaPolygons + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (collection) {
@@ -4093,6 +4224,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       basemap: state.basemap,
       tracesVisible: state.tracesVisible,
       selectedCellId: state.selectedCellId,
+      areaSources: state.areaSources,
       overlays: currentOverlayShareState(),
       center: center,
       zoom: zoom,
@@ -4151,6 +4283,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (params.season) state.season = params.season;
     if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
     state.tracesVisible = params.traces === '1' || params.traces === 'true';
+    if (params.areas) setAreaSources(String(params.areas).split(','));
     if (params.cell) state._restoredCellId = params.cell;
     if (params.lng && params.lat && params.z) {
       var lng2 = parseFloat(params.lng);
@@ -4214,6 +4347,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     var traceToggleR = document.getElementById('me-trace-toggle');
     if (traceToggleR) traceToggleR.checked = !!state.tracesVisible;
+    var activeAreaSources = normalizeAreaSources(state.areaSources);
+    var allAreaSources = document.getElementById('me-area-source-all');
+    if (allAreaSources) {
+      allAreaSources.checked = activeAreaSources.length === 0;
+      var allLabel = allAreaSources.closest ? allAreaSources.closest('.me-area-source-opt') : allAreaSources.parentElement;
+      if (allLabel) allLabel.classList.toggle('is-active', activeAreaSources.length === 0);
+    }
+    document.querySelectorAll('.me-area-source-toggle').forEach(function (input) {
+      var values = normalizeAreaSources([input.getAttribute('data-area-source') || '']);
+      var checked = values.some(function (source) { return activeAreaSources.indexOf(source) >= 0; });
+      input.checked = checked;
+      var label = input.closest ? input.closest('.me-area-source-opt') : input.parentElement;
+      if (label) label.classList.toggle('is-active', checked);
+    });
     document.querySelectorAll('.me-overlay-item').forEach(function (label) {
       var id = label.getAttribute('data-overlay-id');
       if (!id || !overlayState[id]) return;
@@ -4414,6 +4561,30 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
       refreshMapData();
+      saveMapState();
+    });
+  });
+  var areaSourceAllEl = document.getElementById('me-area-source-all');
+  if (areaSourceAllEl) {
+    areaSourceAllEl.addEventListener('change', function () {
+      setAreaSources([]);
+      switchToPlacesForAreaFilter();
+      loadAreaPolygons();
+      saveMapState();
+    });
+  }
+  document.querySelectorAll('.me-area-source-toggle').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var next = normalizeAreaSources(state.areaSources);
+      var values = normalizeAreaSources([input.getAttribute('data-area-source') || '']);
+      values.forEach(function (source) {
+        var idx = next.indexOf(source);
+        if (input.checked && idx < 0) next.push(source);
+        if (!input.checked && idx >= 0) next.splice(idx, 1);
+      });
+      setAreaSources(next);
+      switchToPlacesForAreaFilter();
+      loadAreaPolygons();
       saveMapState();
     });
   });
@@ -5144,6 +5315,28 @@ export const MAP_EXPLORER_STYLES = `
   .me-chip:hover { border-color: rgba(16,185,129,.35); }
   .me-chip.is-active { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14)); border-color: rgba(16,185,129,.45); color: #065f46; }
   .me-chip-icon { font-size: 13px; }
+  .me-area-source-group { align-items: flex-start; }
+  .me-area-source-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .me-area-source-opt {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 40px; padding: 6px 11px; border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.08); background: #fff;
+    color: #334155; cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  .me-area-source-opt:hover { border-color: rgba(14,165,233,.32); }
+  .me-area-source-opt input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .me-area-source-opt span,
+  .me-area-source-opt strong { position: relative; pointer-events: none; }
+  .me-area-source-opt span { font-size: 13px; }
+  .me-area-source-opt strong { font-size: 12px; line-height: 1.2; font-weight: 850; }
+  .me-area-source-opt.is-active {
+    background: linear-gradient(135deg, rgba(245,158,11,.14), rgba(14,165,233,.13));
+    border-color: rgba(245,158,11,.36);
+    color: #78350f;
+    box-shadow: 0 4px 12px rgba(15,23,42,.06);
+  }
   .me-filter-drawer { position: relative; flex: 0 0 auto; }
   .me-filter-toggle {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -5855,6 +6048,49 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(20,184,166,.14);
     color: #0f766e;
   }
+  .me-school-albums {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    margin: 0 0 12px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,251,235,.96), rgba(240,249,255,.96));
+    border: 1px solid rgba(245,158,11,.22);
+  }
+  .me-school-albums-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .me-school-album-card {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    min-height: 112px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(148,163,184,.16);
+    color: #0f172a !important;
+    text-decoration: none;
+  }
+  .me-school-album-card:hover { border-color: rgba(14,165,233,.32); background: #fff; }
+  .me-school-album-card span { width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 999px; background: rgba(245,158,11,.14); color: #92400e; font-size: 10px; line-height: 1.2; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .me-school-album-card strong { font-size: 12px; line-height: 1.35; font-weight: 900; overflow-wrap: anywhere; }
+  .me-school-album-card small { color: #64748b; font-size: 10.5px; line-height: 1.45; font-weight: 720; overflow-wrap: anywhere; }
+  .me-area-access {
+    display: grid;
+    gap: 4px;
+    padding: 11px 12px;
+    margin: 0 0 12px;
+    border-radius: 14px;
+    background: rgba(255,251,235,.92);
+    border: 1px solid rgba(245,158,11,.26);
+    color: #78350f;
+  }
+  .me-area-access span { font-size: 11px; font-weight: 950; }
+  .me-area-access p { margin: 0; font-size: 11.5px; line-height: 1.55; font-weight: 720; overflow-wrap: anywhere; }
+  .me-area-access-public_access { background: rgba(236,253,245,.92); border-color: rgba(16,185,129,.24); color: #064e3b; }
   .me-area-gallery-empty-cta {
     display: inline-flex;
     align-items: center;
@@ -6239,9 +6475,12 @@ export const MAP_EXPLORER_STYLES = `
     .me-site-brief-loop-grid { grid-template-columns: 1fr; }
     .me-impact-grid,
     .me-place-story-grid,
-    .me-area-gallery-grid,
     .me-detail-stats,
     .me-detail-visit { grid-template-columns: 1fr; }
+    .me-area-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .me-school-albums-grid { grid-template-columns: 1fr; }
+    .me-area-gallery-card img,
+    .me-area-gallery-placeholder { height: 82px; }
     .me-detail-recent-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .me-detail-walk-item { grid-template-columns: 38px minmax(0, 1fr); }
     .me-detail-walk-item small { grid-column: 2; justify-self: start; text-align: left; max-width: none; }
@@ -6638,8 +6877,39 @@ export const MAP_EXPLORER_STYLES = `
       right: 0;
       top: auto;
       bottom: 0;
-      max-height: 62%;
+      max-height: 86%;
       border-radius: 22px 22px 0 0;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area[data-snap="peek"] {
+      max-height: 64%;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area[data-snap="full"] {
+      max-height: calc(100% - 8px);
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-hero {
+      min-height: 154px;
+      aspect-ratio: auto;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-hero strong {
+      font-size: 20px;
+      line-height: 1.22;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-sheet-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-sheet-cta-btn,
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-sheet-url {
+      flex: 1 1 100%;
+      width: 100%;
+      justify-content: center;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-story-tablist {
+      gap: 4px;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-story-tablist button {
+      padding: 5px 4px;
+      font-size: 10px;
+      line-height: 1.2;
     }
   }
 `;

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { entityKeyFromGeoProperties } from "../services/observationFieldIdentity.js";
 import { upsertCertifiedField, type FieldSource } from "../services/observationFieldRegistry.js";
 
 interface SeedSite {
@@ -16,6 +17,8 @@ interface SeedSite {
   summary?: string;
   official_url?: string;
   polygon?: Record<string, unknown>;
+  entity_key?: string;
+  payload?: Record<string, unknown>;
 }
 
 interface SeedFile {
@@ -25,6 +28,51 @@ interface SeedFile {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+type ImportOptions = {
+  prefecture?: string;
+  prefectureCode?: string;
+  limit?: number;
+  dryRun?: boolean;
+};
+
+const JIS_PREFECTURE_NAMES: Record<string, string> = {
+  "01": "北海道", "02": "青森県", "03": "岩手県", "04": "宮城県", "05": "秋田県",
+  "06": "山形県", "07": "福島県", "08": "茨城県", "09": "栃木県", "10": "群馬県",
+  "11": "埼玉県", "12": "千葉県", "13": "東京都", "14": "神奈川県", "15": "新潟県",
+  "16": "富山県", "17": "石川県", "18": "福井県", "19": "山梨県", "20": "長野県",
+  "21": "岐阜県", "22": "静岡県", "23": "愛知県", "24": "三重県", "25": "滋賀県",
+  "26": "京都府", "27": "大阪府", "28": "兵庫県", "29": "奈良県", "30": "和歌山県",
+  "31": "鳥取県", "32": "島根県", "33": "岡山県", "34": "広島県", "35": "山口県",
+  "36": "徳島県", "37": "香川県", "38": "愛媛県", "39": "高知県", "40": "福岡県",
+  "41": "佐賀県", "42": "長崎県", "43": "熊本県", "44": "大分県", "45": "宮崎県",
+  "46": "鹿児島県", "47": "沖縄県",
+};
+
+function prefectureNameFromCode(code: string): string {
+  return JIS_PREFECTURE_NAMES[code.slice(0, 2)] ?? "";
+}
+
+function schoolSeedMatchesOptions(site: SeedSite, options: ImportOptions): boolean {
+  const adminAreaCode = String(site.payload?.admin_area_code ?? "").trim();
+  const prefCode = String(options.prefectureCode ?? "").trim();
+  if (prefCode && !adminAreaCode.startsWith(prefCode)) return false;
+  const prefecture = String(options.prefecture ?? "").trim();
+  if (prefecture && site.prefecture !== prefecture) return false;
+  return true;
+}
+
+function parseOptions(args: string[]): ImportOptions {
+  const get = (name: string): string | undefined => args.find((a) => a.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
+  const limitRaw = get("limit");
+  const limit = limitRaw ? Number(limitRaw) : undefined;
+  return {
+    prefecture: get("prefecture"),
+    prefectureCode: get("prefecture-code"),
+    limit: limit && Number.isFinite(limit) ? Math.max(1, limit) : undefined,
+    dryRun: args.includes("--dry-run"),
+  };
+}
 
 function parseCsvRow(line: string): string[] {
   // Lightweight CSV parser supporting double-quoted fields with embedded commas
@@ -81,6 +129,7 @@ function importCsv(filePath: string, source: FieldSource): SeedSite[] {
       area_ha: Number(get("area_ha")) || undefined,
       summary: get("summary") || get("description"),
       official_url: get("official_url") || get("url"),
+      entity_key: get("entity_key") || (source === "school" && certificationId ? `mext_school:${certificationId.replace(/^mext-school:/, "")}` : undefined),
     });
   }
   return out;
@@ -164,25 +213,44 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
     const props = feature.properties ?? {};
     const center = geometryToCenter(feature.geometry);
     if (!center) return;
+    const getProp = (...keys: string[]): string => {
+      for (const key of keys) {
+        const value = String((props as Record<string, unknown>)[key] ?? "").trim();
+        if (value) return value;
+      }
+      return "";
+    };
+    const schoolCode = getProp("school_code", "SchoolCode", "SchoolCode ", "学校コード", "P29_002");
+    const schoolTypeCode = getProp("school_type_code", "SchooltypeCode", "SchooltypeCode ", "学校分類コード", "P29_003");
+    const adminAreaCode = getProp("admin_area_code", "AdministrativeAreaCode", "行政区域コード", "P29_001");
+    const address = getProp("address", "所在地", "P29_005");
+    const entityKey = getProp("entity_key") || entityKeyFromGeoProperties(props) || (schoolCode ? `mext_school:${schoolCode}` : "");
     const certId = String(
-      (props as Record<string, unknown>).certification_id ??
-        (props as Record<string, unknown>).id ??
-        `${source}-geojson-${i + 1}`,
+      getProp("certification_id", "id") ||
+        (schoolCode ? `mext-school:${schoolCode}` : `${source}-geojson-${i + 1}`),
     );
-    const name = String((props as Record<string, unknown>).name ?? (props as Record<string, unknown>).title ?? "");
+    const name = getProp("name", "title", "名称", "P29_004");
     if (!name) return;
     out.push({
       certification_id: certId,
       name,
       name_kana: String((props as Record<string, unknown>).name_kana ?? ""),
-      prefecture: String((props as Record<string, unknown>).prefecture ?? (props as Record<string, unknown>).pref ?? ""),
-      city: String((props as Record<string, unknown>).city ?? (props as Record<string, unknown>).municipality ?? ""),
+      prefecture: getProp("prefecture", "pref", "都道府県") || prefectureNameFromCode(adminAreaCode),
+      city: getProp("city", "municipality", "市区町村"),
       lat: center.lat,
       lng: center.lng,
       radius_m: geometryRoughRadiusMeters(feature.geometry),
       area_ha: Number((props as Record<string, unknown>).area_ha ?? 0) || undefined,
-      summary: String((props as Record<string, unknown>).summary ?? (props as Record<string, unknown>).description ?? ""),
+      summary: String((props as Record<string, unknown>).summary ?? (props as Record<string, unknown>).description ?? (schoolTypeCode ? `学校分類コード: ${schoolTypeCode}` : "")),
       official_url: String((props as Record<string, unknown>).official_url ?? (props as Record<string, unknown>).url ?? ""),
+      entity_key: entityKey || undefined,
+      payload: {
+        raw_properties: props,
+        ...(adminAreaCode ? { admin_area_code: adminAreaCode } : {}),
+        ...(schoolCode ? { school_code: schoolCode } : {}),
+        ...(schoolTypeCode ? { school_type_code: schoolTypeCode } : {}),
+        ...(address ? { address } : {}),
+      },
       polygon: feature.geometry && (feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon")
         ? (feature.geometry as unknown as Record<string, unknown>)
         : undefined,
@@ -191,7 +259,7 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
   return out;
 }
 
-async function importSeed(filePath: string, source: FieldSource): Promise<{ inserted: number; skipped: number }> {
+async function importSeed(filePath: string, source: FieldSource, options: ImportOptions = {}): Promise<{ inserted: number; skipped: number }> {
   const ext = extname(filePath).toLowerCase();
   let sites: SeedSite[];
   if (ext === ".csv") {
@@ -208,6 +276,21 @@ async function importSeed(filePath: string, source: FieldSource): Promise<{ inse
     } else {
       throw new Error(`bad seed: ${filePath}`);
     }
+  }
+  if (source === "school" && (options.prefecture || options.prefectureCode)) {
+    sites = sites.filter((site) => schoolSeedMatchesOptions(site, options));
+  }
+  if (options.limit) {
+    sites = sites.slice(0, options.limit);
+  }
+  if (options.dryRun) {
+    // eslint-disable-next-line no-console
+    console.log(`[${source}] dry_run=true candidates=${sites.length} file=${filePath}`);
+    for (const site of sites.slice(0, 12)) {
+      // eslint-disable-next-line no-console
+      console.log(`- ${site.certification_id} ${site.name} ${site.prefecture || ""} ${site.city || ""} ${site.lat},${site.lng}`);
+    }
+    return { inserted: 0, skipped: 0 };
   }
   let inserted = 0;
   let skipped = 0;
@@ -232,7 +315,8 @@ async function importSeed(filePath: string, source: FieldSource): Promise<{ inse
         certificationId: site.certification_id,
         officialUrl: site.official_url ?? "",
         ownerUserId: null,
-        payload: { import_source: filePath, imported_at: new Date().toISOString() },
+        entityKey: site.entity_key,
+        payload: { ...(site.payload ?? {}), import_source: filePath, imported_at: new Date().toISOString() },
       });
       inserted++;
     } catch (err) {
@@ -248,11 +332,12 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const overrideFile = args.find((a) => a.startsWith("--file="))?.split("=")[1];
   const overrideSourceRaw = args.find((a) => a.startsWith("--source="))?.split("=")[1];
-  const overrideSource = (["nature_symbiosis_site", "tsunag", "protected_area", "oecm"] as FieldSource[])
+  const options = parseOptions(args);
+  const overrideSource = (["nature_symbiosis_site", "tsunag", "protected_area", "oecm", "school"] as FieldSource[])
     .find((s) => s === overrideSourceRaw);
 
   if (overrideFile && overrideSource) {
-    const result = await importSeed(resolve(process.cwd(), overrideFile), overrideSource);
+    const result = await importSeed(resolve(process.cwd(), overrideFile), overrideSource, options);
     // eslint-disable-next-line no-console
     console.log(`[${overrideSource}] inserted=${result.inserted} skipped=${result.skipped}`);
     return;

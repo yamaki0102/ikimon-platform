@@ -256,7 +256,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const prefecture = request.query.prefecture && request.query.prefecture.length > 0 ? request.query.prefecture : undefined;
     const sourceRaw = request.query.source;
     const source = sourceRaw === "user_defined" || sourceRaw === "nature_symbiosis_site" ||
-      sourceRaw === "tsunag" || sourceRaw === "protected_area" || sourceRaw === "oecm"
+      sourceRaw === "tsunag" || sourceRaw === "protected_area" || sourceRaw === "oecm" || sourceRaw === "school"
       ? (sourceRaw as FieldSource)
       : undefined;
     const query = request.query.q && request.query.q.length > 0 ? request.query.q : undefined;
