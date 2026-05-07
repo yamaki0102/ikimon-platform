@@ -5,14 +5,21 @@ import test from "node:test";
 
 test("video finalize promotes video-only observations out of native no-photo review", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "videoUpload.ts"), "utf8");
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0094_publish_valid_video_observations.sql"), "utf8");
 
   assert.match(source, /'observation_video'/);
   assert.match(source, /public_visibility = 'public'/);
   assert.match(source, /quality_review_status = 'accepted'/);
   assert.match(source, /reason_code = 'native_no_photo'/);
   assert.match(source, /review_status = 'accepted'/);
+  assert.match(source, /handleStreamWebhook/);
+  assert.match(source, /upsertObservationVideoAsset\(client, record, target, mediaRole, sourcePayload\)/);
+  assert.match(source, /promoteObservationVideoTarget\(client, target\.visitId\)/);
   assert.match(source, /void kickVideoAiAfterFinalize\(record, target\.visitId\)/);
   assert.match(source, /v2_video_finalize_kick/);
+  assert.match(migration, /0094_publish_valid_video_observations/);
+  assert.match(migration, /ea\.asset_role = 'observation_video'/);
+  assert.match(migration, /reason_code = 'native_no_photo'/);
 });
 
 test("video upload supports official tus direct uploads and ready webhooks", async () => {

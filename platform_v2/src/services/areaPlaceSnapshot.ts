@@ -42,7 +42,6 @@ export type AreaRepresentativePhoto = {
   occurrenceId: string;
   visitId: string;
 };
-
 export type AreaObservationGalleryItem = {
   occurrenceId: string;
   visitId: string;

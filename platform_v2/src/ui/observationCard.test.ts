@@ -80,3 +80,16 @@ test("renderObservationCard normalizes unknown public place fallback", () => {
   assert.match(html, /位置をぼかしています/);
   assert.doesNotMatch(html, /Unknown place/);
 });
+
+test("renderObservationCard shows video thumbnail as a video card", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    photoUrl: null,
+    mediaUrl: "https://customer.example/video-thumbnail.jpg",
+    hasVideo: true,
+  }, { locationMode: "public" });
+
+  assert.match(html, /obs-card-video-mark/);
+  assert.match(html, /customer\.example\/video-thumbnail\.jpg/);
+  assert.match(html, /aria-label="動画"/);
+});

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getStrings } from "../i18n/index.js";
 import type { LandingObservation, LandingSnapshot, LandingTopGuideItem } from "../services/readModels.js";
-import { renderLandingTopSections } from "./landingTop.js";
+import { LANDING_TOP_STYLES, renderLandingTopSections } from "./landingTop.js";
 
 function renderTop(snapshot: LandingSnapshot): string {
   const strings = getStrings("ja");
@@ -149,8 +149,8 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /同定する/);
   assert.match(html, /地域マップ/);
   assert.match(html, /今日の発見/);
-  assert.match(html, /写真/);
-  assert.match(html, /動画/);
+  assert.match(html, /観察証拠/);
+  assert.doesNotMatch(html, /id="topa-video"/);
   assert.match(html, /ガイド/);
   assert.match(html, /スキャン/);
   assert.match(html, /まだ公開できる観察がありません/);
@@ -167,10 +167,87 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /\/observations\/visit-1/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:today"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:needsId:all"/);
-  assert.ok((html.match(/prototype-topa-card-grid/g) ?? []).length >= 6);
-  assert.match(html, /動きのある記録を増やす/);
+  assert.ok((html.match(/prototype-topa-card-grid/g) ?? []).length >= 5);
+  assert.match(html, /観察証拠/);
+  assert.match(html, /prototype-topa-evidence-badge/);
   assert.doesNotMatch(html, /新着投稿/);
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
+});
+
+test("landing top folds video items into the evidence shelf with visible video badges", () => {
+  const videoObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-video",
+    visitId: "visit-video",
+    displayName: "鳴く鳥の記録",
+    photoUrl: null,
+    mediaUrl: "/uploads/video-thumb.jpg",
+    hasVideo: true,
+    librarySourceKind: "video",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    feed: [videoObservation, photoObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: photoSnapshot.dailyDashboard!.featuredObservation,
+    },
+  });
+
+  assert.match(html, /観察証拠/);
+  assert.doesNotMatch(html, /id="topa-video"/);
+  assert.match(html, /<img src="\/thumb\/md\/video-thumb\.jpg" alt="鳴く鳥の記録"/);
+  assert.match(html, /動画あり/);
+});
+
+test("landing top keeps video evidence in the evidence shelf even when multiple videos exist", () => {
+  const videoOne: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-video-1",
+    visitId: "visit-video-1",
+    displayName: "鳴く鳥の記録",
+    photoUrl: null,
+    mediaUrl: "/uploads/video-thumb-1.jpg",
+    hasVideo: true,
+    librarySourceKind: "video",
+  };
+  const videoTwo: LandingObservation = {
+    ...videoOne,
+    occurrenceId: "occ-video-2",
+    visitId: "visit-video-2",
+    displayName: "歩く虫の記録",
+    mediaUrl: "/uploads/video-thumb-2.jpg",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    feed: [videoOne, videoTwo, photoObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: photoSnapshot.dailyDashboard!.featuredObservation,
+    },
+  });
+
+  assert.match(html, /観察証拠/);
+  assert.doesNotMatch(html, /id="topa-video"/);
+  assert.match(html, /<img src="\/thumb\/md\/video-thumb-1\.jpg" alt="鳴く鳥の記録"/);
+  assert.match(html, /<img src="\/thumb\/md\/video-thumb-2\.jpg" alt="歩く虫の記録"/);
+  assert.ok((html.match(/動画あり/g) ?? []).length >= 2);
+});
+
+test("landing top does not render opaque overflow summary cards", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    overflowSummaries: [{
+      observerUserId: "user-1",
+      observerName: "Nats",
+      count: 83,
+      latestObservedAt: photoObservation.observedAt,
+      sampleObservation: photoObservation,
+    }],
+  });
+
+  assert.doesNotMatch(html, /今日のまとめ/);
+  assert.doesNotMatch(html, /トップでは個別カードを並べすぎず/);
 });
 
 test("landing top A renders local map shelf without making revisit the primary action", () => {
@@ -191,6 +268,13 @@ test("landing top A renders local map shelf without making revisit the primary a
   assert.match(html, /id="topa-local-map"/);
   assert.match(html, /地図から探す。/);
   assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+});
+
+test("landing top has medium desktop width relief", () => {
+  assert.match(LANDING_TOP_STYLES, /--ikimon-landing-effective-w: min\(var\(--ikimon-page-max\), calc\(var\(--ikimon-landing-available-w\) - max\(var\(--ikimon-page-inline\), 32px\)\)\);/);
+  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{[\s\S]*width: var\(--ikimon-landing-effective-w\);[\s\S]*margin-left: var\(--ikimon-shell-margin-left\);/);
+  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.prototype-topa h1 \{[\s\S]*max-width: none;[\s\S]*white-space: normal;/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-topa-card-grid,\s*\.prototype-topa-card-grid\.is-primary \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
 });
 
 test("landing top renders guide shelf items from guide records", () => {

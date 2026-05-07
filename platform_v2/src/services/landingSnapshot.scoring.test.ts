@@ -254,6 +254,7 @@ test("landing top shelves keep content modes distinct and keep CTA shelves unfil
   const observations = [
     topObservation(1, { librarySourceKind: "photo", hasVideo: false }),
     topObservation(2, { librarySourceKind: "video", hasVideo: true }),
+    topObservation(6, { librarySourceKind: "video", hasVideo: true }),
     topObservation(3, { librarySourceKind: "guide", hasVideo: false }),
     topObservation(4, { librarySourceKind: "scan", hasVideo: false }),
     topObservation(5, { identificationCount: 0, librarySourceKind: "photo", hasVideo: false }),
@@ -261,14 +262,17 @@ test("landing top shelves keep content modes distinct and keep CTA shelves unfil
   const { shelves } = buildLandingTopShelves(observations, {
     now: new Date("2026-04-24T00:00:00.000Z"),
   });
-  assert.ok(shelves.find((shelf) => shelf.kind === "video")?.items.every((item) => "occurrenceId" in item && (item.hasVideo || item.librarySourceKind === "video")));
+  const evidenceShelf = shelves.find((shelf) => shelf.kind === "photo");
+  assert.equal(evidenceShelf?.title, "観察証拠");
+  assert.equal(shelves.some((shelf) => shelf.kind === "video"), false);
+  assert.ok(evidenceShelf?.items.some((item) => "occurrenceId" in item && (item.hasVideo || item.librarySourceKind === "video")));
   assert.ok(shelves.find((shelf) => shelf.kind === "guide")?.items.every((item) => item.librarySourceKind === "guide"));
   assert.ok(shelves.find((shelf) => shelf.kind === "scan")?.items.every((item) => item.librarySourceKind === "scan"));
 
   const photoOnly = buildLandingTopShelves([topObservation(10), topObservation(11)], {
     now: new Date("2026-04-24T00:00:00.000Z"),
   });
-  assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "video")?.items.length, 0);
+  assert.equal(photoOnly.shelves.some((shelf) => shelf.kind === "video"), false);
   assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "guide")?.items.length, 0);
   assert.equal(photoOnly.shelves.find((shelf) => shelf.kind === "scan")?.items.length, 0);
 });

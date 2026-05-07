@@ -6,7 +6,6 @@ import type {
   LandingObservation,
   LandingSnapshot,
   LandingTopGuideItem,
-  LandingTopOverflowSummary,
   LandingTopShelf,
   LandingTopShelfItem,
   LandingTopShelfKind,
@@ -119,10 +118,14 @@ function uniqueLandingObservations(snapshot: LandingSnapshot): LandingObservatio
   return Array.from(new Map(observations.map((obs) => [obs.occurrenceId, obs])).values());
 }
 
-function itemImageUrl(item: Pick<LandingTopShelfItem, "photoUrl"> | null | undefined, preset: ThumbnailPreset | "original"): string | null {
-  if (!item?.photoUrl) return null;
-  if (preset === "original") return item.photoUrl;
-  return toThumbnailUrl(item.photoUrl, preset) ?? item.photoUrl;
+function itemImageUrl(
+  item: (Pick<LandingTopShelfItem, "photoUrl"> & { mediaUrl?: string | null }) | null | undefined,
+  preset: ThumbnailPreset | "original",
+): string | null {
+  const sourceUrl = item?.photoUrl || item?.mediaUrl || null;
+  if (!sourceUrl) return null;
+  if (preset === "original") return sourceUrl;
+  return toThumbnailUrl(sourceUrl, preset) ?? sourceUrl;
 }
 
 function observationImageUrl(obs: LandingObservation | null | undefined, preset: ThumbnailPreset | "original"): string | null {
@@ -173,6 +176,16 @@ function landingShelfCardKpi(kind: LandingTopShelfKind): string {
   return `landing:topA:shelf:${kind}`;
 }
 
+function renderEvidenceBadge(item: LandingTopShelfItem): string {
+  if (!isLandingObservationItem(item)) return "";
+  const labels = [
+    item.photoUrl ? "写真" : "",
+    item.hasVideo ? "動画あり" : "",
+  ].filter(Boolean);
+  if (labels.length === 0) return "";
+  return `<span class="prototype-topa-evidence-badge">${escapeHtml(labels.join(" + "))}</span>`;
+}
+
 function renderTopAObservationCard(
   basePath: string,
   lang: SiteLang,
@@ -191,8 +204,8 @@ function renderTopAObservationCard(
     : baseMeta;
   const status = observationStatusLabel(obs);
   const mediaHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />`
-    : `<span class="prototype-topa-empty-thumb" aria-hidden="true">${isLandingGuideItem(obs) ? "GUIDE" : "PHOTO"}</span>`;
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />${renderEvidenceBadge(obs)}`
+    : `<span class="prototype-topa-empty-thumb" aria-hidden="true">${shelfKind === "video" ? "VIDEO" : isLandingGuideItem(obs) ? "GUIDE" : "PHOTO"}</span>`;
 
   return `<a class="prototype-topa-card" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(kpiAction)}">
     <span class="prototype-topa-thumb">${mediaHtml}</span>
@@ -224,17 +237,20 @@ function renderLandingShelfCta(basePath: string, lang: SiteLang, shelf: LandingT
   );
 }
 
-function renderOverflowSummaryCard(summary: LandingTopOverflowSummary, copy: LandingStrings): string {
-  return `<div class="prototype-topa-summary-card">
-    <small>今日のまとめ</small>
-    <strong>${escapeHtml(summary.observerName)} さんの発見 ${escapeHtml(formatLandingNumber(copy, summary.count))}件をまとめました</strong>
-    <span>${escapeHtml(displayObservationName(summary.sampleObservation, copy.heroPhotoFallback))} など。トップでは個別カードを並べすぎず、地域と種類の幅を優先します。</span>
-  </div>`;
-}
-
 function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
   const observations = uniqueLandingObservations(snapshot);
-  return [
+  const videoItems = observations.filter((obs) => Boolean(obs.hasVideo) || obs.librarySourceKind === "video").slice(0, 4);
+  const evidenceShelf = {
+    kind: "photo" as const,
+    title: "観察証拠",
+    eyebrow: "EVIDENCE",
+    href: "/observations",
+    items: Array.from(new Map([
+      ...observations.filter((obs) => Boolean(obs.photoUrl)).slice(0, 6),
+      ...videoItems,
+    ].map((obs) => [obs.occurrenceId, obs])).values()).slice(0, 6),
+  };
+  const shelves: LandingTopShelf[] = [
     {
       kind: "today",
       title: "今日の発見",
@@ -242,21 +258,9 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
       href: "/observations",
       items: observations.slice(0, 8),
     },
-    {
-      kind: "photo",
-      title: "写真",
-      eyebrow: "PHOTO",
-      href: "/observations?media=photo",
-      items: observations.filter((obs) => Boolean(obs.photoUrl)).slice(0, 6),
-    },
-    {
-      kind: "video",
-      title: "動画",
-      eyebrow: "VIDEO",
-      href: "/observations?media=video",
-      items: observations.filter((obs) => Boolean(obs.hasVideo) || obs.librarySourceKind === "video").slice(0, 4),
-      cta: { title: "動きのある記録を増やす", body: "鳴き声や歩き方は動画で残せます。", href: "/record", actionLabel: "動画を記録する" },
-    },
+    evidenceShelf,
+  ];
+  shelves.push(
     {
       kind: "guide",
       title: "ガイド",
@@ -280,18 +284,18 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
       href: "/observations?filter=needs_id",
       items: observations.filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate).slice(0, 6),
     },
-  ];
+  );
+  return shelves;
 }
 
 function renderLandingShelf(options: LandingTopRenderOptions, shelf: LandingTopShelf, index: number): string {
-  const { basePath, lang, copy, snapshot } = options;
+  const { basePath, lang, copy } = options;
   const itemsHtml = shelf.items.map((obs, itemIndex) =>
     renderTopAObservationCard(basePath, lang, copy, obs, itemIndex, landingShelfCardKpi(shelf.kind), shelf.kind),
   ).join("");
-  const summaryHtml = shelf.kind === "today"
-    ? (snapshot.overflowSummaries ?? []).slice(0, 1).map((summary) => renderOverflowSummaryCard(summary, copy)).join("")
+  const ctaHtml = shelf.cta && (shelf.kind === "video" || shelf.items.length < Math.min(2, 4))
+    ? renderLandingShelfCta(basePath, lang, shelf)
     : "";
-  const ctaHtml = shelf.cta && shelf.items.length < Math.min(2, 4) ? renderLandingShelfCta(basePath, lang, shelf) : "";
   const emptyHtml = !itemsHtml && !ctaHtml
     ? renderTopAEmptyCard(basePath, lang, "まだ公開できる観察がありません", "最初の発見を写真で残せます。", "/record", `landing:topA:shelf:${shelf.kind}:empty`)
     : "";
@@ -303,7 +307,7 @@ function renderLandingShelf(options: LandingTopRenderOptions, shelf: LandingTopS
       </div>
       <a href="${escapeHtml(landingHref(basePath, lang, shelf.href))}" data-kpi-action="landing:topA:shelf:${escapeHtml(shelf.kind)}:all">すべて見る</a>
     </div>
-    <div class="prototype-topa-card-grid${index === 0 ? " is-primary" : ""}">${itemsHtml}${summaryHtml}${ctaHtml}${emptyHtml}</div>
+    <div class="prototype-topa-card-grid${index === 0 ? " is-primary" : ""}">${itemsHtml}${ctaHtml}${emptyHtml}</div>
   </div>`;
 }
 
@@ -597,7 +601,7 @@ export const LANDING_TOP_STYLES = `
   .shell.shell-bleed.prototype-shell {
     --ikimon-landing-sidebar-w: var(--ikimon-desktop-sidebar-w, 0px);
     --ikimon-landing-available-w: calc(100vw - var(--ikimon-landing-sidebar-w));
-    --ikimon-landing-effective-w: min(var(--ikimon-page-max), calc(var(--ikimon-landing-available-w) - var(--ikimon-page-inline)));
+    --ikimon-landing-effective-w: min(var(--ikimon-page-max), calc(var(--ikimon-landing-available-w) - max(var(--ikimon-page-inline), 32px)));
     --ikimon-landing-side-space: max(16px, calc((var(--ikimon-landing-available-w) - var(--ikimon-landing-effective-w)) / 2));
     width: var(--ikimon-landing-effective-w);
     max-width: none;
@@ -832,6 +836,7 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-topa-thumb {
     height: 142px;
+    position: relative;
     display: block;
     overflow: hidden;
     background:
@@ -845,6 +850,23 @@ export const LANDING_TOP_STYLES = `
     height: 100%;
     display: block;
     object-fit: cover;
+  }
+  .prototype-topa-evidence-badge {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    max-width: calc(100% - 20px);
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(16, 37, 26, .88);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 950;
+    box-shadow: 0 8px 18px rgba(15,23,42,.18);
   }
   .prototype-topa-empty-thumb {
     height: 100%;
@@ -1479,6 +1501,45 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-cta h2 { color: #fff; margin: 0; }
   .prototype-cta p { color: rgba(255,255,255,.84); margin-top: 10px; }
+  @media (min-width: 1161px) {
+    .shell.shell-bleed.prototype-shell {
+      --ikimon-landing-effective-w: min(var(--ikimon-page-max), calc(100vw - var(--ikimon-shell-margin-left) - var(--ikimon-shell-margin-right)));
+      width: var(--ikimon-landing-effective-w);
+      margin-left: var(--ikimon-shell-margin-left);
+      margin-right: var(--ikimon-shell-margin-right);
+    }
+  }
+  @media (min-width: 1161px) and (max-width: 1380px) {
+    .shell.shell-bleed.prototype-shell {
+      padding-top: clamp(14px, 2vw, 24px);
+    }
+    .prototype-topa h1 {
+      max-width: none;
+      font-size: clamp(34px, 3.35vw, 50px);
+      white-space: normal;
+      text-wrap: balance;
+    }
+    .prototype-topa-search {
+      min-height: 60px;
+    }
+    .prototype-topa-actions {
+      gap: 10px;
+    }
+    .prototype-topa-action {
+      min-height: 78px;
+      padding: 10px;
+    }
+    .prototype-topa-action strong {
+      font-size: 16px;
+    }
+    .prototype-topa-card-grid,
+    .prototype-topa-card-grid.is-primary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .prototype-topa-summary-card {
+      grid-column: span 3;
+    }
+  }
   @media (max-width: 1020px) {
     .prototype-topa-board {
       grid-template-columns: 1fr;

@@ -55,6 +55,7 @@ export function renderObservationCard(
   const entryType = obs.entryType ?? "observation";
   const kind = kindCopy[lang][entryType];
   const isIdentification = entryType === "identification";
+  const hasVideo = Boolean(obs.hasVideo);
   const detailHref = withBasePath(
     basePath,
     buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
@@ -84,13 +85,17 @@ export function renderObservationCard(
   // Broken / missing photo fallback: hand-drawn-style sketch card that looks
   // intentional, not a broken <img>. onerror swaps in the sketch if the URL
   // returns 404 (e.g. when /uploads/ is not yet mounted).
+  const mediaUrl = obs.mediaUrl ?? obs.photoUrl;
+  const missingMediaLabel = hasVideo
+    ? (lang === "ja" ? "動画" : lang === "es" ? "Video" : lang === "pt-BR" ? "Video" : "Video")
+    : (lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo");
   const sketchFallback = `<div class="obs-card-photo is-sketch" aria-hidden="true">
-    <span class="obs-card-sketch-icon">${isIdentification ? "📝" : "📷"}</span>
+    <span class="obs-card-sketch-icon">${isIdentification ? "📝" : hasVideo ? "▶" : "📷"}</span>
     <span class="obs-card-sketch-name">${escapeHtml(subjectLabel)}</span>
-    <span class="obs-card-sketch-note">${lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo"}</span>
+    <span class="obs-card-sketch-note">${escapeHtml(missingMediaLabel)}</span>
   </div>`;
-  const photo = obs.photoUrl
-    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(obs.photoUrl, "md") ?? obs.photoUrl)}" alt="${escapeHtml(subjectLabel)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
+  const photo = mediaUrl
+    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(mediaUrl, "md") ?? mediaUrl)}" alt="${escapeHtml(subjectLabel)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
     : sketchFallback;
   const locationMode = options.locationMode ?? "public";
   const placeLine = formatPlaceDisplay({
@@ -132,6 +137,7 @@ export function renderObservationCard(
   return `<article class="obs-card${options.compact ? " is-compact" : ""}${isIdentification ? " is-identification" : ""}" data-entry-type="${escapeHtml(entryType)}">
     <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(subjectLabel)}">
       ${photo}
+      ${hasVideo ? `<span class="obs-card-video-mark" aria-label="${escapeHtml(lang === "ja" ? "動画" : "Video")}">▶</span>` : ""}
       <span class="obs-card-kind">${escapeHtml(kind.badge)}</span>
       ${multiBadge}
       ${tierBadge}
@@ -180,6 +186,20 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-sketch-note { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
   .obs-card-photo-fallback { display: none; }
   .obs-card-photo-fallback.is-visible { display: flex; }
+  .obs-card-video-mark {
+    position: absolute; inset: 0; margin: auto;
+    width: 54px; height: 54px; border-radius: 999px;
+    display: grid; place-items: center;
+    background: rgba(15,23,42,.68); color: #fff;
+    font-size: 22px; font-weight: 900; line-height: 1;
+    box-shadow: 0 12px 28px rgba(15,23,42,.22);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+  }
+  .obs-card-video-mark::before {
+    content: ""; position: absolute; inset: -8px;
+    border-radius: inherit; border: 1px solid rgba(255,255,255,.42);
+  }
   .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; display: inline-flex; align-items: center; gap: 6px; }
   .obs-card-species-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .obs-card-species.is-awaiting { background: rgba(234,179,8,.88); color: #422006; }

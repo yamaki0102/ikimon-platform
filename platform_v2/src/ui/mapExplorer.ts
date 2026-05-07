@@ -3013,6 +3013,88 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</section>';
   }
 
+  function coverSourceLabel(source) {
+    if (source === 'admin_curated') return COPY.coverSourceAdmin;
+    if (source === 'community_curated') return COPY.coverSourceCommunity;
+    return COPY.coverSourceAuto;
+  }
+
+  function renderRepresentativePhoto(photo) {
+    if (!photo || !photo.photoUrl) return '';
+    var displayName = String(photo.displayName || COPY.coverFallbackTitle);
+    var locality = String(photo.localityLabel || '');
+    var dateText = photo.observedAt ? String(photo.observedAt).slice(0, 10) : '';
+    var meta = [dateText, locality].filter(Boolean).join(' / ');
+    return ''
+      + '<figure class="me-area-cover is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
+      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-cover&quot;).remove()" />'
+      +   '<figcaption>'
+      +     '<span>' + escapeHtml(coverSourceLabel(photo.source)) + '</span>'
+      +     '<strong>' + escapeHtml(displayName) + '</strong>'
+      +     (meta ? '<small>' + escapeHtml(meta) + '</small>' : '')
+      +   '</figcaption>'
+      + '</figure>';
+  }
+
+  function renderAreaHero(options) {
+    var title = String(options && options.title || '観察エリア');
+    var sourceLabel = String(options && options.sourceLabel || '');
+    var meta = String(options && options.meta || '');
+    var photo = options && options.photo;
+    if (photo && photo.photoUrl) {
+      var displayName = String(photo.displayName || COPY.coverFallbackTitle);
+      var locality = String(photo.localityLabel || '');
+      var dateText = photo.observedAt ? String(photo.observedAt).slice(0, 10) : '';
+      var photoMeta = [dateText, locality].filter(Boolean).join(' / ');
+      return ''
+        + '<figure class="me-area-cover me-area-hero is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
+        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-hero&quot;).classList.add(&quot;is-empty&quot;);this.remove()" />'
+        +   '<figcaption>'
+        +     '<span>' + escapeHtml(sourceLabel || coverSourceLabel(photo.source)) + '</span>'
+        +     '<strong>' + escapeHtml(title) + '</strong>'
+        +     '<small>' + escapeHtml(displayName + (photoMeta ? ' · ' + photoMeta : '')) + '</small>'
+        +   '</figcaption>'
+        + '</figure>';
+    }
+    return ''
+      + '<div class="me-area-cover me-area-hero me-area-hero-map">'
+      +   '<div class="me-area-hero-mark" aria-hidden="true">⌖</div>'
+      +   '<div class="me-area-hero-copy">'
+      +     (sourceLabel ? '<span>' + escapeHtml(sourceLabel) + '</span>' : '')
+      +     '<strong>' + escapeHtml(title) + '</strong>'
+      +     (meta ? '<small>' + escapeHtml(meta) + '</small>' : '')
+      +   '</div>'
+      + '</div>';
+  }
+
+  function renderPlaceStoryHighlights(field, summary, indicators, representativePhoto) {
+    var topTaxa = Array.isArray(summary && summary.topTaxa) ? summary.topTaxa.slice(0, 3) : [];
+    var taxaText = topTaxa.length
+      ? topTaxa.map(function (taxon) { return taxon && taxon.name; }).filter(Boolean).join(' / ')
+      : (representativePhoto && representativePhoto.displayName ? representativePhoto.displayName : COPY.placeStoryNoTaxa);
+    var seasons = Number(summary && summary.seasonsCovered || 0);
+    var visits = Number(summary && summary.totalVisits || 0);
+    var observations = Number(summary && summary.totalObservations || 0);
+    var missing = seasons < 4 ? COPY.placeStoryNeedSeason : COPY.placeStoryNeedGuide;
+    var effortIndex = indicators && typeof indicators.effortIndex === 'number' && Number.isFinite(indicators.effortIndex)
+      ? Math.round(indicators.effortIndex) + '/100'
+      : (observations > 0 ? observations + ' records' : 'open');
+    var source = String(field && field.sourceLabel || '');
+    return ''
+      + '<div class="me-place-story" aria-label="' + escapeHtml(COPY.placeStoryTitle) + '">'
+      +   '<div class="me-place-story-head">'
+      +     '<span>' + escapeHtml(COPY.placeStoryTitle) + '</span>'
+      +     (source ? '<strong>' + escapeHtml(source) + '</strong>' : '')
+      +   '</div>'
+      +   '<div class="me-place-story-grid">'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryNow) + '</span><strong>' + escapeHtml(taxaText) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryRecent) + '</span><strong>' + escapeHtml(observations + ' / ' + visits) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryMissing) + '</span><strong>' + escapeHtml(missing) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryActions) + '</span><strong>' + escapeHtml(effortIndex) + '</strong></div>'
+      +   '</div>'
+      + '</div>';
+  }
+
   function renderAreaSheet(snapshot) {
     var f = (snapshot && snapshot.field) || {};
     var summary = (snapshot && snapshot.observationSummary) || {};
@@ -5701,7 +5783,6 @@ export const MAP_EXPLORER_STYLES = `
   .me-place-story-card { min-width: 0; display: grid; gap: 4px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.16); }
   .me-place-story-card span { font-size: 10px; line-height: 1.25; color: #64748b; font-weight: 850; }
   .me-place-story-card strong { font-size: 12px; line-height: 1.45; color: #0f172a; font-weight: 850; overflow-wrap: anywhere; }
-
   .me-area-gallery {
     display: grid;
     gap: 10px;
