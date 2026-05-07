@@ -236,7 +236,7 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
      <div class="obs-hero-video-meta">
        <span class="obs-hero-video-meta-main"><strong>動画</strong>${mediaRoleBadge(primaryVideo)}</span>
        ${mediaRoleSuggestionBadge(primaryVideo)}
-       ${videoRegion ? `<span class="obs-region-video-note">AI が 2s 付近の対象位置を記録しています</span>` : ""}
+       ${videoRegion ? `<span class="obs-region-video-note">AI が動画フレーム上の対象位置を記録しています</span>` : ""}
        ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
      </div>
    </div>`;
