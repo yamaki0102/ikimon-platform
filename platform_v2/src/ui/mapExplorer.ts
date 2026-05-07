@@ -1218,6 +1218,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     coverSourceCommunity: props.lang === "ja" ? "みんなが選んだ代表写真" : props.lang === "es" ? "Foto destacada por la comunidad" : props.lang === "pt-BR" ? "Foto escolhida pela comunidade" : "Community-picked cover photo",
     coverSourceAuto: props.lang === "ja" ? "最近の発見から自動選定" : props.lang === "es" ? "Elegida automáticamente de hallazgos recientes" : props.lang === "pt-BR" ? "Escolhida automaticamente de descobertas recentes" : "Auto-picked from recent finds",
     coverFallbackTitle: props.lang === "ja" ? "代表写真" : props.lang === "es" ? "Foto del lugar" : props.lang === "pt-BR" ? "Foto do local" : "Place photo",
+    areaGalleryTitle: props.lang === "ja" ? "このエリアで観察されたもの" : props.lang === "es" ? "Observado en esta zona" : props.lang === "pt-BR" ? "Observado nesta área" : "Observed in this area",
+    areaGalleryLead: props.lang === "ja" ? "写真と記録から、この場所の顔をざっと見る。" : props.lang === "es" ? "Ver rápidamente la cara del lugar desde fotos y registros." : props.lang === "pt-BR" ? "Ver rapidamente a cara do lugar por fotos e registros." : "Scan the place through photos and records.",
+    areaGalleryEmpty: props.lang === "ja" ? "まだ記録がありません。最初の発見者になれる場所です。" : props.lang === "es" ? "Aún no hay registros. Puedes ser quien abra este lugar." : props.lang === "pt-BR" ? "Ainda não há registros. Você pode abrir este lugar." : "No records yet. You can be the first finder here.",
+    areaGalleryCountSuffix: props.lang === "ja" ? "件" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
+    areaSeasonNow: props.lang === "ja" ? "今の季節" : props.lang === "es" ? "Temporada actual" : props.lang === "pt-BR" ? "Estação atual" : "This season",
+    areaTabRepresentative: props.lang === "ja" ? "代表種" : props.lang === "es" ? "Representativas" : props.lang === "pt-BR" ? "Representativas" : "Representative",
+    areaTabRecent: props.lang === "ja" ? "最近増えた" : props.lang === "es" ? "Recientes" : props.lang === "pt-BR" ? "Recentes" : "Recent rise",
+    areaTabMissing: props.lang === "ja" ? "未記録季節" : props.lang === "es" ? "Temporadas vacías" : props.lang === "pt-BR" ? "Estações vazias" : "Season gaps",
+    areaMissingSeasonLead: props.lang === "ja" ? "この季節の記録を足すと、場所の図鑑が一段強くなる。" : props.lang === "es" ? "Sumar registros de estas temporadas fortalece el álbum del lugar." : props.lang === "pt-BR" ? "Adicionar registros destas estações fortalece o álbum do lugar." : "Adding these seasons makes the place album stronger.",
+    areaCompleteSeasonLead: props.lang === "ja" ? "四季の入口があります。次は同じ季節の再訪で厚みを出せます。" : props.lang === "es" ? "Ya hay entrada para las cuatro temporadas. Ahora conviene revisitar." : props.lang === "pt-BR" ? "Já há entrada para as quatro estações. Agora vale revisitar." : "All seasons have an entry. Revisit to add depth.",
+    areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
     placeActionRecord: props.lang === "ja" ? "この場所で記録" : props.lang === "es" ? "Registrar aquí" : props.lang === "pt-BR" ? "Registrar aqui" : "Record here",
     placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
     placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
@@ -1238,6 +1249,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
   var EVENTS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events/new"), props.lang))};
   var FIELDS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/new"), props.lang))};
+  var FIELDS_ALBUM_TPL = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/__FIELD_ID__"), props.lang))};
   var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
   ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
@@ -2657,6 +2669,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   '<span class="me-area-sheet-cta-hint">OSM の境界を開催エリア案として読み込み、作成時にフィールドDBへ保存</span>'
       + '</div>'
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
+      + renderAreaObservationGallery(transientAreaGalleryItems(safeCenter), { label: COPY.areaGalleryTitle })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
       + '<div class="me-area-sheet-timeline is-empty">このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。</div>';
   }
@@ -2798,6 +2811,207 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     event.preventDefault();
     followAreaFromButton(button);
   });
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var tab = target.closest('[data-area-story-tab]');
+    if (!tab) return;
+    var root = tab.closest('[data-area-story-tabs]');
+    if (!root) return;
+    var key = tab.getAttribute('data-area-story-tab') || '';
+    root.querySelectorAll('[data-area-story-tab]').forEach(function (button) {
+      button.classList.toggle('is-active', button === tab);
+    });
+    root.querySelectorAll('[data-area-story-panel]').forEach(function (panel) {
+      panel.classList.toggle('is-active', panel.getAttribute('data-area-story-panel') === key);
+    });
+  });
+
+  function coverSourceLabel(source) {
+    if (source === 'admin_curated') return COPY.coverSourceAdmin;
+    if (source === 'community_curated') return COPY.coverSourceCommunity;
+    return COPY.coverSourceAuto;
+  }
+
+  function renderRepresentativePhoto(photo) {
+    if (!photo || !photo.photoUrl) return '';
+    var displayName = String(photo.displayName || COPY.coverFallbackTitle);
+    var locality = String(photo.localityLabel || '');
+    var dateText = photo.observedAt ? String(photo.observedAt).slice(0, 10) : '';
+    var meta = [dateText, locality].filter(Boolean).join(' / ');
+    return ''
+      + '<figure class="me-area-cover is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
+      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-cover&quot;).remove()" />'
+      +   '<figcaption>'
+      +     '<span>' + escapeHtml(coverSourceLabel(photo.source)) + '</span>'
+      +     '<strong>' + escapeHtml(displayName) + '</strong>'
+      +     (meta ? '<small>' + escapeHtml(meta) + '</small>' : '')
+      +   '</figcaption>'
+      + '</figure>';
+  }
+
+  function renderAreaHero(options) {
+    var title = String(options && options.title || '観察エリア');
+    var sourceLabel = String(options && options.sourceLabel || '');
+    var meta = String(options && options.meta || '');
+    var photo = options && options.photo;
+    if (photo && photo.photoUrl) {
+      var displayName = String(photo.displayName || COPY.coverFallbackTitle);
+      var locality = String(photo.localityLabel || '');
+      var dateText = photo.observedAt ? String(photo.observedAt).slice(0, 10) : '';
+      var photoMeta = [dateText, locality].filter(Boolean).join(' / ');
+      return ''
+        + '<figure class="me-area-cover me-area-hero is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
+        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-hero&quot;).classList.add(&quot;is-empty&quot;);this.remove()" />'
+        +   '<figcaption>'
+        +     '<span>' + escapeHtml(sourceLabel || coverSourceLabel(photo.source)) + '</span>'
+        +     '<strong>' + escapeHtml(title) + '</strong>'
+        +     '<small>' + escapeHtml(displayName + (photoMeta ? ' · ' + photoMeta : '')) + '</small>'
+        +   '</figcaption>'
+        + '</figure>';
+    }
+    return ''
+      + '<div class="me-area-cover me-area-hero me-area-hero-map">'
+      +   '<div class="me-area-hero-mark" aria-hidden="true">⌖</div>'
+      +   '<div class="me-area-hero-copy">'
+      +     (sourceLabel ? '<span>' + escapeHtml(sourceLabel) + '</span>' : '')
+      +     '<strong>' + escapeHtml(title) + '</strong>'
+      +     (meta ? '<small>' + escapeHtml(meta) + '</small>' : '')
+      +   '</div>'
+      + '</div>';
+  }
+
+  function renderPlaceStoryHighlights(field, summary, indicators, representativePhoto) {
+    var topTaxa = Array.isArray(summary && summary.topTaxa) ? summary.topTaxa.slice(0, 3) : [];
+    var taxaText = topTaxa.length
+      ? topTaxa.map(function (taxon) { return taxon && taxon.name; }).filter(Boolean).join(' / ')
+      : (representativePhoto && representativePhoto.displayName ? representativePhoto.displayName : COPY.placeStoryNoTaxa);
+    var seasons = Number(summary && summary.seasonsCovered || 0);
+    var visits = Number(summary && summary.totalVisits || 0);
+    var observations = Number(summary && summary.totalObservations || 0);
+    var missing = seasons < 4 ? COPY.placeStoryNeedSeason : COPY.placeStoryNeedGuide;
+    var effortIndex = indicators && typeof indicators.effortIndex === 'number' && Number.isFinite(indicators.effortIndex)
+      ? Math.round(indicators.effortIndex) + '/100'
+      : (observations > 0 ? observations + ' records' : 'open');
+    var source = String(field && field.sourceLabel || '');
+    return ''
+      + '<div class="me-place-story" aria-label="' + escapeHtml(COPY.placeStoryTitle) + '">'
+      +   '<div class="me-place-story-head">'
+      +     '<span>' + escapeHtml(COPY.placeStoryTitle) + '</span>'
+      +     (source ? '<strong>' + escapeHtml(source) + '</strong>' : '')
+      +   '</div>'
+      +   '<div class="me-place-story-grid">'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryNow) + '</span><strong>' + escapeHtml(taxaText) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryRecent) + '</span><strong>' + escapeHtml(observations + ' / ' + visits) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryMissing) + '</span><strong>' + escapeHtml(missing) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryActions) + '</span><strong>' + escapeHtml(effortIndex) + '</strong></div>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  function renderAreaObservationGallery(items, options) {
+    var records = Array.isArray(items) ? items.slice(0, 8) : [];
+    var label = options && options.label ? String(options.label) : COPY.areaGalleryTitle;
+    if (!records.length) {
+      return ''
+        + '<section class="me-area-gallery is-empty" aria-label="' + escapeHtml(label) + '">'
+        +   '<div class="me-area-gallery-head">'
+        +     '<span>' + escapeHtml(label) + '</span>'
+        +     '<strong>' + escapeHtml(COPY.areaGalleryEmpty) + '</strong>'
+        +   '</div>'
+        +   '<a class="me-area-gallery-empty-cta" href="' + escapeHtml(RECORD_HREF) + '">' + escapeHtml(COPY.placeActionRecord) + '</a>'
+        + '</section>';
+    }
+    return ''
+      + '<section class="me-area-gallery" aria-label="' + escapeHtml(label) + '">'
+      +   '<div class="me-area-gallery-head">'
+      +     '<span>' + escapeHtml(label) + '</span>'
+      +     '<strong>' + escapeHtml(COPY.areaGalleryLead) + '</strong>'
+      +   '</div>'
+      +   '<div class="me-area-gallery-grid">'
+      + records.map(function (item) {
+        var occurrenceId = String(item && item.occurrenceId || '');
+        var href = occurrenceId ? OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(occurrenceId)) : NOTES_HREF;
+        var count = Math.max(1, Number(item && item.observationCount || 1));
+        var date = item && item.observedAt ? String(item.observedAt).slice(0, 10) : '';
+        var locality = String(item && item.localityLabel || '');
+        var meta = [count + COPY.areaGalleryCountSuffix, date, locality].filter(Boolean).join(' / ');
+        var seasonBadge = item && item.seasonLabel
+          ? '<span class="me-area-gallery-season' + (item.isCurrentSeason ? ' is-current' : '') + '">' + escapeHtml((item.isCurrentSeason ? COPY.areaSeasonNow + ' · ' : '') + item.seasonLabel) + '</span>'
+          : '';
+        var photo = item && item.photoUrl
+          ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-gallery-card&quot;).classList.add(&quot;is-photoless&quot;);this.remove()" />'
+          : '<span class="me-area-gallery-placeholder" aria-hidden="true">✦</span>';
+        return ''
+          + '<a class="me-area-gallery-card" href="' + escapeHtml(href) + '">'
+          +   photo
+          +   seasonBadge
+          +   '<strong>' + escapeHtml(String(item && item.displayName || '同定待ち')) + '</strong>'
+          +   '<small>' + escapeHtml(meta) + '</small>'
+          + '</a>';
+      }).join('')
+      +   '</div>'
+      + '</section>';
+  }
+
+  function transientAreaGalleryItems(center) {
+    if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng)) return [];
+    return nearbyRecordsForContext({ lat: center.lat, lng: center.lng }, 900)
+      .map(function (entry) {
+        var record = entry.record || {};
+        return {
+          occurrenceId: record.occurrenceId || '',
+          visitId: record.visitId || '',
+          displayName: record.displayName || '同定待ち',
+          observedAt: record.observedAt || null,
+          photoUrl: record.photoUrl || null,
+          localityLabel: record.localityLabel || '',
+          observationCount: 1,
+        };
+      });
+  }
+
+  function renderAreaStoryTabs(snapshot) {
+    var summary = (snapshot && snapshot.observationSummary) || {};
+    var gallery = Array.isArray(snapshot && snapshot.observationGallery) ? snapshot.observationGallery : [];
+    var seasonalCoverage = Array.isArray(snapshot && snapshot.seasonalCoverage) ? snapshot.seasonalCoverage : [];
+    var topTaxa = Array.isArray(summary.topTaxa) ? summary.topTaxa.slice(0, 8) : [];
+    var taxaHtml = topTaxa.length
+      ? topTaxa.map(function (taxon) {
+          return '<span class="me-area-story-chip">' + escapeHtml(String(taxon.name || '同定待ち')) + '<b>' + escapeHtml(String(taxon.count || 0)) + '</b></span>';
+        }).join('')
+      : '<p class="me-area-story-note">' + escapeHtml(COPY.placeStoryNoTaxa) + '</p>';
+    var recentItems = gallery.slice().sort(function (a, b) {
+      return Number(b.recentObservationCount || 0) - Number(a.recentObservationCount || 0)
+        || Number(b.observationCount || 0) - Number(a.observationCount || 0);
+    }).filter(function (item) { return Number(item.recentObservationCount || 0) > 0; }).slice(0, 5);
+    var recentHtml = recentItems.length
+      ? recentItems.map(function (item) {
+          return '<span class="me-area-story-chip">' + escapeHtml(String(item.displayName || '同定待ち')) + '<b>' + escapeHtml(String(item.recentObservationCount || 0)) + '</b></span>';
+        }).join('')
+      : '<p class="me-area-story-note">' + escapeHtml(COPY.areaGalleryLead) + '</p>';
+    var missing = seasonalCoverage.filter(function (row) { return Number(row.observations || 0) <= 0; });
+    var missingHtml = missing.length
+      ? '<p class="me-area-story-note">' + escapeHtml(COPY.areaMissingSeasonLead) + '</p>'
+        + missing.map(function (row) {
+            return '<a class="me-area-season-gap" href="' + escapeHtml(RECORD_HREF) + '">'
+              + '<span>' + escapeHtml(String(row.label || row.season || 'season')) + '</span>'
+              + '<strong>' + escapeHtml(COPY.placeActionRecord) + '</strong>'
+              + '</a>';
+          }).join('')
+      : '<p class="me-area-story-note">' + escapeHtml(COPY.areaCompleteSeasonLead) + '</p>';
+    return ''
+      + '<section class="me-area-story-tabs" data-area-story-tabs>'
+      +   '<div class="me-area-story-tablist" role="tablist">'
+      +     '<button type="button" class="is-active" data-area-story-tab="representative">' + escapeHtml(COPY.areaTabRepresentative) + '</button>'
+      +     '<button type="button" data-area-story-tab="recent">' + escapeHtml(COPY.areaTabRecent) + '</button>'
+      +     '<button type="button" data-area-story-tab="missing">' + escapeHtml(COPY.areaTabMissing) + '</button>'
+      +   '</div>'
+      +   '<div class="me-area-story-panel is-active" data-area-story-panel="representative">' + taxaHtml + '</div>'
+      +   '<div class="me-area-story-panel" data-area-story-panel="recent">' + recentHtml + '</div>'
+      +   '<div class="me-area-story-panel" data-area-story-panel="missing">' + missingHtml + '</div>'
+      + '</section>';
+  }
 
   function coverSourceLabel(source) {
     if (source === 'admin_curated') return COPY.coverSourceAdmin;
@@ -2888,6 +3102,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var indicators = (snapshot && snapshot.effortIndicators) || null;
     var masking = (snapshot && snapshot.sensitiveMasking) || null;
     var representativePhoto = (snapshot && snapshot.representativePhoto) || null;
+    var gallery = (snapshot && snapshot.observationGallery) || [];
     var name = escapeHtml(String(f.name || ''));
     var sourceLabel = escapeHtml(String(f.sourceLabel || ''));
     var rawLocationLabel = String(f.locationLabel || '');
@@ -2933,7 +3148,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var indicatorsHtml = renderEffortIndicators(indicators);
     var maskingHtml = renderSensitiveBanner(masking);
     var placeStoryHtml = renderPlaceStoryHighlights(f, summary, indicators, representativePhoto);
-    return heroHtml + ctaHtml + followHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    var galleryHtml = renderAreaObservationGallery(gallery, { label: COPY.areaGalleryTitle });
+    var storyTabsHtml = renderAreaStoryTabs(snapshot);
+    var publicPageHtml = fieldId
+      ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
+      : '';
+    return heroHtml + ctaHtml + followHtml + publicPageHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -5563,6 +5783,170 @@ export const MAP_EXPLORER_STYLES = `
   .me-place-story-card { min-width: 0; display: grid; gap: 4px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.16); }
   .me-place-story-card span { font-size: 10px; line-height: 1.25; color: #64748b; font-weight: 850; }
   .me-place-story-card strong { font-size: 12px; line-height: 1.45; color: #0f172a; font-weight: 850; overflow-wrap: anywhere; }
+  .me-area-gallery {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    margin: 0 0 12px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(14,165,233,.18);
+    box-shadow: 0 8px 22px rgba(15,23,42,.06);
+  }
+  .me-area-gallery-head { display: grid; gap: 2px; }
+  .me-area-gallery-head span { font-size: 12px; font-weight: 950; color: #0f172a; }
+  .me-area-gallery-head strong { font-size: 11px; line-height: 1.45; color: #64748b; font-weight: 780; }
+  .me-area-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .me-area-gallery-card {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px;
+    border-radius: 12px;
+    background: rgba(248,250,252,.92);
+    border: 1px solid rgba(148,163,184,.16);
+    color: #0f172a !important;
+    text-decoration: none;
+  }
+  .me-area-gallery-card:hover { background: rgba(236,253,245,.92); border-color: rgba(20,184,166,.28); }
+  .me-area-gallery-card img,
+  .me-area-gallery-placeholder {
+    width: 100%;
+    height: 92px;
+    border-radius: 10px;
+    object-fit: cover;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #e0f2fe, #ecfdf5);
+    color: #0f766e;
+    font-size: 22px;
+  }
+  .me-area-gallery-card strong {
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+  }
+  .me-area-gallery-card small {
+    font-size: 10px;
+    line-height: 1.3;
+    color: #64748b;
+    font-weight: 760;
+    overflow-wrap: anywhere;
+  }
+  .me-area-gallery-season {
+    width: fit-content;
+    max-width: 100%;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(14,165,233,.10);
+    color: #0369a1;
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 900;
+  }
+  .me-area-gallery-season.is-current {
+    background: rgba(20,184,166,.14);
+    color: #0f766e;
+  }
+  .me-area-gallery-empty-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-height: 40px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    background: #0f766e;
+    color: #fff !important;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .me-area-public-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    margin: 0 0 12px;
+    padding: 9px 14px;
+    border-radius: 14px;
+    background: rgba(15,23,42,.92);
+    color: #fff !important;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 950;
+  }
+  .me-area-story-tabs {
+    display: grid;
+    gap: 9px;
+    padding: 12px;
+    margin: 0 0 12px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(240,249,255,.92));
+    border: 1px solid rgba(20,184,166,.18);
+  }
+  .me-area-story-tablist {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .me-area-story-tablist button {
+    min-height: 34px;
+    padding: 5px 7px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 10px;
+    background: rgba(255,255,255,.82);
+    color: #475569;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+  .me-area-story-tablist button.is-active {
+    background: #0f766e;
+    color: #fff;
+    border-color: #0f766e;
+  }
+  .me-area-story-panel {
+    display: none;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .me-area-story-panel.is-active { display: flex; }
+  .me-area-story-chip,
+  .me-area-season-gap {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(148,163,184,.18);
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .me-area-story-chip b,
+  .me-area-season-gap strong {
+    color: #0f766e;
+    font-size: 10px;
+  }
+  .me-area-story-note {
+    flex-basis: 100%;
+    margin: 0;
+    color: #475569;
+    font-size: 11.5px;
+    line-height: 1.5;
+    font-weight: 760;
+  }
 
   .me-site-brief { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); }
   .me-site-brief-slot { margin-bottom: 14px; }
@@ -5720,6 +6104,9 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-detail-panel-area .me-area-sheet-header,
   .me-detail-panel-area .me-area-follow-btn,
+  .me-detail-panel-area .me-area-public-page,
+  .me-detail-panel-area .me-area-gallery,
+  .me-detail-panel-area .me-area-story-tabs,
   .me-detail-panel-area .me-place-story,
   .me-detail-panel-area .me-area-sheet-cta,
   .me-detail-panel-area .me-area-sheet-summary,
@@ -5852,6 +6239,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-site-brief-loop-grid { grid-template-columns: 1fr; }
     .me-impact-grid,
     .me-place-story-grid,
+    .me-area-gallery-grid,
     .me-detail-stats,
     .me-detail-visit { grid-template-columns: 1fr; }
     .me-detail-recent-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

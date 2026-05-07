@@ -55,6 +55,16 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /representativePhoto/);
     assert.match(html, /me-area-cover/);
     assert.match(html, /最近の発見から自動選定/);
+    assert.match(html, /observationGallery/);
+    assert.match(html, /seasonalCoverage/);
+    assert.match(html, /me-area-gallery/);
+    assert.match(html, /me-area-story-tabs/);
+    assert.match(html, /このエリアで観察されたもの/);
+    assert.match(html, /今の季節/);
+    assert.match(html, /代表種/);
+    assert.match(html, /最近増えた/);
+    assert.match(html, /未記録季節/);
+    assert.match(html, /エリア図鑑を見る/);
     assert.match(html, /admin_curated/);
     assert.match(html, /community_curated/);
     assert.match(html, /auto_observation/);
