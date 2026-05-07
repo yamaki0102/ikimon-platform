@@ -8,6 +8,7 @@ import {
   assessLegacyObservationQuality,
   shouldQuarantineLegacyNoPhoto,
   upsertLegacyObservationQualityReview,
+  VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "../services/observationQualityGate.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -258,6 +259,47 @@ function normalizeIp(value: unknown): string | null {
 
 function hashString(value: string): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+async function hasValidNativeVideoEvidence(pool: Pool, visitId: string): Promise<boolean> {
+  const result = await pool.query<{ has_video: boolean }>(
+    `select exists (
+       select 1
+         from evidence_assets ea
+         join asset_blobs ab on ab.blob_id = ea.blob_id
+        where ea.visit_id = $1
+          and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
+     ) as has_video`,
+    [visitId],
+  );
+  return Boolean(result.rows[0]?.has_video);
+}
+
+async function promoteLegacyNoPhotoVisitWithNativeVideo(pool: Pool, visitId: string): Promise<void> {
+  await pool.query(
+    `update visits
+        set public_visibility = 'public',
+            quality_review_status = 'accepted',
+            quality_gate_reasons = coalesce((
+              select jsonb_agg(reason)
+                from jsonb_array_elements_text(coalesce(quality_gate_reasons, '[]'::jsonb)) as reasons(reason)
+               where reason <> 'missing_photo'
+            ), '[]'::jsonb),
+            updated_at = now()
+      where visit_id = $1`,
+    [visitId],
+  );
+  await pool.query(
+    `update observation_quality_reviews
+        set review_status = 'accepted',
+            public_visibility = 'public',
+            reviewed_at = coalesce(reviewed_at, now()),
+            updated_at = now()
+      where visit_id = $1
+        and reason_code in ('native_no_photo', 'legacy_no_photo')
+        and review_status = 'needs_review'`,
+    [visitId],
+  );
 }
 
 async function upsertAssetBlob(
@@ -909,6 +951,10 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
     if (shouldQuarantineLegacyNoPhoto(observation)) {
       summary.quarantinedNoPhotoObservations += 1;
       if (!options.dryRun && pool) {
+        if (await hasValidNativeVideoEvidence(pool, visitId)) {
+          await promoteLegacyNoPhotoVisitWithNativeVideo(pool, visitId);
+          continue;
+        }
         await upsertLegacyObservationQualityReview(pool, {
           observation,
           importVersion: options.importVersion,
