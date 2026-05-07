@@ -12,6 +12,10 @@ test("observation detail lets owners recover missing photos without exposing rev
   assert.match(readModels, /or v\.user_id = \$2/);
   assert.match(readRoutes, /renderObservationPhotoRecoveryPanel/);
   assert.match(readRoutes, /data-photo-recovery/);
+  assert.match(readRoutes, /映像フレームから拾えている手がかり/);
+  assert.match(readRoutes, /動画フレームを使って判定を更新できます/);
+  assert.match(readRoutes, /この動画観察に写真を追加/);
+  assert.doesNotMatch(readRoutes, /動画サムネイルを Gemini に渡しています/);
   assert.match(readRoutes, /\/api\/v1\/observations\/\$\{encodeURIComponent\(options\.visitId\)\}\/photos\/upload/);
   assert.match(readRoutes, /mediaRole: existingPhotoCount === 0 && uploaded === 0 \? 'primary_subject' : 'context'/);
   assert.match(landingSnapshot, /own observation library, including review rows that need media recovery/);

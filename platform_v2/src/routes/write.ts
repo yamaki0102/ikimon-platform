@@ -974,8 +974,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // 観察 AI 再判定（動画サムネイル版）。session + owner only。
-  // Cloudflare Stream thumbnail(time=2s) を使って candidate を更新する。
+  // 観察 AI 再判定（動画フレーム版）。session + owner only。
+  // Cloudflare Stream thumbnail frames を複数時点で使って candidate を更新する。
   app.post<{ Params: { id: string } }>(
     "/api/v1/observations/:id/reassess-from-video",
     async (request, reply) => {
