@@ -125,14 +125,14 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    enjoyTitle: "地域のいのちマップ",
-    enjoyLead: "拡大すると、丸の大きさと数字で発見の多い場所が見えてきます。気になる公園や水辺を選ぶと、この場所で見られそうな手がかりが出ます。",
-    visualCueCount: "丸の大きさ・数字 = 記録の多さ",
-    visualCueColor: "色 = 生きものの種類",
-    visualCuePlace: "緑の面 = 公園や水辺",
-    tabMarkers: "記録のある場所",
-    tabHeatmap: "発見の多さ",
-    tabCoverage: "記録が少ない場所",
+    enjoyTitle: "Enjoy Nature Map",
+    enjoyLead: "写真、公園、季節の手がかりから、次に行きたい自然を見つける地図。場所を選ぶと、今見られるものと次にできることが出ます。",
+    visualCueCount: "写真カード = 最近の発見",
+    visualCueColor: "色 = 生きものの気配",
+    visualCuePlace: "緑の面 = 公園・TSUNAG・保護区",
+    tabMarkers: "見つける",
+    tabHeatmap: "行きたい場所",
+    tabCoverage: "役立っている",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -173,10 +173,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "多い",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "この条件ではまだ発見が出ていません。季節や地域をゆるめると、別の気配が見つかるかもしれません。",
-    sideRecentLabel: "最近の記録",
-    sideRevisitLabel: "この場所で見つかったもの",
-    crossEyebrow: "この場所で、次の 1 件を残す",
+    empty: "この範囲はまだこれから。季節や地域を少し広げると、行きたくなる場所が見つかるかもしれません。",
+    sideRecentLabel: "近くの発見",
+    sideRevisitLabel: "場所のストーリー",
+    crossEyebrow: "この場所で、次の自然体験を残す",
     crossLensLabel: JA_PUBLIC_SHARED_COPY.cta.openGuide,
     crossScanLabel: JA_PUBLIC_SHARED_COPY.cta.openScan,
     crossNotesLabel: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
@@ -185,15 +185,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
     bottomSheetLens: JA_PUBLIC_SHARED_COPY.cta.openGuide,
     bottomSheetScan: JA_PUBLIC_SHARED_COPY.cta.openScan,
-    siteBriefHeading: "この場所を見る手がかり",
+    siteBriefHeading: "ここで見つかるもの",
     siteBriefReasonsLabel: "最近の発見",
     siteBriefChecksLabel: "歩きながら見たいこと",
     siteBriefCapturesLabel: "撮るなら",
     siteBriefEnvironmentLabel: "衛星・地図の手がかり",
-    siteBriefWhyHereLabel: "ここが気になる理由",
-    siteBriefWhyNowLabel: "今の季節の気配",
-    siteBriefOneVisitLabel: "寄り道で楽しめること",
-    siteBriefNextHookLabel: "次に比べられること",
+    siteBriefWhyHereLabel: "行きたくなる理由",
+    siteBriefWhyNowLabel: "今の季節",
+    siteBriefOneVisitLabel: "今日できること",
+    siteBriefNextHookLabel: "また見たくなること",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
     searchPlaceholder: "場所や生きものを探す（例: 静岡市 谷津山、モンシロチョウ）",
@@ -220,14 +220,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
-    enjoyTitle: "A local life map that makes you want to go outside",
-    enjoyLead: "Zoom in and the circles and numbers show where discoveries are concentrated. Pick a park or waterside spot to see clues for that place.",
-    visualCueCount: "Circle size / number = record volume",
-    visualCueColor: "Color = life group",
-    visualCuePlace: "Green areas = parks and waterside",
-    tabMarkers: "Recorded places",
-    tabHeatmap: "Discovery density",
-    tabCoverage: "Thinly recorded places",
+    enjoyTitle: "Enjoy Nature Map",
+    enjoyLead: "Find the next place you want to visit through photos, parks, seasons, and field clues. Pick a place to see what is visible now and what to do next.",
+    visualCueCount: "Photo cards = recent finds",
+    visualCueColor: "Color = signs of life",
+    visualCuePlace: "Green areas = parks / TSUNAG / protected places",
+    tabMarkers: "Discover",
+    tabHeatmap: "Places to go",
+    tabCoverage: "Your impact",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
@@ -268,10 +268,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "High",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
-    empty: "Nothing here yet — this could be your page to write.",
-    sideRecentLabel: "My progress",
-    sideRevisitLabel: "Area progress",
-    crossEyebrow: "Your next page starts here",
+    empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
+    sideRecentLabel: "Nearby finds",
+    sideRevisitLabel: "Place story",
+    crossEyebrow: "Your next nature page starts here",
     crossLensLabel: "Open Lens",
     crossScanLabel: "Open Explore Map",
     crossNotesLabel: "Back to notebook",
@@ -280,15 +280,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Notebook detail",
     bottomSheetLens: "Lens",
     bottomSheetScan: "Scan",
-    siteBriefHeading: "Three things to check here",
+    siteBriefHeading: "What you may find here",
     siteBriefReasonsLabel: "Why",
     siteBriefChecksLabel: "Check on the ground",
     siteBriefCapturesLabel: "If you shoot",
     siteBriefEnvironmentLabel: "Satellite/map clues",
-    siteBriefWhyHereLabel: "why here",
-    siteBriefWhyNowLabel: "why now",
-    siteBriefOneVisitLabel: "one-visit contribution",
-    siteBriefNextHookLabel: "next revisit hook",
+    siteBriefWhyHereLabel: "why go",
+    siteBriefWhyNowLabel: "this season",
+    siteBriefOneVisitLabel: "what to do",
+    siteBriefNextHookLabel: "why return",
     siteBriefLoading: "Reading this place…",
     siteBriefError: "Could not read this place. Trust your field sense.",
     searchPlaceholder: "Find a place or species (e.g. Shizuoka, swallowtail)",
@@ -315,14 +315,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
-    enjoyTitle: "Un mapa de vida local que invita a salir",
-    enjoyLead: "Acércate y los círculos y números muestran dónde se concentran los hallazgos. Elige un parque o zona de agua para ver pistas del lugar.",
-    visualCueCount: "Tamaño / número = volumen de registros",
-    visualCueColor: "Color = grupo de vida",
-    visualCuePlace: "Zonas verdes = parques y agua",
-    tabMarkers: "Lugares con registros",
-    tabHeatmap: "Densidad de hallazgos",
-    tabCoverage: "Lugares con pocos registros",
+    enjoyTitle: "Enjoy Nature Map",
+    enjoyLead: "Encuentra el próximo lugar para visitar a partir de fotos, parques, estaciones y pistas de campo. Elige un lugar para ver qué hay ahora y qué hacer después.",
+    visualCueCount: "Tarjetas con foto = hallazgos recientes",
+    visualCueColor: "Color = señales de vida",
+    visualCuePlace: "Zonas verdes = parques / TSUNAG / áreas protegidas",
+    tabMarkers: "Descubrir",
+    tabHeatmap: "Lugares para ir",
+    tabCoverage: "Tu impacto",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
@@ -363,10 +363,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "Alta",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
-    empty: "Aún no hay nada aquí — podrías ser el primero en registrar algo.",
-    sideRecentLabel: "Mi avance",
-    sideRevisitLabel: "Avance del área",
-    crossEyebrow: "Tu próxima página empieza aquí",
+    empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
+    sideRecentLabel: "Hallazgos cercanos",
+    sideRevisitLabel: "Historia del lugar",
+    crossEyebrow: "Tu próxima página de naturaleza empieza aquí",
     crossLensLabel: "Abrir Guía de Campo",
     crossScanLabel: "Abrir Escaneo",
     crossNotesLabel: "Volver al cuaderno",
@@ -375,15 +375,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Detalle del cuaderno",
     bottomSheetLens: "Guía de Campo",
     bottomSheetScan: "Escaneo",
-    siteBriefHeading: "Tres cosas para verificar aquí",
+    siteBriefHeading: "Qué puedes encontrar aquí",
     siteBriefReasonsLabel: "Por qué",
     siteBriefChecksLabel: "Verifica en el sitio",
     siteBriefCapturesLabel: "Si disparas",
     siteBriefEnvironmentLabel: "Pistas de satélite/mapa",
-    siteBriefWhyHereLabel: "por qué aquí",
-    siteBriefWhyNowLabel: "por qué ahora",
-    siteBriefOneVisitLabel: "aporte de una visita",
-    siteBriefNextHookLabel: "gancho para volver",
+    siteBriefWhyHereLabel: "por qué ir",
+    siteBriefWhyNowLabel: "esta estación",
+    siteBriefOneVisitLabel: "qué hacer",
+    siteBriefNextHookLabel: "por qué volver",
     siteBriefLoading: "Leyendo este lugar…",
     siteBriefError: "No pude leer este lugar. Confía en tu campo.",
     searchPlaceholder: "Buscar lugar o especie (p. ej. Shizuoka, mariposa)",
@@ -410,14 +410,14 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
-    enjoyTitle: "Um mapa da vida local que dá vontade de sair",
-    enjoyLead: "Aproxime o mapa: os círculos e números mostram onde as descobertas se concentram. Escolha um parque ou água para ver pistas do lugar.",
-    visualCueCount: "Tamanho / número = volume de registros",
-    visualCueColor: "Cor = grupo de vida",
-    visualCuePlace: "Áreas verdes = parques e água",
-    tabMarkers: "Lugares com registros",
-    tabHeatmap: "Densidade de descobertas",
-    tabCoverage: "Lugares com poucos registros",
+    enjoyTitle: "Enjoy Nature Map",
+    enjoyLead: "Encontre o próximo lugar para visitar por fotos, parques, estações e pistas de campo. Escolha um lugar para ver o que aparece agora e o que fazer depois.",
+    visualCueCount: "Cartões com foto = descobertas recentes",
+    visualCueColor: "Cor = sinais de vida",
+    visualCuePlace: "Áreas verdes = parques / TSUNAG / áreas protegidas",
+    tabMarkers: "Descobrir",
+    tabHeatmap: "Lugares para ir",
+    tabCoverage: "Seu impacto",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
@@ -458,10 +458,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     heatmapLegendHigh: "Alta",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
-    empty: "Nada registrado aqui ainda — pode ser a sua vez de começar.",
-    sideRecentLabel: "Meu avanço",
-    sideRevisitLabel: "Avanço da área",
-    crossEyebrow: "Sua próxima página começa aqui",
+    empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
+    sideRecentLabel: "Descobertas por perto",
+    sideRevisitLabel: "História do local",
+    crossEyebrow: "Sua próxima página de natureza começa aqui",
     crossLensLabel: "Abrir Guia de Campo",
     crossScanLabel: "Abrir Escaneamento",
     crossNotesLabel: "Voltar ao caderno",
@@ -470,15 +470,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Detalhe do caderno",
     bottomSheetLens: "Guia de Campo",
     bottomSheetScan: "Escaneamento",
-    siteBriefHeading: "Três coisas para checar aqui",
+    siteBriefHeading: "O que você pode encontrar aqui",
     siteBriefReasonsLabel: "Porquê",
     siteBriefChecksLabel: "Verifique no campo",
     siteBriefCapturesLabel: "Se for fotografar",
     siteBriefEnvironmentLabel: "Pistas de satélite/mapa",
-    siteBriefWhyHereLabel: "por que aqui",
-    siteBriefWhyNowLabel: "por que agora",
-    siteBriefOneVisitLabel: "contribuição de uma visita",
-    siteBriefNextHookLabel: "gancho para voltar",
+    siteBriefWhyHereLabel: "por que ir",
+    siteBriefWhyNowLabel: "esta estação",
+    siteBriefOneVisitLabel: "o que fazer",
+    siteBriefNextHookLabel: "por que voltar",
     siteBriefLoading: "Lendo este lugar…",
     siteBriefError: "Não consegui ler este lugar. Confie no campo.",
     searchPlaceholder: "Buscar local ou espécie (ex.: Shizuoka, borboleta)",
@@ -512,6 +512,13 @@ export type MapExplorerProps = {
   /** Build a year list starting from min to current year. */
   years: number[];
 };
+
+export type MapItem =
+  | { type: "observation"; occurrenceId: string; displayName: string; photoUrl?: string | null }
+  | { type: "guide"; guideRecordId: string; displayName: string; photoUrl?: string | null }
+  | { type: "scan"; visitId: string; displayName: string; photoUrl?: string | null }
+  | { type: "place"; fieldId: string; name: string; source: string }
+  | { type: "frontier_cell"; cellId: string; recommendedRole: "note" | "guide" | "scan" | "mixed" };
 
 function overlayPanelLabels(lang: SiteLang): {
   heading: string;
@@ -585,10 +592,10 @@ function ambientPanelLabels(lang: SiteLang): {
       { value: "scan", label: "探索", icon: "📡" },
       { value: "mixed", label: "ひと通り見る", icon: "🧭" },
     ],
-    selfLabel: "自分の前進",
-    communityLabel: "地域の前進",
-    frontierLabel: "見に行きたくなる余白",
-    roleCardLabel: "この場所で最適な役割",
+    selfLabel: "キミの記録が役立ったこと",
+    communityLabel: "みんなの記録が育てた場所",
+    frontierLabel: "次に見に行きたい余白",
+    roleCardLabel: "次にできること",
   };
 }
 
@@ -759,7 +766,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Filtros"
         : "Filters";
   const listHeading = lang === "ja"
-    ? "この範囲の観察"
+    ? "近くの発見"
     : lang === "es"
       ? "Observaciones en esta área"
       : lang === "pt-BR"
@@ -773,14 +780,14 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Buscar nesta área"
         : "Search this area";
   const sideTabResultsLabel = lang === "ja"
-    ? "一覧"
+    ? "見つける"
     : lang === "es"
       ? "Lista"
       : lang === "pt-BR"
         ? "Lista"
         : "List";
   const sideTabSelectionLabel = lang === "ja"
-    ? "この場所"
+    ? "場所ストーリー"
     : lang === "es"
       ? "Este lugar"
       : lang === "pt-BR"
@@ -794,7 +801,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Recolher painel"
         : "Collapse side panel";
   const sideSelectionEmptyLabel = lang === "ja"
-    ? "地図上のピンや区画をクリックすると、ここに詳細が表示されます。"
+    ? "公園、緑地、発見カードを選ぶと、ここに今見られるものと次の行動が出ます。"
     : lang === "es"
       ? "Toca un pin o una celda del mapa para ver los detalles aquí."
       : lang === "pt-BR"
@@ -953,6 +960,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
               <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
               <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
             </div>
+            <div class="me-contribution-panel" id="me-contribution-panel" data-testid="map-contribution-panel"></div>
             <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
           </div>
           <div class="me-side-pane me-side-pane-selection" role="tabpanel">
@@ -1015,6 +1023,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var resultsListEl = document.getElementById('me-results-list');
   var selectedCardEl = document.getElementById('me-map-selection-card');
   var mapInsightCardEl = document.getElementById('me-map-insight-card');
+  var contributionPanelEl = document.getElementById('me-contribution-panel');
   var sideEl = document.getElementById('me-side');
   var sideToggleEl = document.getElementById('me-side-toggle');
   var sideRailCountEl = document.getElementById('me-side-rail-count');
@@ -1163,8 +1172,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     priority_nearby_gap: props.lang === "ja" ? "近くにまだ知らない場所がある" : props.lang === "es" ? "Hay lugares cercanos por conocer" : props.lang === "pt-BR" ? "Há lugares perto para conhecer" : "There are unknown places nearby",
     remainingLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
     aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
+    impactPanelTitleMine: props.lang === "ja" ? "キミの記録が役立っていること" : props.lang === "es" ? "Cómo ayudan tus registros" : props.lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
+    impactPanelTitleGuest: props.lang === "ja" ? "みんなの記録がこの地域を育てています" : props.lang === "es" ? "Los registros de todos hacen crecer esta zona" : props.lang === "pt-BR" ? "Os registros de todos fazem esta área crescer" : "Everyone's records grow this area",
+    impactPanelLoading: props.lang === "ja" ? "この範囲で役立っていることを読み込み中…" : props.lang === "es" ? "Leyendo cómo ayuda esta zona…" : props.lang === "pt-BR" ? "Lendo como esta área ajuda…" : "Reading how this area is growing…",
+    impactRevisitStory: props.lang === "ja" ? "同じ場所を比べられるようになった" : props.lang === "es" ? "Hizo posible comparar el mismo lugar" : props.lang === "pt-BR" ? "Tornou possível comparar o mesmo lugar" : "Made the same place comparable",
+    impactGuideStory: props.lang === "ja" ? "ガイド記録で季節の手がかりが増えた" : props.lang === "es" ? "La guía añadió pistas de temporada" : props.lang === "pt-BR" ? "O guia adicionou pistas da estação" : "Guide records added seasonal clues",
+    impactScanStory: props.lang === "ja" ? "スキャンで未調査エリアが見えた" : props.lang === "es" ? "El escaneo mostró huecos por explorar" : props.lang === "pt-BR" ? "O escaneamento mostrou áreas a explorar" : "Scans revealed places still to explore",
+    impactBlankStory: props.lang === "ja" ? "この場所の空白を埋める候補が見えた" : props.lang === "es" ? "Aparecieron huecos que se pueden completar" : props.lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
+    impactCommunityStory: props.lang === "ja" ? "最近、見え方が厚くなった場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
+    impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
-    resultHeading: props.lang === "ja" ? "この範囲の観察" : props.lang === "es" ? "Observaciones en esta área" : props.lang === "pt-BR" ? "Observações nesta área" : "Observations in this area",
+    resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
     movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
     selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
@@ -1175,6 +1193,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     selectedRoleLead: props.lang === "ja" ? "手がかり" : props.lang === "es" ? "Pistas" : props.lang === "pt-BR" ? "Pistas" : "Clues",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
     selectionPlaceLabel: props.lang === "ja" ? "地図の手がかり" : props.lang === "es" ? "Pistas del mapa" : props.lang === "pt-BR" ? "Pistas do mapa" : "Map clues",
+    placeStoryTitle: props.lang === "ja" ? "場所ストーリー" : props.lang === "es" ? "Historia del lugar" : props.lang === "pt-BR" ? "História do local" : "Place story",
+    placeStoryNow: props.lang === "ja" ? "今見られるもの" : props.lang === "es" ? "Lo que se puede ver ahora" : props.lang === "pt-BR" ? "O que dá para ver agora" : "What you may find now",
+    placeStoryRecent: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgos recientes" : props.lang === "pt-BR" ? "Descobertas recentes" : "Recent finds",
+    placeStoryMissing: props.lang === "ja" ? "この場所で足りない記録" : props.lang === "es" ? "Registros que faltan aquí" : props.lang === "pt-BR" ? "Registros que faltam aqui" : "What is missing here",
+    placeStoryActions: props.lang === "ja" ? "次にできること" : props.lang === "es" ? "Qué hacer después" : props.lang === "pt-BR" ? "O que fazer a seguir" : "What to do next",
+    placeStoryNoTaxa: props.lang === "ja" ? "まだ代表種は少ない。最初の写真が場所の入口になります。" : props.lang === "es" ? "Aún hay pocos taxones destacados. La primera foto puede abrir este lugar." : props.lang === "pt-BR" ? "Ainda há poucos grupos destacados. A primeira foto pode abrir este local." : "Few featured taxa yet. The first photo can open this place.",
+    placeStoryNeedSeason: props.lang === "ja" ? "季節をまたいだ記録が増えると、また行く理由が強くなる。" : props.lang === "es" ? "Más estaciones harán más fuerte el motivo para volver." : props.lang === "pt-BR" ? "Mais estações tornam o motivo para voltar mais forte." : "More seasons make the reason to return stronger.",
+    placeStoryNeedGuide: props.lang === "ja" ? "ガイドでその場の手がかりを残すと、次の人が見つけやすい。" : props.lang === "es" ? "La guía deja pistas para que la siguiente persona encuentre más." : props.lang === "pt-BR" ? "O guia deixa pistas para a próxima pessoa encontrar mais." : "Guide clues help the next visitor find more.",
+    coverSourceAdmin: props.lang === "ja" ? "管理者が選んだ代表写真" : props.lang === "es" ? "Foto destacada por el gestor" : props.lang === "pt-BR" ? "Foto escolhida pelo gestor" : "Manager-picked cover photo",
+    coverSourceCommunity: props.lang === "ja" ? "みんなが選んだ代表写真" : props.lang === "es" ? "Foto destacada por la comunidad" : props.lang === "pt-BR" ? "Foto escolhida pela comunidade" : "Community-picked cover photo",
+    coverSourceAuto: props.lang === "ja" ? "最近の発見から自動選定" : props.lang === "es" ? "Elegida automáticamente de hallazgos recientes" : props.lang === "pt-BR" ? "Escolhida automaticamente de descobertas recentes" : "Auto-picked from recent finds",
+    coverFallbackTitle: props.lang === "ja" ? "代表写真" : props.lang === "es" ? "Foto del lugar" : props.lang === "pt-BR" ? "Foto do local" : "Place photo",
+    placeActionRecord: props.lang === "ja" ? "この場所で記録" : props.lang === "es" ? "Registrar aquí" : props.lang === "pt-BR" ? "Registrar aqui" : "Record here",
+    placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
+    placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
+    placeActionFollow: props.lang === "ja" ? "この場所をフォロー" : props.lang === "es" ? "Seguir este lugar" : props.lang === "pt-BR" ? "Seguir este local" : "Follow this place",
     insightHeading: props.lang === "ja" ? "見えてきた範囲" : props.lang === "es" ? "Lo que ya se ve" : props.lang === "pt-BR" ? "O que já aparece" : "What is coming into view",
     insightSubhead: props.lang === "ja" ? "この表示範囲の発見の気配を眺める。" : props.lang === "es" ? "Mira las señales de esta ventana." : props.lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
   })};
@@ -1188,6 +1222,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
+  var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
   var EVENTS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events/new"), props.lang))};
   var FIELDS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/new"), props.lang))};
   var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
@@ -1476,12 +1511,57 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderSidePanels() {
-    // 「静かな前進」フローティングカードはユーザー指示で常時非表示。
-    // マップを開いた瞬間に出るのが邪魔という指摘 (2026-05-03)。
-    // データ供給側 (effortSummary 等) は既存の他フィーチャーで使われているので残す。
-    if (!mapInsightCardEl) return;
-    mapInsightCardEl.innerHTML = '';
-    mapInsightCardEl.classList.remove('is-visible');
+    if (mapInsightCardEl) {
+      mapInsightCardEl.innerHTML = '';
+      mapInsightCardEl.classList.remove('is-visible');
+    }
+    if (!contributionPanelEl) return;
+    contributionPanelEl.innerHTML = renderContributionPanel();
+  }
+
+  function compactNumber(value) {
+    var n = Number(value || 0);
+    if (!Number.isFinite(n)) return '0';
+    return n.toLocaleString(SEARCH_LANG === 'ja' ? 'ja-JP' : 'en-US');
+  }
+
+  function renderImpactMini(label, value, icon) {
+    return '<div class="me-impact-mini"><span aria-hidden="true">' + escapeHtml(icon) + '</span><strong>' + escapeHtml(compactNumber(value)) + '</strong><small>' + escapeHtml(label) + '</small></div>';
+  }
+
+  function renderContributionPanel() {
+    var summary = state.effortSummary;
+    if (!summary) {
+      return '<div class="me-impact-card is-loading">' + escapeHtml(COPY.impactPanelLoading) + '</div>';
+    }
+    var my = summary.myProgress || null;
+    var community = summary.communityProgress || {};
+    var frontier = summary.frontierRemaining || {};
+    var campaign = summary.campaignProgress || {};
+    var title = my ? COPY.impactPanelTitleMine : COPY.impactPanelTitleGuest;
+    var hero = my
+      ? [
+          renderImpactMini(COPY.impactRevisitStory, my.revisitCount || 0, '↻'),
+          renderImpactMini(COPY.impactGuideStory, (my.roleBreakdown && my.roleBreakdown.guide) || 0, '🔍'),
+          renderImpactMini(COPY.impactScanStory, (my.roleBreakdown && my.roleBreakdown.scan) || 0, '📡'),
+        ].join('')
+      : [
+          renderImpactMini(COPY.impactCommunityStory, community.strengthenedCellCount || 0, '✨'),
+          renderImpactMini(COPY.impactBlankStory, frontier.blankCount || 0, '🧭'),
+          renderImpactMini(COPY.communityLabel, community.activeCellCount || 0, '🌿'),
+        ].join('');
+    var next = campaign.labelKey
+      ? (COPY['campaign_' + campaign.labelKey] || COPY.impactBlankStory)
+      : COPY.impactBlankStory;
+    return ''
+      + '<section class="me-impact-card" aria-label="' + escapeHtml(title) + '">'
+      +   '<div class="me-impact-head">'
+      +     '<strong>' + escapeHtml(title) + '</strong>'
+      +     '<span>' + escapeHtml(COPY.impactPrivateNote) + '</span>'
+      +   '</div>'
+      +   '<div class="me-impact-grid">' + hero + '</div>'
+      +   '<div class="me-impact-next"><span>' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(next) + '</strong></div>'
+      + '</section>';
   }
 
   function findCellFeatureById(cellId) {
@@ -1847,20 +1927,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         + '<div class="me-place-cta-row">'
         +   '<a class="me-place-cta me-place-cta-primary" href="' + escapeHtml(eventHref) + '">'
         +     '<span class="me-place-cta-icon" aria-hidden="true">＋</span>'
-        +     '<span class="me-place-cta-body"><strong>この地点で観察会を開く</strong>'
-        +     '<span>参加者と共有して観察を一括記録</span></span>'
+        +     '<span class="me-place-cta-body"><strong>' + escapeHtml(COPY.placeActionRecord) + '</strong>'
+        +     '<span>' + escapeHtml(COPY.placeStoryActions) + '</span></span>'
         +   '</a>'
         +   '<a class="me-place-cta me-place-cta-secondary" href="' + escapeHtml(fieldHref) + '">'
         +     '<span class="me-place-cta-icon" aria-hidden="true">⛳</span>'
-        +     '<span class="me-place-cta-body"><strong>マイフィールドとして登録</strong>'
-        +     '<span>範囲を描いて再訪・経年比較に使う</span></span>'
+        +     '<span class="me-place-cta-body"><strong>' + escapeHtml(COPY.placeActionFollow) + '</strong>'
+        +     '<span>' + escapeHtml(COPY.impactRevisitStory) + '</span></span>'
         +   '</a>'
         + '</div>'
       : '';
     return ctaSeamless +
       '<div class="me-bottom-actions">' +
       '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
-      '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
+      '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.placeActionGuide) + '</a>' +
+      '<a class="inline-link" href="' + SCAN_HREF + '">' + escapeHtml(COPY.placeActionScan) + '</a>' +
       '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
       '</div>';
   }
@@ -1888,8 +1969,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + ' data-label="' + escapeHtml(label || '観察エリア') + '"'
       + ' data-href="' + escapeHtml(href || '/map') + '">'
       +   '<span aria-hidden="true">＋</span>'
-      +   '<strong>フォロー</strong>'
-      +   '<small>左メニューの「フォロー中」に固定</small>'
+      +   '<strong>' + escapeHtml(COPY.placeActionFollow) + '</strong>'
+      +   '<small>' + escapeHtml(COPY.impactRevisitStory) + '</small>'
       + '</button>';
   }
 
@@ -1919,7 +2000,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (!payload || !payload.ok) return;
         button.classList.remove('is-loading');
         button.classList.add('is-followed');
-        button.innerHTML = '<span aria-hidden="true">✓</span><strong>フォロー中</strong><small>左メニューに反映されます</small>';
+        button.innerHTML = '<span aria-hidden="true">✓</span><strong>' + escapeHtml(COPY.placeActionFollow) + '</strong><small>' + escapeHtml(COPY.impactRevisitStory) + '</small>';
         window.dispatchEvent(new CustomEvent('ikimon:area-followed', { detail: { targetType: targetType, targetId: targetId, label: label } }));
       })
       .catch(function () {
@@ -2235,10 +2316,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '') +
       '</div>' +
       renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId })) +
+      renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null) +
       '<div class="me-area-sheet-cta">' +
         '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">' +
           '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>' +
-          'この場所で観察会を開く' +
+          escapeHtml(COPY.placeActionRecord) +
         '</a>' +
         '<span class="me-area-sheet-cta-hint">OSM の境界を開催エリア案として読み込み、作成時にフィールドDBへ保存</span>' +
       '</div>' +
@@ -2303,12 +2385,64 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     followAreaFromButton(button);
   });
 
+  function coverSourceLabel(source) {
+    if (source === 'admin_curated') return COPY.coverSourceAdmin;
+    if (source === 'community_curated') return COPY.coverSourceCommunity;
+    return COPY.coverSourceAuto;
+  }
+
+  function renderRepresentativePhoto(photo) {
+    if (!photo || !photo.photoUrl) return '';
+    var displayName = String(photo.displayName || COPY.coverFallbackTitle);
+    var locality = String(photo.localityLabel || '');
+    var dateText = photo.observedAt ? String(photo.observedAt).slice(0, 10) : '';
+    var meta = [dateText, locality].filter(Boolean).join(' / ');
+    return ''
+      + '<figure class="me-area-cover is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
+      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-cover&quot;).remove()" />'
+      +   '<figcaption>'
+      +     '<span>' + escapeHtml(coverSourceLabel(photo.source)) + '</span>'
+      +     '<strong>' + escapeHtml(displayName) + '</strong>'
+      +     (meta ? '<small>' + escapeHtml(meta) + '</small>' : '')
+      +   '</figcaption>'
+      + '</figure>';
+  }
+
+  function renderPlaceStoryHighlights(field, summary, indicators, representativePhoto) {
+    var topTaxa = Array.isArray(summary && summary.topTaxa) ? summary.topTaxa.slice(0, 3) : [];
+    var taxaText = topTaxa.length
+      ? topTaxa.map(function (taxon) { return taxon && taxon.name; }).filter(Boolean).join(' / ')
+      : (representativePhoto && representativePhoto.displayName ? representativePhoto.displayName : COPY.placeStoryNoTaxa);
+    var seasons = Number(summary && summary.seasonsCovered || 0);
+    var visits = Number(summary && summary.totalVisits || 0);
+    var observations = Number(summary && summary.totalObservations || 0);
+    var missing = seasons < 4 ? COPY.placeStoryNeedSeason : COPY.placeStoryNeedGuide;
+    var effortIndex = indicators && typeof indicators.effortIndex === 'number' && Number.isFinite(indicators.effortIndex)
+      ? Math.round(indicators.effortIndex) + '/100'
+      : (observations > 0 ? observations + ' records' : 'open');
+    var source = String(field && field.sourceLabel || '');
+    return ''
+      + '<div class="me-place-story" aria-label="' + escapeHtml(COPY.placeStoryTitle) + '">'
+      +   '<div class="me-place-story-head">'
+      +     '<span>' + escapeHtml(COPY.placeStoryTitle) + '</span>'
+      +     (source ? '<strong>' + escapeHtml(source) + '</strong>' : '')
+      +   '</div>'
+      +   '<div class="me-place-story-grid">'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryNow) + '</span><strong>' + escapeHtml(taxaText) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryRecent) + '</span><strong>' + escapeHtml(observations + ' / ' + visits) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryMissing) + '</span><strong>' + escapeHtml(missing) + '</strong></div>'
+      +     '<div class="me-place-story-card"><span>' + escapeHtml(COPY.placeStoryActions) + '</span><strong>' + escapeHtml(effortIndex) + '</strong></div>'
+      +   '</div>'
+      + '</div>';
+  }
+
   function renderAreaSheet(snapshot) {
     var f = (snapshot && snapshot.field) || {};
     var summary = (snapshot && snapshot.observationSummary) || {};
     var timeline = (snapshot && snapshot.yearlyTimeline) || [];
     var indicators = (snapshot && snapshot.effortIndicators) || null;
     var masking = (snapshot && snapshot.sensitiveMasking) || null;
+    var representativePhoto = (snapshot && snapshot.representativePhoto) || null;
     var name = escapeHtml(String(f.name || ''));
     var sourceLabel = escapeHtml(String(f.sourceLabel || ''));
     var locationLabel = escapeHtml(String(f.locationLabel || ''));
@@ -2338,27 +2472,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         + '<div class="me-area-sheet-cta">'
         +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
         +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
-        +     'この場所で観察会を開く'
+        +     escapeHtml(COPY.placeActionRecord)
         +   '</a>'
-        +   '<span class="me-area-sheet-cta-hint">参加者と共有できる時間枠を作って、観察を一括で記録</span>'
+        +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.placeStoryActions) + '</span>'
         + '</div>'
       : '';
     var summaryHtml = ''
       + '<div class="me-area-sheet-summary">'
-      +   '<div><span>総観察数</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
-      +   '<div><span>記録された種</span><strong>' + escapeHtml(String(summary.uniqueTaxa || 0)) + '</strong></div>'
-      +   '<div><span>訪問</span><strong>' + escapeHtml(String(summary.totalVisits || 0)) + '</strong></div>'
-      +   '<div><span>見えてきた季節</span><strong>' + escapeHtml(String(summary.seasonsCovered || 0)) + '/4</strong></div>'
+      +   '<div><span>' + escapeHtml(COPY.placeStoryRecent) + '</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
+      +   '<div><span>' + escapeHtml(COPY.placeStoryNow) + '</span><strong>' + escapeHtml(String(summary.uniqueTaxa || 0)) + '</strong></div>'
+      +   '<div><span>' + escapeHtml(COPY.placeActionRecord) + '</span><strong>' + escapeHtml(String(summary.totalVisits || 0)) + '</strong></div>'
+      +   '<div><span>' + escapeHtml(COPY.siteBriefWhyNowLabel) + '</span><strong>' + escapeHtml(String(summary.seasonsCovered || 0)) + '/4</strong></div>'
       + '</div>';
     var timelineHtml = renderAreaTimeline(timeline);
     var indicatorsHtml = renderEffortIndicators(indicators);
     var maskingHtml = renderSensitiveBanner(masking);
-    return headerHtml + followHtml + ctaHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    var coverHtml = renderRepresentativePhoto(representativePhoto);
+    var placeStoryHtml = renderPlaceStoryHighlights(f, summary, indicators, representativePhoto);
+    return headerHtml + coverHtml + followHtml + placeStoryHtml + ctaHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
     if (!Array.isArray(timeline) || timeline.length === 0) {
-      return '<div class="me-area-sheet-timeline is-empty">年別の蓄積はまだ少ない段階です。</div>';
+      return '<div class="me-area-sheet-timeline is-empty">' + escapeHtml(COPY.placeStoryNeedSeason) + '</div>';
     }
     var maxObs = 1;
     timeline.forEach(function (row) {
@@ -2376,7 +2512,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }).join('');
     return ''
       + '<div class="me-area-sheet-timeline">'
-      +   '<div class="me-area-tl-title">年ごとの発見の増え方</div>'
+      +   '<div class="me-area-tl-title">' + escapeHtml(COPY.placeStoryRecent) + '</div>'
       +   '<div class="me-area-tl-row">' + bars + '</div>'
       + '</div>';
   }
@@ -2436,12 +2572,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return ''
       + '<div class="me-area-effort">'
       +   '<div class="me-area-effort-title">'
-      +     '<span>このエリアの記録の手がかり</span>'
+      +     '<span>' + escapeHtml(COPY.placeStoryMissing) + '</span>'
       +     '<span class="me-area-effort-index">' + escapeHtml(indexText) + ' · ' + escapeHtml(bandText) + '</span>'
       +   '</div>'
       +   '<p class="me-area-effort-explainer">'
-      +     '歩かれ方、季節、見ている人の広がりから、この場所の見え方をまとめます。<br>'
-      +     '0% は「まだ記録が少ない」だけで、場所が悪いという意味ではありません。'
+      +     escapeHtml(COPY.impactPrivateNote) + '<br>'
+      +     escapeHtml(COPY.placeStoryNeedSeason)
       +   '</p>'
       +   '<div class="me-area-effort-grid">' + cardsHtml + '</div>'
       + '</div>';
@@ -4612,6 +4748,71 @@ export const MAP_EXPLORER_STYLES = `
   .me-sheet-card { padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 3px; }
   .me-sheet-card strong { font-size: 12px; font-weight: 800; color: #0f172a; }
   .me-sheet-card span { font-size: 11px; color: #64748b; line-height: 1.45; }
+  .me-contribution-panel { display: block; }
+  .me-impact-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(240,249,255,.94));
+    border: 1px solid rgba(20,184,166,.18);
+    box-shadow: 0 8px 20px rgba(15,23,42,.05);
+  }
+  .me-impact-card.is-loading { color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.5; }
+  .me-impact-head { display: grid; gap: 3px; }
+  .me-impact-head strong { font-size: 13px; line-height: 1.3; color: #064e3b; font-weight: 900; letter-spacing: 0; }
+  .me-impact-head span { font-size: 10.5px; line-height: 1.45; color: #64748b; font-weight: 700; }
+  .me-impact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .me-impact-mini { min-width: 0; display: grid; gap: 2px; padding: 8px 7px; border-radius: 12px; background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.16); }
+  .me-impact-mini > span { font-size: 16px; line-height: 1; }
+  .me-impact-mini strong { font-size: 15px; line-height: 1.1; color: #0f172a; font-weight: 900; }
+  .me-impact-mini small { font-size: 10px; line-height: 1.35; color: #475569; font-weight: 750; }
+  .me-impact-next { display: grid; gap: 2px; padding: 9px 10px; border-radius: 12px; background: rgba(15,118,110,.08); }
+  .me-impact-next span { font-size: 10px; color: #0f766e; font-weight: 900; letter-spacing: 0; }
+  .me-impact-next strong { font-size: 12px; line-height: 1.45; color: #0f172a; font-weight: 850; }
+
+  .me-area-cover {
+    position: relative;
+    overflow: hidden;
+    margin: 0 0 12px;
+    border-radius: 16px;
+    min-height: 150px;
+    aspect-ratio: 16 / 9;
+    background: #ecfdf5;
+    border: 1px solid rgba(15,23,42,.08);
+  }
+  .me-area-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .me-area-cover figcaption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    gap: 2px;
+    padding: 34px 14px 12px;
+    color: #fff;
+    background: linear-gradient(180deg, rgba(15,23,42,0), rgba(15,23,42,.78));
+  }
+  .me-area-cover span { width: fit-content; max-width: 100%; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.18); font-size: 10px; line-height: 1.3; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .me-area-cover strong { font-size: 17px; line-height: 1.3; font-weight: 900; text-shadow: 0 1px 10px rgba(15,23,42,.45); overflow-wrap: anywhere; }
+  .me-area-cover small { font-size: 11px; line-height: 1.35; font-weight: 750; color: rgba(255,255,255,.9); overflow-wrap: anywhere; }
+
+  .me-place-story {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    margin: 0 0 12px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(240,253,244,.94), rgba(239,246,255,.9));
+    border: 1px solid rgba(16,185,129,.2);
+  }
+  .me-place-story-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .me-place-story-head span { font-size: 12px; font-weight: 900; color: #064e3b; }
+  .me-place-story-head strong { min-width: 0; font-size: 10px; font-weight: 900; color: #0f766e; background: rgba(20,184,166,.12); padding: 3px 8px; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .me-place-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .me-place-story-card { min-width: 0; display: grid; gap: 4px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.16); }
+  .me-place-story-card span { font-size: 10px; line-height: 1.25; color: #64748b; font-weight: 850; }
+  .me-place-story-card strong { font-size: 12px; line-height: 1.45; color: #0f172a; font-weight: 850; overflow-wrap: anywhere; }
 
   .me-site-brief { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); }
   .me-site-brief-slot { margin-bottom: 14px; }
@@ -4638,6 +4839,8 @@ export const MAP_EXPLORER_STYLES = `
   .me-site-brief-environment em { color: #64748b; font-size: 10.5px; font-style: normal; line-height: 1.35; }
   @media (max-width: 520px) {
     .me-site-brief-loop-grid { grid-template-columns: 1fr; }
+    .me-impact-grid,
+    .me-place-story-grid { grid-template-columns: 1fr; }
   }
   ${OFFICIAL_NOTICE_CARD_STYLES}
 
@@ -4856,14 +5059,28 @@ export const MAP_EXPLORER_STYLES = `
   @media (max-width: 900px) {
     .me-section {
       --me-side-w: 0px;
-      --me-topbar-h: 46px;
+      --me-topbar-h: 94px;
     }
     .me-topbar {
       grid-template-columns: 1fr auto;
+      grid-template-rows: 40px 38px;
       gap: 8px;
       padding: 5px 10px;
     }
-    .me-tabs { display: none; }
+    .me-topbar-primary { display: contents; }
+    .me-search-shell { grid-column: 1; grid-row: 1; }
+    .me-topbar-secondary { grid-column: 2; grid-row: 1; }
+    .me-tabs {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      display: flex;
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .me-tabs::-webkit-scrollbar { display: none; }
+    .me-tab { flex: 1 0 auto; min-height: 34px; padding: 4px 12px; font-size: 12px; }
     .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-panel {
       position: fixed;

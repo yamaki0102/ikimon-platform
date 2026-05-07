@@ -26,6 +26,22 @@ import {
   viewerCanSeeExact,
   type ViewerContext,
 } from "./sensitiveSpeciesMasking.js";
+import {
+  PUBLIC_OBSERVATION_QUALITY_SQL,
+  VALID_OBSERVATION_PHOTO_ASSET_SQL,
+} from "./observationQualityGate.js";
+
+export type AreaCoverSource = "admin_curated" | "community_curated" | "auto_observation";
+
+export type AreaRepresentativePhoto = {
+  source: AreaCoverSource;
+  photoUrl: string;
+  displayName: string;
+  observedAt: string | null;
+  localityLabel: string | null;
+  occurrenceId: string;
+  visitId: string;
+};
 
 export type AreaYearlyRow = {
   year: number;
@@ -57,6 +73,7 @@ export type AreaSensitiveMasking = {
 };
 
 export type AreaPlaceSnapshot = PlaceSnapshot & {
+  representativePhoto: AreaRepresentativePhoto | null;
   yearlyTimeline: AreaYearlyRow[];
   effortIndicators: AreaEffortIndicators;
   sensitiveMasking: AreaSensitiveMasking;
@@ -99,9 +116,126 @@ function monthToSeason(month: number): number {
   return 3;
 }
 
+function normalizeAssetUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) {
+    return value;
+  }
+  return `/${value.replace(/^\.?\//, "")}`;
+}
+
 async function safeQuery<T>(label: string, runner: () => Promise<T>, fallback: T): Promise<T> {
   try { return await runner(); }
   catch (err) { console.warn(`[areaPlaceSnapshot] ${label} failed`, err); return fallback; }
+}
+
+async function loadRepresentativePhoto(
+  field: { fieldId: string; lat: number; lng: number; radiusM: number },
+  placeId: string | null,
+): Promise<AreaRepresentativePhoto | null> {
+  const bbox = fieldBbox(field);
+  const pool = getPool();
+  return safeQuery(
+    "representative_photo",
+    async () => {
+      const result = await pool.query<{
+        occurrence_id: string;
+        visit_id: string;
+        display_name: string | null;
+        observed_at: string | null;
+        locality_label: string | null;
+        photo_url: string | null;
+      }>(
+        `with field_visits as (
+            select v.*
+              from visits v
+              left join places p on p.place_id = v.place_id
+             where v.observed_at is not null
+               and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+               and (
+                 v.source_payload->>'field_id' = $1
+                 or ($2::text is not null and v.place_id = $2)
+                 or $1::uuid = ANY(v.resolved_field_ids)
+                 or (
+                   coalesce(v.point_latitude, p.center_latitude) between $3 and $4
+                   and coalesce(v.point_longitude, p.center_longitude) between $5 and $6
+                 )
+               )
+          ),
+          candidates as (
+            select
+              o.occurrence_id,
+              fv.visit_id,
+              coalesce(
+                nullif(o.vernacular_name, ''),
+                nullif(o.scientific_name, ''),
+                nullif(ai.recommended_taxon_name, ''),
+                'この場所の発見'
+              ) as display_name,
+              fv.observed_at::text as observed_at,
+              concat_ws(' / ', nullif(fv.observed_municipality, ''), nullif(fv.observed_prefecture, '')) as locality_label,
+              photo.public_url as photo_url,
+              row_number() over (
+                partition by coalesce(fv.user_id::text, fv.source_payload->>'observer_id', fv.source_payload->>'recorded_by', 'anonymous')
+                order by fv.observed_at desc, o.created_at desc
+              ) as observer_rank,
+              (
+                case when extract(month from fv.observed_at) = extract(month from now()) then 12 else 0 end
+                + case when nullif(o.vernacular_name, '') is not null then 5 else 0 end
+                + case when nullif(o.scientific_name, '') is not null then 3 else 0 end
+                + case when fv.observed_at >= now() - interval '180 days' then 4 else 0 end
+              ) as cover_score
+            from occurrences o
+            join field_visits fv on fv.visit_id = o.visit_id
+            left join lateral (
+              select recommended_taxon_name
+                from observation_ai_assessments a
+               where a.occurrence_id = o.occurrence_id
+               order by generated_at desc
+               limit 1
+            ) ai on true
+            join lateral (
+              select coalesce(ab.public_url, ab.storage_path) as public_url,
+                     ea.source_payload as asset_payload,
+                     ab.source_payload as blob_payload
+                from evidence_assets ea
+                join asset_blobs ab on ab.blob_id = ea.blob_id
+               where ea.occurrence_id = o.occurrence_id
+                 and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+                 and coalesce(lower(ea.source_payload->'facePrivacy'->>'hasFace'), 'false') not in ('true', '1', 'yes')
+                 and coalesce(lower(ab.source_payload->'facePrivacy'->>'hasFace'), 'false') not in ('true', '1', 'yes')
+               order by ea.created_at asc
+               limit 1
+            ) photo on true
+            where not exists (
+              select 1
+                from civic_observation_contexts c
+               where c.visit_id = fv.visit_id
+                 and c.risk_lane = 'rare_sensitive'
+            )
+          )
+          select occurrence_id, visit_id, display_name, observed_at, nullif(locality_label, '') as locality_label, photo_url
+            from candidates
+           where observer_rank = 1
+           order by cover_score desc, observed_at desc
+           limit 1`,
+        [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+      );
+      const row = result.rows[0];
+      const photoUrl = normalizeAssetUrl(row?.photo_url);
+      if (!row || !photoUrl) return null;
+      return {
+        source: "auto_observation",
+        photoUrl,
+        displayName: row.display_name || "この場所の発見",
+        observedAt: row.observed_at,
+        localityLabel: row.locality_label,
+        occurrenceId: row.occurrence_id,
+        visitId: row.visit_id,
+      };
+    },
+    null,
+  );
 }
 
 async function loadYearlyTimeline(
@@ -391,13 +525,15 @@ export async function getAreaPlaceSnapshot(
   if (!field) return null;
   const placeId = base.relationshipScore.placeId ?? null;
   const fieldForBbox = { fieldId, lat: field.lat, lng: field.lng, radiusM: field.radiusM, createdAt: field.createdAt };
-  const [yearlyTimeline, effortIndicators, sensitiveMasking] = await Promise.all([
+  const [representativePhoto, yearlyTimeline, effortIndicators, sensitiveMasking] = await Promise.all([
+    loadRepresentativePhoto(fieldForBbox, placeId),
     loadYearlyTimeline(fieldForBbox, placeId),
     loadEffortIndicators(fieldForBbox, placeId),
     loadSensitiveMasking(fieldForBbox, placeId, options.viewer),
   ]);
   return {
     ...base,
+    representativePhoto,
     yearlyTimeline,
     effortIndicators,
     sensitiveMasking,
