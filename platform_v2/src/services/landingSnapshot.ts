@@ -9,9 +9,11 @@ import {
 } from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import {
+  PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL,
   PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL,
   PUBLIC_OBSERVATION_QUALITY_SQL,
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
+  VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { getRegionalStoryCue } from "./regionalStory.js";
 import type {
@@ -170,6 +172,7 @@ type FeedRow = {
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
+  video_thumb_url: string | null;
   photo_urls: string[] | null;
   photo_count: string | number | null;
   photo_width_px: number | null;
@@ -255,6 +258,7 @@ const FEED_SQL_BASE = `
     coalesce(v.point_latitude, p.center_latitude) as latitude,
     coalesce(v.point_longitude, p.center_longitude) as longitude,
     photo.public_url as photo_url,
+    video.thumb_url as video_thumb_url,
     photo.photo_urls,
     photo.photo_count,
     photo.width_px as photo_width_px,
@@ -320,10 +324,13 @@ const FEED_SQL_BASE = `
     ) asset
   ) photo on true
   left join lateral (
-    select count(*)::text as video_count
+    select
+      count(*)::text as video_count,
+      (array_agg(coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url') order by ea.created_at asc))[1] as thumb_url
     from evidence_assets ea
+    join asset_blobs ab on ab.blob_id = ea.blob_id
     where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
-      and ea.asset_role = 'observation_video'
+      and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
   ) video on true
   left join lateral (
     select coalesce(ab.public_url, ab.storage_path) as public_url
@@ -404,6 +411,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
       longitude: safeLng,
     }),
     photoUrl: normalizeAssetUrl(row.photo_url),
+    mediaUrl: normalizeAssetUrl(row.video_thumb_url),
     photoUrls: normalizeAssetUrls(row.photo_urls),
     photoCount: Math.max(0, Number(row.photo_count ?? 0) || 0),
     identificationCount: Number(row.identification_count),
@@ -765,7 +773,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     kind: "photo",
     title: "写真",
     eyebrow: "PHOTO",
-    href: "/observations?media=photo",
+    href: "/observations?filter=photo",
     limit: 6,
     matches: (item) => isLandingObservationItem(item) && Boolean(item.photoUrl),
   },
@@ -773,13 +781,13 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     kind: "video",
     title: "動画",
     eyebrow: "VIDEO",
-    href: "/observations?media=video",
+    href: "/observations?filter=video",
     limit: 4,
     matches: (item) => isLandingObservationItem(item) && (Boolean(item.hasVideo) || item.librarySourceKind === "video"),
     cta: {
       title: "動きのある記録を増やす",
       body: "鳴き声、歩き方、羽ばたきは写真だけでは残りません。動画で短く残せます。",
-      href: "/record",
+      href: "/record?start=video",
       actionLabel: "動画を記録する",
     },
   },
@@ -1007,9 +1015,29 @@ export function buildLandingTopShelves(
     cta: definition.cta,
   }));
   return {
-    shelves,
+    shelves: collapseVideoShelfIntoEvidenceShelf(shelves),
     overflowSummaries: buildLandingOverflowSummaries(observationCandidates),
   };
+}
+
+function collapseVideoShelfIntoEvidenceShelf(shelves: LandingTopShelf[]): LandingTopShelf[] {
+  const videoShelf = shelves.find((shelf) => shelf.kind === "video");
+  const photoShelf = shelves.find((shelf) => shelf.kind === "photo");
+  if (!photoShelf) return shelves.filter((shelf) => shelf.kind !== "video");
+
+  const mergedMediaItems = uniqueLandingTopItemList([...photoShelf.items, ...(videoShelf?.items ?? [])]).slice(0, 6);
+  return shelves
+    .map((shelf) => {
+      if (shelf.kind !== "photo") return shelf;
+      return {
+        ...shelf,
+        title: "観察証拠",
+        eyebrow: "EVIDENCE",
+        href: "/observations",
+        items: mergedMediaItems,
+      };
+    })
+    .filter((shelf) => shelf.kind !== "video");
 }
 
 type IdentificationRow = {
@@ -1213,7 +1241,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL} order by v.observed_at desc limit 120`,
+      `${FEED_SQL_BASE} where ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL} order by v.observed_at desc limit 120`,
     );
     feedRows = result.rows;
   } catch {
