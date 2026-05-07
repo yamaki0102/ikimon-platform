@@ -4938,6 +4938,59 @@ ${alternateLinks}
         margin-right: 0;
       }
     }
+    @media (min-width: 1161px) and (max-width: 1380px) {
+      :root {
+        --ikimon-desktop-sidebar-w: 72px;
+        --ikimon-page-inline: clamp(20px, 2.4vw, 34px);
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 18px);
+        --ikimon-shell-margin-right: 18px;
+      }
+      .site-header-inner {
+        grid-template-columns: var(--ikimon-desktop-sidebar-w) minmax(240px, 1fr) auto;
+        gap: 12px;
+      }
+      .site-brand-cluster {
+        width: var(--ikimon-desktop-sidebar-w);
+      }
+      .brand-wordmark,
+      .desktop-side-nav-label,
+      .desktop-side-nav-section--secondary,
+      .desktop-side-nav-legal {
+        display: none;
+      }
+      .brand-logo-lockup {
+        padding-right: 0;
+      }
+      .desktop-side-nav {
+        padding-right: 0;
+        box-shadow: 10px 0 26px rgba(15,23,42,.08);
+      }
+      .desktop-side-nav-link {
+        width: 48px;
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+      }
+      .desktop-side-nav-link::before {
+        left: 3px;
+      }
+      .site-search-desktop {
+        width: min(100%, 560px);
+      }
+      .site-header-actions-desktop {
+        gap: 6px;
+      }
+      .site-header-actions-desktop .btn {
+        padding: 9px 12px;
+      }
+      .shell.shell-layout-home,
+      .shell.shell-layout-home.shell-bleed,
+      .footer-inner {
+        width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-desktop-sidebar-w) - 36px));
+        margin-left: var(--ikimon-shell-margin-left);
+        margin-right: var(--ikimon-shell-margin-right);
+      }
+    }
     @media (max-width: 1160px) {
       .site-header-inner {
         padding: 10px 18px;
