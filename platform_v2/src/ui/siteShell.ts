@@ -4940,10 +4940,13 @@ ${alternateLinks}
     }
     @media (min-width: 1161px) and (max-width: 1380px) {
       :root {
-        --ikimon-desktop-sidebar-w: 72px;
         --ikimon-page-inline: clamp(20px, 2.4vw, 34px);
         --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 18px);
         --ikimon-shell-margin-right: 18px;
+      }
+      body.is-desktop-side-nav-collapsed {
+        --ikimon-desktop-sidebar-w: 72px;
+        --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 18px);
       }
       .site-header-inner {
         grid-template-columns: var(--ikimon-desktop-sidebar-w) minmax(240px, 1fr) auto;
@@ -4951,28 +4954,6 @@ ${alternateLinks}
       }
       .site-brand-cluster {
         width: var(--ikimon-desktop-sidebar-w);
-      }
-      .brand-wordmark,
-      .desktop-side-nav-label,
-      .desktop-side-nav-section--secondary,
-      .desktop-side-nav-legal {
-        display: none;
-      }
-      .brand-logo-lockup {
-        padding-right: 0;
-      }
-      .desktop-side-nav {
-        padding-right: 0;
-        box-shadow: 10px 0 26px rgba(15,23,42,.08);
-      }
-      .desktop-side-nav-link {
-        width: 48px;
-        justify-content: center;
-        gap: 0;
-        padding: 0;
-      }
-      .desktop-side-nav-link::before {
-        left: 3px;
       }
       .site-search-desktop {
         width: min(100%, 560px);
