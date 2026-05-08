@@ -527,12 +527,24 @@ jobs:
               fi
             done
             echo "== v2 lane (port 3200, internal) =="
-            for path in /healthz / /notes /lens /scan /map /guide /learn/field-loop /api/v1/research/occurrences; do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "http://127.0.0.1:3200${path}")
+            for url in \
+              http://127.0.0.1:3200/healthz \
+              http://127.0.0.1:3200/ \
+              http://127.0.0.1:3200/notes \
+              http://127.0.0.1:3200/lens \
+              http://127.0.0.1:3200/scan \
+              http://127.0.0.1:3200/map \
+              http://127.0.0.1:3200/guide \
+              http://127.0.0.1:3200/learn/field-loop \
+              http://127.0.0.1:3200/api/v1/research/occurrences \
+              http://127.0.0.1:3200/ops/digitized-books/data \
+              http://127.0.0.1:3200/ops/digitized-books/rag-data
+            do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "$url")
               if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
-                echo "OK v2 ${path} -> $STATUS"
+                echo "OK v2 ${url} -> $STATUS"
               else
-                echo "FAIL v2 ${path} -> $STATUS"
+                echo "FAIL v2 ${url} -> $STATUS"
                 exit 1
               fi
             done
