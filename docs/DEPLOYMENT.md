@@ -17,6 +17,7 @@ runner からの browser smoke が通った場合だけ nginx を promote する
 
 ## Source of Truth
 
+- low-token deploy entry: `docs/DEPLOY_LOW_TOKEN_PROTOCOL.md`
 - deploy manifest: `ops/deploy/deploy_manifest.json`
 - server deploy reference: `ops/deploy/production_deploy_reference.sh`
 - production v2 blue/green deploy script: `ops/deploy/deploy_platform_v2_blue_green.sh`
@@ -29,6 +30,7 @@ runner からの browser smoke が通った場合だけ nginx を promote する
 - platform_v2 migration guardrail: `scripts/check_platform_v2_migration_guardrails.ps1`
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
+- deploy status summary: `scripts/deploy_status_summary.ps1`
 
 ## Persistent Paths
 
@@ -58,6 +60,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_platform_v2_migration_g
 powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_staging_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_remote_deploy_reference.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy_status_summary.ps1 -Pr <number>
 powershell -ExecutionPolicy Bypass -File .\scripts\pull_production_state_snapshot.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\provision_staging_from_production.ps1
 ```
