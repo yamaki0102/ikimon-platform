@@ -80,7 +80,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 
 $repoSettings = Invoke-GhJson -GhArgs @(
     "api", "repos/$Repository",
-    "--jq", "{delete_branch_on_merge, default_branch}"
+    "--jq", "{delete_branch_on_merge, default_branch, allow_squash_merge, allow_merge_commit, allow_rebase_merge}"
 )
 
 $defaultBranch = [string]$repoSettings.default_branch
@@ -97,6 +97,17 @@ Invoke-Git -GitArgs @(
 $now = Get-Date
 $staleCutoff = $now.AddDays(-1 * $StaleDays)
 $protectedNames = @($defaultBranch, "staging")
+
+$defaultProtection = $null
+try {
+    $defaultProtection = Invoke-GhJson -GhArgs @(
+        "api", "repos/$Repository/branches/$defaultBranch/protection",
+        "--jq", "{required_linear_history, allow_force_pushes, allow_deletions, required_status_checks, required_pull_request_reviews}"
+    )
+}
+catch {
+    $defaultProtection = $null
+}
 
 $remoteRefs = Invoke-Git -GitArgs @(
     "for-each-ref",
@@ -189,6 +200,12 @@ Add-Line $lines ""
 Add-Line $lines "- Repository: $Repository"
 Add-Line $lines "- Default branch: $defaultBranch"
 Add-Line $lines "- Delete branch on merge: $($repoSettings.delete_branch_on_merge)"
+Add-Line $lines "- Squash merge: $($repoSettings.allow_squash_merge)"
+Add-Line $lines "- Merge commit: $($repoSettings.allow_merge_commit)"
+Add-Line $lines "- Rebase merge: $($repoSettings.allow_rebase_merge)"
+if ($defaultProtection -and $defaultProtection.required_linear_history) {
+    Add-Line $lines "- $defaultBranch linear history: $($defaultProtection.required_linear_history.enabled)"
+}
 Add-Line $lines "- Stale threshold: $StaleDays days"
 Add-Line $lines "- Generated: $($now.ToString("yyyy-MM-dd HH:mm:ss zzz"))"
 Add-Line $lines ""
@@ -197,6 +214,22 @@ if (-not $repoSettings.delete_branch_on_merge) {
     Add-Line $lines "> WARNING: GitHub delete_branch_on_merge is disabled. Enable it to prevent merged branch buildup."
     if ($env:GITHUB_ACTIONS -eq "true") {
         Write-Output "::warning::GitHub delete_branch_on_merge is disabled for $Repository."
+    }
+    Add-Line $lines ""
+}
+
+if (-not $repoSettings.allow_squash_merge -or $repoSettings.allow_merge_commit -or $repoSettings.allow_rebase_merge) {
+    Add-Line $lines "> WARNING: Merge policy should be squash-only for branch hygiene."
+    if ($env:GITHUB_ACTIONS -eq "true") {
+        Write-Output "::warning::Merge policy should be squash-only for $Repository."
+    }
+    Add-Line $lines ""
+}
+
+if (-not $defaultProtection -or -not $defaultProtection.required_linear_history -or -not $defaultProtection.required_linear_history.enabled) {
+    Add-Line $lines "> WARNING: $defaultBranch required_linear_history is not enabled."
+    if ($env:GITHUB_ACTIONS -eq "true") {
+        Write-Output "::warning::$defaultBranch required_linear_history is not enabled for $Repository."
     }
     Add-Line $lines ""
 }

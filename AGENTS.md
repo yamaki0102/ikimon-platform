@@ -124,6 +124,8 @@ php tools/lint.php
 ### Branch Hygiene
 
 - GitHub repository setting `delete_branch_on_merge` must stay enabled.
+- Merge policy is squash-only: squash merge enabled, merge commit disabled, rebase merge disabled.
+- `main` branch protection requires linear history.
 - Long-lived branches are limited to `main` and `staging`.
 - `staging` is the staging deploy selector, not a feature queue. Keep it main-following.
 - Feature/rescue work uses short-lived `codex/<task-name>` branches and PRs to `main`.
