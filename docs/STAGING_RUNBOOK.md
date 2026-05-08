@@ -97,12 +97,24 @@ ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 ## Guardrails
 
 - production data は repo 変更フローに混ぜない
+- `staging` branch は staging deploy の入口として残すが、feature queue にしない
+- `staging` branch に独自差分を積む場合は短期 review 目的に限定し、review 後は `main` 追従へ戻す
 - staging public root は `platform_v2`、PHP lane は `/legacy/` に固定する
 - staging は `8081` / `3200` で内部 listen するが、公開面は `noindex + basic auth` に留める
 - staging v2 の process manager は `pm2` ではなく `ikimon-v2-staging.service` に固定する
 - staging v2 の DB 接続は peer auth ではなく `V2_STAGING_DATABASE_URL` に固定する
 - uploads は repo 配下でなく `persistent/uploads` に置く
 - 本番 deploy 前に staging で UI / data / health check を通す
+
+## Branch Policy
+
+`staging` は長期作業を貯めるブランチではなく、production-like review を行うための
+deploy selector。通常の作業は `codex/<task-name>` から `main` へ PR し、必要なときだけ
+GitHub Actions の `Deploy to Staging` で review branch を指定する。
+
+`origin/staging` は staging workflow の既定入力として残す。ただし、`main` から長期に
+乖離させない。staging 固有の修正が必要な場合は、原因を PR に書き、main へ取り込むか
+破棄するかを review 後に決める。
 
 ## GitHub staging secrets
 

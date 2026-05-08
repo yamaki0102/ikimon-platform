@@ -1,0 +1,33 @@
+name: Branch Hygiene Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      stale_days:
+        description: "Days before a non-operational branch is reported as stale"
+        required: false
+        default: "30"
+  schedule:
+    # Weekly, Sunday 23:00 JST.
+    - cron: "0 14 * * 0"
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  audit:
+    name: Audit branches, PRs, and deploy runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run branch hygiene audit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STALE_DAYS: ${{ github.event.inputs.stale_days || '30' }}
+        run: ./scripts/branch_hygiene_audit.ps1 -StaleDays ([int]$env:STALE_DAYS) -EmitGithubSummary
