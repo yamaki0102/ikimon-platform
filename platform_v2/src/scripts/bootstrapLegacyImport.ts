@@ -133,6 +133,17 @@ const summary: ImportSummary = {
   quarantinedNoPhotoObservations: 0,
 };
 
+const LEGACY_TRACK_IMPORT_LOCK = "ikimon:legacy-track-import";
+
+async function withLegacyTrackImportLock<T>(pool: Pool, callback: () => Promise<T>): Promise<T> {
+  await pool.query("select pg_advisory_lock(hashtext($1)::bigint)", [LEGACY_TRACK_IMPORT_LOCK]);
+  try {
+    return await callback();
+  } finally {
+    await pool.query("select pg_advisory_unlock(hashtext($1)::bigint)", [LEGACY_TRACK_IMPORT_LOCK]);
+  }
+}
+
 function parseArgs(argv: string[]): ImportOptions {
   const resolvedRoots = resolveLegacyRoots(process.cwd(), {
     mirrorRoot: process.env.LEGACY_MIRROR_ROOT,
@@ -1287,7 +1298,8 @@ async function importTracks(options: ImportOptions, tracks: LegacyTrackSession[]
   }
 
   const pool = getPool();
-  for (const session of tracks) {
+  await withLegacyTrackImportLock(pool, async () => {
+    for (const session of tracks) {
     const points = Array.isArray(session.points) ? session.points : [];
     const visitId = `track:${session.session_id}`;
     const firstPoint = points.find((point) => asFiniteNumber(point.lat) !== null && asFiniteNumber(point.lng) !== null);
@@ -1372,7 +1384,8 @@ async function importTracks(options: ImportOptions, tracks: LegacyTrackSession[]
       summary.trackPoints += 1;
       sequence += 1;
     }
-  }
+    }
+  });
 }
 
 async function ensureDatabaseReady() {

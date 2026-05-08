@@ -1,5 +1,6 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import type { Pool } from "pg";
 import { getPool } from "../db.js";
 import { resolveLegacyRoots } from "../legacy/legacyRoots.js";
 
@@ -40,6 +41,17 @@ type ImportSummary = {
   trackPointsImported: number;
   missingUsers: number;
 };
+
+const LEGACY_TRACK_IMPORT_LOCK = "ikimon:legacy-track-import";
+
+async function withLegacyTrackImportLock<T>(pool: Pool, callback: () => Promise<T>): Promise<T> {
+  await pool.query("select pg_advisory_lock(hashtext($1)::bigint)", [LEGACY_TRACK_IMPORT_LOCK]);
+  try {
+    return await callback();
+  } finally {
+    await pool.query("select pg_advisory_unlock(hashtext($1)::bigint)", [LEGACY_TRACK_IMPORT_LOCK]);
+  }
+}
 
 function parseArgs(argv: string[]): ImportOptions {
   const projectRoot = process.cwd();
@@ -176,6 +188,7 @@ async function main(): Promise<void> {
 
   await ensureDatabaseReady();
   const pool = getPool();
+  await withLegacyTrackImportLock(pool, async () => {
   const existingLedger = await pool.query<{
     legacy_id: string;
     import_status: string;
@@ -364,6 +377,7 @@ async function main(): Promise<void> {
 
     summary.tracksImported += 1;
   }
+  });
 
   console.log(JSON.stringify({ options, summary }, null, 2));
   await pool.end();
