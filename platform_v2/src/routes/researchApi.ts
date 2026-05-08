@@ -54,7 +54,16 @@ type OccurrenceRow = {
   latest_package_stage: string | null;
   consensus_status: string;
   identification_verification_status: string;
+  calibration_decision: Record<string, unknown> | null;
 };
+
+function machineEvidenceStatus(row: Pick<OccurrenceRow, "basis_of_record" | "ai_assessment_status" | "data_quality">): "human_observation" | "ai_candidate" | "reviewer_verified" | "reviewer_rejected" {
+  if (row.basis_of_record !== "MachineObservation") return "human_observation";
+  const status = row.ai_assessment_status || row.data_quality || "";
+  if (status === "reviewer_verified") return "reviewer_verified";
+  if (status === "reviewer_rejected" || status === "rejected") return "reviewer_rejected";
+  return "ai_candidate";
+}
 
 function normalizeMediaRoleQuery(value: string | undefined): string | null {
   if (!value) {
@@ -73,6 +82,7 @@ function includeMachineObservationsQuery(query: Record<string, string>): boolean
 }
 
 function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<string, unknown> {
+  const machineStatus = machineEvidenceStatus(row);
   const exportReady = Boolean(
     row.external_export_allowed
     && row.withdrawal_status === "active"
@@ -81,6 +91,7 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
     && row.public_precision
     && row.public_precision !== "exact_private"
     && (row.consensus_status === "authority_backed" || row.evidence_tier >= 3)
+    && (row.basis_of_record !== "MachineObservation" || machineStatus === "reviewer_verified")
   );
   return {
     observationMode:       row.observation_method ?? (row.field_scan_mode ? "field_scan" : row.visit_mode === "survey" ? "guide_survey" : "image_post"),
@@ -99,6 +110,14 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
     associatedMedia:      row.photo_url ?? row.machine_media_ref,
     associatedMediaRole:  row.media_role,
     basisOfRecord:        row.basis_of_record ?? "HumanObservation",
+    machineEvidenceLayer: machineStatus,
+    machineEvidence: row.basis_of_record === "MachineObservation" ? {
+      status: machineStatus,
+      humanReviewRequired: machineStatus === "ai_candidate",
+      exportUse: machineStatus === "reviewer_verified" ? "reviewed_record_candidate" : "activity_indicator_only",
+      claimLimit: machineStatus === "reviewer_verified" ? "reviewed_machine_observation" : "not_a_confirmed_species_record",
+      calibrationDecision: row.calibration_decision ?? null,
+    } : null,
     datasetName:          "ikimon Field Loop",
     license:              row.dataset_license ?? "not_export_ready",
     consensusStatus:      row.consensus_status,
@@ -117,8 +136,7 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
       ),
       machineObservationReady: Boolean(
         row.basis_of_record === "MachineObservation"
-        && row.ai_assessment_status === "reviewer_verified"
-        && row.data_quality === "reviewer_verified"
+        && machineStatus === "reviewer_verified"
       ),
       indicatorReady: Boolean(
         row.field_scan_mode
@@ -257,6 +275,7 @@ async function queryResearchOccurrenceRecords(
        (ogc.review_scope <> '{}'::jsonb) as review_scope_present,
        (ogc.site_policy_context <> '{}'::jsonb) as site_policy_context_present,
        pkg_event.latest_package_stage,
+       o.source_payload->'calibration' as calibration_decision,
        case
          when id_meta.authority_count > 0 then 'authority_backed'
          when id_meta.current_count >= 2 then 'community_consensus'
