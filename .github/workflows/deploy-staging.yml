@@ -335,6 +335,7 @@ jobs:
             fi
             DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
             IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
+            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:observation-fields:aikan-renri
             if [ "$SHOULD_RUN_KNOWLEDGE" = "true" ]; then
               echo "== npm run compile:knowledge-navigation dry-run =="
               DRY_RUN_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --dry-run --json)"
