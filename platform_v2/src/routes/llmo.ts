@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { buildLlmoFaqMarkdown, buildLlmoGuideMarkdown, buildLlmoResearcherMarkdown, buildLlmsTxt } from "../llmo.js";
+import { buildLlmoFaqMarkdown, buildLlmoGuideMarkdown, buildLlmoResearcherMarkdown, buildLlmoTermsMarkdown, buildLlmsTxt } from "../llmo.js";
 
 function requestOrigin(request: { headers: Record<string, unknown> }): string {
   const host = String(request.headers["x-forwarded-host"] ?? request.headers.host ?? "ikimon.life");
@@ -26,5 +26,10 @@ export async function registerLlmoRoutes(app: FastifyInstance): Promise<void> {
   app.get("/llms/researcher.md", async (_request, reply) => {
     reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
     return buildLlmoResearcherMarkdown();
+  });
+
+  app.get("/llms/terms.md", async (_request, reply) => {
+    reply.type("text/markdown; charset=utf-8").header("Cache-Control", "public, max-age=3600");
+    return buildLlmoTermsMarkdown();
   });
 }

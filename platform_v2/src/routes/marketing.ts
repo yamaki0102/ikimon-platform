@@ -34,6 +34,7 @@ type DocHeading = {
 type DocTerm = {
   label: string;
   hint: string;
+  href: string;
 };
 
 type ContactFormCopy = {
@@ -209,16 +210,41 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
 }
 
 const DOC_TERM_DEFINITIONS: DocTerm[] = [
-  { label: "同定", hint: "見つけた生きものの名前や分類を、根拠と一緒に確かめること。" },
-  { label: "Evidence Tier", hint: "記録をどの強さで研究・報告に使えるかを分ける信頼段階。" },
-  { label: "quick capture", hint: "散歩や旅先の発見を、まず写真・場所・時刻で残す軽い記録。" },
-  { label: "survey", hint: "対象、時間、努力量をそろえて残す、調査に近い記録。" },
-  { label: "open dispute", hint: "別分類、証拠不足、位置や日付の疑問など、未解決の反対意見。" },
-  { label: "TNFD", hint: "自然関連のリスクや機会を企業が開示するための国際的な枠組み。" },
-  { label: "30by30", hint: "2030年までに陸と海の30%以上を保全する国際目標。" },
-  { label: "ネイチャーポジティブ", hint: "自然の損失を止め、回復へ向ける考え方。" },
-  { label: "希少種", hint: "保護上、位置情報や公開範囲に配慮が必要な生きもの。" },
-  { label: "位置情報", hint: "観察した場所の情報。公開時は安全のため精度を落とす場合があります。" },
+  { label: "生物多様性", href: "/learn/terms/biodiversity", hint: "生態系、種、遺伝子の多様さを合わせて見る考え方。" },
+  { label: "生態系サービス", href: "/learn/terms/ecosystem-services", hint: "自然が暮らしや社会を支える働き。" },
+  { label: "ネイチャーポジティブ", href: "/learn/terms/nature-positive", hint: "自然の損失を止め、回復へ向ける考え方。" },
+  { label: "30by30", href: "/learn/terms/30by30", hint: "2030年までに陸と海の30%以上を保全する国際目標。" },
+  { label: "自然共生サイト", href: "/learn/terms/nature-symbiosis-site", hint: "民間や地域の保全管理地を国が認定する制度。" },
+  { label: "OECM", href: "/learn/terms/oecm", hint: "保護区以外で生物多様性保全に貢献している地域を評価する考え方。" },
+  { label: "TNFD", href: "/learn/terms/tnfd", hint: "自然関連のリスクや機会を企業が開示するための国際的な枠組み。" },
+  { label: "自然資本", href: "/learn/terms/natural-capital", hint: "自然を社会や経済を支える資本として見る考え方。" },
+  { label: "生物多様性クレジット", href: "/learn/terms/biodiversity-credits", hint: "自然の保全や回復を資金化する仕組みとして議論される考え方。" },
+  { label: "昆明・モントリオール生物多様性枠組み", href: "/learn/terms/kunming-montreal-gbf", hint: "2030年へ向けた国際的な生物多様性目標の枠組み。" },
+  { label: "市民科学", href: "/learn/terms/citizen-science", hint: "一般の人が観察、記録、確認に参加する科学の進め方。" },
+  { label: "BioMonWeek", href: "/learn/terms/biomonweek", hint: "一定期間にみんなで生物多様性の観察記録を集める観察ウィーク。" },
+  { label: "生物多様性モニタリング", href: "/learn/terms/biodiversity-monitoring", hint: "同じ場所や条件で記録を重ね、生きものの変化を見守ること。" },
+  { label: "市民参加型モニタリング", href: "/learn/terms/participatory-monitoring", hint: "地域の人や参加者が継続的に観察を残す仕組み。" },
+  { label: "定点観察", href: "/learn/terms/fixed-point-observation", hint: "同じ場所をくり返し見て、季節や年ごとの変化を残す観察。" },
+  { label: "観察努力量", href: "/learn/terms/sampling-effort", hint: "時間、人数、距離、範囲など、どれくらい探したかを表す情報。" },
+  { label: "ベースライン", href: "/learn/terms/baseline", hint: "あとで変化を比べるための基準時点の状態。" },
+  { label: "同定", href: "/learn/terms/identification", hint: "見つけた生きものの名前や分類を、根拠と一緒に確かめること。" },
+  { label: "AI候補", href: "/learn/terms/ai-candidate", hint: "AIが出す名前や見分け方のヒント。確定名ではありません。" },
+  { label: "quick capture", href: "/learn/terms/quick-capture", hint: "散歩や旅先の発見を、まず写真・場所・時刻で残す軽い記録。" },
+  { label: "survey", href: "/learn/terms/survey", hint: "対象、時間、努力量をそろえて残す、調査に近い記録。" },
+  { label: "Evidence Tier", href: "/learn/terms/evidence-tier", hint: "記録をどの強さで研究・報告に使えるかを分ける信頼段階。" },
+  { label: "open dispute", href: "/learn/terms/open-dispute", hint: "別分類、証拠不足、位置や日付の疑問など、未解決の反対意見。" },
+  { label: "位置情報", href: "/learn/terms/location-data", hint: "観察した場所の情報。公開時は安全のため精度を落とす場合があります。" },
+  { label: "希少種", href: "/learn/terms/rare-species", hint: "保護上、位置情報や公開範囲に配慮が必要な生きもの。" },
+  { label: "環境DNA", href: "/learn/terms/environmental-dna", hint: "水、土、空気などに残る生物由来のDNAを調べる技術。" },
+  { label: "GBIF", href: "/learn/terms/gbif", hint: "世界中の生物多様性データを共有する国際的な情報基盤。" },
+  { label: "Darwin Core", href: "/learn/terms/darwin-core", hint: "生物多様性データを交換しやすくするための標準語彙。" },
+  { label: "DwC-A", href: "/learn/terms/dwca", hint: "Darwin Core形式のデータをまとめて配布するためのアーカイブ形式。" },
+  { label: "分類名", href: "/learn/terms/taxonomy-name", hint: "生きものを分類体系の中で扱うための名前。" },
+  { label: "データセット", href: "/learn/terms/dataset", hint: "一定の目的や形式でまとめられた観察・標本などのデータ群。" },
+  { label: "自然とのつながり", href: "/learn/terms/nature-connectedness", hint: "自分が自然の一部だと感じる主観的な関係性。" },
+  { label: "注意回復理論", href: "/learn/terms/attention-restoration-theory", hint: "自然環境が疲れた注意の回復を助ける可能性を説明する理論。" },
+  { label: "バイオフィリア仮説", href: "/learn/terms/biophilia-hypothesis", hint: "人には生命や自然へ向かう傾向があるとする考え方。" },
+  { label: "One Health", href: "/learn/terms/one-health", hint: "人、動物、環境の健康をつながったものとして扱う考え方。" },
 ];
 
 function stripHtmlTags(html: string): string {
@@ -278,12 +304,12 @@ function shouldShowTermHints(meta: MarketingPageMeta): boolean {
   return meta.bodyPageId.startsWith("learn-") && meta.bodyPageId !== "learn-index" && meta.bodyPageId !== "learn-updates";
 }
 
-function applyTermHints(html: string): string {
+function applyTermHints(html: string, basePath: string, lang: SiteLang): string {
   const terms = DOC_TERM_DEFINITIONS.filter((term) => html.includes(term.label));
   if (terms.length === 0) return html;
-  return `${html}<aside class="doc-term-notes" aria-label="用語のヒント">
-    <strong>用語のヒント</strong>
-    <dl>${terms.slice(0, 8).map((term) => `<div><dt>${escapeHtml(term.label)}</dt><dd>${escapeHtml(term.hint)}</dd></div>`).join("")}</dl>
+  return `${html}<aside class="doc-term-notes" aria-label="関連用語">
+    <strong>関連用語</strong>
+    <dl>${terms.slice(0, 8).map((term) => `<div><dt><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, term.href), lang))}">${escapeHtml(term.label)}</a></dt><dd>${escapeHtml(term.hint)}</dd></div>`).join("")}</dl>
   </aside>`;
 }
 
@@ -349,31 +375,31 @@ const LEGACY_LEARNING_REDIRECTS: Record<string, string> = {
   "01_fundamentals/japan": "/learn/biodiversity",
   "01_fundamentals/three-levels": "/learn/biodiversity",
   "01_fundamentals/what-is-biodiversity": "/learn/biodiversity",
-  "02_international-policy/30by30": "/learn/policy-and-business",
+  "02_international-policy/30by30": "/learn/terms/30by30",
   "02_international-policy/cbd": "/learn/policy-and-business",
-  "02_international-policy/gbf": "/learn/policy-and-business",
-  "02_international-policy/kunming-montreal-gbf": "/learn/policy-and-business",
-  "03_japan-policy/30by30": "/learn/policy-and-business",
-  "03_japan-policy/nature-positive": "/learn/policy-and-business",
-  "03_japan-policy/nature-symbiosis-sites": "/learn/policy-and-business",
-  "04_business-economy/biodiversity-credits": "/learn/policy-and-business",
-  "04_business-economy/nature-positive-business": "/learn/policy-and-business",
+  "02_international-policy/gbf": "/learn/terms/kunming-montreal-gbf",
+  "02_international-policy/kunming-montreal-gbf": "/learn/terms/kunming-montreal-gbf",
+  "03_japan-policy/30by30": "/learn/terms/30by30",
+  "03_japan-policy/nature-positive": "/learn/terms/nature-positive",
+  "03_japan-policy/nature-symbiosis-sites": "/learn/terms/nature-symbiosis-site",
+  "04_business-economy/biodiversity-credits": "/learn/terms/biodiversity-credits",
+  "04_business-economy/nature-positive-business": "/learn/terms/nature-positive",
   "04_business-economy/esg-biodiversity": "/learn/policy-and-business",
-  "04_business-economy/natural-capital": "/learn/policy-and-business",
-  "04_business-economy/tnfd": "/learn/policy-and-business",
-  "05_citizen-science/citizen-science-intro": "/learn/citizen-science",
+  "04_business-economy/natural-capital": "/learn/terms/natural-capital",
+  "04_business-economy/tnfd": "/learn/terms/tnfd",
+  "05_citizen-science/citizen-science-intro": "/learn/terms/citizen-science",
   "05_citizen-science/existing-platforms": "/learn/citizen-science",
-  "05_citizen-science/participatory-monitoring": "/learn/citizen-science",
-  "06_wellbeing/attention-restoration": "/learn/wellbeing",
+  "05_citizen-science/participatory-monitoring": "/learn/terms/participatory-monitoring",
+  "06_wellbeing/attention-restoration": "/learn/terms/attention-restoration-theory",
   "06_wellbeing/biodiversity-subjective-wellbeing": "/learn/wellbeing",
-  "06_wellbeing/biophilia-hypothesis": "/learn/wellbeing",
+  "06_wellbeing/biophilia-hypothesis": "/learn/terms/biophilia-hypothesis",
   "06_wellbeing/bird-watching-mental-health": "/learn/wellbeing",
   "06_wellbeing/citizen-science-wellbeing": "/learn/wellbeing",
-  "06_wellbeing/nature-connectedness": "/learn/wellbeing",
+  "06_wellbeing/nature-connectedness": "/learn/terms/nature-connectedness",
   "06_wellbeing/nature-wellbeing": "/learn/wellbeing",
-  "07_technology/biodiversity-ai-dataset": "/learn/technology",
-  "07_technology/gbif-backbone-taxonomy": "/learn/technology",
-  "07_technology/edna-ai": "/learn/technology",
+  "07_technology/biodiversity-ai-dataset": "/learn/terms/dataset",
+  "07_technology/gbif-backbone-taxonomy": "/learn/terms/gbif",
+  "07_technology/edna-ai": "/learn/terms/environmental-dna",
 };
 
 function legacyLearningTarget(url: string): string {
@@ -406,6 +432,8 @@ const LOWER_PAGE_STYLES = `
   .doc-term-notes dl { display: grid; gap: 10px; margin: 0; }
   .doc-term-notes div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; }
   .doc-term-notes dt { color: #065f46; font-size: 13px; font-weight: 900; }
+  .doc-term-notes dt a { color: inherit; text-decoration: none; }
+  .doc-term-notes dt a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .doc-term-notes dd { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; }
   .doc-sidebar { position: sticky; top: 82px; }
   .doc-sidebar-inner { display: grid; gap: 18px; padding-left: 18px; border-left: 1px solid rgba(15,23,42,.1); }
@@ -911,7 +939,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const rawBodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   const headings = headingsFromHtml(rawBodyHtml);
   const articleHtml = withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta), headings);
-  const bodyHtml = shouldShowTermHints(meta) ? applyTermHints(articleHtml) : articleHtml;
+  const bodyHtml = shouldShowTermHints(meta) ? applyTermHints(articleHtml, basePath, lang) : articleHtml;
   const canonicalPath = appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja");
   const structuredDataHtml = renderStructuredData(meta, page, lang, canonicalPath, headings);
   return renderSiteDocument({
@@ -952,6 +980,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     ["/for-business/", "/for-business"],
     ["/explore/", "/explore"],
     ["/learn/", "/learn"],
+    ["/learn/binmonweek", "/learn/terms/biomonweek"],
+    ["/learn/terms/binmonweek", "/learn/terms/biomonweek"],
     ["/home/", "/home"],
     ["/notes/", "/notes"],
     ["/map/", "/map"],

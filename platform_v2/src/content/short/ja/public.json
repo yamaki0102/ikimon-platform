@@ -127,8 +127,8 @@
       "learnIndex": {
         "title": "自然観察を楽しむための読みもの | ikimon.life",
         "eyebrow": "読みもの",
-        "heading": "自然の発見を活かす",
-        "lead": "名前が分からなくても大丈夫。写真、場所、時間、気づいたことを残せば、自分の学びにも、地域の自然を見守る手がかりにもなります。",
+        "heading": "読みたいページを、すぐ選ぶ",
+        "lead": "読みものは、基本的に1テーマ1ページで読めるように整理します。最初は観察の始め方、気になる言葉は用語ページへ進んでください。",
         "activeNav": "learn",
         "bodyPageId": "learn-index"
       },
@@ -144,12 +144,446 @@
         ]
       },
       "learnGlossary": {
-        "title": "用語集 | ikimon",
+        "title": "自然観察・生物多様性の用語集 | ikimon.life",
         "eyebrow": "読む",
-        "heading": "用語集",
-        "lead": "ikimon の説明で出てくる言葉を、ざっくりと一覧にしました。詰まったらこのページに戻ってきてください。",
+        "heading": "用語から探す",
+        "lead": "用語集は入口です。SEOで読ませたい言葉や論文由来の概念は、1語ずつ個別ページへ分けています。",
         "activeNav": "learn",
         "bodyPageId": "learn-glossary"
+      },
+      "learnBiomonweek": {
+        "title": "BioMonWeekで観察する | ikimon.life",
+        "eyebrow": "BioMonWeek",
+        "heading": "今年の記録を、来年比べられる形で残す",
+        "lead": "初回のBioMonWeekは、完璧な調査よりも、参加しやすく、あとで見返せる記録づくりが重要です。まず1件残し、同じ場所をもう一度見て、初年度のベースラインにします。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-biomonweek",
+        "afterActions": [
+          { "href": "/record", "label": "まず1件残す" },
+          { "href": "/community/events", "label": "観察会を見る" },
+          { "href": "/learn/terms/biomonweek", "label": "BioMonWeekの用語を見る" }
+        ]
+      },
+      "termBiodiversity": {
+        "title": "生物多様性とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "生物多様性とは",
+        "lead": "生態系、種、遺伝子の多様さを合わせて見る考え方です。身近な観察では、名前だけでなく場所や季節も一緒に残すことが入口になります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-biodiversity",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/biodiversity", "label": "生物多様性の基礎を読む" }
+        ]
+      },
+      "termEcosystemServices": {
+        "title": "生態系サービスとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "生態系サービスとは",
+        "lead": "自然が人の暮らしや社会を支える働きです。食べ物や水だけでなく、景観、学び、遊び、気持ちの落ち着きにも関係します。",
+        "activeNav": "learn",
+        "bodyPageId": "term-ecosystem-services",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/biodiversity", "label": "生物多様性の基礎を読む" }
+        ]
+      },
+      "termNaturePositive": {
+        "title": "ネイチャーポジティブとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "ネイチャーポジティブとは",
+        "lead": "自然の損失を止め、回復へ向ける考え方です。観察記録は、回復を自動で証明するものではなく、次の確認や活動の材料です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-nature-positive",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/policy-and-business", "label": "政策・企業活動の流れを読む" }
+        ]
+      },
+      "term30by30": {
+        "title": "30by30とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "30by30とは",
+        "lead": "2030年までに陸と海の少なくとも30%を保全・保護する目標として語られる言葉です。日本では自然共生サイトやOECMの文脈と関係します。",
+        "activeNav": "learn",
+        "bodyPageId": "term-30by30",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/nature-symbiosis-site", "label": "自然共生サイトを見る" }
+        ]
+      },
+      "termNatureSymbiosisSite": {
+        "title": "自然共生サイトとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "自然共生サイトとは",
+        "lead": "民間や地域の取り組みによって生物多様性の保全が図られている場所を、国が認定する制度です。継続的な記録と管理の説明が重要になります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-nature-symbiosis-site",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/30by30", "label": "30by30を見る" }
+        ]
+      },
+      "termOecm": {
+        "title": "OECMとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "OECMとは",
+        "lead": "OECMは、国立公園のような保護区ではなくても、生物多様性の保全に実効的に貢献している地域を評価する考え方です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-oecm",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/nature-symbiosis-site", "label": "自然共生サイトを見る" }
+        ]
+      },
+      "termTnfd": {
+        "title": "TNFDとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "TNFDとは",
+        "lead": "企業や金融機関が、自然への依存、影響、リスク、機会を把握し、開示するための枠組みです。観察記録だけで準拠を保証するものではありません。",
+        "activeNav": "learn",
+        "bodyPageId": "term-tnfd",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/policy-and-business", "label": "政策・企業活動の流れを読む" }
+        ]
+      },
+      "termNaturalCapital": {
+        "title": "自然資本とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "自然資本とは",
+        "lead": "自然資本は、森林、水、土壌、生きものなどの自然を、社会や経済を支える資本として見る考え方です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-natural-capital",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/policy-and-business", "label": "政策・企業活動の流れを読む" }
+        ]
+      },
+      "termBiodiversityCredits": {
+        "title": "生物多様性クレジットとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "生物多様性クレジットとは",
+        "lead": "生物多様性クレジットは、自然の保全や回復を資金化する仕組みとして議論される考え方です。場所性が強いため、単純な代替には注意が必要です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-biodiversity-credits",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/nature-positive", "label": "ネイチャーポジティブを見る" }
+        ]
+      },
+      "termKunmingMontrealGbf": {
+        "title": "昆明・モントリオール生物多様性枠組みとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "昆明・モントリオール生物多様性枠組みとは",
+        "lead": "昆明・モントリオール生物多様性枠組みは、2030年へ向けた国際的な生物多様性目標をまとめた枠組みです。",
+        "activeNav": "learn",
+        "bodyPageId": "term-kunming-montreal-gbf",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/30by30", "label": "30by30を見る" }
+        ]
+      },
+      "termCitizenScience": {
+        "title": "市民科学とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "市民科学とは",
+        "lead": "一般の人が観察、記録、分類、確認に参加する科学の進め方です。価値が出るのは、記録条件や確認状態があとから分かるときです。",
+        "activeNav": "learn",
+        "bodyPageId": "term-citizen-science",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/citizen-science", "label": "市民科学と観察を読む" }
+        ]
+      },
+      "termBiomonweek": {
+        "title": "BioMonWeekとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "BioMonWeekとは",
+        "lead": "BioMonWeekは、生物多様性を一定期間にみんなで観察し、記録を集める観察ウィークです。ikimon.lifeでは初回導線として、参加のしやすさと記録品質を両立させます。",
+        "activeNav": "learn",
+        "bodyPageId": "term-biomonweek",
+        "afterActions": [
+          { "href": "/learn/biomonweek", "label": "BioMonWeekで観察する" },
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/citizen-science", "label": "市民科学と観察を読む" }
+        ]
+      },
+      "termBiodiversityMonitoring": {
+        "title": "生物多様性モニタリングとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "生物多様性モニタリングとは",
+        "lead": "生物多様性モニタリングは、同じ場所や条件で生きものの記録を重ね、変化を見守ることです。単発の発見より、継続と条件の記録が重要になります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-biodiversity-monitoring",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/biomonweek", "label": "BioMonWeekを見る" }
+        ]
+      },
+      "termParticipatoryMonitoring": {
+        "title": "市民参加型モニタリングとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "市民参加型モニタリングとは",
+        "lead": "市民参加型モニタリングは、地域の人や参加者が継続的に観察を残す仕組みです。専門調査だけでは拾いにくい場所や季節の変化を補えます。",
+        "activeNav": "learn",
+        "bodyPageId": "term-participatory-monitoring",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/citizen-science", "label": "市民科学を見る" }
+        ]
+      },
+      "termFixedPointObservation": {
+        "title": "定点観察とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "定点観察とは",
+        "lead": "定点観察は、同じ場所をくり返し見て、季節や年ごとの変化を残す観察です。場所、日時、見た範囲をそろえるほど比較しやすくなります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-fixed-point-observation",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/biodiversity-monitoring", "label": "生物多様性モニタリングを見る" }
+        ]
+      },
+      "termSamplingEffort": {
+        "title": "観察努力量とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "観察努力量とは",
+        "lead": "観察努力量は、どれくらい探したかを表す情報です。時間、人数、距離、範囲が分かると、見つかった数や見つからなかったことを読みやすくなります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-sampling-effort",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/survey", "label": "surveyを見る" }
+        ]
+      },
+      "termBaseline": {
+        "title": "ベースラインとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "ベースラインとは",
+        "lead": "ベースラインは、あとで変化を比べるための基準時点の状態です。初年度の記録は、将来の増減や季節変化を見る土台になります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-baseline",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/biomonweek", "label": "BioMonWeekを見る" }
+        ]
+      },
+      "termIdentification": {
+        "title": "同定とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "同定とは",
+        "lead": "同定は、見つけた生きものの名前や分類を、写真、音声、形、行動、専門知識などの根拠と一緒に確かめることです。",
+        "activeNav": "learn",
+        "bodyPageId": "term-identification",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/identification-basics", "label": "名前が分からないときを読む" }
+        ]
+      },
+      "termAiCandidate": {
+        "title": "AI候補とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "AI候補とは",
+        "lead": "AI候補は、AIが出す名前や見分け方のヒントです。観察を進める入口であり、確定名ではありません。",
+        "activeNav": "learn",
+        "bodyPageId": "term-ai-candidate",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/technology", "label": "自然観察とテクノロジーを読む" }
+        ]
+      },
+      "termQuickCapture": {
+        "title": "quick captureとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "quick captureとは",
+        "lead": "散歩や旅先で見つけた1件を、写真、場所、時刻、メモでまず残す軽い記録です。調査ではなく、発見を逃さない入口です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-quick-capture",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/survey", "label": "surveyとの違いを見る" }
+        ]
+      },
+      "termSurvey": {
+        "title": "surveyとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "surveyとは",
+        "lead": "対象、範囲、時間、努力量をそろえて残す調査に近い記録です。見つからなかったことも、条件つきで意味を持ちます。",
+        "activeNav": "learn",
+        "bodyPageId": "term-survey",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/terms/quick-capture", "label": "quick captureとの違いを見る" }
+        ]
+      },
+      "termEvidenceTier": {
+        "title": "Evidence Tierとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "Evidence Tierとは",
+        "lead": "観察記録をどの強さで研究やレポートに使えるかを分ける信頼段階です。写真、同定、反対意見、専門確認などが関係します。",
+        "activeNav": "learn",
+        "bodyPageId": "term-evidence-tier",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/methodology", "label": "記録・データ・信頼性を読む" }
+        ]
+      },
+      "termOpenDispute": {
+        "title": "open disputeとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "open disputeとは",
+        "lead": "open disputeは、別分類、証拠不足、生物ではない可能性、位置や日付の疑問など、まだ解決していない反対意見です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-open-dispute",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/methodology", "label": "記録・データ・信頼性を読む" }
+        ]
+      },
+      "termLocationData": {
+        "title": "位置情報とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "位置情報とは",
+        "lead": "位置情報は、観察した場所の情報です。公開時は、希少種や個人の行動が見えすぎないように精度を落とす場合があります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-location-data",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/privacy", "label": "プライバシーを見る" }
+        ]
+      },
+      "termRareSpecies": {
+        "title": "希少種とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "希少種とは",
+        "lead": "希少種は、保護上、位置情報や公開範囲に配慮が必要な生きものです。観察の公開が採集や攪乱につながらないように扱います。",
+        "activeNav": "learn",
+        "bodyPageId": "term-rare-species",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/privacy", "label": "プライバシーを見る" }
+        ]
+      },
+      "termEnvironmentalDna": {
+        "title": "環境DNAとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "環境DNAとは",
+        "lead": "環境DNAは、水、土、空気などに残る生物由来のDNAを調べる技術です。強力な補助資料ですが、採取方法や確認条件と一緒に扱う必要があります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-environmental-dna",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/technology", "label": "自然観察とテクノロジーを読む" }
+        ]
+      },
+      "termGbif": {
+        "title": "GBIFとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "GBIFとは",
+        "lead": "GBIFは、世界中の生物多様性データを共有する国際的な情報基盤です。観察や標本をoccurrence dataとして扱います。",
+        "activeNav": "learn",
+        "bodyPageId": "term-gbif",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/technology", "label": "自然観察とテクノロジーを読む" }
+        ]
+      },
+      "termDarwinCore": {
+        "title": "Darwin Coreとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "Darwin Coreとは",
+        "lead": "Darwin Coreは、生物多様性データを交換しやすくするための標準語彙です。分類名、日付、場所、証拠などの項目をそろえます。",
+        "activeNav": "learn",
+        "bodyPageId": "term-darwin-core",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/methodology", "label": "記録・データ・信頼性を読む" }
+        ]
+      },
+      "termDwca": {
+        "title": "DwC-Aとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "DwC-Aとは",
+        "lead": "DwC-Aは、Darwin Core形式のデータをまとめて配布するためのアーカイブ形式です。研究利用や外部共有の文脈で使われます。",
+        "activeNav": "learn",
+        "bodyPageId": "term-dwca",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/methodology", "label": "記録・データ・信頼性を読む" }
+        ]
+      },
+      "termTaxonomyName": {
+        "title": "分類名とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "分類名とは",
+        "lead": "分類名は、生きものを分類体系の中で扱うための名前です。和名、学名、科、属、種などを、根拠と一緒に扱います。",
+        "activeNav": "learn",
+        "bodyPageId": "term-taxonomy-name",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/technology", "label": "自然観察とテクノロジーを読む" }
+        ]
+      },
+      "termDataset": {
+        "title": "データセットとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "データセットとは",
+        "lead": "データセットは、一定の目的や形式でまとめられた観察、標本、音声、画像などのデータ群です。品質や条件が分かるほど再利用しやすくなります。",
+        "activeNav": "learn",
+        "bodyPageId": "term-dataset",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/technology", "label": "自然観察とテクノロジーを読む" }
+        ]
+      },
+      "termNatureConnectedness": {
+        "title": "自然とのつながりとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "自然とのつながりとは",
+        "lead": "自分が自然から切り離された存在ではなく、自然の一部だと感じる主観的な関係性です。自然とのつながり尺度の研究文脈でも使われます。",
+        "activeNav": "learn",
+        "bodyPageId": "term-nature-connectedness",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/wellbeing", "label": "自然とウェルビーイングを読む" }
+        ]
+      },
+      "termAttentionRestorationTheory": {
+        "title": "注意回復理論とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "注意回復理論とは",
+        "lead": "集中や抑制に使う注意が疲れたとき、自然環境のような穏やかに注意を引く対象が回復を助ける可能性を説明する理論です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-attention-restoration-theory",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/wellbeing", "label": "自然とウェルビーイングを読む" }
+        ]
+      },
+      "termBiophiliaHypothesis": {
+        "title": "バイオフィリア仮説とは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "バイオフィリア仮説とは",
+        "lead": "人には生命や自然へ向かう傾向があるとする考え方です。ikimon.lifeでは、効能の断定ではなく、自然を楽しむ入口として扱います。",
+        "activeNav": "learn",
+        "bodyPageId": "term-biophilia-hypothesis",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/wellbeing", "label": "自然とウェルビーイングを読む" }
+        ]
+      },
+      "termOneHealth": {
+        "title": "One Healthとは | ikimon.life用語集",
+        "eyebrow": "用語",
+        "heading": "One Healthとは",
+        "lead": "人、動物、環境の健康がつながっているという考え方です。感染症、環境劣化、動物の健康、地域の暮らしを別々に扱わない視点です。",
+        "activeNav": "learn",
+        "bodyPageId": "term-one-health",
+        "afterActions": [
+          { "href": "/learn/glossary", "label": "用語集へ戻る" },
+          { "href": "/learn/wellbeing", "label": "自然とウェルビーイングを読む" }
+        ]
       },
       "learnIdentificationBasics": {
         "title": "同定の基本 | ikimon",
