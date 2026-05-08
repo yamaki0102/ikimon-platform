@@ -2635,6 +2635,47 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     return null;
   }
+  function normalizeAreaPolygonsForContainment(geometry) {
+    if (!geometry || !geometry.type || !Array.isArray(geometry.coordinates)) return [];
+    if (geometry.type === 'Polygon') return [geometry.coordinates];
+    if (geometry.type === 'MultiPolygon') {
+      return geometry.coordinates.filter(function (polygon) { return Array.isArray(polygon); });
+    }
+    return [];
+  }
+  function pointInAreaRing(point, ring) {
+    if (!point || !Array.isArray(ring) || ring.length < 3) return false;
+    var inside = false;
+    var x = Number(point.lng);
+    var y = Number(point.lat);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      var pi = ring[i];
+      var pj = ring[j];
+      if (!Array.isArray(pi) || !Array.isArray(pj)) continue;
+      var xi = Number(pi[0]);
+      var yi = Number(pi[1]);
+      var xj = Number(pj[0]);
+      var yj = Number(pj[1]);
+      if (!Number.isFinite(xi) || !Number.isFinite(yi) || !Number.isFinite(xj) || !Number.isFinite(yj)) continue;
+      var intersects = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi) / ((yj - yi) || 1e-12) + xi));
+      if (intersects) inside = !inside;
+    }
+    return inside;
+  }
+  function pointInAreaPolygon(point, polygon) {
+    if (!Array.isArray(polygon) || !polygon.length) return false;
+    if (!pointInAreaRing(point, polygon[0])) return false;
+    for (var i = 1; i < polygon.length; i += 1) {
+      if (pointInAreaRing(point, polygon[i])) return false;
+    }
+    return true;
+  }
+  function pointInAreaGeometry(point, geometry) {
+    return normalizeAreaPolygonsForContainment(geometry).some(function (polygon) {
+      return pointInAreaPolygon(point, polygon);
+    });
+  }
   function areaFeatureCenter(feature, fallbackLat, fallbackLng) {
     var props = (feature && feature.properties) || {};
     var center = Array.isArray(props.center) ? props.center : null;
@@ -2749,7 +2790,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</div>'
       + renderAreaAccessGuidance(transientAccessGuidance(props))
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
-      + renderAreaObservationGallery(transientAreaGalleryItems(safeCenter), { label: COPY.areaGalleryTitle })
+      + renderAreaObservationGallery(transientAreaGalleryItems(feature, safeCenter), { label: COPY.areaGalleryTitle })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
       + '<div class="me-area-sheet-timeline is-empty">このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。</div>';
   }
@@ -3079,9 +3120,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</section>';
   }
 
-  function transientAreaGalleryItems(center) {
+  function transientAreaGalleryItems(feature, center) {
     if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng)) return [];
+    var geometry = feature && feature.geometry ? feature.geometry : null;
+    var hasAreaGeometry = normalizeAreaPolygonsForContainment(geometry).length > 0;
     return nearbyRecordsForContext({ lat: center.lat, lng: center.lng }, 900)
+      .filter(function (entry) {
+        return !hasAreaGeometry || pointInAreaGeometry(entry.center, geometry);
+      })
       .map(function (entry) {
         var record = entry.record || {};
         return {
