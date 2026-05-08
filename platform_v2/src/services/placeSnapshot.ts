@@ -997,7 +997,10 @@ async function loadFieldHypotheses(field: ObservationField, placeId: string | nu
   }).catch(() => []);
 }
 
-export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot | null> {
+export async function getPlaceSnapshot(
+  fieldId: string,
+  options: { observedFrom?: string | null; observedTo?: string | null } = {},
+): Promise<PlaceSnapshot | null> {
   const field = await getField(fieldId);
   if (!field) return null;
   const [stats, placeId] = await Promise.all([
@@ -1005,7 +1008,10 @@ export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot |
     resolvePlaceIdForField(field),
   ]);
   if (!stats) return null;
-  const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
+  const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId, {
+    observedFrom: options.observedFrom ?? null,
+    observedTo: options.observedTo ?? null,
+  });
   const [canonical, machineObservationSummary, hypotheses, localityHint] = await Promise.all([
     loadCanonicalAgg(scopedVisitIds, placeId),
     loadMachineObservationSummary(scopedVisitIds),

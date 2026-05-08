@@ -17,6 +17,7 @@ import {
 } from "../services/observationFieldRegistry.js";
 import { getPlaceSnapshot } from "../services/placeSnapshot.js";
 import { getAreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
+import { getSiteEvidenceReport } from "../services/siteEvidenceReport.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import {
   getFieldManagerRole,
@@ -192,6 +193,18 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
     if (!snapshot) return reply.status(404).send({ error: "field not found" });
     return reply.send({ snapshot });
   });
+
+  // GET /api/v1/fields/:fieldId/site-evidence-report?month=YYYY-MM
+  // Site monitoring supplementary material. AI candidates remain separated from reviewer verified records.
+  app.get<{ Params: { fieldId: string }; Querystring: { month?: string } }>(
+    "/api/v1/fields/:fieldId/site-evidence-report",
+    async (request, reply) => {
+      const report = await getSiteEvidenceReport(request.params.fieldId, { month: request.query.month });
+      if (!report) return reply.status(404).send({ error: "field not found" });
+      reply.header("Cache-Control", "private, max-age=60");
+      return reply.send({ report });
+    },
+  );
 
   // GET /api/v1/fields/:fieldId/area-snapshot  — エリア(公園/保護区/OECM/...)集約
   //   ベースの place-snapshot に年別タイムライン・努力量5指標・希少種マスキング情報を追加
