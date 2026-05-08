@@ -84,7 +84,7 @@ const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
 const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school", "user_defined"]);
 const LIVE_OSM_TILE_Z = 14;
-const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v1";
+const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
 const ADMIN_LAYER_LEVELS = [
@@ -360,7 +360,25 @@ function dedupeAreaFeatures(features: AreaPolygonFeature[], limit: number, bbox?
 function featuresFromCollection(value: unknown): AreaPolygonFeature[] {
   if (!value || typeof value !== "object") return [];
   const features = (value as { features?: unknown }).features;
-  return Array.isArray(features) ? (features.filter((f) => f && typeof f === "object") as AreaPolygonFeature[]) : [];
+  return Array.isArray(features)
+    ? features
+      .filter((f) => f && typeof f === "object")
+      .map((f) => normalizeFeatureContract(f as AreaPolygonFeature))
+    : [];
+}
+
+function normalizeFeatureContract(feature: AreaPolygonFeature): AreaPolygonFeature {
+  const props = feature.properties ?? ({} as AreaPolygonFeatureProps);
+  const confidence = Number(props.source_confidence);
+  return {
+    ...feature,
+    properties: {
+      ...props,
+      source_confidence: Number.isFinite(confidence) ? confidence : 0.45,
+      verification_level: props.verification_level || "unverified",
+      verification_label: props.verification_label || "未確認",
+    },
+  };
 }
 
 async function readLiveOsmTileCache(

@@ -89,6 +89,9 @@ test("liveElementToFeature converts OSM schools into transient school areas", ()
   assert.equal(feature?.properties.source, "school");
   assert.equal(feature?.properties.source_label, "学校・キャンパス (OSM live)");
   assert.equal(feature?.properties.entity_key, "osm:way:789");
+  assert.equal(feature?.properties.source_confidence, 0.45);
+  assert.equal(feature?.properties.verification_level, "unverified");
+  assert.equal(feature?.properties.verification_label, "未確認");
 });
 
 test("tilesForBbox returns bounded web mercator tile keys", () => {
