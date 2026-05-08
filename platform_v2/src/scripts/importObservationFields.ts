@@ -3,6 +3,7 @@ import { dirname, resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { entityKeyFromGeoProperties } from "../services/observationFieldIdentity.js";
 import { upsertCertifiedField, type FieldSource } from "../services/observationFieldRegistry.js";
+import { importedFieldVerificationSummary, recordFieldVerificationClaim } from "../services/fieldVerification.js";
 
 interface SeedSite {
   certification_id: string;
@@ -325,7 +326,7 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
       continue;
     }
     try {
-      await upsertCertifiedField({
+      const field = await upsertCertifiedField({
         source,
         name: site.name,
         nameKana: site.name_kana ?? "",
@@ -347,6 +348,25 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
         entityKey: site.entity_key,
         payload: { ...(site.payload ?? {}), import_source: filePath, imported_at: new Date().toISOString() },
       });
+      const verification = importedFieldVerificationSummary({
+        source,
+        adminLevel: source === "school" ? "school" : null,
+        entityKey: site.entity_key,
+        certificationId: site.certification_id,
+        certificationUrl: site.certification_url,
+      });
+      if (verification && verification.level !== "unverified") {
+        await recordFieldVerificationClaim({
+          fieldId: field.fieldId,
+          verificationLevel: verification.level,
+          verificationMethod: verification.method || "public_registry",
+          status: "verified",
+          evidenceUrl: site.certification_url ?? site.official_url ?? "",
+          evidenceDomain: "",
+          label: verification.label,
+          payload: { import_source: filePath, source },
+        });
+      }
       inserted++;
     } catch (err) {
       // eslint-disable-next-line no-console
