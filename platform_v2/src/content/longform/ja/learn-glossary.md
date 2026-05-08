@@ -42,7 +42,7 @@
 一般の人が観察、記録、分類、確認に参加する科学の進め方。
 
 [BioMonWeek](/learn/terms/biomonweek)
-一定期間にみんなで生物多様性の観察記録を集める観察ウィーク。
+2026年に始まった欧州の生物多様性モニタリング会議。
 
 [生物多様性モニタリング](/learn/terms/biodiversity-monitoring)
 同じ場所や条件で記録を重ね、生きものの変化を見守ること。
@@ -65,10 +65,10 @@
 [AI候補](/learn/terms/ai-candidate)
 AIが出す名前や見分け方のヒント。確定名ではない。
 
-[quick capture](/learn/terms/quick-capture)
+[ふだんの記録](/learn/terms/quick-capture)
 散歩や旅先の発見を、写真、場所、時刻、メモでまず残す軽い記録。
 
-[survey](/learn/terms/survey)
+[しっかり記録](/learn/terms/survey)
 対象、範囲、時間、努力量をそろえて残す調査に近い記録。
 
 [Evidence Tier](/learn/terms/evidence-tier)

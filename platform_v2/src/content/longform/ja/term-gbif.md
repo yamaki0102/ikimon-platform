@@ -1,17 +1,23 @@
 # GBIF
 
-GBIF は、世界中の生物多様性データを共有する国際的な情報基盤です。
+GBIF は Global Biodiversity Information Facility の略称です。世界中の生物多様性データを集め、検索や再利用ができるようにする国際的な基盤です。
 
-観察や標本の記録は、いつ、どこで、何が確認されたかを示す occurrence data として扱われます。
+博物館標本、研究調査、市民科学の観察など、さまざまなデータが occurrence data として扱われます。
+
+## なぜ重要か
+
+生物多様性は地域ごとの情報ですが、研究や政策では国境を越えて比較する必要があります。GBIF は、分布、時期、分類、データセットを横断して見るための基盤になります。
+
+ただし、GBIF に載ることは、すべての記録が完全に正しいことを意味しません。データの品質、同定、位置精度、ライセンスはそれぞれ確認が必要です。
 
 ## ikimon.lifeでの扱い
 
-外部利用を考えるときは、分類名、日付、場所、ライセンス、証拠、データ形式が重要になります。ikimon.life では、日常の記録をそのまま強い研究データとして扱わず、Evidence Tier や反対意見の状態を分けます。
+ikimon.life では、GBIF へ接続し得る標準的なデータの考え方を重視します。外部公開するときは、Darwin Core、DwC-A、Evidence Tier、位置情報の安全性を合わせて見るべきだと考えています。
 
 ## 関連ページ
 
 - [Darwin Core](/learn/terms/darwin-core)
 - [DwC-A](/learn/terms/dwca)
-- [記録・データ・信頼性について](/learn/methodology)
+- [データセット](/learn/terms/dataset)
 
-参考: [GBIF data quality requirements](https://www.gbif.org/en/data-quality-requirements-occurrences)
+参考: [GBIF](https://www.gbif.org/)

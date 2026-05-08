@@ -152,16 +152,15 @@
         "bodyPageId": "learn-glossary"
       },
       "learnBiomonweek": {
-        "title": "BioMonWeekで観察する | ikimon.life",
+        "title": "BioMonWeek 2026を読む | ikimon.life",
         "eyebrow": "BioMonWeek",
-        "heading": "今年の記録を、来年比べられる形で残す",
-        "lead": "初回のBioMonWeekは、完璧な調査よりも、参加しやすく、あとで見返せる記録づくりが重要です。まず1件残し、同じ場所をもう一度見て、初年度のベースラインにします。",
+        "heading": "BioMonWeek 2026を、生物多様性モニタリングから読む",
+        "lead": "BioMonWeek 2026は、2026年5月4日から8日にフランスのモンペリエで開かれる欧州の生物多様性モニタリング会議です。ikimon.lifeでは、公式事実と私たちの読み方を分けて整理します。",
         "activeNav": "learn",
         "bodyPageId": "learn-biomonweek",
         "afterActions": [
-          { "href": "/record", "label": "まず1件残す" },
-          { "href": "/community/events", "label": "観察会を見る" },
-          { "href": "/learn/terms/biomonweek", "label": "BioMonWeekの用語を見る" }
+          { "href": "/learn/terms/biomonweek", "label": "BioMonWeekの用語を見る" },
+          { "href": "/learn/terms/biodiversity-monitoring", "label": "モニタリングを見る" }
         ]
       },
       "termBiodiversity": {
@@ -300,11 +299,11 @@
         "title": "BioMonWeekとは | ikimon.life用語集",
         "eyebrow": "用語",
         "heading": "BioMonWeekとは",
-        "lead": "BioMonWeekは、生物多様性を一定期間にみんなで観察し、記録を集める観察ウィークです。ikimon.lifeでは初回導線として、参加のしやすさと記録品質を両立させます。",
+        "lead": "BioMonWeekは、Biodiversity Monitoring Weekの略称です。2026年は5月4日から8日にフランスのモンペリエで開かれる、生物多様性モニタリングの欧州会議として案内されています。",
         "activeNav": "learn",
         "bodyPageId": "term-biomonweek",
         "afterActions": [
-          { "href": "/learn/biomonweek", "label": "BioMonWeekで観察する" },
+          { "href": "/learn/biomonweek", "label": "BioMonWeek 2026を読む" },
           { "href": "/learn/glossary", "label": "用語集へ戻る" },
           { "href": "/learn/citizen-science", "label": "市民科学と観察を読む" }
         ]
@@ -354,7 +353,7 @@
         "bodyPageId": "term-sampling-effort",
         "afterActions": [
           { "href": "/learn/glossary", "label": "用語集へ戻る" },
-          { "href": "/learn/terms/survey", "label": "surveyを見る" }
+          { "href": "/learn/terms/survey", "label": "しっかり記録を見る" }
         ]
       },
       "termBaseline": {
@@ -394,27 +393,27 @@
         ]
       },
       "termQuickCapture": {
-        "title": "quick captureとは | ikimon.life用語集",
+        "title": "ふだんの記録とは | ikimon.life用語集",
         "eyebrow": "用語",
-        "heading": "quick captureとは",
+        "heading": "ふだんの記録とは",
         "lead": "散歩や旅先で見つけた1件を、写真、場所、時刻、メモでまず残す軽い記録です。調査ではなく、発見を逃さない入口です。",
         "activeNav": "learn",
         "bodyPageId": "term-quick-capture",
         "afterActions": [
           { "href": "/learn/glossary", "label": "用語集へ戻る" },
-          { "href": "/learn/terms/survey", "label": "surveyとの違いを見る" }
+          { "href": "/learn/terms/survey", "label": "しっかり記録との違いを見る" }
         ]
       },
       "termSurvey": {
-        "title": "surveyとは | ikimon.life用語集",
+        "title": "しっかり記録とは | ikimon.life用語集",
         "eyebrow": "用語",
-        "heading": "surveyとは",
+        "heading": "しっかり記録とは",
         "lead": "対象、範囲、時間、努力量をそろえて残す調査に近い記録です。見つからなかったことも、条件つきで意味を持ちます。",
         "activeNav": "learn",
         "bodyPageId": "term-survey",
         "afterActions": [
           { "href": "/learn/glossary", "label": "用語集へ戻る" },
-          { "href": "/learn/terms/quick-capture", "label": "quick captureとの違いを見る" }
+          { "href": "/learn/terms/quick-capture", "label": "ふだんの記録との違いを見る" }
         ]
       },
       "termEvidenceTier": {
