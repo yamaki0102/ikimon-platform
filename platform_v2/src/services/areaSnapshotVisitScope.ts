@@ -37,17 +37,19 @@ export function visitMatchesAreaScope(
   field: Pick<ObservationField, "fieldId" | "lat" | "lng" | "radiusM" | "polygon">,
   visit: Pick<CandidateVisitRow, "point_latitude" | "point_longitude" | "source_field_id" | "resolved_match">,
 ): boolean {
-  if (visit.resolved_match) return true;
-
   const lat = Number(visit.point_latitude);
   const lng = Number(visit.point_longitude);
-  const hasPoint = Number.isFinite(lat) && Number.isFinite(lng);
+  const hasPoint = visit.point_latitude != null &&
+    visit.point_longitude != null &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng);
   if (hasPoint) {
     if (field.polygon) return pointInGeoJsonPolygon(lng, lat, field.polygon);
     const radius = Math.max(50, Math.min(field.radiusM || 1000, 200000));
     return haversineMeters(field.lat, field.lng, lat, lng) <= radius;
   }
 
+  if (visit.resolved_match) return true;
   return visit.source_field_id === field.fieldId;
 }
 

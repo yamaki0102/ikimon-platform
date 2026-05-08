@@ -30,6 +30,15 @@ test("visitMatchesAreaScope rejects geolocated records outside a polygon even wh
   }), false);
 });
 
+test("visitMatchesAreaScope rejects geolocated records outside a polygon even when pre-resolved", () => {
+  assert.equal(__test__.visitMatchesAreaScope(field, {
+    point_latitude: 35.2,
+    point_longitude: 137.5,
+    source_field_id: null,
+    resolved_match: true,
+  }), false);
+});
+
 test("visitMatchesAreaScope accepts geolocated records inside the polygon", () => {
   assert.equal(__test__.visitMatchesAreaScope(field, {
     point_latitude: 34.5,
