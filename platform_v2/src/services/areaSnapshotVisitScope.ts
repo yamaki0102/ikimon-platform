@@ -56,9 +56,12 @@ export function visitMatchesAreaScope(
 export async function loadAreaSnapshotVisitIds(
   field: ObservationField,
   placeId: string | null,
+  options: { observedFrom?: string | null; observedTo?: string | null } = {},
 ): Promise<string[]> {
   const bbox = fieldSearchBbox(field);
   const pool = getPool();
+  const observedFrom = options.observedFrom ?? null;
+  const observedTo = options.observedTo ?? null;
   const result = await pool.query<CandidateVisitRow>(
     `select v.visit_id,
             v.point_latitude::text as point_latitude,
@@ -72,8 +75,11 @@ export async function loadAreaSnapshotVisitIds(
          or (
               v.point_latitude between $3 and $4
           and v.point_longitude between $5 and $6
-         )`,
-    [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng],
+         )
+        )
+        and ($7::timestamptz is null or v.observed_at >= $7::timestamptz)
+        and ($8::timestamptz is null or v.observed_at < $8::timestamptz)`,
+    [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng, observedFrom, observedTo],
   );
   return result.rows
     .filter((row) => visitMatchesAreaScope(field, row))
