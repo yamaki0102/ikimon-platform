@@ -80,6 +80,45 @@ test("casual posts suppress trend and abundance claims", () => {
   assert.ok(policy.blockers.includes("casual_record_presence_only"));
 });
 
+test("passive audio is a first-class observation method and stays human-review bounded", () => {
+  const actionMode = inferObservationActionMode({
+    visit: { visitMode: "passive_audio" },
+    evidenceAssets: [{ mediaType: "audio", mimeType: "application/vnd.ikimon.passive-audio-event+json" }],
+    identifications: [],
+    civicContext: null,
+    fieldScanContext: null,
+  });
+  const methodContext = buildObservationMethodContext({
+    actionMode,
+    visit: {
+      observedAt: "2026-05-06T00:00:00.000Z",
+      placeId: "place-1",
+      effortMinutes: 1,
+      targetTaxaScope: "birds_audio",
+      completeChecklistFlag: false,
+      visitMode: "passive_audio",
+    },
+    evidenceAssets: [{}],
+    civicContext: null,
+    waterRecord: null,
+    fieldScanContext: null,
+  });
+  const policy = buildTrendAbundancePolicy({
+    actionMode,
+    methodContext,
+    fieldScanContext: null,
+    reviewStatus: "needs_review",
+  });
+
+  assert.equal(actionMode, "passive_audio");
+  assert.equal(methodContext.methodKind, "passive_audio");
+  assert.equal(methodContext.samplingProtocol, "passive_audio");
+  assert.deepEqual(methodContext.modelReadyBasis, ["site", "time", "method", "effort", "quality"]);
+  assert.equal(policy.claimAllowed, false);
+  assert.equal(policy.defaultClaimLimit, "indicator_candidate");
+  assert.ok(policy.blockers.includes("human_review_required_for_trend_or_abundance"));
+});
+
 test("data product chain defaults raw observation when no events are stored", () => {
   const chain = buildDataProductChain({
     visitId: "visit-1",

@@ -56,6 +56,9 @@ test("BirdNET CSV fixture maps to normalized passive audio event", () => {
   assert.equal(event.samplingProtocol, "passive-audio");
   assert.equal(event.detection_method, "ai_audio");
   assert.equal(event.consent_scope, "private");
+  assert.equal(event.observation_method, "passive_audio");
+  assert.equal(event.protocol_id, "passive-audio/event-only/v0.1");
+  assert.equal(event.plot_id, "aikan-yard-north-plot-01");
 });
 
 test("BirdNET MQTT fixture maps sourceId and sourceName", () => {
@@ -69,12 +72,27 @@ test("BirdNET MQTT fixture maps sourceId and sourceName", () => {
     startOffsetSec: 1,
     endOffsetSec: 4,
     deviceId: "raspi5-birdnetgo-aikan-01",
+    device_deployment_id: "deploy-aikan-north-202605",
+    sample_rate_hz: 48000,
+    frequency_range_hz: { low: 0, high: 24000 },
+    inference_window_sec: 3,
+    embedding_model_id: "perch-v2",
+    embedding_ref: "r2://private/audio-embedding/001.npy",
+    sampling_effort: { duty_cycle: "1min/5min" },
+    sensor_status: { battery: "ok" },
   }, { siteId: "aikan-shizuoka-poc", importedAt: "2026-05-05T06:05:00+09:00" });
 
   assert.equal(event.source_id, "rtsp_a3f1b2c4");
   assert.equal(event.source_name, "aikan-yard-north-mic");
   assert.equal(event.observed_start_at, "2026-05-04T20:03:13.000Z");
   assert.equal(event.observed_end_at, "2026-05-04T20:03:16.000Z");
+  assert.equal(event.device_deployment_id, "deploy-aikan-north-202605");
+  assert.equal(event.sample_rate_hz, 48000);
+  assert.deepEqual(event.frequency_range_hz, { low: 0, high: 24000 });
+  assert.equal(event.inference_window_sec, 3);
+  assert.equal(event.embedding_model_id, "perch-v2");
+  assert.deepEqual(event.sampling_effort, { duty_cycle: "1min/5min" });
+  assert.deepEqual(event.sensor_status, { battery: "ok" });
 });
 
 test("normalized event validation rejects required and invalid fields", () => {

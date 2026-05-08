@@ -20,4 +20,8 @@ test("research API exposes monitoring readiness and license guard fields", () =>
   assert.match(source, /field_scan_contexts/);
   assert.match(source, /observation_governance_contexts/);
   assert.match(source, /observation_package_events/);
+  assert.match(source, /include_machine_observations/);
+  assert.match(source, /MachineObservation/);
+  assert.match(source, /observation_method_contexts/);
+  assert.match(source, /machineObservationReady/);
 });

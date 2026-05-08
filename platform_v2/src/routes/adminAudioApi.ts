@@ -33,6 +33,7 @@ async function assertAdminAudioAccess(request: FastifyRequest): Promise<{
 const VALID_REVIEW_STATUSES: ReadonlyArray<ReviewStatus | "any"> = [
   "ai_candidate",
   "needs_review",
+  "representative_picked",
   "confirmed",
   "published",
   "rejected",
@@ -167,6 +168,7 @@ export async function registerAdminAudioApiRoutes(app: FastifyInstance): Promise
         reviewerUserId,
         gbifPublishEligible: body.gbifPublishEligible,
         notes: body.notes,
+        scientificName: body.scientificName,
       });
 
       let propagation = null;

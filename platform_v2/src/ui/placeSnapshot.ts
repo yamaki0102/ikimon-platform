@@ -157,6 +157,30 @@ function signalLabel(key: string): string {
   return labels[key] ?? key;
 }
 
+function observationMethodLabel(key: string): string {
+  const labels: Record<string, string> = {
+    passive_audio: "passive audio",
+    passive_audio_ingest: "passive audio",
+    camera_trap: "camera trap",
+    ias_route_camera: "外来種ルート撮影",
+    field_scan: "field scan",
+    edna_reference: "eDNA reference",
+    machine_observation: "機械観測",
+  };
+  return labels[key] ?? key;
+}
+
+function machineReviewLabel(status: string): string {
+  const labels: Record<string, string> = {
+    ai_candidate: "AI候補",
+    ai_audio_candidate: "AI候補",
+    reviewer_verified: "reviewer検証済み",
+    reviewer_rejected: "却下",
+    rejected: "却下",
+  };
+  return labels[status] ?? status;
+}
+
 function stewardshipComparisonCard(comparison: PlaceSnapshotStewardshipComparison): string {
   const date = new Date(comparison.occurredAt);
   const dateText = Number.isNaN(date.getTime())
@@ -232,6 +256,7 @@ function renderAccessGuidance(snapshot: PlaceSnapshot): string {
 
 export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
   const s = snapshot.observationSummary;
+  const m = snapshot.machineObservationSummary;
   const seasonText = s.seasonLabels.length > 0 ? s.seasonLabels.join("・") : "これから";
   const areaText = snapshot.field.areaHa
     ? `${snapshot.field.areaHa.toFixed(2)} ha`
@@ -248,6 +273,13 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
   const topTaxa = s.topTaxa.length === 0
     ? `<span class="ps-chip">観察待ち</span>`
     : s.topTaxa.slice(0, 8).map((taxon) => `<span class="ps-chip">${escapeHtml(taxon.name)} ×${fmtNumber(taxon.count)}</span>`).join("");
+  const latestMachineObservation = m.latestObservedAt ? m.latestObservedAt.slice(0, 10) : "未記録";
+  const topMachineTaxa = m.topMachineTaxa.length === 0
+    ? `<span class="ps-chip ps-chip-muted">AI候補待ち</span>`
+    : m.topMachineTaxa.slice(0, 8).map((taxon) => `<span class="ps-chip">${escapeHtml(taxon.name)} ×${fmtNumber(taxon.count)} / ${escapeHtml(machineReviewLabel(taxon.reviewStatus))}</span>`).join("");
+  const machineMethods = m.methodCounts.length === 0
+    ? `<span class="ps-chip ps-chip-muted">method 未記録</span>`
+    : m.methodCounts.slice(0, 6).map((item) => `<span class="ps-chip">${escapeHtml(observationMethodLabel(item.method))} ×${fmtNumber(item.count)}</span>`).join("");
 
   return `<main class="ps-shell">
     <section class="ps-hero">
@@ -307,6 +339,18 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
         ${metric("非検出記録", fmtNumber(s.absentRecords))}
       </div>
       <div class="ps-chip-row">${topTaxa}</div>
+      <div class="ps-section-subhead">
+        <h3>機械観測 evidence layer</h3>
+        <p>AI候補は活動指標として扱い、reviewer検証済み記録とは分けて表示します。</p>
+      </div>
+      <div class="ps-grid ps-grid-4">
+        ${metric("機械観測", fmtNumber(m.totalMachineObservations), `latest ${latestMachineObservation}`)}
+        ${metric("AI候補", fmtNumber(m.aiCandidateCount), "未確定")}
+        ${metric("reviewer検証済み", fmtNumber(m.reviewerVerifiedCount), "確定記録候補")}
+        ${metric("却下 / passive audio", `${fmtNumber(m.rejectedCount)} / ${fmtNumber(m.passiveAudioCount)}`)}
+      </div>
+      <div class="ps-chip-row">${topMachineTaxa}</div>
+      <div class="ps-chip-row">${machineMethods}</div>
     </section>
 
     <section class="ps-section">
@@ -546,6 +590,20 @@ export const PLACE_SNAPSHOT_STYLES = `
   margin: 8px 0 8px;
   font-size: 16px;
   line-height: 1.45;
+}
+.ps-section-subhead {
+  margin: 20px 0 12px;
+}
+.ps-section-subhead h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.ps-section-subhead p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .ps-school-album-card {
   display: block;

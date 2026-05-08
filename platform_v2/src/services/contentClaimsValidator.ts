@@ -114,8 +114,16 @@ const FORBIDDEN_TERMS: ForbiddenEntry[] = [
     id: "nature_coexistence_proven",
     reason: "単独指標では証明にならない",
     patterns: {
-      ja: ["自然共生を証明", "自然との共生を保証"],
+      ja: ["自然共生を証明", "自然との共生を保証", "自然共生サイト認定を証明", "自然共生サイト認定を保証"],
       en: ["proves coexistence with nature", "guarantees nature harmony"],
+    },
+  },
+  {
+    id: "certification_or_improvement_proof",
+    reason: "観察・機械検出・活動指標は補助資料であり、認定や改善の証明ではない",
+    patterns: {
+      ja: ["認定を証明", "認定を保証", "改善を証明", "改善を保証", "生物多様性改善を証明", "生物多様性改善を保証"],
+      en: ["proves certification", "guarantees certification", "proves biodiversity improvement", "guarantees biodiversity improvement"],
     },
   },
 ];

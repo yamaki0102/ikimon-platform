@@ -12,6 +12,7 @@ import {
 const VALID_STATUSES: ReadonlyArray<ReviewStatus | "any"> = [
   "ai_candidate",
   "needs_review",
+  "representative_picked",
   "confirmed",
   "published",
   "rejected",
