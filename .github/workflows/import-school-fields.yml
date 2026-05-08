@@ -1,0 +1,172 @@
+name: Import School Fields
+run-name: Import schools · ${{ github.event.inputs.target || 'staging' }} · ${{ github.event.inputs.prefecture || '静岡県' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target database'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      dataset_url:
+        description: 'MLIT P29 zip URL'
+        required: true
+        default: 'https://nlftp.mlit.go.jp/ksj/gml/data/P29/P29-23/P29-23_22_GML.zip'
+        type: string
+      prefecture_code:
+        description: 'JIS prefecture code filter'
+        required: true
+        default: '22'
+        type: string
+      prefecture:
+        description: 'Prefecture label filter'
+        required: true
+        default: '静岡県'
+        type: string
+      dry_run:
+        description: 'Only parse and preview records'
+        required: false
+        default: false
+        type: boolean
+      limit:
+        description: 'Optional maximum records'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  import:
+    name: Import P29 School Registry
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target == 'production' && 'production' || 'staging' }}
+    steps:
+      - name: Validate inputs
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DATASET_URL: ${{ github.event.inputs.dataset_url }}
+          PREF_CODE: ${{ github.event.inputs.prefecture_code }}
+          PREFECTURE: ${{ github.event.inputs.prefecture }}
+          LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          set -euo pipefail
+          case "$TARGET" in staging|production) ;; *) echo "invalid target: $TARGET"; exit 1 ;; esac
+          case "$DATASET_URL" in https://nlftp.mlit.go.jp/ksj/gml/data/P29/*) ;; *) echo "dataset_url must point to MLIT P29"; exit 1 ;; esac
+          printf '%s' "$PREF_CODE" | grep -qE '^[0-9]{2}$' || { echo "prefecture_code must be 2 digits"; exit 1; }
+          [ -n "$PREFECTURE" ] && [ "${#PREFECTURE}" -le 40 ] || { echo "prefecture must be 1-40 characters"; exit 1; }
+          if [ -n "$LIMIT" ]; then printf '%s' "$LIMIT" | grep -qE '^[0-9]{1,6}$' || { echo "limit must be numeric"; exit 1; }; fi
+
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Run remote import
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DATASET_URL: ${{ github.event.inputs.dataset_url }}
+          PREFECTURE_CODE: ${{ github.event.inputs.prefecture_code }}
+          PREFECTURE: ${{ github.event.inputs.prefecture }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          set -euo pipefail
+          b64() { printf '%s' "$1" | base64 -w 0; }
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "TARGET_B64='$(b64 "$TARGET")' DATASET_URL_B64='$(b64 "$DATASET_URL")' PREFECTURE_CODE_B64='$(b64 "$PREFECTURE_CODE")' PREFECTURE_B64='$(b64 "$PREFECTURE")' DRY_RUN_B64='$(b64 "$DRY_RUN")' LIMIT_B64='$(b64 "$LIMIT")' bash -s" <<'REMOTE'
+          set -euo pipefail
+          TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
+          DATASET_URL="$(printf '%s' "$DATASET_URL_B64" | base64 -d)"
+          PREFECTURE_CODE="$(printf '%s' "$PREFECTURE_CODE_B64" | base64 -d)"
+          PREFECTURE="$(printf '%s' "$PREFECTURE_B64" | base64 -d)"
+          DRY_RUN="$(printf '%s' "$DRY_RUN_B64" | base64 -d)"
+          LIMIT="$(printf '%s' "$LIMIT_B64" | base64 -d)"
+          case "$TARGET" in
+            production)
+              V2_DIR=/var/www/ikimon.life/repo/platform_v2
+              ENV_FILE=/etc/ikimon/production-v2.env
+              ;;
+            staging)
+              V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+              ENV_FILE=/etc/ikimon/staging-v2.env
+              ;;
+            *)
+              echo "invalid target: $TARGET"
+              exit 1
+              ;;
+          esac
+          [ -d "$V2_DIR" ] || { echo "missing platform_v2 dir: $V2_DIR"; exit 1; }
+          [ -f "$ENV_FILE" ] || { echo "missing env file: $ENV_FILE"; exit 1; }
+          cd "$V2_DIR"
+          set -a
+          . "$ENV_FILE"
+          set +a
+          [ -n "${DATABASE_URL:-}" ] || { echo "DATABASE_URL missing in $ENV_FILE"; exit 1; }
+
+          work="$(mktemp -d)"
+          cleanup() { rm -rf "$work"; }
+          trap cleanup EXIT
+          zip_path="$work/p29.zip"
+          python3 - "$DATASET_URL" "$zip_path" <<'PY'
+          import sys, urllib.request
+          url, out = sys.argv[1], sys.argv[2]
+          with urllib.request.urlopen(url, timeout=60) as res:
+              if res.status != 200:
+                  raise SystemExit(f"download failed: {res.status}")
+              data = res.read()
+          if len(data) < 1024:
+              raise SystemExit("downloaded P29 zip is unexpectedly small")
+          open(out, "wb").write(data)
+          print(f"downloaded={len(data)}")
+          PY
+          python3 -m zipfile -e "$zip_path" "$work/extracted"
+          geojson="$(find "$work/extracted" -type f -name '*.geojson' | head -n 1)"
+          [ -n "$geojson" ] || { echo "P29 geojson not found"; exit 1; }
+
+          npm ci --silent
+          npm run migrate
+          args=(-- --file="$geojson" --prefecture-code="$PREFECTURE_CODE" --prefecture="$PREFECTURE")
+          if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
+          if [ -n "${LIMIT:-}" ]; then args+=(--limit="$LIMIT"); fi
+          npm run import:schools "${args[@]}"
+          npm run audit:field-entity-keys -- --fail-on-error
+
+          node <<'NODE'
+          const { Pool } = require("pg");
+          const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+          (async () => {
+            const { rows } = await pool.query(`
+              SELECT
+                COUNT(*) FILTER (WHERE source = 'school')::int AS school_count,
+                COUNT(*) FILTER (
+                  WHERE source = 'school'
+                    AND verification_level = 'registry_matched'
+                    AND verification_label = '学校台帳と一致'
+                )::int AS registry_matched_count,
+                COUNT(*) FILTER (
+                  WHERE source = 'school'
+                    AND (entity_key IS NULL OR entity_key = '')
+                )::int AS missing_entity_key_count
+              FROM observation_fields
+              WHERE prefecture = $1
+            `, [process.env.PREFECTURE || "静岡県"]);
+            console.log(JSON.stringify(rows[0]));
+          })().finally(() => pool.end());
+          NODE
+          REMOTE
+
+      - name: Summary
+        run: |
+          {
+            echo "## School registry import"
+            echo ""
+            echo "- target: \`${{ github.event.inputs.target }}\`"
+            echo "- prefecture: \`${{ github.event.inputs.prefecture }}\`"
+            echo "- dry_run: \`${{ github.event.inputs.dry_run }}\`"
+            echo "- dataset: [MLIT P29](${{ github.event.inputs.dataset_url }})"
+          } >> "$GITHUB_STEP_SUMMARY"

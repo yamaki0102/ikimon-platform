@@ -3,7 +3,11 @@ import { dirname, resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { entityKeyFromGeoProperties } from "../services/observationFieldIdentity.js";
 import { upsertCertifiedField, type FieldSource } from "../services/observationFieldRegistry.js";
-import { importedFieldVerificationSummary, recordFieldVerificationClaim } from "../services/fieldVerification.js";
+import {
+  ensureFieldVerificationIssuer,
+  importedFieldVerificationSummary,
+  recordFieldVerificationClaim,
+} from "../services/fieldVerification.js";
 
 interface SeedSite {
   certification_id: string;
@@ -54,6 +58,8 @@ const JIS_PREFECTURE_NAMES: Record<string, string> = {
   "41": "佐賀県", "42": "長崎県", "43": "熊本県", "44": "大分県", "45": "宮崎県",
   "46": "鹿児島県", "47": "沖縄県",
 };
+
+const P29_DATASET_URL = "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P29-2023.html";
 
 function prefectureNameFromCode(code: string): string {
   return JIS_PREFECTURE_NAMES[code.slice(0, 2)] ?? "";
@@ -261,7 +267,7 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
       official_url: String((props as Record<string, unknown>).official_url ?? (props as Record<string, unknown>).url ?? ""),
       owner_url: String((props as Record<string, unknown>).owner_url ?? ""),
       story_url: String((props as Record<string, unknown>).story_url ?? ""),
-      certification_url: String((props as Record<string, unknown>).certification_url ?? ""),
+      certification_url: String((props as Record<string, unknown>).certification_url ?? (source === "school" && schoolCode ? P29_DATASET_URL : "")),
       source_confidence: parseOptionalNumber(String((props as Record<string, unknown>).source_confidence ?? "")),
       entity_key: entityKey || undefined,
       payload: {
@@ -270,6 +276,7 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
         ...(schoolCode ? { school_code: schoolCode } : {}),
         ...(schoolTypeCode ? { school_type_code: schoolTypeCode } : {}),
         ...(address ? { address } : {}),
+        ...(source === "school" && schoolCode ? { registry_source: "mlit_ksj_p29", registry_source_url: P29_DATASET_URL } : {}),
       },
       polygon: feature.geometry && (feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon")
         ? (feature.geometry as unknown as Record<string, unknown>)
@@ -320,6 +327,21 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
   }
   let inserted = 0;
   let skipped = 0;
+  const registryIssuerId = source === "school"
+    ? await ensureFieldVerificationIssuer({
+      issuerKey: "mlit_ksj_p29_2023",
+      issuerKind: "government_agency",
+      name: "国土交通省 国土数値情報 学校データ",
+      websiteUrl: P29_DATASET_URL,
+      verifiedDomain: "mlit.go.jp",
+      payload: {
+        dataset: "P29",
+        dataset_year: 2023,
+        mext_school_code_source: "文部科学省 学校コード一覧",
+        source_url: P29_DATASET_URL,
+      },
+    })
+    : null;
   for (const site of sites) {
     if (!site.name || !Number.isFinite(site.lat) || !Number.isFinite(site.lng)) {
       skipped++;
@@ -358,13 +380,14 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
       if (verification && verification.level !== "unverified") {
         await recordFieldVerificationClaim({
           fieldId: field.fieldId,
+          issuerId: registryIssuerId,
           verificationLevel: verification.level,
           verificationMethod: verification.method || "public_registry",
           status: "verified",
-          evidenceUrl: site.certification_url ?? site.official_url ?? "",
+          evidenceUrl: site.certification_url ?? site.official_url ?? (source === "school" ? P29_DATASET_URL : ""),
           evidenceDomain: "",
           label: verification.label,
-          payload: { import_source: filePath, source },
+          payload: { import_source: filePath, source, issuer_key: registryIssuerId ? "mlit_ksj_p29_2023" : undefined },
         });
       }
       inserted++;

@@ -98,6 +98,11 @@ npm --prefix platform_v2 run import:schools:shizuoka -- --file=./data/P29-school
 DATABASE_URL=... npm --prefix platform_v2 run import:schools:shizuoka -- --file=./data/P29-schools.geojson
 ```
 
+本番/staging の再投入は GitHub Actions の `Import School Fields` を使う。デフォルトは
+国土数値情報 P29 2023年度版の静岡県ファイルで、`dry_run=true` で候補数を確認してから
+`dry_run=false` で投入する。投入後は `audit:field-entity-keys -- --fail-on-error` まで
+同じ workflow で実行される。
+
 `entity_key` は `mext_school:<学校コード>` を優先する。海外や大学キャンパスの独自
 GeoJSON では `wikidata`, `geonameid`, `GID_2`, `ISO3166-2`, `osm_type/osm_id`
 などを属性に入れておけば、同じ監査・履歴管理に乗る。

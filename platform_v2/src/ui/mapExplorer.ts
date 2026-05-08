@@ -57,6 +57,8 @@ export type MapExplorerCopy = {
   coverageLegendHigh: string;
   heatmapLegendLow: string;
   heatmapLegendHigh: string;
+  areaTrustLegendLow: string;
+  areaTrustLegendHigh: string;
   loading: string;
   statsLabel: (returned: number, total: number) => string;
   empty: string;
@@ -173,6 +175,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     coverageLegendHigh: "育っている",
     heatmapLegendLow: "少ない",
     heatmapLegendHigh: "多い",
+    areaTrustLegendLow: "公式確認待ち・立入不明",
+    areaTrustLegendHigh: "確認済み範囲",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "この範囲はまだこれから。季節や地域を少し広げると、行きたくなる場所が見つかるかもしれません。",
@@ -269,6 +273,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     coverageLegendHigh: "Deep",
     heatmapLegendLow: "Low",
     heatmapLegendHigh: "High",
+    areaTrustLegendLow: "Source/access pending",
+    areaTrustLegendHigh: "Verified area",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "This area is still opening up. Widen the season or region to find a place worth visiting.",
@@ -365,6 +371,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     coverageLegendHigh: "Gruesa",
     heatmapLegendLow: "Baja",
     heatmapLegendHigh: "Alta",
+    areaTrustLegendLow: "Fuente/acceso pendiente",
+    areaTrustLegendHigh: "Área verificada",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Esta zona todavía se está abriendo. Amplía estación o región para encontrar un lugar que invite a ir.",
@@ -461,6 +469,8 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     coverageLegendHigh: "Densa",
     heatmapLegendLow: "Baixa",
     heatmapLegendHigh: "Alta",
+    areaTrustLegendLow: "Fonte/acesso pendente",
+    areaTrustLegendHigh: "Área verificada",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Esta área ainda está se abrindo. Amplie a estação ou região para encontrar um lugar que dê vontade de visitar.",
@@ -1153,6 +1163,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     coverageLegendHigh: copy.coverageLegendHigh,
     heatmapLegendLow: copy.heatmapLegendLow,
     heatmapLegendHigh: copy.heatmapLegendHigh,
+    areaTrustLegendLow: copy.areaTrustLegendLow,
+    areaTrustLegendHigh: copy.areaTrustLegendHigh,
     legendLabel: copy.legendLabel,
     popupOpenLabel: copy.popupOpenLabel,
     bottomSheetRecord: copy.bottomSheetRecord,
@@ -3756,7 +3768,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
         'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else if (tab === 'places') {
-      hideLegend();
+      showLegend(COPY.areaTrustLegendLow, COPY.areaTrustLegendHigh,
+        'linear-gradient(90deg, #f59e0b, #0ea5e9 48%, #059669)');
       loadWaterwayHints();
     } else {
       hideLegend();
@@ -3992,16 +4005,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       minzoom: 8,
       paint: {
         'line-color': [
-          'match', ['get', 'source'],
-          'protected_area', '#15803d',
-          'oecm', '#65a30d',
-          'nature_symbiosis_site', '#0f766e',
-          'tsunag', '#0d9488',
-          'school', '#b45309',
-          'osm_park', '#0284c7',
-          '#475569',
+          'case',
+          ['in', ['get', 'access'], ['literal', ['private', 'no']]],
+          '#dc2626',
+          ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
+          '#059669',
+          ['>=', ['coalesce', ['get', 'source_confidence'], 0], 0.75],
+          '#0ea5e9',
+          '#f59e0b',
         ],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 14, 1.6],
+        'line-width': [
+          'case',
+          ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
+          ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.8],
+          ['interpolate', ['linear'], ['zoom'], 8, 0.7, 14, 1.8],
+        ],
       },
     }, beforeId);
     map.addLayer({
