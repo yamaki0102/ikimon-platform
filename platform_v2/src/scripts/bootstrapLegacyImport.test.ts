@@ -16,3 +16,9 @@ test("legacy no-photo quarantine preserves native video evidence publication", a
   assert.match(source, /promoteLegacyNoPhotoVisitWithNativeVideo/);
   assert.match(source, /reason_code in \('native_no_photo', 'legacy_no_photo'\)/);
 });
+
+test("legacy track bootstrap clears prior imported track points before full reload", async () => {
+  const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
+
+  assert.match(source, /delete from visit_track_points vtp[\s\S]*v\.source_kind = 'legacy_track_session'/);
+});

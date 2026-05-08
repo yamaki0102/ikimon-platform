@@ -1287,6 +1287,14 @@ async function importTracks(options: ImportOptions, tracks: LegacyTrackSession[]
   }
 
   const pool = getPool();
+  await pool.query(
+    `delete from visit_track_points vtp
+     where exists (
+       select 1 from visits v
+       where v.visit_id = vtp.visit_id
+         and v.source_kind = 'legacy_track_session'
+     )`,
+  );
   for (const session of tracks) {
     const points = Array.isArray(session.points) ? session.points : [];
     const visitId = `track:${session.session_id}`;
