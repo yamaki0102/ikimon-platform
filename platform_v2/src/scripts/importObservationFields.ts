@@ -32,6 +32,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 type ImportOptions = {
   prefecture?: string;
   prefectureCode?: string;
+  certificationId?: string;
   limit?: number;
   dryRun?: boolean;
 };
@@ -69,6 +70,7 @@ function parseOptions(args: string[]): ImportOptions {
   return {
     prefecture: get("prefecture"),
     prefectureCode: get("prefecture-code"),
+    certificationId: get("certification-id"),
     limit: limit && Number.isFinite(limit) ? Math.max(1, limit) : undefined,
     dryRun: args.includes("--dry-run"),
   };
@@ -279,6 +281,9 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
   }
   if (source === "school" && (options.prefecture || options.prefectureCode)) {
     sites = sites.filter((site) => schoolSeedMatchesOptions(site, options));
+  }
+  if (options.certificationId) {
+    sites = sites.filter((site) => site.certification_id === options.certificationId);
   }
   if (options.limit) {
     sites = sites.slice(0, options.limit);
