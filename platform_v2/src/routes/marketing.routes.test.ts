@@ -57,11 +57,14 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /公式解説として読む/);
+    assert.match(response.body, /自然の発見を活かす/);
+    assert.match(response.body, /名前が分からなくても大丈夫/);
     assert.match(response.body, /生物多様性の基礎/);
     assert.match(response.body, /政策・企業活動と自然/);
     assert.match(response.body, /記録・データ・信頼性について/);
-    assert.match(response.body, /更新を見る/);
+    assert.match(response.body, /更新情報/);
+    assert.doesNotMatch(response.body, /共同編集の Wiki/);
+    assert.doesNotMatch(response.body, /用語のヒント/);
     assert.match(response.body, /application\/ld\+json/);
   } finally {
     await app.close();
