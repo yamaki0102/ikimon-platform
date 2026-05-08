@@ -147,6 +147,11 @@ test("admin sound-review SSR page is gated to admin/analyst sessions", async () 
   assert.match(uiSource, /flag-for-review/);
   assert.match(uiSource, /cluster-runs/);
   assert.match(uiSource, /escapeHtml/);
+  assert.match(uiSource, /privacy_or_human_voice/);
+  assert.match(uiSource, /pickRepresentative/);
+  assert.match(uiSource, /safeMediaUrl/);
+  assert.match(uiSource, /sr-evidence-preview/);
+  assert.match(uiSource, /spectrogram 未生成/);
 
   const appSource = await readFile(
     path.join(process.cwd(), "src", "app.ts"),
