@@ -20,9 +20,15 @@ function isIkimonUrl(url: string): boolean {
   }
 }
 
-function sourceConfidenceLabel(score: number): string {
-  if (score >= 0.95) return "一次情報: 公式・認定確認済み";
-  if (score >= 0.75) return "一次情報: 公式リンクあり";
+function sourceConfidenceLabel(field: ObservationField): string {
+  if (field.verificationLabel.trim()) return field.verificationLabel;
+  if (field.verificationLevel === "registry_matched") return "公的台帳と一致";
+  if (field.verificationLevel === "page_verified") return "公式ページで確認";
+  if (field.verificationLevel === "owner_verified") return "設置者により確認済み";
+  if (field.verificationLevel === "staff_verified") return "担当者確認済み";
+  const score = field.sourceConfidence;
+  if (score >= 0.95) return "一次情報: 強い外部根拠あり";
+  if (score >= 0.75) return "一次情報: 公式ページ候補あり";
   if (score >= 0.45) return "一次情報: 外部情報確認中";
   return "一次情報: 未確認";
 }
@@ -46,7 +52,7 @@ function renderSourceButtons(field: ObservationField): string {
     })
     .map((item) => `<a class="evt-btn evt-btn-on-dark" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.label)} ↗</a>`)
     .join("");
-  return `${links}<span class="evt-btn evt-btn-on-dark" aria-label="一次情報の確認状況">${escapeHtml(sourceConfidenceLabel(field.sourceConfidence))}</span>`;
+  return `${links}<span class="evt-btn evt-btn-on-dark" aria-label="一次情報の確認状況">${escapeHtml(sourceConfidenceLabel(field))}</span>`;
 }
 
 const SOURCE_LABEL: Record<string, string> = {

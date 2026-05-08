@@ -2172,17 +2172,23 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
   }
 
-  function sourceConfidenceLabel(score) {
+  function sourceConfidenceLabel(score, label, level) {
+    var cleanLabel = String(label || '').trim();
+    if (cleanLabel) return cleanLabel;
+    if (level === 'registry_matched') return '公的台帳と一致';
+    if (level === 'page_verified') return '公式ページで確認';
+    if (level === 'owner_verified') return '設置者により確認済み';
+    if (level === 'staff_verified') return '担当者確認済み';
     var n = Number(score);
     if (!Number.isFinite(n)) n = 0;
-    if (n >= 0.95) return '一次情報: 公式・認定確認済み';
-    if (n >= 0.75) return '一次情報: 公式リンクあり';
+    if (n >= 0.95) return '一次情報: 強い外部根拠あり';
+    if (n >= 0.75) return '一次情報: 公式ページ候補あり';
     if (n >= 0.45) return '一次情報: 外部情報確認中';
     return '一次情報: 未確認';
   }
 
-  function renderAreaSourceTrust(score) {
-    return '<span class="me-area-sheet-source-trust">' + escapeHtml(sourceConfidenceLabel(score)) + '</span>';
+  function renderAreaSourceTrust(score, label, level) {
+    return '<span class="me-area-sheet-source-trust">' + escapeHtml(sourceConfidenceLabel(score, label, level)) + '</span>';
   }
 
   function renderAreaSourceLinks(source) {
@@ -2822,7 +2828,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var ctaHref = safeCenter ? buildTransientAreaEventHref(feature, safeCenter.lat, safeCenter.lng) : RECORD_HREF;
     var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
     var sourceLinksHtml = renderAreaSourceLinks(props);
-    var sourceTrustHtml = renderAreaSourceTrust(props.source_confidence);
+    var sourceTrustHtml = renderAreaSourceTrust(props.source_confidence, props.verification_label, props.verification_level);
     var areaName = String(props.name || 'OSMの公園・緑地');
     var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
@@ -3331,7 +3337,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? Math.round(f.areaHa).toLocaleString('ja-JP') + ' ha'
       : '';
     var sourceLinksHtml = renderAreaSourceLinks(f);
-    var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence);
+    var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence, f.verificationLabel, f.verificationLevel);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
     var ctaHref = fieldId && eventsNewHrefTemplate
       ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))

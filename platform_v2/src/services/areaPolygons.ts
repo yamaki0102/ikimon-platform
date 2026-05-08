@@ -34,6 +34,8 @@ export interface AreaPolygonFeatureProps {
   story_url: string;
   certification_url: string;
   source_confidence: number;
+  verification_level: string;
+  verification_label: string;
   center: [number, number]; // [lng, lat]
   access?: string;
   transient?: boolean;
@@ -267,6 +269,8 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
       story_url: "",
       certification_url: "",
       source_confidence: website ? 0.75 : 0.45,
+      verification_level: "unverified",
+      verification_label: website ? "公式ページ候補あり" : "未確認",
       center,
       access: tags.access ?? "",
       transient: true,
@@ -512,6 +516,8 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     story_url: string;
     certification_url: string;
     source_confidence: string | null;
+    verification_level: string | null;
+    verification_label: string | null;
     lat: string;
     lng: string;
     polygon: Record<string, unknown> | null;
@@ -520,6 +526,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     `SELECT field_id, entity_key, name, source, admin_level, prefecture, city,
             area_ha::text AS area_ha, official_url,
             owner_url, story_url, certification_url, source_confidence::text AS source_confidence,
+            verification_level, verification_label,
             lat::text AS lat, lng::text AS lng,
             polygon,
             geom_simplified AS polygon_simplified
@@ -561,6 +568,8 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         story_url: row.story_url,
         certification_url: row.certification_url,
         source_confidence: row.source_confidence == null ? 0 : Number(row.source_confidence),
+        verification_level: row.verification_level ?? "unverified",
+        verification_label: row.verification_label ?? "",
         center: [Number(row.lng), Number(row.lat)],
         entity_key: row.entity_key ?? undefined,
       },

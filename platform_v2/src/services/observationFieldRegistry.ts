@@ -164,6 +164,10 @@ export interface ObservationField {
   storyUrl: string;
   certificationUrl: string;
   sourceConfidence: number;
+  verificationLevel: string;
+  verificationMethod: string;
+  verificationLabel: string;
+  verificationUpdatedAt: string | null;
   ownerUserId: string | null;
   entityKey?: string;
   validFrom?: string | null;
@@ -195,6 +199,10 @@ interface RawFieldRow extends Record<string, unknown> {
   story_url: string;
   certification_url: string;
   source_confidence: string | number | null;
+  verification_level: string | null;
+  verification_method: string | null;
+  verification_label: string | null;
+  verification_updated_at: string | null;
   owner_user_id: string | null;
   entity_key: string | null;
   valid_from: string | null;
@@ -211,6 +219,7 @@ const SELECT = `
   area_ha::text AS area_ha, certification_id,
   certified_at::text AS certified_at,
   official_url, owner_url, story_url, certification_url, source_confidence::text AS source_confidence,
+  verification_level, verification_method, verification_label, verification_updated_at::text AS verification_updated_at,
   owner_user_id,
   COALESCE(entity_key, '') AS entity_key,
   valid_from::text AS valid_from, valid_to::text AS valid_to,
@@ -246,6 +255,10 @@ function mapRow(row: RawFieldRow): ObservationField {
     storyUrl: row.story_url ?? "",
     certificationUrl: row.certification_url ?? "",
     sourceConfidence: row.source_confidence == null ? 0 : Number(row.source_confidence),
+    verificationLevel: row.verification_level ?? "unverified",
+    verificationMethod: row.verification_method ?? "",
+    verificationLabel: row.verification_label ?? "",
+    verificationUpdatedAt: row.verification_updated_at ?? null,
     ownerUserId: row.owner_user_id,
     entityKey: row.entity_key ?? "",
     validFrom: row.valid_from,

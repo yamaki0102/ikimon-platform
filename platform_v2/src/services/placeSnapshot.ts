@@ -30,6 +30,8 @@ export type PlaceSnapshotField = {
   storyUrl: string;
   certificationUrl: string;
   sourceConfidence: number;
+  verificationLevel: string;
+  verificationLabel: string;
   originalName: string;
   schoolAlbumProfiles: SchoolAlbumProfile[];
   accessGuidance: AreaAccessGuidance;
@@ -552,6 +554,8 @@ export function composePlaceSnapshot(args: {
       storyUrl: args.field.storyUrl,
       certificationUrl: args.field.certificationUrl,
       sourceConfidence: args.field.sourceConfidence,
+      verificationLevel: args.field.verificationLevel,
+      verificationLabel: args.field.verificationLabel,
       originalName: args.field.name,
       schoolAlbumProfiles: buildSchoolAlbumProfiles(args.field),
       accessGuidance: buildAreaAccessGuidance(args.field),
