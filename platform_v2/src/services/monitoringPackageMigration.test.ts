@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 test("monitoring package migration is additive and keeps no_catch outside occurrence absence", () => {
-  const sql = readFileSync(path.join(process.cwd(), "db", "migrations", "0092_monitoring_package_foundation.sql"), "utf8");
+  const sql = readFileSync(path.join(process.cwd(), "db", "migrations", "0099_monitoring_package_foundation.sql"), "utf8");
 
   assert.match(sql, /CREATE TABLE IF NOT EXISTS waterbodies/);
   assert.match(sql, /CREATE TABLE IF NOT EXISTS water_record_extensions/);
@@ -14,7 +14,7 @@ test("monitoring package migration is additive and keeps no_catch outside occurr
 });
 
 test("data chain migration is additive and models field scan, governance, and package events", () => {
-  const sql = readFileSync(path.join(process.cwd(), "db", "migrations", "0093_observation_package_data_chain.sql"), "utf8");
+  const sql = readFileSync(path.join(process.cwd(), "db", "migrations", "0100_observation_package_data_chain.sql"), "utf8");
 
   assert.match(sql, /CREATE TABLE IF NOT EXISTS field_scan_contexts/);
   assert.match(sql, /'fixed_point'/);
