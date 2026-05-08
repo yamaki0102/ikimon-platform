@@ -64,7 +64,7 @@ export async function loadAreaSnapshotVisitIds(
             v.source_payload->>'field_id' as source_field_id,
             $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[])) as resolved_match
        from visits v
-      where v.source_payload->>'field_id' = $1
+      where v.source_payload->>'field_id' = $1::text
          or ($2::text is not null and v.place_id = $2)
          or $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
          or (
