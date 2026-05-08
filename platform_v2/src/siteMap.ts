@@ -251,9 +251,9 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["header", "footer", "qa", "xml"],
     title: { ja: "使い方と考え方", en: "Learn" },
-    summary: { ja: "観察の始め方、名前の調べ方、記録の信頼性をまとめる。", en: "Guides for use, identification, and trust." },
+    summary: { ja: "名前が分からない観察を、あとで活かせる記録にする。", en: "Guides for turning observations into useful records." },
     marketing: { pageKey: "learnIndex" },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "公式解説として読む" }, readySelector: "body", screenshot: { baselineName: "registry-learn" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "自然の発見を活かす" }, readySelector: "body", screenshot: { baselineName: "registry-learn" } },
   },
   {
     path: "/about",

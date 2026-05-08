@@ -266,9 +266,16 @@ function withHeadingIds(html: string, headings: DocHeading[]): string {
 }
 
 function normalizeArticleHeading(html: string, meta: MarketingPageMeta): string {
+  if (meta.bodyPageId === "learn-index") {
+    return html.replace(/<h1>.*?<\/h1>\s*/, "");
+  }
   return html.replace(/<h1>(.*?)<\/h1>/, (_match, content: string) =>
     `<p class="doc-entry-title">${content}</p><p class="doc-official-note">${escapeHtml(meta.lead)}</p>`,
   );
+}
+
+function shouldShowTermHints(meta: MarketingPageMeta): boolean {
+  return meta.bodyPageId.startsWith("learn-") && meta.bodyPageId !== "learn-index" && meta.bodyPageId !== "learn-updates";
 }
 
 function applyTermHints(html: string): string {
@@ -903,7 +910,8 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
 
   const rawBodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   const headings = headingsFromHtml(rawBodyHtml);
-  const bodyHtml = applyTermHints(withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta), headings));
+  const articleHtml = withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta), headings);
+  const bodyHtml = shouldShowTermHints(meta) ? applyTermHints(articleHtml) : articleHtml;
   const canonicalPath = appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja");
   const structuredDataHtml = renderStructuredData(meta, page, lang, canonicalPath, headings);
   return renderSiteDocument({
