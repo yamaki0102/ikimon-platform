@@ -82,6 +82,16 @@ export type PassiveAudioIngestResult = {
   occurrenceId?: string;
   segmentId?: string;
   tier15Candidate?: boolean;
+  calibration?: PassiveAudioCalibrationDecision;
+};
+
+export type PassiveAudioCalibrationDecision = {
+  source: "registry" | "default";
+  threshold: number;
+  regionKey: string;
+  taxonName: string;
+  calibrationId?: string;
+  calibrationStatus?: "active";
 };
 
 export type PassiveAudioBatchResult = {
@@ -97,6 +107,7 @@ export type PassiveAudioBatchResult = {
     occurrenceId?: string;
     segmentId?: string;
     tier15Candidate?: boolean;
+    calibration?: PassiveAudioCalibrationDecision;
     error?: string;
   }>;
 };
@@ -399,13 +410,90 @@ export function mapBirdnetMqttPayloadToPassiveAudioEvent(
   });
 }
 
-export function isTier15PassiveAudioCandidate(event: NormalizedPassiveAudioDetectionEventV01): boolean {
-  return event.confidence >= 0.9
+const DEFAULT_PASSIVE_AUDIO_TIER15_THRESHOLD = 0.9;
+
+function hasKnownModelVersion(event: NormalizedPassiveAudioDetectionEventV01): boolean {
+  const modelVersion = event.model_version?.toLowerCase();
+  if (!modelVersion) return false;
+  return modelVersion !== "unknown" && !modelVersion.includes("unknown");
+}
+
+export function regionKeysForPassiveAudioCalibration(event: NormalizedPassiveAudioDetectionEventV01): string[] {
+  return [
+    event.plot_id ? `plot:${event.plot_id}` : null,
+    `site:${event.site_id}`,
+    "global",
+  ].filter((value): value is string => Boolean(value));
+}
+
+export function defaultPassiveAudioCalibrationDecision(event: NormalizedPassiveAudioDetectionEventV01): PassiveAudioCalibrationDecision {
+  return {
+    source: "default",
+    threshold: DEFAULT_PASSIVE_AUDIO_TIER15_THRESHOLD,
+    regionKey: "global",
+    taxonName: event.scientific_name ?? event.species_label,
+  };
+}
+
+export function isTier15PassiveAudioCandidate(
+  event: NormalizedPassiveAudioDetectionEventV01,
+  calibration: PassiveAudioCalibrationDecision = defaultPassiveAudioCalibrationDecision(event),
+): boolean {
+  return event.confidence >= calibration.threshold
     && Boolean(event.scientific_name)
     && Boolean(event.model_id)
-    && Boolean(event.model_version)
-    && event.model_version?.toLowerCase() !== "unknown"
-    && !event.model_version?.toLowerCase().includes("unknown");
+    && hasKnownModelVersion(event);
+}
+
+async function resolvePassiveAudioCalibrationDecision(
+  client: PoolClient,
+  event: NormalizedPassiveAudioDetectionEventV01,
+): Promise<PassiveAudioCalibrationDecision> {
+  if (!event.model_id || !hasKnownModelVersion(event)) {
+    return defaultPassiveAudioCalibrationDecision(event);
+  }
+  const taxonNames = Array.from(new Set([
+    event.scientific_name,
+    event.species_label,
+  ].filter((value): value is string => Boolean(value))));
+  const regionKeys = regionKeysForPassiveAudioCalibration(event);
+  const result = await client.query<{
+    calibration_id: string;
+    taxon_name: string;
+    region_key: string;
+    recommended_threshold: string | number;
+    calibration_status: "active";
+  }>(
+    `select calibration_id::text, taxon_name, region_key, recommended_threshold, calibration_status
+       from ai_confidence_calibration_registry
+      where model_id = $1
+        and model_version = $2
+        and observation_method = 'passive_audio'
+        and calibration_status = 'active'
+        and lower(taxon_name) = any($3::text[])
+        and region_key = any($4::text[])
+      order by array_position($4::text[], region_key),
+               array_position($3::text[], lower(taxon_name)),
+               updated_at desc
+      limit 1`,
+    [
+      event.model_id,
+      event.model_version,
+      taxonNames.map((name) => name.toLowerCase()),
+      regionKeys,
+    ],
+  );
+  const row = result.rows[0];
+  if (!row) return defaultPassiveAudioCalibrationDecision(event);
+  const threshold = Number(row.recommended_threshold);
+  return {
+    source: "registry",
+    threshold: Number.isFinite(threshold) ? Math.max(0, Math.min(1, threshold)) : DEFAULT_PASSIVE_AUDIO_TIER15_THRESHOLD,
+    regionKey: row.region_key,
+    taxonName: row.taxon_name,
+    calibrationId: row.calibration_id,
+    calibrationStatus: row.calibration_status,
+  };
 }
 
 function sessionIdFor(event: NormalizedPassiveAudioDetectionEventV01): string {
@@ -416,11 +504,12 @@ function sessionIdFor(event: NormalizedPassiveAudioDetectionEventV01): string {
 export async function ingestPassiveAudioDetection(input: unknown): Promise<PassiveAudioIngestResult> {
   const event = normalizePassiveAudioDetectionEvent(input);
   const dedupeKey = computePassiveAudioDedupeKey(event);
-  const tier15Candidate = isTier15PassiveAudioCandidate(event);
   const pool = getPool();
   const client = await pool.connect();
   try {
     await client.query("begin");
+    const calibration = await resolvePassiveAudioCalibrationDecision(client, event);
+    const tier15Candidate = isTier15PassiveAudioCandidate(event, calibration);
     const ledgerInsert = await client.query<{ ingest_event_id: string }>(
       `insert into passive_audio_ingest_events (
           dedupe_key, source_type, source_id, source_name, site_id, device_id,
@@ -495,6 +584,7 @@ export async function ingestPassiveAudioDetection(input: unknown): Promise<Passi
       visitId,
       occurrenceId,
       tier15Candidate,
+      calibration,
     });
 
     const review = await client.query<{ review_id: string }>(
@@ -513,6 +603,7 @@ export async function ingestPassiveAudioDetection(input: unknown): Promise<Passi
         JSON.stringify({
           confidence: event.confidence,
           tier15_candidate: tier15Candidate,
+          calibration,
           has_model_version: Boolean(event.model_version),
           has_scientific_name: Boolean(event.scientific_name),
         }),
@@ -536,7 +627,7 @@ export async function ingestPassiveAudioDetection(input: unknown): Promise<Passi
       [ingestEventId, visitId, occurrenceId, segmentId, review.rows[0]?.review_id ?? null],
     );
     await client.query("commit");
-    return { status: "accepted", dedupeKey, visitId, occurrenceId, segmentId, tier15Candidate };
+    return { status: "accepted", dedupeKey, visitId, occurrenceId, segmentId, tier15Candidate, calibration };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
     throw error;
@@ -548,7 +639,14 @@ export async function ingestPassiveAudioDetection(input: unknown): Promise<Passi
 async function writeCanonicalPassiveAudioEvent(
   client: PoolClient,
   event: NormalizedPassiveAudioDetectionEventV01,
-  ids: { dedupeKey: string; placeId: string; visitId: string; occurrenceId: string; tier15Candidate: boolean },
+  ids: {
+    dedupeKey: string;
+    placeId: string;
+    visitId: string;
+    occurrenceId: string;
+    tier15Candidate: boolean;
+    calibration: PassiveAudioCalibrationDecision;
+  },
 ): Promise<string> {
   const placeName = event.site_id || event.source_name;
   await client.query(
@@ -658,6 +756,7 @@ async function writeCanonicalPassiveAudioEvent(
         observation_method: event.observation_method,
         protocol_id: event.protocol_id,
         tier15_candidate: ids.tier15Candidate,
+        calibration: ids.calibration,
         provenance: event.provenance,
       }),
     ],
@@ -680,6 +779,7 @@ async function writeCanonicalPassiveAudioEvent(
         model_id: event.model_id ?? null,
         model_version: event.model_version ?? null,
         birdnet_go_version: event.birdnet_go_version ?? null,
+        calibration: ids.calibration,
         provider_label: event.species_label,
         verification_status: "ai_candidate",
         human_review_required: true,
@@ -784,6 +884,7 @@ async function writeCanonicalPassiveAudioEvent(
         has_clip_ref: Boolean(event.clip_ref),
         has_spectrogram_ref: Boolean(event.spectrogram_ref),
         human_review_required: true,
+        calibration: ids.calibration,
       }),
     ],
   );
@@ -807,6 +908,7 @@ async function writeCanonicalPassiveAudioEvent(
         model_id: event.model_id ?? null,
         model_version: event.model_version ?? null,
         confidence: event.confidence,
+        calibration: ids.calibration,
         claim_limit: "ai_candidate_only",
       }),
     ],
@@ -907,6 +1009,7 @@ async function writeCanonicalPassiveAudioEvent(
         embedding_ref: event.embedding_ref ?? null,
         provenance: event.provenance,
         tier15_candidate: ids.tier15Candidate,
+        calibration: ids.calibration,
       }),
     ],
   );

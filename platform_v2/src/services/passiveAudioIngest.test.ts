@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   computePassiveAudioDedupeKey,
+  defaultPassiveAudioCalibrationDecision,
   isTier15PassiveAudioCandidate,
   mapBirdnetCsvRowToPassiveAudioEvent,
   mapBirdnetMqttPayloadToPassiveAudioEvent,
   normalizePassiveAudioDetectionEvent,
   PassiveAudioValidationError,
+  regionKeysForPassiveAudioCalibration,
 } from "./passiveAudioIngest.js";
 
 const baseEvent = {
@@ -153,4 +155,32 @@ test("Tier 1.5 candidate flag is conservative and never mutates evidence tier", 
     () => normalizePassiveAudioDetectionEvent(null),
     PassiveAudioValidationError,
   );
+});
+
+test("Tier 1.5 candidate gate can use active calibration thresholds without auto-verifying", () => {
+  const calibratedCandidate = normalizePassiveAudioDetectionEvent({
+    ...baseEvent,
+    confidence: 0.86,
+    plot_id: "aikan-yard-north-plot-01",
+  });
+  assert.equal(isTier15PassiveAudioCandidate(calibratedCandidate), false);
+  assert.equal(isTier15PassiveAudioCandidate(calibratedCandidate, {
+    source: "registry",
+    threshold: 0.85,
+    regionKey: "site:aikan-shizuoka-poc",
+    taxonName: "Hypsipetes amaurotis",
+    calibrationId: "00000000-0000-0000-0000-000000000001",
+    calibrationStatus: "active",
+  }), true);
+  assert.deepEqual(regionKeysForPassiveAudioCalibration(calibratedCandidate), [
+    "plot:aikan-yard-north-plot-01",
+    "site:aikan-shizuoka-poc",
+    "global",
+  ]);
+  assert.deepEqual(defaultPassiveAudioCalibrationDecision(calibratedCandidate), {
+    source: "default",
+    threshold: 0.9,
+    regionKey: "global",
+    taxonName: "Hypsipetes amaurotis",
+  });
 });
