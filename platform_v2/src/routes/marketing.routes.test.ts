@@ -57,15 +57,75 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /自然の発見を活かす/);
-    assert.match(response.body, /名前が分からなくても大丈夫/);
+    assert.match(response.body, /読みたいページを、すぐ選ぶ/);
+    assert.match(response.body, /基本的に1テーマ1ページ/);
     assert.match(response.body, /生物多様性の基礎/);
     assert.match(response.body, /政策・企業活動と自然/);
+    assert.match(response.body, /\/ja\/learn\/terms\/nature-connectedness/);
+    assert.match(response.body, /\/ja\/learn\/biomonweek/);
+    assert.match(response.body, /\/ja\/learn\/terms\/attention-restoration-theory/);
     assert.match(response.body, /記録・データ・信頼性について/);
     assert.match(response.body, /更新情報/);
     assert.doesNotMatch(response.body, /共同編集の Wiki/);
     assert.doesNotMatch(response.body, /用語のヒント/);
     assert.match(response.body, /application\/ld\+json/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("glossary and term pages expose one-topic SEO pages", async () => {
+  const app = buildApp();
+  try {
+    const glossary = await app.inject({ method: "GET", url: "/learn/glossary?lang=ja" });
+    assert.equal(glossary.statusCode, 200);
+    assert.match(glossary.body, /用語から探す/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/biomonweek/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/biodiversity-monitoring/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/sampling-effort/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/nature-connectedness/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/environmental-dna/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/ai-candidate/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/open-dispute/);
+    assert.match(glossary.body, /\/ja\/learn\/terms\/tnfd/);
+
+    const connectedness = await app.inject({ method: "GET", url: "/learn/terms/nature-connectedness?lang=ja" });
+    assert.equal(connectedness.statusCode, 200);
+    assert.match(connectedness.body, /自然とのつながりとは/);
+    assert.match(connectedness.body, /自然とのつながり尺度/);
+    assert.match(connectedness.body, /application\/ld\+json/);
+    assert.match(connectedness.body, /\/learn\/terms\/nature-connectedness/);
+
+    const legacy = await app.inject({
+      method: "GET",
+      url: "/learn/article.php?category=06_wellbeing&slug=nature-connectedness&lang=ja",
+    });
+    assert.equal(legacy.statusCode, 308);
+    assert.equal(legacy.headers.location, "/ja/learn/terms/nature-connectedness");
+
+    const ednaLegacy = await app.inject({
+      method: "GET",
+      url: "/learn/article.php?category=07_technology&slug=edna-ai&lang=ja",
+    });
+    assert.equal(ednaLegacy.statusCode, 308);
+    assert.equal(ednaLegacy.headers.location, "/ja/learn/terms/environmental-dna");
+
+    const biomonweek = await app.inject({ method: "GET", url: "/learn/terms/biomonweek?lang=ja" });
+    assert.equal(biomonweek.statusCode, 200);
+    assert.match(biomonweek.body, /BioMonWeekとは/);
+    assert.match(biomonweek.body, /初回導線/);
+    assert.match(biomonweek.body, /\/ja\/learn\/biomonweek/);
+    assert.match(biomonweek.body, /\/learn\/terms\/biomonweek/);
+
+    const biomonweekGuide = await app.inject({ method: "GET", url: "/learn/biomonweek?lang=ja" });
+    assert.equal(biomonweekGuide.statusCode, 200);
+    assert.match(biomonweekGuide.body, /今年の記録を、来年比べられる形で残す/);
+    assert.match(biomonweekGuide.body, /\/ja\/record/);
+    assert.match(biomonweekGuide.body, /\/ja\/community\/events/);
+
+    const binmonweekAlias = await app.inject({ method: "GET", url: "/learn/terms/binmonweek?lang=ja" });
+    assert.equal(binmonweekAlias.statusCode, 308);
+    assert.equal(binmonweekAlias.headers.location, "/ja/learn/terms/biomonweek");
   } finally {
     await app.close();
   }
@@ -87,7 +147,7 @@ test("legacy public explainer routes redirect to their canonical destinations", 
       url: "/learn/article.php?category=04_business-economy&slug=biodiversity-credits&lang=ja",
     });
     assert.equal(legacyLearning.statusCode, 308);
-    assert.equal(legacyLearning.headers.location, "/ja/learn/policy-and-business");
+    assert.equal(legacyLearning.headers.location, "/ja/learn/terms/biodiversity-credits");
   } finally {
     await app.close();
   }
