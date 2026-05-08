@@ -49,6 +49,7 @@ export type SiteShellOptions = {
   canonicalPath?: string;
   alternateLangs?: SiteLang[];
   noindex?: boolean;
+  structuredDataHtml?: string;
   shellClassName?: string;
   /** Skip the global site footer. Immersive surfaces also suppress it
    *  automatically so primary circulation stays in the header/side menu. */
@@ -2679,6 +2680,7 @@ ${alternateLinks}
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="${escapeHtml(options.title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
+  ${options.structuredDataHtml ?? ""}
   ${appOutboxHeadScript}
   ${analyticsHeadScript}
   <style>

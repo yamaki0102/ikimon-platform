@@ -57,9 +57,12 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /まず読むページ/);
+    assert.match(response.body, /公式解説として読む/);
+    assert.match(response.body, /生物多様性の基礎/);
+    assert.match(response.body, /政策・企業活動と自然/);
     assert.match(response.body, /記録・データ・信頼性について/);
     assert.match(response.body, /更新を見る/);
+    assert.match(response.body, /application\/ld\+json/);
   } finally {
     await app.close();
   }
@@ -75,6 +78,13 @@ test("legacy public explainer routes redirect to their canonical destinations", 
     const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
     assert.equal(authority.statusCode, 308);
     assert.equal(authority.headers.location, "/ja/learn/methodology");
+
+    const legacyLearning = await app.inject({
+      method: "GET",
+      url: "/learn/article.php?category=04_business-economy&slug=biodiversity-credits&lang=ja",
+    });
+    assert.equal(legacyLearning.statusCode, 308);
+    assert.equal(legacyLearning.headers.location, "/ja/learn/policy-and-business");
   } finally {
     await app.close();
   }
@@ -177,6 +187,7 @@ test("marketing pages are registered from the canonical sitemap registry", async
       });
       assert.equal(response.statusCode, 200, `${page.path} should render from registry`);
       assert.match(response.body, /site-shell|<main/i, `${page.path} should use the shared shell`);
+      assert.doesNotMatch(response.body, /name="robots" content="noindex,follow"/, `${page.path} should be indexable in ja`);
     }
   } finally {
     await app.close();

@@ -25,6 +25,17 @@ type MarketingPageMeta = {
   afterActions?: Array<{ href: string; label: string }>;
 };
 
+type DocHeading = {
+  id: string;
+  level: number;
+  text: string;
+};
+
+type DocTerm = {
+  label: string;
+  hint: string;
+};
+
 type ContactFormCopy = {
   categories: Array<{ value: string; label: string }>;
   fields: {
@@ -197,35 +208,223 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
   </section>`;
 }
 
+const DOC_TERM_DEFINITIONS: DocTerm[] = [
+  { label: "同定", hint: "見つけた生きものの名前や分類を、根拠と一緒に確かめること。" },
+  { label: "Evidence Tier", hint: "記録をどの強さで研究・報告に使えるかを分ける信頼段階。" },
+  { label: "quick capture", hint: "散歩や旅先の発見を、まず写真・場所・時刻で残す軽い記録。" },
+  { label: "survey", hint: "対象、時間、努力量をそろえて残す、調査に近い記録。" },
+  { label: "open dispute", hint: "別分類、証拠不足、位置や日付の疑問など、未解決の反対意見。" },
+  { label: "TNFD", hint: "自然関連のリスクや機会を企業が開示するための国際的な枠組み。" },
+  { label: "30by30", hint: "2030年までに陸と海の30%以上を保全する国際目標。" },
+  { label: "ネイチャーポジティブ", hint: "自然の損失を止め、回復へ向ける考え方。" },
+  { label: "希少種", hint: "保護上、位置情報や公開範囲に配慮が必要な生きもの。" },
+  { label: "位置情報", hint: "観察した場所の情報。公開時は安全のため精度を落とす場合があります。" },
+];
+
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+function headingSlug(text: string, used: Set<string>): string {
+  const ascii = text
+    .normalize("NFKD")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  const base = ascii || "section";
+  let slug = base;
+  let index = 2;
+  while (used.has(slug)) {
+    slug = `${base}-${index}`;
+    index += 1;
+  }
+  used.add(slug);
+  return slug;
+}
+
+function headingsFromHtml(html: string): DocHeading[] {
+  const used = new Set<string>();
+  const headings: DocHeading[] = [];
+  const pattern = /<h([2-3])>(.*?)<\/h\1>/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    const text = stripHtmlTags(match[2] ?? "");
+    if (!text) continue;
+    headings.push({ id: headingSlug(text, used), level: Number(match[1] ?? 2), text });
+  }
+  return headings;
+}
+
+function withHeadingIds(html: string, headings: DocHeading[]): string {
+  let index = 0;
+  return html.replace(/<h([2-3])>(.*?)<\/h\1>/g, (match, level: string, content: string) => {
+    const heading = headings[index];
+    index += 1;
+    if (!heading) return match;
+    return `<h${level} id="${escapeHtml(heading.id)}">${content}</h${level}>`;
+  });
+}
+
+function normalizeArticleHeading(html: string, meta: MarketingPageMeta): string {
+  return html.replace(/<h1>(.*?)<\/h1>/, (_match, content: string) =>
+    `<p class="doc-entry-title">${content}</p><p class="doc-official-note">${escapeHtml(meta.lead)}</p>`,
+  );
+}
+
+function applyTermHints(html: string): string {
+  const terms = DOC_TERM_DEFINITIONS.filter((term) => html.includes(term.label));
+  if (terms.length === 0) return html;
+  return `${html}<aside class="doc-term-notes" aria-label="用語のヒント">
+    <strong>用語のヒント</strong>
+    <dl>${terms.slice(0, 8).map((term) => `<div><dt>${escapeHtml(term.label)}</dt><dd>${escapeHtml(term.hint)}</dd></div>`).join("")}</dl>
+  </aside>`;
+}
+
+function renderDocToc(headings: DocHeading[], meta: MarketingPageMeta, page: SitePageDefinition): string {
+  const items = headings.slice(0, 12).map((heading) =>
+    `<a class="doc-toc-link doc-toc-l${heading.level}" href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a>`,
+  ).join("");
+  return `<aside class="doc-sidebar" aria-label="読み物ナビゲーション">
+    <div class="doc-sidebar-inner">
+      <div class="doc-source-badge">
+        <span>公式解説</span>
+        <strong>${escapeHtml(meta.eyebrow)}</strong>
+      </div>
+      ${items ? `<nav class="doc-toc" aria-label="目次"><span>目次</span>${items}</nav>` : ""}
+      <div class="doc-seo-note">
+        <span>canonical</span>
+        <strong>${escapeHtml(page.path)}</strong>
+      </div>
+    </div>
+  </aside>`;
+}
+
+function scriptJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+function renderStructuredData(meta: MarketingPageMeta, page: SitePageDefinition, lang: SiteLang, canonicalPath: string, headings: DocHeading[]): string {
+  const url = `https://ikimon.life${canonicalPath}`;
+  const pageType = meta.bodyPageId === "faq" ? "FAQPage" : "Article";
+  const graph = [
+    {
+      "@type": "WebSite",
+      "@id": "https://ikimon.life/#website",
+      name: "ikimon.life",
+      url: "https://ikimon.life/",
+      inLanguage: lang,
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "ikimon.life", item: "https://ikimon.life/" },
+        { "@type": "ListItem", position: 2, name: sitePageLabel(page, lang), item: url },
+      ],
+    },
+    {
+      "@type": pageType,
+      "@id": `${url}#article`,
+      headline: meta.heading,
+      description: meta.lead,
+      name: meta.title,
+      url,
+      inLanguage: lang,
+      isPartOf: { "@id": "https://ikimon.life/#website" },
+      publisher: { "@type": "Organization", name: "ikimon.life", url: "https://ikimon.life/" },
+      about: headings.slice(0, 8).map((heading) => heading.text),
+    },
+  ];
+  return `<script type="application/ld+json">${scriptJson({ "@context": "https://schema.org", "@graph": graph })}</script>`;
+}
+
+const LEGACY_LEARNING_REDIRECTS: Record<string, string> = {
+  "01_fundamentals/intro": "/learn/biodiversity",
+  "01_fundamentals/japan": "/learn/biodiversity",
+  "01_fundamentals/three-levels": "/learn/biodiversity",
+  "01_fundamentals/what-is-biodiversity": "/learn/biodiversity",
+  "02_international-policy/30by30": "/learn/policy-and-business",
+  "02_international-policy/cbd": "/learn/policy-and-business",
+  "02_international-policy/gbf": "/learn/policy-and-business",
+  "02_international-policy/kunming-montreal-gbf": "/learn/policy-and-business",
+  "03_japan-policy/30by30": "/learn/policy-and-business",
+  "03_japan-policy/nature-positive": "/learn/policy-and-business",
+  "03_japan-policy/nature-symbiosis-sites": "/learn/policy-and-business",
+  "04_business-economy/biodiversity-credits": "/learn/policy-and-business",
+  "04_business-economy/nature-positive-business": "/learn/policy-and-business",
+  "04_business-economy/esg-biodiversity": "/learn/policy-and-business",
+  "04_business-economy/natural-capital": "/learn/policy-and-business",
+  "04_business-economy/tnfd": "/learn/policy-and-business",
+  "05_citizen-science/citizen-science-intro": "/learn/citizen-science",
+  "05_citizen-science/existing-platforms": "/learn/citizen-science",
+  "05_citizen-science/participatory-monitoring": "/learn/citizen-science",
+  "06_wellbeing/attention-restoration": "/learn/wellbeing",
+  "06_wellbeing/biodiversity-subjective-wellbeing": "/learn/wellbeing",
+  "06_wellbeing/biophilia-hypothesis": "/learn/wellbeing",
+  "06_wellbeing/bird-watching-mental-health": "/learn/wellbeing",
+  "06_wellbeing/citizen-science-wellbeing": "/learn/wellbeing",
+  "06_wellbeing/nature-connectedness": "/learn/wellbeing",
+  "06_wellbeing/nature-wellbeing": "/learn/wellbeing",
+  "07_technology/biodiversity-ai-dataset": "/learn/technology",
+  "07_technology/gbif-backbone-taxonomy": "/learn/technology",
+  "07_technology/edna-ai": "/learn/technology",
+};
+
+function legacyLearningTarget(url: string): string {
+  const parsed = new URL(url, "https://ikimon.life");
+  const category = parsed.searchParams.get("category") ?? "";
+  const slug = parsed.searchParams.get("slug") ?? "";
+  return LEGACY_LEARNING_REDIRECTS[`${category}/${slug}`] ?? "/learn";
+}
+
 const LOWER_PAGE_STYLES = `
-  .lower-page { display: grid; gap: 22px; }
-  .lower-route-intro { margin-top: 8px; }
-  .lower-route-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-  .lower-route-tile { min-height: 118px; padding: 18px; border-radius: 20px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.04); }
-  .lower-route-tile strong { display: block; margin: 5px 0 6px; color: #0f172a; font-size: 16px; }
-  .lower-route-tile span { display: inline-flex; color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-  .lower-route-tile p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.65; }
-  .doc-article { max-width: var(--ikimon-reading-max); margin: 0 auto; }
-  .doc-prose { padding: 30px clamp(20px, 4vw, 36px); border-radius: 24px; background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(248,250,252,.94)); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 16px 36px rgba(15,23,42,.06); }
-  .doc-prose h1, .doc-prose h2, .doc-prose h3 { margin: 0 0 14px; color: #0f172a; letter-spacing: -.02em; }
-  .doc-prose h1 { font-size: 28px; line-height: 1.24; }
-  .doc-prose h2 { margin-top: 28px; font-size: 21px; line-height: 1.32; }
-  .doc-prose h3 { margin-top: 22px; font-size: 17px; line-height: 1.4; }
-  .doc-prose p, .doc-prose li { color: #475569; font-size: 15px; line-height: 1.9; }
-  .doc-prose ul, .doc-prose ol { margin: 0 0 18px; padding-left: 22px; display: grid; gap: 10px; }
-  .doc-prose a { color: #047857; font-weight: 800; text-decoration: none; }
-  .doc-prose a:hover { text-decoration: underline; }
-  .doc-prose blockquote { margin: 20px 0; padding: 16px 18px; border-left: 4px solid #10b981; background: rgba(16,185,129,.06); border-radius: 0 16px 16px 0; }
+  .lower-page { display: grid; gap: 24px; }
+  .lower-page.is-article { max-width: 1180px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 28px) 54px; }
+  .doc-reading-layout { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: clamp(22px, 4vw, 42px); align-items: start; }
+  .doc-article { width: 100%; max-width: 760px; margin: 0 auto; }
+  .doc-prose { background: transparent; border: 0; box-shadow: none; padding: 0; }
+  .doc-entry-title { margin: 0 0 10px; color: #0f172a; font-size: 17px; font-weight: 900; line-height: 1.55; }
+  .doc-official-note { margin: 0 0 28px; padding: 14px 16px; border-left: 3px solid #10b981; background: #f8fafc; color: #334155; font-size: 14px; line-height: 1.85; }
+  .doc-prose h1, .doc-prose h2, .doc-prose h3 { color: #0f172a; letter-spacing: 0; scroll-margin-top: 92px; }
+  .doc-prose h1 { margin: 0 0 18px; font-size: 28px; line-height: 1.28; }
+  .doc-prose h2 { margin: 40px 0 12px; padding-top: 10px; border-top: 1px solid rgba(15,23,42,.08); font-size: 23px; line-height: 1.35; }
+  .doc-prose h3 { margin: 28px 0 10px; font-size: 18px; line-height: 1.45; }
+  .doc-prose p, .doc-prose li { color: #334155; font-size: 16px; line-height: 2; }
+  .doc-prose p { margin: 0 0 18px; }
+  .doc-prose ul, .doc-prose ol { margin: 0 0 22px; padding-left: 1.45em; display: grid; gap: 8px; }
+  .doc-prose strong { color: #0f172a; font-weight: 900; }
+  .doc-prose a { color: #047857; font-weight: 850; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .doc-prose blockquote { margin: 24px 0; padding: 16px 18px; border-left: 3px solid #10b981; background: #f8fafc; color: #334155; }
+  .doc-term-notes { margin-top: 34px; padding: 18px 0 0; border-top: 1px solid rgba(15,23,42,.08); }
+  .doc-term-notes > strong { display: block; margin-bottom: 10px; color: #0f172a; font-size: 14px; }
+  .doc-term-notes dl { display: grid; gap: 10px; margin: 0; }
+  .doc-term-notes div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; }
+  .doc-term-notes dt { color: #065f46; font-size: 13px; font-weight: 900; }
+  .doc-term-notes dd { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; }
+  .doc-sidebar { position: sticky; top: 82px; }
+  .doc-sidebar-inner { display: grid; gap: 18px; padding-left: 18px; border-left: 1px solid rgba(15,23,42,.1); }
+  .doc-source-badge, .doc-seo-note { display: grid; gap: 4px; }
+  .doc-source-badge span, .doc-seo-note span, .doc-toc > span { color: #64748b; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .doc-source-badge strong, .doc-seo-note strong { color: #0f172a; font-size: 13px; line-height: 1.55; word-break: break-word; }
+  .doc-toc { display: grid; gap: 3px; }
+  .doc-toc-link { display: block; padding: 6px 0; color: #475569; font-size: 13px; line-height: 1.45; text-decoration: none; border-radius: 6px; }
+  .doc-toc-link:hover { color: #047857; }
+  .doc-toc-l3 { padding-left: 14px; font-size: 12px; color: #64748b; }
   .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 16px; }
-  .route-gateway { margin-top: 4px; }
-  .route-gateway .section-header p { max-width: 680px; }
-  .route-gateway-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-  .route-gateway-card { display: flex; flex-direction: column; min-height: 176px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.04); }
-  .route-gateway-card h3 { margin: 8px 0 8px; color: #0f172a; font-size: 18px; line-height: 1.35; }
+  .route-gateway { max-width: 760px; margin: 6px auto 0; border-top: 1px solid rgba(15,23,42,.08); padding-top: 24px; }
+  .route-gateway .section-header p { max-width: 620px; }
+  .route-gateway-grid { display: grid; gap: 10px; }
+  .route-gateway-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid rgba(15,23,42,.07); text-decoration: none; }
+  .route-gateway-card h3 { grid-column: 1; margin: 0; color: #0f172a; font-size: 16px; line-height: 1.45; }
   .route-gateway-card p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.7; }
-  .route-gateway-card span:last-child { margin-top: auto; padding-top: 14px; color: #047857; font-weight: 900; font-size: 13px; }
+  .route-gateway-card .eyebrow { grid-column: 1 / -1; margin: 0; color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .route-gateway-card span:last-child { grid-column: 2; grid-row: 2 / span 2; color: #047857; font-weight: 900; font-size: 13px; }
   @media (max-width: 820px) {
-    .lower-route-grid, .route-gateway-grid { grid-template-columns: 1fr; }
+    .doc-reading-layout { grid-template-columns: 1fr; }
+    .doc-sidebar { position: static; order: -1; }
+    .doc-sidebar-inner { padding: 14px 0 0; border-left: 0; border-top: 1px solid rgba(15,23,42,.08); }
+    .doc-toc { grid-template-columns: 1fr; }
+    .route-gateway-card { grid-template-columns: 1fr; }
+    .route-gateway-card span:last-child { grid-column: 1; grid-row: auto; }
   }
 `;
 
@@ -702,7 +901,11 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const hasLocalizedSeoPage = availableLangs.includes(lang);
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
 
-  const bodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
+  const rawBodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
+  const headings = headingsFromHtml(rawBodyHtml);
+  const bodyHtml = applyTermHints(withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta), headings));
+  const canonicalPath = appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja");
+  const structuredDataHtml = renderStructuredData(meta, page, lang, canonicalPath, headings);
   return renderSiteDocument({
     basePath,
     title: meta.title,
@@ -710,9 +913,10 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     activeNav: activeNavLabel(meta.activeNav, lang),
     lang,
     currentPath,
-    canonicalPath: appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja"),
+    canonicalPath,
     alternateLangs: availableLangs,
     noindex: !hasLocalizedSeoPage,
+    structuredDataHtml,
     extraStyles: LOWER_PAGE_STYLES,
     hero: {
       eyebrow: meta.eyebrow,
@@ -722,10 +926,12 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
       align: "center",
       afterActionsHtml: renderAfterActions(basePath, lang, meta.afterActions),
     },
-    body: `<div class="lower-page">
-      ${renderLaneIntro(meta)}
+    body: `<div class="lower-page is-article">
       ${prependHtml}
-      <section class="section doc-article"><article class="doc-prose">${bodyHtml}</article></section>
+      <div class="doc-reading-layout">
+        <section class="section doc-article"><article class="doc-prose">${bodyHtml}</article></section>
+        ${renderDocToc(headings, meta, page)}
+      </div>
       ${renderGatewayGrid(basePath, lang, meta, page.path)}
     </div>`,
     footerNote: meta.footerNote ?? getShortCopy<string>(lang, "shared", "footerNotes.public"),
@@ -752,6 +958,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       return reply.redirect(appendLangToHref(withBasePath(basePath, targetPath), lang), 308);
     });
   }
+
+  app.get("/learn/article.php", async (request, reply) => {
+    const basePath = requestBasePath(request as { headers: Record<string, unknown> });
+    const url = requestUrl(request);
+    const lang = detectLangFromUrl(url);
+    return reply.redirect(appendLangToHref(withBasePath(basePath, legacyLearningTarget(url)), lang), 308);
+  });
 
   for (const page of listMarketingPages()) {
     app.get(page.path, async (request, reply) => {

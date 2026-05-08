@@ -5,7 +5,7 @@
     "heroHeadingPlain": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
     "heroHeadingLine1": "生きものを楽しむ。",
     "heroHeadingEmphasis": "暮らしと地球のいのちを楽しむ。",
-    "heroLead": "いつもの道で見つけた小さな発見が、地域のいのちを知る記録になる。ikimon.life は、身近な生きものの観察を通じて、自然を記録し、学び、地域や企業の活動に活かす生物多様性プラットフォームです。",
+    "heroLead": "いつもの道で見つけた小さな発見が、地域のいのちを知る記録になる。楽しみながら残した観察を、市民・企業・自治体が一緒に自然の変化を見守るための記録へ育てます。",
     "heroPromiseChips": [
       "小さな発見が残る",
       "また歩きたくなる",
@@ -127,8 +127,8 @@
       "learnIndex": {
         "title": "観察の始め方と考え方 | ikimon.life",
         "eyebrow": "読む",
-        "heading": "観察を楽しみ、記録へつなげる",
-        "lead": "身近な生きものの見つけ方から、記録の残し方、研究や地域活動に使うときの前提までをまとめています。",
+        "heading": "公式解説として読む",
+        "lead": "生物多様性の基礎、観察の残し方、市民科学、政策・企業活動、テクノロジー、ウェルビーイングを、重複なく読みやすくまとめています。",
         "activeNav": "learn",
         "bodyPageId": "learn-index"
       },
@@ -158,6 +158,46 @@
         "lead": "その場で全部決めなくても、あとで確かめやすい記録は残せます。写真とメモの取り方を、やさしい前提でまとめています。",
         "activeNav": "learn",
         "bodyPageId": "learn-identification-basics"
+      },
+      "learnBiodiversity": {
+        "title": "生物多様性の基礎 | ikimon.life",
+        "eyebrow": "基礎解説",
+        "heading": "生物多様性を、暮らしの言葉で理解する",
+        "lead": "生きものの種類だけでなく、生態系、遺伝子、暮らしを支える自然の働きまでを、ikimon.life の観察体験につながる形で整理します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-biodiversity"
+      },
+      "learnCitizenScience": {
+        "title": "市民科学と観察 | ikimon.life",
+        "eyebrow": "市民科学",
+        "heading": "散歩の記録が、科学の入口になる条件",
+        "lead": "市民の発見を軽視せず、同時に研究利用で言いすぎないために、観察、確認、努力量、専門レビューの役割を分けて説明します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-citizen-science"
+      },
+      "learnPolicyBusiness": {
+        "title": "政策・企業活動と自然 | ikimon.life",
+        "eyebrow": "政策と企業",
+        "heading": "30by30、自然共生サイト、TNFDを一つの流れで読む",
+        "lead": "国際目標、国内制度、企業活動、レポート活用を、重複した用語集ではなく、自然の変化を見守る実務の流れとして整理します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-policy-business"
+      },
+      "learnWellbeing": {
+        "title": "自然とウェルビーイング | ikimon.life",
+        "eyebrow": "ウェルビーイング",
+        "heading": "自然を楽しむことが、暮らしに戻ってくる",
+        "lead": "自然とのつながり、注意回復、観察の楽しさを扱います。健康効果を保証せず、研究で示唆される範囲を読みやすく整理します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-wellbeing"
+      },
+      "learnTechnology": {
+        "title": "自然観察とテクノロジー | ikimon.life",
+        "eyebrow": "テクノロジー",
+        "heading": "AIは自然を決める道具ではなく、観察を育てる補助線",
+        "lead": "生物特化AI、環境DNA、分類名、データセットの話を、AIが確定する物語ではなく、人が確認できる観察データを増やす話として整理します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-technology"
       },
       "learnMethodology": {
         "title": "記録・データ・信頼性 | ikimon.life",
@@ -223,7 +263,7 @@
         "title": "企業・自治体・団体で活用する | ikimon.life",
         "eyebrow": "企業・自治体・団体へ",
         "heading": "楽しんで続く観察を、地域のアクションへ",
-        "lead": "企業・自治体・団体が、社員・市民・地域と参加しやすい観察体験を始め、生物多様性の記録をレポート・可視化・社内外発信へ活かします。",
+        "lead": "市民・企業・自治体が一緒に自然の変化を見守り、その記録を環境保全や企業活動に活かしていくための始め方を整理します。",
         "activeNav": "business",
         "bodyPageId": "for-business",
         "afterActions": [
