@@ -35,6 +35,16 @@ export type FieldVerificationSummary = {
   sourceConfidence: number;
 };
 
+export type FieldVerificationIssuerKind =
+  | "education_board"
+  | "school_corporation"
+  | "company"
+  | "municipality"
+  | "university"
+  | "government_agency"
+  | "site_owner"
+  | "other";
+
 const VERIFICATION_METHODS: readonly FieldVerificationMethod[] = [
   "registry_import",
   "public_registry",
@@ -152,6 +162,53 @@ export function chooseBestVerificationSummary(
   };
 }
 
+export async function ensureFieldVerificationIssuer(input: {
+  issuerKey: string;
+  issuerKind: FieldVerificationIssuerKind;
+  name: string;
+  websiteUrl?: string;
+  verifiedDomain?: string;
+  contactEmail?: string;
+  payload?: Record<string, unknown>;
+}): Promise<string> {
+  const issuerKey = input.issuerKey.trim();
+  const name = input.name.trim();
+  if (!issuerKey || !name) {
+    throw new Error("field_verification_issuer_key_and_name_required");
+  }
+  const result = await getPool().query<{ issuer_id: string }>(
+    `INSERT INTO field_verification_issuers (
+       issuer_key, issuer_kind, name, website_url, verified_domain, contact_email,
+       verification_status, verified_at, payload, updated_at
+     ) VALUES (
+       $1, $2, $3, $4, $5, $6,
+       'verified', NOW(), $7::jsonb, NOW()
+     )
+     ON CONFLICT (issuer_key)
+     DO UPDATE SET
+       issuer_kind = EXCLUDED.issuer_kind,
+       name = EXCLUDED.name,
+       website_url = EXCLUDED.website_url,
+       verified_domain = EXCLUDED.verified_domain,
+       contact_email = EXCLUDED.contact_email,
+       verification_status = 'verified',
+       verified_at = COALESCE(field_verification_issuers.verified_at, NOW()),
+       payload = field_verification_issuers.payload || EXCLUDED.payload,
+       updated_at = NOW()
+     RETURNING issuer_id`,
+    [
+      issuerKey,
+      input.issuerKind,
+      name,
+      input.websiteUrl ?? "",
+      input.verifiedDomain ?? "",
+      input.contactEmail ?? "",
+      JSON.stringify(input.payload ?? {}),
+    ],
+  );
+  return result.rows[0]!.issuer_id;
+}
+
 export async function recordFieldVerificationClaim(input: {
   fieldId: string;
   issuerId?: string | null;
@@ -174,11 +231,21 @@ export async function recordFieldVerificationClaim(input: {
        field_id, issuer_id, verification_level, verification_method, status,
        evidence_url, evidence_domain, claimant_email, ai_match_score,
        label, note, payload, verified_at
-     ) VALUES (
+     )
+     SELECT
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9,
        $10, $11, $12::jsonb, $13
-     )`,
+      WHERE NOT EXISTS (
+        SELECT 1
+          FROM field_verification_claims
+         WHERE field_id = $1
+           AND verification_level = $3
+           AND verification_method = $4
+           AND status = $5
+           AND evidence_url = $6
+           AND label = $10
+      )`,
     [
       input.fieldId,
       input.issuerId ?? null,
