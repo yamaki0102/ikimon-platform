@@ -26,6 +26,10 @@ export type PlaceSnapshotField = {
   areaHa: number | null;
   visibility: "public" | "limited" | "private";
   officialUrl: string;
+  ownerUrl: string;
+  storyUrl: string;
+  certificationUrl: string;
+  sourceConfidence: number;
   originalName: string;
   schoolAlbumProfiles: SchoolAlbumProfile[];
   accessGuidance: AreaAccessGuidance;
@@ -282,7 +286,7 @@ export function buildFieldRelationshipInputs(
   const observationDenominator = Math.max(1, summary.totalObservations);
   return {
     accessStatus: fieldVisibility(field) === "public" ? "public" : "limited",
-    safetyNotesPresent: Boolean(field.summary || field.officialUrl),
+    safetyNotesPresent: Boolean(field.summary || field.officialUrl || field.ownerUrl || field.certificationUrl),
     visitsCount: summary.totalVisits,
     seasonsCovered: summary.seasonsCovered,
     repeatObserverCount: summary.totalEvents >= 2 ? 1 : 0,
@@ -544,6 +548,10 @@ export function composePlaceSnapshot(args: {
       areaHa: args.field.areaHa,
       visibility: fieldVisibility(args.field),
       officialUrl: args.field.officialUrl,
+      ownerUrl: args.field.ownerUrl,
+      storyUrl: args.field.storyUrl,
+      certificationUrl: args.field.certificationUrl,
+      sourceConfidence: args.field.sourceConfidence,
       originalName: args.field.name,
       schoolAlbumProfiles: buildSchoolAlbumProfiles(args.field),
       accessGuidance: buildAreaAccessGuidance(args.field),

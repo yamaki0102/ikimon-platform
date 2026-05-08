@@ -16,6 +16,10 @@ interface SeedSite {
   area_ha?: number;
   summary?: string;
   official_url?: string;
+  owner_url?: string;
+  story_url?: string;
+  certification_url?: string;
+  source_confidence?: number;
   polygon?: Record<string, unknown>;
   entity_key?: string;
   payload?: Record<string, unknown>;
@@ -76,6 +80,11 @@ function parseOptions(args: string[]): ImportOptions {
   };
 }
 
+function parseOptionalNumber(value: string | undefined | null): number | undefined {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : undefined;
+}
+
 function parseCsvRow(line: string): string[] {
   // Lightweight CSV parser supporting double-quoted fields with embedded commas
   // and escaped double quotes ("").
@@ -131,6 +140,10 @@ function importCsv(filePath: string, source: FieldSource): SeedSite[] {
       area_ha: Number(get("area_ha")) || undefined,
       summary: get("summary") || get("description"),
       official_url: get("official_url") || get("url"),
+      owner_url: get("owner_url"),
+      story_url: get("story_url"),
+      certification_url: get("certification_url"),
+      source_confidence: parseOptionalNumber(get("source_confidence")),
       entity_key: get("entity_key") || (source === "school" && certificationId ? `mext_school:${certificationId.replace(/^mext-school:/, "")}` : undefined),
     });
   }
@@ -245,6 +258,10 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
       area_ha: Number((props as Record<string, unknown>).area_ha ?? 0) || undefined,
       summary: String((props as Record<string, unknown>).summary ?? (props as Record<string, unknown>).description ?? (schoolTypeCode ? `学校分類コード: ${schoolTypeCode}` : "")),
       official_url: String((props as Record<string, unknown>).official_url ?? (props as Record<string, unknown>).url ?? ""),
+      owner_url: String((props as Record<string, unknown>).owner_url ?? ""),
+      story_url: String((props as Record<string, unknown>).story_url ?? ""),
+      certification_url: String((props as Record<string, unknown>).certification_url ?? ""),
+      source_confidence: parseOptionalNumber(String((props as Record<string, unknown>).source_confidence ?? "")),
       entity_key: entityKey || undefined,
       payload: {
         raw_properties: props,
@@ -272,7 +289,10 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
     const raw = readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw) as SeedFile;
     if (Array.isArray(data.sites)) {
-      sites = data.sites;
+      sites = data.sites.map((site) => ({
+        ...site,
+        certification_url: site.certification_url ?? (source === "nature_symbiosis_site" ? data._source_url : undefined),
+      }));
     } else if ((data as unknown as GeoJsonFeatureCollection).type === "FeatureCollection") {
       sites = importGeoJson(filePath, source);
     } else {
@@ -319,6 +339,10 @@ async function importSeed(filePath: string, source: FieldSource, options: Import
         areaHa: site.area_ha ?? null,
         certificationId: site.certification_id,
         officialUrl: site.official_url ?? "",
+        ownerUrl: site.owner_url ?? "",
+        storyUrl: site.story_url ?? "",
+        certificationUrl: site.certification_url ?? "",
+        sourceConfidence: site.source_confidence ?? null,
         ownerUserId: null,
         entityKey: site.entity_key,
         payload: { ...(site.payload ?? {}), import_source: filePath, imported_at: new Date().toISOString() },

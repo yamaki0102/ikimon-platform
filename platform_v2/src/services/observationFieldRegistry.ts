@@ -35,6 +35,85 @@ const ALL_FIELD_SOURCES = [
   "admin_country",
 ] as const;
 
+type SourceLinkInput = {
+  officialUrl?: string;
+  ownerUrl?: string;
+  storyUrl?: string;
+  certificationUrl?: string;
+  sourceConfidence?: number | null;
+};
+
+type SourceLinkFallback = {
+  officialUrl?: string;
+  ownerUrl?: string;
+  storyUrl?: string;
+  certificationUrl?: string;
+  sourceConfidence?: number | null;
+};
+
+function cleanUrl(value: string | undefined | null): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isIkimonUrl(value: string): boolean {
+  const url = cleanUrl(value);
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
+  } catch {
+    return /^https?:\/\/(?:[^/]+\.)?ikimon\.life(?:[/:?#]|$)/i.test(url);
+  }
+}
+
+function clampSourceConfidence(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeSourceLinks(input: SourceLinkInput, fallback: SourceLinkFallback = {}) {
+  const explicitOfficial = cleanUrl(input.officialUrl);
+  const explicitOwner = cleanUrl(input.ownerUrl);
+  const explicitStory = cleanUrl(input.storyUrl);
+  const explicitCertification = cleanUrl(input.certificationUrl);
+  const fallbackOfficial = cleanUrl(fallback.officialUrl);
+  const fallbackOwner = cleanUrl(fallback.ownerUrl);
+  const fallbackStory = cleanUrl(fallback.storyUrl);
+  const fallbackCertification = cleanUrl(fallback.certificationUrl);
+
+  const storyUrl = explicitStory || (isIkimonUrl(explicitOfficial) ? explicitOfficial : "") || fallbackStory;
+  const certificationUrl = explicitCertification || fallbackCertification;
+  const ownerUrl =
+    explicitOwner ||
+    (!certificationUrl && !storyUrl && explicitOfficial && !isIkimonUrl(explicitOfficial) ? explicitOfficial : "") ||
+    fallbackOwner;
+  const officialUrl =
+    (explicitOfficial && !isIkimonUrl(explicitOfficial) ? explicitOfficial : "") ||
+    ownerUrl ||
+    certificationUrl ||
+    (fallbackOfficial && !isIkimonUrl(fallbackOfficial) ? fallbackOfficial : "");
+
+  const explicitConfidence = clampSourceConfidence(input.sourceConfidence);
+  const fallbackConfidence = clampSourceConfidence(fallback.sourceConfidence);
+  const inferredConfidence = ownerUrl && certificationUrl
+    ? 1
+    : ownerUrl || certificationUrl
+      ? 0.95
+      : officialUrl
+        ? 0.75
+        : storyUrl
+          ? 0.45
+          : 0;
+
+  return {
+    officialUrl,
+    ownerUrl,
+    storyUrl,
+    certificationUrl,
+    sourceConfidence: explicitConfidence ?? Math.max(fallbackConfidence ?? 0, inferredConfidence),
+  };
+}
+
 function bboxColumnsFromPolygon(polygon: Record<string, unknown> | null | undefined): {
   minLat: number | null;
   maxLat: number | null;
@@ -81,6 +160,10 @@ export interface ObservationField {
   certificationId: string;
   certifiedAt: string | null;
   officialUrl: string;
+  ownerUrl: string;
+  storyUrl: string;
+  certificationUrl: string;
+  sourceConfidence: number;
   ownerUserId: string | null;
   entityKey?: string;
   validFrom?: string | null;
@@ -108,6 +191,10 @@ interface RawFieldRow extends Record<string, unknown> {
   certification_id: string;
   certified_at: string | null;
   official_url: string;
+  owner_url: string;
+  story_url: string;
+  certification_url: string;
+  source_confidence: string | number | null;
   owner_user_id: string | null;
   entity_key: string | null;
   valid_from: string | null;
@@ -123,7 +210,8 @@ const SELECT = `
   lat::text AS lat, lng::text AS lng, radius_m, polygon,
   area_ha::text AS area_ha, certification_id,
   certified_at::text AS certified_at,
-  official_url, owner_user_id,
+  official_url, owner_url, story_url, certification_url, source_confidence::text AS source_confidence,
+  owner_user_id,
   COALESCE(entity_key, '') AS entity_key,
   valid_from::text AS valid_from, valid_to::text AS valid_to,
   superseded_by::text AS superseded_by,
@@ -154,6 +242,10 @@ function mapRow(row: RawFieldRow): ObservationField {
     certificationId: row.certification_id ?? "",
     certifiedAt: row.certified_at,
     officialUrl: row.official_url ?? "",
+    ownerUrl: row.owner_url ?? "",
+    storyUrl: row.story_url ?? "",
+    certificationUrl: row.certification_url ?? "",
+    sourceConfidence: row.source_confidence == null ? 0 : Number(row.source_confidence),
     ownerUserId: row.owner_user_id,
     entityKey: row.entity_key ?? "",
     validFrom: row.valid_from,
@@ -180,6 +272,10 @@ export interface CreateFieldInput {
   certificationId?: string;
   certifiedAt?: string | null;
   officialUrl?: string;
+  ownerUrl?: string;
+  storyUrl?: string;
+  certificationUrl?: string;
+  sourceConfidence?: number | null;
   ownerUserId?: string | null;
   entityKey?: string | null;
   validFrom?: string | null;
@@ -209,19 +305,22 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
   const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
   const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
   const entityKey = defaultEntityKey(input);
+  const sourceLinks = normalizeSourceLinks(input);
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
        lat, lng, radius_m, polygon, area_ha,
-       certification_id, certified_at, official_url, owner_user_id, payload,
+       certification_id, certified_at, official_url, owner_url, story_url, certification_url, source_confidence,
+       owner_user_id, payload,
        bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
        entity_key, valid_from
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
-       $12, $13, $14, $15, $16::jsonb,
-       $17, $18, $19, $20, $21,
-       $22, COALESCE($23::date, current_date)
+       $12, $13, $14, $15, $16, $17, $18,
+       $19, $20::jsonb,
+       $21, $22, $23, $24, $25,
+       $26, COALESCE($27::date, current_date)
      )
      RETURNING ${SELECT}`,
     [
@@ -238,7 +337,11 @@ export async function createField(input: CreateFieldInput): Promise<ObservationF
       input.areaHa ?? null,
       input.certificationId ?? "",
       input.certifiedAt ?? null,
-      input.officialUrl ?? "",
+      sourceLinks.officialUrl,
+      sourceLinks.ownerUrl,
+      sourceLinks.storyUrl,
+      sourceLinks.certificationUrl,
+      sourceLinks.sourceConfidence,
       input.ownerUserId ?? null,
       JSON.stringify(input.payload ?? {}),
       bbox.minLat,
@@ -261,19 +364,22 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
   const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
   const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
   const entityKey = defaultEntityKey(input);
+  const sourceLinks = normalizeSourceLinks(input);
   const result = await getPool().query<RawFieldRow>(
     `INSERT INTO observation_fields (
        source, name, name_kana, summary, prefecture, city,
        lat, lng, radius_m, polygon, area_ha,
-       certification_id, certified_at, official_url, owner_user_id, payload,
+       certification_id, certified_at, official_url, owner_url, story_url, certification_url, source_confidence,
+       owner_user_id, payload,
        bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
        entity_key, valid_from
      ) VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10::jsonb, $11,
-       $12, $13, $14, $15, $16::jsonb,
-       $17, $18, $19, $20, $21,
-       $22, COALESCE($23::date, current_date)
+       $12, $13, $14, $15, $16, $17, $18,
+       $19, $20::jsonb,
+       $21, $22, $23, $24, $25,
+       $26, COALESCE($27::date, current_date)
      )
      ON CONFLICT (source, certification_id) WHERE certification_id <> ''
      DO UPDATE SET
@@ -289,6 +395,10 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
        area_ha      = COALESCE(EXCLUDED.area_ha, observation_fields.area_ha),
        certified_at = COALESCE(EXCLUDED.certified_at, observation_fields.certified_at),
        official_url = EXCLUDED.official_url,
+       owner_url    = EXCLUDED.owner_url,
+       story_url    = EXCLUDED.story_url,
+       certification_url = EXCLUDED.certification_url,
+       source_confidence = EXCLUDED.source_confidence,
        payload      = observation_fields.payload || EXCLUDED.payload,
        bbox_min_lat = COALESCE(EXCLUDED.bbox_min_lat, observation_fields.bbox_min_lat),
        bbox_max_lat = COALESCE(EXCLUDED.bbox_max_lat, observation_fields.bbox_max_lat),
@@ -313,7 +423,11 @@ export async function upsertCertifiedField(input: CreateFieldInput): Promise<Obs
       input.areaHa ?? null,
       input.certificationId,
       input.certifiedAt ?? null,
-      input.officialUrl ?? "",
+      sourceLinks.officialUrl,
+      sourceLinks.ownerUrl,
+      sourceLinks.storyUrl,
+      sourceLinks.certificationUrl,
+      sourceLinks.sourceConfidence,
       input.ownerUserId ?? null,
       JSON.stringify(input.payload ?? {}),
       bbox.minLat,
@@ -449,6 +563,7 @@ export async function createFieldVersion(input: CreateFieldVersionInput): Promis
     const bbox = bboxColumnsFromPolygon(input.polygon ?? null);
     const adminLevel = SOURCE_TO_ADMIN_LEVEL[source] ?? null;
     const entityKey = previousField.entityKey || defaultEntityKey(input);
+    const sourceLinks = normalizeSourceLinks(input, previousField);
     await client.query(
       `UPDATE observation_fields
           SET valid_to = current_date,
@@ -460,15 +575,17 @@ export async function createFieldVersion(input: CreateFieldVersionInput): Promis
       `INSERT INTO observation_fields (
          source, name, name_kana, summary, prefecture, city,
          lat, lng, radius_m, polygon, area_ha,
-         certification_id, certified_at, official_url, owner_user_id, payload,
+         certification_id, certified_at, official_url, owner_url, story_url, certification_url, source_confidence,
+         owner_user_id, payload,
          bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, admin_level,
          entity_key, valid_from
        ) VALUES (
          $1, $2, $3, $4, $5, $6,
          $7, $8, $9, $10::jsonb, $11,
-         $12, $13, $14, $15, $16::jsonb,
-         $17, $18, $19, $20, $21,
-         $22, current_date
+         $12, $13, $14, $15, $16, $17, $18,
+         $19, $20::jsonb,
+         $21, $22, $23, $24, $25,
+         $26, current_date
        )
        RETURNING ${SELECT}`,
       [
@@ -485,7 +602,11 @@ export async function createFieldVersion(input: CreateFieldVersionInput): Promis
         input.areaHa ?? null,
         input.certificationId ?? previousField.certificationId,
         input.certifiedAt ?? previousField.certifiedAt,
-        input.officialUrl ?? previousField.officialUrl,
+        sourceLinks.officialUrl,
+        sourceLinks.ownerUrl,
+        sourceLinks.storyUrl,
+        sourceLinks.certificationUrl,
+        sourceLinks.sourceConfidence,
         input.ownerUserId ?? null,
         JSON.stringify({
           ...previousField.payload,

@@ -385,6 +385,8 @@ async function importFile(
         areaHa: site.areaHa,
         certificationId: site.certificationId,
         officialUrl: "https://nlftp.mlit.go.jp/ksj/",
+        certificationUrl: "https://nlftp.mlit.go.jp/ksj/",
+        sourceConfidence: 0.95,
         ownerUserId: null,
         payload: {
           ksj_format: detectedFmt,

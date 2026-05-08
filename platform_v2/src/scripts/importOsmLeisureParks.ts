@@ -327,6 +327,8 @@ async function applyJob(client: any, job: UpsertJob, publishDate: string): Promi
           polygon = $2::jsonb,
           payload = $3::jsonb,
           official_url = $4,
+          owner_url = $4,
+          source_confidence = CASE WHEN $4 <> '' THEN 0.750 ELSE 0.450 END,
           name = $5,
           bbox_min_lat = $6,
           bbox_max_lat = $7,
@@ -343,13 +345,13 @@ async function applyJob(client: any, job: UpsertJob, publishDate: string): Promi
     `INSERT INTO observation_fields (
         source, name, prefecture, city, lat, lng, radius_m,
         polygon, area_ha,
-        certification_id, official_url, payload,
+        certification_id, official_url, owner_url, source_confidence, payload,
         bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
         admin_level, entity_key, valid_from
      ) VALUES (
         'user_defined', $1, '', '', $2, $3, $4,
         $5::jsonb, NULL,
-        $6, $7, $8::jsonb,
+        $6, $7, $7, CASE WHEN $7 <> '' THEN 0.750 ELSE 0.450 END, $8::jsonb,
         $9, $10, $11, $12,
         'osm_park', $13, $14
      )`,
