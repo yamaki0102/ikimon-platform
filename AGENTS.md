@@ -119,6 +119,15 @@ php tools/lint.php
 - guardrail check: `scripts/check_deploy_guardrails.ps1`
 - sync check: `scripts/check_deploy_manifest_sync.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
+- branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
+
+### Branch Hygiene
+
+- GitHub repository setting `delete_branch_on_merge` must stay enabled.
+- Long-lived branches are limited to `main` and `staging`.
+- `staging` is the staging deploy selector, not a feature queue. Keep it main-following.
+- Feature/rescue work uses short-lived `codex/<task-name>` branches and PRs to `main`.
+- Weekly stale branch / open PR / deploy status audit runs via `.github/workflows/branch-hygiene-audit.yml`.
 
 ### Persistent paths
 

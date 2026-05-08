@@ -26,11 +26,13 @@ runner からの browser smoke が通った場合だけ nginx を promote する
 - staging deploy reference: `ops/deploy/staging_deploy_reference.sh`
 - production workflow: `.github/workflows/deploy.yml`
 - staging workflow: `.github/workflows/deploy-staging.yml`
+- branch hygiene audit workflow: `.github/workflows/branch-hygiene-audit.yml`
 - CI guardrail: `scripts/check_deploy_guardrails.ps1`
 - platform_v2 migration guardrail: `scripts/check_platform_v2_migration_guardrails.ps1`
 - manifest/workflow sync check: `scripts/check_deploy_manifest_sync.ps1`
 - remote/reference sync check: `scripts/check_remote_deploy_reference.ps1`
 - deploy status summary: `scripts/deploy_status_summary.ps1`
+- branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
 
 ## Persistent Paths
 
@@ -61,6 +63,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_manifest_sync.ps
 powershell -ExecutionPolicy Bypass -File .\scripts\check_staging_manifest_sync.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\check_remote_deploy_reference.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy_status_summary.ps1 -Pr <number>
+powershell -ExecutionPolicy Bypass -File .\scripts\branch_hygiene_audit.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\pull_production_state_snapshot.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\provision_staging_from_production.ps1
 ```
@@ -83,6 +86,27 @@ high-risk path として表示する。
 5. production deploy
 
 staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
+
+## Branch Hygiene
+
+GitHub repository setting `delete_branch_on_merge` must stay enabled. If it is disabled,
+merged PR branches accumulate and the repo quickly returns to stale branch triage.
+
+Operational long-lived branches are limited to:
+
+- `main` — production source. Protected; never push directly from Codex.
+- `staging` — staging deploy source. Keep it main-following; do not use it as a feature queue.
+
+All feature/rescue work uses short-lived branches, normally `codex/<task-name>`, then PR to
+`main`. After merge, GitHub deletes the merged branch automatically. If a branch must remain
+after merge, document the owner and reason in the PR.
+
+Weekly audit:
+
+- workflow: `.github/workflows/branch-hygiene-audit.yml`
+- local/manual command: `powershell -ExecutionPolicy Bypass -File .\scripts\branch_hygiene_audit.ps1`
+- reports: delete-branch-on-merge setting, operational branches, open PRs, stale branches,
+  merged non-operational branches, and recent production/staging deploy runs
 
 ## Migration Guardrails
 
