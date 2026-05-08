@@ -30,6 +30,10 @@ export interface AreaPolygonFeatureProps {
   city: string;
   area_ha: number | null;
   official_url: string;
+  owner_url: string;
+  story_url: string;
+  certification_url: string;
+  source_confidence: number;
   center: [number, number]; // [lng, lat]
   access?: string;
   transient?: boolean;
@@ -246,6 +250,7 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
   const tags = element.tags ?? {};
   const entityKey = `osm:${element.type}:${element.id}`;
   const source = liveElementSource(element);
+  const website = tags.website ?? tags["contact:website"] ?? "";
   return {
     type: "Feature",
     properties: {
@@ -257,7 +262,11 @@ function liveElementToFeature(element: OverpassElement): AreaPolygonFeature | nu
       prefecture: "",
       city: "",
       area_ha: null,
-      official_url: tags.website ?? tags["contact:website"] ?? "",
+      official_url: website,
+      owner_url: website,
+      story_url: "",
+      certification_url: "",
+      source_confidence: website ? 0.75 : 0.45,
       center,
       access: tags.access ?? "",
       transient: true,
@@ -499,6 +508,10 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     city: string;
     area_ha: string | null;
     official_url: string;
+    owner_url: string;
+    story_url: string;
+    certification_url: string;
+    source_confidence: string | null;
     lat: string;
     lng: string;
     polygon: Record<string, unknown> | null;
@@ -506,6 +519,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   }>(
     `SELECT field_id, entity_key, name, source, admin_level, prefecture, city,
             area_ha::text AS area_ha, official_url,
+            owner_url, story_url, certification_url, source_confidence::text AS source_confidence,
             lat::text AS lat, lng::text AS lng,
             polygon,
             geom_simplified AS polygon_simplified
@@ -543,6 +557,10 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         city: row.city,
         area_ha: areaHa,
         official_url: row.official_url,
+        owner_url: row.owner_url,
+        story_url: row.story_url,
+        certification_url: row.certification_url,
+        source_confidence: row.source_confidence == null ? 0 : Number(row.source_confidence),
         center: [Number(row.lng), Number(row.lat)],
         entity_key: row.entity_key ?? undefined,
       },

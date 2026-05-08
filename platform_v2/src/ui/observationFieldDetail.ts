@@ -9,6 +9,46 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function isIkimonUrl(url: string): boolean {
+  const value = url.trim();
+  if (!value) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.hostname === "ikimon.life" || parsed.hostname.endsWith(".ikimon.life");
+  } catch {
+    return /^https?:\/\/(?:[^/]+\.)?ikimon\.life(?:[/:?#]|$)/i.test(value);
+  }
+}
+
+function sourceConfidenceLabel(score: number): string {
+  if (score >= 0.95) return "一次情報: 公式・認定確認済み";
+  if (score >= 0.75) return "一次情報: 公式リンクあり";
+  if (score >= 0.45) return "一次情報: 外部情報確認中";
+  return "一次情報: 未確認";
+}
+
+function renderSourceButtons(field: ObservationField): string {
+  const items = [
+    { label: "公式", url: field.ownerUrl },
+    { label: "認定情報", url: field.certificationUrl },
+    { label: "事例", url: field.storyUrl },
+  ];
+  if (!items.some((item) => item.url) && field.officialUrl) {
+    items.push({ label: isIkimonUrl(field.officialUrl) ? "事例" : "公式", url: field.officialUrl });
+  }
+  const seen = new Set<string>();
+  const links = items
+    .filter((item) => {
+      const url = item.url.trim();
+      if (!url || seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    })
+    .map((item) => `<a class="evt-btn evt-btn-on-dark" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.label)} ↗</a>`)
+    .join("");
+  return `${links}<span class="evt-btn evt-btn-on-dark" aria-label="一次情報の確認状況">${escapeHtml(sourceConfidenceLabel(field.sourceConfidence))}</span>`;
+}
+
 const SOURCE_LABEL: Record<string, string> = {
   user_defined: "マイ",
   nature_symbiosis_site: "自然共生サイト",
@@ -119,7 +159,7 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
       <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">✨ ここで観察会を作る</a>
       <a class="evt-btn evt-btn-on-dark" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
-      ${field.officialUrl ? `<a class="evt-btn evt-btn-on-dark" href="${escapeHtml(field.officialUrl)}" target="_blank" rel="noopener">📜 公式情報</a>` : ""}
+      ${renderSourceButtons(field)}
       <a class="evt-btn evt-btn-on-dark" href="/community/fields">フィールド一覧へ</a>
     </div>
   </article>

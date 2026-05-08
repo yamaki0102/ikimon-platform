@@ -161,6 +161,7 @@ async function applyJob(job: ImportJob, validFrom: string): Promise<"inserted" |
               bbox_min_lng = $12,
               bbox_max_lng = $13,
               admin_level = $14,
+              source_confidence = GREATEST(source_confidence, 0.650),
               updated_at = now()
         where field_id = $1`,
       [
@@ -198,12 +199,12 @@ async function applyJob(job: ImportJob, validFrom: string): Promise<"inserted" |
   await pool.query(
     `insert into observation_fields (
        source, name, prefecture, city, lat, lng, radius_m,
-       polygon, certification_id, official_url, payload,
+       polygon, certification_id, official_url, source_confidence, payload,
        bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
        admin_level, entity_key, valid_from
      ) values (
        'user_defined', $1, $2, $3, $4, $5, $6,
-       $7::jsonb, $8, '', $9::jsonb,
+       $7::jsonb, $8, '', 0.650, $9::jsonb,
        $10, $11, $12, $13,
        $14, $15, $16::date
      )`,

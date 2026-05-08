@@ -2161,6 +2161,53 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  function isIkimonSourceUrl(url) {
+    var text = String(url || '').trim();
+    if (!text) return false;
+    try {
+      var parsed = new URL(text, window.location.origin);
+      return parsed.hostname === 'ikimon.life' || /\\.ikimon\\.life$/.test(parsed.hostname);
+    } catch (_) {
+      return /^https?:\\/\\/(?:[^/]+\\.)?ikimon\\.life(?:[/:?#]|$)/i.test(text);
+    }
+  }
+
+  function sourceConfidenceLabel(score) {
+    var n = Number(score);
+    if (!Number.isFinite(n)) n = 0;
+    if (n >= 0.95) return '一次情報: 公式・認定確認済み';
+    if (n >= 0.75) return '一次情報: 公式リンクあり';
+    if (n >= 0.45) return '一次情報: 外部情報確認中';
+    return '一次情報: 未確認';
+  }
+
+  function renderAreaSourceTrust(score) {
+    return '<span class="me-area-sheet-source-trust">' + escapeHtml(sourceConfidenceLabel(score)) + '</span>';
+  }
+
+  function renderAreaSourceLinks(source) {
+    var items = [];
+    var ownerUrl = String(source.ownerUrl || source.owner_url || '');
+    var certificationUrl = String(source.certificationUrl || source.certification_url || '');
+    var storyUrl = String(source.storyUrl || source.story_url || '');
+    var officialUrl = String(source.officialUrl || source.official_url || '');
+    if (ownerUrl) items.push({ label: '公式', url: ownerUrl });
+    if (certificationUrl) items.push({ label: '認定情報', url: certificationUrl });
+    if (storyUrl) items.push({ label: '事例', url: storyUrl });
+    if (!items.length && officialUrl) {
+      items.push({ label: isIkimonSourceUrl(officialUrl) ? '事例' : '公式', url: officialUrl });
+    }
+    var seen = {};
+    return items.filter(function (item) {
+      var key = item.url.trim();
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).map(function (item) {
+      return '<a class="me-area-sheet-url" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener">' + escapeHtml(item.label) + ' ↗</a>';
+    }).join('');
+  }
+
   function toThumbUrl(url, preset) {
     if (!url) return url;
     var m = /^\\/(uploads|data\\/uploads)\\/(.+\\.(?:jpe?g|png|webp|gif))$/i.exec(url);
@@ -2774,7 +2821,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var safeCenter = center || areaFeatureCenter(feature, null, null);
     var ctaHref = safeCenter ? buildTransientAreaEventHref(feature, safeCenter.lat, safeCenter.lng) : RECORD_HREF;
     var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
-    var officialUrl = String(props.official_url || '');
+    var sourceLinksHtml = renderAreaSourceLinks(props);
+    var sourceTrustHtml = renderAreaSourceTrust(props.source_confidence);
     var areaName = String(props.name || 'OSMの公園・緑地');
     var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
@@ -2785,7 +2833,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
       +     escapeHtml(COPY.areaEventCreateLabel)
       +   '</a>'
-      +   (officialUrl ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>' : '')
+      +   sourceLinksHtml
+      +   sourceTrustHtml
       +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
       + '</div>'
       + renderAreaAccessGuidance(transientAccessGuidance(props))
@@ -3281,7 +3330,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var areaHa = (typeof f.areaHa === 'number' && Number.isFinite(f.areaHa))
       ? Math.round(f.areaHa).toLocaleString('ja-JP') + ' ha'
       : '';
-    var officialUrl = String(f.officialUrl || '');
+    var sourceLinksHtml = renderAreaSourceLinks(f);
+    var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
     var ctaHref = fieldId && eventsNewHrefTemplate
       ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
@@ -3299,13 +3349,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? ''
         + '<div class="me-area-sheet-cta">'
         +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
-        +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
-        +     escapeHtml(COPY.areaEventCreateLabel)
-        +   '</a>'
-        +   (officialUrl
-          ? '<a class="me-area-sheet-url" href="' + escapeHtml(officialUrl) + '" target="_blank" rel="noopener">公式情報 ↗</a>'
-          : '')
-        +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
+      +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
+      +     escapeHtml(COPY.areaEventCreateLabel)
+      +   '</a>'
+      +   sourceLinksHtml
+      +   sourceTrustHtml
+      +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
         + '</div>'
       : '';
     var summaryHtml = ''
@@ -6848,6 +6897,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-sheet-loc { font-size: 11px; color: #64748b; font-weight: 600; }
   .me-area-sheet-url { font-size: 11px; font-weight: 700; color: #0f766e; text-decoration: none; align-self: center; padding: 6px 10px; border-radius: 8px; background: rgba(20,184,166,.08); white-space: nowrap; }
   .me-area-sheet-url:hover { background: rgba(20,184,166,.18); }
+  .me-area-sheet-source-trust { font-size: 11px; font-weight: 800; color: #334155; align-self: center; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.06); white-space: nowrap; }
   .me-area-sheet-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
   .me-area-sheet-summary > div { padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 2px; }
   .me-area-sheet-summary span { font-size: 10px; color: #64748b; font-weight: 600; }
