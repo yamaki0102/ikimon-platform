@@ -4015,10 +4015,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           '#f59e0b',
         ],
         'line-width': [
-          'case',
-          ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
-          ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.8],
+          '*',
           ['interpolate', ['linear'], ['zoom'], 8, 0.7, 14, 1.8],
+          [
+            'case',
+            ['in', ['get', 'verification_level'], ['literal', ['registry_matched', 'page_verified', 'owner_verified', 'staff_verified']]],
+            1.55,
+            1,
+          ],
         ],
       },
     }, beforeId);
