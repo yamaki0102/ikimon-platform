@@ -60,6 +60,7 @@ const JIS_PREFECTURE_NAMES: Record<string, string> = {
 };
 
 const P29_DATASET_URL = "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P29-2023.html";
+const P29_POINT_SCHOOL_RADIUS_M = 160;
 
 function prefectureNameFromCode(code: string): string {
   return JIS_PREFECTURE_NAMES[code.slice(0, 2)] ?? "";
@@ -226,6 +227,21 @@ function geometryRoughRadiusMeters(geom: GeoJsonGeometry | null, fallback = 1000
   return Math.max(200, Math.min(50_000, Math.round(Math.sqrt(dLat * dLat + dLng * dLng) / 2)));
 }
 
+function circlePolygonAroundCenter(center: { lat: number; lng: number }, radiusMeters: number, steps = 28): Record<string, unknown> {
+  const latRad = center.lat * Math.PI / 180;
+  const metersPerDegreeLat = 111_320;
+  const metersPerDegreeLng = Math.max(1, 111_320 * Math.cos(latRad));
+  const ring: number[][] = [];
+  for (let i = 0; i < steps; i += 1) {
+    const angle = (2 * Math.PI * i) / steps;
+    const lng = center.lng + (Math.cos(angle) * radiusMeters) / metersPerDegreeLng;
+    const lat = center.lat + (Math.sin(angle) * radiusMeters) / metersPerDegreeLat;
+    ring.push([Number(lng.toFixed(7)), Number(lat.toFixed(7))]);
+  }
+  ring.push(ring[0]!.slice());
+  return { type: "Polygon", coordinates: [ring] };
+}
+
 function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
   const raw = readFileSync(filePath, "utf-8");
   const data = JSON.parse(raw) as GeoJsonFeatureCollection;
@@ -253,6 +269,12 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
     );
     const name = getProp("name", "title", "名称", "P29_004");
     if (!name) return;
+    const isSchoolPoint = source === "school" && feature.geometry?.type === "Point" && Boolean(schoolCode);
+    const polygon = feature.geometry && (feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon")
+      ? (feature.geometry as unknown as Record<string, unknown>)
+      : isSchoolPoint
+        ? circlePolygonAroundCenter(center, P29_POINT_SCHOOL_RADIUS_M)
+        : undefined;
     out.push({
       certification_id: certId,
       name,
@@ -261,7 +283,7 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
       city: getProp("city", "municipality", "市区町村"),
       lat: center.lat,
       lng: center.lng,
-      radius_m: geometryRoughRadiusMeters(feature.geometry),
+      radius_m: geometryRoughRadiusMeters(feature.geometry, isSchoolPoint ? P29_POINT_SCHOOL_RADIUS_M : 1000),
       area_ha: Number((props as Record<string, unknown>).area_ha ?? 0) || undefined,
       summary: String((props as Record<string, unknown>).summary ?? (props as Record<string, unknown>).description ?? (schoolTypeCode ? `学校分類コード: ${schoolTypeCode}` : "")),
       official_url: String((props as Record<string, unknown>).official_url ?? (props as Record<string, unknown>).url ?? ""),
@@ -277,10 +299,13 @@ function importGeoJson(filePath: string, source: FieldSource): SeedSite[] {
         ...(schoolTypeCode ? { school_type_code: schoolTypeCode } : {}),
         ...(address ? { address } : {}),
         ...(source === "school" && schoolCode ? { registry_source: "mlit_ksj_p29", registry_source_url: P29_DATASET_URL } : {}),
+        ...(isSchoolPoint ? {
+          boundary_approximation: "point_buffer",
+          boundary_radius_m: P29_POINT_SCHOOL_RADIUS_M,
+          boundary_note: "P29 point data fallback; replace with official or OSM campus polygon when available",
+        } : {}),
       },
-      polygon: feature.geometry && (feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon")
-        ? (feature.geometry as unknown as Record<string, unknown>)
-        : undefined,
+      polygon,
     });
   });
   return out;
