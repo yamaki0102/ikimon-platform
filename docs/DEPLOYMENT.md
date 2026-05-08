@@ -92,6 +92,13 @@ staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
 GitHub repository setting `delete_branch_on_merge` must stay enabled. If it is disabled,
 merged PR branches accumulate and the repo quickly returns to stale branch triage.
 
+Merge policy is squash-only:
+
+- `allow_squash_merge=true`
+- `allow_merge_commit=false`
+- `allow_rebase_merge=false`
+- `main` branch protection requires linear history
+
 Operational long-lived branches are limited to:
 
 - `main` — production source. Protected; never push directly from Codex.
