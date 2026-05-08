@@ -112,11 +112,13 @@ php tools/lint.php
 
 ### Deploy Source of Truth
 
+- low-token deploy entry: `docs/DEPLOY_LOW_TOKEN_PROTOCOL.md`
 - deploy manifest: `ops/deploy/deploy_manifest.json`
 - server deploy reference: `ops/deploy/production_deploy_reference.sh`
 - deploy guide: `docs/DEPLOYMENT.md`
 - guardrail check: `scripts/check_deploy_guardrails.ps1`
 - sync check: `scripts/check_deploy_manifest_sync.ps1`
+- deploy status summary: `scripts/deploy_status_summary.ps1`
 
 ### Persistent paths
 
