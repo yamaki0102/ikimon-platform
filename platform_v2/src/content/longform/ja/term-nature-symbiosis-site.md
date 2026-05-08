@@ -13,7 +13,7 @@
 ## 関連ページ
 
 - [30by30](/learn/terms/30by30)
-- [survey](/learn/terms/survey)
+- [しっかり記録](/learn/terms/survey)
 - [政策・企業活動と自然](/learn/policy-and-business)
 
 参考: [自然共生サイト](https://policies.env.go.jp/nature/biodiversity/30by30alliance/kyousei/nintei/)

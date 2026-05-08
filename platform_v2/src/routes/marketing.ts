@@ -221,7 +221,7 @@ const DOC_TERM_DEFINITIONS: DocTerm[] = [
   { label: "生物多様性クレジット", href: "/learn/terms/biodiversity-credits", hint: "自然の保全や回復を資金化する仕組みとして議論される考え方。" },
   { label: "昆明・モントリオール生物多様性枠組み", href: "/learn/terms/kunming-montreal-gbf", hint: "2030年へ向けた国際的な生物多様性目標の枠組み。" },
   { label: "市民科学", href: "/learn/terms/citizen-science", hint: "一般の人が観察、記録、確認に参加する科学の進め方。" },
-  { label: "BioMonWeek", href: "/learn/terms/biomonweek", hint: "一定期間にみんなで生物多様性の観察記録を集める観察ウィーク。" },
+  { label: "BioMonWeek", href: "/learn/terms/biomonweek", hint: "2026年に始まった欧州の生物多様性モニタリング会議。" },
   { label: "生物多様性モニタリング", href: "/learn/terms/biodiversity-monitoring", hint: "同じ場所や条件で記録を重ね、生きものの変化を見守ること。" },
   { label: "市民参加型モニタリング", href: "/learn/terms/participatory-monitoring", hint: "地域の人や参加者が継続的に観察を残す仕組み。" },
   { label: "定点観察", href: "/learn/terms/fixed-point-observation", hint: "同じ場所をくり返し見て、季節や年ごとの変化を残す観察。" },
@@ -291,8 +291,8 @@ function withHeadingIds(html: string, headings: DocHeading[]): string {
   });
 }
 
-function normalizeArticleHeading(html: string, meta: MarketingPageMeta): string {
-  if (meta.bodyPageId === "learn-index") {
+function normalizeArticleHeading(html: string, meta: MarketingPageMeta, stripFirstHeading = false): string {
+  if (stripFirstHeading || meta.bodyPageId === "learn-index") {
     return html.replace(/<h1>.*?<\/h1>\s*/, "");
   }
   return html.replace(/<h1>(.*?)<\/h1>/, (_match, content: string) =>
@@ -313,21 +313,32 @@ function applyTermHints(html: string, basePath: string, lang: SiteLang): string 
   </aside>`;
 }
 
-function renderDocToc(headings: DocHeading[], meta: MarketingPageMeta, page: SitePageDefinition): string {
+function renderDocHeader(basePath: string, lang: SiteLang, meta: MarketingPageMeta): string {
+  return `<header class="doc-page-header">
+    <p class="doc-page-kicker">${escapeHtml(meta.eyebrow)}</p>
+    <h1>${escapeHtml(meta.heading)}</h1>
+    ${renderAfterActions(basePath, lang, meta.afterActions)}
+  </header>`;
+}
+
+function renderDocToc(headings: DocHeading[], meta: MarketingPageMeta, page: SitePageDefinition, plainReader = false): string {
   const items = headings.slice(0, 12).map((heading) =>
     `<a class="doc-toc-link doc-toc-l${heading.level}" href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a>`,
   ).join("");
+  if (plainReader && !items) {
+    return "";
+  }
   return `<aside class="doc-sidebar" aria-label="読み物ナビゲーション">
     <div class="doc-sidebar-inner">
-      <div class="doc-source-badge">
+      ${plainReader ? "" : `<div class="doc-source-badge">
         <span>公式解説</span>
         <strong>${escapeHtml(meta.eyebrow)}</strong>
-      </div>
+      </div>`}
       ${items ? `<nav class="doc-toc" aria-label="目次"><span>目次</span>${items}</nav>` : ""}
-      <div class="doc-seo-note">
+      ${plainReader ? "" : `<div class="doc-seo-note">
         <span>canonical</span>
         <strong>${escapeHtml(page.path)}</strong>
-      </div>
+      </div>`}
     </div>
   </aside>`;
 }
@@ -414,6 +425,10 @@ const LOWER_PAGE_STYLES = `
   .lower-page.is-article { max-width: 1180px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 28px) 54px; }
   .doc-reading-layout { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: clamp(22px, 4vw, 42px); align-items: start; }
   .doc-article { width: 100%; max-width: 760px; margin: 0 auto; }
+  .doc-page-header { margin: 0 0 30px; padding: 22px 0 18px; border-bottom: 1px solid rgba(15,23,42,.12); }
+  .doc-page-header h1 { margin: 0 0 10px; color: #0f172a; font-size: clamp(30px, 4vw, 42px); line-height: 1.22; letter-spacing: 0; font-weight: 900; }
+  .doc-page-header p { max-width: 720px; margin: 0; color: #334155; font-size: 16px; line-height: 1.85; }
+  .doc-page-header .doc-page-kicker { margin: 0 0 8px; color: #64748b; font-size: 12px; line-height: 1.4; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
   .doc-prose { background: transparent; border: 0; box-shadow: none; padding: 0; }
   .doc-entry-title { margin: 0 0 10px; color: #0f172a; font-size: 17px; font-weight: 900; line-height: 1.55; }
   .doc-official-note { margin: 0 0 28px; padding: 14px 16px; border-left: 3px solid #10b981; background: #f8fafc; color: #334155; font-size: 14px; line-height: 1.85; }
@@ -444,7 +459,8 @@ const LOWER_PAGE_STYLES = `
   .doc-toc-link { display: block; padding: 6px 0; color: #475569; font-size: 13px; line-height: 1.45; text-decoration: none; border-radius: 6px; }
   .doc-toc-link:hover { color: #047857; }
   .doc-toc-l3 { padding-left: 14px; font-size: 12px; color: #64748b; }
-  .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 16px; }
+  .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 14px; margin-top: 16px; }
+  .doc-link-strip .link-arrow { color: #047857; font-size: 14px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
   .route-gateway { max-width: 760px; margin: 6px auto 0; border-top: 1px solid rgba(15,23,42,.08); padding-top: 24px; }
   .route-gateway .section-header p { max-width: 620px; }
   .route-gateway-grid { display: grid; gap: 10px; }
@@ -455,7 +471,8 @@ const LOWER_PAGE_STYLES = `
   .route-gateway-card span:last-child { grid-column: 2; grid-row: 2 / span 2; color: #047857; font-weight: 900; font-size: 13px; }
   @media (max-width: 820px) {
     .doc-reading-layout { grid-template-columns: 1fr; }
-    .doc-sidebar { position: static; order: -1; }
+    .doc-page-header { padding-top: 10px; }
+    .doc-sidebar { position: static; order: 2; }
     .doc-sidebar-inner { padding: 14px 0 0; border-left: 0; border-top: 1px solid rgba(15,23,42,.08); }
     .doc-toc { grid-template-columns: 1fr; }
     .route-gateway-card { grid-template-columns: 1fr; }
@@ -935,13 +952,24 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const availableLangs = localizedPageLangs(page);
   const hasLocalizedSeoPage = availableLangs.includes(lang);
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
+  const plainLearnReader = lang === "ja" && page.lane === "learn" && page.layout === "reading";
 
   const rawBodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   const headings = headingsFromHtml(rawBodyHtml);
-  const articleHtml = withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta), headings);
+  const articleHtml = withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta, plainLearnReader), headings);
   const bodyHtml = shouldShowTermHints(meta) ? applyTermHints(articleHtml, basePath, lang) : articleHtml;
   const canonicalPath = appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja");
   const structuredDataHtml = renderStructuredData(meta, page, lang, canonicalPath, headings);
+  const heroConfig = plainLearnReader
+    ? undefined
+    : {
+        eyebrow: meta.eyebrow,
+        heading: meta.heading,
+        lead: meta.lead,
+        tone: "light" as const,
+        align: "center" as const,
+        afterActionsHtml: renderAfterActions(basePath, lang, meta.afterActions),
+      };
   return renderSiteDocument({
     basePath,
     title: meta.title,
@@ -954,19 +982,15 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     noindex: !hasLocalizedSeoPage,
     structuredDataHtml,
     extraStyles: LOWER_PAGE_STYLES,
-    hero: {
-      eyebrow: meta.eyebrow,
-      heading: meta.heading,
-      lead: meta.lead,
-      tone: "light",
-      align: "center",
-      afterActionsHtml: renderAfterActions(basePath, lang, meta.afterActions),
-    },
+    hero: heroConfig,
     body: `<div class="lower-page is-article">
       ${prependHtml}
       <div class="doc-reading-layout">
-        <section class="section doc-article"><article class="doc-prose">${bodyHtml}</article></section>
-        ${renderDocToc(headings, meta, page)}
+        <section class="section doc-article">
+          ${plainLearnReader ? renderDocHeader(basePath, lang, meta) : ""}
+          <article class="doc-prose">${bodyHtml}</article>
+        </section>
+        ${renderDocToc(headings, meta, page, plainLearnReader)}
       </div>
       ${renderGatewayGrid(basePath, lang, meta, page.path)}
     </div>`,

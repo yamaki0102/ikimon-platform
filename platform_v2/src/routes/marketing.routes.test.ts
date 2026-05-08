@@ -68,6 +68,8 @@ test("learn index frames the service in plain language", async () => {
     assert.match(response.body, /更新情報/);
     assert.doesNotMatch(response.body, /共同編集の Wiki/);
     assert.doesNotMatch(response.body, /用語のヒント/);
+    assert.doesNotMatch(response.body, /class="hero-panel/);
+    assert.match(response.body, /class="doc-page-header"/);
     assert.match(response.body, /application\/ld\+json/);
   } finally {
     await app.close();
@@ -113,15 +115,18 @@ test("glossary and term pages expose one-topic SEO pages", async () => {
     const biomonweek = await app.inject({ method: "GET", url: "/learn/terms/biomonweek?lang=ja" });
     assert.equal(biomonweek.statusCode, 200);
     assert.match(biomonweek.body, /BioMonWeekとは/);
-    assert.match(biomonweek.body, /初回導線/);
+    assert.match(biomonweek.body, /2026年5月4日から8日/);
+    assert.match(biomonweek.body, /欧州会議/);
+    assert.match(biomonweek.body, /ikimon\.life の独自イベント名ではありません/);
     assert.match(biomonweek.body, /\/ja\/learn\/biomonweek/);
     assert.match(biomonweek.body, /\/learn\/terms\/biomonweek/);
+    assert.doesNotMatch(biomonweek.body, /class="hero-panel/);
 
     const biomonweekGuide = await app.inject({ method: "GET", url: "/learn/biomonweek?lang=ja" });
     assert.equal(biomonweekGuide.statusCode, 200);
-    assert.match(biomonweekGuide.body, /今年の記録を、来年比べられる形で残す/);
-    assert.match(biomonweekGuide.body, /\/ja\/record/);
-    assert.match(biomonweekGuide.body, /\/ja\/community\/events/);
+    assert.match(biomonweekGuide.body, /BioMonWeek 2026を、生物多様性モニタリングから読む/);
+    assert.match(biomonweekGuide.body, /Biodiversa\+/);
+    assert.match(biomonweekGuide.body, /これは BioMonWeek の公式見解ではなく/);
 
     const binmonweekAlias = await app.inject({ method: "GET", url: "/learn/terms/binmonweek?lang=ja" });
     assert.equal(binmonweekAlias.statusCode, 308);
@@ -192,7 +197,7 @@ test("learn methodology carries the merged trust and research framing", async ()
     const response = await app.inject({ method: "GET", url: "/learn/methodology?lang=ja" });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /同定の信頼レーン/);
-    assert.match(response.body, /quick capture と survey の違い/);
+    assert.match(response.body, /ふだんの記録としっかり記録の違い/);
     assert.match(response.body, /言いすぎないための線引き/);
     assert.match(response.body, /分類についての合意/);
     assert.match(response.body, /反対意見が出たとき/);

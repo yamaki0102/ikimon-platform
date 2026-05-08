@@ -18,8 +18,8 @@
 [市民科学と観察](/learn/citizen-science)
 市民の観察が、科学や地域の見守りに近づく条件。
 
-[BioMonWeekで観察する](/learn/biomonweek)
-今年の記録を、来年比べられる初年度ベースラインとして残す入口。
+[BioMonWeek 2026を読む](/learn/biomonweek)
+BioMonWeek 2026を、生物多様性モニタリングの論点から読む入口。
 
 [記録・データ・信頼性について](/learn/methodology)
 AI、人の確認、Evidence Tier、研究利用の線引き。
