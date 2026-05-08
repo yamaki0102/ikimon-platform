@@ -483,9 +483,18 @@ function normalizeRelativePath(value: string): string {
   return value.replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
-async function sha256ForFile(filePath: string): Promise<string> {
-  const buffer = await readFile(filePath);
-  return createHash("sha256").update(buffer).digest("hex");
+async function readLegacyAssetMetadata(filePath: string): Promise<{ sha256: string; bytes: number } | null> {
+  try {
+    const buffer = await readFile(filePath);
+    const fileStat = await stat(filePath);
+    return {
+      sha256: createHash("sha256").update(buffer).digest("hex"),
+      bytes: fileStat.size,
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 async function loadLegacyUsers(options: ImportOptions): Promise<Map<string, LegacyUser>> {
@@ -708,9 +717,10 @@ async function importUsers(
       let storagePath = user.avatar;
 
       for (const candidate of candidates) {
-        if (await exists(candidate)) {
-          sha256 = await sha256ForFile(candidate);
-          bytes = (await stat(candidate)).size;
+        const metadata = await readLegacyAssetMetadata(candidate);
+        if (metadata) {
+          sha256 = metadata.sha256;
+          bytes = metadata.bytes;
           storagePath = candidate;
           break;
         }
@@ -1144,10 +1154,11 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
         let bytes: number | null = null;
         let assetExists = false;
         for (const candidate of resolveAssetCandidatePaths(normalizedPhoto, options)) {
-          if (await exists(candidate)) {
+          const metadata = await readLegacyAssetMetadata(candidate);
+          if (metadata) {
             storagePath = candidate;
-            sha256 = await sha256ForFile(candidate);
-            bytes = (await stat(candidate)).size;
+            sha256 = metadata.sha256;
+            bytes = metadata.bytes;
             assetExists = true;
             break;
           }
