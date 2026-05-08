@@ -128,7 +128,7 @@ jobs:
           geojson="$(find "$work/extracted" -type f -name '*.geojson' | head -n 1)"
           [ -n "$geojson" ] || { echo "P29 geojson not found"; exit 1; }
 
-          npm ci --silent
+          npm ci --include=dev --silent
           npm run migrate
           args=(-- --file="$geojson" --prefecture-code="$PREFECTURE_CODE" --prefecture="$PREFECTURE")
           if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
