@@ -19,6 +19,9 @@ type OccurrenceRow = {
   vernacular_name: string | null;
   taxon_rank: string | null;
   evidence_tier: number;
+  basis_of_record: string | null;
+  data_quality: string | null;
+  ai_assessment_status: string | null;
   observed_at: string;
   latitude: string | null;
   longitude: string | null;
@@ -26,6 +29,7 @@ type OccurrenceRow = {
   municipality: string | null;
   observer_name: string | null;
   photo_url: string | null;
+  machine_media_ref: string | null;
   media_role: string | null;
   public_precision: string | null;
   civic_risk_lane: string | null;
@@ -36,6 +40,8 @@ type OccurrenceRow = {
   external_export_allowed: boolean | null;
   withdrawal_status: string | null;
   visit_mode: string | null;
+  observation_method: string | null;
+  protocol_id: string | null;
   effort_minutes: string | null;
   target_taxa_scope: string | null;
   water_effort_minutes: string | null;
@@ -62,6 +68,10 @@ function isExportReadyOnlyQuery(query: Record<string, string>): boolean {
   return query.export_ready_only === "1" || query.export_ready_only === "true";
 }
 
+function includeMachineObservationsQuery(query: Record<string, string>): boolean {
+  return query.include_machine_observations === "1" || query.include_machine_observations === "true";
+}
+
 function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<string, unknown> {
   const exportReady = Boolean(
     row.external_export_allowed
@@ -73,7 +83,7 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
     && (row.consensus_status === "authority_backed" || row.evidence_tier >= 3)
   );
   return {
-    observationMode:       row.field_scan_mode ? "field_scan" : row.visit_mode === "survey" ? "guide_survey" : "image_post",
+    observationMode:       row.observation_method ?? (row.field_scan_mode ? "field_scan" : row.visit_mode === "survey" ? "guide_survey" : "image_post"),
     occurrenceID:         row.occurrence_id,
     eventID:              row.visit_id,
     scientificName:       row.scientific_name,
@@ -86,9 +96,9 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
     locality:             row.place_name,
     municipality:         row.municipality,
     recordedBy:           row.observer_name,
-    associatedMedia:      row.photo_url,
+    associatedMedia:      row.photo_url ?? row.machine_media_ref,
     associatedMediaRole:  row.media_role,
-    basisOfRecord:        "HumanObservation",
+    basisOfRecord:        row.basis_of_record ?? "HumanObservation",
     datasetName:          "ikimon Field Loop",
     license:              row.dataset_license ?? "not_export_ready",
     consensusStatus:      row.consensus_status,
@@ -97,11 +107,18 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
       exportReady,
       reviewReady: row.identification_verification_status !== "tier3_export_candidate" || row.evidence_tier >= 3,
       modelReady: Boolean(
-        row.place_name
-        && row.observed_at
-        && (row.visit_mode === "survey" || row.field_scan_mode || row.catch_outcome)
-        && (row.effort_minutes || row.water_effort_minutes)
-        && row.photo_url
+        row.basis_of_record === "MachineObservation"
+          ? row.place_name && row.observed_at && row.observation_method && (row.effort_minutes || row.water_effort_minutes || row.protocol_id)
+          : row.place_name
+            && row.observed_at
+            && (row.visit_mode === "survey" || row.field_scan_mode || row.catch_outcome)
+            && (row.effort_minutes || row.water_effort_minutes)
+            && row.photo_url
+      ),
+      machineObservationReady: Boolean(
+        row.basis_of_record === "MachineObservation"
+        && row.ai_assessment_status === "reviewer_verified"
+        && row.data_quality === "reviewer_verified"
       ),
       indicatorReady: Boolean(
         row.field_scan_mode
@@ -116,6 +133,8 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
     },
     methodContext: {
       visitMode: row.visit_mode,
+      observationMethod: row.observation_method,
+      protocolId: row.protocol_id,
       fieldScanMode: row.field_scan_mode,
       catchOutcome: row.catch_outcome,
       effortMinutes: row.water_effort_minutes !== null ? Number(row.water_effort_minutes) : row.effort_minutes !== null ? Number(row.effort_minutes) : null,
@@ -130,7 +149,9 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
       claimAllowed: Boolean(row.field_scan_mode && row.review_scope_present && row.consensus_status === "authority_backed"),
       defaultClaimLimit: row.catch_outcome === "no_catch"
         ? "capture_attempt_only"
-        : row.field_scan_mode
+        : row.basis_of_record === "MachineObservation"
+          ? "activity_indicator_candidate"
+          : row.field_scan_mode
           ? "indicator_candidate"
           : "presence_only",
     },
@@ -161,9 +182,10 @@ async function queryResearchOccurrenceRecords(
   const limit = Math.min(1000, Math.max(1, Number(query.limit ?? 100)));
   const offset = Math.max(0, Number(query.offset ?? 0));
   const exportReadyOnly = options.forceExportReadyOnly || isExportReadyOnlyQuery(query);
-  const params: (string | number)[] = [tierGte, limit, offset];
+  const includeMachine = includeMachineObservationsQuery(query);
+  const params: (string | number | boolean)[] = [tierGte, limit, offset, includeMachine];
   let whereExtra = "";
-  let paramIdx = 4;
+  let paramIdx = 5;
 
   if (query.place_id) {
     whereExtra += ` and v.place_id = $${paramIdx}`;
@@ -204,13 +226,15 @@ async function queryResearchOccurrenceRecords(
   const result = await getPool().query<OccurrenceRow>(
     `select
        o.occurrence_id, o.visit_id, o.scientific_name, o.vernacular_name,
-       o.taxon_rank, o.evidence_tier, v.observed_at::text,
+       o.taxon_rank, o.evidence_tier, o.basis_of_record, o.data_quality,
+       o.ai_assessment_status, v.observed_at::text,
        coalesce(v.point_latitude, p.center_latitude)::text as latitude,
        coalesce(v.point_longitude, p.center_longitude)::text as longitude,
        coalesce(p.canonical_name, 'Unknown') as place_name,
        coalesce(v.observed_municipality, p.municipality) as municipality,
        coalesce(u.display_name, 'Anonymous') as observer_name,
        photo.public_url as photo_url,
+       machine_media.media_ref as machine_media_ref,
        photo.media_role as media_role,
        coc.public_precision,
        coc.risk_lane as civic_risk_lane,
@@ -221,6 +245,8 @@ async function queryResearchOccurrenceRecords(
        odr.external_export_allowed,
        odr.withdrawal_status,
        v.visit_mode,
+       omc.observation_method,
+       omc.protocol_id,
        v.effort_minutes::text,
        v.target_taxa_scope,
        wre.effort_minutes::text as water_effort_minutes,
@@ -250,6 +276,7 @@ async function queryResearchOccurrenceRecords(
      left join water_record_extensions wre on wre.visit_id = v.visit_id
      left join field_scan_contexts fsc on fsc.visit_id = v.visit_id
      left join observation_governance_contexts ogc on ogc.visit_id = v.visit_id
+     left join observation_method_contexts omc on omc.visit_id = v.visit_id
      left join lateral (
        select coalesce(ab.public_url, ab.storage_path) as public_url, emr.media_role
        from evidence_assets ea
@@ -259,6 +286,18 @@ async function queryResearchOccurrenceRecords(
          and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
        order by ea.created_at asc limit 1
      ) photo on true
+     left join lateral (
+       select coalesce(
+                ea.source_payload->>'spectrogram_ref',
+                ea.source_payload->>'clip_ref',
+                ea.source_payload->>'audio_snippet_hash',
+                ea.legacy_asset_key
+              ) as media_ref
+         from evidence_assets ea
+        where ea.occurrence_id = o.occurrence_id
+          and ea.asset_role = 'observation_audio'
+        order by ea.created_at asc limit 1
+     ) machine_media on true
      left join lateral (
        select count(*)::int as current_count,
               count(*) filter (
@@ -278,8 +317,17 @@ async function queryResearchOccurrenceRecords(
        limit 1
      ) pkg_event on true
      where o.evidence_tier >= $1
-       and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-       and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL}
+       and (
+         (coalesce(o.basis_of_record, 'HumanObservation') <> 'MachineObservation'
+          and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+          and ${PUBLIC_OBSERVATION_HAS_VALID_PHOTO_SQL})
+         or
+         ($4::boolean = true
+          and o.basis_of_record = 'MachineObservation'
+          and coalesce(v.quality_review_status, 'accepted') in ('accepted', 'verified', 'needs_review')
+          and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test)([-_]|$)'
+          and machine_media.media_ref is not null)
+       )
        and not exists (
          select 1 from identification_disputes d
          where d.occurrence_id = o.occurrence_id and d.status = 'open'
@@ -310,6 +358,23 @@ export function registerResearchApiRoutes(app: FastifyInstance): void {
    */
   app.get("/api/v1/research/occurrences", async (request, reply) => {
     const query = request.query as Record<string, string>;
+    if (includeMachineObservationsQuery(query)) {
+      try {
+        const { records, offset } = await queryResearchOccurrenceRecords(query, { defaultTierGte: 1 });
+        reply.header("Cache-Control", "private, max-age=60");
+        return reply.send({
+          totalReturned: records.length,
+          offset,
+          includesMachineObservations: true,
+          records,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "invalid_media_role") {
+          return reply.code(400).send({ error: "invalid_media_role", allowed: MEDIA_ROLE_VALUES });
+        }
+        throw error;
+      }
+    }
 
     const tierGte = Math.max(1, Math.min(4, Number(query.tier_gte ?? 3)));
     const limit   = Math.min(1000, Math.max(1, Number(query.limit ?? 100)));

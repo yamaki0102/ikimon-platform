@@ -14,6 +14,14 @@ export type AudioConsentScope = "private" | "community" | "public";
 export type AudioDetectionMethod = "ai_audio";
 export type BasisOfRecord = "MachineObservation";
 export type SamplingProtocol = "passive-audio";
+export type ObservationMethodVocabulary =
+  | "casual_photo"
+  | "guided_survey"
+  | "field_scan"
+  | "passive_audio"
+  | "camera_trap"
+  | "ias_route_camera"
+  | "edna_reference";
 
 export type NormalizedPassiveAudioDetectionEventV01 = {
   ingest_schema_version: "birdnet-go-event-only-v0.1";
@@ -29,6 +37,8 @@ export type NormalizedPassiveAudioDetectionEventV01 = {
   detection_method: AudioDetectionMethod;
   basisOfRecord: BasisOfRecord;
   samplingProtocol: SamplingProtocol;
+  observation_method: "passive_audio";
+  protocol_id: string;
   provenance: {
     created_by: "import" | "passive_engine";
     imported_at: string;
@@ -37,6 +47,7 @@ export type NormalizedPassiveAudioDetectionEventV01 = {
     raw_payload_hash?: string;
   };
   plot_id?: string;
+  device_deployment_id?: string;
   lat?: number;
   lng?: number;
   coordinate_uncertainty_m?: number;
@@ -51,6 +62,17 @@ export type NormalizedPassiveAudioDetectionEventV01 = {
   spectrogram_ref?: string;
   clip_ref?: string;
   consent_scope?: AudioConsentScope;
+  sampling_effort?: Record<string, unknown>;
+  sensor_status?: Record<string, unknown>;
+  recording_window_sec?: number;
+  sample_rate_hz?: number;
+  frequency_range_hz?: {
+    low: number;
+    high: number;
+  };
+  inference_window_sec?: number;
+  embedding_model_id?: string;
+  embedding_ref?: string;
 };
 
 export type PassiveAudioIngestResult = {
@@ -127,6 +149,32 @@ function optionalString(record: Record<string, unknown>, key: string): string | 
   return trimmed === "" ? undefined : trimmed;
 }
 
+function optionalRecord(record: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+  const value = record[key];
+  if (value == null) return undefined;
+  if (!isRecord(value)) throw new PassiveAudioValidationError(`${key}_invalid`);
+  return value;
+}
+
+function optionalFrequencyRange(record: Record<string, unknown>): NormalizedPassiveAudioDetectionEventV01["frequency_range_hz"] {
+  const direct = optionalRecord(record, "frequency_range_hz");
+  if (direct) {
+    const low = optionalNumber(direct, "low");
+    const high = optionalNumber(direct, "high");
+    if (low == null || high == null || low < 0 || high < low) {
+      throw new PassiveAudioValidationError("frequency_range_hz_invalid");
+    }
+    return { low, high };
+  }
+  const low = optionalNumber(record, "frequency_range_hz_low");
+  const high = optionalNumber(record, "frequency_range_hz_high");
+  if (low == null && high == null) return undefined;
+  if (low == null || high == null || low < 0 || high < low) {
+    throw new PassiveAudioValidationError("frequency_range_hz_invalid");
+  }
+  return { low, high };
+}
+
 function optionalConsentScope(value: unknown): AudioConsentScope {
   if (value == null || value === "") return "private";
   if (value === "private" || value === "community" || value === "public") return value;
@@ -197,8 +245,11 @@ export function normalizePassiveAudioDetectionEvent(input: unknown): NormalizedP
     detection_method: "ai_audio",
     basisOfRecord: "MachineObservation",
     samplingProtocol: "passive-audio",
+    observation_method: "passive_audio",
+    protocol_id: optionalString(input, "protocol_id") ?? "passive-audio/event-only/v0.1",
     provenance: normalizeProvenance(input.provenance),
     plot_id: optionalString(input, "plot_id"),
+    device_deployment_id: optionalString(input, "device_deployment_id"),
     lat: optionalNumber(input, "lat"),
     lng: optionalNumber(input, "lng"),
     coordinate_uncertainty_m: optionalNumber(input, "coordinate_uncertainty_m"),
@@ -213,6 +264,14 @@ export function normalizePassiveAudioDetectionEvent(input: unknown): NormalizedP
     spectrogram_ref: optionalString(input, "spectrogram_ref"),
     clip_ref: optionalString(input, "clip_ref"),
     consent_scope: optionalConsentScope(input.consent_scope),
+    sampling_effort: optionalRecord(input, "sampling_effort"),
+    sensor_status: optionalRecord(input, "sensor_status"),
+    recording_window_sec: optionalNumber(input, "recording_window_sec"),
+    sample_rate_hz: optionalNumber(input, "sample_rate_hz"),
+    frequency_range_hz: optionalFrequencyRange(input),
+    inference_window_sec: optionalNumber(input, "inference_window_sec"),
+    embedding_model_id: optionalString(input, "embedding_model_id"),
+    embedding_ref: optionalString(input, "embedding_ref"),
   };
 }
 
@@ -257,6 +316,7 @@ export function mapBirdnetCsvRowToPassiveAudioEvent(
     source_name: sourceName,
     site_id: stringField(row, "site_id"),
     plot_id: optionalString(row, "plot_id"),
+    device_deployment_id: optionalString(row, "device_deployment_id"),
     observed_start_at: stringField(row, "start_time"),
     observed_end_at: stringField(row, "end_time"),
     timezone: optionalString(row, "timezone") ?? "Asia/Tokyo",
@@ -270,6 +330,14 @@ export function mapBirdnetCsvRowToPassiveAudioEvent(
     model_id: optionalString(row, "model_id"),
     model_version: optionalString(row, "model_version"),
     birdnet_go_version: optionalString(row, "birdnet_go_version"),
+    sample_rate_hz: optionalNumber(row, "sample_rate_hz"),
+    frequency_range_hz_low: optionalNumber(row, "frequency_range_hz_low"),
+    frequency_range_hz_high: optionalNumber(row, "frequency_range_hz_high"),
+    inference_window_sec: optionalNumber(row, "inference_window_sec"),
+    embedding_model_id: optionalString(row, "embedding_model_id"),
+    embedding_ref: optionalString(row, "embedding_ref"),
+    sampling_effort: optionalRecord(row, "sampling_effort"),
+    sensor_status: optionalRecord(row, "sensor_status"),
     lat: optionalNumber(row, "lat"),
     lng: optionalNumber(row, "lng"),
     consent_scope: optionalString(row, "consent_scope"),
@@ -299,6 +367,8 @@ export function mapBirdnetMqttPayloadToPassiveAudioEvent(
     source_id: stringField(payload, "sourceId"),
     source_name: stringField(payload, "sourceName"),
     site_id: optionalString(payload, "site_id") ?? options.siteId,
+    plot_id: optionalString(payload, "plot_id"),
+    device_deployment_id: optionalString(payload, "device_deployment_id"),
     observed_start_at: start,
     observed_end_at: end,
     timezone: optionalString(payload, "timezone") ?? "Asia/Tokyo",
@@ -311,6 +381,13 @@ export function mapBirdnetMqttPayloadToPassiveAudioEvent(
     model_id: optionalString(payload, "model_id"),
     model_version: optionalString(payload, "model_version"),
     device_id: optionalString(payload, "deviceId"),
+    sample_rate_hz: optionalNumber(payload, "sample_rate_hz"),
+    frequency_range_hz: optionalRecord(payload, "frequency_range_hz"),
+    inference_window_sec: optionalNumber(payload, "inference_window_sec"),
+    embedding_model_id: optionalString(payload, "embedding_model_id"),
+    embedding_ref: optionalString(payload, "embedding_ref"),
+    sampling_effort: optionalRecord(payload, "sampling_effort"),
+    sensor_status: optionalRecord(payload, "sensor_status"),
     consent_scope: optionalString(payload, "consent_scope"),
     provenance: {
       created_by: "passive_engine",
@@ -347,14 +424,21 @@ export async function ingestPassiveAudioDetection(input: unknown): Promise<Passi
     const ledgerInsert = await client.query<{ ingest_event_id: string }>(
       `insert into passive_audio_ingest_events (
           dedupe_key, source_type, source_id, source_name, site_id, device_id,
+          plot_id, timezone, device_deployment_id, observation_method, protocol_id,
+          sampling_effort, sensor_status, recording_window_sec, sample_rate_hz,
+          frequency_range_hz, inference_window_sec, embedding_model_id, embedding_ref,
           observed_start_at, observed_end_at, species_label, scientific_name,
           confidence, model_id, model_version, raw_payload_hash, tier15_candidate,
           normalized_event, provenance, ingest_status
        ) values (
           $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10,
-          $11, $12, $13, $14, $15,
-          $16::jsonb, $17::jsonb, 'accepted'
+          $7, $8, $9, $10, $11,
+          $12::jsonb, $13::jsonb, $14, $15,
+          case when $16::int is null or $17::int is null then null else int4range($16::int, $17::int, '[]') end,
+          $18, $19, $20,
+          $21, $22, $23, $24,
+          $25, $26, $27, $28, $29,
+          $30::jsonb, $31::jsonb, 'accepted'
        )
        on conflict (dedupe_key) do nothing
        returning ingest_event_id`,
@@ -365,6 +449,20 @@ export async function ingestPassiveAudioDetection(input: unknown): Promise<Passi
         event.source_name,
         event.site_id,
         event.device_id ?? null,
+        event.plot_id ?? null,
+        event.timezone,
+        event.device_deployment_id ?? null,
+        event.observation_method,
+        event.protocol_id,
+        JSON.stringify(event.sampling_effort ?? {}),
+        JSON.stringify(event.sensor_status ?? {}),
+        event.recording_window_sec ?? Math.max(0, (new Date(event.observed_end_at).getTime() - new Date(event.observed_start_at).getTime()) / 1000),
+        event.sample_rate_hz ?? null,
+        event.frequency_range_hz?.low ?? null,
+        event.frequency_range_hz?.high ?? null,
+        event.inference_window_sec ?? null,
+        event.embedding_model_id ?? null,
+        event.embedding_ref ?? null,
         event.observed_start_at,
         event.observed_end_at,
         event.species_label,
@@ -478,6 +576,10 @@ async function writeCanonicalPassiveAudioEvent(
       JSON.stringify({
         source: "passive_audio_ingest",
         source_name: event.source_name,
+        plot_id: event.plot_id ?? null,
+        timezone: event.timezone,
+        observation_method: event.observation_method,
+        protocol_id: event.protocol_id,
         consent_scope: event.consent_scope,
       }),
     ],
@@ -511,8 +613,15 @@ async function writeCanonicalPassiveAudioEvent(
         source_id: event.source_id,
         source_name: event.source_name,
         device_id: event.device_id ?? null,
+        device_deployment_id: event.device_deployment_id ?? null,
+        plot_id: event.plot_id ?? null,
+        timezone: event.timezone,
+        observation_method: event.observation_method,
+        protocol_id: event.protocol_id,
         samplingProtocol: event.samplingProtocol,
         detection_method: event.detection_method,
+        sampling_effort: event.sampling_effort ?? {},
+        sensor_status: event.sensor_status ?? {},
         consent_scope: event.consent_scope,
         dedupe_key: ids.dedupeKey,
       }),
@@ -546,6 +655,8 @@ async function writeCanonicalPassiveAudioEvent(
         basisOfRecord: event.basisOfRecord,
         samplingProtocol: event.samplingProtocol,
         detection_method: event.detection_method,
+        observation_method: event.observation_method,
+        protocol_id: event.protocol_id,
         tier15_candidate: ids.tier15Candidate,
         provenance: event.provenance,
       }),
@@ -570,7 +681,133 @@ async function writeCanonicalPassiveAudioEvent(
         model_version: event.model_version ?? null,
         birdnet_go_version: event.birdnet_go_version ?? null,
         provider_label: event.species_label,
-        verification_status: "raw",
+        verification_status: "ai_candidate",
+        human_review_required: true,
+      }),
+    ],
+  );
+
+  if (event.device_deployment_id) {
+    await client.query(
+      `insert into sensor_deployments (
+          device_deployment_id, site_id, plot_id, device_id, observation_method,
+          deployed_at, timezone, position_payload, protocol_payload, maintenance_payload,
+          source_payload, updated_at
+       ) values (
+          $1, $2, $3, $4, 'passive_audio',
+          $5, $6, $7::jsonb, $8::jsonb, $9::jsonb,
+          $10::jsonb, now()
+       )
+       on conflict (device_deployment_id) do update set
+          site_id = excluded.site_id,
+          plot_id = coalesce(excluded.plot_id, sensor_deployments.plot_id),
+          device_id = coalesce(excluded.device_id, sensor_deployments.device_id),
+          timezone = coalesce(excluded.timezone, sensor_deployments.timezone),
+          position_payload = sensor_deployments.position_payload || excluded.position_payload,
+          protocol_payload = sensor_deployments.protocol_payload || excluded.protocol_payload,
+          maintenance_payload = sensor_deployments.maintenance_payload || excluded.maintenance_payload,
+          source_payload = sensor_deployments.source_payload || excluded.source_payload,
+          updated_at = now()`,
+      [
+        event.device_deployment_id,
+        event.site_id,
+        event.plot_id ?? null,
+        event.device_id ?? null,
+        event.observed_start_at,
+        event.timezone,
+        JSON.stringify({
+          lat: event.lat ?? null,
+          lng: event.lng ?? null,
+          coordinate_uncertainty_m: event.coordinate_uncertainty_m ?? null,
+        }),
+        JSON.stringify({
+          protocol_id: event.protocol_id,
+          samplingProtocol: event.samplingProtocol,
+          sample_rate_hz: event.sample_rate_hz ?? null,
+          frequency_range_hz: event.frequency_range_hz ?? null,
+          inference_window_sec: event.inference_window_sec ?? null,
+        }),
+        JSON.stringify(event.sensor_status ?? {}),
+        JSON.stringify({
+          source: "passive_audio_ingest",
+          source_id: event.source_id,
+          source_name: event.source_name,
+        }),
+      ],
+    );
+  }
+
+  await client.query(
+    `insert into observation_method_contexts (
+        method_context_id, visit_id, occurrence_id, observation_method, protocol_id,
+        device_deployment_id, sampling_effort, sensor_status, method_payload,
+        quality_payload, updated_at
+     ) values (
+        $1, $2, $3, 'passive_audio', $4,
+        $5, $6::jsonb, $7::jsonb, $8::jsonb,
+        $9::jsonb, now()
+     )
+     on conflict (visit_id) do update set
+        occurrence_id = excluded.occurrence_id,
+        observation_method = excluded.observation_method,
+        protocol_id = excluded.protocol_id,
+        device_deployment_id = excluded.device_deployment_id,
+        sampling_effort = excluded.sampling_effort,
+        sensor_status = excluded.sensor_status,
+        method_payload = excluded.method_payload,
+        quality_payload = excluded.quality_payload,
+        updated_at = now()`,
+    [
+      `method:${ids.visitId}`,
+      ids.visitId,
+      ids.occurrenceId,
+      event.protocol_id,
+      event.device_deployment_id ?? null,
+      JSON.stringify({
+        duration_sec: Math.max(0, (new Date(event.observed_end_at).getTime() - new Date(event.observed_start_at).getTime()) / 1000),
+        ...event.sampling_effort,
+      }),
+      JSON.stringify(event.sensor_status ?? {}),
+      JSON.stringify({
+        source_type: event.source_type,
+        source_id: event.source_id,
+        source_name: event.source_name,
+        timezone: event.timezone,
+        sample_rate_hz: event.sample_rate_hz ?? null,
+        frequency_range_hz: event.frequency_range_hz ?? null,
+        inference_window_sec: event.inference_window_sec ?? null,
+        model_id: event.model_id ?? null,
+        model_version: event.model_version ?? null,
+      }),
+      JSON.stringify({
+        raw_audio_stored: false,
+        has_clip_ref: Boolean(event.clip_ref),
+        has_spectrogram_ref: Boolean(event.spectrogram_ref),
+        human_review_required: true,
+      }),
+    ],
+  );
+
+  await client.query(
+    `insert into observation_package_events (
+        package_event_id, visit_id, occurrence_id, event_stage, event_kind,
+        actor_kind, decision_authority, human_review_required, event_payload, created_at
+     ) values (
+        $1, $2, $3, 'raw_observation', 'passive_audio_ai_candidate_ingested',
+        'system', 'human_required', true, $4::jsonb, now()
+     )
+     on conflict (package_event_id) do nothing`,
+    [
+      `pkg_event:${ids.visitId}:passive_audio_ai_candidate`,
+      ids.visitId,
+      ids.occurrenceId,
+      JSON.stringify({
+        dedupe_key: ids.dedupeKey,
+        tier15_candidate: ids.tier15Candidate,
+        model_id: event.model_id ?? null,
+        model_version: event.model_version ?? null,
+        confidence: event.confidence,
+        claim_limit: "ai_candidate_only",
       }),
     ],
   );
@@ -591,6 +828,11 @@ async function writeCanonicalPassiveAudioEvent(
         audio_snippet_hash: event.audio_snippet_hash ?? null,
         spectrogram_ref: event.spectrogram_ref ?? null,
         clip_ref: event.clip_ref ?? null,
+        sample_rate_hz: event.sample_rate_hz ?? null,
+        frequency_range_hz: event.frequency_range_hz ?? null,
+        inference_window_sec: event.inference_window_sec ?? null,
+        embedding_model_id: event.embedding_model_id ?? null,
+        embedding_ref: event.embedding_ref ?? null,
         consent_scope: event.consent_scope,
         raw_audio_stored: false,
         captureTimestamp: event.observed_start_at,
@@ -626,9 +868,15 @@ async function writeCanonicalPassiveAudioEvent(
         source_id: event.source_id,
         source_name: event.source_name,
         device_id: event.device_id ?? null,
+        device_deployment_id: event.device_deployment_id ?? null,
+        plot_id: event.plot_id ?? null,
+        timezone: event.timezone,
         evidence_asset_id: evidence.rows[0]?.asset_id ?? null,
         consent_scope: event.consent_scope,
         raw_audio_stored: false,
+        sample_rate_hz: event.sample_rate_hz ?? null,
+        frequency_range_hz: event.frequency_range_hz ?? null,
+        inference_window_sec: event.inference_window_sec ?? null,
       }),
       JSON.stringify({ audio_snippet_hash: event.audio_snippet_hash ?? null }),
     ],
@@ -655,6 +903,8 @@ async function writeCanonicalPassiveAudioEvent(
         model_id: event.model_id ?? null,
         model_version: event.model_version ?? null,
         birdnet_go_version: event.birdnet_go_version ?? null,
+        embedding_model_id: event.embedding_model_id ?? null,
+        embedding_ref: event.embedding_ref ?? null,
         provenance: event.provenance,
         tier15_candidate: ids.tier15Candidate,
       }),

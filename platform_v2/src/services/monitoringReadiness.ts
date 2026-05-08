@@ -41,6 +41,9 @@ export type MonitoringReadinessInput = {
     vernacularName?: string | null;
     taxonRank?: string | null;
     evidenceTier?: number | null;
+    basisOfRecord?: string | null;
+    dataQuality?: string | null;
+    aiAssessmentStatus?: string | null;
     occurrenceStatus?: string | null;
     riskLane?: string | null;
     safePublicRank?: string | null;
@@ -82,6 +85,14 @@ function bestEvidenceTier(input: MonitoringReadinessInput): number {
   return Math.max(0, ...input.occurrences.map((occurrence) => occurrence.evidenceTier ?? 0));
 }
 
+function hasUnreviewedMachineObservation(input: MonitoringReadinessInput): boolean {
+  return input.occurrences.some((occurrence) =>
+    occurrence.basisOfRecord === "MachineObservation"
+    && occurrence.aiAssessmentStatus !== "reviewer_verified"
+    && occurrence.dataQuality !== "reviewer_verified",
+  );
+}
+
 function hasLocation(input: MonitoringReadinessInput): boolean {
   return input.visit.locationPrecision !== "unknown";
 }
@@ -111,6 +122,7 @@ function buildReviewReady(input: MonitoringReadinessInput): ReadinessGate {
   }
   if (input.reviewState.blockingIssues.length === 0) reasons.push("no_package_review_blocker");
   else blockers.push(...input.reviewState.blockingIssues.map((issue) => `package_${issue}`));
+  if (hasUnreviewedMachineObservation(input)) blockers.push("machine_observation_human_review_required");
   return gate(reasons, [...new Set(blockers)]);
 }
 
@@ -155,6 +167,9 @@ function buildReportReady(input: MonitoringReadinessInput): ReadinessGate {
   } else {
     blockers.push("missing_report_consent");
   }
+  if (hasUnreviewedMachineObservation(input)) {
+    reasons.push("machine_observation_as_ai_candidate_only");
+  }
   return gate(reasons, [...new Set(blockers)]);
 }
 
@@ -180,6 +195,7 @@ function buildExportReady(input: MonitoringReadinessInput): ReadinessGate {
   }
   if (tier >= 3 || input.reviewState.reviewStatus === "verified") reasons.push("reviewed_for_export");
   else blockers.push("review_required_for_export");
+  if (hasUnreviewedMachineObservation(input)) blockers.push("machine_observation_review_required_for_export");
   return gate(reasons, [...new Set(blockers)]);
 }
 

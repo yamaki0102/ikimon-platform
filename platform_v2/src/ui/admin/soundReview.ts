@@ -24,6 +24,8 @@ function statusLabel(status: ReviewStatus): string {
       return "AI 候補";
     case "needs_review":
       return "要確認";
+    case "representative_picked":
+      return "代表音選択済";
     case "confirmed":
       return "確認済";
     case "published":
@@ -39,6 +41,7 @@ function statusBadge(status: ReviewStatus): string {
   const palette: Record<string, string> = {
     ai_candidate: "background:#fef3c7;color:#92400e;border:1px solid #fbbf24;",
     needs_review: "background:#dbeafe;color:#1e3a8a;border:1px solid #60a5fa;",
+    representative_picked: "background:#f5f3ff;color:#5b21b6;border:1px solid #a78bfa;",
     confirmed: "background:#d1fae5;color:#065f46;border:1px solid #34d399;",
     published: "background:#e0e7ff;color:#3730a3;border:1px solid #818cf8;",
     rejected: "background:#fee2e2;color:#991b1b;border:1px solid #f87171;",
@@ -84,6 +87,7 @@ export function renderSoundReviewBody(args: {
   const tabs: Array<{ key: ReviewStatus | "any"; label: string }> = [
     { key: "needs_review", label: "要確認" },
     { key: "ai_candidate", label: "AI 候補" },
+    { key: "representative_picked", label: "代表音選択済" },
     { key: "confirmed", label: "確認済" },
     { key: "rejected", label: "却下" },
     { key: "any", label: "すべて" },
@@ -158,7 +162,7 @@ function clusterCard(c: ClusterReviewSummary, reviewerUserId: string): string {
     <button class="danger" @click="reject('${escapeHtml(c.clusterId)}', reviewer)">却下</button>
   </div>
   <div class="sr-detail" x-show="openDetail" x-cloak>
-    <div class="sr-meta">メンバー詳細 (上位 30 件)</div>
+    <div class="sr-meta">メンバー詳細: clip / spectrogram / site / device / model / 推論窓 / 却下理由の判断材料</div>
     <div class="sr-members" x-html="memberHtml['${escapeHtml(c.clusterId)}'] || '<div class=&quot;sr-pill&quot;>読み込み中...</div>'"></div>
   </div>
 </div>
@@ -248,10 +252,17 @@ function soundReview() {
         const html = (data.members || []).map((m) => {
           const sim = (1 - (m.distanceToCentroid || 0)).toFixed(3);
           const taxonText = m.candidateTaxon ? (' / ' + m.candidateTaxon + ' (' + (m.bestConfidence != null ? (m.bestConfidence*100).toFixed(0) + '%' : '?') + ')') : '';
+          const range = m.frequencyRangeHz ? (' / ' + (m.frequencyRangeHz.low ?? '?') + '-' + (m.frequencyRangeHz.high ?? '?') + 'Hz') : '';
+          const model = m.modelId ? (' / model ' + m.modelId + (m.modelVersion ? '@' + m.modelVersion : '')) : '';
+          const place = (m.siteId ? ('site ' + m.siteId) : '') + (m.plotId ? (' / plot ' + m.plotId) : '') + (m.deviceId ? (' / device ' + m.deviceId) : '');
+          const refs = (m.spectrogramRef ? '<a href="' + m.spectrogramRef + '" target="_blank" rel="noreferrer">spectrogram</a> ' : '')
+            + (m.clipRef ? '<a href="' + m.clipRef + '" target="_blank" rel="noreferrer">clip</a>' : '');
           return '<div class="sr-member-row">'
             + '<span class="sr-pill">sim ' + sim + '</span>'
             + '<audio controls preload="none" src="/api/v1/fieldscan/audio/segment/' + encodeURIComponent(m.segmentId) + '" style="height:32px;flex:1;"></audio>'
-            + '<span style="color:#666;font-size:11px;">' + (m.recordedAt || '') + taxonText + '</span>'
+            + '<span style="color:#666;font-size:11px;min-width:260px;">' + (m.recordedAt || '') + taxonText + model + range
+            + (m.inferenceWindowSec ? (' / window ' + m.inferenceWindowSec + 's') : '')
+            + '<br>' + place + (refs ? (' / ' + refs) : '') + '</span>'
             + '</div>';
         }).join('');
         this.memberHtml[clusterId] = html || '<div class="sr-pill">メンバーがありません</div>';

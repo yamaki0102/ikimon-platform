@@ -57,6 +57,18 @@ export type PlaceSnapshotObservationSummary = {
   topTaxa: Array<{ name: string; count: number }>;
 };
 
+export type PlaceSnapshotMachineObservationSummary = {
+  totalMachineObservations: number;
+  aiCandidateCount: number;
+  reviewerVerifiedCount: number;
+  rejectedCount: number;
+  passiveAudioCount: number;
+  uniqueMachineTaxa: number;
+  latestObservedAt: string | null;
+  topMachineTaxa: Array<{ name: string; count: number; reviewStatus: string }>;
+  methodCounts: Array<{ method: string; count: number }>;
+};
+
 export type PlaceSnapshotRelationship = {
   source: "relationship_score_snapshot" | "field_fallback";
   placeId: string | null;
@@ -114,6 +126,7 @@ export type PlaceSnapshot = {
   };
   field: PlaceSnapshotField;
   observationSummary: PlaceSnapshotObservationSummary;
+  machineObservationSummary: PlaceSnapshotMachineObservationSummary;
   relationshipScore: PlaceSnapshotRelationship;
   hypotheses: RegionalHypothesisRecord[];
   nextActions: PlaceSnapshotNextAction[];
@@ -136,6 +149,18 @@ type CanonicalAgg = {
   exoticCount: number;
   unknownOriginCount: number;
   stewardshipActionCount: number;
+};
+
+const EMPTY_MACHINE_OBSERVATION_SUMMARY: PlaceSnapshotMachineObservationSummary = {
+  totalMachineObservations: 0,
+  aiCandidateCount: 0,
+  reviewerVerifiedCount: 0,
+  rejectedCount: 0,
+  passiveAudioCount: 0,
+  uniqueMachineTaxa: 0,
+  latestObservedAt: null,
+  topMachineTaxa: [],
+  methodCounts: [],
 };
 
 const SOURCE_LABEL: Record<ObservationField["source"], string> = {
@@ -463,9 +488,10 @@ export function buildNextActions(args: {
 
 export function buildClaimBoundary(args: {
   summary: PlaceSnapshotObservationSummary;
+  machineSummary?: PlaceSnapshotMachineObservationSummary;
   hypotheses: RegionalHypothesisRecord[];
 }): PlaceSnapshotClaimBoundary {
-  const { summary, hypotheses } = args;
+  const { summary, machineSummary = EMPTY_MACHINE_OBSERVATION_SUMMARY, hypotheses } = args;
   const canSay: string[] = [];
   const cannotSayYet: string[] = [
     "この画面だけで TNFD 準拠、自然共生サイト認定、保全成果を保証することはできません。",
@@ -480,6 +506,15 @@ export function buildClaimBoundary(args: {
   }
   if (hypotheses.length > 0) {
     canSay.push("地域仮説は断定ではなく、次に現地で確認する観察プロトコルとして使えます。");
+  }
+  if (machineSummary.totalMachineObservations > 0) {
+    canSay.push(`${machineSummary.totalMachineObservations}件の機械観測を、AI候補・reviewer検証済み・却下の状態に分けて活動指標として読めます。`);
+  }
+  if (machineSummary.reviewerVerifiedCount > 0) {
+    canSay.push(`${machineSummary.reviewerVerifiedCount}件の機械観測は reviewer検証済み記録として扱えます。`);
+  }
+  if (machineSummary.aiCandidateCount > 0) {
+    cannotSayYet.push("AI候補は reviewer検証済み記録と混同せず、確定的な種リストや外部報告の根拠には使いません。");
   }
   if (summary.effortCompletionRate < 0.4) {
     cannotSayYet.push("探索時間や対象範囲が薄いため、増減や不在はまだ判断できません。");
@@ -497,6 +532,7 @@ export function composePlaceSnapshot(args: {
   field: ObservationField;
   stats: FieldStats;
   canonical: CanonicalAgg;
+  machineObservationSummary?: PlaceSnapshotMachineObservationSummary;
   localityHint?: { municipality?: string | null; prefecture?: string | null } | null;
   relationshipSnapshot?: RelationshipScoreSnapshot | null;
   placeId?: string | null;
@@ -532,6 +568,7 @@ export function composePlaceSnapshot(args: {
       };
   const hypotheses = args.hypotheses ?? [];
   const stewardshipImpact = args.stewardshipImpact ?? emptyStewardshipImpact();
+  const machineObservationSummary = args.machineObservationSummary ?? EMPTY_MACHINE_OBSERVATION_SUMMARY;
   return {
     framing: {
       publicLabel: "この場所のいま",
@@ -561,6 +598,7 @@ export function composePlaceSnapshot(args: {
       accessGuidance: buildAreaAccessGuidance(args.field),
     },
     observationSummary: summary,
+    machineObservationSummary,
     relationshipScore: relationship,
     hypotheses,
     nextActions: buildNextActions({
@@ -570,7 +608,7 @@ export function composePlaceSnapshot(args: {
       hypotheses,
     }),
     stewardshipImpact,
-    claimBoundary: buildClaimBoundary({ summary, hypotheses }),
+    claimBoundary: buildClaimBoundary({ summary, machineSummary: machineObservationSummary, hypotheses }),
     generatedAt: (args.now ?? new Date()).toISOString(),
   };
 }
@@ -834,6 +872,96 @@ async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null
   );
 }
 
+async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<PlaceSnapshotMachineObservationSummary> {
+  if (scopedVisitIds.length === 0) return EMPTY_MACHINE_OBSERVATION_SUMMARY;
+  const pool = getPool();
+  return safeQuery(
+    "machine_observation_summary",
+    async () => {
+      const result = await pool.query<{
+        total_machine_observations: string;
+        ai_candidate_count: string;
+        reviewer_verified_count: string;
+        rejected_count: string;
+        passive_audio_count: string;
+        unique_machine_taxa: string;
+        latest_observed_at: string | null;
+        top_machine_taxa: Array<{ name: string; count: number; reviewStatus: string }> | null;
+        method_counts: Array<{ method: string; count: number }> | null;
+      }>(
+        `with field_visits as (
+            select v.*
+              from visits v
+             where v.visit_id = any($1::uuid[])
+          ),
+          machine_occ as (
+            select o.*,
+                   fv.observed_at,
+                   coalesce(nullif(omc.observation_method, ''), nullif(fv.visit_mode, ''), nullif(fv.session_mode, ''), fv.source_kind, 'machine_observation') as method
+              from occurrences o
+              join field_visits fv on fv.visit_id = o.visit_id
+              left join observation_method_contexts omc on omc.visit_id = o.visit_id
+             where coalesce(o.basis_of_record, 'HumanObservation') = 'MachineObservation'
+          ),
+          top_taxa as (
+            select coalesce(nullif(scientific_name, ''), nullif(vernacular_name, ''), nullif(taxon_rank, ''), 'AI候補') as name,
+                   count(*)::int as count,
+                   case
+                     when bool_or(coalesce(ai_assessment_status, data_quality, '') = 'reviewer_verified') then 'reviewer_verified'
+                     when bool_or(coalesce(ai_assessment_status, data_quality, '') = 'reviewer_rejected') then 'reviewer_rejected'
+                     else 'ai_candidate'
+                   end as review_status
+              from machine_occ
+             group by 1
+             order by count(*) desc, name asc
+             limit 8
+          ),
+          methods as (
+            select method, count(*)::int as count
+              from machine_occ
+             group by method
+             order by count(*) desc, method asc
+          )
+          select
+            (select count(*)::text from machine_occ) as total_machine_observations,
+            (select count(*) filter (
+              where coalesce(ai_assessment_status, data_quality, '') in ('ai_audio_candidate', 'ai_candidate', 'unreviewed')
+                 or (coalesce(ai_assessment_status, data_quality, '') = '' and evidence_tier <= 1)
+            )::text from machine_occ) as ai_candidate_count,
+            (select count(*) filter (
+              where coalesce(ai_assessment_status, data_quality, '') = 'reviewer_verified'
+                 or evidence_tier >= 2
+            )::text from machine_occ) as reviewer_verified_count,
+            (select count(*) filter (
+              where coalesce(ai_assessment_status, data_quality, '') in ('reviewer_rejected', 'rejected')
+            )::text from machine_occ) as rejected_count,
+            (select count(*) filter (
+              where method in ('passive_audio', 'passive_audio_ingest')
+            )::text from machine_occ) as passive_audio_count,
+            (select count(distinct coalesce(nullif(scientific_name, ''), nullif(vernacular_name, ''), nullif(taxon_rank, ''), occurrence_id))::text from machine_occ) as unique_machine_taxa,
+            (select max(observed_at)::text from machine_occ) as latest_observed_at,
+            (select coalesce(jsonb_agg(jsonb_build_object('name', name, 'count', count, 'reviewStatus', review_status)), '[]'::jsonb) from top_taxa) as top_machine_taxa,
+            (select coalesce(jsonb_agg(jsonb_build_object('method', method, 'count', count)), '[]'::jsonb) from methods) as method_counts`,
+        [scopedVisitIds],
+      );
+      const row = result.rows[0];
+      if (!row) return EMPTY_MACHINE_OBSERVATION_SUMMARY;
+      return {
+        totalMachineObservations: Number(row.total_machine_observations ?? 0),
+        aiCandidateCount: Number(row.ai_candidate_count ?? 0),
+        reviewerVerifiedCount: Number(row.reviewer_verified_count ?? 0),
+        rejectedCount: Number(row.rejected_count ?? 0),
+        passiveAudioCount: Number(row.passive_audio_count ?? 0),
+        uniqueMachineTaxa: Number(row.unique_machine_taxa ?? 0),
+        latestObservedAt: row.latest_observed_at,
+        topMachineTaxa: row.top_machine_taxa ?? [],
+        methodCounts: row.method_counts ?? [],
+      };
+    },
+    EMPTY_MACHINE_OBSERVATION_SUMMARY,
+  );
+}
+
 async function loadLocalityHint(scopedVisitIds: string[]): Promise<{ municipality: string | null; prefecture: string | null } | null> {
   if (scopedVisitIds.length === 0) return null;
   const pool = getPool();
@@ -878,8 +1006,9 @@ export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot |
   ]);
   if (!stats) return null;
   const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
-  const [canonical, hypotheses, localityHint] = await Promise.all([
+  const [canonical, machineObservationSummary, hypotheses, localityHint] = await Promise.all([
     loadCanonicalAgg(scopedVisitIds, placeId),
+    loadMachineObservationSummary(scopedVisitIds),
     loadFieldHypotheses(field, placeId),
     loadLocalityHint(scopedVisitIds),
   ]);
@@ -897,6 +1026,7 @@ export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot |
     field,
     stats,
     canonical,
+    machineObservationSummary,
     localityHint,
     relationshipSnapshot,
     placeId,
@@ -907,6 +1037,7 @@ export async function getPlaceSnapshot(fieldId: string): Promise<PlaceSnapshot |
 
 export const __test__ = {
   buildObservationSummary,
+  loadMachineObservationSummary,
   fieldBbox,
   fieldVisibility,
   meshKeyForField,

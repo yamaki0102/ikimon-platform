@@ -84,10 +84,28 @@ function buildFixture(prefix: string): Record<string, unknown> {
     detection_method: "ai_audio",
     basisOfRecord: "MachineObservation",
     samplingProtocol: "passive-audio",
+    protocol_id: "passive-audio/event-only/v0.1",
     model_id: "birdnet",
     model_version: "birdnet-go-staging-smoke-20260504",
     birdnet_go_version: "nightly-20260502",
     device_id: `staging-${prefix}-device`,
+    device_deployment_id: `staging-${prefix}-deployment`,
+    sampling_effort: {
+      scheduled_window_sec: 60,
+      observed_window_sec: 3,
+      downtime_sec: 0,
+    },
+    sensor_status: {
+      battery: "ok",
+      storage: "ok",
+      weather: "unknown",
+    },
+    recording_window_sec: 3,
+    sample_rate_hz: 48000,
+    frequency_range_hz: { low: 0, high: 12000 },
+    inference_window_sec: 3,
+    embedding_model_id: "birdnet-embedding-smoke",
+    embedding_ref: `sha256:${prefix}:embedding`,
     audio_snippet_hash: `sha256:${prefix}:audio-snippet`,
     consent_scope: "private",
     provenance: {
@@ -118,6 +136,13 @@ async function verifyDb(options: SmokeOptions, ids: { dedupeKey: string; visitId
       segment_storage_provider: string | null;
       segment_bytes: string | null;
       g1_site_hour_count: string;
+      ingest_metadata_count: string;
+      method_context_count: string;
+      sensor_deployment_count: string;
+      package_event_count: string;
+      sample_rate_hz: string | null;
+      frequency_range_low_hz: string | null;
+      frequency_range_high_hz: string | null;
     }>(
       `select
           (select count(*) from passive_audio_ingest_events where dedupe_key = $1)::text as ledger_count,
@@ -136,7 +161,37 @@ async function verifyDb(options: SmokeOptions, ids: { dedupeKey: string; visitId
           (select count(*) from passive_audio_ingest_events
             where site_id = (select site_id from passive_audio_ingest_events where dedupe_key = $1 limit 1)
               and observed_start_at >= '2026-05-05T05:00:00+09:00'::timestamptz
-              and observed_start_at < '2026-05-05T06:00:00+09:00'::timestamptz)::text as g1_site_hour_count`,
+              and observed_start_at < '2026-05-05T06:00:00+09:00'::timestamptz)::text as g1_site_hour_count,
+          (select count(*) from passive_audio_ingest_events
+            where dedupe_key = $1
+              and plot_id is not null
+              and timezone = 'Asia/Tokyo'
+              and device_deployment_id is not null
+              and observation_method = 'passive_audio'
+              and protocol_id = 'passive-audio/event-only/v0.1'
+              and sample_rate_hz = 48000
+              and lower(frequency_range_hz) = 0
+              and upper(frequency_range_hz) = 12001
+              and inference_window_sec = 3
+              and embedding_model_id = 'birdnet-embedding-smoke'
+              and embedding_ref is not null)::text as ingest_metadata_count,
+          (select count(*) from observation_method_contexts
+            where visit_id = $2
+              and observation_method = 'passive_audio'
+              and protocol_id = 'passive-audio/event-only/v0.1'
+              and device_deployment_id is not null)::text as method_context_count,
+          (select count(*) from sensor_deployments
+            where device_deployment_id = (select device_deployment_id from passive_audio_ingest_events where dedupe_key = $1 limit 1)
+              and observation_method = 'passive_audio'
+              and sample_rate_hz = 48000)::text as sensor_deployment_count,
+          (select count(*) from observation_package_events
+            where visit_id = $2
+              and occurrence_id = $3
+              and event_stage = 'raw_observation'
+              and event_kind = 'passive_audio_ai_candidate_ingested')::text as package_event_count,
+          (select sample_rate_hz::text from passive_audio_ingest_events where dedupe_key = $1 limit 1) as sample_rate_hz,
+          (select lower(frequency_range_hz)::text from passive_audio_ingest_events where dedupe_key = $1 limit 1) as frequency_range_low_hz,
+          (select upper(frequency_range_hz)::text from passive_audio_ingest_events where dedupe_key = $1 limit 1) as frequency_range_high_hz`,
       [ids.dedupeKey, ids.visitId, ids.occurrenceId, ids.segmentId],
     );
     const row = result.rows[0];
@@ -150,6 +205,10 @@ async function verifyDb(options: SmokeOptions, ids: { dedupeKey: string; visitId
       audioSegment: Number(row.segment_count),
       audioDetection: Number(row.detection_count),
       review: Number(row.review_count),
+      ingestMetadata: Number(row.ingest_metadata_count),
+      methodContext: Number(row.method_context_count),
+      sensorDeployment: Number(row.sensor_deployment_count),
+      packageEvent: Number(row.package_event_count),
     };
     for (const [name, count] of Object.entries(counts)) {
       if (count !== 1) throw new Error(`db_${name}_count_expected_1_got_${count}`);
@@ -167,6 +226,11 @@ async function verifyDb(options: SmokeOptions, ids: { dedupeKey: string; visitId
       reviewStatus: row.review_status,
       segmentStorageProvider: row.segment_storage_provider,
       segmentBytes: Number(row.segment_bytes),
+      sampleRateHz: Number(row.sample_rate_hz),
+      frequencyRangeHz: {
+        low: Number(row.frequency_range_low_hz),
+        high: Number(row.frequency_range_high_hz) - 1,
+      },
       g1SiteHourCount: Number(row.g1_site_hour_count),
       g2ToG4Ready: {
         tier15CandidateTracked: row.tier15_candidate === true,

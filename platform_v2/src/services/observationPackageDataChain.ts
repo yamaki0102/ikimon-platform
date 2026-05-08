@@ -6,7 +6,7 @@ import type { WaterRecordExtension } from "./waterRecordExtension.js";
 
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
 
-export type ObservationActionMode = "image_post" | "video_post" | "identification" | "guide_survey" | "field_scan";
+export type ObservationActionMode = "image_post" | "video_post" | "identification" | "guide_survey" | "field_scan" | "passive_audio" | "camera_trap" | "ias_route_camera" | "edna_reference";
 export type FieldScanMode = "site_snapshot" | "fixed_point" | "route" | "area_footprint" | "calibration_evidence";
 export type DataProductStage = "raw_observation" | "reviewed_data" | "indicator_candidate" | "report_output" | "export_package";
 export type DecisionAuthority = "human_required" | "observer" | "trusted_reviewer" | "expert_reviewer" | "admin" | "site_policy" | "system_risk_cap";
@@ -54,7 +54,7 @@ export type ObservationPackageEvent = {
 };
 
 export type ObservationMethodContext = {
-  methodKind: "casual_observation" | "guided_survey" | "field_scan" | "water_capture" | "identification_review";
+  methodKind: "casual_photo" | "guided_survey" | "field_scan" | "water_capture" | "identification_review" | "passive_audio" | "camera_trap" | "ias_route_camera" | "edna_reference";
   samplingProtocol: string | null;
   fixedSurveyTemplate: FieldScanTemplate | null;
   effortMinutes: number | null;
@@ -221,6 +221,10 @@ export function inferObservationActionMode(input: {
   fieldScanContext: FieldScanContext | null;
 }): ObservationActionMode {
   if (input.fieldScanContext) return "field_scan";
+  if (input.visit.visitMode === "passive_audio") return "passive_audio";
+  if (input.visit.visitMode === "camera_trap") return "camera_trap";
+  if (input.visit.visitMode === "ias_route_camera") return "ias_route_camera";
+  if (input.visit.visitMode === "edna_reference") return "edna_reference";
   if (input.visit.visitMode === "survey" || ["event", "school", "satoyama", "site_summary"].includes(input.civicContext?.contextKind ?? "")) {
     return "guide_survey";
   }
@@ -269,6 +273,7 @@ export function buildObservationMethodContext(input: {
     || hasRecord(input.fieldScanContext?.footprintGeometry),
   );
   const hasMethod = Boolean(input.fieldScanContext || input.waterRecord || input.visit.visitMode === "survey" || input.actionMode === "identification");
+  const isStructuredMethod = ["passive_audio", "camera_trap", "ias_route_camera", "edna_reference"].includes(input.actionMode);
   const hasQualityEvidence = input.evidenceAssets.length > 0 || hasRecord(input.fieldScanContext?.qualityPayload) || hasRecord(input.fieldScanContext?.calibrationEvidence);
   const methodKind: ObservationMethodContext["methodKind"] = input.fieldScanContext
     ? "field_scan"
@@ -276,20 +281,28 @@ export function buildObservationMethodContext(input: {
       ? "water_capture"
       : input.actionMode === "identification"
         ? "identification_review"
+        : input.actionMode === "passive_audio"
+          ? "passive_audio"
+          : input.actionMode === "camera_trap"
+            ? "camera_trap"
+            : input.actionMode === "ias_route_camera"
+              ? "ias_route_camera"
+              : input.actionMode === "edna_reference"
+                ? "edna_reference"
         : input.visit.visitMode === "survey" || input.actionMode === "guide_survey"
           ? "guided_survey"
-          : "casual_observation";
+          : "casual_photo";
 
   const modelReadyBasis: string[] = [];
   if (hasSite) modelReadyBasis.push("site");
   if (input.visit.observedAt) modelReadyBasis.push("time");
-  if (hasMethod) modelReadyBasis.push("method");
+  if (hasMethod || isStructuredMethod) modelReadyBasis.push("method");
   if (typeof effortMinutes === "number" && effortMinutes > 0) modelReadyBasis.push("effort");
   if (hasQualityEvidence) modelReadyBasis.push("quality");
 
   return {
     methodKind,
-    samplingProtocol: input.fieldScanContext?.scanMode ?? input.waterRecord?.captureMethod ?? input.visit.visitMode ?? null,
+    samplingProtocol: input.fieldScanContext?.scanMode ?? input.waterRecord?.captureMethod ?? (isStructuredMethod ? input.actionMode : input.visit.visitMode) ?? null,
     fixedSurveyTemplate: input.fieldScanContext ? fieldScanTemplateForMode(input.fieldScanContext.scanMode) : null,
     effortMinutes,
     targetTaxaScope,
@@ -298,7 +311,7 @@ export function buildObservationMethodContext(input: {
     siteTimeMethodEffortQuality: {
       hasSite,
       hasTime: Boolean(input.visit.observedAt),
-      hasMethod,
+      hasMethod: hasMethod || isStructuredMethod,
       hasEffort: typeof effortMinutes === "number" && effortMinutes > 0,
       hasQualityEvidence,
     },
@@ -393,7 +406,8 @@ export function buildTrendAbundancePolicy(input: {
   const reasons: string[] = [];
   const blockers: string[] = [];
   const keys = input.methodContext.siteTimeMethodEffortQuality;
-  if (input.actionMode === "field_scan" || input.actionMode === "guide_survey") reasons.push("designed_observation_mode");
+  const isSensorOrProtocolMode = ["field_scan", "guide_survey", "passive_audio", "camera_trap", "ias_route_camera"].includes(input.actionMode);
+  if (isSensorOrProtocolMode) reasons.push("designed_observation_mode");
   else blockers.push("casual_record_presence_only");
   if (keys.hasSite && keys.hasTime && keys.hasMethod && keys.hasEffort && keys.hasQualityEvidence) reasons.push("has_site_time_method_effort_quality");
   else blockers.push("missing_site_time_method_effort_quality");
@@ -413,7 +427,7 @@ export function buildTrendAbundancePolicy(input: {
       ? "trend_or_abundance_supported"
       : input.methodContext.captureOutcome === "no_catch"
         ? "capture_attempt_only"
-        : input.actionMode === "field_scan" || input.actionMode === "guide_survey"
+        : isSensorOrProtocolMode
           ? "indicator_candidate"
           : "presence_only",
     reasons,

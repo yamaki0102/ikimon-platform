@@ -120,6 +120,60 @@ test("export readiness requires consent, licenses, generalization, and review", 
   assert.equal(ready.exportReady.ready, true);
 });
 
+test("machine observations remain AI candidates until reviewer verification", () => {
+  const readiness = buildMonitoringReadiness({
+    visit: {
+      locationPrecision: "point_medium",
+      visitMode: "passive_audio",
+      effortMinutes: 1,
+      targetTaxaScope: "birds_audio",
+      completeChecklistFlag: false,
+      placeId: "place-1",
+    },
+    occurrences: [{
+      scientificName: "Hypsipetes amaurotis",
+      taxonRank: "species",
+      evidenceTier: 1,
+      basisOfRecord: "MachineObservation",
+      dataQuality: "ai_candidate",
+      aiAssessmentStatus: "ai_audio_candidate",
+      occurrenceStatus: "present",
+      riskLane: "normal",
+      safePublicRank: "species",
+    }],
+    evidenceAssets: [{}],
+    reviewState: {
+      reviewStatus: "needs_review",
+      blockingIssues: [],
+    },
+    civicContext: {
+      contextId: "civic-1",
+      visitId: "visit-1",
+      occurrenceId: "occ-1",
+      contextKind: "site_summary",
+      activityLabel: null,
+      activityIntent: "revisit",
+      participantRole: "reviewer",
+      audienceScope: "research_internal",
+      publicPrecision: "site",
+      riskLane: "normal",
+      reportConsent: "research_export",
+      revisitOfVisitId: null,
+      fieldId: "field-1",
+      routeId: null,
+      plotId: "plot-1",
+      sourcePayload: {},
+    },
+    dataRights: null,
+    waterRecord: null,
+  });
+
+  assert.equal(readiness.reviewReady.ready, false);
+  assert.ok(readiness.reviewReady.blockers.includes("machine_observation_human_review_required"));
+  assert.ok(readiness.reportReady.reasons.includes("machine_observation_as_ai_candidate_only"));
+  assert.ok(readiness.exportReady.blockers.includes("machine_observation_review_required_for_export"));
+});
+
 test("field scan and governance readiness require repeatable context and scoped authority", () => {
   const readiness = buildMonitoringReadiness({
     visit: {

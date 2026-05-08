@@ -293,6 +293,52 @@ test("area place snapshot renders a public place album", () => {
   assert.match(html, /ガマズミ/);
 });
 
+test("place snapshot separates machine AI candidates from reviewer verified records", () => {
+  const snapshot = composePlaceSnapshot({
+    field: field(),
+    stats: stats({ totalObservations: 2, uniqueSpeciesCount: 1 }),
+    canonical: {
+      totalObservations: 2,
+      totalVisits: 1,
+      uniqueTaxa: 1,
+      taxonRankCount: 1,
+      months: [5],
+      effortFilled: 1,
+      effortTotal: 1,
+      acceptedCount: 0,
+      reviewTotal: 1,
+      nativeCount: 0,
+      exoticCount: 0,
+      unknownOriginCount: 2,
+      stewardshipActionCount: 0,
+    },
+    machineObservationSummary: {
+      totalMachineObservations: 6,
+      aiCandidateCount: 4,
+      reviewerVerifiedCount: 1,
+      rejectedCount: 1,
+      passiveAudioCount: 6,
+      uniqueMachineTaxa: 3,
+      latestObservedAt: "2026-05-08T10:30:00.000Z",
+      topMachineTaxa: [
+        { name: "Horornis diphone", count: 3, reviewStatus: "ai_candidate" },
+        { name: "Hypsipetes amaurotis", count: 1, reviewStatus: "reviewer_verified" },
+      ],
+      methodCounts: [{ method: "passive_audio", count: 6 }],
+    },
+  });
+
+  assert.equal(snapshot.machineObservationSummary.aiCandidateCount, 4);
+  assert.ok(snapshot.claimBoundary.canSay.some((claim) => claim.includes("機械観測")));
+  assert.ok(snapshot.claimBoundary.cannotSayYet.some((claim) => claim.includes("AI候補は reviewer検証済み記録と混同せず")));
+  const html = renderPlaceSnapshotBody(snapshot);
+  assert.match(html, /機械観測 evidence layer/);
+  assert.match(html, /AI候補/);
+  assert.match(html, /reviewer検証済み/);
+  assert.match(html, /passive audio/);
+  assert.doesNotMatch(html, /自然共生サイト認定を証明|生物多様性改善を証明|AIが確定/);
+});
+
 test("mesh-like snapshot names become locality-led album names", () => {
   assert.equal(
     __test__.friendlyAlbumName({
