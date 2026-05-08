@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "../config.js";
 import { checkDatabase } from "../db.js";
+import { getRuntimeVersionSnapshot } from "../services/runtimeVersion.js";
 
 export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
   app.get("/healthz", async () => {
@@ -29,5 +30,9 @@ export async function registerHealthRoutes(app: FastifyInstance): Promise<void> 
     }
 
     return db;
+  });
+
+  app.get("/api/v1/runtime/version", async () => {
+    return getRuntimeVersionSnapshot();
   });
 }

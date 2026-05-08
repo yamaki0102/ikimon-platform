@@ -37,6 +37,7 @@ import { registerMeSubscriptionsApiRoutes } from "./routes/meSubscriptionsApi.js
 import { registerObservationEventRecapRoutes } from "./routes/observationEventRecapApi.js";
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
 import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
+import { registerObservationPackageApiRoutes } from "./routes/observationPackageApi.js";
 import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
@@ -573,6 +574,7 @@ export function buildApp() {
   void registerObservationEventRecapRoutes(app);
   void registerObservationEventPagesRoutes(app);
   void registerObservationFieldsApiRoutes(app);
+  void registerObservationPackageApiRoutes(app);
   void registerMeSubscriptionsApiRoutes(app);
 
   // 5 分周期の AI Quest cron(activity ありのセッションのみ)

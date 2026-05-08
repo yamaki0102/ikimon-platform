@@ -22,6 +22,12 @@
 | Database migrations | `db/migrations/` |
 | Browser QA | `e2e/` |
 
+## Project Strategy Docs
+
+| Doc | Purpose |
+|---|---|
+| `docs/ikimon_monitoring_current_state_and_requirements_2026-05-05.md` | BioMonWeek 2026、国内連携先、分類群/観測ベクトル、ikimon.life の現状と必要機能をまとめた開発参照 |
+
 ## Commands
 
 ```bash
