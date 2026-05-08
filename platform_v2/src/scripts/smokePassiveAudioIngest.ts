@@ -183,7 +183,7 @@ async function verifyDb(options: SmokeOptions, ids: { dedupeKey: string; visitId
           (select count(*) from sensor_deployments
             where device_deployment_id = (select device_deployment_id from passive_audio_ingest_events where dedupe_key = $1 limit 1)
               and observation_method = 'passive_audio'
-              and sample_rate_hz = 48000)::text as sensor_deployment_count,
+              and (protocol_payload->>'sample_rate_hz')::int = 48000)::text as sensor_deployment_count,
           (select count(*) from observation_package_events
             where visit_id = $2
               and occurrence_id = $3
