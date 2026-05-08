@@ -10,6 +10,7 @@ const {
   tileForLngLat,
   tilesForBbox,
   featureTouchesBbox,
+  normalizeAreaLayerSource,
   SOURCE_LABEL,
 } = __test__;
 
@@ -122,4 +123,16 @@ test("SOURCE_LABEL covers every supported source", () => {
   for (const src of required) {
     assert.ok(SOURCE_LABEL[src] && SOURCE_LABEL[src].length > 0, `missing label for ${src}`);
   }
+});
+
+test("normalizeAreaLayerSource keeps certified site sources visible in map filters", () => {
+  assert.equal(normalizeAreaLayerSource("nature_symbiosis_site", "symbiosis"), "nature_symbiosis_site");
+  assert.equal(normalizeAreaLayerSource("protected_area", "protected"), "protected_area");
+  assert.equal(normalizeAreaLayerSource("tsunag", "tsunag"), "tsunag");
+});
+
+test("normalizeAreaLayerSource uses admin-level layer ids only for admin and OSM compatibility rows", () => {
+  assert.equal(normalizeAreaLayerSource("user_defined", "osm_park"), "osm_park");
+  assert.equal(normalizeAreaLayerSource("user_defined", "admin_municipality"), "admin_municipality");
+  assert.equal(normalizeAreaLayerSource("school", "school"), "school");
 });

@@ -81,6 +81,14 @@ const LIVE_OSM_TILE_Z = 14;
 const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v1";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
+const ADMIN_LAYER_LEVELS = [
+  "osm_park",
+  "admin_municipality",
+  "admin_prefecture",
+  "admin_country",
+] as const;
+const ADMIN_LAYER_LEVEL_SQL = ADMIN_LAYER_LEVELS.map((level) => `'${level}'`).join(", ");
+const AREA_LAYER_SOURCE_SQL = `CASE WHEN admin_level IN (${ADMIN_LAYER_LEVEL_SQL}) THEN admin_level ELSE source END`;
 
 type OverpassElement = {
   type: "way" | "relation" | "node";
@@ -123,6 +131,13 @@ function defaultSourcesForZoom(zoom: number | undefined): AreaPolygonSource[] {
     "protected_area", "oecm", "nature_symbiosis_site", "tsunag", "school",
     "osm_park", "user_defined",
   ];
+}
+
+function normalizeAreaLayerSource(source: string | null, adminLevel: string | null): AreaPolygonSource {
+  if (adminLevel && (ADMIN_LAYER_LEVELS as readonly string[]).includes(adminLevel)) {
+    return adminLevel as AreaPolygonSource;
+  }
+  return (source as AreaPolygonSource | null) ?? "user_defined";
 }
 
 function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource[]): boolean {
@@ -489,7 +504,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     polygon: Record<string, unknown> | null;
     polygon_simplified: Record<string, unknown> | null;
   }>(
-    `SELECT field_id, entity_key, name, COALESCE(admin_level, source) AS source, admin_level, prefecture, city,
+    `SELECT field_id, entity_key, name, source, admin_level, prefecture, city,
             area_ha::text AS area_ha, official_url,
             lat::text AS lat, lng::text AS lng,
             polygon,
@@ -501,7 +516,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         AND bbox_min_lat <= $2
         AND bbox_max_lng >= $3
         AND bbox_min_lng <= $4
-        AND COALESCE(admin_level, source) = ANY($5)
+        AND ${AREA_LAYER_SOURCE_SQL} = ANY($5)
         -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
         -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
         AND valid_to IS NULL
@@ -512,7 +527,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
 
   const rows = result.rows.slice(0, limit);
   const features: AreaPolygonFeature[] = rows.map((row) => {
-    const source = (row.source as AreaPolygonSource) ?? "user_defined";
+    const source = normalizeAreaLayerSource(row.source, row.admin_level);
     const areaHa = row.area_ha == null ? null : Number(row.area_ha);
     // 行政界 (面積 1000 ha 超) は GeoJSON が重いので、間引いた版があれば優先。
     const useSimplified = areaHa != null && areaHa > 1000 && row.polygon_simplified;
@@ -581,5 +596,6 @@ export const __test__ = {
   tileForLngLat,
   tilesForBbox,
   featureTouchesBbox,
+  normalizeAreaLayerSource,
   SOURCE_LABEL,
 };
