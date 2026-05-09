@@ -138,6 +138,22 @@ jobs:
         id: ui-smoke
         run: echo "fixture_prefix=smoke-ui-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
+      - name: Cleanup stale public UI smoke fixtures
+        run: |
+          set -euo pipefail
+          html="$(curl -fsS http://127.0.0.1:13202/ja/observations || true)"
+          prefixes="$(printf '%s' "$html" | grep -Eo 'smoke-ui-[A-Za-z0-9-]+' | sort -u || true)"
+          if [ -z "$prefixes" ]; then
+            echo "No stale smoke-ui fixture prefixes detected."
+            exit 0
+          fi
+          while IFS= read -r prefix; do
+            [ -n "$prefix" ] || continue
+            echo "Cleaning stale production smoke fixture prefix: $prefix"
+            ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+              "set -euo pipefail; candidate=\"\$(tr -d '[:space:]' < /var/www/ikimon.life/deploy_state/candidate_color)\"; runtime=\"\$(readlink -f /var/www/ikimon.life/runtime/\${candidate})\"; set -a; . /etc/ikimon/production-v2.env; set +a; npm --silent --prefix \"\${runtime}\" run cleanup:production-ui-smoke -- --fixture-prefix=${prefix}" >/dev/null
+          done <<< "$prefixes"
+
       - name: Run production candidate browser smoke
         id: browser-smoke
         working-directory: platform_v2
