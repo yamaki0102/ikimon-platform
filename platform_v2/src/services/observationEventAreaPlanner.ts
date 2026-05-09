@@ -1,11 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GoogleGenAI } from "@google/genai";
-import { loadConfig } from "../config.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
-import { estimateAiCostUsd } from "./aiModelPricing.js";
-import { logAiCost } from "./aiCostLogger.js";
+import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 import {
   asPolygonGeometry,
   centroidFromPolygon,
@@ -51,8 +48,6 @@ interface RawSuggestion {
 }
 
 const PROMPT_VERSION = "observation_event_area_planner.md/v1";
-const MODEL_CHAIN = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"] as const;
-
 function promptTemplate(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
@@ -258,42 +253,21 @@ function renderPrompt(input: AreaPlanInput): string {
 }
 
 async function callGemini(prompt: string, userId: string | null | undefined): Promise<{ text: string; model: string }> {
-  const cfg = loadConfig();
-  if (!cfg.geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
   await assertAiBudgetAllowed("hot");
-  const ai = new GoogleGenAI({ apiKey: cfg.geminiApiKey });
-  let lastErr: unknown = null;
-  for (const model of MODEL_CHAIN) {
-    const started = Date.now();
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { responseMimeType: "application/json", temperature: 0.35 },
-      });
-      const text = response.text ?? "";
-      const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }).usageMetadata;
-      const inputTokens = Number(usage?.promptTokenCount ?? 0);
-      const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-      await logAiCost({
-        layer: "hot",
-        endpoint: "observation_event_area_suggestions",
-        provider: "gemini",
-        model,
-        inputTokens,
-        outputTokens,
-        costUsd: estimateAiCostUsd({ model, inputTokens, outputTokens }),
-        userId,
-        latencyMs: Date.now() - started,
-        metadata: { promptVersion: PROMPT_VERSION },
-      }).catch(() => undefined);
-      if (!text.trim()) throw new Error("gemini_empty_response");
-      return { text, model };
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error("gemini_all_models_failed");
+  const response = await generateAiTextWithRoleChain({
+    chainName: "observationEventArea",
+    text: prompt,
+    responseMimeType: "application/json",
+    temperature: 0.35,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_event_area_suggestions",
+      userId,
+      metadata: { promptVersion: PROMPT_VERSION },
+    },
+  });
+  return { text: response.text, model: response.model };
 }
 
 export async function planObservationEventArea(input: AreaPlanInput): Promise<{

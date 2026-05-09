@@ -27,6 +27,23 @@ type FreshnessRow = {
 type ClaimReviewSummary = { severity: string; pending: number };
 type StalenessSummary = { severity: string; pending: number };
 
+type AiRoleChainMetricRow = {
+  chain_name: string;
+  layer: string;
+  calls_7d: string;
+  calls_30d: string;
+  fallback_calls_7d: string;
+  fallback_calls_30d: string;
+  avg_latency_ms_7d: string | null;
+  avg_latency_ms_30d: string | null;
+  p95_latency_ms_7d: string | null;
+  p95_latency_ms_30d: string | null;
+  input_tokens_30d: string | null;
+  output_tokens_30d: string | null;
+  cost_jpy_30d: string | null;
+  models_30d: string | null;
+};
+
 type CuratorRunRow = {
   run_id: string;
   curator_name: string;
@@ -166,6 +183,106 @@ function renderQueueSummary(label: string, rows: { severity: string; pending: nu
   <h3 style="margin:0 0 8px;font-size:14px;color:#374151;">${escapeHtml(label)} <span style="font-size:18px;font-weight:600;color:#111827;">${total}</span></h3>
   <table style="width:100%;border-collapse:collapse;">${tbody}</table>
 </div>`;
+}
+
+async function fetchAiRoleChainMetrics(): Promise<AiRoleChainMetricRow[]> {
+  const pool = getPool();
+  try {
+    const result = await pool.query<AiRoleChainMetricRow>(
+      `WITH recent AS (
+         SELECT
+           COALESCE(metadata->>'aiModelChain', endpoint) AS chain_name,
+           layer,
+           provider,
+           model,
+           occurred_at,
+           latency_ms,
+           input_tokens,
+           output_tokens,
+           cost_jpy,
+           COALESCE((metadata->>'aiModelFallbackIndex')::int, 0) AS fallback_index
+         FROM ai_cost_log
+         WHERE occurred_at >= NOW() - INTERVAL '30 days'
+           AND metadata ? 'aiModelChain'
+       )
+       SELECT
+         chain_name,
+         layer,
+         COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days')::text AS calls_7d,
+         COUNT(*)::text AS calls_30d,
+         COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days' AND fallback_index > 0)::text AS fallback_calls_7d,
+         COUNT(*) FILTER (WHERE fallback_index > 0)::text AS fallback_calls_30d,
+         ROUND(AVG(latency_ms) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days' AND latency_ms IS NOT NULL))::text AS avg_latency_ms_7d,
+         ROUND(AVG(latency_ms) FILTER (WHERE latency_ms IS NOT NULL))::text AS avg_latency_ms_30d,
+         ROUND(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days' AND latency_ms IS NOT NULL))::text AS p95_latency_ms_7d,
+         ROUND(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) FILTER (WHERE latency_ms IS NOT NULL))::text AS p95_latency_ms_30d,
+         COALESCE(SUM(input_tokens), 0)::text AS input_tokens_30d,
+         COALESCE(SUM(output_tokens), 0)::text AS output_tokens_30d,
+         COALESCE(SUM(cost_jpy), 0)::text AS cost_jpy_30d,
+         string_agg(DISTINCT provider || ':' || model, ', ' ORDER BY provider || ':' || model) AS models_30d
+       FROM recent
+       GROUP BY chain_name, layer
+       ORDER BY
+         COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days') DESC,
+         COUNT(*) DESC,
+         chain_name`,
+    );
+    return result.rows;
+  } catch {
+    return [];
+  }
+}
+
+function pct(part: number, total: number): string {
+  return total > 0 ? `${((part / total) * 100).toFixed(1)}%` : "0.0%";
+}
+
+function compactNumber(value: string | null | undefined): string {
+  const num = Number(value ?? 0);
+  if (!Number.isFinite(num)) return "0";
+  return num.toLocaleString("ja-JP");
+}
+
+function renderAiRoleChainMetrics(rows: AiRoleChainMetricRow[]): string {
+  if (rows.length === 0) {
+    return `<p style="color:#6b7280;font-size:13px;">router 経由の role chain telemetry はまだありません。</p>`;
+  }
+  const tbody = rows.map((row) => {
+    const calls7 = Number(row.calls_7d ?? 0);
+    const calls30 = Number(row.calls_30d ?? 0);
+    const fallback7 = Number(row.fallback_calls_7d ?? 0);
+    const fallback30 = Number(row.fallback_calls_30d ?? 0);
+    const fallbackColor = fallback7 > 0 || fallback30 > 0 ? "#f59e0b" : "#10b981";
+    return `
+<tr>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-family:ui-monospace,monospace;font-size:12px;color:#111827;">${escapeHtml(row.chain_name)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${escapeHtml(row.layer)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#111827;">${calls7} / ${calls30}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:${fallbackColor};font-weight:700;">${pct(fallback7, calls7)} / ${pct(fallback30, calls30)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;">${compactNumber(row.avg_latency_ms_7d)} / ${compactNumber(row.p95_latency_ms_7d)} ms</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;">${compactNumber(row.avg_latency_ms_30d)} / ${compactNumber(row.p95_latency_ms_30d)} ms</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;">${compactNumber(row.input_tokens_30d)} / ${compactNumber(row.output_tokens_30d)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;">¥${Number(row.cost_jpy_30d ?? 0).toFixed(2)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280;max-width:320px;">${escapeHtml(row.models_30d ?? "—")}</td>
+</tr>`;
+  }).join("");
+  return `
+<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+  <thead>
+    <tr style="background:#f9fafb;">
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">role chain</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">layer</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">calls 7d/30d</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">fallback 7d/30d</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">avg/p95 7d</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">avg/p95 30d</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">tokens in/out 30d</th>
+      <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">cost 30d</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">models</th>
+    </tr>
+  </thead>
+  <tbody>${tbody}</tbody>
+</table>`;
 }
 
 async function fetchRecentCuratorRuns(): Promise<CuratorRunRow[]> {
@@ -347,7 +464,7 @@ async function fetchStalenessSummary(): Promise<StalenessSummary[]> {
 
 async function renderDashboard(): Promise<string> {
   const layers: AiCostLayer[] = ["hot", "warm", "cold"];
-  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, curatorRuns] = await Promise.all([
+  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, curatorRuns, aiRoleChainMetrics] = await Promise.all([
     summarizeMonthlyCost("hot"),
     summarizeMonthlyCost("warm"),
     summarizeMonthlyCost("cold"),
@@ -358,6 +475,7 @@ async function renderDashboard(): Promise<string> {
     fetchClaimReviewSummary(),
     fetchStalenessSummary(),
     fetchRecentCuratorRuns(),
+    fetchAiRoleChainMetrics(),
   ]);
 
   const summaries = { hot: hotSummary, warm: warmSummary, cold: coldSummary };
@@ -375,6 +493,11 @@ async function renderDashboard(): Promise<string> {
   <section style="margin-bottom:24px;">
     <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">月次AIコスト (layer 別)</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">${costGrid}</div>
+  </section>
+
+  <section style="margin-bottom:24px;">
+    <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">role chain 別 LLM telemetry</h2>
+    ${renderAiRoleChainMetrics(aiRoleChainMetrics)}
   </section>
 
   <section style="margin-bottom:24px;">

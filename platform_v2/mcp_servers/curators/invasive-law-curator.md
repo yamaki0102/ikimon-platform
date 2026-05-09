@@ -6,7 +6,7 @@ Runtime is now Node-owned:
 
 - dispatcher: `platform_v2/src/scripts/cron/runCurator.ts`
 - workflow: `platform_v2/src/scripts/cron/curators/invasive-law.ts`
-- model calls: Node calls Gemini 3.1 Flash-Lite Preview by default, or
+- model calls: Node calls Gemini 3.1 Flash-Lite by default, or
   DeepSeek V4 Flash only when `CURATOR_LLM_PROVIDER=deepseek`
 - trust boundary: Node performs source fetch, snapshot detection,
   deterministic validation, SQL generation, and receiver POST

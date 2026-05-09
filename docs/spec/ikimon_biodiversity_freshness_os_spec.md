@@ -52,7 +52,7 @@ STAC衛星 (国交省/NASA/Microsoft Planetary Computer) / ユーザー観察
    place_environment_snapshots / effort_metrics
    全テーブルが source_snapshot_id FK + valid_from/valid_to を持つ
                           ↓
-[Node Curator Dispatcher] (Gemini 3.1 Flash-Lite Preview default)
+[Node Curator Dispatcher] (Gemini 3.1 Flash-Lite default)
    source fetch / snapshot detection / structured extraction / deterministic validation / SQL proposal
    出力 telemetry は ai_curator_runs に格納、proposal SQL は receiver POST
    knowledge_claims への提案は claim_review_queue 経由
@@ -61,7 +61,7 @@ STAC衛星 (国交省/NASA/Microsoft Planetary Computer) / ユーザー観察
    GitHub PR (`agent-generated` ラベル) で人手承認
    自動拒否: §3.2 信頼境界違反
                           ↓
-[Personalized Output Layer] (Hot path = Gemini 3.1 Flash Lite Preview)
+[Personalized Output Layer] (Hot path = Gemini 3.1 Flash Lite)
    user_output_cache (cache_key で hit 判定)
    miss 時のみ Flash Lite 呼出 → ai_cost_log に記録
    curator が新 version を INSERT すると影響 cache_key を invalidate
@@ -71,8 +71,8 @@ STAC衛星 (国交省/NASA/Microsoft Planetary Computer) / ユーザー観察
 
 | 層 | 起動 | 主モデル | レイテンシ目標 | 主な書込先 |
 |---|---|---|---|---|
-| **Hot** | HTTP req | Gemini 3.1 Flash Lite Preview | P95 1.5s | `user_output_cache`, `observation_ai_assessments`, `ai_cost_log` |
-| **Warm** | systemd timer + webhook | Gemini 3.1 Flash-Lite Preview (DeepSeek V4 Flash failover where allowed) | 数分〜数十分 | `source_snapshots`, `*_versions` (PR経由), `ai_curator_runs`, `claim_review_queue` |
+| **Hot** | HTTP req | Gemini 3.1 Flash Lite | P95 1.5s | `user_output_cache`, `observation_ai_assessments`, `ai_cost_log` |
+| **Warm** | systemd timer + webhook | Gemini 3.1 Flash-Lite (DeepSeek V4 Flash failover where allowed) | 数分〜数十分 | `source_snapshots`, `*_versions` (PR経由), `ai_curator_runs`, `claim_review_queue` |
 | **Cold** | systemd timer + queue | Gemini Flex (50%割引) | 非同期 | `audio_*`, `sound_clusters`, `tile_regen_queue`, `ai_cost_log` |
 
 ---
@@ -218,7 +218,7 @@ LLM 呼出ごと 1 行。`layer / endpoint / provider / model / tokens / cost / 
 
 ### 5.4 月 1 万円試算
 
-仮定: Gemini 3.1 Flash-Lite Preview $0.25/M 入力 / $1.50/M 出力、150 円/USD。1 req = 入力 4k + 出力 1.2k ≈ **0.42 円/req**。
+仮定: Gemini 3.1 Flash-Lite $0.25/M 入力 / $1.50/M 出力、150 円/USD。1 req = 入力 4k + 出力 1.2k ≈ **0.42 円/req**。
 
 | シナリオ | req/月 | 備考 |
 |---|---|---|
@@ -368,7 +368,7 @@ DAU 100、1 ユーザー 5 観察/日 = 月 15,000 観察 → 安全マージン
 - `src/scripts/cron/runCurator.ts` を Node dispatcher 化。CMA / Sonnet / DeepSeek-key-in-agent 経路を廃止
 - `invasive-law` は Node が source snapshot → Gemini/DeepSeek structured extraction → validator → snapshot-backed SQL → receiver POST まで実行
 - `redlist` / `paper-research` / `satellite-update` は `cancelled/not_migrated` で exit 0
-- `curatorModelBakeoff.ts` + `npm run test:curator` で Gemini 3.1 Flash-Lite Preview と DeepSeek V4 Flash の fixture bakeoff 判定を固定
+- `curatorModelBakeoff.ts` + `npm run test:curator` で Gemini 3.1 Flash-Lite と DeepSeek V4 Flash の fixture bakeoff 判定を固定
 - `Gemini 2.5 Flash-Lite` は curator fallback から除外
 
 ### Sprint 8+ (将来)
@@ -385,7 +385,7 @@ DAU 100、1 ユーザー 5 観察/日 = 月 15,000 観察 → 安全マージン
 | Gemini/DeepSeek API 5xx | curator 連続 3 回失敗 | 同一モデル retry → provider failover。`Gemini 2.5 Flash-Lite` には落とさない |
 | 月予算超過 | ai_cost_log 集計 > 8000 円 | §7.2 自動降格 → Slack → UI に「AI 機能負荷調整中」バッジ |
 | 信頼境界 §1.5 違反 | claim_text/citation_span 長さ違反、access_policy 範囲外 | DB CHECK + アプリ assertion で書込拒否 + 当該 curator 自動停止 |
-| Flash Lite Preview 廃止 | 5xx 連続 | 既存 `observationReassess.ts:440-468` フォールバックを Pro → DeepSeek → 静的 cache の順で拡張 |
+| Flash Lite 障害 | 5xx 連続 | 既存 `observationReassess.ts:440-468` フォールバックを Pro → DeepSeek → 静的 cache の順で拡張 |
 | Xserver VPS リソース枯渇 | systemd OOM | curator chunk size / timer cadence を落とす。audio embedding batch_size を ENV 化 |
 | Versioning による DB 肥大 | テーブル行数 > 100M | `valid_to IS NOT NULL` 行を月次で `*_versions_archive` に移動 (パーティション化) |
 | user_output_cache invalidate 漏れ | 古い claim 混入率 > 3% | runCacheInvalidate を 1 分毎に変更 + scientific_name index 強化 |

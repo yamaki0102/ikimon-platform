@@ -7,6 +7,7 @@ import {
   selectBakeoffWinner,
   type FixtureScore,
 } from "./curatorModelBakeoff.js";
+import { CURATOR_DEEPSEEK_MODEL, CURATOR_DEFAULT_MODEL } from "../services/aiModels.js";
 
 test("curator bakeoff fixtures cover 4 domains x 10 cases", () => {
   assert.equal(BAKEOFF_FIXTURES.length, 40);
@@ -28,7 +29,7 @@ test("fixture scorer fails missing required fields, enum violations, long excerp
   const score = scoreFixtureOutput({
     fixture,
     provider: "gemini",
-    model: "gemini-3.1-flash-lite-preview",
+    model: CURATOR_DEFAULT_MODEL,
     output: {
       rows: [
         {
@@ -54,7 +55,7 @@ function aggregate(provider: "gemini" | "deepseek", fieldAccuracyPct: number, cr
   const scores: FixtureScore[] = Array.from({ length: 10 }, (_, index) => ({
     fixtureId: `${provider}-${index}`,
     provider,
-    model: provider === "gemini" ? "gemini-3.1-flash-lite-preview" : "deepseek-v4-flash",
+    model: provider === "gemini" ? CURATOR_DEFAULT_MODEL : CURATOR_DEEPSEEK_MODEL,
     schemaValid: criticalFailureCount === 0,
     fieldAccuracyPct,
     criticalFailures: index < criticalFailureCount ? ["critical"] : [],

@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { AI_MODEL_ROLES } from "./aiModels.js";
+import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 
 export type TaxonInsight = {
   scientificName: string;
@@ -145,11 +146,9 @@ export async function getTaxonInsight(opts: {
     return empty(sn, vn);
   }
 
-  // 2. Gemini 生成
+  // 2. AI 生成
   const config = loadConfig();
-  if (!config.geminiApiKey) return empty(sn, vn);
-
-  const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+  if (!config.geminiApiKey && !config.deepseekApiKey && !process.env.OPENAI_COMPATIBLE_API_KEY) return empty(sn, vn);
   const prompt = render(loadPromptTemplate(), {
     scientificName: sn || "不明",
     vernacularName: vn || "不明",
@@ -158,23 +157,20 @@ export async function getTaxonInsight(opts: {
     season: opts.season ?? "不明",
   });
 
-  const MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
-  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
-  for (const model of MODELS) {
-    try {
-      response = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-      break;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) break;
-    }
-  }
+  let modelUsed: string = AI_MODEL_ROLES.taxonInsightPrimary;
+  const response = await generateAiTextWithRoleChain({
+    chainName: "taxonInsights",
+    text: prompt,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "taxon_insights",
+    },
+  }).catch(() => null);
   if (!response) return empty(sn, vn);
+  modelUsed = response.model;
 
-  const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const raw = response.text;
   const parsed = parseResponse(raw);
   if (!parsed) return empty(sn, vn);
 
@@ -203,7 +199,7 @@ export async function getTaxonInsight(opts: {
          rarity_note = EXCLUDED.rarity_note,
          generated_at = now(),
          model_used = EXCLUDED.model_used`,
-      [cacheKey, vn, lang, ins.etymology, ins.ecologyNote, ins.lookAlikeNote, ins.rarityNote, "gemini-3.1-flash-lite-preview"],
+      [cacheKey, vn, lang, ins.etymology, ins.ecologyNote, ins.lookAlikeNote, ins.rarityNote, modelUsed],
     )
     .catch(() => undefined);
 

@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import path, { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { GoogleGenAI } from "@google/genai";
 import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
@@ -13,7 +12,7 @@ import { getStoredVisitDisplayState, upsertVisitDisplayState, deriveVisitDisplay
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { logAiCost } from "./aiCostLogger.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
-import { estimateAiCostUsd, pricingForModel } from "./aiModelPricing.js";
+import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
 import { loadProfileDigestForPrompt } from "./profileDigestPromptLoader.js";
 import {
   buildCacheKey,
@@ -684,12 +683,6 @@ async function resolveObservationTarget(client: PoolClient, observationId: strin
   };
 }
 
-function getClient(): GoogleGenAI {
-  const cfg = loadConfig();
-  if (!cfg.geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
-  return new GoogleGenAI({ apiKey: cfg.geminiApiKey });
-}
-
 type GeminiCostMeta = {
   userId?: string | null;
   visitId?: string | null;
@@ -704,58 +697,32 @@ async function runGemini(
   // Hot-layer budget gate: throws AiBudgetExceededError when monthly cap reached.
   await assertAiBudgetAllowed("hot");
 
-  const ai = getClient();
-  const parts: Array<Record<string, unknown>> = photos.map((photo) => ({
+  const parts: AiRouterPart[] = photos.map((photo) => ({
     inlineData: { mimeType: photo.mime, data: photo.b64 },
   }));
   parts.push({ text: prompt });
 
-  const MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
-  let lastErr: unknown = null;
-  for (const model of MODELS) {
-    const startedAt = Date.now();
-    try {
-      const response = await ai.models.generateContent({ model, contents: [{ role: "user", parts }] });
-      const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-
-      const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }).usageMetadata;
-      const inputTokens = Number(usage?.promptTokenCount ?? 0);
-      const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-      pricingForModel(model);
-      const costUsd = estimateAiCostUsd({ model, inputTokens, outputTokens });
-      // Cost log failure should never break the user-facing flow.
-      logAiCost({
-        layer: "hot",
-        endpoint: "observation_reassess",
-        provider: "gemini",
-        model,
-        inputTokens,
-        outputTokens,
-        costUsd,
-        userId: meta.userId ?? null,
-        visitId: meta.visitId ?? null,
-        occurrenceId: meta.occurrenceId ?? null,
-        latencyMs: Date.now() - startedAt,
-      }).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.warn("[ai_cost_log] insert failed", err);
-      });
-
-      let parsed: GeminiJson = {};
-      try {
-        const matched = rawText.match(/\{[\s\S]*\}/);
-        if (matched) parsed = JSON.parse(matched[0]);
-      } catch {
-        parsed = {};
-      }
-      return { parsed, modelUsed: model, rawText };
-    } catch (error) {
-      lastErr = error;
-      const msg = error instanceof Error ? error.message : String(error);
-      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw error;
-    }
+  const response = await generateAiTextWithRoleChain({
+    chainName: "observationReassess",
+    parts,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_reassess",
+      userId: meta.userId ?? null,
+      visitId: meta.visitId ?? null,
+      occurrenceId: meta.occurrenceId ?? null,
+    },
+  });
+  const rawText = response.text || "{}";
+  let parsed: GeminiJson = {};
+  try {
+    const matched = rawText.match(/\{[\s\S]*\}/);
+    if (matched) parsed = JSON.parse(matched[0]);
+  } catch {
+    parsed = {};
   }
-  throw lastErr ?? new Error("gemini_all_models_failed");
+  return { parsed, modelUsed: response.model, rawText };
 }
 
 /**

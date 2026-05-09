@@ -231,7 +231,7 @@ copy に切り替え（本タスク外）。
 
 **発見**: legacy `upload_package/data/observations/*.json` の各 observation record に
 `ai_assessments[]` field が既存（`recommended_taxon` / `scientific_name` / `rank` 等、
-gemini-3.1-flash-lite-preview で既に同定済）。v2 DB の `observation_ai_*` 3 テーブルは
+gemini-3.1-flash-lite で既に同定済）。v2 DB の `observation_ai_*` 3 テーブルは
 bootstrap import で取り込まれず全 0 行。
 
 **対応**: import script を新規作成:

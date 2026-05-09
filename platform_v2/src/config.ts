@@ -1,4 +1,5 @@
 import { resolveLegacyRoots } from "./legacy/legacyRoots.js";
+import { AI_MODEL_ROLES } from "./services/aiModels.js";
 
 export type AppConfig = {
   nodeEnv: string;
@@ -156,7 +157,7 @@ export function loadConfig(): AppConfig {
     deepseekApiKey,
     profileDigest: {
       provider: parseProfileDigestProvider(process.env.PROFILE_DIGEST_LLM_PROVIDER, Boolean(deepseekApiKey)),
-      model: process.env.PROFILE_DIGEST_MODEL?.trim() || "deepseek-v4-flash",
+      model: process.env.PROFILE_DIGEST_MODEL?.trim() || AI_MODEL_ROLES.curatorDeepseek,
       maxInputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_INPUT_TOKENS, 2000)),
       maxOutputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_OUTPUT_TOKENS, 300)),
       monthlyBudgetJpy: parsePositiveNumber(process.env.PROFILE_DIGEST_MONTHLY_BUDGET_JPY, 1000),
@@ -164,7 +165,7 @@ export function loadConfig(): AppConfig {
     },
     regionalStory: {
       provider: parseRegionalStoryProvider(process.env.REGIONAL_STORY_LLM_PROVIDER, Boolean(geminiApiKey)),
-      model: process.env.REGIONAL_STORY_GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite-preview",
+      model: process.env.REGIONAL_STORY_GEMINI_MODEL?.trim() || AI_MODEL_ROLES.regionalStoryDefault,
       maxOutputTokens: Math.floor(parsePositiveNumber(process.env.REGIONAL_STORY_MAX_OUTPUT_TOKENS, 360)),
     },
     regionalKnowledgeEmbedding: {

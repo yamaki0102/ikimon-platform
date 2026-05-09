@@ -18,12 +18,12 @@ Result:
 
 | Provider | Model | Critical failures | Schema valid | Field accuracy | Avg cost |
 |---|---|---:|---:|---:|---:|
-| gemini | gemini-3.1-flash-lite-preview | 0 | 100% | 100% | $0.00017987 |
+| gemini | gemini-3.1-flash-lite | 0 | 100% | 100% | $0.00017987 |
 | deepseek | deepseek-v4-flash | 89 | 50% | 57% | $0.00008214 |
 
 Decision:
 
-Gemini 3.1 Flash-Lite Preview remains the curator default.
+Gemini 3.1 Flash-Lite remains the curator default.
 
 Reason:
 
