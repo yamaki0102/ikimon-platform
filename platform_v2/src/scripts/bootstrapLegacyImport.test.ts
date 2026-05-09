@@ -22,3 +22,10 @@ test("legacy track bootstrap clears prior imported track points before full relo
 
   assert.match(source, /delete from visit_track_points vtp[\s\S]*v\.source_kind = 'legacy_track_session'/);
 });
+
+test("legacy bootstrap preserves existing privileged user roles", async () => {
+  const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
+
+  assert.match(source, /role_name = case[\s\S]*lower\(coalesce\(users\.role_name, ''\)\) in \('admin', 'analyst'\)[\s\S]*then users\.role_name/);
+  assert.match(source, /rank_label = case[\s\S]*coalesce\(users\.rank_label, ''\) in \('管理者', '分析担当'\)[\s\S]*then users\.rank_label/);
+});

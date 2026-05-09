@@ -788,8 +788,24 @@ async function importUsers(
           email = excluded.email,
           password_hash = excluded.password_hash,
           avatar_asset_id = excluded.avatar_asset_id,
-          role_name = excluded.role_name,
-          rank_label = excluded.rank_label,
+          role_name = case
+            when lower(coalesce(excluded.role_name, '')) in ('admin', 'analyst')
+              or coalesce(excluded.rank_label, '') in ('管理者', '分析担当')
+              then excluded.role_name
+            when lower(coalesce(users.role_name, '')) in ('admin', 'analyst')
+              or coalesce(users.rank_label, '') in ('管理者', '分析担当')
+              then users.role_name
+            else excluded.role_name
+          end,
+          rank_label = case
+            when lower(coalesce(excluded.role_name, '')) in ('admin', 'analyst')
+              or coalesce(excluded.rank_label, '') in ('管理者', '分析担当')
+              then excluded.rank_label
+            when lower(coalesce(users.role_name, '')) in ('admin', 'analyst')
+              or coalesce(users.rank_label, '') in ('管理者', '分析担当')
+              then users.rank_label
+            else excluded.rank_label
+          end,
           auth_provider = excluded.auth_provider,
           oauth_id = excluded.oauth_id,
           observer_rank_json = excluded.observer_rank_json,
