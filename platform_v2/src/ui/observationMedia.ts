@@ -82,6 +82,14 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-region-box { position: absolute; border: 1.5px dashed rgba(14,165,233,.92); border-radius: 12px; background: rgba(14,165,233,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
   .obs-region-box-label { position: absolute; left: 8px; top: 8px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
+  .obs-video-evidence { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .obs-video-evidence-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #0f172a; font-size: 12px; font-weight: 900; }
+  .obs-video-evidence-head span { color: #64748b; font-size: 11px; font-weight: 800; }
+  .obs-video-evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .obs-video-evidence-frame { margin: 0; display: grid; gap: 4px; }
+  .obs-video-evidence-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: #e2e8f0; display: block; }
+  .obs-video-evidence-frame figcaption { display: grid; gap: 2px; color: #334155; font-size: 10px; line-height: 1.35; font-weight: 800; }
+  .obs-video-evidence-frame small { color: #64748b; font-weight: 750; }
 `;
 
 export function isDisplayableRegion(region: Pick<SubjectMediaRegionView, "rect" | "confidenceScore">): boolean {
@@ -172,6 +180,24 @@ function mediaRoleSuggestionBadge(
   return `<span class="obs-media-ai-role${compact ? " is-compact" : ""}" data-obs-media-role-suggestion>${prefix} ${escapeHtml(MEDIA_ROLE_LABELS[role])}${confidence}</span>`;
 }
 
+function frameTimeLabel(frameTimeMs: number | null): string {
+  if (frameTimeMs == null || !Number.isFinite(Number(frameTimeMs))) return "";
+  return `${(Number(frameTimeMs) / 1000).toFixed(1).replace(/\.0$/, "")}秒`;
+}
+
+function videoFrameThumbUrl(thumbnailUrl: string | null, frameTimeMs: number | null): string | null {
+  if (!thumbnailUrl || frameTimeMs == null) return null;
+  try {
+    const url = new URL(thumbnailUrl);
+    const seconds = Number(frameTimeMs) / 1000;
+    url.searchParams.set("time", Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1).replace(/\.0$/, "")}s`);
+    url.searchParams.set("height", "360");
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject): string {
   if (snapshot.photoAssets.length === 0) return "";
   const first = snapshot.photoAssets[0]!;
@@ -217,6 +243,24 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
 function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject, primaryVideo: VideoAsset | null): string {
   if (!primaryVideo) return "";
   const videoRegion = currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId && isDisplayableRegion(region)) ?? null;
+  const videoEvidence = (snapshot.visualEvidence ?? [])
+    .filter((item) => item.mediaKind === "video_frame" && (!item.assetId || item.assetId === primaryVideo.assetId))
+    .slice(0, 8);
+  const videoEvidenceHtml = videoEvidence.length > 0
+    ? `<div class="obs-video-evidence">
+        <div class="obs-video-evidence-head"><strong>AIが見た動画フレーム</strong><span>${videoEvidence.length}枚を根拠化</span></div>
+        <div class="obs-video-evidence-grid">
+          ${videoEvidence.map((item) => {
+            const thumbUrl = videoFrameThumbUrl(primaryVideo.thumbnailUrl, item.frameTimeMs);
+            const score = typeof item.selectionScore === "number" ? `${Math.round(item.selectionScore * 100)}%` : "";
+            return `<figure class="obs-video-evidence-frame">
+              ${thumbUrl ? `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" />` : ""}
+              <figcaption><span>${escapeHtml(frameTimeLabel(item.frameTimeMs) || "動画フレーム")} ${escapeHtml(score)}</span><small>${escapeHtml(item.selectionReason || "代表フレーム")}</small></figcaption>
+            </figure>`;
+          }).join("")}
+        </div>
+      </div>`
+    : "";
   const processingOverlay = primaryVideo.readyToStream
     ? ""
     : `<div class="obs-hero-video-processing" aria-live="polite">
@@ -239,6 +283,7 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
        ${videoRegion ? `<span class="obs-region-video-note">AI が動画フレーム上の対象位置を記録しています</span>` : ""}
        ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
      </div>
+     ${videoEvidenceHtml}
    </div>`;
 }
 

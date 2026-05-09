@@ -1,5 +1,13 @@
 import { getPool } from "../db.js";
 import { reassessObservation, type ReassessResult } from "./observationReassess.js";
+import {
+  adaptiveCandidateFrameTimesMs,
+  extractVideoFrameFeature,
+  fallbackVideoFrameTimesMs,
+  selectAdaptiveVideoFramesFromFeatures,
+  type VideoFrameFeature,
+  type VideoFrameSelection,
+} from "./videoAdaptiveFrameSelection.js";
 
 type VideoThumbTarget = {
   occurrenceId: string;
@@ -14,6 +22,14 @@ export type ReassessFromVideoThumbResult = ReassessResult & {
   frameUrls: string[];
   frameCount: number;
   frameTimesMs: number[];
+  selectionStrategy: "adaptive" | "fallback";
+  selectedFrames: Array<{
+    frameTimeMs: number;
+    selectionScore: number;
+    selectionReason: string;
+    differenceScore: number;
+    qualityScore: number;
+  }>;
 };
 
 function normalizeImageMime(value: string | null): string {
@@ -43,30 +59,10 @@ function uniqueFrameTimes(times: number[]): number[] {
 }
 
 export function selectVideoFrameTimesMs(durationMs: number | null | undefined): number[] {
-  const duration = Number(durationMs ?? 0);
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return [1000, 2000, 4000];
-  }
-  if (duration <= 1200) {
-    return [Math.max(100, Math.round(duration * 0.5))];
-  }
-  if (duration <= 5000) {
-    return uniqueFrameTimes([
-      Math.min(800, duration * 0.25),
-      duration * 0.5,
-      Math.max(400, duration - 500),
-    ]);
-  }
-  return uniqueFrameTimes([
-    Math.max(800, duration * 0.12),
-    duration * 0.32,
-    duration * 0.5,
-    duration * 0.68,
-    Math.min(duration - 500, duration * 0.88),
-  ]).slice(0, 5);
+  return fallbackVideoFrameTimesMs(durationMs);
 }
 
-export function buildVideoFrameUrl(thumbnailUrl: string, frameTimeMs: number): string {
+export function buildVideoFrameUrl(thumbnailUrl: string, frameTimeMs: number, height = 720): string {
   let url: URL;
   try {
     url = new URL(thumbnailUrl);
@@ -74,10 +70,77 @@ export function buildVideoFrameUrl(thumbnailUrl: string, frameTimeMs: number): s
     throw new Error("invalid_video_thumbnail_url");
   }
   url.searchParams.set("time", formatFrameTime(frameTimeMs));
-  if (!url.searchParams.has("height")) {
+  if (height > 0) {
+    url.searchParams.set("height", String(Math.round(height)));
+  } else if (!url.searchParams.has("height")) {
     url.searchParams.set("height", "720");
   }
   return url.toString();
+}
+
+async function fetchVideoFrame(thumbnailUrl: string, frameTimeMs: number, height: number): Promise<{
+  frameUrl: string;
+  frameTimeMs: number;
+  mime: string;
+  bytes: Buffer;
+} | null> {
+  const frameUrl = buildVideoFrameUrl(thumbnailUrl, frameTimeMs, height);
+  const response = await fetch(frameUrl, {
+    method: "GET",
+    headers: {
+      Accept: "image/*",
+    },
+  });
+  if (!response.ok) return null;
+  const contentType = response.headers.get("content-type");
+  if (!String(contentType ?? "").toLowerCase().startsWith("image/")) return null;
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.byteLength <= 0 || bytes.byteLength > 12 * 1024 * 1024) return null;
+  return {
+    frameUrl,
+    frameTimeMs,
+    mime: normalizeImageMime(response.headers.get("content-type")),
+    bytes,
+  };
+}
+
+async function selectAdaptiveFrames(target: VideoThumbTarget): Promise<{
+  strategy: "adaptive" | "fallback";
+  selections: VideoFrameSelection[];
+}> {
+  const candidateTimes = adaptiveCandidateFrameTimesMs(target.durationMs);
+  const features: VideoFrameFeature[] = [];
+  let previous: { grays: number[]; histogram: number[] } | null = null;
+  for (const frameTimeMs of candidateTimes) {
+    const frame = await fetchVideoFrame(target.thumbnailUrl, frameTimeMs, 240).catch(() => null);
+    if (!frame) continue;
+    const extracted: Awaited<ReturnType<typeof extractVideoFrameFeature>> | null =
+      await extractVideoFrameFeature(frameTimeMs, frame.bytes, previous).catch(() => null);
+    if (!extracted) continue;
+    features.push(extracted.feature);
+    previous = { grays: extracted.grays, histogram: extracted.histogram };
+  }
+  const selections = selectAdaptiveVideoFramesFromFeatures(features, {
+    maxSelected: Number(target.durationMs ?? 0) > 90_000 ? 8 : 6,
+    minSelected: 1,
+    minGapMs: Number(target.durationMs ?? 0) > 30_000 ? 1800 : 1000,
+  });
+  if (selections.length > 0) {
+    return { strategy: "adaptive", selections };
+  }
+  return {
+    strategy: "fallback",
+    selections: fallbackVideoFrameTimesMs(target.durationMs).map((frameTimeMs) => ({
+      frameTimeMs,
+      brightness: 0,
+      edgeScore: 0,
+      diffScore: 0,
+      colorDiffScore: 0,
+      qualityScore: 0,
+      selectionScore: 0,
+      selectionReason: "固定時刻fallback",
+    })),
+  };
 }
 
 async function resolveVideoThumbTarget(observationId: string): Promise<VideoThumbTarget | null> {
@@ -155,33 +218,23 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
   if (!target) {
     throw new Error("observation_video_not_found");
   }
-  const frameTimesMs = selectVideoFrameTimesMs(target.durationMs);
-  const frames: Array<{ frameUrl: string; frameTimeMs: number; mime: string; b64: string }> = [];
-  for (const frameTimeMs of frameTimesMs) {
-    const frameUrl = buildVideoFrameUrl(target.thumbnailUrl, frameTimeMs);
-    const response = await fetch(frameUrl, {
-      method: "GET",
-      headers: {
-        Accept: "image/*",
-      },
-    });
-    if (!response.ok) {
-      continue;
-    }
-    const contentType = response.headers.get("content-type");
-    if (!String(contentType ?? "").toLowerCase().startsWith("image/")) {
-      continue;
-    }
-
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (bytes.byteLength <= 0 || bytes.byteLength > 12 * 1024 * 1024) {
-      continue;
-    }
+  const selected = await selectAdaptiveFrames(target);
+  const frames: Array<{
+    frameUrl: string;
+    frameTimeMs: number;
+    mime: string;
+    b64: string;
+    selection: VideoFrameSelection;
+  }> = [];
+  for (const selection of selected.selections) {
+    const frame = await fetchVideoFrame(target.thumbnailUrl, selection.frameTimeMs, 720).catch(() => null);
+    if (!frame) continue;
     frames.push({
-      frameUrl,
-      frameTimeMs,
-      mime: normalizeImageMime(response.headers.get("content-type")),
-      b64: bytes.toString("base64"),
+      frameUrl: frame.frameUrl,
+      frameTimeMs: frame.frameTimeMs,
+      mime: frame.mime,
+      b64: frame.bytes.toString("base64"),
+      selection,
     });
   }
   if (frames.length === 0) {
@@ -194,9 +247,13 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
       b64: frame.b64,
       assetId: target.assetId,
       frameTimeMs: frame.frameTimeMs,
+      selectionScore: frame.selection.selectionScore,
+      selectionReason: frame.selection.selectionReason,
+      differenceScore: Math.max(frame.selection.diffScore, frame.selection.colorDiffScore),
+      qualityScore: frame.selection.qualityScore,
     })),
-    promptVersion: "observation_reassess.md/v2+video_frames",
-    sourceTag: "video_frames",
+    promptVersion: "observation_reassess.md/v3+video_adaptive_frames",
+    sourceTag: "video_adaptive_frames",
   });
 
   return {
@@ -206,5 +263,13 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
     frameUrls: frames.map((frame) => frame.frameUrl),
     frameCount: frames.length,
     frameTimesMs: frames.map((frame) => frame.frameTimeMs),
+    selectionStrategy: selected.strategy,
+    selectedFrames: frames.map((frame) => ({
+      frameTimeMs: frame.frameTimeMs,
+      selectionScore: frame.selection.selectionScore,
+      selectionReason: frame.selection.selectionReason,
+      differenceScore: Math.max(frame.selection.diffScore, frame.selection.colorDiffScore),
+      qualityScore: frame.selection.qualityScore,
+    })),
   };
 }

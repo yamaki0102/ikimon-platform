@@ -64,6 +64,10 @@ export type ReassessImageInput = {
   b64: string;
   assetId?: string | null;
   frameTimeMs?: number | null;
+  selectionScore?: number | null;
+  selectionReason?: string | null;
+  differenceScore?: number | null;
+  qualityScore?: number | null;
 };
 
 export type ReassessObservationOptions = {
@@ -557,20 +561,29 @@ function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[]): s
 
 function formatInputMediaSummaryForPrompt(sourceTag: string, photos: LoadedPhotoInput[]): string {
   const videoFrames = photos
-    .map((photo, index) => ({ index, frameTimeMs: photo.frameTimeMs }))
+    .map((photo, index) => ({
+      index,
+      frameTimeMs: photo.frameTimeMs,
+      selectionScore: photo.selectionScore,
+      selectionReason: photo.selectionReason,
+      differenceScore: photo.differenceScore,
+      qualityScore: photo.qualityScore,
+    }))
     .filter((item) => item.frameTimeMs != null && Number.isFinite(Number(item.frameTimeMs)));
   if (!sourceTag.startsWith("video") || videoFrames.length === 0) {
     return "";
   }
   const lines = videoFrames.map((item) => {
     const seconds = (Number(item.frameTimeMs) / 1000).toFixed(1).replace(/\.0$/, "");
-    return `- asset_index ${item.index}: video_frame ${seconds}s`;
+    const score = typeof item.selectionScore === "number" ? ` score=${item.selectionScore.toFixed(2)}` : "";
+    const reason = item.selectionReason ? ` reason=${item.selectionReason}` : "";
+    return `- asset_index ${item.index}: video_frame ${seconds}s${score}${reason}`;
   });
-  return `\n\n入力画像メタデータ:\n${lines.join("\n")}\n動画由来の複数フレームです。時間差で見える対象・動き・周辺環境を総合し、領域を返す場合は該当する asset_index と frame_time_ms を使ってください。`;
+  return `\n\n入力画像メタデータ:\n${lines.join("\n")}\n動画由来の複数フレームです。フレームはAIなしの差分・明るさ・輪郭スコアで可変選抜されています。時間差で見える対象・動き・周辺環境を総合し、領域を返す場合は該当する asset_index と frame_time_ms を使ってください。`;
 }
 
 function triggerKindForSourceTag(sourceTag: string): string {
-  if (sourceTag === "video_thumb" || sourceTag === "video_frames") {
+  if (sourceTag === "video_thumb" || sourceTag === "video_frames" || sourceTag === "video_adaptive_frames") {
     return "video_ready_reassess";
   }
   return "manual_reassess";
@@ -687,16 +700,25 @@ type GeminiCostMeta = {
   userId?: string | null;
   visitId?: string | null;
   occurrenceId?: string | null;
+  sourceTag?: string | null;
 };
 
-async function runGemini(
+function parseGeminiJson(rawText: string): GeminiJson {
+  let parsed: GeminiJson = {};
+  try {
+    const matched = rawText.match(/\{[\s\S]*\}/);
+    if (matched) parsed = JSON.parse(matched[0]);
+  } catch {
+    parsed = {};
+  }
+  return parsed;
+}
+
+async function runSingleGeminiReassess(
   prompt: string,
   photos: ReassessImageInput[],
   meta: GeminiCostMeta = {},
 ): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
-  // Hot-layer budget gate: throws AiBudgetExceededError when monthly cap reached.
-  await assertAiBudgetAllowed("hot");
-
   const parts: AiRouterPart[] = photos.map((photo) => ({
     inlineData: { mimeType: photo.mime, data: photo.b64 },
   }));
@@ -715,14 +737,85 @@ async function runGemini(
     },
   });
   const rawText = response.text || "{}";
-  let parsed: GeminiJson = {};
-  try {
-    const matched = rawText.match(/\{[\s\S]*\}/);
-    if (matched) parsed = JSON.parse(matched[0]);
-  } catch {
-    parsed = {};
+  return { parsed: parseGeminiJson(rawText), modelUsed: response.model, rawText };
+}
+
+async function runVisualTwoStageGemini(
+  prompt: string,
+  photos: ReassessImageInput[],
+  meta: GeminiCostMeta = {},
+): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
+  const parts: AiRouterPart[] = photos.map((photo) => ({
+    inlineData: { mimeType: photo.mime, data: photo.b64 },
+  }));
+  parts.push({
+    text: `${prompt}\n\nまず画像・動画フレームから見える事実を最大限細かく抽出し、同じJSONスキーマで返してください。断定できない点は保留として書いてください。`,
+  });
+  const extract = await generateAiTextWithRoleChain({
+    chainName: "observationVisualExtract",
+    parts,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_visual_extract",
+      userId: meta.userId ?? null,
+      visitId: meta.visitId ?? null,
+      occurrenceId: meta.occurrenceId ?? null,
+      metadata: { sourceTag: meta.sourceTag ?? "photo" },
+    },
+  });
+  const summaryPrompt = `${prompt}
+
+以下は画像読取モデルが抽出した視覚証拠JSONです。この情報だけを使って、最終的な観察ページ保存用JSONを同じスキーマで作ってください。
+AI単独で確定同定せず、根拠・保留点・次に撮るべき写真を明確に分けてください。
+
+視覚証拠JSON:
+${extract.text.slice(0, 18000)}
+
+JSONのみ出力。`;
+  const summary = await generateAiTextWithRoleChain({
+    chainName: "observationVisualSummary",
+    text: summaryPrompt,
+    responseMimeType: "application/json",
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_visual_summary",
+      userId: meta.userId ?? null,
+      visitId: meta.visitId ?? null,
+      occurrenceId: meta.occurrenceId ?? null,
+      metadata: {
+        sourceTag: meta.sourceTag ?? "photo",
+        visualExtractModel: `${extract.provider}:${extract.model}`,
+      },
+    },
+  });
+  const rawText = summary.text || "{}";
+  return {
+    parsed: parseGeminiJson(rawText),
+    modelUsed: `${extract.model}+${summary.model}`,
+    rawText: JSON.stringify({
+      visual_extract: extract.text.slice(0, 12000),
+      visual_summary: rawText.slice(0, 12000),
+    }),
+  };
+}
+
+async function runGemini(
+  prompt: string,
+  photos: ReassessImageInput[],
+  meta: GeminiCostMeta = {},
+): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
+  // Hot-layer budget gate: throws AiBudgetExceededError when monthly cap reached.
+  await assertAiBudgetAllowed("hot");
+  if (photos.length > 0) {
+    try {
+      return await runVisualTwoStageGemini(prompt, photos, meta);
+    } catch {
+      return runSingleGeminiReassess(prompt, photos, meta);
+    }
   }
-  return { parsed, modelUsed: response.model, rawText };
+  return runSingleGeminiReassess(prompt, photos, meta);
 }
 
 /**
@@ -908,6 +1001,7 @@ export async function reassessObservation(
       userId: options.triggeredBy ?? null,
       visitId: target.visitId,
       occurrenceId: target.primaryOccurrenceId,
+      sourceTag,
     });
     const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
 
@@ -1026,6 +1120,17 @@ export async function reassessObservation(
         sourceTag,
         selectedOccurrenceId: target.selectedOccurrenceId,
         photoCount: photos.length,
+        visualEvidence: photos
+          .filter((photo) => photo.frameTimeMs != null || photo.selectionScore != null || photo.selectionReason)
+          .map((photo, index) => ({
+            assetIndex: index,
+            assetId: photo.assetId ?? null,
+            frameTimeMs: photo.frameTimeMs ?? null,
+            selectionScore: photo.selectionScore ?? null,
+            selectionReason: photo.selectionReason ?? null,
+            differenceScore: photo.differenceScore ?? null,
+            qualityScore: photo.qualityScore ?? null,
+          })),
         knowledgeVersionSet,
         navigableOs: {
           branch: "feedback_contract",
@@ -1164,6 +1269,101 @@ export async function reassessObservation(
       ],
     );
 
+    for (let index = 0; index < photos.length; index += 1) {
+      const photo = photos[index];
+      if (!photo) continue;
+      await client.query(
+        `INSERT INTO visual_evidence_extracts (
+           ai_run_id, assessment_id, visit_id, occurrence_id, asset_id, asset_index,
+           media_kind, frame_time_ms, selection_score, selection_reason, difference_score,
+           quality_score, source_tag, source_model, extract_payload
+         ) VALUES (
+           $1::uuid, $2::uuid, $3, $4, $5::uuid, $6,
+           $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb
+         )`,
+        [
+          aiRun.aiRunId,
+          assessmentId,
+          target.visitId,
+          target.primaryOccurrenceId,
+          photo.assetId,
+          index,
+          photo.frameTimeMs != null || sourceTag.startsWith("video") ? "video_frame" : "image",
+          photo.frameTimeMs ?? null,
+          photo.selectionScore ?? null,
+          photo.selectionReason ?? null,
+          photo.differenceScore ?? null,
+          photo.qualityScore ?? null,
+          sourceTag,
+          modelUsed,
+          JSON.stringify({
+            promptVersion,
+            assetFingerprintSource: sourceTag,
+          }),
+        ],
+      );
+    }
+
+    await client.query(
+      `INSERT INTO visual_subject_candidates (
+         ai_run_id, assessment_id, visit_id, occurrence_id, subject_role,
+         display_name, scientific_name, taxon_rank, confidence_score, evidence_note, source_payload
+       ) VALUES (
+         $1::uuid, $2::uuid, $3, $4, 'primary',
+         $5, $6, $7, $8, $9, $10::jsonb
+       )`,
+      [
+        aiRun.aiRunId,
+        assessmentId,
+        target.visitId,
+        target.primaryOccurrenceId,
+        recommendedName || target.vernacularName || target.scientificName || null,
+        recommendedScientificName || target.scientificName || null,
+        rank === "unknown" ? null : rank,
+        band === "high" ? 0.85 : band === "medium" ? 0.6 : 0.35,
+        narrative || simple || null,
+        JSON.stringify({ sourceTag, gbifMatched: gbifMatchedPrimary }),
+      ],
+    );
+
+    for (const key of AREA_INFERENCE_KEYS) {
+      for (const candidate of areaInference[key]) {
+        await client.query(
+          `INSERT INTO visual_observation_signals (
+             ai_run_id, assessment_id, visit_id, signal_kind, label, evidence_text, confidence_score, source_payload
+           ) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8::jsonb)`,
+          [
+            aiRun.aiRunId,
+            assessmentId,
+            target.visitId,
+            key,
+            candidate.label,
+            candidate.why,
+            candidate.confidence,
+            JSON.stringify({ sourceTag }),
+          ],
+        );
+      }
+    }
+
+    for (const suggestion of shotSuggestions) {
+      await client.query(
+        `INSERT INTO visual_next_capture_suggestions (
+           ai_run_id, assessment_id, visit_id, role, target, rationale, priority, source_payload
+         ) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8::jsonb)`,
+        [
+          aiRun.aiRunId,
+          assessmentId,
+          target.visitId,
+          suggestion.role,
+          suggestion.target,
+          suggestion.rationale,
+          suggestion.priority,
+          JSON.stringify({ sourceTag }),
+        ],
+      );
+    }
+
     // 0061: gated 3 レンズ値を occurrences の専用列に同期。
     // raw_json への保存とは別に、ランキング・集計用の冗長カラムを更新する。
     await syncOccurrenceThreeLenses(client, target.primaryOccurrenceId, gatedParsed);
@@ -1279,6 +1479,34 @@ export async function reassessObservation(
         ],
       );
       candidateCount += 1;
+      await client.query(
+        `INSERT INTO visual_subject_candidates (
+           ai_run_id, assessment_id, visit_id, occurrence_id, candidate_id, subject_role,
+           display_name, scientific_name, taxon_rank, confidence_score, evidence_note, source_payload
+         ) VALUES (
+           $1::uuid, $2::uuid, $3, $4, $5::uuid, 'coexisting',
+           $6, $7, $8, $9, $10, $11::jsonb
+         )`,
+        [
+          aiRun.aiRunId,
+          assessmentId,
+          target.visitId,
+          matchedSubject?.occurrenceId ?? null,
+          candidateId,
+          candidate.vernacularName || candidate.scientificName || null,
+          candidate.scientificName || null,
+          candidate.rankHint,
+          candidate.confidence,
+          candidate.note,
+          JSON.stringify({
+            sourceTag,
+            gbif: {
+              usageKey: gbif?.usageKey ?? null,
+              matchType: gbif?.matchType ?? "NONE",
+            },
+          }),
+        ],
+      );
 
       for (const region of candidate.regions) {
         const photo = photos[region.assetIndex];
@@ -1325,6 +1553,30 @@ export async function reassessObservation(
             }),
           ],
         );
+        await client.query(
+          `INSERT INTO visual_asset_regions (
+             ai_run_id, assessment_id, visit_id, occurrence_id, candidate_id, asset_id,
+             asset_index, frame_time_ms, normalized_rect, confidence_score, note, source_model, source_payload
+           ) VALUES (
+             $1::uuid, $2::uuid, $3, $4, $5::uuid, $6::uuid,
+             $7, $8, $9::jsonb, $10, $11, $12, $13::jsonb
+           )`,
+          [
+            aiRun.aiRunId,
+            assessmentId,
+            target.visitId,
+            matchedSubject?.occurrenceId ?? null,
+            candidateId,
+            photo.assetId,
+            region.assetIndex,
+            region.frameTimeMs ?? photo.frameTimeMs ?? null,
+            JSON.stringify(region.rect),
+            region.confidence,
+            region.note,
+            modelUsed,
+            JSON.stringify({ sourceTag }),
+          ],
+        );
         regionCount += 1;
       }
     }
@@ -1369,6 +1621,29 @@ export async function reassessObservation(
             sourceTag,
             assetIndex: region.assetIndex,
           }),
+        ],
+      );
+      await client.query(
+        `INSERT INTO visual_asset_regions (
+           ai_run_id, assessment_id, visit_id, occurrence_id, asset_id,
+           asset_index, frame_time_ms, normalized_rect, confidence_score, note, source_model, source_payload
+         ) VALUES (
+           $1::uuid, $2::uuid, $3, $4, $5::uuid,
+           $6, $7, $8::jsonb, $9, $10, $11, $12::jsonb
+         )`,
+        [
+          aiRun.aiRunId,
+          assessmentId,
+          target.visitId,
+          target.primaryOccurrenceId,
+          photo.assetId,
+          region.assetIndex,
+          region.frameTimeMs ?? photo.frameTimeMs ?? null,
+          JSON.stringify(region.rect),
+          region.confidence,
+          region.note,
+          modelUsed,
+          JSON.stringify({ sourceTag }),
         ],
       );
       regionCount += 1;

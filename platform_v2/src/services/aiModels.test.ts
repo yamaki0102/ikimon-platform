@@ -22,6 +22,15 @@ test("AI model role chain overrides accept catalog aliases", () => {
   ]);
 });
 
+test("AI model role chains support Vertex and observation visual roles", () => {
+  assert.deepEqual(parseAiModelRoleChainOverride("vertex:gemini-3.1-flash-image,openai:gpt-5.1-mini"), [
+    { provider: "vertex", model: "gemini-3.1-flash-image" },
+    { provider: "openai-compatible", model: "gpt-5.1-mini" },
+  ]);
+  assert.equal(getAiModelRoleChain("observationVisualExtract")[0]?.model, "gemini-3.1-flash-image");
+  assert.equal(getAiModelRoleChain("observationVisualSummary")[0]?.model, "gemini-3.1-flash-lite");
+});
+
 test("regional story keeps the legacy single-model env override", () => {
   assert.deepEqual(getAiModelRoleChain("regionalStory", {
     REGIONAL_STORY_GEMINI_MODEL: "gemini-custom-regional",

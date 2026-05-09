@@ -132,6 +132,25 @@ export type ObservationDetailSnapshot = {
     createdAt: string;
     mediaRole: string | null;
   } & MediaRoleSuggestion>;
+  visualEvidence: Array<{
+    extractId: string;
+    assetId: string | null;
+    assetIndex: number;
+    mediaKind: string;
+    frameTimeMs: number | null;
+    selectionScore: number | null;
+    selectionReason: string | null;
+    differenceScore: number | null;
+    qualityScore: number | null;
+    sourceTag: string | null;
+    sourceModel: string | null;
+  }>;
+  nextCaptureSuggestions: Array<{
+    role: string;
+    target: string;
+    rationale: string;
+    priority: string;
+  }>;
   identifications: Array<{
     proposedName: string;
     proposedRank: string | null;
@@ -1054,6 +1073,53 @@ export async function getObservationDetailSnapshot(
     [base.visit_id],
   );
   const latestAiRunId = latestAiRunResult.rows[0]?.ai_run_id ?? null;
+  const visualEvidenceResult = latestAiRunId
+    ? await pool.query<{
+        extract_id: string;
+        asset_id: string | null;
+        asset_index: number;
+        media_kind: string;
+        frame_time_ms: number | null;
+        selection_score: string | null;
+        selection_reason: string | null;
+        difference_score: string | null;
+        quality_score: string | null;
+        source_tag: string | null;
+        source_model: string | null;
+      }>(
+        `select extract_id::text,
+                asset_id::text,
+                asset_index,
+                media_kind,
+                frame_time_ms,
+                selection_score::text,
+                selection_reason,
+                difference_score::text,
+                quality_score::text,
+                source_tag,
+                source_model
+           from visual_evidence_extracts
+          where ai_run_id = $1::uuid
+          order by asset_index asc, frame_time_ms nulls first
+          limit 24`,
+        [latestAiRunId],
+      ).catch(() => ({ rows: [] }))
+    : { rows: [] };
+  const nextCaptureResult = latestAiRunId
+    ? await pool.query<{
+        role: string;
+        target: string;
+        rationale: string;
+        priority: string;
+      }>(
+        `select role, target, rationale, priority
+           from visual_next_capture_suggestions
+          where ai_run_id = $1::uuid
+          order by case priority when 'high' then 0 else 1 end, created_at asc
+          limit 6`,
+        [latestAiRunId],
+      ).catch(() => ({ rows: [] }))
+    : { rows: [] };
   const primaryRegionConfidenceByAsset = new Map<string, number>();
   const secondaryCandidateConfidenceByAsset = new Map<string, number>();
   if (latestAiRunId) {
@@ -1268,6 +1334,25 @@ export async function getObservationDetailSnapshot(
         };
       })
       .filter((video): video is ObservationDetailSnapshot["videoAssets"][number] => Boolean(video)),
+    visualEvidence: visualEvidenceResult.rows.map((row) => ({
+      extractId: row.extract_id,
+      assetId: row.asset_id,
+      assetIndex: Number(row.asset_index ?? 0),
+      mediaKind: row.media_kind,
+      frameTimeMs: row.frame_time_ms != null ? Number(row.frame_time_ms) : null,
+      selectionScore: row.selection_score != null ? Number(row.selection_score) : null,
+      selectionReason: row.selection_reason,
+      differenceScore: row.difference_score != null ? Number(row.difference_score) : null,
+      qualityScore: row.quality_score != null ? Number(row.quality_score) : null,
+      sourceTag: row.source_tag,
+      sourceModel: row.source_model,
+    })),
+    nextCaptureSuggestions: nextCaptureResult.rows.map((row) => ({
+      role: row.role,
+      target: row.target,
+      rationale: row.rationale,
+      priority: row.priority,
+    })),
     identifications: identificationsResult.rows.map((row) => ({
       proposedName: row.proposed_name,
       proposedRank: row.proposed_rank,

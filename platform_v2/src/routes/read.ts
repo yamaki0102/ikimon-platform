@@ -631,6 +631,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-read-progress a:hover, .obs-read-progress a:focus-visible { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.24); outline: none; }
   .obs-reading-flow { display: grid; gap: 18px; max-width: var(--ikimon-content-max); margin: 0 auto; }
   .obs-reading-section { display: grid; gap: 14px; scroll-margin-top: 96px; }
+  .obs-visual-next-capture { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 10px 26px rgba(15,23,42,.04); }
+  .obs-visual-next-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .obs-visual-next-card { display: grid; gap: 5px; padding: 12px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .obs-visual-next-card.is-high { background: #ecfdf5; border-color: rgba(16,185,129,.24); }
+  .obs-visual-next-card span { color: #047857; font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-visual-next-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
+  .obs-visual-next-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
   .obs-summary-section, .obs-support-panel, .obs-layer, .obs-reading-hero { scroll-margin-top: 96px; }
   @media (max-width: 720px) {
     .obs-reading-panel { padding: 15px; border-radius: 16px; }
@@ -2634,6 +2641,28 @@ function renderObservationNextActionRail(actions: ObservationNextAction[]): stri
       <span class="obs-next-action-label">${escapeHtml(action.label)}</span>
       <span class="obs-next-action-body">${escapeHtml(action.body)}</span>
     </a>`).join("")}
+  </div>`;
+}
+
+function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot): string {
+  if (snapshot.nextCaptureSuggestions.length === 0) return "";
+  const roleLabels: Record<string, string> = {
+    full_body: "全体",
+    close_up_organ: "細部",
+    habitat_wide: "環境",
+    substrate: "足元",
+    scale_reference: "スケール",
+  };
+  return `<div class="obs-visual-next-capture">
+    <div class="obs-story-eyebrow">AIが提案する次の撮り方</div>
+    <div class="obs-visual-next-grid">
+      ${snapshot.nextCaptureSuggestions.map((item) => `
+        <div class="obs-visual-next-card${item.priority === "high" ? " is-high" : ""}">
+          <span>${escapeHtml(roleLabels[item.role] ?? item.role)}${item.priority === "high" ? " / 優先" : ""}</span>
+          <strong>${escapeHtml(item.target)}</strong>
+          <p>${escapeHtml(item.rationale)}</p>
+        </div>`).join("")}
+    </div>
   </div>`;
 }
 
@@ -8672,6 +8701,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               vernacularName: subject.vernacularName,
               identifications: subject.identifications,
               disputes: [],
+              visualEvidence: snapshot.visualEvidence,
+              nextCaptureSuggestions: snapshot.nextCaptureSuggestions,
             },
             consensus: subjectConsensus,
           },
@@ -8997,7 +9028,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       lang,
     });
 
-    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</div>`;
+    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</div>`;
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
 
     // ===== Layer 1: 物語 =====

@@ -119,6 +119,26 @@ async function callGemini(ref: AiModelRef, request: AiRouterGenerateRequest): Pr
   const cfg = loadConfig();
   if (!cfg.geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
   const ai = new GoogleGenAI({ apiKey: cfg.geminiApiKey });
+  return callGoogleGenAi(ai, ref, request, "gemini");
+}
+
+async function callVertex(ref: AiModelRef, request: AiRouterGenerateRequest): Promise<AiRouterGenerateResult> {
+  const cfg = loadConfig();
+  if (!cfg.vertexAi) throw new Error("VERTEX_AI_PROJECT is not set");
+  const ai = new GoogleGenAI({
+    vertexai: true,
+    project: cfg.vertexAi.project,
+    location: cfg.vertexAi.location,
+  });
+  return callGoogleGenAi(ai, ref, request, "vertex");
+}
+
+async function callGoogleGenAi(
+  ai: GoogleGenAI,
+  ref: AiModelRef,
+  request: AiRouterGenerateRequest,
+  provider: "gemini" | "vertex",
+): Promise<AiRouterGenerateResult> {
   const response = await ai.models.generateContent({
     model: ref.model,
     contents: [{ role: "user", parts: requestParts(request) }],
@@ -135,7 +155,7 @@ async function callGemini(ref: AiModelRef, request: AiRouterGenerateRequest): Pr
   const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
   const text = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   return {
-    provider: "gemini",
+    provider,
     model: ref.model,
     text,
     inputTokens,
@@ -211,6 +231,7 @@ async function callOpenAiCompatible(
 
 async function callProvider(ref: AiModelRef, request: AiRouterGenerateRequest): Promise<AiRouterGenerateResult> {
   if (ref.provider === "gemini") return callGemini(ref, request);
+  if (ref.provider === "vertex") return callVertex(ref, request);
   const cfg = loadConfig();
   if (ref.provider === "deepseek") {
     if (hasInlineData(requestParts(request))) throw new Error("deepseek_inline_data_unsupported");

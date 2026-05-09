@@ -9,6 +9,10 @@ export type AppConfig = {
   oauthStateSecret?: string;
   geminiApiKey?: string;
   deepseekApiKey?: string;
+  vertexAi?: {
+    project: string;
+    location: string;
+  };
   profileDigest: {
     provider: "disabled" | "deepseek";
     model: string;
@@ -146,6 +150,9 @@ export function loadConfig(): AppConfig {
   const twitterClientSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim() || undefined;
   const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || undefined;
+  const vertexProject = process.env.VERTEX_AI_PROJECT?.trim() || process.env.GOOGLE_CLOUD_PROJECT?.trim();
+  const vertexLocation = process.env.VERTEX_AI_LOCATION?.trim() || process.env.GOOGLE_CLOUD_LOCATION?.trim() || "global";
+  const vertexAi = vertexProject ? { project: vertexProject, location: vertexLocation } : undefined;
 
   return {
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -155,6 +162,7 @@ export function loadConfig(): AppConfig {
     oauthStateSecret: process.env.V2_OAUTH_STATE_SECRET?.trim() || process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
     geminiApiKey,
     deepseekApiKey,
+    vertexAi,
     profileDigest: {
       provider: parseProfileDigestProvider(process.env.PROFILE_DIGEST_LLM_PROVIDER, Boolean(deepseekApiKey)),
       model: process.env.PROFILE_DIGEST_MODEL?.trim() || AI_MODEL_ROLES.curatorDeepseek,

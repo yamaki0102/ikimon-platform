@@ -96,6 +96,9 @@ export async function processVideoProcessingJobs(limit = 5): Promise<VideoProces
           source: "video_processing_worker",
           occurrence_id: reassess.occurrenceId,
           ai_run_id: reassess.aiRunId,
+          frame_count: reassess.frameCount,
+          frame_times_ms: reassess.frameTimesMs,
+          frame_selection_strategy: reassess.selectionStrategy,
         });
         result.succeeded += 1;
         continue;

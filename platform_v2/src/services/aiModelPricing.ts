@@ -4,7 +4,7 @@ import {
   CURATOR_DEFAULT_MODEL,
 } from "./aiModels.js";
 
-export type AiPricingProvider = "gemini" | "deepseek";
+export type AiPricingProvider = "gemini" | "vertex" | "deepseek";
 
 export type AiModelPricing = {
   provider: AiPricingProvider;
@@ -22,6 +22,12 @@ export const AI_MODEL_PRICING: Record<string, AiModelPricing> = {
     provider: "gemini",
     inputUsdPer1M: 0.25,
     outputUsdPer1M: 1.5,
+    source: "https://ai.google.dev/gemini-api/docs/pricing",
+  },
+  [AI_MODELS.geminiFlashImage]: {
+    provider: "gemini",
+    inputUsdPer1M: 0.3,
+    outputUsdPer1M: 2.5,
     source: "https://ai.google.dev/gemini-api/docs/pricing",
   },
   // Kept for non-curator legacy Hot path accounting only. Do not add it to

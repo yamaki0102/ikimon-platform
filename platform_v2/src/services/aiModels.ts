@@ -1,4 +1,4 @@
-export type AiModelProvider = "gemini" | "deepseek" | "openai-compatible";
+export type AiModelProvider = "gemini" | "vertex" | "deepseek" | "openai-compatible";
 
 export type AiModelRef = {
   provider: AiModelProvider;
@@ -7,6 +7,7 @@ export type AiModelRef = {
 
 export const AI_MODELS = {
   geminiFlashLite: "gemini-3.1-flash-lite",
+  geminiFlashImage: "gemini-3.1-flash-image",
   geminiFlashLiteFallback: "gemini-2.5-flash-lite",
   geminiFlash: "gemini-2.5-flash",
   deepseekFlash: "deepseek-v4-flash",
@@ -14,6 +15,9 @@ export const AI_MODELS = {
 
 export const AI_MODEL_CATALOG = {
   geminiFlashLite: { provider: "gemini", model: AI_MODELS.geminiFlashLite },
+  geminiFlashImage: { provider: "gemini", model: AI_MODELS.geminiFlashImage },
+  vertexFlashLite: { provider: "vertex", model: AI_MODELS.geminiFlashLite },
+  vertexFlashImage: { provider: "vertex", model: AI_MODELS.geminiFlashImage },
   geminiFlashLiteFallback: { provider: "gemini", model: AI_MODELS.geminiFlashLiteFallback },
   geminiFlash: { provider: "gemini", model: AI_MODELS.geminiFlash },
   deepseekFlash: { provider: "deepseek", model: AI_MODELS.deepseekFlash },
@@ -33,6 +37,10 @@ export const AI_MODEL_ROLES = {
   guideTtsTextFallback: AI_MODELS.geminiFlashLiteFallback,
   observationReassessPrimary: AI_MODELS.geminiFlashLite,
   observationReassessFallback: AI_MODELS.geminiFlashLiteFallback,
+  observationVisualExtractPrimary: AI_MODELS.geminiFlashImage,
+  observationVisualExtractFallback: AI_MODELS.geminiFlashLite,
+  observationVisualSummaryPrimary: AI_MODELS.geminiFlashLite,
+  observationVisualSummaryFallback: AI_MODELS.geminiFlashLiteFallback,
   observationEventQuestPrimary: AI_MODELS.geminiFlashLite,
   observationEventQuestFallback: AI_MODELS.geminiFlashLiteFallback,
   observationEventAreaPrimary: AI_MODELS.geminiFlashLite,
@@ -55,6 +63,10 @@ export const AI_MODEL_ROLE_REFS = {
   guideTtsTextFallback: AI_MODEL_CATALOG.geminiFlashLiteFallback,
   observationReassessPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   observationReassessFallback: AI_MODEL_CATALOG.geminiFlashLiteFallback,
+  observationVisualExtractPrimary: AI_MODEL_CATALOG.geminiFlashImage,
+  observationVisualExtractFallback: AI_MODEL_CATALOG.geminiFlashLite,
+  observationVisualSummaryPrimary: AI_MODEL_CATALOG.geminiFlashLite,
+  observationVisualSummaryFallback: AI_MODEL_CATALOG.geminiFlashLiteFallback,
   observationEventQuestPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   observationEventQuestFallback: AI_MODEL_CATALOG.geminiFlashLiteFallback,
   observationEventAreaPrimary: AI_MODEL_CATALOG.geminiFlashLite,
@@ -69,6 +81,8 @@ export const AI_MODEL_ROLE_CHAINS = {
   guideScene: [AI_MODEL_ROLE_REFS.guideScenePrimary, AI_MODEL_ROLE_REFS.guideSceneFallback],
   guideTtsText: [AI_MODEL_ROLE_REFS.guideTtsTextPrimary, AI_MODEL_ROLE_REFS.guideTtsTextFallback],
   observationReassess: [AI_MODEL_ROLE_REFS.observationReassessPrimary, AI_MODEL_ROLE_REFS.observationReassessFallback],
+  observationVisualExtract: [AI_MODEL_ROLE_REFS.observationVisualExtractPrimary, AI_MODEL_ROLE_REFS.observationVisualExtractFallback],
+  observationVisualSummary: [AI_MODEL_ROLE_REFS.observationVisualSummaryPrimary, AI_MODEL_ROLE_REFS.observationVisualSummaryFallback],
   observationEventQuest: [AI_MODEL_ROLE_REFS.observationEventQuestPrimary, AI_MODEL_ROLE_REFS.observationEventQuestFallback],
   observationEventArea: [AI_MODEL_ROLE_REFS.observationEventAreaPrimary, AI_MODEL_ROLE_REFS.observationEventAreaFallback],
   digitizedRagAnswer: [AI_MODEL_ROLE_REFS.digitizedRagAnswerPrimary, AI_MODEL_ROLE_REFS.digitizedRagAnswerFallback],
@@ -85,6 +99,8 @@ export const AI_MODEL_CHAIN_ENV_KEYS = {
   guideScene: "AI_MODEL_CHAIN_GUIDE_SCENE",
   guideTtsText: "AI_MODEL_CHAIN_GUIDE_TTS_TEXT",
   observationReassess: "AI_MODEL_CHAIN_OBSERVATION_REASSESS",
+  observationVisualExtract: "AI_MODEL_CHAIN_OBSERVATION_VISUAL_EXTRACT",
+  observationVisualSummary: "AI_MODEL_CHAIN_OBSERVATION_VISUAL_SUMMARY",
   observationEventQuest: "AI_MODEL_CHAIN_OBSERVATION_EVENT_QUEST",
   observationEventArea: "AI_MODEL_CHAIN_OBSERVATION_EVENT_AREA",
   digitizedRagAnswer: "AI_MODEL_CHAIN_DIGITIZED_RAG_ANSWER",
@@ -100,7 +116,7 @@ function refFromCatalogOrModel(raw: string): AiModelRef {
     const provider = trimmed.slice(0, separator).trim().toLowerCase();
     const model = trimmed.slice(separator + 1).trim();
     if (!model) throw new Error(`ai_model_override_empty_model:${raw}`);
-    if (provider === "gemini" || provider === "deepseek" || provider === "openai-compatible") {
+    if (provider === "gemini" || provider === "vertex" || provider === "deepseek" || provider === "openai-compatible") {
       return { provider, model };
     }
     if (provider === "openai") {
