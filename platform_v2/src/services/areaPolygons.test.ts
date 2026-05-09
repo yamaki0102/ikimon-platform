@@ -11,6 +11,7 @@ const {
   tilesForBbox,
   featureTouchesBbox,
   normalizeAreaLayerSource,
+  isRenderableStoredAreaPolygon,
   SOURCE_LABEL,
 } = __test__;
 
@@ -92,6 +93,26 @@ test("liveElementToFeature converts OSM schools into transient school areas", ()
   assert.equal(feature?.properties.source_confidence, 0.45);
   assert.equal(feature?.properties.verification_level, "unverified");
   assert.equal(feature?.properties.verification_label, "未確認");
+});
+
+test("stored school point-buffer fallbacks are not rendered as real area polygons", () => {
+  assert.equal(isRenderableStoredAreaPolygon("school", {
+    boundary_approximation: "point_buffer",
+    boundary_radius_m: 160,
+  }), false);
+});
+
+test("stored school polygons enriched with an actual boundary still render", () => {
+  assert.equal(isRenderableStoredAreaPolygon("school", {
+    boundary_approximation: "point_buffer",
+    school_boundary: { source: "osm", matched_name: "浜松第一小学校" },
+  }), true);
+});
+
+test("non-school stored polygons are unaffected by point-buffer payload metadata", () => {
+  assert.equal(isRenderableStoredAreaPolygon("osm_park", {
+    boundary_approximation: "point_buffer",
+  }), true);
 });
 
 test("tilesForBbox returns bounded web mercator tile keys", () => {
