@@ -6,7 +6,7 @@
 import { getPool } from "../db.js";
 
 export type AiCostLayer = "hot" | "warm" | "cold";
-export type AiCostProvider = "gemini" | "claude" | "deepseek" | "openai" | "other";
+export type AiCostProvider = "gemini" | "vertex" | "claude" | "deepseek" | "openai" | "other";
 
 export type AiCostLogEntry = {
   layer: AiCostLayer;

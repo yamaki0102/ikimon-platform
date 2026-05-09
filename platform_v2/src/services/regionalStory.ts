@@ -1,9 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { assertAllowed as assertAiBudgetAllowed } from "./aiBudgetGate.js";
-import { logAiCost } from "./aiCostLogger.js";
-import { CURATOR_DEFAULT_MODEL, estimateAiCostUsd, pricingForModel } from "./aiModelPricing.js";
+import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 
 export type RegionalKnowledgeCategory =
   | "history"
@@ -994,14 +992,6 @@ function uniqueCards(cards: RegionalKnowledgeCard[]): RegionalKnowledgeCard[] {
   return result;
 }
 
-function rawTextFromGeminiResponse(response: unknown): string {
-  const obj = response as {
-    text?: string;
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  return obj.text ?? obj.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-}
-
 function parseJsonObject<T>(rawText: string): T {
   try {
     return JSON.parse(rawText) as T;
@@ -1151,56 +1141,41 @@ async function composeRegionalStoryWithGemini(
   exposures: RecentExposure[],
 ): Promise<RegionalStoryCue> {
   const cfg = loadConfig();
-  if (cfg.regionalStory.provider !== "gemini" || !cfg.geminiApiKey || cue.cards.length === 0) {
+  if (cfg.regionalStory.provider !== "gemini" || cue.cards.length === 0) {
     return cue;
   }
-  const model = cfg.regionalStory.model || CURATOR_DEFAULT_MODEL;
-  pricingForModel(model);
   try {
     await assertAiBudgetAllowed("warm");
-    const ai = new GoogleGenAI({ apiKey: cfg.geminiApiKey });
     const prompt = buildRegionalStoryGeminiPrompt(input, cue, exposures);
-    const startedAt = Date.now();
-    const response = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: "You rewrite grounded local-place copy for a citizen biodiversity app. Use only provided cards as facts.",
-        temperature: 0.25,
-        maxOutputTokens: cfg.regionalStory.maxOutputTokens,
-        responseMimeType: "application/json",
-        responseJsonSchema: {
-          type: "object",
-          properties: {
-            place_hook: { type: "string" },
-            why_here: { type: "string" },
-            next_observation_angle: { type: "string" },
-            collective_note: { type: "string" },
-          },
-          required: ["place_hook", "why_here", "next_observation_angle", "collective_note"],
+    const response = await generateAiTextWithRoleChain({
+      chainName: "regionalStory",
+      text: prompt,
+      systemInstruction: "You rewrite grounded local-place copy for a citizen biodiversity app. Use only provided cards as facts.",
+      temperature: 0.25,
+      maxOutputTokens: cfg.regionalStory.maxOutputTokens,
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "object",
+        properties: {
+          place_hook: { type: "string" },
+          why_here: { type: "string" },
+          next_observation_angle: { type: "string" },
+          collective_note: { type: "string" },
+        },
+        required: ["place_hook", "why_here", "next_observation_angle", "collective_note"],
+      },
+      cost: {
+        layer: "warm",
+        endpoint: "regional_story_compose",
+        metadata: {
+          surface: input.surface,
+          cardIds: cue.usedCardIds,
+          angleKey: cue.angleKey,
         },
       },
     });
-    const rawText = rawTextFromGeminiResponse(response);
+    const rawText = response.text;
     const parsed = parseJsonObject<RegionalStoryGeminiJson>(rawText);
-    const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }).usageMetadata;
-    const inputTokens = Number(usage?.promptTokenCount ?? 0);
-    const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-    await logAiCost({
-      layer: "warm",
-      endpoint: "regional_story_compose",
-      provider: "gemini",
-      model,
-      inputTokens,
-      outputTokens,
-      costUsd: estimateAiCostUsd({ model, inputTokens, outputTokens }),
-      latencyMs: Date.now() - startedAt,
-      metadata: {
-        surface: input.surface,
-        cardIds: cue.usedCardIds,
-        angleKey: cue.angleKey,
-      },
-    }).catch(() => undefined);
 
     return {
       ...cue,

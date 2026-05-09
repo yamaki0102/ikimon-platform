@@ -1,6 +1,5 @@
 import { searchDigitizedRag, type DigitizedRagSearchResult } from "./digitizedBookRag.js";
-
-const ANSWER_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash"] as const;
+import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 
 export type DigitizedRagCitation = {
   citationId: string;
@@ -150,80 +149,25 @@ Return strict JSON:
 }`;
 }
 
-async function callGemini(question: string, citations: DigitizedRagCitation[]): Promise<GeminiAnswerResult | null> {
-  const apiKey = process.env.GEMINI_API_KEY ?? "";
-  if (!apiKey) {
-    return null;
-  }
-
-  const payload = {
-    contents: [
-      {
-        parts: [
-          {
-            text: buildPrompt(question, citations),
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      response_mime_type: "application/json",
-      temperature: 0.2,
-      topP: 0.8,
+async function callAiAnswer(question: string, citations: DigitizedRagCitation[]): Promise<GeminiAnswerResult | null> {
+  const result = await generateAiTextWithRoleChain({
+    chainName: "digitizedRagAnswer",
+    text: buildPrompt(question, citations),
+    responseMimeType: "application/json",
+    temperature: 0.2,
+    retriesPerModel: 4,
+    retryDelayMs: 1500,
+    cost: {
+      layer: "hot",
+      endpoint: "digitized_book_rag_answer",
     },
+  });
+  const clean = result.text.replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
+  const parsed = JSON.parse(clean) as ParsedGeminiAnswer;
+  return {
+    model: result.model,
+    payload: parsed,
   };
-
-  let lastError = "unknown_error";
-
-  for (const model of ANSWER_MODELS) {
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const json = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-      if (!response.ok || (json && "error" in json)) {
-        const message =
-          typeof json?.error === "object" && json?.error && "message" in json.error ? String(json.error.message) : response.statusText;
-        lastError = `${model}: HTTP ${response.status} ${message}`;
-        const retriable = [429, 500, 503].includes(response.status);
-        if (retriable && attempt < 4) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
-          continue;
-        }
-        if (retriable) {
-          break;
-        }
-        throw new Error(`Gemini error: ${lastError}`);
-      }
-
-      const text = ((json?.candidates as Array<Record<string, unknown>> | undefined)?.[0]?.content as { parts?: Array<{ text?: string }> })
-        ?.parts?.[0]?.text;
-      if (!text || typeof text !== "string") {
-        if (attempt < 4) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
-          continue;
-        }
-        break;
-      }
-
-      const clean = text.replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
-      const parsed = JSON.parse(clean) as ParsedGeminiAnswer;
-      return {
-        model,
-        payload: parsed,
-      };
-    }
-  }
-
-  throw new Error(`Gemini error: ${lastError}`);
 }
 
 export async function answerDigitizedRag(options: AnswerOptions): Promise<DigitizedRagAnswer> {
@@ -271,7 +215,7 @@ export async function answerDigitizedRag(options: AnswerOptions): Promise<Digiti
   }
 
   try {
-    const gemini = await callGemini(question, citations);
+    const gemini = await callAiAnswer(question, citations);
     if (!gemini?.payload?.answer) {
       return buildFallbackAnswer(question, citations);
     }

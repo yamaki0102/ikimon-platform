@@ -69,7 +69,7 @@ Gemini API へのリクエスト/レスポンスペアを保存 → 将来のオ
 | CSP が inline JS をブロック | meta.php が nonce 付き CSP を送信 | nonce 追加 + addEventListener 化 |
 | Alpine.js がページ全体を壊す | nav.php 等との競合、x-show/x-cloak の問題 | walk.php / field_scan.php を vanilla JS に完全書き直し |
 | BirdNET の感度が低い | min_conf=0.25 がデフォルト | 0.10 に変更済み |
-| Gemini モデルが 404 | gemini-2.0-flash-lite 廃止 | gemini-3.1-flash-lite-preview に変更 |
+| Gemini モデルが 404 | gemini-2.0-flash-lite 廃止 | gemini-3.1-flash-lite に変更 |
 | 人工物を生物として検出 | プロンプトが貪欲すぎた | 除外リスト追加（人間、レンガ、地面等） |
 | 「雑草」という命名 | プロンプトに敬意ルールがなかった | 科・属・形態での命名を指示 |
 | ウォークデータがフィードに出ない | index.php が写真必須でフィルタ | 音声検出・スキャンサマリーを許可 |

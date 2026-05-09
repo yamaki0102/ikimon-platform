@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GoogleGenAI } from "@google/genai";
-import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 import { appendLiveEvent } from "./observationEventLive.js";
 import {
   buildQuestPromptContext,
@@ -66,33 +65,19 @@ function canTrigger(sessionId: string, trigger: QuestTrigger): boolean {
   return true;
 }
 
-function getClient(): GoogleGenAI {
-  const config = loadConfig();
-  if (!config.geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
-  return new GoogleGenAI({ apiKey: config.geminiApiKey });
-}
-
 interface CallGeminiResult { rawText: string; modelUsed: string }
 
 async function callGemini(prompt: string): Promise<CallGeminiResult> {
-  const ai = getClient();
-  const MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
-  let lastErr: unknown = null;
-  for (const model of MODELS) {
-    try {
-      const resp = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-      const text = resp.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      return { rawText: text, modelUsed: model };
-    } catch (err) {
-      lastErr = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw err;
-    }
-  }
-  throw lastErr ?? new Error("gemini_all_models_failed");
+  const resp = await generateAiTextWithRoleChain({
+    chainName: "observationEventQuest",
+    text: prompt,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_event_quest",
+    },
+  });
+  return { rawText: resp.text, modelUsed: resp.model };
 }
 
 function parseQuests(rawText: string): GeneratedQuest[] {

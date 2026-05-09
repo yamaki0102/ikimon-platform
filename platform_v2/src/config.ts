@@ -1,4 +1,5 @@
 import { resolveLegacyRoots } from "./legacy/legacyRoots.js";
+import { AI_MODEL_ROLES } from "./services/aiModels.js";
 
 export type AppConfig = {
   nodeEnv: string;
@@ -8,6 +9,10 @@ export type AppConfig = {
   oauthStateSecret?: string;
   geminiApiKey?: string;
   deepseekApiKey?: string;
+  vertexAi?: {
+    project: string;
+    location: string;
+  };
   profileDigest: {
     provider: "disabled" | "deepseek";
     model: string;
@@ -145,6 +150,9 @@ export function loadConfig(): AppConfig {
   const twitterClientSecret = process.env.TWITTER_CLIENT_SECRET?.trim();
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim() || undefined;
   const geminiApiKey = process.env.GEMINI_API_KEY?.trim() || undefined;
+  const vertexProject = process.env.VERTEX_AI_PROJECT?.trim() || process.env.GOOGLE_CLOUD_PROJECT?.trim();
+  const vertexLocation = process.env.VERTEX_AI_LOCATION?.trim() || process.env.GOOGLE_CLOUD_LOCATION?.trim() || "global";
+  const vertexAi = vertexProject ? { project: vertexProject, location: vertexLocation } : undefined;
 
   return {
     nodeEnv: process.env.NODE_ENV ?? "development",
@@ -154,9 +162,10 @@ export function loadConfig(): AppConfig {
     oauthStateSecret: process.env.V2_OAUTH_STATE_SECRET?.trim() || process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
     geminiApiKey,
     deepseekApiKey,
+    vertexAi,
     profileDigest: {
       provider: parseProfileDigestProvider(process.env.PROFILE_DIGEST_LLM_PROVIDER, Boolean(deepseekApiKey)),
-      model: process.env.PROFILE_DIGEST_MODEL?.trim() || "deepseek-v4-flash",
+      model: process.env.PROFILE_DIGEST_MODEL?.trim() || AI_MODEL_ROLES.curatorDeepseek,
       maxInputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_INPUT_TOKENS, 2000)),
       maxOutputTokens: Math.floor(parsePositiveNumber(process.env.PROFILE_DIGEST_MAX_OUTPUT_TOKENS, 300)),
       monthlyBudgetJpy: parsePositiveNumber(process.env.PROFILE_DIGEST_MONTHLY_BUDGET_JPY, 1000),
@@ -164,7 +173,7 @@ export function loadConfig(): AppConfig {
     },
     regionalStory: {
       provider: parseRegionalStoryProvider(process.env.REGIONAL_STORY_LLM_PROVIDER, Boolean(geminiApiKey)),
-      model: process.env.REGIONAL_STORY_GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite-preview",
+      model: process.env.REGIONAL_STORY_GEMINI_MODEL?.trim() || AI_MODEL_ROLES.regionalStoryDefault,
       maxOutputTokens: Math.floor(parsePositiveNumber(process.env.REGIONAL_STORY_MAX_OUTPUT_TOKENS, 360)),
     },
     regionalKnowledgeEmbedding: {

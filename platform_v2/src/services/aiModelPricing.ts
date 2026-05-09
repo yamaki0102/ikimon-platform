@@ -1,4 +1,10 @@
-export type AiPricingProvider = "gemini" | "deepseek";
+import {
+  AI_MODELS,
+  CURATOR_DEEPSEEK_MODEL,
+  CURATOR_DEFAULT_MODEL,
+} from "./aiModels.js";
+
+export type AiPricingProvider = "gemini" | "vertex" | "deepseek";
 
 export type AiModelPricing = {
   provider: AiPricingProvider;
@@ -8,27 +14,32 @@ export type AiModelPricing = {
   source: string;
 };
 
-export const CURATOR_DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
-export const CURATOR_DEEPSEEK_MODEL = "deepseek-v4-flash";
+export { CURATOR_DEEPSEEK_MODEL, CURATOR_DEFAULT_MODEL } from "./aiModels.js";
 
 export const AI_MODEL_PRICING: Record<string, AiModelPricing> = {
-  // Google Gemini API pricing, checked 2026-04-29.
-  "gemini-3.1-flash-lite-preview": {
+  // Google Gemini API pricing, checked 2026-05-09.
+  [CURATOR_DEFAULT_MODEL]: {
     provider: "gemini",
     inputUsdPer1M: 0.25,
     outputUsdPer1M: 1.5,
     source: "https://ai.google.dev/gemini-api/docs/pricing",
   },
+  [AI_MODELS.geminiFlashImage]: {
+    provider: "gemini",
+    inputUsdPer1M: 0.3,
+    outputUsdPer1M: 2.5,
+    source: "https://ai.google.dev/gemini-api/docs/pricing",
+  },
   // Kept for non-curator legacy Hot path accounting only. Do not add it to
   // curator fallback lists; quality is below the Sprint 7 bar.
-  "gemini-2.5-flash-lite": {
+  [AI_MODELS.geminiFlashLiteFallback]: {
     provider: "gemini",
     inputUsdPer1M: 0.1,
     outputUsdPer1M: 0.4,
     source: "https://ai.google.dev/gemini-api/docs/pricing",
   },
   // DeepSeek V4 Flash OpenAI-compatible API pricing, checked 2026-04-29.
-  "deepseek-v4-flash": {
+  [CURATOR_DEEPSEEK_MODEL]: {
     provider: "deepseek",
     inputUsdPer1M: 0.14,
     cacheHitInputUsdPer1M: 0.0028,

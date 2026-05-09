@@ -2,9 +2,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GoogleGenAI } from "@google/genai";
-import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
 import { canonicalizeSpeciesFeatures, canonicalizeTaxonList } from "./guideRecordInsights.js";
 import { isLikelyGuideNonBiologicalName } from "./guideNonBiological.js";
 import type { TtsLang } from "./guideTts.js";
@@ -259,12 +258,6 @@ function checkDedup(sessionId: string, sceneHash: string): boolean {
   return true;
 }
 
-function getClient(): GoogleGenAI {
-  const config = loadConfig();
-  if (!config.geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
-  return new GoogleGenAI({ apiKey: config.geminiApiKey });
-}
-
 /**
  * Analyse a scene from a video frame (+ optional audio) using Gemini.
  * Returns structured scene data and whether this is a new scene (dedup check).
@@ -276,8 +269,6 @@ export async function analyzeScene(opts: {
   frameMimeType?: string;
   context: SceneContext;
 }): Promise<SceneResult> {
-  const ai = getClient();
-
   const frames = (Array.isArray(opts.frames) && opts.frames.length > 0
     ? opts.frames
     : (opts.frameBase64 ? [{ frameBase64: opts.frameBase64, mimeType: opts.frameMimeType ?? "image/jpeg", capturedAt: opts.context.capturedAt ?? null }] : []))
@@ -285,7 +276,7 @@ export async function analyzeScene(opts: {
     .slice(-4);
   if (!frames.length) throw new Error("frameBase64 is required");
 
-  const parts: Array<Record<string, unknown>> = frames.map((frame) => ({
+  const parts: AiRouterPart[] = frames.map((frame) => ({
     inlineData: {
       mimeType: frame.mimeType ?? opts.frameMimeType ?? "image/jpeg",
       data: frame.frameBase64,
@@ -319,30 +310,18 @@ export async function analyzeScene(opts: {
 
   parts.push({ text: prompt });
 
-  // Primary: gemini-3.1-flash-lite-preview (ユーザー指定の基本モデル)
-  // Fallback: gemini-2.5-flash-lite (503/UNAVAILABLE 時)
-  // 3.1-flash-lite-preview は Preview で quota 限定のため現在 503 が頻発する。
-  // 一時障害時に guide/scene 全体が止まらないよう自動フォールバック。
-  const MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
-  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
-  let lastErr: unknown = null;
-  for (const model of MODELS) {
-    try {
-      response = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts }],
-      });
-      break;
-    } catch (err) {
-      lastErr = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      // 503/UNAVAILABLE/RESOURCE_EXHAUSTED は fallback
-      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw err;
-    }
-  }
-  if (!response) throw lastErr ?? new Error("gemini_all_models_failed");
-
-  const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+  const response = await generateAiTextWithRoleChain({
+    chainName: "guideScene",
+    parts,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "guide_scene",
+      userId: opts.context.userId ?? null,
+      metadata: { guideMode },
+    },
+  });
+  const rawText = response.text || "{}";
   let parsed: {
     summary?: string;
     detectedSpecies?: string[];

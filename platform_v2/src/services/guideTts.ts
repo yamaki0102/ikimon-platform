@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
+import { generateAiTextWithRoleChain } from "./aiModelRouter.js";
 
 export type TtsLang = "ja" | "en" | "es" | "pt-BR" | "ko" | "zh";
 
@@ -107,24 +108,15 @@ export async function buildGuideScript(opts: {
 - ${speciesHint}
 - シーン概要: ${opts.sceneSummary}`;
 
-  // Primary: 3.1-flash-lite-preview、Fallback: 2.5-flash-lite (503 / quota 時)
-  const TEXT_MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
-  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
-  let lastErr: unknown = null;
-  for (const model of TEXT_MODELS) {
-    try {
-      response = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-      });
-      break;
-    } catch (err) {
-      lastErr = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw err;
-    }
-  }
-  if (!response) throw lastErr ?? new Error("gemini_all_models_failed");
-
-  return response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+  // Primary: 3.1-flash-lite、Fallback: 2.5-flash-lite (503 / quota 時)
+  const response = await generateAiTextWithRoleChain({
+    chainName: "guideTtsText",
+    text: systemPrompt,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "guide_tts_text",
+    },
+  });
+  return response.text.trim();
 }

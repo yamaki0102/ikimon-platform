@@ -209,7 +209,7 @@ voice_guide.php に渡すコンテキストを拡張する。
 ## 技術スタック参照
 - Backend: PHP 8.2, JSON ファイルストレージ
 - Frontend: Alpine.js + Tailwind CSS + VoiceGuide.js
-- AI: Gemini 3.1 Flash Lite Preview
+- AI: Gemini 3.1 Flash Lite
 - TTS: Web Speech API / VOICEVOX ずんだもん (port 50021)
 - BirdNET: port 8100 on same VPS
 - 主要ファイル:

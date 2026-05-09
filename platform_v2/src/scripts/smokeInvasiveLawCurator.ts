@@ -1,5 +1,6 @@
 import { generateCuratorJsonWithRetry } from "../services/curatorGeminiWorker.js";
 import { dedupeInvasiveRows, validateInvasiveLawRows } from "../services/curatorTrustBoundary.js";
+import { AI_MODEL_ROLES } from "../services/aiModels.js";
 
 const SOURCE_URL = "https://www.env.go.jp/nature/intro/2outline/list.html";
 
@@ -55,7 +56,7 @@ async function main(): Promise<void> {
     rows?: unknown[];
   }>({
     provider: "gemini",
-    model: "gemini-3.1-flash-lite-preview",
+    model: AI_MODEL_ROLES.curatorSmoke,
     curatorName: "invasive-law-smoke",
     runId: null,
     systemPrompt: SYSTEM_PROMPT,
