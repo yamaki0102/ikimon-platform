@@ -95,6 +95,11 @@ const ADMIN_LAYER_LEVELS = [
 ] as const;
 const ADMIN_LAYER_LEVEL_SQL = ADMIN_LAYER_LEVELS.map((level) => `'${level}'`).join(", ");
 const AREA_LAYER_SOURCE_SQL = `CASE WHEN admin_level IN (${ADMIN_LAYER_LEVEL_SQL}) THEN admin_level ELSE source END`;
+const SCHOOL_POINT_BUFFER_FALLBACK_SQL = `NOT (
+          ${AREA_LAYER_SOURCE_SQL} = 'school'
+          AND payload->>'boundary_approximation' = 'point_buffer'
+          AND NOT (payload ? 'school_boundary')
+        )`;
 
 type OverpassElement = {
   type: "way" | "relation" | "node";
@@ -144,6 +149,12 @@ function normalizeAreaLayerSource(source: string | null, adminLevel: string | nu
     return adminLevel as AreaPolygonSource;
   }
   return (source as AreaPolygonSource | null) ?? "user_defined";
+}
+
+function isRenderableStoredAreaPolygon(source: AreaPolygonSource, payload: Record<string, unknown> | null): boolean {
+  if (source !== "school") return true;
+  if (!payload || payload.boundary_approximation !== "point_buffer") return true;
+  return typeof payload.school_boundary === "object" && payload.school_boundary !== null;
 }
 
 function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource[]): boolean {
@@ -538,6 +549,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     verification_label: string | null;
     lat: string;
     lng: string;
+    payload: Record<string, unknown> | null;
     polygon: Record<string, unknown> | null;
     polygon_simplified: Record<string, unknown> | null;
   }>(
@@ -546,6 +558,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
             owner_url, story_url, certification_url, source_confidence::text AS source_confidence,
             verification_level, verification_label,
             lat::text AS lat, lng::text AS lng,
+            payload,
             polygon,
             geom_simplified AS polygon_simplified
        FROM observation_fields
@@ -556,6 +569,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         AND bbox_max_lng >= $3
         AND bbox_min_lng <= $4
         AND ${AREA_LAYER_SOURCE_SQL} = ANY($5)
+        AND ${SCHOOL_POINT_BUFFER_FALLBACK_SQL}
         -- 現行版のみ (廃止された旧公園・旧合併前市町村などは除外)。
         -- 過去版を引きたい場合は別 endpoint で as_of 指定する想定。
         AND valid_to IS NULL
@@ -565,12 +579,13 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   );
 
   const rows = result.rows.slice(0, limit);
-  const features: AreaPolygonFeature[] = rows.map((row) => {
+  const features: AreaPolygonFeature[] = rows.flatMap((row) => {
     const source = normalizeAreaLayerSource(row.source, row.admin_level);
+    if (!isRenderableStoredAreaPolygon(source, row.payload)) return [];
     const areaHa = row.area_ha == null ? null : Number(row.area_ha);
     // 行政界 (面積 1000 ha 超) は GeoJSON が重いので、間引いた版があれば優先。
     const useSimplified = areaHa != null && areaHa > 1000 && row.polygon_simplified;
-    return {
+    return [{
       type: "Feature",
       properties: {
         field_id: row.field_id,
@@ -592,7 +607,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         entity_key: row.entity_key ?? undefined,
       },
       geometry: useSimplified ? row.polygon_simplified : row.polygon,
-    };
+    }];
   });
 
   const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
@@ -642,5 +657,6 @@ export const __test__ = {
   tilesForBbox,
   featureTouchesBbox,
   normalizeAreaLayerSource,
+  isRenderableStoredAreaPolygon,
   SOURCE_LABEL,
 };
