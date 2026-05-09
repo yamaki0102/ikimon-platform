@@ -21,6 +21,20 @@ const field = {
   polygon: square,
 };
 
+test("visit scope query groups spatial matches before observed_at filters", () => {
+  const query = __test__.AREA_SNAPSHOT_VISIT_SCOPE_SQL;
+  let balance = 0;
+  for (const char of query) {
+    if (char === "(") balance += 1;
+    if (char === ")") balance -= 1;
+    assert.ok(balance >= 0, "query has an unmatched closing parenthesis");
+  }
+  assert.equal(balance, 0);
+  assert.match(query, /where\s+\(/);
+  assert.match(query, /\)\s+and \(\$7::timestamptz is null or v\.observed_at >= \$7::timestamptz\)/);
+  assert.doesNotMatch(query, /where\s+v\.source_payload/);
+});
+
 test("visitMatchesAreaScope rejects geolocated records outside a polygon even when field_id matches", () => {
   assert.equal(__test__.visitMatchesAreaScope(field, {
     point_latitude: 35.2,
