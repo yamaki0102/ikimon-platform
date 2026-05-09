@@ -6,9 +6,18 @@ export type SiteEvidenceReportPeriod = {
   end: string;
 };
 
+export type SiteEvidenceReadinessBlocker =
+  | "missing_human_evidence"
+  | "missing_machine_evidence"
+  | "missing_reviewer_verified_machine_evidence"
+  | "missing_effort_metadata";
+
 export type SiteEvidenceReport = {
   schemaVersion: "site_evidence_report/v0";
   generatedAt: string;
+  reportUrl: string;
+  printUrl: string;
+  fieldSnapshotUrl: string;
   reportUse: "site_monitoring_supplementary_material";
   claimPolicy: {
     allowedUse: string[];
@@ -36,10 +45,18 @@ export type SiteEvidenceReport = {
       reviewerVerified: number;
       rejected: number;
       passiveAudio: number;
+      effortMetadata: number;
       uniqueMachineTaxa: number;
       latestObservedAt: string | null;
       methods: Array<{ method: string; count: number }>;
       topTaxa: Array<{ name: string; count: number; reviewStatus: string }>;
+      calibrationAudit: Array<{
+        source: string;
+        threshold: number;
+        regionKey: string;
+        taxonName: string;
+        count: number;
+      }>;
     };
     stewardship: {
       actionCount: number;
@@ -60,6 +77,7 @@ export type SiteEvidenceReport = {
     hasMachineEvidence: boolean;
     hasReviewerVerifiedMachineEvidence: boolean;
     hasEffortMetadata: boolean;
+    blockers: SiteEvidenceReadinessBlocker[];
     exportReadyMachineRecordsRequireReviewerVerification: true;
   };
   claimBoundary: PlaceSnapshot["claimBoundary"];
@@ -83,12 +101,42 @@ export function monthPeriod(month: string | null | undefined, now: Date = new Da
   };
 }
 
+function reportUrlFields(fieldId: string, monthLabel: string): Pick<SiteEvidenceReport, "reportUrl" | "printUrl" | "fieldSnapshotUrl"> {
+  const query = `field_id=${encodeURIComponent(fieldId)}&month=${encodeURIComponent(monthLabel)}`;
+  return {
+    reportUrl: `/admin/site-evidence?${query}`,
+    printUrl: `/admin/site-evidence/print?${query}`,
+    fieldSnapshotUrl: `/api/v1/fields/${encodeURIComponent(fieldId)}/place-snapshot`,
+  };
+}
+
+function readinessBlockers(readiness: {
+  hasHumanEvidence: boolean;
+  hasMachineEvidence: boolean;
+  hasReviewerVerifiedMachineEvidence: boolean;
+  hasEffortMetadata: boolean;
+}): SiteEvidenceReadinessBlocker[] {
+  const blockers: SiteEvidenceReadinessBlocker[] = [];
+  if (!readiness.hasHumanEvidence) blockers.push("missing_human_evidence");
+  if (!readiness.hasMachineEvidence) blockers.push("missing_machine_evidence");
+  if (!readiness.hasReviewerVerifiedMachineEvidence) blockers.push("missing_reviewer_verified_machine_evidence");
+  if (!readiness.hasEffortMetadata) blockers.push("missing_effort_metadata");
+  return blockers;
+}
+
 export function buildSiteEvidenceReport(snapshot: PlaceSnapshot, period: SiteEvidenceReportPeriod): SiteEvidenceReport {
   const human = snapshot.observationSummary;
   const machine = snapshot.machineObservationSummary;
+  const readiness = {
+    hasHumanEvidence: human.totalObservations > 0,
+    hasMachineEvidence: machine.totalMachineObservations > 0,
+    hasReviewerVerifiedMachineEvidence: machine.reviewerVerifiedCount > 0,
+    hasEffortMetadata: human.effortCompletionRate > 0 || machine.effortMetadataCount > 0,
+  };
   return {
     schemaVersion: "site_evidence_report/v0",
     generatedAt: snapshot.generatedAt,
+    ...reportUrlFields(snapshot.field.fieldId, period.label),
     reportUse: "site_monitoring_supplementary_material",
     claimPolicy: {
       allowedUse: [
@@ -126,10 +174,12 @@ export function buildSiteEvidenceReport(snapshot: PlaceSnapshot, period: SiteEvi
         reviewerVerified: machine.reviewerVerifiedCount,
         rejected: machine.rejectedCount,
         passiveAudio: machine.passiveAudioCount,
+        effortMetadata: machine.effortMetadataCount,
         uniqueMachineTaxa: machine.uniqueMachineTaxa,
         latestObservedAt: machine.latestObservedAt,
         methods: machine.methodCounts,
         topTaxa: machine.topMachineTaxa,
+        calibrationAudit: machine.calibrationDecisions,
       },
       stewardship: {
         actionCount: human.stewardshipActionCount,
@@ -146,10 +196,8 @@ export function buildSiteEvidenceReport(snapshot: PlaceSnapshot, period: SiteEvi
       absentRecords: human.absentRecords,
     },
     readiness: {
-      hasHumanEvidence: human.totalObservations > 0,
-      hasMachineEvidence: machine.totalMachineObservations > 0,
-      hasReviewerVerifiedMachineEvidence: machine.reviewerVerifiedCount > 0,
-      hasEffortMetadata: human.effortCompletionRate > 0,
+      ...readiness,
+      blockers: readinessBlockers(readiness),
       exportReadyMachineRecordsRequireReviewerVerification: true,
     },
     claimBoundary: snapshot.claimBoundary,

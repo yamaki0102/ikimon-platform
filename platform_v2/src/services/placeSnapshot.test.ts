@@ -318,6 +318,7 @@ test("place snapshot separates machine AI candidates from reviewer verified reco
       reviewerVerifiedCount: 1,
       rejectedCount: 1,
       passiveAudioCount: 6,
+      effortMetadataCount: 1,
       uniqueMachineTaxa: 3,
       latestObservedAt: "2026-05-08T10:30:00.000Z",
       topMachineTaxa: [
@@ -325,6 +326,7 @@ test("place snapshot separates machine AI candidates from reviewer verified reco
         { name: "Hypsipetes amaurotis", count: 1, reviewStatus: "reviewer_verified" },
       ],
       methodCounts: [{ method: "passive_audio", count: 6 }],
+      calibrationDecisions: [{ source: "default", threshold: 0.9, regionKey: "jp:shizuoka", taxonName: "Horornis diphone", count: 6 }],
     },
   });
 

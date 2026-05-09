@@ -63,10 +63,18 @@ export type PlaceSnapshotMachineObservationSummary = {
   reviewerVerifiedCount: number;
   rejectedCount: number;
   passiveAudioCount: number;
+  effortMetadataCount: number;
   uniqueMachineTaxa: number;
   latestObservedAt: string | null;
   topMachineTaxa: Array<{ name: string; count: number; reviewStatus: string }>;
   methodCounts: Array<{ method: string; count: number }>;
+  calibrationDecisions: Array<{
+    source: string;
+    threshold: number;
+    regionKey: string;
+    taxonName: string;
+    count: number;
+  }>;
 };
 
 export type PlaceSnapshotRelationship = {
@@ -157,10 +165,12 @@ const EMPTY_MACHINE_OBSERVATION_SUMMARY: PlaceSnapshotMachineObservationSummary 
   reviewerVerifiedCount: 0,
   rejectedCount: 0,
   passiveAudioCount: 0,
+  effortMetadataCount: 0,
   uniqueMachineTaxa: 0,
   latestObservedAt: null,
   topMachineTaxa: [],
   methodCounts: [],
+  calibrationDecisions: [],
 };
 
 const SOURCE_LABEL: Record<ObservationField["source"], string> = {
@@ -884,10 +894,18 @@ async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<
         reviewer_verified_count: string;
         rejected_count: string;
         passive_audio_count: string;
+        effort_metadata_count: string;
         unique_machine_taxa: string;
         latest_observed_at: string | null;
         top_machine_taxa: Array<{ name: string; count: number; reviewStatus: string }> | null;
         method_counts: Array<{ method: string; count: number }> | null;
+        calibration_decisions: Array<{
+          source: string;
+          threshold: number;
+          regionKey: string;
+          taxonName: string;
+          count: number;
+        }> | null;
       }>(
         `with field_visits as (
             select v.*
@@ -897,6 +915,8 @@ async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<
           machine_occ as (
             select o.*,
                    fv.observed_at,
+                   coalesce(omc.sampling_effort, '{}'::jsonb) as method_sampling_effort,
+                   coalesce(omc.sensor_status, '{}'::jsonb) as method_sensor_status,
                    coalesce(nullif(omc.observation_method, ''), nullif(fv.visit_mode, ''), nullif(fv.session_mode, ''), fv.source_kind, 'machine_observation') as method
               from occurrences o
               join field_visits fv on fv.visit_id = o.visit_id
@@ -921,6 +941,26 @@ async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<
               from machine_occ
              group by method
              order by count(*) desc, method asc
+          ),
+          calibration_decisions as (
+            select coalesce(nullif(source_payload->'calibration'->>'source', ''), 'default') as source,
+                   case
+                     when coalesce(source_payload->'calibration'->>'threshold', '') ~ '^[0-9]+(\\.[0-9]+)?$'
+                       then (source_payload->'calibration'->>'threshold')::numeric::float
+                     else 0.9
+                   end as threshold,
+                   coalesce(nullif(source_payload->'calibration'->>'regionKey', ''), 'global') as region_key,
+                   coalesce(
+                     nullif(source_payload->'calibration'->>'taxonName', ''),
+                     nullif(scientific_name, ''),
+                     nullif(vernacular_name, ''),
+                     nullif(taxon_rank, ''),
+                     'AI候補'
+                   ) as taxon_name,
+                   count(*)::int as count
+              from machine_occ
+             group by 1, 2, 3, 4
+             order by count(*) desc, taxon_name asc
           )
           select
             (select count(*)::text from machine_occ) as total_machine_observations,
@@ -938,10 +978,17 @@ async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<
             (select count(*) filter (
               where method in ('passive_audio', 'passive_audio_ingest')
             )::text from machine_occ) as passive_audio_count,
+            (select count(*) filter (
+              where method_sampling_effort <> '{}'::jsonb
+                 or method_sensor_status <> '{}'::jsonb
+                 or coalesce(source_payload->'sampling_effort', '{}'::jsonb) <> '{}'::jsonb
+                 or coalesce(source_payload->'sensor_status', '{}'::jsonb) <> '{}'::jsonb
+            )::text from machine_occ) as effort_metadata_count,
             (select count(distinct coalesce(nullif(scientific_name, ''), nullif(vernacular_name, ''), nullif(taxon_rank, ''), occurrence_id))::text from machine_occ) as unique_machine_taxa,
             (select max(observed_at)::text from machine_occ) as latest_observed_at,
             (select coalesce(jsonb_agg(jsonb_build_object('name', name, 'count', count, 'reviewStatus', review_status)), '[]'::jsonb) from top_taxa) as top_machine_taxa,
-            (select coalesce(jsonb_agg(jsonb_build_object('method', method, 'count', count)), '[]'::jsonb) from methods) as method_counts`,
+            (select coalesce(jsonb_agg(jsonb_build_object('method', method, 'count', count)), '[]'::jsonb) from methods) as method_counts,
+            (select coalesce(jsonb_agg(jsonb_build_object('source', source, 'threshold', threshold, 'regionKey', region_key, 'taxonName', taxon_name, 'count', count)), '[]'::jsonb) from calibration_decisions) as calibration_decisions`,
         [scopedVisitIds],
       );
       const row = result.rows[0];
@@ -952,10 +999,12 @@ async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<
         reviewerVerifiedCount: Number(row.reviewer_verified_count ?? 0),
         rejectedCount: Number(row.rejected_count ?? 0),
         passiveAudioCount: Number(row.passive_audio_count ?? 0),
+        effortMetadataCount: Number(row.effort_metadata_count ?? 0),
         uniqueMachineTaxa: Number(row.unique_machine_taxa ?? 0),
         latestObservedAt: row.latest_observed_at,
         topMachineTaxa: row.top_machine_taxa ?? [],
         methodCounts: row.method_counts ?? [],
+        calibrationDecisions: row.calibration_decisions ?? [],
       };
     },
     EMPTY_MACHINE_OBSERVATION_SUMMARY,

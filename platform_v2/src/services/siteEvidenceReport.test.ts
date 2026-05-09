@@ -84,10 +84,12 @@ test("site evidence report keeps machine AI candidates out of proof language", (
       reviewerVerifiedCount: 1,
       rejectedCount: 1,
       passiveAudioCount: 6,
+      effortMetadataCount: 1,
       uniqueMachineTaxa: 3,
       latestObservedAt: "2026-05-08T10:30:00.000Z",
       topMachineTaxa: [{ name: "Hypsipetes amaurotis", count: 3, reviewStatus: "ai_candidate" }],
       methodCounts: [{ method: "passive_audio", count: 6 }],
+      calibrationDecisions: [{ source: "default", threshold: 0.9, regionKey: "jp:shizuoka", taxonName: "Hypsipetes amaurotis", count: 6 }],
     },
     now: new Date("2026-05-09T00:00:00.000Z"),
   });
@@ -95,12 +97,66 @@ test("site evidence report keeps machine AI candidates out of proof language", (
   const report = buildSiteEvidenceReport(snapshot, monthPeriod("2026-05"));
   assert.equal(report.schemaVersion, "site_evidence_report/v0");
   assert.equal(report.reportUse, "site_monitoring_supplementary_material");
+  assert.equal(report.reportUrl, "/admin/site-evidence?field_id=11111111-1111-4111-8111-111111111111&month=2026-05");
+  assert.equal(report.printUrl, "/admin/site-evidence/print?field_id=11111111-1111-4111-8111-111111111111&month=2026-05");
+  assert.equal(report.fieldSnapshotUrl, "/api/v1/fields/11111111-1111-4111-8111-111111111111/place-snapshot");
   assert.equal(report.evidenceLayers.machineObservations.aiCandidates, 4);
   assert.equal(report.evidenceLayers.machineObservations.reviewerVerified, 1);
+  assert.equal(report.evidenceLayers.machineObservations.effortMetadata, 1);
+  assert.deepEqual(report.evidenceLayers.machineObservations.calibrationAudit, [
+    { source: "default", threshold: 0.9, regionKey: "jp:shizuoka", taxonName: "Hypsipetes amaurotis", count: 6 },
+  ]);
   assert.equal(report.readiness.exportReadyMachineRecordsRequireReviewerVerification, true);
+  assert.deepEqual(report.readiness.blockers, []);
   assert.ok(report.claimPolicy.prohibitedUse.includes("automatic_species_confirmation_from_ai_candidates"));
   assert.ok(report.claimBoundary.cannotSayYet.some((claim) => claim.includes("AI候補")));
 
   const serialized = JSON.stringify(report);
   assert.doesNotMatch(serialized, /TNFD準拠を証明|自然共生サイト認定を証明|生物多様性改善を証明|AIが確定/);
+});
+
+test("site evidence report exposes readiness blockers for missing monthly evidence", () => {
+  const snapshot = composePlaceSnapshot({
+    field: field(),
+    stats: { ...stats(), totalSessions: 0, totalObservations: 0, uniqueSpeciesCount: 0 },
+    canonical: {
+      totalObservations: 0,
+      totalVisits: 0,
+      uniqueTaxa: 0,
+      taxonRankCount: 0,
+      months: [],
+      effortFilled: 0,
+      effortTotal: 0,
+      acceptedCount: 0,
+      reviewTotal: 0,
+      nativeCount: 0,
+      exoticCount: 0,
+      unknownOriginCount: 0,
+      stewardshipActionCount: 0,
+    },
+    machineObservationSummary: {
+      totalMachineObservations: 0,
+      aiCandidateCount: 0,
+      reviewerVerifiedCount: 0,
+      rejectedCount: 0,
+      passiveAudioCount: 0,
+      effortMetadataCount: 0,
+      uniqueMachineTaxa: 0,
+      latestObservedAt: null,
+      topMachineTaxa: [],
+      methodCounts: [],
+      calibrationDecisions: [],
+    },
+    now: new Date("2026-05-09T00:00:00.000Z"),
+  });
+
+  const report = buildSiteEvidenceReport(snapshot, monthPeriod("2026-05"));
+  assert.deepEqual(report.readiness.blockers, [
+    "missing_human_evidence",
+    "missing_machine_evidence",
+    "missing_reviewer_verified_machine_evidence",
+    "missing_effort_metadata",
+  ]);
+  assert.equal(report.evidenceLayers.machineObservations.aiCandidates, 0);
+  assert.equal(report.evidenceLayers.machineObservations.reviewerVerified, 0);
 });
