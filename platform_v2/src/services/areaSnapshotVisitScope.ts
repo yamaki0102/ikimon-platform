@@ -12,6 +12,24 @@ type CandidateVisitRow = {
   resolved_match: boolean | null;
 };
 
+const AREA_SNAPSHOT_VISIT_SCOPE_SQL = `select v.visit_id,
+            v.point_latitude::text as point_latitude,
+            v.point_longitude::text as point_longitude,
+            v.source_payload->>'field_id' as source_field_id,
+            $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[])) as resolved_match
+       from visits v
+      where (
+            v.source_payload->>'field_id' = $1::text
+         or ($2::text is not null and v.place_id = $2)
+         or $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
+         or (
+              v.point_latitude between $3 and $4
+          and v.point_longitude between $5 and $6
+         )
+        )
+        and ($7::timestamptz is null or v.observed_at >= $7::timestamptz)
+        and ($8::timestamptz is null or v.observed_at < $8::timestamptz)`;
+
 function radiusBbox(field: Pick<ObservationField, "lat" | "lng" | "radiusM">): {
   minLat: number; maxLat: number; minLng: number; maxLng: number;
 } {
@@ -63,22 +81,7 @@ export async function loadAreaSnapshotVisitIds(
   const observedFrom = options.observedFrom ?? null;
   const observedTo = options.observedTo ?? null;
   const result = await pool.query<CandidateVisitRow>(
-    `select v.visit_id,
-            v.point_latitude::text as point_latitude,
-            v.point_longitude::text as point_longitude,
-            v.source_payload->>'field_id' as source_field_id,
-            $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[])) as resolved_match
-       from visits v
-      where v.source_payload->>'field_id' = $1::text
-         or ($2::text is not null and v.place_id = $2)
-         or $1::uuid = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
-         or (
-              v.point_latitude between $3 and $4
-          and v.point_longitude between $5 and $6
-         )
-        )
-        and ($7::timestamptz is null or v.observed_at >= $7::timestamptz)
-        and ($8::timestamptz is null or v.observed_at < $8::timestamptz)`,
+    AREA_SNAPSHOT_VISIT_SCOPE_SQL,
     [field.fieldId, placeId, bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng, observedFrom, observedTo],
   );
   return result.rows
@@ -87,6 +90,7 @@ export async function loadAreaSnapshotVisitIds(
 }
 
 export const __test__ = {
+  AREA_SNAPSHOT_VISIT_SCOPE_SQL,
   fieldSearchBbox,
   radiusBbox,
   visitMatchesAreaScope,
