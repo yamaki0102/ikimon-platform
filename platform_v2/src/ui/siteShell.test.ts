@@ -40,13 +40,21 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /data-side-nav-personalized-list/);
   assert.match(html, /desktop-side-nav-mini-card/);
   assert.match(html, /class="shell shell-layout-home"/);
+  assert.match(html, /href="\/ja\/observations">観察投稿一覧/);
   assert.match(html, /href="\/ja\/observations" title="観察"/);
-  assert.match(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
+  assert.doesNotMatch(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
   assert.match(html, /href="\/ja\/learn\/updates"/);
-  assert.match(html, /desktop-side-nav-section-title">自分の記録/);
+  assert.match(html, /desktop-side-nav-section-title">今日使う/);
+  assert.match(html, /desktop-side-nav-section-title">今日の続き/);
   assert.match(html, /desktop-side-nav-section-title">フォロー中/);
   assert.match(html, /desktop-side-nav-section-title">探す・見る/);
-  assert.match(html, /desktop-side-nav-section-title">アップデート・連絡/);
+  assert.match(html, /desktop-side-nav-section-title">地域・みんな/);
+  assert.match(html, /desktop-side-nav-section-title">更新・連絡/);
+  assert.match(html, /href="\/ja\/learn\/field-loop">観察の流れ/);
+  assert.match(html, /href="\/ja\/learn\/glossary">用語集/);
+  assert.doesNotMatch(html, /政策・企業活動と自然/);
+  assert.doesNotMatch(html, /href="\/ja\/for-business/);
+  assert.doesNotMatch(html, /href="\/ja\/specialist/);
   assert.match(html, /html\[data-auth="signed-in"\] \.desktop-side-nav-section--guest/);
   assert.match(html, /\.site-mobile-menu-section\.desktop-side-nav-section--signed-in \{[^}]*display: none;/);
   assert.match(html, /window\.ikimonAppOutbox/);
@@ -72,8 +80,50 @@ test("mobile menu panel can render outside the sticky header", () => {
   });
 
   assert.match(html, /\.site-header \{[^}]*z-index: 90;[^}]*overflow: visible;/);
+  assert.match(html, /class="site-mobile-menu-toggle" aria-label="メニュー" title="メニュー"/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*position: absolute;[^}]*z-index: 2;[^}]*top: calc\(100% \+ 9px\);/);
   assert.match(html, /\.site-mobile-menu-panel \{[^}]*background: #ffffff;/);
+});
+
+test("language switch is user-facing while SEO stays Japanese canonical", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<p>body</p>",
+    lang: "en",
+    currentPath: "/?lang=en",
+  });
+  const head = html.slice(0, html.indexOf("</head>"));
+
+  assert.match(html, /class="lang-switch-label"/);
+  assert.match(html, /<span>Language<\/span>/);
+  assert.match(html, /<span class="lang-switch-name">English<\/span>/);
+  assert.match(html, /aria-current="true"/);
+  assert.match(head, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
+  assert.match(head, /<meta name="robots" content="noindex,follow" \/>/);
+  assert.match(head, /hreflang="ja"/);
+  assert.match(head, /hreflang="x-default"/);
+  assert.doesNotMatch(head, /hreflang="en"/);
+});
+
+test("browser language handling asks before switching away from Japanese SEO entry", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<p>body</p>",
+    lang: "ja",
+    currentPath: "/?lang=ja",
+  });
+
+  assert.match(html, /data-language-suggestion/);
+  assert.match(html, /Use ikimon\.life in English\?/);
+  assert.match(html, /Cambiar a español/);
+  assert.match(html, /Mudar para português/);
+  assert.match(html, /ikimon:locale-suggestion-dismissed-v1/);
+  assert.match(html, /source', 'device_locale'/);
+  assert.match(html, /showLanguageSuggestion\(deviceLang\)/);
+  assert.doesNotMatch(html, /location\.replace\('/);
+  assert.doesNotMatch(html, /ikimon:locale-redirect-v1/);
 });
 
 test("site shell renders a global record footer nav outside the record flow", () => {
@@ -175,6 +225,26 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /YouTube標準画質/);
   assert.match(html, /この内容で投稿画面へ/);
   assert.match(html, /撮り直す/);
+});
+
+test("site shell localizes the mobile global record launcher", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<p>body</p>",
+    lang: "en",
+    currentPath: "/?lang=en",
+  });
+
+  assert.match(html, /aria-label="Record quickly"/);
+  assert.match(html, />Photo</);
+  assert.match(html, />Video</);
+  assert.match(html, />Choose</);
+  assert.match(html, />Guide</);
+  assert.match(html, /class="site-mobile-menu-account site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
+  assert.match(html, /Capture a record/);
+  assert.doesNotMatch(html, /aria-label="すぐ記録する"/);
+  assert.doesNotMatch(html, />写真</);
 });
 
 test("site shell does not duplicate the record entry on the record page", () => {

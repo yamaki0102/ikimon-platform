@@ -263,7 +263,7 @@ test("landing top shelves keep content modes distinct and keep CTA shelves unfil
     now: new Date("2026-04-24T00:00:00.000Z"),
   });
   const evidenceShelf = shelves.find((shelf) => shelf.kind === "photo");
-  assert.equal(evidenceShelf?.title, "観察証拠");
+  assert.equal(evidenceShelf?.title, "写真と動画");
   assert.equal(shelves.some((shelf) => shelf.kind === "video"), false);
   assert.ok(evidenceShelf?.items.some((item) => "occurrenceId" in item && (item.hasVideo || item.librarySourceKind === "video")));
   assert.ok(shelves.find((shelf) => shelf.kind === "guide")?.items.every((item) => item.librarySourceKind === "guide"));

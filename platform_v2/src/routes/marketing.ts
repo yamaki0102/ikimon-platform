@@ -321,22 +321,233 @@ function renderDocHeader(basePath: string, lang: SiteLang, meta: MarketingPageMe
   </header>`;
 }
 
-function renderDocToc(headings: DocHeading[], meta: MarketingPageMeta, page: SitePageDefinition, plainReader = false): string {
+type LearnHubSection = {
+  title: string;
+  body: string;
+  paths: string[];
+};
+
+type LearnHubCopy = {
+  ariaLabel: string;
+  summary: string;
+  sections: LearnHubSection[];
+  termsTitle: string;
+  termsBody: string;
+};
+
+const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
+  ja: {
+    ariaLabel: "読み物ハブ",
+    summary: "ikimon.life の読み物は、観察の始め方、名前の確かめ方、地域や研究で活かすための考え方を、1テーマ1ページで整理しています。",
+    sections: [
+      {
+        title: "はじめて使う",
+        body: "名前が分からなくても、写真・場所・時刻からあとで育つ記録にする。",
+        paths: ["/learn/identification-basics", "/learn/field-loop", "/learn/biodiversity"],
+      },
+      {
+        title: "記録を活かす",
+        body: "一人の発見を、地域や研究で読み返せる材料へ近づける。",
+        paths: ["/learn/citizen-science", "/learn/methodology", "/learn/biomonweek"],
+      },
+      {
+        title: "社会と暮らしにつなぐ",
+        body: "政策、企業活動、ウェルビーイング、技術を言いすぎず読む。",
+        paths: ["/learn/policy-and-business", "/learn/wellbeing", "/learn/technology"],
+      },
+    ],
+    termsTitle: "用語から探す",
+    termsBody: "記事が増えても、概念ページから戻れるように入口を分けておく。",
+  },
+  en: {
+    ariaLabel: "Reading hub",
+    summary: "ikimon.life reading pages are organized as one topic per page: how to start observing, how to check names, and how records can support places, research, and everyday learning.",
+    sections: [
+      {
+        title: "Start here",
+        body: "Make a record that can grow later, even before you know the name.",
+        paths: ["/learn/identification-basics", "/learn/field-loop", "/learn/biodiversity"],
+      },
+      {
+        title: "Use records",
+        body: "Turn one person's find into material that a place or research team can read again.",
+        paths: ["/learn/citizen-science", "/learn/methodology", "/learn/biomonweek"],
+      },
+      {
+        title: "Connect to life and society",
+        body: "Read policy, business, wellbeing, and technology without overclaiming.",
+        paths: ["/learn/policy-and-business", "/learn/wellbeing", "/learn/technology"],
+      },
+    ],
+    termsTitle: "Find by term",
+    termsBody: "As the library grows, term pages stay as stable ways back into the ideas.",
+  },
+  es: {
+    ariaLabel: "Centro de lectura",
+    summary: "Las lecturas de ikimon.life están organizadas como un tema por página: cómo empezar a observar, cómo revisar nombres y cómo usar registros en lugares, investigación y aprendizaje cotidiano.",
+    sections: [
+      {
+        title: "Empezar",
+        body: "Crear un registro que pueda crecer después, incluso antes de saber el nombre.",
+        paths: ["/learn/identification-basics", "/learn/field-loop", "/learn/biodiversity"],
+      },
+      {
+        title: "Usar registros",
+        body: "Convertir el hallazgo de una persona en material que una comunidad o un equipo de investigación pueda volver a leer.",
+        paths: ["/learn/citizen-science", "/learn/methodology", "/learn/biomonweek"],
+      },
+      {
+        title: "Conectar con la vida y la sociedad",
+        body: "Leer política, empresas, bienestar y tecnología sin exagerar.",
+        paths: ["/learn/policy-and-business", "/learn/wellbeing", "/learn/technology"],
+      },
+    ],
+    termsTitle: "Buscar por término",
+    termsBody: "A medida que crece la biblioteca, las páginas de términos mantienen entradas estables.",
+  },
+  "pt-BR": {
+    ariaLabel: "Centro de leitura",
+    summary: "As leituras de ikimon.life são organizadas como um tema por página: como começar a observar, como conferir nomes e como usar registros em lugares, pesquisa e aprendizagem cotidiana.",
+    sections: [
+      {
+        title: "Começar",
+        body: "Criar um registro que possa crescer depois, mesmo antes de saber o nome.",
+        paths: ["/learn/identification-basics", "/learn/field-loop", "/learn/biodiversity"],
+      },
+      {
+        title: "Usar registros",
+        body: "Transformar o achado de uma pessoa em material que uma comunidade ou equipe de pesquisa possa ler de novo.",
+        paths: ["/learn/citizen-science", "/learn/methodology", "/learn/biomonweek"],
+      },
+      {
+        title: "Conectar com a vida e a sociedade",
+        body: "Ler política, empresas, bem-estar e tecnologia sem exagerar.",
+        paths: ["/learn/policy-and-business", "/learn/wellbeing", "/learn/technology"],
+      },
+    ],
+    termsTitle: "Buscar por termo",
+    termsBody: "À medida que a biblioteca cresce, as páginas de termos mantêm entradas estáveis.",
+  },
+};
+
+const LEARN_HUB_TERM_PRIORITY = [
+  "/learn/terms/nature-connectedness",
+  "/learn/terms/biomonweek",
+  "/learn/terms/biodiversity-monitoring",
+  "/learn/terms/sampling-effort",
+  "/learn/terms/attention-restoration-theory",
+  "/learn/terms/biophilia-hypothesis",
+  "/learn/terms/one-health",
+  "/learn/terms/identification",
+  "/learn/terms/ai-candidate",
+  "/learn/terms/location-data",
+  "/learn/terms/rare-species",
+  "/learn/terms/tnfd",
+];
+
+const LEARN_HUB_TITLE_OVERRIDES: Partial<Record<SiteLang, Record<string, string>>> = {
+  ja: {
+    "/learn/methodology": "記録・データ・信頼性について",
+  },
+  es: {
+    "/learn/identification-basics": "Cuando no sabes el nombre",
+    "/learn/field-loop": "El ciclo de observación",
+    "/learn/biodiversity": "Bases de biodiversidad",
+    "/learn/citizen-science": "Ciencia ciudadana",
+    "/learn/methodology": "Registros, datos y confianza",
+    "/learn/biomonweek": "Leer BioMonWeek 2026",
+    "/learn/policy-and-business": "Política, empresas y naturaleza",
+    "/learn/wellbeing": "Naturaleza y bienestar",
+    "/learn/technology": "Naturaleza y tecnología",
+  },
+  "pt-BR": {
+    "/learn/identification-basics": "Quando você não sabe o nome",
+    "/learn/field-loop": "O ciclo de observação",
+    "/learn/biodiversity": "Bases de biodiversidade",
+    "/learn/citizen-science": "Ciência cidadã",
+    "/learn/methodology": "Registros, dados e confiança",
+    "/learn/biomonweek": "Ler BioMonWeek 2026",
+    "/learn/policy-and-business": "Política, empresas e natureza",
+    "/learn/wellbeing": "Natureza e bem-estar",
+    "/learn/technology": "Natureza e tecnologia",
+  },
+};
+
+function learnHubPage(path: string): SitePageDefinition | null {
+  return listMarketingPages().find((page) => page.path === path) ?? null;
+}
+
+function renderLearnWikiItem(basePath: string, lang: SiteLang, path: string): string {
+  const page = learnHubPage(path);
+  if (!page) return "";
+  const href = appendLangToHref(withBasePath(basePath, page.path), lang);
+  const title = LEARN_HUB_TITLE_OVERRIDES[lang]?.[path] ?? sitePageLabel(page, lang);
+  return `<li>
+    <a href="${escapeHtml(href)}">${escapeHtml(title)}</a>
+    <span>${escapeHtml(sitePageSummary(page, lang))}</span>
+  </li>`;
+}
+
+function renderLearnIndexHub(basePath: string, lang: SiteLang): string {
+  const copy = LEARN_HUB_COPY[lang];
+  const sections = copy.sections.map((section) => `<section class="learn-hub-section">
+    <div class="learn-wiki-section-head">
+      <h2>${escapeHtml(section.title)}</h2>
+      <p>${escapeHtml(section.body)}</p>
+    </div>
+    <ul class="learn-wiki-list">
+      ${section.paths.map((path) => renderLearnWikiItem(basePath, lang, path)).join("")}
+    </ul>
+  </section>`).join("");
+  const prioritizedTerms = [
+    ...LEARN_HUB_TERM_PRIORITY
+      .map((href) => DOC_TERM_DEFINITIONS.find((term) => term.href === href))
+      .filter((term): term is DocTerm => Boolean(term)),
+    ...DOC_TERM_DEFINITIONS,
+  ];
+  const glossaryTerms = Array.from(new Map(prioritizedTerms.map((term) => [term.href, term])).values()).slice(0, 20)
+    .map((term) => `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, term.href), lang))}">${escapeHtml(term.label)}</a>`)
+    .join("");
+
+  return `<div class="learn-wiki" aria-label="${escapeHtml(copy.ariaLabel)}">
+    <section class="learn-wiki-summary">
+      <p>${escapeHtml(copy.summary)}</p>
+    </section>
+    ${sections}
+    <section class="learn-hub-section learn-hub-terms">
+      <div class="learn-wiki-section-head">
+        <h2>${escapeHtml(copy.termsTitle)}</h2>
+        <p>${escapeHtml(copy.termsBody)}</p>
+      </div>
+      <div class="learn-wiki-term-cloud">${glossaryTerms}</div>
+    </section>
+  </div>`;
+}
+
+const DOC_NAV_COPY: Record<SiteLang, { aria: string; source: string; toc: string; canonical: string }> = {
+  ja: { aria: "読み物ナビゲーション", source: "公式解説", toc: "目次", canonical: "canonical" },
+  en: { aria: "Reading navigation", source: "Official guide", toc: "Contents", canonical: "canonical" },
+  es: { aria: "Navegación de lectura", source: "Guía oficial", toc: "Contenido", canonical: "canonical" },
+  "pt-BR": { aria: "Navegação de leitura", source: "Guia oficial", toc: "Conteúdo", canonical: "canonical" },
+};
+
+function renderDocToc(headings: DocHeading[], meta: MarketingPageMeta, page: SitePageDefinition, lang: SiteLang, plainReader = false): string {
   const items = headings.slice(0, 12).map((heading) =>
     `<a class="doc-toc-link doc-toc-l${heading.level}" href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a>`,
   ).join("");
   if (plainReader && !items) {
     return "";
   }
-  return `<aside class="doc-sidebar" aria-label="読み物ナビゲーション">
+  const copy = DOC_NAV_COPY[lang];
+  return `<aside class="doc-sidebar" aria-label="${escapeHtml(copy.aria)}">
     <div class="doc-sidebar-inner">
       ${plainReader ? "" : `<div class="doc-source-badge">
-        <span>公式解説</span>
+        <span>${escapeHtml(copy.source)}</span>
         <strong>${escapeHtml(meta.eyebrow)}</strong>
       </div>`}
-      ${items ? `<nav class="doc-toc" aria-label="目次"><span>目次</span>${items}</nav>` : ""}
+      ${items ? `<nav class="doc-toc" aria-label="${escapeHtml(copy.toc)}"><span>${escapeHtml(copy.toc)}</span>${items}</nav>` : ""}
       ${plainReader ? "" : `<div class="doc-seo-note">
-        <span>canonical</span>
+        <span>${escapeHtml(copy.canonical)}</span>
         <strong>${escapeHtml(page.path)}</strong>
       </div>`}
     </div>
@@ -469,14 +680,35 @@ const LOWER_PAGE_STYLES = `
   .route-gateway-card p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.7; }
   .route-gateway-card .eyebrow { grid-column: 1 / -1; margin: 0; color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
   .route-gateway-card span:last-child { grid-column: 2; grid-row: 2 / span 2; color: #047857; font-weight: 900; font-size: 13px; }
+  .is-learn-hub .doc-reading-layout { grid-template-columns: minmax(0, 1fr) 220px; }
+  .is-learn-hub .doc-article { max-width: 900px; margin: 0; }
+  .learn-wiki { display: grid; gap: 28px; }
+  .learn-wiki-summary { padding: 12px 0 16px; border-top: 1px solid rgba(15,23,42,.12); border-bottom: 1px solid rgba(15,23,42,.12); }
+  .learn-wiki-summary p { max-width: 760px; margin: 0; color: #334155; font-size: 15px; line-height: 1.9; }
+  .learn-hub-section { display: grid; gap: 10px; }
+  .learn-wiki-section-head { padding-bottom: 7px; border-bottom: 1px solid rgba(15,23,42,.12); }
+  .learn-wiki-section-head h2 { margin: 0; color: #0f172a; font-size: 22px; line-height: 1.35; font-weight: 900; }
+  .learn-wiki-section-head p { max-width: 720px; margin: 5px 0 0; color: #475569; font-size: 14px; line-height: 1.75; }
+  .learn-wiki-list { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; margin: 0; padding: 0; }
+  .learn-wiki-list li { min-width: 0; display: grid; gap: 3px; padding: 10px 0 11px; border-bottom: 1px solid rgba(15,23,42,.08); }
+  .learn-wiki-list a { color: #047857; font-size: 15px; line-height: 1.45; font-weight: 850; text-decoration: none; word-break: keep-all; overflow-wrap: anywhere; }
+  .learn-wiki-list a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .learn-wiki-list span { color: #475569; font-size: 13px; line-height: 1.65; }
+  .learn-wiki-term-cloud { column-count: 2; column-gap: 22px; }
+  .learn-wiki-term-cloud a { display: block; break-inside: avoid; padding: 2px 0; color: #047857; font-size: 14px; line-height: 1.9; font-weight: 750; text-decoration: none; }
+  .learn-wiki-term-cloud a:hover { text-decoration: underline; text-underline-offset: 3px; }
   @media (max-width: 820px) {
     .doc-reading-layout { grid-template-columns: 1fr; }
+    .is-learn-hub .doc-reading-layout { grid-template-columns: 1fr; }
     .doc-page-header { padding-top: 10px; }
     .doc-sidebar { position: static; order: 2; }
     .doc-sidebar-inner { padding: 14px 0 0; border-left: 0; border-top: 1px solid rgba(15,23,42,.08); }
     .doc-toc { grid-template-columns: 1fr; }
     .route-gateway-card { grid-template-columns: 1fr; }
     .route-gateway-card span:last-child { grid-column: 1; grid-row: auto; }
+    .learn-wiki { gap: 26px; }
+    .learn-wiki-list { grid-template-columns: 1fr; gap: 0; }
+    .learn-wiki-term-cloud { column-count: 1; }
   }
 `;
 
@@ -917,6 +1149,33 @@ function renderLaneIntro(meta: MarketingPageMeta): string {
   </section>`;
 }
 
+const ROUTE_GATEWAY_COPY: Record<SiteLang, { eyebrow: string; title: string; body: string; open: string }> = {
+  ja: {
+    eyebrow: "next route",
+    title: "次に見るページ",
+    body: "このページで終わらず、記録・信頼性・相談のどこへ進むべきかを近い順に置いています。",
+    open: "開く",
+  },
+  en: {
+    eyebrow: "next route",
+    title: "Where to go next",
+    body: "Continue from this page into recording, trust, or contact routes.",
+    open: "Open",
+  },
+  es: {
+    eyebrow: "siguiente ruta",
+    title: "Dónde seguir",
+    body: "Continúa desde esta página hacia registro, confianza o contacto.",
+    open: "Abrir",
+  },
+  "pt-BR": {
+    eyebrow: "próxima rota",
+    title: "Para onde ir agora",
+    body: "Continue desta página para registro, confiança ou contato.",
+    open: "Abrir",
+  },
+};
+
 function renderGatewayGrid(basePath: string, lang: SiteLang, meta: MarketingPageMeta, currentRoutePath: string): string {
   const pages = relatedLanesFor(laneForMeta(meta))
     .flatMap((lane) => listPagesByLane(lane, "footer"))
@@ -925,12 +1184,13 @@ function renderGatewayGrid(basePath: string, lang: SiteLang, meta: MarketingPage
   if (pages.length === 0) {
     return "";
   }
+  const copy = ROUTE_GATEWAY_COPY[lang];
   return `<section class="section route-gateway">
     <div class="section-header">
       <div>
-        <div class="eyebrow">next route</div>
-        <h2>次に見るページ</h2>
-        <p>このページで終わらず、記録・信頼性・相談のどこへ進むべきかを近い順に置いています。</p>
+        <div class="eyebrow">${escapeHtml(copy.eyebrow)}</div>
+        <h2>${escapeHtml(copy.title)}</h2>
+        <p>${escapeHtml(copy.body)}</p>
       </div>
     </div>
     <div class="route-gateway-grid">
@@ -938,7 +1198,7 @@ function renderGatewayGrid(basePath: string, lang: SiteLang, meta: MarketingPage
         <span class="eyebrow">${escapeHtml(page.lane)}</span>
         <h3>${escapeHtml(sitePageLabel(page, lang))}</h3>
         <p>${escapeHtml(sitePageSummary(page, lang))}</p>
-        <span>開く</span>
+        <span>${escapeHtml(copy.open)}</span>
       </a>`).join("")}
     </div>
   </section>`;
@@ -953,13 +1213,18 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const hasLocalizedSeoPage = availableLangs.includes(lang);
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
   const plainLearnReader = lang === "ja" && page.lane === "learn" && page.layout === "reading";
+  const isLearnIndexHub = meta.bodyPageId === "learn-index";
 
-  const rawBodyHtml = localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
+  const rawBodyHtml = isLearnIndexHub
+    ? renderLearnIndexHub(basePath, lang)
+    : localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   const headings = headingsFromHtml(rawBodyHtml);
-  const articleHtml = withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta, plainLearnReader), headings);
+  const articleHtml = isLearnIndexHub
+    ? withHeadingIds(rawBodyHtml, headings)
+    : withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta, plainLearnReader), headings);
   const bodyHtml = shouldShowTermHints(meta) ? applyTermHints(articleHtml, basePath, lang) : articleHtml;
-  const canonicalPath = appendLangToHref(page.path, hasLocalizedSeoPage ? lang : "ja");
-  const structuredDataHtml = renderStructuredData(meta, page, lang, canonicalPath, headings);
+  const canonicalPath = appendLangToHref(page.path, "ja");
+  const structuredDataHtml = lang === "ja" ? renderStructuredData(meta, page, lang, canonicalPath, headings) : "";
   const heroConfig = plainLearnReader
     ? undefined
     : {
@@ -979,18 +1244,18 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     currentPath,
     canonicalPath,
     alternateLangs: availableLangs,
-    noindex: !hasLocalizedSeoPage,
+    noindex: lang !== "ja" || !hasLocalizedSeoPage,
     structuredDataHtml,
     extraStyles: LOWER_PAGE_STYLES,
     hero: heroConfig,
-    body: `<div class="lower-page is-article">
+    body: `<div class="lower-page is-article${isLearnIndexHub ? " is-learn-hub" : ""}">
       ${prependHtml}
       <div class="doc-reading-layout">
         <section class="section doc-article">
           ${plainLearnReader ? renderDocHeader(basePath, lang, meta) : ""}
-          <article class="doc-prose">${bodyHtml}</article>
+          <article class="doc-prose${isLearnIndexHub ? " learn-hub-prose" : ""}">${bodyHtml}</article>
         </section>
-        ${renderDocToc(headings, meta, page, plainLearnReader)}
+        ${renderDocToc(headings, meta, page, lang, plainLearnReader)}
       </div>
       ${renderGatewayGrid(basePath, lang, meta, page.path)}
     </div>`,
@@ -1002,7 +1267,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   const redirectMap = new Map<string, string>([
     ...legacyRedirectEntries().map((entry) => [entry.source, entry.target] as const),
     ["/for-business/", "/for-business"],
-    ["/explore/", "/explore"],
+    ["/explore/", "/observations"],
     ["/learn/", "/learn"],
     ["/learn/binmonweek", "/learn/terms/biomonweek"],
     ["/learn/terms/binmonweek", "/learn/terms/biomonweek"],

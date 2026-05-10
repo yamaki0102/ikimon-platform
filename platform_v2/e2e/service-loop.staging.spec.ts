@@ -113,7 +113,7 @@ test.describe("Japanese service loop staging smoke", () => {
       const page = await context.newPage();
       const routes = [
         "/",
-        "/explore",
+        "/observations",
         "/notes",
         "/record",
         "/guide",

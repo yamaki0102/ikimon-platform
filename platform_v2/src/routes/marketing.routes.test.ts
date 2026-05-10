@@ -57,8 +57,11 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /読みたいページを、すぐ選ぶ/);
-    assert.match(response.body, /基本的に1テーマ1ページ/);
+    assert.match(response.body, /読みもの索引/);
+    assert.match(response.body, /class="learn-wiki/);
+    assert.match(response.body, /class="learn-wiki-list/);
+    assert.match(response.body, /はじめて使う/);
+    assert.match(response.body, /記録を活かす/);
     assert.match(response.body, /生物多様性の基礎/);
     assert.match(response.body, /政策・企業活動と自然/);
     assert.match(response.body, /\/ja\/learn\/terms\/nature-connectedness/);
@@ -69,8 +72,33 @@ test("learn index frames the service in plain language", async () => {
     assert.doesNotMatch(response.body, /共同編集の Wiki/);
     assert.doesNotMatch(response.body, /用語のヒント/);
     assert.doesNotMatch(response.body, /class="hero-panel/);
+    assert.doesNotMatch(response.body, /learn-hub-card/);
     assert.match(response.body, /class="doc-page-header"/);
     assert.match(response.body, /application\/ld\+json/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("learn index can switch UI language while keeping Japanese SEO canonical", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/en/learn",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /Reading index/);
+    assert.match(response.body, /Start here/);
+    assert.match(response.body, /Use records/);
+    assert.match(response.body, /Find by term/);
+    assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
+    assert.match(response.body, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/learn" \/>/);
+    assert.match(response.body, /\/en\/learn\/field-loop/);
+    assert.doesNotMatch(response.body, /読みもの索引/);
+    assert.doesNotMatch(response.body, /用語から探す/);
+    assert.doesNotMatch(response.body, /次に見るページ/);
   } finally {
     await app.close();
   }
@@ -158,7 +186,7 @@ test("legacy public explainer routes redirect to their canonical destinations", 
   }
 });
 
-test("language-prefixed marketing pages enforce the localized fallback gate", async () => {
+test("language-prefixed marketing pages stay usable while SEO remains Japanese", async () => {
   const app = buildApp();
   try {
     const localized = await app.inject({
@@ -168,7 +196,9 @@ test("language-prefixed marketing pages enforce the localized fallback gate", as
     });
     assert.equal(localized.statusCode, 200);
     assert.match(localized.body, /<html lang="en"/);
-    assert.match(localized.body, /rel="canonical" href="https:\/\/ikimon\.life\/en\/community"/);
+    assert.match(localized.body, /name="robots" content="noindex,follow"/);
+    assert.match(localized.body, /rel="canonical" href="https:\/\/ikimon\.life\/ja\/community"/);
+    assert.doesNotMatch(localized.body, /"@type":"Article"/);
 
     const missing = await app.inject({
       method: "GET",

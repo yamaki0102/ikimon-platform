@@ -121,7 +121,7 @@ function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, cla
     classes.push(className);
   }
 
-  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/explore"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
+  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/observations"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
     <span class="site-search-icon" aria-hidden="true">🔍</span>
     <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
   </form>`;
@@ -143,6 +143,7 @@ function desktopSideNavIcon(key: string): string {
     notifications: '<path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>',
     settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z"/>',
     explore: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="m13.5 8.5-2 5-2.5 1 1-2.5 5-2z"/>',
+    language: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/>',
   };
   return `<svg class="desktop-side-nav-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[key] ?? paths.home}</svg>`;
 }
@@ -153,21 +154,79 @@ function siteAccountIcon(basePath: string, lang: SiteLang, key: string, href: st
   return `<a class="site-account-icon" href="${safeHref}" title="${safeLabel}" aria-label="${safeLabel}" ${dataAttribute}>${desktopSideNavIcon(key)}</a>`;
 }
 
+type AccountUiCopy = {
+  login: string;
+  profile: string;
+  profileSuffix: string;
+  settings: string;
+  accountNav: string;
+  notifications: string;
+  markAllRead: string;
+  guestNotificationEmpty: string;
+};
+
+function accountUiCopy(lang: SiteLang): AccountUiCopy {
+  const copy: Record<SiteLang, AccountUiCopy> = {
+    ja: {
+      login: "ログイン",
+      profile: "マイページ",
+      profileSuffix: " のマイページ",
+      settings: "設定",
+      accountNav: "アカウント",
+      notifications: "通知",
+      markAllRead: "すべて既読",
+      guestNotificationEmpty: "ログインすると通知を確認できます。",
+    },
+    en: {
+      login: "Sign in",
+      profile: "My page",
+      profileSuffix: "'s page",
+      settings: "Settings",
+      accountNav: "Account",
+      notifications: "Notifications",
+      markAllRead: "Mark all read",
+      guestNotificationEmpty: "Sign in to check notifications.",
+    },
+    es: {
+      login: "Iniciar sesion",
+      profile: "Mi pagina",
+      profileSuffix: " - mi pagina",
+      settings: "Ajustes",
+      accountNav: "Cuenta",
+      notifications: "Notificaciones",
+      markAllRead: "Marcar leidas",
+      guestNotificationEmpty: "Inicia sesion para ver notificaciones.",
+    },
+    "pt-BR": {
+      login: "Entrar",
+      profile: "Minha pagina",
+      profileSuffix: " - minha pagina",
+      settings: "Configuracoes",
+      accountNav: "Conta",
+      notifications: "Notificacoes",
+      markAllRead: "Marcar como lidas",
+      guestNotificationEmpty: "Entre para ver notificacoes.",
+    },
+  };
+  return copy[lang] ?? copy.ja;
+}
+
 function siteNotificationMenu(basePath: string, lang: SiteLang): string {
+  const accountCopy = accountUiCopy(lang);
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/home"), lang));
   return `<div class="site-notification-menu" data-notification-menu>
-    <button class="site-account-icon site-notification-button" type="button" title="通知" aria-label="通知" aria-expanded="false" data-account-alerts data-notification-toggle data-login-href="${loginHref}">
+    <button class="site-account-icon site-notification-button" type="button" title="${escapeHtml(accountCopy.notifications)}" aria-label="${escapeHtml(accountCopy.notifications)}" aria-expanded="false" data-account-alerts data-notification-toggle data-login-href="${loginHref}">
       ${desktopSideNavIcon("notifications")}
       <span class="site-notification-badge" data-notification-badge hidden>0</span>
     </button>
     <div class="site-notification-panel" data-notification-panel hidden>
       <div class="site-notification-head">
-        <strong>通知</strong>
-        <button type="button" data-notification-read-all hidden>すべて既読</button>
-        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">マイページ</a>
+        <strong>${escapeHtml(accountCopy.notifications)}</strong>
+        <button type="button" data-notification-read-all hidden>${escapeHtml(accountCopy.markAllRead)}</button>
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">${escapeHtml(accountCopy.profile)}</a>
       </div>
       <div class="site-notification-list" data-notification-list>
-        <div class="site-notification-empty">ログインすると通知を確認できます。</div>
+        <div class="site-notification-empty">${escapeHtml(accountCopy.guestNotificationEmpty)}</div>
       </div>
     </div>
   </div>`;
@@ -232,6 +291,173 @@ type SideNavGroup = {
   afterHtml?: string;
 };
 
+type SideNavDirectoryCopy = {
+  primaryTitle: string;
+  groups: {
+    guest: string;
+    signedIn: string;
+    personalized: string;
+    find: string;
+    learn: string;
+    local: string;
+    updates: string;
+  };
+  links: {
+    register: string;
+    login: string;
+    howTo: string;
+    myPage: string;
+    notes: string;
+    guideOutcomes: string;
+    needsId: string;
+    nearbyAreas: string;
+    identifyQueue: string;
+    taxaSearch: string;
+    explore: string;
+    observations: string;
+    lens: string;
+    guide: string;
+    events: string;
+    updates: string;
+  };
+  personalizedEmpty: string;
+  legalTagline: string;
+};
+
+function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
+  const localized: Record<SiteLang, SideNavDirectoryCopy> = {
+    ja: {
+      primaryTitle: "今日使う",
+      groups: {
+        guest: "はじめる",
+        signedIn: "今日の続き",
+        personalized: "フォロー中",
+        find: "探す・見る",
+        learn: "読み物",
+        local: "地域・みんな",
+        updates: "更新・連絡",
+      },
+      links: {
+        register: "新しく登録",
+        login: "ログイン",
+        howTo: "使い方を見る",
+        myPage: "マイページ",
+        notes: "観察ライブラリ",
+        guideOutcomes: "ガイド成果",
+        needsId: "名前を待つ記録",
+        nearbyAreas: "近くの観察エリア",
+        identifyQueue: "名前を待つ記録",
+        taxaSearch: "分類群を探す",
+        explore: "見つける",
+        observations: "観察投稿一覧",
+        lens: "その場で見る",
+        guide: "ライブガイド",
+        events: "観察会",
+        updates: "更新情報",
+      },
+      personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
+      legalTagline: "身近な自然を記録する。",
+    },
+    en: {
+      primaryTitle: "Daily",
+      groups: {
+        guest: "Start",
+        signedIn: "Continue",
+        personalized: "Following",
+        find: "Find and view",
+        learn: "Read",
+        local: "Community",
+        updates: "Updates and contact",
+      },
+      links: {
+        register: "Create account",
+        login: "Sign in",
+        howTo: "How it works",
+        myPage: "My page",
+        notes: "Observation library",
+        guideOutcomes: "Guide outcomes",
+        needsId: "Records needing a name",
+        nearbyAreas: "Nearby areas",
+        identifyQueue: "Records needing a name",
+        taxaSearch: "Search taxa",
+        explore: "Explore",
+        observations: "All observations",
+        lens: "Look on site",
+        guide: "Live guide",
+        events: "Events",
+        updates: "Updates",
+      },
+      personalizedEmpty: "Sign in to pin followed taxa and observation areas here.",
+      legalTagline: "Record nearby nature.",
+    },
+    es: {
+      primaryTitle: "Diario",
+      groups: {
+        guest: "Empezar",
+        signedIn: "Continuar",
+        personalized: "Siguiendo",
+        find: "Buscar y ver",
+        learn: "Leer",
+        local: "Comunidad",
+        updates: "Novedades y contacto",
+      },
+      links: {
+        register: "Crear cuenta",
+        login: "Entrar",
+        howTo: "Como funciona",
+        myPage: "Mi pagina",
+        notes: "Biblioteca",
+        guideOutcomes: "Resultados de guia",
+        needsId: "Registros sin nombre",
+        nearbyAreas: "Areas cercanas",
+        identifyQueue: "Registros sin nombre",
+        taxaSearch: "Buscar taxones",
+        explore: "Explorar",
+        observations: "Observaciones",
+        lens: "Ver en campo",
+        guide: "Guia en vivo",
+        events: "Eventos",
+        updates: "Novedades",
+      },
+      personalizedEmpty: "Entra para fijar taxones y areas de observacion.",
+      legalTagline: "Registrar la naturaleza cercana.",
+    },
+    "pt-BR": {
+      primaryTitle: "Diario",
+      groups: {
+        guest: "Comecar",
+        signedIn: "Continuar",
+        personalized: "Seguindo",
+        find: "Buscar e ver",
+        learn: "Ler",
+        local: "Comunidade",
+        updates: "Novidades e contato",
+      },
+      links: {
+        register: "Criar conta",
+        login: "Entrar",
+        howTo: "Como funciona",
+        myPage: "Minha pagina",
+        notes: "Biblioteca",
+        guideOutcomes: "Resultados do guia",
+        needsId: "Registros sem nome",
+        nearbyAreas: "Areas proximas",
+        identifyQueue: "Registros sem nome",
+        taxaSearch: "Buscar taxons",
+        explore: "Explorar",
+        observations: "Observacoes",
+        lens: "Ver no campo",
+        guide: "Guia ao vivo",
+        events: "Eventos",
+        updates: "Novidades",
+      },
+      personalizedEmpty: "Entre para fixar taxons e areas de observacao.",
+      legalTagline: "Registrar a natureza proxima.",
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
 function sideNavPageItems(lanes: RouteLane[], lang: SiteLang, limit = 8): SideNavTextItem[] {
   const seen = new Set<string>();
   return lanes
@@ -244,6 +470,13 @@ function sideNavPageItems(lanes: RouteLane[], lang: SiteLang, limit = 8): SideNa
     })
     .slice(0, limit)
     .map((page) => ({ href: page.path, label: sitePageLabel(page, lang), match: [page.path] }));
+}
+
+function sideNavSelectedPageItems(lane: RouteLane, paths: string[], lang: SiteLang): SideNavTextItem[] {
+  const index = new Map(paths.map((path, order) => [path, order]));
+  return sideNavPageItems([lane], lang, 80)
+    .filter((item) => index.has(item.href))
+    .sort((a, b) => (index.get(a.href) ?? 0) - (index.get(b.href) ?? 0));
 }
 
 function renderDesktopSideNavLink(
@@ -278,6 +511,7 @@ function renderSideNavTextLinks(basePath: string, lang: SiteLang, currentPath: s
 
 function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: string, mode: "desktop" | "mobile"): string {
   const normalizedPath = normalizeSitePath(currentPath);
+  const directoryCopy = sideNavDirectoryCopy(lang);
   const labels: Record<SiteLang, Record<string, string>> = {
     ja: {
       home: "ホーム",
@@ -336,64 +570,66 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const primaryItems: SideNavPrimaryItem[] = [
     { key: "home", href: "/", match: ["/"] },
     { key: "record", href: "/record", match: ["/record"] },
-    { key: "observations", href: "/observations", match: ["/observations"], exclude: ["/observations?filter=needs_id"] },
-    { key: "identify", href: "/observations?filter=needs_id", match: ["/observations?filter=needs_id"] },
+    { key: "observations", href: "/observations", match: ["/observations"] },
     { key: "map", href: "/map", match: ["/map"] },
-    { key: "notes", href: "/notes", match: ["/notes"] },
     { key: "guide", href: "/guide", match: ["/guide"] },
-    { key: "learn", href: "/learn", match: ["/learn", "/about", "/faq"] },
-    { key: "community", href: "/community", match: ["/community"] },
-    { key: "business", href: "/for-business", match: ["/for-business"] },
+    { key: "notes", href: "/notes", match: ["/notes"] },
   ];
   const personalizedLinksHtml = `<div class="desktop-side-nav-personalized-list" data-side-nav-personalized-list>
           ${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, [
-            { href: "/map", label: "近くの観察エリア", match: ["/map"] },
-            { href: "/observations?filter=needs_id", label: "同定待ちを見る", match: ["/observations?filter=needs_id"] },
-            { href: "/explore", label: "分類群を探す", match: ["/explore"] },
+            { href: "/map", label: directoryCopy.links.nearbyAreas, match: ["/map"] },
+            { href: "/observations?filter=needs_id", label: directoryCopy.links.identifyQueue, match: ["/observations?filter=needs_id"] },
+            { href: "/observations", label: directoryCopy.links.taxaSearch, match: ["/observations"] },
           ])}
         </div>
-        <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>ログインすると、フォロー中の分類群や観察エリアをここに固定します。</p>`;
+        <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>${escapeHtml(directoryCopy.personalizedEmpty)}</p>`;
   const groups: SideNavGroup[] = [
     {
-      title: "アカウント",
+      title: directoryCopy.groups.guest,
       className: "desktop-side-nav-section--guest",
       items: [
-        { href: "/register?redirect=/profile", label: "新しく登録", match: ["/register"] },
-        { href: "/login?redirect=/profile", label: "ログイン", match: ["/login"] },
-        { href: "/learn/field-loop", label: "使い方を見る", match: ["/learn/field-loop"] },
+        { href: "/register?redirect=/profile", label: directoryCopy.links.register, match: ["/register"] },
+        { href: "/login?redirect=/profile", label: directoryCopy.links.login, match: ["/login"] },
+        { href: "/learn/field-loop", label: directoryCopy.links.howTo, match: ["/learn/field-loop"] },
       ],
     },
     {
-      title: "自分の記録",
+      title: directoryCopy.groups.signedIn,
       className: "desktop-side-nav-section--signed-in",
       items: [
-        { href: "/home", label: "マイページ", match: ["/home"] },
-        { href: "/notes", label: "観察ライブラリ", match: ["/notes"] },
-        { href: "/guide/outcomes", label: "ガイド成果", match: ["/guide/outcomes"] },
-        { href: "/observations?filter=needs_id", label: "同定待ち", match: ["/observations"] },
+        { href: "/home", label: directoryCopy.links.myPage, match: ["/home"] },
+        { href: "/notes", label: directoryCopy.links.notes, match: ["/notes"] },
+        { href: "/guide/outcomes", label: directoryCopy.links.guideOutcomes, match: ["/guide/outcomes"] },
+        { href: "/observations?filter=needs_id", label: directoryCopy.links.needsId, match: ["/observations?filter=needs_id"] },
       ],
     },
     {
-      title: "フォロー中",
+      title: directoryCopy.groups.personalized,
       className: "desktop-side-nav-section--personalized",
       items: [],
       afterHtml: personalizedLinksHtml,
     },
     {
-      title: "探す・見る",
+      title: directoryCopy.groups.find,
       items: [
-        { href: "/explore", label: lang === "en" ? "Explore" : "見つける", match: ["/explore"] },
-        { href: "/observations", label: "観察投稿一覧", match: ["/observations"] },
-        { href: "/lens", label: "その場で見る", match: ["/lens"] },
-        { href: "/guide", label: "ライブガイド", match: ["/guide"] },
+        { href: "/observations", label: directoryCopy.links.observations, match: ["/observations"] },
+        { href: "/lens", label: directoryCopy.links.lens, match: ["/lens"] },
+        { href: "/community/events", label: directoryCopy.links.events, match: ["/community/events"] },
       ],
     },
-    { title: "学ぶ", items: sideNavPageItems(["learn"], lang, 7) },
-    { title: "地域・法人", items: sideNavPageItems(["group", "business", "research", "specialist"], lang, 8) },
     {
-      title: "アップデート・連絡",
+      title: directoryCopy.groups.learn,
+      items: sideNavSelectedPageItems(
+        "learn",
+        ["/learn", "/learn/field-loop", "/learn/identification-basics", "/learn/glossary", "/learn/wellbeing"],
+        lang,
+      ),
+    },
+    { title: directoryCopy.groups.local, items: sideNavPageItems(["group"], lang, 3) },
+    {
+      title: directoryCopy.groups.updates,
       items: [
-        { href: "/learn/updates", label: "更新情報", match: ["/learn/updates"] },
+        { href: "/learn/updates", label: directoryCopy.links.updates, match: ["/learn/updates"] },
         ...sideNavPageItems(["trust"], lang, 8),
       ],
     },
@@ -401,9 +637,12 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const rootClass = mode === "desktop" ? "desktop-side-nav-directory" : "site-mobile-menu-directory";
   const primaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--primary" : "site-mobile-menu-section";
   const secondaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--secondary" : "site-mobile-menu-section";
-  const primary = `<div class="${primaryClass}">${primaryItems
-    .map((item) => renderDesktopSideNavLink(basePath, lang, currentPath, normalizedPath, item, copy[item.key] ?? item.key))
-    .join("")}</div>`;
+  const primary = `<section class="${primaryClass}">
+        <h2 class="desktop-side-nav-section-title">${escapeHtml(directoryCopy.primaryTitle)}</h2>
+        ${primaryItems
+          .map((item) => renderDesktopSideNavLink(basePath, lang, currentPath, normalizedPath, item, copy[item.key] ?? item.key))
+          .join("")}
+      </section>`;
   const secondary = groups
     .map(
       (group) => `<section class="${secondaryClass}${group.className ? ` ${group.className}` : ""}">
@@ -415,7 +654,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     .join("");
   const legal = `<div class="desktop-side-nav-legal">
     <span>ikimon.life</span>
-    <span>身近な自然を記録する。</span>
+    <span>${escapeHtml(directoryCopy.legalTagline)}</span>
   </div>`;
   return `<div class="${rootClass}">${primary}${secondary}${legal}</div>`;
 }
@@ -430,18 +669,29 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
     classes.push(className);
   }
   const available = new Set(availableLangs);
+  const switchCopy: Record<SiteLang, string> = {
+    ja: "言語",
+    en: "Language",
+    es: "Idioma",
+    "pt-BR": "Idioma",
+  };
 
-  return `<div class="${classes.join(" ")}" aria-label="Language switcher">${supportedLanguages
+  return `<div class="${classes.join(" ")}" aria-label="${escapeHtml(switchCopy[lang])}">
+    <span class="lang-switch-label">${desktopSideNavIcon("language")}<span>${escapeHtml(switchCopy[lang])}</span></span>
+    <div class="lang-switch-options">${supportedLanguages
     .map((language) => {
       const activeClass = language.code === lang ? " is-active" : "";
       const targetPath = available.has(language.code) ? currentPath : "/";
-      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(targetPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}">${escapeHtml(language.shortLabel)}</a>`;
+      const current = language.code === lang ? ` aria-current="true"` : "";
+      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(targetPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}" title="${escapeHtml(language.label)}"${current}><span class="lang-switch-code">${escapeHtml(language.shortLabel)}</span><span class="lang-switch-name">${escapeHtml(language.label)}</span></a>`;
     })
-    .join("")}</div>`;
+    .join("")}</div>
+  </div>`;
 }
 
 function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: string | undefined, availableLangs: SiteLang[]): string {
   const copy = shellCopyFor(lang);
+  const accountCopy = accountUiCopy(lang);
   const brandMarkSrc = "/assets/img/icon-192.png";
   const navLinks = buildNavLinks(basePath, lang, activeNav);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop");
@@ -450,9 +700,9 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
   const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
   const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
-  const profileIcon = siteAccountIcon(basePath, lang, "account", "/login?redirect=/profile", "マイページ", "data-account-profile");
+  const profileIcon = siteAccountIcon(basePath, lang, "account", "/login?redirect=/profile", accountCopy.profile, "data-account-profile");
   const notificationIcon = siteNotificationMenu(basePath, lang);
-  const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", "設定", "data-account-settings");
+  const settingsIcon = siteAccountIcon(basePath, lang, "settings", "/login?redirect=/profile/settings", accountCopy.settings, "data-account-settings");
 
   const desktopSideNav = desktopSideNavLinks(basePath, lang, currentPath);
   const mobileSideNav = renderSideNavDirectory(basePath, lang, currentPath, "mobile");
@@ -478,19 +728,19 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
       <div class="site-header-actions site-header-actions-desktop">
         ${desktopLangSwitch}
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
-        <nav class="site-account-icons" aria-label="アカウント">${profileIcon}${notificationIcon}${settingsIcon}</nav>
+        <nav class="site-account-icons" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
         <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
         <details class="site-mobile-menu">
-          <summary class="site-mobile-menu-toggle">
+          <summary class="site-mobile-menu-toggle" aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}">
             <span class="site-mobile-menu-icon" aria-hidden="true"></span>
           </summary>
           <div class="site-mobile-menu-panel">
             ${mobileSearch}
             <nav class="site-nav site-nav-mobile">${mobileSideNav}</nav>
             <div class="site-mobile-menu-meta">
-              <a class="site-mobile-menu-account site-login-link" href="${loginHref}">ログイン</a>
+              <a class="site-mobile-menu-account site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
               ${mobileLangSwitch}
             </div>
           </div>
@@ -676,7 +926,6 @@ function fallbackSiteShellLayoutKind(currentPath: string): SiteShellLayoutKind {
   if (
     pathname === "/observations" ||
     pathname.startsWith("/observations/") ||
-    pathname === "/explore" ||
     pathname === "/community" ||
     pathname === "/for-business" ||
     pathname === "/guide"
@@ -693,100 +942,278 @@ function siteShellLayoutKind(currentPath: string, shellClassName: string): SiteS
   return getSiteShellLayoutForPath(currentPath) ?? fallbackSiteShellLayoutKind(currentPath);
 }
 
+type GlobalRecordEntryCopy = {
+  navLabel: string;
+  photo: string;
+  video: string;
+  gallery: string;
+  guide: string;
+  sheetLabel: string;
+  sheetTitle: string;
+  sheetHelp: string;
+  close: string;
+  previewAlt: string;
+  empty: string;
+  trayZero: string;
+  trayHelp: string;
+  actionLabel: string;
+  start: string;
+  capture: string;
+  inlineTitle: string;
+  dataEstimate: string;
+  meaningTitle: string;
+  meaningHelp: string;
+  roleLabel: string;
+  rolePrimary: string;
+  roleContext: string;
+  roleMotion: string;
+  roleSecondary: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  noteLabel: string;
+  notePlaceholder: string;
+  trimTitle: string;
+  trimStart: string;
+  trimEnd: string;
+};
+
+function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
+  const copy: Record<SiteLang, GlobalRecordEntryCopy> = {
+    ja: {
+      navLabel: "すぐ記録する",
+      photo: "写真",
+      video: "動画",
+      gallery: "選ぶ",
+      guide: "ガイド",
+      sheetLabel: "撮影して記録する",
+      sheetTitle: "撮影して記録",
+      sheetHelp: "主役を1つ決めて、周囲の様子も手がかりとして残せます。",
+      close: "閉じる",
+      previewAlt: "撮影プレビュー",
+      empty: "カメラを起動すると、ここにプレビューが出ます。",
+      trayZero: "写真0枚",
+      trayHelp: "最大6枚まで同じ観察にまとめます",
+      actionLabel: "撮影操作",
+      start: "カメラを起動",
+      capture: "撮影する",
+      inlineTitle: "ここで少し整える",
+      dataEstimate: "送信量を確認中",
+      meaningTitle: "主役と周囲",
+      meaningHelp: "投稿では主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。",
+      roleLabel: "このメディアの役割",
+      rolePrimary: "主役",
+      roleContext: "周囲",
+      roleMotion: "音・動き",
+      roleSecondary: "別対象候補",
+      nameLabel: "名前が分かれば",
+      namePlaceholder: "例: スズメ / セミ / 名前は不明",
+      noteLabel: "メモ",
+      notePlaceholder: "例: 水辺の柵の近く。鳴き声が聞こえた。",
+      trimTitle: "投稿する最大60秒を選ぶ",
+      trimStart: "開始",
+      trimEnd: "終了",
+    },
+    en: {
+      navLabel: "Record quickly",
+      photo: "Photo",
+      video: "Video",
+      gallery: "Choose",
+      guide: "Guide",
+      sheetLabel: "Capture and record",
+      sheetTitle: "Capture a record",
+      sheetHelp: "Pick one main subject. The surroundings can also become useful clues.",
+      close: "Close",
+      previewAlt: "Capture preview",
+      empty: "Start the camera to see a preview here.",
+      trayZero: "0 photos",
+      trayHelp: "Keep up to 6 photos in the same record",
+      actionLabel: "Capture actions",
+      start: "Start camera",
+      capture: "Capture",
+      inlineTitle: "Add a little context",
+      dataEstimate: "Checking upload size",
+      meaningTitle: "Subject and surroundings",
+      meaningHelp: "Choose one main subject. AI and people can still use nearby species and habitat as clues.",
+      roleLabel: "Role of this media",
+      rolePrimary: "Main subject",
+      roleContext: "Surroundings",
+      roleMotion: "Sound or motion",
+      roleSecondary: "Another candidate",
+      nameLabel: "Name if known",
+      namePlaceholder: "e.g. sparrow / cicada / unknown",
+      noteLabel: "Note",
+      notePlaceholder: "e.g. near the waterside fence; I heard a call.",
+      trimTitle: "Choose up to 60 seconds",
+      trimStart: "Start",
+      trimEnd: "End",
+    },
+    es: {
+      navLabel: "Registrar rapido",
+      photo: "Foto",
+      video: "Video",
+      gallery: "Elegir",
+      guide: "Guia",
+      sheetLabel: "Capturar y registrar",
+      sheetTitle: "Captura un registro",
+      sheetHelp: "Elige un sujeto principal. El entorno tambien puede servir como pista.",
+      close: "Cerrar",
+      previewAlt: "Vista previa",
+      empty: "Inicia la camara para ver la vista previa aqui.",
+      trayZero: "0 fotos",
+      trayHelp: "Agrupa hasta 6 fotos en el mismo registro",
+      actionLabel: "Acciones de captura",
+      start: "Iniciar camara",
+      capture: "Capturar",
+      inlineTitle: "Anade un poco de contexto",
+      dataEstimate: "Calculando envio",
+      meaningTitle: "Sujeto y entorno",
+      meaningHelp: "Elige un sujeto principal. La IA y las personas tambien pueden usar especies cercanas y habitat como pistas.",
+      roleLabel: "Papel de este medio",
+      rolePrimary: "Sujeto principal",
+      roleContext: "Entorno",
+      roleMotion: "Sonido o movimiento",
+      roleSecondary: "Otro candidato",
+      nameLabel: "Nombre si lo sabes",
+      namePlaceholder: "ej. gorrion / cigarra / desconocido",
+      noteLabel: "Nota",
+      notePlaceholder: "ej. cerca de una valla junto al agua; escuche un canto.",
+      trimTitle: "Elige hasta 60 segundos",
+      trimStart: "Inicio",
+      trimEnd: "Fin",
+    },
+    "pt-BR": {
+      navLabel: "Registrar rapido",
+      photo: "Foto",
+      video: "Video",
+      gallery: "Escolher",
+      guide: "Guia",
+      sheetLabel: "Capturar e registrar",
+      sheetTitle: "Capture um registro",
+      sheetHelp: "Escolha um sujeito principal. O entorno tambem pode virar pista.",
+      close: "Fechar",
+      previewAlt: "Previa da captura",
+      empty: "Inicie a camera para ver a previa aqui.",
+      trayZero: "0 fotos",
+      trayHelp: "Agrupe ate 6 fotos no mesmo registro",
+      actionLabel: "Acoes de captura",
+      start: "Iniciar camera",
+      capture: "Capturar",
+      inlineTitle: "Adicione um pouco de contexto",
+      dataEstimate: "Verificando tamanho do envio",
+      meaningTitle: "Sujeito e entorno",
+      meaningHelp: "Escolha um sujeito principal. IA e pessoas tambem podem usar especies proximas e habitat como pistas.",
+      roleLabel: "Papel desta midia",
+      rolePrimary: "Sujeito principal",
+      roleContext: "Entorno",
+      roleMotion: "Som ou movimento",
+      roleSecondary: "Outro candidato",
+      nameLabel: "Nome se souber",
+      namePlaceholder: "ex. pardal / cigarra / desconhecido",
+      noteLabel: "Nota",
+      notePlaceholder: "ex. perto da cerca junto a agua; ouvi um canto.",
+      trimTitle: "Escolha ate 60 segundos",
+      trimStart: "Inicio",
+      trimEnd: "Fim",
+    },
+  };
+  return copy[lang] ?? copy.ja;
+}
+
 function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string): string {
   if (!shouldRenderGlobalRecordEntry(currentPath)) {
     return "";
   }
+  const copy = globalRecordEntryCopy(lang);
   const photoHref = appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang);
   const videoHref = appendLangToHref(withBasePath(basePath, "/record?start=video"), lang);
   const galleryHref = appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang);
   const guideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
-  return `<nav class="global-record-launcher" aria-label="すぐ記録する">
+  return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
     <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" multiple hidden />
     <input class="global-record-input" data-global-record-input="video" type="file" accept="video/*" capture="environment" hidden />
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*,video/*" multiple hidden />
     <button type="button" class="global-record-choice is-primary" data-global-record-trigger="photo" data-record-target="${escapeHtml(photoHref)}" data-kpi-action="global_record_photo">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-      <span>写真</span>
+      <span>${escapeHtml(copy.photo)}</span>
     </button>
     <button type="button" class="global-record-choice" data-global-record-trigger="video" data-record-target="${escapeHtml(videoHref)}" data-kpi-action="global_record_video">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-      <span>動画</span>
+      <span>${escapeHtml(copy.video)}</span>
     </button>
     <button type="button" class="global-record-choice" data-global-record-trigger="gallery" data-record-target="${escapeHtml(galleryHref)}" data-kpi-action="global_record_gallery">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-      <span>選ぶ</span>
+      <span>${escapeHtml(copy.gallery)}</span>
     </button>
     <a class="global-record-choice" href="${escapeHtml(guideHref)}" data-kpi-action="global_record_guide">
       <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M12 4v4"/><path d="M6.3 6.3 9 9"/><path d="M17.7 6.3 15 9"/><path d="M3 13h4"/><path d="M17 13h4"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
-      <span>ガイド</span>
+      <span>${escapeHtml(copy.guide)}</span>
     </a>
   </nav>
   <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
-  <section class="global-record-camera-sheet" data-global-record-camera-sheet hidden aria-label="撮影して記録する">
+  <section class="global-record-camera-sheet" data-global-record-camera-sheet hidden aria-label="${escapeHtml(copy.sheetLabel)}">
     <div class="global-record-camera-head">
       <div>
-        <strong data-global-record-camera-title>撮影して記録</strong>
-        <p data-global-record-camera-help>主役を1つ決めて、周囲の様子も手がかりとして残せます。</p>
+        <strong data-global-record-camera-title>${escapeHtml(copy.sheetTitle)}</strong>
+        <p data-global-record-camera-help>${escapeHtml(copy.sheetHelp)}</p>
       </div>
-      <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="閉じる">×</button>
+      <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="${escapeHtml(copy.close)}">×</button>
     </div>
     <div class="global-record-camera-preview">
       <video data-global-record-camera-video playsinline muted></video>
-      <img data-global-record-camera-image alt="撮影プレビュー" hidden />
-      <div class="global-record-camera-empty" data-global-record-camera-empty>カメラを起動すると、ここにプレビューが出ます。</div>
+      <img data-global-record-camera-image alt="${escapeHtml(copy.previewAlt)}" hidden />
+      <div class="global-record-camera-empty" data-global-record-camera-empty>${escapeHtml(copy.empty)}</div>
     </div>
     <div class="global-record-photo-tray" data-global-record-photo-tray hidden>
       <div class="global-record-photo-tray-head">
-        <strong data-global-record-photo-tray-count>写真0枚</strong>
-        <span>最大6枚まで同じ観察にまとめます</span>
+        <strong data-global-record-photo-tray-count>${escapeHtml(copy.trayZero)}</strong>
+        <span>${escapeHtml(copy.trayHelp)}</span>
       </div>
       <div class="global-record-photo-grid" data-global-record-photo-grid></div>
     </div>
-    <div class="global-record-camera-actions" aria-label="撮影操作">
-      <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>カメラを起動</button>
-      <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>撮影する</button>
+    <div class="global-record-camera-actions" aria-label="${escapeHtml(copy.actionLabel)}">
+      <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>${escapeHtml(copy.start)}</button>
+      <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>${escapeHtml(copy.capture)}</button>
     </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
     <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
       <div class="global-record-inline-edit-head">
-        <strong>ここで少し整える</strong>
-        <span data-global-record-data-estimate>送信量を確認中</span>
+        <strong>${escapeHtml(copy.inlineTitle)}</strong>
+        <span data-global-record-data-estimate>${escapeHtml(copy.dataEstimate)}</span>
       </div>
       <div class="global-record-media-meaning">
-        <strong>主役と周囲</strong>
-        <span>投稿では主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。</span>
+        <strong>${escapeHtml(copy.meaningTitle)}</strong>
+        <span>${escapeHtml(copy.meaningHelp)}</span>
       </div>
       <label>
-        <span>このメディアの役割</span>
+        <span>${escapeHtml(copy.roleLabel)}</span>
         <select data-global-record-edit-role>
-          <option value="primary_subject">主役</option>
-          <option value="context">周囲</option>
-          <option value="sound_motion">音・動き</option>
-          <option value="secondary_candidate">別対象候補</option>
+          <option value="primary_subject">${escapeHtml(copy.rolePrimary)}</option>
+          <option value="context">${escapeHtml(copy.roleContext)}</option>
+          <option value="sound_motion">${escapeHtml(copy.roleMotion)}</option>
+          <option value="secondary_candidate">${escapeHtml(copy.roleSecondary)}</option>
         </select>
       </label>
       <label>
-        <span>名前が分かれば</span>
-        <input data-global-record-edit-name type="text" maxlength="120" placeholder="例: スズメ / セミ / 名前は不明" />
+        <span>${escapeHtml(copy.nameLabel)}</span>
+        <input data-global-record-edit-name type="text" maxlength="120" placeholder="${escapeHtml(copy.namePlaceholder)}" />
       </label>
       <label>
-        <span>メモ</span>
-        <textarea data-global-record-edit-note rows="2" maxlength="240" placeholder="例: 水辺の柵の近く。鳴き声が聞こえた。"></textarea>
+        <span>${escapeHtml(copy.noteLabel)}</span>
+        <textarea data-global-record-edit-note rows="2" maxlength="240" placeholder="${escapeHtml(copy.notePlaceholder)}"></textarea>
       </label>
     </div>
     <div class="global-record-video-trim" data-global-record-video-trim hidden>
       <div class="global-record-video-trim-head">
-        <strong>投稿する最大60秒を選ぶ</strong>
+        <strong>${escapeHtml(copy.trimTitle)}</strong>
         <span data-global-record-video-trim-duration>0.0秒</span>
       </div>
       <div class="global-record-video-trim-controls">
         <label>
-          <span>開始 <output data-global-record-video-trim-start-label>0.0秒</output></span>
+          <span>${escapeHtml(copy.trimStart)} <output data-global-record-video-trim-start-label>0.0秒</output></span>
           <input data-global-record-video-trim-start type="range" min="0" max="0" step="0.1" value="0" />
         </label>
         <label>
-          <span>終了 <output data-global-record-video-trim-end-label>0.0秒</output></span>
+          <span>${escapeHtml(copy.trimEnd)} <output data-global-record-video-trim-end-label>0.0秒</output></span>
           <input data-global-record-video-trim-end type="range" min="0" max="0" step="0.1" value="0" />
         </label>
       </div>
@@ -2007,6 +2434,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
 }
 
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
+  const accountCopy = accountUiCopy(lang);
   const sessionEndpoint = withBasePath(basePath, "/api/v1/auth/session");
   const personalizedEndpoint = withBasePath(basePath, "/api/v1/me/personalized-menu?limit=8");
   const alertsEndpoint = withBasePath(basePath, "/api/v1/me/alerts");
@@ -2025,6 +2453,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const settingsHref = ${JSON.stringify(settingsHref)};
   const notificationsHomeHref = ${JSON.stringify(notificationsHomeHref)};
   const observationHrefBase = ${JSON.stringify(observationHrefBase)};
+  const accountCopy = ${JSON.stringify(accountCopy)};
   let signedIn = false;
   let latestAlerts = [];
   const setIconHref = (selector, href, label) => {
@@ -2238,18 +2667,18 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     document.documentElement.dataset.auth = 'signed-in';
     document.querySelectorAll('.site-login-link').forEach((link) => {
       const label = link.querySelector('.desktop-side-nav-label');
-      if (label) label.textContent = 'マイページ';
-      else link.textContent = 'マイページ';
+      if (label) label.textContent = accountCopy.profile;
+      else link.textContent = accountCopy.profile;
       link.setAttribute('href', profileHref);
-      link.setAttribute('aria-label', (session.displayName || 'マイページ') + ' のマイページ');
-      link.setAttribute('title', 'マイページ');
+      link.setAttribute('aria-label', (session.displayName || accountCopy.profile) + accountCopy.profileSuffix);
+      link.setAttribute('title', accountCopy.profile);
       link.classList.add('is-authenticated');
     });
-    setIconHref('[data-account-profile]', profileHref, (session.displayName || 'マイページ') + ' のマイページ');
-    setIconHref('[data-account-settings]', settingsHref, '設定');
+    setIconHref('[data-account-profile]', profileHref, (session.displayName || accountCopy.profile) + accountCopy.profileSuffix);
+    setIconHref('[data-account-settings]', settingsHref, accountCopy.settings);
     document.querySelectorAll('[data-account-alerts]').forEach((button) => {
-      button.setAttribute('aria-label', '通知');
-      button.setAttribute('title', '通知');
+      button.setAttribute('aria-label', accountCopy.notifications);
+      button.setAttribute('title', accountCopy.notifications);
     });
     hydrateAlerts();
     hydratePersonalizedMenu();
@@ -2294,18 +2723,19 @@ function ogLocale(lang: SiteLang): string {
 export function renderSiteDocument(options: SiteShellOptions): string {
   const lang = options.lang ?? "ja";
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
-  const alternateLangs = options.alternateLangs?.length ? options.alternateLangs : supportedLanguages.map((language) => language.code);
+  const uiLangs = options.alternateLangs?.length ? options.alternateLangs : supportedLanguages.map((language) => language.code);
+  const seoAlternateLangs: SiteLang[] = ["ja"];
   const description = options.description ?? options.hero?.lead ?? options.footerNote ?? shellCopyFor(lang).brandTagline;
-  const canonicalPath = stripFragment(options.canonicalPath ?? appendLangToHref(currentPath, lang));
+  const canonicalPath = stripFragment(appendLangToHref(options.canonicalPath ?? currentPath, "ja"));
   const canonicalUrl = absolutePublicUrl(canonicalPath);
-  const alternateLinks = alternateLangs
+  const alternateLinks = seoAlternateLangs
     .map((alternateLang) => {
       const href = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, alternateLang)));
       return `  <link rel="alternate" hreflang="${escapeHtml(alternateLang)}" href="${escapeHtml(href)}" />`;
     })
     .join("\n");
   const xDefaultHref = absolutePublicUrl(stripFragment(appendLangToHref(canonicalPath, "ja")));
-  const robotsMeta = options.noindex ? `\n  <meta name="robots" content="noindex,follow" />` : "";
+  const robotsMeta = options.noindex || lang !== "ja" ? `\n  <meta name="robots" content="noindex,follow" />` : "";
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const skipLabel = shellCopyFor(lang).skipToContent;
   const globalRecordNav = globalRecordEntry(options.basePath, lang, currentPath);
@@ -2319,6 +2749,16 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     <div class="app-install-prompt-actions">
       <button type="button" class="app-install-primary" data-app-install-action>${escapeHtml(installCopy.installAction)}</button>
       <button type="button" class="app-install-dismiss" data-app-install-dismiss aria-label="${escapeHtml(installCopy.dismissAction)}">${escapeHtml(installCopy.dismissAction)}</button>
+    </div>
+  </div>`;
+  const languageSuggestionHtml = `<div class="language-suggestion" data-language-suggestion hidden>
+    <div class="language-suggestion-copy">
+      <strong data-language-suggestion-title></strong>
+      <span data-language-suggestion-body></span>
+    </div>
+    <div class="language-suggestion-actions">
+      <a class="language-suggestion-primary" data-language-suggestion-action href="/en/"></a>
+      <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss></button>
     </div>
   </div>`;
   const shellClassName = options.shellClassName ?? "";
@@ -2467,9 +2907,29 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 (function () {
   const currentLang = ${JSON.stringify(lang)};
   const supported = { ja: 'ja', en: 'en', es: 'es', pt: 'pt-BR', 'pt-br': 'pt-BR' };
+  const languageSuggestionCopy = {
+    en: {
+      title: 'Use ikimon.life in English?',
+      body: 'You can switch the interface. Search indexing stays focused on Japanese.',
+      action: 'Switch to English',
+      dismiss: 'Keep Japanese'
+    },
+    es: {
+      title: '¿Usar ikimon.life en español?',
+      body: 'Puedes cambiar la interfaz. La búsqueda sigue centrada en japonés.',
+      action: 'Cambiar a español',
+      dismiss: 'Seguir en japonés'
+    },
+    'pt-BR': {
+      title: 'Usar ikimon.life em português?',
+      body: 'Voce pode mudar a interface. A busca continua focada em japones.',
+      action: 'Mudar para português',
+      dismiss: 'Manter japones'
+    }
+  };
   const storageKeys = {
     lang: 'ikimon:app-lang',
-    localeRedirect: 'ikimon:locale-redirect-v1',
+    localeSuggestionDismissed: 'ikimon:locale-suggestion-dismissed-v1',
     installDismissed: 'ikimon:install-dismissed-v1',
     desktopSideNavCollapsed: 'ikimon:desktop-side-nav-collapsed-v1'
   };
@@ -2487,20 +2947,64 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   function isLanguagePrefixed(pathname) {
     return /^\\/(ja|en|es|pt-br)(?:\\/|$)/.test(pathname);
   }
+  function localizedRootFor(lang) {
+    const params = new URLSearchParams(location.search);
+    params.delete('lang');
+    params.set('source', 'device_locale');
+    const query = params.toString();
+    return '/' + segmentFor(lang) + '/' + (query ? '?' + query : '') + location.hash;
+  }
+  function hideLanguageSuggestion() {
+    const suggestion = document.querySelector('[data-language-suggestion]');
+    if (suggestion) suggestion.hidden = true;
+    document.body.classList.remove('has-language-suggestion');
+  }
+  function showLanguageSuggestion(deviceLang) {
+    const copy = languageSuggestionCopy[deviceLang];
+    const suggestion = document.querySelector('[data-language-suggestion]');
+    if (!copy || !suggestion) return;
+    const title = suggestion.querySelector('[data-language-suggestion-title]');
+    const body = suggestion.querySelector('[data-language-suggestion-body]');
+    const action = suggestion.querySelector('[data-language-suggestion-action]');
+    const dismiss = suggestion.querySelector('[data-language-suggestion-dismiss]');
+    if (title) title.textContent = copy.title;
+    if (body) body.textContent = copy.body;
+    if (action) {
+      action.textContent = copy.action;
+      action.setAttribute('href', localizedRootFor(deviceLang));
+      action.addEventListener('click', () => {
+        try {
+          localStorage.setItem(storageKeys.lang, deviceLang);
+          localStorage.setItem(storageKeys.localeSuggestionDismissed, '1');
+        } catch (_) {}
+      }, { once: true });
+    }
+    if (dismiss) {
+      dismiss.textContent = copy.dismiss;
+      dismiss.setAttribute('aria-label', copy.dismiss);
+      dismiss.addEventListener('click', () => {
+        hideLanguageSuggestion();
+        try {
+          localStorage.setItem(storageKeys.lang, currentLang);
+          localStorage.setItem(storageKeys.localeSuggestionDismissed, '1');
+        } catch (_) {}
+      }, { once: true });
+    }
+    suggestion.hidden = false;
+    document.body.classList.add('has-language-suggestion');
+  }
   try {
     const deviceLang = normalizeLocale((navigator.languages && navigator.languages[0]) || navigator.language || '');
     document.documentElement.dataset.deviceLang = deviceLang;
     if (isLanguagePrefixed(location.pathname)) {
       localStorage.setItem(storageKeys.lang, currentLang);
     } else if (!localStorage.getItem(storageKeys.lang)) {
-      localStorage.setItem(storageKeys.lang, deviceLang);
+      localStorage.setItem(storageKeys.lang, currentLang);
     }
     const explicitLang = new URLSearchParams(location.search).has('lang');
-    const alreadyRedirected = sessionStorage.getItem(storageKeys.localeRedirect) === '1';
-    if (!explicitLang && !alreadyRedirected && location.pathname === '/' && deviceLang !== 'ja') {
-      sessionStorage.setItem(storageKeys.localeRedirect, '1');
-      location.replace('/' + segmentFor(deviceLang) + '/' + (location.search ? location.search + '&source=device_locale' : '?source=device_locale'));
-      return;
+    const suggestionDismissed = localStorage.getItem(storageKeys.localeSuggestionDismissed) === '1';
+    if (!explicitLang && !suggestionDismissed && currentLang === 'ja' && location.pathname === '/' && deviceLang !== 'ja') {
+      showLanguageSuggestion(deviceLang);
     }
   } catch (_) {}
 
@@ -3091,10 +3595,31 @@ ${alternateLinks}
       border: 1px solid rgba(148,163,184,.24);
       box-shadow: 0 8px 20px rgba(15,23,42,.05);
     }
+    .lang-switch-label,
+    .lang-switch-options {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .lang-switch-label {
+      min-height: 40px;
+      padding: 0 8px;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .lang-switch-label .desktop-side-nav-icon {
+      width: 17px;
+      height: 17px;
+      color: #047857;
+    }
     .lang-switch-link {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       min-width: 36px;
       min-height: 40px;
       padding: 0 9px;
@@ -3103,6 +3628,15 @@ ${alternateLinks}
       font-size: 12px;
       font-weight: 800;
       letter-spacing: .04em;
+    }
+    .lang-switch-name {
+      display: none;
+      letter-spacing: 0;
+      font-weight: 800;
+    }
+    .lang-switch-code {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
     .lang-switch-link.is-active {
       background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(14,165,233,.14));
@@ -3143,6 +3677,10 @@ ${alternateLinks}
       font-weight: 950;
       letter-spacing: .08em;
       text-transform: uppercase;
+    }
+    .desktop-side-nav-section--primary .desktop-side-nav-section-title {
+      padding-top: 4px;
+      color: #047857;
     }
     .desktop-side-nav-link {
       min-height: 42px;
@@ -3460,12 +3998,38 @@ ${alternateLinks}
       background: rgba(15,23,42,.04);
     }
     .site-mobile-menu-meta {
-      display: flex;
-      justify-content: flex-start;
+      display: grid;
+      gap: 8px;
+      justify-content: stretch;
     }
     .lang-switch-mobile {
+      display: grid;
+      justify-items: stretch;
       max-width: 100%;
-      overflow-x: auto;
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: none;
+    }
+    .lang-switch-mobile .lang-switch-label {
+      justify-content: flex-start;
+      min-height: 34px;
+      padding: 0 6px;
+    }
+    .lang-switch-mobile .lang-switch-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .lang-switch-mobile .lang-switch-link {
+      justify-content: flex-start;
+      min-width: 0;
+      padding: 0 10px;
+      letter-spacing: 0;
+    }
+    .lang-switch-mobile .lang-switch-name {
+      display: inline;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: 999px; font-weight: 850; border: 1px solid transparent; text-align: center; line-height: 1.25; }
     .btn-solid { background: #059669; color: white; box-shadow: 0 9px 20px rgba(5,150,105,.18); }
@@ -4810,9 +5374,11 @@ ${alternateLinks}
         height: 32px;
         flex-basis: 32px;
       }
-      .site-nav-desktop,
-      .lang-switch-desktop {
+      .site-nav-desktop {
         display: none;
+      }
+      .lang-switch-desktop {
+        display: inline-flex;
       }
       .site-search-desktop {
         width: min(640px, 100%);
@@ -4866,7 +5432,8 @@ ${alternateLinks}
         display: none;
       }
       body.is-desktop-side-nav-collapsed .desktop-side-nav-section--secondary,
-      body.is-desktop-side-nav-collapsed .desktop-side-nav-legal {
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-legal,
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-section--primary .desktop-side-nav-section-title {
         display: none;
       }
       body.is-desktop-side-nav-collapsed .brand-logo-lockup {
@@ -4965,6 +5532,13 @@ ${alternateLinks}
       }
       .site-header-actions-desktop .btn {
         padding: 9px 12px;
+      }
+      .lang-switch-desktop .lang-switch-label span {
+        display: none;
+      }
+      .lang-switch-desktop .lang-switch-link {
+        min-width: 34px;
+        padding: 0 8px;
       }
       .shell.shell-layout-home,
       .shell.shell-layout-home.shell-bleed,
@@ -5115,6 +5689,7 @@ ${alternateLinks}
       .brand-name { font-size: 16px; }
       .brand-domain { font-size: 11px; }
     }
+    .language-suggestion,
     .app-install-prompt {
       position: fixed;
       left: max(14px, env(safe-area-inset-left));
@@ -5134,13 +5709,24 @@ ${alternateLinks}
       box-shadow: 0 18px 48px rgba(15,23,42,.18);
       color: #0f172a;
     }
+    .language-suggestion { z-index: 74; }
+    .language-suggestion[hidden],
     .app-install-prompt[hidden] { display: none; }
+    .language-suggestion-copy,
     .app-install-prompt-copy { display: grid; gap: 2px; min-width: 0; }
+    .language-suggestion-copy strong,
     .app-install-prompt-copy strong { font-size: 13px; line-height: 1.35; font-weight: 950; }
+    .language-suggestion-copy span,
     .app-install-prompt-copy span { color: #475569; font-size: 12px; line-height: 1.45; font-weight: 750; }
+    .language-suggestion-actions,
     .app-install-prompt-actions { display: flex; align-items: center; gap: 8px; }
+    .language-suggestion-primary,
+    .language-suggestion-dismiss,
     .app-install-primary,
     .app-install-dismiss {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       min-height: 38px;
       border-radius: 8px;
       border: 0;
@@ -5151,13 +5737,44 @@ ${alternateLinks}
       cursor: pointer;
       white-space: nowrap;
     }
+    .language-suggestion-primary,
     .app-install-primary { background: #10b981; color: #fff; }
+    .language-suggestion-dismiss,
     .app-install-dismiss { background: rgba(15,23,42,.06); color: #334155; }
+    .has-language-suggestion .app-install-prompt {
+      bottom: calc(max(14px, env(safe-area-inset-bottom)) + 88px);
+    }
     @media (min-width: 768px) {
+      .language-suggestion,
       .app-install-prompt {
         left: auto;
         right: 22px;
         bottom: 22px;
+      }
+      .has-language-suggestion .app-install-prompt { bottom: 112px; }
+    }
+    @media (max-width: 520px) {
+      .language-suggestion,
+      .app-install-prompt {
+        grid-template-columns: 1fr;
+      }
+      .language-suggestion-actions,
+      .app-install-prompt-actions {
+        justify-content: stretch;
+      }
+      .language-suggestion-primary,
+      .language-suggestion-dismiss,
+      .app-install-primary,
+      .app-install-dismiss {
+        flex: 1 1 0;
+      }
+    }
+    @media (max-width: 1160px) {
+      .has-language-suggestion .language-suggestion {
+        bottom: calc(max(14px, env(safe-area-inset-bottom)) + 88px);
+      }
+      .has-language-suggestion .app-install-prompt {
+        bottom: calc(max(14px, env(safe-area-inset-bottom)) + 176px);
       }
     }
     ${options.extraStyles ?? ""}
@@ -5165,9 +5782,10 @@ ${alternateLinks}
 </head>
 <body>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
+  ${languageSuggestionHtml}
   ${installPromptHtml}
   <div class="${siteShellClassName}">
-    ${nav(options.basePath, lang, currentPath, options.activeNav, alternateLangs)}
+    ${nav(options.basePath, lang, currentPath, options.activeNav, uiLangs)}
     <main id="main-content" class="${mainClassName}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
       ${options.belowHeroHtml ?? ""}

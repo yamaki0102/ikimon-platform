@@ -58,6 +58,10 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /メモだけ残す/);
         assert.match(response.body, /動画で残す/);
         assert.match(response.body, /ファイルから選ぶ/);
+        assert.match(response.body, /record-confidence-strip/);
+        assert.match(response.body, /名前はあとでOK/);
+        assert.match(response.body, /写真1枚で保存/);
+        assert.match(response.body, /みんなで確認できる/);
         assert.match(response.body, /自動下書き/);
         assert.match(response.body, /あとで補完する項目/);
         assert.match(response.body, /保存してあとで補完/);
@@ -153,6 +157,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /この長さでOK/);
         assert.match(response.body, /撮影時の現在地/);
         assert.match(response.body, /name="prefecture" value=""/);
+        assert.match(response.body, /if \(!latRaw \|\| !lngRaw\) return null;/);
         assert.match(response.body, /nominatim\.openstreetmap\.org\/reverse/);
         assert.match(response.body, /inferLocalityFromCoords/);
         assert.match(response.body, /recordLocationProvenance/);
@@ -168,6 +173,51 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /timeout: 2500/);
         assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \}\)/);
         assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
+});
+
+test("record route honors English language prefix for logged-in recording", async () => {
+  await withEnv(
+    {
+      ALLOW_QUERY_USER_ID: "1",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/en/record?userId=staging-user",
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /<html lang="en">/);
+        assert.match(response.body, /Record with photo/);
+        assert.match(response.body, /Name can come later/);
+        assert.match(response.body, /One photo is enough/);
+        assert.match(response.body, /Community can help/);
+        assert.match(response.body, /Observed time/);
+        assert.match(response.body, /Observation place/);
+        assert.match(response.body, /Fields you can complete later/);
+        assert.match(response.body, /No media selected/);
+        assert.match(response.body, /Save and complete later/);
+        assert.match(response.body, /Role of this record/);
+        assert.match(response.body, /Today&#39;s purpose/);
+        assert.match(response.body, /Save while unsure/);
+        assert.match(response.body, /Record for comparison/);
+        assert.match(response.body, /Field scan/);
+        assert.match(response.body, /Waterside \/ catch/);
+        assert.match(response.body, /href="\/en\/guide"/);
+        assert.match(response.body, /href="\/en\/learn"/);
+        assert.match(response.body, /<meta name="robots" content="noindex,follow" \/>/);
+        assert.doesNotMatch(response.body, /<h2>写真で記録する<\/h2>/);
+        assert.doesNotMatch(response.body, /写真を撮るか選ぶだけで始められます/);
+        assert.doesNotMatch(response.body, />観察した日時</);
+        assert.doesNotMatch(response.body, />見つける</);
+        assert.doesNotMatch(response.body, /フィールドスキャン/);
       } finally {
         await app.close();
       }
@@ -192,6 +242,9 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /写真で記録を始める/);
         assert.match(response.body, /ログインして写真で記録/);
+        assert.match(response.body, /名前はあとでOK/);
+        assert.match(response.body, /写真1枚で保存/);
+        assert.match(response.body, /みんなで確認できる/);
         assert.match(response.body, /メモで始める/);
         assert.match(response.body, /使い方を読む/);
         assert.match(response.body, /新しく登録して記録する/);

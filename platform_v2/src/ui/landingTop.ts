@@ -4,6 +4,8 @@ import type { FieldLoopStrings, LandingStrings } from "../i18n/strings.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import type {
   LandingObservation,
+  LandingDailyCard,
+  LandingDailyCardKind,
   LandingSnapshot,
   LandingTopGuideItem,
   LandingTopShelf,
@@ -89,8 +91,8 @@ function landingItemPlaceLabel(item: Pick<LandingTopShelfItem, "publicLocation" 
   return item.publicLocation?.label || [item.placeName, item.municipality].filter(Boolean).join(" · ");
 }
 
-function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality" | "observedAt">): string {
-  return [landingItemPlaceLabel(item), formatLandingObservedAt(lang, item.observedAt)].filter(Boolean).join(" · ");
+function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality" | "observedAt" | "observerName">): string {
+  return [item.observerName, landingItemPlaceLabel(item), formatLandingObservedAt(lang, item.observedAt)].filter(Boolean).join(" · ");
 }
 
 function observationPlaceLabel(obs: LandingObservation): string {
@@ -148,39 +150,188 @@ function resolveHeroPhotoObservation(snapshot: LandingSnapshot): LandingObservat
     .find((obs) => Boolean(obs.photoUrl) && !isSameLandingPhoto(obs, dailyMainObservation)) ?? null;
 }
 
-function renderTopAAction(basePath: string, lang: SiteLang, href: string, icon: string, label: string, kpiAction: string): string {
-  return `<a class="prototype-topa-action" href="${escapeHtml(landingHref(basePath, lang, href))}" data-kpi-action="${escapeHtml(kpiAction)}">
-    <span aria-hidden="true">${escapeHtml(icon)}</span>
-    <strong>${escapeHtml(label)}</strong>
+type LandingDailyActionCopy = {
+  icon: string;
+  title: string;
+  fallbackBody: string;
+};
+
+type LandingHeroText = {
+  heading: string;
+  lead: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  searchButton: string;
+  stats: Array<{ key: "observationCount" | "speciesCount" | "placeCount"; label: string }>;
+};
+
+function landingHeroText(lang: SiteLang): LandingHeroText {
+  const localized: Record<SiteLang, LandingHeroText> = {
+    ja: {
+      heading: "いま見えている自然",
+      lead: "みんなが残した写真、動画、ガイド、同定待ちから、次に見たいものが自然に見えてくる。",
+      searchLabel: "場所や生きものを検索",
+      searchPlaceholder: "場所・生きものを探す",
+      searchButton: "検索",
+      stats: [
+        { key: "observationCount", label: "観察" },
+        { key: "speciesCount", label: "種" },
+        { key: "placeCount", label: "場所" },
+      ],
+    },
+    en: {
+      heading: "Nature people are finding now",
+      lead: "Photos, videos, guides, and records needing a name make the next thing to notice feel close.",
+      searchLabel: "Search species or places",
+      searchPlaceholder: "Search species or places",
+      searchButton: "Search",
+      stats: [
+        { key: "observationCount", label: "records" },
+        { key: "speciesCount", label: "species" },
+        { key: "placeCount", label: "places" },
+      ],
+    },
+    es: {
+      heading: "Naturaleza que la gente encuentra",
+      lead: "Fotos, videos, guias y registros sin nombre acercan lo proximo que quieres mirar.",
+      searchLabel: "Buscar especies o lugares",
+      searchPlaceholder: "Buscar especies o lugares",
+      searchButton: "Buscar",
+      stats: [
+        { key: "observationCount", label: "registros" },
+        { key: "speciesCount", label: "especies" },
+        { key: "placeCount", label: "lugares" },
+      ],
+    },
+    "pt-BR": {
+      heading: "A natureza que as pessoas encontram",
+      lead: "Fotos, videos, guias e registros sem nome aproximam o proximo detalhe para observar.",
+      searchLabel: "Buscar especies ou lugares",
+      searchPlaceholder: "Buscar especies ou lugares",
+      searchButton: "Buscar",
+      stats: [
+        { key: "observationCount", label: "registros" },
+        { key: "speciesCount", label: "especies" },
+        { key: "placeCount", label: "lugares" },
+      ],
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function landingDailyActionCopy(lang: SiteLang, kind: LandingDailyCardKind): LandingDailyActionCopy {
+  const localized: Record<SiteLang, Record<LandingDailyCardKind, LandingDailyActionCopy>> = {
+    ja: {
+      recordToday: { icon: "+", title: "投稿する", fallbackBody: "名前が分からなくても記録できます。" },
+      revisitPlace: { icon: "↻", title: "再訪", fallbackBody: "同じ場所の変化を見る。" },
+      nearbyPulse: { icon: "◎", title: "近く", fallbackBody: "記録が増えた場所を開く。" },
+      needsId: { icon: "ID", title: "同定待ち", fallbackBody: "分からない記録を少し確かめる。" },
+    },
+    en: {
+      recordToday: { icon: "+", title: "Post", fallbackBody: "A record can start before you know the name." },
+      revisitPlace: { icon: "↻", title: "Revisit", fallbackBody: "Look for what changed in the same place." },
+      nearbyPulse: { icon: "◎", title: "Nearby", fallbackBody: "Open places where records are growing." },
+      needsId: { icon: "ID", title: "Needs ID", fallbackBody: "Check one record that needs a name." },
+    },
+    es: {
+      recordToday: { icon: "+", title: "Guardar foto", fallbackBody: "Puedes registrar antes de saber el nombre." },
+      revisitPlace: { icon: "↻", title: "Volver", fallbackBody: "Mira que cambio en el mismo lugar." },
+      nearbyPulse: { icon: "◎", title: "Cerca", fallbackBody: "Abre lugares con mas registros." },
+      needsId: { icon: "ID", title: "Ayudar a nombrar", fallbackBody: "Revisa un registro sin nombre claro." },
+    },
+    "pt-BR": {
+      recordToday: { icon: "+", title: "Salvar foto", fallbackBody: "Voce pode registrar antes de saber o nome." },
+      revisitPlace: { icon: "↻", title: "Voltar", fallbackBody: "Veja o que mudou no mesmo lugar." },
+      nearbyPulse: { icon: "◎", title: "Perto", fallbackBody: "Abra lugares com mais registros." },
+      needsId: { icon: "ID", title: "Ajudar no nome", fallbackBody: "Revise um registro sem nome claro." },
+    },
+  };
+  return localized[lang]?.[kind] ?? localized.ja[kind];
+}
+
+function dailyActionKpi(kind: LandingDailyCardKind): string {
+  switch (kind) {
+    case "recordToday":
+      return "landing:topA:primary:record";
+    case "revisitPlace":
+      return "landing:topA:primary:revisit";
+    case "nearbyPulse":
+      return "landing:topA:primary:map";
+    case "needsId":
+      return "landing:topA:primary:identify";
+  }
+}
+
+function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingStrings, card: LandingDailyCard): string {
+  const action = landingDailyActionCopy(lang, card.kind);
+  const cardCopy = copy.dailyDashboard.cards[card.kind];
+  const body = [card.primaryText, card.secondaryText].filter(Boolean).join(" · ") || action.fallbackBody;
+  const metricHtml = card.metricValue && card.metricValue > 0
+    ? `<em><strong>${escapeHtml(formatLandingNumber(copy, card.metricValue))}</strong>${escapeHtml(cardCopy.metricLabel)}</em>`
+    : "";
+  return `<a class="prototype-topa-action prototype-topa-action-${escapeHtml(card.kind)}" href="${escapeHtml(landingHref(basePath, lang, card.href))}" data-kpi-action="${escapeHtml(dailyActionKpi(card.kind))}">
+    <span class="prototype-topa-action-icon" aria-hidden="true">${escapeHtml(action.icon)}</span>
+    <strong>${escapeHtml(action.title)}</strong>
+    <small>${escapeHtml(body)}</small>
+    ${metricHtml}
   </a>`;
 }
 
-function observationStatusLabel(obs: LandingTopShelfItem): { label: string; tone: "green" | "blue" | "amber" } {
-  if (isLandingGuideItem(obs)) return { label: "ガイド記録", tone: "blue" };
-  if (obs.isAiCandidate) return { label: "AI候補", tone: "blue" };
-  if (obs.identificationCount > 0) return { label: "確認中", tone: "green" };
-  return { label: "同定待ち", tone: "amber" };
+function observationStatusLabel(lang: SiteLang, obs: LandingTopShelfItem): { label: string; tone: "green" | "blue" | "amber" } {
+  const labels: Record<SiteLang, { guide: string; ai: string; reviewing: string; needsId: string }> = {
+    ja: { guide: "ガイド記録", ai: "AI候補", reviewing: "確認中", needsId: "同定待ち" },
+    en: { guide: "Guide record", ai: "AI hint", reviewing: "In review", needsId: "Needs ID" },
+    es: { guide: "Registro guia", ai: "Pista IA", reviewing: "En revision", needsId: "Sin nombre" },
+    "pt-BR": { guide: "Registro guia", ai: "Dica IA", reviewing: "Em revisao", needsId: "Sem nome" },
+  };
+  const copy = labels[lang] ?? labels.ja;
+  if (isLandingGuideItem(obs)) return { label: copy.guide, tone: "blue" };
+  if (obs.isAiCandidate) return { label: copy.ai, tone: "blue" };
+  if (obs.identificationCount > 0) return { label: copy.reviewing, tone: "green" };
+  return { label: copy.needsId, tone: "amber" };
 }
 
-function landingShelfAction(kind: LandingTopShelfKind, item: LandingTopShelfItem): string {
-  if (isLandingGuideItem(item)) return "ガイド成果を見る";
-  if (kind === "needsId") return item.identificationCount > 0 ? "根拠を見に行く" : "名前を確かめる";
-  if (kind === "video") return "動きを見る";
-  if (kind === "guide") return "ガイドの流れを見る";
-  if (kind === "scan") return "現地の手がかりを見る";
-  if (item.identificationCount === 0 || item.isAiCandidate) return "名前を確かめる";
-  return "同じ季節に探す";
+function landingShelfAction(lang: SiteLang, kind: LandingTopShelfKind, item: LandingTopShelfItem): string {
+  const labels: Record<SiteLang, {
+    guideOutcome: string;
+    evidence: string;
+    name: string;
+    motion: string;
+    guide: string;
+    scan: string;
+    season: string;
+  }> = {
+    ja: { guideOutcome: "ガイド成果を見る", evidence: "根拠を見に行く", name: "名前を確かめる", motion: "動きを見る", guide: "ガイドの流れを見る", scan: "現地の手がかりを見る", season: "同じ季節に探す" },
+    en: { guideOutcome: "Open guide result", evidence: "Check evidence", name: "Help name it", motion: "Watch motion", guide: "Open guide flow", scan: "Open field clues", season: "Look in this season" },
+    es: { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ayudar a nombrar", motion: "Ver movimiento", guide: "Abrir guia", scan: "Ver pistas del lugar", season: "Mirar en esta temporada" },
+    "pt-BR": { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ajudar no nome", motion: "Ver movimento", guide: "Abrir guia", scan: "Ver pistas do lugar", season: "Observar nesta estacao" },
+  };
+  const copy = labels[lang] ?? labels.ja;
+  if (isLandingGuideItem(item)) return copy.guideOutcome;
+  if (kind === "needsId") return item.identificationCount > 0 ? copy.evidence : copy.name;
+  if (kind === "video") return copy.motion;
+  if (kind === "guide") return copy.guide;
+  if (kind === "scan") return copy.scan;
+  if (item.identificationCount === 0 || item.isAiCandidate) return copy.name;
+  return copy.season;
 }
 
 function landingShelfCardKpi(kind: LandingTopShelfKind): string {
   return `landing:topA:shelf:${kind}`;
 }
 
-function renderEvidenceBadge(item: LandingTopShelfItem): string {
+function renderEvidenceBadge(lang: SiteLang, item: LandingTopShelfItem): string {
   if (!isLandingObservationItem(item)) return "";
+  const labelsByLang: Record<SiteLang, { photo: string; video: string }> = {
+    ja: { photo: "写真", video: "動画あり" },
+    en: { photo: "Photo", video: "Video" },
+    es: { photo: "Foto", video: "Video" },
+    "pt-BR": { photo: "Foto", video: "Video" },
+  };
+  const labelCopy = labelsByLang[lang] ?? labelsByLang.ja;
   const labels = [
-    item.photoUrl ? "写真" : "",
-    item.hasVideo ? "動画あり" : "",
+    item.photoUrl ? labelCopy.photo : "",
+    item.hasVideo ? labelCopy.video : "",
   ].filter(Boolean);
   if (labels.length === 0) return "";
   return `<span class="prototype-topa-evidence-badge">${escapeHtml(labels.join(" + "))}</span>`;
@@ -198,13 +349,19 @@ function renderTopAObservationCard(
   const href = landingItemHref(basePath, lang, obs);
   const imageUrl = itemImageUrl(obs, "md");
   const title = displayLandingItemName(obs, copy.heroPhotoFallback);
-  const baseMeta = landingItemMeta(lang, obs) || "公開位置は安全側で表示";
+  const safeLocationCopy: Record<SiteLang, string> = {
+    ja: "公開位置は安全側で表示",
+    en: "Public location is shown safely",
+    es: "La ubicacion publica se muestra con seguridad",
+    "pt-BR": "A localizacao publica aparece com seguranca",
+  };
+  const baseMeta = landingItemMeta(lang, obs) || safeLocationCopy[lang] || safeLocationCopy.ja;
   const meta = isLandingGuideItem(obs) && obs.summary
     ? `${baseMeta} · ${obs.summary.slice(0, 42)}`
     : baseMeta;
-  const status = observationStatusLabel(obs);
+  const status = observationStatusLabel(lang, obs);
   const mediaHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />${renderEvidenceBadge(obs)}`
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async" />${renderEvidenceBadge(lang, obs)}`
     : `<span class="prototype-topa-empty-thumb" aria-hidden="true">${shelfKind === "video" ? "VIDEO" : isLandingGuideItem(obs) ? "GUIDE" : "PHOTO"}</span>`;
 
   return `<a class="prototype-topa-card" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(kpiAction)}">
@@ -213,7 +370,7 @@ function renderTopAObservationCard(
       <strong>${escapeHtml(title)}</strong>
       <small>${escapeHtml(meta)}</small>
       <em class="prototype-topa-status is-${status.tone}">${escapeHtml(status.label)}</em>
-      <span class="prototype-topa-next">${escapeHtml(landingShelfAction(shelfKind, obs))}</span>
+      <span class="prototype-topa-next">${escapeHtml(landingShelfAction(lang, shelfKind, obs))}</span>
     </span>
   </a>`;
 }
@@ -227,14 +384,118 @@ function renderTopAEmptyCard(basePath: string, lang: SiteLang, title: string, bo
 
 function renderLandingShelfCta(basePath: string, lang: SiteLang, shelf: LandingTopShelf): string {
   if (!shelf.cta) return "";
+  const localizedCta: Partial<Record<SiteLang, Partial<Record<LandingTopShelfKind, LandingTopShelf["cta"]>>>> = {
+    en: {
+      video: { title: "Add records with motion", body: "Calls, walking, and wingbeats are easier to keep as short videos.", href: "/record?start=video", actionLabel: "Record video" },
+      guide: { title: "Walk with the guide", body: "Follow seasonal and place-based prompts when you want something to notice.", href: "/guide", actionLabel: "Open guide" },
+      scan: { title: "Scan on site", body: "Bundle photo, sound, and place clues so people can check them later.", href: "/lens", actionLabel: "Start scan" },
+    },
+    es: {
+      video: { title: "Anade registros con movimiento", body: "Cantos, pasos y aleteos se guardan mejor como videos cortos.", href: "/record?start=video", actionLabel: "Registrar video" },
+      guide: { title: "Caminar con guia", body: "Sigue pistas de temporada y lugar cuando quieras notar algo.", href: "/guide", actionLabel: "Abrir guia" },
+      scan: { title: "Escanear en el lugar", body: "Une foto, sonido y lugar para que otros puedan revisar despues.", href: "/lens", actionLabel: "Iniciar scan" },
+    },
+    "pt-BR": {
+      video: { title: "Adicione registros com movimento", body: "Cantos, passos e asas ficam melhores em videos curtos.", href: "/record?start=video", actionLabel: "Registrar video" },
+      guide: { title: "Caminhar com guia", body: "Siga pistas de estacao e lugar quando quiser notar algo.", href: "/guide", actionLabel: "Abrir guia" },
+      scan: { title: "Escanear no local", body: "Junte foto, som e lugar para que outros possam revisar depois.", href: "/lens", actionLabel: "Iniciar scan" },
+    },
+  };
+  const cta = localizedCta[lang]?.[shelf.kind] ?? shelf.cta;
   return renderTopAEmptyCard(
     basePath,
     lang,
-    shelf.cta.title,
-    shelf.cta.body,
-    shelf.cta.href,
+    cta.title,
+    cta.body,
+    cta.href,
     `landing:topA:shelf:${shelf.kind}:cta`,
   );
+}
+
+function landingShelfUiCopy(lang: SiteLang, shelf: LandingTopShelf): { title: string; eyebrow: string; all: string } {
+  const localized: Record<SiteLang, Partial<Record<LandingTopShelfKind, { title: string; eyebrow: string }>> & { all: string }> = {
+    ja: {
+      today: { title: "みんなの発見", eyebrow: "LIVE FEED" },
+      photo: { title: "写真と動画", eyebrow: "MEDIA" },
+      video: { title: "動画", eyebrow: "VIDEO" },
+      guide: { title: "ガイドで見つけたこと", eyebrow: "GUIDE" },
+      scan: { title: "スキャンから見えたもの", eyebrow: "SCAN" },
+      needsId: { title: "名前を待つ記録", eyebrow: "IDENTIFY" },
+      all: "すべて見る",
+    },
+    en: {
+      today: { title: "Everyone's finds", eyebrow: "LIVE FEED" },
+      photo: { title: "Photos and videos", eyebrow: "MEDIA" },
+      video: { title: "Videos", eyebrow: "VIDEO" },
+      guide: { title: "Found with guides", eyebrow: "GUIDE" },
+      scan: { title: "Seen from scans", eyebrow: "SCAN" },
+      needsId: { title: "Records needing a name", eyebrow: "IDENTIFY" },
+      all: "See all",
+    },
+    es: {
+      today: { title: "Hallazgos de todos", eyebrow: "LIVE FEED" },
+      photo: { title: "Fotos y videos", eyebrow: "MEDIA" },
+      video: { title: "Videos", eyebrow: "VIDEO" },
+      guide: { title: "Hallazgos con guia", eyebrow: "GUIDE" },
+      scan: { title: "Visto en escaneos", eyebrow: "SCAN" },
+      needsId: { title: "Registros sin nombre", eyebrow: "IDENTIFY" },
+      all: "Ver todo",
+    },
+    "pt-BR": {
+      today: { title: "Descobertas de todos", eyebrow: "LIVE FEED" },
+      photo: { title: "Fotos e videos", eyebrow: "MEDIA" },
+      video: { title: "Videos", eyebrow: "VIDEO" },
+      guide: { title: "Encontrado com guias", eyebrow: "GUIDE" },
+      scan: { title: "Visto em scans", eyebrow: "SCAN" },
+      needsId: { title: "Registros sem nome", eyebrow: "IDENTIFY" },
+      all: "Ver tudo",
+    },
+  };
+  const copy = localized[lang] ?? localized.ja;
+  const shelfCopy = copy[shelf.kind] ?? { title: shelf.title, eyebrow: shelf.eyebrow };
+  return {
+    title: shelfCopy.title,
+    eyebrow: shelfCopy.eyebrow,
+    all: copy.all,
+  };
+}
+
+function landingShelfEmptyCopy(lang: SiteLang, kind: LandingTopShelfKind): { title: string; body: string; href: string } {
+  const localized: Record<SiteLang, Record<LandingTopShelfKind, { title: string; body: string; href: string }>> = {
+    ja: {
+      today: { title: "最初の発見を残す", body: "名前が分からなくても、写真や動画から始められます。", href: "/record" },
+      photo: { title: "写真や動画で始める", body: "形、動き、声をあとから見返せる記録にします。", href: "/record?start=gallery" },
+      video: { title: "動きや声を残す", body: "短い動画なら、動き・鳴き声・周りの様子まで残せます。", href: "/record?start=video" },
+      guide: { title: "ガイドから歩く", body: "季節と場所の見どころから、次に見るものを選べます。", href: "/guide" },
+      scan: { title: "現地の手がかりを束ねる", body: "写真、音、場所の情報をまとめて残せます。", href: "/lens" },
+      needsId: { title: "名前が分からなくても大丈夫", body: "AI候補とみんなの確認で、あとから記録が育ちます。", href: "/record" },
+    },
+    en: {
+      today: { title: "Make the first find", body: "A photo or short video is enough before you know the name.", href: "/record" },
+      photo: { title: "Start with media", body: "Keep shape, motion, and sound so you can revisit the record later.", href: "/record?start=gallery" },
+      video: { title: "Keep motion and calls", body: "Short videos can hold behavior, voice, and the surrounding scene.", href: "/record?start=video" },
+      guide: { title: "Walk from a guide", body: "Use season and place prompts when you want something to notice.", href: "/guide" },
+      scan: { title: "Bundle field clues", body: "Keep photo, sound, and place clues together for later review.", href: "/lens" },
+      needsId: { title: "Names can come later", body: "AI hints and community checks can help the record grow after posting.", href: "/record" },
+    },
+    es: {
+      today: { title: "Haz el primer hallazgo", body: "Una foto o video corto basta antes de saber el nombre.", href: "/record" },
+      photo: { title: "Empieza con medios", body: "Guarda forma, movimiento y sonido para volver al registro despues.", href: "/record?start=gallery" },
+      video: { title: "Guarda movimiento y cantos", body: "Videos cortos conservan conducta, voz y el lugar alrededor.", href: "/record?start=video" },
+      guide: { title: "Camina con una guia", body: "Usa pistas de temporada y lugar cuando quieras notar algo.", href: "/guide" },
+      scan: { title: "Une pistas del lugar", body: "Guarda foto, sonido y lugar juntos para revisar despues.", href: "/lens" },
+      needsId: { title: "El nombre puede venir despues", body: "La IA y la comunidad pueden ayudar tras publicar.", href: "/record" },
+    },
+    "pt-BR": {
+      today: { title: "Faca a primeira descoberta", body: "Uma foto ou video curto basta antes de saber o nome.", href: "/record" },
+      photo: { title: "Comece com midia", body: "Guarde forma, movimento e som para rever o registro depois.", href: "/record?start=gallery" },
+      video: { title: "Guarde movimento e cantos", body: "Videos curtos mantem comportamento, voz e o ambiente ao redor.", href: "/record?start=video" },
+      guide: { title: "Caminhe com um guia", body: "Use pistas de estacao e lugar quando quiser notar algo.", href: "/guide" },
+      scan: { title: "Junte pistas do local", body: "Guarde foto, som e lugar juntos para revisar depois.", href: "/lens" },
+      needsId: { title: "O nome pode vir depois", body: "Dicas de IA e revisao da comunidade ajudam apos publicar.", href: "/record" },
+    },
+  };
+  return localized[lang]?.[kind] ?? localized.ja[kind];
 }
 
 function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
@@ -242,8 +503,8 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
   const videoItems = observations.filter((obs) => Boolean(obs.hasVideo) || obs.librarySourceKind === "video").slice(0, 4);
   const evidenceShelf = {
     kind: "photo" as const,
-    title: "観察証拠",
-    eyebrow: "EVIDENCE",
+    title: "写真と動画",
+    eyebrow: "MEDIA",
     href: "/observations",
     items: Array.from(new Map([
       ...observations.filter((obs) => Boolean(obs.photoUrl)).slice(0, 6),
@@ -253,8 +514,8 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
   const shelves: LandingTopShelf[] = [
     {
       kind: "today",
-      title: "今日の発見",
-      eyebrow: "ENJOY NATURE",
+      title: "みんなの発見",
+      eyebrow: "LIVE FEED",
       href: "/observations",
       items: observations.slice(0, 8),
     },
@@ -263,7 +524,7 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
   shelves.push(
     {
       kind: "guide",
-      title: "ガイド",
+      title: "ガイドで見つけたこと",
       eyebrow: "GUIDE",
       href: "/guide",
       items: observations.filter((obs) => obs.librarySourceKind === "guide").slice(0, 4),
@@ -271,7 +532,7 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
     },
     {
       kind: "scan",
-      title: "スキャン",
+      title: "スキャンから見えたもの",
       eyebrow: "SCAN",
       href: "/lens",
       items: observations.filter((obs) => obs.librarySourceKind === "scan").slice(0, 4),
@@ -279,7 +540,7 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
     },
     {
       kind: "needsId",
-      title: "同定待ち",
+      title: "名前を待つ記録",
       eyebrow: "IDENTIFY",
       href: "/observations?filter=needs_id",
       items: observations.filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate).slice(0, 6),
@@ -290,22 +551,24 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
 
 function renderLandingShelf(options: LandingTopRenderOptions, shelf: LandingTopShelf, index: number): string {
   const { basePath, lang, copy } = options;
+  const shelfCopy = landingShelfUiCopy(lang, shelf);
   const itemsHtml = shelf.items.map((obs, itemIndex) =>
     renderTopAObservationCard(basePath, lang, copy, obs, itemIndex, landingShelfCardKpi(shelf.kind), shelf.kind),
   ).join("");
   const ctaHtml = shelf.cta && (shelf.kind === "video" || shelf.items.length < Math.min(2, 4))
     ? renderLandingShelfCta(basePath, lang, shelf)
     : "";
+  const emptyCopy = landingShelfEmptyCopy(lang, shelf.kind);
   const emptyHtml = !itemsHtml && !ctaHtml
-    ? renderTopAEmptyCard(basePath, lang, "まだ公開できる観察がありません", "最初の発見を写真で残せます。", "/record", `landing:topA:shelf:${shelf.kind}:empty`)
+    ? renderTopAEmptyCard(basePath, lang, emptyCopy.title, emptyCopy.body, emptyCopy.href, `landing:topA:shelf:${shelf.kind}:empty`)
     : "";
   return `<div class="prototype-topa-shelf prototype-topa-shelf-${escapeHtml(shelf.kind)}" id="topa-${escapeHtml(shelf.kind)}">
     <div class="prototype-topa-shelf-head">
       <div>
-        <small>${escapeHtml(shelf.eyebrow)}</small>
-        <h2>${escapeHtml(shelf.title)}</h2>
+        <small>${escapeHtml(shelfCopy.eyebrow)}</small>
+        <h2>${escapeHtml(shelfCopy.title)}</h2>
       </div>
-      <a href="${escapeHtml(landingHref(basePath, lang, shelf.href))}" data-kpi-action="landing:topA:shelf:${escapeHtml(shelf.kind)}:all">すべて見る</a>
+      <a href="${escapeHtml(landingHref(basePath, lang, shelf.href))}" data-kpi-action="landing:topA:shelf:${escapeHtml(shelf.kind)}:all">${escapeHtml(shelfCopy.all)}</a>
     </div>
     <div class="prototype-topa-card-grid${index === 0 ? " is-primary" : ""}">${itemsHtml}${ctaHtml}${emptyHtml}</div>
   </div>`;
@@ -374,31 +637,37 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
-  const { basePath, lang, copy, snapshot, isLoggedIn } = options;
-  const profileHref = isLoggedIn ? "/profile" : "/login?redirect=/profile";
-  const stats = [
-    { label: "観察", value: snapshot.stats.observationCount },
-    { label: "種", value: snapshot.stats.speciesCount },
-    { label: "場所", value: snapshot.stats.placeCount },
-  ];
+  const { basePath, lang, copy, snapshot } = options;
+  const hero = landingHeroText(lang);
+  const stats = hero.stats.map((stat) => ({
+    label: stat.label,
+    value: snapshot.stats[stat.key],
+  }));
   const statsHtml = stats
     .map((stat) => `<span><strong>${escapeHtml(formatLandingNumber(copy, stat.value))}</strong>${escapeHtml(stat.label)}</span>`)
     .join("");
+  const dailyCards = snapshot.dailyDashboard?.dailyCards ?? [];
+  const dailyActionsHtml = dailyCards.length > 0
+    ? dailyCards.map((card) => renderDailyActionCard(basePath, lang, copy, card)).join("")
+    : [
+        { kind: "recordToday" as const, href: "/record", primaryText: null, secondaryText: null, metricValue: null },
+        { kind: "nearbyPulse" as const, href: "/map", primaryText: null, secondaryText: null, metricValue: null },
+        { kind: "needsId" as const, href: "/observations?filter=needs_id", primaryText: null, secondaryText: null, metricValue: null },
+        { kind: "revisitPlace" as const, href: "/notes", primaryText: null, secondaryText: null, metricValue: null },
+      ].map((card) => renderDailyActionCard(basePath, lang, copy, card)).join("");
 
   return `<section class="prototype-topa" aria-labelledby="landing-hero-heading">
     <div class="prototype-topa-intro">
-      <h1 id="landing-hero-heading">見つける、確かめる、地図で見る。</h1>
+      <h1 id="landing-hero-heading">${escapeHtml(hero.heading)}</h1>
+      <p>${escapeHtml(hero.lead)}</p>
     </div>
-    <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/explore"))}" method="get" aria-label="近くの生きものを検索">
+    <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/observations"))}" method="get" aria-label="${escapeHtml(hero.searchLabel)}">
       <span aria-hidden="true">🔍</span>
-      <input type="search" name="q" placeholder="近くの生きものを検索" aria-label="近くの生きものを検索" />
-      <button type="submit">検索</button>
+      <input type="search" name="q" placeholder="${escapeHtml(hero.searchPlaceholder)}" aria-label="${escapeHtml(hero.searchLabel)}" />
+      <button type="submit">${escapeHtml(hero.searchButton)}</button>
     </form>
-    <nav class="prototype-topa-actions" aria-label="主な操作">
-      ${renderTopAAction(basePath, lang, "/record", "＋", "観察する", "landing:topA:primary:record")}
-      ${renderTopAAction(basePath, lang, "/observations?filter=needs_id", "ID", "同定する", "landing:topA:primary:identify")}
-      ${renderTopAAction(basePath, lang, "/map", "◎", "地図", "landing:topA:primary:map")}
-      ${renderTopAAction(basePath, lang, profileHref, "人", "マイページ", "landing:topA:primary:me")}
+    <nav class="prototype-topa-actions" aria-label="${escapeHtml(copy.dailyDashboard.eyebrow)}">
+      ${dailyActionsHtml}
     </nav>
     <div class="prototype-topa-metrics" aria-label="ikimon.lifeの公開記録数">${statsHtml}</div>
   </section>`;
@@ -538,7 +807,7 @@ function renderMapSection(options: LandingTopRenderOptions): string {
       <p>${escapeHtml(copy.mapSectionLead)}</p>
       <div class="prototype-map-points">
         <a href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:map:open"><i>RT</i><span><strong>また同じ場所へ行く</strong><small>季節や個体数の変化を残す</small></span></a>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/explore"))}"><i>LY</i><span><strong>場所ごとの発見を重ねる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/observations"))}"><i>LY</i><span><strong>場所ごとの発見を重ねる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
         <a href="${escapeHtml(landingHref(basePath, lang, "/record"))}"><i>NX</i><span><strong>次の観察地点を見つける</strong><small>多い場所と少ない場所を見返せる</small></span></a>
       </div>
     </div>
@@ -673,34 +942,34 @@ export const LANDING_TOP_STYLES = `
   .prototype-btn-secondary { background: rgba(255,255,255,.78); color: #1a2e1f; border-color: rgba(16,185,129,.28); }
   .prototype-btn-dark { background: #10251a; color: #fff; box-shadow: 0 18px 44px rgba(16,37,26,.18); }
   .prototype-topa {
-    padding: clamp(14px, 3vw, 30px) 0 16px;
+    padding: clamp(10px, 2vw, 22px) 0 10px;
     display: grid;
-    gap: 14px;
+    gap: 10px;
   }
   .prototype-topa-intro {
     display: grid;
-    gap: 12px;
+    gap: 8px;
     max-width: none;
   }
   .prototype-topa h1 {
     margin: 0;
     color: #10251a;
-    font-size: clamp(34px, 3.25vw, 56px);
-    line-height: 1.14;
+    font-size: clamp(28px, 2.65vw, 42px);
+    line-height: 1.16;
     letter-spacing: 0;
     font-weight: 950;
-    white-space: nowrap;
+    white-space: normal;
   }
   .prototype-topa p {
     margin: 0;
-    max-width: 48em;
+    max-width: 62em;
     color: #475569;
-    font-size: 17px;
-    line-height: 1.7;
+    font-size: 15px;
+    line-height: 1.65;
     font-weight: 680;
   }
   .prototype-topa-search {
-    min-height: 64px;
+    min-height: 54px;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
@@ -717,13 +986,13 @@ export const LANDING_TOP_STYLES = `
     outline: 0;
     background: transparent;
     color: #10251a;
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 720;
   }
   .prototype-topa-search input::placeholder { color: #64748b; }
   .prototype-topa-search button {
-    min-height: 48px;
-    padding: 0 18px;
+    min-height: 40px;
+    padding: 0 16px;
     border: 0;
     border-radius: 999px;
     background: #047857;
@@ -732,63 +1001,97 @@ export const LANDING_TOP_STYLES = `
     font-weight: 900;
   }
   .prototype-topa-actions {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .prototype-topa-actions::-webkit-scrollbar {
+    display: none;
   }
   .prototype-topa-action {
-    min-height: 82px;
+    min-height: 48px;
+    flex: 0 0 auto;
     display: grid;
-    place-items: center;
-    align-content: center;
-    gap: 7px;
-    padding: 12px;
+    grid-template-columns: 30px max-content;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px 7px 8px;
     border: 1px solid rgba(16,185,129,.16);
-    border-radius: 8px;
+    border-radius: 999px;
     background: #fff;
-    box-shadow: 0 16px 38px rgba(15,23,42,.07);
-    text-align: center;
+    box-shadow: 0 12px 26px rgba(15,23,42,.06);
+    text-align: left;
   }
-  .prototype-topa-action span {
-    width: 36px;
-    height: 36px;
+  .prototype-topa-action-icon {
+    width: 30px;
+    height: 30px;
     display: grid;
     place-items: center;
     border-radius: 999px;
     background: #e7f5ef;
     color: #047857;
-    font-size: 15px;
+    font-size: 12px;
     line-height: 1;
     font-weight: 950;
   }
   .prototype-topa-action strong {
     color: #10251a;
-    font-size: 17px;
+    font-size: 14px;
     line-height: 1.35;
     font-weight: 950;
   }
+  .prototype-topa-action small {
+    min-width: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.48;
+    font-weight: 720;
+    display: none;
+  }
+  .prototype-topa-action em {
+    width: fit-content;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(16,185,129,.1);
+    color: #047857;
+    font-size: 11px;
+    line-height: 1.2;
+    font-style: normal;
+    font-weight: 900;
+  }
+  .prototype-topa-action em strong {
+    font-size: 15px;
+    line-height: 1;
+  }
   .prototype-topa-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .prototype-topa-metrics span {
-    min-height: 58px;
+    min-height: 34px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 4px 10px;
     border: 1px solid rgba(16,185,129,.14);
     border-radius: 8px;
     background: rgba(255,255,255,.82);
     color: #475569;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 850;
-    box-shadow: 0 14px 34px rgba(15,23,42,.055);
+    box-shadow: none;
   }
   .prototype-topa-metrics strong {
     color: #10251a;
-    font-size: 22px;
+    font-size: 16px;
     line-height: 1;
     font-weight: 950;
   }
@@ -818,7 +1121,7 @@ export const LANDING_TOP_STYLES = `
   .prototype-topa-shelves {
     display: grid;
     gap: 18px;
-    padding: 8px 0 clamp(26px, 4vw, 46px);
+    padding: 4px 0 clamp(26px, 4vw, 46px);
   }
   .prototype-topa-board {
     display: grid;
@@ -869,7 +1172,7 @@ export const LANDING_TOP_STYLES = `
     gap: 12px;
   }
   .prototype-topa-card-grid.is-primary {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
   .prototype-topa-card,
   .prototype-topa-empty-card {
@@ -1661,22 +1964,23 @@ export const LANDING_TOP_STYLES = `
     }
     .prototype-topa h1 {
       max-width: none;
-      font-size: clamp(34px, 3.35vw, 50px);
+      font-size: clamp(28px, 2.8vw, 40px);
       white-space: normal;
       text-wrap: balance;
     }
     .prototype-topa-search {
-      min-height: 60px;
+      min-height: 54px;
     }
     .prototype-topa-actions {
       gap: 10px;
     }
     .prototype-topa-action {
-      min-height: 78px;
-      padding: 10px;
+      min-height: 48px;
+      grid-template-columns: 30px max-content;
+      padding: 7px 12px 7px 8px;
     }
     .prototype-topa-action strong {
-      font-size: 16px;
+      font-size: 14px;
     }
     .prototype-topa-card-grid,
     .prototype-topa-card-grid.is-primary {
@@ -1708,20 +2012,57 @@ export const LANDING_TOP_STYLES = `
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { padding-top: 18px; }
     .prototype-topa { padding-top: 12px; }
-    .prototype-topa h1 { font-size: 34px; white-space: normal; }
-    .prototype-topa-search { min-height: 58px; border-radius: 8px; grid-template-columns: auto minmax(0, 1fr); }
-    .prototype-topa-search button { grid-column: 1 / -1; width: 100%; }
-    .prototype-topa-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .prototype-topa-action { min-height: 86px; }
+    .prototype-topa h1 { font-size: 30px; white-space: normal; }
+    .prototype-topa p { font-size: 14px; line-height: 1.55; }
+    .prototype-topa-search { min-height: 52px; border-radius: 999px; grid-template-columns: auto minmax(0, 1fr) auto; }
+    .prototype-topa-search button { grid-column: auto; width: auto; min-height: 38px; padding: 0 12px; }
+    .prototype-topa-actions { display: flex; }
+    .prototype-topa-action {
+      min-height: 46px;
+      grid-template-columns: 30px max-content;
+      gap: 7px;
+      padding: 7px 11px 7px 8px;
+    }
+    .prototype-topa-action-icon {
+      width: 30px;
+      height: 30px;
+    }
+    .prototype-topa-action strong { font-size: 13px; }
+    .prototype-topa-action small { display: none; }
     .prototype-topa-metrics { gap: 8px; }
-    .prototype-topa-metrics span { min-height: 52px; flex-direction: column; gap: 3px; }
-    .prototype-topa-metrics strong { font-size: 18px; }
+    .prototype-topa-metrics span { min-height: 32px; flex-direction: row; gap: 5px; }
+    .prototype-topa-metrics strong { font-size: 15px; }
     .prototype-topa-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-tabs a { min-height: 52px; }
-    .prototype-topa-card-grid { grid-template-columns: 1fr; }
-    .prototype-topa-card-grid.is-primary { grid-template-columns: 1fr; }
-    .prototype-topa-card { min-height: 118px; display: grid; grid-template-columns: 128px minmax(0, 1fr); }
-    .prototype-topa-thumb { height: 100%; min-height: 116px; }
+    .prototype-topa-card-grid,
+    .prototype-topa-card-grid.is-primary {
+      width: 100%;
+      max-width: 100%;
+      grid-template-columns: none;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(150px, 45vw);
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+    .prototype-topa-card-grid::-webkit-scrollbar { display: none; }
+    .prototype-topa-card { min-height: 210px; display: block; }
+    .prototype-topa-card { scroll-snap-align: start; }
+    .prototype-topa-thumb { height: 114px; min-height: 0; }
+    .prototype-topa-card-body { min-height: 88px; gap: 5px; padding: 9px; }
+    .prototype-topa-card-body strong { font-size: 14px; line-height: 1.32; }
+    .prototype-topa-card-body small {
+      font-size: 11px;
+      line-height: 1.35;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .prototype-topa-status { min-height: 24px; padding: 3px 7px; font-size: 10px; }
+    .prototype-topa-next { display: none; }
     .prototype-topa-summary-card { grid-column: auto; }
     .prototype-topa-map-board { min-height: 320px; }
     .prototype-sound-os { padding: 10px; }

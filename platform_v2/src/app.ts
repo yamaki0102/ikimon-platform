@@ -206,7 +206,7 @@ function materializeQaHref(page: SitePageDefinition, options: PreviewContext): s
     return buildObserverProfileHref("", options.userId) ?? materializeSitePagePath(page, options);
   }
   if (page.path === "/observations/:id" && !options.visitId && !options.occurrenceId) {
-    return "/explore";
+    return "/observations";
   }
   return materializeSitePagePath(page, options);
 }

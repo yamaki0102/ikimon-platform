@@ -73,6 +73,9 @@ export type MapExplorerCopy = {
   bottomSheetNotes: string;
   bottomSheetLens: string;
   bottomSheetScan: string;
+  bottomSheetCloseLabel: string;
+  bottomSheetExpandLabel: string;
+  bottomSheetCollapseLabel: string;
   siteBriefHeading: string;
   siteBriefReasonsLabel: string;
   siteBriefChecksLabel: string;
@@ -90,6 +93,16 @@ export type MapExplorerCopy = {
   searchError: string;
   searchResultSpecies: string;
   searchResultPlace: string;
+  unknownHypothesisLabel: string;
+  recordingGapLabel: string;
+  selectedPointName: string;
+  osmAreaFallbackName: string;
+  osmAreaSourceLabel: string;
+  areaLoading: string;
+  unregisteredAreaText: string;
+  mapLoadErrorTitle: string;
+  mapLoadErrorBody: string;
+  mapLoadRetryLabel: string;
   locateLabel: string;
   locateError: string;
   timelineAriaLabel: string;
@@ -191,6 +204,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
     bottomSheetLens: JA_PUBLIC_SHARED_COPY.cta.openGuide,
     bottomSheetScan: JA_PUBLIC_SHARED_COPY.cta.openScan,
+    bottomSheetCloseLabel: "閉じる",
+    bottomSheetExpandLabel: "詳細を広げる",
+    bottomSheetCollapseLabel: "詳細を半分に戻す",
     siteBriefHeading: "ここで見つかるもの",
     siteBriefReasonsLabel: "最近の発見",
     siteBriefChecksLabel: "歩きながら見たいこと",
@@ -208,6 +224,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchError: "検索に失敗した。しばらく待ってから試す。",
     searchResultSpecies: "種",
     searchResultPlace: "場所",
+    unknownHypothesisLabel: "地図だけではわからない場所",
+    recordingGapLabel: "記録の余白",
+    selectedPointName: "地図で選んだ地点",
+    osmAreaFallbackName: "OSMの公園・緑地",
+    osmAreaSourceLabel: "公園・緑地 (OSM live)",
+    areaLoading: "エリア情報を読み込み中…",
+    unregisteredAreaText: "このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。",
+    mapLoadErrorTitle: "地図ライブラリを読み込めませんでした",
+    mapLoadErrorBody: "ネットワーク状況を確認のうえ、もう一度開いてください。",
+    mapLoadRetryLabel: "再読み込み",
     locateLabel: "現在地を見る",
     locateError: "現在地を取得できなかった。ブラウザの位置情報を許可してほしい。",
     timelineAriaLabel: "年のタイムライン",
@@ -289,6 +315,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Notebook detail",
     bottomSheetLens: "Lens",
     bottomSheetScan: "Scan",
+    bottomSheetCloseLabel: "Close",
+    bottomSheetExpandLabel: "Expand details",
+    bottomSheetCollapseLabel: "Return details to half height",
     siteBriefHeading: "What you may find here",
     siteBriefReasonsLabel: "Why",
     siteBriefChecksLabel: "Check on the ground",
@@ -306,6 +335,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchError: "Search failed. Wait a moment and retry.",
     searchResultSpecies: "Species",
     searchResultPlace: "Place",
+    unknownHypothesisLabel: "A place the map alone cannot explain",
+    recordingGapLabel: "Open recording gap",
+    selectedPointName: "Map-selected point",
+    osmAreaFallbackName: "OSM park or green space",
+    osmAreaSourceLabel: "Park / green space (OSM live)",
+    areaLoading: "Loading area information…",
+    unregisteredAreaText: "This area is not registered in ikimon's field database yet. Creating an event makes it available as a normal area next time.",
+    mapLoadErrorTitle: "Could not load the map library",
+    mapLoadErrorBody: "Check your network connection, then open the map again.",
+    mapLoadRetryLabel: "Reload",
     locateLabel: "My location",
     locateError: "Could not get your location. Allow location in your browser.",
     timelineAriaLabel: "Year timeline",
@@ -387,6 +426,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Detalle del cuaderno",
     bottomSheetLens: "Guía de Campo",
     bottomSheetScan: "Escaneo",
+    bottomSheetCloseLabel: "Cerrar",
+    bottomSheetExpandLabel: "Ampliar detalles",
+    bottomSheetCollapseLabel: "Volver a media altura",
     siteBriefHeading: "Qué puedes encontrar aquí",
     siteBriefReasonsLabel: "Por qué",
     siteBriefChecksLabel: "Verifica en el sitio",
@@ -404,6 +446,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchError: "Fallo al buscar. Espera y reintenta.",
     searchResultSpecies: "Especie",
     searchResultPlace: "Lugar",
+    unknownHypothesisLabel: "Un lugar que el mapa solo no puede explicar",
+    recordingGapLabel: "Hueco de registros",
+    selectedPointName: "Punto elegido en el mapa",
+    osmAreaFallbackName: "Parque o zona verde de OSM",
+    osmAreaSourceLabel: "Parque / zona verde (OSM live)",
+    areaLoading: "Cargando información del área…",
+    unregisteredAreaText: "Esta área aún no está registrada en la base de campos de ikimon. Crear una salida permite tratarla como área normal la próxima vez.",
+    mapLoadErrorTitle: "No se pudo cargar la biblioteca del mapa",
+    mapLoadErrorBody: "Revisa la conexión y vuelve a abrir el mapa.",
+    mapLoadRetryLabel: "Recargar",
     locateLabel: "Mi ubicación",
     locateError: "No pude obtener tu ubicación. Permite la geolocalización en el navegador.",
     timelineAriaLabel: "Línea de tiempo por año",
@@ -485,6 +537,9 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Detalhe do caderno",
     bottomSheetLens: "Guia de Campo",
     bottomSheetScan: "Escaneamento",
+    bottomSheetCloseLabel: "Fechar",
+    bottomSheetExpandLabel: "Expandir detalhes",
+    bottomSheetCollapseLabel: "Voltar para meia altura",
     siteBriefHeading: "O que você pode encontrar aqui",
     siteBriefReasonsLabel: "Porquê",
     siteBriefChecksLabel: "Verifique no campo",
@@ -502,6 +557,16 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     searchError: "Falha na busca. Aguarde e tente novamente.",
     searchResultSpecies: "Espécie",
     searchResultPlace: "Lugar",
+    unknownHypothesisLabel: "Um lugar que o mapa sozinho não explica",
+    recordingGapLabel: "Lacuna de registros",
+    selectedPointName: "Ponto escolhido no mapa",
+    osmAreaFallbackName: "Parque ou área verde do OSM",
+    osmAreaSourceLabel: "Parque / área verde (OSM live)",
+    areaLoading: "Carregando informações da área…",
+    unregisteredAreaText: "Esta área ainda não está registrada no banco de campos do ikimon. Criar uma saída permite tratá-la como área normal na próxima vez.",
+    mapLoadErrorTitle: "Não foi possível carregar a biblioteca do mapa",
+    mapLoadErrorBody: "Verifique a conexão e abra o mapa novamente.",
+    mapLoadRetryLabel: "Recarregar",
     locateLabel: "Minha localização",
     locateError: "Não foi possível obter sua localização. Permita a geolocalização no navegador.",
     timelineAriaLabel: "Linha do tempo por ano",
@@ -1055,8 +1120,8 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <span class="me-legend-range"><span id="me-legend-low">${escapeHtml(copy.heatmapLegendLow)}</span><span id="me-legend-high">${escapeHtml(copy.heatmapLegendHigh)}</span></span>
         </div>
         <div class="me-bottom-sheet" id="me-bottom-sheet" aria-hidden="true">
-          <button type="button" class="me-bottom-close" id="me-bottom-close" aria-label="close">×</button>
-          <button type="button" class="me-bottom-grip" id="me-bottom-grip" aria-label="詳細を広げる"></button>
+          <button type="button" class="me-bottom-close" id="me-bottom-close" aria-label="${escapeHtml(copy.bottomSheetCloseLabel)}">×</button>
+          <button type="button" class="me-bottom-grip" id="me-bottom-grip" aria-label="${escapeHtml(copy.bottomSheetExpandLabel)}"></button>
           <div class="me-bottom-inner" id="me-bottom-inner"></div>
         </div>
       </div>
@@ -1171,6 +1236,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetNotes: copy.bottomSheetNotes,
     bottomSheetLens: copy.bottomSheetLens,
     bottomSheetScan: copy.bottomSheetScan,
+    bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
+    bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
+    bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
     siteBriefHeading: copy.siteBriefHeading,
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
@@ -1189,6 +1257,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     searchError: copy.searchError,
     searchResultSpecies: copy.searchResultSpecies,
     searchResultPlace: copy.searchResultPlace,
+    unknownHypothesisLabel: copy.unknownHypothesisLabel,
+    recordingGapLabel: copy.recordingGapLabel,
+    selectedPointName: copy.selectedPointName,
+    osmAreaFallbackName: copy.osmAreaFallbackName,
+    osmAreaSourceLabel: copy.osmAreaSourceLabel,
+    areaLoading: copy.areaLoading,
+    unregisteredAreaText: copy.unregisteredAreaText,
+    mapLoadErrorTitle: copy.mapLoadErrorTitle,
+    mapLoadErrorBody: copy.mapLoadErrorBody,
+    mapLoadRetryLabel: copy.mapLoadRetryLabel,
     locateError: copy.locateError,
     yearAll: copy.yearAll,
     seasonAll: copy.seasonAll,
@@ -1266,6 +1344,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     selectedRoleLead: props.lang === "ja" ? "手がかり" : props.lang === "es" ? "Pistas" : props.lang === "pt-BR" ? "Pistas" : "Clues",
     selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
     selectionPlaceLabel: props.lang === "ja" ? "地図の手がかり" : props.lang === "es" ? "Pistas del mapa" : props.lang === "pt-BR" ? "Pistas do mapa" : "Map clues",
+    awaitingIdLabel: props.lang === "ja" ? "同定待ち" : props.lang === "es" ? "Sin identificar" : props.lang === "pt-BR" ? "Sem identificação" : "Needs name",
+    aiCandidateLabel: props.lang === "ja" ? "AI候補" : props.lang === "es" ? "Candidato IA" : props.lang === "pt-BR" ? "Candidato de IA" : "AI candidate",
+    recentDiscoveryFallback: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgo reciente" : props.lang === "pt-BR" ? "Descoberta recente" : "Recent find",
+    discoveryFallback: props.lang === "ja" ? "発見" : props.lang === "es" ? "Hallazgo" : props.lang === "pt-BR" ? "Descoberta" : "Find",
+    openDiscoverySuffix: props.lang === "ja" ? "を開く" : props.lang === "es" ? ": abrir" : props.lang === "pt-BR" ? ": abrir" : " - open",
+    walkableFindsAria: props.lang === "ja" ? "徒歩5分圏の発見" : props.lang === "es" ? "Hallazgos a cinco minutos a pie" : props.lang === "pt-BR" ? "Descobertas a cinco minutos a pé" : "Finds within a five-minute walk",
+    walkableFindsTitle: props.lang === "ja" ? "近くで見えたもの" : props.lang === "es" ? "Lo visto cerca" : props.lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
+    nearDistanceImmediate: props.lang === "ja" ? "すぐ近く" : props.lang === "es" ? "muy cerca" : props.lang === "pt-BR" ? "bem perto" : "nearby",
+    nearDistanceApproxPrefix: props.lang === "ja" ? "約" : props.lang === "es" ? "aprox. " : props.lang === "pt-BR" ? "aprox. " : "about ",
     placeStoryTitle: props.lang === "ja" ? "場所ストーリー" : props.lang === "es" ? "Historia del lugar" : props.lang === "pt-BR" ? "História do local" : "Place story",
     placeStoryNow: props.lang === "ja" ? "今見られるもの" : props.lang === "es" ? "Lo que se puede ver ahora" : props.lang === "pt-BR" ? "O que dá para ver agora" : "What you may find now",
     placeStoryRecent: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgos recientes" : props.lang === "pt-BR" ? "Descobertas recentes" : "Recent finds",
@@ -1461,9 +1548,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
   }
   function recordNameVariants(record) {
-    return [record && record.displayName]
+    return [recordDisplayName(record, '')]
       .filter(Boolean)
       .map(function (value) { return String(value); });
+  }
+  function localizedDisplayName(value, fallback) {
+    var text = String(value || '').trim();
+    if (!text || text === '同定待ち' || /awaiting id|unknown|unresolved/i.test(text)) return fallback || COPY.awaitingIdLabel;
+    return text;
+  }
+  function recordDisplayName(record, fallback) {
+    return localizedDisplayName(record && record.displayName, fallback);
   }
   function maxZoomForGrid(gridM) {
     if (!isFinite(gridM) || gridM <= 1000) return 13.2;
@@ -1765,11 +1860,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var thumb = record.photoUrl
         ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="92" height="92" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
         : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
-      var displayLabel = record.displayName || '同定待ち';
+      var displayLabel = recordDisplayName(record);
       var speciesBadge = record.isAwaitingId
-        ? '<span class="me-result-awaiting">同定待ち</span>'
+        ? '<span class="me-result-awaiting">' + escapeHtml(COPY.awaitingIdLabel) + '</span>'
         : record.isAiCandidate
-          ? '<span class="me-result-ai">AI候補</span><strong>' + escapeHtml(displayLabel) + '</strong>'
+          ? '<span class="me-result-ai">' + escapeHtml(COPY.aiCandidateLabel) + '</span><strong>' + escapeHtml(displayLabel) + '</strong>'
           : '<strong>' + escapeHtml(displayLabel) + '</strong>';
       return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
         thumb +
@@ -1851,10 +1946,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var el = document.createElement('button');
       el.type = 'button';
       el.className = 'me-discovery-preview' + (record.photoUrl ? ' has-photo' : '');
-      el.setAttribute('aria-label', (record.displayName || '最近の発見') + 'を開く');
+      el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + COPY.openDiscoverySuffix);
       el.innerHTML = record.photoUrl
-        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(record.displayName || '発見') + '</span>'
-        : '<i aria-hidden="true">✦</i><span>' + escapeHtml(record.displayName || '発見') + '</span>';
+        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span>'
+        : '<i aria-hidden="true">✦</i><span>' + escapeHtml(recordDisplayName(record, COPY.discoveryFallback)) + '</span>';
       el.addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -1976,7 +2071,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           : '<span class="me-detail-recent-placeholder" aria-hidden="true">✦</span>';
         return '<button type="button" class="me-detail-recent-item" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
           thumb +
-          '<strong>' + escapeHtml(record.displayName || '同定待ち') + '</strong>' +
+          '<strong>' + escapeHtml(recordDisplayName(record)) + '</strong>' +
           (date ? '<small>' + escapeHtml(date) + '</small>' : '') +
         '</button>';
       }).join('') + '</div>' +
@@ -1986,18 +2081,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderDetailWalkableFinds(context) {
     var items = nearbyRecordsForContext(context, 650);
     if (!items.length) return '';
-    return '<section class="me-detail-section me-detail-walk" aria-label="徒歩5分圏の発見">' +
-      '<div class="me-detail-section-head"><span>徒歩5分圏の発見</span><strong>近くで見えたもの</strong></div>' +
+    return '<section class="me-detail-section me-detail-walk" aria-label="' + escapeHtml(COPY.walkableFindsAria) + '">' +
+      '<div class="me-detail-section-head"><span>' + escapeHtml(COPY.walkableFindsAria) + '</span><strong>' + escapeHtml(COPY.walkableFindsTitle) + '</strong></div>' +
       '<div class="me-detail-walk-list">' + items.map(function (item) {
         var record = item.record;
         var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
-        var distance = item.meters < 100 ? 'すぐ近く' : '約' + String(Math.round(item.meters / 50) * 50) + 'm';
+        var distance = item.meters < 100 ? COPY.nearDistanceImmediate : COPY.nearDistanceApproxPrefix + String(Math.round(item.meters / 50) * 50) + 'm';
         var thumb = record.photoUrl
           ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
           : '<span aria-hidden="true">✦</span>';
         return '<button type="button" class="me-detail-walk-item" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
           thumb +
-          '<strong>' + escapeHtml(record.displayName || '同定待ち') + '</strong>' +
+          '<strong>' + escapeHtml(recordDisplayName(record)) + '</strong>' +
           '<small>' + escapeHtml(distance + (date ? ' · ' + date : '')) + '</small>' +
         '</button>';
       }).join('') + '</div>' +
@@ -2066,7 +2161,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         ? renderAreaSheet(context.areaSnapshot)
         : context.areaFeature
           ? renderTransientAreaContent(context.areaFeature, { lat: context.lat, lng: context.lng })
-          : '<div class="me-area-sheet-loading">エリア情報を読み込み中…</div>';
+          : '<div class="me-area-sheet-loading">' + escapeHtml(COPY.areaLoading) + '</div>';
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-area">' +
           areaContent +
@@ -2136,9 +2231,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     selectedCardEl.innerHTML =
       '<article class="me-detail-panel me-detail-panel-observation">' +
         renderDetailHero({
-          title: record.displayName || '同定待ち',
+          title: recordDisplayName(record),
           meta: (record.localityLabel || '—') + (record.observedAt ? ' · ' + String(record.observedAt).slice(0, 10) : ''),
-          badge: COPY.selectionObservationLabel + (record.isAiCandidate ? ' · AI候補' : record.isAwaitingId ? ' · 同定待ち' : ''),
+          badge: COPY.selectionObservationLabel + (record.isAiCandidate ? ' · ' + COPY.aiCandidateLabel : record.isAwaitingId ? ' · ' + COPY.awaitingIdLabel : ''),
           photoUrl: record.photoUrl || '',
         }) +
         renderDetailVisitReasons(context) +
@@ -2151,7 +2246,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF },
         ]) +
         renderDetailStats([
-          { label: COPY.placeStoryNow, value: record.displayName || '同定待ち' },
+          { label: COPY.placeStoryNow, value: recordDisplayName(record) },
           { label: COPY.placeStoryRecent, value: record.observedAt ? String(record.observedAt).slice(0, 10) : '—' },
         ]) +
         '<section id="me-selected-ambient-slot" class="me-selected-ambient me-detail-section">' + renderSheetAmbient(context) + '</section>' +
@@ -2303,14 +2398,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function friendlyHypothesisLabel(label) {
     var text = String(label || '').trim();
     if (!text) return '';
-    if (/現地確認|空白地点|空白地帯/.test(text)) return '地図だけではわからない場所';
-    if (/未記録|記録不足|低カバー|カバー不足/.test(text)) return '記録の余白';
+    if (/現地確認|空白地点|空白地帯/.test(text)) return COPY.unknownHypothesisLabel;
+    if (/未記録|記録不足|低カバー|カバー不足/.test(text)) return COPY.recordingGapLabel;
     return text;
   }
 
   function fetchSiteBrief(lat, lng, seq, target) {
     if (!apiSiteBrief) return;
-    var url = apiSiteBrief + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&lang=' + encodeURIComponent(SEARCH_LANG === 'en' ? 'en' : 'ja');
+    var url = apiSiteBrief + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&lang=' + encodeURIComponent(SEARCH_LANG === 'ja' ? 'ja' : 'en');
     fetch(url, { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (brief) {
@@ -2331,11 +2426,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
     var identifyHref = href + '#identify';
     var bottomBadge = record.isAiCandidate
-      ? '<span class="me-result-ai">AI候補</span>'
+      ? '<span class="me-result-ai">' + escapeHtml(COPY.aiCandidateLabel) + '</span>'
       : record.isAwaitingId
-        ? '<span class="me-result-awaiting">同定待ち</span>'
+        ? '<span class="me-result-awaiting">' + escapeHtml(COPY.awaitingIdLabel) + '</span>'
         : '';
-    var bottomName = record.isAwaitingId ? '' : '<strong>' + escapeHtml(record.displayName) + '</strong>';
+    var bottomName = record.isAwaitingId ? '' : '<strong>' + escapeHtml(recordDisplayName(record)) + '</strong>';
     return photo +
       '<div class="me-bottom-meta">' +
       bottomBadge + bottomName +
@@ -2491,7 +2586,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var next = snap === 'full' ? 'full' : 'peek';
     sheetEl.setAttribute('data-snap', next);
     if (sheetGripEl) {
-      sheetGripEl.setAttribute('aria-label', next === 'full' ? '詳細を半分に戻す' : '詳細を広げる');
+        sheetGripEl.setAttribute('aria-label', next === 'full' ? COPY.bottomSheetCollapseLabel : COPY.bottomSheetExpandLabel);
     }
   }
   function toggleDetailSheetSnap() {
@@ -2593,9 +2688,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetInnerEl.innerHTML =
       '<article class="me-detail-panel me-bottom-detail me-detail-panel-observation">' +
         renderDetailHero({
-          title: record.displayName || '同定待ち',
+          title: recordDisplayName(record),
           meta: (record.localityLabel || '—') + (record.observedAt ? ' · ' + String(record.observedAt).slice(0, 10) : ''),
-          badge: COPY.selectionObservationLabel + (record.isAiCandidate ? ' · AI候補' : record.isAwaitingId ? ' · 同定待ち' : ''),
+          badge: COPY.selectionObservationLabel + (record.isAiCandidate ? ' · ' + COPY.aiCandidateLabel : record.isAwaitingId ? ' · ' + COPY.awaitingIdLabel : ''),
           photoUrl: record.photoUrl || '',
         }) +
         renderDetailVisitReasons(detailContext) +
@@ -2608,7 +2703,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           { icon: '📖', label: COPY.bottomSheetNotes, href: NOTES_HREF },
         ]) +
         renderDetailStats([
-          { label: COPY.placeStoryNow, value: record.displayName || '同定待ち' },
+          { label: COPY.placeStoryNow, value: recordDisplayName(record) },
           { label: COPY.placeStoryRecent, value: record.observedAt ? String(record.observedAt).slice(0, 10) : '—' },
         ]) +
         '<section id="me-sheet-ambient-slot" class="me-selected-ambient me-detail-section">' + renderSheetAmbient({ lat: center.lat, lng: center.lng, kind: 'observation', cellFeature: feature, record: record }) + '</section>' +
@@ -2795,13 +2890,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       try {
         var draftId = 'point-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
         window.sessionStorage.setItem('ikimon:event-area-draft:' + draftId, JSON.stringify({
-          name: '地図で選んだ地点',
+          name: COPY.selectedPointName,
           center: { lat: Number(lat), lng: Number(lng) },
           polygon: pointCirclePolygon(Number(lat), Number(lng), 300),
           source: 'map_point_area',
         }));
         params.area_draft = draftId;
-        params.name = '地図で選んだ地点';
+        params.name = COPY.selectedPointName;
       } catch (_) {}
     }
     return appendQueryParams(EVENTS_NEW_BASE, params);
@@ -2809,7 +2904,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function buildTransientAreaEventHref(feature, fallbackLat, fallbackLng) {
     var props = (feature && feature.properties) || {};
     var center = areaFeatureCenter(feature, fallbackLat, fallbackLng);
-    var name = String(props.name || 'OSMの公園・緑地');
+    var name = String(props.name || COPY.osmAreaFallbackName);
     var params = center
       ? { lat: center.lat.toFixed(6), lng: center.lng.toFixed(6), name: name }
       : { name: name };
@@ -2838,10 +2933,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var props = (feature && feature.properties) || {};
     var safeCenter = center || areaFeatureCenter(feature, null, null);
     var ctaHref = safeCenter ? buildTransientAreaEventHref(feature, safeCenter.lat, safeCenter.lng) : RECORD_HREF;
-    var sourceLabel = String(props.source_label || '公園・緑地 (OSM live)');
+    var sourceLabel = String(props.source_label || COPY.osmAreaSourceLabel);
     var sourceLinksHtml = renderAreaSourceLinks(props);
     var sourceTrustHtml = renderAreaSourceTrust(props.source_confidence, props.verification_label, props.verification_level);
-    var areaName = String(props.name || 'OSMの公園・緑地');
+    var areaName = String(props.name || COPY.osmAreaFallbackName);
     var locationLabel = safeCenter ? safeCenter.lat.toFixed(4) + ', ' + safeCenter.lng.toFixed(4) : '';
     var followId = String(props.entity_key || props.field_id || (safeCenter ? 'point:' + safeCenter.lat.toFixed(5) + ',' + safeCenter.lng.toFixed(5) : areaName));
     return ''
@@ -2859,7 +2954,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
       + renderAreaObservationGallery(transientAreaGalleryItems(feature, safeCenter), { label: COPY.areaGalleryTitle })
       + renderPlaceStoryHighlights({ sourceLabel: sourceLabel }, { totalObservations: 0, totalVisits: 0, seasonsCovered: 0, topTaxa: [] }, null)
-      + '<div class="me-area-sheet-timeline is-empty">このエリアはまだ ikimon のフィールドDBには未登録です。観察会を作ると、次回から通常のエリアとして扱えます。</div>';
+      + '<div class="me-area-sheet-timeline is-empty">' + escapeHtml(COPY.unregisteredAreaText) + '</div>';
   }
 
   function openTransientAreaSheet(feature, lat, lng) {
@@ -2933,7 +3028,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         .catch(function () { /* noop */ });
       return;
     }
-    sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>エリア情報を読み込み中…</strong></div>';
+    sheetInnerEl.innerHTML = '<div class="me-bottom-meta"><strong>' + escapeHtml(COPY.areaLoading) + '</strong></div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
     sheetEl.classList.remove('me-bottom-sheet--detail');
@@ -3072,7 +3167,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderPlaceStoryHighlights(field, summary, indicators, representativePhoto) {
     var topTaxa = Array.isArray(summary && summary.topTaxa) ? summary.topTaxa.slice(0, 3) : [];
     var taxaText = topTaxa.length
-      ? topTaxa.map(function (taxon) { return taxon && taxon.name; }).filter(Boolean).join(' / ')
+      ? topTaxa.map(function (taxon) { return localizedDisplayName(taxon && taxon.name, ''); }).filter(Boolean).join(' / ')
       : (representativePhoto && representativePhoto.displayName ? representativePhoto.displayName : COPY.placeStoryNoTaxa);
     var seasons = Number(summary && summary.seasonsCovered || 0);
     var visits = Number(summary && summary.totalVisits || 0);
@@ -3179,7 +3274,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           + '<a class="me-area-gallery-card" href="' + escapeHtml(href) + '">'
           +   photo
           +   seasonBadge
-          +   '<strong>' + escapeHtml(String(item && item.displayName || '同定待ち')) + '</strong>'
+          +   '<strong>' + escapeHtml(localizedDisplayName(item && item.displayName)) + '</strong>'
           +   '<small>' + escapeHtml(meta) + '</small>'
           + '</a>';
       }).join('')
@@ -3200,7 +3295,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return {
           occurrenceId: record.occurrenceId || '',
           visitId: record.visitId || '',
-          displayName: record.displayName || '同定待ち',
+          displayName: recordDisplayName(record),
           observedAt: record.observedAt || null,
           photoUrl: record.photoUrl || null,
           localityLabel: record.localityLabel || '',
@@ -3216,7 +3311,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var topTaxa = Array.isArray(summary.topTaxa) ? summary.topTaxa.slice(0, 8) : [];
     var taxaHtml = topTaxa.length
       ? topTaxa.map(function (taxon) {
-          return '<span class="me-area-story-chip">' + escapeHtml(String(taxon.name || '同定待ち')) + '<b>' + escapeHtml(String(taxon.count || 0)) + '</b></span>';
+          return '<span class="me-area-story-chip">' + escapeHtml(localizedDisplayName(taxon.name)) + '<b>' + escapeHtml(String(taxon.count || 0)) + '</b></span>';
         }).join('')
       : '<p class="me-area-story-note">' + escapeHtml(COPY.placeStoryNoTaxa) + '</p>';
     var recentItems = gallery.slice().sort(function (a, b) {
@@ -3225,7 +3320,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }).filter(function (item) { return Number(item.recentObservationCount || 0) > 0; }).slice(0, 5);
     var recentHtml = recentItems.length
       ? recentItems.map(function (item) {
-          return '<span class="me-area-story-chip">' + escapeHtml(String(item.displayName || '同定待ち')) + '<b>' + escapeHtml(String(item.recentObservationCount || 0)) + '</b></span>';
+          return '<span class="me-area-story-chip">' + escapeHtml(localizedDisplayName(item.displayName)) + '<b>' + escapeHtml(String(item.recentObservationCount || 0)) + '</b></span>';
         }).join('')
       : '<p class="me-area-story-note">' + escapeHtml(COPY.areaGalleryLead) + '</p>';
     var missing = seasonalCoverage.filter(function (row) { return Number(row.observations || 0) <= 0; });
@@ -3308,7 +3403,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function renderPlaceStoryHighlights(field, summary, indicators, representativePhoto) {
     var topTaxa = Array.isArray(summary && summary.topTaxa) ? summary.topTaxa.slice(0, 3) : [];
     var taxaText = topTaxa.length
-      ? topTaxa.map(function (taxon) { return taxon && taxon.name; }).filter(Boolean).join(' / ')
+      ? topTaxa.map(function (taxon) { return localizedDisplayName(taxon && taxon.name, ''); }).filter(Boolean).join(' / ')
       : (representativePhoto && representativePhoto.displayName ? representativePhoto.displayName : COPY.placeStoryNoTaxa);
     var seasons = Number(summary && summary.seasonsCovered || 0);
     var visits = Number(summary && summary.totalVisits || 0);
@@ -4640,7 +4735,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var box = document.createElement('div');
     box.setAttribute('data-map-load-error', '1');
     box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ecfeff,#eff6ff);color:#0f172a;font:500 14px/1.5 system-ui,sans-serif;text-align:center;z-index:4;';
-    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">地図ライブラリを読み込めませんでした</div><div style="opacity:.75;margin-bottom:12px;">ネットワーク状況を確認のうえ、もう一度開いてください。</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">再読み込み</button></div>';
+    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">' + escapeHtml(COPY.mapLoadErrorTitle) + '</div><div style="opacity:.75;margin-bottom:12px;">' + escapeHtml(COPY.mapLoadErrorBody) + '</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">' + escapeHtml(COPY.mapLoadRetryLabel) + '</button></div>';
     var btn = box.querySelector('button');
     if (btn) btn.addEventListener('click', function () { window.location.reload(); });
     root.appendChild(box);
@@ -4907,12 +5002,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       if (!variants.length) return;
       var matched = variants.some(function (name) { return normalizeSearchText(name).indexOf(q) !== -1; });
       if (!matched) return;
-      var key = normalizeSearchText(record.displayName || variants[0]);
+      var key = normalizeSearchText(recordDisplayName(record, variants[0]));
       if (!speciesMap[key]) {
         speciesMap[key] = {
           kind: 'species',
           badge: COPY.searchResultSpecies,
-          title: record.displayName || variants[0],
+          title: recordDisplayName(record, variants[0]),
           subtitle: record.localityLabel || '',
           occurrenceIds: [],
           cellIds: {},

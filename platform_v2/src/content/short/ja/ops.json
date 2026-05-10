@@ -18,10 +18,10 @@
         "lead": "記録して、詳細を見て、プロフィールと explore で再訪理由を確認する主導線。",
         "cards": [
           { "href": "/record", "label": "Record", "note": "staging user 付きで観察追加を確認。" },
-          { "href": "/explore", "label": "Observation Detail", "note": "fixture がない場合でも explore へ退避できる。" },
+          { "href": "/observations", "label": "Observation Detail", "note": "fixture がない場合でも観察一覧へ退避できる。" },
           { "href": "/home", "label": "Home", "note": "My places と recent observations を確認。" },
           { "href": "/profile", "label": "Profile", "note": "同じ user の places と observations を確認。" },
-          { "href": "/explore", "label": "Explore", "note": "municipality と recent observations を横断で確認。" }
+          { "href": "/observations", "label": "Observations", "note": "municipality と recent observations を横断で確認。" }
         ],
         "note": "推奨確認順: Record → Observation Detail → Home → Profile → Explore"
       },

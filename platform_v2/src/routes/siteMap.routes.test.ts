@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
-import { listVisualQaPages, materializeSitePagePath, sitePageLayout } from "../siteMap.js";
+import { listPagesByVisibility, listVisualQaPages, materializeSitePagePath, sitePageLayout } from "../siteMap.js";
 
 function extractInternalHrefs(html: string): string[] {
   const hrefs = new Set<string>();
@@ -26,8 +26,8 @@ test("sitemap and robots are generated from canonical v2 pages", async () => {
     assert.equal(sitemap.statusCode, 200);
     assert.match(sitemap.headers["content-type"] as string, /application\/xml/);
     assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/community/);
-    assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/community/);
-    assert.match(sitemap.body, /hreflang="en" href="https:\/\/staging\.ikimon\.life\/en\/community"/);
+    assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/community/);
+    assert.doesNotMatch(sitemap.body, /hreflang="en"/);
     assert.match(sitemap.body, /hreflang="x-default" href="https:\/\/staging\.ikimon\.life\/ja\/community"/);
     assert.match(sitemap.body, /https:\/\/staging\.ikimon\.life\/ja\/for-business/);
     assert.doesNotMatch(sitemap.body, /https:\/\/staging\.ikimon\.life\/en\/for-business/);
@@ -91,10 +91,17 @@ test("top-level shared navigation does not link to 404 pages", async () => {
   }
 });
 
+test("header navigation prioritizes content-first daily discovery", () => {
+  const headerPaths = listPagesByVisibility("header").map((page) => page.path);
+  assert.deepEqual(headerPaths, ["/map", "/observations", "/notes", "/learn", "/community"]);
+  assert.ok(!headerPaths.includes("/explore"), "search-oriented explore should not compete with the content feed in the header");
+  assert.ok(!headerPaths.includes("/community/events"), "events should sit under community instead of duplicating the header");
+});
+
 test("visual smoke targets are generated from sitemap metadata", () => {
   const pages = listVisualQaPages();
   const paths = pages.map((page) => page.path);
-  assert.ok(paths.includes("/explore"));
+  assert.ok(!paths.includes("/explore"));
   assert.ok(paths.includes("/observations"));
   assert.ok(paths.includes("/guide"));
   assert.ok(paths.includes("/guide/outcomes"));

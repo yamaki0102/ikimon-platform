@@ -114,7 +114,22 @@
           { "href": "/record", "label": "Registrar" },
           { "href": "/contact", "label": "Consultar um programa" }
         ]
+      },
+      "learnIndex": {
+        "title": "Índice de leituras | ikimon.life",
+        "eyebrow": "Ler",
+        "heading": "Índice de leituras",
+        "lead": "Um tema por página: como começar a observar, conferir nomes e manter registros úteis.",
+        "activeNav": "learn",
+        "bodyPageId": "learn-index"
       }
+    }
+  },
+  "read": {
+    "map": {
+      "title": "Mapa da vida | ikimon.life",
+      "activeNav": "inicio",
+      "footerNote": "Aproxime o mapa para ver onde registros, especies, parques e pistas perto da agua se concentram."
     }
   }
 }

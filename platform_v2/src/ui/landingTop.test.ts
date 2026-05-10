@@ -4,11 +4,11 @@ import { getStrings } from "../i18n/index.js";
 import type { LandingObservation, LandingSnapshot, LandingTopGuideItem } from "../services/readModels.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./landingTop.js";
 
-function renderTop(snapshot: LandingSnapshot): string {
-  const strings = getStrings("ja");
+function renderTop(snapshot: LandingSnapshot, lang: "ja" | "en" = "ja"): string {
+  const strings = getStrings(lang);
   return Object.values(renderLandingTopSections({
     basePath: "",
-    lang: "ja",
+    lang,
     copy: strings.landing,
     fieldLoop: strings.fieldLoop,
     snapshot,
@@ -33,7 +33,7 @@ const emptySnapshot: LandingSnapshot = {
       { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
       { kind: "revisitPlace", href: "/map", primaryText: null, secondaryText: null, metricValue: null },
       { kind: "nearbyPulse", href: "/map", primaryText: null, secondaryText: null, metricValue: null },
-      { kind: "needsId", href: "/explore", primaryText: null, secondaryText: null, metricValue: null },
+      { kind: "needsId", href: "/observations", primaryText: null, secondaryText: null, metricValue: null },
     ],
     seasonalStrip: [],
   },
@@ -91,7 +91,7 @@ const photoSnapshot: LandingSnapshot = {
       { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: 0 },
       { kind: "revisitPlace", href: "/map", primaryText: "浜松市", secondaryText: "モンシロチョウ", metricValue: 1 },
       { kind: "nearbyPulse", href: "/map", primaryText: "浜松市", secondaryText: null, metricValue: 1 },
-      { kind: "needsId", href: "/explore", primaryText: "モンシロチョウ", secondaryText: "浜松市", metricValue: 2, observation: photoObservation },
+      { kind: "needsId", href: "/observations", primaryText: "モンシロチョウ", secondaryText: "浜松市", metricValue: 2, observation: photoObservation },
     ],
     seasonalStrip: [{ observation: photoObservation, score: 84, reasonKey: "vividPhoto" }],
   },
@@ -145,8 +145,10 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /\/uploads\/sample_/);
   assert.match(html, /prototype-topa/);
   assert.doesNotMatch(html, /今日のikimon\.life/);
-  assert.match(html, /観察する/);
-  assert.match(html, /同定する/);
+  assert.match(html, /いま見えている自然/);
+  assert.match(html, /みんなが残した写真、動画、ガイド、同定待ち/);
+  assert.match(html, /投稿する/);
+  assert.match(html, /同定待ち/);
   assert.match(html, /地域マップ/);
   assert.match(html, /音の標本棚/);
   assert.match(html, /鳴き声と環境音を、楽しい記録から研究データへ。/);
@@ -155,15 +157,31 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /AI候補を人が確かめる/);
   assert.match(html, /研究で読める形にする/);
   assert.match(html, /data-kpi-action="landing:sound:guide"/);
-  assert.match(html, /今日の発見/);
-  assert.match(html, /観察証拠/);
+  assert.match(html, /みんなの発見/);
+  assert.match(html, /写真と動画/);
   assert.doesNotMatch(html, /id="topa-video"/);
   assert.match(html, /ガイド/);
   assert.match(html, /スキャン/);
-  assert.match(html, /まだ公開できる観察がありません/);
+  assert.match(html, /最初の発見を残す/);
+  assert.match(html, /写真や動画で始める/);
+  assert.match(html, /名前が分からなくても大丈夫/);
   assert.match(html, /\/observations\?filter=needs_id/);
   assert.match(html, /data-kpi-action="landing:topA:primary:record"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
+});
+
+test("landing top localizes the content-first shelves in English", () => {
+  const html = renderTop(emptySnapshot, "en");
+
+  assert.match(html, /Nature people are finding now/);
+  assert.match(html, /Everyone&#39;s finds/);
+  assert.match(html, /Photos and videos/);
+  assert.match(html, /Found with guides/);
+  assert.match(html, /Make the first find/);
+  assert.match(html, /Start with media/);
+  assert.match(html, /Names can come later/);
+  assert.doesNotMatch(html, /いま見えている自然/);
+  assert.doesNotMatch(html, /みんなの発見/);
 });
 
 test("landing top renders real observation photos and detail CTAs", () => {
@@ -175,7 +193,7 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /data-kpi-action="landing:topA:shelf:today"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:needsId:all"/);
   assert.ok((html.match(/prototype-topa-card-grid/g) ?? []).length >= 5);
-  assert.match(html, /観察証拠/);
+  assert.match(html, /写真と動画/);
   assert.match(html, /prototype-topa-evidence-badge/);
   assert.doesNotMatch(html, /新着投稿/);
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
@@ -201,7 +219,7 @@ test("landing top folds video items into the evidence shelf with visible video b
     },
   });
 
-  assert.match(html, /観察証拠/);
+  assert.match(html, /写真と動画/);
   assert.doesNotMatch(html, /id="topa-video"/);
   assert.match(html, /<img src="\/thumb\/md\/video-thumb\.jpg" alt="鳴く鳥の記録"/);
   assert.match(html, /動画あり/);
@@ -234,7 +252,7 @@ test("landing top keeps video evidence in the evidence shelf even when multiple 
     },
   });
 
-  assert.match(html, /観察証拠/);
+  assert.match(html, /写真と動画/);
   assert.doesNotMatch(html, /id="topa-video"/);
   assert.match(html, /<img src="\/thumb\/md\/video-thumb-1\.jpg" alt="鳴く鳥の記録"/);
   assert.match(html, /<img src="\/thumb\/md\/video-thumb-2\.jpg" alt="歩く虫の記録"/);
@@ -257,7 +275,7 @@ test("landing top does not render opaque overflow summary cards", () => {
   assert.doesNotMatch(html, /トップでは個別カードを並べすぎず/);
 });
 
-test("landing top A renders local map shelf without making revisit the primary action", () => {
+test("landing top A keeps revisit as a daily action while local map shelf stays visible", () => {
   const html = renderTop({
     ...photoSnapshot,
     stats: { observationCount: 2, speciesCount: 2, placeCount: 1 },
@@ -274,7 +292,7 @@ test("landing top A renders local map shelf without making revisit the primary a
 
   assert.match(html, /id="topa-local-map"/);
   assert.match(html, /地図から探す。/);
-  assert.doesNotMatch(html, /landing:topA:primary:revisit/);
+  assert.match(html, /landing:topA:primary:revisit/);
 });
 
 test("landing top has medium desktop width relief", () => {
