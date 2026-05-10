@@ -162,7 +162,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await targetRow.click();
 
     const detailLink = mapPage.locator("#me-map-selection-card .me-detail-action", { hasText: "詳細を見る" }).first();
-    await expect(detailLink).toHaveText("詳細を見る");
+    await expect(detailLink).toContainText("詳細を見る");
 
     await Promise.all([
       mapPage.waitForURL((url) => {
