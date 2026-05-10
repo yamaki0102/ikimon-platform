@@ -8,6 +8,9 @@ type GuideCopy = {
   startBtn: string;
   startSheetTitle: string;
   startSheetBody: string;
+  missionChoiceTitle: string;
+  missionChoiceBody: string;
+  missions: { id: string; label: string; body: string }[];
   cameraChoiceTitle: string;
   cameraChoiceBody: string;
   cameraOnBtn: string;
@@ -35,6 +38,12 @@ type GuideCopy = {
   sessionSummaryAudioOnly: string;
   queuedRecapLabel: string;
   sessionSummaryEmpty: string;
+  sessionSummaryTodayLabel: string;
+  sessionSummaryEvidenceLabel: string;
+  sessionSummaryNextLabel: string;
+  sessionSummaryTodayEmpty: string;
+  sessionSummaryEvidenceEmpty: string;
+  sessionSummaryNextEmpty: string;
   sessionSummaryResultsLink: string;
   offlineOnline: string;
   offlineOffline: string;
@@ -78,6 +87,10 @@ type GuideCopy = {
   audioUnnamed: string;
   nowTitle: string;
   nowHint: string;
+  nowNextLabel: string;
+  nowNextInitial: string;
+  nowNextAnalysing: string;
+  nowNextFallback: string;
   trailTitle: string;
   trailEmpty: string;
   trailPending: string;
@@ -98,6 +111,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "ガイドを開始する",
     startSheetTitle: "使うものを選んで開始します",
     startSheetBody: "歩き方に合わせて、カメラと音声を別々に選べます。あとから画面下のボタンで音声だけ切り替えることもできます。",
+    missionChoiceTitle: "今日のミッション",
+    missionChoiceBody: "最初に目的を1つ選ぶと、カメラと音声のおすすめ設定を合わせます。",
+    missions: [
+      { id: "quick", label: "5分だけ見る", body: "近くの草地や水辺を短く見て、最初の手がかりを残す" },
+      { id: "sound", label: "音だけで歩く", body: "ポケットに入れて、鳥・虫・水音などの自然音を集める" },
+      { id: "spot", label: "1地点を詳しく見る", body: "同じ場所で植生・地形・管理痕跡をゆっくり拾う" },
+    ],
     cameraChoiceTitle: "カメラを使いますか？",
     cameraChoiceBody: "周囲の植物や地形を読み取る場合はONが向いています。ポケットに入れて音だけ集めるときはOFFにすると、映像は取得しません。",
     cameraOnBtn: "カメラON",
@@ -125,6 +145,12 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "音声だけで取れたもの",
     queuedRecapLabel: "未同期のもの",
     sessionSummaryEmpty: "まだ集計できる記録はありません。",
+    sessionSummaryTodayLabel: "今日見えたもの",
+    sessionSummaryEvidenceLabel: "足りない証拠",
+    sessionSummaryNextLabel: "次回見るもの",
+    sessionSummaryTodayEmpty: "まだ手がかりはありません。",
+    sessionSummaryEvidenceEmpty: "まず1つ、近い特徴か場所の状態を足すと強くなります。",
+    sessionSummaryNextEmpty: "同じ場所で葉・花・水辺・地面のどれかをもう一度見てください。",
     sessionSummaryResultsLink: "ガイド成果を確認する",
     offlineOnline: "オンライン",
     offlineOffline: "オフライン中",
@@ -176,6 +202,10 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioUnnamed: "まだ名前が付いていない音",
     nowTitle: "Now",
     nowHint: "今の景色には短い状態だけを出します。AIの答えは少し前の足跡として下に残ります。",
+    nowNextLabel: "次",
+    nowNextInitial: "ゆっくり1方向へ向けて、草・水辺・足元のどれかを見てください。",
+    nowNextAnalysing: "その場で止まらず、次は近い特徴か周辺環境を1つ足してください。",
+    nowNextFallback: "次は葉・花・水辺・地面・人工物との境目のどれかを1つ見てください。",
     trailTitle: "Trail",
     trailEmpty: "さっきの発見はまだありません",
     trailPending: "さっきの景色を解析中",
@@ -194,6 +224,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "Start Guide",
     startSheetTitle: "Choose what Guide can use",
     startSheetBody: "Camera and audio are separate choices. You can still change audio later.",
+    missionChoiceTitle: "Today's mission",
+    missionChoiceBody: "Pick one intent first, and Guide will match the recommended camera and audio setup.",
+    missions: [
+      { id: "quick", label: "Look for 5 min", body: "Read nearby vegetation or water edges and leave the first field clue" },
+      { id: "sound", label: "Walk audio-only", body: "Keep the phone pocketed and collect bird, insect, or water cues" },
+      { id: "spot", label: "Study one spot", body: "Stay in place and capture vegetation, landform, and management traces" },
+    ],
     cameraChoiceTitle: "Use the camera?",
     cameraChoiceBody: "Turn it on when you want plants, habitat, and landforms read from the scene. Turn it off for pocket audio-only walks.",
     cameraOnBtn: "Camera on",
@@ -221,6 +258,12 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "Audio-only captures",
     queuedRecapLabel: "Waiting to sync",
     sessionSummaryEmpty: "No session activity to summarize yet.",
+    sessionSummaryTodayLabel: "What you noticed",
+    sessionSummaryEvidenceLabel: "Evidence to add",
+    sessionSummaryNextLabel: "Next visit",
+    sessionSummaryTodayEmpty: "No field clues yet.",
+    sessionSummaryEvidenceEmpty: "Add one close feature or place condition to make this stronger.",
+    sessionSummaryNextEmpty: "Return to the same spot and check a leaf, flower, water edge, or ground surface.",
     sessionSummaryResultsLink: "Review guide outcomes",
     offlineOnline: "Online",
     offlineOffline: "Offline",
@@ -272,6 +315,10 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioUnnamed: "Unnamed sound",
     nowTitle: "Now",
     nowHint: "The current view stays quiet. AI results appear below as earlier trail cards.",
+    nowNextLabel: "Next",
+    nowNextInitial: "Point slowly in one direction and look for plants, water edges, or the ground.",
+    nowNextAnalysing: "Keep moving; next add one close feature or surrounding context.",
+    nowNextFallback: "Next, check one leaf, flower, water edge, ground surface, or habitat boundary.",
     trailTitle: "Trail",
     trailEmpty: "No earlier discoveries yet",
     trailPending: "Analysing an earlier view",
@@ -290,6 +337,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "Iniciar Guía",
     startSheetTitle: "Elige qué puede usar la guía",
     startSheetBody: "La cámara y el audio se eligen por separado. Luego puedes cambiar solo el audio.",
+    missionChoiceTitle: "Misión de hoy",
+    missionChoiceBody: "Elige una intención y la guía ajustará la cámara y el audio recomendados.",
+    missions: [
+      { id: "quick", label: "Mirar 5 min", body: "Leer vegetación o bordes de agua cercanos y dejar una primera pista" },
+      { id: "sound", label: "Caminar con audio", body: "Llevar el móvil en el bolsillo y recoger aves, insectos o agua" },
+      { id: "spot", label: "Estudiar un punto", body: "Quedarse en un lugar y captar vegetación, relieve y manejo" },
+    ],
     cameraChoiceTitle: "¿Usar cámara?",
     cameraChoiceBody: "Actívala para leer plantas, hábitat y relieve. Desactívala si llevas el teléfono en el bolsillo y quieres solo audio.",
     cameraOnBtn: "Cámara ON",
@@ -317,6 +371,12 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "Capturas solo audio",
     queuedRecapLabel: "Pendiente de sincronizar",
     sessionSummaryEmpty: "Aún no hay actividad para resumir.",
+    sessionSummaryTodayLabel: "Lo visto hoy",
+    sessionSummaryEvidenceLabel: "Evidencia faltante",
+    sessionSummaryNextLabel: "Próxima visita",
+    sessionSummaryTodayEmpty: "Aún no hay pistas de campo.",
+    sessionSummaryEvidenceEmpty: "Añade un rasgo cercano o una condición del lugar.",
+    sessionSummaryNextEmpty: "Vuelve al mismo punto y revisa hoja, flor, borde de agua o suelo.",
     sessionSummaryResultsLink: "Revisar resultados de la guía",
     offlineOnline: "En línea",
     offlineOffline: "Sin conexión",
@@ -368,6 +428,10 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioUnnamed: "Sonido sin nombre",
     nowTitle: "Ahora",
     nowHint: "La vista actual se mantiene ligera. Los resultados aparecen abajo como tarjetas del recorrido.",
+    nowNextLabel: "Siguiente",
+    nowNextInitial: "Apunta despacio y mira plantas, bordes de agua o el suelo.",
+    nowNextAnalysing: "Sigue avanzando; añade un rasgo cercano o el contexto alrededor.",
+    nowNextFallback: "Luego revisa una hoja, flor, borde de agua, suelo o límite del hábitat.",
     trailTitle: "Recorrido",
     trailEmpty: "Todavía no hay descubrimientos anteriores",
     trailPending: "Analizando una vista anterior",
@@ -386,6 +450,13 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startBtn: "Iniciar Guia",
     startSheetTitle: "Escolha o que o guia pode usar",
     startSheetBody: "Câmera e áudio são escolhas separadas. Depois você ainda pode mudar só o áudio.",
+    missionChoiceTitle: "Missão de hoje",
+    missionChoiceBody: "Escolha uma intenção e o guia ajusta a câmera e o áudio recomendados.",
+    missions: [
+      { id: "quick", label: "Olhar por 5 min", body: "Ler vegetação ou margens de água próximas e deixar a primeira pista" },
+      { id: "sound", label: "Caminhar só com áudio", body: "Levar o celular no bolso e coletar aves, insetos ou água" },
+      { id: "spot", label: "Estudar um ponto", body: "Ficar no local e captar vegetação, relevo e manejo" },
+    ],
     cameraChoiceTitle: "Usar câmera?",
     cameraChoiceBody: "Ligue para ler plantas, habitat e relevo. Desligue para caminhadas com o celular no bolso e apenas áudio.",
     cameraOnBtn: "Câmera ON",
@@ -413,6 +484,12 @@ const COPY: Record<SiteLang, GuideCopy> = {
     sessionSummaryAudioOnly: "Capturas só com áudio",
     queuedRecapLabel: "Aguardando sincronização",
     sessionSummaryEmpty: "Ainda não há atividade para resumir.",
+    sessionSummaryTodayLabel: "O que apareceu hoje",
+    sessionSummaryEvidenceLabel: "Evidência a acrescentar",
+    sessionSummaryNextLabel: "Próxima visita",
+    sessionSummaryTodayEmpty: "Ainda não há pistas de campo.",
+    sessionSummaryEvidenceEmpty: "Acrescente um detalhe próximo ou uma condição do lugar.",
+    sessionSummaryNextEmpty: "Volte ao mesmo ponto e veja folha, flor, água ou solo.",
     sessionSummaryResultsLink: "Revisar resultados do guia",
     offlineOnline: "Online",
     offlineOffline: "Offline",
@@ -464,6 +541,10 @@ const COPY: Record<SiteLang, GuideCopy> = {
     audioUnnamed: "Som sem nome",
     nowTitle: "Agora",
     nowHint: "A visão atual fica leve. Os resultados aparecem abaixo como cartões do trajeto.",
+    nowNextLabel: "Próximo",
+    nowNextInitial: "Aponte devagar e observe plantas, margens de água ou o chão.",
+    nowNextAnalysing: "Continue; depois acrescente um detalhe próximo ou o contexto ao redor.",
+    nowNextFallback: "Em seguida veja uma folha, flor, margem de água, solo ou borda do habitat.",
     trailTitle: "Trajeto",
     trailEmpty: "Ainda não há descobertas anteriores",
     trailPending: "Analisando uma visão anterior",
@@ -543,6 +624,10 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const audioPipeline = guideAudioPipelineCopy(lang);
   const cats = c.categories.map((cat) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.label)}</option>`).join("");
   const modes = c.modes.map((mode) => `<option value="${escapeHtml(mode.id)}">${escapeHtml(mode.label)}</option>`).join("");
+  const missions = c.missions.map((mission, index) => `<label class="guide-start-option guide-mission-option">
+            <input type="radio" name="guide-mission-choice" value="${escapeHtml(mission.id)}"${index === 0 ? " checked" : ""}>
+            <span><b>${escapeHtml(mission.label)}</b><small>${escapeHtml(mission.body)}</small></span>
+          </label>`).join("");
 
   const langOptions = [
     { value: "ja", label: "🇯🇵 日本語" },
@@ -609,6 +694,14 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
         <p>${escapeHtml(c.startSheetBody)}</p>
       </div>
 
+      <fieldset class="guide-start-choice guide-mission-choice">
+        <legend>${escapeHtml(c.missionChoiceTitle)}</legend>
+        <p>${escapeHtml(c.missionChoiceBody)}</p>
+        <div class="guide-start-options guide-mission-options">
+          ${missions}
+        </div>
+      </fieldset>
+
       <div class="guide-recommended-card">
         <div>
           <strong>${escapeHtml(c.recommendedTitle)}</strong>
@@ -661,6 +754,7 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <div>
       <h2 class="guide-now-title">${escapeHtml(c.nowTitle)}</h2>
       <p class="guide-now-hint">${escapeHtml(c.nowHint)}</p>
+      <p class="guide-now-next" id="guide-now-next" hidden><span>${escapeHtml(c.nowNextLabel)}</span><b></b></p>
     </div>
     <div class="guide-now-state" id="guide-now-state"></div>
   </div>
@@ -715,6 +809,11 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
       <div><strong id="guide-summary-queued">0</strong><span>${escapeHtml(c.queuedRecapLabel)}</span></div>
     </div>
     <p id="guide-summary-empty" hidden>${escapeHtml(c.sessionSummaryEmpty)}</p>
+    <div class="guide-session-insights">
+      <div><span>${escapeHtml(c.sessionSummaryTodayLabel)}</span><strong id="guide-summary-today">${escapeHtml(c.sessionSummaryTodayEmpty)}</strong></div>
+      <div><span>${escapeHtml(c.sessionSummaryEvidenceLabel)}</span><strong id="guide-summary-evidence">${escapeHtml(c.sessionSummaryEvidenceEmpty)}</strong></div>
+      <div><span>${escapeHtml(c.sessionSummaryNextLabel)}</span><strong id="guide-summary-next">${escapeHtml(c.sessionSummaryNextEmpty)}</strong></div>
+    </div>
     <a class="guide-session-results-link" href="${escapeHtml(basePath ? `${basePath}/guide/outcomes` : "/guide/outcomes")}">${escapeHtml(c.sessionSummaryResultsLink)}</a>
   </section>
 
@@ -772,7 +871,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     audioOnlyNotice: ${JSON.stringify(c.audioOnlyNotice)},
     cameraOnlyNotice: ${JSON.stringify(c.cameraOnlyNotice)},
     cameraAudioNotice: ${JSON.stringify(c.cameraAudioNotice)},
+    nowNextInitial: ${JSON.stringify(c.nowNextInitial)},
+    nowNextAnalysing: ${JSON.stringify(c.nowNextAnalysing)},
+    nowNextFallback: ${JSON.stringify(c.nowNextFallback)},
     sessionSummaryEmpty: ${JSON.stringify(c.sessionSummaryEmpty)},
+    sessionSummaryTodayEmpty: ${JSON.stringify(c.sessionSummaryTodayEmpty)},
+    sessionSummaryEvidenceEmpty: ${JSON.stringify(c.sessionSummaryEvidenceEmpty)},
+    sessionSummaryNextEmpty: ${JSON.stringify(c.sessionSummaryNextEmpty)},
     offlineOnline: ${JSON.stringify(c.offlineOnline)},
     offlineOffline: ${JSON.stringify(c.offlineOffline)},
     offlineQueued: ${JSON.stringify(c.offlineQueued)},
@@ -868,6 +973,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const camWrap    = document.getElementById('guide-camera-wrap');
   const nowWrap    = document.getElementById('guide-now');
   const nowState   = document.getElementById('guide-now-state');
+  const nowNext    = document.getElementById('guide-now-next');
   const permMsg    = document.getElementById('guide-permission-msg');
   const photoFallback = document.getElementById('guide-photo-fallback');
   const photoBtn   = document.getElementById('guide-photo-btn');
@@ -893,6 +999,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const summaryAudioOnly = document.getElementById('guide-summary-audio-only');
   const summaryQueued = document.getElementById('guide-summary-queued');
   const summaryEmpty = document.getElementById('guide-summary-empty');
+  const summaryToday = document.getElementById('guide-summary-today');
+  const summaryEvidence = document.getElementById('guide-summary-evidence');
+  const summaryNext = document.getElementById('guide-summary-next');
   const offlineRow = document.getElementById('guide-offline-row');
   const offlineState = document.getElementById('guide-offline-state');
   const offlineQueued = document.getElementById('guide-offline-queued');
@@ -918,6 +1027,13 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   function getCategory() { return document.getElementById('guide-category-select').value; }
   function setStatus(msg) { if (statusEl) statusEl.textContent = msg; }
   function setNowState(msg) { if (nowState) nowState.textContent = msg || ''; }
+  function setNextAction(message) {
+    if (!nowNext) return;
+    const body = nowNext.querySelector('b');
+    const text = String(message || '').trim();
+    nowNext.hidden = !text;
+    if (body) body.textContent = text;
+  }
   function escapeInline(value) {
     return String(value || '').replace(/[&<>\"']/g, function (char) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] || char;
@@ -1872,6 +1988,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       + '<div class="gdi-autosave is-pending"><span>' + escapeInline(formatCopy(copy.offlineQueued, { count: offlineQueuedCount || 1 })) + '</span></div>'
       + '<div class="gdi-summary">' + escapeInline(formatCaptured(scene.capturedAt)) + '</div></div>';
     if (!existing) listEl.prepend(li);
+    setNextAction(representative.nextLookTarget || copy.nowNextFallback);
     updateTrailPill();
   }
   function formatCaptured(value) {
@@ -1885,13 +2002,31 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (lang === 'ja') return ' · 現在地から' + value + 'm';
     return ' · ' + value + 'm from current';
   }
+  function retryHintForAutoSave(scene) {
+    const autoSave = scene && scene.autoSave ? scene.autoSave : null;
+    const codes = autoSave && Array.isArray(autoSave.reasonCodes) ? autoSave.reasonCodes : [];
+    const ja = getLang() === 'ja';
+    if (codes.indexOf('duplicate_scene') >= 0) {
+      return ja ? '少し移動して、別の角度か別の足元を入れると記録になります。' : 'Move a little and add another angle or a different ground patch.';
+    }
+    if (codes.indexOf('privacy_or_indoor_scene') >= 0) {
+      return ja ? '人物や室内を外し、葉・水辺・地面など野外の手がかりへ向けてください。' : 'Point away from people or indoor scenes and toward leaves, water edges, or ground clues.';
+    }
+    if (codes.indexOf('no_field_nature_signal') >= 0 || codes.indexOf('vehicle_structure_only_scene') >= 0) {
+      return ja ? '人工物だけでなく、近くの草・土・水辺・樹木を1つ画面に足してください。' : 'Add one nearby plant, soil, water edge, or tree instead of only structures.';
+    }
+    if (autoSave && (autoSave.state === 'skipped' || autoSave.state === 'error')) {
+      return ja ? '次は近い特徴と周辺環境を分けて、1つずつ残してください。' : 'Next, capture a close feature and the surrounding context separately.';
+    }
+    return '';
+  }
   function autoSaveView(scene) {
     const state = scene && scene.autoSave ? scene.autoSave.state : '';
     const note = getLang() === 'ja' && scene && scene.autoSave ? (scene.autoSave.note || '') : '';
-    if (state === 'saved') return { cls: 'is-saved', text: copy.autoSaved, note: note || (getLang() === 'ja' ? copy.autoSaveBadge : ''), showManual: false };
-    if (state === 'skipped') return { cls: 'is-skipped', text: copy.autoSkipped, note: note, showManual: true };
-    if (state === 'error') return { cls: 'is-error', text: copy.autoSaveError, note: '', showManual: true };
-    return { cls: 'is-pending', text: copy.autoSaveBadge, note: '', showManual: true };
+    if (state === 'saved') return { cls: 'is-saved', text: copy.autoSaved, note: note || (getLang() === 'ja' ? copy.autoSaveBadge : ''), retry: '', showManual: false };
+    if (state === 'skipped') return { cls: 'is-skipped', text: copy.autoSkipped, note: note, retry: retryHintForAutoSave(scene), showManual: true };
+    if (state === 'error') return { cls: 'is-error', text: copy.autoSaveError, note: '', retry: retryHintForAutoSave(scene), showManual: true };
+    return { cls: 'is-pending', text: copy.autoSaveBadge, note: '', retry: '', showManual: true };
   }
   function normalizeTrailToken(value) {
     return String(value || '').replace(/\\s+/g, '').replace(/[()]/g, function(ch){ return ch === '(' ? '（' : '）'; });
@@ -1970,6 +2105,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       + '<div class="gdi-body">'
       + '<div class="gdi-kicker">' + escapeInline(formatCaptured(new Date(bundle.startAt).toISOString()) + distance) + (badge ? '<span class="gdi-bundle">' + escapeInline(badge) + '</span>' : '') + '</div>'
       + '<div class="gdi-autosave ' + escapeInline(autoSave.cls) + '"><span>' + escapeInline(autoSave.text) + '</span>' + (autoSave.note ? '<em>' + escapeInline(autoSave.note) + '</em>' : '') + '</div>'
+      + (autoSave.retry ? '<div class="gdi-retry">' + escapeInline(autoSave.retry) + '</div>' : '')
       + '<div class="gdi-summary">' + escapeInline(representative.delayedSummary || representative.summary || '') + '</div>'
       + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
       + (representative.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(representative.uncertaintyReason) + '</div>' : '')
@@ -2611,6 +2747,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (!running) return;
     setStatus(copy.analysing);
     setNowState(copy.analysing);
+    setNextAction(copy.nowNextAnalysing);
     try {
       const bundle = Array.isArray(frameBundle) && frameBundle.length ? frameBundle : null;
       lastKnownPosition = bundle ? {
@@ -2813,7 +2950,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (!startSheet) return;
     if (startSheetLive) startSheetLive.textContent = '';
     startSheet.hidden = false;
-    const first = startSheet.querySelector('input[name="guide-camera-choice"]');
+    const first = startSheet.querySelector('input[name="guide-mission-choice"]');
     if (first && typeof first.focus === 'function') first.focus();
   }
   function closeStartSheet() {
@@ -2822,6 +2959,19 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   function setRadioChoice(name, value) {
     const target = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
     if (target) target.checked = true;
+  }
+  function applyMissionPreset(mission) {
+    if (mission === 'sound') {
+      setRadioChoice('guide-camera-choice', 'off');
+      setRadioChoice('guide-audio-choice', 'on');
+    } else if (mission === 'spot') {
+      setRadioChoice('guide-camera-choice', 'on');
+      setRadioChoice('guide-audio-choice', 'on');
+    } else {
+      setRadioChoice('guide-camera-choice', 'on');
+      setRadioChoice('guide-audio-choice', 'off');
+    }
+    if (startSheetLive) startSheetLive.textContent = '';
   }
   function applyRecommendedSettings() {
     setRadioChoice('guide-camera-choice', 'on');
@@ -2838,13 +2988,34 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     });
     return { saved: savedIds.size, skipped, audioOnly: audioOnlyChunkCount, queued: offlineQueuedCount };
   }
+  function sessionInsights(counts) {
+    const tokens = [];
+    readyScenes.forEach((scene) => {
+      trailFeatureTokens(scene).forEach((token) => tokens.push(token));
+    });
+    const seen = Array.from(new Set(tokens)).slice(0, 4).join(' / ');
+    const weakAxes = coverageWeakAxes().join(' / ');
+    const latestNext = lastScene && lastScene.nextLookTarget ? lastScene.nextLookTarget : '';
+    const skippedHint = counts.skipped > 0
+      ? (getLang() === 'ja' ? '保存しなかった場面は、近い特徴と周辺環境を分けて撮ると残しやすいです。' : 'For skipped scenes, capture one close feature and the surrounding context separately.')
+      : '';
+    return {
+      today: seen || copy.sessionSummaryTodayEmpty,
+      evidence: skippedHint || (weakAxes ? (getLang() === 'ja' ? '次に薄いところ: ' : 'Thin next: ') + weakAxes : copy.sessionSummaryEvidenceEmpty),
+      next: latestNext || copy.sessionSummaryNextEmpty,
+    };
+  }
   function showSessionSummary() {
     if (!sessionSummary) return;
     const counts = sessionCounts();
+    const insights = sessionInsights(counts);
     if (summarySaved) summarySaved.textContent = String(counts.saved);
     if (summarySkipped) summarySkipped.textContent = String(counts.skipped);
     if (summaryAudioOnly) summaryAudioOnly.textContent = String(counts.audioOnly);
     if (summaryQueued) summaryQueued.textContent = String(counts.queued);
+    if (summaryToday) summaryToday.textContent = insights.today;
+    if (summaryEvidence) summaryEvidence.textContent = insights.evidence;
+    if (summaryNext) summaryNext.textContent = insights.next;
     const isEmpty = counts.saved === 0 && counts.skipped === 0 && counts.audioOnly === 0 && counts.queued === 0;
     if (summaryEmpty) summaryEmpty.hidden = !isEmpty;
     sessionSummary.hidden = false;
@@ -2998,6 +3169,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       }
       setStatus(copy.started);
       setNowState(copy.started);
+      setNextAction(copy.nowNextInitial);
       if (audioOptIn) void startOptionalAudioCapture();
       void prepareLiveAssist();
       if (nowWrap) nowWrap.hidden = false;
@@ -3031,6 +3203,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   if (recommendedApply) {
     recommendedApply.addEventListener('click', applyRecommendedSettings);
   }
+  document.querySelectorAll('input[name="guide-mission-choice"]').forEach((input) => {
+    input.addEventListener('change', () => applyMissionPreset(input.value || 'quick'));
+  });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && startSheet && !startSheet.hidden) closeStartSheet();
   });
@@ -3061,6 +3236,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     startBtn.hidden = false;
     setStatus('');
     setNowState('');
+    setNextAction('');
     showSessionSummary();
     if (privacyLive) {
       privacyLive.hidden = false;
@@ -3210,6 +3386,12 @@ export const GUIDE_FLOW_STYLES = `
   .guide-start-option { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 13px; font-weight: 950; cursor: pointer; }
   .guide-start-option:has(input:checked) { border-color: rgba(5,150,105,.55); background: #ecfdf5; color: #065f46; box-shadow: inset 0 0 0 1px rgba(5,150,105,.18); }
   .guide-start-option input { width: 16px; height: 16px; accent-color: #059669; flex: 0 0 auto; }
+  .guide-mission-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guide-mission-option { align-items: flex-start; justify-content: flex-start; min-height: 82px; text-align: left; }
+  .guide-mission-option span { min-width: 0; display: grid; gap: 3px; }
+  .guide-mission-option b { color: inherit; font-size: 13px; line-height: 1.25; }
+  .guide-mission-option small { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 800; }
+  .guide-mission-option:has(input:checked) small { color: #047857; }
   .guide-start-sheet-live { min-height: 18px; margin: -2px 0 0; color: #b45309; font-size: 12px; line-height: 1.5; font-weight: 900; }
   .guide-start-sheet-actions { display: flex; justify-content: flex-end; gap: 10px; }
   .guide-sheet-secondary, .guide-sheet-primary { min-height: 46px; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 950; cursor: pointer; }
@@ -3219,6 +3401,10 @@ export const GUIDE_FLOW_STYLES = `
   .guide-now { margin-bottom: 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-now-title { margin: 0 0 4px; font-size: 13px; font-weight: 900; color: #0f172a; }
   .guide-now-hint { margin: 0; font-size: 12px; color: #64748b; line-height: 1.6; }
+  .guide-now-next { margin: 8px 0 0; display: flex; gap: 7px; align-items: baseline; color: #065f46; font-size: 12px; line-height: 1.45; }
+  .guide-now-next[hidden] { display: none; }
+  .guide-now-next span { flex: 0 0 auto; min-height: 22px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 8px; background: #dcfce7; color: #047857; font-size: 11px; font-weight: 950; }
+  .guide-now-next b { font-weight: 900; }
   .guide-now-state { min-width: 72px; text-align: right; font-size: 12px; color: #047857; font-weight: 900; }
   .guide-coverage[hidden] { display: none; }
   .guide-coverage { margin: 0 0 14px; padding: 13px 14px; border-radius: 8px; background: rgba(255,255,255,.94); border: 1px solid rgba(5,150,105,.16); box-shadow: 0 8px 20px rgba(15,23,42,.05); display: grid; gap: 11px; }
@@ -3258,6 +3444,10 @@ export const GUIDE_FLOW_STYLES = `
   .guide-session-summary-grid strong { color: #059669; font-size: 22px; line-height: 1; font-weight: 950; }
   .guide-session-summary-grid span { color: #475569; font-size: 11px; line-height: 1.35; font-weight: 850; }
   .guide-session-summary p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 800; }
+  .guide-session-insights { display: grid; gap: 8px; }
+  .guide-session-insights div { display: grid; gap: 3px; padding: 10px 11px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .guide-session-insights span { color: #64748b; font-size: 11px; line-height: 1.25; font-weight: 950; }
+  .guide-session-insights strong { color: #0f172a; font-size: 12px; line-height: 1.55; font-weight: 850; }
   .guide-session-results-link { width: fit-content; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: #0f172a; color: #fff; font-size: 12px; font-weight: 950; text-decoration: none; }
   .guide-discoveries { margin-top: 24px; }
   .guide-trail-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
@@ -3282,6 +3472,7 @@ export const GUIDE_FLOW_STYLES = `
   .gdi-autosave.is-skipped { background: rgba(245,158,11,.12); color: #92400e; border: 1px solid rgba(245,158,11,.22); }
   .gdi-autosave.is-error { background: rgba(239,68,68,.12); color: #991b1b; border: 1px solid rgba(239,68,68,.2); }
   .gdi-autosave.is-pending { background: rgba(148,163,184,.14); color: #475569; border: 1px solid rgba(148,163,184,.22); }
+  .gdi-retry { font-size: 12px; color: #0f766e; background: rgba(236,253,245,.9); border: 1px solid rgba(16,185,129,.18); border-radius: 7px; padding: 7px 8px; line-height: 1.45; font-weight: 850; }
   .gdi-summary { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.5; }
   .gdi-species { font-size: 11px; color: #047857; font-weight: 700; }
   .gdi-note { font-size: 12px; color: #b45309; background: rgba(245,158,11,.1); border-radius: 7px; padding: 7px 8px; line-height: 1.45; }
