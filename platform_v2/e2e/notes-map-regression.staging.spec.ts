@@ -161,7 +161,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await expect(targetRow).toBeVisible();
     await targetRow.click();
 
-    const detailLink = mapPage.locator("#me-map-selection-card a.btn.btn-solid");
+    const detailLink = mapPage.locator("#me-map-selection-card .me-detail-action", { hasText: "詳細を見る" }).first();
     await expect(detailLink).toHaveText("詳細を見る");
 
     await Promise.all([
