@@ -136,11 +136,27 @@ test("home page gives guests a clear first-record path", () => {
   } satisfies HomeSnapshot);
 
   assert.match(html, /はじめるホーム/);
-  assert.match(html, /最初の1件を残すと、自分の自然ノートになる/);
+  assert.match(html, /最初の1件から始める/);
   assert.match(html, /ログインして続きから/);
   assert.match(html, /今日の入口/);
   assert.match(html, /写真と場所を記録/);
   assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
+  assert.doesNotMatch(html, /前回より、少し見えるようになる/);
+});
+
+test("home page keeps the signed-in desktop dashboard compact", () => {
+  const html = renderHomePageHtml("", "ja", {
+    viewerUserId: "user-1",
+    recentObservations: [],
+    myPlaces: [],
+  } satisfies HomeSnapshot);
+
+  assert.match(html, /観察ホーム/);
+  assert.match(html, /次に見る場所と、最近の記録/);
+  assert.match(html, /1 件記録する/);
+  assert.match(html, /ノートへ/);
+  assert.match(html, /\.hero-panel \{ min-height: 0; padding: 22px 24px 20px;/);
+  assert.match(html, /\.profile-channel-card:first-child \{ min-height: 214px;/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
 
