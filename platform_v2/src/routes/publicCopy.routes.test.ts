@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { JA_PUBLIC_INTERNAL_JARGON } from "../copy/jaPublic.js";
 import { buildApp } from "../app.js";
+import { renderHomePageHtml } from "./read.js";
+import type { HomeSnapshot } from "../services/readModels.js";
 
 const shallowJaRoutes = [
   "/?lang=ja",
@@ -124,6 +126,22 @@ test("home hero uses the senior-friendly top A action surface", async () => {
   } finally {
     await app.close();
   }
+});
+
+test("home page gives guests a clear first-record path", () => {
+  const html = renderHomePageHtml("", "ja", {
+    viewerUserId: null,
+    recentObservations: [],
+    myPlaces: [],
+  } satisfies HomeSnapshot);
+
+  assert.match(html, /はじめるホーム/);
+  assert.match(html, /最初の1件を残すと、自分の自然ノートになる/);
+  assert.match(html, /ログインして続きから/);
+  assert.match(html, /今日の入口/);
+  assert.match(html, /写真と場所を記録/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
+  assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
 
 test("observations index renders the senior-friendly video grid list", async () => {
