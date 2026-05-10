@@ -254,17 +254,17 @@ function renderGuideLoopPanel(basePath: string, lang: SiteLang): string {
   const copy = lang === "ja"
     ? {
         eyebrow: "loop",
-        title: "ガイドで見たことを、記録と成果確認につなげる",
-        body: "ライブガイドはその場で終わらせず、気づきは記録へ、歩いた足跡は成果確認へ、場所の変化はマップへ戻します。写真・動画・ガイド・観察データが別々の体験にならないよう、ここから一巡できます。",
-        record: "写真・動画を記録する",
+        title: "ガイドで見たことを、シーンと成果確認につなげる",
+        body: "ライブガイドはその場で終わらせず、気づきはシーンへ、歩いた足跡は成果確認へ、場所の変化はマップへ戻します。写真・動画・ガイド・観察レコードが別々の体験にならないよう、ここから一巡できます。",
+        record: "写真・動画をシーンに残す",
         outcomes: "ガイド成果を見る",
         map: "マップで場所を見る",
         aria: "ガイド後の流れ",
         steps: [
           "その場でガイドを開始して、環境の手がかりを残す",
-          "残したい発見は写真・動画つきの観察データにする",
+          "残したい発見は写真・動画つきのシーンにする",
           "ガイド成果確認でルートと代表カードを見返す",
-          "マップとノートから、次に歩く場所へ戻る",
+          "マップとシーンライブラリから、次に歩く場所へ戻る",
         ],
       }
     : {
@@ -381,50 +381,50 @@ type NotesLibraryCopy = {
 function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
   const localized: Record<SiteLang, NotesLibraryCopy> = {
     ja: {
-      pageTitle: "観察ライブラリ | ikimon",
-      activeNav: "ノート",
+      pageTitle: "シーンライブラリ | ikimon",
+      activeNav: "シーン",
       heroEyebrow: "Observation Library",
-      heroTitle: "観察ライブラリ",
-      heroLead: "写真、動画、ガイド、探索マップを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。",
+      heroTitle: "シーンライブラリ",
+      heroLead: "写真、動画、音声、ガイド、探索マップを混ぜずに棚分けして、自分のシーンを月ごとに見返す場所です。対象ごとの観察レコードや同定は詳細で切り分け、ここでは場所・時間・証拠・再訪文脈を探すことに絞ります。",
       actions: {
-        record: "写真・動画を記録",
+        record: "写真・動画をシーンに",
         guide: "ライブガイドを使う",
         outcomes: "ガイド成果を見る",
       },
-      statsAria: "観察ライブラリの概要",
+      statsAria: "シーンライブラリの概要",
       stats: {
-        observations: "観察データ",
+        observations: "シーン",
         photos: "写真枚数",
-        named: "名前あり",
+        named: "対象化済み",
       },
       loop: {
-        aria: "観察体験の流れ",
+        aria: "シーン体験の流れ",
         eyebrow: "Experience loop",
-        title: "記録して、読んで、成果を見て、また歩く。",
-        lead: "観察ライブラリは倉庫ではなく、次の一歩を決める場所です。写真・動画、ライブガイド、ガイド成果、マップを同じ循環として扱います。",
+        title: "シーンを残し、読んで、観察レコードに育て、また歩く。",
+        lead: "シーンライブラリは倉庫ではなく、次の一歩を決める場所です。写真・動画・音声、ライブガイド、ガイド成果、マップを同じ循環として扱います。",
         steps: [
-          { label: "Record", title: "写真・動画を残す", body: "主役、場所、時間を先に保存して、観察データの棚を増やす。", path: "/record", cta: "記録する" },
+          { label: "Scene", title: "写真・動画を残す", body: "主役、場所、時間を先に保存して、シーンの棚を増やす。", path: "/record", cta: "シーンを残す" },
           { label: "Guide", title: "名前より環境を読む", body: "分からない場面はライブガイドで、植生・水路・道ばたの変化を足跡にする。", path: "/guide", cta: "ガイドへ" },
           { label: "Outcome", title: "歩いた成果を見る", body: "ガイドのルート、代表カード、次に見る場所を成果として確認する。", path: "/guide/outcomes", cta: "成果を見る" },
-          { label: "Map", title: "次の場所へ戻る", body: "ノートと地図を見比べて、空白や季節差が見える場所へ戻る。", path: "/map", cta: "地図を見る" },
+          { label: "Map", title: "次の場所へ戻る", body: "シーンと地図を見比べて、空白や季節差が見える場所へ戻る。", path: "/map", cta: "地図を見る" },
         ],
       },
       sections: {
         ownEyebrow: "My observations",
         publicEyebrow: "Public sample",
-        ownTitle: "自分の観察データ",
-        publicTitle: "公開されている観察データ",
+        ownTitle: "自分のシーン",
+        publicTitle: "公開されている観察レコード",
         placesEyebrow: "Albums",
         placesTitle: "場所アルバム",
         placesLead: "よく行く場所をフォルダみたいに開く。",
         placesEmpty: "場所アルバムはまだありません。",
         nearbyEyebrow: "Nearby traces",
-        nearbyTitle: "近くの公開記録",
-        nearbyLead: "自分の棚とは分けて、地域の背景として薄く見る。",
+        nearbyTitle: "近くの公開観察レコード",
+        nearbyLead: "自分のシーンとは分けて、地域の背景として薄く見る。",
       },
       controls: {
-        aria: "観察ライブラリの絞り込み",
-        searchPlaceholder: "名前・場所で探す",
+        aria: "シーンライブラリの絞り込み",
+        searchPlaceholder: "場所・気づきで探す",
         filterAria: "表示切り替え",
         sourceLanesAria: "データの種類",
         all: "すべて",
@@ -432,32 +432,32 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
         video: "動画",
         guide: "ガイド",
         scan: "スキャン",
-        uncertain: "名前未確定",
-        identified: "同定あり",
+        uncertain: "対象整理中",
+        identified: "観察レコードあり",
       },
       sourceLabels: {
         video: "動画",
         guide: "ガイド",
         scan: "スキャン",
         photo: "写真",
-        note: "記録",
+        note: "シーン",
       },
       card: {
-        fallbackName: "名前を確かめている観察",
+        fallbackName: "対象を整理中のシーン",
         fallbackPlace: "場所未設定",
-        uncertainBadge: "名前未確定",
-        namedBadge: "名前あり",
-        menuAria: "観察メニュー",
+        uncertainBadge: "対象整理中",
+        namedBadge: "観察レコードあり",
+        menuAria: "シーンメニュー",
         detail: "詳しく見る",
         delete: "削除する",
         deleting: "削除中...",
-        deleteConfirm: "この観察を一覧と公開ページから削除します。よろしいですか？",
+        deleteConfirm: "このシーンを一覧と公開ページから削除します。よろしいですか？",
         deleteFailedPrefix: "削除できませんでした: ",
       },
-      emptyLibrary: "まだ観察ライブラリに並べる記録がありません。",
-      latestFallback: "観察が増えるほど、ここに月ごとの棚が育ちます。",
-      nearbyEmpty: "まだ近くの公開記録は表示できません。自分の観察ライブラリを主役にします。",
-      footerNote: "観察データの棚はこのページ、成長や地域への効き方はマイページに分けています。",
+      emptyLibrary: "まだシーンライブラリに並べるシーンがありません。",
+      latestFallback: "シーンが増えるほど、ここに月ごとの棚が育ちます。",
+      nearbyEmpty: "まだ近くの公開観察レコードは表示できません。自分のシーンライブラリを主役にします。",
+      footerNote: "シーンの棚はこのページ、成長や地域への効き方はマイページに分けています。",
     },
     en: {
       pageTitle: "Observation Library | ikimon",
@@ -1537,7 +1537,7 @@ function renderAiCandidateLearningPanel(options: {
     <div class="obs-ai-cutout-head">
       <div>
         <p class="obs-ai-cutout-eye">AI が見つけたかもしれないもの</p>
-        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、別の観察として残せそうな候補があります" : "記録メディアの中に、別の観察として残せそうな候補があります")}</h2>
+        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、別の観察レコードとして残せそうな候補があります" : "このシーンの中に、別の観察レコードとして残せそうな候補があります")}</h2>
         <p class="obs-ai-cutout-copy">いきものに詳しくなくても大丈夫です。AI が自信の高いものだけ先に整理しています。名前は候補なので、あとから人の確認で直せます。</p>
       </div>
       <span class="obs-ai-cutout-pill">${candidates.length} 件</span>
@@ -1555,20 +1555,20 @@ function renderAiCandidateLearningPanel(options: {
                class="obs-ai-cutout-action"
                data-adopt-candidate="${escapeHtml(candidate.candidateId)}"
                data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/adopt`))}">
-               別の観察として残す
+               観察レコードとして残す
              </button>`
           : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">見分けに参加する</a>`;
         return `<div class="obs-ai-cutout-card">
           <div>
             <strong>${escapeHtml(candidate.displayName)}</strong>
             ${meta.length > 0 ? `<div class="obs-ai-cutout-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
-            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(isVideoOnly ? "同じ映像フレームから切り出せる候補です。まずは仮の観察として残し、あとで確かめます。" : "同じ記録メディアから切り出せる候補です。まずは仮の観察として残し、あとで確かめます。")}</p>`}
+            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(isVideoOnly ? "同じ映像フレームから切り出せる候補です。まずは仮の観察レコードとして残し、あとで確かめます。" : "同じシーンのメディアから切り出せる候補です。まずは仮の観察レコードとして残し、あとで確かめます。")}</p>`}
           </div>
           ${action}
         </div>`;
       }).join("")}
     </div>
-    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? escapeHtml(`残すと、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に紐づく別対象として追加されます。`) : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? escapeHtml(`残すと、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に紐づく別の観察レコードとして追加されます。`) : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
   </section>`;
 }
 
@@ -1597,7 +1597,7 @@ function subjectRoleLabel(subject: SiblingSubject): string {
   if (subject.roleHint === "alt_candidate") return "別候補";
   if (subject.roleHint === "vegetation") return "植生";
   if (subject.isPrimary) return "最初に拾われた対象";
-  return "同じ観察の別対象";
+  return "同じシーンの別対象";
 }
 
 function subjectPriorityScore(subject: SiblingSubject, currentOccurrenceId: string): number {
@@ -1664,7 +1664,7 @@ function subjectFocusReason(subject: SiblingSubject): string {
   if (subject.isPrimary) {
     return "最初の対象として保存されている";
   }
-  return "同じ観察に写っている別対象";
+  return "同じシーンに写っている別対象";
 }
 
 function rankSiblingSubjects(subjects: SiblingSubject[], currentOccurrenceId: string): RankedSubject[] {
@@ -1968,14 +1968,14 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
       reassessHint: "動画フレームを使って判定を更新できます（30秒ほど）。",
       videoReassessLoadingText: "再判定中…（動画フレームを Gemini に渡しています）",
       photoRecoveryEyebrow: "Add supporting photos",
-      photoRecoveryTitle: "この動画観察に写真を追加",
-      photoRecoveryBody: "総苞や葉などの止まった証拠写真を同じ観察に追加できます。",
+      photoRecoveryTitle: "この動画シーンに写真を追加",
+      photoRecoveryBody: "総苞や葉などの止まった証拠写真を同じシーンに追加できます。",
     };
   }
   if (context.hasVideos) {
     return {
       clueHeading: "写真・映像フレームから拾えている手がかり",
-      missingHeading: "この記録メディアからは読み取れないもの",
+      missingHeading: "このシーンのメディアからは読み取れないもの",
       nextEvidenceHeading: "次に足すべき写真・映像",
       areaLabel: "写真・映像フレームからのエリア推察",
       areaReminder: "AI が写真・映像フレームから読み取った候補です。**断定ではありません**。地図由来の地点情報と突き合わせてください。",
@@ -1987,8 +1987,8 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
       reassessHint: "写真または動画フレームを使って判定を更新できます（30秒ほど）。",
       videoReassessLoadingText: "再判定中…（動画フレームを Gemini に渡しています）",
       photoRecoveryEyebrow: "Add photos",
-      photoRecoveryTitle: "この観察に写真を追加",
-      photoRecoveryBody: "別角度や周辺の写真を同じ観察に追加できます。",
+      photoRecoveryTitle: "このシーンに写真を追加",
+      photoRecoveryBody: "別角度や周辺の写真を同じシーンに追加できます。",
     };
   }
   return {
@@ -2005,8 +2005,8 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     reassessHint: "写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。",
     videoReassessLoadingText: "再判定中…（動画フレームを Gemini に渡しています）",
     photoRecoveryEyebrow: "Photo recovery",
-    photoRecoveryTitle: "この観察に写真を復旧",
-    photoRecoveryBody: "写真投稿が途中で止まった観察は、ここから同じ観察に写真だけ追加できます。",
+    photoRecoveryTitle: "このシーンに写真を復旧",
+    photoRecoveryBody: "写真投稿が途中で止まったシーンは、ここから同じシーンに写真だけ追加できます。",
   };
 }
 
@@ -2150,7 +2150,7 @@ function renderCivicContextBlock(
     lang,
   );
   return `<div class="obs-story-block obs-story-civic">
-    <div class="obs-story-eyebrow">地域自然ノート</div>
+    <div class="obs-story-eyebrow">地域自然シーン</div>
     <p><strong>${escapeHtml(civicContextLabel(context))}</strong></p>
     <p>${escapeHtml([riskLabel, precisionLabel[context.publicPrecision], context.activityIntent ? `目的: ${context.activityIntent}` : ""].filter(Boolean).join(" · "))}</p>
     ${evidenceItems.length > 0 ? `<p>${escapeHtml(`証拠: ${evidenceItems.join("・")}`)}</p>` : ""}
@@ -2667,7 +2667,7 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
     };
     if (!button || !endpoint) return;
     button.addEventListener('click', function() {
-      if (!window.confirm('この観察を一覧と公開ページから削除します。よろしいですか？')) return;
+      if (!window.confirm('このシーンを一覧と公開ページから削除します。よろしいですか？')) return;
       button.disabled = true;
       setStatus('削除中...', false);
       fetch(endpoint, {
@@ -2679,7 +2679,7 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
           if (!response.ok || !json || json.ok === false) {
             throw new Error(String((json && json.error) || response.status || 'delete_failed'));
           }
-          setStatus('削除しました。観察ライブラリへ戻ります。', false);
+          setStatus('削除しました。シーンライブラリへ戻ります。', false);
           setTimeout(function(){ window.location.href = nextHref; }, 700);
         });
       }).catch(function(error) {
@@ -2890,29 +2890,29 @@ type RecordFormCopy = {
 function recordStartCopy(lang: SiteLang): RecordStartCopy {
   const localized: Record<SiteLang, RecordStartCopy> = {
     ja: {
-      title: "記録を始める準備 | ikimon",
-      activeNav: "記録する",
+      title: "シーンを残す準備 | ikimon",
+      activeNav: "シーン",
       footerNote: "詳しい使い方は読み物ページで確認できます。",
-      heroEyebrow: "record",
-      heroHeading: "写真で記録を始める",
-      heroLead: "まず写真を1枚残せば十分です。名前や詳しい説明は、あとから足せます。",
-      photoAction: "ログインして写真で記録",
-      registerAction: "新しく登録して記録する",
+      heroEyebrow: "scene",
+      heroHeading: "写真でシーンを残す",
+      heroLead: "まず写真を1枚残せば十分です。場所・時間・周囲の様子が残るほど、あとから見返せるシーンになります。",
+      photoAction: "ログインして写真でシーンを残す",
+      registerAction: "新しく登録してシーンを残す",
       panelEyebrow: "sign in required",
-      panelHeading: "記録画面はログイン後に開きます。",
-      panelBody: "写真・場所・時間を個人ノートに保存するため、投稿前にログインします。",
+      panelHeading: "シーン画面はログイン後に開きます。",
+      panelBody: "写真・場所・時間を自分のシーンライブラリに保存するため、投稿前にログインします。",
       noteAction: "メモで始める",
       learnAction: "使い方を読む",
-      dockAria: "ログインして投稿を始める",
+      dockAria: "ログインしてシーンを残す",
       dockPhoto: "写真",
       dockNote: "メモ",
       dockVideo: "動画",
       dockGallery: "選ぶ",
-      confidenceAria: "記録を始めやすくするヒント",
+      confidenceAria: "シーンを残しやすくするヒント",
       confidenceItems: [
-        { title: "名前はあとでOK", body: "分からないまま保存できます。" },
-        { title: "写真1枚で保存", body: "場所と時間も一緒に残ります。" },
-        { title: "みんなで確認できる", body: "公開後に手がかりが増えます。" },
+        { title: "場所と時間が残る", body: "あとで同じ場所を比べられます。" },
+        { title: "周囲も手がかり", body: "環境・音・動きもシーンの解像度になります。" },
+        { title: "対象はあとで分ける", body: "必要になったら観察レコードとして切り出せます。" },
       ],
     },
     en: {
@@ -3001,14 +3001,14 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
   const start = recordStartCopy(lang);
   const localized: Record<SiteLang, RecordPageCopy> = {
     ja: {
-      title: "記録する | ikimon",
-      activeNav: "記録する",
-      footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
-      heading: "写真で記録する",
+      title: "シーンを残す | ikimon",
+      activeNav: "シーン",
+      footerNote: "いつもの道で見つけた自然を、あとで観察レコードへ育てられる形に残す。",
+      heading: "写真でシーンを残す",
       lead: "写真を撮るか選ぶだけで始められます。必要な入力はそのあとに出します。",
       sessionLabel: "ログイン中",
-      captureAria: "投稿の始め方",
-      photoTitle: "写真で記録する",
+      captureAria: "シーンの始め方",
+      photoTitle: "写真でシーンを残す",
       photoSub: "撮る / 選ぶ",
       noteTitle: "メモだけ残す",
       noteSub: "写真なし",
@@ -3018,31 +3018,31 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       gallerySub: "写真 / 動画",
       guideLink: "AIのヒントを見ながら探す",
       learnLink: "使い方を読む",
-      dockAria: "すぐ投稿する",
+      dockAria: "すぐシーンを残す",
       dockPhoto: "写真",
       dockNote: "メモ",
       dockVideo: "動画",
       dockGallery: "選ぶ",
       captureResultLabel: "自動下書き",
       captureResultTitle: "未選択",
-      captureResultHelp: "写真・日時・地点だけで保存できます。名前や説明はあとで足せます。",
+      captureResultHelp: "写真・日時・地点だけで保存できます。周囲や気づきはあとで足して、シーンの解像度を上げられます。",
       captureChange: "選び直す",
       locationTitle: "写真に場所も入れる",
       locationBody: "現在地を入れると、あとで同じ場所を見返しやすくなります。",
       locationAction: "現在地を入れる",
       submittingLabel: "送信中...",
-      modeEntryLabel: "投稿入口",
-      modeQuickLabel: "ふだんの記録",
-      modeSurveyLabel: "しっかり記録",
-      modeQuickLead: "場所・時間・気づいたことを、まず 1 件残すための入力です。",
-      modeSurveyLead: "見た条件も一緒に残して、あとで比べやすくするための入力です。",
+      modeEntryLabel: "シーン入口",
+      modeQuickLabel: "ふだんのシーン",
+      modeSurveyLabel: "しっかりシーン",
+      modeQuickLead: "場所・時間・気づいたことを、まず 1 つ残すための入力です。",
+      modeSurveyLead: "見た条件も一緒に残して、あとで同じ場所・同じ対象を比べやすくするための入力です。",
       confidenceAria: start.confidenceAria,
       confidenceItems: start.confidenceItems,
       captureLabels: {
-        note: { title: "メモだけ残す", help: "写真なしでも、場所・時間・ひとことで記録できます。" },
-        photo: { title: "写真で記録する", help: "撮った写真、または端末上の写真を記録に添付します。" },
-        video: { title: "動画で記録する", help: "動画を選ぶと、長さ・地点・公開までの状態を順番に案内します。" },
-        gallery: { title: "ファイルを選ぶ", help: "撮影済みの写真または動画を記録に添付します。" },
+        note: { title: "メモだけ残す", help: "写真なしでも、場所・時間・ひとことでシーンを残せます。" },
+        photo: { title: "写真でシーンを残す", help: "撮った写真、または端末上の写真をシーンに添付します。" },
+        video: { title: "動画でシーンを残す", help: "動画を選ぶと、長さ・地点・公開までの状態を順番に案内します。" },
+        gallery: { title: "ファイルを選ぶ", help: "撮影済みの写真または動画をシーンに添付します。" },
       },
     },
     en: {
@@ -3189,19 +3189,19 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
     ja: {
       preSubmitLabel: "送信前チェック",
       submitPanelTitle: "メディア未選択",
-      submitPanelHelpMedia: "日時と地点を確認して保存します。名前や説明はあとで足せます。",
-      submitPanelHelpNote: "写真なしの観察メモとして保存します。あとで写真を足せます。",
+      submitPanelHelpMedia: "日時と地点を確認してシーンとして保存します。周囲・音・動き・気づきはあとで足せます。",
+      submitPanelHelpNote: "写真なしのシーンとして保存します。あとで写真を足せます。",
       submitPanelHelpEmpty: "写真を選ぶと、ここから保存できます。",
-      submitButton: "保存してあとで補完",
+      submitButton: "シーンを保存",
       observedAtLabel: "観察した日時",
-      placeLabel: "撮影地点",
+      placeLabel: "シーンの地点",
       locationUnknown: "地点未指定",
-      locationHelp: "現在地、検索、地図タップで撮影地点を決められます。",
+      locationHelp: "現在地、検索、地図タップでシーンの地点を決められます。",
       currentLocation: "現在地",
       locationSearchPlaceholder: "公園名・駅名・住所で探す",
       locationSearchButton: "検索",
-      locationMapAria: "撮影地点を地図で指定",
-      locationMapFallback: "地図を読み込み中。表示されたらタップして地点を指定できます。",
+      locationMapAria: "シーンの地点を地図で指定",
+      locationMapFallback: "地図を読み込み中。表示されたらタップしてシーンの地点を指定できます。",
       coordinateSummary: "座標を直接編集",
       latitudeLabel: "緯度",
       longitudeLabel: "経度",
@@ -3211,7 +3211,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       localityNotePlaceholder: "例: 公園の入口付近 / 水辺の柵のそば",
       mediaRoleLabel: "このメディアの役割",
       mediaRolePrimaryTitle: "主役",
-      mediaRolePrimaryBody: "この記録の中心",
+      mediaRolePrimaryBody: "このシーンの中心",
       mediaRoleContextTitle: "周囲",
       mediaRoleContextBody: "場所・環境の手がかり",
       mediaRoleSoundTitle: "音・動き",
@@ -3225,20 +3225,20 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       municipalityLabel: "市区町村",
       municipalityPlaceholder: "例: 浜松市",
       rankLabel: "確信度",
-      recordModeLabel: "記録モード",
-      quickModeTitle: "ふだんの記録",
+      recordModeLabel: "シーンの残し方",
+      quickModeTitle: "ふだんのシーン",
       quickModeBody: "いつもの散歩で見つけたことを残す",
-      surveyModeTitle: "しっかり記録",
+      surveyModeTitle: "しっかりシーン",
       surveyModeBody: "比べたい観察の条件も一緒に残す",
       tipsLink: "記録のコツを読む",
-      submitDockAria: "記録を送信する",
+      submitDockAria: "シーンを送信する",
       submitDockLocation: "現在地",
       submitDockMeta: "メディア未選択",
       submitDockSave: "保存",
-      locationSelected: "撮影地点を指定済み",
+      locationSelected: "シーンの地点を指定済み",
       mediaNoteOnly: "メモのみ",
       mediaLocationMissing: "地点未指定",
-      recordRoleTitle: "この記録の役割",
+      recordRoleTitle: "このシーンの役割",
       recordRoleHelp: "目的と役割を軽く残すと、あとで定点比較・授業・管理記録に束ねやすくなります。",
       recordRolePill: "文脈",
       activityIntentLabel: "今日の目的",
@@ -3265,16 +3265,16 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       quickReviewTitle: "あとで見返すためのメモ",
       quickReviewHelp: "見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。",
       quickReviewPill: "再訪用",
-      quickCaptureStateLabel: "今回の残し方",
+      quickCaptureStateLabel: "今回のシーンの残し方",
       quickCaptureStateOptions: {
         present: "見つけて書く",
         unknown: "まだ分からないまま残す",
-        no_detection_note: "今日は見なかったメモを残す",
+        no_detection_note: "今日は見なかったメモをシーンとして残す",
       },
-      nextLookForLabel: "次に探すもの",
-      nextLookForPlaceholder: "例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花",
-      surveyBlockTitle: "比べるための記録",
-      surveyBlockHelp: "同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。",
+      nextLookForLabel: "次に見返す手がかり",
+      nextLookForPlaceholder: "例: 同じ水辺の音 / 葉の裏 / 同じ木の花",
+      surveyBlockTitle: "比べるためのシーン",
+      surveyBlockHelp: "同じ場所を見比べたいときの追加入力です。ふだんのシーンとは分けて残します。",
       surveyBlockPill: "比較用",
       checklistCompletionLabel: "どこまで見たか",
       checklistCompletionOptions: {
@@ -3286,7 +3286,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       effortMinutesLabel: "見た時間（分）",
       surveyResultLabel: "今回の結果",
       surveyResultOptions: {
-        detected: "見つけて記録した",
+        detected: "見つけてシーンに残した",
         no_detection_note: "見つからなかったメモだけ残す",
       },
       revisitReasonLabel: "また見に行きたい理由",
@@ -4306,14 +4306,14 @@ function requestBasePath(request: { headers: Record<string, unknown> }): string 
 function buildPlaceCompareLine(place: Pick<HomePlace, "previousObservedAt">): string {
   return place.previousObservedAt
     ? `前回 ${formatShortDate(place.previousObservedAt, "ja-JP")}`
-    : "この場所の最初の1件です。";
+    : "この場所の最初のシーンです。";
 }
 
 function buildPlaceNextLine(place: Pick<HomePlace, "nextLookFor" | "revisitReason" | "latestDisplayName">): string {
   const focus = pickPlaceFocus(place);
   return focus
     ? `次は ${focus}`
-    : "次の散歩で小さな変化を1件残す";
+    : "次の散歩で小さな変化を1つ残す";
 }
 
 function renderPlaceRows(
@@ -4614,12 +4614,12 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
       ${renderChannelMediaCard(
         withBasePath(basePath, isPersonalHome ? (firstPlace ? "/notes#notes-places" : "/map") : "/record"),
         isPersonalHome ? "自分のフィールド" : "今日の入口",
-        firstPlace?.placeName ?? (isPersonalHome ? "これから歩く場所" : "最初の1件を残す"),
+        firstPlace?.placeName ?? (isPersonalHome ? "これから歩く場所" : "最初のシーンを残す"),
         firstPlace
           ? buildPlaceNextLine(firstPlace)
           : isPersonalHome
-            ? "最初の場所を記録すると、ここが自分のフィールドになります。"
-            : "写真、場所、ひとことを残すと、あとから見返せる自然ノートが始まります。",
+            ? "最初のシーンを残すと、ここが自分のフィールドになります。"
+            : "写真、場所、ひとことを残すと、あとから見返せるシーンライブラリが始まります。",
         latest?.photoUrl,
         isPersonalHome ? "場所" : "記録",
       )}
@@ -4647,13 +4647,13 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
       )}
       ${renderChannelMediaCard(
         withBasePath(basePath, "/notes#notes-own"),
-        isPersonalHome ? "自分の図鑑" : "ノートの使い道",
+        isPersonalHome ? "自分の図鑑" : "シーンの使い道",
         latest ? `${latest.displayName} から広げる` : isPersonalHome ? "まだ空の図鑑" : "記録が育つ場所",
         isPersonalHome
           ? "数を競う場所ではなく、自分が自然とどう関わってきたかを読み返す場所です。"
           : "1件ずつ残すほど、よく行く場所、見つけたもの、次に確かめたいことがまとまります。",
         latest?.photoUrl,
-        "ノート",
+        "シーン",
       )}
     </div>
   </section>`;
@@ -4698,26 +4698,26 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
   const isPersonalHome = Boolean(snapshot.viewerUserId);
   const revisitCue = snapshot.myPlaces[0]
     ? `${snapshot.myPlaces[0].placeName} · ${buildPlaceCompareLine(snapshot.myPlaces[0])} · ${buildPlaceNextLine(snapshot.myPlaces[0])}。`
-    : "まず1件記録すると、場所ごとの再訪理由が育ち始めます。";
+    : "まず1つシーンを残すと、場所ごとの再訪理由が育ち始めます。";
   const growthCue = snapshot.recentObservations[0]
     ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
-    : "観察履歴がたまるほど、前回からの成長と見分けポイントが読み返しやすくなります。";
+    : "観察履歴がたまるほど、前回から増えた場所・時間・周囲の手がかりを読み返しやすくなります。";
   const homeHero = isPersonalHome
     ? {
         eyebrow: "観察ホーム",
-        heading: "次に見る場所と、最近の記録",
+        heading: "次に見る場所と、最近のシーン",
         lead: "よく歩く場所、前回からの気づき、最近の観察をここからすぐ開けます。",
         actions: [
-          { href: "/record", label: "1 件記録する" },
-          { href: "/notes", label: "ノートへ", variant: "secondary" as const },
+          { href: "/record", label: "シーンを残す" },
+          { href: "/notes", label: "シーンを見る", variant: "secondary" as const },
         ],
       }
     : {
         eyebrow: "はじめるホーム",
-        heading: "最初の1件から始める",
+        heading: "最初のシーンから始める",
         lead: "写真、場所、ひとことを残すだけで、次に見返せるホームが育ち始めます。",
         actions: [
-          { href: "/record", label: "1 件記録する" },
+          { href: "/record", label: "シーンを残す" },
           { href: "/login?redirect=/home", label: "ログインして続きから", variant: "secondary" as const },
         ],
       };
@@ -4725,10 +4725,10 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
     ? `
             <div class="profile-growth-card"><span>今回の学び</span><strong>前回より見えた点</strong><p>${escapeHtml(growthCue)}</p></div>
             <div class="profile-growth-card"><span>また行く理由</span><strong>次に訪れる場所</strong><p>${escapeHtml(revisitCue)}</p></div>
-            <div class="profile-growth-card"><span>積み上がる意味</span><strong>長く残る観察</strong><p>今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div>`
+            <div class="profile-growth-card"><span>積み上がる意味</span><strong>長く残る観察</strong><p>今日のシーンは、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div>`
     : `
-            <div class="profile-growth-card"><span>1. 残す</span><strong>写真と場所を記録</strong><p>名前が分からなくても大丈夫です。場所とひとことが、あとで思い出せる手がかりになります。</p></div>
-            <div class="profile-growth-card"><span>2. 育つ</span><strong>よく歩く場所が見える</strong><p>記録が増えるほど、自分がどこで何を見てきたかがホームにまとまります。</p></div>
+            <div class="profile-growth-card"><span>1. 残す</span><strong>写真と場所をシーンに</strong><p>名前が分からなくても大丈夫です。場所とひとことが、あとで思い出せる手がかりになります。</p></div>
+            <div class="profile-growth-card"><span>2. 育つ</span><strong>よく歩く場所が見える</strong><p>シーンが増えるほど、自分がどこで何を見てきたかがホームにまとまります。</p></div>
             <div class="profile-growth-card"><span>3. 戻る</span><strong>次に確かめることが残る</strong><p>前回との違い、また行く理由、見分けたい点を読み返して次の観察へ進めます。</p></div>`;
 
   return layout(
@@ -4743,7 +4743,7 @@ ${progressCards}
         </div>
       </section>
       ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces}</div></section>` : ""}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
+      <section class="section"><div class="section-header"><div><div class="eyebrow">シーン</div><h2>最近の観察レコード</h2></div></div><div class="home-grid">${cards}</div></section>`,
     "ホーム",
     homeHero,
     `${OBSERVATION_CARD_STYLES}
@@ -4823,7 +4823,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         withBasePath(basePath, "/notes#notes-own"),
         "自分の図鑑",
         topLife?.displayName ?? "名前が付くと並びます",
-        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の記録から見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
+        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の観察レコードから見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
         topLife?.photoUrl ?? latest?.photoUrl,
         "LIFE",
       )}
@@ -4842,12 +4842,12 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
     : withBasePath(basePath, "/notes#notes-own");
   const latestBody = digest?.todayReading || (latestObservation
     ? `${latestObservation.displayName} を見返すと、${latestObservation.placeName} の前回のページから読み始められます。`
-    : "まだ自分のページはありません。近くの記録や場所の章から、ノートの読み方を先に眺められます。");
+    : "まだ自分のページはありません。近くの観察レコードや場所の章から、シーンの読み方を先に眺められます。");
   const placeBody = digest?.placeChapters[0]?.readingAngle || (firstPlace
     ? `${firstPlace.placeName} は ${firstPlace.visitCount} 回分の記憶があります。${buildPlaceNextLine(firstPlace)}。`
     : "場所が増えるほど、同じ道の季節差や小さな変化を章として読み返せます。");
   const learningBody = digest?.learningHighlight || "Life List は数ではなく、見分ける観点が増えてきた履歴として読み返せます。";
-  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域の自然ノートを少し厚くしています。`;
+  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域の観察レコードを少し厚くしています。`;
   const contributionValue = digest
     ? `${escapeHtml(formatProfileNumber(digest.sourceStats.observationCount))} ページ`
     : `${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))} ページ`;
@@ -4866,7 +4866,7 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
       </div>
       <div class="profile-reading-actions">
         <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">観察ライブラリを開く</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">シーンライブラリを開く</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/guide/outcomes"))}">ガイド成果を見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-places"))}">場所アルバムを見る</a>
       </div>
@@ -4883,7 +4883,7 @@ function renderProfileHistory(snapshot: ProfileSnapshot): string {
     <div class="section-header"><div><div class="eyebrow">Timeline</div><h2>積み上がった履歴</h2></div></div>
     <div class="profile-history-shell">
       <div class="profile-history-line">
-        <div class="profile-history-step"><span>最初の観察</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(years > 0 ? `${years} 年分のフィールドノートとして残っています。` : "ここから観察史が始まります。")}</p></div>
+        <div class="profile-history-step"><span>最初の観察</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(years > 0 ? `${years} 年分のシーンとして残っています。` : "ここから観察史が始まります。")}</p></div>
         <div class="profile-history-step"><span>最近のページ</span><strong>${escapeHtml(latest?.displayName ?? "これから")}</strong><p>${escapeHtml(latest ? `${latest.placeName} の ${formatProfileDate(latest.observedAt)} の記録。` : "観察が入ると、前回のページとして読めます。")}</p></div>
         <div class="profile-history-step"><span>再訪</span><strong>${escapeHtml(formatProfileNumber(revisitCount))} 回</strong><p>${escapeHtml(firstPlace ? `${firstPlace.placeName} など、同じ場所を重ねて見ています。` : "同じ場所をもう一度見るほど、変化が読めます。")}</p></div>
         <div class="profile-history-step"><span>今月</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.thisMonthObservations))} 件</strong><p>最近の関心がどこに向いているかを示す短い章です。</p></div>
@@ -4925,11 +4925,11 @@ function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, 
     <div class="section-header"><div><div class="eyebrow">Contribution</div><h2>地域に残った手がかり</h2></div></div>
     <div class="profile-contribution-shell">
       <div class="profile-contribution-grid">
-        <div class="profile-contribution-card"><span>観察ページ</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>キミの記録で、この地域のノートが少し厚くなっています。</p></div>
+        <div class="profile-contribution-card"><span>観察レコード</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>キミのシーンで、この地域の観察レコードが少し厚くなっています。</p></div>
         <div class="profile-contribution-card"><span>場所</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.placeCount))}</strong><p>見た場所が増えるほど、地域の自然を読み返す入口が増えます。</p></div>
         <div class="profile-contribution-card"><span>再訪の厚み</span><strong>${escapeHtml(formatProfileNumber(revisitCount))}</strong><p>${escapeHtml(digest?.localContribution || "同じ場所を重ねて見ることが、変化の手がかりになります。")}</p></div>
       </div>
-      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">観察データ一覧を見る</a>
+      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">シーンライブラリを見る</a>
     </div>
   </section>`;
 }
@@ -5151,15 +5151,15 @@ function renderProfileSnapshotBody(
   const guestIntro = mode === "guest"
     ? `<section class="section"><div class="card is-soft"><div class="card-body stack">
         <div class="eyebrow">Guest notebook</div>
-        <h2>匿名のまま残された、小さなフィールドノート</h2>
-        <p class="meta">Guest の記録はアカウントのプロフィールではなく、投稿された観察と場所の履歴だけで読める簡易ノートとして表示します。名前よりも、何を見つけ、どこを歩いたかを中心に残します。</p>
+        <h2>匿名のまま残された、小さなシーン</h2>
+        <p class="meta">Guest のシーンはアカウントのプロフィールではなく、投稿された観察と場所の履歴だけで読める簡易ライブラリとして表示します。名前よりも、何を見つけ、どこを歩いたかを中心に残します。</p>
       </div></div></section>`
     : "";
 
   return `${guestIntro}
       ${mode === "registered" ? renderProfileIntro(basePath, snapshot) : ""}
       <section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`;
+      <section class="section"><div class="section-header"><div><div class="eyebrow">シーン</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`;
 }
 
 function notesEntryDate(obs: LandingObservation): string {
@@ -5599,22 +5599,22 @@ function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: Lan
     : `${formatProfileNumber(snapshot.stats.observationCount)} 件の公開ページが、地域の自然を読める形で残っています。`);
   const digestLead = digest?.todayReading
     || `${latestPlace} の ${latestDate} のページを起点に読むと、ただの一覧ではなく「前に何を見て、何が分かり、地域に何が残ったか」までつながって見えます。`;
-  const digestQuote = digest?.growthStory || "ノートは投稿履歴ではなく、同じ場所をもう一度おもしろくするための読み物です。";
+  const digestQuote = digest?.growthStory || "シーンは投稿履歴ではなく、同じ場所をもう一度おもしろくするための読み物です。";
   const readingOrder = [
     { label: "前回のページ", value: `${latestDate} の ${latestName}` },
     { label: "場所の章", value: placeName },
     { label: "学び", value: supportedCount > 0 ? "名前が育ったページ" : "まだ名前が揺れているページ" },
-    { label: "地域への効き方", value: snapshot.viewerUserId ? "自分の足あとが残した手がかり" : "公開ノートが残した手がかり" },
+    { label: "地域への効き方", value: snapshot.viewerUserId ? "自分の足あとが残した手がかり" : "公開シーンが残した手がかり" },
   ];
   return `<section id="notes-reading" class="section notes-reading" data-testid="notes-reading-brief">
     <div class="notes-section-head">
-      <div><div class="notes-eyebrow">読むためのノート</div><h2>今日読むページ</h2></div>
+      <div><div class="notes-eyebrow">読むためのシーン</div><h2>今日読むページ</h2></div>
       <p>ここだけ読めば、前回のページ、場所の記憶、学び、地域への効き方までひと通り分かるようにします。</p>
     </div>
     <div class="notes-digest-shell">
       <article class="notes-digest-main">
         <div class="notes-digest-kicker">今日の読み筋</div>
-        <h3>${escapeHtml(latestName)}から読む、今日のノート</h3>
+        <h3>${escapeHtml(latestName)}から読む、今日のシーン</h3>
         <p>${escapeHtml(digestLead)}</p>
         <blockquote>${escapeHtml(digestQuote)}</blockquote>
         <div class="notes-digest-story-grid">
@@ -5630,7 +5630,7 @@ function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: Lan
           </div>
           <div>
             <span>世界や地域への効き方</span>
-            <strong>この地域のノートが少し厚くなった</strong>
+            <strong>この地域の観察レコードが少し厚くなった</strong>
             <p>${escapeHtml(contributionLine)}</p>
           </div>
         </div>
@@ -5716,7 +5716,7 @@ function renderNotesContributionSummary(snapshot: LandingSnapshot, digest: Profi
     <div class="notes-impact-band">
       <div>
         <div class="notes-eyebrow">地域に残った手がかり</div>
-        <h2>キミの記録で、この地域のノートが少し厚くなった</h2>
+        <h2>キミのシーンで、この地域の観察レコードが少し厚くなった</h2>
         <p>${escapeHtml(digest?.contributionStory || "大げさに言い切らず、いま見えている観察・場所・同定の範囲で、役立ったことだけを返します。")}</p>
       </div>
       <div class="notes-impact-grid">
@@ -6201,21 +6201,21 @@ function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
   const localized: Record<SiteLang, ObservationIndexCopy> = {
     ja: {
       activeNav: "見つける",
-      title: "観察投稿一覧",
+      title: "観察レコード一覧",
       identifyTitle: "同定",
-      footerNote: "公開されている観察を、見つける・確かめる・記録する流れにつなげます。",
+      footerNote: "公開されている観察レコードを、見つける・確かめる・シーンを残す流れにつなげます。",
       countSuffix: "件",
       relatedActionsAria: "関連する操作",
       mapAction: "地図",
       recordAction: "+",
-      recordActionAria: "観察を投稿する",
+      recordActionAria: "シーンを残す",
       controlPanelAria: "同定と観察の絞り込み",
       searchPlaceholder: "名前・場所・人",
       searchLabel: "観察を検索",
-      toolbarAria: "観察投稿の表示切り替え",
+      toolbarAria: "観察レコードの表示切り替え",
       detailsSummary: "詳細",
       resultPanelAria: "観察カード",
-      emptyInitial: "まだ表示できる観察投稿がありません。",
+      emptyInitial: "まだ表示できる観察レコードがありません。",
       emptyFiltered: "該当する観察がありません。",
       shortcutIdentify: "同定",
       shortcutConfirm: "確認",
@@ -7415,7 +7415,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           }
           if (videoPrimaryPhotoHelp) {
             videoPrimaryPhotoHelp.textContent = selectedPrimaryPhotoFile
-              ? 'この写真を主役として保存し、動画は音・動きの証拠として同じ観察に添付します。'
+              ? 'この写真を主役として保存し、動画は音・動きの証拠として同じシーンに添付します。'
               : '写真は任意です。名前を調べやすくしたいときだけ、主役が写った写真を1枚足せます。';
           }
           if (videoPrimaryPhotoClear) videoPrimaryPhotoClear.hidden = !selectedPrimaryPhotoFile;
@@ -7661,22 +7661,25 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const buildImpactHtml = (impact, extraStatus) => {
           const notes = [];
           if (impact && impact.placeName) {
-            notes.push(impact.placeName + ' での記録が ' + String(impact.visitCount || 1) + ' 件目になりました。');
+            notes.push(impact.placeName + ' のシーンが ' + String(impact.visitCount || 1) + ' 件目になりました。');
           }
           if (impact && impact.previousObservedAt) {
-            notes.push('前回は ' + formatObservedDate(impact.previousObservedAt) + ' に記録しています。');
+            notes.push('前回は ' + formatObservedDate(impact.previousObservedAt) + ' のシーンがあります。同じ場所で比べる解像度が上がりました。');
           } else if (impact && impact.placeName) {
-            notes.push('この場所の比較用メモがここから育ちます。');
+            notes.push('この場所の時間・環境・気づきを比べる起点ができました。');
           }
           if (impact && impact.focusLabel) {
-            notes.push('次は「' + String(impact.focusLabel) + '」を見返す軸として残しました。');
+            notes.push('次に見返す手がかりとして「' + String(impact.focusLabel) + '」を残しました。');
           } else if (impact && impact.captureState === 'unknown') {
-            notes.push('まだ分からないまま残したので、次回の見分けポイントにできます。');
+            notes.push('名前を急がず、場所・時間・周囲の手がかりを先に残しました。');
           } else if (impact && impact.captureState === 'no_detection_note') {
-            notes.push('今日は見なかったメモとして残し、次回比較の起点にしました。');
+            notes.push('今日は見なかった状況も、次回比較の解像度になります。');
           }
           if (extraStatus) {
             notes.push(extraStatus);
+          }
+          if (!notes.length) {
+            notes.push('シーンの場所・時間・メディアを保存しました。');
           }
           return notes.map((line) => '<div class="meta" style="margin-top:6px">' + escapeHtmlText(line) + '</div>').join('');
         };
@@ -7764,10 +7767,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             : 'uploading';
           const stateByStage = {
             uploading: { badge: '送信中', help: 'この画面のまま待ってください。動画をサーバーへ送っています。', steps: { upload: 'current', processing: 'pending', public: 'pending' } },
-            uploaded: { badge: '保存中', help: '動画は届きました。観察データに紐づけています。', steps: { upload: 'done', processing: 'current', public: 'pending' } },
+            uploaded: { badge: '保存中', help: '動画は届きました。シーンに紐づけています。', steps: { upload: 'done', processing: 'current', public: 'pending' } },
             processing: { badge: '公開準備中', help: '動画は保存済みです。再生準備をしています。画面を閉じても大丈夫です。', steps: { upload: 'done', processing: 'current', public: 'pending' } },
-            public: { badge: '公開できました', help: '動画つき観察を公開しました。観察ページで見られます。', steps: { upload: 'done', processing: 'done', public: 'done' } },
-            failed: { badge: '失敗', help: '動画の公開準備で止まりました。記録本体が保存済みなら、同じ画面から動画だけ再試行できます。', steps: { upload: 'failed', processing: 'pending', public: 'pending' } },
+            public: { badge: '公開できました', help: '動画つきシーンを公開しました。観察レコードページで見られます。', steps: { upload: 'done', processing: 'done', public: 'done' } },
+            failed: { badge: '失敗', help: '動画の公開準備で止まりました。シーン本体が保存済みなら、同じ画面から動画だけ再試行できます。', steps: { upload: 'failed', processing: 'pending', public: 'pending' } },
           };
           const config = stateByStage[normalized];
           videoPublicationStatus.hidden = false;
@@ -8566,7 +8569,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const latitude = String(data.get('latitude') || '').trim();
           const longitude = String(data.get('longitude') || '').trim();
           const observedAtValue = String(data.get('observedAt') || '').trim();
-          if (previewTitle) previewTitle.textContent = vernacularName || scientificName || '名前未確定の観察';
+          if (previewTitle) previewTitle.textContent = vernacularName || scientificName || '対象を整理中のシーン';
           if (previewPlace) {
             previewPlace.textContent = survey
               ? (revisitReason || targetTaxaScope || localityNote || 'また見に行きたい理由や見たかったものを書くと、あとで比べやすくなります。')
@@ -9385,7 +9388,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 await uploadPhotoFile(item.upload, item.role, index + 1, preparedPhotoUploads.length);
               }
               if (preparedPhotoUploads.length > 0) {
-                extraStatus = '写真' + String(preparedPhotoUploads.length) + '枚を同じ観察に保存しました。';
+                extraStatus = '写真' + String(preparedPhotoUploads.length) + '枚を同じシーンに保存しました。';
               }
 
               let videoFile = selectedVideoFile instanceof File && selectedVideoFile.size > 0 ? selectedVideoFile : null;
@@ -9466,7 +9469,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/notes');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + observationHref + '" data-record-success-cta="observation_detail">観察を見る</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件</a> · <a href="' + notesHref + '" data-record-success-cta="notes">ノートを見る</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>シーンを保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + observationHref + '" data-record-success-cta="observation_detail">観察レコードを見る</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1シーン</a> · <a href="' + notesHref + '" data-record-success-cta="notes">シーンを見る</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -9512,9 +9515,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               if (message === 'video_upload_cancelled') userMessage = '動画アップロードをキャンセルしました。';
               if (message.startsWith('photo_upload_failed_at_')) {
                 const match = message.match(/^photo_upload_failed_at_(\\d+)/);
-                userMessage = '写真' + (match ? match[1] : '') + '枚目の保存に失敗しました。観察本体は保存済みなら、詳細ページから確認できます。';
+                userMessage = '写真' + (match ? match[1] : '') + '枚目の保存に失敗しました。シーン本体は保存済みなら、詳細ページから確認できます。';
               }
-              if (message === 'cloudflare_stream_not_configured') userMessage = '動画アップロードの設定が有効ではありません。写真と記録本体は保存済みなら、詳細ページから確認できます。';
+              if (message === 'cloudflare_stream_not_configured') userMessage = '動画アップロードの設定が有効ではありません。写真とシーン本体は保存済みなら、詳細ページから確認できます。';
               if (message.startsWith('cloudflare_error') || message.startsWith('cloudflare_tus_error') || message === 'video_issue_failed') userMessage = '動画アップロードの準備ができませんでした。時間をおいて動画だけ再試行してください。';
               const isGenericVideoUploadError = (message.indexOf('tus') >= 0 || message.indexOf('upload') >= 0)
                 && message.indexOf('photo_upload_failed_at_') < 0
@@ -9532,7 +9535,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               const partialLink = savedDetailId
                 ? '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(savedDetailId)) + '">保存済みの観察を見る</a> · メディアだけ再試行する場合はこの画面のまま再送信してください。</div>'
                 : '';
-              const statusHeading = savedDetailId ? '記録本体は保存済みです。' : '送信に失敗しました。';
+              const statusHeading = savedDetailId ? 'シーン本体は保存済みです。' : '送信に失敗しました。';
               if (savedDetailId) pendingMediaRetryObservationId = observationId;
               const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
                 ? 'photo_upload_error'
@@ -10687,11 +10690,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             if (snapshot.distanceMeters != null) protocolChips.push(`<span class="obs-focus-chip">📏 ${Math.round(snapshot.distanceMeters)} m</span>`);
             if (snapshot.revisitReason) protocolChips.push(`<span class="obs-focus-chip">↺ ${escapeHtml(snapshot.revisitReason)}</span>`);
             const boundaryNote = snapshot.surveyResult === "no_detection_note" || snapshot.absenceSemantics === "protocol_note_only"
-              ? "この観察は「見つからなかった」を不在の主張としては扱っていません。手順の注記としてだけ保持しています。"
-              : "比較したい観察として、どれだけ歩いたか・手順・範囲を残した記録です。比較の精度を上げるための記録で、増減や不在をここだけで断定しません。";
+              ? "このシーンは「見つからなかった」を不在の主張としては扱っていません。手順の注記としてだけ保持しています。"
+              : "比較したい観察として、どれだけ歩いたか・手順・範囲を残したシーンです。比較の精度を上げるための記録で、増減や不在をここだけで断定しません。";
             return `<div class="obs-story-block">
               <div class="obs-story-eyebrow">観察の手順</div>
-              <p>この記録はその場の 1 枚ではなく、あとで比べられるように手順を付けて残した観察です。</p>
+              <p>このシーンはその場の 1 枚ではなく、あとで比べられるように手順を付けて残した観察です。</p>
               ${protocolChips.length > 0 ? `<div class="obs-focus-meta">${protocolChips.join("")}</div>` : ""}
               ${surveyResultLabel ? `<p style="margin-top:10px">${escapeHtml(surveyResultLabel)}</p>` : ""}
               <small class="obs-ai-note">${escapeHtml(boundaryNote)}</small>
@@ -10733,7 +10736,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             ? `今見ている ${currentSubjectDisplay.primaryLabel} だけが主役とは限らず、${featuredSubjectDisplay.primaryLabel} がいちばん有力です。`
             : hasAiDefault
               ? `${featuredSubjectDisplay.primaryLabel} は、いま確認する主な候補です。`
-              : `${featuredSubjectDisplay.primaryLabel} を先に見ると、この観察の状態をつかみやすいです。`;
+              : `${featuredSubjectDisplay.primaryLabel} を先に見ると、このシーンの状態をつかみやすいです。`;
           const focusLead = hasAiDefault
             ? subjectCount >= 2
               ? "AI の絞り込みメモを起点に、対象ごとの候補・根拠・分類を切り替えて確認できます。"
@@ -10941,7 +10944,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const civicContextBlock = renderCivicContextBlock(civicContext, snapshot, basePath, lang);
     const layer1 = (surveySummary || ownerNote || aiFirst || footprintCard || civicContextBlock)
       ? `<section id="story" class="section obs-layer obs-layer-1" data-obs-section="story">
-           <h2 class="obs-layer-title">この記録について</h2>
+           <h2 class="obs-layer-title">このシーンについて</h2>
            <div class="obs-layer-body">${surveySummary}${ownerNote}${civicContextBlock}${aiFirst}${footprintCard}</div>
          </section>`
       : "";
@@ -11064,9 +11067,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       })}</template>`).join("");
     // supportBlock は reactionBar のみ表示。trustLadderBlock は hero に既出のため重複削除
     const supportBlock = reactionBar
-      ? `<section id="trust" class="section obs-support-panel" aria-label="この記録への反応" data-obs-section="trust">
+      ? `<section id="trust" class="section obs-support-panel" aria-label="この観察レコードへの反応" data-obs-section="trust">
            <div class="obs-support-actions">
-             <h2 class="obs-support-title">この記録への反応</h2>
+             <h2 class="obs-support-title">この観察レコードへの反応</h2>
              ${reactionBar}
            </div>
          </section>`
@@ -11369,12 +11372,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     if (!request.params.userId.startsWith("guest_")) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Guest notebook not found", stateCard("Guest ノートなし", "この Guest ノートは見つかりません", "Guest ノートのURLではない、または記録が非公開の可能性があります。"), "ホーム");
+      return layout(basePath, "Guest scene not found", stateCard("Guest シーンなし", "この Guest シーンは見つかりません", "Guest シーンのURLではない、または記録が非公開の可能性があります。"), "ホーム");
     }
     const snapshot = await getProfileSnapshot(request.params.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Guest notebook not found", stateCard("Guest ノートなし", "この Guest ノートは見つかりません", "リンクが古い、または公開できる観察がまだありません。"), "ホーム");
+      return layout(basePath, "Guest scene not found", stateCard("Guest シーンなし", "この Guest シーンは見つかりません", "リンクが古い、または公開できる観察がまだありません。"), "ホーム");
     }
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     reply.type("text/html; charset=utf-8");
@@ -11387,7 +11390,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         eyebrow: "Guest observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "匿名の観察者が残した、最近の場所と観察のノート。",
+        lead: "匿名の観察者が残した、最近の場所と観察のシーン。",
         actions: [
           { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このGuestのホームを見る" },
         ],
@@ -11421,7 +11424,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: `この人のフィールドノート — 最近の場所と観察を追う。`,
+        lead: `この人のシーン — 最近の場所と観察を追う。`,
         actions: [
           { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このユーザーのホームを見る" },
         ],
@@ -11441,7 +11444,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         basePath,
         "定点ページ | ikimon",
         stateCard("定点ページが見つかりません", "この場所の記録をまだ束ねられません", "観察詳細やマップから、同じ場所の再記録を作ると定点ページが育ちます。"),
-        "ノート",
+        "シーン",
         undefined,
         undefined,
         appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(request.params.placeId)}/station`), lang),
@@ -11452,7 +11455,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       basePath,
       `定点ページ | ${station.place.name} | ikimon`,
       renderFixedPointStationBody(station, basePath),
-      "ノート",
+      "シーン",
       undefined,
       FIXED_POINT_STATION_STYLES,
       appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(station.place.placeId)}/station`), lang),
@@ -11471,7 +11474,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         stateCard(
           "マイページ",
           "ログインすると、自分の観察史を読み返せます",
-          `<p style="margin:0 0 12px">観察データ一覧はライブラリへ。マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
+          `<p style="margin:0 0 12px">シーン一覧はライブラリへ。マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile"))}">ログインしてマイページへ</a>
             <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/profile"))}">新しく登録する</a>
@@ -11489,7 +11492,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     ]);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "ノートに読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
+      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "シーンに読めるページが増えると、ここに場所と学びの履歴が育ち始めます。"), "ホーム");
     }
     const regionalStories = (await Promise.all(snapshot.recentPlaces.slice(0, 3).map((place) => getRegionalStoryCue({
       surface: "profile",
@@ -11505,7 +11508,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       maxCards: 1,
     }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
     const heroActions = [
-      { href: "/notes#notes-own", label: "観察ライブラリを開く" },
+      { href: "/notes#notes-own", label: "シーンライブラリを開く" },
       { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" as const },
       { href: "/notes#notes-places", label: "場所アルバムを見る", variant: "secondary" as const },
       { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
@@ -11522,7 +11525,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "あなたのマイページ。観察データ一覧ではなく、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
+        lead: "あなたのマイページ。シーン一覧ではなく、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
         actions: heroActions,
       },
       PROFILE_HUB_STYLES,
@@ -11552,7 +11555,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const snapshot = await getProfileSnapshot(session.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "プロフィール編集 | ikimon", stateCard("プロフィールなし", "編集できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
+      return layout(basePath, "プロフィール編集 | ikimon", stateCard("プロフィールなし", "編集できるプロフィールがありません", "シーンを 1 つでも残すとプロフィールが育ち始めます。"), "ホーム");
     }
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -11566,7 +11569,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         lead: "表示名、関心分野、自己紹介を整えて、マイページと公開プロフィールの文脈をそろえます。",
         actions: [
           { href: "/profile", label: "マイページへ戻る", variant: "secondary" as const },
-          { href: "/record", label: "記録する" },
+          { href: "/record", label: "シーンを残す" },
         ],
       },
       PROFILE_HUB_STYLES,

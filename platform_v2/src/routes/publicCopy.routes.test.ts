@@ -139,10 +139,10 @@ test("home page gives guests a clear first-record path", () => {
   } satisfies HomeSnapshot);
 
   assert.match(html, /はじめるホーム/);
-  assert.match(html, /最初の1件から始める/);
+  assert.match(html, /最初のシーンから始める/);
   assert.match(html, /ログインして続きから/);
   assert.match(html, /今日の入口/);
-  assert.match(html, /写真と場所を記録/);
+  assert.match(html, /写真と場所をシーンに/);
   assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
@@ -155,9 +155,9 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   } satisfies HomeSnapshot);
 
   assert.match(html, /観察ホーム/);
-  assert.match(html, /次に見る場所と、最近の記録/);
-  assert.match(html, /1 件記録する/);
-  assert.match(html, /ノートへ/);
+  assert.match(html, /次に見る場所と、最近のシーン/);
+  assert.match(html, /シーンを残す/);
+  assert.match(html, /シーンを見る/);
   assert.match(html, /\.hero-panel \{ min-height: 0; padding: 22px 24px 20px;/);
   assert.match(html, /\.profile-channel-card:first-child \{ min-height: 214px;/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
@@ -168,7 +168,7 @@ test("observations index renders the senior-friendly video grid list", async () 
   try {
     const response = await app.inject({ method: "GET", url: "/observations?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /観察投稿一覧/);
+    assert.match(response.body, /観察レコード一覧/);
     assert.match(response.body, /名前・場所・人/);
     assert.match(response.body, /AI候補/);
     assert.match(response.body, /未同定/);
@@ -204,7 +204,7 @@ test("observations index localizes the daily content controls in English", async
     assert.match(response.body, /Fewest IDs/);
     assert.match(response.body, /<details class="observations-advanced">/);
     assert.match(response.body, /No public observations are ready to show yet|Observation cards/);
-    assert.doesNotMatch(response.body, /観察投稿一覧/);
+    assert.doesNotMatch(response.body, /観察レコード一覧/);
     assert.doesNotMatch(response.body, /名前・場所・人/);
     assert.doesNotMatch(response.body, /登録エリア/);
     assert.doesNotMatch(response.body, /同定少ない順/);
@@ -262,22 +262,22 @@ test("identification queue renders without a hero", async () => {
   }
 });
 
-test("notes page is an observation library with separated source lanes", async () => {
+test("notes page is a scene library with separated source lanes", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/notes?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /観察ライブラリ/);
-    assert.match(response.body, /自分の観察データ|公開されている観察データ/);
-    assert.match(response.body, /名前・場所で探す/);
+    assert.match(response.body, /シーンライブラリ/);
+    assert.match(response.body, /自分のシーン|公開されている観察レコード/);
+    assert.match(response.body, /場所・気づきで探す/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
     assert.match(response.body, /ガイド/);
     assert.match(response.body, /スキャン/);
     assert.match(response.body, /場所アルバム/);
-    assert.match(response.body, /近くの公開記録/);
+    assert.match(response.body, /近くの公開観察レコード/);
     assert.match(response.body, /Experience loop/);
-    assert.match(response.body, /記録して、読んで、成果を見て、また歩く。/);
+    assert.match(response.body, /シーンを残し、読んで、観察レコードに育て、また歩く。/);
     assert.match(response.body, /\/ja\/guide\/outcomes/);
     assert.match(response.body, /data-testid="notes-own"/);
     assert.match(response.body, /data-testid="notes-nearby"/);
@@ -288,7 +288,7 @@ test("notes page is an observation library with separated source lanes", async (
     assert.doesNotMatch(response.body, /学びのハイライト/);
     assert.doesNotMatch(response.body, /地域に残った手がかり/);
     assert.ok(
-      response.body.indexOf("観察ライブラリ") < response.body.indexOf("近くの公開記録"),
+      response.body.indexOf("シーンライブラリ") < response.body.indexOf("近くの公開観察レコード"),
       "library should appear before nearby public traces",
     );
   } finally {
@@ -308,11 +308,11 @@ test("notes page localizes the library chrome in English", async () => {
     assert.match(response.body, /Nearby public records/);
     assert.match(response.body, /Record, read, review, and walk again\./);
     assert.match(response.body, /\/en\/guide\/outcomes/);
-    assert.doesNotMatch(response.body, /観察ライブラリ/);
+    assert.doesNotMatch(response.body, /シーンライブラリ/);
     assert.doesNotMatch(response.body, /名前・場所で探す/);
     assert.doesNotMatch(response.body, /場所アルバム/);
-    assert.doesNotMatch(response.body, /近くの公開記録/);
-    assert.doesNotMatch(response.body, /記録して、読んで、成果を見て、また歩く。/);
+    assert.doesNotMatch(response.body, /近くの公開観察レコード/);
+    assert.doesNotMatch(response.body, /シーンを残し、読んで、観察レコードに育て、また歩く。/);
   } finally {
     await app.close();
   }
@@ -326,7 +326,7 @@ test("guide route connects live use to outcomes and the next record", async () =
     assert.match(guide.body, /ライブガイド/);
     assert.match(guide.body, /ガイド成果を見る/);
     assert.match(guide.body, /\/ja\/guide\/outcomes/);
-    assert.match(guide.body, /写真・動画を記録する/);
+    assert.match(guide.body, /写真・動画をシーンに残す/);
 
     const outcomes = await app.inject({ method: "GET", url: "/guide/outcomes?lang=ja", headers: { accept: "text/html" } });
     assert.equal(outcomes.statusCode, 401);

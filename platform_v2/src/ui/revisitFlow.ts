@@ -28,7 +28,7 @@ const copyByLang: Record<SiteLang, RevisitCopy> = {
   ja: {
     eyebrow: "再訪の入口",
     heading: "前回の場所で、季節はもう動いている。",
-    lead: "同じ場所を歩き直すたび、ノートは分厚くなる。最近歩いた場所と、しばらくぶりの場所を並べた。",
+    lead: "同じ場所を歩き直すたび、シーンと観察レコードは分厚くなる。最近歩いた場所と、しばらくぶりの場所を並べた。",
     freshLabel: "最近歩いた場所",
     staleLabel: "しばらくぶりの場所",
     visitCountSuffix: (count) => `${count} 回歩いた`,
@@ -42,7 +42,7 @@ const copyByLang: Record<SiteLang, RevisitCopy> = {
     comparedOn: (date) => `前回 ${date}`,
     nextLook: (focus) => `次は ${focus}`,
     nextLookFallback: "次の散歩で小さな変化を拾う",
-    recordLabel: "ここで記録",
+    recordLabel: "ここでシーンを残す",
   },
   en: {
     eyebrow: "Reasons to revisit",

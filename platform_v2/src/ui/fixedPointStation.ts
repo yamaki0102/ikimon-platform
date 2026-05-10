@@ -49,7 +49,7 @@ function actionLabel(kind: string): string {
 function visitCard(visit: FixedPointStationVisit, basePath: string): string {
   const taxa = visit.taxa.length > 0
     ? visit.taxa.map((name) => `<span>${escapeHtml(name)}</span>`).join("")
-    : "<span>名前未確定</span>";
+    : "<span>対象整理中</span>";
   const media = [
     visit.photoCount > 0 ? `写真${visit.photoCount}` : "",
     visit.videoCount > 0 ? `動画${visit.videoCount}` : "",

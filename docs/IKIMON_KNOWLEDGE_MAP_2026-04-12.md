@@ -52,6 +52,10 @@
   - 100 年価値を持つ観測の 5 層
   - `taxon / evidence / effort / site condition / time series`
   - place-first product をデータに落とすときの判断基準
+- `docs/spec/ikimon_scene_observation_record_vocabulary_2026-05-11.md`
+  - 表示語 `シーン` と標準データ単位 `観察レコード / Occurrence` の境界
+  - 1 シーンから複数の観察レコードを作る UI / データ設計ルール
+  - `投稿` / `ノート` / `観察レコード` の混線を避けるための用語正本
 
 ---
 
