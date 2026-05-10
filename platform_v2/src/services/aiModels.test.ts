@@ -29,6 +29,8 @@ test("AI model role chains support Vertex and observation visual roles", () => {
   ]);
   assert.equal(getAiModelRoleChain("observationVisualExtract")[0]?.model, "gemini-3.1-flash-image");
   assert.equal(getAiModelRoleChain("observationVisualSummary")[0]?.model, "gemini-3.1-flash-lite");
+  assert.equal(getAiModelRoleChain("guideScene")[0]?.model, "gemini-3.1-flash-image");
+  assert.equal(getAiModelRoleChain("guideScene")[1]?.model, "gemini-2.5-flash-lite");
 });
 
 test("regional story keeps the legacy single-model env override", () => {

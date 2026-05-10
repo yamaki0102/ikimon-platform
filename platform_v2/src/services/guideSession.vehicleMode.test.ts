@@ -73,4 +73,6 @@ test("guide scene analysis accepts representative frame bundles without escalati
   assert.match(source, /coverageHints\?: string\[\]/);
   assert.match(source, /absenceBoundary\?:/);
   assert.match(source, /value\.state === "confirmed_absence"\s*\?\s*"absence_candidate"/);
+  assert.match(source, /function normalizeGuideAudioMimeType\(raw: unknown\): string/);
+  assert.doesNotMatch(source, /mimeType: "audio\/pcm"/);
 });

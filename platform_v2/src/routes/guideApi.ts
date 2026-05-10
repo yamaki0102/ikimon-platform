@@ -45,6 +45,13 @@ function parseIsoString(raw: unknown): string | null {
   return Number.isFinite(Date.parse(raw)) ? raw : null;
 }
 
+function parseAudioMimeType(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim().toLowerCase();
+  if (!/^audio\/[a-z0-9.+-]+(?:;codecs=[a-z0-9.+-]+)?$/.test(value)) return null;
+  return value.slice(0, 96);
+}
+
 function parseFrameBundle(body: Record<string, unknown>): GuideFrameInput[] {
   const rawFrames = Array.isArray(body.frames) ? body.frames : null;
   if (!rawFrames) {
@@ -431,6 +438,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
    *   clientSceneId?: string stable client id for offline retry idempotency
    *   frameThumb?: string  compact data URL thumbnail for delayed trail cards
    *   audio?:      string  base64 audio buffer after client speech-risk filtering
+   *   audioMimeType?: string MIME type of audio (default inferred by service)
    *   audioPrivacy?: { clientSkippedCount?: number, policy?: string }
    *   facePrivacy?: { detector?: string, status?: string, faceCount?: number, error?: string }
    *   frameMime?:  string  MIME type of frame (default "image/jpeg")
@@ -528,6 +536,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         const sceneResult = await analyzeScene({
           frames,
           audioBase64: typeof body.audio === "string" ? body.audio : null,
+          audioMimeType: parseAudioMimeType(body.audioMimeType),
           frameMimeType: typeof body.frameMime === "string" ? body.frameMime : "image/jpeg",
           context: {
             lat,
