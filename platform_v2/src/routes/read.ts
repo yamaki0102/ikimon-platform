@@ -65,7 +65,6 @@ import {
 } from "../services/observationVisitBundle.js";
 import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import {
-  getExploreSnapshot,
   getHomeSnapshot,
   getObservationDetailSnapshot,
   getObservationListSnapshot,
@@ -154,11 +153,17 @@ function layout(
   currentPath?: string,
   hideFooter = false,
   shellClassName?: string,
+  lang: SiteLang = "ja",
+  footerNote?: string,
 ): string {
+  const defaultFooterNote = lang === "ja"
+    ? "いつもの道で見つけた自然を、あとで見返せる形に残す。"
+    : "Save nearby nature in a form you can revisit later.";
   return renderSiteDocument({
     basePath,
     title,
     activeNav,
+    lang,
     body,
     hero: hero
       ? {
@@ -175,7 +180,7 @@ function layout(
     currentPath,
     hideFooter,
     shellClassName,
-    footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+    footerNote: footerNote ?? defaultFooterNote,
   });
 }
 
@@ -296,46 +301,460 @@ function renderGuideLoopPanel(basePath: string, lang: SiteLang): string {
   </section>`;
 }
 
+type NotesLoopStepCopy = {
+  label: string;
+  title: string;
+  body: string;
+  path: string;
+  cta: string;
+};
+
+type NotesLibraryCopy = {
+  pageTitle: string;
+  activeNav: string;
+  heroEyebrow: string;
+  heroTitle: string;
+  heroLead: string;
+  actions: {
+    record: string;
+    guide: string;
+    outcomes: string;
+  };
+  statsAria: string;
+  stats: {
+    observations: string;
+    photos: string;
+    named: string;
+  };
+  loop: {
+    aria: string;
+    eyebrow: string;
+    title: string;
+    lead: string;
+    steps: NotesLoopStepCopy[];
+  };
+  sections: {
+    ownEyebrow: string;
+    publicEyebrow: string;
+    ownTitle: string;
+    publicTitle: string;
+    placesEyebrow: string;
+    placesTitle: string;
+    placesLead: string;
+    placesEmpty: string;
+    nearbyEyebrow: string;
+    nearbyTitle: string;
+    nearbyLead: string;
+  };
+  controls: {
+    aria: string;
+    searchPlaceholder: string;
+    filterAria: string;
+    sourceLanesAria: string;
+    all: string;
+    photo: string;
+    video: string;
+    guide: string;
+    scan: string;
+    uncertain: string;
+    identified: string;
+  };
+  sourceLabels: Record<NonNullable<LandingObservation["librarySourceKind"]>, string>;
+  card: {
+    fallbackName: string;
+    fallbackPlace: string;
+    uncertainBadge: string;
+    namedBadge: string;
+    menuAria: string;
+    detail: string;
+    delete: string;
+    deleting: string;
+    deleteConfirm: string;
+    deleteFailedPrefix: string;
+  };
+  emptyLibrary: string;
+  latestFallback: string;
+  nearbyEmpty: string;
+  footerNote: string;
+};
+
+function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
+  const localized: Record<SiteLang, NotesLibraryCopy> = {
+    ja: {
+      pageTitle: "観察ライブラリ | ikimon",
+      activeNav: "ノート",
+      heroEyebrow: "Observation Library",
+      heroTitle: "観察ライブラリ",
+      heroLead: "写真、動画、ガイド、探索マップを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。",
+      actions: {
+        record: "写真・動画を記録",
+        guide: "ライブガイドを使う",
+        outcomes: "ガイド成果を見る",
+      },
+      statsAria: "観察ライブラリの概要",
+      stats: {
+        observations: "観察データ",
+        photos: "写真枚数",
+        named: "名前あり",
+      },
+      loop: {
+        aria: "観察体験の流れ",
+        eyebrow: "Experience loop",
+        title: "記録して、読んで、成果を見て、また歩く。",
+        lead: "観察ライブラリは倉庫ではなく、次の一歩を決める場所です。写真・動画、ライブガイド、ガイド成果、マップを同じ循環として扱います。",
+        steps: [
+          { label: "Record", title: "写真・動画を残す", body: "主役、場所、時間を先に保存して、観察データの棚を増やす。", path: "/record", cta: "記録する" },
+          { label: "Guide", title: "名前より環境を読む", body: "分からない場面はライブガイドで、植生・水路・道ばたの変化を足跡にする。", path: "/guide", cta: "ガイドへ" },
+          { label: "Outcome", title: "歩いた成果を見る", body: "ガイドのルート、代表カード、次に見る場所を成果として確認する。", path: "/guide/outcomes", cta: "成果を見る" },
+          { label: "Map", title: "次の場所へ戻る", body: "ノートと地図を見比べて、空白や季節差が見える場所へ戻る。", path: "/map", cta: "地図を見る" },
+        ],
+      },
+      sections: {
+        ownEyebrow: "My observations",
+        publicEyebrow: "Public sample",
+        ownTitle: "自分の観察データ",
+        publicTitle: "公開されている観察データ",
+        placesEyebrow: "Albums",
+        placesTitle: "場所アルバム",
+        placesLead: "よく行く場所をフォルダみたいに開く。",
+        placesEmpty: "場所アルバムはまだありません。",
+        nearbyEyebrow: "Nearby traces",
+        nearbyTitle: "近くの公開記録",
+        nearbyLead: "自分の棚とは分けて、地域の背景として薄く見る。",
+      },
+      controls: {
+        aria: "観察ライブラリの絞り込み",
+        searchPlaceholder: "名前・場所で探す",
+        filterAria: "表示切り替え",
+        sourceLanesAria: "データの種類",
+        all: "すべて",
+        photo: "写真",
+        video: "動画",
+        guide: "ガイド",
+        scan: "スキャン",
+        uncertain: "名前未確定",
+        identified: "同定あり",
+      },
+      sourceLabels: {
+        video: "動画",
+        guide: "ガイド",
+        scan: "スキャン",
+        photo: "写真",
+        note: "記録",
+      },
+      card: {
+        fallbackName: "名前を確かめている観察",
+        fallbackPlace: "場所未設定",
+        uncertainBadge: "名前未確定",
+        namedBadge: "名前あり",
+        menuAria: "観察メニュー",
+        detail: "詳しく見る",
+        delete: "削除する",
+        deleting: "削除中...",
+        deleteConfirm: "この観察を一覧と公開ページから削除します。よろしいですか？",
+        deleteFailedPrefix: "削除できませんでした: ",
+      },
+      emptyLibrary: "まだ観察ライブラリに並べる記録がありません。",
+      latestFallback: "観察が増えるほど、ここに月ごとの棚が育ちます。",
+      nearbyEmpty: "まだ近くの公開記録は表示できません。自分の観察ライブラリを主役にします。",
+      footerNote: "観察データの棚はこのページ、成長や地域への効き方はマイページに分けています。",
+    },
+    en: {
+      pageTitle: "Observation Library | ikimon",
+      activeNav: "Notes",
+      heroEyebrow: "Observation Library",
+      heroTitle: "Observation Library",
+      heroLead: "A photo-first library for your records. Photos, videos, guide traces, and map discoveries stay organized by month so you can browse, search, and open the next record quickly.",
+      actions: {
+        record: "Record photos or video",
+        guide: "Use live guide",
+        outcomes: "View guide outcomes",
+      },
+      statsAria: "Observation library summary",
+      stats: {
+        observations: "Records",
+        photos: "Photos",
+        named: "Named",
+      },
+      loop: {
+        aria: "Observation experience loop",
+        eyebrow: "Experience loop",
+        title: "Record, read, review, and walk again.",
+        lead: "The library is not storage. It is the place that makes the next walk easier to choose by connecting photos, video, live guide traces, guide outcomes, and the map.",
+        steps: [
+          { label: "Record", title: "Save photos or video", body: "Keep the main subject, place, and time before details fade.", path: "/record", cta: "Record" },
+          { label: "Guide", title: "Read the setting, not only the name", body: "When the name is unclear, use live guide to save vegetation, water, roadside, and habitat clues.", path: "/guide", cta: "Open guide" },
+          { label: "Outcome", title: "Review what the walk produced", body: "See routes, representative cards, and next places as outcomes of the field walk.", path: "/guide/outcomes", cta: "View outcomes" },
+          { label: "Map", title: "Return to the next place", body: "Compare the library with the map to notice gaps, seasons, and places worth revisiting.", path: "/map", cta: "Open map" },
+        ],
+      },
+      sections: {
+        ownEyebrow: "My observations",
+        publicEyebrow: "Public sample",
+        ownTitle: "My observation records",
+        publicTitle: "Public observation records",
+        placesEyebrow: "Albums",
+        placesTitle: "Place albums",
+        placesLead: "Open familiar places like folders.",
+        placesEmpty: "No place albums yet.",
+        nearbyEyebrow: "Nearby traces",
+        nearbyTitle: "Nearby public records",
+        nearbyLead: "Keep them separate from your own shelf and read them as local background.",
+      },
+      controls: {
+        aria: "Filter observation library",
+        searchPlaceholder: "Search by name or place",
+        filterAria: "Display filters",
+        sourceLanesAria: "Data types",
+        all: "All",
+        photo: "Photos",
+        video: "Video",
+        guide: "Guide",
+        scan: "Scan",
+        uncertain: "Needs name",
+        identified: "Has ID",
+      },
+      sourceLabels: {
+        video: "Video",
+        guide: "Guide",
+        scan: "Scan",
+        photo: "Photo",
+        note: "Note",
+      },
+      card: {
+        fallbackName: "Record checking its name",
+        fallbackPlace: "Place not set",
+        uncertainBadge: "Needs name",
+        namedBadge: "Named",
+        menuAria: "Observation menu",
+        detail: "View details",
+        delete: "Delete",
+        deleting: "Deleting...",
+        deleteConfirm: "Delete this observation from the list and public page?",
+        deleteFailedPrefix: "Could not delete: ",
+      },
+      emptyLibrary: "No records in this observation library yet.",
+      latestFallback: "As records grow, monthly shelves will appear here.",
+      nearbyEmpty: "Nearby public records are not available yet. Your own library stays primary.",
+      footerNote: "Observation shelves live here. Growth and local contribution stay on your profile.",
+    },
+    es: {
+      pageTitle: "Biblioteca de observaciones | ikimon",
+      activeNav: "Notes",
+      heroEyebrow: "Biblioteca de observaciones",
+      heroTitle: "Biblioteca de observaciones",
+      heroLead: "Una biblioteca visual para tus registros. Fotos, videos, guías y hallazgos del mapa quedan ordenados por mes para mirar, buscar y abrir el siguiente registro con rapidez.",
+      actions: {
+        record: "Registrar foto o video",
+        guide: "Usar guía en vivo",
+        outcomes: "Ver resultados",
+      },
+      statsAria: "Resumen de la biblioteca de observaciones",
+      stats: {
+        observations: "Registros",
+        photos: "Fotos",
+        named: "Con nombre",
+      },
+      loop: {
+        aria: "Ciclo de observación",
+        eyebrow: "Experience loop",
+        title: "Registra, lee, revisa y vuelve a caminar.",
+        lead: "La biblioteca no es un almacén. Es el lugar que ayuda a elegir la próxima salida conectando fotos, videos, guías, resultados y mapa.",
+        steps: [
+          { label: "Record", title: "Guarda fotos o video", body: "Conserva el sujeto, el lugar y la hora antes de que se pierdan los detalles.", path: "/record", cta: "Registrar" },
+          { label: "Guide", title: "Lee el entorno, no solo el nombre", body: "Si el nombre no está claro, guarda pistas de vegetación, agua, caminos y hábitat.", path: "/guide", cta: "Abrir guía" },
+          { label: "Outcome", title: "Revisa lo que produjo la caminata", body: "Mira rutas, tarjetas representativas y próximos lugares como resultado de la salida.", path: "/guide/outcomes", cta: "Ver resultados" },
+          { label: "Map", title: "Vuelve al siguiente lugar", body: "Compara la biblioteca con el mapa para notar vacíos, temporadas y sitios para volver.", path: "/map", cta: "Abrir mapa" },
+        ],
+      },
+      sections: {
+        ownEyebrow: "My observations",
+        publicEyebrow: "Public sample",
+        ownTitle: "Mis registros de observación",
+        publicTitle: "Registros públicos de observación",
+        placesEyebrow: "Albums",
+        placesTitle: "Álbumes de lugares",
+        placesLead: "Abre lugares conocidos como carpetas.",
+        placesEmpty: "Aún no hay álbumes de lugares.",
+        nearbyEyebrow: "Nearby traces",
+        nearbyTitle: "Registros públicos cercanos",
+        nearbyLead: "Se mantienen separados de tu biblioteca y sirven como contexto local.",
+      },
+      controls: {
+        aria: "Filtrar biblioteca de observaciones",
+        searchPlaceholder: "Buscar por nombre o lugar",
+        filterAria: "Filtros de vista",
+        sourceLanesAria: "Tipos de datos",
+        all: "Todo",
+        photo: "Fotos",
+        video: "Video",
+        guide: "Guía",
+        scan: "Escaneo",
+        uncertain: "Sin nombre",
+        identified: "Con ID",
+      },
+      sourceLabels: {
+        video: "Video",
+        guide: "Guía",
+        scan: "Escaneo",
+        photo: "Foto",
+        note: "Nota",
+      },
+      card: {
+        fallbackName: "Registro con nombre por confirmar",
+        fallbackPlace: "Lugar no definido",
+        uncertainBadge: "Sin nombre",
+        namedBadge: "Con nombre",
+        menuAria: "Menú de observación",
+        detail: "Ver detalles",
+        delete: "Eliminar",
+        deleting: "Eliminando...",
+        deleteConfirm: "¿Eliminar esta observación de la lista y de la página pública?",
+        deleteFailedPrefix: "No se pudo eliminar: ",
+      },
+      emptyLibrary: "Aún no hay registros en esta biblioteca.",
+      latestFallback: "A medida que crezcan los registros, aquí aparecerán estantes mensuales.",
+      nearbyEmpty: "Aún no hay registros públicos cercanos disponibles. Tu biblioteca sigue siendo lo principal.",
+      footerNote: "Los registros viven aquí. El crecimiento y la contribución local quedan en tu perfil.",
+    },
+    "pt-BR": {
+      pageTitle: "Biblioteca de observações | ikimon",
+      activeNav: "Notes",
+      heroEyebrow: "Biblioteca de observações",
+      heroTitle: "Biblioteca de observações",
+      heroLead: "Uma biblioteca visual para seus registros. Fotos, vídeos, guias e descobertas do mapa ficam organizados por mês para navegar, buscar e abrir o próximo registro rapidamente.",
+      actions: {
+        record: "Registrar foto ou vídeo",
+        guide: "Usar guia ao vivo",
+        outcomes: "Ver resultados",
+      },
+      statsAria: "Resumo da biblioteca de observações",
+      stats: {
+        observations: "Registros",
+        photos: "Fotos",
+        named: "Com nome",
+      },
+      loop: {
+        aria: "Ciclo de observação",
+        eyebrow: "Experience loop",
+        title: "Registre, leia, revise e caminhe de novo.",
+        lead: "A biblioteca não é armazenamento. Ela ajuda a escolher a próxima saída conectando fotos, vídeos, guias, resultados e mapa.",
+        steps: [
+          { label: "Record", title: "Salve fotos ou vídeo", body: "Guarde o sujeito, o lugar e o horário antes que os detalhes se percam.", path: "/record", cta: "Registrar" },
+          { label: "Guide", title: "Leia o ambiente, não só o nome", body: "Quando o nome não estiver claro, salve pistas de vegetação, água, caminho e habitat.", path: "/guide", cta: "Abrir guia" },
+          { label: "Outcome", title: "Revise o que a caminhada gerou", body: "Veja rotas, cartões representativos e próximos lugares como resultado da saída.", path: "/guide/outcomes", cta: "Ver resultados" },
+          { label: "Map", title: "Volte ao próximo lugar", body: "Compare a biblioteca com o mapa para notar lacunas, estações e locais para revisitar.", path: "/map", cta: "Abrir mapa" },
+        ],
+      },
+      sections: {
+        ownEyebrow: "My observations",
+        publicEyebrow: "Public sample",
+        ownTitle: "Meus registros de observação",
+        publicTitle: "Registros públicos de observação",
+        placesEyebrow: "Albums",
+        placesTitle: "Álbuns de lugares",
+        placesLead: "Abra lugares conhecidos como pastas.",
+        placesEmpty: "Ainda não há álbuns de lugares.",
+        nearbyEyebrow: "Nearby traces",
+        nearbyTitle: "Registros públicos próximos",
+        nearbyLead: "Eles ficam separados da sua biblioteca e servem como contexto local.",
+      },
+      controls: {
+        aria: "Filtrar biblioteca de observações",
+        searchPlaceholder: "Buscar por nome ou lugar",
+        filterAria: "Filtros de visualização",
+        sourceLanesAria: "Tipos de dados",
+        all: "Todos",
+        photo: "Fotos",
+        video: "Vídeo",
+        guide: "Guia",
+        scan: "Scan",
+        uncertain: "Sem nome",
+        identified: "Com ID",
+      },
+      sourceLabels: {
+        video: "Vídeo",
+        guide: "Guia",
+        scan: "Scan",
+        photo: "Foto",
+        note: "Nota",
+      },
+      card: {
+        fallbackName: "Registro com nome a confirmar",
+        fallbackPlace: "Lugar não definido",
+        uncertainBadge: "Sem nome",
+        namedBadge: "Com nome",
+        menuAria: "Menu da observação",
+        detail: "Ver detalhes",
+        delete: "Excluir",
+        deleting: "Excluindo...",
+        deleteConfirm: "Excluir esta observação da lista e da página pública?",
+        deleteFailedPrefix: "Não foi possível excluir: ",
+      },
+      emptyLibrary: "Ainda não há registros nesta biblioteca.",
+      latestFallback: "Conforme os registros crescem, prateleiras mensais aparecem aqui.",
+      nearbyEmpty: "Ainda não há registros públicos próximos disponíveis. Sua biblioteca continua em primeiro plano.",
+      footerNote: "Os registros ficam aqui. Crescimento e contribuição local ficam no seu perfil.",
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function formatNotesNumber(value: number, lang: SiteLang): string {
+  const locale = lang === "ja" ? "ja-JP" : lang === "es" ? "es-ES" : lang === "pt-BR" ? "pt-BR" : "en-US";
+  return new Intl.NumberFormat(locale).format(value);
+}
+
+function notesItemCountLabel(count: number, lang: SiteLang): string {
+  const value = formatNotesNumber(count, lang);
+  if (lang === "ja") return `${value} 件`;
+  if (lang === "es") return `${value} registros`;
+  if (lang === "pt-BR") return `${value} registros`;
+  return `${value} records`;
+}
+
+function notesPlaceCountLabel(count: number, lang: SiteLang): string {
+  const value = formatNotesNumber(count, lang);
+  if (lang === "ja") return `${value} 場所`;
+  if (lang === "es") return `${value} lugares`;
+  if (lang === "pt-BR") return `${value} lugares`;
+  return `${value} places`;
+}
+
+function notesRecordUnitLabel(lang: SiteLang): string {
+  if (lang === "ja") return "件";
+  if (lang === "es") return "registros";
+  if (lang === "pt-BR") return "registros";
+  return "records";
+}
+
+function notesPhotoCountLabel(count: number, lang: SiteLang): string {
+  const value = formatNotesNumber(count, lang);
+  if (lang === "ja") return `${value}枚`;
+  if (lang === "es") return `${value} fotos`;
+  if (lang === "pt-BR") return `${value} fotos`;
+  return `${value} photos`;
+}
+
+function notesPhotoAltIndex(index: number, lang: SiteLang): string {
+  const value = formatNotesNumber(index, lang);
+  if (lang === "ja") return `写真${value}`;
+  if (lang === "es") return `foto ${value}`;
+  if (lang === "pt-BR") return `foto ${value}`;
+  return `photo ${value}`;
+}
+
 function renderNotesExperienceLoop(basePath: string, lang: SiteLang): string {
+  const copy = notesLibraryCopy(lang).loop;
   const href = (path: string) => escapeHtml(appendLangToHref(withBasePath(basePath, path), lang));
-  const steps = [
-    {
-      label: "Record",
-      title: "写真・動画を残す",
-      body: "主役、場所、時間を先に保存して、観察データの棚を増やす。",
-      href: href("/record"),
-      cta: "記録する",
-    },
-    {
-      label: "Guide",
-      title: "名前より環境を読む",
-      body: "分からない場面はライブガイドで、植生・水路・道ばたの変化を足跡にする。",
-      href: href("/guide"),
-      cta: "ガイドへ",
-    },
-    {
-      label: "Outcome",
-      title: "歩いた成果を見る",
-      body: "ガイドのルート、代表カード、次に見る場所を成果として確認する。",
-      href: href("/guide/outcomes"),
-      cta: "成果を見る",
-    },
-    {
-      label: "Map",
-      title: "次の場所へ戻る",
-      body: "ノートと地図を見比べて、空白や季節差が見える場所へ戻る。",
-      href: href("/map"),
-      cta: "地図を見る",
-    },
-  ];
-  return `<section class="notes-experience-loop" aria-label="観察体験の流れ">
+  return `<section class="notes-experience-loop" aria-label="${escapeHtml(copy.aria)}">
     <div class="notes-loop-head">
-      <span>Experience loop</span>
-      <h2>記録して、読んで、成果を見て、また歩く。</h2>
-      <p>観察ライブラリは倉庫ではなく、次の一歩を決める場所です。写真・動画、ライブガイド、ガイド成果、マップを同じ循環として扱います。</p>
+      <span>${escapeHtml(copy.eyebrow)}</span>
+      <h2>${escapeHtml(copy.title)}</h2>
+      <p>${escapeHtml(copy.lead)}</p>
     </div>
     <div class="notes-loop-steps">
-      ${steps.map((step, index) => `<a class="notes-loop-step" href="${step.href}">
+      ${copy.steps.map((step, index) => `<a class="notes-loop-step" href="${href(step.path)}">
         <b>${index + 1}</b>
         <span>${escapeHtml(step.label)}</span>
         <strong>${escapeHtml(step.title)}</strong>
@@ -2272,6 +2691,10 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
 }
 
 const START_STATE_STYLES = `
+  .record-confidence-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+  .record-confidence-item { flex: 1 1 112px; min-height: 58px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
+  .record-confidence-item strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
+  .record-confidence-item span { display: block; margin-top: 3px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 750; }
   .start-guide { display: grid; gap: 20px; }
   .start-guide-panel { max-width: 760px; margin: 0 auto; padding: 24px; border-radius: 24px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(240,249,255,.92)); border: 1px solid rgba(16,185,129,.18); }
   .start-guide-panel h2 { margin: 8px 0; color: #0f172a; }
@@ -2292,7 +2715,1066 @@ const START_STATE_STYLES = `
   }
 `;
 
+type RecordConfidenceItem = {
+  title: string;
+  body: string;
+};
+
+type RecordStartCopy = {
+  title: string;
+  activeNav: string;
+  footerNote: string;
+  heroEyebrow: string;
+  heroHeading: string;
+  heroLead: string;
+  photoAction: string;
+  registerAction: string;
+  panelEyebrow: string;
+  panelHeading: string;
+  panelBody: string;
+  noteAction: string;
+  learnAction: string;
+  dockAria: string;
+  dockPhoto: string;
+  dockNote: string;
+  dockVideo: string;
+  dockGallery: string;
+  confidenceAria: string;
+  confidenceItems: RecordConfidenceItem[];
+};
+
+type RecordPageCopy = {
+  title: string;
+  activeNav: string;
+  footerNote: string;
+  heading: string;
+  lead: string;
+  sessionLabel: string;
+  captureAria: string;
+  photoTitle: string;
+  photoSub: string;
+  noteTitle: string;
+  noteSub: string;
+  videoTitle: string;
+  videoSub: string;
+  galleryTitle: string;
+  gallerySub: string;
+  guideLink: string;
+  learnLink: string;
+  dockAria: string;
+  dockPhoto: string;
+  dockNote: string;
+  dockVideo: string;
+  dockGallery: string;
+  captureResultLabel: string;
+  captureResultTitle: string;
+  captureResultHelp: string;
+  captureChange: string;
+  locationTitle: string;
+  locationBody: string;
+  locationAction: string;
+  submittingLabel: string;
+  modeEntryLabel: string;
+  modeQuickLabel: string;
+  modeSurveyLabel: string;
+  modeQuickLead: string;
+  modeSurveyLead: string;
+  confidenceAria: string;
+  confidenceItems: RecordConfidenceItem[];
+  captureLabels: Record<"note" | "photo" | "video" | "gallery", { title: string; help: string }>;
+};
+
+type RecordFormCopy = {
+  preSubmitLabel: string;
+  submitPanelTitle: string;
+  submitPanelHelpMedia: string;
+  submitPanelHelpNote: string;
+  submitPanelHelpEmpty: string;
+  submitButton: string;
+  observedAtLabel: string;
+  placeLabel: string;
+  locationUnknown: string;
+  locationHelp: string;
+  currentLocation: string;
+  locationSearchPlaceholder: string;
+  locationSearchButton: string;
+  locationMapAria: string;
+  locationMapFallback: string;
+  coordinateSummary: string;
+  latitudeLabel: string;
+  longitudeLabel: string;
+  coordinatePlaceholder: string;
+  laterSummary: string;
+  localityNoteLabel: string;
+  localityNotePlaceholder: string;
+  mediaRoleLabel: string;
+  mediaRolePrimaryTitle: string;
+  mediaRolePrimaryBody: string;
+  mediaRoleContextTitle: string;
+  mediaRoleContextBody: string;
+  mediaRoleSoundTitle: string;
+  mediaRoleSoundBody: string;
+  mediaRoleSecondaryTitle: string;
+  mediaRoleSecondaryBody: string;
+  vernacularNameLabel: string;
+  vernacularNamePlaceholder: string;
+  scientificNameLabel: string;
+  scientificNamePlaceholder: string;
+  municipalityLabel: string;
+  municipalityPlaceholder: string;
+  rankLabel: string;
+  recordModeLabel: string;
+  quickModeTitle: string;
+  quickModeBody: string;
+  surveyModeTitle: string;
+  surveyModeBody: string;
+  tipsLink: string;
+  submitDockAria: string;
+  submitDockLocation: string;
+  submitDockMeta: string;
+  submitDockSave: string;
+  locationSelected: string;
+  mediaNoteOnly: string;
+  mediaLocationMissing: string;
+  recordRoleTitle: string;
+  recordRoleHelp: string;
+  recordRolePill: string;
+  activityIntentLabel: string;
+  activityIntentOptions: Record<"discover" | "revisit" | "compare" | "learn" | "manage" | "confirm" | "share", string>;
+  participantRoleLabel: string;
+  participantRoleOptions: Record<"finder" | "photographer" | "context_recorder" | "note_taker" | "student" | "teacher" | "manager" | "participant", string>;
+  quickReviewTitle: string;
+  quickReviewHelp: string;
+  quickReviewPill: string;
+  quickCaptureStateLabel: string;
+  quickCaptureStateOptions: Record<"present" | "unknown" | "no_detection_note", string>;
+  nextLookForLabel: string;
+  nextLookForPlaceholder: string;
+  surveyBlockTitle: string;
+  surveyBlockHelp: string;
+  surveyBlockPill: string;
+  checklistCompletionLabel: string;
+  checklistCompletionOptions: Record<"complete" | "partial", string>;
+  targetTaxaScopeLabel: string;
+  targetTaxaScopePlaceholder: string;
+  effortMinutesLabel: string;
+  surveyResultLabel: string;
+  surveyResultOptions: Record<"detected" | "no_detection_note", string>;
+  revisitReasonLabel: string;
+  revisitReasonPlaceholder: string;
+  fieldScanTitle: string;
+  fieldScanHelp: string;
+  fieldScanPill: string;
+  fieldScanTypeLabel: string;
+  fieldScanModeOptions: Record<"none" | "site_snapshot" | "fixed_point" | "route" | "area_footprint" | "calibration_evidence", string>;
+  fixedPointIdLabel: string;
+  fixedPointIdPlaceholder: string;
+  routeIdLabel: string;
+  routeIdPlaceholder: string;
+  areaIdLabel: string;
+  areaIdPlaceholder: string;
+  waterTitle: string;
+  waterHelp: string;
+  waterPill: string;
+  catchOutcomeLabel: string;
+  catchOutcomeOptions: Record<"none" | "caught" | "released" | "kept" | "lost" | "no_catch" | "observed_only", string>;
+  captureMethodLabel: string;
+  captureMethodPlaceholder: string;
+  participantCountLabel: string;
+  publicWaterbodyLabel: string;
+  publicWaterbodyPlaceholder: string;
+  releasedCountLabel: string;
+  keptCountLabel: string;
+};
+
+function recordStartCopy(lang: SiteLang): RecordStartCopy {
+  const localized: Record<SiteLang, RecordStartCopy> = {
+    ja: {
+      title: "記録を始める準備 | ikimon",
+      activeNav: "記録する",
+      footerNote: "詳しい使い方は読み物ページで確認できます。",
+      heroEyebrow: "record",
+      heroHeading: "写真で記録を始める",
+      heroLead: "まず写真を1枚残せば十分です。名前や詳しい説明は、あとから足せます。",
+      photoAction: "ログインして写真で記録",
+      registerAction: "新しく登録して記録する",
+      panelEyebrow: "sign in required",
+      panelHeading: "記録画面はログイン後に開きます。",
+      panelBody: "写真・場所・時間を個人ノートに保存するため、投稿前にログインします。",
+      noteAction: "メモで始める",
+      learnAction: "使い方を読む",
+      dockAria: "ログインして投稿を始める",
+      dockPhoto: "写真",
+      dockNote: "メモ",
+      dockVideo: "動画",
+      dockGallery: "選ぶ",
+      confidenceAria: "記録を始めやすくするヒント",
+      confidenceItems: [
+        { title: "名前はあとでOK", body: "分からないまま保存できます。" },
+        { title: "写真1枚で保存", body: "場所と時間も一緒に残ります。" },
+        { title: "みんなで確認できる", body: "公開後に手がかりが増えます。" },
+      ],
+    },
+    en: {
+      title: "Start a record | ikimon",
+      activeNav: "Record",
+      footerNote: "Read the guide when you want more detail.",
+      heroEyebrow: "record",
+      heroHeading: "Start with a photo",
+      heroLead: "One photo is enough. Names and details can come later.",
+      photoAction: "Sign in and record a photo",
+      registerAction: "Create account and record",
+      panelEyebrow: "sign in required",
+      panelHeading: "Sign in before opening the record screen.",
+      panelBody: "Your photo, place, and time are saved to your own notebook.",
+      noteAction: "Start with a note",
+      learnAction: "Read how it works",
+      dockAria: "Sign in and start a record",
+      dockPhoto: "Photo",
+      dockNote: "Note",
+      dockVideo: "Video",
+      dockGallery: "Files",
+      confidenceAria: "Prompts that make recording easier",
+      confidenceItems: [
+        { title: "Name can come later", body: "Save the moment first." },
+        { title: "One photo is enough", body: "Place and time stay with it." },
+        { title: "Community can help", body: "A public record can collect clues." },
+      ],
+    },
+    es: {
+      title: "Empezar un registro | ikimon",
+      activeNav: "Registro",
+      footerNote: "Lee la guia cuando quieras mas detalle.",
+      heroEyebrow: "registro",
+      heroHeading: "Empieza con una foto",
+      heroLead: "Una foto basta. El nombre y los detalles pueden venir despues.",
+      photoAction: "Iniciar sesion y registrar foto",
+      registerAction: "Crear cuenta y registrar",
+      panelEyebrow: "sesion requerida",
+      panelHeading: "Inicia sesion antes de abrir la pantalla de registro.",
+      panelBody: "Tu foto, lugar y hora se guardan en tu propio cuaderno.",
+      noteAction: "Empezar con nota",
+      learnAction: "Leer como funciona",
+      dockAria: "Iniciar sesion y empezar un registro",
+      dockPhoto: "Foto",
+      dockNote: "Nota",
+      dockVideo: "Video",
+      dockGallery: "Archivos",
+      confidenceAria: "Pistas para registrar con confianza",
+      confidenceItems: [
+        { title: "El nombre puede esperar", body: "Guarda primero el momento." },
+        { title: "Una foto basta", body: "Lugar y hora quedan juntos." },
+        { title: "La comunidad ayuda", body: "El registro puede sumar pistas." },
+      ],
+    },
+    "pt-BR": {
+      title: "Comecar um registro | ikimon",
+      activeNav: "Registrar",
+      footerNote: "Leia o guia quando quiser mais detalhes.",
+      heroEyebrow: "registro",
+      heroHeading: "Comece com uma foto",
+      heroLead: "Uma foto basta. O nome e os detalhes podem vir depois.",
+      photoAction: "Entrar e registrar foto",
+      registerAction: "Criar conta e registrar",
+      panelEyebrow: "login necessario",
+      panelHeading: "Entre antes de abrir a tela de registro.",
+      panelBody: "Sua foto, local e horario ficam salvos no seu proprio caderno.",
+      noteAction: "Comecar com nota",
+      learnAction: "Ler como funciona",
+      dockAria: "Entrar e comecar um registro",
+      dockPhoto: "Foto",
+      dockNote: "Nota",
+      dockVideo: "Video",
+      dockGallery: "Arquivos",
+      confidenceAria: "Pistas para registrar com confianca",
+      confidenceItems: [
+        { title: "O nome pode vir depois", body: "Salve o momento primeiro." },
+        { title: "Uma foto basta", body: "Local e horario ficam juntos." },
+        { title: "A comunidade ajuda", body: "O registro pode ganhar pistas." },
+      ],
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function recordPageCopy(lang: SiteLang): RecordPageCopy {
+  const start = recordStartCopy(lang);
+  const localized: Record<SiteLang, RecordPageCopy> = {
+    ja: {
+      title: "記録する | ikimon",
+      activeNav: "記録する",
+      footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+      heading: "写真で記録する",
+      lead: "写真を撮るか選ぶだけで始められます。必要な入力はそのあとに出します。",
+      sessionLabel: "ログイン中",
+      captureAria: "投稿の始め方",
+      photoTitle: "写真で記録する",
+      photoSub: "撮る / 選ぶ",
+      noteTitle: "メモだけ残す",
+      noteSub: "写真なし",
+      videoTitle: "動画で残す",
+      videoSub: "最大60秒",
+      galleryTitle: "ファイルから選ぶ",
+      gallerySub: "写真 / 動画",
+      guideLink: "AIのヒントを見ながら探す",
+      learnLink: "使い方を読む",
+      dockAria: "すぐ投稿する",
+      dockPhoto: "写真",
+      dockNote: "メモ",
+      dockVideo: "動画",
+      dockGallery: "選ぶ",
+      captureResultLabel: "自動下書き",
+      captureResultTitle: "未選択",
+      captureResultHelp: "写真・日時・地点だけで保存できます。名前や説明はあとで足せます。",
+      captureChange: "選び直す",
+      locationTitle: "写真に場所も入れる",
+      locationBody: "現在地を入れると、あとで同じ場所を見返しやすくなります。",
+      locationAction: "現在地を入れる",
+      submittingLabel: "送信中...",
+      modeEntryLabel: "投稿入口",
+      modeQuickLabel: "ふだんの記録",
+      modeSurveyLabel: "しっかり記録",
+      modeQuickLead: "場所・時間・気づいたことを、まず 1 件残すための入力です。",
+      modeSurveyLead: "見た条件も一緒に残して、あとで比べやすくするための入力です。",
+      confidenceAria: start.confidenceAria,
+      confidenceItems: start.confidenceItems,
+      captureLabels: {
+        note: { title: "メモだけ残す", help: "写真なしでも、場所・時間・ひとことで記録できます。" },
+        photo: { title: "写真で記録する", help: "撮った写真、または端末上の写真を記録に添付します。" },
+        video: { title: "動画で記録する", help: "動画を選ぶと、長さ・地点・公開までの状態を順番に案内します。" },
+        gallery: { title: "ファイルを選ぶ", help: "撮影済みの写真または動画を記録に添付します。" },
+      },
+    },
+    en: {
+      title: "Record | ikimon",
+      activeNav: "Record",
+      footerNote: "Save nearby nature in a form you can revisit later.",
+      heading: "Record with photo",
+      lead: "Take or choose a photo first. The extra fields appear only after that.",
+      sessionLabel: "Signed in",
+      captureAria: "Ways to start a record",
+      photoTitle: "Record with photo",
+      photoSub: "Take / choose",
+      noteTitle: "Leave a note",
+      noteSub: "No photo",
+      videoTitle: "Record video",
+      videoSub: "Up to 60 sec",
+      galleryTitle: "Choose files",
+      gallerySub: "Photo / video",
+      guideLink: "Look with AI hints",
+      learnLink: "Read how it works",
+      dockAria: "Start recording now",
+      dockPhoto: "Photo",
+      dockNote: "Note",
+      dockVideo: "Video",
+      dockGallery: "Files",
+      captureResultLabel: "Auto draft",
+      captureResultTitle: "Nothing selected",
+      captureResultHelp: "Photo, time, and place are enough to save. Names and notes can come later.",
+      captureChange: "Choose again",
+      locationTitle: "Add a place to the photo",
+      locationBody: "Adding your location makes it easier to revisit the same place later.",
+      locationAction: "Use current location",
+      submittingLabel: "Sending...",
+      modeEntryLabel: "Record entry",
+      modeQuickLabel: "Everyday record",
+      modeSurveyLabel: "Survey record",
+      modeQuickLead: "Save one record with place, time, and what you noticed.",
+      modeSurveyLead: "Add viewing conditions so you can compare this place later.",
+      confidenceAria: start.confidenceAria,
+      confidenceItems: start.confidenceItems,
+      captureLabels: {
+        note: { title: "Leave a note", help: "Record place, time, and a short note even without a photo." },
+        photo: { title: "Record with photo", help: "Attach a new photo or a photo from this device." },
+        video: { title: "Record video", help: "After choosing a video, we guide length, place, and publishing status." },
+        gallery: { title: "Choose files", help: "Attach saved photos or videos to this record." },
+      },
+    },
+    es: {
+      title: "Registrar | ikimon",
+      activeNav: "Registro",
+      footerNote: "Guarda la naturaleza cercana para volver a verla despues.",
+      heading: "Registrar con foto",
+      lead: "Toma o elige una foto primero. Los campos extra aparecen despues.",
+      sessionLabel: "Sesion iniciada",
+      captureAria: "Formas de empezar un registro",
+      photoTitle: "Registrar con foto",
+      photoSub: "Tomar / elegir",
+      noteTitle: "Dejar nota",
+      noteSub: "Sin foto",
+      videoTitle: "Registrar video",
+      videoSub: "Hasta 60 s",
+      galleryTitle: "Elegir archivos",
+      gallerySub: "Foto / video",
+      guideLink: "Buscar con pistas de IA",
+      learnLink: "Leer como funciona",
+      dockAria: "Registrar ahora",
+      dockPhoto: "Foto",
+      dockNote: "Nota",
+      dockVideo: "Video",
+      dockGallery: "Archivos",
+      captureResultLabel: "Borrador automatico",
+      captureResultTitle: "Nada elegido",
+      captureResultHelp: "Foto, hora y lugar bastan para guardar. El nombre y las notas pueden venir despues.",
+      captureChange: "Elegir otra vez",
+      locationTitle: "Agregar lugar a la foto",
+      locationBody: "Agregar ubicacion ayuda a volver al mismo lugar despues.",
+      locationAction: "Usar ubicacion actual",
+      submittingLabel: "Enviando...",
+      modeEntryLabel: "Entrada de registro",
+      modeQuickLabel: "Registro diario",
+      modeSurveyLabel: "Registro de muestreo",
+      modeQuickLead: "Guarda un registro con lugar, hora y lo que notaste.",
+      modeSurveyLead: "Agrega condiciones para comparar este lugar despues.",
+      confidenceAria: start.confidenceAria,
+      confidenceItems: start.confidenceItems,
+      captureLabels: {
+        note: { title: "Dejar nota", help: "Registra lugar, hora y una nota corta aunque no haya foto." },
+        photo: { title: "Registrar con foto", help: "Adjunta una foto nueva o una foto del dispositivo." },
+        video: { title: "Registrar video", help: "Despues de elegir video, guiamos duracion, lugar y estado de publicacion." },
+        gallery: { title: "Elegir archivos", help: "Adjunta fotos o videos guardados a este registro." },
+      },
+    },
+    "pt-BR": {
+      title: "Registrar | ikimon",
+      activeNav: "Registrar",
+      footerNote: "Salve a natureza por perto para rever depois.",
+      heading: "Registrar com foto",
+      lead: "Tire ou escolha uma foto primeiro. Os campos extras aparecem depois.",
+      sessionLabel: "Conectado",
+      captureAria: "Formas de comecar um registro",
+      photoTitle: "Registrar com foto",
+      photoSub: "Tirar / escolher",
+      noteTitle: "Deixar nota",
+      noteSub: "Sem foto",
+      videoTitle: "Registrar video",
+      videoSub: "Ate 60 s",
+      galleryTitle: "Escolher arquivos",
+      gallerySub: "Foto / video",
+      guideLink: "Procurar com dicas de IA",
+      learnLink: "Ler como funciona",
+      dockAria: "Registrar agora",
+      dockPhoto: "Foto",
+      dockNote: "Nota",
+      dockVideo: "Video",
+      dockGallery: "Arquivos",
+      captureResultLabel: "Rascunho automatico",
+      captureResultTitle: "Nada selecionado",
+      captureResultHelp: "Foto, horario e local bastam para salvar. Nome e notas podem vir depois.",
+      captureChange: "Escolher de novo",
+      locationTitle: "Adicionar local a foto",
+      locationBody: "Adicionar o local facilita rever o mesmo ponto depois.",
+      locationAction: "Usar local atual",
+      submittingLabel: "Enviando...",
+      modeEntryLabel: "Entrada do registro",
+      modeQuickLabel: "Registro diario",
+      modeSurveyLabel: "Registro de campo",
+      modeQuickLead: "Salve um registro com local, horario e o que voce notou.",
+      modeSurveyLead: "Adicione condicoes para comparar este lugar depois.",
+      confidenceAria: start.confidenceAria,
+      confidenceItems: start.confidenceItems,
+      captureLabels: {
+        note: { title: "Deixar nota", help: "Registre local, horario e uma nota curta mesmo sem foto." },
+        photo: { title: "Registrar com foto", help: "Anexe uma foto nova ou uma foto deste dispositivo." },
+        video: { title: "Registrar video", help: "Depois de escolher video, guiamos duracao, local e status de publicacao." },
+        gallery: { title: "Escolher arquivos", help: "Anexe fotos ou videos salvos a este registro." },
+      },
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function recordFormCopy(lang: SiteLang): RecordFormCopy {
+  const localized: Record<SiteLang, RecordFormCopy> = {
+    ja: {
+      preSubmitLabel: "送信前チェック",
+      submitPanelTitle: "メディア未選択",
+      submitPanelHelpMedia: "日時と地点を確認して保存します。名前や説明はあとで足せます。",
+      submitPanelHelpNote: "写真なしの観察メモとして保存します。あとで写真を足せます。",
+      submitPanelHelpEmpty: "写真を選ぶと、ここから保存できます。",
+      submitButton: "保存してあとで補完",
+      observedAtLabel: "観察した日時",
+      placeLabel: "撮影地点",
+      locationUnknown: "地点未指定",
+      locationHelp: "現在地、検索、地図タップで撮影地点を決められます。",
+      currentLocation: "現在地",
+      locationSearchPlaceholder: "公園名・駅名・住所で探す",
+      locationSearchButton: "検索",
+      locationMapAria: "撮影地点を地図で指定",
+      locationMapFallback: "地図を読み込み中。表示されたらタップして地点を指定できます。",
+      coordinateSummary: "座標を直接編集",
+      latitudeLabel: "緯度",
+      longitudeLabel: "経度",
+      coordinatePlaceholder: "自動取得 or 手入力",
+      laterSummary: "あとで補完する項目",
+      localityNoteLabel: "場所のメモ",
+      localityNotePlaceholder: "例: 公園の入口付近 / 水辺の柵のそば",
+      mediaRoleLabel: "このメディアの役割",
+      mediaRolePrimaryTitle: "主役",
+      mediaRolePrimaryBody: "この記録の中心",
+      mediaRoleContextTitle: "周囲",
+      mediaRoleContextBody: "場所・環境の手がかり",
+      mediaRoleSoundTitle: "音・動き",
+      mediaRoleSoundBody: "鳴き声や行動",
+      mediaRoleSecondaryTitle: "別対象候補",
+      mediaRoleSecondaryBody: "同じ画面の別の生きもの",
+      vernacularNameLabel: "和名 / 通称（分かれば）",
+      vernacularNamePlaceholder: "例: スズメ",
+      scientificNameLabel: "学名 / 分類（分かれば）",
+      scientificNamePlaceholder: "例: Passer montanus",
+      municipalityLabel: "市区町村",
+      municipalityPlaceholder: "例: 浜松市",
+      rankLabel: "確信度",
+      recordModeLabel: "記録モード",
+      quickModeTitle: "ふだんの記録",
+      quickModeBody: "いつもの散歩で見つけたことを残す",
+      surveyModeTitle: "しっかり記録",
+      surveyModeBody: "比べたい観察の条件も一緒に残す",
+      tipsLink: "記録のコツを読む",
+      submitDockAria: "記録を送信する",
+      submitDockLocation: "現在地",
+      submitDockMeta: "メディア未選択",
+      submitDockSave: "保存",
+      locationSelected: "撮影地点を指定済み",
+      mediaNoteOnly: "メモのみ",
+      mediaLocationMissing: "地点未指定",
+      recordRoleTitle: "この記録の役割",
+      recordRoleHelp: "目的と役割を軽く残すと、あとで定点比較・授業・管理記録に束ねやすくなります。",
+      recordRolePill: "文脈",
+      activityIntentLabel: "今日の目的",
+      activityIntentOptions: {
+        discover: "見つける",
+        revisit: "同じ場所をもう一度見る",
+        compare: "前と比べる",
+        learn: "授業・学びに使う",
+        manage: "手入れや管理と結びつける",
+        confirm: "気になる対象を確認する",
+        share: "観察会・共有用に残す",
+      },
+      participantRoleLabel: "自分の役割",
+      participantRoleOptions: {
+        finder: "見つけた人",
+        photographer: "撮影した人",
+        context_recorder: "周囲を記録する人",
+        note_taker: "メモ係",
+        student: "児童・生徒",
+        teacher: "先生・引率",
+        manager: "管理者",
+        participant: "参加者",
+      },
+      quickReviewTitle: "あとで見返すためのメモ",
+      quickReviewHelp: "見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。",
+      quickReviewPill: "再訪用",
+      quickCaptureStateLabel: "今回の残し方",
+      quickCaptureStateOptions: {
+        present: "見つけて書く",
+        unknown: "まだ分からないまま残す",
+        no_detection_note: "今日は見なかったメモを残す",
+      },
+      nextLookForLabel: "次に探すもの",
+      nextLookForPlaceholder: "例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花",
+      surveyBlockTitle: "比べるための記録",
+      surveyBlockHelp: "同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。",
+      surveyBlockPill: "比較用",
+      checklistCompletionLabel: "どこまで見たか",
+      checklistCompletionOptions: {
+        complete: "ひと通り見た",
+        partial: "気になるものだけ見た",
+      },
+      targetTaxaScopeLabel: "何を見たかったか",
+      targetTaxaScopePlaceholder: "例: 水辺の鳥 / 春のチョウ / 公園の花",
+      effortMinutesLabel: "見た時間（分）",
+      surveyResultLabel: "今回の結果",
+      surveyResultOptions: {
+        detected: "見つけて記録した",
+        no_detection_note: "見つからなかったメモだけ残す",
+      },
+      revisitReasonLabel: "また見に行きたい理由",
+      revisitReasonPlaceholder: "例: 先月と比べたい / 同じ水路の変化を見たい",
+      fieldScanTitle: "フィールドスキャン",
+      fieldScanHelp: "場所の状態、定点、ルート、面、較正証拠を分けて残します。",
+      fieldScanPill: "スキャン",
+      fieldScanTypeLabel: "種類",
+      fieldScanModeOptions: {
+        none: "指定なし",
+        site_snapshot: "場所",
+        fixed_point: "定点",
+        route: "ルート",
+        area_footprint: "面",
+        calibration_evidence: "較正",
+      },
+      fixedPointIdLabel: "定点ID",
+      fixedPointIdPlaceholder: "例: fp-park-01",
+      routeIdLabel: "ルートID",
+      routeIdPlaceholder: "例: route-river-01",
+      areaIdLabel: "エリアID",
+      areaIdPlaceholder: "例: area-wetland-01",
+      waterTitle: "水辺・釣果",
+      waterHelp: "釣った、見た、釣れなかったを分けて残します。",
+      waterPill: "水辺",
+      catchOutcomeLabel: "結果",
+      catchOutcomeOptions: {
+        none: "指定なし",
+        caught: "釣った/採った",
+        released: "リリース",
+        kept: "持ち帰り",
+        lost: "逃した",
+        no_catch: "釣れなかった",
+        observed_only: "見ただけ",
+      },
+      captureMethodLabel: "方法",
+      captureMethodPlaceholder: "例: ルアー / 目視 / タモ網",
+      participantCountLabel: "人数",
+      publicWaterbodyLabel: "公開水域名",
+      publicWaterbodyPlaceholder: "例: 市内の河川 / 浜名湖周辺",
+      releasedCountLabel: "放した数",
+      keptCountLabel: "持ち帰り数",
+    },
+    en: {
+      preSubmitLabel: "Before saving",
+      submitPanelTitle: "No media selected",
+      submitPanelHelpMedia: "Check time and place, then save. Names and notes can come later.",
+      submitPanelHelpNote: "Save this as a note without a photo. You can add a photo later.",
+      submitPanelHelpEmpty: "Choose a photo or note to save from here.",
+      submitButton: "Save and complete later",
+      observedAtLabel: "Observed time",
+      placeLabel: "Observation place",
+      locationUnknown: "Place not set",
+      locationHelp: "Use current location, search, or tap the map.",
+      currentLocation: "Current location",
+      locationSearchPlaceholder: "Search park, station, or address",
+      locationSearchButton: "Search",
+      locationMapAria: "Choose observation place on the map",
+      locationMapFallback: "Loading map. Tap it when it appears to set the place.",
+      coordinateSummary: "Edit coordinates directly",
+      latitudeLabel: "Latitude",
+      longitudeLabel: "Longitude",
+      coordinatePlaceholder: "Auto or manual",
+      laterSummary: "Fields you can complete later",
+      localityNoteLabel: "Place note",
+      localityNotePlaceholder: "Example: near the park entrance / by the waterside fence",
+      mediaRoleLabel: "Role of this media",
+      mediaRolePrimaryTitle: "Main subject",
+      mediaRolePrimaryBody: "Center of this record",
+      mediaRoleContextTitle: "Context",
+      mediaRoleContextBody: "Place and habitat clues",
+      mediaRoleSoundTitle: "Sound / motion",
+      mediaRoleSoundBody: "Call or behavior",
+      mediaRoleSecondaryTitle: "Another candidate",
+      mediaRoleSecondaryBody: "Another living thing in the frame",
+      vernacularNameLabel: "Common name if known",
+      vernacularNamePlaceholder: "Example: sparrow",
+      scientificNameLabel: "Scientific name / taxon if known",
+      scientificNamePlaceholder: "Example: Passer montanus",
+      municipalityLabel: "Municipality",
+      municipalityPlaceholder: "Example: Hamamatsu",
+      rankLabel: "Confidence rank",
+      recordModeLabel: "Record mode",
+      quickModeTitle: "Everyday record",
+      quickModeBody: "Save what you found on a normal walk",
+      surveyModeTitle: "Survey record",
+      surveyModeBody: "Add conditions when you want to compare later",
+      tipsLink: "Read recording tips",
+      submitDockAria: "Submit record",
+      submitDockLocation: "Location",
+      submitDockMeta: "No media selected",
+      submitDockSave: "Save",
+      locationSelected: "Place set",
+      mediaNoteOnly: "Note only",
+      mediaLocationMissing: "Place missing",
+      recordRoleTitle: "Role of this record",
+      recordRoleHelp: "A light purpose and role make it easier to reuse later for revisits, classes, or management notes.",
+      recordRolePill: "Context",
+      activityIntentLabel: "Today's purpose",
+      activityIntentOptions: {
+        discover: "Discover",
+        revisit: "Revisit the same place",
+        compare: "Compare with before",
+        learn: "Use for class or learning",
+        manage: "Connect to care or management",
+        confirm: "Check something you noticed",
+        share: "Save for a group walk",
+      },
+      participantRoleLabel: "Your role",
+      participantRoleOptions: {
+        finder: "Finder",
+        photographer: "Photographer",
+        context_recorder: "Context recorder",
+        note_taker: "Note taker",
+        student: "Student",
+        teacher: "Teacher / guide",
+        manager: "Manager",
+        participant: "Participant",
+      },
+      quickReviewTitle: "Note for later",
+      quickReviewHelp: "A small found / not found / unsure note makes the next walk easier to compare.",
+      quickReviewPill: "Revisit",
+      quickCaptureStateLabel: "How to keep this record",
+      quickCaptureStateOptions: {
+        present: "Found and noted",
+        unknown: "Save while unsure",
+        no_detection_note: "Not found today",
+      },
+      nextLookForLabel: "What to look for next",
+      nextLookForPlaceholder: "Example: the waterside bird from last week / a leaf to identify / the same tree flower",
+      surveyBlockTitle: "Record for comparison",
+      surveyBlockHelp: "Use this when you want to compare the same place later. It stays separate from everyday records.",
+      surveyBlockPill: "Compare",
+      checklistCompletionLabel: "How much did you check?",
+      checklistCompletionOptions: {
+        complete: "Checked broadly",
+        partial: "Checked selected things",
+      },
+      targetTaxaScopeLabel: "What did you want to check?",
+      targetTaxaScopePlaceholder: "Example: waterside birds / spring butterflies / park flowers",
+      effortMinutesLabel: "Time spent (minutes)",
+      surveyResultLabel: "Result this time",
+      surveyResultOptions: {
+        detected: "Found and recorded",
+        no_detection_note: "Not found note only",
+      },
+      revisitReasonLabel: "Why revisit?",
+      revisitReasonPlaceholder: "Example: compare with last month / check changes in the same canal",
+      fieldScanTitle: "Field scan",
+      fieldScanHelp: "Separate site state, fixed point, route, area, and calibration evidence.",
+      fieldScanPill: "Scan",
+      fieldScanTypeLabel: "Type",
+      fieldScanModeOptions: {
+        none: "Not specified",
+        site_snapshot: "Site",
+        fixed_point: "Fixed point",
+        route: "Route",
+        area_footprint: "Area",
+        calibration_evidence: "Calibration",
+      },
+      fixedPointIdLabel: "Fixed point ID",
+      fixedPointIdPlaceholder: "Example: fp-park-01",
+      routeIdLabel: "Route ID",
+      routeIdPlaceholder: "Example: route-river-01",
+      areaIdLabel: "Area ID",
+      areaIdPlaceholder: "Example: area-wetland-01",
+      waterTitle: "Waterside / catch",
+      waterHelp: "Keep caught, seen, and not caught records separate.",
+      waterPill: "Waterside",
+      catchOutcomeLabel: "Outcome",
+      catchOutcomeOptions: {
+        none: "Not specified",
+        caught: "Caught / collected",
+        released: "Released",
+        kept: "Kept",
+        lost: "Lost",
+        no_catch: "No catch",
+        observed_only: "Seen only",
+      },
+      captureMethodLabel: "Method",
+      captureMethodPlaceholder: "Example: lure / visual check / net",
+      participantCountLabel: "People",
+      publicWaterbodyLabel: "Public waterbody label",
+      publicWaterbodyPlaceholder: "Example: city river / around Lake Hamana",
+      releasedCountLabel: "Released count",
+      keptCountLabel: "Kept count",
+    },
+    es: {
+      preSubmitLabel: "Antes de guardar",
+      submitPanelTitle: "Sin medio elegido",
+      submitPanelHelpMedia: "Revisa hora y lugar, luego guarda. El nombre y las notas pueden venir despues.",
+      submitPanelHelpNote: "Guarda esto como nota sin foto. Puedes agregar una foto despues.",
+      submitPanelHelpEmpty: "Elige una foto o nota para guardar desde aqui.",
+      submitButton: "Guardar y completar despues",
+      observedAtLabel: "Hora observada",
+      placeLabel: "Lugar de observacion",
+      locationUnknown: "Lugar sin definir",
+      locationHelp: "Usa ubicacion actual, busca o toca el mapa.",
+      currentLocation: "Ubicacion actual",
+      locationSearchPlaceholder: "Buscar parque, estacion o direccion",
+      locationSearchButton: "Buscar",
+      locationMapAria: "Elegir lugar de observacion en el mapa",
+      locationMapFallback: "Cargando mapa. Tocalo cuando aparezca para fijar el lugar.",
+      coordinateSummary: "Editar coordenadas directamente",
+      latitudeLabel: "Latitud",
+      longitudeLabel: "Longitud",
+      coordinatePlaceholder: "Automatico o manual",
+      laterSummary: "Campos que puedes completar despues",
+      localityNoteLabel: "Nota del lugar",
+      localityNotePlaceholder: "Ejemplo: cerca de la entrada del parque / junto al agua",
+      mediaRoleLabel: "Rol de este medio",
+      mediaRolePrimaryTitle: "Sujeto principal",
+      mediaRolePrimaryBody: "Centro de este registro",
+      mediaRoleContextTitle: "Contexto",
+      mediaRoleContextBody: "Pistas de lugar y habitat",
+      mediaRoleSoundTitle: "Sonido / movimiento",
+      mediaRoleSoundBody: "Canto o conducta",
+      mediaRoleSecondaryTitle: "Otro candidato",
+      mediaRoleSecondaryBody: "Otro ser vivo en la imagen",
+      vernacularNameLabel: "Nombre comun si lo sabes",
+      vernacularNamePlaceholder: "Ejemplo: gorrion",
+      scientificNameLabel: "Nombre cientifico / taxon si lo sabes",
+      scientificNamePlaceholder: "Ejemplo: Passer montanus",
+      municipalityLabel: "Municipio",
+      municipalityPlaceholder: "Ejemplo: Hamamatsu",
+      rankLabel: "Rango de confianza",
+      recordModeLabel: "Modo de registro",
+      quickModeTitle: "Registro diario",
+      quickModeBody: "Guarda lo que encontraste en un paseo normal",
+      surveyModeTitle: "Registro de muestreo",
+      surveyModeBody: "Agrega condiciones si quieres comparar despues",
+      tipsLink: "Leer consejos de registro",
+      submitDockAria: "Enviar registro",
+      submitDockLocation: "Lugar",
+      submitDockMeta: "Sin medio elegido",
+      submitDockSave: "Guardar",
+      locationSelected: "Lugar definido",
+      mediaNoteOnly: "Solo nota",
+      mediaLocationMissing: "Falta lugar",
+      recordRoleTitle: "Rol de este registro",
+      recordRoleHelp: "Un proposito y rol ligeros ayudan a reutilizarlo despues para visitas, clases o gestion.",
+      recordRolePill: "Contexto",
+      activityIntentLabel: "Proposito de hoy",
+      activityIntentOptions: {
+        discover: "Descubrir",
+        revisit: "Volver al mismo lugar",
+        compare: "Comparar con antes",
+        learn: "Usar para clase o aprendizaje",
+        manage: "Conectar con cuidado o gestion",
+        confirm: "Confirmar algo observado",
+        share: "Guardar para caminata grupal",
+      },
+      participantRoleLabel: "Tu rol",
+      participantRoleOptions: {
+        finder: "Quien encontro",
+        photographer: "Fotografo",
+        context_recorder: "Quien registra contexto",
+        note_taker: "Quien toma notas",
+        student: "Estudiante",
+        teacher: "Docente / guia",
+        manager: "Gestor",
+        participant: "Participante",
+      },
+      quickReviewTitle: "Nota para despues",
+      quickReviewHelp: "Una nota breve de encontrado / no encontrado / incierto facilita comparar el proximo paseo.",
+      quickReviewPill: "Revisita",
+      quickCaptureStateLabel: "Como guardar este registro",
+      quickCaptureStateOptions: {
+        present: "Encontrado y anotado",
+        unknown: "Guardar aunque no sepa",
+        no_detection_note: "No encontrado hoy",
+      },
+      nextLookForLabel: "Que buscar despues",
+      nextLookForPlaceholder: "Ejemplo: el ave del agua de la semana pasada / una hoja por identificar / la flor del mismo arbol",
+      surveyBlockTitle: "Registro para comparar",
+      surveyBlockHelp: "Usalo cuando quieras comparar el mismo lugar despues. Queda separado del registro diario.",
+      surveyBlockPill: "Comparar",
+      checklistCompletionLabel: "Cuanto revisaste?",
+      checklistCompletionOptions: {
+        complete: "Revise en general",
+        partial: "Revise solo lo importante",
+      },
+      targetTaxaScopeLabel: "Que querias revisar?",
+      targetTaxaScopePlaceholder: "Ejemplo: aves de agua / mariposas de primavera / flores del parque",
+      effortMinutesLabel: "Tiempo usado (minutos)",
+      surveyResultLabel: "Resultado esta vez",
+      surveyResultOptions: {
+        detected: "Encontrado y registrado",
+        no_detection_note: "Solo nota de no encontrado",
+      },
+      revisitReasonLabel: "Por que volver?",
+      revisitReasonPlaceholder: "Ejemplo: comparar con el mes pasado / ver cambios en el mismo canal",
+      fieldScanTitle: "Escaneo de campo",
+      fieldScanHelp: "Separa estado del sitio, punto fijo, ruta, area y evidencia de calibracion.",
+      fieldScanPill: "Escaneo",
+      fieldScanTypeLabel: "Tipo",
+      fieldScanModeOptions: {
+        none: "Sin especificar",
+        site_snapshot: "Sitio",
+        fixed_point: "Punto fijo",
+        route: "Ruta",
+        area_footprint: "Area",
+        calibration_evidence: "Calibracion",
+      },
+      fixedPointIdLabel: "ID de punto fijo",
+      fixedPointIdPlaceholder: "Ejemplo: fp-park-01",
+      routeIdLabel: "ID de ruta",
+      routeIdPlaceholder: "Ejemplo: route-river-01",
+      areaIdLabel: "ID de area",
+      areaIdPlaceholder: "Ejemplo: area-wetland-01",
+      waterTitle: "Agua / captura",
+      waterHelp: "Separa capturado, visto y no capturado.",
+      waterPill: "Agua",
+      catchOutcomeLabel: "Resultado",
+      catchOutcomeOptions: {
+        none: "Sin especificar",
+        caught: "Capturado / recolectado",
+        released: "Liberado",
+        kept: "Conservado",
+        lost: "Escapo",
+        no_catch: "Sin captura",
+        observed_only: "Solo visto",
+      },
+      captureMethodLabel: "Metodo",
+      captureMethodPlaceholder: "Ejemplo: senuelo / vista / red",
+      participantCountLabel: "Personas",
+      publicWaterbodyLabel: "Etiqueta publica del agua",
+      publicWaterbodyPlaceholder: "Ejemplo: rio de la ciudad / alrededor del lago Hamana",
+      releasedCountLabel: "Cantidad liberada",
+      keptCountLabel: "Cantidad conservada",
+    },
+    "pt-BR": {
+      preSubmitLabel: "Antes de salvar",
+      submitPanelTitle: "Nenhuma midia selecionada",
+      submitPanelHelpMedia: "Confira horario e local, depois salve. Nome e notas podem vir depois.",
+      submitPanelHelpNote: "Salve isto como nota sem foto. Voce pode adicionar foto depois.",
+      submitPanelHelpEmpty: "Escolha uma foto ou nota para salvar daqui.",
+      submitButton: "Salvar e completar depois",
+      observedAtLabel: "Horario observado",
+      placeLabel: "Local da observacao",
+      locationUnknown: "Local nao definido",
+      locationHelp: "Use local atual, busca ou toque no mapa.",
+      currentLocation: "Local atual",
+      locationSearchPlaceholder: "Buscar parque, estacao ou endereco",
+      locationSearchButton: "Buscar",
+      locationMapAria: "Escolher local da observacao no mapa",
+      locationMapFallback: "Carregando mapa. Toque nele quando aparecer para definir o local.",
+      coordinateSummary: "Editar coordenadas diretamente",
+      latitudeLabel: "Latitude",
+      longitudeLabel: "Longitude",
+      coordinatePlaceholder: "Automatico ou manual",
+      laterSummary: "Campos que voce pode completar depois",
+      localityNoteLabel: "Nota do local",
+      localityNotePlaceholder: "Exemplo: perto da entrada do parque / junto a agua",
+      mediaRoleLabel: "Papel desta midia",
+      mediaRolePrimaryTitle: "Tema principal",
+      mediaRolePrimaryBody: "Centro deste registro",
+      mediaRoleContextTitle: "Contexto",
+      mediaRoleContextBody: "Pistas de local e habitat",
+      mediaRoleSoundTitle: "Som / movimento",
+      mediaRoleSoundBody: "Canto ou comportamento",
+      mediaRoleSecondaryTitle: "Outro candidato",
+      mediaRoleSecondaryBody: "Outro ser vivo na imagem",
+      vernacularNameLabel: "Nome comum se souber",
+      vernacularNamePlaceholder: "Exemplo: pardal",
+      scientificNameLabel: "Nome cientifico / taxon se souber",
+      scientificNamePlaceholder: "Exemplo: Passer montanus",
+      municipalityLabel: "Municipio",
+      municipalityPlaceholder: "Exemplo: Hamamatsu",
+      rankLabel: "Nivel de confianca",
+      recordModeLabel: "Modo de registro",
+      quickModeTitle: "Registro diario",
+      quickModeBody: "Salve o que encontrou em uma caminhada normal",
+      surveyModeTitle: "Registro de campo",
+      surveyModeBody: "Adicione condicoes quando quiser comparar depois",
+      tipsLink: "Ler dicas de registro",
+      submitDockAria: "Enviar registro",
+      submitDockLocation: "Local",
+      submitDockMeta: "Nenhuma midia selecionada",
+      submitDockSave: "Salvar",
+      locationSelected: "Local definido",
+      mediaNoteOnly: "Somente nota",
+      mediaLocationMissing: "Falta local",
+      recordRoleTitle: "Papel deste registro",
+      recordRoleHelp: "Um proposito e papel simples ajudam a reutilizar depois em revisitas, aulas ou gestao.",
+      recordRolePill: "Contexto",
+      activityIntentLabel: "Proposito de hoje",
+      activityIntentOptions: {
+        discover: "Descobrir",
+        revisit: "Revisitar o mesmo local",
+        compare: "Comparar com antes",
+        learn: "Usar em aula ou aprendizado",
+        manage: "Conectar a cuidado ou gestao",
+        confirm: "Confirmar algo observado",
+        share: "Guardar para caminhada em grupo",
+      },
+      participantRoleLabel: "Seu papel",
+      participantRoleOptions: {
+        finder: "Quem encontrou",
+        photographer: "Fotografo",
+        context_recorder: "Quem registra contexto",
+        note_taker: "Quem anota",
+        student: "Estudante",
+        teacher: "Professor / guia",
+        manager: "Gestor",
+        participant: "Participante",
+      },
+      quickReviewTitle: "Nota para depois",
+      quickReviewHelp: "Uma nota breve de encontrado / nao encontrado / incerto facilita comparar a proxima caminhada.",
+      quickReviewPill: "Revisita",
+      quickCaptureStateLabel: "Como guardar este registro",
+      quickCaptureStateOptions: {
+        present: "Encontrado e anotado",
+        unknown: "Salvar mesmo sem saber",
+        no_detection_note: "Nao encontrado hoje",
+      },
+      nextLookForLabel: "O que procurar depois",
+      nextLookForPlaceholder: "Exemplo: ave da agua da semana passada / folha para identificar / flor da mesma arvore",
+      surveyBlockTitle: "Registro para comparar",
+      surveyBlockHelp: "Use quando quiser comparar o mesmo local depois. Fica separado do registro diario.",
+      surveyBlockPill: "Comparar",
+      checklistCompletionLabel: "Quanto voce verificou?",
+      checklistCompletionOptions: {
+        complete: "Verifiquei em geral",
+        partial: "Verifiquei pontos escolhidos",
+      },
+      targetTaxaScopeLabel: "O que queria verificar?",
+      targetTaxaScopePlaceholder: "Exemplo: aves da agua / borboletas da primavera / flores do parque",
+      effortMinutesLabel: "Tempo usado (minutos)",
+      surveyResultLabel: "Resultado desta vez",
+      surveyResultOptions: {
+        detected: "Encontrado e registrado",
+        no_detection_note: "Somente nota de nao encontrado",
+      },
+      revisitReasonLabel: "Por que revisitar?",
+      revisitReasonPlaceholder: "Exemplo: comparar com o mes passado / ver mudancas no mesmo canal",
+      fieldScanTitle: "Varredura de campo",
+      fieldScanHelp: "Separe estado do local, ponto fixo, rota, area e evidencia de calibracao.",
+      fieldScanPill: "Varredura",
+      fieldScanTypeLabel: "Tipo",
+      fieldScanModeOptions: {
+        none: "Nao especificado",
+        site_snapshot: "Local",
+        fixed_point: "Ponto fixo",
+        route: "Rota",
+        area_footprint: "Area",
+        calibration_evidence: "Calibracao",
+      },
+      fixedPointIdLabel: "ID do ponto fixo",
+      fixedPointIdPlaceholder: "Exemplo: fp-park-01",
+      routeIdLabel: "ID da rota",
+      routeIdPlaceholder: "Exemplo: route-river-01",
+      areaIdLabel: "ID da area",
+      areaIdPlaceholder: "Exemplo: area-wetland-01",
+      waterTitle: "Agua / captura",
+      waterHelp: "Separe capturado, visto e nao capturado.",
+      waterPill: "Agua",
+      catchOutcomeLabel: "Resultado",
+      catchOutcomeOptions: {
+        none: "Nao especificado",
+        caught: "Capturado / coletado",
+        released: "Solto",
+        kept: "Mantido",
+        lost: "Escapou",
+        no_catch: "Sem captura",
+        observed_only: "Somente visto",
+      },
+      captureMethodLabel: "Metodo",
+      captureMethodPlaceholder: "Exemplo: isca / visual / rede",
+      participantCountLabel: "Pessoas",
+      publicWaterbodyLabel: "Rotulo publico da agua",
+      publicWaterbodyPlaceholder: "Exemplo: rio da cidade / entorno do lago Hamana",
+      releasedCountLabel: "Quantidade solta",
+      keptCountLabel: "Quantidade mantida",
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function renderRecordConfidenceStrip(lang: SiteLang): string {
+  const copy = recordStartCopy(lang);
+  return `<div class="record-confidence-strip" aria-label="${escapeHtml(copy.confidenceAria)}">${copy.confidenceItems
+    .map((item) => `<div class="record-confidence-item"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></div>`)
+    .join("")}</div>`;
+}
+
 function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "/record"): string {
+  const copy = recordStartCopy(lang);
   const currentParams = new URL(currentUrl, "https://ikimon.local").searchParams;
   const start = currentParams.get("start");
   const recordStart = start === "note" || start === "photo" || start === "video" || start === "gallery" ? start : "";
@@ -2308,65 +3790,67 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
     if (lang) params.set("lang", lang);
     return `/record?${params.toString()}`;
   };
-  const loginFor = (target: string) => withBasePath(basePath, `/login?redirect=${encodeURIComponent(target)}`);
+  const loginFor = (target: string) => appendLangToHref(withBasePath(basePath, `/login?redirect=${encodeURIComponent(target)}`), lang);
   const loginHref = loginFor(recordStart ? recordTarget : recordTargetForStart("photo"));
   const memoHref = loginFor(recordTargetForStart("note"));
-  const registerHref = withBasePath(basePath, `/register?redirect=${encodeURIComponent(recordTarget)}`);
+  const registerHref = appendLangToHref(withBasePath(basePath, `/register?redirect=${encodeURIComponent(recordTarget)}`), lang);
+  const learnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
   const qaHint = process.env.ALLOW_QUERY_USER_ID === "1"
     ? `<p class="meta" style="margin-top:14px;font-size:12px;color:#64748b">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`
     : "";
   return renderSiteDocument({
     basePath,
-    title: "記録を始める準備 | ikimon",
-    activeNav: "記録する",
+    title: copy.title,
+    activeNav: copy.activeNav,
     lang,
-    currentPath: withBasePath(basePath, "/record"),
+    currentPath: appendLangToHref(withBasePath(basePath, "/record"), lang),
     extraStyles: START_STATE_STYLES,
     hero: {
-      eyebrow: "record",
-      heading: "写真で記録を始める",
-      lead: "まず写真を1枚残せば十分です。名前や詳しい説明は、あとから足せます。",
+      eyebrow: copy.heroEyebrow,
+      heading: copy.heroHeading,
+      lead: copy.heroLead,
       tone: "light",
       align: "center",
       actions: [
-        { href: loginHref, label: "ログインして写真で記録" },
-        { href: registerHref, label: "新しく登録して記録する", variant: "secondary" },
+        { href: loginHref, label: copy.photoAction },
+        { href: registerHref, label: copy.registerAction, variant: "secondary" },
       ],
     },
     body: `<div class="start-guide">
       <section class="section">
         <div class="start-guide-panel">
-          <div class="eyebrow">sign in required</div>
-          <h2>記録画面はログイン後に開きます。</h2>
-          <p>写真・場所・時間を個人ノートに保存するため、投稿前にログインします。</p>
+          <div class="eyebrow">${escapeHtml(copy.panelEyebrow)}</div>
+          <h2>${escapeHtml(copy.panelHeading)}</h2>
+          <p>${escapeHtml(copy.panelBody)}</p>
+          ${renderRecordConfidenceStrip(lang)}
           <div class="start-guide-actions">
-            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">ログインして写真で記録</a>
-            <a class="btn btn-ghost" href="${escapeHtml(memoHref)}">メモで始める</a>
-            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn"))}">使い方を読む</a>
+            <a class="btn btn-solid" href="${escapeHtml(loginHref)}">${escapeHtml(copy.photoAction)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(memoHref)}">${escapeHtml(copy.noteAction)}</a>
+            <a class="btn btn-ghost" href="${escapeHtml(learnHref)}">${escapeHtml(copy.learnAction)}</a>
           </div>
           ${qaHint}
         </div>
       </section>
-      <nav class="record-capture-dock" aria-label="ログインして投稿を始める">
+      <nav class="record-capture-dock" aria-label="${escapeHtml(copy.dockAria)}">
         <a class="record-dock-action record-dock-primary" href="${escapeHtml(loginFor(recordTargetForStart("photo")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-          <span>写真</span>
+          <span>${escapeHtml(copy.dockPhoto)}</span>
         </a>
         <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("note")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-          <span>メモ</span>
+          <span>${escapeHtml(copy.dockNote)}</span>
         </a>
         <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("video")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-          <span>動画</span>
+          <span>${escapeHtml(copy.dockVideo)}</span>
         </a>
         <a class="record-dock-action" href="${escapeHtml(loginFor(recordTargetForStart("gallery")))}">
           <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-          <span>選ぶ</span>
+          <span>${escapeHtml(copy.dockGallery)}</span>
         </a>
       </nav>
     </div>`,
-    footerNote: "詳しい使い方は読み物ページで確認できます。",
+    footerNote: copy.footerNote,
   });
 }
 
@@ -3682,8 +5166,11 @@ function notesEntryDate(obs: LandingObservation): string {
   return (obs.entryType === "identification" ? obs.identifiedAt : obs.observedAt) ?? obs.observedAt;
 }
 
-function notesEntryKind(obs: LandingObservation): string {
-  return obs.entryType === "identification" ? "同定メモ" : "観察ページ";
+function notesEntryKind(obs: LandingObservation, lang: SiteLang = "ja"): string {
+  if (lang === "ja") return obs.entryType === "identification" ? "同定メモ" : "観察ページ";
+  if (lang === "es") return obs.entryType === "identification" ? "Nota de ID" : "Página de observación";
+  if (lang === "pt-BR") return obs.entryType === "identification" ? "Nota de ID" : "Página de observação";
+  return obs.entryType === "identification" ? "ID note" : "Observation page";
 }
 
 function notesDetailHref(basePath: string, lang: SiteLang, obs: LandingObservation): string {
@@ -3743,17 +5230,19 @@ function renderNotesMiniCard(
   const placeLine = notesPlaceLine(obs, lang, options.locationMode);
   const photoUrls = notesPhotoUrls(obs, "sm");
   const photoCount = notesPhotoCount(obs);
+  const entryKind = notesEntryKind(obs, lang);
   const photo = photoUrls[0]
-    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(String(photoCount))}</b>` : ""}</span>`
-    : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(notesEntryKind(obs).slice(0, 1))}</span>`;
+    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(entryKind.slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(formatNotesNumber(photoCount, lang))}</b>` : ""}</span>`
+    : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(entryKind.slice(0, 1))}</span>`;
   const observerLine = obs.observerName ? `${formatActorDisplay(obs.observerName, lang)} · ` : "";
+  const needsNameLine = lang === "ja" ? "名前を見返す余地あり" : lang === "es" ? "Nombre por revisar" : lang === "pt-BR" ? "Nome a revisar" : "Name to review";
   const supportLine = obs.entryType === "identification"
     ? `${observerLine}${obs.proposedName ? `${obs.proposedName} · ` : ""}${dateLabel}`
-    : `${observerLine}${obs.identificationCount > 0 ? `${formatIdentificationCount(obs.identificationCount, lang)} · ` : "名前を見返す余地あり · "}${dateLabel}`;
+    : `${observerLine}${obs.identificationCount > 0 ? `${formatIdentificationCount(obs.identificationCount, lang)} · ` : `${needsNameLine} · `}${dateLabel}`;
   return `<a class="notes-page-card" href="${escapeHtml(href)}" data-entry-type="${escapeHtml(obs.entryType ?? "observation")}">
     ${photo}
     <span class="notes-page-copy">
-      <span class="notes-page-kicker">${escapeHtml(notesEntryKind(obs))}</span>
+      <span class="notes-page-kicker">${escapeHtml(entryKind)}</span>
       <strong>${escapeHtml(displayName)}</strong>
       <span>${escapeHtml(placeLine)}</span>
       <em>${escapeHtml(supportLine)}</em>
@@ -3793,19 +5282,45 @@ function notesLibrarySourceKind(obs: LandingObservation): NonNullable<LandingObs
   return "note";
 }
 
-function notesLibrarySourceLabel(kind: NonNullable<LandingObservation["librarySourceKind"]>): string {
-  switch (kind) {
-    case "video":
-      return "動画";
-    case "guide":
-      return "ガイド";
-    case "scan":
-      return "スキャン";
-    case "photo":
-      return "写真";
-    default:
-      return "記録";
-  }
+function notesLibrarySourceLabel(kind: NonNullable<LandingObservation["librarySourceKind"]>, lang: SiteLang): string {
+  return notesLibraryCopy(lang).sourceLabels[kind] ?? notesLibraryCopy(lang).sourceLabels.note;
+}
+
+function notesCivicContextLabel(context: CivicObservationContext, lang: SiteLang): string {
+  if (context.activityLabel) return context.activityLabel;
+  if (lang === "ja") return civicContextLabel(context);
+  const labels: Record<Exclude<SiteLang, "ja">, Partial<Record<CivicObservationContext["contextKind"], string>> & { revisit: string; fallback: string }> = {
+    en: {
+      event: "Event record",
+      school: "School/class nature note",
+      satoyama: "Management and observation record",
+      risk: "Record needing review",
+      site_summary: "First nature summary for this place",
+      revisit: "Revisit record for this place",
+      fallback: "Field note",
+    },
+    es: {
+      event: "Registro de evento",
+      school: "Nota natural de escuela/clase",
+      satoyama: "Registro de manejo y observación",
+      risk: "Registro que necesita revisión",
+      site_summary: "Primer resumen natural de este lugar",
+      revisit: "Revisita de este lugar",
+      fallback: "Nota de campo",
+    },
+    "pt-BR": {
+      event: "Registro de evento",
+      school: "Nota de natureza da escola/turma",
+      satoyama: "Registro de manejo e observação",
+      risk: "Registro que precisa de revisão",
+      site_summary: "Primeiro resumo natural deste lugar",
+      revisit: "Revisita deste lugar",
+      fallback: "Nota de campo",
+    },
+  };
+  const copy = labels[lang];
+  if (context.activityIntent === "revisit") return copy.revisit;
+  return copy[context.contextKind] ?? copy.fallback;
 }
 
 function renderNotesLibraryCard(
@@ -3814,6 +5329,7 @@ function renderNotesLibraryCard(
   obs: LandingObservation,
   options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
 ): string {
+  const copy = notesLibraryCopy(lang);
   const href = notesDetailHref(basePath, lang, obs);
   const canOwnerHide = options.locationMode === "owner" && obs.entryType !== "identification";
   const hideEndpoint = withBasePath(basePath, `/api/v1/observations/${encodeURIComponent(obs.visitId)}/hide`);
@@ -3822,7 +5338,7 @@ function renderNotesLibraryCard(
     scientificName: obs.scientificName,
     displayName: obs.displayName,
     aiCandidateName: obs.aiCandidateName,
-    fallback: obs.proposedName ?? "名前を確かめている観察",
+    fallback: obs.proposedName ?? copy.card.fallbackName,
   }, lang).primaryLabel;
   const placeLine = notesPlaceLine(obs, lang, options.locationMode);
   const observerLine = obs.observerName ? `${formatActorDisplay(obs.observerName, lang)} · ` : "";
@@ -3831,9 +5347,9 @@ function renderNotesLibraryCard(
   const dateLabel = notesLibraryDateLabel(obs, lang);
   const isUncertain = notesLibraryIsUncertain(obs);
   const sourceKind = notesLibrarySourceKind(obs);
-  const sourceLabel = notesLibrarySourceLabel(sourceKind);
+  const sourceLabel = notesLibrarySourceLabel(sourceKind, lang);
   const civicContext = options.civicContexts?.get(obs.visitId);
-  const civicLabel = civicContext ? civicContextLabel(civicContext) : "";
+  const civicLabel = civicContext ? notesCivicContextLabel(civicContext, lang) : "";
   const filters = [
     "all",
     sourceKind,
@@ -3844,16 +5360,16 @@ function renderNotesLibraryCard(
   const searchable = `${displayName} ${placeLine} ${obs.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const visiblePhotos = photoUrls.slice(0, 4);
   const photo = visiblePhotos.length > 1
-    ? `<span class="notes-library-photo-stack">${visiblePhotos.map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(`${displayName} 写真${index + 1}`)}" loading="lazy" decoding="async" onerror="this.remove()" />`).join("")}</span><b class="notes-library-photo-count">${escapeHtml(String(photoCount))}枚</b>`
+    ? `<span class="notes-library-photo-stack">${visiblePhotos.map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(`${displayName} ${notesPhotoAltIndex(index + 1, lang)}`)}" loading="lazy" decoding="async" onerror="this.remove()" />`).join("")}</span><b class="notes-library-photo-count">${escapeHtml(notesPhotoCountLabel(photoCount, lang))}</b>`
     : visiblePhotos[0]
-      ? `<img src="${escapeHtml(visiblePhotos[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.notes-library-card').classList.add('is-photo-missing');this.remove()" />${photoCount > 1 ? `<b class="notes-library-photo-count">${escapeHtml(String(photoCount))}枚</b>` : ""}`
+      ? `<img src="${escapeHtml(visiblePhotos[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.notes-library-card').classList.add('is-photo-missing');this.remove()" />${photoCount > 1 ? `<b class="notes-library-photo-count">${escapeHtml(notesPhotoCountLabel(photoCount, lang))}</b>` : ""}`
     : `<span class="notes-library-placeholder">${escapeHtml(sourceLabel.slice(0, 1))}</span>`;
   const ownerMenu = canOwnerHide
     ? `<details class="notes-library-card-menu">
-        <summary aria-label="観察メニュー"><span aria-hidden="true"></span></summary>
+        <summary aria-label="${escapeHtml(copy.card.menuAria)}"><span aria-hidden="true"></span></summary>
         <div class="notes-library-card-menu-panel">
-          <a href="${escapeHtml(href)}">詳しく見る</a>
-          <button type="button" data-owner-hide-observation data-hide-endpoint="${escapeHtml(hideEndpoint)}">削除する</button>
+          <a href="${escapeHtml(href)}">${escapeHtml(copy.card.detail)}</a>
+          <button type="button" data-owner-hide-observation data-hide-endpoint="${escapeHtml(hideEndpoint)}">${escapeHtml(copy.card.delete)}</button>
         </div>
       </details>`
     : "";
@@ -3864,11 +5380,11 @@ function renderNotesLibraryCard(
         <span class="notes-library-badges">
           <b class="notes-source-badge is-source-${escapeHtml(sourceKind)}">${escapeHtml(sourceLabel)}</b>
           ${civicLabel ? `<b class="notes-context-badge">${escapeHtml(civicLabel)}</b>` : ""}
-          ${isUncertain ? `<b>名前未確定</b>` : `<b>名前あり</b>`}
+          ${isUncertain ? `<b>${escapeHtml(copy.card.uncertainBadge)}</b>` : `<b>${escapeHtml(copy.card.namedBadge)}</b>`}
           ${obs.identificationCount > 0 ? `<b>${escapeHtml(formatIdentificationCount(obs.identificationCount, lang))}</b>` : ""}
         </span>
         <strong>${escapeHtml(displayName)}</strong>
-        <em>${escapeHtml(`${observerLine}${placeLine || "場所未設定"} · ${dateLabel}`)}</em>
+        <em>${escapeHtml(`${observerLine}${placeLine || copy.card.fallbackPlace} · ${dateLabel}`)}</em>
       </span>
     </a>
     ${ownerMenu}
@@ -3882,7 +5398,7 @@ function renderNotesLibraryMonths(
   options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
 ): string {
   if (entries.length === 0) {
-    return `<div class="notes-library-empty">まだ観察ライブラリに並べる記録がありません。</div>`;
+    return `<div class="notes-library-empty">${escapeHtml(notesLibraryCopy(lang).emptyLibrary)}</div>`;
   }
   const groups = new Map<string, LandingObservation[]>();
   for (const entry of entries) {
@@ -3893,7 +5409,7 @@ function renderNotesLibraryMonths(
   return Array.from(groups.entries()).map(([key, items]) => `<section class="notes-library-month" data-library-month>
     <div class="notes-library-month-head">
       <h2>${escapeHtml(notesLibraryMonthLabel(key, lang))}</h2>
-      <span>${escapeHtml(String(items.length))} 件</span>
+      <span>${escapeHtml(notesItemCountLabel(items.length, lang))}</span>
     </div>
     <div class="notes-library-grid">
       ${items.map((obs) => renderNotesLibraryCard(basePath, lang, obs, options)).join("")}
@@ -3901,64 +5417,74 @@ function renderNotesLibraryMonths(
   </section>`).join("");
 }
 
-function renderNotesLibraryControls(entryCount: number, placeCount: number): string {
-  return `<section class="notes-library-controls" aria-label="観察ライブラリの絞り込み">
+function renderNotesLibraryControls(entryCount: number, placeCount: number, lang: SiteLang): string {
+  const copy = notesLibraryCopy(lang);
+  return `<section class="notes-library-controls" aria-label="${escapeHtml(copy.controls.aria)}">
     <div class="notes-library-search">
       <span aria-hidden="true">⌕</span>
-      <input type="search" placeholder="名前・場所で探す" data-library-search />
+      <input type="search" placeholder="${escapeHtml(copy.controls.searchPlaceholder)}" data-library-search />
     </div>
-    <div class="notes-library-filters" role="group" aria-label="表示切り替え">
-      <button type="button" class="is-active" data-library-filter="all">すべて</button>
-      <button type="button" data-library-filter="photo">写真</button>
-      <button type="button" data-library-filter="video">動画</button>
-      <button type="button" data-library-filter="guide">ガイド</button>
-      <button type="button" data-library-filter="scan">スキャン</button>
-      <button type="button" data-library-filter="uncertain">名前未確定</button>
-      <button type="button" data-library-filter="identified">同定あり</button>
+    <div class="notes-library-filters" role="group" aria-label="${escapeHtml(copy.controls.filterAria)}">
+      <button type="button" class="is-active" data-library-filter="all">${escapeHtml(copy.controls.all)}</button>
+      <button type="button" data-library-filter="photo">${escapeHtml(copy.controls.photo)}</button>
+      <button type="button" data-library-filter="video">${escapeHtml(copy.controls.video)}</button>
+      <button type="button" data-library-filter="guide">${escapeHtml(copy.controls.guide)}</button>
+      <button type="button" data-library-filter="scan">${escapeHtml(copy.controls.scan)}</button>
+      <button type="button" data-library-filter="uncertain">${escapeHtml(copy.controls.uncertain)}</button>
+      <button type="button" data-library-filter="identified">${escapeHtml(copy.controls.identified)}</button>
     </div>
-    <div class="notes-library-count" aria-live="polite"><strong data-library-visible-count>${escapeHtml(String(entryCount))}</strong><span>件 / ${escapeHtml(String(placeCount))} 場所</span></div>
+    <div class="notes-library-count" aria-live="polite"><strong data-library-visible-count>${escapeHtml(formatNotesNumber(entryCount, lang))}</strong><span>${escapeHtml(`${notesRecordUnitLabel(lang)} / ${notesPlaceCountLabel(placeCount, lang)}`)}</span></div>
   </section>`;
 }
 
-function renderNotesLibrarySourceLanes(entries: LandingObservation[]): string {
+function renderNotesLibrarySourceLanes(entries: LandingObservation[], lang: SiteLang): string {
   const counts = new Map<NonNullable<LandingObservation["librarySourceKind"]>, number>();
   for (const entry of entries) {
     const kind = notesLibrarySourceKind(entry);
     counts.set(kind, (counts.get(kind) ?? 0) + 1);
   }
   const lanes: Array<NonNullable<LandingObservation["librarySourceKind"]>> = ["photo", "video", "guide", "scan", "note"];
-  return `<div class="notes-library-source-lanes" aria-label="データの種類">
+  const copy = notesLibraryCopy(lang);
+  return `<div class="notes-library-source-lanes" aria-label="${escapeHtml(copy.controls.sourceLanesAria)}">
     ${lanes.map((kind) => `<button type="button" class="notes-library-source-lane is-source-${escapeHtml(kind)}" data-library-filter="${escapeHtml(kind)}">
-      <span>${escapeHtml(notesLibrarySourceLabel(kind))}</span>
-      <strong>${escapeHtml(String(counts.get(kind) ?? 0))}</strong>
+      <span>${escapeHtml(notesLibrarySourceLabel(kind, lang))}</span>
+      <strong>${escapeHtml(formatNotesNumber(counts.get(kind) ?? 0, lang))}</strong>
     </button>`).join("")}
   </div>`;
 }
 
-function renderNotesLibraryPlaceAlbums(snapshot: LandingSnapshot): string {
+function renderNotesLibraryPlaceAlbums(snapshot: LandingSnapshot, lang: SiteLang): string {
+  const copy = notesLibraryCopy(lang);
   if (!snapshot.viewerUserId || snapshot.myPlaces.length === 0) {
     return `<section id="notes-places" class="section notes-library-albums" data-testid="notes-places">
-      <div class="notes-library-section-head"><div><span>Albums</span><h2>場所アルバム</h2></div></div>
-      <div class="notes-library-empty">場所アルバムはまだありません。</div>
+      <div class="notes-library-section-head"><div><span>${escapeHtml(copy.sections.placesEyebrow)}</span><h2>${escapeHtml(copy.sections.placesTitle)}</h2></div></div>
+      <div class="notes-library-empty">${escapeHtml(copy.sections.placesEmpty)}</div>
     </section>`;
   }
   const albums = snapshot.myPlaces.slice(0, 10).map((place) => {
     const focus = pickPlaceFocus(place);
     return `<button type="button" class="notes-library-album" data-library-place="${escapeHtml(place.placeName)}">
-      <span>${escapeHtml(place.municipality || "場所")}</span>
+      <span>${escapeHtml(place.municipality || copy.card.fallbackPlace)}</span>
       <strong>${escapeHtml(place.placeName)}</strong>
-      <em>${escapeHtml(String(place.visitCount))} 件${focus ? ` · ${escapeHtml(focus)}` : ""}</em>
+      <em>${escapeHtml(notesItemCountLabel(place.visitCount, lang))}${focus ? ` · ${escapeHtml(focus)}` : ""}</em>
     </button>`;
   }).join("");
   return `<section id="notes-places" class="section notes-library-albums" data-testid="notes-places">
-    <div class="notes-library-section-head"><div><span>Albums</span><h2>場所アルバム</h2></div><p>よく行く場所をフォルダみたいに開く。</p></div>
+    <div class="notes-library-section-head"><div><span>${escapeHtml(copy.sections.placesEyebrow)}</span><h2>${escapeHtml(copy.sections.placesTitle)}</h2></div><p>${escapeHtml(copy.sections.placesLead)}</p></div>
     <div class="notes-library-album-row">${albums}</div>
   </section>`;
 }
 
-function renderNotesLibraryScript(): string {
+function renderNotesLibraryScript(lang: SiteLang): string {
+  const copy = notesLibraryCopy(lang).card;
   return `<script>
 (function () {
+  const messages = ${JSON.stringify({
+    deleteConfirm: copy.deleteConfirm,
+    deleting: copy.deleting,
+    delete: copy.delete,
+    deleteFailedPrefix: copy.deleteFailedPrefix,
+  })};
   const root = document.querySelector('[data-notes-library]');
   if (!root) return;
   const search = root.querySelector('[data-library-search]');
@@ -4024,9 +5550,9 @@ function renderNotesLibraryScript(): string {
     var endpoint = button.getAttribute('data-hide-endpoint') || '';
     var card = button.closest('[data-library-card]');
     if (!endpoint || !card) return;
-    if (!window.confirm('この観察を一覧と公開ページから削除します。よろしいですか？')) return;
+    if (!window.confirm(messages.deleteConfirm)) return;
     button.disabled = true;
-    button.textContent = '削除中...';
+    button.textContent = messages.deleting;
     fetch(endpoint, {
       method: 'POST',
       headers: { accept: 'application/json' },
@@ -4042,8 +5568,8 @@ function renderNotesLibraryScript(): string {
       });
     }).catch(function (error) {
       button.disabled = false;
-      button.textContent = '削除する';
-      window.alert('削除できませんでした: ' + String(error && error.message || 'network'));
+      button.textContent = messages.delete;
+      window.alert(messages.deleteFailedPrefix + String(error && error.message || 'network'));
     });
   });
   apply();
@@ -4596,6 +6122,315 @@ const NOTES_LIBRARY_STYLES = `
   }
 `;
 
+type ObservationFilterKey = "all" | "needs_id" | "ai" | "no_id" | "photo" | "video" | "identified" | "multi";
+
+type ObservationIndexCopy = {
+  activeNav: string;
+  title: string;
+  identifyTitle: string;
+  footerNote: string;
+  countSuffix: string;
+  relatedActionsAria: string;
+  mapAction: string;
+  recordAction: string;
+  recordActionAria: string;
+  controlPanelAria: string;
+  searchPlaceholder: string;
+  searchLabel: string;
+  toolbarAria: string;
+  detailsSummary: string;
+  resultPanelAria: string;
+  emptyInitial: string;
+  emptyFiltered: string;
+  shortcutIdentify: string;
+  shortcutConfirm: string;
+  identifyAriaTemplate: string;
+  status: {
+    ai: string;
+    awaiting: string;
+    identified: string;
+  };
+  filters: Record<ObservationFilterKey, string>;
+  advanced: {
+    status: string;
+    evidence: string;
+    taxon: string;
+    rank: string;
+    date: string;
+    ids: string;
+    sort: string;
+  };
+  options: {
+    all: string;
+    noPhoto: string;
+    species: string;
+    genus: string;
+    family: string;
+    order: string;
+    class: string;
+    phylum: string;
+    sevenDays: string;
+    thirtyDays: string;
+    ninetyDays: string;
+    zeroIds: string;
+    oneId: string;
+    twoPlusIds: string;
+    newest: string;
+    oldest: string;
+    leastId: string;
+    mostId: string;
+  };
+  field: {
+    aria: string;
+    label: string;
+    placeholder: string;
+    clear: string;
+    empty: string;
+  };
+  presets: {
+    aria: string;
+    placeholder: string;
+    save: string;
+    fallback: string;
+    spotFallback: string;
+    deleteSuffix: string;
+  };
+};
+
+function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
+  const localized: Record<SiteLang, ObservationIndexCopy> = {
+    ja: {
+      activeNav: "見つける",
+      title: "観察投稿一覧",
+      identifyTitle: "同定",
+      footerNote: "公開されている観察を、見つける・確かめる・記録する流れにつなげます。",
+      countSuffix: "件",
+      relatedActionsAria: "関連する操作",
+      mapAction: "地図",
+      recordAction: "+",
+      recordActionAria: "観察を投稿する",
+      controlPanelAria: "同定と観察の絞り込み",
+      searchPlaceholder: "名前・場所・人",
+      searchLabel: "観察を検索",
+      toolbarAria: "観察投稿の表示切り替え",
+      detailsSummary: "詳細",
+      resultPanelAria: "観察カード",
+      emptyInitial: "まだ表示できる観察投稿がありません。",
+      emptyFiltered: "該当する観察がありません。",
+      shortcutIdentify: "同定",
+      shortcutConfirm: "確認",
+      identifyAriaTemplate: "{name}を同定する",
+      status: { ai: "AI候補", awaiting: "同定待ち", identified: "同定あり" },
+      filters: {
+        all: "すべて",
+        needs_id: "同定待ち",
+        ai: "AI候補",
+        no_id: "未同定",
+        photo: "写真あり",
+        video: "動画あり",
+        multi: "複数対象",
+        identified: "名前あり",
+      },
+      advanced: { status: "状態", evidence: "証拠", taxon: "分類", rank: "階級", date: "日付", ids: "同定数", sort: "並び" },
+      options: {
+        all: "すべて",
+        noPhoto: "写真なし",
+        species: "種",
+        genus: "属",
+        family: "科",
+        order: "目",
+        class: "綱",
+        phylum: "門",
+        sevenDays: "7日",
+        thirtyDays: "30日",
+        ninetyDays: "90日",
+        zeroIds: "0件",
+        oneId: "1件",
+        twoPlusIds: "2件以上",
+        newest: "新しい順",
+        oldest: "古い順",
+        leastId: "同定少ない順",
+        mostId: "同定多い順",
+      },
+      field: { aria: "登録エリア", label: "登録エリア", placeholder: "スポット名", clear: "解除", empty: "登録エリアなし" },
+      presets: { aria: "保存条件", placeholder: "保存名（任意）", save: "保存", fallback: "条件", spotFallback: "スポット", deleteSuffix: "を削除" },
+    },
+    en: {
+      activeNav: "Explore",
+      title: "Observations",
+      identifyTitle: "Identify",
+      footerNote: "Browse public observations, check names, and move into your next record.",
+      countSuffix: " records",
+      relatedActionsAria: "Related actions",
+      mapAction: "Map",
+      recordAction: "+",
+      recordActionAria: "Record an observation",
+      controlPanelAria: "Filter observations and identifications",
+      searchPlaceholder: "Name, place, person",
+      searchLabel: "Search observations",
+      toolbarAria: "Observation view filters",
+      detailsSummary: "Filters",
+      resultPanelAria: "Observation cards",
+      emptyInitial: "No public observations are ready to show yet.",
+      emptyFiltered: "No observations match these filters.",
+      shortcutIdentify: "Identify",
+      shortcutConfirm: "Check",
+      identifyAriaTemplate: "Identify {name}",
+      status: { ai: "AI candidate", awaiting: "Needs ID", identified: "Named" },
+      filters: {
+        all: "All",
+        needs_id: "Needs ID",
+        ai: "AI candidates",
+        no_id: "No ID yet",
+        photo: "Photos",
+        video: "Videos",
+        multi: "Multiple subjects",
+        identified: "Named",
+      },
+      advanced: { status: "Status", evidence: "Evidence", taxon: "Taxon", rank: "Rank", date: "Date", ids: "IDs", sort: "Sort" },
+      options: {
+        all: "All",
+        noPhoto: "No photo",
+        species: "Species",
+        genus: "Genus",
+        family: "Family",
+        order: "Order",
+        class: "Class",
+        phylum: "Phylum",
+        sevenDays: "7 days",
+        thirtyDays: "30 days",
+        ninetyDays: "90 days",
+        zeroIds: "0 IDs",
+        oneId: "1 ID",
+        twoPlusIds: "2+ IDs",
+        newest: "Newest first",
+        oldest: "Oldest first",
+        leastId: "Fewest IDs",
+        mostId: "Most IDs",
+      },
+      field: { aria: "Registered areas", label: "Registered areas", placeholder: "Spot name", clear: "Clear", empty: "No registered areas" },
+      presets: { aria: "Saved filters", placeholder: "Preset name (optional)", save: "Save", fallback: "Filter", spotFallback: "Spot", deleteSuffix: " delete" },
+    },
+    es: {
+      activeNav: "Explorar",
+      title: "Observaciones",
+      identifyTitle: "Identificar",
+      footerNote: "Explora observaciones publicas, revisa nombres y pasa al siguiente registro.",
+      countSuffix: " registros",
+      relatedActionsAria: "Acciones relacionadas",
+      mapAction: "Mapa",
+      recordAction: "+",
+      recordActionAria: "Registrar una observacion",
+      controlPanelAria: "Filtros de observaciones e identificaciones",
+      searchPlaceholder: "Nombre, lugar, persona",
+      searchLabel: "Buscar observaciones",
+      toolbarAria: "Filtros de vista de observaciones",
+      detailsSummary: "Filtros",
+      resultPanelAria: "Tarjetas de observacion",
+      emptyInitial: "Aun no hay observaciones publicas listas para mostrar.",
+      emptyFiltered: "Ninguna observacion coincide con estos filtros.",
+      shortcutIdentify: "Identificar",
+      shortcutConfirm: "Revisar",
+      identifyAriaTemplate: "Identificar {name}",
+      status: { ai: "Candidato IA", awaiting: "Necesita ID", identified: "Con nombre" },
+      filters: {
+        all: "Todas",
+        needs_id: "Necesita ID",
+        ai: "Candidatos IA",
+        no_id: "Sin ID",
+        photo: "Fotos",
+        video: "Videos",
+        multi: "Varios sujetos",
+        identified: "Con nombre",
+      },
+      advanced: { status: "Estado", evidence: "Evidencia", taxon: "Taxon", rank: "Rango", date: "Fecha", ids: "IDs", sort: "Orden" },
+      options: {
+        all: "Todas",
+        noPhoto: "Sin foto",
+        species: "Especie",
+        genus: "Genero",
+        family: "Familia",
+        order: "Orden",
+        class: "Clase",
+        phylum: "Filo",
+        sevenDays: "7 dias",
+        thirtyDays: "30 dias",
+        ninetyDays: "90 dias",
+        zeroIds: "0 IDs",
+        oneId: "1 ID",
+        twoPlusIds: "2+ IDs",
+        newest: "Mas recientes",
+        oldest: "Mas antiguas",
+        leastId: "Menos IDs",
+        mostId: "Mas IDs",
+      },
+      field: { aria: "Areas registradas", label: "Areas registradas", placeholder: "Nombre del punto", clear: "Quitar", empty: "Sin areas registradas" },
+      presets: { aria: "Filtros guardados", placeholder: "Nombre del filtro (opcional)", save: "Guardar", fallback: "Filtro", spotFallback: "Punto", deleteSuffix: " eliminar" },
+    },
+    "pt-BR": {
+      activeNav: "Explorar",
+      title: "Observacoes",
+      identifyTitle: "Identificar",
+      footerNote: "Explore observacoes publicas, confira nomes e siga para o proximo registro.",
+      countSuffix: " registros",
+      relatedActionsAria: "Acoes relacionadas",
+      mapAction: "Mapa",
+      recordAction: "+",
+      recordActionAria: "Registrar uma observacao",
+      controlPanelAria: "Filtros de observacoes e identificacoes",
+      searchPlaceholder: "Nome, lugar, pessoa",
+      searchLabel: "Buscar observacoes",
+      toolbarAria: "Filtros da lista de observacoes",
+      detailsSummary: "Filtros",
+      resultPanelAria: "Cartoes de observacao",
+      emptyInitial: "Ainda nao ha observacoes publicas prontas para mostrar.",
+      emptyFiltered: "Nenhuma observacao combina com estes filtros.",
+      shortcutIdentify: "Identificar",
+      shortcutConfirm: "Conferir",
+      identifyAriaTemplate: "Identificar {name}",
+      status: { ai: "Candidato de IA", awaiting: "Precisa de ID", identified: "Com nome" },
+      filters: {
+        all: "Todas",
+        needs_id: "Precisa de ID",
+        ai: "Candidatos IA",
+        no_id: "Sem ID",
+        photo: "Fotos",
+        video: "Videos",
+        multi: "Varios sujeitos",
+        identified: "Com nome",
+      },
+      advanced: { status: "Status", evidence: "Evidencia", taxon: "Taxon", rank: "Nivel", date: "Data", ids: "IDs", sort: "Ordem" },
+      options: {
+        all: "Todas",
+        noPhoto: "Sem foto",
+        species: "Especie",
+        genus: "Genero",
+        family: "Familia",
+        order: "Ordem",
+        class: "Classe",
+        phylum: "Filo",
+        sevenDays: "7 dias",
+        thirtyDays: "30 dias",
+        ninetyDays: "90 dias",
+        zeroIds: "0 IDs",
+        oneId: "1 ID",
+        twoPlusIds: "2+ IDs",
+        newest: "Mais recentes",
+        oldest: "Mais antigas",
+        leastId: "Menos IDs",
+        mostId: "Mais IDs",
+      },
+      field: { aria: "Areas registradas", label: "Areas registradas", placeholder: "Nome do ponto", clear: "Limpar", empty: "Sem areas registradas" },
+      presets: { aria: "Filtros salvos", placeholder: "Nome do filtro (opcional)", save: "Salvar", fallback: "Filtro", spotFallback: "Ponto", deleteSuffix: " excluir" },
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function formatObservationIndexCount(count: number, copy: ObservationIndexCopy): string {
+  return `${count}${copy.countSuffix}`;
+}
+
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
@@ -4609,81 +6444,90 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     }
 
     reply.type("text/html; charset=utf-8");
-    return layout(
+    const recordCopy = recordPageCopy(lang);
+    const recordForm = recordFormCopy(lang);
+    const recordGuideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
+    const recordLearnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
+    return renderSiteDocument({
       basePath,
-      "記録する | ikimon",
-      `<section class="record-page">
+      title: recordCopy.title,
+      activeNav: recordCopy.activeNav,
+      lang,
+      currentPath: appendLangToHref(withBasePath(basePath, "/record"), lang),
+      footerNote: recordCopy.footerNote,
+      body: `<section class="record-page">
         <div class="record-shell">
           <section class="record-card record-sheet">
             <div class="record-card-head">
               <div>
                 <div class="eyebrow" id="record-mode-eyebrow">record</div>
-                <h2>写真で記録する</h2>
-                <p class="meta" id="record-mode-lead">写真を撮るか選ぶだけで始められます。必要な入力はそのあとに出します。</p>
+                <h2>${escapeHtml(recordCopy.heading)}</h2>
+                <p class="meta" id="record-mode-lead">${escapeHtml(recordCopy.lead)}</p>
               </div>
               <div class="record-session-pill">
-                <span class="record-session-label">ログイン中</span>
+                <span class="record-session-label">${escapeHtml(recordCopy.sessionLabel)}</span>
                 <strong>${escapeHtml(viewerUserId)}</strong>
               </div>
             </div>
-            <div class="record-capture-launcher" aria-label="投稿の始め方">
+            ${renderRecordConfidenceStrip(lang)}
+            <div class="record-capture-launcher" aria-label="${escapeHtml(recordCopy.captureAria)}">
               <button type="button" class="record-capture-option record-capture-photo-primary is-primary" data-capture-action="photo">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-                <strong>写真で記録する</strong>
-                <span>撮る / 選ぶ</span>
+                <strong>${escapeHtml(recordCopy.photoTitle)}</strong>
+                <span>${escapeHtml(recordCopy.photoSub)}</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="note">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-                <strong>メモだけ残す</strong>
-                <span>写真なし</span>
+                <strong>${escapeHtml(recordCopy.noteTitle)}</strong>
+                <span>${escapeHtml(recordCopy.noteSub)}</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="video">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-                <strong>動画で残す</strong>
-                <span>最大60秒</span>
+                <strong>${escapeHtml(recordCopy.videoTitle)}</strong>
+                <span>${escapeHtml(recordCopy.videoSub)}</span>
               </button>
               <button type="button" class="record-capture-option" data-capture-action="gallery">
                 <span class="record-capture-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-                <strong>ファイルから選ぶ</strong>
-                <span>写真 / 動画</span>
+                <strong>${escapeHtml(recordCopy.galleryTitle)}</strong>
+                <span>${escapeHtml(recordCopy.gallerySub)}</span>
               </button>
             </div>
             <div class="record-secondary-links">
-              <a href="${escapeHtml(withBasePath(basePath, "/guide"))}">AIのヒントを見ながら探す</a>
-              <a href="${escapeHtml(withBasePath(basePath, "/learn"))}">使い方を読む</a>
+              <a href="${escapeHtml(recordGuideHref)}">${escapeHtml(recordCopy.guideLink)}</a>
+              <a href="${escapeHtml(recordLearnHref)}">${escapeHtml(recordCopy.learnLink)}</a>
             </div>
-            <div class="record-capture-dock" aria-label="すぐ投稿する">
+            <div class="record-capture-dock" aria-label="${escapeHtml(recordCopy.dockAria)}">
               <button type="button" class="record-dock-action record-dock-primary" data-capture-action="photo">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-                <span>写真</span>
+                <span>${escapeHtml(recordCopy.dockPhoto)}</span>
               </button>
               <button type="button" class="record-dock-action" data-capture-action="note">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span>
-                <span>メモ</span>
+                <span>${escapeHtml(recordCopy.dockNote)}</span>
               </button>
               <button type="button" class="record-dock-action" data-capture-action="video">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="3" y="6" width="13" height="12" rx="2"/></svg></span>
-                <span>動画</span>
+                <span>${escapeHtml(recordCopy.dockVideo)}</span>
               </button>
               <button type="button" class="record-dock-action" data-capture-action="gallery">
                 <span class="record-dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>
-                <span>選ぶ</span>
+                <span>${escapeHtml(recordCopy.dockGallery)}</span>
               </button>
             </div>
             <div id="record-capture-result" class="record-capture-result" hidden>
               <div>
-                <span class="record-label">自動下書き</span>
-                <strong id="record-capture-result-title">未選択</strong>
-                <p id="record-capture-result-help">写真・日時・地点だけで保存できます。名前や説明はあとで足せます。</p>
+                <span class="record-label">${escapeHtml(recordCopy.captureResultLabel)}</span>
+                <strong id="record-capture-result-title">${escapeHtml(recordCopy.captureResultTitle)}</strong>
+                <p id="record-capture-result-help">${escapeHtml(recordCopy.captureResultHelp)}</p>
               </div>
-              <button type="button" class="btn btn-ghost" id="record-capture-change">選び直す</button>
+              <button type="button" class="btn btn-ghost" id="record-capture-change">${escapeHtml(recordCopy.captureChange)}</button>
             </div>
             <div id="record-location-nudge" class="record-location-nudge" hidden>
               <div>
-                <strong>写真に場所も入れる</strong>
-                <p>現在地を入れると、あとで同じ場所を見返しやすくなります。</p>
+                <strong>${escapeHtml(recordCopy.locationTitle)}</strong>
+                <p>${escapeHtml(recordCopy.locationBody)}</p>
               </div>
-              <button type="button" data-record-locate>現在地を入れる</button>
+              <button type="button" data-record-locate>${escapeHtml(recordCopy.locationAction)}</button>
             </div>
             <div id="record-autofill-status" class="record-autofill-status" hidden aria-live="polite"></div>
             <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form" hidden>
@@ -4712,11 +6556,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
               <div id="record-submit-panel" class="record-submit-panel" hidden>
                 <div>
-                  <span class="record-label">送信前チェック</span>
-                  <strong id="record-submit-panel-title">メディア未選択</strong>
-                  <p id="record-submit-panel-help">日時と地点を確認して保存します。名前や説明はあとで足せます。</p>
+                  <span class="record-label">${escapeHtml(recordForm.preSubmitLabel)}</span>
+                  <strong id="record-submit-panel-title">${escapeHtml(recordForm.submitPanelTitle)}</strong>
+                  <p id="record-submit-panel-help">${escapeHtml(recordForm.submitPanelHelpMedia)}</p>
                 </div>
-                <button type="submit" class="btn btn-solid">保存してあとで補完</button>
+                <button type="submit" class="btn btn-solid">${escapeHtml(recordForm.submitButton)}</button>
               </div>
               <div id="record-video-primary-photo" class="record-video-primary-photo" hidden>
                 <div>
@@ -4766,77 +6610,77 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <span id="record-video-trim-status" aria-live="polite">動画を選ぶと、長さと保存できる状態を表示します。</span>
                 </div>
               </div>
-              <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
+              <label class="record-field record-field-wide"><span class="record-label">${escapeHtml(recordForm.observedAtLabel)}</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
               <div class="record-field record-field-wide record-gps-row">
-                <span class="record-label">撮影地点</span>
+                <span class="record-label">${escapeHtml(recordForm.placeLabel)}</span>
                 <div class="record-place-picker">
                   <div class="record-place-head">
                     <div>
-                      <strong id="record-location-label">地点未指定</strong>
-                      <p id="record-location-help">現在地、検索、地図タップで撮影地点を決められます。</p>
+                      <strong id="record-location-label">${escapeHtml(recordForm.locationUnknown)}</strong>
+                      <p id="record-location-help">${escapeHtml(recordForm.locationHelp)}</p>
                     </div>
-                    <button type="button" class="btn btn-ghost record-gps-btn" data-record-locate>現在地</button>
+                    <button type="button" class="btn btn-ghost record-gps-btn" data-record-locate>${escapeHtml(recordForm.currentLocation)}</button>
                   </div>
                   <div class="record-place-search">
-                    <input id="record-location-search" type="search" placeholder="公園名・駅名・住所で探す" autocomplete="off" />
-                    <button type="button" id="record-location-search-btn">検索</button>
+                    <input id="record-location-search" type="search" placeholder="${escapeHtml(recordForm.locationSearchPlaceholder)}" autocomplete="off" />
+                    <button type="button" id="record-location-search-btn">${escapeHtml(recordForm.locationSearchButton)}</button>
                   </div>
                   <div id="record-location-results" class="record-location-results" hidden></div>
-                  <div id="record-location-map" class="record-location-map" aria-label="撮影地点を地図で指定">
-                    <div class="record-location-map-fallback">地図を読み込み中。表示されたらタップして地点を指定できます。</div>
+                  <div id="record-location-map" class="record-location-map" aria-label="${escapeHtml(recordForm.locationMapAria)}">
+                    <div class="record-location-map-fallback">${escapeHtml(recordForm.locationMapFallback)}</div>
                   </div>
                   <details class="record-coordinate-details">
-                    <summary>座標を直接編集</summary>
+                    <summary>${escapeHtml(recordForm.coordinateSummary)}</summary>
                     <div class="record-gps-inputs">
-                      <label class="record-field"><span class="record-label">緯度</span><input name="latitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
-                      <label class="record-field"><span class="record-label">経度</span><input name="longitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
+                      <label class="record-field"><span class="record-label">${escapeHtml(recordForm.latitudeLabel)}</span><input name="latitude" type="number" step="0.000001" placeholder="${escapeHtml(recordForm.coordinatePlaceholder)}" required /></label>
+                      <label class="record-field"><span class="record-label">${escapeHtml(recordForm.longitudeLabel)}</span><input name="longitude" type="number" step="0.000001" placeholder="${escapeHtml(recordForm.coordinatePlaceholder)}" required /></label>
                     </div>
                   </details>
                 </div>
               </div>
               <details class="record-field record-field-wide record-later-details">
-                <summary>あとで補完する項目</summary>
+                <summary>${escapeHtml(recordForm.laterSummary)}</summary>
                 <div class="record-later-grid">
-                  <label class="record-field record-field-wide"><span class="record-label">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近 / 水辺の柵のそば" /></label>
+                  <label class="record-field record-field-wide"><span class="record-label">${escapeHtml(recordForm.localityNoteLabel)}</span><input name="localityNote" type="text" placeholder="${escapeHtml(recordForm.localityNotePlaceholder)}" /></label>
                   <div class="record-field record-field-wide record-media-role">
-                    <span class="record-label">このメディアの役割</span>
-                    <div class="record-media-role-grid" role="radiogroup" aria-label="このメディアの役割">
+                    <span class="record-label">${escapeHtml(recordForm.mediaRoleLabel)}</span>
+                    <div class="record-media-role-grid" role="radiogroup" aria-label="${escapeHtml(recordForm.mediaRoleLabel)}">
                       <label class="record-media-role-chip">
                         <input type="radio" name="mediaRole" value="primary_subject" checked />
-                        <strong>主役</strong>
-                        <span>この記録の中心</span>
+                        <strong>${escapeHtml(recordForm.mediaRolePrimaryTitle)}</strong>
+                        <span>${escapeHtml(recordForm.mediaRolePrimaryBody)}</span>
                       </label>
                       <label class="record-media-role-chip">
                         <input type="radio" name="mediaRole" value="context" />
-                        <strong>周囲</strong>
-                        <span>場所・環境の手がかり</span>
+                        <strong>${escapeHtml(recordForm.mediaRoleContextTitle)}</strong>
+                        <span>${escapeHtml(recordForm.mediaRoleContextBody)}</span>
                       </label>
                       <label class="record-media-role-chip">
                         <input type="radio" name="mediaRole" value="sound_motion" />
-                        <strong>音・動き</strong>
-                        <span>鳴き声や行動</span>
+                        <strong>${escapeHtml(recordForm.mediaRoleSoundTitle)}</strong>
+                        <span>${escapeHtml(recordForm.mediaRoleSoundBody)}</span>
                       </label>
                       <label class="record-media-role-chip">
                         <input type="radio" name="mediaRole" value="secondary_candidate" />
-                        <strong>別対象候補</strong>
-                        <span>同じ画面の別の生きもの</span>
+                        <strong>${escapeHtml(recordForm.mediaRoleSecondaryTitle)}</strong>
+                        <span>${escapeHtml(recordForm.mediaRoleSecondaryBody)}</span>
                       </label>
                     </div>
                   </div>
-                  <label class="record-field"><span class="record-label">和名 / 通称（分かれば）</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
-                  <label class="record-field"><span class="record-label">学名 / 分類（分かれば）</span><input name="scientificName" type="text" placeholder="例: Passer montanus" /></label>
-                  <label class="record-field"><span class="record-label">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" /></label>
-                  <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
+                  <label class="record-field"><span class="record-label">${escapeHtml(recordForm.vernacularNameLabel)}</span><input name="vernacularName" type="text" placeholder="${escapeHtml(recordForm.vernacularNamePlaceholder)}" /></label>
+                  <label class="record-field"><span class="record-label">${escapeHtml(recordForm.scientificNameLabel)}</span><input name="scientificName" type="text" placeholder="${escapeHtml(recordForm.scientificNamePlaceholder)}" /></label>
+                  <label class="record-field"><span class="record-label">${escapeHtml(recordForm.municipalityLabel)}</span><input name="municipality" type="text" placeholder="${escapeHtml(recordForm.municipalityPlaceholder)}" /></label>
+                  <label class="record-field"><span class="record-label">${escapeHtml(recordForm.rankLabel)}</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
                   <div class="record-field record-field-wide record-mode-switch">
-                    <span class="record-label">記録モード</span>
-                    <div class="record-mode-grid" role="group" aria-label="記録モード">
+                    <span class="record-label">${escapeHtml(recordForm.recordModeLabel)}</span>
+                    <div class="record-mode-grid" role="group" aria-label="${escapeHtml(recordForm.recordModeLabel)}">
                       <button type="button" class="record-mode-chip is-active" data-record-mode="quick">
-                        <strong>ふだんの記録</strong>
-                        <span>いつもの散歩で見つけたことを残す</span>
+                        <strong>${escapeHtml(recordForm.quickModeTitle)}</strong>
+                        <span>${escapeHtml(recordForm.quickModeBody)}</span>
                       </button>
                       <button type="button" class="record-mode-chip" data-record-mode="survey">
-                        <strong>しっかり記録</strong>
-                        <span>比べたい観察の条件も一緒に残す</span>
+                        <strong>${escapeHtml(recordForm.surveyModeTitle)}</strong>
+                        <span>${escapeHtml(recordForm.surveyModeBody)}</span>
                       </button>
                     </div>
                   </div>
@@ -4844,35 +6688,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <div class="record-survey-box record-quick-box">
                       <div class="record-survey-head">
                         <div>
-                          <span class="record-label">この記録の役割</span>
-                          <p class="record-help">目的と役割を軽く残すと、あとで定点比較・授業・管理記録に束ねやすくなります。</p>
+                          <span class="record-label">${escapeHtml(recordForm.recordRoleTitle)}</span>
+                          <p class="record-help">${escapeHtml(recordForm.recordRoleHelp)}</p>
                         </div>
-                        <span class="record-survey-pill">文脈</span>
+                        <span class="record-survey-pill">${escapeHtml(recordForm.recordRolePill)}</span>
                       </div>
                       <div class="record-survey-grid">
                         <label class="record-field">
-                          <span class="record-label">今日の目的</span>
+                          <span class="record-label">${escapeHtml(recordForm.activityIntentLabel)}</span>
                           <select name="activityIntent">
-                            <option value="discover">見つける</option>
-                            <option value="revisit">同じ場所をもう一度見る</option>
-                            <option value="compare">前と比べる</option>
-                            <option value="learn">授業・学びに使う</option>
-                            <option value="manage">手入れや管理と結びつける</option>
-                            <option value="confirm">気になる対象を確認する</option>
-                            <option value="share">観察会・共有用に残す</option>
+                            <option value="discover">${escapeHtml(recordForm.activityIntentOptions.discover)}</option>
+                            <option value="revisit">${escapeHtml(recordForm.activityIntentOptions.revisit)}</option>
+                            <option value="compare">${escapeHtml(recordForm.activityIntentOptions.compare)}</option>
+                            <option value="learn">${escapeHtml(recordForm.activityIntentOptions.learn)}</option>
+                            <option value="manage">${escapeHtml(recordForm.activityIntentOptions.manage)}</option>
+                            <option value="confirm">${escapeHtml(recordForm.activityIntentOptions.confirm)}</option>
+                            <option value="share">${escapeHtml(recordForm.activityIntentOptions.share)}</option>
                           </select>
                         </label>
                         <label class="record-field">
-                          <span class="record-label">自分の役割</span>
+                          <span class="record-label">${escapeHtml(recordForm.participantRoleLabel)}</span>
                           <select name="participantRole">
-                            <option value="finder">見つけた人</option>
-                            <option value="photographer">撮影した人</option>
-                            <option value="context_recorder">周囲を記録する人</option>
-                            <option value="note_taker">メモ係</option>
-                            <option value="student">児童・生徒</option>
-                            <option value="teacher">先生・引率</option>
-                            <option value="manager">管理者</option>
-                            <option value="participant">参加者</option>
+                            <option value="finder">${escapeHtml(recordForm.participantRoleOptions.finder)}</option>
+                            <option value="photographer">${escapeHtml(recordForm.participantRoleOptions.photographer)}</option>
+                            <option value="context_recorder">${escapeHtml(recordForm.participantRoleOptions.context_recorder)}</option>
+                            <option value="note_taker">${escapeHtml(recordForm.participantRoleOptions.note_taker)}</option>
+                            <option value="student">${escapeHtml(recordForm.participantRoleOptions.student)}</option>
+                            <option value="teacher">${escapeHtml(recordForm.participantRoleOptions.teacher)}</option>
+                            <option value="manager">${escapeHtml(recordForm.participantRoleOptions.manager)}</option>
+                            <option value="participant">${escapeHtml(recordForm.participantRoleOptions.participant)}</option>
                           </select>
                         </label>
                       </div>
@@ -4882,23 +6726,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <div class="record-survey-box record-quick-box">
                       <div class="record-survey-head">
                         <div>
-                          <span class="record-label">あとで見返すためのメモ</span>
-                          <p class="record-help">見つけた / 見なかった / まだ分からない を軽く残すと、次の散歩で比べやすくなります。</p>
+                          <span class="record-label">${escapeHtml(recordForm.quickReviewTitle)}</span>
+                          <p class="record-help">${escapeHtml(recordForm.quickReviewHelp)}</p>
                         </div>
-                        <span class="record-survey-pill">再訪用</span>
+                        <span class="record-survey-pill">${escapeHtml(recordForm.quickReviewPill)}</span>
                       </div>
                       <div class="record-survey-grid">
                         <label class="record-field">
-                          <span class="record-label">今回の残し方</span>
+                          <span class="record-label">${escapeHtml(recordForm.quickCaptureStateLabel)}</span>
                           <select name="quickCaptureState">
-                            <option value="present">見つけて書く</option>
-                            <option value="unknown">まだ分からないまま残す</option>
-                            <option value="no_detection_note">今日は見なかったメモを残す</option>
+                            <option value="present">${escapeHtml(recordForm.quickCaptureStateOptions.present)}</option>
+                            <option value="unknown">${escapeHtml(recordForm.quickCaptureStateOptions.unknown)}</option>
+                            <option value="no_detection_note">${escapeHtml(recordForm.quickCaptureStateOptions.no_detection_note)}</option>
                           </select>
                         </label>
                         <label class="record-field record-field-wide">
-                          <span class="record-label">次に探すもの</span>
-                          <input name="nextLookFor" type="text" placeholder="例: 先週いた水辺の鳥 / 名前を確かめたい葉 / 同じ木の花" />
+                          <span class="record-label">${escapeHtml(recordForm.nextLookForLabel)}</span>
+                          <input name="nextLookFor" type="text" placeholder="${escapeHtml(recordForm.nextLookForPlaceholder)}" />
                         </label>
                       </div>
                     </div>
@@ -4907,37 +6751,37 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <div class="record-survey-box">
                       <div class="record-survey-head">
                         <div>
-                          <span class="record-label">比べるための記録</span>
-                          <p class="record-help">同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。</p>
+                          <span class="record-label">${escapeHtml(recordForm.surveyBlockTitle)}</span>
+                          <p class="record-help">${escapeHtml(recordForm.surveyBlockHelp)}</p>
                         </div>
-                        <span class="record-survey-pill">比較用</span>
+                        <span class="record-survey-pill">${escapeHtml(recordForm.surveyBlockPill)}</span>
                       </div>
                       <div class="record-survey-grid">
                         <label class="record-field">
-                          <span class="record-label">どこまで見たか</span>
+                          <span class="record-label">${escapeHtml(recordForm.checklistCompletionLabel)}</span>
                           <select name="checklistCompletion" data-survey-required disabled>
-                            <option value="complete">ひと通り見た</option>
-                            <option value="partial">気になるものだけ見た</option>
+                            <option value="complete">${escapeHtml(recordForm.checklistCompletionOptions.complete)}</option>
+                            <option value="partial">${escapeHtml(recordForm.checklistCompletionOptions.partial)}</option>
                           </select>
                         </label>
                         <label class="record-field">
-                          <span class="record-label">何を見たかったか</span>
-                          <input name="targetTaxaScope" type="text" placeholder="例: 水辺の鳥 / 春のチョウ / 公園の花" data-survey-required disabled />
+                          <span class="record-label">${escapeHtml(recordForm.targetTaxaScopeLabel)}</span>
+                          <input name="targetTaxaScope" type="text" placeholder="${escapeHtml(recordForm.targetTaxaScopePlaceholder)}" data-survey-required disabled />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">見た時間（分）</span>
+                          <span class="record-label">${escapeHtml(recordForm.effortMinutesLabel)}</span>
                           <input name="effortMinutes" type="number" min="1" step="1" placeholder="20" data-survey-required disabled />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">今回の結果</span>
+                          <span class="record-label">${escapeHtml(recordForm.surveyResultLabel)}</span>
                           <select name="surveyResult" disabled>
-                            <option value="detected">見つけて記録した</option>
-                            <option value="no_detection_note">見つからなかったメモだけ残す</option>
+                            <option value="detected">${escapeHtml(recordForm.surveyResultOptions.detected)}</option>
+                            <option value="no_detection_note">${escapeHtml(recordForm.surveyResultOptions.no_detection_note)}</option>
                           </select>
                         </label>
                         <label class="record-field record-field-wide">
-                          <span class="record-label">また見に行きたい理由</span>
-                          <textarea name="revisitReason" rows="3" placeholder="例: 先月と比べたい / 同じ水路の変化を見たい" data-survey-required disabled></textarea>
+                          <span class="record-label">${escapeHtml(recordForm.revisitReasonLabel)}</span>
+                          <textarea name="revisitReason" rows="3" placeholder="${escapeHtml(recordForm.revisitReasonPlaceholder)}" data-survey-required disabled></textarea>
                         </label>
                       </div>
                     </div>
@@ -4946,34 +6790,34 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <div class="record-survey-box">
                       <div class="record-survey-head">
                         <div>
-                          <span class="record-label">フィールドスキャン</span>
-                          <p class="record-help">場所の状態、定点、ルート、面、較正証拠を分けて残します。</p>
+                          <span class="record-label">${escapeHtml(recordForm.fieldScanTitle)}</span>
+                          <p class="record-help">${escapeHtml(recordForm.fieldScanHelp)}</p>
                         </div>
-                        <span class="record-survey-pill">スキャン</span>
+                        <span class="record-survey-pill">${escapeHtml(recordForm.fieldScanPill)}</span>
                       </div>
                       <div class="record-survey-grid">
                         <label class="record-field">
-                          <span class="record-label">種類</span>
+                          <span class="record-label">${escapeHtml(recordForm.fieldScanTypeLabel)}</span>
                           <select name="fieldScanMode">
-                            <option value="">指定なし</option>
-                            <option value="site_snapshot">場所</option>
-                            <option value="fixed_point">定点</option>
-                            <option value="route">ルート</option>
-                            <option value="area_footprint">面</option>
-                            <option value="calibration_evidence">較正</option>
+                            <option value="">${escapeHtml(recordForm.fieldScanModeOptions.none)}</option>
+                            <option value="site_snapshot">${escapeHtml(recordForm.fieldScanModeOptions.site_snapshot)}</option>
+                            <option value="fixed_point">${escapeHtml(recordForm.fieldScanModeOptions.fixed_point)}</option>
+                            <option value="route">${escapeHtml(recordForm.fieldScanModeOptions.route)}</option>
+                            <option value="area_footprint">${escapeHtml(recordForm.fieldScanModeOptions.area_footprint)}</option>
+                            <option value="calibration_evidence">${escapeHtml(recordForm.fieldScanModeOptions.calibration_evidence)}</option>
                           </select>
                         </label>
                         <label class="record-field">
-                          <span class="record-label">定点ID</span>
-                          <input name="fixedPointId" type="text" placeholder="例: fp-park-01" />
+                          <span class="record-label">${escapeHtml(recordForm.fixedPointIdLabel)}</span>
+                          <input name="fixedPointId" type="text" placeholder="${escapeHtml(recordForm.fixedPointIdPlaceholder)}" />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">ルートID</span>
-                          <input name="routeId" type="text" placeholder="例: route-river-01" />
+                          <span class="record-label">${escapeHtml(recordForm.routeIdLabel)}</span>
+                          <input name="routeId" type="text" placeholder="${escapeHtml(recordForm.routeIdPlaceholder)}" />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">エリアID</span>
-                          <input name="areaId" type="text" placeholder="例: area-wetland-01" />
+                          <span class="record-label">${escapeHtml(recordForm.areaIdLabel)}</span>
+                          <input name="areaId" type="text" placeholder="${escapeHtml(recordForm.areaIdPlaceholder)}" />
                         </label>
                       </div>
                     </div>
@@ -4982,42 +6826,42 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <div class="record-survey-box record-water-box">
                       <div class="record-survey-head">
                         <div>
-                          <span class="record-label">水辺・釣果</span>
-                          <p class="record-help">釣った、見た、釣れなかったを分けて残します。</p>
+                          <span class="record-label">${escapeHtml(recordForm.waterTitle)}</span>
+                          <p class="record-help">${escapeHtml(recordForm.waterHelp)}</p>
                         </div>
-                        <span class="record-survey-pill">水辺</span>
+                        <span class="record-survey-pill">${escapeHtml(recordForm.waterPill)}</span>
                       </div>
                       <div class="record-survey-grid">
                         <label class="record-field">
-                          <span class="record-label">結果</span>
+                          <span class="record-label">${escapeHtml(recordForm.catchOutcomeLabel)}</span>
                           <select name="catchOutcome">
-                            <option value="">指定なし</option>
-                            <option value="caught">釣った/採った</option>
-                            <option value="released">リリース</option>
-                            <option value="kept">持ち帰り</option>
-                            <option value="lost">逃した</option>
-                            <option value="no_catch">釣れなかった</option>
-                            <option value="observed_only">見ただけ</option>
+                            <option value="">${escapeHtml(recordForm.catchOutcomeOptions.none)}</option>
+                            <option value="caught">${escapeHtml(recordForm.catchOutcomeOptions.caught)}</option>
+                            <option value="released">${escapeHtml(recordForm.catchOutcomeOptions.released)}</option>
+                            <option value="kept">${escapeHtml(recordForm.catchOutcomeOptions.kept)}</option>
+                            <option value="lost">${escapeHtml(recordForm.catchOutcomeOptions.lost)}</option>
+                            <option value="no_catch">${escapeHtml(recordForm.catchOutcomeOptions.no_catch)}</option>
+                            <option value="observed_only">${escapeHtml(recordForm.catchOutcomeOptions.observed_only)}</option>
                           </select>
                         </label>
                         <label class="record-field">
-                          <span class="record-label">方法</span>
-                          <input name="captureMethod" type="text" placeholder="例: ルアー / 目視 / タモ網" />
+                          <span class="record-label">${escapeHtml(recordForm.captureMethodLabel)}</span>
+                          <input name="captureMethod" type="text" placeholder="${escapeHtml(recordForm.captureMethodPlaceholder)}" />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">人数</span>
+                          <span class="record-label">${escapeHtml(recordForm.participantCountLabel)}</span>
                           <input name="participantCount" type="number" min="1" step="1" placeholder="1" />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">公開水域名</span>
-                          <input name="publicWaterbodyLabel" type="text" placeholder="例: 市内の河川 / 浜名湖周辺" />
+                          <span class="record-label">${escapeHtml(recordForm.publicWaterbodyLabel)}</span>
+                          <input name="publicWaterbodyLabel" type="text" placeholder="${escapeHtml(recordForm.publicWaterbodyPlaceholder)}" />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">放した数</span>
+                          <span class="record-label">${escapeHtml(recordForm.releasedCountLabel)}</span>
                           <input name="releasedCount" type="number" min="0" step="1" placeholder="0" />
                         </label>
                         <label class="record-field">
-                          <span class="record-label">持ち帰り数</span>
+                          <span class="record-label">${escapeHtml(recordForm.keptCountLabel)}</span>
                           <input name="keptCount" type="number" min="0" step="1" placeholder="0" />
                         </label>
                       </div>
@@ -5050,13 +6894,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 </div>
               </div>
               <div class="record-actions">
-                <button class="btn btn-solid" type="submit">保存してあとで補完</button>
-                <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn"))}">記録のコツを読む</a>
+                <button class="btn btn-solid" type="submit">${escapeHtml(recordForm.submitButton)}</button>
+                <a class="btn btn-ghost" href="${escapeHtml(recordLearnHref)}">${escapeHtml(recordForm.tipsLink)}</a>
               </div>
-              <div class="record-submit-dock" aria-label="記録を送信する">
-                <button type="button" class="record-submit-location" data-record-locate>現在地</button>
-                <span id="record-submit-dock-meta" class="record-submit-dock-meta">メディア未選択</span>
-                <button type="submit" class="record-submit-primary">保存</button>
+              <div class="record-submit-dock" aria-label="${escapeHtml(recordForm.submitDockAria)}">
+                <button type="button" class="record-submit-location" data-record-locate>${escapeHtml(recordForm.submitDockLocation)}</button>
+                <span id="record-submit-dock-meta" class="record-submit-dock-meta">${escapeHtml(recordForm.submitDockMeta)}</span>
+                <button type="submit" class="record-submit-primary">${escapeHtml(recordForm.submitDockSave)}</button>
               </div>
             </form>
             <div id="record-status" class="record-status-inline list" aria-live="polite"></div>
@@ -5175,11 +7019,24 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         let recordLocationProvenance = null;
         let recordSubmitInFlight = false;
         const DEFAULT_RECORD_LOCATION = { lat: 34.7108, lng: 137.7261, zoom: 13 };
-        const captureLabels = {
-          note: { title: 'メモだけ残す', help: '写真なしでも、場所・時間・ひとことで記録できます。' },
-          photo: { title: '写真で記録する', help: '撮った写真、または端末上の写真を記録に添付します。' },
-          video: { title: '動画で記録する', help: '動画を選ぶと、長さ・地点・公開までの状態を順番に案内します。' },
-          gallery: { title: 'ファイルを選ぶ', help: '撮影済みの写真または動画を記録に添付します。' },
+        const captureLabels = ${JSON.stringify(recordCopy.captureLabels)};
+        const recordUiCopy = {
+          entryLabel: ${JSON.stringify(recordCopy.modeEntryLabel)},
+          quickLabel: ${JSON.stringify(recordCopy.modeQuickLabel)},
+          surveyLabel: ${JSON.stringify(recordCopy.modeSurveyLabel)},
+          lead: ${JSON.stringify(recordCopy.lead)},
+          quickLead: ${JSON.stringify(recordCopy.modeQuickLead)},
+          surveyLead: ${JSON.stringify(recordCopy.modeSurveyLead)},
+          submittingLabel: ${JSON.stringify(recordCopy.submittingLabel)},
+          locationUnknown: ${JSON.stringify(recordForm.locationUnknown)},
+          locationHelp: ${JSON.stringify(recordForm.locationHelp)},
+          locationSelected: ${JSON.stringify(recordForm.locationSelected)},
+          submitPanelHelpMedia: ${JSON.stringify(recordForm.submitPanelHelpMedia)},
+          submitPanelHelpNote: ${JSON.stringify(recordForm.submitPanelHelpNote)},
+          submitPanelHelpEmpty: ${JSON.stringify(recordForm.submitPanelHelpEmpty)},
+          submitDockMeta: ${JSON.stringify(recordForm.submitDockMeta)},
+          mediaNoteOnly: ${JSON.stringify(recordForm.mediaNoteOnly)},
+          mediaLocationMissing: ${JSON.stringify(recordForm.mediaLocationMissing)},
         };
 
         if (observedAt && !observedAt.value) {
@@ -5255,7 +7112,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             button.disabled = Boolean(submitting);
             if (submitting) {
               if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent || '';
-              button.textContent = '送信中...';
+              button.textContent = recordUiCopy.submittingLabel;
             } else if (button.dataset.idleLabel) {
               button.textContent = button.dataset.idleLabel;
             }
@@ -5277,8 +7134,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (!form) return null;
           const latField = form.elements.namedItem('latitude');
           const lngField = form.elements.namedItem('longitude');
-          const lat = latField && 'value' in latField ? Number(latField.value) : NaN;
-          const lng = lngField && 'value' in lngField ? Number(lngField.value) : NaN;
+          const latRaw = latField && 'value' in latField ? String(latField.value || '').trim() : '';
+          const lngRaw = lngField && 'value' in lngField ? String(lngField.value || '').trim() : '';
+          if (!latRaw || !lngRaw) return null;
+          const lat = Number(latRaw);
+          const lng = Number(lngRaw);
           return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
         };
 
@@ -5368,11 +7228,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const coords = readCoords();
           if (!locationLabel || !locationHelp) return;
           if (!coords) {
-            locationLabel.textContent = '地点未指定';
-            locationHelp.textContent = '現在地、検索、地図タップで撮影地点を決められます。';
+            locationLabel.textContent = recordUiCopy.locationUnknown;
+            locationHelp.textContent = recordUiCopy.locationHelp;
             return;
           }
-          locationLabel.textContent = sourceLabel || '撮影地点を指定済み';
+          locationLabel.textContent = sourceLabel || recordUiCopy.locationSelected;
           locationHelp.textContent = coords.lat.toFixed(6) + ', ' + coords.lng.toFixed(6);
         };
 
@@ -5437,16 +7297,16 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const syncModeUi = () => {
           const survey = isSurveyMode();
           if (modeEyebrow) modeEyebrow.textContent = selectedCaptureKind
-            ? (survey ? 'しっかり記録' : 'ふだんの記録')
-            : '投稿入口';
+            ? (survey ? recordUiCopy.surveyLabel : recordUiCopy.quickLabel)
+            : recordUiCopy.entryLabel;
           if (modeLead) {
             modeLead.textContent = selectedCaptureKind
               ? (survey
-                  ? '見た条件も一緒に残して、あとで比べやすくするための入力です。'
-                  : '場所・時間・気づいたことを、まず 1 件残すための入力です。')
-              : '写真を撮るか選ぶだけで始められます。必要な入力はそのあとに出します。';
+                  ? recordUiCopy.surveyLead
+                  : recordUiCopy.quickLead)
+              : recordUiCopy.lead;
           }
-          if (previewKicker) previewKicker.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
+          if (previewKicker) previewKicker.textContent = survey ? recordUiCopy.surveyLabel : recordUiCopy.quickLabel;
           if (quickFieldsWrap) quickFieldsWrap.hidden = survey;
           if (surveyFieldsWrap) surveyFieldsWrap.hidden = !survey;
           surveyRequiredFields.forEach((field) => {
@@ -5524,9 +7384,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
           if (photoCount > 0) parts.push('写真' + String(photoCount) + '枚');
           if (selectedVideoFile instanceof File) parts.push('動画あり');
-          if (hasNoteDraft() && !hasSelectedMedia()) parts.push('メモのみ');
-          if (coordsMissing()) parts.push('地点未指定');
-          return parts.length ? parts.join(' / ') : 'メディア未選択';
+          if (hasNoteDraft() && !hasSelectedMedia()) parts.push(recordUiCopy.mediaNoteOnly);
+          if (coordsMissing()) parts.push(recordUiCopy.mediaLocationMissing);
+          return parts.length ? parts.join(' / ') : recordUiCopy.submitDockMeta;
         };
 
         const syncSubmitCta = () => {
@@ -5536,10 +7396,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (submitPanelTitle) submitPanelTitle.textContent = summary;
           if (submitPanelHelp) {
             submitPanelHelp.textContent = hasSelectedMedia()
-              ? '日時と地点を確認して保存します。名前や説明はあとで足せます。'
+              ? recordUiCopy.submitPanelHelpMedia
               : hasNoteDraft()
-                ? '写真なしの観察メモとして保存します。あとで写真を足せます。'
-                : '写真を選ぶと、ここから保存できます。';
+                ? recordUiCopy.submitPanelHelpNote
+                : recordUiCopy.submitPanelHelpEmpty;
           }
           if (submitDockMeta) submitDockMeta.textContent = summary;
         };
@@ -7699,9 +9559,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           });
         }
       </script>`,
-      "Record",
-      undefined,
-      `
+      extraStyles: `
         .record-page { margin-top: 24px; }
         .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 920px; margin: 0 auto; }
         .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
@@ -7724,10 +9582,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         .record-capture-option strong { font-size: 15px; line-height: 1.25; }
         .record-capture-photo-primary strong { font-size: 19px; }
         .record-capture-option span:last-child { font-size: 12px; line-height: 1.55; color: #64748b; font-weight: 700; }
+        .record-confidence-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: -2px 0 14px 16px; }
+        .record-confidence-item { flex: 1 1 112px; min-height: 58px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
+        .record-confidence-item strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
+        .record-confidence-item span { display: block; margin-top: 3px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 750; }
         .record-secondary-links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 0 0 18px 16px; }
         .record-secondary-links a { color: #047857; font-size: 13px; font-weight: 900; text-decoration: none; }
         .record-secondary-links a:hover { text-decoration: underline; }
         .record-has-media .record-capture-launcher,
+        .record-has-media .record-confidence-strip,
         .record-has-media .record-secondary-links { display: none; }
         .record-subject-context { margin: -2px 0 18px 16px; padding: 16px; border-radius: 20px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(239,246,255,.9)); border: 1px solid rgba(16,185,129,.2); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
         .record-subject-context strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
@@ -7919,6 +9782,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-card { padding: 20px; border-radius: 24px; }
           .record-capture-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-left: 0; }
           .record-capture-photo-primary { grid-column: 1 / -1; }
+          .record-confidence-strip { margin-left: 0; }
           .record-secondary-links { margin-left: 0; }
           .record-has-media .record-card-head { display: none; }
           .record-capture-option { min-height: 124px; padding: 14px; border-radius: 18px; }
@@ -7965,92 +9829,20 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-sheet::after, .record-preview::after { display: none; }
         }
       `,
-    );
+    });
   });
 
-  app.get("/explore", async (_request, reply) => {
-    const basePath = requestBasePath(_request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((_request as unknown as { url?: string }).url ?? ""));
-    const session = await getSessionFromCookie(_request.headers.cookie);
-    const explorePageCopy = getShortCopy<any>(lang, "public", "read.explore");
-    const snapshot = await getExploreSnapshot();
-    const cards = snapshot.recentObservations.map((item) =>
-      renderObservationCard(basePath, lang, {
-        occurrenceId: item.occurrenceId,
-        visitId: item.visitId,
-        detailId: item.detailId,
-        featuredOccurrenceId: item.featuredOccurrenceId,
-        featuredSubjectName: item.featuredSubjectName,
-        subjectCount: item.subjectCount,
-        isMultiSubject: item.isMultiSubject,
-        featuredConfidenceBand: item.featuredConfidenceBand,
-        displayStability: item.displayStability,
-        displayName: item.displayName,
-        observedAt: item.observedAt,
-        observerName: item.observerName,
-        placeName: item.placeName,
-        municipality: item.municipality,
-        publicLocation: item.publicLocation,
-        photoUrl: item.photoUrl,
-        mediaUrl: item.mediaUrl,
-        hasPhoto: item.hasPhoto,
-        hasVideo: item.hasVideo,
-        identificationCount: item.identificationCount,
-        latitude: null,
-        longitude: null,
-        observerUserId: null,
-        observerAvatarUrl: null,
-      }, { locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }),
-    ).join("");
-    const municipalities = snapshot.municipalities.map((item) => `
-      <div class="row">
-        <div>
-          <div style="font-weight:800">${escapeHtml(item.municipality)}</div>
-          <div class="meta">最近のまとまり</div>
-        </div>
-        <span class="pill">${item.observationCount} 件</span>
-      </div>`).join("");
-    const taxa = snapshot.topTaxa.map((item) => `
-      <div class="row">
-        <div>
-          <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">この場所で見つかっているもの</div>
-        </div>
-        <span class="pill">${item.observationCount} 件</span>
-      </div>`).join("");
-
-    reply.type("text/html; charset=utf-8");
-    return layout(
-      basePath,
-      explorePageCopy.title,
-      `<section class="section">
-        <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(explorePageCopy.sections.placesEyebrow)}</div><div class="list">${municipalities || `<div class="row"><div>${escapeHtml(explorePageCopy.sections.placesEmpty)}</div></div>`}</div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(explorePageCopy.sections.taxaEyebrow)}</div><div class="list">${taxa || `<div class="row"><div>${escapeHtml(explorePageCopy.sections.taxaEmpty)}</div></div>`}</div></div></div>
-        </div>
-      </section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">${escapeHtml(explorePageCopy.sections.recentEyebrow)}</div><h2>${escapeHtml(explorePageCopy.sections.recentTitle)}</h2></div></div><div class="explore-grid">${cards || `<div class="card"><div class="card-body">${escapeHtml(explorePageCopy.sections.recentEmpty)}</div></div>`}</div></section>`,
-      explorePageCopy.activeNav,
-      {
-        eyebrow: explorePageCopy.hero.eyebrow,
-        heading: explorePageCopy.hero.heading,
-        lead: explorePageCopy.hero.lead,
-        actions: [
-          { href: "/map", label: JA_PUBLIC_SHARED_COPY.cta.openMap },
-          { href: "/notes", label: JA_PUBLIC_SHARED_COPY.cta.openNotebook, variant: "secondary" as const },
-        ],
-      },
-      `${OBSERVATION_CARD_STYLES}
-        .explore-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
-        @media (max-width: 860px) { .explore-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-        @media (max-width: 480px) { .explore-grid { grid-template-columns: 1fr; } }
-      `,
-    );
+  app.get("/explore", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const url = new URL(String((request as unknown as { url?: string }).url ?? "/explore"), "https://ikimon.local");
+    const lang = detectLangFromUrl(url.pathname + url.search);
+    return reply.redirect(appendLangToHref(withBasePath(basePath, `/observations${url.search}`), lang), 308);
   });
 
   app.get<{ Querystring: { filter?: string } }>("/observations", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const observationCopy = observationIndexCopy(lang);
     const session = await getSessionFromCookie(request.headers.cookie);
     const activeFilter = request.query.filter === "needs_id"
       || request.query.filter === "ai"
@@ -8098,8 +9890,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       if (activeFilter === "multi") return Boolean(item.isMultiSubject);
       return true;
     });
-    const pageTitle = activeFilter === "needs_id" ? "同定" : "観察投稿一覧";
-    const pageCountLabel = `${visibleObservations.length}件`;
+    const pageTitle = activeFilter === "needs_id" ? observationCopy.identifyTitle : observationCopy.title;
+    const pageCountLabel = formatObservationIndexCount(visibleObservations.length, observationCopy);
     const fieldOptions = new Map<string, { name: string; count: number }>();
     for (const item of snapshot.observations) {
       for (const field of item.fieldRefs ?? []) {
@@ -8124,10 +9916,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       );
       const identifyHref = `${detailHref}#identify`;
       const statusLabel = item.isAiCandidate
-        ? "AI候補"
+        ? observationCopy.status.ai
         : item.displayName === "同定待ち" || item.identificationCount === 0
-          ? "同定待ち"
-          : "同定あり";
+          ? observationCopy.status.awaiting
+          : observationCopy.status.identified;
       const statusKeys = [
         item.displayName === "同定待ち" || item.isAiCandidate ? "needs-id" : "",
         item.isAiCandidate ? "ai" : "",
@@ -8206,7 +9998,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         observerUserId: null,
         observerAvatarUrl: null,
         }, { compact: true, locationMode: "public", showSpecialistCta })}
-        <a class="observations-id-shortcut" href="${escapeHtml(identifyHref)}" aria-label="${escapeHtml(`${item.displayName}を同定する`)}">${escapeHtml(statusLabel === "同定あり" ? "確認" : "同定")}</a>
+        <a class="observations-id-shortcut" href="${escapeHtml(identifyHref)}" aria-label="${escapeHtml(observationCopy.identifyAriaTemplate.replace("{name}", item.displayName))}">${escapeHtml(statusLabel === observationCopy.status.identified ? observationCopy.shortcutConfirm : observationCopy.shortcutIdentify)}</a>
       </div>`;
     }).join("");
     const aiCandidateCount = snapshot.observations.filter((item) => item.isAiCandidate).length;
@@ -8214,14 +10006,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const photoCount = snapshot.observations.filter((item) => Boolean(item.hasPhoto ?? item.photoUrl)).length;
     const videoCount = snapshot.observations.filter((item) => Boolean(item.hasVideo)).length;
     const filters = [
-      { href: "/observations", label: "すべて", key: "all", count: snapshot.summary.shownCount },
-      { href: "/observations?filter=needs_id", label: "同定待ち", key: "needs_id", count: snapshot.summary.awaitingIdCount },
-      { href: "/observations?filter=ai", label: "AI候補", key: "ai", count: aiCandidateCount },
-      { href: "/observations?filter=no_id", label: "未同定", key: "no_id", count: noIdCount },
-      { href: "/observations?filter=photo", label: "写真あり", key: "photo", count: photoCount },
-      { href: "/observations?filter=video", label: "動画あり", key: "video", count: videoCount },
-      { href: "/observations?filter=multi", label: "複数対象", key: "multi", count: snapshot.summary.multiSubjectCount },
-      { href: "/observations?filter=identified", label: "名前あり", key: "identified", count: snapshot.summary.identifiedCount },
+      { href: "/observations", label: observationCopy.filters.all, key: "all", count: snapshot.summary.shownCount },
+      { href: "/observations?filter=needs_id", label: observationCopy.filters.needs_id, key: "needs_id", count: snapshot.summary.awaitingIdCount },
+      { href: "/observations?filter=ai", label: observationCopy.filters.ai, key: "ai", count: aiCandidateCount },
+      { href: "/observations?filter=no_id", label: observationCopy.filters.no_id, key: "no_id", count: noIdCount },
+      { href: "/observations?filter=photo", label: observationCopy.filters.photo, key: "photo", count: photoCount },
+      { href: "/observations?filter=video", label: observationCopy.filters.video, key: "video", count: videoCount },
+      { href: "/observations?filter=multi", label: observationCopy.filters.multi, key: "multi", count: snapshot.summary.multiSubjectCount },
+      { href: "/observations?filter=identified", label: observationCopy.filters.identified, key: "identified", count: snapshot.summary.identifiedCount },
     ].map((item) => `
       <a class="observations-chip${item.key === activeFilter ? " is-active" : ""}" href="${escapeHtml(appendLangToHref(withBasePath(basePath, item.href), lang))}">
         <span>${escapeHtml(item.label)}</span><b>${escapeHtml(String(item.count))}</b>
@@ -8237,112 +10029,119 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             <h1>${escapeHtml(pageTitle)}</h1>
             <span data-observations-count>${escapeHtml(pageCountLabel)}</span>
           </div>
-        <nav class="observations-actions" aria-label="関連する操作">
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}" aria-label="地図で見る">地図</a>
-            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="観察を投稿する">＋</a>
+        <nav class="observations-actions" aria-label="${escapeHtml(observationCopy.relatedActionsAria)}">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}" aria-label="${escapeHtml(observationCopy.mapAction)}">${escapeHtml(observationCopy.mapAction)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="${escapeHtml(observationCopy.recordActionAria)}">${escapeHtml(observationCopy.recordAction)}</a>
           </nav>
         </header>
         <div class="observations-workbench">
-          <aside class="observations-control-panel" aria-label="同定と観察の絞り込み">
+          <aside class="observations-control-panel" aria-label="${escapeHtml(observationCopy.controlPanelAria)}">
             <div class="observations-search" role="search">
               <span aria-hidden="true">⌕</span>
-              <input type="search" placeholder="名前・場所・人" aria-label="観察を検索" data-observations-search />
+              <input type="search" placeholder="${escapeHtml(observationCopy.searchPlaceholder)}" aria-label="${escapeHtml(observationCopy.searchLabel)}" data-observations-search />
             </div>
-            <nav class="observations-toolbar" aria-label="観察投稿の表示切り替え">
+            <nav class="observations-toolbar" aria-label="${escapeHtml(observationCopy.toolbarAria)}">
               ${filters}
             </nav>
-            <details class="observations-advanced" open>
-              <summary>詳細</summary>
+            <details class="observations-advanced">
+              <summary>${escapeHtml(observationCopy.detailsSummary)}</summary>
               <div class="observations-advanced-grid">
-                <label>状態
+                <label>${escapeHtml(observationCopy.advanced.status)}
                   <select data-observations-filter="status">
-                    <option value="all">すべて</option>
-                    <option value="needs-id">同定待ち</option>
-                    <option value="ai">AI候補</option>
-                    <option value="no-id">未同定</option>
-                    <option value="identified">名前あり</option>
-                    <option value="multi">複数対象</option>
+                    <option value="all">${escapeHtml(observationCopy.options.all)}</option>
+                    <option value="needs-id">${escapeHtml(observationCopy.filters.needs_id)}</option>
+                    <option value="ai">${escapeHtml(observationCopy.filters.ai)}</option>
+                    <option value="no-id">${escapeHtml(observationCopy.filters.no_id)}</option>
+                    <option value="identified">${escapeHtml(observationCopy.filters.identified)}</option>
+                    <option value="multi">${escapeHtml(observationCopy.filters.multi)}</option>
                   </select>
                 </label>
-                <label>証拠
+                <label>${escapeHtml(observationCopy.advanced.evidence)}
                   <select data-observations-filter="media">
-                    <option value="all">すべて</option>
-                    <option value="photo">写真あり</option>
-                    <option value="video">動画あり</option>
-                    <option value="no-photo">写真なし</option>
+                    <option value="all">${escapeHtml(observationCopy.options.all)}</option>
+                    <option value="photo">${escapeHtml(observationCopy.filters.photo)}</option>
+                    <option value="video">${escapeHtml(observationCopy.filters.video)}</option>
+                    <option value="no-photo">${escapeHtml(observationCopy.options.noPhoto)}</option>
                   </select>
                 </label>
-                <label>分類
-                  <input type="search" placeholder="科・属・種名" data-observations-taxon />
+                <label>${escapeHtml(observationCopy.advanced.taxon)}
+                  <input type="search" placeholder="${escapeHtml(`${observationCopy.options.family} / ${observationCopy.options.genus} / ${observationCopy.options.species}`)}" data-observations-taxon />
                 </label>
-                <label>階級
+                <label>${escapeHtml(observationCopy.advanced.rank)}
                   <select data-observations-filter="rank">
-                    <option value="all">すべて</option>
-                    <option value="species">種</option>
-                    <option value="genus">属</option>
-                    <option value="family">科</option>
-                    <option value="order">目</option>
-                    <option value="class">綱</option>
-                    <option value="phylum">門</option>
+                    <option value="all">${escapeHtml(observationCopy.options.all)}</option>
+                    <option value="species">${escapeHtml(observationCopy.options.species)}</option>
+                    <option value="genus">${escapeHtml(observationCopy.options.genus)}</option>
+                    <option value="family">${escapeHtml(observationCopy.options.family)}</option>
+                    <option value="order">${escapeHtml(observationCopy.options.order)}</option>
+                    <option value="class">${escapeHtml(observationCopy.options.class)}</option>
+                    <option value="phylum">${escapeHtml(observationCopy.options.phylum)}</option>
                   </select>
                 </label>
-                <label>日付
+                <label>${escapeHtml(observationCopy.advanced.date)}
                   <select data-observations-filter="date">
-                    <option value="all">すべて</option>
-                    <option value="7d">7日</option>
-                    <option value="30d">30日</option>
-                    <option value="90d">90日</option>
+                    <option value="all">${escapeHtml(observationCopy.options.all)}</option>
+                    <option value="7d">${escapeHtml(observationCopy.options.sevenDays)}</option>
+                    <option value="30d">${escapeHtml(observationCopy.options.thirtyDays)}</option>
+                    <option value="90d">${escapeHtml(observationCopy.options.ninetyDays)}</option>
                   </select>
                 </label>
-                <label>同定数
+                <label>${escapeHtml(observationCopy.advanced.ids)}
                   <select data-observations-filter="ids">
-                    <option value="all">すべて</option>
-                    <option value="zero">0件</option>
-                    <option value="one">1件</option>
-                    <option value="two-plus">2件以上</option>
+                    <option value="all">${escapeHtml(observationCopy.options.all)}</option>
+                    <option value="zero">${escapeHtml(observationCopy.options.zeroIds)}</option>
+                    <option value="one">${escapeHtml(observationCopy.options.oneId)}</option>
+                    <option value="two-plus">${escapeHtml(observationCopy.options.twoPlusIds)}</option>
                   </select>
                 </label>
-                <label>並び
+                <label>${escapeHtml(observationCopy.advanced.sort)}
                   <select data-observations-sort>
-                    <option value="newest">新しい順</option>
-                    <option value="oldest">古い順</option>
-                    <option value="least-id">同定少ない順</option>
-                    <option value="most-id">同定多い順</option>
+                    <option value="newest">${escapeHtml(observationCopy.options.newest)}</option>
+                    <option value="oldest">${escapeHtml(observationCopy.options.oldest)}</option>
+                    <option value="least-id">${escapeHtml(observationCopy.options.leastId)}</option>
+                    <option value="most-id">${escapeHtml(observationCopy.options.mostId)}</option>
                   </select>
                 </label>
               </div>
             </details>
-            <section class="observations-spot-filter" aria-label="登録エリア">
+            <section class="observations-spot-filter" aria-label="${escapeHtml(observationCopy.field.aria)}">
               <div class="observations-spot-search">
-                <span>登録エリア</span>
-                <input type="search" placeholder="スポット名" data-observations-spot-search />
-                <button type="button" data-observations-field-clear hidden>解除</button>
+                <span>${escapeHtml(observationCopy.field.label)}</span>
+                <input type="search" placeholder="${escapeHtml(observationCopy.field.placeholder)}" data-observations-spot-search />
+                <button type="button" data-observations-field-clear hidden>${escapeHtml(observationCopy.field.clear)}</button>
               </div>
               <div class="observations-spot-chips" data-observations-field-list>
-                <button type="button" class="observations-spot-chip is-active" data-observations-field-chip="all">すべて</button>
-                ${fieldSelectOptions || `<span class="observations-spot-empty">登録エリアなし</span>`}
+                <button type="button" class="observations-spot-chip is-active" data-observations-field-chip="all">${escapeHtml(observationCopy.options.all)}</button>
+                ${fieldSelectOptions || `<span class="observations-spot-empty">${escapeHtml(observationCopy.field.empty)}</span>`}
               </div>
             </section>
-            <section class="observations-presets" aria-label="保存条件">
+            <section class="observations-presets" aria-label="${escapeHtml(observationCopy.presets.aria)}">
               <div class="observations-preset-save">
-                <input type="text" placeholder="保存名（任意）" aria-label="保存名（任意）" data-observations-preset-name />
-                <button type="button" data-observations-preset-save>保存</button>
+                <input type="text" placeholder="${escapeHtml(observationCopy.presets.placeholder)}" aria-label="${escapeHtml(observationCopy.presets.placeholder)}" data-observations-preset-name />
+                <button type="button" data-observations-preset-save>${escapeHtml(observationCopy.presets.save)}</button>
               </div>
               <div class="observations-preset-list" data-observations-presets></div>
             </section>
           </aside>
-          <section class="observations-results-panel" aria-label="観察カード">
+          <section class="observations-results-panel" aria-label="${escapeHtml(observationCopy.resultPanelAria)}">
             <div class="observations-video-grid" data-observations-grid>
-              ${cards || `<div class="observations-empty">まだ表示できる観察投稿がありません。</div>`}
+              ${cards || `<div class="observations-empty">${escapeHtml(observationCopy.emptyInitial)}</div>`}
             </div>
-            <div class="observations-empty" data-observations-empty hidden>該当する観察がありません。</div>
+            <div class="observations-empty" data-observations-empty hidden>${escapeHtml(observationCopy.emptyFiltered)}</div>
           </section>
         </div>
         <script>
 (function () {
+  const observationsCopy = ${JSON.stringify({
+    countSuffix: observationCopy.countSuffix,
+    presetFallback: observationCopy.presets.fallback,
+    spotFallback: observationCopy.presets.spotFallback,
+    deleteSuffix: observationCopy.presets.deleteSuffix,
+  })};
   const root = document.querySelector('[data-observations-page]');
   if (!root) return;
   const search = root.querySelector('[data-observations-search]');
+  const initialQuery = new URLSearchParams(window.location.search || '').get('q') || '';
   const count = root.querySelector('[data-observations-count]');
   const empty = root.querySelector('[data-observations-empty]');
   const grid = root.querySelector('[data-observations-grid]');
@@ -8413,11 +10212,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       wrap.className = 'observations-preset-chip';
       const load = document.createElement('button');
       load.type = 'button';
-      load.textContent = String(preset.name || '条件');
+      load.textContent = String(preset.name || observationsCopy.presetFallback);
       load.addEventListener('click', function () { applyState(preset.state); });
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.setAttribute('aria-label', String(preset.name || '条件') + 'を削除');
+      remove.setAttribute('aria-label', String(preset.name || observationsCopy.presetFallback) + observationsCopy.deleteSuffix);
       remove.textContent = '×';
       remove.addEventListener('click', function () {
         const next = readPresets();
@@ -8433,7 +10232,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   function savePreset() {
     const name = presetName ? String(presetName.value || '').trim() : '';
     const state = readState();
-    const fallback = [state.filters.status, state.taxon, state.field === 'all' ? '' : 'スポット'].filter(Boolean).join(' · ') || '条件';
+    const fallback = [state.filters.status, state.taxon, state.field === 'all' ? '' : observationsCopy.spotFallback].filter(Boolean).join(' · ') || observationsCopy.presetFallback;
     const presets = readPresets().filter(function (item) { return String(item.name || '') !== (name || fallback); });
     presets.unshift({ name: name || fallback, state: state, savedAt: Date.now() });
     writePresets(presets);
@@ -8498,7 +10297,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       });
       sorted.forEach(function (tile) { grid.appendChild(tile); });
     }
-    if (count) count.textContent = String(visible) + '件';
+    if (count) count.textContent = String(visible) + observationsCopy.countSuffix;
     if (empty) empty.hidden = visible !== 0 || tiles.length === 0;
   }
   if (search) search.addEventListener('input', applySearch);
@@ -8521,13 +10320,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   controls.forEach(function (control) { control.addEventListener('change', applySearch); });
   if (sort) sort.addEventListener('change', applySearch);
   setField('all');
+  if (search && initialQuery) search.value = initialQuery;
   filterSpotChips();
   renderPresets();
   applySearch();
 })();
 </script>
       </section>`,
-      "見つける",
+      observationCopy.activeNav,
       undefined,
       `${OBSERVATION_CARD_STYLES}
         .observations-page { display: grid; gap: 14px; margin-top: 4px; }
@@ -8655,6 +10455,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       observationsCurrentPath,
       true,
       activeFilter === "needs_id" ? "shell-immersive shell-identify" : undefined,
+      lang,
+      observationCopy.footerNote,
     );
     if (canCacheHtml) {
       for (const [key, entry] of observationsHtmlCache) {
@@ -8778,6 +10580,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const featuredSubjectDisplay = formatTaxonDisplayName(featuredSubject, lang);
     const snapshotDisplay = formatTaxonDisplayName(snapshot, lang);
     const observerDisplay = formatActorDisplay(snapshot.observerName, lang);
+    const relatedObservationsHref = appendLangToHref(
+      withBasePath(
+        basePath,
+        snapshotDisplay.isAwaitingId
+          ? "/observations?filter=needs_id"
+          : `/observations?q=${encodeURIComponent(snapshotDisplay.primaryLabel)}`,
+      ),
+      lang,
+    );
 
     const badges: string[] = [];
     if (subjectCount >= 2) badges.push(`<span class="obs-badge obs-badge-species">🧩 ${subjectCount} 対象</span>`);
@@ -9033,7 +10844,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         key: "identify",
       },
       {
-        href: withBasePath(basePath, "/explore"),
+        href: relatedObservationsHref,
         label: "似た観察を見る",
         body: "近い記録から読み方を広げる",
         key: "explore_related",
@@ -9197,7 +11008,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             <span class="obs-cta-icon">📍</span>
             <span class="obs-cta-label">定点ページを見る</span>
           </a>` : ""}
-          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/explore"))}" data-observation-primary-cta="explore_related_footer" data-kpi-action="observation:primary:explore_related_footer">
+          <a class="obs-cta-item" href="${escapeHtml(relatedObservationsHref)}" data-observation-primary-cta="explore_related_footer" data-kpi-action="observation:primary:explore_related_footer">
             <span class="obs-cta-icon">🔍</span>
             <span class="obs-cta-label">似た観察を探す</span>
           </a>
@@ -10805,7 +12616,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   app.get("/notes", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const notesPageCopy = getShortCopy<any>(lang, "public", "read.notes");
+    const copy = notesLibraryCopy(lang);
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
     const snapshot = await getLandingSnapshot(viewerUserId);
@@ -10823,15 +12634,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const namedCount = libraryEntries.filter((obs) => !notesLibraryIsUncertain(obs)).length;
     const latest = libraryEntries[0] ?? null;
     const latestLine = latest
-      ? `${notesLibraryDateLabel(latest, lang)} · ${latest.displayName || latest.proposedName || "名前を確かめている観察"}`
-      : "観察が増えるほど、ここに月ごとの棚が育ちます。";
-    const emptyCopy = "まだ近くの公開記録は表示できません。自分の観察ライブラリを主役にします。";
+      ? `${notesLibraryDateLabel(latest, lang)} · ${latest.displayName || latest.proposedName || copy.card.fallbackName}`
+      : copy.latestFallback;
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: "観察ライブラリ | ikimon",
-      activeNav: notesPageCopy.activeNav,
+      title: copy.pageTitle,
+      activeNav: copy.activeNav,
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/notes"), lang),
       shellClassName: "shell-notes-library",
@@ -10839,41 +12649,41 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       body: `<div class="notes-library-shell">
         <section class="notes-library-hero">
           <div>
-            <span>Observation Library</span>
-            <h1>観察ライブラリ</h1>
-            <p>写真、動画、ガイド、探索マップを混ぜずに棚分けして、自分の観察データを Google フォトみたいに月ごとに見返す場所です。学びや貢献の物語はマイページに寄せ、ここは探す・眺める・開くに絞ります。</p>
+            <span>${escapeHtml(copy.heroEyebrow)}</span>
+            <h1>${escapeHtml(copy.heroTitle)}</h1>
+            <p>${escapeHtml(copy.heroLead)}</p>
             <div class="notes-library-actions">
-              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">写真・動画を記録</a>
-              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide"), lang))}">ライブガイドを使う</a>
-              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide/outcomes"), lang))}">ガイド成果を見る</a>
+              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.actions.record)}</a>
+              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide"), lang))}">${escapeHtml(copy.actions.guide)}</a>
+              <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/guide/outcomes"), lang))}">${escapeHtml(copy.actions.outcomes)}</a>
             </div>
           </div>
-          <div class="notes-library-stats" aria-label="観察ライブラリの概要">
-            <div><strong>${escapeHtml(formatProfileNumber(libraryEntries.length))}</strong><em>観察データ</em></div>
-            <div><strong>${escapeHtml(formatProfileNumber(photoCount))}</strong><em>写真枚数</em></div>
-            <div><strong>${escapeHtml(formatProfileNumber(namedCount))}</strong><em>名前あり</em></div>
+          <div class="notes-library-stats" aria-label="${escapeHtml(copy.statsAria)}">
+            <div><strong>${escapeHtml(formatNotesNumber(libraryEntries.length, lang))}</strong><em>${escapeHtml(copy.stats.observations)}</em></div>
+            <div><strong>${escapeHtml(formatNotesNumber(photoCount, lang))}</strong><em>${escapeHtml(copy.stats.photos)}</em></div>
+            <div><strong>${escapeHtml(formatNotesNumber(namedCount, lang))}</strong><em>${escapeHtml(copy.stats.named)}</em></div>
           </div>
         </section>
         ${renderNotesExperienceLoop(basePath, lang)}
         <section id="notes-own" class="section notes-library-main" data-notes-library data-testid="notes-own">
           <div class="notes-library-section-head">
-            <div><span>${escapeHtml(isLoggedIn ? "My observations" : "Public sample")}</span><h2>${escapeHtml(isLoggedIn ? "自分の観察データ" : "公開されている観察データ")}</h2></div>
+            <div><span>${escapeHtml(isLoggedIn ? copy.sections.ownEyebrow : copy.sections.publicEyebrow)}</span><h2>${escapeHtml(isLoggedIn ? copy.sections.ownTitle : copy.sections.publicTitle)}</h2></div>
             <p>${escapeHtml(latestLine)}</p>
           </div>
-          ${renderNotesLibraryControls(libraryEntries.length, placeCount)}
-          ${renderNotesLibrarySourceLanes(libraryEntries)}
+          ${renderNotesLibraryControls(libraryEntries.length, placeCount, lang)}
+          ${renderNotesLibrarySourceLanes(libraryEntries, lang)}
           ${renderNotesLibraryMonths(basePath, lang, libraryEntries, { locationMode: isLoggedIn ? "owner" : "public", civicContexts })}
         </section>
-        ${renderNotesLibraryPlaceAlbums(snapshot)}
+        ${renderNotesLibraryPlaceAlbums(snapshot, lang)}
         <section id="notes-nearby" class="section notes-nearby-library" data-testid="notes-nearby">
-          <div class="notes-library-section-head"><div><span>Nearby traces</span><h2>近くの公開記録</h2></div><p>自分の棚とは分けて、地域の背景として薄く見る。</p></div>
+          <div class="notes-library-section-head"><div><span>${escapeHtml(copy.sections.nearbyEyebrow)}</span><h2>${escapeHtml(copy.sections.nearbyTitle)}</h2></div><p>${escapeHtml(copy.sections.nearbyLead)}</p></div>
           ${nearbyEntries.length > 0
             ? renderNotesLibraryMonths(basePath, lang, nearbyEntries, { locationMode: "public", civicContexts })
-            : `<div class="notes-library-empty">${escapeHtml(emptyCopy)}</div>`}
+            : `<div class="notes-library-empty">${escapeHtml(copy.nearbyEmpty)}</div>`}
         </section>
-        ${renderNotesLibraryScript()}
+        ${renderNotesLibraryScript(lang)}
       </div>`,
-      footerNote: "観察データの棚はこのページ、成長や地域への効き方はマイページに分けています。",
+      footerNote: copy.footerNote,
     });
   });
 

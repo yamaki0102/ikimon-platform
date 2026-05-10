@@ -118,7 +118,22 @@
           { "href": "/record", "label": "Record" },
           { "href": "/contact", "label": "Plan a program" }
         ]
+      },
+      "learnIndex": {
+        "title": "Reading index | ikimon.life",
+        "eyebrow": "Read",
+        "heading": "Reading index",
+        "lead": "One topic per page: how to start observing, check names, and keep records useful later.",
+        "activeNav": "learn",
+        "bodyPageId": "learn-index"
       }
+    }
+  },
+  "read": {
+    "map": {
+      "title": "Life map | ikimon.life",
+      "activeNav": "home",
+      "footerNote": "Zoom in to see where records, species, parks, and water-side clues are gathering."
     }
   }
 }

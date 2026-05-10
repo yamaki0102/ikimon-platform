@@ -73,7 +73,7 @@ export function renderCommunityMeter(
   }
 
   const copy = copyByLang[lang];
-  const exploreHref = appendLangToHref(withBasePath(basePath, "/explore"), lang);
+  const exploreHref = appendLangToHref(withBasePath(basePath, "/observations"), lang);
 
   return `<section class="section cm-section" aria-labelledby="cm-heading">
     <div class="cm-card">

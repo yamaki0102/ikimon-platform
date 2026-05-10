@@ -108,18 +108,21 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Enjoy Life/);
-    assert.match(response.body, /見つける、確かめる、地図で見る。/);
-    assert.match(response.body, /観察する/);
-    assert.match(response.body, /同定する/);
+    assert.match(response.body, /いま見えている自然/);
+    assert.match(response.body, /みんなが残した写真、動画、ガイド、同定待ち/);
+    assert.match(response.body, /投稿する/);
+    assert.match(response.body, /再訪/);
+    assert.match(response.body, /近く/);
+    assert.match(response.body, /同定待ち/);
     assert.match(response.body, /マイページ/);
-    assert.match(response.body, /今日の発見/);
+    assert.match(response.body, /みんなの発見/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
     assert.match(response.body, /ガイド/);
-    assert.match(response.body, /スキャン/);
     assert.match(response.body, /同定待ち/);
-    assert.match(response.body, /地域マップ/);
     assert.match(response.body, /getElementById\("ikimon-topa-map-mini"\)/);
+    assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);
+    assert.doesNotMatch(response.body, /見つける、確かめる、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
     assert.doesNotMatch(response.body, /今日のikimon\.life/);
     assert.doesNotMatch(response.body, /信頼と安全/);
@@ -171,16 +174,73 @@ test("observations index renders the senior-friendly video grid list", async () 
     assert.match(response.body, /未同定/);
     assert.match(response.body, /写真あり/);
     assert.match(response.body, /登録エリア/);
-    assert.match(response.body, /科・属・種名/);
+    assert.match(response.body, /科 \/ 属 \/ 種/);
     assert.match(response.body, /スポット名/);
     assert.match(response.body, /保存名（任意）/);
     assert.match(response.body, /data-observations-field-chip/);
     assert.match(response.body, /data-observations-preset-save/);
     assert.match(response.body, /同定少ない順/);
+    assert.match(response.body, /<details class="observations-advanced">/);
     assert.match(response.body, /data-testid="observations-index"/);
     assert.match(response.body, /observations-video-grid/);
     assert.match(response.body, /\/ja\/observations\?filter=needs_id/);
     assert.doesNotMatch(response.body, /写真から、地域の発見をすぐ見る。/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("observations index localizes the daily content controls in English", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/en/observations", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<html lang="en">/);
+    assert.match(response.body, /<h1>Observations<\/h1>/);
+    assert.match(response.body, /Name, place, person/);
+    assert.match(response.body, /AI candidates/);
+    assert.match(response.body, /Registered areas/);
+    assert.match(response.body, /Preset name \(optional\)/);
+    assert.match(response.body, /Fewest IDs/);
+    assert.match(response.body, /<details class="observations-advanced">/);
+    assert.match(response.body, /No public observations are ready to show yet|Observation cards/);
+    assert.doesNotMatch(response.body, /観察投稿一覧/);
+    assert.doesNotMatch(response.body, /名前・場所・人/);
+    assert.doesNotMatch(response.body, /登録エリア/);
+    assert.doesNotMatch(response.body, /同定少ない順/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("explore is folded into observations while preserving search intent", async () => {
+  const app = buildApp();
+  try {
+    const redirect = await app.inject({ method: "GET", url: "/explore?q=tonbo&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(redirect.statusCode, 308);
+    assert.equal(redirect.headers.location, "/ja/observations?q=tonbo");
+
+    const legacy = await app.inject({ method: "GET", url: "/zukan.php?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(legacy.statusCode, 308);
+    assert.equal(legacy.headers.location, "/ja/observations");
+
+    const observations = await app.inject({ method: "GET", url: "/observations?q=tonbo&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(observations.statusCode, 200);
+    assert.match(observations.body, /new URLSearchParams\(window\.location\.search/);
+    assert.match(observations.body, /const initialQuery =/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("map page localizes the browser title in English", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/en/map", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<html lang="en">/);
+    assert.match(response.body, /<title>Life map \| ikimon\.life<\/title>/);
+    assert.doesNotMatch(response.body, /<title>地域のいのちマップ \| ikimon\.life<\/title>/);
   } finally {
     await app.close();
   }
@@ -231,6 +291,28 @@ test("notes page is an observation library with separated source lanes", async (
       response.body.indexOf("観察ライブラリ") < response.body.indexOf("近くの公開記録"),
       "library should appear before nearby public traces",
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test("notes page localizes the library chrome in English", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/en/notes", headers: { accept: "text/html" } });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<html lang="en"/);
+    assert.match(response.body, /Observation Library/);
+    assert.match(response.body, /Search by name or place/);
+    assert.match(response.body, /Place albums/);
+    assert.match(response.body, /Nearby public records/);
+    assert.match(response.body, /Record, read, review, and walk again\./);
+    assert.match(response.body, /\/en\/guide\/outcomes/);
+    assert.doesNotMatch(response.body, /観察ライブラリ/);
+    assert.doesNotMatch(response.body, /名前・場所で探す/);
+    assert.doesNotMatch(response.body, /場所アルバム/);
+    assert.doesNotMatch(response.body, /近くの公開記録/);
+    assert.doesNotMatch(response.body, /記録して、読んで、成果を見て、また歩く。/);
   } finally {
     await app.close();
   }

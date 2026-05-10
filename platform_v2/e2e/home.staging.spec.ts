@@ -22,7 +22,7 @@ for (const profile of HOME_VIEWPORTS) {
       await suppressMapLibreForSmoke(page);
       await page.goto("/?lang=ja", { waitUntil: "networkidle" });
       await expect(page.locator(".prototype-topa")).toBeVisible();
-      await expect(page.locator("#landing-hero-heading")).toContainText("見つける、確かめる、地図で見る。");
+      await expect(page.locator("#landing-hero-heading")).toContainText("いま見えている自然");
       await expect(page.locator(".prototype-topa a[href*='/record']").first()).toBeVisible();
       await expect(page.locator(".prototype-topa-search")).toBeVisible();
       await expect(page.locator(".prototype-topa-actions")).toBeVisible();

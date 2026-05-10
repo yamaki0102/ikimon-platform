@@ -114,7 +114,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     summary: { ja: "Enjoy Life の思想から、身近な生きものの観察と地域の自然記録へ進む入口。", en: "The entry point for enjoying life through nearby nature and starting a record." },
     primaryAction: { href: "/record", label: { ja: "記録する", en: "Record" } },
     legacyRedirects: ["/index.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "見つける、確かめる、地図で見る。" }, readySelector: "body", screenshot: { baselineName: "registry-top" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "いま見えている自然" }, readySelector: "body", screenshot: { baselineName: "registry-top" } },
   },
   {
     path: "/record",
@@ -176,27 +176,16 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地図" }, readySelector: "#map-explorer", screenshot: { baselineName: "registry-map" } },
   },
   {
-    path: "/explore",
-    lane: "start",
-    layout: "wide",
-    audience: "visitor",
-    auth: "public",
-    navVisibility: ["header", "footer", "qa", "xml"],
-    title: { ja: "見つける", en: "Explore" },
-    summary: { ja: "最近の観察や名前から、身近な自然と次の発見を探す。", en: "Browse observations and names across the service." },
-    legacyRedirects: ["/zukan", "/zukan.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地域のいのちを見る" }, readySelector: "body", screenshot: { baselineName: "registry-explore" } },
-  },
-  {
     path: "/observations",
     lane: "start",
     layout: "wide",
     audience: "visitor",
     auth: "public",
-    navVisibility: ["qa", "xml"],
+    navVisibility: ["header", "qa", "xml"],
     title: { ja: "観察投稿一覧", en: "Observations" },
     summary: { ja: "投稿された観察を写真グリッドで一覧する。", en: "Browse submitted observations in a photo-first grid." },
     primaryAction: { href: "/record", label: { ja: "観察を投稿する", en: "Record" } },
+    legacyRedirects: ["/zukan", "/zukan.php"],
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察投稿一覧" }, readySelector: "[data-testid='observations-index']", screenshot: { baselineName: "registry-observations" } },
   },
   {
@@ -253,7 +242,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "使い方と考え方", en: "Learn" },
     summary: { ja: "名前が分からない観察を、あとで活かせる記録にする。", en: "Guides for turning observations into useful records." },
     marketing: { pageKey: "learnIndex" },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "読みたいページを、すぐ選ぶ" }, readySelector: "body", screenshot: { baselineName: "registry-learn" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "読みもの索引" }, readySelector: "body", screenshot: { baselineName: "registry-learn" } },
   },
   {
     path: "/about",
@@ -845,7 +834,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     layout: "wide",
     audience: "public",
     auth: "public",
-    navVisibility: ["header", "footer", "qa", "xml"],
+    navVisibility: ["footer", "qa", "xml"],
     title: { ja: "観察会", en: "Observation events" },
     summary: {
       ja: "見つける楽しさを入口に、班で同じ場所を見直し、地域の記録に残す観察会。",
@@ -1038,11 +1027,11 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
 ];
 
 export function sitePageLabel(page: SitePageDefinition, lang: string = "ja"): string {
-  return lang === "en" ? page.title.en : page.title.ja;
+  return lang === "ja" ? page.title.ja : page.title.en;
 }
 
 export function sitePageSummary(page: SitePageDefinition, lang: string = "ja"): string {
-  return lang === "en" ? page.summary.en : page.summary.ja;
+  return lang === "ja" ? page.summary.ja : page.summary.en;
 }
 
 export function listSitePages(): SitePageDefinition[] {
@@ -1144,7 +1133,7 @@ export function buildXmlSitemap(origin: string, today = new Date()): string {
   const lastmod = today.toISOString().slice(0, 10);
   const urls = xmlSitemapPages()
     .flatMap((page) => {
-      const langs = localizedPageLangs(page);
+      const langs: SiteLang[] = ["ja"];
       return langs.map((lang) => {
         const localizedPath = appendLangToHref(page.path, lang);
         const alternates = langs

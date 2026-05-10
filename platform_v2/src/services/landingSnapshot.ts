@@ -702,7 +702,7 @@ function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard"
     },
     {
       kind: "needsId",
-      href: needsId ? `/observations/${encodeURIComponent(needsId.detailId ?? needsId.visitId ?? needsId.occurrenceId)}` : "/explore",
+      href: needsId ? `/observations/${encodeURIComponent(needsId.detailId ?? needsId.visitId ?? needsId.occurrenceId)}` : "/observations",
       primaryText: needsId?.displayName ?? null,
       secondaryText: needsId?.publicLocation.label ?? null,
       metricValue: needsId?.identificationCount ?? null,
@@ -764,8 +764,8 @@ function isLandingObservationItem(item: LandingTopShelfItem): item is LandingObs
 const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
   {
     kind: "today",
-    title: "今日の発見",
-    eyebrow: "ENJOY NATURE",
+    title: "みんなの発見",
+    eyebrow: "LIVE FEED",
     href: "/observations",
     limit: 8,
     matches: () => true,
@@ -794,7 +794,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
   },
   {
     kind: "guide",
-    title: "ガイド",
+    title: "ガイドで見つけたこと",
     eyebrow: "GUIDE",
     href: "/guide",
     limit: 4,
@@ -808,7 +808,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
   },
   {
     kind: "scan",
-    title: "スキャン",
+    title: "スキャンから見えたもの",
     eyebrow: "SCAN",
     href: "/lens",
     limit: 4,
@@ -822,7 +822,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
   },
   {
     kind: "needsId",
-    title: "同定待ち",
+    title: "名前を待つ記録",
     eyebrow: "IDENTIFY",
     href: "/observations?filter=needs_id",
     limit: 6,
@@ -1032,8 +1032,8 @@ function collapseVideoShelfIntoEvidenceShelf(shelves: LandingTopShelf[]): Landin
       if (shelf.kind !== "photo") return shelf;
       return {
         ...shelf,
-        title: "観察証拠",
-        eyebrow: "EVIDENCE",
+        title: "写真と動画",
+        eyebrow: "MEDIA",
         href: "/observations",
         items: mergedMediaItems,
       };

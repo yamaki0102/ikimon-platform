@@ -447,7 +447,7 @@ export async function registerMeSubscriptionsApiRoutes(app: FastifyInstance): Pr
         return {
           kind: "taxon",
           label,
-          href: `/explore?q=${encodeURIComponent(label)}`,
+          href: `/observations?q=${encodeURIComponent(label)}`,
           source: "follow",
           stats: { followed: true },
         };
