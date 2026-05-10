@@ -3220,17 +3220,17 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
     : "観察履歴がたまるほど、前回からの成長と見分けポイントが読み返しやすくなります。";
   const homeHero = isPersonalHome
     ? {
-        eyebrow: "再訪のホーム",
-        heading: "前回より、少し見えるようになる",
-        lead: "前回からの気づきと、また行きたくなる場所をまとめて返すホームです。",
+        eyebrow: "観察ホーム",
+        heading: "次に見る場所と、最近の記録",
+        lead: "よく歩く場所、前回からの気づき、最近の観察をここからすぐ開けます。",
         actions: [
-          { href: "/notes", label: "ノートへ" },
-          { href: "/record", label: "1 件記録する", variant: "secondary" as const },
+          { href: "/record", label: "1 件記録する" },
+          { href: "/notes", label: "ノートへ", variant: "secondary" as const },
         ],
       }
     : {
         eyebrow: "はじめるホーム",
-        heading: "最初の1件を残すと、自分の自然ノートになる",
+        heading: "最初の1件から始める",
         lead: "写真、場所、ひとことを残すだけで、次に見返せるホームが育ち始めます。",
         actions: [
           { href: "/record", label: "1 件記録する" },
@@ -3263,18 +3263,42 @@ ${progressCards}
     "ホーム",
     homeHero,
     `${OBSERVATION_CARD_STYLES}
-        .hero-panel { padding-block: 32px 24px; }
-        .hero-panel .actions { margin-top: 18px; }
+        .hero-panel { min-height: 0; padding: 22px 24px 20px; border-radius: 18px; }
+        .hero-panel h1 { font-size: clamp(28px, 3vw, 42px); line-height: 1.16; max-width: 20ch; }
+        .hero-panel p { margin-top: 10px; max-width: 46ch; font-size: 15px; line-height: 1.7; }
+        .hero-panel .actions { margin-top: 14px; }
         .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
         ${PROFILE_CHANNEL_STYLES}
+        .profile-channel-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .profile-channel-card,
+        .profile-channel-card:first-child { min-height: 214px; grid-template-rows: 108px auto; }
+        .profile-channel-media,
+        .profile-channel-media img,
+        .profile-channel-media > span { min-height: 108px; }
+        .profile-channel-body { padding: 12px; }
+        .profile-channel-body strong { font-size: 16px; }
         .profile-growth-shell { min-width: 0; display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
         .profile-growth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
         .profile-growth-card { min-width: 0; min-height: 132px; padding: 15px; border-radius: 8px; border: 1px solid rgba(16,185,129,.13); background: rgba(248,250,252,.82); overflow-wrap: anywhere; }
         .profile-growth-card span { display: block; color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
         .profile-growth-card strong { display: block; margin-top: 8px; color: #10251a; font-size: 20px; line-height: 1.2; font-weight: 950; }
         .profile-growth-card p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
-        @media (max-width: 980px) { .profile-growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 620px) { .profile-growth-grid { grid-template-columns: 1fr; } .profile-growth-shell { padding: 16px; } }
+        @media (max-width: 980px) {
+          .profile-channel-grid,
+          .profile-growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 620px) {
+          .hero-panel { padding: 42px 20px 34px; border-radius: 0; }
+          .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); max-width: 16ch; }
+          .profile-channel-grid,
+          .profile-growth-grid { grid-template-columns: 1fr; }
+          .profile-channel-card,
+          .profile-channel-card:first-child { min-height: 220px; grid-template-rows: minmax(132px, 1fr) auto; }
+          .profile-channel-media,
+          .profile-channel-media img,
+          .profile-channel-media > span { min-height: 132px; }
+          .profile-growth-shell { padding: 16px; }
+        }
         ${PLACE_REVISIT_ROW_STYLES}
       `,
     appendLangToHref(withBasePath(basePath, "/home"), lang),
