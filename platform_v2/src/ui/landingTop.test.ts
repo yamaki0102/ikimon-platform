@@ -148,6 +148,13 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /観察する/);
   assert.match(html, /同定する/);
   assert.match(html, /地域マップ/);
+  assert.match(html, /音の標本棚/);
+  assert.match(html, /鳴き声と環境音を、楽しい記録から研究データへ。/);
+  assert.match(html, /自然音だけを短く残す/);
+  assert.match(html, /似た音を束ねて仕訳する/);
+  assert.match(html, /AI候補を人が確かめる/);
+  assert.match(html, /研究で読める形にする/);
+  assert.match(html, /data-kpi-action="landing:sound:guide"/);
   assert.match(html, /今日の発見/);
   assert.match(html, /観察証拠/);
   assert.doesNotMatch(html, /id="topa-video"/);
