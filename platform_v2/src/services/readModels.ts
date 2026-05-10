@@ -223,6 +223,8 @@ export type ObservationListSnapshot = {
 };
 
 const OBSERVATION_LIST_SNAPSHOT_TTL_MS = 30_000;
+const OBSERVATION_LIST_CANDIDATE_MULTIPLIER = 20;
+const OBSERVATION_LIST_MIN_CANDIDATE_VISITS = 500;
 const observationListSnapshotCache = new Map<string, {
   expiresAt: number;
   snapshot: ObservationListSnapshot;
@@ -1577,9 +1579,18 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
 
 async function loadObservationListCards(limit: number): Promise<RecentObservation[]> {
   const pool = getPool();
+  const candidateLimit = Math.max(limit * OBSERVATION_LIST_CANDIDATE_MULTIPLIER, OBSERVATION_LIST_MIN_CANDIDATE_VISITS);
   const result = await pool.query<ObservationListCardRow>(
-    `WITH valid_media AS MATERIALIZED (
-       SELECT ea.visit_id,
+    `WITH recent_public_visits AS MATERIALIZED (
+       SELECT v.visit_id,
+              v.observed_at AS observed_at_sort
+         FROM visits v
+        WHERE ${PUBLIC_OBSERVATION_QUALITY_SQL}
+        ORDER BY v.observed_at DESC, v.visit_id DESC
+        LIMIT $2
+     ),
+     valid_media AS MATERIALIZED (
+       SELECT rpv.visit_id,
               ea.occurrence_id,
               ea.asset_role,
               ea.created_at,
@@ -1591,10 +1602,11 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
                 then coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url')
                 else coalesce(ab.public_url, ab.storage_path)
               end AS media_url
-         FROM evidence_assets ea
+         FROM recent_public_visits rpv
+         JOIN occurrences o ON o.visit_id = rpv.visit_id
+         JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
          JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-        WHERE ea.visit_id IS NOT NULL
-          AND ea.occurrence_id IS NOT NULL
+        WHERE ea.occurrence_id IS NOT NULL
           AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
      ),
      media_flags AS (
@@ -1614,12 +1626,11 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
         ORDER BY visit_id, case when asset_role = 'observation_photo' then 0 else 1 end, created_at ASC, occurrence_id ASC
      ),
      candidate_visits AS (
-       SELECT v.visit_id,
-              v.observed_at AS observed_at_sort
-         FROM visits v
-         JOIN primary_media pm ON pm.visit_id = v.visit_id
-        WHERE ${PUBLIC_OBSERVATION_QUALITY_SQL}
-        ORDER BY v.observed_at DESC, v.visit_id DESC
+       SELECT rpv.visit_id,
+              rpv.observed_at_sort
+         FROM recent_public_visits rpv
+         JOIN primary_media pm ON pm.visit_id = rpv.visit_id
+        ORDER BY rpv.observed_at_sort DESC, rpv.visit_id DESC
         LIMIT $1
      )
      SELECT featured.occurrence_id,
@@ -1693,7 +1704,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
             )
        ) fields ON true
       ORDER BY cv.observed_at_sort DESC, v.visit_id DESC`,
-    [limit],
+    [limit, candidateLimit],
   );
 
   return result.rows.map((row) => {
