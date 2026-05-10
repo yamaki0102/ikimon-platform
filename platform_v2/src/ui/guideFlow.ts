@@ -478,8 +478,69 @@ const COPY: Record<SiteLang, GuideCopy> = {
   },
 };
 
+type GuideAudioPipelineCopy = {
+  title: string;
+  body: string;
+  aria: string;
+  stages: Array<{ label: string; body: string }>;
+};
+
+function guideAudioPipelineCopy(lang: SiteLang): GuideAudioPipelineCopy {
+  if (lang === "ja") {
+    return {
+      title: "音声ONで、発見が4つの棚につながります",
+      body: "その場では楽しい鳴き声メモとして見え、裏側では自然音候補、似た音のまとまり、レビュー待ち、研究利用候補に分かれます。",
+      aria: "音声データの接続先",
+      stages: [
+        { label: "自然音", body: "人声らしい音は保存せず、鳥・虫・水音などの短い候補だけ残す" },
+        { label: "仕訳", body: "似た音を bundle / cluster にまとめ、あとで代表音を聞けるようにする" },
+        { label: "確認", body: "AI候補を確定名にせず、代表音と確信度を人のレビューへ回す" },
+        { label: "研究", body: "時刻・場所・努力量・公開範囲をそろえ、BioMonWeek 型の観測データへ渡す" },
+      ],
+    };
+  }
+  if (lang === "es") {
+    return {
+      title: "Con audio, el hallazgo se conecta a cuatro capas",
+      body: "En pantalla se siente como una nota sonora; por dentro se separa en sonidos naturales, grupos similares, revisión y uso de investigación.",
+      aria: "Destino de los datos de audio",
+      stages: [
+        { label: "Naturaleza", body: "Se omite la voz probable y se conservan candidatos breves de aves, insectos o agua." },
+        { label: "Agrupar", body: "Los sonidos similares se reúnen como bundle o cluster para escuchar un representante." },
+        { label: "Revisar", body: "Las sugerencias de IA no son nombres confirmados; pasan con confianza y evidencia." },
+        { label: "Investigar", body: "Hora, lugar, esfuerzo y alcance público quedan listos para monitoreo." },
+      ],
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      title: "Com áudio, a descoberta vai para quatro camadas",
+      body: "Na tela parece uma nota sonora; por trás vira som natural candidato, grupos semelhantes, revisão e possível uso em pesquisa.",
+      aria: "Destino dos dados de áudio",
+      stages: [
+        { label: "Natureza", body: "Voz provável não é salva; ficam candidatos curtos de aves, insetos ou água." },
+        { label: "Agrupar", body: "Sons parecidos viram bundles ou clusters com um som representante." },
+        { label: "Revisar", body: "A IA sugere, mas não confirma nomes; a evidência vai para revisão." },
+        { label: "Pesquisa", body: "Hora, lugar, esforço e escopo público ficam prontos para monitoramento." },
+      ],
+    };
+  }
+  return {
+    title: "Audio connects each discovery to four shelves",
+    body: "It feels like a field sound note, while the data is separated into natural-sound candidates, similar-sound groups, review work, and research-ready signals.",
+    aria: "Audio data destinations",
+    stages: [
+      { label: "Nature", body: "Speech-like clips are skipped; short bird, insect, and water cues are kept." },
+      { label: "Sort", body: "Similar clips become bundles or clusters with a representative sound." },
+      { label: "Review", body: "AI suggestions stay provisional until a person reviews the evidence." },
+      { label: "Research", body: "Time, place, effort, and publication scope stay attached for monitoring." },
+    ],
+  };
+}
+
 export function renderGuideFlow(basePath: string, lang: SiteLang): string {
   const c = COPY[lang];
+  const audioPipeline = guideAudioPipelineCopy(lang);
   const cats = c.categories.map((cat) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.label)}</option>`).join("");
   const modes = c.modes.map((mode) => `<option value="${escapeHtml(mode.id)}">${escapeHtml(mode.label)}</option>`).join("");
 
@@ -502,6 +563,15 @@ export function renderGuideFlow(basePath: string, lang: SiteLang): string {
     <div class="guide-context-card">
       <strong>${escapeHtml(c.contextTitle)}</strong>
       <p>${escapeHtml(c.contextBody)}</p>
+    </div>
+    <div class="guide-audio-chain" aria-label="${escapeHtml(audioPipeline.aria)}">
+      <div>
+        <strong>${escapeHtml(audioPipeline.title)}</strong>
+        <p>${escapeHtml(audioPipeline.body)}</p>
+      </div>
+      <ol>
+        ${audioPipeline.stages.map((stage) => `<li><b>${escapeHtml(stage.label)}</b><span>${escapeHtml(stage.body)}</span></li>`).join("")}
+      </ol>
     </div>
   </div>
 
@@ -3095,6 +3165,13 @@ export const GUIDE_FLOW_STYLES = `
   .guide-context-card { margin-top: 14px; display: grid; gap: 5px; padding: 12px 13px; border-radius: 8px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9)); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-context-card strong { color: #064e3b; font-size: 13px; line-height: 1.35; font-weight: 950; }
   .guide-context-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 800; }
+  .guide-audio-chain { margin-top: 10px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 10px; padding: 12px; border-radius: 8px; background: #0f172a; border: 1px solid rgba(15,23,42,.12); box-shadow: 0 10px 26px rgba(15,23,42,.08); }
+  .guide-audio-chain strong { color: #fff; font-size: 13px; line-height: 1.35; font-weight: 950; }
+  .guide-audio-chain p { margin: 5px 0 0; color: #cbd5e1; font-size: 12px; line-height: 1.6; font-weight: 760; }
+  .guide-audio-chain ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .guide-audio-chain li { min-width: 0; display: grid; gap: 3px; padding: 9px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); }
+  .guide-audio-chain b { color: #a7f3d0; font-size: 11px; line-height: 1.2; font-weight: 950; }
+  .guide-audio-chain span { color: #e2e8f0; font-size: 11px; line-height: 1.45; font-weight: 720; }
   .guide-controls { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
   .guide-privacy-row { display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.86); border: 1px solid rgba(5,150,105,.18); box-shadow: 0 8px 20px rgba(15,23,42,.04); }
   .guide-privacy-badge { width: fit-content; display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 950; border: 1px solid rgba(5,150,105,.2); }
@@ -3231,6 +3308,8 @@ export const GUIDE_FLOW_STYLES = `
     .guide-start-sheet-backdrop { align-items: center; }
   }
   @media (max-width: 520px) {
+    .guide-audio-chain { grid-template-columns: 1fr; }
+    .guide-audio-chain ol { grid-template-columns: 1fr; }
     .guide-start-sheet-backdrop { padding: 10px; }
     .guide-start-sheet { padding: 15px; }
     .guide-recommended-card { grid-template-columns: 1fr; }

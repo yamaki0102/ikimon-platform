@@ -435,6 +435,7 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
 
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
     ${contentShelvesHtml}
+    ${renderSoundIntelligenceSection(basePath, lang)}
 
     <div class="prototype-topa-map-shelf" id="topa-local-map">
       <div class="prototype-topa-map-copy">
@@ -443,6 +444,51 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
         ${regionalStoryHtml}
       </div>
       <div class="prototype-topa-map-board">${mapHtml}</div>
+    </div>
+  </section>`;
+}
+
+function renderSoundIntelligenceSection(basePath: string, lang: SiteLang): string {
+  const stages = [
+    {
+      label: "Collect",
+      title: "自然音だけを短く残す",
+      body: "ライブガイドや定点レコーダーの音は、人声らしい部分を避け、時刻・場所・端末条件と一緒に記録候補へ入ります。",
+    },
+    {
+      label: "Sort",
+      title: "似た音を束ねて仕訳する",
+      body: "音声 segment は bundle と cluster にまとまり、鳥・虫・水音・未知音のように、素人にも見返しやすい棚へ寄せます。",
+    },
+    {
+      label: "Review",
+      title: "AI候補を人が確かめる",
+      body: "BirdNET-Go や Perch v2 由来の候補は確定名にせず、代表音、確信度、モデル情報、レビュー状態を分けて扱います。",
+    },
+    {
+      label: "Research",
+      title: "研究で読める形にする",
+      body: "BioMonWeek 的な観測手法、sampling effort、公開範囲、Evidence Tier をそろえ、研究者が再利用条件を判断できます。",
+    },
+  ];
+  return `<section class="prototype-sound-os" id="sound-intelligence" aria-labelledby="prototype-sound-heading">
+    <div class="prototype-sound-copy">
+      <small>音の標本棚</small>
+      <h2 id="prototype-sound-heading">鳴き声と環境音を、楽しい記録から研究データへ。</h2>
+      <p>写真や動画だけでは残らない「その場の音」を、短い自然音、似た音のまとまり、レビュー待ち、研究利用候補に分けて扱います。ユーザーには発見として戻し、研究者には条件つきデータとして渡せる設計です。</p>
+      <div class="prototype-sound-actions">
+        <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, "/guide"))}" data-kpi-action="landing:sound:guide">音で歩く</a>
+        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/learn/technology"))}" data-kpi-action="landing:sound:technology">音声処理を見る</a>
+        <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/for-researcher/apply"))}" data-kpi-action="landing:sound:research">研究利用へ</a>
+      </div>
+    </div>
+    <div class="prototype-sound-flow" aria-label="音声データの流れ">
+      ${stages.map((stage, index) => `<article>
+        <span>${index + 1}</span>
+        <i>${escapeHtml(stage.label)}</i>
+        <h3>${escapeHtml(stage.title)}</h3>
+        <p>${escapeHtml(stage.body)}</p>
+      </article>`).join("")}
     </div>
   </section>`;
 }
@@ -1087,6 +1133,106 @@ export const LANDING_TOP_STYLES = `
     border-radius: 8px;
     background: #ecfdf5;
   }
+  .prototype-sound-os {
+    display: grid;
+    grid-template-columns: minmax(260px, .42fr) minmax(0, .58fr);
+    gap: 14px;
+    align-items: stretch;
+    padding: 14px;
+    border: 1px solid rgba(15,23,42,.1);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(8,47,73,.94) 58%, rgba(20,83,45,.92));
+    box-shadow: 0 18px 48px rgba(15,23,42,.12);
+    scroll-margin-top: 92px;
+  }
+  .prototype-sound-copy {
+    display: grid;
+    align-content: center;
+    gap: 12px;
+    padding: clamp(18px, 3vw, 28px);
+    border-radius: 8px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  .prototype-sound-copy small {
+    color: #a7f3d0;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .prototype-sound-copy h2 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(24px, 3vw, 38px);
+    line-height: 1.18;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .prototype-sound-copy p {
+    margin: 0;
+    color: #dbeafe;
+    font-size: 15px;
+    line-height: 1.7;
+    font-weight: 720;
+  }
+  .prototype-sound-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .prototype-sound-actions .prototype-btn-secondary {
+    background: rgba(255,255,255,.12);
+    color: #eff6ff;
+    border-color: rgba(255,255,255,.2);
+  }
+  .prototype-sound-flow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .prototype-sound-flow article {
+    min-height: 188px;
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(255,255,255,.18);
+  }
+  .prototype-sound-flow span {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #10251a;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .prototype-sound-flow i {
+    color: #0369a1;
+    font-size: 12px;
+    line-height: 1.2;
+    font-style: normal;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+  .prototype-sound-flow h3 {
+    margin: 0;
+    color: #10251a;
+    font-size: 17px;
+    line-height: 1.34;
+    font-weight: 950;
+  }
+  .prototype-sound-flow p {
+    margin: 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.6;
+    font-weight: 720;
+  }
   .prototype-topa-learn {
     min-height: 72px;
     display: grid;
@@ -1549,6 +1695,7 @@ export const LANDING_TOP_STYLES = `
     }
     .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-map-shelf { grid-template-columns: 1fr; }
+    .prototype-sound-os { grid-template-columns: 1fr; }
     .prototype-hero,
     .prototype-daily-grid,
     .prototype-map-section,
@@ -1577,6 +1724,10 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-thumb { height: 100%; min-height: 116px; }
     .prototype-topa-summary-card { grid-column: auto; }
     .prototype-topa-map-board { min-height: 320px; }
+    .prototype-sound-os { padding: 10px; }
+    .prototype-sound-flow { grid-template-columns: 1fr; }
+    .prototype-sound-flow article { min-height: auto; }
+    .prototype-sound-actions .prototype-btn { width: 100%; white-space: normal; }
     .prototype-topa-learn { grid-template-columns: 1fr; }
     .prototype-topa-learn a { width: 100%; justify-content: center; }
     .prototype-hero { min-height: 0; gap: 20px; }
