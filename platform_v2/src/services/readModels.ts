@@ -1632,6 +1632,34 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
          JOIN primary_media pm ON pm.visit_id = rpv.visit_id
         ORDER BY rpv.observed_at_sort DESC, rpv.visit_id DESC
         LIMIT $1
+     ),
+     candidate_field_refs AS (
+       SELECT DISTINCT visit_id, field_id
+         FROM (
+           SELECT v.visit_id,
+                  unnest(coalesce(v.resolved_field_ids, ARRAY[]::uuid[])) AS field_id
+             FROM candidate_visits cv
+             JOIN visits v ON v.visit_id = cv.visit_id
+            WHERE coalesce(array_length(v.resolved_field_ids, 1), 0) > 0
+           UNION ALL
+           SELECT v.visit_id,
+                  (v.source_payload->>'field_id')::uuid AS field_id
+             FROM candidate_visits cv
+             JOIN visits v ON v.visit_id = cv.visit_id
+            WHERE coalesce(v.source_payload->>'field_id', '') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+         ) refs
+     ),
+     field_refs_by_visit AS (
+       SELECT refs.visit_id,
+              jsonb_agg(jsonb_build_object(
+                'fieldId', f.field_id::text,
+                'name', f.name,
+                'source', f.source
+              ) ORDER BY f.source, f.name) AS field_refs
+         FROM candidate_field_refs refs
+         JOIN observation_fields f ON f.field_id = refs.field_id
+        WHERE f.valid_to IS NULL
+        GROUP BY refs.visit_id
      )
      SELECT featured.occurrence_id,
             v.visit_id,
@@ -1690,19 +1718,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
            FROM identifications i
           WHERE i.occurrence_id = featured.occurrence_id
        ) ids ON true
-       LEFT JOIN LATERAL (
-         SELECT jsonb_agg(jsonb_build_object(
-                  'fieldId', f.field_id::text,
-                  'name', f.name,
-                  'source', f.source
-                ) ORDER BY f.source, f.name) AS field_refs
-           FROM observation_fields f
-          WHERE f.valid_to IS NULL
-            AND (
-              f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
-              OR f.field_id::text = v.source_payload->>'field_id'
-            )
-       ) fields ON true
+       LEFT JOIN field_refs_by_visit fields ON fields.visit_id = v.visit_id
       ORDER BY cv.observed_at_sort DESC, v.visit_id DESC`,
     [limit, candidateLimit],
   );
