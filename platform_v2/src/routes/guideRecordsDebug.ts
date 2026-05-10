@@ -449,6 +449,11 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
       <div class="grd-species">${species.length ? species.map((item) => `<span title="${escapeHtml(item.sourceNames.join(", "))}">${escapeHtml(item.canonicalName)}<small>${escapeHtml(item.rank)}</small></span>`).join("") : `<span class="grd-muted">種名なし</span>`}</div>
       <div class="grd-features">${renderFeaturePills(bundle.features)}</div>
       ${bundle.nextSamplingProtocol ? `<section class="grd-next-sampling"><b>次に見る</b><p>${escapeHtml(bundle.nextSamplingProtocol)}</p></section>` : ""}
+      <nav class="grd-card-actions" aria-label="このガイド成果の次の行動">
+        <a href="/guide">同じ場所でもう一度ガイド</a>
+        <a href="/record?source=guide&guideRecordId=${escapeHtml(row.guide_record_id)}">写真・動画を記録する</a>
+        <a href="/map">地図で見る</a>
+      </nav>
       <div class="grd-feedback-row" data-feedback-status>
         <button type="button"
           data-guide-bundle-feedback="helpful"
@@ -571,6 +576,9 @@ const STYLES = `
 .grd-next-sampling{border:1px solid #fde68a;background:#fffbeb;color:#713f12;border-radius:12px;padding:10px 12px;display:grid;gap:4px;}
 .grd-next-sampling b{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#a16207;}
 .grd-next-sampling p{margin:0;font-size:12px;line-height:1.65;font-weight:800;}
+.grd-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.grd-card-actions a{min-height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 11px;background:#0f172a;color:#fff;font-size:12px;font-weight:950;text-decoration:none;}
+.grd-card-actions a+ a{background:#fff;color:#334155;border:1px solid rgba(15,23,42,.12);}
 .grd-edit{border-top:1px solid #eef4f1;padding-top:8px;}
 .grd-edit summary{cursor:pointer;font-size:12px;font-weight:950;color:#0f766e;}
 .grd-one-taps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}

@@ -24,6 +24,15 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /Record audio too\?/);
   assert.match(html, /Audio on/);
   assert.match(html, /Audio off/);
+  assert.match(html, /Today&#39;s mission/);
+  assert.match(html, /Look for 5 min/);
+  assert.match(html, /Walk audio-only/);
+  assert.match(html, /Study one spot/);
+  assert.match(html, /applyMissionPreset\(input\.value \|\| 'quick'\)/);
+  assert.match(html, /setNextAction\(representative\.nextLookTarget \|\| copy\.nowNextFallback\)/);
+  assert.match(html, /id="guide-now-next" hidden/);
+  assert.match(html, /sessionInsights\(counts\)/);
+  assert.match(html, /retryHintForAutoSave\(scene\)/);
   assert.match(html, /Audio connects each discovery to four shelves/);
   assert.match(html, /natural-sound candidates/);
   assert.match(html, /Similar clips become bundles or clusters/);
@@ -125,6 +134,10 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
   const html = renderGuideFlow("", "ja");
 
   assert.match(html, /使うものを選んで開始します/);
+  assert.match(html, /今日のミッション/);
+  assert.match(html, /5分だけ見る/);
+  assert.match(html, /音だけで歩く/);
+  assert.match(html, /1地点を詳しく見る/);
   assert.match(html, /おすすめ設定/);
   assert.match(html, /歩きながら見たり、自転車でゆっくり移動するなら/);
   assert.match(html, /おすすめを使う/);
@@ -143,6 +156,11 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
   assert.match(html, /保存されたもの/);
   assert.match(html, /保存しなかったもの/);
   assert.match(html, /音声だけで取れたもの/);
+  assert.match(html, /今日見えたもの/);
+  assert.match(html, /足りない証拠/);
+  assert.match(html, /次回見るもの/);
+  assert.match(html, /ゆっくり1方向へ向けて/);
+  assert.match(html, /人工物だけでなく、近くの草/);
   assert.match(html, /未同期のもの/);
   assert.match(html, /href="\/guide\/outcomes"/);
   assert.match(html, /ガイド成果を確認する/);
