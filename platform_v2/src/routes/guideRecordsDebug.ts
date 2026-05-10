@@ -874,7 +874,7 @@ async function renderPage(
     return renderSiteDocument({
       basePath: "",
       title: options.title ?? "ガイド記録 — ikimon.life",
-      activeNav: "ノート",
+      activeNav: "シーン",
       currentPath: options.nextPath ?? "/me/guide-records",
       extraStyles: STYLES,
       body: loginGate(options.nextPath),
@@ -902,7 +902,7 @@ async function renderPage(
       </div>
       <nav class="grd-actions" aria-label="ガイド成果の次の行動">
         <a class="grd-primary-link" href="/guide">またガイドを使う</a>
-        <a class="grd-secondary-link" href="/notes">観察ライブラリへ</a>
+        <a class="grd-secondary-link" href="/notes">シーンライブラリへ</a>
         <a class="grd-secondary-link" href="/map">地図で見る</a>
       </nav>
     </div>
@@ -912,7 +912,7 @@ async function renderPage(
   return renderSiteDocument({
     basePath: "",
     title: options.title ?? "自分のガイド記録 — ikimon.life",
-    activeNav: "ノート",
+    activeNav: "シーン",
     currentPath: options.nextPath ?? "/me/guide-records",
     extraStyles: STYLES,
     body,

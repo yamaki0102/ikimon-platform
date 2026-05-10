@@ -44,9 +44,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /あとで見返すためのメモ/);
         assert.match(response.body, /まだ分からないまま残す/);
-        assert.match(response.body, /今日は見なかったメモを残す/);
-        assert.match(response.body, /次に探すもの/);
-        assert.match(response.body, /この記録の役割/);
+        assert.match(response.body, /今日は見なかったメモをシーンとして残す/);
+        assert.match(response.body, /次に見返す手がかり/);
+        assert.match(response.body, /このシーンの役割/);
         assert.match(response.body, /name="activityIntent"/);
         assert.match(response.body, /name="participantRole"/);
         assert.match(response.body, /name="revisitOfVisitId"/);
@@ -54,17 +54,17 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /activityIntent/);
         assert.match(response.body, /participantRole/);
         assert.match(response.body, /revisitObservationId/);
-        assert.match(response.body, /写真で記録する/);
+        assert.match(response.body, /写真でシーンを残す/);
         assert.match(response.body, /メモだけ残す/);
         assert.match(response.body, /動画で残す/);
         assert.match(response.body, /ファイルから選ぶ/);
         assert.match(response.body, /record-confidence-strip/);
-        assert.match(response.body, /名前はあとでOK/);
-        assert.match(response.body, /写真1枚で保存/);
-        assert.match(response.body, /みんなで確認できる/);
+        assert.match(response.body, /場所と時間が残る/);
+        assert.match(response.body, /周囲も手がかり/);
+        assert.match(response.body, /対象はあとで分ける/);
         assert.match(response.body, /自動下書き/);
         assert.match(response.body, /あとで補完する項目/);
-        assert.match(response.body, /保存してあとで補完/);
+        assert.match(response.body, /シーンを保存/);
         assert.match(response.body, /記録のコツを読む/);
         assert.ok(
           response.body.indexOf('id="record-status"') > response.body.indexOf("</form>"),
@@ -124,9 +124,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /record_submit_error/);
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);
-        assert.match(response.body, /const statusHeading = savedDetailId \? '記録本体は保存済みです。' : '送信に失敗しました。'/);
+        assert.match(response.body, /const statusHeading = savedDetailId \? 'シーン本体は保存済みです。' : '送信に失敗しました。'/);
         assert.match(response.body, /data-record-success-cta="revisit_same_place"/);
-        assert.match(response.body, /同じ場所でもう1件/);
+        assert.match(response.body, /同じ場所でもう1シーン/);
         assert.match(response.body, /revisitObservationId=/);
         assert.match(response.body, /写真を保存しています\.\.\. ' \+ String\(index\) \+ '\/' \+ String\(total\)/);
         assert.match(response.body, /photo_upload_failed_at_/);
@@ -240,14 +240,14 @@ test("record route gives unauthenticated visitors a start guide instead of a raw
         });
 
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /写真で記録を始める/);
-        assert.match(response.body, /ログインして写真で記録/);
-        assert.match(response.body, /名前はあとでOK/);
-        assert.match(response.body, /写真1枚で保存/);
-        assert.match(response.body, /みんなで確認できる/);
+        assert.match(response.body, /写真でシーンを残す/);
+        assert.match(response.body, /ログインして写真でシーンを残す/);
+        assert.match(response.body, /場所と時間が残る/);
+        assert.match(response.body, /周囲も手がかり/);
+        assert.match(response.body, /対象はあとで分ける/);
         assert.match(response.body, /メモで始める/);
         assert.match(response.body, /使い方を読む/);
-        assert.match(response.body, /新しく登録して記録する/);
+        assert.match(response.body, /新しく登録してシーンを残す/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dnote/);
         assert.match(response.body, /redirect=%2Frecord%3Fstart%3Dphoto/);
         assert.doesNotMatch(response.body, /まず写真を残す/);

@@ -1,9 +1,9 @@
 {
   "publicShared": {
     "cta": {
-      "record": "生きものを記録する",
-      "startObservation": "観察をはじめる",
-      "openNotebook": "ノートを見る",
+      "record": "シーンを残す",
+      "startObservation": "シーンを作る",
+      "openNotebook": "シーンを見る",
       "openMap": "地域のいのちを見る",
       "readFaq": "FAQを見る",
       "openGuide": "その場で調べる",
@@ -13,7 +13,7 @@
       "contact": "お問い合わせする"
     },
     "labels": {
-      "notebook": "ノート",
+      "notebook": "シーン",
       "hint": "ヒント",
       "revisit": "また行きたくなる理由",
       "groupHelp": "企業・地域で活用",
@@ -33,7 +33,7 @@
     }
   },
   "shell": {
-    "brandTagline": "生きものを楽しみ、地域の自然を記録する",
+    "brandTagline": "生きものを楽しみ、シーンから観察レコードを育てる",
     "skipToContent": "本文へスキップ",
     "searchPlaceholder": "生きものや場所を探す",
     "searchLabel": "サイト内検索",
@@ -41,19 +41,19 @@
     "nav": {
       "home": "ホーム",
       "explore": "見つける",
-      "places": "ノート",
+      "places": "シーン",
       "community": "みんなで調べる",
       "learn": "読む",
       "business": "企業・地域"
     },
-    "record": "記録する",
+    "record": "シーンを残す",
     "footer": {
       "tagline": "生きものを楽しむ。暮らしを楽しむ。",
       "start": "はじめる",
       "startLinks": {
         "discover": "見つける",
-        "record": "記録する",
-        "places": "ノートを見る"
+        "record": "シーンを残す",
+        "places": "シーンを見る"
       },
       "learn": "読む",
       "learnLinks": {
@@ -76,8 +76,8 @@
   "quickNav": {
     "ariaLabel": "主な入口",
     "labels": {
-      "notes": "ノートを見る",
-      "record": "記録する",
+      "notes": "シーンを見る",
+      "record": "シーンを残す",
       "lens": "その場で調べる",
       "scan": "次の場所を探す",
       "map": "地域のいのちを見る"
@@ -85,7 +85,7 @@
   },
   "footerNotes": {
     "landing": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
-    "public": "いつもの道で見つけた生きものを、地域のいのちの記録として残す。",
+    "public": "いつもの道で見つけた生きものを、シーンから地域の観察レコードへ育てる。",
     "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
   }
 }

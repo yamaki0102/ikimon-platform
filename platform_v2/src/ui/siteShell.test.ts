@@ -40,8 +40,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /data-side-nav-personalized-list/);
   assert.match(html, /desktop-side-nav-mini-card/);
   assert.match(html, /class="shell shell-layout-home"/);
-  assert.match(html, /href="\/ja\/observations">観察投稿一覧/);
-  assert.match(html, /href="\/ja\/observations" title="観察"/);
+  assert.match(html, /href="\/ja\/observations">観察レコード一覧/);
+  assert.match(html, /href="\/ja\/observations" title="観察レコード"/);
   assert.doesNotMatch(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
   assert.match(html, /href="\/ja\/learn\/updates"/);
   assert.match(html, /desktop-side-nav-section-title">今日使う/);
@@ -210,9 +210,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /photoJson\.error/);
   assert.match(html, /continue;/);
   assert.match(html, /photo_upload_network_failed/);
-  assert.match(html, /観察本体は保存済みです。写真は/);
-  assert.match(html, /写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります/);
-  assert.match(html, /同じ観察に再送/);
+  assert.match(html, /シーン本体は保存済みです。写真は/);
+  assert.match(html, /写真の通信確認だけ失敗しました。ホームに戻るとシーンが見える場合があります/);
+  assert.match(html, /同じシーンに再送/);
   assert.match(html, /失敗した' \+ String\(failed\) \+ '枚を再送/);
   assert.doesNotMatch(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);
   assert.match(html, /subject_inference: 'ai'/);

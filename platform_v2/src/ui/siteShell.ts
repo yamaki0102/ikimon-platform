@@ -342,21 +342,21 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         login: "ログイン",
         howTo: "使い方を見る",
         myPage: "マイページ",
-        notes: "観察ライブラリ",
+        notes: "シーンライブラリ",
         guideOutcomes: "ガイド成果",
-        needsId: "名前を待つ記録",
+        needsId: "名前を待つ観察レコード",
         nearbyAreas: "近くの観察エリア",
-        identifyQueue: "名前を待つ記録",
+        identifyQueue: "名前を待つ観察レコード",
         taxaSearch: "分類群を探す",
         explore: "見つける",
-        observations: "観察投稿一覧",
+        observations: "観察レコード一覧",
         lens: "その場で見る",
         guide: "ライブガイド",
         events: "観察会",
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "身近な自然を記録する。",
+      legalTagline: "身近な自然をシーンに残す。",
     },
     en: {
       primaryTitle: "Daily",
@@ -515,11 +515,11 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const labels: Record<SiteLang, Record<string, string>> = {
     ja: {
       home: "ホーム",
-      record: "記録",
-      observations: "観察",
+      record: "シーン",
+      observations: "観察レコード",
       identify: "同定",
       map: "マップ",
-      notes: "観察ライブラリ",
+      notes: "シーンライブラリ",
       guide: "ガイド",
       learn: "学ぶ",
       community: "地域",
@@ -808,8 +808,8 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
             </span>
           </div>
             <div class="footer-kicker">生きものを楽しむ。暮らしを楽しむ。</div>
-            <h2>小さな発見を、<br>地域のいのちの記録へ。</h2>
-            <p>身近な生きものを見つけ、観察し、残し、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
+            <h2>小さな発見を、<br>観察レコードへ。</h2>
+            <p>身近な生きものを見つけ、シーンに残し、対象ごとの観察レコードへ育て、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
             <div class="footer-actions">
               <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
               <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
@@ -830,7 +830,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
           <div class="footer-map-copy">
             <span>次の一歩</span>
             <strong>いつもの道が、観察ルートになる。</strong>
-            <p>散歩、通学路、旅先、庭先。どこから始めても、記録はあとから育てられる。</p>
+            <p>散歩、通学路、旅先、庭先。どこから始めても、シーンはあとから観察レコードへ育てられる。</p>
           </div>
         </div>
       </section>
@@ -863,7 +863,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ikimon.life｜生きものを楽しみ、地域の自然を記録する。</span>
+        <span>ikimon.life｜生きものを楽しみ、シーンから観察レコードを育てる。</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -980,26 +980,26 @@ type GlobalRecordEntryCopy = {
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
   const copy: Record<SiteLang, GlobalRecordEntryCopy> = {
     ja: {
-      navLabel: "すぐ記録する",
+      navLabel: "すぐシーンを残す",
       photo: "写真",
       video: "動画",
       gallery: "選ぶ",
       guide: "ガイド",
-      sheetLabel: "撮影して記録する",
-      sheetTitle: "撮影して記録",
-      sheetHelp: "主役を1つ決めて、周囲の様子も手がかりとして残せます。",
+      sheetLabel: "撮影してシーンを残す",
+      sheetTitle: "撮影してシーン",
+      sheetHelp: "主役を1つ決めつつ、周囲の様子も同じシーンの手がかりとして残せます。",
       close: "閉じる",
       previewAlt: "撮影プレビュー",
       empty: "カメラを起動すると、ここにプレビューが出ます。",
       trayZero: "写真0枚",
-      trayHelp: "最大6枚まで同じ観察にまとめます",
+      trayHelp: "最大6枚まで同じシーンにまとめます",
       actionLabel: "撮影操作",
       start: "カメラを起動",
       capture: "撮影する",
       inlineTitle: "ここで少し整える",
       dataEstimate: "送信量を確認中",
       meaningTitle: "主役と周囲",
-      meaningHelp: "投稿では主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。",
+      meaningHelp: "シーンでは主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。",
       roleLabel: "このメディアの役割",
       rolePrimary: "主役",
       roleContext: "周囲",
@@ -1009,7 +1009,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       namePlaceholder: "例: スズメ / セミ / 名前は不明",
       noteLabel: "メモ",
       notePlaceholder: "例: 水辺の柵の近く。鳴き声が聞こえた。",
-      trimTitle: "投稿する最大60秒を選ぶ",
+      trimTitle: "シーンに残す最大60秒を選ぶ",
       trimStart: "開始",
       trimEnd: "終了",
     },
@@ -1810,7 +1810,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         ].join('|');
         const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
         const observationId = 'record-' + Date.now();
-        setStatus('観察を保存しています...');
+        setStatus('シーンを保存しています...');
         const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
           method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -1893,10 +1893,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const failed = failedUploads.length;
         const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + failedUploads[0].error : '';
         if (captureButton) captureButton.textContent = '失敗した' + String(failed) + '枚を再送';
-        setStatus('観察本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じ観察に再送します。' + reason);
+        setStatus('シーン本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じシーンに再送します。' + reason);
         return;
       }
-      resetPhotoDraftAfterDirectPost('投稿しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
+      resetPhotoDraftAfterDirectPost('シーンを保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
     } finally {
       directPostInFlight = false;
       if (startButton) startButton.disabled = false;
@@ -2343,10 +2343,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       } catch (error) {
         if (captureButton) captureButton.disabled = false;
         const message = error && error.message ? String(error.message) : '';
-        if (message === 'session_required') setStatus('投稿するにはログインが必要です。ログイン後にもう一度試してください。');
+        if (message === 'session_required') setStatus('シーンを残すにはログインが必要です。ログイン後にもう一度試してください。');
         else if (message === 'location_required') setStatus('直接投稿には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
-        else if (photoDraftRetryDetailId) setStatus('観察本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ観察に再送します。');
+        else if (photoDraftRetryDetailId) setStatus('シーン本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻るとシーンが見える場合があります。もう一度押すと同じシーンに再送します。');
         else setStatus('投稿に失敗しました。通信状態を確認してもう一度試してください。');
       }
       return;

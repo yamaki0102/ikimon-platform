@@ -162,7 +162,7 @@ const QA_LANE_META: Record<RouteLane, { eyebrow: string; title: string; lead: st
   start: {
     eyebrow: "start",
     title: "Start / Core Journey",
-    lead: "トップから記録、地図、探索、ノート、詳細へ進む主導線。",
+    lead: "トップからシーン、地図、探索、シーンライブラリ、詳細へ進む主導線。",
   },
   learn: {
     eyebrow: "learn",

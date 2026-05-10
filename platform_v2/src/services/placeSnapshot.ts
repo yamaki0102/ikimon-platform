@@ -439,7 +439,7 @@ function axisAction(axis: RelationshipAxis, fieldId: string): PlaceSnapshotNextA
       return {
         kind: "review",
         title: "分からないまま残せる証拠を増やす",
-        body: "種名を急がず、写真・メモ・見分けポイントを残すと、後からレビューしやすくなります。",
+        body: "種名を急がず、写真・メモ・周囲の手がかりを残すと、後からレビューしやすくなります。",
         href: `/community/events/new?field_id=${encodeURIComponent(fieldId)}`,
       };
     case "stewardship":
