@@ -612,7 +612,7 @@ jobs:
             echo "$prefixes" | while IFS= read -r prefix; do
               [ -n "$prefix" ] || continue
               echo "Cleaning stale staging UI smoke fixture prefix: $prefix"
-              runuser -u ikimon-staging -- bash -lc "set -euo pipefail; set -a; . '$STAGING_ENV_FILE'; set +a; npm --silent --prefix '$V2_DIR' run cleanup:production-ui-smoke -- --fixture-prefix=$prefix" >/dev/null
+              bash -lc "set -euo pipefail; set -a; . '$STAGING_ENV_FILE'; set +a; npm --silent --prefix '$V2_DIR' run cleanup:production-ui-smoke -- --fixture-prefix=$prefix" >/dev/null
             done
 
       - name: Run staging registry sitemap smoke
