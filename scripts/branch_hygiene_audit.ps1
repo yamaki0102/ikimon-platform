@@ -2,7 +2,8 @@ param(
     [string]$Repository = $env:GITHUB_REPOSITORY,
     [int]$StaleDays = 30,
     [int]$RunLimit = 5,
-    [switch]$EmitGithubSummary
+    [switch]$EmitGithubSummary,
+    [switch]$FailOnStagingDrift
 )
 
 $ErrorActionPreference = "Stop"
@@ -192,6 +193,18 @@ foreach ($workflow in @("deploy.yml", "deploy-staging.yml")) {
 }
 
 $activeBranches = @($branches | Where-Object { $_.IsProtectedOperational } | Sort-Object Name)
+$stagingBranch = @($branches | Where-Object { $_.Name -eq "staging" } | Select-Object -First 1)
+$stagingDriftMessages = New-Object System.Collections.Generic.List[string]
+if ($stagingBranch.Count -eq 0) {
+    $stagingDriftMessages.Add("staging branch is missing.")
+}
+elseif ($null -eq $stagingBranch.AheadDefault -or $null -eq $stagingBranch.BehindDefault) {
+    $stagingDriftMessages.Add("staging branch divergence from $defaultBranch could not be calculated.")
+}
+elseif ($stagingBranch.AheadDefault -gt 0 -or $stagingBranch.BehindDefault -gt 0) {
+    $stagingDriftMessages.Add("staging is out of sync with $defaultBranch (ahead=$($stagingBranch.AheadDefault), behind=$($stagingBranch.BehindDefault)).")
+}
+
 $staleBranches = @(
     $branches |
         Where-Object { -not $_.IsProtectedOperational -and $_.IsStale } |
@@ -246,6 +259,16 @@ if ($defaultProtection -and $defaultProtection.required_linear_history -and $def
     Add-Line $lines ""
 }
 
+if ($stagingDriftMessages.Count -gt 0) {
+    foreach ($message in $stagingDriftMessages) {
+        Add-Line $lines "> WARNING: $message"
+        if ($env:GITHUB_ACTIONS -eq "true") {
+            Write-Output "::warning::$message"
+        }
+    }
+    Add-Line $lines ""
+}
+
 Add-Line $lines "## Operational Branches"
 Add-Line $lines ""
 if ($activeBranches.Count -eq 0) {
@@ -254,6 +277,18 @@ if ($activeBranches.Count -eq 0) {
 else {
     foreach ($branch in $activeBranches) {
         Add-Line $lines "- $($branch.Name): $($branch.Sha) $($branch.Subject)"
+    }
+}
+Add-Line $lines ""
+
+Add-Line $lines "## Staging Sync"
+Add-Line $lines ""
+if ($stagingDriftMessages.Count -eq 0) {
+    Add-Line $lines "- staging is aligned with $defaultBranch."
+}
+else {
+    foreach ($message in $stagingDriftMessages) {
+        Add-Line $lines "- $message"
     }
 }
 Add-Line $lines ""
@@ -324,4 +359,8 @@ Write-Output $output
 
 if ($EmitGithubSummary -and -not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
     Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $output
+}
+
+if ($FailOnStagingDrift -and $stagingDriftMessages.Count -gt 0) {
+    throw "Staging branch drift detected. Align staging with $defaultBranch or rerun without -FailOnStagingDrift for a report-only audit."
 }

@@ -30,4 +30,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           STALE_DAYS: ${{ github.event.inputs.stale_days || '30' }}
-        run: ./scripts/branch_hygiene_audit.ps1 -StaleDays ([int]$env:STALE_DAYS) -EmitGithubSummary
+        run: ./scripts/branch_hygiene_audit.ps1 -StaleDays ([int]$env:STALE_DAYS) -EmitGithubSummary -FailOnStagingDrift
