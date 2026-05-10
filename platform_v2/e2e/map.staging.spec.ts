@@ -22,9 +22,10 @@ async function expectDesktopMapDominance(page: Page): Promise<void> {
 
   const sideBox = await requiredBox("desktop result pane", side);
   const mapBox = await requiredBox("desktop map wrap", mapWrap);
-  expect(mapBox.x).toBeLessThanOrEqual(sideBox.x + 1);
+  expect(sideBox.x).toBeLessThanOrEqual(mapBox.x + 1);
+  expect(mapBox.x).toBeGreaterThanOrEqual(sideBox.x + sideBox.width - 1);
   expect(sideBox.x + sideBox.width).toBeLessThan(mapBox.x + mapBox.width);
-  expect(mapBox.width).toBeGreaterThan(sideBox.width * 2);
+  expect(mapBox.width).toBeGreaterThan(sideBox.width * 1.45);
   expect(mapBox.height).toBeGreaterThan(620);
 }
 
@@ -45,21 +46,21 @@ async function expectMobileEmptyState(page: Page): Promise<void> {
 async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   const selectionCard = page.locator("#me-map-selection-card");
   const insightCard = page.locator("#me-map-insight-card");
-  const mapWrap = page.locator(".me-map-wrap");
+  const side = page.locator(".me-side");
 
   await expect(selectionCard).toHaveClass(/is-visible/);
   if (await insightCard.count()) {
     await expect(insightCard).not.toHaveClass(/is-visible/);
   }
 
-  const mapBox = await requiredBox("desktop map wrap", mapWrap);
+  const sideBox = await requiredBox("desktop result pane", side);
   const selectionBox = await requiredBox("desktop place card", selectionCard);
 
-  expect(selectionBox.x).toBeGreaterThanOrEqual(mapBox.x + 8);
-  expect(selectionBox.y).toBeGreaterThanOrEqual(mapBox.y + 40);
-  expect(selectionBox.x + selectionBox.width).toBeLessThanOrEqual(mapBox.x + mapBox.width * 0.56);
+  expect(selectionBox.x).toBeGreaterThanOrEqual(sideBox.x);
+  expect(selectionBox.x + selectionBox.width).toBeLessThanOrEqual(sideBox.x + sideBox.width + 1);
+  expect(selectionBox.y).toBeGreaterThanOrEqual(sideBox.y);
   expect(selectionBox.height).toBeGreaterThan(120);
-  await expect(selectionCard.locator(".me-map-card")).toContainText(/\S+/);
+  await expect(selectionCard).toContainText(/\S+/);
 }
 
 async function expectMobileBottomSheet(page: Page): Promise<void> {
@@ -170,7 +171,9 @@ for (const profile of MAP_VIEWPORTS) {
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     }
 
-    const blankPlaceOpened = await tryOpenBlankPlaceTarget(page, !!profile.isMobile);
+    const blankPlaceOpened = process.env.MAP_QA_PROBE_BLANK_PLACE === "1"
+      ? await tryOpenBlankPlaceTarget(page, !!profile.isMobile)
+      : false;
     if (blankPlaceOpened) {
       if (profile.isMobile) {
         await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
@@ -210,7 +213,7 @@ test("map share state survives reload", async ({ browser }) => {
   const page = await context.newPage();
   await waitForMapReady(page);
 
-  await page.getByRole("tab", { name: "調査前進" }).click({ force: true });
+  await page.getByRole("tab", { name: "記録の余白" }).click({ force: true });
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
   await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");

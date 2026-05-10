@@ -47,37 +47,42 @@ test.describe("landing top visual regression", () => {
       await expect(page.locator("#landing-hero-heading")).toContainText("見つける、確かめる、地図で見る。");
       await expect(page.locator(".prototype-topa-actions")).toBeVisible();
       await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
-      await expect(page.locator(".prototype-flow-grid")).toBeVisible();
-      await expect(page.locator(".prototype-map-section")).toBeVisible();
-      await expect(page.locator(".site-footer")).toBeVisible();
+      await expect(page.locator("#sound-intelligence")).toBeVisible();
+      await expect(page.locator(".prototype-sound-flow article")).toHaveCount(4);
+      await expect(page.locator("#topa-local-map")).toBeVisible();
+      await expect(page.locator(".prototype-topa-map-board")).toBeVisible();
 
       const metrics = await page.evaluate(() => {
-        const flowCard = document.querySelector(".prototype-flow-card");
-        const mapBoard = document.querySelector(".prototype-map-board");
-        const flowCardStyle = flowCard ? getComputedStyle(flowCard) : null;
+        const countTracks = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+        const mapBoard = document.querySelector(".prototype-topa-map-board");
+        const soundSection = document.querySelector("#sound-intelligence");
+        const soundFlow = document.querySelector(".prototype-sound-flow");
+        const soundSectionStyle = soundSection ? getComputedStyle(soundSection) : null;
+        const soundFlowStyle = soundFlow ? getComputedStyle(soundFlow) : null;
         const mapBoardRect = mapBoard?.getBoundingClientRect();
         return {
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
           hasSampleText: document.documentElement.outerHTML.includes("sample_"),
-          flowCardColumns: flowCardStyle?.gridTemplateColumns ?? "",
+          soundSectionTrackCount: countTracks(soundSectionStyle?.gridTemplateColumns ?? ""),
+          soundFlowTrackCount: countTracks(soundFlowStyle?.gridTemplateColumns ?? ""),
+          soundActionCount: document.querySelectorAll(".prototype-sound-actions a").length,
           mapBoardHeight: Math.round(mapBoardRect?.height ?? 0),
-          footerHeroCount: document.querySelectorAll(".footer-hero").length,
-          footerDirectoryCount: document.querySelectorAll(".footer-directory").length,
         };
       });
 
       expect(metrics.scrollWidth, "no horizontal scroll").toBe(metrics.clientWidth);
       expect(metrics.hasSampleText, "no sample image fallback").toBe(false);
-      expect(metrics.footerHeroCount, "footer brand panel shell exists").toBe(1);
-      expect(metrics.footerDirectoryCount, "footer directory exists").toBe(1);
+      expect(metrics.soundActionCount, "sound section keeps the three route choices").toBe(3);
 
       if (viewport.name === "mobile") {
-        expect(metrics.flowCardColumns, "mobile flow timeline columns").toContain("56px");
+        expect(metrics.soundSectionTrackCount, "mobile sound section stacks").toBe(1);
+        expect(metrics.soundFlowTrackCount, "mobile sound cards stack").toBe(1);
         expect(metrics.mapBoardHeight, "mobile map board matches prototype compact height").toBeLessThanOrEqual(460);
       } else {
-        expect(metrics.flowCardColumns, "desktop flow cards stay card-based").not.toContain("56px");
-        expect(metrics.mapBoardHeight, "desktop map board keeps immersive height").toBeGreaterThanOrEqual(500);
+        expect(metrics.soundSectionTrackCount, "desktop sound section keeps copy and cards side by side").toBeGreaterThanOrEqual(2);
+        expect(metrics.soundFlowTrackCount, "desktop sound cards stay two-column").toBeGreaterThanOrEqual(2);
+        expect(metrics.mapBoardHeight, "desktop map board keeps local preview height").toBeGreaterThanOrEqual(360);
       }
 
       if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {

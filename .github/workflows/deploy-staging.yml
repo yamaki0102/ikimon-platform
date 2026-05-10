@@ -588,6 +588,33 @@ jobs:
       - name: Setup platform_v2 browser smoke runtime
         uses: ./.github/actions/setup-platform-v2-browser
 
+      - name: Cleanup stale staging UI smoke fixtures
+        if: needs.plan.outputs.run_full_browser_e2e == 'true'
+        uses: appleboy/ssh-action@v1
+        env:
+          STAGING_BASIC_AUTH_USER: ${{ secrets.STAGING_BASIC_AUTH_USER }}
+          STAGING_BASIC_AUTH_PASS: ${{ secrets.STAGING_BASIC_AUTH_PASS }}
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: STAGING_BASIC_AUTH_USER,STAGING_BASIC_AUTH_PASS
+          script: |
+            set -euo pipefail
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
+            html="$(curl -fsS -u "${STAGING_BASIC_AUTH_USER}:${STAGING_BASIC_AUTH_PASS}" https://staging.ikimon.life/observations 2>/dev/null || true)"
+            prefixes="$(printf '%s' "$html" | grep -Eo 'smoke-ui-[A-Za-z0-9-]+' | sort -u || true)"
+            if [ -z "$prefixes" ]; then
+              echo "No stale smoke-ui fixture prefixes detected on staging."
+              exit 0
+            fi
+            echo "$prefixes" | while IFS= read -r prefix; do
+              [ -n "$prefix" ] || continue
+              echo "Cleaning stale staging UI smoke fixture prefix: $prefix"
+              runuser -u ikimon-staging -- bash -lc "set -euo pipefail; set -a; . '$STAGING_ENV_FILE'; set +a; npm --silent --prefix '$V2_DIR' run cleanup:production-ui-smoke -- --fixture-prefix=$prefix" >/dev/null
+            done
+
       - name: Run staging registry sitemap smoke
         if: needs.plan.outputs.run_full_browser_e2e == 'true'
         working-directory: platform_v2
