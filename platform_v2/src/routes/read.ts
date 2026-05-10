@@ -3121,18 +3121,23 @@ function renderChannelMediaCard(
 }
 
 function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): string {
+  const isPersonalHome = Boolean(snapshot.viewerUserId);
   const latest = snapshot.recentObservations[0] ?? null;
   const firstPlace = snapshot.myPlaces[0] ?? null;
   const secondPlace = snapshot.myPlaces[1] ?? null;
   return `<section class="section" data-testid="home-channel">
     <div class="profile-channel-grid">
       ${renderChannelMediaCard(
-        withBasePath(basePath, firstPlace ? "/notes#notes-places" : "/map"),
-        "自分のフィールド",
-        firstPlace?.placeName ?? "これから歩く場所",
-        firstPlace ? buildPlaceNextLine(firstPlace) : "最初の場所を記録すると、ここが自分のフィールドになります。",
+        withBasePath(basePath, isPersonalHome ? (firstPlace ? "/notes#notes-places" : "/map") : "/record"),
+        isPersonalHome ? "自分のフィールド" : "今日の入口",
+        firstPlace?.placeName ?? (isPersonalHome ? "これから歩く場所" : "最初の1件を残す"),
+        firstPlace
+          ? buildPlaceNextLine(firstPlace)
+          : isPersonalHome
+            ? "最初の場所を記録すると、ここが自分のフィールドになります。"
+            : "写真、場所、ひとことを残すと、あとから見返せる自然ノートが始まります。",
         latest?.photoUrl,
-        "FIELD",
+        isPersonalHome ? "場所" : "記録",
       )}
       ${renderChannelMediaCard(
         latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record"),
@@ -3140,26 +3145,140 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         latest?.displayName ?? "今日の発見を待っています",
         latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "写真とひとことで、あとから見返せるページを作れます。",
         latest?.photoUrl,
-        "PHOTO",
+        "発見",
       )}
       ${renderChannelMediaCard(
-        withBasePath(basePath, secondPlace ? "/notes#notes-places" : "/map"),
-        "次に行く場所",
-        secondPlace?.placeName ?? firstPlace?.placeName ?? "地図から探す",
-        secondPlace ? buildPlaceNextLine(secondPlace) : firstPlace ? buildPlaceNextLine(firstPlace) : "近くの発見から、次に歩く場所を選べます。",
+        withBasePath(basePath, isPersonalHome && (secondPlace || firstPlace) ? "/notes#notes-places" : "/map"),
+        isPersonalHome ? "次に行く場所" : "歩く場所を探す",
+        secondPlace?.placeName ?? firstPlace?.placeName ?? (isPersonalHome ? "地図から探す" : "近くの発見を見る"),
+        secondPlace
+          ? buildPlaceNextLine(secondPlace)
+          : firstPlace
+            ? buildPlaceNextLine(firstPlace)
+            : isPersonalHome
+              ? "近くの発見から、次に歩く場所を選べます。"
+              : "地域の記録を見ると、最初に歩く場所を決めやすくなります。",
         null,
-        "NEXT",
+        "地図",
       )}
       ${renderChannelMediaCard(
         withBasePath(basePath, "/notes#notes-own"),
-        "自分の図鑑",
-        latest ? `${latest.displayName} から広げる` : "まだ空の図鑑",
-        "数を競う場所ではなく、自分が自然とどう関わってきたかを読み返す場所です。",
+        isPersonalHome ? "自分の図鑑" : "ノートの使い道",
+        latest ? `${latest.displayName} から広げる` : isPersonalHome ? "まだ空の図鑑" : "記録が育つ場所",
+        isPersonalHome
+          ? "数を競う場所ではなく、自分が自然とどう関わってきたかを読み返す場所です。"
+          : "1件ずつ残すほど、よく行く場所、見つけたもの、次に確かめたいことがまとまります。",
         latest?.photoUrl,
-        "LIFE",
+        "ノート",
       )}
     </div>
   </section>`;
+}
+
+export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: HomeSnapshot, showSpecialistCta = false): string {
+  const cards = snapshot.recentObservations.map((item) =>
+    renderObservationCard(basePath, lang, {
+      occurrenceId: item.occurrenceId,
+      visitId: item.visitId,
+      detailId: item.detailId,
+      featuredOccurrenceId: item.featuredOccurrenceId,
+      featuredSubjectName: item.featuredSubjectName,
+      subjectCount: item.subjectCount,
+      isMultiSubject: item.isMultiSubject,
+      featuredConfidenceBand: item.featuredConfidenceBand,
+      displayStability: item.displayStability,
+      displayName: item.displayName,
+      observedAt: item.observedAt,
+      observerName: item.observerName,
+      placeName: item.placeName,
+      municipality: item.municipality,
+      publicLocation: item.publicLocation,
+      photoUrl: item.photoUrl,
+      mediaUrl: item.mediaUrl,
+      hasPhoto: item.hasPhoto,
+      hasVideo: item.hasVideo,
+      identificationCount: item.identificationCount,
+      latitude: null,
+      longitude: null,
+      observerUserId: null,
+      observerAvatarUrl: null,
+    }, { locationMode: "public", showSpecialistCta }),
+  ).join("");
+  const myPlaces = renderPlaceRows(
+    basePath,
+    lang,
+    snapshot.viewerUserId,
+    snapshot.myPlaces,
+    "まだ記録した場所はありません。",
+  );
+  const isPersonalHome = Boolean(snapshot.viewerUserId);
+  const revisitCue = snapshot.myPlaces[0]
+    ? `${snapshot.myPlaces[0].placeName} · ${buildPlaceCompareLine(snapshot.myPlaces[0])} · ${buildPlaceNextLine(snapshot.myPlaces[0])}。`
+    : "まず1件記録すると、場所ごとの再訪理由が育ち始めます。";
+  const growthCue = snapshot.recentObservations[0]
+    ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
+    : "観察履歴がたまるほど、前回からの成長と見分けポイントが読み返しやすくなります。";
+  const homeHero = isPersonalHome
+    ? {
+        eyebrow: "再訪のホーム",
+        heading: "前回より、少し見えるようになる",
+        lead: "前回からの気づきと、また行きたくなる場所をまとめて返すホームです。",
+        actions: [
+          { href: "/notes", label: "ノートへ" },
+          { href: "/record", label: "1 件記録する", variant: "secondary" as const },
+        ],
+      }
+    : {
+        eyebrow: "はじめるホーム",
+        heading: "最初の1件を残すと、自分の自然ノートになる",
+        lead: "写真、場所、ひとことを残すだけで、次に見返せるホームが育ち始めます。",
+        actions: [
+          { href: "/record", label: "1 件記録する" },
+          { href: "/login?redirect=/home", label: "ログインして続きから", variant: "secondary" as const },
+        ],
+      };
+  const progressCards = isPersonalHome
+    ? `
+            <div class="profile-growth-card"><span>今回の学び</span><strong>前回より見えた点</strong><p>${escapeHtml(growthCue)}</p></div>
+            <div class="profile-growth-card"><span>また行く理由</span><strong>次に訪れる場所</strong><p>${escapeHtml(revisitCue)}</p></div>
+            <div class="profile-growth-card"><span>積み上がる意味</span><strong>長く残る観察</strong><p>今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div>`
+    : `
+            <div class="profile-growth-card"><span>1. 残す</span><strong>写真と場所を記録</strong><p>名前が分からなくても大丈夫です。場所とひとことが、あとで思い出せる手がかりになります。</p></div>
+            <div class="profile-growth-card"><span>2. 育つ</span><strong>よく歩く場所が見える</strong><p>記録が増えるほど、自分がどこで何を見てきたかがホームにまとまります。</p></div>
+            <div class="profile-growth-card"><span>3. 戻る</span><strong>次に確かめることが残る</strong><p>前回との違い、また行く理由、見分けたい点を読み返して次の観察へ進めます。</p></div>`;
+
+  return layout(
+    basePath,
+    "ホーム | ikimon",
+    `${renderHomeChannelDashboard(basePath, snapshot)}
+      <section class="section">
+        <div class="profile-growth-shell">
+          <div class="profile-growth-grid">
+${progressCards}
+          </div>
+        </div>
+      </section>
+      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces}</div></section>` : ""}
+      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
+    "ホーム",
+    homeHero,
+    `${OBSERVATION_CARD_STYLES}
+        .hero-panel { padding-block: 32px 24px; }
+        .hero-panel .actions { margin-top: 18px; }
+        .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        ${PROFILE_CHANNEL_STYLES}
+        .profile-growth-shell { min-width: 0; display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
+        .profile-growth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .profile-growth-card { min-width: 0; min-height: 132px; padding: 15px; border-radius: 8px; border: 1px solid rgba(16,185,129,.13); background: rgba(248,250,252,.82); overflow-wrap: anywhere; }
+        .profile-growth-card span { display: block; color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+        .profile-growth-card strong { display: block; margin-top: 8px; color: #10251a; font-size: 20px; line-height: 1.2; font-weight: 950; }
+        .profile-growth-card p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+        @media (max-width: 980px) { .profile-growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 620px) { .profile-growth-grid { grid-template-columns: 1fr; } .profile-growth-shell { padding: 16px; } }
+        ${PLACE_REVISIT_ROW_STYLES}
+      `,
+    appendLangToHref(withBasePath(basePath, "/home"), lang),
+  );
 }
 
 function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): string {
@@ -8536,91 +8655,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
     const snapshot = await getHomeSnapshot(viewerUserId);
-    const cards = snapshot.recentObservations.map((item) =>
-      renderObservationCard(basePath, lang, {
-        occurrenceId: item.occurrenceId,
-        visitId: item.visitId,
-        detailId: item.detailId,
-        featuredOccurrenceId: item.featuredOccurrenceId,
-        featuredSubjectName: item.featuredSubjectName,
-        subjectCount: item.subjectCount,
-        isMultiSubject: item.isMultiSubject,
-        featuredConfidenceBand: item.featuredConfidenceBand,
-        displayStability: item.displayStability,
-        displayName: item.displayName,
-        observedAt: item.observedAt,
-        observerName: item.observerName,
-        placeName: item.placeName,
-        municipality: item.municipality,
-        publicLocation: item.publicLocation,
-        photoUrl: item.photoUrl,
-        mediaUrl: item.mediaUrl,
-        hasPhoto: item.hasPhoto,
-        hasVideo: item.hasVideo,
-        identificationCount: item.identificationCount,
-        latitude: null,
-        longitude: null,
-        observerUserId: null,
-        observerAvatarUrl: null,
-      }, { locationMode: "public", showSpecialistCta: canUseSpecialistWorkbench(session) }),
-    ).join("");
-    const myPlaces = renderPlaceRows(
-      basePath,
-      lang,
-      snapshot.viewerUserId,
-      snapshot.myPlaces,
-      "まだ記録した場所はありません。",
-    );
-    const revisitCue = snapshot.myPlaces[0]
-      ? `${snapshot.myPlaces[0].placeName} · ${buildPlaceCompareLine(snapshot.myPlaces[0])} · ${buildPlaceNextLine(snapshot.myPlaces[0])}。`
-      : "まず1件記録すると、場所ごとの再訪理由が育ち始めます。";
-    const growthCue = snapshot.recentObservations[0]
-      ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
-      : "観察履歴がたまるほど、前回からの成長と見分けポイントが読み返しやすくなります。";
 
     reply.type("text/html; charset=utf-8");
-    return layout(
-      basePath,
-      "ホーム | ikimon",
-      `${renderHomeChannelDashboard(basePath, snapshot)}
-      <section class="section">
-        <div class="profile-growth-shell">
-          <div class="profile-growth-grid">
-            <div class="profile-growth-card"><span>今回の学び</span><strong>前回より見えた点</strong><p>${escapeHtml(growthCue)}</p></div>
-            <div class="profile-growth-card"><span>また行く理由</span><strong>次に訪れる場所</strong><p>${escapeHtml(revisitCue)}</p></div>
-            <div class="profile-growth-card"><span>積み上がる意味</span><strong>長く残る観察</strong><p>今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div>
-          </div>
-        </div>
-      </section>
-      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces}</div></section>` : ""}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
-      "ホーム",
-      {
-        eyebrow: "再訪のホーム",
-        heading: "前回より、少し見えるようになる",
-        lead: "前回からの気づきと、また行きたくなる場所をまとめて返すホームです。",
-        actions: [
-          { href: "/notes", label: "ノートへ" },
-          { href: "/record", label: "1 件記録する", variant: "secondary" as const },
-        ],
-      },
-      `${OBSERVATION_CARD_STYLES}
-        .hero-panel { padding-block: 32px 24px; }
-        .hero-panel p { display: none; }
-        .hero-panel .actions { margin-top: 18px; }
-        .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-        ${PROFILE_CHANNEL_STYLES}
-        .profile-growth-shell { min-width: 0; display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
-        .profile-growth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .profile-growth-card { min-width: 0; min-height: 132px; padding: 15px; border-radius: 8px; border: 1px solid rgba(16,185,129,.13); background: rgba(248,250,252,.82); overflow-wrap: anywhere; }
-        .profile-growth-card span { display: block; color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
-        .profile-growth-card strong { display: block; margin-top: 8px; color: #10251a; font-size: 20px; line-height: 1.2; font-weight: 950; }
-        .profile-growth-card p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
-        @media (max-width: 980px) { .profile-growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 620px) { .profile-growth-grid { grid-template-columns: 1fr; } .profile-growth-shell { padding: 16px; } }
-        ${PLACE_REVISIT_ROW_STYLES}
-      `,
-    );
+    return renderHomePageHtml(basePath, lang, snapshot, canUseSpecialistWorkbench(session));
   });
 
   app.get<{ Params: { id: string }; Querystring: { subject?: string } }>("/observations/:id", async (request, reply) => {
