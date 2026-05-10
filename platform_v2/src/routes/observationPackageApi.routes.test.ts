@@ -12,4 +12,6 @@ test("observation package API is registered and owner or privileged-key gated", 
   assert.match(routeSource, /assertObservationOwnedByUser/);
   assert.match(routeSource, /assertPrivilegedWriteAccess/);
   assert.match(routeSource, /buildObservationPackage/);
+  assert.match(routeSource, /\/api\/v1\/monitoring\/packages/);
+  assert.match(routeSource, /MONITORING_PACKAGE_BLUEPRINTS/);
 });

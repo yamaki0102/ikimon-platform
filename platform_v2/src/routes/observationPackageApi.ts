@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { buildObservationPackage } from "../services/observationPackage.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { MONITORING_PACKAGE_BLUEPRINTS, MONITORING_PILLARS } from "../services/monitoringPackageStandard.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -20,6 +21,16 @@ async function canReadObservationPackage(request: FastifyRequest, observationId:
 }
 
 export async function registerObservationPackageApiRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/api/v1/monitoring/packages", async (_request, reply) => {
+    reply.header("Cache-Control", "public, max-age=300");
+    return {
+      ok: true,
+      schemaVersion: "monitoring_packages/v1",
+      pillars: MONITORING_PILLARS,
+      packages: MONITORING_PACKAGE_BLUEPRINTS,
+    };
+  });
+
   app.get<{ Params: { id: string }; Querystring: { subject?: string } }>(
     "/api/v1/observations/:id/package",
     async (request, reply) => {

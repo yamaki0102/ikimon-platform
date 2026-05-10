@@ -11,6 +11,7 @@ import {
   toDarwinCoreCsvV0,
   type ResearchExportRecord,
 } from "../services/researchExport.js";
+import { selectMonitoringPackage } from "../services/monitoringPackageStandard.js";
 
 type OccurrenceRow = {
   occurrence_id: string;
@@ -55,6 +56,7 @@ type OccurrenceRow = {
   consensus_status: string;
   identification_verification_status: string;
   calibration_decision: Record<string, unknown> | null;
+  external_taxon_id_count: number;
 };
 
 function machineEvidenceStatus(row: Pick<OccurrenceRow, "basis_of_record" | "ai_assessment_status" | "data_quality">): "human_observation" | "ai_candidate" | "reviewer_verified" | "reviewer_rejected" {
@@ -173,6 +175,22 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
           ? "indicator_candidate"
           : "presence_only",
     },
+    monitoringPackage: selectMonitoringPackage({
+      actionMode: row.observation_method ?? row.visit_mode,
+      observationMethod: row.observation_method,
+      fieldScanMode: row.field_scan_mode,
+      captureOutcome: row.catch_outcome,
+      targetTaxaScope: row.water_target_taxa_scope ?? row.target_taxa_scope,
+      visitMode: row.visit_mode,
+      hasSite: Boolean(row.place_name),
+      hasTime: Boolean(row.observed_at),
+      hasMethod: Boolean(row.observation_method || row.field_scan_mode || row.visit_mode || row.catch_outcome),
+      hasEffort: Boolean(row.effort_minutes || row.water_effort_minutes || row.protocol_id),
+      hasQualityEvidence: Boolean(row.photo_url || row.machine_media_ref),
+      hasReview: row.identification_verification_status === "authority_reviewed" || row.evidence_tier >= 3 || machineStatus === "reviewer_verified",
+      hasRights: Boolean(row.external_export_allowed),
+      hasExternalTaxonId: row.external_taxon_id_count > 0,
+    }),
     dataGeneralizations: {
       location: row.public_precision ?? "not_set",
     },
@@ -276,6 +294,7 @@ async function queryResearchOccurrenceRecords(
        (ogc.site_policy_context <> '{}'::jsonb) as site_policy_context_present,
        pkg_event.latest_package_stage,
        o.source_payload->'calibration' as calibration_decision,
+       external_taxon_ids.external_taxon_id_count,
        case
          when id_meta.authority_count > 0 then 'authority_backed'
          when id_meta.current_count >= 2 then 'community_consensus'
@@ -335,6 +354,12 @@ async function queryResearchOccurrenceRecords(
        order by created_at desc
        limit 1
      ) pkg_event on true
+     left join lateral (
+       select count(*)::int as external_taxon_id_count
+         from taxon_external_ids tei
+        where lower(tei.taxon_name) in (lower(coalesce(o.scientific_name, '')), lower(coalesce(o.vernacular_name, '')))
+          and tei.authority in ('gbif', 'easin', 'dwc_taxon', 'inat', 'local_authority')
+     ) external_taxon_ids on true
      where o.evidence_tier >= $1
        and (
          (coalesce(o.basis_of_record, 'HumanObservation') <> 'MachineObservation'
