@@ -761,6 +761,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   let latestCoverageHints = [];
   const coverageFeatureTypes = { species: 0, vegetation: 0, landform: 0, sound: 0, structure: 0 };
   const localCoverageCellMap = new Map();
+  const coverageSceneIds = new Set();
   let coverageMap = null;
   let coverageMapReady = false;
   let coverageMapLoading = false;
@@ -1788,16 +1789,6 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       + '<div class="gdi-body"><div class="gdi-kicker">' + escapeInline(copy.trailPending) + '</div>'
       + '<div class="gdi-summary">' + escapeInline(formatCaptured(scene.capturedAt)) + '</div></div>';
     if (!existing) listEl.prepend(li);
-    (Array.isArray(representative.detectedFeatures) ? representative.detectedFeatures : []).forEach(function (feature) {
-      if (feature && coverageFeatureTypes[String(feature.type)] != null) coverageFeatureTypes[String(feature.type)] += 1;
-    });
-    if (Array.isArray(representative.coverageHints) && representative.coverageHints.length) {
-      latestCoverageHints = representative.coverageHints.slice(0, 4);
-    }
-    if (representative.absenceBoundary && typeof representative.absenceBoundary.state === 'string') {
-      latestAbsenceState = representative.absenceBoundary.state === 'confirmed_absence' ? 'absence_candidate' : representative.absenceBoundary.state;
-    }
-    updateCoverageUi();
     updateTrailPill();
   }
   function addQueuedDiscovery(scene) {
@@ -1875,8 +1866,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (getLang() === 'ja') return '代表 ' + bundle.scenes.length + '件';
     return bundle.scenes.length + ' scenes';
   }
+  function applyReadySceneToCoverage(scene) {
+    if (!scene || !scene.sceneId || coverageSceneIds.has(scene.sceneId)) return;
+    coverageSceneIds.add(scene.sceneId);
+    (Array.isArray(scene.detectedFeatures) ? scene.detectedFeatures : []).forEach(function (feature) {
+      if (feature && coverageFeatureTypes[String(feature.type)] != null) coverageFeatureTypes[String(feature.type)] += 1;
+    });
+    if (Array.isArray(scene.coverageHints) && scene.coverageHints.length) {
+      latestCoverageHints = scene.coverageHints.slice(0, 4);
+    }
+    if (scene.absenceBoundary && typeof scene.absenceBoundary.state === 'string') {
+      latestAbsenceState = scene.absenceBoundary.state === 'confirmed_absence' ? 'absence_candidate' : scene.absenceBoundary.state;
+    }
+    updateCoverageUi();
+  }
   function renderReadyDiscovery(scene) {
     readyScenes.set(scene.sceneId, scene);
+    applyReadySceneToCoverage(scene);
     const bundle = upsertTrailBundle(scene);
     const representative = bundle.representative || scene;
     const bundleId = 'scene-bundle-' + bundle.key;
@@ -2094,6 +2100,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       : null;
     const frame = frames ? null : await blobToBase64(payload.frameBlob);
     const audio = payload.audioBlob ? await blobToBase64(payload.audioBlob) : null;
+    const audioMimeType = payload.audioBlob ? (payload.audioBlob.type || payload.audioMimeType || preferredMime || null) : null;
     const response = await fetch(BASE + '/api/v1/guide/scene', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2107,6 +2114,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         facePrivacy: payload.facePrivacy || null,
         visualCandidate: payload.visualCandidate || null,
         audio: audio,
+        audioMimeType: audioMimeType,
         lat: payload.lat,
         lng: payload.lng,
         locationAccuracyM: payload.locationAccuracyM,
@@ -2150,7 +2158,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       visualCandidate: payload.visualCandidate || null,
       facePrivacy: payload.facePrivacy || null,
       audioBlob: payload.audioBlob,
-      audioMimeType: payload.audioBlob ? payload.audioBlob.type : null,
+      audioMimeType: payload.audioBlob ? (payload.audioBlob.type || payload.audioMimeType || preferredMime || null) : null,
       audioPrivacySkippedCount: payload.audioPrivacySkippedCount || 0,
       audioPrivacyPolicy: payload.audioPrivacyPolicy || 'exclude_speech_likely_chunks',
       lastError: reason || null,
@@ -2294,7 +2302,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       const position = await getLocation();
       const metrics = captureVisualMetrics();
       const framePayload = await captureFramePayload();
-      const capturedAt = bundle ? framePayload.capturedAt : new Date().toISOString();
+      const capturedAt = new Date().toISOString();
       const distanceFromLastAiM = lastAiPosition ? Math.round(distanceMeters(lastAiPosition, position)) : null;
       const headingDeltaFromLastAi = lastAiPosition ? headingDelta(lastAiPosition.headingDegrees, position.headingDegrees) : null;
       const candidate = {
@@ -2447,6 +2455,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         visualCandidate: item.visualCandidate || null,
         facePrivacy: item.facePrivacy || null,
         audioBlob: item.audioBlob || null,
+        audioMimeType: item.audioMimeType || null,
         audioPrivacySkippedCount: item.audioPrivacySkippedCount || 0,
         audioPrivacyPolicy: item.audioPrivacyPolicy || 'exclude_speech_likely_chunks'
       });

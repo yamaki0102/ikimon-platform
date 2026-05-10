@@ -20,6 +20,8 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.match(sceneRoute, /frames,/);
   assert.match(sceneRoute, /frameBundleSummary/);
   assert.match(sceneRoute, /visualCandidate/);
+  assert.match(source, /function parseAudioMimeType\(raw: unknown\): string \| null/);
+  assert.match(sceneRoute, /audioMimeType: parseAudioMimeType\(body\.audioMimeType\)/);
   assert.match(sceneRoute, /parseClientSceneId\(body\.clientSceneId\)/);
   assert.match(sceneRoute, /sceneJobs\.get\(clientSceneId\)/);
   assert.match(sceneRoute, /const sceneId = clientSceneId \?\? randomUUID\(\)/);

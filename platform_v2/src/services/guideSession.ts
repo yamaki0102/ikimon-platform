@@ -109,6 +109,15 @@ function normalizeGuideMode(raw: unknown): GuideMode {
   return raw === "vehicle" ? "vehicle" : "walk";
 }
 
+function normalizeGuideAudioMimeType(raw: unknown): string {
+  if (typeof raw !== "string") return "audio/webm";
+  const value = raw.trim().toLowerCase();
+  if (/^audio\/(?:webm|ogg|mp4|mpeg|mp3|wav|aac|flac|pcm)(?:;codecs=[a-z0-9.+-]+)?$/.test(value)) {
+    return value;
+  }
+  return "audio/webm";
+}
+
 export function sanitizeGuideSceneResult(parsed: {
   summary?: string;
   detectedSpecies?: string[];
@@ -266,6 +275,7 @@ export async function analyzeScene(opts: {
   frameBase64?: string;
   frames?: GuideFrameInput[];
   audioBase64?: string | null;
+  audioMimeType?: string | null;
   frameMimeType?: string;
   context: SceneContext;
 }): Promise<SceneResult> {
@@ -286,7 +296,7 @@ export async function analyzeScene(opts: {
   if (opts.audioBase64) {
     parts.push({
       inlineData: {
-        mimeType: "audio/pcm",
+        mimeType: normalizeGuideAudioMimeType(opts.audioMimeType),
         data: opts.audioBase64,
       },
     });

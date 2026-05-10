@@ -88,12 +88,24 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /\/api\/v1\/guide\/telemetry/);
   assert.match(html, /frames: frames/);
   assert.match(html, /frameBundleSummary: payload\.frameBundleSummary/);
+  assert.match(html, /audioMimeType: audioMimeType/);
+  assert.match(html, /audioMimeType: item\.audioMimeType \|\| null/);
   assert.match(html, /id="guide-coverage"/);
   assert.match(html, /id="guide-coverage-map"/);
   assert.match(html, /guide-coverage-missing/);
   assert.match(html, /guide-coverage-visited/);
   assert.match(html, /maplibre-gl@4\.7\.1/);
   assert.match(html, /function targetCellFeatures\(field, feature\)/);
+  assert.match(html, /const coverageSceneIds = new Set\(\)/);
+  assert.match(html, /function applyReadySceneToCoverage\(scene\)/);
+  assert.match(html, /applyReadySceneToCoverage\(scene\)/);
+  const addPendingDiscovery = html.slice(
+    html.indexOf("function addPendingDiscovery(scene)"),
+    html.indexOf("function addQueuedDiscovery(scene)"),
+  );
+  assert.doesNotMatch(addPendingDiscovery, /\brepresentative\b/);
+  assert.doesNotMatch(html, /const capturedAt = bundle \? framePayload\.capturedAt/);
+  assert.match(html, /const capturedAt = new Date\(\)\.toISOString\(\);/);
   assert.match(html, /10mセル/);
   assert.doesNotMatch(html, /setTimeout\(doAnalyse, 5000\)/);
   assert.match(html, /stopLocationWatch\(\)/);
