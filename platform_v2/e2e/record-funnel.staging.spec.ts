@@ -168,16 +168,17 @@ test.describe("record funnel staging QA", () => {
         await page.locator("input[name='longitude']").fill("137.726100");
 
         await page.locator("#record-submit-panel button[type='submit']").click();
-        await expect(page.locator("#record-status")).toContainText("記録を保存しました");
-        await expect(page.locator("#record-status a", { hasText: "観察を見る" })).toBeVisible();
-        await expect(page.locator("#record-status a", { hasText: "ノートを見る" })).toBeVisible();
-        await expect(page.locator("#record-status a", { hasText: "同じ場所でもう1件" })).toHaveAttribute(
+        await expect(page.locator("#record-status")).toContainText(/シーンを保存しました|記録を保存しました/);
+        await expect(page.locator("#record-status a", { hasText: /観察レコードを見る|観察を見る/ })).toBeVisible();
+        await expect(page.locator("#record-status a", { hasText: /シーンを見る|ノートを見る/ })).toBeVisible();
+        const revisitLink = page.locator("#record-status a", { hasText: /同じ場所でもう1シーン|同じ場所でもう1件/ });
+        await expect(revisitLink).toHaveAttribute(
           "href",
           new RegExp(`/record\\?start=gallery&revisitObservationId=${MOCK_VISIT_ID}$`),
         );
         await expectNoHorizontalOverflow(page);
 
-        await page.locator("#record-status a", { hasText: "同じ場所でもう1件" }).click({ noWaitAfter: true });
+        await revisitLink.click({ noWaitAfter: true });
         await page.waitForTimeout(250);
 
         const actionList = actions(kpiPayloads);
