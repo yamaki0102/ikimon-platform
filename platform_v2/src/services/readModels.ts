@@ -1578,19 +1578,47 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
 async function loadObservationListCards(limit: number): Promise<RecentObservation[]> {
   const pool = getPool();
   const result = await pool.query<ObservationListCardRow>(
-    `WITH candidate_visits AS (
+    `WITH valid_media AS MATERIALIZED (
+       SELECT ea.visit_id,
+              ea.occurrence_id,
+              ea.asset_role,
+              ea.created_at,
+              case when ea.asset_role = 'observation_photo'
+                then coalesce(ab.public_url, ab.storage_path)
+                else null
+              end AS photo_url,
+              case when ea.asset_role = 'observation_video'
+                then coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url')
+                else coalesce(ab.public_url, ab.storage_path)
+              end AS media_url
+         FROM evidence_assets ea
+         JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+        WHERE ea.visit_id IS NOT NULL
+          AND ea.occurrence_id IS NOT NULL
+          AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
+     ),
+     media_flags AS (
+       SELECT visit_id,
+              bool_or(asset_role = 'observation_photo') AS has_photo,
+              bool_or(asset_role = 'observation_video') AS has_video
+         FROM valid_media
+        GROUP BY visit_id
+     ),
+     primary_media AS (
+       SELECT DISTINCT ON (visit_id)
+              visit_id,
+              occurrence_id,
+              photo_url,
+              media_url
+         FROM valid_media
+        ORDER BY visit_id, case when asset_role = 'observation_photo' then 0 else 1 end, created_at ASC, occurrence_id ASC
+     ),
+     candidate_visits AS (
        SELECT v.visit_id,
               v.observed_at AS observed_at_sort
          FROM visits v
+         JOIN primary_media pm ON pm.visit_id = v.visit_id
         WHERE ${PUBLIC_OBSERVATION_QUALITY_SQL}
-          AND EXISTS (
-            SELECT 1
-              FROM occurrences o
-              JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
-              JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-             WHERE o.visit_id = v.visit_id
-               AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
-          )
         ORDER BY v.observed_at DESC, v.visit_id DESC
         LIMIT $1
      )
@@ -1609,10 +1637,10 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
             featured.taxon_rank,
             featured.ai_candidate_name,
             featured.ai_candidate_rank,
-            media.photo_url,
-            media.media_url,
-            media.has_photo,
-            media.has_video,
+            pm.photo_url,
+            pm.media_url,
+            coalesce(mf.has_photo, false) AS has_photo,
+            coalesce(mf.has_video, false) AS has_video,
             coalesce(ids.identification_count, 0)::text AS identification_count,
             coalesce(subjects.subject_count, 1)::text AS subject_count,
             coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
@@ -1620,38 +1648,8 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
        JOIN visits v ON v.visit_id = cv.visit_id
        LEFT JOIN users u ON u.user_id = v.user_id
        LEFT JOIN places p ON p.place_id = v.place_id
-       JOIN LATERAL (
-         SELECT ea.occurrence_id,
-                case when ea.asset_role = 'observation_photo'
-                  then coalesce(ab.public_url, ab.storage_path)
-                  else null
-                end AS photo_url,
-                case when ea.asset_role = 'observation_video'
-                  then coalesce(ea.source_payload->>'thumbnail_url', ab.source_payload->>'thumbnail_url', ab.public_url, ab.storage_path, ab.source_payload->>'iframe_url')
-                  else coalesce(ab.public_url, ab.storage_path)
-                end AS media_url,
-                exists (
-                  select 1
-                    from evidence_assets ea
-                    join asset_blobs ab on ab.blob_id = ea.blob_id
-                   where ea.visit_id = v.visit_id
-                     and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
-                ) AS has_photo,
-                exists (
-                  select 1
-                    from evidence_assets ea
-                    join asset_blobs ab on ab.blob_id = ea.blob_id
-                   where ea.visit_id = v.visit_id
-                     and ${VALID_OBSERVATION_VIDEO_ASSET_SQL}
-                ) AS has_video
-           FROM evidence_assets ea
-           JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-          WHERE ea.visit_id = v.visit_id
-            AND ea.occurrence_id IS NOT NULL
-            AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
-          ORDER BY case when ea.asset_role = 'observation_photo' then 0 else 1 end, ea.created_at ASC
-          LIMIT 1
-       ) media ON true
+       JOIN primary_media pm ON pm.visit_id = v.visit_id
+       LEFT JOIN media_flags mf ON mf.visit_id = v.visit_id
        JOIN LATERAL (
          SELECT o.occurrence_id,
                 coalesce(o.vernacular_name, o.scientific_name, nullif(ai.recommended_taxon_name, ''), '同定待ち') AS display_name,
@@ -1668,7 +1666,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
               ORDER BY generated_at DESC
               LIMIT 1
            ) ai ON true
-          WHERE o.occurrence_id = media.occurrence_id
+          WHERE o.occurrence_id = pm.occurrence_id
           LIMIT 1
        ) featured ON true
        LEFT JOIN LATERAL (
