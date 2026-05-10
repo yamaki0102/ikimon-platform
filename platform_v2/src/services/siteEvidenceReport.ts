@@ -1,4 +1,11 @@
 import { getPlaceSnapshot, type PlaceSnapshot } from "./placeSnapshot.js";
+import {
+  MONITORING_PILLARS,
+  getMonitoringPackageBlueprint,
+  inferMonitoringPackageId,
+  type MonitoringPackageId,
+  type MonitoringPillar,
+} from "./monitoringPackageStandard.js";
 
 export type SiteEvidenceReportPeriod = {
   label: string;
@@ -10,7 +17,26 @@ export type SiteEvidenceReadinessBlocker =
   | "missing_human_evidence"
   | "missing_machine_evidence"
   | "missing_reviewer_verified_machine_evidence"
-  | "missing_effort_metadata";
+  | "missing_effort_metadata"
+  | "missing_method_package_coverage";
+
+export type SiteEvidenceMonitoringPackageAlignment = {
+  schemaVersion: "monitoring_package_alignment/v1";
+  pillars: Array<{ pillar: MonitoringPillar; label: string; covered: boolean }>;
+  packages: Array<{
+    packageId: MonitoringPackageId;
+    label: string;
+    count: number;
+    claimLimit: string;
+    primaryOutput: string;
+    pillars: MonitoringPillar[];
+  }>;
+  interoperabilityChecklist: Array<{
+    key: "method_context" | "effort_metadata" | "human_review" | "rights_and_license" | "external_taxon_ids";
+    status: "present" | "missing" | "not_measured_in_monthly_snapshot";
+    note: string;
+  }>;
+};
 
 export type SiteEvidenceReport = {
   schemaVersion: "site_evidence_report/v0";
@@ -80,6 +106,7 @@ export type SiteEvidenceReport = {
     blockers: SiteEvidenceReadinessBlocker[];
     exportReadyMachineRecordsRequireReviewerVerification: true;
   };
+  monitoringPackageAlignment: SiteEvidenceMonitoringPackageAlignment;
   claimBoundary: PlaceSnapshot["claimBoundary"];
   nextActions: PlaceSnapshot["nextActions"];
 };
@@ -115,13 +142,79 @@ function readinessBlockers(readiness: {
   hasMachineEvidence: boolean;
   hasReviewerVerifiedMachineEvidence: boolean;
   hasEffortMetadata: boolean;
+  hasMethodPackageCoverage: boolean;
 }): SiteEvidenceReadinessBlocker[] {
   const blockers: SiteEvidenceReadinessBlocker[] = [];
   if (!readiness.hasHumanEvidence) blockers.push("missing_human_evidence");
   if (!readiness.hasMachineEvidence) blockers.push("missing_machine_evidence");
   if (!readiness.hasReviewerVerifiedMachineEvidence) blockers.push("missing_reviewer_verified_machine_evidence");
   if (!readiness.hasEffortMetadata) blockers.push("missing_effort_metadata");
+  if (!readiness.hasMethodPackageCoverage) blockers.push("missing_method_package_coverage");
   return blockers;
+}
+
+function buildMonitoringPackageAlignment(snapshot: PlaceSnapshot): SiteEvidenceMonitoringPackageAlignment {
+  const packageCounts = new Map<MonitoringPackageId, number>();
+  for (const method of snapshot.machineObservationSummary.methodCounts) {
+    const packageId = inferMonitoringPackageId({ observationMethod: method.method });
+    packageCounts.set(packageId, (packageCounts.get(packageId) ?? 0) + method.count);
+  }
+  if (snapshot.observationSummary.totalObservations > 0) {
+    const packageId = snapshot.observationSummary.effortCompletionRate > 0 ? "guided_survey" : "casual_observation";
+    packageCounts.set(packageId, (packageCounts.get(packageId) ?? 0) + snapshot.observationSummary.totalObservations);
+  }
+
+  const packages = [...packageCounts.entries()]
+    .map(([packageId, count]) => {
+      const blueprint = getMonitoringPackageBlueprint(packageId);
+      return {
+        packageId,
+        label: blueprint.label,
+        count,
+        claimLimit: blueprint.claimLimit,
+        primaryOutput: blueprint.primaryOutput,
+        pillars: blueprint.pillars,
+      };
+    })
+    .sort((a, b) => b.count - a.count || a.packageId.localeCompare(b.packageId));
+  const coveredPillars = new Set(packages.flatMap((pkg) => pkg.pillars));
+  const pillars = Object.entries(MONITORING_PILLARS).map(([pillar, label]) => ({
+    pillar: pillar as MonitoringPillar,
+    label,
+    covered: coveredPillars.has(pillar as MonitoringPillar),
+  }));
+  return {
+    schemaVersion: "monitoring_package_alignment/v1",
+    pillars,
+    packages,
+    interoperabilityChecklist: [
+      {
+        key: "method_context",
+        status: packages.length > 0 ? "present" : "missing",
+        note: packages.length > 0 ? "method package を判定できる観察があります。" : "method package を判定できる観察がありません。",
+      },
+      {
+        key: "effort_metadata",
+        status: snapshot.observationSummary.effortCompletionRate > 0 || snapshot.machineObservationSummary.effortMetadataCount > 0 ? "present" : "missing",
+        note: "比較・trend・月次補助資料では effort / 稼働状態が必要です。",
+      },
+      {
+        key: "human_review",
+        status: snapshot.machineObservationSummary.reviewerVerifiedCount > 0 || snapshot.observationSummary.reviewAcceptedRate > 0 ? "present" : "missing",
+        note: "AI候補を外部主張へ昇格するには人のレビューが必要です。",
+      },
+      {
+        key: "rights_and_license",
+        status: "not_measured_in_monthly_snapshot",
+        note: "research export lane では record consent / license / withdrawal を別途 gate します。",
+      },
+      {
+        key: "external_taxon_ids",
+        status: "not_measured_in_monthly_snapshot",
+        note: "GBIF/EASIN等の外部ID連携は observation package / research export 側で確認します。",
+      },
+    ],
+  };
 }
 
 export function buildSiteEvidenceReport(snapshot: PlaceSnapshot, period: SiteEvidenceReportPeriod): SiteEvidenceReport {
@@ -132,6 +225,7 @@ export function buildSiteEvidenceReport(snapshot: PlaceSnapshot, period: SiteEvi
     hasMachineEvidence: machine.totalMachineObservations > 0,
     hasReviewerVerifiedMachineEvidence: machine.reviewerVerifiedCount > 0,
     hasEffortMetadata: human.effortCompletionRate > 0 || machine.effortMetadataCount > 0,
+    hasMethodPackageCoverage: human.totalObservations > 0 || machine.methodCounts.length > 0,
   };
   return {
     schemaVersion: "site_evidence_report/v0",
@@ -200,6 +294,7 @@ export function buildSiteEvidenceReport(snapshot: PlaceSnapshot, period: SiteEvi
       blockers: readinessBlockers(readiness),
       exportReadyMachineRecordsRequireReviewerVerification: true,
     },
+    monitoringPackageAlignment: buildMonitoringPackageAlignment(snapshot),
     claimBoundary: snapshot.claimBoundary,
     nextActions: snapshot.nextActions,
   };

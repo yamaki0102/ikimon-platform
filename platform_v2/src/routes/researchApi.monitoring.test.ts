@@ -29,4 +29,7 @@ test("research API exposes monitoring readiness and license guard fields", () =>
   assert.match(source, /not_a_confirmed_species_record/);
   assert.match(source, /reviewed_machine_observation/);
   assert.match(source, /machineStatus === "reviewer_verified"/);
+  assert.match(source, /monitoringPackage/);
+  assert.match(source, /selectMonitoringPackage/);
+  assert.match(source, /external_taxon_id_count/);
 });

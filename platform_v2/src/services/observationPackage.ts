@@ -22,6 +22,7 @@ import {
   type TrendAbundancePolicy,
 } from "./observationPackageDataChain.js";
 import { getRuntimeVersionSnapshot, type RuntimeVersionSnapshot } from "./runtimeVersion.js";
+import { selectMonitoringPackage, type MonitoringPackageSelection } from "./monitoringPackageStandard.js";
 import { getWaterRecordExtension, type WaterRecordExtension } from "./waterRecordExtension.js";
 
 type Queryable = Pick<Pool, "query"> | Pick<PoolClient, "query">;
@@ -152,7 +153,7 @@ export type ObservationPackageReportOutput = {
 };
 
 export type ObservationPackage = {
-  packageVersion: "observation_package/v1" | "observation_package/v1.1" | "observation_package/v1.2";
+  packageVersion: "observation_package/v1" | "observation_package/v1.1" | "observation_package/v1.2" | "observation_package/v1.3";
   packageId: string;
   generatedAt: string;
   visit: ObservationPackageVisit;
@@ -171,6 +172,7 @@ export type ObservationPackage = {
   dataProductChain?: ObservationDataProductChain;
   aiBoundary?: ObservationAiBoundary;
   trendAbundancePolicy?: TrendAbundancePolicy;
+  monitoringPackage?: MonitoringPackageSelection;
   civicContext?: CivicObservationContext | null;
   dataRights?: ObservationDataRights | null;
   readiness?: MonitoringReadiness;
@@ -287,6 +289,28 @@ async function resolveVisitId(queryable: Queryable, input: BuildObservationPacka
     [key],
   );
   return result.rows[0]?.visit_id ?? null;
+}
+
+async function hasExternalTaxonIdForOccurrences(queryable: Queryable, occurrences: ObservationPackageOccurrence[]): Promise<boolean> {
+  const names = occurrences
+    .flatMap((occurrence) => [occurrence.scientificName, occurrence.vernacularName])
+    .map((name) => name?.trim().toLowerCase())
+    .filter((name): name is string => Boolean(name));
+  if (names.length === 0) return false;
+  try {
+    const result = await queryable.query<{ exists: boolean }>(
+      `select exists (
+         select 1
+           from taxon_external_ids
+          where lower(taxon_name) = any($1::text[])
+            and authority in ('gbif', 'easin', 'dwc_taxon', 'inat', 'local_authority')
+       ) as exists`,
+      [[...new Set(names)]],
+    );
+    return Boolean(result.rows[0]?.exists);
+  } catch {
+    return false;
+  }
 }
 
 export async function buildObservationPackage(
@@ -506,7 +530,7 @@ export async function buildObservationPackage(
   const rawJson = asObject(latestFeedback?.raw_json);
   const parsed = asObject(rawJson.parsed);
   const claimRefsUsed = asStringArray(parsed.claim_refs_used);
-  const [civicContext, dataRights, waterRecord, runtimeVersion, fieldScanContext, governanceContext, packageEvents] = await Promise.all([
+  const [civicContext, dataRights, waterRecord, runtimeVersion, fieldScanContext, governanceContext, packageEvents, hasExternalTaxonId] = await Promise.all([
     getCivicObservationContext(visitId).catch(() => null),
     getObservationDataRights(visitId, queryable).catch(() => null),
     getWaterRecordExtension(visitId, queryable).catch(() => null),
@@ -514,6 +538,7 @@ export async function buildObservationPackage(
     getFieldScanContext(visitId, queryable).catch(() => null),
     getObservationGovernanceContext(visitId, queryable).catch(() => null),
     getObservationPackageEvents(visitId, queryable).catch(() => []),
+    hasExternalTaxonIdForOccurrences(queryable, occurrences),
   ]);
   const visit = {
     visitId: visitRow.visit_id,
@@ -624,9 +649,25 @@ export async function buildObservationPackage(
     fieldScanContext,
     reviewStatus: reviewState.reviewStatus,
   });
+  const monitoringPackage = selectMonitoringPackage({
+    actionMode,
+    observationMethod: methodContext.methodKind,
+    fieldScanMode: fieldScanContext?.scanMode ?? null,
+    captureOutcome: waterRecord?.catchOutcome ?? null,
+    targetTaxaScope: methodContext.targetTaxaScope ?? visit.targetTaxaScope,
+    visitMode: visit.visitMode,
+    hasSite: methodContext.siteTimeMethodEffortQuality.hasSite,
+    hasTime: methodContext.siteTimeMethodEffortQuality.hasTime,
+    hasMethod: methodContext.siteTimeMethodEffortQuality.hasMethod,
+    hasEffort: methodContext.siteTimeMethodEffortQuality.hasEffort,
+    hasQualityEvidence: methodContext.siteTimeMethodEffortQuality.hasQualityEvidence,
+    hasReview: reviewState.reviewStatus === "verified",
+    hasRights: Boolean(dataRights?.externalExportAllowed || dataRights?.recordConsent === "public_summary"),
+    hasExternalTaxonId,
+  });
 
   return {
-    packageVersion: "observation_package/v1.2",
+    packageVersion: "observation_package/v1.3",
     packageId: packageIdFor(visitId, input.targetOccurrenceId ?? input.occurrenceId),
     generatedAt,
     visit,
@@ -645,6 +686,7 @@ export async function buildObservationPackage(
     dataProductChain,
     aiBoundary,
     trendAbundancePolicy,
+    monitoringPackage,
     civicContext,
     dataRights,
     readiness: buildMonitoringReadiness({

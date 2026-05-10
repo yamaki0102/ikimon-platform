@@ -103,6 +103,10 @@ test("site evidence report keeps machine AI candidates out of proof language", (
   assert.equal(report.evidenceLayers.machineObservations.aiCandidates, 4);
   assert.equal(report.evidenceLayers.machineObservations.reviewerVerified, 1);
   assert.equal(report.evidenceLayers.machineObservations.effortMetadata, 1);
+  assert.equal(report.monitoringPackageAlignment.schemaVersion, "monitoring_package_alignment/v1");
+  assert.equal(report.monitoringPackageAlignment.packages[0]?.packageId, "passive_audio_station");
+  assert.ok(report.monitoringPackageAlignment.pillars.some((pillar) => pillar.covered && pillar.pillar === "new_technology_and_citizen_science"));
+  assert.ok(report.monitoringPackageAlignment.interoperabilityChecklist.some((item) => item.key === "human_review" && item.status === "present"));
   assert.deepEqual(report.evidenceLayers.machineObservations.calibrationAudit, [
     { source: "default", threshold: 0.9, regionKey: "jp:shizuoka", taxonName: "Hypsipetes amaurotis", count: 6 },
   ]);
@@ -156,6 +160,7 @@ test("site evidence report exposes readiness blockers for missing monthly eviden
     "missing_machine_evidence",
     "missing_reviewer_verified_machine_evidence",
     "missing_effort_metadata",
+    "missing_method_package_coverage",
   ]);
   assert.equal(report.evidenceLayers.machineObservations.aiCandidates, 0);
   assert.equal(report.evidenceLayers.machineObservations.reviewerVerified, 0);

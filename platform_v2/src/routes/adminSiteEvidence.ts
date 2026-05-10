@@ -131,6 +131,38 @@ function renderReadiness(report: SiteEvidenceReport): string {
 </section>`;
 }
 
+function renderMonitoringPackageAlignment(report: SiteEvidenceReport): string {
+  const alignment = report.monitoringPackageAlignment;
+  const packageRows = alignment.packages.length === 0
+    ? `<p class="se-muted">monitoring package に分類できる観察はまだありません。</p>`
+    : `<table class="se-table">
+        <thead><tr><th>package</th><th>count</th><th>output</th><th>claim limit</th></tr></thead>
+        <tbody>
+          ${alignment.packages.map((pkg) => `<tr><td>${escapeHtml(pkg.label)}</td><td>${pkg.count}</td><td>${escapeHtml(pkg.primaryOutput)}</td><td>${escapeHtml(pkg.claimLimit)}</td></tr>`).join("")}
+        </tbody>
+      </table>`;
+  const checklistRows = alignment.interoperabilityChecklist.map((item) => `
+    <tr>
+      <td><code>${escapeHtml(item.key)}</code></td>
+      <td>${escapeHtml(item.status)}</td>
+      <td>${escapeHtml(item.note)}</td>
+    </tr>`).join("");
+  const pillars = alignment.pillars.map((pillar) =>
+    `<span class="se-pill ${pillar.covered ? "se-pill-on" : ""}">${escapeHtml(pillar.label)}</span>`
+  ).join("");
+  return `
+<section class="se-section">
+  <h2>monitoring package alignment</h2>
+  <div class="se-pill-row">${pillars}</div>
+  ${packageRows}
+  <h3>interoperability checklist</h3>
+  <table class="se-table">
+    <thead><tr><th>key</th><th>status</th><th>note</th></tr></thead>
+    <tbody>${checklistRows}</tbody>
+  </table>
+</section>`;
+}
+
 function renderClaimBoundary(report: SiteEvidenceReport): string {
   return `
 <section class="se-section">
@@ -189,6 +221,7 @@ function renderReportBody(report: SiteEvidenceReport, month: string): string {
     ${metricCard("human effort metadata", `${Math.round(human.effortCompletionRate * 100)}%`, "努力量の入力率")}
   </section>
   ${renderReadiness(report)}
+  ${renderMonitoringPackageAlignment(report)}
   <section class="se-section">
     <h2>machine observation methods</h2>
     ${renderMethods(report)}
@@ -228,6 +261,7 @@ function renderPrintBody(report: SiteEvidenceReport): string {
     <h2>readiness</h2>
     ${renderReadiness(report)}
   </section>
+  ${renderMonitoringPackageAlignment(report)}
   <section>
     <h2>calibration audit</h2>
     ${renderCalibrationAudit(report)}
@@ -262,6 +296,9 @@ const SITE_EVIDENCE_STYLES = `
 .se-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
 .se-list{margin:0;padding-left:18px;color:#374151;font-size:13px}
 .se-ok{color:#047857;font-weight:600}
+.se-pill-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.se-pill{display:inline-flex;align-items:center;border:1px solid #e5e7eb;border-radius:999px;padding:4px 9px;color:#6b7280;background:#f9fafb;font-size:12px}
+.se-pill-on{border-color:#0f766e;color:#0f766e;background:#ecfdf5}
 .se-print{max-width:190mm;margin:0 auto;padding:0;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 @media print{
   @page{size:A4 portrait;margin:14mm}
