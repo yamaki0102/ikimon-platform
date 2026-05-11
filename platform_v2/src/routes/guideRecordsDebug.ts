@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { createHash } from "node:crypto";
 import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { loadGuideCorrectionEvalItems, summarizeGuideCorrectionEval } from "../services/guideCorrectionEval.js";
@@ -230,6 +231,98 @@ async function loadGuideRecords(userId: string, limit: number): Promise<GuideRec
   return result.rows;
 }
 
+type GuideCommunityContributionSummary = {
+  personalPublicMeshCells: number;
+  communityPublicMeshCells: number;
+  communityGuideRecordCount: number;
+  communityContributorCount: number;
+  communityTopFeatures: Array<{ name: string; count: number; type: string }>;
+};
+
+function normalizeCountMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const count = Number(value);
+    if (key && Number.isFinite(count) && count > 0) out[key] = Math.round(count * 1000) / 1000;
+  }
+  return out;
+}
+
+function normalizeStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => String(item ?? "").trim()).filter(Boolean);
+}
+
+function mergeFeatureCounts(target: Map<string, { name: string; type: string; count: number }>, raw: unknown, type: string): void {
+  for (const [name, count] of Object.entries(normalizeCountMap(raw))) {
+    const key = `${type}:${name}`;
+    const existing = target.get(key);
+    if (existing) {
+      existing.count = Math.round((existing.count + count) * 1000) / 1000;
+    } else {
+      target.set(key, { name, type, count });
+    }
+  }
+}
+
+function guideContributorHash(userId: string): string {
+  return createHash("sha256").update(`guide-env:${userId}`).digest("hex").slice(0, 16);
+}
+
+async function loadGuideCommunityContributionSummary(userId: string, meshKeys: string[]): Promise<GuideCommunityContributionSummary> {
+  const personalMeshKeys = new Set(meshKeys.filter(Boolean));
+  const ownContributorHash = guideContributorHash(userId);
+  const result = await getPool().query<{
+    mesh_key: string;
+    guide_record_count: number;
+    contributor_hashes: unknown;
+    vegetation_counts: unknown;
+    landform_counts: unknown;
+    structure_counts: unknown;
+    sound_counts: unknown;
+  }>(
+    `select mesh_key,
+            guide_record_count,
+            contributor_hashes,
+            vegetation_counts,
+            landform_counts,
+            structure_counts,
+            sound_counts
+       from guide_environment_mesh_cells
+      where guide_record_count >= 3 or contributor_count >= 2
+      order by last_seen_at desc nulls last, guide_record_count desc
+      limit 1000`,
+  );
+  const contributorHashes = new Set<string>();
+  const featureCounts = new Map<string, { name: string; type: string; count: number }>();
+  let communityGuideRecordCount = 0;
+  let personalPublicMeshCells = 0;
+  let communityPublicMeshCells = 0;
+  for (const row of result.rows) {
+    const rowContributorHashes = normalizeStringArray(row.contributor_hashes);
+    const includesOwnContribution = rowContributorHashes.includes(ownContributorHash);
+    if (personalMeshKeys.has(row.mesh_key)) personalPublicMeshCells += 1;
+    if (includesOwnContribution) continue;
+    communityPublicMeshCells += 1;
+    communityGuideRecordCount += Number(row.guide_record_count) || 0;
+    for (const hash of rowContributorHashes) contributorHashes.add(hash);
+    mergeFeatureCounts(featureCounts, row.vegetation_counts, "vegetation");
+    mergeFeatureCounts(featureCounts, row.landform_counts, "landform");
+    mergeFeatureCounts(featureCounts, row.structure_counts, "structure");
+    mergeFeatureCounts(featureCounts, row.sound_counts, "sound");
+  }
+  return {
+    personalPublicMeshCells,
+    communityPublicMeshCells,
+    communityGuideRecordCount,
+    communityContributorCount: contributorHashes.size,
+    communityTopFeatures: Array.from(featureCounts.values())
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ja"))
+      .slice(0, 8),
+  };
+}
+
 async function addNextSamplingToBundles(bundles: GuideRecordBundle[]): Promise<GuideRecordBundle[]> {
   const meshKeys = Array.from(new Set(bundles.map((bundle) => bundle.meshKey).filter((meshKey): meshKey is string => Boolean(meshKey))));
   const byMesh = new Map<string, RegionalHypothesisRecord>();
@@ -253,6 +346,84 @@ function pct(value: number): string {
 function formatMeters(value: number): string {
   if (value >= 1000) return `${(value / 1000).toFixed(1)}km`;
   return `${Math.round(value)}m`;
+}
+
+type OwnGuideFeatureCounts = Record<"vegetation" | "landform" | "sound" | "species", number>;
+
+function countOwnFeatures(rows: GuideRecordDebugRow[]): OwnGuideFeatureCounts {
+  const counts: OwnGuideFeatureCounts = { vegetation: 0, landform: 0, sound: 0, species: 0 };
+  for (const row of rows) {
+    for (const feature of row.detected_features ?? []) {
+      const type = String(feature.type ?? "");
+      if (type === "vegetation" || type === "landform" || type === "sound" || type === "species") counts[type] += 1;
+    }
+    counts.species += (row.detected_species ?? []).filter(Boolean).length;
+  }
+  return counts;
+}
+
+function renderFeatureContributionChips(features: Array<{ name: string; count: number; type: string }>): string {
+  if (features.length === 0) return `<span class="grd-muted">公開条件を満たした集計はまだありません</span>`;
+  return features.map((feature) => `<span class="grd-chip">${escapeHtml(featureTypeLabel(feature.type))}: ${escapeHtml(feature.name)} ${Math.round(feature.count)}</span>`).join("");
+}
+
+function renderOutcomeContributionPanel(
+  rows: GuideRecordDebugRow[],
+  bundles: GuideRecordBundle[],
+  qualityBySession: Map<string, GuideTransectQuality>,
+  community: GuideCommunityContributionSummary | null,
+): string {
+  const sessions = new Set(rows.map((row) => row.session_id).filter(Boolean));
+  const ownFeatures = countOwnFeatures(rows);
+  const totalDistance = Array.from(qualityBySession.values()).reduce((sum, item) => sum + item.distanceM, 0);
+  const personalPublicMeshCells = community?.personalPublicMeshCells ?? 0;
+  const communityPublicMeshCells = community?.communityPublicMeshCells ?? 0;
+  const communityGuideRecordCount = community?.communityGuideRecordCount ?? 0;
+  const communityContributorCount = community?.communityContributorCount ?? 0;
+  return `
+<section class="grd-panel grd-outcome-impact">
+  <div class="grd-outcome-head">
+    <div>
+      <h2>今回のガイドの成果</h2>
+      <p class="grd-muted">自分には記録・代表カード・走行距離を見せます。公開側は100mメッシュ以上の集計だけを使い、通勤ルートや個人の移動線は出しません。</p>
+    </div>
+    <a class="grd-secondary-link" href="/community/guide-environment">匿名コミュニティ成果を見る</a>
+  </div>
+  <div class="grd-outcome-grid">
+    <article>
+      <span>自分の成果</span>
+      <strong>${rows.length}</strong>
+      <p>ガイド記録 / ${bundles.length}代表カード / ${sessions.size}セッション</p>
+    </article>
+    <article>
+      <span>拾えた手がかり</span>
+      <strong>${ownFeatures.vegetation + ownFeatures.landform + ownFeatures.sound + ownFeatures.species}</strong>
+      <p>植生${ownFeatures.vegetation}・地形${ownFeatures.landform}・音${ownFeatures.sound}・種候補${ownFeatures.species}</p>
+    </article>
+    <article>
+      <span>車窓ガイド距離</span>
+      <strong>${formatMeters(totalDistance)}</strong>
+      <p>本人向けの非公開ルート点から算出。公開地図には出しません。</p>
+    </article>
+    <article>
+      <span>地域レイヤー反映</span>
+      <strong>${personalPublicMeshCells}</strong>
+      <p>低件数を抑制した公開メッシュに入った自分の周辺セル</p>
+    </article>
+  </div>
+  <div class="grd-community-impact">
+    <div>
+      <h3>他の人のガイド成果から見えること</h3>
+      <p class="grd-muted">他ユーザーの成果は、公開条件を満たしたメッシュだけで表示します。個別の出発地・到着地・通勤ルートは復元できません。</p>
+    </div>
+    <div class="grd-community-stats">
+      <span><b>${communityPublicMeshCells}</b>公開メッシュ</span>
+      <span><b>${communityGuideRecordCount}</b>集計済み記録</span>
+      <span><b>${communityContributorCount}</b>匿名寄与者</span>
+    </div>
+    <div class="grd-chip-row">${renderFeatureContributionChips(community?.communityTopFeatures ?? [])}</div>
+  </div>
+</section>`;
 }
 
 function renderSummaryStats(rows: GuideRecordDebugRow[], bundles: GuideRecordBundle[], qualityBySession: Map<string, GuideTransectQuality>): string {
@@ -526,6 +697,19 @@ const STYLES = `
 .grd-stat strong{font-size:18px;color:#0f766e;}
 .grd-panel{border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-panel h2{font-size:18px;margin:0 0 12px;color:#0f172a;}
+.grd-outcome-impact{display:grid;gap:14px;border-color:rgba(14,116,144,.18);background:linear-gradient(135deg,#ffffff,#f0fdfa);}
+.grd-outcome-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;}
+.grd-outcome-head h2{margin-bottom:5px;}
+.grd-outcome-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.grd-outcome-grid article{min-width:0;border:1px solid rgba(15,23,42,.08);background:rgba(255,255,255,.82);border-radius:12px;padding:12px;display:grid;gap:5px;}
+.grd-outcome-grid span{color:#0f766e;font-size:11px;font-weight:950;text-transform:uppercase;}
+.grd-outcome-grid strong{color:#0f172a;font-size:26px;line-height:1;font-weight:950;}
+.grd-outcome-grid p{margin:0;color:#475569;font-size:12px;line-height:1.55;font-weight:800;}
+.grd-community-impact{display:grid;gap:9px;border-top:1px solid rgba(15,23,42,.08);padding-top:13px;}
+.grd-community-impact h3{margin:0 0 4px;color:#0f172a;font-size:15px;line-height:1.35;}
+.grd-community-stats{display:flex;gap:8px;flex-wrap:wrap;}
+.grd-community-stats span{display:inline-flex;align-items:baseline;gap:5px;border:1px solid #99f6e4;background:#f0fdfa;color:#0f766e;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;}
+.grd-community-stats b{font-size:17px;color:#0f172a;}
 .grd-quality-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
 .grd-quality-card{border:1px solid #dbe7e2;background:#fbfefc;border-radius:12px;padding:13px;display:grid;gap:10px;}
 .grd-quality-card header{display:flex;justify-content:space-between;gap:12px;align-items:center;}
@@ -616,7 +800,8 @@ const STYLES = `
 .grd-feedback-row button{min-height:34px;border:1px solid #99f6e4;border-radius:999px;background:#f0fdfa;color:#0f766e;font-size:12px;font-weight:950;padding:0 10px;cursor:pointer;}
 .grd-feedback-row button[data-guide-bundle-feedback="merge_ok"]{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;}
 .grd-feedback-row button[data-guide-bundle-feedback="wrong"],.grd-feedback-row button[data-guide-hypothesis-feedback="wrong"]{border-color:#fecaca;background:#fff1f2;color:#be123c;}
-@media(max-width:760px){.grd-dashboard-grid,.grd-ops-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}}
+@media(max-width:900px){.grd-outcome-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:760px){.grd-dashboard-grid,.grd-ops-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}.grd-outcome-grid{grid-template-columns:1fr}}
 `;
 
 const SCRIPT = `
@@ -890,6 +1075,10 @@ async function renderPage(
   }
   const bundles = await addNextSamplingToBundles(bundleGuideRecords(rows));
   const qualityBySession = await loadGuideTransectQualityForSessions(session.userId, bundles.map((bundle) => bundle.sessionId)).catch(() => new Map<string, GuideTransectQuality>());
+  const communitySummary = await loadGuideCommunityContributionSummary(
+    session.userId,
+    bundles.map((bundle) => bundle.meshKey).filter((meshKey): meshKey is string => Boolean(meshKey)),
+  ).catch(() => null);
   const heading = options.heading ?? "自分のガイド記録";
   const lead = options.lead ?? "ログイン中の user_id に紐づく guide_records 最新件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。";
   const body = `
@@ -907,7 +1096,7 @@ async function renderPage(
       </nav>
     </div>
   </header>
-  ${errorHtml || `${renderSummaryStats(rows, bundles, qualityBySession)}${renderGuideQualityPanel(qualityBySession)}${renderRouteMap()}${renderRouteTransect(bundles, qualityBySession)}${renderRecordCards(bundles)}`}
+  ${errorHtml || `${renderOutcomeContributionPanel(rows, bundles, qualityBySession, communitySummary)}${renderSummaryStats(rows, bundles, qualityBySession)}${renderGuideQualityPanel(qualityBySession)}${renderRouteMap()}${renderRouteTransect(bundles, qualityBySession)}${renderRecordCards(bundles)}`}
 </div><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
