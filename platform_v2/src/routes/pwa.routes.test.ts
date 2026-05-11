@@ -15,11 +15,15 @@ test("manifest is app-first and localized from device or query language", async 
     const manifest = JSON.parse(response.body) as {
       start_url: string;
       display: string;
+      background_color: string;
+      theme_color: string;
       shortcuts: Array<{ url: string }>;
       icons: Array<{ src: string; purpose?: string }>;
     };
     assert.equal(manifest.start_url, "/en/?source=pwa");
     assert.equal(manifest.display, "standalone");
+    assert.equal(manifest.background_color, "#f5fbf7");
+    assert.equal(manifest.theme_color, "#d8efe3");
     assert.deepEqual(manifest.shortcuts.map((shortcut) => shortcut.url), ["/en/guide", "/en/record", "/en/map"]);
     assert.ok(manifest.icons.some((icon) => icon.src === "/assets/img/icon-512-maskable-v2.png" && icon.purpose === "maskable"));
   } finally {

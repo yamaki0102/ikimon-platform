@@ -33,6 +33,16 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /beforeinstallprompt/);
   assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
   assert.match(html, /data-app-install-prompt/);
+  assert.match(html, /<meta name="theme-color" content="#d8efe3" \/>/);
+  assert.match(html, /data-app-launch-screen/);
+  assert.match(html, /ikimon:app-launch-screen-shown-v1/);
+  assert.match(html, /is-app-launch-screen-eligible/);
+  assert.match(html, /appLaunchMarkBreath/);
+  assert.match(html, /prefers-reduced-motion: reduce/);
+  const launchHtml = html.slice(html.indexOf("data-app-launch-screen"), html.indexOf("data-language-suggestion"));
+  assert.match(launchHtml, /alt=""/);
+  assert.doesNotMatch(launchHtml, />\s*[^<\s][^<]*</);
+  assert.doesNotMatch(launchHtml, /読み込み中|はじめよう/);
   assert.doesNotMatch(html, /<footer class="site-footer">/);
   assert.match(html, /desktop-side-nav-section--guest/);
   assert.match(html, /desktop-side-nav-section--signed-in/);
