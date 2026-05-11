@@ -137,11 +137,11 @@ test("home page gives guests a clear first-record path", () => {
     myPlaces: [],
   } satisfies HomeSnapshot);
 
-  assert.match(html, /はじめるホーム/);
-  assert.match(html, /最初の記録から始める/);
-  assert.match(html, /ログインして続きから/);
-  assert.match(html, /今日の入口/);
-  assert.match(html, /写真と場所を記録に/);
+  assert.match(html, /data-testid="home-channel"/);
+  assert.match(html, /記録する/);
+  assert.match(html, /場所を探す/);
+  assert.match(html, /写真と場所を残す/);
+  assert.match(html, /最近の観察/);
   assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
@@ -153,13 +153,13 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
     myPlaces: [],
   } satisfies HomeSnapshot);
 
-  assert.match(html, /観察ホーム/);
-  assert.match(html, /次に見る場所と、最近の記録/);
+  assert.match(html, /data-testid="home-channel"/);
   assert.match(html, /記録する/);
-  assert.match(html, /記録を見る/);
-  assert.match(html, /\.hero-panel \{ min-height: 0; padding: 22px 24px 20px;/);
-  assert.match(html, /\.profile-channel-card:first-child \{ min-height: 214px;/);
+  assert.match(html, /前回を見る/);
+  assert.match(html, /最近の観察/);
+  assert.match(html, /\.home-grid \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(230px, 1fr\)\);/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
+  assert.doesNotMatch(html, /今日の作業台/);
 });
 
 test("records workbench unifies personal library and public observations", async () => {
