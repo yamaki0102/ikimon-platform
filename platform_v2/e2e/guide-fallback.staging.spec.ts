@@ -37,7 +37,7 @@ test("guide shows photo fallback when camera permission is unavailable", async (
 
     await expect(page.locator("#guide-permission-msg")).toBeVisible();
     await expect(page.locator("#guide-photo-fallback")).toBeVisible();
-    await expect(page.locator("#guide-photo-btn")).toContainText("投稿用写真を選ぶ");
+    await expect(page.locator("#guide-photo-btn")).toContainText(/記録用写真を選ぶ|投稿用写真を選ぶ/);
   } finally {
     await context.close();
   }

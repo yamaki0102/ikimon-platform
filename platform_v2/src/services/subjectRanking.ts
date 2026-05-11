@@ -69,7 +69,7 @@ export function subjectFocusReason(subject: SubjectRankInput): string {
   if (subject.latestAssessmentBand === "medium") return "AI が有力候補として見ています";
   if (typeof subject.confidence === "number" && subject.confidence >= 0.7) return "写真上での一致度が高めです";
   if (subject.rank && subjectSpecificityScore(subject.rank) >= 3) return `${subject.rank} まで整理できています`;
-  return subject.isPrimary ? "最初に記録された対象です" : "同じシーンで一緒に写っている対象です";
+  return subject.isPrimary ? "最初に記録された対象です" : "同じ記録で一緒に写っている対象です";
 }
 
 export function rankVisitSubjects<T extends SubjectRankInput>(

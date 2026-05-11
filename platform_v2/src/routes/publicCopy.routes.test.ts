@@ -110,7 +110,7 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     assert.match(response.body, /Enjoy Life/);
     assert.match(response.body, /いま見えている自然/);
     assert.match(response.body, /みんなが残した写真、動画、ガイド、同定待ち/);
-    assert.match(response.body, /投稿する/);
+    assert.match(response.body, /記録する/);
     assert.match(response.body, /再訪/);
     assert.match(response.body, /近く/);
     assert.match(response.body, /同定待ち/);
@@ -139,10 +139,10 @@ test("home page gives guests a clear first-record path", () => {
   } satisfies HomeSnapshot);
 
   assert.match(html, /はじめるホーム/);
-  assert.match(html, /最初のシーンから始める/);
+  assert.match(html, /最初の記録から始める/);
   assert.match(html, /ログインして続きから/);
   assert.match(html, /今日の入口/);
-  assert.match(html, /写真と場所をシーンに/);
+  assert.match(html, /写真と場所を記録に/);
   assert.match(html, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/home" \/>/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
@@ -155,9 +155,9 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   } satisfies HomeSnapshot);
 
   assert.match(html, /観察ホーム/);
-  assert.match(html, /次に見る場所と、最近のシーン/);
-  assert.match(html, /シーンを残す/);
-  assert.match(html, /シーンを見る/);
+  assert.match(html, /次に見る場所と、最近の記録/);
+  assert.match(html, /記録する/);
+  assert.match(html, /記録を見る/);
   assert.match(html, /\.hero-panel \{ min-height: 0; padding: 22px 24px 20px;/);
   assert.match(html, /\.profile-channel-card:first-child \{ min-height: 214px;/);
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
@@ -262,13 +262,13 @@ test("identification queue renders without a hero", async () => {
   }
 });
 
-test("notes page is a scene library with separated source lanes", async () => {
+test("notes page is a record library with separated source lanes", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/notes?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /シーンライブラリ/);
-    assert.match(response.body, /自分のシーン|公開されている観察レコード/);
+    assert.match(response.body, /記録ライブラリ/);
+    assert.match(response.body, /自分の記録|公開されている観察レコード/);
     assert.match(response.body, /場所・気づきで探す/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
@@ -276,8 +276,8 @@ test("notes page is a scene library with separated source lanes", async () => {
     assert.match(response.body, /スキャン/);
     assert.match(response.body, /場所アルバム/);
     assert.match(response.body, /近くの公開観察レコード/);
-    assert.match(response.body, /Experience loop/);
-    assert.match(response.body, /シーンを残し、読んで、観察レコードに育て、また歩く。/);
+    assert.match(response.body, /記録の流れ/);
+    assert.match(response.body, /記録する → 記録を見返す → 対象ごとの記録に分ける → 同定で確かめる/);
     assert.match(response.body, /\/ja\/guide\/outcomes/);
     assert.match(response.body, /data-testid="notes-own"/);
     assert.match(response.body, /data-testid="notes-nearby"/);
@@ -288,7 +288,7 @@ test("notes page is a scene library with separated source lanes", async () => {
     assert.doesNotMatch(response.body, /学びのハイライト/);
     assert.doesNotMatch(response.body, /地域に残った手がかり/);
     assert.ok(
-      response.body.indexOf("シーンライブラリ") < response.body.indexOf("近くの公開観察レコード"),
+      response.body.indexOf("記録ライブラリ") < response.body.indexOf("近くの公開観察レコード"),
       "library should appear before nearby public traces",
     );
   } finally {
@@ -312,7 +312,7 @@ test("notes page localizes the library chrome in English", async () => {
     assert.doesNotMatch(response.body, /名前・場所で探す/);
     assert.doesNotMatch(response.body, /場所アルバム/);
     assert.doesNotMatch(response.body, /近くの公開観察レコード/);
-    assert.doesNotMatch(response.body, /シーンを残し、読んで、観察レコードに育て、また歩く。/);
+    assert.doesNotMatch(response.body, /記録する → 記録を見返す/);
   } finally {
     await app.close();
   }
@@ -326,7 +326,7 @@ test("guide route connects live use to outcomes and the next record", async () =
     assert.match(guide.body, /ライブガイド/);
     assert.match(guide.body, /ガイド成果を見る/);
     assert.match(guide.body, /\/ja\/guide\/outcomes/);
-    assert.match(guide.body, /写真・動画をシーンに残す/);
+    assert.match(guide.body, /写真・動画を記録する/);
 
     const outcomes = await app.inject({ method: "GET", url: "/guide/outcomes?lang=ja", headers: { accept: "text/html" } });
     assert.equal(outcomes.statusCode, 401);

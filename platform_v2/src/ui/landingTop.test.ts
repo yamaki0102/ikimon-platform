@@ -147,7 +147,7 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /今日のikimon\.life/);
   assert.match(html, /いま見えている自然/);
   assert.match(html, /みんなが残した写真、動画、ガイド、同定待ち/);
-  assert.match(html, /投稿する/);
+  assert.match(html, /記録する/);
   assert.match(html, /同定待ち/);
   assert.match(html, /地域マップ/);
   assert.match(html, /音の標本棚/);
@@ -319,7 +319,7 @@ test("landing top renders guide shelf items from guide records", () => {
 
   assert.match(html, /街路樹の若葉/);
   assert.match(html, /未検証候補/);
-  assert.match(html, /観察レコードにする/);
+  assert.match(html, /対象ごとの記録にする/);
   assert.match(html, /href="\/ja\/guide\/outcomes"/);
   assert.match(html, /<img src="\/thumb\/md\/guide-frame\.jpg" alt="街路樹の若葉"/);
 });
@@ -367,9 +367,9 @@ test("landing top guide cards link to promoted observations or photo recovery ac
     }],
   });
 
-  assert.match(html, /観察化済み/);
-  assert.match(html, /観察を見る/);
+  assert.match(html, /対象ごとの記録/);
+  assert.match(html, /観察レコードを見る/);
   assert.match(html, /href="\/ja\/observations\/visit-guide-1\?occurrence=occ-visit-guide-1%3A0"/);
-  assert.match(html, /写真を追加して観察にする/);
+  assert.match(html, /写真を追加して記録する/);
   assert.match(html, /href="\/ja\/record\?source=guide&amp;guideRecordId=guide-record-photo"/);
 });

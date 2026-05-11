@@ -615,7 +615,7 @@ function renderEnvironmentMeshMap(): string {
 
 function renderRecordCards(bundles: GuideRecordBundle[]): string {
   if (bundles.length === 0) {
-    return `<section class="grd-empty"><h1>ガイド記録はまだありません</h1><p>ライブガイドで解析が完了したシーンがここに出ます。</p></section>`;
+    return `<section class="grd-empty"><h1>ガイド記録はまだありません</h1><p>ライブガイドで解析が完了した記録がここに出ます。</p></section>`;
   }
   return `<section class="grd-grid">${bundles.map((bundle) => {
     const row = bundle.representative;
@@ -634,7 +634,7 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
         <span>${escapeHtml(guideMode === "vehicle" ? "車・自転車" : "徒歩")}</span>
       </div>
       <div class="grd-bundle-meta"><span>代表カード</span><strong>${bundle.recordCount}</strong>件 / ${bundle.durationSec}秒</div>
-      <h2>${escapeHtml(row.scene_summary ?? "シーン要約なし")}</h2>
+      <h2>${escapeHtml(row.scene_summary ?? "記録要約なし")}</h2>
       ${row.environment_context ? `<p class="grd-env">${escapeHtml(row.environment_context)}</p>` : ""}
       ${row.seasonal_note ? `<p class="grd-season">${escapeHtml(row.seasonal_note)}</p>` : ""}
       <div class="grd-species">${species.length ? species.map((item) => `<span title="${escapeHtml(item.sourceNames.join(", "))}">${escapeHtml(item.canonicalName)}<small>${escapeHtml(item.rank)}</small></span>`).join("") : `<span class="grd-muted">種名なし</span>`}</div>
@@ -1113,7 +1113,7 @@ async function renderPage(
     return renderSiteDocument({
       basePath: "",
       title: options.title ?? "ガイド記録 — ikimon.life",
-      activeNav: "シーン",
+      activeNav: "記録",
       currentPath: options.nextPath ?? "/me/guide-records",
       extraStyles: STYLES,
       body: loginGate(options.nextPath),
@@ -1145,7 +1145,7 @@ async function renderPage(
       </div>
       <nav class="grd-actions" aria-label="ガイド成果の次の行動">
         <a class="grd-primary-link" href="/guide">またガイドを使う</a>
-        <a class="grd-secondary-link" href="/notes">シーンライブラリへ</a>
+        <a class="grd-secondary-link" href="/notes">記録ライブラリへ</a>
         <a class="grd-secondary-link" href="/map">地図で見る</a>
       </nav>
     </div>
@@ -1155,7 +1155,7 @@ async function renderPage(
   return renderSiteDocument({
     basePath: "",
     title: options.title ?? "自分のガイド記録 — ikimon.life",
-    activeNav: "シーン",
+    activeNav: "記録",
     currentPath: options.nextPath ?? "/me/guide-records",
     extraStyles: STYLES,
     body,

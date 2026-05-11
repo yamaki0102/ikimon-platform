@@ -1000,7 +1000,7 @@ const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     title: "プロトタイプ版スタート",
     tags: ["feature"],
     items: [
-      { label: "シーン", body: "写真から生きものをシーンとして残す入口を作りました。" },
+      { label: "記録", body: "写真から生きものを記録として残す入口を作りました。" },
       { label: "コミュニティ同定", body: "みんなで種の名前を提案・確認できます。" },
       { label: "地図探索", body: "周辺の生きものを地図で確認できます。" },
       { label: "企業向けレポート・地図埋め込み", body: "生物多様性レポートの自動生成と、自社サイトへの地図埋め込みに対応しました。" },
@@ -1098,9 +1098,9 @@ function renderLaneIntro(meta: MarketingPageMeta): string {
   const lane = laneForMeta(meta);
   const tiles: Record<RouteLane, Array<{ label: string; title: string; body: string }>> = {
     start: [
-      { label: "start", title: "まず1シーン残す", body: "名前が分からなくても、写真・場所・時刻・メモから始められます。" },
-      { label: "map", title: "次に歩く場所を見る", body: "地図とシーンライブラリから、再訪しやすい場所を見つけます。" },
-      { label: "trust", title: "あとから確かめる", body: "同定や公開範囲は、シーンを残した後にも整えられます。" },
+      { label: "start", title: "まず1件記録する", body: "名前が分からなくても、写真・場所・時刻・メモから始められます。" },
+      { label: "map", title: "次に歩く場所を見る", body: "地図と記録ライブラリから、再訪しやすい場所を見つけます。" },
+      { label: "trust", title: "あとから確かめる", body: "同定や公開範囲は、記録を残した後にも整えられます。" },
     ],
     learn: [
       { label: "guide", title: "使い方を先に読む", body: "操作説明ではなく、どんな記録が後から育つかをまとめています。" },

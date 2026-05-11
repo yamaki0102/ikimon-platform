@@ -9,7 +9,7 @@ test("guide flow exposes a photo fallback when camera access is unavailable", ()
   assert.match(html, /id="guide-photo-fallback" hidden/);
   assert.match(html, /id="guide-photo-btn" type="button"/);
   assert.match(html, /id="guide-photo-input" type="file" accept="image\/\*" hidden/);
-  assert.match(html, /投稿用写真を選ぶ/);
+  assert.match(html, /記録用写真を選ぶ/);
   assert.match(html, /写真を解析中/);
   assert.match(html, /audioPrivacyPolicy: 'photo_fallback_no_audio'/);
 });

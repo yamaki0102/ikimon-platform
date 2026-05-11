@@ -160,7 +160,7 @@ function renderAuthPage(options: {
       </div>
       <div class="eyebrow">${isLogin ? "sign in" : "create account"}</div>
       <h2>${isProfileRedirect ? (isLogin ? "マイページへ入る" : "マイページを作る") : (isLogin ? "記録を続ける" : "記録用アカウントを作る")}</h2>
-      <p>${isProfileRedirect ? "ログインすると、あなたの場所・記録・Life List をまとめたマイページへ進みます。" : (isLogin ? "ログインすると、そのまま投稿画面へ戻ります。" : "登録後すぐに投稿画面へ進みます。")}</p>
+      <p>${isProfileRedirect ? "ログインすると、あなたの場所・記録・Life List をまとめたマイページへ進みます。" : (isLogin ? "ログインすると、そのまま記録画面へ戻ります。" : "登録後すぐに記録画面へ進みます。")}</p>
       <form class="auth-form" data-auth-form data-endpoint="${escapeHtml(endpoint)}" data-redirect="${escapeHtml(options.redirect)}">
         ${displayNameField}
         <label class="auth-field"><span>メールアドレス</span><input name="email" type="email" autocomplete="email" required /></label>
@@ -172,8 +172,8 @@ function renderAuthPage(options: {
     </section>
     <aside class="auth-note">
       <div class="eyebrow">record lane</div>
-      <h3>${isProfileRedirect ? "ログイン後は v2 のマイページへ進みます。" : "ログイン後は PHP ではなく v2 の投稿画面へ進みます。"}</h3>
-      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "投稿、写真アップロード、同定参加は v2 の session cookie で扱います。"}</p>
+      <h3>${isProfileRedirect ? "ログイン後は v2 のマイページへ進みます。" : "ログイン後は PHP ではなく v2 の記録画面へ進みます。"}</h3>
+      <p>${isProfileRedirect ? "マイページでは、記録した場所、最近の観察、Life List、次の行動をまとめて扱います。" : "記録、写真アップロード、同定参加は v2 の session cookie で扱います。"}</p>
       <ul>
         <li>cookie は HttpOnly / SameSite=Lax / production Secure</li>
         <li>メール有無が分からない失敗表示</li>
@@ -242,7 +242,7 @@ function renderAuthPage(options: {
       align: "center",
     },
     body,
-    footerNote: "認証後は v2 の投稿導線へ戻ります。",
+    footerNote: "認証後は v2 の記録導線へ戻ります。",
   });
 }
 

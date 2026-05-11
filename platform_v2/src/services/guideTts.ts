@@ -106,7 +106,7 @@ export async function buildGuideScript(opts: {
 - 仮説ラベル: ${opts.siteBriefLabel ?? "不明"}
 - モード: ${modeInstruction}
 - ${speciesHint}
-- シーン概要: ${opts.sceneSummary}`;
+- 記録概要: ${opts.sceneSummary}`;
 
   // Primary: 3.1-flash-lite、Fallback: 2.5-flash-lite (503 / quota 時)
   const response = await generateAiTextWithRoleChain({

@@ -77,7 +77,7 @@ export function decideGuideAutoSave(input: AutoSaveInput): GuideAutoSaveDecision
       decision: "skip",
       confidence: 0.95,
       reasonCodes: ["duplicate_scene"],
-      note: "直前とほぼ同じシーンなので自動保存しません。",
+      note: "直前とほぼ同じ記録なので自動保存しません。",
     };
   }
 
