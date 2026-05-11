@@ -31,6 +31,7 @@ const explicitAllowlist = [
   "platform_v2/src/routes/pwa.ts",
   "platform_v2/src/routes/read.ts",
   "platform_v2/src/routes/sampleReport.ts",
+  "platform_v2/src/routes/sceneTargets.ts",
   "platform_v2/src/routes/stewardshipActions.ts",
   "platform_v2/src/routes/walkApi.ts",
   "platform_v2/src/routes/write.ts",

@@ -233,6 +233,17 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "この観察" }, requires: "occurrence", allowStatus: [200, 404], screenshot: { baselineName: "registry-observation-detail" } },
   },
   {
+    path: "/scenes/:id/targets",
+    lane: "start",
+    layout: "wide",
+    audience: "member",
+    auth: "session",
+    navVisibility: ["qa"],
+    title: { ja: "記録対象整理", en: "Scene targets" },
+    summary: { ja: "1つのシーンから、観察レコード候補になる複数の記録対象を整理する。", en: "Organize multiple record targets from one scene." },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "記録対象を整理する" }, requires: "occurrence", allowStatus: [200, 401, 403, 404], readySelector: "body", screenshot: { baselineName: "registry-scene-targets" } },
+  },
+  {
     path: "/learn",
     lane: "learn",
     layout: "reading",
@@ -1078,6 +1089,9 @@ export function materializeSitePagePath(
     }
     const path = `/observations/${encodeURIComponent(detailId)}`;
     return context.occurrenceId ? `${path}?subject=${encodeURIComponent(context.occurrenceId)}` : path;
+  }
+  if (page.path === "/scenes/:id/targets") {
+    return context.visitId ? `/scenes/${encodeURIComponent(context.visitId)}/targets` : "/scenes/missing/targets";
   }
   return page.path;
 }

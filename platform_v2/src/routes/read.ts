@@ -1277,6 +1277,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-cutout { padding: 14px; border-radius: 16px; }
     .obs-ai-cutout-head { display: grid; }
     .obs-ai-cutout-card { grid-template-columns: 1fr; }
+    .obs-ai-cutout-actions { width: 100%; grid-template-columns: 1fr; }
     .obs-ai-cutout-action, .obs-ai-cutout-learn { width: 100%; min-height: 52px; border-radius: 14px; white-space: normal; }
   }
 
@@ -1302,7 +1303,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-cutout-meta { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 6px; }
   .obs-ai-cutout-meta span { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.06); color: #475569; font-size: 10.5px; line-height: 1; font-weight: 900; }
   .obs-ai-cutout-note { margin: 7px 0 0; color: #64748b; font-size: 11.5px; line-height: 1.55; font-weight: 700; }
+  .obs-ai-cutout-actions { display: grid; grid-template-columns: repeat(3, minmax(0, auto)); gap: 7px; justify-content: end; }
   .obs-ai-cutout-action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 13px; border: 0; border-radius: 999px; background: #059669; color: #fff; font-size: 12px; line-height: 1.25; font-weight: 950; cursor: pointer; box-shadow: 0 8px 18px rgba(5,150,105,.18); white-space: nowrap; }
+  .obs-ai-cutout-action.is-quiet { background: rgba(255,255,255,.9); color: #334155; border: 1px solid rgba(15,23,42,.1); box-shadow: none; }
   .obs-ai-cutout-action:disabled { cursor: wait; opacity: .72; }
   .obs-ai-cutout-learn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 9px 12px; border-radius: 999px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.1); color: #0369a1; font-size: 12px; font-weight: 950; text-decoration: none; white-space: nowrap; }
   .obs-ai-cutout-status { min-height: 28px; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,.74); color: #475569; font-size: 11.5px; font-weight: 850; }
@@ -1537,7 +1540,7 @@ function renderAiCandidateLearningPanel(options: {
     <div class="obs-ai-cutout-head">
       <div>
         <p class="obs-ai-cutout-eye">AI が見つけたかもしれないもの</p>
-        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、別の観察レコードとして残せそうな候補があります" : "このシーンの中に、別の観察レコードとして残せそうな候補があります")}</h2>
+        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、観察レコード候補へ育てられる記録対象があります" : "このシーンの中に、観察レコード候補へ育てられる記録対象があります")}</h2>
         <p class="obs-ai-cutout-copy">いきものに詳しくなくても大丈夫です。AI が自信の高いものだけ先に整理しています。名前は候補なので、あとから人の確認で直せます。</p>
       </div>
       <span class="obs-ai-cutout-pill">${candidates.length} 件</span>
@@ -1550,25 +1553,25 @@ function renderAiCandidateLearningPanel(options: {
           candidate.rank || null,
           candidate.regions.length > 0 ? "位置の手がかりあり" : null,
         ].filter((item): item is string => Boolean(item));
+        const decisionEndpoint = withBasePath(options.basePath, `/api/v1/scenes/${encodeURIComponent(options.visitId)}/targets/candidates/${encodeURIComponent(candidate.candidateId)}/decision`);
         const action = options.isOwner
-          ? `<button type="button"
-               class="obs-ai-cutout-action"
-               data-adopt-candidate="${escapeHtml(candidate.candidateId)}"
-               data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/adopt`))}">
-               観察レコードとして残す
-             </button>`
+          ? `<div class="obs-ai-cutout-actions">
+               <button type="button" class="obs-ai-cutout-action" data-scene-candidate-decision="adopted" data-decision-endpoint="${escapeHtml(decisionEndpoint)}">採用する</button>
+               <button type="button" class="obs-ai-cutout-action is-quiet" data-scene-candidate-decision="ignored" data-decision-endpoint="${escapeHtml(decisionEndpoint)}">無視する</button>
+               <button type="button" class="obs-ai-cutout-action is-quiet" data-scene-candidate-decision="later" data-decision-endpoint="${escapeHtml(decisionEndpoint)}">あとで見る</button>
+             </div>`
           : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">見分けに参加する</a>`;
         return `<div class="obs-ai-cutout-card">
           <div>
             <strong>${escapeHtml(candidate.displayName)}</strong>
             ${meta.length > 0 ? `<div class="obs-ai-cutout-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
-            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(isVideoOnly ? "同じ映像フレームから切り出せる候補です。まずは仮の観察レコードとして残し、あとで確かめます。" : "同じシーンのメディアから切り出せる候補です。まずは仮の観察レコードとして残し、あとで確かめます。")}</p>`}
+            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(candidate.note)}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(isVideoOnly ? "同じ映像フレームから切り出せる記録対象の候補です。採用しても確定同定にはせず、あとで確かめます。" : "同じシーンのメディアから切り出せる記録対象の候補です。採用しても確定同定にはせず、あとで確かめます。")}</p>`}
           </div>
           ${action}
         </div>`;
       }).join("")}
     </div>
-    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? escapeHtml(`残すと、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に紐づく別の観察レコードとして追加されます。`) : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
+    <div class="obs-ai-cutout-status" data-scene-candidate-status>${options.isOwner ? escapeHtml(`AI候補は記録対象の候補です。採用しても最終同定済みにはせず、同じ日時・場所・${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に紐づく観察レコード候補として整理します。`) : "記録者以外は同定で手伝えます。候補は確定名ではありません。"}</div>
   </section>`;
 }
 
@@ -5331,6 +5334,7 @@ function renderNotesLibraryCard(
 ): string {
   const copy = notesLibraryCopy(lang);
   const href = notesDetailHref(basePath, lang, obs);
+  const targetHref = appendLangToHref(withBasePath(basePath, `/scenes/${encodeURIComponent(obs.visitId)}/targets`), lang);
   const canOwnerHide = options.locationMode === "owner" && obs.entryType !== "identification";
   const hideEndpoint = withBasePath(basePath, `/api/v1/observations/${encodeURIComponent(obs.visitId)}/hide`);
   const displayName = formatTaxonDisplayName({
@@ -5369,6 +5373,7 @@ function renderNotesLibraryCard(
         <summary aria-label="${escapeHtml(copy.card.menuAria)}"><span aria-hidden="true"></span></summary>
         <div class="notes-library-card-menu-panel">
           <a href="${escapeHtml(href)}">${escapeHtml(copy.card.detail)}</a>
+          <a href="${escapeHtml(targetHref)}">記録対象を整理する</a>
           <button type="button" data-owner-hide-observation data-hide-endpoint="${escapeHtml(hideEndpoint)}">${escapeHtml(copy.card.delete)}</button>
         </div>
       </details>`
@@ -5385,6 +5390,7 @@ function renderNotesLibraryCard(
         </span>
         <strong>${escapeHtml(displayName)}</strong>
         <em>${escapeHtml(`${observerLine}${placeLine || copy.card.fallbackPlace} · ${dateLabel}`)}</em>
+        ${options.locationMode === "owner" ? `<span class="notes-library-target-link">記録対象を整理する</span>` : ""}
       </span>
     </a>
     ${ownerMenu}
@@ -6070,8 +6076,10 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-overlay { position: absolute; inset: auto 0 0; z-index: 1; display: grid; gap: 5px; padding: 12px; }
   .notes-library-overlay strong { color: #fff; font-size: 15px; line-height: 1.25; text-shadow: 0 1px 9px rgba(0,0,0,.34); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .notes-library-overlay em { color: rgba(255,255,255,.86); font-size: 11px; line-height: 1.35; font-style: normal; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .notes-library-target-link { width: fit-content; margin-top: 4px; padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.16); color: #fff; font-size: 11px; line-height: 1; font-weight: 950; }
   .notes-library-card.is-photo-missing .notes-library-overlay strong { color: #10251a; text-shadow: none; }
   .notes-library-card.is-photo-missing .notes-library-overlay em { color: #475569; }
+  .notes-library-card.is-photo-missing .notes-library-target-link { background: rgba(16,185,129,.12); color: #047857; }
   .notes-library-card-menu { position: absolute; top: 8px; right: 8px; z-index: 3; }
   .notes-library-card-menu summary { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.12); box-shadow: 0 8px 20px rgba(15,23,42,.18); cursor: pointer; list-style: none; }
   .notes-library-card-menu summary::-webkit-details-marker { display: none; }
@@ -9467,14 +9475,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 : '';
               const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
+              const sceneTargetsHref = withBasePath('/scenes/' + encodeURIComponent(visitId) + '/targets');
               const notesHref = withBasePath('/notes');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>シーンを保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + observationHref + '" data-record-success-cta="observation_detail">観察レコードを見る</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1シーン</a> · <a href="' + notesHref + '" data-record-success-cta="notes">シーンを見る</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>シーンを保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + sceneTargetsHref + '" data-record-success-cta="scene_targets">記録対象を整理する</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">観察レコードを見る</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1シーン</a> · <a href="' + notesHref + '" data-record-success-cta="notes">シーンを見る</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['observation_detail', 'revisit_same_place', 'notes'],
+                successCtas: ['scene_targets', 'observation_detail', 'revisit_same_place', 'notes'],
               });
               sendRecordTaskCompletion('record_saved', {
                 visitId,
@@ -10826,6 +10835,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       latestDisplayName: snapshotDisplay.primaryLabel,
       absenceSemantics: snapshot.absenceSemantics,
     });
+    const sceneTargetsHref = appendLangToHref(withBasePath(basePath, `/scenes/${encodeURIComponent(bundle.visitId)}/targets`), lang);
     const nextActions: ObservationNextAction[] = [
       {
         href: revisitRecordHref,
@@ -10999,6 +11009,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       <section id="related" class="section obs-layer obs-cta" data-obs-section="related">
         <h2 class="obs-layer-title">関連と次の一歩</h2>
         <div class="obs-cta-grid">
+          ${isOwner ? `<a class="obs-cta-item" href="${escapeHtml(sceneTargetsHref)}" data-observation-primary-cta="scene_targets_footer" data-kpi-action="observation:primary:scene_targets_footer">
+            <span class="obs-cta-icon">▣</span>
+            <span class="obs-cta-label">記録対象を整理する</span>
+          </a>` : ""}
           <a class="obs-cta-item" href="${escapeHtml(revisitRecordHref)}" data-observation-primary-cta="revisit_place_footer" data-kpi-action="observation:primary:revisit_place_footer">
             <span class="obs-cta-icon">📝</span>
             <span class="obs-cta-label">この場所を再訪する</span>
@@ -11244,8 +11258,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       ? `<script>(function(){
            var panel = document.querySelector('[data-ai-cutout-panel]');
            if (!panel) return;
-           var buttons = Array.prototype.slice.call(panel.querySelectorAll('[data-adopt-candidate][data-adopt-endpoint]'));
-           var status = panel.querySelector('[data-adopt-candidate-status]');
+           var buttons = Array.prototype.slice.call(panel.querySelectorAll('[data-scene-candidate-decision][data-decision-endpoint]'));
+           var status = panel.querySelector('[data-scene-candidate-status]');
            var setStatus = function(message, isError) {
              if (!status) return;
              status.textContent = message;
@@ -11253,32 +11267,34 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
            };
            buttons.forEach(function(button){
              button.addEventListener('click', function(){
-               var endpoint = button.getAttribute('data-adopt-endpoint');
+               var endpoint = button.getAttribute('data-decision-endpoint');
+               var decision = button.getAttribute('data-scene-candidate-decision');
                if (!endpoint) return;
                buttons.forEach(function(item){ item.disabled = true; });
                var original = button.textContent;
-               button.textContent = '追加しています…';
-               setStatus('同じ日時・場所・写真に紐づく別対象として追加しています。', false);
+               button.textContent = '保存しています…';
+               setStatus('記録対象の候補として整理しています。', false);
                fetch(endpoint, {
                  method: 'POST',
-                 headers: { accept: 'application/json' },
+                 headers: { 'content-type': 'application/json', accept: 'application/json' },
                  credentials: 'same-origin',
+                 body: JSON.stringify({ decision: decision }),
                })
                .then(function(response){
                  return response.json().then(function(json){ return { ok: response.ok && json && json.ok, json: json }; });
                })
                .then(function(result){
                  if (!result.ok) {
-                   throw new Error(String((result.json && result.json.error) || 'candidate_adoption_failed'));
+                   throw new Error(String((result.json && result.json.error) || 'scene_target_candidate_decision_failed'));
                  }
-                 setStatus('追加しました。新しい対象を開きます。', false);
-                 var occurrenceId = String(result.json.occurrenceId || '');
-                 var visitId = String(result.json.visitId || ${JSON.stringify(bundle.visitId)});
-                 var next = ${JSON.stringify(appendLangToHref(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`), lang))};
-                 if (occurrenceId) {
-                   next = ${JSON.stringify(withBasePath(basePath, "/observations/"))} + encodeURIComponent(visitId) + '?subject=' + encodeURIComponent(occurrenceId) + ${JSON.stringify(lang === "ja" ? "&lang=ja" : lang === "en" ? "&lang=en" : "")};
-                 }
-                 setTimeout(function(){ window.location.href = next; }, 550);
+                 var message = decision === 'adopted'
+                   ? '複数の観察レコードに育てられる状態になりました。'
+                   : decision === 'later'
+                     ? 'あとで見返せる対象が整理されました。'
+                     : 'このシーンの対象候補を整理しました。';
+                 setStatus(message + ' 記録対象整理画面へ進めます。', false);
+                 var next = ${JSON.stringify(appendLangToHref(withBasePath(basePath, `/scenes/${encodeURIComponent(bundle.visitId)}/targets`), lang))};
+                 setTimeout(function(){ window.location.href = next; }, 650);
                })
                .catch(function(error){
                  button.textContent = original;
