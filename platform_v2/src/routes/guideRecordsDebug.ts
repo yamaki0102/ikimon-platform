@@ -207,6 +207,7 @@ async function loadGuideRecords(userId: string, limit: number): Promise<GuideRec
   const result = await getPool().query<GuideRecordDebugRow>(
     `select gr.guide_record_id::text as guide_record_id,
             gr.session_id,
+            gr.occurrence_id,
             gr.lat,
             gr.lng,
             gr.scene_summary,
@@ -220,7 +221,19 @@ async function loadGuideRecords(userId: string, limit: number): Promise<GuideRec
             gls.environment_context,
             gls.seasonal_note,
             gls.primary_subject,
-            gls.meta
+            gls.meta,
+            exists (
+              select 1
+                from audio_segments audio
+               where audio.session_id = gr.session_id
+                 and audio.user_id = gr.user_id
+                 and audio.blob_id is not null
+                 and audio.privacy_status = 'clean'
+                 and coalesce(audio.voice_flag, false) = false
+                 and coalesce(audio.transcription_status, 'pending') <> 'skipped'
+                 and abs(extract(epoch from (audio.recorded_at - coalesce(gls.captured_at, gls.returned_at, gr.created_at)))) <= 120
+               limit 1
+            ) as has_promotable_audio
        from guide_records gr
        left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
       where gr.user_id = $1
@@ -608,6 +621,13 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
     const row = bundle.representative;
     const guideMode = typeof row.meta?.guideMode === "string" ? row.meta.guideMode : "walk";
     const species = bundle.canonicalTaxa.length > 0 ? bundle.canonicalTaxa : canonicalizeTaxonList(row.detected_species ?? []);
+    const promotedOccurrenceId = typeof row.occurrence_id === "string" && row.occurrence_id.trim() ? row.occurrence_id.trim() : "";
+    const promotedVisitId = promotedOccurrenceId.replace(/^occ:/, "").replace(/:0$/, "");
+    const promotionAction = promotedOccurrenceId
+      ? `<a class="grd-primary-action" href="/observations/${escapeHtml(encodeURIComponent(promotedVisitId))}?occurrence=${escapeHtml(encodeURIComponent(promotedOccurrenceId))}">観察を見る</a>`
+      : row.has_promotable_audio
+        ? `<button class="grd-primary-action" type="button" data-guide-promote-id="${escapeHtml(row.guide_record_id)}">観察レコードにする</button>`
+        : `<a class="grd-primary-action" href="/record?source=guide&guideRecordId=${escapeHtml(row.guide_record_id)}">写真を追加して観察にする</a>`;
     return `<article class="grd-card">
       <div class="grd-card-head">
         <span>${escapeHtml(formatTime(bundle.startAt))}${bundle.recordCount > 1 ? ` - ${escapeHtml(formatTime(bundle.endAt))}` : ""}</span>
@@ -620,11 +640,13 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
       <div class="grd-species">${species.length ? species.map((item) => `<span title="${escapeHtml(item.sourceNames.join(", "))}">${escapeHtml(item.canonicalName)}<small>${escapeHtml(item.rank)}</small></span>`).join("") : `<span class="grd-muted">種名なし</span>`}</div>
       <div class="grd-features">${renderFeaturePills(bundle.features)}</div>
       ${bundle.nextSamplingProtocol ? `<section class="grd-next-sampling"><b>次に見る</b><p>${escapeHtml(bundle.nextSamplingProtocol)}</p></section>` : ""}
+      <p class="grd-claim-limit">AIガイド成果は未検証候補です。通常観察にするには、写真または privacy-safe な音声証拠が必要です。</p>
       <nav class="grd-card-actions" aria-label="このガイド成果の次の行動">
+        ${promotionAction}
         <a href="/guide">同じ場所でもう一度ガイド</a>
-        <a href="/record?source=guide&guideRecordId=${escapeHtml(row.guide_record_id)}">写真・動画を記録する</a>
         <a href="/map">地図で見る</a>
       </nav>
+      <div class="grd-promote-status" data-guide-promote-status="${escapeHtml(row.guide_record_id)}"></div>
       <div class="grd-feedback-row" data-feedback-status>
         <button type="button"
           data-guide-bundle-feedback="helpful"
@@ -733,6 +755,7 @@ const STYLES = `
 .grd-card{display:grid;gap:10px;border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:16px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-card-head,.grd-card footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:#64748b;font-weight:800;}
 .grd-card h2{font-size:15px;line-height:1.65;margin:0;color:#111827;}
+.grd-claim-limit{margin:2px 0 0;color:#64748b;font-size:12px;line-height:1.55;font-weight:800;}
 .grd-bundle-meta{display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:6px;border:1px solid #99f6e4;background:#f0fdfa;color:#0f766e;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:950;}
 .grd-bundle-meta strong{font-size:15px;color:#0f172a;}
 .grd-env,.grd-season{margin:0;font-size:13px;line-height:1.65;color:#334155;background:#f8fafc;border-radius:12px;padding:10px;}
@@ -761,8 +784,10 @@ const STYLES = `
 .grd-next-sampling b{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#a16207;}
 .grd-next-sampling p{margin:0;font-size:12px;line-height:1.65;font-weight:800;}
 .grd-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-.grd-card-actions a{min-height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 11px;background:#0f172a;color:#fff;font-size:12px;font-weight:950;text-decoration:none;}
-.grd-card-actions a+ a{background:#fff;color:#334155;border:1px solid rgba(15,23,42,.12);}
+.grd-card-actions a,.grd-card-actions button{min-height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:7px 11px;background:#fff;color:#334155;border:1px solid rgba(15,23,42,.12);font-size:12px;font-weight:950;text-decoration:none;cursor:pointer;}
+.grd-card-actions .grd-primary-action{background:#0f172a;color:#fff;border-color:#0f172a;}
+.grd-card-actions button:disabled{opacity:.62;cursor:wait;}
+.grd-promote-status{min-height:18px;color:#0f766e;font-size:12px;font-weight:900;}
 .grd-edit{border-top:1px solid #eef4f1;padding-top:8px;}
 .grd-edit summary{cursor:pointer;font-size:12px;font-weight:950;color:#0f766e;}
 .grd-one-taps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
@@ -884,6 +909,35 @@ const SCRIPT = `
     }
   }
   document.addEventListener('click', async function(event){
+    var promoteButton = event.target.closest('[data-guide-promote-id]');
+    if (promoteButton) {
+      var guideRecordId = promoteButton.getAttribute('data-guide-promote-id') || '';
+      var promoteStatus = document.querySelector('[data-guide-promote-status="' + guideRecordId + '"]');
+      promoteButton.disabled = true;
+      if (promoteStatus) promoteStatus.textContent = '観察レコードを作成中';
+      try {
+        var promoteRes = await fetch('/api/v1/guide/records/' + encodeURIComponent(guideRecordId) + '/promote', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({})
+        });
+        var promoteJson = await promoteRes.json().catch(function(){ return {}; });
+        if (!promoteRes.ok || !promoteJson.ok) {
+          if (promoteJson && promoteJson.nextAction === 'add_photo') {
+            location.href = '/record?source=guide&guideRecordId=' + encodeURIComponent(guideRecordId);
+            return;
+          }
+          throw new Error((promoteJson && promoteJson.error) || 'promotion_failed');
+        }
+        if (promoteStatus) promoteStatus.textContent = '作成済み。観察へ移動します';
+        location.href = promoteJson.observationHref || '/observations';
+      } catch (error) {
+        if (promoteStatus) promoteStatus.textContent = error instanceof Error ? error.message : String(error);
+        promoteButton.disabled = false;
+      }
+      return;
+    }
     var feedbackButton = event.target.closest('[data-guide-hypothesis-feedback]');
     if (feedbackButton) {
       var row = feedbackButton.closest('[data-feedback-status]');

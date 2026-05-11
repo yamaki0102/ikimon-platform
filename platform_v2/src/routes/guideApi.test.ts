@@ -30,6 +30,11 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.match(source, /clientSceneId\?: string stable client id for offline retry idempotency/);
   assert.match(normalizedSource, /Indoor\/person-only\/duplicate scenes remain transient/);
   assert.match(manualSaveRoute, /saveGuideRecord\(/);
+  assert.match(source, /app\.post<\{ Params: \{ guideRecordId: string \} \}>\(\s*"\/api\/v1\/guide\/records\/:guideRecordId\/promote"/);
+  assert.match(source, /assertSameOriginRequest\(request\)/);
+  assert.match(source, /assertAuthRateLimit\(\["guide-promote", session\.userId, request\.ip\]/);
+  assert.match(source, /promoteGuideRecordToObservation\(/);
+  assert.match(source, /nextAction: guidePromotionNextAction\(message\)/);
   assert.match(source, /app\.post\("\/api\/v1\/guide\/telemetry"/);
   assert.match(source, /pointKind: "telemetry"/);
   assert.match(source, /liveCoverageCellSizeM: 10/);

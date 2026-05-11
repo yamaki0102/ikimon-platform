@@ -132,6 +132,16 @@ export type ObservationDetailSnapshot = {
     createdAt: string;
     mediaRole: string | null;
   } & MediaRoleSuggestion>;
+  audioAssets: Array<{
+    assetId: string;
+    segmentId: string | null;
+    playbackUrl: string | null;
+    capturedAt: string | null;
+    durationSec: number | null;
+    transcriptionStatus: string | null;
+    privacyStatus: string | null;
+    mediaRole: string | null;
+  }>;
   visualEvidence: Array<{
     extractId: string;
     assetId: string | null;
@@ -1066,6 +1076,35 @@ export async function getObservationDetailSnapshot(
     [base.visit_id],
   );
 
+  const audioResult = await pool.query<{
+    asset_id: string;
+    segment_id: string | null;
+    captured_at: string | null;
+    duration_sec: string | number | null;
+    transcription_status: string | null;
+    privacy_status: string | null;
+    media_role: string | null;
+  }>(
+    `select
+        ea.asset_id::text as asset_id,
+        coalesce(ea.source_payload ->> 'segment_id', audio.segment_id::text) as segment_id,
+        coalesce(ea.captured_at, audio.recorded_at)::text as captured_at,
+        audio.duration_sec,
+        audio.transcription_status,
+        audio.privacy_status,
+        emr.media_role
+       from evidence_assets ea
+       join asset_blobs ab on ab.blob_id = ea.blob_id
+       left join audio_segments audio on audio.blob_id = ea.blob_id
+       left join evidence_asset_media_roles emr on emr.asset_id = ea.asset_id
+      where ea.visit_id = $1
+        and ea.asset_role = 'observation_audio'
+        and (audio.segment_id is null or audio.privacy_status = 'clean')
+      order by ea.captured_at asc nulls last, ea.created_at asc
+      limit 12`,
+    [base.visit_id],
+  );
+
   const latestAiRunResult = await pool.query<{ ai_run_id: string }>(
     `select ai_run_id::text
        from observation_ai_runs
@@ -1336,6 +1375,18 @@ export async function getObservationDetailSnapshot(
         };
       })
       .filter((video): video is ObservationDetailSnapshot["videoAssets"][number] => Boolean(video)),
+    audioAssets: audioResult.rows.map((row) => ({
+      assetId: row.asset_id,
+      segmentId: row.segment_id,
+      playbackUrl: row.segment_id && options.viewerUserId && options.viewerUserId === base.observer_user_id
+        ? `/api/v1/fieldscan/audio/segment/${encodeURIComponent(row.segment_id)}`
+        : null,
+      capturedAt: row.captured_at,
+      durationSec: row.duration_sec == null ? null : Number(row.duration_sec),
+      transcriptionStatus: row.transcription_status,
+      privacyStatus: row.privacy_status,
+      mediaRole: row.media_role,
+    })),
     visualEvidence: visualEvidenceResult.rows.map((row) => ({
       extractId: row.extract_id,
       assetId: row.asset_id,
@@ -2050,6 +2101,9 @@ export type LandingTopGuideItem = {
   topItemType: "guide";
   guideRecordId: string;
   sessionId: string;
+  promotedOccurrenceId?: string | null;
+  canPromote?: boolean;
+  promotionAction?: "promote" | "add_photo" | "view_observation";
   displayName: string;
   summary: string | null;
   observedAt: string;

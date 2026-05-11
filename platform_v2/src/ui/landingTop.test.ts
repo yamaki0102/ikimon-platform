@@ -318,8 +318,8 @@ test("landing top renders guide shelf items from guide records", () => {
   });
 
   assert.match(html, /街路樹の若葉/);
-  assert.match(html, /ガイド記録/);
-  assert.match(html, /ガイド成果を見る/);
+  assert.match(html, /未検証候補/);
+  assert.match(html, /観察レコードにする/);
   assert.match(html, /href="\/ja\/guide\/outcomes"/);
   assert.match(html, /<img src="\/thumb\/md\/guide-frame\.jpg" alt="街路樹の若葉"/);
 });
@@ -341,4 +341,35 @@ test("landing top labels the outcomes-linked guide shelf as personal", () => {
   assert.match(html, /自分のガイド成果/);
   assert.match(html, /MY GUIDE/);
   assert.match(html, /href="\/ja\/guide\/outcomes"/);
+});
+
+test("landing top guide cards link to promoted observations or photo recovery actions", () => {
+  const promotedGuide: LandingTopGuideItem = {
+    ...guideItem,
+    promotedOccurrenceId: "occ-visit-guide-1:0",
+    promotionAction: "view_observation",
+    href: "/observations/visit-guide-1?occurrence=occ-visit-guide-1%3A0",
+  };
+  const photoRequiredGuide: LandingTopGuideItem = {
+    ...guideItem,
+    guideRecordId: "guide-record-photo",
+    promotionAction: "add_photo",
+    href: "/record?source=guide&guideRecordId=guide-record-photo",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    topShelves: [{
+      kind: "guide",
+      title: "自分のガイド成果",
+      eyebrow: "MY GUIDE",
+      href: "/guide/outcomes",
+      items: [promotedGuide, photoRequiredGuide],
+    }],
+  });
+
+  assert.match(html, /観察化済み/);
+  assert.match(html, /観察を見る/);
+  assert.match(html, /href="\/ja\/observations\/visit-guide-1\?occurrence=occ-visit-guide-1%3A0"/);
+  assert.match(html, /写真を追加して観察にする/);
+  assert.match(html, /href="\/ja\/record\?source=guide&amp;guideRecordId=guide-record-photo"/);
 });

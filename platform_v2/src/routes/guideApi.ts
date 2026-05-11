@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { getPool } from "../db.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { assertAuthRateLimit, assertSameOriginRequest } from "../services/authSecurity.js";
 import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
 import { upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
 import { parseGuideInteractionType, recordGuideInteraction } from "../services/guideInteractions.js";
 import { createGuideLiveToken } from "../services/guideLiveToken.js";
+import { promoteGuideRecordToObservation } from "../services/guideRecordPromotion.js";
 import { recordGuideRoutePoint } from "../services/guideRouteTrack.js";
 import { analyzeScene, saveGuideRecord, type GuideFrameInput, type GuideMode, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
@@ -38,6 +40,27 @@ function parseGuideMode(raw: unknown): GuideMode {
 function parseFiniteNumber(raw: unknown): number | null {
   const value = typeof raw === "number" ? raw : (typeof raw === "string" && raw !== "" ? Number(raw) : NaN);
   return Number.isFinite(value) ? value : null;
+}
+
+function guidePromotionStatusCode(message: string): number {
+  if (message === "unauthorized" || message === "account_disabled") return 401;
+  if (message === "same_origin_required" || message === "guide_record_forbidden") return 403;
+  if (message === "guide_record_not_found") return 404;
+  if (message === "rate_limited") return 429;
+  if (
+    message === "guide_record_photo_required" ||
+    message === "guide_record_evidence_required" ||
+    message === "guide_record_location_required"
+  ) {
+    return 409;
+  }
+  return 500;
+}
+
+function guidePromotionNextAction(message: string): string | null {
+  if (message === "guide_record_photo_required" || message === "guide_record_evidence_required") return "add_photo";
+  if (message === "guide_record_location_required") return "record_with_location";
+  return null;
 }
 
 function parseIsoString(raw: unknown): string | null {
@@ -894,6 +917,33 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     });
     return reply.send({ ok: true, interactionId });
   });
+
+  app.post<{ Params: { guideRecordId: string } }>(
+    "/api/v1/guide/records/:guideRecordId/promote",
+    async (request, reply) => {
+      try {
+        assertSameOriginRequest(request);
+        const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+        if (!session?.userId || session.banned) {
+          throw new Error("unauthorized");
+        }
+        assertAuthRateLimit(["guide-promote", session.userId, request.ip], 12, 10 * 60 * 1000);
+        const result = await promoteGuideRecordToObservation({
+          guideRecordId: request.params.guideRecordId,
+          userId: session.userId,
+        });
+        return reply.send(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "guide_record_promotion_failed";
+        reply.code(guidePromotionStatusCode(message));
+        return {
+          ok: false,
+          error: message,
+          nextAction: guidePromotionNextAction(message),
+        };
+      }
+    },
+  );
 
   /**
    * POST /api/v1/guide/record

@@ -278,14 +278,18 @@ function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function observationStatusLabel(lang: SiteLang, obs: LandingTopShelfItem): { label: string; tone: "green" | "blue" | "amber" } {
-  const labels: Record<SiteLang, { guide: string; ai: string; reviewing: string; needsId: string }> = {
-    ja: { guide: "ガイド記録", ai: "AI候補", reviewing: "確認中", needsId: "同定待ち" },
-    en: { guide: "Guide record", ai: "AI hint", reviewing: "In review", needsId: "Needs ID" },
-    es: { guide: "Registro guia", ai: "Pista IA", reviewing: "En revision", needsId: "Sin nombre" },
-    "pt-BR": { guide: "Registro guia", ai: "Dica IA", reviewing: "Em revisao", needsId: "Sem nome" },
+  const labels: Record<SiteLang, { guide: string; guidePromoted: string; ai: string; reviewing: string; needsId: string }> = {
+    ja: { guide: "未検証候補", guidePromoted: "観察化済み", ai: "AI候補", reviewing: "確認中", needsId: "同定待ち" },
+    en: { guide: "Unverified lead", guidePromoted: "Observation made", ai: "AI hint", reviewing: "In review", needsId: "Needs ID" },
+    es: { guide: "Candidato sin verificar", guidePromoted: "Observacion creada", ai: "Pista IA", reviewing: "En revision", needsId: "Sin nombre" },
+    "pt-BR": { guide: "Candidato nao verificado", guidePromoted: "Observacao criada", ai: "Dica IA", reviewing: "Em revisao", needsId: "Sem nome" },
   };
   const copy = labels[lang] ?? labels.ja;
-  if (isLandingGuideItem(obs)) return { label: copy.guide, tone: "blue" };
+  if (isLandingGuideItem(obs)) {
+    return obs.promotionAction === "view_observation"
+      ? { label: copy.guidePromoted, tone: "green" }
+      : { label: copy.guide, tone: "blue" };
+  }
   if (obs.isAiCandidate) return { label: copy.ai, tone: "blue" };
   if (obs.identificationCount > 0) return { label: copy.reviewing, tone: "green" };
   return { label: copy.needsId, tone: "amber" };
@@ -300,14 +304,21 @@ function landingShelfAction(lang: SiteLang, kind: LandingTopShelfKind, item: Lan
     guide: string;
     scan: string;
     season: string;
+    promote: string;
+    addPhoto: string;
+    viewObservation: string;
   }> = {
-    ja: { guideOutcome: "ガイド成果を見る", evidence: "根拠を見に行く", name: "名前を確かめる", motion: "動きを見る", guide: "ガイドの流れを見る", scan: "現地の手がかりを見る", season: "同じ季節に探す" },
-    en: { guideOutcome: "Open guide result", evidence: "Check evidence", name: "Help name it", motion: "Watch motion", guide: "Open guide flow", scan: "Open field clues", season: "Look in this season" },
-    es: { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ayudar a nombrar", motion: "Ver movimiento", guide: "Abrir guia", scan: "Ver pistas del lugar", season: "Mirar en esta temporada" },
-    "pt-BR": { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ajudar no nome", motion: "Ver movimento", guide: "Abrir guia", scan: "Ver pistas do lugar", season: "Observar nesta estacao" },
+    ja: { guideOutcome: "ガイド成果を見る", evidence: "根拠を見に行く", name: "名前を確かめる", motion: "動きを見る", guide: "ガイドの流れを見る", scan: "現地の手がかりを見る", season: "同じ季節に探す", promote: "観察レコードにする", addPhoto: "写真を追加して観察にする", viewObservation: "観察を見る" },
+    en: { guideOutcome: "Open guide result", evidence: "Check evidence", name: "Help name it", motion: "Watch motion", guide: "Open guide flow", scan: "Open field clues", season: "Look in this season", promote: "Make observation record", addPhoto: "Add photo to record", viewObservation: "View observation" },
+    es: { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ayudar a nombrar", motion: "Ver movimiento", guide: "Abrir guia", scan: "Ver pistas del lugar", season: "Mirar en esta temporada", promote: "Crear registro", addPhoto: "Anadir foto", viewObservation: "Ver observacion" },
+    "pt-BR": { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ajudar no nome", motion: "Ver movimento", guide: "Abrir guia", scan: "Ver pistas do lugar", season: "Observar nesta estacao", promote: "Criar observacao", addPhoto: "Adicionar foto", viewObservation: "Ver observacao" },
   };
   const copy = labels[lang] ?? labels.ja;
-  if (isLandingGuideItem(item)) return copy.guideOutcome;
+  if (isLandingGuideItem(item)) {
+    if (item.promotionAction === "view_observation") return copy.viewObservation;
+    if (item.promotionAction === "add_photo") return copy.addPhoto;
+    return copy.promote;
+  }
   if (kind === "needsId") return item.identificationCount > 0 ? copy.evidence : copy.name;
   if (kind === "video") return copy.motion;
   if (kind === "guide") return copy.guide;

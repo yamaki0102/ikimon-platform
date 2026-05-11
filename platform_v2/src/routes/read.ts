@@ -10602,6 +10602,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (currentSubject.identificationCount > 0) badges.push(`<span class="obs-badge obs-badge-consensus">🧭 同定 ${currentSubject.identificationCount} 件</span>`);
     if (heavy && heavy.nearby.length > 0) badges.push(`<span class="obs-badge obs-badge-nearby">📍 同地点 ${heavy.nearby.length} 件</span>`);
     if (snapshot.videoAssets.length > 0) badges.push(`<span class="obs-badge obs-badge-video">🎬 動画あり</span>`);
+    if (snapshot.audioAssets.length > 0) badges.push(`<span class="obs-badge obs-badge-video">音声証拠あり</span>`);
 
     const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
     const rankedSubjects = bundle.subjects;

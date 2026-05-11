@@ -12,6 +12,8 @@ export type GuideRecordInsightFeature = {
 export type GuideRecordInsightRow = {
   guide_record_id: string;
   session_id: string;
+  occurrence_id?: string | null;
+  has_promotable_audio?: boolean | null;
   lat: number | null;
   lng: number | null;
   scene_summary: string | null;
