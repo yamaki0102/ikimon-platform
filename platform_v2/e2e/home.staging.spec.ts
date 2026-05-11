@@ -1,5 +1,11 @@
-import { test, expect, type Page } from "@playwright/test";
-import { newStagingContext, suppressMapLibreForSmoke, type ViewportProfile } from "./support/staging.js";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  addSessionCookie,
+  createStagingApiContext,
+  newStagingContext,
+  suppressMapLibreForSmoke,
+  type ViewportProfile,
+} from "./support/staging.js";
 
 const HOME_VIEWPORTS: ViewportProfile[] = [
   { slug: "desktop-1536", viewport: { width: 1536, height: 900 } },
@@ -11,6 +17,47 @@ const HOME_VIEWPORTS: ViewportProfile[] = [
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+}
+
+type SessionPayload = {
+  ok: boolean;
+  error?: string;
+};
+
+function firstMatch(source: string, pattern: RegExp): string | null {
+  const match = source.match(pattern);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+async function resolveQaUserId(api: APIRequestContext): Promise<string> {
+  const response = await api.get("/qa/site-map?lang=ja");
+  expect(response.ok(), "/qa/site-map should expose a materialized user").toBeTruthy();
+  const html = await response.text();
+  const userId = firstMatch(html, /\/home\?userId=([^"&]+)/) ?? firstMatch(html, /\/profile\/([^"?&#]+)/);
+  expect(userId, "QA sitemap should expose a user route").toBeTruthy();
+  return userId!;
+}
+
+async function issueSessionCookie(api: APIRequestContext, userId: string): Promise<string> {
+  const writeKey = process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim();
+  expect(writeKey, "V2_PRIVILEGED_WRITE_API_KEY is required for logged-in home staging QA").toBeTruthy();
+  const response = await api.post("/api/v1/auth/session/issue", {
+    headers: {
+      "x-ikimon-write-key": writeKey!,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: { userId, ttlHours: 4 },
+  });
+  const payload = (await response.json().catch(() => null)) as SessionPayload | null;
+  expect(response.ok(), payload?.error ?? "session_issue_failed").toBeTruthy();
+  const rawCookie = response.headers()["set-cookie"] ?? "";
+  expect(rawCookie, "session issue response should set a cookie").toBeTruthy();
+  return rawCookie;
+}
+
+function cookieHeader(rawCookie: string): string {
+  return rawCookie.split(";")[0] ?? rawCookie;
 }
 
 for (const profile of HOME_VIEWPORTS) {
@@ -35,3 +82,57 @@ for (const profile of HOME_VIEWPORTS) {
     }
   });
 }
+
+test("logged-in staging home shows personal guide outcomes shelf", async ({ browser, playwright }) => {
+  const api = await createStagingApiContext(playwright);
+  const userId = await resolveQaUserId(api);
+  const rawCookie = await issueSessionCookie(api, userId);
+  const fixtureSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const fixtureLabel = `staging guide shelf ${fixtureSuffix}`;
+  const saveResponse = await api.post("/api/v1/guide/record", {
+    headers: {
+      Cookie: cookieHeader(rawCookie),
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: {
+      sessionId: `home-guide-shelf-${fixtureSuffix}`,
+      lang: "ja",
+      guideMode: "walk",
+      lat: 34.7219,
+      lng: 137.8589,
+      capturedAt: new Date().toISOString(),
+      returnedAt: new Date().toISOString(),
+      sceneHash: `home-guide-shelf-${fixtureSuffix}`,
+      sceneSummary: `${fixtureLabel} の植生と足元の変化`,
+      detectedSpecies: [`${fixtureLabel} plant`],
+      detectedFeatures: [
+        { type: "vegetation", name: `${fixtureLabel} vegetation`, confidence: 0.92, note: "staging visual QA" },
+      ],
+      environmentContext: `${fixtureLabel} environment`,
+      seasonalNote: "staging visual QA",
+    },
+  });
+  const savePayload = await saveResponse.json().catch(() => null) as { guideRecordId?: string; error?: string } | null;
+  expect(saveResponse.ok(), savePayload?.error ?? "guide_record_save_failed").toBeTruthy();
+  expect(savePayload?.guideRecordId, "guide record id should be returned").toBeTruthy();
+
+  const context = await newStagingContext(browser, { slug: "desktop-1440", viewport: { width: 1440, height: 900 } });
+  await addSessionCookie(context, rawCookie);
+  const page = await context.newPage();
+
+  try {
+    await suppressMapLibreForSmoke(page);
+    await page.goto("/?lang=ja", { waitUntil: "networkidle" });
+    const guideShelf = page.locator("#topa-guide");
+    await expect(guideShelf).toBeVisible();
+    await expect(guideShelf).toContainText("自分のガイド成果");
+    await expect(guideShelf).toContainText(fixtureLabel);
+    await expect(guideShelf.locator("a[href*='/guide/outcomes']").first()).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: `test-results/home-personal-guide-shelf-${fixtureSuffix}.png`, fullPage: true });
+  } finally {
+    await context.close();
+    await api.dispose();
+  }
+});

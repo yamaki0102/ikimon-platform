@@ -323,3 +323,22 @@ test("landing top renders guide shelf items from guide records", () => {
   assert.match(html, /href="\/ja\/guide\/outcomes"/);
   assert.match(html, /<img src="\/thumb\/md\/guide-frame\.jpg" alt="街路樹の若葉"/);
 });
+
+test("landing top labels the outcomes-linked guide shelf as personal", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    topShelves: [
+      {
+        kind: "guide",
+        title: "自分のガイド成果",
+        eyebrow: "MY GUIDE",
+        href: "/guide/outcomes",
+        items: [guideItem],
+      },
+    ],
+  });
+
+  assert.match(html, /自分のガイド成果/);
+  assert.match(html, /MY GUIDE/);
+  assert.match(html, /href="\/ja\/guide\/outcomes"/);
+});

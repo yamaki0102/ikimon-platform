@@ -413,6 +413,7 @@ function renderLandingShelfCta(basePath: string, lang: SiteLang, shelf: LandingT
 }
 
 function landingShelfUiCopy(lang: SiteLang, shelf: LandingTopShelf): { title: string; eyebrow: string; all: string } {
+  const isPersonalGuideShelf = shelf.kind === "guide" && shelf.href === "/guide/outcomes";
   const localized: Record<SiteLang, Partial<Record<LandingTopShelfKind, { title: string; eyebrow: string }>> & { all: string }> = {
     ja: {
       today: { title: "みんなの発見", eyebrow: "LIVE FEED" },
@@ -452,7 +453,15 @@ function landingShelfUiCopy(lang: SiteLang, shelf: LandingTopShelf): { title: st
     },
   };
   const copy = localized[lang] ?? localized.ja;
-  const shelfCopy = copy[shelf.kind] ?? { title: shelf.title, eyebrow: shelf.eyebrow };
+  const personalGuideCopy: Record<SiteLang, { title: string; eyebrow: string }> = {
+    ja: { title: "自分のガイド成果", eyebrow: "MY GUIDE" },
+    en: { title: "Your guide outcomes", eyebrow: "MY GUIDE" },
+    es: { title: "Tus resultados de guia", eyebrow: "MY GUIDE" },
+    "pt-BR": { title: "Seus resultados do guia", eyebrow: "MY GUIDE" },
+  };
+  const shelfCopy = isPersonalGuideShelf
+    ? personalGuideCopy[lang] ?? personalGuideCopy.ja
+    : copy[shelf.kind] ?? { title: shelf.title, eyebrow: shelf.eyebrow };
   return {
     title: shelfCopy.title,
     eyebrow: shelfCopy.eyebrow,
