@@ -293,3 +293,50 @@ test("landing top guide shelf accepts guide records outside observation feed", (
     .filter((item) => "occurrenceId" in item);
   assert.ok(observationOnly.every((item) => item.occurrenceId.startsWith("top-occ-")));
 });
+
+test("landing top guide records are not hidden by public feed observer diversity caps", () => {
+  const heavyUserFeed = Array.from({ length: 12 }, (_, index) => topObservation(index, {
+    observerUserId: "power-user",
+    observerName: "Power User",
+    librarySourceKind: index % 3 === 0 ? "video" : "photo",
+    hasVideo: index % 3 === 0,
+  }));
+  const guideItems = Array.from({ length: 4 }, (_, index) => topGuideItem(index, {
+    observerUserId: "power-user",
+    observerName: "Power User",
+  }));
+
+  const { shelves } = buildLandingTopShelves(heavyUserFeed, {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+    extraItems: guideItems,
+  });
+
+  const guideShelf = shelves.find((shelf) => shelf.kind === "guide");
+  assert.ok(guideShelf);
+  assert.equal(guideShelf.items.filter((item) => item.topItemType === "guide").length, 4);
+});
+
+test("landing top uses a separate personal guide shelf when guide records exist", () => {
+  const publicGuideObservation = topObservation(30, {
+    observerUserId: "other-guide-user",
+    observerName: "Other Guide User",
+    librarySourceKind: "guide",
+    displayName: "公開フィード側のガイド記録",
+  });
+  const ownGuideItem = topGuideItem(30, {
+    observerUserId: "power-user",
+    observerName: "Power User",
+  });
+
+  const { shelves } = buildLandingTopShelves([publicGuideObservation], {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+    extraItems: [ownGuideItem],
+  });
+
+  const guideShelf = shelves.find((shelf) => shelf.kind === "guide");
+  assert.ok(guideShelf);
+  assert.equal(guideShelf.title, "自分のガイド成果");
+  assert.equal(guideShelf.eyebrow, "MY GUIDE");
+  assert.equal(guideShelf.href, "/guide/outcomes");
+  assert.deepEqual(guideShelf.items.map((item) => "guideRecordId" in item ? item.guideRecordId : item.occurrenceId), [ownGuideItem.guideRecordId]);
+});

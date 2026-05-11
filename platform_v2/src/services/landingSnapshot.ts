@@ -889,6 +889,10 @@ function landingTopItemId(item: LandingTopShelfItem): string {
   return `observation:${item.occurrenceId}`;
 }
 
+function isGuideRecordTopItem(item: LandingTopShelfItem): item is LandingTopGuideItem {
+  return item.topItemType === "guide";
+}
+
 function uniqueLandingObservationList(observations: LandingObservation[]): LandingObservation[] {
   const seen = new Set<string>();
   const unique: LandingObservation[] = [];
@@ -934,14 +938,15 @@ function selectLandingShelfItems(
   for (let pass = 0; pass < 2 && picked.length < definition.limit; pass += 1) {
     for (const candidate of ranked) {
       if (picked.includes(candidate)) continue;
+      const bypassObserverDiversity = definition.kind === "guide" && isGuideRecordTopItem(candidate.observation);
       if (candidate.observerKey) {
-        if (shelfObserverKeys.has(candidate.observerKey)) continue;
-        if ((state.globalUserCounts.get(candidate.observerKey) ?? 0) >= 3) continue;
+        if (!bypassObserverDiversity && shelfObserverKeys.has(candidate.observerKey)) continue;
+        if (!bypassObserverDiversity && (state.globalUserCounts.get(candidate.observerKey) ?? 0) >= 3) continue;
       }
       const previous = picked[picked.length - 1];
       if (pass === 0 && previous?.areaKey && candidate.areaKey && previous.areaKey === candidate.areaKey) continue;
       picked.push(candidate);
-      if (candidate.observerKey) {
+      if (candidate.observerKey && !bypassObserverDiversity) {
         shelfObserverKeys.add(candidate.observerKey);
         state.globalUserCounts.set(candidate.observerKey, (state.globalUserCounts.get(candidate.observerKey) ?? 0) + 1);
       }
@@ -1003,18 +1008,28 @@ export function buildLandingTopShelves(
     municipality: item.municipality,
     photoUrl: item.photoUrl,
   }));
+  const personalGuideCandidates = extraCandidates.filter(isGuideRecordTopItem);
   const candidates = uniqueLandingTopItemList([...observationCandidates, ...extraCandidates]);
   const state: LandingTopSelectionState = {
     globalUserCounts: new Map<string, number>(),
   };
-  const shelves = LANDING_TOP_SHELF_DEFINITIONS.map((definition) => ({
-    kind: definition.kind,
-    title: definition.title,
-    eyebrow: definition.eyebrow,
-    href: definition.href,
-    items: selectLandingShelfItems(candidates, definition, state, now, preferredMunicipalities),
-    cta: definition.cta,
-  }));
+  const shelves = LANDING_TOP_SHELF_DEFINITIONS.map((definition) => {
+    const isPersonalGuideShelf = definition.kind === "guide" && personalGuideCandidates.length > 0;
+    return {
+      kind: definition.kind,
+      title: isPersonalGuideShelf ? "自分のガイド成果" : definition.title,
+      eyebrow: isPersonalGuideShelf ? "MY GUIDE" : definition.eyebrow,
+      href: isPersonalGuideShelf ? "/guide/outcomes" : definition.href,
+      items: selectLandingShelfItems(
+        isPersonalGuideShelf ? personalGuideCandidates : candidates,
+        definition,
+        state,
+        now,
+        preferredMunicipalities,
+      ),
+      cta: definition.cta,
+    };
+  });
   return {
     shelves: collapseVideoShelfIntoEvidenceShelf(shelves),
     overflowSummaries: buildLandingOverflowSummaries(observationCandidates),
