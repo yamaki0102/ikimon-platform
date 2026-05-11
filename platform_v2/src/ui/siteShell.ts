@@ -342,7 +342,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         login: "ログイン",
         howTo: "使い方を見る",
         myPage: "マイページ",
-        notes: "シーンライブラリ",
+        notes: "記録ライブラリ",
         guideOutcomes: "ガイド成果",
         needsId: "名前を待つ観察レコード",
         nearbyAreas: "近くの観察エリア",
@@ -356,7 +356,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "身近な自然をシーンに残す。",
+      legalTagline: "身近な自然を記録する。",
     },
     en: {
       primaryTitle: "Daily",
@@ -515,11 +515,11 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const labels: Record<SiteLang, Record<string, string>> = {
     ja: {
       home: "ホーム",
-      record: "シーン",
+      record: "記録",
       observations: "観察レコード",
       identify: "同定",
       map: "マップ",
-      notes: "シーンライブラリ",
+      notes: "記録ライブラリ",
       guide: "ガイド",
       learn: "学ぶ",
       community: "地域",
@@ -809,7 +809,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
           </div>
             <div class="footer-kicker">生きものを楽しむ。暮らしを楽しむ。</div>
             <h2>小さな発見を、<br>観察レコードへ。</h2>
-            <p>身近な生きものを見つけ、シーンに残し、対象ごとの観察レコードへ育て、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
+            <p>身近な生きものを見つけ、記録し、対象ごとの観察レコードへ育て、また歩くための生物多様性プラットフォーム。個人の発見を、地域や企業の次のアクションにつなげる。</p>
             <div class="footer-actions">
               <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
               <a class="btn btn-ghost-on-dark" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">読み物を見る</a>
@@ -830,7 +830,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
           <div class="footer-map-copy">
             <span>次の一歩</span>
             <strong>いつもの道が、観察ルートになる。</strong>
-            <p>散歩、通学路、旅先、庭先。どこから始めても、シーンはあとから観察レコードへ育てられる。</p>
+            <p>散歩、通学路、旅先、庭先。どこから始めても、記録はあとから対象ごとの観察レコードへ育てられる。</p>
           </div>
         </div>
       </section>
@@ -863,7 +863,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ikimon.life｜生きものを楽しみ、シーンから観察レコードを育てる。</span>
+        <span>ikimon.life｜生きものを楽しみ、記録から観察レコードを育てる。</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -980,26 +980,26 @@ type GlobalRecordEntryCopy = {
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
   const copy: Record<SiteLang, GlobalRecordEntryCopy> = {
     ja: {
-      navLabel: "すぐシーンを残す",
+      navLabel: "すぐ記録する",
       photo: "写真",
       video: "動画",
       gallery: "選ぶ",
       guide: "ガイド",
-      sheetLabel: "撮影してシーンを残す",
-      sheetTitle: "撮影してシーン",
-      sheetHelp: "主役を1つ決めつつ、周囲の様子も同じシーンの手がかりとして残せます。",
+      sheetLabel: "撮影して記録する",
+      sheetTitle: "撮影して記録",
+      sheetHelp: "主役を1つ決めつつ、周囲の様子も同じ記録の手がかりとして残せます。",
       close: "閉じる",
       previewAlt: "撮影プレビュー",
       empty: "カメラを起動すると、ここにプレビューが出ます。",
       trayZero: "写真0枚",
-      trayHelp: "最大6枚まで同じシーンにまとめます",
+      trayHelp: "最大6枚まで同じ記録にまとめます",
       actionLabel: "撮影操作",
       start: "カメラを起動",
       capture: "撮影する",
       inlineTitle: "ここで少し整える",
       dataEstimate: "送信量を確認中",
       meaningTitle: "主役と周囲",
-      meaningHelp: "シーンでは主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。",
+      meaningHelp: "記録では主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。",
       roleLabel: "このメディアの役割",
       rolePrimary: "主役",
       roleContext: "周囲",
@@ -1009,7 +1009,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       namePlaceholder: "例: スズメ / セミ / 名前は不明",
       noteLabel: "メモ",
       notePlaceholder: "例: 水辺の柵の近く。鳴き声が聞こえた。",
-      trimTitle: "シーンに残す最大60秒を選ぶ",
+      trimTitle: "記録に残す最大60秒を選ぶ",
       trimStart: "開始",
       trimEnd: "終了",
     },
@@ -1289,7 +1289,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     },
     video: {
       title: '動画を撮る',
-      help: '動画投稿は最大60秒です。主役の動きや鳴き声と、周囲の様子を一緒に残せます。',
+      help: '動画記録は最大60秒です。主役の動きや鳴き声と、周囲の様子を一緒に残せます。',
       start: 'カメラを起動',
       capture: '録画開始',
     },
@@ -1679,7 +1679,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (captureButton) {
       captureButton.hidden = files.length === 0;
       captureButton.disabled = false;
-      captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚を投稿' : '写真を撮る';
+      captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚を記録' : '写真を撮る';
     }
     setFooterActionMode(files.length > 0 ? 'submit' : 'start');
     if (files.length === 0) {
@@ -1775,12 +1775,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     directPostInFlight = true;
     if (captureButton) {
       captureButton.disabled = true;
-      captureButton.textContent = '投稿中...';
+      captureButton.textContent = '記録中...';
     }
     if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
     try {
-      setStatus('写真を投稿用に整えています...');
+      setStatus('写真を記録用に整えています...');
       const uploads = [];
       const uploadHashes = [];
       for (let index = 0; index < files.length; index += 1) {
@@ -1793,7 +1793,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       if (!detailId) {
         let location = metadata.location || null;
         if (!location) {
-          setStatus('投稿に使う地点を確認しています...');
+          setStatus('記録に使う地点を確認しています...');
           location = await readCaptureLocation();
         }
         if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
@@ -1810,7 +1810,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         ].join('|');
         const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
         const observationId = 'record-' + Date.now();
-        setStatus('シーンを保存しています...');
+        setStatus('記録を保存しています...');
         const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
           method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -1893,15 +1893,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const failed = failedUploads.length;
         const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + failedUploads[0].error : '';
         if (captureButton) captureButton.textContent = '失敗した' + String(failed) + '枚を再送';
-        setStatus('シーン本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じシーンに再送します。' + reason);
+        setStatus('記録本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じ記録に再送します。' + reason);
         return;
       }
-      resetPhotoDraftAfterDirectPost('シーンを保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
+      resetPhotoDraftAfterDirectPost('記録を保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
     } finally {
       directPostInFlight = false;
       if (startButton) startButton.disabled = false;
-      if (captureButton && selectedPhotoDraftFiles().length > 0 && captureButton.textContent === '投稿中...') {
-        captureButton.textContent = 'この' + String(selectedPhotoDraftFiles().length) + '枚を投稿';
+      if (captureButton && selectedPhotoDraftFiles().length > 0 && captureButton.textContent === '記録中...') {
+        captureButton.textContent = 'この' + String(selectedPhotoDraftFiles().length) + '枚を記録';
       }
     }
   };
@@ -1927,7 +1927,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (empty) empty.hidden = true;
     syncPhotoDraftControls();
     const dropped = incoming.length - accepted.length;
-    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置は投稿画面で指定できます。') + ' 写真' + String(capturedPhotoFiles.length) + '枚をまとめています。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置は記録画面で指定できます。') + ' 写真' + String(capturedPhotoFiles.length) + '枚をまとめています。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
   };
   const navigateWithDraft = async (files, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
@@ -1990,7 +1990,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (sheet) sheet.hidden = false;
     if (backdrop) backdrop.hidden = false;
     document.documentElement.classList.add('global-record-camera-open');
-    setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから投稿へ進めます。' : 'カメラを起動しています...');
+    setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');
     if (!(options && options.reviewOnly)) void startCamera();
   };
   const startCamera = async () => {
@@ -2040,7 +2040,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       }
       if (startButton) startButton.hidden = true;
       setFooterActionMode('capture');
-      setStatus(activeKind === 'video' ? '動画投稿は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
+      setStatus(activeKind === 'video' ? '動画記録は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
     } catch (_) {
       setStatus('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
       if (startButton) {
@@ -2228,8 +2228,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         cameraVideo.play().catch(() => undefined);
       }
       prepareSheetVideoTrim(file);
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。下で区間、名前、メモを整えられます。' : '下で区間、名前、メモを整えられます。位置は投稿画面で指定できます。');
-      if (captureButton) captureButton.textContent = 'この内容で投稿画面へ';
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。下で区間、名前、メモを整えられます。' : '下で区間、名前、メモを整えられます。位置は記録画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この内容で記録画面へ';
     } else {
       if (cameraVideo) cameraVideo.hidden = true;
       if (cameraImage) {
@@ -2237,8 +2237,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         cameraImage.hidden = false;
       }
       updateDataEstimate(file);
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。名前とメモをここで整えられます。' : '名前とメモをここで整えられます。位置は投稿画面で指定できます。');
-      if (captureButton) captureButton.textContent = 'この内容で投稿画面へ';
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。名前とメモをここで整えられます。' : '名前とメモをここで整えられます。位置は記録画面で指定できます。');
+      if (captureButton) captureButton.textContent = 'この内容で記録画面へ';
     }
     if (inlineEdit) inlineEdit.hidden = false;
     if (startButton) {
@@ -2324,10 +2324,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     mediaRecorder.start(1000);
     if (captureButton) captureButton.textContent = '録画停止';
     setFooterActionMode('capture');
-    setStatus('録画中 0秒 / 投稿は最大60秒。あとで区間を選べます');
+    setStatus('録画中 0秒 / 記録は最大60秒。あとで区間を選べます');
     recordingTimer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
-      setStatus('録画中 ' + String(elapsed) + '秒 / 投稿は最大60秒。あとで区間を選べます');
+      setStatus('録画中 ' + String(elapsed) + '秒 / 記録は最大60秒。あとで区間を選べます');
     }, 500);
   };
   const captureFromSheet = async () => {
@@ -2343,11 +2343,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       } catch (error) {
         if (captureButton) captureButton.disabled = false;
         const message = error && error.message ? String(error.message) : '';
-        if (message === 'session_required') setStatus('シーンを残すにはログインが必要です。ログイン後にもう一度試してください。');
-        else if (message === 'location_required') setStatus('直接投稿には地点が必要です。位置情報を許可してからもう一度試してください。');
+        if (message === 'session_required') setStatus('記録するにはログインが必要です。ログイン後にもう一度試してください。');
+        else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
-        else if (photoDraftRetryDetailId) setStatus('シーン本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻るとシーンが見える場合があります。もう一度押すと同じシーンに再送します。');
-        else setStatus('投稿に失敗しました。通信状態を確認してもう一度試してください。');
+        else if (photoDraftRetryDetailId) setStatus('記録本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ記録に再送します。');
+        else setStatus('記録に失敗しました。通信状態を確認してもう一度試してください。');
       }
       return;
     }

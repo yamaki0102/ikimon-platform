@@ -198,7 +198,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-photo-remove/);
   assert.match(html, /data-global-record-photo-move/);
   assert.match(html, /AIは全体を見て主役と周囲を判断します/);
-  assert.match(html, /この' \+ String\(files\.length\) \+ '枚を投稿/);
+  assert.match(html, /この' \+ String\(files\.length\) \+ '枚を記録/);
   assert.match(html, /global_photo_tray/);
   assert.match(html, /directPostInFlight/);
   assert.match(html, /photoDraftRetryDetailId/);
@@ -210,9 +210,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /photoJson\.error/);
   assert.match(html, /continue;/);
   assert.match(html, /photo_upload_network_failed/);
-  assert.match(html, /シーン本体は保存済みです。写真は/);
-  assert.match(html, /写真の通信確認だけ失敗しました。ホームに戻るとシーンが見える場合があります/);
-  assert.match(html, /同じシーンに再送/);
+  assert.match(html, /記録本体は保存済みです。写真は/);
+  assert.match(html, /写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります/);
+  assert.match(html, /同じ記録に再送/);
   assert.match(html, /失敗した' \+ String\(failed\) \+ '枚を再送/);
   assert.doesNotMatch(html, /\/api\/v1\/observations\/' \+ encodeURIComponent\(detailId\) \+ '\/reassess/);
   assert.match(html, /subject_inference: 'ai'/);
@@ -220,10 +220,10 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /端末のカメラを開く/);
   assert.match(html, /もう1枚撮る/);
   assert.match(html, /VIDEO_MAX_SECONDS = 60/);
-  assert.match(html, /動画投稿は最大60秒/);
+  assert.match(html, /動画記録は最大60秒/);
   assert.match(html, /createSheetTrimmedVideoFile/);
   assert.match(html, /YouTube標準画質/);
-  assert.match(html, /この内容で投稿画面へ/);
+  assert.match(html, /この内容で記録画面へ/);
   assert.match(html, /撮り直す/);
 });
 

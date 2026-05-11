@@ -12,9 +12,9 @@ type MentorStripCopy = {
 const copyByLang: Record<SiteLang, MentorStripCopy> = {
   ja: {
     eyebrow: "続きを受け取る人",
-    heading: "あなたが残したシーン、あとから専門家が読み直すこともある。",
+    heading: "あなたが残した記録、あとから専門家が読み直すこともある。",
     lead: "観察レコードには、別のラインで同定を見直す専門家がいる。記録をひとりで完結させなくていい。残したあとから、誰かが引き継ぐ。",
-    cta: "シーンの仕組みを読む",
+    cta: "記録の仕組みを読む",
   },
   en: {
     eyebrow: "Who rereads later",

@@ -98,5 +98,5 @@ test("record upload flow lets 60 second videos continue when browser duration me
 
   assert.match(source, /isVideoDurationReadError/);
   assert.match(source, /サーバー側の上限で確認します/);
-  assert.match(source, /端末で秒数を読めませんでした。60秒以内の動画ならこのまま投稿できます。/);
+  assert.match(source, /端末で秒数を読めませんでした。60秒以内の動画ならこのまま記録できます。/);
 });

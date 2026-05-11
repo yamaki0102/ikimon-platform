@@ -179,8 +179,8 @@ test.describe("production candidate smoke", () => {
       expect(photoResponse.ok(), `photo upload HTTP status for ${email}`).toBeTruthy();
       expect(photoPayload.ok, "photo upload must keep the shared ok:true contract").toBe(true);
       await recordSmokeCheckpoint("photo_api_contract", { httpStatus: photoResponse.status() });
-      await expect(page.locator("#record-status")).toContainText("シーンを保存しました");
-      await expect(page.locator("#record-status")).toContainText("写真1枚を同じシーンに保存しました。");
+      await expect(page.locator("#record-status")).toContainText("記録を保存しました");
+      await expect(page.locator("#record-status")).toContainText("写真1枚を記録に保存しました。");
       await recordSmokeCheckpoint("photo_ui_post");
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja&start=video"), { waitUntil: "domcontentloaded" });
@@ -205,7 +205,7 @@ test.describe("production candidate smoke", () => {
       const finalizePayload = await jsonFromResponse(finalizeResponse, "video finalize");
       expect(finalizeResponse.ok(), "video finalize HTTP status").toBeTruthy();
       expect(finalizePayload.ok, "video finalize should return ok:true").toBe(true);
-      await expect(page.locator("#record-status")).toContainText("シーンを保存しました", { timeout: 30_000 });
+      await expect(page.locator("#record-status")).toContainText("記録を保存しました", { timeout: 30_000 });
       await expect(page.locator("#record-status")).toContainText("動画は保存済みです。");
       await recordSmokeCheckpoint("video_ui_post", {
         directStatus: directResponse.status(),

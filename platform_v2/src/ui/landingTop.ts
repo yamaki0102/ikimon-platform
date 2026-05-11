@@ -222,7 +222,7 @@ function landingHeroText(lang: SiteLang): LandingHeroText {
 function landingDailyActionCopy(lang: SiteLang, kind: LandingDailyCardKind): LandingDailyActionCopy {
   const localized: Record<SiteLang, Record<LandingDailyCardKind, LandingDailyActionCopy>> = {
     ja: {
-      recordToday: { icon: "+", title: "投稿する", fallbackBody: "名前が分からなくても記録できます。" },
+      recordToday: { icon: "+", title: "記録する", fallbackBody: "名前が分からなくても記録できます。" },
       revisitPlace: { icon: "↻", title: "再訪", fallbackBody: "同じ場所の変化を見る。" },
       nearbyPulse: { icon: "◎", title: "近く", fallbackBody: "記録が増えた場所を開く。" },
       needsId: { icon: "ID", title: "同定待ち", fallbackBody: "分からない記録を少し確かめる。" },
@@ -279,7 +279,7 @@ function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingSt
 
 function observationStatusLabel(lang: SiteLang, obs: LandingTopShelfItem): { label: string; tone: "green" | "blue" | "amber" } {
   const labels: Record<SiteLang, { guide: string; guidePromoted: string; ai: string; reviewing: string; needsId: string }> = {
-    ja: { guide: "未検証候補", guidePromoted: "観察化済み", ai: "AI候補", reviewing: "確認中", needsId: "同定待ち" },
+    ja: { guide: "未検証候補", guidePromoted: "対象ごとの記録", ai: "AI候補", reviewing: "確認中", needsId: "同定待ち" },
     en: { guide: "Unverified lead", guidePromoted: "Observation made", ai: "AI hint", reviewing: "In review", needsId: "Needs ID" },
     es: { guide: "Candidato sin verificar", guidePromoted: "Observacion creada", ai: "Pista IA", reviewing: "En revision", needsId: "Sin nombre" },
     "pt-BR": { guide: "Candidato nao verificado", guidePromoted: "Observacao criada", ai: "Dica IA", reviewing: "Em revisao", needsId: "Sem nome" },
@@ -308,7 +308,7 @@ function landingShelfAction(lang: SiteLang, kind: LandingTopShelfKind, item: Lan
     addPhoto: string;
     viewObservation: string;
   }> = {
-    ja: { guideOutcome: "ガイド成果を見る", evidence: "根拠を見に行く", name: "名前を確かめる", motion: "動きを見る", guide: "ガイドの流れを見る", scan: "現地の手がかりを見る", season: "同じ季節に探す", promote: "観察レコードにする", addPhoto: "写真を追加して観察にする", viewObservation: "観察を見る" },
+    ja: { guideOutcome: "ガイド成果を見る", evidence: "根拠を見に行く", name: "名前を確かめる", motion: "動きを見る", guide: "ガイドの流れを見る", scan: "現地の手がかりを見る", season: "同じ季節に探す", promote: "対象ごとの記録にする", addPhoto: "写真を追加して記録する", viewObservation: "観察レコードを見る" },
     en: { guideOutcome: "Open guide result", evidence: "Check evidence", name: "Help name it", motion: "Watch motion", guide: "Open guide flow", scan: "Open field clues", season: "Look in this season", promote: "Make observation record", addPhoto: "Add photo to record", viewObservation: "View observation" },
     es: { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ayudar a nombrar", motion: "Ver movimiento", guide: "Abrir guia", scan: "Ver pistas del lugar", season: "Mirar en esta temporada", promote: "Crear registro", addPhoto: "Anadir foto", viewObservation: "Ver observacion" },
     "pt-BR": { guideOutcome: "Ver resultado guia", evidence: "Ver evidencia", name: "Ajudar no nome", motion: "Ver movimento", guide: "Abrir guia", scan: "Ver pistas do lugar", season: "Observar nesta estacao", promote: "Criar observacao", addPhoto: "Adicionar foto", viewObservation: "Ver observacao" },
@@ -856,7 +856,7 @@ function renderLibrarySection(basePath: string, lang: SiteLang): string {
     <div class="prototype-library-grid">
       <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn"))}" data-kpi-action="landing:library:learn"><i>BK</i><h3>観察の始め方</h3><p>Enjoy Life の考え方、観察の流れ、用語、信頼性をまとめて読める入口。</p><span>読み物へ</span></a>
       <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn/identification-basics"))}" data-kpi-action="landing:library:identification"><i>ID</i><h3>名前を確かめる基本</h3><p>名前の候補、似た種類、根拠の残し方を、はじめての人にも分かる形で案内する。</p><span>名前の調べ方へ</span></a>
-      <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/faq"))}" data-kpi-action="landing:library:faq"><i>QA</i><h3>よくある質問</h3><p>投稿、公開範囲、位置情報、名前の確認、研究利用で迷いやすい点を先回りして解消する。</p><span>質問を見る</span></a>
+      <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/faq"))}" data-kpi-action="landing:library:faq"><i>QA</i><h3>よくある質問</h3><p>記録、公開範囲、位置情報、名前の確認、研究利用で迷いやすい点を先回りして解消する。</p><span>質問を見る</span></a>
       <a class="prototype-library-card" href="${escapeHtml(landingHref(basePath, lang, "/learn/updates"))}" data-kpi-action="landing:library:updates"><i>UP</i><h3>更新情報</h3><p>機能追加、見せ方の改善、公開範囲の変更など、サービスの変化を追える場所。</p><span>更新を見る</span></a>
     </div>
   </section>`;
@@ -884,7 +884,7 @@ function renderCommunitySection(basePath: string, lang: SiteLang): string {
     <div>
       <div class="prototype-eyebrow">地域・企業で使う</div>
       <h2 id="prototype-community-heading">個人の発見を、地域のアクションへ。</h2>
-      <p>ikimon.life は、投稿を集めるだけの場所ではなく、地域の自然を見つけ、確かめ、残し、また歩くための基盤。個人、学校、研究者、自治体、企業が同じ記録を別の視点で参照しやすくする。</p>
+      <p>ikimon.life は、記録を集めるだけの場所ではなく、地域の自然を見つけ、確かめ、残し、また歩くための基盤。個人、学校、研究者、自治体、企業が同じ記録を別の視点で参照しやすくする。</p>
       <div class="prototype-actions">
         <a class="prototype-btn prototype-btn-primary" href="${escapeHtml(landingHref(basePath, lang, "/community"))}" data-kpi-action="landing:community:community">みんなで観察する</a>
         <a class="prototype-btn prototype-btn-secondary" href="${escapeHtml(landingHref(basePath, lang, "/for-business"))}" data-kpi-action="landing:community:business">企業で活用する</a>
