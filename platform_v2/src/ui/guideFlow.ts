@@ -11,6 +11,7 @@ type GuideCopy = {
   missionChoiceTitle: string;
   missionChoiceBody: string;
   missions: { id: string; label: string; body: string }[];
+  missionPresetNotice: Record<string, string>;
   cameraChoiceTitle: string;
   cameraChoiceBody: string;
   cameraOnBtn: string;
@@ -117,7 +118,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
       { id: "quick", label: "5分だけ見る", body: "近くの草地や水辺を短く見て、最初の手がかりを残す" },
       { id: "sound", label: "音だけで歩く", body: "ポケットに入れて、鳥・虫・水音などの自然音を集める" },
       { id: "spot", label: "1地点を詳しく見る", body: "同じ場所で植生・地形・管理痕跡をゆっくり拾う" },
+      { id: "drive", label: "運転中に記録", body: "運転者は画面を操作せず、音声だけで道路沿いの自然音と環境手がかりを残す" },
     ],
+    missionPresetNotice: {
+      drive: "運転用にしました。運転者は画面を見ず、停車中か同乗者が操作してください。カメラOFF + 音声ON + 車窓モードで開始します。",
+    },
     cameraChoiceTitle: "カメラを使いますか？",
     cameraChoiceBody: "周囲の植物や地形を読み取る場合はONが向いています。ポケットに入れて音だけ集めるときはOFFにすると、映像は取得しません。",
     cameraOnBtn: "カメラON",
@@ -165,7 +170,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     modeLabel: "移動モード",
     modes: [
       { id: "walk", label: "徒歩" },
-      { id: "vehicle", label: "車・自転車" },
+      { id: "vehicle", label: "車窓・自転車" },
     ],
     categoryLabel: "ガイドカテゴリ",
     categories: [
@@ -230,7 +235,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
       { id: "quick", label: "Look for 5 min", body: "Read nearby vegetation or water edges and leave the first field clue" },
       { id: "sound", label: "Walk audio-only", body: "Keep the phone pocketed and collect bird, insect, or water cues" },
       { id: "spot", label: "Study one spot", body: "Stay in place and capture vegetation, landform, and management traces" },
+      { id: "drive", label: "Driving audio", body: "Keep the screen untouched while driving and collect roadside natural sound and habitat cues" },
     ],
+    missionPresetNotice: {
+      drive: "Driving preset applied. Do not operate the screen while driving; use it parked or with a passenger. Starts as Camera off + Audio on + vehicle mode.",
+    },
     cameraChoiceTitle: "Use the camera?",
     cameraChoiceBody: "Turn it on when you want plants, habitat, and landforms read from the scene. Turn it off for pocket audio-only walks.",
     cameraOnBtn: "Camera on",
@@ -278,7 +287,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     modeLabel: "Movement mode",
     modes: [
       { id: "walk", label: "Walk" },
-      { id: "vehicle", label: "Car / bike" },
+      { id: "vehicle", label: "Roadside / bike" },
     ],
     categoryLabel: "Guide Category",
     categories: [
@@ -343,7 +352,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
       { id: "quick", label: "Mirar 5 min", body: "Leer vegetación o bordes de agua cercanos y dejar una primera pista" },
       { id: "sound", label: "Caminar con audio", body: "Llevar el móvil en el bolsillo y recoger aves, insectos o agua" },
       { id: "spot", label: "Estudiar un punto", body: "Quedarse en un lugar y captar vegetación, relieve y manejo" },
+      { id: "drive", label: "Audio al conducir", body: "Sin tocar la pantalla al conducir; recoge sonido natural y pistas del borde del camino" },
     ],
+    missionPresetNotice: {
+      drive: "Modo de conducción aplicado. No uses la pantalla mientras conduces; úsalo detenido o con acompañante. Inicia con cámara OFF + audio ON + modo vehículo.",
+    },
     cameraChoiceTitle: "¿Usar cámara?",
     cameraChoiceBody: "Actívala para leer plantas, hábitat y relieve. Desactívala si llevas el teléfono en el bolsillo y quieres solo audio.",
     cameraOnBtn: "Cámara ON",
@@ -456,7 +469,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
       { id: "quick", label: "Olhar por 5 min", body: "Ler vegetação ou margens de água próximas e deixar a primeira pista" },
       { id: "sound", label: "Caminhar só com áudio", body: "Levar o celular no bolso e coletar aves, insetos ou água" },
       { id: "spot", label: "Estudar um ponto", body: "Ficar no local e captar vegetação, relevo e manejo" },
+      { id: "drive", label: "Áudio ao dirigir", body: "Sem tocar na tela ao dirigir; coleta sons naturais e pistas da beira da via" },
     ],
+    missionPresetNotice: {
+      drive: "Predefinição de direção aplicada. Não use a tela enquanto dirige; use parado ou com passageiro. Inicia com câmera OFF + áudio ON + modo veículo.",
+    },
     cameraChoiceTitle: "Usar câmera?",
     cameraChoiceBody: "Ligue para ler plantas, habitat e relevo. Desligue para caminhadas com o celular no bolso e apenas áudio.",
     cameraOnBtn: "Câmera ON",
@@ -878,6 +895,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     sessionSummaryTodayEmpty: ${JSON.stringify(c.sessionSummaryTodayEmpty)},
     sessionSummaryEvidenceEmpty: ${JSON.stringify(c.sessionSummaryEvidenceEmpty)},
     sessionSummaryNextEmpty: ${JSON.stringify(c.sessionSummaryNextEmpty)},
+    missionPresetNotice: ${JSON.stringify(c.missionPresetNotice)},
     offlineOnline: ${JSON.stringify(c.offlineOnline)},
     offlineOffline: ${JSON.stringify(c.offlineOffline)},
     offlineQueued: ${JSON.stringify(c.offlineQueued)},
@@ -2960,18 +2978,29 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const target = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
     if (target) target.checked = true;
   }
+  function setSelectValue(id, value) {
+    const target = document.getElementById(id);
+    if (target) target.value = value;
+  }
   function applyMissionPreset(mission) {
     if (mission === 'sound') {
+      setSelectValue('guide-mode-select', 'walk');
       setRadioChoice('guide-camera-choice', 'off');
       setRadioChoice('guide-audio-choice', 'on');
     } else if (mission === 'spot') {
+      setSelectValue('guide-mode-select', 'walk');
       setRadioChoice('guide-camera-choice', 'on');
       setRadioChoice('guide-audio-choice', 'on');
+    } else if (mission === 'drive') {
+      setSelectValue('guide-mode-select', 'vehicle');
+      setRadioChoice('guide-camera-choice', 'off');
+      setRadioChoice('guide-audio-choice', 'on');
     } else {
+      setSelectValue('guide-mode-select', 'walk');
       setRadioChoice('guide-camera-choice', 'on');
       setRadioChoice('guide-audio-choice', 'off');
     }
-    if (startSheetLive) startSheetLive.textContent = '';
+    if (startSheetLive) startSheetLive.textContent = copy.missionPresetNotice[mission] || '';
   }
   function applyRecommendedSettings() {
     setRadioChoice('guide-camera-choice', 'on');
@@ -3386,7 +3415,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-start-option { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(15,23,42,.14); background: #fff; color: #0f172a; font-size: 13px; font-weight: 950; cursor: pointer; }
   .guide-start-option:has(input:checked) { border-color: rgba(5,150,105,.55); background: #ecfdf5; color: #065f46; box-shadow: inset 0 0 0 1px rgba(5,150,105,.18); }
   .guide-start-option input { width: 16px; height: 16px; accent-color: #059669; flex: 0 0 auto; }
-  .guide-mission-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guide-mission-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .guide-mission-option { align-items: flex-start; justify-content: flex-start; min-height: 82px; text-align: left; }
   .guide-mission-option span { min-width: 0; display: grid; gap: 3px; }
   .guide-mission-option b { color: inherit; font-size: 13px; line-height: 1.25; }
