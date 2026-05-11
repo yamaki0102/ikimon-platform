@@ -121,7 +121,7 @@ function renderSearchForm(basePath: string, lang: SiteLang, copy: ShellCopy, cla
     classes.push(className);
   }
 
-  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/observations"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
+  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records"), lang))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
     <span class="site-search-icon" aria-hidden="true">🔍</span>
     <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
   </form>`;
@@ -342,14 +342,14 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         login: "ログイン",
         howTo: "使い方を見る",
         myPage: "マイページ",
-        notes: "記録ライブラリ",
+        notes: "記録を見る",
         guideOutcomes: "ガイド成果",
         needsId: "名前を待つ観察レコード",
         nearbyAreas: "近くの観察エリア",
         identifyQueue: "名前を待つ観察レコード",
         taxaSearch: "分類群を探す",
         explore: "見つける",
-        observations: "観察レコード一覧",
+        observations: "記録を見る",
         lens: "その場で見る",
         guide: "ライブガイド",
         events: "観察会",
@@ -516,10 +516,10 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     ja: {
       home: "ホーム",
       record: "記録",
-      observations: "観察レコード",
+      observations: "記録を見る",
       identify: "同定",
       map: "マップ",
-      notes: "記録ライブラリ",
+      notes: "記録を見る",
       guide: "ガイド",
       learn: "学ぶ",
       community: "地域",
@@ -570,16 +570,15 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const primaryItems: SideNavPrimaryItem[] = [
     { key: "home", href: "/", match: ["/"] },
     { key: "record", href: "/record", match: ["/record"] },
-    { key: "observations", href: "/observations", match: ["/observations"] },
+    { key: "observations", href: "/records", match: ["/records", "/observations"] },
     { key: "map", href: "/map", match: ["/map"] },
     { key: "guide", href: "/guide", match: ["/guide"] },
-    { key: "notes", href: "/notes", match: ["/notes"] },
   ];
   const personalizedLinksHtml = `<div class="desktop-side-nav-personalized-list" data-side-nav-personalized-list>
           ${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, [
             { href: "/map", label: directoryCopy.links.nearbyAreas, match: ["/map"] },
-            { href: "/observations?filter=needs_id", label: directoryCopy.links.identifyQueue, match: ["/observations?filter=needs_id"] },
-            { href: "/observations", label: directoryCopy.links.taxaSearch, match: ["/observations"] },
+            { href: "/records?view=needs_id", label: directoryCopy.links.identifyQueue, match: ["/records?view=needs_id"] },
+            { href: "/records?view=public", label: directoryCopy.links.taxaSearch, match: ["/records?view=public"] },
           ])}
         </div>
         <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>${escapeHtml(directoryCopy.personalizedEmpty)}</p>`;
@@ -598,9 +597,9 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
       className: "desktop-side-nav-section--signed-in",
       items: [
         { href: "/home", label: directoryCopy.links.myPage, match: ["/home"] },
-        { href: "/notes", label: directoryCopy.links.notes, match: ["/notes"] },
+        { href: "/records?view=mine", label: directoryCopy.links.notes, match: ["/records?view=mine"] },
         { href: "/guide/outcomes", label: directoryCopy.links.guideOutcomes, match: ["/guide/outcomes"] },
-        { href: "/observations?filter=needs_id", label: directoryCopy.links.needsId, match: ["/observations?filter=needs_id"] },
+        { href: "/records?view=needs_id", label: directoryCopy.links.needsId, match: ["/records?view=needs_id"] },
       ],
     },
     {
@@ -612,7 +611,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     {
       title: directoryCopy.groups.find,
       items: [
-        { href: "/observations", label: directoryCopy.links.observations, match: ["/observations"] },
+        { href: "/records?view=public", label: directoryCopy.links.observations, match: ["/records?view=public"] },
         { href: "/lens", label: directoryCopy.links.lens, match: ["/lens"] },
         { href: "/community/events", label: directoryCopy.links.events, match: ["/community/events"] },
       ],
@@ -885,8 +884,7 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
     pathname.startsWith("/record/") ||
     pathname === "/guide" ||
     (pathname.startsWith("/guide/") && pathname !== "/guide/outcomes") ||
-    pathname === "/notes" ||
-    pathname.startsWith("/notes/") ||
+    pathname === "/records" ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
     pathname === "/debug" ||
@@ -909,8 +907,6 @@ function fallbackSiteShellLayoutKind(currentPath: string): SiteShellLayoutKind {
     return "narrow";
   }
   if (
-    pathname === "/notes" ||
-    pathname.startsWith("/notes/") ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
     pathname === "/learn" ||
@@ -924,6 +920,7 @@ function fallbackSiteShellLayoutKind(currentPath: string): SiteShellLayoutKind {
     return "reading";
   }
   if (
+    pathname === "/records" ||
     pathname === "/observations" ||
     pathname.startsWith("/observations/") ||
     pathname === "/community" ||

@@ -93,7 +93,7 @@ test("top-level shared navigation does not link to 404 pages", async () => {
 
 test("header navigation prioritizes content-first daily discovery", () => {
   const headerPaths = listPagesByVisibility("header").map((page) => page.path);
-  assert.deepEqual(headerPaths, ["/map", "/observations", "/notes", "/learn", "/community"]);
+  assert.deepEqual(headerPaths, ["/map", "/records", "/learn", "/community"]);
   assert.ok(!headerPaths.includes("/explore"), "search-oriented explore should not compete with the content feed in the header");
   assert.ok(!headerPaths.includes("/community/events"), "events should sit under community instead of duplicating the header");
 });
@@ -102,7 +102,7 @@ test("visual smoke targets are generated from sitemap metadata", () => {
   const pages = listVisualQaPages();
   const paths = pages.map((page) => page.path);
   assert.ok(!paths.includes("/explore"));
-  assert.ok(paths.includes("/observations"));
+  assert.ok(paths.includes("/records"));
   assert.ok(paths.includes("/guide"));
   assert.ok(paths.includes("/guide/outcomes"));
   assert.ok(paths.includes("/community/events"));

@@ -525,7 +525,7 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
     kind: "photo" as const,
     title: "写真と動画",
     eyebrow: "MEDIA",
-    href: "/observations",
+    href: "/records?view=media",
     items: Array.from(new Map([
       ...observations.filter((obs) => Boolean(obs.photoUrl)).slice(0, 6),
       ...videoItems,
@@ -536,7 +536,7 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
       kind: "today",
       title: "みんなの発見",
       eyebrow: "LIVE FEED",
-      href: "/observations",
+      href: "/records?view=public",
       items: observations.slice(0, 8),
     },
     evidenceShelf,
@@ -562,7 +562,7 @@ function fallbackLandingShelves(snapshot: LandingSnapshot): LandingTopShelf[] {
       kind: "needsId",
       title: "名前を待つ記録",
       eyebrow: "IDENTIFY",
-      href: "/observations?filter=needs_id",
+      href: "/records?view=needs_id",
       items: observations.filter((obs) => obs.identificationCount === 0 || obs.isAiCandidate).slice(0, 6),
     },
   );
@@ -672,8 +672,8 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
     : [
         { kind: "recordToday" as const, href: "/record", primaryText: null, secondaryText: null, metricValue: null },
         { kind: "nearbyPulse" as const, href: "/map", primaryText: null, secondaryText: null, metricValue: null },
-        { kind: "needsId" as const, href: "/observations?filter=needs_id", primaryText: null, secondaryText: null, metricValue: null },
-        { kind: "revisitPlace" as const, href: "/notes", primaryText: null, secondaryText: null, metricValue: null },
+        { kind: "needsId" as const, href: "/records?view=needs_id", primaryText: null, secondaryText: null, metricValue: null },
+        { kind: "revisitPlace" as const, href: "/records?view=places", primaryText: null, secondaryText: null, metricValue: null },
       ].map((card) => renderDailyActionCard(basePath, lang, copy, card)).join("");
 
   return `<section class="prototype-topa" aria-labelledby="landing-hero-heading">
@@ -681,7 +681,7 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
       <h1 id="landing-hero-heading">${escapeHtml(hero.heading)}</h1>
       <p>${escapeHtml(hero.lead)}</p>
     </div>
-    <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/observations"))}" method="get" aria-label="${escapeHtml(hero.searchLabel)}">
+    <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/records"))}" method="get" aria-label="${escapeHtml(hero.searchLabel)}">
       <span aria-hidden="true">🔍</span>
       <input type="search" name="q" placeholder="${escapeHtml(hero.searchPlaceholder)}" aria-label="${escapeHtml(hero.searchLabel)}" />
       <button type="submit">${escapeHtml(hero.searchButton)}</button>
@@ -827,7 +827,7 @@ function renderMapSection(options: LandingTopRenderOptions): string {
       <p>${escapeHtml(copy.mapSectionLead)}</p>
       <div class="prototype-map-points">
         <a href="${escapeHtml(landingHref(basePath, lang, "/map"))}" data-kpi-action="landing:map:open"><i>RT</i><span><strong>また同じ場所へ行く</strong><small>季節や個体数の変化を残す</small></span></a>
-        <a href="${escapeHtml(landingHref(basePath, lang, "/observations"))}"><i>LY</i><span><strong>場所ごとの発見を重ねる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
+        <a href="${escapeHtml(landingHref(basePath, lang, "/records?view=places"))}"><i>LY</i><span><strong>場所ごとの発見を重ねる</strong><small>水辺、林、街路樹を比較できる</small></span></a>
         <a href="${escapeHtml(landingHref(basePath, lang, "/record"))}"><i>NX</i><span><strong>次の観察地点を見つける</strong><small>多い場所と少ない場所を見返せる</small></span></a>
       </div>
     </div>

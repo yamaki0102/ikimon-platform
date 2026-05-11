@@ -1145,7 +1145,7 @@ async function renderPage(
       </div>
       <nav class="grd-actions" aria-label="ガイド成果の次の行動">
         <a class="grd-primary-link" href="/guide">またガイドを使う</a>
-        <a class="grd-secondary-link" href="/notes">記録ライブラリへ</a>
+        <a class="grd-secondary-link" href="/records?view=mine">記録を見る</a>
         <a class="grd-secondary-link" href="/map">地図で見る</a>
       </nav>
     </div>

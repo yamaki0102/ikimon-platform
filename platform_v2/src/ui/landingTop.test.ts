@@ -33,7 +33,7 @@ const emptySnapshot: LandingSnapshot = {
       { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
       { kind: "revisitPlace", href: "/map", primaryText: null, secondaryText: null, metricValue: null },
       { kind: "nearbyPulse", href: "/map", primaryText: null, secondaryText: null, metricValue: null },
-      { kind: "needsId", href: "/observations", primaryText: null, secondaryText: null, metricValue: null },
+      { kind: "needsId", href: "/records?view=needs_id", primaryText: null, secondaryText: null, metricValue: null },
     ],
     seasonalStrip: [],
   },
@@ -91,7 +91,7 @@ const photoSnapshot: LandingSnapshot = {
       { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: 0 },
       { kind: "revisitPlace", href: "/map", primaryText: "浜松市", secondaryText: "モンシロチョウ", metricValue: 1 },
       { kind: "nearbyPulse", href: "/map", primaryText: "浜松市", secondaryText: null, metricValue: 1 },
-      { kind: "needsId", href: "/observations", primaryText: "モンシロチョウ", secondaryText: "浜松市", metricValue: 2, observation: photoObservation },
+      { kind: "needsId", href: "/records?view=needs_id", primaryText: "モンシロチョウ", secondaryText: "浜松市", metricValue: 2, observation: photoObservation },
     ],
     seasonalStrip: [{ observation: photoObservation, score: 84, reasonKey: "vividPhoto" }],
   },
@@ -165,7 +165,7 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /最初の発見を残す/);
   assert.match(html, /写真や動画で始める/);
   assert.match(html, /名前が分からなくても大丈夫/);
-  assert.match(html, /\/observations\?filter=needs_id/);
+  assert.match(html, /\/records\?view=needs_id/);
   assert.match(html, /data-kpi-action="landing:topA:primary:record"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
 });

@@ -41,7 +41,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     ja: {
       ariaLabel: getShortCopy<string>("ja", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: jaLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_BOOK_OPEN, label: jaLabels.notes, href: withBasePath(basePath, "/records?view=mine"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: jaLabels.record, href: withBasePath(basePath, "/record") },
         { icon: ICON_SEARCH, label: jaLabels.lens, href: withBasePath(basePath, "/guide") },
         { icon: ICON_MAP, label: jaLabels.map, href: withBasePath(basePath, "/map") },
@@ -50,7 +50,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     en: {
       ariaLabel: getShortCopy<string>("en", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: enLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_BOOK_OPEN, label: enLabels.notes, href: withBasePath(basePath, "/records?view=mine"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: enLabels.record, href: withBasePath(basePath, "/record") },
         { icon: ICON_SEARCH, label: enLabels.lens, href: withBasePath(basePath, "/guide") },
         { icon: ICON_MAP, label: enLabels.map, href: withBasePath(basePath, "/map") },
@@ -59,7 +59,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     es: {
       ariaLabel: getShortCopy<string>("es", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: esLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_BOOK_OPEN, label: esLabels.notes, href: withBasePath(basePath, "/records?view=mine"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: esLabels.record, href: withBasePath(basePath, "/record") },
         { icon: ICON_SEARCH, label: esLabels.lens, href: withBasePath(basePath, "/guide") },
         { icon: ICON_MAP, label: esLabels.map, href: withBasePath(basePath, "/map") },
@@ -68,7 +68,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     "pt-BR": {
       ariaLabel: getShortCopy<string>("pt-BR", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: ptBRLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_BOOK_OPEN, label: ptBRLabels.notes, href: withBasePath(basePath, "/records?view=mine"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: ptBRLabels.record, href: withBasePath(basePath, "/record") },
         { icon: ICON_SEARCH, label: ptBRLabels.lens, href: withBasePath(basePath, "/guide") },
         { icon: ICON_MAP, label: ptBRLabels.map, href: withBasePath(basePath, "/map") },

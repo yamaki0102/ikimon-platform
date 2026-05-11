@@ -1099,7 +1099,7 @@ function renderLaneIntro(meta: MarketingPageMeta): string {
   const tiles: Record<RouteLane, Array<{ label: string; title: string; body: string }>> = {
     start: [
       { label: "start", title: "まず1件記録する", body: "名前が分からなくても、写真・場所・時刻・メモから始められます。" },
-      { label: "map", title: "次に歩く場所を見る", body: "地図と記録ライブラリから、再訪しやすい場所を見つけます。" },
+      { label: "map", title: "次に歩く場所を見る", body: "地図と記録から、再訪しやすい場所を見つけます。" },
       { label: "trust", title: "あとから確かめる", body: "同定や公開範囲は、記録を残した後にも整えられます。" },
     ],
     learn: [
@@ -1267,12 +1267,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   const redirectMap = new Map<string, string>([
     ...legacyRedirectEntries().map((entry) => [entry.source, entry.target] as const),
     ["/for-business/", "/for-business"],
-    ["/explore/", "/observations"],
+    ["/explore/", "/records"],
     ["/learn/", "/learn"],
     ["/learn/binmonweek", "/learn/terms/biomonweek"],
     ["/learn/terms/binmonweek", "/learn/terms/biomonweek"],
     ["/home/", "/home"],
-    ["/notes/", "/notes"],
+    ["/notes/", "/records"],
     ["/map/", "/map"],
     ["/sitemap", "/sitemap.xml"],
     ["/sitemap.php", "/sitemap.xml"],

@@ -176,28 +176,17 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "地図" }, readySelector: "#map-explorer", screenshot: { baselineName: "registry-map" } },
   },
   {
-    path: "/observations",
+    path: "/records",
     lane: "start",
     layout: "wide",
     audience: "visitor",
     auth: "public",
-    navVisibility: ["header", "qa", "xml"],
-    title: { ja: "観察レコード一覧", en: "Observations" },
-    summary: { ja: "公開された観察レコードを写真グリッドで一覧する。", en: "Browse submitted observations in a photo-first grid." },
+    navVisibility: ["header", "footer", "qa", "xml"],
+    title: { ja: "記録を見る", en: "Records" },
+    summary: { ja: "自分の記録、公開観察、名前待ち、証拠メディア、場所を1つのワークベンチで見る。", en: "Browse personal records, public observations, records needing names, evidence media, and places in one workbench." },
     primaryAction: { href: "/record", label: { ja: "記録する", en: "Record" } },
     legacyRedirects: ["/zukan", "/zukan.php"],
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "観察レコード一覧" }, readySelector: "[data-testid='observations-index']", screenshot: { baselineName: "registry-observations" } },
-  },
-  {
-    path: "/notes",
-    lane: "start",
-    layout: "reading",
-    audience: "visitor",
-    auth: "public",
-    navVisibility: ["header", "footer", "qa", "xml"],
-    title: { ja: "記録ライブラリ", en: "Notes" },
-    summary: { ja: "自分の発見、場所、再訪のきっかけを記録として見返す。", en: "Review places and reasons to revisit." },
-    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "記録ライブラリ" }, readySelector: "body", screenshot: { baselineName: "registry-notes" } },
+    visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "記録を見る" }, readySelector: "[data-testid='records-workbench']", screenshot: { baselineName: "registry-records" } },
   },
   {
     path: "/home",
@@ -1074,7 +1063,7 @@ export function materializeSitePagePath(
   if (page.path === "/observations/:id") {
     const detailId = context.visitId ?? context.occurrenceId;
     if (!detailId) {
-      return "/observations/missing";
+      return "/records";
     }
     const path = `/observations/${encodeURIComponent(detailId)}`;
     return context.occurrenceId ? `${path}?subject=${encodeURIComponent(context.occurrenceId)}` : path;

@@ -170,7 +170,7 @@ function liveProductionSnapshot(data: ProductionPublicDataSnapshot): LandingSnap
           dailyCards: [
             { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
             { kind: "nearbyPulse", href: "/map", primaryText: feed[0].publicLocation.label, secondaryText: null, metricValue: data.observations.length },
-            { kind: "needsId", href: "/observations?filter=needs_id", primaryText: "名前を待つ記録", secondaryText: feed[0].publicLocation.label, metricValue: feed.filter((item) => item.identificationCount === 0).length, observation: feed[0] },
+            { kind: "needsId", href: "/records?view=needs_id", primaryText: "名前を待つ記録", secondaryText: feed[0].publicLocation.label, metricValue: feed.filter((item) => item.identificationCount === 0).length, observation: feed[0] },
           ],
           seasonalStrip: feed.slice(0, 3).map((observation) => ({ observation, score: 80, reasonKey: "vividPhoto" })),
         }
@@ -335,7 +335,7 @@ function productionDensitySnapshot(): LandingSnapshot {
         { kind: "recordToday", href: "/record", primaryText: null, secondaryText: null, metricValue: null },
         { kind: "revisitPlace", href: "/map", primaryText: "浜松市", secondaryText: "イボタノキ属", metricValue: 8 },
         { kind: "nearbyPulse", href: "/map", primaryText: "浜松市", secondaryText: null, metricValue: 8 },
-        { kind: "needsId", href: "/observations?filter=needs_id", primaryText: "名前を待つ記録", secondaryText: "浜松市", metricValue: 8, observation: feed[1] },
+        { kind: "needsId", href: "/records?view=needs_id", primaryText: "名前を待つ記録", secondaryText: "浜松市", metricValue: 8, observation: feed[1] },
       ],
       seasonalStrip: [
         { observation: feed[0], score: 84, reasonKey: "vividPhoto" },
