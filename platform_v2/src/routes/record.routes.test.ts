@@ -340,7 +340,8 @@ test("profile route gives unauthenticated visitors a mypage start guide", async 
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /ログインすると、自分の観察史を読み返せます/);
+    assert.match(response.body, /ログインすると、自分の記録史を読み返せます/);
+    assert.match(response.body, /記録一覧を起点に/);
     assert.match(response.body, /ログインしてマイページへ/);
     assert.match(response.body, /\/login\?redirect=\/profile/);
   } finally {
