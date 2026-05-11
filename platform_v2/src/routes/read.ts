@@ -5414,7 +5414,7 @@ function renderNotesLibraryMonths(
   basePath: string,
   lang: SiteLang,
   entries: LandingObservation[],
-  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext>; showMonthCount?: boolean },
 ): string {
   if (entries.length === 0) {
     return `<div class="notes-library-empty">${escapeHtml(notesLibraryCopy(lang).emptyLibrary)}</div>`;
@@ -5428,7 +5428,7 @@ function renderNotesLibraryMonths(
   return Array.from(groups.entries()).map(([key, items]) => `<section class="notes-library-month" data-library-month>
     <div class="notes-library-month-head">
       <h2>${escapeHtml(notesLibraryMonthLabel(key, lang))}</h2>
-      <span>${escapeHtml(notesItemCountLabel(items.length, lang))}</span>
+      ${options.showMonthCount === false ? "" : `<span>${escapeHtml(notesItemCountLabel(items.length, lang))}</span>`}
     </div>
     <div class="notes-library-grid">
       ${items.map((obs) => renderNotesLibraryCard(basePath, lang, obs, options)).join("")}
@@ -6719,7 +6719,7 @@ function renderRecordsWorkbench(
       <section class="records-grid-panel" data-notes-library>
         ${renderNotesLibraryControls(lang)}
         ${entries.length > 0
-          ? renderNotesLibraryMonths(basePath, lang, entries, { locationMode, civicContexts })
+          ? renderNotesLibraryMonths(basePath, lang, entries, { locationMode, civicContexts, showMonthCount: false })
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
       </section>
     </main>
