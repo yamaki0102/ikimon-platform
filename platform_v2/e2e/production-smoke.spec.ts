@@ -180,7 +180,7 @@ test.describe("production candidate smoke", () => {
       expect(photoPayload.ok, "photo upload must keep the shared ok:true contract").toBe(true);
       await recordSmokeCheckpoint("photo_api_contract", { httpStatus: photoResponse.status() });
       await expect(page.locator("#record-status")).toContainText("記録を保存しました");
-      await expect(page.locator("#record-status")).toContainText("写真1枚を記録に保存しました。");
+      await expect(page.locator("#record-status")).toContainText("写真1枚を同じ記録に保存しました。");
       await recordSmokeCheckpoint("photo_ui_post");
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja&start=video"), { waitUntil: "domcontentloaded" });
