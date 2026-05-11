@@ -5,6 +5,7 @@ import { escapeHtml } from "./siteShell.js";
 
 type PhotoAsset = ObservationDetailSnapshot["photoAssets"][number];
 type VideoAsset = ObservationDetailSnapshot["videoAssets"][number];
+type AudioAsset = ObservationDetailSnapshot["audioAssets"][number];
 type MediaRoleView = "primary_subject" | "context" | "sound_motion" | "secondary_candidate";
 type RegionSwitchMap = Record<string, Array<{
   assetId: string;
@@ -82,6 +83,11 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-region-box { position: absolute; border: 1.5px dashed rgba(14,165,233,.92); border-radius: 12px; background: rgba(14,165,233,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
   .obs-region-box-label { position: absolute; left: 8px; top: 8px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
+  .obs-audio-evidence { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .obs-audio-evidence div { display: grid; gap: 2px; }
+  .obs-audio-evidence strong { color: #0f172a; font-size: 13px; line-height: 1.35; }
+  .obs-audio-evidence span,.obs-audio-evidence p { margin: 0; color: #64748b; font-size: 12px; line-height: 1.55; font-weight: 800; }
+  .obs-audio-evidence audio { width: 100%; min-height: 40px; }
   .obs-video-evidence { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
   .obs-video-evidence-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #0f172a; font-size: 12px; font-weight: 900; }
   .obs-video-evidence-head span { color: #64748b; font-size: 11px; font-weight: 800; }
@@ -287,6 +293,26 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
    </div>`;
 }
 
+function renderAudioEvidence(snapshot: ObservationDetailSnapshot): string {
+  const audioAssets = (snapshot.audioAssets ?? []).filter((asset): asset is AudioAsset => Boolean(asset));
+  if (audioAssets.length === 0) return "";
+  return `<section class="obs-audio-evidence" aria-label="音声証拠">
+    <div>
+      <strong>音声証拠</strong>
+      <span>privacy-safe な録音だけを観察証拠にしています</span>
+    </div>
+    ${audioAssets.map((asset, index) => {
+      const duration = typeof asset.durationSec === "number" && Number.isFinite(asset.durationSec)
+        ? `${Math.round(asset.durationSec)}秒`
+        : "短い録音";
+      const label = `音声 ${index + 1} · ${duration}`;
+      return asset.playbackUrl
+        ? `<audio controls preload="none" src="${escapeHtml(asset.playbackUrl)}" aria-label="${escapeHtml(label)}"></audio>`
+        : `<p>${escapeHtml(label)}。所有者だけが再生できます。</p>`;
+    }).join("")}
+  </section>`;
+}
+
 export function renderObservationMedia(
   snapshot: ObservationDetailSnapshot,
   currentSubject: ObservationVisitSubject,
@@ -298,8 +324,9 @@ export function renderObservationMedia(
   const photoGallery = renderPhotoGallery(snapshot, currentSubject);
   const primaryVideo = snapshot.videoAssets[0] ?? null;
   const videoPlayer = renderVideoPlayer(snapshot, currentSubject, primaryVideo);
-  const mediaBlock = (videoPlayer || photoGallery)
-    ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${initialPhotoRegionCount > 0 ? `<p class="obs-region-summary" data-region-summary>${OBSERVATION_REGION_SUMMARY_TEXT}</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
+  const audioEvidence = renderAudioEvidence(snapshot);
+  const mediaBlock = (videoPlayer || photoGallery || audioEvidence)
+    ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${audioEvidence}${initialPhotoRegionCount > 0 ? `<p class="obs-region-summary" data-region-summary>${OBSERVATION_REGION_SUMMARY_TEXT}</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
     : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
 
   return {

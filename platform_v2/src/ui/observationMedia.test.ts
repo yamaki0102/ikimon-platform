@@ -204,3 +204,30 @@ test("observation media explains when video is still processing", () => {
   assert.match(mediaBlock, /動画を処理しています/);
   assert.match(mediaBlock, /記録は保存済みです/);
 });
+
+test("observation media renders privacy-safe audio evidence", () => {
+  const audioSnapshot = {
+    ...snapshot,
+    photoAssets: [],
+    videoAssets: [],
+    audioAssets: [
+      {
+        assetId: "audio-asset",
+        segmentId: "segment-1",
+        playbackUrl: "/api/v1/fieldscan/audio/segment/segment-1",
+        capturedAt: "2026-05-11T10:00:00.000Z",
+        durationSec: 2.4,
+        transcriptionStatus: "pending",
+        privacyStatus: "clean",
+        mediaRole: "sound_motion",
+      },
+    ],
+  } as unknown as ObservationDetailSnapshot;
+
+  const { mediaBlock } = renderObservationMedia(audioSnapshot, subject);
+
+  assert.match(mediaBlock, /音声証拠/);
+  assert.match(mediaBlock, /privacy-safe な録音だけ/);
+  assert.match(mediaBlock, /<audio controls preload="none" src="\/api\/v1\/fieldscan\/audio\/segment\/segment-1"/);
+  assert.doesNotMatch(mediaBlock, /写真も動画もまだありません/);
+});

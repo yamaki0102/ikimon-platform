@@ -191,6 +191,8 @@ type FeedRow = {
 type GuideTopRow = {
   guide_record_id: string;
   session_id: string;
+  occurrence_id: string | null;
+  has_promotable_audio: boolean | null;
   observer_user_id: string | null;
   observer_name: string | null;
   observer_avatar_url: string | null;
@@ -475,10 +477,20 @@ function toLandingGuideItem(row: GuideTopRow): LandingTopGuideItem {
     latitude: lat,
     longitude: lng,
   });
+  const promotedOccurrenceId = row.occurrence_id?.trim() || null;
+  const promotedVisitId = promotedOccurrenceId?.replace(/^occ:/, "").replace(/:0$/, "") ?? null;
+  const promotionAction = promotedOccurrenceId
+    ? "view_observation"
+    : row.has_promotable_audio
+      ? "promote"
+      : "add_photo";
   return {
     topItemType: "guide",
     guideRecordId: row.guide_record_id,
     sessionId: row.session_id,
+    promotedOccurrenceId,
+    canPromote: promotionAction === "promote",
+    promotionAction,
     displayName: guideDisplayName(row),
     summary: firstNonEmpty([row.scene_summary, row.environment_context, row.seasonal_note]),
     observedAt,
@@ -495,7 +507,11 @@ function toLandingGuideItem(row: GuideTopRow): LandingTopGuideItem {
     detectedSpecies: (row.detected_species ?? []).filter((name) => typeof name === "string" && name.trim()).slice(0, 8),
     identificationCount: 0,
     isAiCandidate: false,
-    href: "/guide/outcomes",
+    href: promotedOccurrenceId && promotedVisitId
+      ? `/observations/${encodeURIComponent(promotedVisitId)}?occurrence=${encodeURIComponent(promotedOccurrenceId)}`
+      : promotionAction === "add_photo"
+        ? `/record?source=guide&guideRecordId=${encodeURIComponent(row.guide_record_id)}`
+        : "/guide/outcomes",
   };
 }
 
@@ -1293,6 +1309,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
         `select
             gr.guide_record_id::text as guide_record_id,
             gr.session_id,
+            gr.occurrence_id,
             gr.user_id as observer_user_id,
             ${GUIDE_OBSERVER_NAME_SQL} as observer_name,
             avatar.public_url as observer_avatar_url,
@@ -1307,7 +1324,19 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
             gls.frame_thumb,
             gls.primary_subject,
             gls.environment_context,
-            gls.seasonal_note
+            gls.seasonal_note,
+            exists (
+              select 1
+                from audio_segments audio
+               where audio.session_id = gr.session_id
+                 and audio.user_id = gr.user_id
+                 and audio.blob_id is not null
+                 and audio.privacy_status = 'clean'
+                 and coalesce(audio.voice_flag, false) = false
+                 and coalesce(audio.transcription_status, 'pending') <> 'skipped'
+                 and abs(extract(epoch from (audio.recorded_at - coalesce(gls.captured_at, gls.returned_at, gr.created_at)))) <= 120
+               limit 1
+            ) as has_promotable_audio
           from guide_records gr
           left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
           left join users u on u.user_id = gr.user_id
