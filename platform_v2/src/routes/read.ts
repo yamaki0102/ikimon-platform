@@ -4540,8 +4540,8 @@ function profileRevisitCount(snapshot: ProfileSnapshot): number {
 function renderProfileSummary(snapshot: ProfileSnapshot): string {
   const stats = snapshot.stats;
   const cards = [
-    { eyebrow: "Total", value: stats.totalObservations, label: "総観察数" },
-    { eyebrow: "This month", value: stats.thisMonthObservations, label: "今月の観察" },
+    { eyebrow: "Total", value: stats.totalObservations, label: "総記録数" },
+    { eyebrow: "This month", value: stats.thisMonthObservations, label: "今月の記録" },
     { eyebrow: "Places", value: stats.placeCount, label: "記録した場所" },
     { eyebrow: "Life List", value: stats.uniqueTaxaAllTime, label: "見てきた生きもの" },
     { eyebrow: "Streak", value: stats.currentStreakDays, label: "現在ストリーク" },
@@ -4576,7 +4576,7 @@ function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editabl
             ${avatar}
             <div>
               <div class="eyebrow">プロフィール</div>
-              <h2>${escapeHtml(snapshot.displayName)} の観察メモ</h2>
+              <h2>${escapeHtml(snapshot.displayName)} の記録メモ</h2>
             </div>
           </div>
           ${editLink}
@@ -4756,8 +4756,8 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
       )}
       ${renderChannelMediaCard(
         latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record"),
-        "最近見た自然",
-        latest?.displayName ?? "まだ観察はありません",
+        "最近の記録",
+        latest?.displayName ?? "まだ記録はありません",
         latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の発見から、自然との関わりが見えるページになります。",
         latest?.photoUrl,
         "PHOTO",
@@ -4774,7 +4774,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         withBasePath(basePath, "/records?view=mine"),
         "自分の図鑑",
         topLife?.displayName ?? "名前が付くと並びます",
-        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の観察レコードから見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
+        topLife ? `${formatProfileNumber(topLife.observationCount)} 件の記録から見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
         topLife?.photoUrl ?? latest?.photoUrl,
         "LIFE",
       )}
@@ -4793,17 +4793,17 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
     : withBasePath(basePath, "/records?view=mine");
   const latestBody = digest?.todayReading || (latestObservation
     ? `${latestObservation.displayName} を見返すと、${latestObservation.placeName} の前回のページから読み始められます。`
-    : "まだ自分のページはありません。近くの観察レコードや場所の章から、記録の読み方を先に眺められます。");
+    : "まだ自分の記録はありません。記録一覧や場所の章から、読み返し方を先に眺められます。");
   const placeBody = digest?.placeChapters[0]?.readingAngle || (firstPlace
     ? `${firstPlace.placeName} は ${firstPlace.visitCount} 回分の記憶があります。${buildPlaceNextLine(firstPlace)}。`
     : "場所が増えるほど、同じ道の季節差や小さな変化を章として読み返せます。");
   const learningBody = digest?.learningHighlight || "Life List は数ではなく、見分ける観点が増えてきた履歴として読み返せます。";
-  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域の観察レコードを少し厚くしています。`;
+  const contributionBody = digest?.localContribution || `${formatProfileNumber(snapshot.stats.placeCount)} か所の記憶が、地域を読み返す手がかりを増やしています。`;
   const contributionValue = digest
     ? `${escapeHtml(formatProfileNumber(digest.sourceStats.observationCount))} ページ`
     : `${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))} ページ`;
   return `<section class="section" data-testid="profile-next-actions">
-    <div class="section-header"><div><div class="eyebrow">My history</div><h2>自分の観察史</h2></div></div>
+    <div class="section-header"><div><div class="eyebrow">My history</div><h2>自分の記録史</h2></div></div>
     <div class="profile-reading-digest">
       <div class="profile-reading-main">
         <div class="eyebrow">Story</div>
@@ -4811,13 +4811,13 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
         <p>${escapeHtml(latestBody)}</p>
       </div>
       <div class="profile-reading-points">
-        <div><span>はじまり</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(snapshot.stats.firstObservedAt ? `${profileObservationYears(snapshot)} 年分の観察史として読み返せます。` : "最初の観察が入ると、ここから自分の歴史が始まります。")}</p></div>
+        <div><span>はじまり</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(snapshot.stats.firstObservedAt ? `${profileObservationYears(snapshot)} 年分の記録史として読み返せます。` : "最初の記録が入ると、ここから自分の歴史が始まります。")}</p></div>
         <div><span>見えてきたこと</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.uniqueTaxaAllTime))} 種を見てきた</strong><p>${escapeHtml(learningBody)}</p></div>
         <div><span>地域への手がかり</span><strong>${contributionValue}</strong><p>${escapeHtml(contributionBody)}</p></div>
       </div>
       <div class="profile-reading-actions">
         <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録を見る</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録一覧を見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/guide/outcomes"))}">ガイド成果を見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a>
       </div>
@@ -4834,8 +4834,8 @@ function renderProfileHistory(snapshot: ProfileSnapshot): string {
     <div class="section-header"><div><div class="eyebrow">Timeline</div><h2>積み上がった履歴</h2></div></div>
     <div class="profile-history-shell">
       <div class="profile-history-line">
-        <div class="profile-history-step"><span>最初の観察</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(years > 0 ? `${years} 年分の記録として残っています。` : "ここから観察史が始まります。")}</p></div>
-        <div class="profile-history-step"><span>最近のページ</span><strong>${escapeHtml(latest?.displayName ?? "これから")}</strong><p>${escapeHtml(latest ? `${latest.placeName} の ${formatProfileDate(latest.observedAt)} の記録。` : "観察が入ると、前回のページとして読めます。")}</p></div>
+        <div class="profile-history-step"><span>最初の記録</span><strong>${escapeHtml(formatProfileDate(snapshot.stats.firstObservedAt))}</strong><p>${escapeHtml(years > 0 ? `${years} 年分の記録として残っています。` : "ここから記録の履歴が始まります。")}</p></div>
+        <div class="profile-history-step"><span>最近のページ</span><strong>${escapeHtml(latest?.displayName ?? "これから")}</strong><p>${escapeHtml(latest ? `${latest.placeName} の ${formatProfileDate(latest.observedAt)} の記録。` : "記録が入ると、前回のページとして読めます。")}</p></div>
         <div class="profile-history-step"><span>再訪</span><strong>${escapeHtml(formatProfileNumber(revisitCount))} 回</strong><p>${escapeHtml(firstPlace ? `${firstPlace.placeName} など、同じ場所を重ねて見ています。` : "同じ場所をもう一度見るほど、変化が読めます。")}</p></div>
         <div class="profile-history-step"><span>今月</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.thisMonthObservations))} 件</strong><p>最近の関心がどこに向いているかを示す短い章です。</p></div>
       </div>
@@ -4876,11 +4876,11 @@ function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, 
     <div class="section-header"><div><div class="eyebrow">Contribution</div><h2>地域に残った手がかり</h2></div></div>
     <div class="profile-contribution-shell">
       <div class="profile-contribution-grid">
-        <div class="profile-contribution-card"><span>観察レコード</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>キミの記録で、この地域の観察レコードが少し厚くなっています。</p></div>
+        <div class="profile-contribution-card"><span>記録</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.totalObservations))}</strong><p>キミの記録が、この地域を読み返す手がかりになっています。</p></div>
         <div class="profile-contribution-card"><span>場所</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.placeCount))}</strong><p>見た場所が増えるほど、地域の自然を読み返す入口が増えます。</p></div>
         <div class="profile-contribution-card"><span>再訪の厚み</span><strong>${escapeHtml(formatProfileNumber(revisitCount))}</strong><p>${escapeHtml(digest?.localContribution || "同じ場所を重ねて見ることが、変化の手がかりになります。")}</p></div>
       </div>
-      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録を見る</a>
+      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録一覧を見る</a>
     </div>
   </section>`;
 }
@@ -11911,8 +11911,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         "マイページ | ikimon",
         stateCard(
           "マイページ",
-          "ログインすると、自分の観察史を読み返せます",
-          `<p style="margin:0 0 12px">記録一覧はライブラリへ。マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
+          "ログインすると、自分の記録史を読み返せます",
+          `<p style="margin:0 0 12px">記録一覧を起点に、マイページでは、積み上げた時間、前より見えてきたこと、地域に残った手がかりを確認できます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/login?redirect=/profile"))}">ログインしてマイページへ</a>
             <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/register?redirect=/profile"))}">新しく登録する</a>
@@ -11946,7 +11946,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       maxCards: 1,
     }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
     const heroActions = [
-      { href: "/records?view=mine", label: "記録を見る" },
+      { href: "/records?view=mine", label: "記録一覧を見る" },
       { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" as const },
       { href: "/records?view=places", label: "場所を見る", variant: "secondary" as const },
       { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
@@ -11963,7 +11963,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: "あなたのマイページ。記録一覧ではなく、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
+        lead: "あなたのマイページ。記録一覧を起点に、積み上げた歴史、学び、地域に残った手がかりを気持ちよく読み返します。",
         actions: heroActions,
       },
       PROFILE_HUB_STYLES,
