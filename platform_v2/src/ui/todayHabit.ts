@@ -120,7 +120,7 @@ export function renderTodayHabit(
   const copy = copyByLang[lang];
   const isLoggedIn = Boolean(snapshot.viewerUserId);
   const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
-  const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
+  const notesHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
 
   if (!isLoggedIn) {
     return `<section class="section th-card th-guest" aria-labelledby="th-heading">

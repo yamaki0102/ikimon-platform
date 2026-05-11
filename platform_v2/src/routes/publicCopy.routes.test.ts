@@ -7,8 +7,7 @@ import type { HomeSnapshot } from "../services/readModels.js";
 
 const shallowJaRoutes = [
   "/?lang=ja",
-  "/observations?lang=ja",
-  "/notes?lang=ja",
+  "/records?lang=ja",
   "/guide?lang=ja",
   "/lens?lang=ja",
   "/map?lang=ja",
@@ -163,71 +162,62 @@ test("home page keeps the signed-in desktop dashboard compact", () => {
   assert.doesNotMatch(html, /前回より、少し見えるようになる/);
 });
 
-test("observations index renders the senior-friendly video grid list", async () => {
+test("records workbench unifies personal library and public observations", async () => {
   const app = buildApp();
   try {
-    const response = await app.inject({ method: "GET", url: "/observations?lang=ja", headers: { accept: "text/html" } });
+    const response = await app.inject({ method: "GET", url: "/records?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /観察レコード一覧/);
-    assert.match(response.body, /名前・場所・人/);
-    assert.match(response.body, /AI候補/);
-    assert.match(response.body, /未同定/);
-    assert.match(response.body, /写真あり/);
-    assert.match(response.body, /登録エリア/);
-    assert.match(response.body, /科 \/ 属 \/ 種/);
-    assert.match(response.body, /スポット名/);
-    assert.match(response.body, /保存名（任意）/);
-    assert.match(response.body, /data-observations-field-chip/);
-    assert.match(response.body, /data-observations-preset-save/);
-    assert.match(response.body, /同定少ない順/);
-    assert.match(response.body, /<details class="observations-advanced">/);
-    assert.match(response.body, /data-testid="observations-index"/);
-    assert.match(response.body, /observations-video-grid/);
-    assert.match(response.body, /\/ja\/observations\?filter=needs_id/);
-    assert.doesNotMatch(response.body, /写真から、地域の発見をすぐ見る。/);
+    assert.match(response.body, /data-testid="records-workbench"/);
+    assert.match(response.body, /記録を見る/);
+    assert.match(response.body, /自分/);
+    assert.match(response.body, /近く/);
+    assert.match(response.body, /確認待ち/);
+    assert.match(response.body, /動画\/ガイド/);
+    assert.match(response.body, /場所/);
+    assert.match(response.body, /data-library-search/);
+    assert.match(response.body, /records-view-tabs/);
+    assert.doesNotMatch(response.body, /data-testid="observations-index"/);
   } finally {
     await app.close();
   }
 });
 
-test("observations index localizes the daily content controls in English", async () => {
+test("records workbench localizes the unified chrome in English", async () => {
   const app = buildApp();
   try {
-    const response = await app.inject({ method: "GET", url: "/en/observations", headers: { accept: "text/html" } });
+    const response = await app.inject({ method: "GET", url: "/en/records", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<html lang="en">/);
-    assert.match(response.body, /<h1>Observations<\/h1>/);
-    assert.match(response.body, /Name, place, person/);
-    assert.match(response.body, /AI candidates/);
-    assert.match(response.body, /Registered areas/);
-    assert.match(response.body, /Preset name \(optional\)/);
-    assert.match(response.body, /Fewest IDs/);
-    assert.match(response.body, /<details class="observations-advanced">/);
-    assert.match(response.body, /No public observations are ready to show yet|Observation cards/);
-    assert.doesNotMatch(response.body, /観察レコード一覧/);
-    assert.doesNotMatch(response.body, /名前・場所・人/);
-    assert.doesNotMatch(response.body, /登録エリア/);
-    assert.doesNotMatch(response.body, /同定少ない順/);
+    assert.match(response.body, /Records/);
+    assert.match(response.body, /Mine/);
+    assert.match(response.body, /Nearby/);
+    assert.match(response.body, /Needs ID/);
+    assert.match(response.body, /Search by name or place/);
+    assert.doesNotMatch(response.body, /記録を見る/);
+    assert.doesNotMatch(response.body, /確認待ち/);
   } finally {
     await app.close();
   }
 });
 
-test("explore is folded into observations while preserving search intent", async () => {
+test("legacy list surfaces redirect into records while preserving intent", async () => {
   const app = buildApp();
   try {
     const redirect = await app.inject({ method: "GET", url: "/explore?q=tonbo&lang=ja", headers: { accept: "text/html" } });
     assert.equal(redirect.statusCode, 308);
-    assert.equal(redirect.headers.location, "/ja/observations?q=tonbo");
+    assert.equal(redirect.headers.location, "/ja/records?view=public&q=tonbo");
 
     const legacy = await app.inject({ method: "GET", url: "/zukan.php?lang=ja", headers: { accept: "text/html" } });
     assert.equal(legacy.statusCode, 308);
-    assert.equal(legacy.headers.location, "/ja/observations");
+    assert.equal(legacy.headers.location, "/ja/records");
 
-    const observations = await app.inject({ method: "GET", url: "/observations?q=tonbo&lang=ja", headers: { accept: "text/html" } });
-    assert.equal(observations.statusCode, 200);
-    assert.match(observations.body, /new URLSearchParams\(window\.location\.search/);
-    assert.match(observations.body, /const initialQuery =/);
+    const observations = await app.inject({ method: "GET", url: "/observations?filter=needs_id&lang=ja", headers: { accept: "text/html" } });
+    assert.equal(observations.statusCode, 308);
+    assert.equal(observations.headers.location, "/ja/records?view=needs_id");
+
+    const notes = await app.inject({ method: "GET", url: "/notes?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(notes.statusCode, 308);
+    assert.equal(notes.headers.location, "/ja/records?view=mine");
   } finally {
     await app.close();
   }
@@ -246,73 +236,35 @@ test("map page localizes the browser title in English", async () => {
   }
 });
 
-test("identification queue renders without a hero", async () => {
+test("identification queue is a records workbench tab", async () => {
   const app = buildApp();
   try {
-    const response = await app.inject({ method: "GET", url: "/observations?filter=needs_id&lang=ja", headers: { accept: "text/html" } });
+    const response = await app.inject({ method: "GET", url: "/records?view=needs_id&lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<h1>同定<\/h1>/);
-    assert.match(response.body, /data-observations-search/);
-    assert.match(response.body, /data-observations-taxon/);
-    assert.match(response.body, /data-observations-presets/);
+    assert.match(response.body, /records-view-tabs/);
+    assert.match(response.body, /確認待ち/);
+    assert.match(response.body, /data-library-search/);
     assert.doesNotMatch(response.body, /class="hero-panel/);
-    assert.doesNotMatch(response.body, /Observation Grid/);
   } finally {
     await app.close();
   }
 });
 
-test("notes page is a record library with separated source lanes", async () => {
+test("records mine tab keeps source lanes and library controls", async () => {
   const app = buildApp();
   try {
-    const response = await app.inject({ method: "GET", url: "/notes?lang=ja", headers: { accept: "text/html" } });
+    const response = await app.inject({ method: "GET", url: "/records?view=mine&lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /記録ライブラリ/);
-    assert.match(response.body, /自分の記録|公開されている観察レコード/);
+    assert.match(response.body, /記録を見る/);
     assert.match(response.body, /場所・気づきで探す/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
     assert.match(response.body, /ガイド/);
     assert.match(response.body, /スキャン/);
-    assert.match(response.body, /場所アルバム/);
-    assert.match(response.body, /近くの公開観察レコード/);
-    assert.match(response.body, /記録の流れ/);
-    assert.match(response.body, /記録する → 記録を見返す → 対象ごとの記録に分ける → 同定で確かめる/);
-    assert.match(response.body, /\/ja\/guide\/outcomes/);
-    assert.match(response.body, /data-testid="notes-own"/);
-    assert.match(response.body, /data-testid="notes-nearby"/);
+    assert.match(response.body, /data-testid="records-workbench"/);
     assert.doesNotMatch(response.body, /ノートを書く/);
     assert.doesNotMatch(response.body, /最初のノートを書く/);
     assert.doesNotMatch(response.body, /notes-brief-card/);
-    assert.doesNotMatch(response.body, /今日読むページ/);
-    assert.doesNotMatch(response.body, /学びのハイライト/);
-    assert.doesNotMatch(response.body, /地域に残った手がかり/);
-    assert.ok(
-      response.body.indexOf("記録ライブラリ") < response.body.indexOf("近くの公開観察レコード"),
-      "library should appear before nearby public traces",
-    );
-  } finally {
-    await app.close();
-  }
-});
-
-test("notes page localizes the library chrome in English", async () => {
-  const app = buildApp();
-  try {
-    const response = await app.inject({ method: "GET", url: "/en/notes", headers: { accept: "text/html" } });
-    assert.equal(response.statusCode, 200);
-    assert.match(response.body, /<html lang="en"/);
-    assert.match(response.body, /Observation Library/);
-    assert.match(response.body, /Search by name or place/);
-    assert.match(response.body, /Place albums/);
-    assert.match(response.body, /Nearby public records/);
-    assert.match(response.body, /Record, read, review, and walk again\./);
-    assert.match(response.body, /\/en\/guide\/outcomes/);
-    assert.doesNotMatch(response.body, /シーンライブラリ/);
-    assert.doesNotMatch(response.body, /名前・場所で探す/);
-    assert.doesNotMatch(response.body, /場所アルバム/);
-    assert.doesNotMatch(response.body, /近くの公開観察レコード/);
-    assert.doesNotMatch(response.body, /記録する → 記録を見返す/);
   } finally {
     await app.close();
   }

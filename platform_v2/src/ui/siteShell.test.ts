@@ -40,8 +40,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /data-side-nav-personalized-list/);
   assert.match(html, /desktop-side-nav-mini-card/);
   assert.match(html, /class="shell shell-layout-home"/);
-  assert.match(html, /href="\/ja\/observations">観察レコード一覧/);
-  assert.match(html, /href="\/ja\/observations" title="観察レコード"/);
+  assert.match(html, /href="\/ja\/records">記録を見る/);
+  assert.match(html, /href="\/ja\/records" title="記録を見る"/);
   assert.doesNotMatch(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
   assert.match(html, /href="\/ja\/learn\/updates"/);
   assert.match(html, /desktop-side-nav-section-title">今日使う/);
@@ -336,9 +336,8 @@ test("major routes keep route-metadata layout contracts", () => {
     { path: "/record", layout: "narrow", className: "shell-layout-narrow" },
     { path: "/guide", layout: "immersive", className: "shell-layout-immersive" },
     { path: "/map", layout: "immersive", className: "shell-layout-immersive" },
-    { path: "/observations", layout: "wide", className: "shell-layout-wide" },
+    { path: "/records", layout: "wide", className: "shell-layout-wide" },
     { path: "/observations/demo-id", layout: "wide", className: "shell-layout-wide" },
-    { path: "/notes", layout: "reading", className: "shell-layout-reading" },
     { path: "/profile/demo-user", layout: "reading", className: "shell-layout-reading" },
     { path: "/learn/field-loop", layout: "reading", className: "shell-layout-reading" },
     { path: "/community", layout: "wide", className: "shell-layout-wide" },

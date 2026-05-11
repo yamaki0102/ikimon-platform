@@ -695,14 +695,14 @@ function buildLandingDailyCards(snapshot: Omit<LandingSnapshot, "dailyDashboard"
   const cards: LandingDailyCard[] = [
     {
       kind: "recordToday",
-      href: snapshot.viewerUserId && (snapshot.habit?.todayCount ?? 0) > 0 ? "/notes" : "/record",
+      href: snapshot.viewerUserId && (snapshot.habit?.todayCount ?? 0) > 0 ? "/records?view=mine" : "/record",
       primaryText: null,
       secondaryText: null,
       metricValue: snapshot.habit?.todayCount ?? null,
     },
     {
       kind: "revisitPlace",
-      href: snapshot.viewerUserId ? "/notes" : "/map",
+      href: snapshot.viewerUserId ? "/records?view=places" : "/map",
       primaryText: revisitPlace?.placeName ?? topMapCell?.label ?? null,
       secondaryText: regionalStory?.placeHook ?? revisitPlace?.latestDisplayName ?? revisitPlace?.municipality ?? null,
       metricValue: revisitPlace?.visitCount ?? null,
@@ -782,7 +782,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     kind: "today",
     title: "みんなの発見",
     eyebrow: "LIVE FEED",
-    href: "/observations",
+    href: "/records?view=public",
     limit: 8,
     matches: () => true,
   },
@@ -790,7 +790,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     kind: "photo",
     title: "写真",
     eyebrow: "PHOTO",
-    href: "/observations?filter=photo",
+    href: "/records?view=media",
     limit: 6,
     matches: (item) => isLandingObservationItem(item) && Boolean(item.photoUrl),
   },
@@ -798,7 +798,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     kind: "video",
     title: "動画",
     eyebrow: "VIDEO",
-    href: "/observations?filter=video",
+    href: "/records?view=media",
     limit: 4,
     matches: (item) => isLandingObservationItem(item) && (Boolean(item.hasVideo) || item.librarySourceKind === "video"),
     cta: {
@@ -840,7 +840,7 @@ const LANDING_TOP_SHELF_DEFINITIONS: LandingTopShelfDefinition[] = [
     kind: "needsId",
     title: "名前を待つ記録",
     eyebrow: "IDENTIFY",
-    href: "/observations?filter=needs_id",
+    href: "/records?view=needs_id",
     limit: 6,
     matches: (item) => isLandingObservationItem(item) && (item.isAiCandidate === true || item.identificationCount === 0),
   },
@@ -1066,7 +1066,7 @@ function collapseVideoShelfIntoEvidenceShelf(shelves: LandingTopShelf[]): Landin
         ...shelf,
         title: "写真と動画",
         eyebrow: "MEDIA",
-        href: "/observations",
+        href: "/records?view=public",
         items: mergedMediaItems,
       };
     })

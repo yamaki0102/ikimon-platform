@@ -75,6 +75,7 @@ import {
   type LandingObservation,
   type LandingSnapshot,
   type ObservationDetailSnapshot,
+  type ObservationListSnapshot,
   type ProfileSnapshot,
 } from "../services/readModels.js";
 import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
@@ -405,8 +406,8 @@ function notesLibraryCopy(lang: SiteLang): NotesLibraryCopy {
         steps: [
           { label: "記録", title: "写真・動画を残す", body: "見つけたもの、場所、時刻、メモを1件の記録として保存する。", path: "/record", cta: "記録する" },
           { label: "Guide", title: "名前より環境を読む", body: "分からない場面はライブガイドで、植生・水路・道ばたの変化を足跡にする。", path: "/guide", cta: "ガイドへ" },
-          { label: "対象", title: "対象ごとの記録に分ける", body: "1件の記録の中から、生きもの・痕跡・音ごとに切り出す。", path: "/observations", cta: "観察レコードを見る" },
-          { label: "同定", title: "名前を確かめる", body: "AI候補を手がかりに、人の同定で種類を判断する。", path: "/observations?filter=needs_id", cta: "同定へ" },
+          { label: "対象", title: "対象ごとの記録に分ける", body: "1件の記録の中から、生きもの・痕跡・音ごとに切り出す。", path: "/records?view=public", cta: "記録を見る" },
+          { label: "同定", title: "名前を確かめる", body: "AI候補を手がかりに、人の同定で種類を判断する。", path: "/records?view=needs_id", cta: "同定へ" },
         ],
       },
       sections: {
@@ -2644,7 +2645,7 @@ function renderObservationOwnerDeletePanel(options: {
 }): string {
   if (!options.isOwner) return "";
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/hide`);
-  const notesHref = appendLangToHref(withBasePath(options.basePath, "/notes"), options.lang);
+  const notesHref = appendLangToHref(withBasePath(options.basePath, "/records?view=mine"), options.lang);
   return `<section class="section obs-owner-delete" data-owner-delete data-delete-endpoint="${escapeHtml(endpoint)}" data-after-delete-href="${escapeHtml(notesHref)}">
     <div>
       <div class="obs-story-eyebrow">Delete</div>
@@ -2664,7 +2665,7 @@ function renderObservationOwnerDeleteScript(isOwner: boolean): string {
     var button = root.querySelector('[data-owner-delete-button]');
     var status = root.querySelector('[data-owner-delete-status]');
     var endpoint = root.getAttribute('data-delete-endpoint') || '';
-    var nextHref = root.getAttribute('data-after-delete-href') || '/notes';
+    var nextHref = root.getAttribute('data-after-delete-href') || '/records?view=mine';
     var setStatus = function(message, isError) {
       if (!status) return;
       status.textContent = message;
@@ -4630,7 +4631,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
   return `<section class="section" data-testid="home-channel">
     <div class="profile-channel-grid">
       ${renderChannelMediaCard(
-        withBasePath(basePath, isPersonalHome ? (firstPlace ? "/notes#notes-places" : "/map") : "/record"),
+        withBasePath(basePath, isPersonalHome ? (firstPlace ? "/records?view=places" : "/map") : "/record"),
         isPersonalHome ? "自分のフィールド" : "今日の入口",
         firstPlace?.placeName ?? (isPersonalHome ? "これから歩く場所" : "最初の記録を残す"),
         firstPlace
@@ -4650,7 +4651,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         "発見",
       )}
       ${renderChannelMediaCard(
-        withBasePath(basePath, isPersonalHome && (secondPlace || firstPlace) ? "/notes#notes-places" : "/map"),
+        withBasePath(basePath, isPersonalHome && (secondPlace || firstPlace) ? "/records?view=places" : "/map"),
         isPersonalHome ? "次に行く場所" : "歩く場所を探す",
         secondPlace?.placeName ?? firstPlace?.placeName ?? (isPersonalHome ? "地図から探す" : "近くの発見を見る"),
         secondPlace
@@ -4664,7 +4665,7 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
         "地図",
       )}
       ${renderChannelMediaCard(
-        withBasePath(basePath, "/notes#notes-own"),
+        withBasePath(basePath, "/records?view=mine"),
         isPersonalHome ? "自分の図鑑" : "記録の使い道",
         latest ? `${latest.displayName} から広げる` : isPersonalHome ? "まだ空の図鑑" : "記録が育つ場所",
         isPersonalHome
@@ -4727,7 +4728,7 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
         lead: "よく歩く場所、前回からの気づき、最近の観察をここからすぐ開けます。",
         actions: [
           { href: "/record", label: "記録する" },
-          { href: "/notes", label: "記録を見る", variant: "secondary" as const },
+          { href: "/records?view=mine", label: "記録を見る", variant: "secondary" as const },
         ],
       }
     : {
@@ -4814,7 +4815,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
   return `<section class="section" data-testid="profile-channel">
     <div class="profile-channel-grid">
       ${renderChannelMediaCard(
-        withBasePath(basePath, firstPlace ? "/notes#notes-places" : "/map"),
+        withBasePath(basePath, firstPlace ? "/records?view=places" : "/map"),
         "自分のフィールド",
         firstPlace?.placeName ?? "これから歩く場所",
         firstPlace ? buildPlaceNextLine(firstPlace) : "場所の記録が入ると、よく歩くフィールドとして育ちます。",
@@ -4838,7 +4839,7 @@ function renderProfileChannelHero(basePath: string, snapshot: ProfileSnapshot): 
         "NEXT",
       )}
       ${renderChannelMediaCard(
-        withBasePath(basePath, "/notes#notes-own"),
+        withBasePath(basePath, "/records?view=mine"),
         "自分の図鑑",
         topLife?.displayName ?? "名前が付くと並びます",
         topLife ? `${formatProfileNumber(topLife.observationCount)} 件の観察レコードから見返せます。` : "同定が進むほど、自分だけの Life List が育ちます。",
@@ -4857,7 +4858,7 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
       latestObservation.detailId ?? latestObservation.visitId ?? latestObservation.occurrenceId,
       latestObservation.featuredOccurrenceId ?? latestObservation.occurrenceId,
     ))
-    : withBasePath(basePath, "/notes#notes-own");
+    : withBasePath(basePath, "/records?view=mine");
   const latestBody = digest?.todayReading || (latestObservation
     ? `${latestObservation.displayName} を見返すと、${latestObservation.placeName} の前回のページから読み始められます。`
     : "まだ自分のページはありません。近くの観察レコードや場所の章から、記録の読み方を先に眺められます。");
@@ -4884,9 +4885,9 @@ function renderProfileNextActions(basePath: string, snapshot: ProfileSnapshot, d
       </div>
       <div class="profile-reading-actions">
         <a class="btn btn-solid" href="${escapeHtml(latestHref)}">前回のページを読む</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">記録ライブラリを開く</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録を見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/guide/outcomes"))}">ガイド成果を見る</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes#notes-places"))}">場所アルバムを見る</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a>
       </div>
     </div>
   </section>`;
@@ -4947,7 +4948,7 @@ function renderProfileContribution(basePath: string, snapshot: ProfileSnapshot, 
         <div class="profile-contribution-card"><span>場所</span><strong>${escapeHtml(formatProfileNumber(snapshot.stats.placeCount))}</strong><p>見た場所が増えるほど、地域の自然を読み返す入口が増えます。</p></div>
         <div class="profile-contribution-card"><span>再訪の厚み</span><strong>${escapeHtml(formatProfileNumber(revisitCount))}</strong><p>${escapeHtml(digest?.localContribution || "同じ場所を重ねて見ることが、変化の手がかりになります。")}</p></div>
       </div>
-      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/notes#notes-own"))}">記録ライブラリを見る</a>
+      <a class="profile-library-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">記録を見る</a>
     </div>
   </section>`;
 }
@@ -5435,13 +5436,16 @@ function renderNotesLibraryMonths(
   </section>`).join("");
 }
 
-function renderNotesLibraryControls(entryCount: number, placeCount: number, lang: SiteLang): string {
+function renderNotesLibraryControls(lang: SiteLang): string {
   const copy = notesLibraryCopy(lang);
+  const filterToggleLabel = lang === "ja" ? "絞る" : lang === "en" ? "Filter" : lang === "es" ? "Filtrar" : "Filtrar";
   return `<section class="notes-library-controls" aria-label="${escapeHtml(copy.controls.aria)}">
     <div class="notes-library-search">
       <span aria-hidden="true">⌕</span>
       <input type="search" placeholder="${escapeHtml(copy.controls.searchPlaceholder)}" data-library-search />
     </div>
+    <input class="notes-library-filter-toggle" type="checkbox" id="notes-library-filter-toggle" aria-label="${escapeHtml(copy.controls.filterAria)}" />
+    <label class="notes-library-filter-label" for="notes-library-filter-toggle">${escapeHtml(filterToggleLabel)}</label>
     <div class="notes-library-filters" role="group" aria-label="${escapeHtml(copy.controls.filterAria)}">
       <button type="button" class="is-active" data-library-filter="all">${escapeHtml(copy.controls.all)}</button>
       <button type="button" data-library-filter="photo">${escapeHtml(copy.controls.photo)}</button>
@@ -5451,7 +5455,6 @@ function renderNotesLibraryControls(entryCount: number, placeCount: number, lang
       <button type="button" data-library-filter="uncertain">${escapeHtml(copy.controls.uncertain)}</button>
       <button type="button" data-library-filter="identified">${escapeHtml(copy.controls.identified)}</button>
     </div>
-    <div class="notes-library-count" aria-live="polite"><strong data-library-visible-count>${escapeHtml(formatNotesNumber(entryCount, lang))}</strong><span>${escapeHtml(`${notesRecordUnitLabel(lang)} / ${notesPlaceCountLabel(placeCount, lang)}`)}</span></div>
   </section>`;
 }
 
@@ -5600,7 +5603,7 @@ function renderNotesReadingBrief(basePath: string, lang: SiteLang, snapshot: Lan
   const firstPlace = snapshot.myPlaces[0] ?? null;
   const supportedCount = snapshot.myFeed.filter((obs) => obs.identificationCount > 0 || obs.entryType === "identification").length;
   const ownObservationPages = snapshot.myFeed.filter((obs) => obs.entryType !== "identification").length;
-  const latestHref = latest ? notesDetailHref(basePath, lang, latest) : appendLangToHref(withBasePath(basePath, "/notes#notes-nearby"), lang);
+  const latestHref = latest ? notesDetailHref(basePath, lang, latest) : appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
   const latestName = latest?.displayName || "近くのページ";
   const latestPlace = latest ? notesPlaceLine(latest, lang, snapshot.viewerUserId ? "owner" : "public") : "この地域";
   const latestDate = latest ? (formatShortDate(notesEntryDate(latest), "ja-JP") || "最近") : "今日";
@@ -5758,7 +5761,7 @@ function renderNotesPlaceChapters(basePath: string, lang: SiteLang, snapshot: La
     const compared = place.previousObservedAt
       ? `前回 ${formatShortDate(place.previousObservedAt, "ja-JP")}`
       : "この場所の最初のページ";
-    const href = appendLangToHref(withBasePath(basePath, "/notes#notes-own"), lang);
+    const href = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
     const localClue = digestChapter?.localClue
       || `${place.visitCount} 回分のページが、この場所をあとから読める手がかりになっています。`;
     return `<a class="notes-place-chapter" href="${escapeHtml(href)}">
@@ -6047,6 +6050,7 @@ const NOTES_LIBRARY_STYLES = `
   .notes-library-search { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
   .notes-library-search span { color: #047857; font-weight: 950; }
   .notes-library-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #0f172a; font: inherit; font-weight: 750; }
+  .notes-library-filter-toggle, .notes-library-filter-label { display: none; }
   .notes-library-filters { display: flex; flex-wrap: wrap; gap: 8px; }
   .notes-library-filters button { min-height: 38px; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #334155; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
   .notes-library-filters button.is-active { background: #10251a; color: #fff; border-color: #10251a; }
@@ -6448,6 +6452,432 @@ function observationIndexCopy(lang: SiteLang): ObservationIndexCopy {
 function formatObservationIndexCount(count: number, copy: ObservationIndexCopy): string {
   return `${count}${copy.countSuffix}`;
 }
+
+type RecordsWorkbenchView = "mine" | "public" | "needs_id" | "media" | "places";
+
+type RecordsWorkbenchCopy = {
+  title: string;
+  activeNav: string;
+  searchLabel: string;
+  mapLabel: string;
+  recordLabel: string;
+  empty: string;
+  tabs: Record<RecordsWorkbenchView, string>;
+  side: {
+    title: string;
+    latest: string;
+    places: string;
+    needsId: string;
+    photos: string;
+  };
+};
+
+function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
+  const localized: Record<SiteLang, RecordsWorkbenchCopy> = {
+    ja: {
+      title: "記録を見る | ikimon",
+      activeNav: "記録を見る",
+      searchLabel: "記録を探す",
+      mapLabel: "地図",
+      recordLabel: "+",
+      empty: "表示できる記録がまだありません。",
+      tabs: {
+        mine: "自分",
+        public: "近く",
+        needs_id: "確認待ち",
+        media: "動画/ガイド",
+        places: "場所",
+      },
+      side: {
+        title: "この棚の状態",
+        latest: "最新",
+        places: "場所",
+        needsId: "確認待ち",
+        photos: "メディア",
+      },
+    },
+    en: {
+      title: "Records | ikimon",
+      activeNav: "Records",
+      searchLabel: "Search records",
+      mapLabel: "Map",
+      recordLabel: "+",
+      empty: "No records are ready to show yet.",
+      tabs: {
+        mine: "Mine",
+        public: "Nearby",
+        needs_id: "Needs ID",
+        media: "Video/Guide",
+        places: "Places",
+      },
+      side: {
+        title: "Shelf",
+        latest: "Latest",
+        places: "Places",
+        needsId: "Needs ID",
+        photos: "Media",
+      },
+    },
+    es: {
+      title: "Registros | ikimon",
+      activeNav: "Registros",
+      searchLabel: "Buscar registros",
+      mapLabel: "Mapa",
+      recordLabel: "+",
+      empty: "Aun no hay registros listos para mostrar.",
+      tabs: {
+        mine: "Mios",
+        public: "Cerca",
+        needs_id: "Por revisar",
+        media: "Video/Guia",
+        places: "Lugares",
+      },
+      side: {
+        title: "Estante",
+        latest: "Ultimo",
+        places: "Lugares",
+        needsId: "Por revisar",
+        photos: "Medios",
+      },
+    },
+    "pt-BR": {
+      title: "Registros | ikimon",
+      activeNav: "Registros",
+      searchLabel: "Buscar registros",
+      mapLabel: "Mapa",
+      recordLabel: "+",
+      empty: "Ainda nao ha registros prontos para mostrar.",
+      tabs: {
+        mine: "Meus",
+        public: "Perto",
+        needs_id: "Revisar",
+        media: "Video/Guia",
+        places: "Lugares",
+      },
+      side: {
+        title: "Estante",
+        latest: "Ultimo",
+        places: "Lugares",
+        needsId: "Revisar",
+        photos: "Midia",
+      },
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+function normalizeRecordsView(raw: unknown, hasViewer: boolean): RecordsWorkbenchView {
+  const view = typeof raw === "string" ? raw.trim() : "";
+  if (view === "public" || view === "needs_id" || view === "media" || view === "places") return view;
+  if (view === "mine") return hasViewer ? "mine" : "public";
+  return hasViewer ? "mine" : "public";
+}
+
+function uniqueRecords(entries: LandingObservation[]): LandingObservation[] {
+  const seen = new Set<string>();
+  const unique: LandingObservation[] = [];
+  for (const entry of entries) {
+    const key = `${entry.entryType ?? "observation"}:${entry.visitId}:${entry.occurrenceId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(entry);
+  }
+  return unique;
+}
+
+function publicObservationToLandingObservation(item: ObservationListSnapshot["observations"][number]): LandingObservation {
+  return {
+    occurrenceId: item.occurrenceId,
+    visitId: item.visitId,
+    detailId: item.detailId,
+    featuredOccurrenceId: item.featuredOccurrenceId,
+    featuredSubjectName: item.featuredSubjectName,
+    subjectCount: item.subjectCount,
+    isMultiSubject: item.isMultiSubject,
+    featuredConfidenceBand: item.featuredConfidenceBand,
+    displayStability: item.displayStability,
+    displayName: item.displayName,
+    scientificName: item.scientificName,
+    vernacularName: item.vernacularName,
+    featuredTaxonRank: item.featuredTaxonRank,
+    aiCandidateName: item.aiCandidateName,
+    aiCandidateRank: item.aiCandidateRank,
+    isAiCandidate: item.isAiCandidate,
+    observedAt: item.observedAt,
+    observerName: item.observerName,
+    placeName: item.placeName,
+    municipality: item.municipality,
+    publicLocation: item.publicLocation,
+    photoUrl: item.photoUrl,
+    mediaUrl: item.mediaUrl,
+    hasPhoto: item.hasPhoto,
+    hasVideo: item.hasVideo,
+    identificationCount: item.identificationCount,
+    fieldRefs: item.fieldRefs,
+    latitude: null,
+    longitude: null,
+    observerUserId: null,
+    observerAvatarUrl: null,
+    librarySourceKind: item.hasVideo ? "video" : item.photoUrl ? "photo" : "note",
+    entryType: "observation",
+  };
+}
+
+function recordsNeedsId(entry: LandingObservation): boolean {
+  const name = (entry.displayName || entry.proposedName || "").trim();
+  return entry.isAiCandidate === true
+    || entry.identificationCount === 0
+    || name === ""
+    || name === "同定待ち"
+    || /awaiting id|unknown|unresolved/i.test(name);
+}
+
+function recordsHasMedia(entry: LandingObservation): boolean {
+  const kind = notesLibrarySourceKind(entry);
+  return kind === "photo" || kind === "video" || kind === "guide" || kind === "scan";
+}
+
+function recordsViewHref(basePath: string, lang: SiteLang, view: RecordsWorkbenchView): string {
+  return appendLangToHref(withBasePath(basePath, `/records?view=${view}`), lang);
+}
+
+function renderRecordsViewTabs(
+  basePath: string,
+  lang: SiteLang,
+  activeView: RecordsWorkbenchView,
+  copy: RecordsWorkbenchCopy,
+): string {
+  const views: RecordsWorkbenchView[] = ["mine", "public", "needs_id", "media", "places"];
+  return `<nav class="records-view-tabs" aria-label="${escapeHtml(copy.searchLabel)}">
+    ${views.map((view) => `<a class="${view === activeView ? "is-active" : ""}" href="${escapeHtml(recordsViewHref(basePath, lang, view))}">
+      <span>${escapeHtml(copy.tabs[view])}</span>
+    </a>`).join("")}
+  </nav>`;
+}
+
+function renderRecordsSidePanel(
+  lang: SiteLang,
+  entries: LandingObservation[],
+  snapshot: LandingSnapshot,
+  copy: RecordsWorkbenchCopy,
+): string {
+  const latest = entries[0] ?? null;
+  const latestLabel = latest
+    ? `${notesLibraryDateLabel(latest, lang)} · ${latest.displayName || latest.proposedName || notesLibraryCopy(lang).card.fallbackName}`
+    : copy.empty;
+  const firstPlaces = snapshot.myPlaces.slice(0, 5);
+  return `<aside class="records-side-panel">
+    <div class="records-side-head">
+      <span>${escapeHtml(copy.side.title)}</span>
+    </div>
+    <div class="records-side-metrics">
+      <div><span>${escapeHtml(copy.side.latest)}</span><strong>${escapeHtml(latestLabel)}</strong></div>
+    </div>
+    ${firstPlaces.length > 0 ? `<div class="records-side-places">
+      ${firstPlaces.map((place) => `<button type="button" data-library-place="${escapeHtml(place.placeName)}"><span>${escapeHtml(place.municipality ?? "")}</span><strong>${escapeHtml(place.placeName)}</strong></button>`).join("")}
+    </div>` : ""}
+  </aside>`;
+}
+
+function recordWorkbenchEntriesForView(
+  view: RecordsWorkbenchView,
+  ownEntries: LandingObservation[],
+  publicEntries: LandingObservation[],
+): LandingObservation[] {
+  const all = uniqueRecords([...ownEntries, ...publicEntries]);
+  if (view === "mine") return ownEntries;
+  if (view === "public") return publicEntries;
+  if (view === "needs_id") return all.filter(recordsNeedsId);
+  if (view === "media") return all.filter(recordsHasMedia);
+  return all;
+}
+
+function renderRecordsWorkbench(
+  basePath: string,
+  lang: SiteLang,
+  view: RecordsWorkbenchView,
+  snapshot: LandingSnapshot,
+  publicEntries: LandingObservation[],
+  civicContexts: Map<string, CivicObservationContext>,
+): string {
+  const copy = recordsWorkbenchCopy(lang);
+  const ownEntries = snapshot.viewerUserId ? snapshot.myFeed : [];
+  const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
+  const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
+  return `<div class="records-workbench" data-testid="records-workbench">
+    <header class="records-topbar">
+      <div class="records-topbar-brand">
+        <strong>${escapeHtml(copy.activeNav)}</strong>
+      </div>
+      ${renderRecordsViewTabs(basePath, lang, view, copy)}
+      <div class="records-actions" aria-label="${escapeHtml(observationIndexCopy(lang).relatedActionsAria)}">
+        <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/map"), lang))}">${escapeHtml(copy.mapLabel)}</a>
+        <a class="is-primary" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}" aria-label="${escapeHtml(observationIndexCopy(lang).recordActionAria)}">${escapeHtml(copy.recordLabel)}</a>
+      </div>
+    </header>
+    <main class="records-main">
+      <section class="records-grid-panel" data-notes-library>
+        ${renderNotesLibraryControls(lang)}
+        ${entries.length > 0
+          ? renderNotesLibraryMonths(basePath, lang, entries, { locationMode, civicContexts })
+          : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
+      </section>
+    </main>
+    ${renderNotesLibraryScript(lang)}
+  </div>`;
+}
+
+const RECORDS_WORKBENCH_STYLES = `
+  .shell.shell-records-workbench {
+    max-width: none;
+    padding: 0;
+  }
+  .records-workbench {
+    min-height: calc(100dvh - 56px);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    background: #f8fafc;
+  }
+  .records-topbar {
+    position: sticky;
+    top: 56px;
+    z-index: 20;
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 14px;
+    background: rgba(255,255,255,.94);
+    border-bottom: 1px solid rgba(15,23,42,.08);
+    backdrop-filter: blur(18px);
+  }
+  .records-topbar-brand { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+  .records-topbar-brand strong { color: #0f172a; font-size: 16px; line-height: 1; font-weight: 950; white-space: nowrap; }
+  .records-view-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .records-view-tabs::-webkit-scrollbar { display: none; }
+  .records-view-tabs a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,.08);
+    color: #334155;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .records-view-tabs a.is-active { background: #10251a; border-color: #10251a; color: #fff; }
+  .records-actions { display: flex; gap: 8px; }
+  .records-actions a {
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.1);
+    color: #0f172a;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 950;
+  }
+  .records-actions a.is-primary { background: #064e3b; border-color: #064e3b; color: #fff; font-size: 24px; line-height: 1; }
+  .records-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+    padding: 10px 14px 14px;
+  }
+  .records-grid-panel {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+  }
+  .records-workbench .notes-library-controls {
+    position: sticky;
+    top: 114px;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+    padding: 6px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,23,42,.06);
+    backdrop-filter: blur(14px);
+  }
+  .records-workbench .notes-library-grid {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  }
+  .records-workbench .notes-library-card,
+  .records-workbench .notes-library-card:nth-child(7n + 1) {
+    min-height: 176px;
+    aspect-ratio: 1 / 1.1;
+    grid-row: auto;
+    border-radius: 10px;
+  }
+  @media (max-width: 980px) {
+    .records-topbar {
+      top: 56px;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto;
+      min-height: 0;
+      gap: 6px;
+      padding: 6px 8px;
+    }
+    .records-topbar-brand { display: none; }
+    .records-view-tabs { min-width: 0; flex-wrap: nowrap; overflow-x: auto; }
+    .records-view-tabs a { min-height: 31px; padding: 0 10px; font-size: 12px; }
+    .records-actions { display: none; }
+    .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
+    .records-actions a.is-primary { font-size: 21px; }
+    .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
+    .records-workbench .notes-library-controls {
+      position: static;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 5px;
+      padding: 5px;
+    }
+    .records-workbench .notes-library-search { min-height: 36px; padding: 0 9px; }
+    .records-workbench .notes-library-search input { font-size: 13px; }
+    .records-workbench .notes-library-filter-label {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 11px;
+      border-radius: 999px;
+      background: #10251a;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .records-workbench .notes-library-filters {
+      grid-column: 1 / -1;
+      display: none;
+      gap: 5px;
+      padding-top: 1px;
+    }
+    .records-workbench .notes-library-filter-toggle:checked + .notes-library-filter-label + .notes-library-filters { display: flex; }
+    .records-workbench .notes-library-filters button { min-height: 31px; padding: 5px 9px; font-size: 11px; }
+  }
+  @media (max-width: 620px) {
+    .records-topbar-brand strong { font-size: 14px; }
+    .records-actions a { min-width: 34px; min-height: 34px; }
+    .records-workbench .notes-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  }
+`;
 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
@@ -9485,7 +9915,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 : '';
               const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
-              const notesHref = withBasePath('/notes');
+              const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
               setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">対象ごとの記録を確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
@@ -9857,12 +10287,65 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const url = new URL(String((request as unknown as { url?: string }).url ?? "/explore"), "https://ikimon.local");
     const lang = detectLangFromUrl(url.pathname + url.search);
-    return reply.redirect(appendLangToHref(withBasePath(basePath, `/observations${url.search}`), lang), 308);
+    url.searchParams.delete("lang");
+    const query = url.searchParams.toString();
+    return reply.redirect(appendLangToHref(withBasePath(basePath, `/records?view=public${query ? `&${query}` : ""}`), lang), 308);
+  });
+
+  app.get<{ Querystring: { view?: string; filter?: string } }>("/records", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const { viewerUserId } = resolveViewer(request.query, session);
+    const view = normalizeRecordsView(request.query.view, Boolean(viewerUserId));
+    const [snapshot, observationSnapshot] = await Promise.all([
+      getLandingSnapshot(viewerUserId),
+      getObservationListSnapshot(96).catch(() => ({
+        observations: [],
+        summary: {
+          shownCount: 0,
+          awaitingIdCount: 0,
+          identifiedCount: 0,
+          multiSubjectCount: 0,
+        },
+      } satisfies ObservationListSnapshot)),
+    ]);
+    const publicEntries = observationSnapshot.observations.map(publicObservationToLandingObservation);
+    const activeEntries = recordWorkbenchEntriesForView(view, snapshot.viewerUserId ? snapshot.myFeed : [], publicEntries);
+    const civicContexts = await listCivicObservationContexts(activeEntries.map((obs) => obs.visitId));
+    const copy = recordsWorkbenchCopy(lang);
+
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: copy.title,
+      activeNav: copy.activeNav,
+      lang,
+      currentPath: appendLangToHref(withBasePath(basePath, `/records?view=${view}`), lang),
+      shellClassName: "shell-bleed shell-records-workbench",
+      extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
+      hideFooter: true,
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts),
+      footerNote: notesLibraryCopy(lang).footerNote,
+    });
   });
 
   app.get<{ Querystring: { filter?: string } }>("/observations", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const rawUrl = String((request as unknown as { url?: string }).url ?? "");
+    const lang = detectLangFromUrl(rawUrl);
+    const url = new URL(rawUrl, "https://ikimon.local");
+    const targetView = request.query.filter === "needs_id" || request.query.filter === "ai" || request.query.filter === "no_id"
+      ? "needs_id"
+      : request.query.filter === "photo" || request.query.filter === "video"
+        ? "media"
+        : "public";
+    url.searchParams.delete("lang");
+    url.searchParams.delete("filter");
+    const query = url.searchParams.toString();
+    return reply.redirect(appendLangToHref(withBasePath(basePath, `/records?view=${targetView}${query ? `&${query}` : ""}`), lang), 308);
+    /*
+    Legacy observations index renderer: canonical surface moved to /records.
     const observationCopy = observationIndexCopy(lang);
     const session = await getSessionFromCookie(request.headers.cookie);
     const activeFilter = request.query.filter === "needs_id"
@@ -10496,6 +10979,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     }
     reply.type("text/html; charset=utf-8");
     return html;
+    */
   });
 
   app.get("/home", async (request, reply) => {
@@ -10607,8 +11091,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       withBasePath(
         basePath,
         snapshotDisplay.isAwaitingId
-          ? "/observations?filter=needs_id"
-          : `/observations?q=${encodeURIComponent(snapshotDisplay.primaryLabel)}`,
+          ? "/records?view=needs_id"
+          : `/records?view=public&q=${encodeURIComponent(snapshotDisplay.primaryLabel)}`,
       ),
       lang,
     );
@@ -10901,7 +11385,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       trustStageLabel,
       trustLead,
       aiCandidateLearningPanel,
-      originalRecordHref: appendLangToHref(withBasePath(basePath, "/notes"), lang),
+      originalRecordHref: appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang),
     });
     // 下部の「観察の要約」ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
@@ -11530,9 +12014,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       maxCards: 1,
     }).catch(() => null)))).filter((story): story is RegionalStoryCue => Boolean(story));
     const heroActions = [
-      { href: "/notes#notes-own", label: "記録ライブラリを開く" },
+      { href: "/records?view=mine", label: "記録を見る" },
       { href: "/guide/outcomes", label: "ガイド成果を見る", variant: "secondary" as const },
-      { href: "/notes#notes-places", label: "場所アルバムを見る", variant: "secondary" as const },
+      { href: "/records?view=places", label: "場所を見る", variant: "secondary" as const },
       { href: "/profile/settings", label: "プロフィール編集", variant: "secondary" as const },
       { href: "/logout", label: "ログアウト", variant: "secondary" as const },
     ];
@@ -12640,7 +13124,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   /* -------------------------------------------------------------- */
   app.get("/notes", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const rawUrl = String((request as unknown as { url?: string }).url ?? "");
+    const lang = detectLangFromUrl(rawUrl);
+    const url = new URL(rawUrl, "https://ikimon.local");
+    url.searchParams.delete("lang");
+    const query = url.searchParams.toString();
+    return reply.redirect(appendLangToHref(withBasePath(basePath, `/records?view=mine${query ? `&${query}` : ""}`), lang), 308);
+    /*
+    Legacy notes library renderer: canonical surface moved to /records.
     const copy = notesLibraryCopy(lang);
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
@@ -12710,6 +13201,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       </div>`,
       footerNote: copy.footerNote,
     });
+    */
   });
 
   /* -------------------------------------------------------------- */
@@ -12736,7 +13228,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         align: "center",
         actions: [
           { href: "/record", label: sharedCopy.cta.record },
-          { href: "/notes", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
+          { href: "/records?view=mine", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
         ],
       },
       body: `<section class="section">

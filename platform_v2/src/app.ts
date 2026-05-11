@@ -162,7 +162,7 @@ const QA_LANE_META: Record<RouteLane, { eyebrow: string; title: string; lead: st
   start: {
     eyebrow: "start",
     title: "Start / Core Journey",
-    lead: "トップから記録、地図、探索、記録ライブラリ、詳細へ進む主導線。",
+    lead: "トップから記録、地図、統合された記録ワークベンチ、詳細へ進む主導線。",
   },
   learn: {
     eyebrow: "learn",
@@ -206,7 +206,7 @@ function materializeQaHref(page: SitePageDefinition, options: PreviewContext): s
     return buildObserverProfileHref("", options.userId) ?? materializeSitePagePath(page, options);
   }
   if (page.path === "/observations/:id" && !options.visitId && !options.occurrenceId) {
-    return "/observations";
+    return "/records";
   }
   return materializeSitePagePath(page, options);
 }

@@ -736,7 +736,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
   const overlayLabels = overlayPanelLabels(lang);
-  const notesHref = appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang);
+  const notesHref = appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
@@ -1393,7 +1393,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   } catch (_) { YEAR_VALUES = []; }
   var OBSERVATION_HREF_TPL = ${JSON.stringify(observationHrefTpl)};
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
-  var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
+  var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
   var EVENTS_NEW_BASE = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events/new"), props.lang))};

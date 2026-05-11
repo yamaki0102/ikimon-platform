@@ -256,7 +256,7 @@ export function renderFieldNoteMain(
   const copy = mainCopy[lang];
   const isLoggedIn = Boolean(snapshot.viewerUserId);
   const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
-  const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
+  const notesHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
   const ctaHref = isLoggedIn ? notesHref : recordHref;
   const ctaLabel = isLoggedIn ? copy.ctaLoggedIn : copy.ctaGuest;
 
