@@ -1,7 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 import { getShortCopy } from "../content/index.js";
-import { appInstallCopy } from "../appInstall.js";
+import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, appInstallCopy } from "../appInstall.js";
 import {
   getSiteShellLayoutForPath,
   listPagesByLane,
@@ -2748,6 +2748,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       <button type="button" class="app-install-dismiss" data-app-install-dismiss aria-label="${escapeHtml(installCopy.dismissAction)}">${escapeHtml(installCopy.dismissAction)}</button>
     </div>
   </div>`;
+  const appLaunchScreenHtml = `<div class="app-launch-screen" data-app-launch-screen aria-hidden="true">
+    <div class="app-launch-mark">
+      <img src="/assets/img/icon-192-maskable-v2.png" alt="" loading="eager" decoding="async" />
+    </div>
+  </div>`;
   const languageSuggestionHtml = `<div class="language-suggestion" data-language-suggestion hidden>
     <div class="language-suggestion-copy">
       <strong data-language-suggestion-title></strong>
@@ -2765,6 +2770,18 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const mainClassName = ["shell", shellLayoutClassName, shellClassName].filter(Boolean).map(escapeHtml).join(" ");
   const shouldRenderFooter = false;
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
+  const appLaunchHeadScript = `<script>
+(function () {
+  try {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!standalone) return;
+    const storageKey = 'ikimon:app-launch-screen-shown-v1';
+    if (sessionStorage.getItem(storageKey) === '1') return;
+    sessionStorage.setItem(storageKey, '1');
+    document.documentElement.classList.add('is-app-launch-screen-eligible');
+  } catch (_) {}
+})();
+</script>`;
   const appOutboxHeadScript = `<script>
 (function () {
   if (window.ikimonAppOutbox) return;
@@ -3158,7 +3175,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#10b981" />
+  <meta name="theme-color" content="${APP_THEME_COLOR}" />
   <meta name="application-name" content="ikimon.life" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="ikimon" />
@@ -3182,12 +3199,13 @@ ${alternateLinks}
   <meta name="twitter:title" content="${escapeHtml(options.title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   ${options.structuredDataHtml ?? ""}
+  ${appLaunchHeadScript}
   ${appOutboxHeadScript}
   ${analyticsHeadScript}
   <style>
     :root {
       color-scheme: light;
-      --bg: #f9fffe;
+      --bg: ${APP_LAUNCH_BACKGROUND_COLOR};
       --surface: rgba(255,255,255,.92);
       --surface-strong: #ffffff;
       --border: rgba(0,0,0,.06);
@@ -3222,6 +3240,62 @@ ${alternateLinks}
       --ikimon-desktop-sidebar-w: 0px;
       --ikimon-shell-margin-left: auto;
       --ikimon-shell-margin-right: auto;
+    }
+    .app-launch-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      display: none;
+      place-items: center;
+      padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+      background:
+        radial-gradient(circle at 50% 44%, rgba(255,255,255,.82), rgba(255,255,255,0) 32%),
+        ${APP_LAUNCH_BACKGROUND_COLOR};
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+    }
+    .app-launch-mark {
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      border-radius: 22px;
+      background: rgba(255,255,255,.7);
+      box-shadow: 0 18px 42px rgba(15,23,42,.08), inset 0 0 0 1px rgba(255,255,255,.74);
+    }
+    .app-launch-mark img {
+      width: 48px;
+      height: 48px;
+      display: block;
+      object-fit: contain;
+      opacity: .86;
+    }
+    .is-app-launch-screen-eligible .app-launch-screen {
+      display: grid;
+      animation: appLaunchScreenFade .86s ease-out both;
+    }
+    .is-app-launch-screen-eligible .app-launch-mark {
+      animation: appLaunchMarkBreath .86s ease-out both;
+    }
+    @keyframes appLaunchScreenFade {
+      0%, 64% { opacity: 1; visibility: visible; }
+      100% { opacity: 0; visibility: hidden; }
+    }
+    @keyframes appLaunchMarkBreath {
+      0% { opacity: .72; transform: scale(.985); }
+      38% { opacity: .9; transform: scale(1.012); }
+      100% { opacity: 0; transform: scale(.992); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .is-app-launch-screen-eligible .app-launch-screen,
+      .is-app-launch-screen-eligible .app-launch-mark {
+        animation: none !important;
+      }
+      .is-app-launch-screen-eligible .app-launch-screen {
+        opacity: 0;
+        visibility: hidden;
+      }
     }
     .detail-card { background: var(--surface-strong); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--space-card); }
     .detail-card + .detail-card { margin-top: 14px; }
@@ -5779,6 +5853,7 @@ ${alternateLinks}
 </head>
 <body>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
+  ${appLaunchScreenHtml}
   ${languageSuggestionHtml}
   ${installPromptHtml}
   <div class="${siteShellClassName}">

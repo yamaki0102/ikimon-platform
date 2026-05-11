@@ -16,6 +16,9 @@ type AppInstallCopy = {
   retry: string;
 };
 
+export const APP_LAUNCH_BACKGROUND_COLOR = "#f5fbf7";
+export const APP_THEME_COLOR = "#d8efe3";
+
 export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   ja: {
     name: "ikimon.life",
@@ -94,8 +97,8 @@ export function buildWebManifest(lang: SiteLang): Record<string, unknown> {
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui", "browser"],
-    background_color: "#f9fffe",
-    theme_color: "#10b981",
+    background_color: APP_LAUNCH_BACKGROUND_COLOR,
+    theme_color: APP_THEME_COLOR,
     description: copy.description,
     lang,
     dir: "ltr",
@@ -124,10 +127,10 @@ export function buildOfflineHtml(lang: SiteLang): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#10b981" />
+  <meta name="theme-color" content="${APP_THEME_COLOR}" />
   <title>${copy.offlineTitle} | ikimon.life</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f9fffe;color:#0f172a}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#475569;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:8px;border:1px solid rgba(15,23,42,.1);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#064e3b;background:#fff}.retry{background:#10b981;color:#fff;border:0;font:inherit;cursor:pointer}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:${APP_LAUNCH_BACKGROUND_COLOR};color:#0f172a}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#475569;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:8px;border:1px solid rgba(15,23,42,.1);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#064e3b;background:#fff}.retry{background:#10b981;color:#fff;border:0;font:inherit;cursor:pointer}
   </style>
 </head>
 <body>
@@ -165,6 +168,7 @@ const STATIC_ASSETS = [
   OFFLINE_URLS.es,
   OFFLINE_URLS['pt-br'],
   '/assets/img/icon-192-v2.png',
+  '/assets/img/icon-192-maskable-v2.png',
   '/assets/img/icon-512-v2.png',
   '/assets/img/favicon-32.png'
 ];
