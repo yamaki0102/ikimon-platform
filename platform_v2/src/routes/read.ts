@@ -4628,52 +4628,35 @@ function renderHomeChannelDashboard(basePath: string, snapshot: HomeSnapshot): s
   const latest = snapshot.recentObservations[0] ?? null;
   const firstPlace = snapshot.myPlaces[0] ?? null;
   const secondPlace = snapshot.myPlaces[1] ?? null;
+  const latestHref = latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record");
+  const placeHref = withBasePath(basePath, isPersonalHome && (secondPlace || firstPlace) ? "/records?view=places" : "/map");
+  const placeTitle = secondPlace?.placeName ?? firstPlace?.placeName ?? (isPersonalHome ? "地図から探す" : "近くの発見を見る");
+  const placeBody = secondPlace
+    ? buildPlaceNextLine(secondPlace)
+    : firstPlace
+      ? buildPlaceNextLine(firstPlace)
+      : isPersonalHome
+        ? "近くの発見から、次に歩く場所を選ぶ"
+        : "地域の記録から、最初に歩く場所を決める";
   return `<section class="section" data-testid="home-channel">
-    <div class="profile-channel-grid">
-      ${renderChannelMediaCard(
-        withBasePath(basePath, isPersonalHome ? (firstPlace ? "/records?view=places" : "/map") : "/record"),
-        isPersonalHome ? "自分のフィールド" : "今日の入口",
-        firstPlace?.placeName ?? (isPersonalHome ? "これから歩く場所" : "最初の記録を残す"),
-        firstPlace
-          ? buildPlaceNextLine(firstPlace)
-          : isPersonalHome
-            ? "最初の記録を残すと、ここが自分のフィールドになります。"
-            : "写真、場所、ひとことを残すと、あとから見返せる記録ライブラリが始まります。",
-        latest?.photoUrl,
-        isPersonalHome ? "場所" : "記録",
-      )}
-      ${renderChannelMediaCard(
-        latest ? profileObservationHref(basePath, latest) : withBasePath(basePath, "/record"),
-        "最近見た自然",
-        latest?.displayName ?? "今日の発見を待っています",
-        latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "写真とひとことで、あとから見返せるページを作れます。",
-        latest?.photoUrl,
-        "発見",
-      )}
-      ${renderChannelMediaCard(
-        withBasePath(basePath, isPersonalHome && (secondPlace || firstPlace) ? "/records?view=places" : "/map"),
-        isPersonalHome ? "次に行く場所" : "歩く場所を探す",
-        secondPlace?.placeName ?? firstPlace?.placeName ?? (isPersonalHome ? "地図から探す" : "近くの発見を見る"),
-        secondPlace
-          ? buildPlaceNextLine(secondPlace)
-          : firstPlace
-            ? buildPlaceNextLine(firstPlace)
-            : isPersonalHome
-              ? "近くの発見から、次に歩く場所を選べます。"
-              : "地域の記録を見ると、最初に歩く場所を決めやすくなります。",
-        null,
-        "地図",
-      )}
-      ${renderChannelMediaCard(
-        withBasePath(basePath, "/records?view=mine"),
-        isPersonalHome ? "自分の図鑑" : "記録の使い道",
-        latest ? `${latest.displayName} から広げる` : isPersonalHome ? "まだ空の図鑑" : "記録が育つ場所",
-        isPersonalHome
-          ? "数を競う場所ではなく、自分が自然とどう関わってきたかを読み返す場所です。"
-          : "1件ずつ残すほど、よく行く場所、見つけたもの、次に確かめたいことがまとまります。",
-        latest?.photoUrl,
-        "記録",
-      )}
+    <div class="home-workbench" aria-label="${escapeHtml(isPersonalHome ? "マイページ操作" : "はじめる操作")}">
+      <div class="home-action-grid">
+        <a class="home-action-card is-primary" href="${escapeHtml(withBasePath(basePath, "/record"))}">
+          <span>記録する</span>
+          <strong>${escapeHtml(firstPlace?.placeName ?? "いま見つけたもの")}</strong>
+          <em>${escapeHtml(firstPlace ? "同じ場所で次の観察を残す" : "写真と場所を残す")}</em>
+        </a>
+        <a class="home-action-card" href="${escapeHtml(latestHref)}">
+          <span>前回を見る</span>
+          <strong>${escapeHtml(latest?.displayName ?? "まだ記録はありません")}</strong>
+          <em>${escapeHtml(latest ? `${formatProfileDate(latest.observedAt)} · ${latest.placeName}` : "最初の記録を作る")}</em>
+        </a>
+        <a class="home-action-card" href="${escapeHtml(placeHref)}">
+          <span>${escapeHtml(isPersonalHome ? "次に行く" : "場所を探す")}</span>
+          <strong>${escapeHtml(placeTitle)}</strong>
+          <em>${escapeHtml(placeBody)}</em>
+        </a>
+      </div>
     </div>
   </section>`;
 }
@@ -4705,7 +4688,7 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
       longitude: null,
       observerUserId: null,
       observerAvatarUrl: null,
-    }, { locationMode: "public", showSpecialistCta }),
+    }, { locationMode: "public", showSpecialistCta, compact: true }),
   ).join("");
   const myPlaces = renderPlaceRows(
     basePath,
@@ -4714,93 +4697,42 @@ export function renderHomePageHtml(basePath: string, lang: SiteLang, snapshot: H
     snapshot.myPlaces,
     "まだ記録した場所はありません。",
   );
-  const isPersonalHome = Boolean(snapshot.viewerUserId);
-  const revisitCue = snapshot.myPlaces[0]
-    ? `${snapshot.myPlaces[0].placeName} · ${buildPlaceCompareLine(snapshot.myPlaces[0])} · ${buildPlaceNextLine(snapshot.myPlaces[0])}。`
-    : "まず1つ記録を残すと、場所ごとの再訪理由が育ち始めます。";
-  const growthCue = snapshot.recentObservations[0]
-    ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
-    : "観察履歴がたまるほど、前回から増えた場所・時間・周囲の手がかりを読み返しやすくなります。";
-  const homeHero = isPersonalHome
-    ? {
-        eyebrow: "観察ホーム",
-        heading: "次に見る場所と、最近の記録",
-        lead: "よく歩く場所、前回からの気づき、最近の観察をここからすぐ開けます。",
-        actions: [
-          { href: "/record", label: "記録する" },
-          { href: "/records?view=mine", label: "記録を見る", variant: "secondary" as const },
-        ],
-      }
-    : {
-        eyebrow: "はじめるホーム",
-        heading: "最初の記録から始める",
-        lead: "写真、場所、ひとことを残すだけで、次に見返せるホームが育ち始めます。",
-        actions: [
-          { href: "/record", label: "記録する" },
-          { href: "/login?redirect=/home", label: "ログインして続きから", variant: "secondary" as const },
-        ],
-      };
-  const progressCards = isPersonalHome
-    ? `
-            <div class="profile-growth-card"><span>今回の学び</span><strong>前回より見えた点</strong><p>${escapeHtml(growthCue)}</p></div>
-            <div class="profile-growth-card"><span>また行く理由</span><strong>次に訪れる場所</strong><p>${escapeHtml(revisitCue)}</p></div>
-            <div class="profile-growth-card"><span>積み上がる意味</span><strong>長く残る観察</strong><p>今日の記録は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div>`
-    : `
-            <div class="profile-growth-card"><span>1. 残す</span><strong>写真と場所を記録に</strong><p>名前が分からなくても大丈夫です。場所とひとことが、あとで思い出せる手がかりになります。</p></div>
-            <div class="profile-growth-card"><span>2. 育つ</span><strong>よく歩く場所が見える</strong><p>記録が増えるほど、自分がどこで何を見てきたかがホームにまとまります。</p></div>
-            <div class="profile-growth-card"><span>3. 戻る</span><strong>次に確かめることが残る</strong><p>前回との違い、また行く理由、見分けたい点を読み返して次の観察へ進めます。</p></div>`;
-
   return layout(
     basePath,
     "ホーム | ikimon",
     `${renderHomeChannelDashboard(basePath, snapshot)}
-      <section class="section">
-        <div class="profile-growth-shell">
-          <div class="profile-growth-grid">
-${progressCards}
-          </div>
-        </div>
-      </section>
-      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces}</div></section>` : ""}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察レコード</h2></div></div><div class="home-grid">${cards}</div></section>`,
+      <section class="section"><div class="section-header"><div><div class="eyebrow">記録</div><h2>最近の観察</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=mine"))}">すべて見る</a></div><div class="home-grid">${cards}</div></section>
+      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">場所</div><h2>再訪したい場所</h2></div><a class="section-link" href="${escapeHtml(withBasePath(basePath, "/records?view=places"))}">場所を見る</a></div><div class="list">${myPlaces}</div></section>` : ""}`,
     "ホーム",
-    homeHero,
+    undefined,
     `${OBSERVATION_CARD_STYLES}
-        .hero-panel { min-height: 0; padding: 22px 24px 20px; border-radius: 18px; }
-        .hero-panel h1 { font-size: clamp(28px, 3vw, 42px); line-height: 1.16; max-width: 20ch; }
-        .hero-panel p { margin-top: 10px; max-width: 46ch; font-size: 15px; line-height: 1.7; }
-        .hero-panel .actions { margin-top: 14px; }
-        .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-        ${PROFILE_CHANNEL_STYLES}
-        .profile-channel-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .profile-channel-card,
-        .profile-channel-card:first-child { min-height: 214px; grid-template-rows: 108px auto; }
-        .profile-channel-media,
-        .profile-channel-media img,
-        .profile-channel-media > span { min-height: 108px; }
-        .profile-channel-body { padding: 12px; }
-        .profile-channel-body strong { font-size: 16px; }
-        .profile-growth-shell { min-width: 0; display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(16,185,129,.16); background: rgba(255,255,255,.84); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
-        .profile-growth-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-        .profile-growth-card { min-width: 0; min-height: 132px; padding: 15px; border-radius: 8px; border: 1px solid rgba(16,185,129,.13); background: rgba(248,250,252,.82); overflow-wrap: anywhere; }
-        .profile-growth-card span { display: block; color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
-        .profile-growth-card strong { display: block; margin-top: 8px; color: #10251a; font-size: 20px; line-height: 1.2; font-weight: 950; }
-        .profile-growth-card p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
+        .home-workbench { min-width: 0; }
+        .home-action-grid { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .home-action-card { min-width: 0; min-height: 118px; display: grid; align-content: start; gap: 7px; padding: 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: rgba(255,255,255,.92); box-shadow: 0 10px 24px rgba(15,23,42,.045); color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+        .home-action-card:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(15,23,42,.075); }
+        .home-action-card span { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; }
+        .home-action-card strong { color: #10251a; font-size: 16px; line-height: 1.35; font-weight: 950; }
+        .home-action-card em { color: #64748b; font-size: 12px; line-height: 1.55; font-style: normal; font-weight: 720; }
+        .home-action-card.is-primary { background: #10251a; border-color: #10251a; color: #fff; }
+        .home-action-card.is-primary span,
+        .home-action-card.is-primary strong,
+        .home-action-card.is-primary em { color: #fff; }
+        .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; align-items: start; }
+        .home-grid .obs-card { border-radius: 8px; box-shadow: 0 8px 20px rgba(15,23,42,.045); }
+        .home-grid .obs-card:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15,23,42,.075); }
+        .home-grid .obs-card-media { aspect-ratio: 16 / 10; }
+        .home-grid .obs-card-meta { padding: 10px 12px 12px; }
+        .home-grid .obs-card-place { -webkit-line-clamp: 1; }
+        .home-grid .obs-card-actions { display: none; }
         @media (max-width: 980px) {
-          .profile-channel-grid,
-          .profile-growth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .home-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 620px) {
-          .hero-panel { padding: 42px 20px 34px; border-radius: 0; }
-          .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); max-width: 16ch; }
-          .profile-channel-grid,
-          .profile-growth-grid { grid-template-columns: 1fr; }
-          .profile-channel-card,
-          .profile-channel-card:first-child { min-height: 220px; grid-template-rows: minmax(132px, 1fr) auto; }
-          .profile-channel-media,
-          .profile-channel-media img,
-          .profile-channel-media > span { min-height: 132px; }
-          .profile-growth-shell { padding: 16px; }
+          .home-action-grid { grid-template-columns: 1fr; }
+          .home-action-card { min-height: 98px; }
+          .home-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
+          .home-grid .obs-card-attribution { font-size: 12px; }
+          .home-grid .obs-card-when { display: none; }
         }
         ${PLACE_REVISIT_ROW_STYLES}
       `,
