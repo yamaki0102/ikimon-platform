@@ -1009,7 +1009,8 @@ export function buildLandingTopShelves(
     photoUrl: item.photoUrl,
   }));
   const personalGuideCandidates = extraCandidates.filter(isGuideRecordTopItem);
-  const candidates = uniqueLandingTopItemList([...observationCandidates, ...extraCandidates]);
+  const sharedExtraCandidates = extraCandidates.filter((item) => !isGuideRecordTopItem(item));
+  const candidates = uniqueLandingTopItemList([...observationCandidates, ...sharedExtraCandidates]);
   const state: LandingTopSelectionState = {
     globalUserCounts: new Map<string, number>(),
   };

@@ -334,9 +334,12 @@ test("landing top uses a separate personal guide shelf when guide records exist"
   });
 
   const guideShelf = shelves.find((shelf) => shelf.kind === "guide");
+  const todayShelf = shelves.find((shelf) => shelf.kind === "today");
   assert.ok(guideShelf);
+  assert.ok(todayShelf);
   assert.equal(guideShelf.title, "自分のガイド成果");
   assert.equal(guideShelf.eyebrow, "MY GUIDE");
   assert.equal(guideShelf.href, "/guide/outcomes");
   assert.deepEqual(guideShelf.items.map((item) => "guideRecordId" in item ? item.guideRecordId : item.occurrenceId), [ownGuideItem.guideRecordId]);
+  assert.equal(todayShelf.items.some((item) => "guideRecordId" in item && item.guideRecordId === ownGuideItem.guideRecordId), false);
 });
