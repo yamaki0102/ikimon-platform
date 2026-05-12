@@ -164,6 +164,12 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /location_provenance: recordLocationProvenance/);
         assert.match(response.body, /photo_exif_gps/);
         assert.match(response.body, /browser_geolocation/);
+        assert.match(response.body, /PHOTO_EXIF_READ_MAX_BYTES = 8 \* 1024 \* 1024/);
+        assert.match(response.body, /parseImageExif/);
+        assert.match(response.body, /parseHeifExif/);
+        assert.match(response.body, /geolocation_denied/);
+        assert.match(response.body, /geolocation_timeout/);
+        assert.match(response.body, /currentLocationAttempts/);
         assert.doesNotMatch(response.body, /prefecture: 'Shizuoka'/);
         assert.match(response.body, /normalizeDraftMetadata/);
         assert.match(response.body, /createTrimmedVideoFile/);
@@ -171,7 +177,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /const scheduleMediaAutofill = \(file, metadata, opts\) =>/);
         assert.match(response.body, /requestAnimationFrame\(\(\) =>/);
         assert.match(response.body, /timeout: 2500/);
-        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \}\)/);
+        assert.match(response.body, /scheduleMediaAutofill\(normalized\.photos\[0\] \|\| null, \{\}, \{ autoLocateFreshCapture: kind === 'photo' \|\| kind === 'gallery' \}\)/);
         assert.doesNotMatch(response.body, /await applyMediaAutofill\(normalized\.photos\[0\] \|\| null/);
       } finally {
         await app.close();

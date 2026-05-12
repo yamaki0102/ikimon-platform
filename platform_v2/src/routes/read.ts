@@ -7370,6 +7370,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+        const PHOTO_EXIF_READ_MAX_BYTES = 8 * 1024 * 1024;
+        const FRESH_MEDIA_LOCATION_WINDOW_MS = 10 * 60 * 1000;
         const MAX_VIDEO_BASIC_POST_BYTES = 200000000;
         const MAX_VIDEO_TUS_BYTES = 1024 * 1024 * 1024;
         const TUS_CHUNK_BYTES = 8 * 1024 * 1024;
@@ -7594,7 +7596,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const firstMedia = firstSelectedMediaFile();
           const baseTime = capturedAt || (firstMedia && firstMedia.lastModified ? new Date(firstMedia.lastModified) : null);
           if (!baseTime || Number.isNaN(baseTime.getTime())) return selectedCaptureKind === 'photo';
-          return Math.abs(Date.now() - baseTime.getTime()) <= 10 * 60 * 1000;
+          return Math.abs(Date.now() - baseTime.getTime()) <= FRESH_MEDIA_LOCATION_WINDOW_MS;
         };
 
         const syncLocationNudge = () => {
@@ -7825,33 +7827,195 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         };
 
         const parseJpegExif = async (file) => {
-          if (!file || !isImageFile(file)) return {};
-          const type = String(file.type || '').toLowerCase();
-          if (type && type !== 'image/jpeg' && type !== 'image/jpg' && !/\\.jpe?g$/i.test(String(file.name || ''))) {
-            return {};
-          }
-          const buffer = await file.slice(0, Math.min(file.size || 0, 512 * 1024)).arrayBuffer();
+          if (!file || !isJpegFile(file)) return {};
+          const buffer = await file.slice(0, Math.min(file.size || 0, PHOTO_EXIF_READ_MAX_BYTES)).arrayBuffer();
           const view = new DataView(buffer);
           if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return {};
           let offset = 2;
           while (offset + 4 <= view.byteLength) {
             if (view.getUint8(offset) !== 0xff) break;
-            const marker = view.getUint8(offset + 1);
-            const segmentLength = view.getUint16(offset + 2, false);
-            if (segmentLength < 2 || offset + 2 + segmentLength > view.byteLength) break;
+            let markerOffset = offset + 1;
+            while (markerOffset < view.byteLength && view.getUint8(markerOffset) === 0xff) markerOffset += 1;
+            if (markerOffset >= view.byteLength) break;
+            const marker = view.getUint8(markerOffset);
+            if (marker === 0xda || marker === 0xd9) break;
+            if ((marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+              offset = markerOffset + 1;
+              continue;
+            }
+            const lengthOffset = markerOffset + 1;
+            if (lengthOffset + 2 > view.byteLength) break;
+            const segmentLength = view.getUint16(lengthOffset, false);
+            const segmentStart = lengthOffset + 2;
+            const segmentEnd = lengthOffset + segmentLength;
+            if (segmentLength < 2 || segmentEnd > view.byteLength) break;
             if (marker === 0xe1 && segmentLength >= 8) {
               const exifHeader = String.fromCharCode(
-                view.getUint8(offset + 4),
-                view.getUint8(offset + 5),
-                view.getUint8(offset + 6),
-                view.getUint8(offset + 7),
+                view.getUint8(segmentStart),
+                view.getUint8(segmentStart + 1),
+                view.getUint8(segmentStart + 2),
+                view.getUint8(segmentStart + 3),
               );
               if (exifHeader === 'Exif') {
-                return readExifTiff(view, offset + 10);
+                return readExifTiff(view, segmentStart + 6);
               }
             }
-            offset += 2 + segmentLength;
+            offset = segmentEnd;
           }
+          return {};
+        };
+
+        const readFourCc = (view, start) => {
+          if (start < 0 || start + 4 > view.byteLength) return '';
+          return String.fromCharCode(
+            view.getUint8(start),
+            view.getUint8(start + 1),
+            view.getUint8(start + 2),
+            view.getUint8(start + 3),
+          );
+        };
+
+        const readVariableUint = (view, start, size) => {
+          if (!size) return 0;
+          if (start < 0 || start + size > view.byteLength) return null;
+          let value = 0;
+          for (let i = 0; i < size; i += 1) value = value * 256 + view.getUint8(start + i);
+          return value;
+        };
+
+        const walkIsoBoxes = (view, start, end, visitor) => {
+          let offset = Math.max(0, start);
+          const limit = Math.min(view.byteLength, end);
+          while (offset + 8 <= limit) {
+            let boxSize = view.getUint32(offset, false);
+            const type = readFourCc(view, offset + 4);
+            let headerSize = 8;
+            if (boxSize === 1) {
+              if (offset + 16 > limit) break;
+              boxSize = view.getUint32(offset + 8, false) * 4294967296 + view.getUint32(offset + 12, false);
+              headerSize = 16;
+            } else if (boxSize === 0) {
+              boxSize = limit - offset;
+            }
+            if (!boxSize || boxSize < headerSize || offset + boxSize > limit) break;
+            visitor({
+              type,
+              start: offset,
+              contentStart: offset + headerSize,
+              end: offset + boxSize,
+            });
+            offset += boxSize;
+          }
+        };
+
+        const findTiffStart = (view, start, end) => {
+          const limit = Math.min(view.byteLength, end);
+          for (let offset = Math.max(0, start); offset + 4 <= limit; offset += 1) {
+            const byteOrder = view.getUint16(offset, false);
+            if ((byteOrder === 0x4949 || byteOrder === 0x4d4d) && view.getUint16(offset + 2, byteOrder === 0x4949) === 42) {
+              return offset;
+            }
+          }
+          return null;
+        };
+
+        const parseHeifExif = async (file) => {
+          if (!file || !isHeifFile(file)) return {};
+          const buffer = await file.arrayBuffer();
+          const view = new DataView(buffer);
+          const exifItemIds = new Set();
+          const itemExtents = new Map();
+
+          const parseIinf = (start, end) => {
+            if (start + 6 > end) return;
+            const version = view.getUint8(start);
+            let cursor = start + 4;
+            const entryCount = version === 0 ? view.getUint16(cursor, false) : view.getUint32(cursor, false);
+            cursor += version === 0 ? 2 : 4;
+            walkIsoBoxes(view, cursor, end, (box) => {
+              if (box.type !== 'infe' || box.contentStart + 12 > box.end) return;
+              const itemInfoVersion = view.getUint8(box.contentStart);
+              if (itemInfoVersion < 2) return;
+              let itemCursor = box.contentStart + 4;
+              const itemId = itemInfoVersion >= 3 ? view.getUint32(itemCursor, false) : view.getUint16(itemCursor, false);
+              itemCursor += itemInfoVersion >= 3 ? 4 : 2;
+              itemCursor += 2;
+              if (readFourCc(view, itemCursor) === 'Exif') exifItemIds.add(itemId);
+            });
+            void entryCount;
+          };
+
+          const parseIloc = (start, end) => {
+            if (start + 8 > end) return;
+            const version = view.getUint8(start);
+            let cursor = start + 4;
+            const sizeByte = view.getUint8(cursor);
+            const offsetSize = sizeByte >> 4;
+            const lengthSize = sizeByte & 0x0f;
+            cursor += 1;
+            const baseByte = view.getUint8(cursor);
+            const baseOffsetSize = baseByte >> 4;
+            const indexSize = version === 1 || version === 2 ? baseByte & 0x0f : 0;
+            cursor += 1;
+            const itemCount = version < 2 ? view.getUint16(cursor, false) : view.getUint32(cursor, false);
+            cursor += version < 2 ? 2 : 4;
+            for (let i = 0; i < itemCount && cursor < end; i += 1) {
+              const itemId = version < 2 ? view.getUint16(cursor, false) : view.getUint32(cursor, false);
+              cursor += version < 2 ? 2 : 4;
+              let constructionMethod = 0;
+              if (version === 1 || version === 2) {
+                constructionMethod = view.getUint16(cursor, false) & 0x0fff;
+                cursor += 2;
+              }
+              cursor += 2;
+              const baseOffset = readVariableUint(view, cursor, baseOffsetSize);
+              cursor += baseOffsetSize;
+              if (baseOffset === null || cursor + 2 > end) return;
+              const extentCount = view.getUint16(cursor, false);
+              cursor += 2;
+              const extents = [];
+              for (let j = 0; j < extentCount && cursor < end; j += 1) {
+                if (indexSize) cursor += indexSize;
+                const extentOffset = readVariableUint(view, cursor, offsetSize);
+                cursor += offsetSize;
+                const extentLength = readVariableUint(view, cursor, lengthSize);
+                cursor += lengthSize;
+                if (constructionMethod === 0 && extentOffset !== null && extentLength !== null) {
+                  extents.push({ offset: baseOffset + extentOffset, length: extentLength });
+                }
+              }
+              if (extents.length) itemExtents.set(itemId, extents);
+            }
+          };
+
+          const parseMeta = (start, end) => {
+            if (start + 4 > end) return;
+            walkIsoBoxes(view, start + 4, end, (box) => {
+              if (box.type === 'iinf') parseIinf(box.contentStart, box.end);
+              if (box.type === 'iloc') parseIloc(box.contentStart, box.end);
+            });
+          };
+
+          walkIsoBoxes(view, 0, view.byteLength, (box) => {
+            if (box.type === 'meta') parseMeta(box.contentStart, box.end);
+          });
+
+          for (const itemId of exifItemIds) {
+            const extents = itemExtents.get(itemId) || [];
+            for (const extent of extents) {
+              const start = Number(extent.offset);
+              const end = Number(extent.length) > 0 ? start + Number(extent.length) : view.byteLength;
+              if (!Number.isFinite(start) || start < 0 || start >= view.byteLength) continue;
+              const tiffStart = findTiffStart(view, start, Math.min(end, view.byteLength));
+              if (tiffStart !== null) return readExifTiff(view, tiffStart);
+            }
+          }
+          return {};
+        };
+
+        const parseImageExif = async (file) => {
+          if (isJpegFile(file)) return parseJpegExif(file);
+          if (isHeifFile(file)) return parseHeifExif(file);
           return {};
         };
 
@@ -7930,37 +8094,91 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           };
         };
 
+        const normalizeGeolocationError = (error) => {
+          const code = error && typeof error === 'object' && 'code' in error ? Number(error.code) : 0;
+          const message = code === 1
+            ? 'geolocation_denied'
+            : code === 2
+              ? 'geolocation_position_unavailable'
+              : code === 3
+                ? 'geolocation_timeout'
+                : error instanceof Error && error.message ? error.message : 'geolocation_failed';
+          const normalized = new Error(message);
+          normalized.geolocationCode = code;
+          return normalized;
+        };
+
+        const isGeolocationDenied = (error) =>
+          Boolean(error && (error.geolocationCode === 1 || error.message === 'geolocation_denied'));
+
+        const geolocationFailureMessage = (error) => {
+          const message = error && error.message ? error.message : 'geolocation_failed';
+          if (message === 'geolocation_denied') return '位置情報の利用が拒否されています。ブラウザまたはOSのサイト設定で ikimon.life の位置情報を許可してから、もう一度押してください。';
+          if (message === 'geolocation_timeout') return '位置情報の取得が時間切れになりました。屋外や窓際で少し待ってからもう一度押すか、座標を手動で入力してください。';
+          if (message === 'geolocation_insecure_context') return '位置情報はHTTPSで開いたページだけ使えます。https://ikimon.life/record を開き直してください。';
+          if (message === 'geolocation_unavailable') return 'このブラウザでは位置情報を利用できません。別のブラウザで開くか、座標を手動で入力してください。';
+          return '位置情報の取得に失敗しました。ブラウザまたはOSの位置情報設定を確認するか、座標を手動で入力してください。';
+        };
+
+        const normalizedPositionOptions = (options) => ({
+          enableHighAccuracy: options && Object.prototype.hasOwnProperty.call(options, 'enableHighAccuracy') ? Boolean(options.enableHighAccuracy) : true,
+          maximumAge: options && Number.isFinite(Number(options.maximumAge)) ? Number(options.maximumAge) : 30000,
+          timeout: options && Number.isFinite(Number(options.timeout)) ? Number(options.timeout) : 10000,
+        });
+
         const readCurrentPosition = (options) => new Promise((resolve, reject) => {
+          if (window.isSecureContext === false) {
+            reject(new Error('geolocation_insecure_context'));
+            return;
+          }
           if (!navigator.geolocation) {
             reject(new Error('geolocation_unavailable'));
             return;
           }
           navigator.geolocation.getCurrentPosition(
             (position) => resolve(position),
-            () => reject(new Error('geolocation_failed')),
-            {
-              enableHighAccuracy: options && Object.prototype.hasOwnProperty.call(options, 'enableHighAccuracy') ? Boolean(options.enableHighAccuracy) : true,
-              maximumAge: options && Number.isFinite(Number(options.maximumAge)) ? Number(options.maximumAge) : 30000,
-              timeout: options && Number.isFinite(Number(options.timeout)) ? Number(options.timeout) : 10000,
-            },
+            (error) => reject(normalizeGeolocationError(error)),
+            normalizedPositionOptions(options),
           );
         });
+
+        const currentLocationAttempts = (options) => {
+          if (options && Array.isArray(options.attempts) && options.attempts.length) return options.attempts;
+          const hasExplicitPositionOptions = options && (
+            Object.prototype.hasOwnProperty.call(options, 'enableHighAccuracy') ||
+            Object.prototype.hasOwnProperty.call(options, 'maximumAge') ||
+            Object.prototype.hasOwnProperty.call(options, 'timeout')
+          );
+          if (hasExplicitPositionOptions) return [options];
+          return [
+            { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+            { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 12000 },
+          ];
+        };
 
         const applyCurrentLocation = async (sourceLabel, silent, options) => {
           if (!form) return false;
           locateButtons.forEach((button) => { button.disabled = true; });
+          let lastError = null;
           try {
-            const position = await readCurrentPosition(options);
-            if (options && typeof options.guard === 'function' && !options.guard()) return false;
-            setRecordLocation(position.coords.latitude, position.coords.longitude, sourceLabel, {
-              zoom: 16,
-              source: 'browser_geolocation',
-              accuracyM: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
-              positionTimestamp: Number.isFinite(position.timestamp) ? new Date(position.timestamp).toISOString() : null,
-            });
-            return true;
-          } catch (_) {
-            if (!silent) alert('位置情報の取得に失敗しました。手動で入力してください。');
+            const attempts = currentLocationAttempts(options);
+            for (const attempt of attempts) {
+              try {
+                const position = await readCurrentPosition(attempt);
+                if (options && typeof options.guard === 'function' && !options.guard()) return false;
+                setRecordLocation(position.coords.latitude, position.coords.longitude, sourceLabel, {
+                  zoom: 16,
+                  source: 'browser_geolocation',
+                  accuracyM: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+                  positionTimestamp: Number.isFinite(position.timestamp) ? new Date(position.timestamp).toISOString() : null,
+                });
+                return true;
+              } catch (error) {
+                lastError = normalizeGeolocationError(error);
+                if (isGeolocationDenied(lastError)) break;
+              }
+            }
+            if (!silent) alert(geolocationFailureMessage(lastError));
             return false;
           } finally {
             locateButtons.forEach((button) => { button.disabled = false; });
@@ -7977,7 +8195,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const draftMetadata = normalizeDraftMetadata(metadata);
           let exif = {};
           try {
-            exif = await parseJpegExif(file);
+            exif = await parseImageExif(file);
           } catch (_) {
             exif = {};
           }
@@ -8125,6 +8343,18 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           const type = String(file.type || '').toLowerCase();
           if (type.startsWith('image/')) return true;
           return /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(String(file.name || ''));
+        };
+
+        const isJpegFile = (file) => {
+          if (!file) return false;
+          const type = String(file.type || '').toLowerCase();
+          return type === 'image/jpeg' || type === 'image/jpg' || /\.jpe?g$/i.test(String(file.name || ''));
+        };
+
+        const isHeifFile = (file) => {
+          if (!file) return false;
+          const type = String(file.type || '').toLowerCase();
+          return type === 'image/heic' || type === 'image/heif' || /\.(heic|heif)$/i.test(String(file.name || ''));
         };
 
         const resetVideoProgress = () => {
@@ -9101,7 +9331,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           if (!normalized.video) {
             resetVideoTrim();
             resetVideoProgress();
-            scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' });
+            scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
           } else if (videoProgressWrap) {
             scheduleMediaAutofill(firstAutofillFile, metadata, { autoLocateFreshCapture: kind === 'video' });
             let trimReady = true;
@@ -9324,7 +9554,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               renderPreviewSelection();
               resetVideoProgress();
               resetVideoTrim();
-              scheduleMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' });
+              scheduleMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
             } else if (videoProgressWrap) {
               setSelectedMediaRole(kind === 'video' ? 'sound_motion' : 'primary_subject');
               showRecordFormForMedia(files, kind);
