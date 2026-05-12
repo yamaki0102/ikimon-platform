@@ -1,3 +1,5 @@
+-- destructive-ok: scoped AI assessment backfill only; rollback by restoring affected occurrence columns from the pre-deploy DB snapshot or by clearing rows marked source=migration_0103_existing_assessment.
+
 CREATE TABLE IF NOT EXISTS observation_record_ai_reviews (
     review_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     occurrence_id TEXT NOT NULL REFERENCES occurrences(occurrence_id) ON DELETE CASCADE,
