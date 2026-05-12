@@ -103,7 +103,7 @@ export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   coalesce(v.public_visibility, 'public') = 'public'
   and coalesce(v.quality_review_status, 'accepted') = 'accepted'
   and coalesce(v.source_payload->'taxon'->>'key', '') !~* '^e2e_test_'
-  and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test)([-_]|$)'
+  and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?regression[-_]?fixture)([-_]|$)'
 `;
 
 const PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL =

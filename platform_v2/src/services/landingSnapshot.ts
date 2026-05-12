@@ -1367,7 +1367,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and coalesce(v.public_visibility, 'public') <> 'hidden' order by v.observed_at desc limit 72`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and coalesce(v.public_visibility, 'public') <> 'hidden' order by v.observed_at desc limit 72`,
         [userId],
       );
       myFeedRows = result.rows;
