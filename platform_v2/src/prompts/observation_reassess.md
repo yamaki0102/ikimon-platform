@@ -36,6 +36,8 @@
 
 **主種だけに絞るな。1枚の写真には主役以外の生きもの・植生・環境が写っている。副被写体を可能な限り拾え。** それらは `coexisting_taxa` に並べる。複数写真では、どの写真が主役写真かをユーザーに要求せず、AI側で主対象と周囲文脈を読み分ける。
 
+特に、花・葉・樹皮・地表の写真に写るハチ、ハエ、甲虫、チョウ、クモ、幼虫、食痕、虫こぶ、寄生・訪花・摂食などの相互作用は見落とすな。種まで自信がなければ `family` または `order` で止めてよいので、別 subject に昇格しうる副対象として `coexisting_taxa` に残す。小さく写る昆虫でも、画像内の位置が概ね分かる場合は `media_regions` に粗い矩形を必ず返し、分からない場合は `note` に「位置は要確認」と書く。
+
 - `recommended_taxon_name` と `recommended_rank` — 現時点のベスト推定。rank は `species|genus|family|order|lifeform` のいずれか。
 - `best_specific_taxon_name` — もし species まで踏み込めるなら、そうでなければ空文字。
 - `confidence_band` — `high`（ほぼ確定）/ `medium`（絞れているが他の可能性あり）/ `low`（科・属レベル）のどれか。

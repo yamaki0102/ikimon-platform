@@ -19,3 +19,35 @@ CREATE INDEX IF NOT EXISTS idx_observation_record_ai_reviews_occurrence
 
 CREATE INDEX IF NOT EXISTS idx_observation_record_ai_reviews_actor
     ON observation_record_ai_reviews (actor_user_id, updated_at DESC);
+
+UPDATE occurrences o
+SET
+    ai_assessment_status = 'ai_judgement',
+    data_quality = COALESCE(NULLIF(o.data_quality, ''), 'ai_only_unreviewed'),
+    quality_grade = COALESCE(NULLIF(o.quality_grade, ''), 'ai_judgement'),
+    evidence_tier = CASE
+        WHEN o.evidence_tier IS NULL OR o.evidence_tier > 0.5 THEN 0.5
+        ELSE o.evidence_tier
+    END,
+    source_payload = COALESCE(o.source_payload, '{}'::jsonb)
+        || jsonb_build_object(
+            'ai_judgement',
+            jsonb_build_object(
+                'status', 'ai_judgement',
+                'source', 'migration_0103_existing_assessment',
+                'materialized_at', NOW()
+            )
+        ),
+    updated_at = NOW()
+WHERE EXISTS (
+        SELECT 1
+        FROM observation_ai_assessments a
+        WHERE a.occurrence_id = o.occurrence_id
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM identifications i
+        WHERE i.occurrence_id = o.occurrence_id
+            AND i.actor_kind = 'human'
+    )
+    AND COALESCE(o.ai_assessment_status, '') NOT IN ('reviewer_verified', 'reviewer_rejected');

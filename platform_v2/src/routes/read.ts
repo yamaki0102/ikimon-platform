@@ -32,6 +32,10 @@ import {
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
+import {
+  countProminentAiCandidates,
+  rankProminentAiCandidates,
+} from "../ui/observationCandidatePresentation.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
 import { getIdentificationConsensus, type IdentificationConsensusResult } from "../services/identificationConsensus.js";
@@ -1326,6 +1330,8 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-review-actions button { width: 100%; }
     .obs-needed-box { padding: 12px 13px; }
     .obs-identify-split { gap: 18px; }
+    .obs-focus-head { display: grid; }
+    .obs-focus-pill { width: fit-content; letter-spacing: 0; text-transform: none; white-space: normal; }
     .obs-ai-cutout { padding: 14px; border-radius: 16px; }
     .obs-ai-cutout-head { display: grid; }
     .obs-ai-cutout-card { grid-template-columns: 1fr; }
@@ -1552,24 +1558,8 @@ type RankedSubject = SiblingSubject & {
   roleLabel: string;
 };
 
-const AI_CANDIDATE_CUTOUT_CONFIDENCE_MIN = 0.78;
-
-function candidateHasVisibleRegion(candidate: ObservationVisitCandidate): boolean {
-  return candidate.regions.some((region) => {
-    if (!region.rect) return false;
-    return (region.confidenceScore ?? 1) >= 0.5;
-  });
-}
-
 function highLearningCandidates(candidates: ObservationVisitCandidate[]): ObservationVisitCandidate[] {
-  return candidates
-    .filter((candidate) => {
-      if (candidate.suggestedOccurrenceId) return false;
-      if (candidate.candidateStatus !== "proposed" && candidate.candidateStatus !== "matched") return false;
-      if ((candidate.confidence ?? 0) < AI_CANDIDATE_CUTOUT_CONFIDENCE_MIN) return false;
-      return candidateHasVisibleRegion(candidate);
-    })
-    .slice(0, 3);
+  return rankProminentAiCandidates(candidates, 4);
 }
 
 function renderAiCandidateLearningPanel(options: {
@@ -1600,7 +1590,7 @@ function renderAiCandidateLearningPanel(options: {
         const meta = [
           confidence != null ? `${confidence}%` : null,
           candidate.rank || null,
-          candidate.regions.length > 0 ? "位置の手がかりあり" : null,
+          candidate.regions.length > 0 ? "位置の手がかりあり" : "位置は確認待ち",
         ].filter((item): item is string => Boolean(item));
         const action = options.isOwner
           ? `<button type="button"
@@ -11722,8 +11712,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     );
 
+    const prominentAiCandidateCount = countProminentAiCandidates(bundle.aiCandidates);
     const badges: string[] = [];
     if (subjectCount >= 2) badges.push(`<span class="obs-badge obs-badge-species">🧩 ${subjectCount}件の見つけたもの</span>`);
+    if (prominentAiCandidateCount > 0) badges.push(`<span class="obs-badge obs-badge-species">AI候補 ${prominentAiCandidateCount} 件</span>`);
     if (featuredSubject) badges.push(`<span class="obs-badge obs-badge-species">⭐ 有力 ${escapeHtml(featuredSubjectDisplay.primaryLabel)}</span>`);
     if (currentSubject && featuredSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId) {
       badges.push(`<span class="obs-badge obs-badge-nearby" data-current-subject-badge>👀 表示中 ${escapeHtml(currentSubjectDisplay.primaryLabel)}</span>`);
@@ -11874,6 +11866,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               ? "AIのヒントを手がかりに、この記録に写っているものを切り替えて確認できます。"
               : mediaCopy.focusLead
             : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、名前の記録・AIのヒント・分類がその場で切り替わります。" : "この見つけたものの状態をそのまま確かめられます。"}`;
+          const focusPillLabel = prominentAiCandidateCount > 0
+            ? `${subjectCount}件 + AI候補 ${prominentAiCandidateCount}`
+            : `${subjectCount}件`;
           const featuredChips: string[] = [];
           if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(featuredSubject.rank)}</span>`);
           const featuredAiJudgementLabel = aiJudgementStateLabel(featuredSubject);
@@ -11922,7 +11917,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <h2 class="obs-focus-title">${escapeHtml(focusHeading)}</h2>
                 <p class="obs-focus-copy">${escapeHtml(focusLead)}</p>
               </div>
-              <span class="obs-focus-pill">${subjectCount}件</span>
+              <span class="obs-focus-pill">${escapeHtml(focusPillLabel)}</span>
             </div>
             <div data-obs-switch-ai-readout>${renderHeroAiReadout(currentSubject)}</div>
             <div class="obs-focus-featured">
