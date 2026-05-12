@@ -16,6 +16,8 @@
 - 観察地点タグ: ${siteBriefLabel}
 - ガイドモード: ${guideMode}
 - フレーム束メタデータ: ${frameBundleSummary}
+- 努力量メタデータ: ${effortSummary}
+- エリア網羅メタデータ: ${coverageSummary}
 - 音声が含まれる場合、それはクライアント側で人声らしい区間を除外した自然音候補である。音声がない場合は、プライバシー保護で除外された可能性もある。
 
 ## モード別の最優先ルール
@@ -40,6 +42,7 @@ ${guideModeRules}
 - 人工物（柵・建物・道路）は除外せず `environment_context` や `structure` として記録。
 - 看板・ロゴ・車名・店舗名・標識の文字を生物名として扱わない。例: 車の「スズキ」看板は魚のスズキではなく `structure`。
 - 種名が不確かな時は、無理に種を作らず、`vegetation` や `landform` として「草地」「街路樹列」「刈り込み跡」「水路沿い」などを返す。
+- 努力量（経過時間、移動距離、代表フレーム数、GPS精度）とエリア網羅（10mセル数、推定カバー率、薄い環境タイプ）は `coverageHints` と `saveRecommendation.note` に反映する。短時間・低網羅なら「まだ薄い」と明示し、十分な移動や複数セルを見ているならその根拠を残す。
 - 在来・外来の区別が可能な範囲で `note` に含める。
 - 季節と緯度から見て**不自然な種**（例: 4月の浜松でエゾフクロウ）は信頼度を下げる、または記録しない。
 - 季節・撮影日時・地点から推論できる観察ボーナス情報を `seasonalNote` に短く記載（例「4月中旬・浜松の荒れ地。セイヨウタンポポの結実期。カラスノエンドウが花期」）。
@@ -51,7 +54,7 @@ ${guideModeRules}
 
 ```json
 {
-  "summary": "その場の記録の簡潔な説明（日本語120字以内）",
+  "summary": "その場の記録の説明（日本語180字以内。見えた対象・環境・努力量の重要根拠を優先）",
   "primarySubject": {
     "name": "主種の名前（和名推奨、不明なら属名+属、科名+科）",
     "rank": "species|genus|family|lifeform",
@@ -66,7 +69,7 @@ ${guideModeRules}
   "coexistingTaxa": ["主種以外の検出物の名前の配列（detectedFeatures の type=species/vegetation の和名・属名）"],
   "newSignals": ["このフレーム束で新しく出た手がかり"],
   "continuedSignals": ["前のフレームから継続して見えている手がかり"],
-  "coverageHints": ["この地点で厚い/薄い環境タイプや次に見るべき不足"],
+  "coverageHints": ["この地点で厚い/薄い環境タイプ、10mセル網羅、努力量、次に見るべき不足"],
   "absenceBoundary": {
     "state": "non_detection_note|searched_not_found|absence_candidate",
     "note": "未検出が何を意味し、何を意味しないか。確定不在とは書かない"

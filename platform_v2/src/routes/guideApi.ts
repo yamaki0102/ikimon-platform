@@ -316,6 +316,8 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
     continuedSignals: job.result.continuedSignals ?? [],
     coverageHints: job.result.coverageHints ?? [],
     absenceBoundary: job.result.absenceBoundary ?? { state: "non_detection_note", note: "通過中のAI未検出であり、確定不在ではありません。" },
+    visualExtractModel: job.result.visualExtractModel ?? null,
+    textModel: job.result.textModel ?? null,
     autoSave: job.autoSave,
     isNew: job.result.isNew,
     sceneHash: job.result.sceneHash,
@@ -409,6 +411,8 @@ async function applyGuideAutoSave(input: {
         sceneId: input.sceneId,
         guideMode: input.guideMode,
         facePrivacy: input.facePrivacy,
+        visualExtractModel: input.sceneResult.visualExtractModel ?? null,
+        textModel: input.sceneResult.textModel ?? null,
         locationQuality: input.locationQuality ?? null,
         sessionDistanceM: input.sessionDistanceM ?? null,
         whyInteresting: copy.whyInteresting,
@@ -573,6 +577,8 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
             capturedAt,
             azimuth,
             frameBundleSummary: typeof body.frameBundleSummary === "string" ? body.frameBundleSummary.slice(0, 1200) : null,
+            effortSummary: typeof body.effortSummary === "string" ? body.effortSummary.slice(0, 900) : null,
+            coverageSummary: typeof body.coverageSummary === "string" ? body.coverageSummary.slice(0, 900) : null,
           },
         });
 
@@ -992,7 +998,12 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         ...(facePrivacy ? { facePrivacy } : {}),
       },
       ttsScript: typeof body.ttsScript === "string" ? body.ttsScript : null,
-      meta: { guideMode: parseGuideMode(body.guideMode), facePrivacy },
+      meta: {
+        guideMode: parseGuideMode(body.guideMode),
+        facePrivacy,
+        visualExtractModel: typeof body.visualExtractModel === "string" ? body.visualExtractModel : null,
+        textModel: typeof body.textModel === "string" ? body.textModel : null,
+      },
       lang,
     });
     await upsertGuideEnvironmentMeshFromRecord({

@@ -25,6 +25,8 @@ export type SceneContext = {
   /** EXIF 方位角（0-360、北=0）。 */
   azimuth?: number | null;
   frameBundleSummary?: string | null;
+  effortSummary?: string | null;
+  coverageSummary?: string | null;
 };
 
 export type GuideSceneSaveRecommendation = {
@@ -65,6 +67,8 @@ export type SceneResult = {
   };
   isNew: boolean;
   sceneHash: string;
+  visualExtractModel?: string;
+  textModel?: string;
 };
 
 export type GuideFrameInput = {
@@ -116,6 +120,30 @@ function normalizeGuideAudioMimeType(raw: unknown): string {
     return value;
   }
   return "audio/webm";
+}
+
+function buildGuideVisualExtractPrompt(prompt: string): string {
+  return `${prompt}
+
+この段階は視覚解析専用です。添付された画像フレーム束だけを読み、画像生成・画像編集は行わないでください。
+音声は次段階で扱うため、ここでは画像に写っている視覚事実、フレーム間の変化、継続して見えている環境手がかりだけを抽出してください。
+JSON スキーマは最終出力と同じ形を使ってよいですが、判断を盛らず、見えている根拠と不確実性を優先してください。
+
+JSON のみ出力。コードブロックやコメントは不要。`;
+}
+
+function buildGuideTextIntegrationPrompt(prompt: string, visualExtractText: string): string {
+  return `${prompt}
+
+以下は Gemini 3.1 Flash Image Preview による視覚解析結果です。この段階では、画像を再解析せず、視覚解析結果と添付されている場合の自然音候補だけを統合してください。
+
+視覚解析結果:
+${visualExtractText.slice(0, 12000)}
+
+最終的な guide scene JSON を作ってください。summary、environmentContext、seasonalNote、newSignals、continuedSignals、coverageHints、saveRecommendation は、野外で次に何を見るべきかが分かる密度に整えてください。特に努力量とエリア網羅は、短く削らず、記録価値や不足の判断に使ってください。
+ただし、視覚解析結果にない種名や断定的な不在は追加しないでください。
+
+JSON のみ出力。コードブロックやコメントは不要。`;
 }
 
 export function sanitizeGuideSceneResult(parsed: {
@@ -286,21 +314,12 @@ export async function analyzeScene(opts: {
     .slice(-4);
   if (!frames.length) throw new Error("frameBase64 is required");
 
-  const parts: AiRouterPart[] = frames.map((frame) => ({
+  const visualParts: AiRouterPart[] = frames.map((frame) => ({
     inlineData: {
       mimeType: frame.mimeType ?? opts.frameMimeType ?? "image/jpeg",
       data: frame.frameBase64,
     },
   }));
-
-  if (opts.audioBase64) {
-    parts.push({
-      inlineData: {
-        mimeType: normalizeGuideAudioMimeType(opts.audioMimeType),
-        data: opts.audioBase64,
-      },
-    });
-  }
 
   const season = opts.context.season ?? guessSeason(opts.context.capturedAt);
   const guideMode = normalizeGuideMode(opts.context.guideMode);
@@ -312,23 +331,53 @@ export async function analyzeScene(opts: {
     season,
     siteBriefLabel: opts.context.siteBriefLabel ?? "不明",
     frameBundleSummary: opts.context.frameBundleSummary ?? summarizeFrameBundleForPrompt(frames),
+    effortSummary: opts.context.effortSummary ?? "不明",
+    coverageSummary: opts.context.coverageSummary ?? "不明",
     guideMode: guideMode === "vehicle" ? "車・自転車などの移動中モード" : "徒歩・立ち止まり観察モード",
     guideModeRules: guideMode === "vehicle"
       ? "移動中なので種同定を主目的にしない。車窓から確実に読める植生帯、街路樹、草刈り、農地、水路、林縁、道路際、土地利用の変化を優先する。看板・ロゴ・車名・店舗名を生きものとして扱わない。種名は画像上で生物個体が明確な場合だけ返す。"
       : "徒歩観察でも、種名だけに寄せず、植生・土地被覆・管理痕跡・水辺・林縁を同じ重さで扱う。看板・ロゴ・車名・店舗名を生きものとして扱わない。",
   });
 
-  parts.push({ text: prompt });
+  visualParts.push({ text: buildGuideVisualExtractPrompt(prompt) });
 
-  const response = await generateAiTextWithRoleChain({
+  const visualExtract = await generateAiTextWithRoleChain({
     chainName: "guideScene",
-    parts,
+    parts: visualParts,
     retriesPerModel: 1,
     cost: {
       layer: "hot",
-      endpoint: "guide_scene",
+      endpoint: "guide_scene_visual_extract",
       userId: opts.context.userId ?? null,
-      metadata: { guideMode },
+      metadata: { guideMode, frameCount: frames.length },
+    },
+  });
+
+  const textParts: AiRouterPart[] = [];
+  if (opts.audioBase64) {
+    textParts.push({
+      inlineData: {
+        mimeType: normalizeGuideAudioMimeType(opts.audioMimeType),
+        data: opts.audioBase64,
+      },
+    });
+  }
+  textParts.push({ text: buildGuideTextIntegrationPrompt(prompt, visualExtract.text) });
+
+  const response = await generateAiTextWithRoleChain({
+    chainName: "guideSceneText",
+    parts: textParts,
+    responseMimeType: "application/json",
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "guide_scene_text",
+      userId: opts.context.userId ?? null,
+      metadata: {
+        guideMode,
+        frameCount: frames.length,
+        visualExtractModel: `${visualExtract.provider}:${visualExtract.model}`,
+      },
     },
   });
   const rawText = response.text || "{}";
@@ -392,6 +441,8 @@ export async function analyzeScene(opts: {
     absenceBoundary,
     isNew,
     sceneHash,
+    visualExtractModel: `${visualExtract.provider}:${visualExtract.model}`,
+    textModel: `${response.provider}:${response.model}`,
   };
 }
 

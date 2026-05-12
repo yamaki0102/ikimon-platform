@@ -68,6 +68,16 @@ test("guide scene analysis accepts representative frame bundles without escalati
   assert.match(source, /export type GuideFrameInput/);
   assert.match(source, /frames\?: GuideFrameInput\[\]/);
   assert.match(source, /summarizeFrameBundleForPrompt\(frames\)/);
+  assert.match(source, /effortSummary: opts\.context\.effortSummary \?\? "不明"/);
+  assert.match(source, /coverageSummary: opts\.context\.coverageSummary \?\? "不明"/);
+  assert.match(source, /function buildGuideVisualExtractPrompt\(prompt: string\): string/);
+  assert.match(source, /function buildGuideTextIntegrationPrompt\(prompt: string, visualExtractText: string\): string/);
+  assert.match(source, /chainName: "guideScene"/);
+  assert.match(source, /endpoint: "guide_scene_visual_extract"/);
+  assert.match(source, /chainName: "guideSceneText"/);
+  assert.match(source, /endpoint: "guide_scene_text"/);
+  assert.match(source, /visualExtractModel: `\$\{visualExtract\.provider\}:\$\{visualExtract\.model\}`/);
+  assert.match(source, /textModel: `\$\{response\.provider\}:\$\{response\.model\}`/);
   assert.match(source, /newSignals\?: string\[\]/);
   assert.match(source, /continuedSignals\?: string\[\]/);
   assert.match(source, /coverageHints\?: string\[\]/);

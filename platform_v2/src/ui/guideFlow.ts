@@ -103,6 +103,8 @@ type GuideCopy = {
   autoSkipped: string;
   autoSaveError: string;
   manualSave: string;
+  visualModelLabel: string;
+  textModelLabel: string;
 };
 
 const COPY: Record<SiteLang, GuideCopy> = {
@@ -222,6 +224,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     autoSkipped: "保存しませんでした",
     autoSaveError: "自動保存できませんでした",
     manualSave: "手動で保存",
+    visualModelLabel: "視覚",
+    textModelLabel: "要約",
   },
   en: {
     title: "Live Guide",
@@ -339,6 +343,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     autoSkipped: "Not saved",
     autoSaveError: "Auto-save failed",
     manualSave: "Save manually",
+    visualModelLabel: "Visual",
+    textModelLabel: "Text",
   },
   es: {
     title: "Guía de Campo",
@@ -456,6 +462,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     autoSkipped: "No guardado",
     autoSaveError: "Falló el autoguardado",
     manualSave: "Guardar manualmente",
+    visualModelLabel: "Visual",
+    textModelLabel: "Texto",
   },
   "pt-BR": {
     title: "Guia de Campo",
@@ -573,6 +581,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     autoSkipped: "Não salvo",
     autoSaveError: "Falha ao salvar",
     manualSave: "Salvar manualmente",
+    visualModelLabel: "Visual",
+    textModelLabel: "Texto",
   },
 };
 
@@ -884,6 +894,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     autoSkipped: ${JSON.stringify(c.autoSkipped)},
     autoSaveError: ${JSON.stringify(c.autoSaveError)},
     manualSave: ${JSON.stringify(c.manualSave)},
+    visualModelLabel: ${JSON.stringify(c.visualModelLabel)},
+    textModelLabel: ${JSON.stringify(c.textModelLabel)},
     noSensorNotice: ${JSON.stringify(c.noSensorNotice)},
     audioOnlyNotice: ${JSON.stringify(c.audioOnlyNotice)},
     cameraOnlyNotice: ${JSON.stringify(c.cameraOnlyNotice)},
@@ -976,6 +988,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const OFFLINE_ANALYSE_INTERVAL_MS = 22000;
   const TELEMETRY_INTERVAL_MS = 1500;
   const VISUAL_SAMPLE_INTERVAL_MS = 5000;
+  const GUIDE_FRAME_BUNDLE_SIZE = 3;
+  const VISUAL_CANDIDATE_BUFFER_SIZE = 5;
   const AI_MIN_INTERVAL_MS = 15000;
   const AI_FORCE_INTERVAL_MS = 22000;
   const LOCAL_COVERAGE_CELL_M = 10;
@@ -1155,6 +1169,31 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       structure: getLang() === 'en' ? 'edges/structures' : '縁/人工物'
     };
     return entries.slice(0, 2).map(function (entry) { return labels[entry.key] || entry.key; });
+  }
+  function guideEffortSummary(frameCount) {
+    const elapsedMs = sessionStartedAt ? Date.now() - sessionStartedAt : 0;
+    return [
+      'elapsed=' + formatDuration(elapsedMs),
+      'distance=' + Math.round(sessionDistanceM) + 'm',
+      'frames=' + Math.max(1, Number(frameCount) || 1),
+      'cell_size=' + LOCAL_COVERAGE_CELL_M + 'm',
+      'visited_cells=' + localCoverageCells.size,
+      'weak_gps_cells=' + localCoverageWeakCells.size
+    ].join(' / ');
+  }
+  function guideCoverageSummary() {
+    const field = latestCoverageFields[0] || null;
+    const coveredAreaM2 = localCoverageCells.size * LOCAL_COVERAGE_CELL_M * LOCAL_COVERAGE_CELL_M;
+    const areaM2 = field && Number.isFinite(Number(field.areaM2)) ? Number(field.areaM2) : null;
+    const pct = areaM2 && areaM2 > 0 ? Math.min(100, Math.round((coveredAreaM2 / areaM2) * 100)) : null;
+    return [
+      'area=' + (field && field.name ? String(field.name) : 'unknown'),
+      'covered_area_m2=' + Math.round(coveredAreaM2),
+      'coverage_pct=' + (pct == null ? 'unknown' : pct),
+      'thin_axes=' + coverageWeakAxes().join(','),
+      'latest_absence_state=' + latestAbsenceState,
+      'ai_scene_count=' + (readyScenes.size + pendingScenes.size)
+    ].join(' / ');
   }
   function emptyFeatureCollection() {
     return { type: 'FeatureCollection', features: [] };
@@ -2046,6 +2085,15 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (state === 'error') return { cls: 'is-error', text: copy.autoSaveError, note: '', retry: retryHintForAutoSave(scene), showManual: true };
     return { cls: 'is-pending', text: copy.autoSaveBadge, note: '', retry: '', showManual: true };
   }
+  function aiModelMeta(scene) {
+    const visual = scene && typeof scene.visualExtractModel === 'string' ? scene.visualExtractModel : '';
+    const text = scene && typeof scene.textModel === 'string' ? scene.textModel : '';
+    if (!visual && !text) return '';
+    const parts = [];
+    if (visual) parts.push(copy.visualModelLabel + ': ' + visual);
+    if (text) parts.push(copy.textModelLabel + ': ' + text);
+    return '<div class="gdi-ai-models">' + parts.map(escapeInline).join(' · ') + '</div>';
+  }
   function normalizeTrailToken(value) {
     return String(value || '').replace(/\\s+/g, '').replace(/[()]/g, function(ch){ return ch === '(' ? '（' : '）'; });
   }
@@ -2125,6 +2173,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       + '<div class="gdi-autosave ' + escapeInline(autoSave.cls) + '"><span>' + escapeInline(autoSave.text) + '</span>' + (autoSave.note ? '<em>' + escapeInline(autoSave.note) + '</em>' : '') + '</div>'
       + (autoSave.retry ? '<div class="gdi-retry">' + escapeInline(autoSave.retry) + '</div>' : '')
       + '<div class="gdi-summary">' + escapeInline(representative.delayedSummary || representative.summary || '') + '</div>'
+      + aiModelMeta(representative)
       + (species.length ? '<div class="gdi-species">' + species.map(escapeInline).join(' · ') + '</div>' : '')
       + (representative.uncertaintyReason ? '<div class="gdi-note">' + escapeInline(representative.uncertaintyReason) + '</div>' : '')
       + '<div class="gdi-why">' + escapeInline(representative.whyInteresting || '') + '</div>'
@@ -2333,6 +2382,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         frame: frame,
         frames: frames,
         frameBundleSummary: payload.frameBundleSummary || null,
+        effortSummary: payload.effortSummary || null,
+        coverageSummary: payload.coverageSummary || null,
         frameThumb: payload.frameThumb,
         frameThumbs: Array.isArray(payload.frames) ? payload.frames.map(function (item) { return item.frameThumb || null; }) : null,
         facePrivacy: payload.facePrivacy || null,
@@ -2379,6 +2430,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       frameBlob: payload.frameBlob,
       frames: payload.frames || null,
       frameBundleSummary: payload.frameBundleSummary || null,
+      effortSummary: payload.effortSummary || null,
+      coverageSummary: payload.coverageSummary || null,
       visualCandidate: payload.visualCandidate || null,
       facePrivacy: payload.facePrivacy || null,
       audioBlob: payload.audioBlob,
@@ -2497,9 +2550,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   }
   function candidateLooksWorthAi(candidate) {
     const now = Date.now();
-    if (!lastAiSubmittedAt) return visualCandidates.length >= 2 || now - (sessionStartedAt || now) >= AI_MIN_INTERVAL_MS;
+    const candidateCount = visualCandidates.length;
+    if (!lastAiSubmittedAt) {
+      return candidateCount >= GUIDE_FRAME_BUNDLE_SIZE ||
+        (candidateCount > 0 && now - (sessionStartedAt || now) >= AI_FORCE_INTERVAL_MS);
+    }
     const age = now - lastAiSubmittedAt;
     if (age < AI_MIN_INTERVAL_MS) return false;
+    if (candidateCount < GUIDE_FRAME_BUNDLE_SIZE) return age >= AI_FORCE_INTERVAL_MS;
     if (age >= AI_FORCE_INTERVAL_MS) return true;
     if (!candidate) return false;
     if ((candidate.metrics && candidate.metrics.diffScore >= 0.11) || (candidate.distanceFromLastAiM || 0) >= 12) return true;
@@ -2513,7 +2571,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (!candidateLooksWorthAi(candidate)) return;
     aiSubmitInFlight = true;
     try {
-      const bundle = visualCandidates.slice(-3);
+      const bundle = visualCandidates.slice(-GUIDE_FRAME_BUNDLE_SIZE);
       visualCandidates = [];
       await doAnalyse(bundle, reason || 'representative_bundle');
     } finally {
@@ -2551,7 +2609,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         reason: 'visual_sample_5s'
       };
       visualCandidates.push(candidate);
-      if (visualCandidates.length > 5) visualCandidates = visualCandidates.slice(-5);
+      if (visualCandidates.length > VISUAL_CANDIDATE_BUFFER_SIZE) {
+        visualCandidates = visualCandidates.slice(-VISUAL_CANDIDATE_BUFFER_SIZE);
+      }
       await maybeSubmitRepresentativeScene('visual_sample');
     } catch (error) {
       console.error('Guide visual candidate error', error);
@@ -2676,6 +2736,8 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         frameBlob: item.frameBlob,
         frames: item.frames || null,
         frameBundleSummary: item.frameBundleSummary || null,
+        effortSummary: item.effortSummary || null,
+        coverageSummary: item.coverageSummary || null,
         visualCandidate: item.visualCandidate || null,
         facePrivacy: item.facePrivacy || null,
         audioBlob: item.audioBlob || null,
@@ -2798,10 +2860,12 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           lang,
           guideMode: getGuideMode(),
           frameThumb: framePayload.frameThumb,
-          frameBlob: framePayload.frameBlob,
-          frames: bundle,
-          frameBundleSummary: bundle ? frameBundleSummary(bundle) : null,
-          visualCandidate: bundle ? {
+        frameBlob: framePayload.frameBlob,
+        frames: bundle,
+        frameBundleSummary: bundle ? frameBundleSummary(bundle) : null,
+        effortSummary: guideEffortSummary(bundle ? bundle.length : 1),
+        coverageSummary: guideCoverageSummary(),
+        visualCandidate: bundle ? {
             capturedAt: framePayload.capturedAt,
             brightness: framePayload.metrics && framePayload.metrics.brightness,
             blurScore: framePayload.metrics && framePayload.metrics.blurScore,
@@ -3333,6 +3397,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         environmentContext: scene.environmentContext || null,
         seasonalNote: scene.seasonalNote || null,
         coexistingTaxa: scene.coexistingTaxa || [],
+        visualExtractModel: scene.visualExtractModel || null,
+        textModel: scene.textModel || null,
+        effortSummary: guideEffortSummary(1),
+        coverageSummary: guideCoverageSummary(),
         guideMode: getGuideMode(),
         ttsScript: null,
       })
@@ -3503,6 +3571,7 @@ export const GUIDE_FLOW_STYLES = `
   .gdi-autosave.is-pending { background: rgba(148,163,184,.14); color: #475569; border: 1px solid rgba(148,163,184,.22); }
   .gdi-retry { font-size: 12px; color: #0f766e; background: rgba(236,253,245,.9); border: 1px solid rgba(16,185,129,.18); border-radius: 7px; padding: 7px 8px; line-height: 1.45; font-weight: 850; }
   .gdi-summary { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.5; }
+  .gdi-ai-models { font-size: 10px; line-height: 1.35; color: #047857; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
   .gdi-species { font-size: 11px; color: #047857; font-weight: 700; }
   .gdi-note { font-size: 12px; color: #b45309; background: rgba(245,158,11,.1); border-radius: 7px; padding: 7px 8px; line-height: 1.45; }
   .gdi-why, .gdi-next { font-size: 12px; color: #475569; line-height: 1.55; }
