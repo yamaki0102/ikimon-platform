@@ -93,6 +93,9 @@ export type ObservationDetailSnapshot = {
   displayName: string;
   scientificName: string | null;
   vernacularName: string | null;
+  aiAssessmentStatus: string | null;
+  aiReviewAgreeCount: number;
+  aiReviewDisagreeCount: number;
   observedAt: string;
   note: string | null;
   visitMode: string | null;
@@ -939,6 +942,7 @@ export async function getObservationDetailSnapshot(
     display_name: string | null;
     scientific_name: string | null;
     vernacular_name: string | null;
+    ai_assessment_status: string | null;
     observed_at: string;
     note: string | null;
     visit_mode: string | null;
@@ -968,6 +972,7 @@ export async function getObservationDetailSnapshot(
         ) as display_name,
         o.scientific_name,
         o.vernacular_name,
+        o.ai_assessment_status,
         v.observed_at::text,
         v.note,
         v.visit_mode,
@@ -1256,6 +1261,20 @@ export async function getObservationDetailSnapshot(
       limit 8`,
     [base.occurrence_id],
   );
+  const aiReviewRows = await pool.query<{ review_state: string; n: string }>(
+    `select review_state, count(*)::text as n
+       from observation_record_ai_reviews
+      where occurrence_id = $1
+        and review_state in ('agree', 'disagree')
+      group by review_state`,
+    [base.occurrence_id],
+  ).catch(() => ({ rows: [] }));
+  let aiReviewAgreeCount = 0;
+  let aiReviewDisagreeCount = 0;
+  for (const row of aiReviewRows.rows) {
+    if (row.review_state === "agree") aiReviewAgreeCount = Number(row.n);
+    if (row.review_state === "disagree") aiReviewDisagreeCount = Number(row.n);
+  }
 
   const totalMediaCount = photosResult.rows.length + videosResult.rows.length;
   const photoAssets = photosResult.rows
@@ -1300,6 +1319,9 @@ export async function getObservationDetailSnapshot(
     displayName: base.display_name ?? "同定待ち",
     scientificName: base.scientific_name,
     vernacularName: base.vernacular_name,
+    aiAssessmentStatus: base.ai_assessment_status,
+    aiReviewAgreeCount,
+    aiReviewDisagreeCount,
     observedAt: base.observed_at,
     note: base.note,
     visitMode: base.visit_mode,

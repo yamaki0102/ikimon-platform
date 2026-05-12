@@ -10,6 +10,9 @@ export type VisitSubjectSummary = SubjectRankInput & {
   latestAssessmentGeneratedAt: string | null;
   hasSpecialistApproval: boolean;
   evidenceTier: number | null;
+  aiAssessmentStatus: string | null;
+  aiReviewAgreeCount: number;
+  aiReviewDisagreeCount: number;
   aiCandidateName: string | null;
   aiCandidateRank: string | null;
   /** displayName が AI 候補 (人手 vernacular/scientific 欠落で AI 名を借りている) ときのみ true。 */
@@ -40,6 +43,7 @@ export async function getVisitSubjectSummaries(
     taxon_rank: string | null;
     confidence_score: string | null;
     evidence_tier: string | null;
+    ai_assessment_status: string | null;
     source_payload: Record<string, unknown> | null;
     ai_candidate_name: string | null;
     ai_candidate_rank: string | null;
@@ -52,6 +56,7 @@ export async function getVisitSubjectSummaries(
             o.taxon_rank,
             o.confidence_score::text,
             o.evidence_tier::text,
+            o.ai_assessment_status,
             o.source_payload,
             ai.recommended_taxon_name AS ai_candidate_name,
             ai.recommended_rank       AS ai_candidate_rank
@@ -73,9 +78,10 @@ export async function getVisitSubjectSummaries(
   }
 
   const identificationCounts = new Map<string, number>();
+  const aiReviewCounts = new Map<string, { agree: number; disagree: number }>();
   const latestAssessments = new Map<string, { band: AssessmentBand; generatedAt: string | null }>();
 
-  const [idRows, aiRows] = await Promise.all([
+  const [idRows, aiRows, reviewRows] = await Promise.all([
     db.query<{ occurrence_id: string; n: string }>(
       `SELECT occurrence_id, count(*)::text AS n
          FROM identifications
@@ -97,6 +103,14 @@ export async function getVisitSubjectSummaries(
         ORDER BY occurrence_id, generated_at DESC`,
       [occurrenceIds],
     ).catch(() => ({ rows: [] })),
+    db.query<{ occurrence_id: string; review_state: string; n: string }>(
+      `SELECT occurrence_id, review_state, count(*)::text AS n
+         FROM observation_record_ai_reviews
+        WHERE occurrence_id = ANY($1::text[])
+          AND review_state IN ('agree', 'disagree')
+        GROUP BY occurrence_id, review_state`,
+      [occurrenceIds],
+    ).catch(() => ({ rows: [] })),
   ]);
 
   for (const row of idRows.rows) {
@@ -108,9 +122,16 @@ export async function getVisitSubjectSummaries(
       generatedAt: row.generated_at,
     });
   }
+  for (const row of reviewRows.rows) {
+    const current = aiReviewCounts.get(row.occurrence_id) ?? { agree: 0, disagree: 0 };
+    if (row.review_state === "agree") current.agree = Number(row.n);
+    if (row.review_state === "disagree") current.disagree = Number(row.n);
+    aiReviewCounts.set(row.occurrence_id, current);
+  }
 
   return rows.rows.map((row) => {
     const latestAssessment = latestAssessments.get(row.occurrence_id);
+    const aiReviews = aiReviewCounts.get(row.occurrence_id) ?? { agree: 0, disagree: 0 };
     const specialistPayload = ((row.source_payload ?? {}) as { specialist_review?: { decision?: string } }).specialist_review;
     const v2SubjectPayload = ((row.source_payload ?? {}) as { v2_subject?: { role_hint?: string } }).v2_subject;
     const humanName = row.vernacular_name || row.scientific_name || null;
@@ -131,6 +152,9 @@ export async function getVisitSubjectSummaries(
       latestAssessmentGeneratedAt: latestAssessment?.generatedAt ?? null,
       hasSpecialistApproval: specialistPayload?.decision === "approve",
       evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
+      aiAssessmentStatus: row.ai_assessment_status,
+      aiReviewAgreeCount: aiReviews.agree,
+      aiReviewDisagreeCount: aiReviews.disagree,
       isPrimary: row.subject_index === 0,
       aiCandidateName: aiName,
       aiCandidateRank: row.ai_candidate_rank ?? null,

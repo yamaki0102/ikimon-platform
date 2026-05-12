@@ -92,7 +92,7 @@
 - 推測でも構わない。不明なら空文字。ただし和名と矛盾する学名は書くな。
 - `fun_fact` — 主種にまつわる短い豆知識（事実ベース・推測禁止）。
 - `fun_fact_grounded` — `fun_fact` が一般常識範囲の事実か (`true`) あるいは要出典 (`false`)。
-- `observer_boost` — 観察者に対する一言激励（内面用語・学術用語禁止、自然な日本語、30字以内）。
+- `observer_boost` — deprecated。常に空文字 `""` を返す。励まし文や軽い感想は返さない。
 - `next_step_text` — `confirm_more` の中で**最も種同定に効く 1 件**を要約した一行（90字以内）。「何を、いつ・どこから・どう撮るか」を必ず含める。例「6月上旬に同じ株へ再訪し、花を真横から撮って距の長さを記録すると種が確定する」。`confirm_more` を空配列にした場合は、この種に固有の助けになる観察行動を 1 つだけ書く。
 - `stop_reason` — 現状これ以上絞れない理由（空でも可）。
 - `size_assessment` — 主対象のサイズ目安。**写真からスケール参照（手・指・コイン・既知の隣接物）が読み取れない場合は `observed_size_estimate_cm` を null にせよ**。誤差を hedge で必ず明示。
@@ -140,7 +140,7 @@
   "best_specific_taxon_name": "ヒメスミレ",
   "narrative": "...",
   "simple_summary": "...",
-  "observer_boost": "...",
+  "observer_boost": "",
   "next_step_text": "...",
   "stop_reason": "",
   "fun_fact": "...",
