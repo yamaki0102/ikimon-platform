@@ -29,6 +29,7 @@ type StalenessSummary = { severity: string; pending: number };
 
 type AiRoleChainMetricRow = {
   chain_name: string;
+  stage_name: string;
   layer: string;
   calls_7d: string;
   calls_30d: string;
@@ -192,6 +193,11 @@ async function fetchAiRoleChainMetrics(): Promise<AiRoleChainMetricRow[]> {
       `WITH recent AS (
          SELECT
            COALESCE(metadata->>'aiModelChain', endpoint) AS chain_name,
+           CASE
+             WHEN endpoint = 'guide_scene_visual_extract' THEN 'visual_extract_model'
+             WHEN endpoint = 'guide_scene_text' THEN 'text_model'
+             ELSE endpoint
+           END AS stage_name,
            layer,
            provider,
            model,
@@ -207,6 +213,7 @@ async function fetchAiRoleChainMetrics(): Promise<AiRoleChainMetricRow[]> {
        )
        SELECT
          chain_name,
+         stage_name,
          layer,
          COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days')::text AS calls_7d,
          COUNT(*)::text AS calls_30d,
@@ -221,7 +228,7 @@ async function fetchAiRoleChainMetrics(): Promise<AiRoleChainMetricRow[]> {
          COALESCE(SUM(cost_jpy), 0)::text AS cost_jpy_30d,
          string_agg(DISTINCT provider || ':' || model, ', ' ORDER BY provider || ':' || model) AS models_30d
        FROM recent
-       GROUP BY chain_name, layer
+       GROUP BY chain_name, stage_name, layer
        ORDER BY
          COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '7 days') DESC,
          COUNT(*) DESC,
@@ -256,6 +263,7 @@ function renderAiRoleChainMetrics(rows: AiRoleChainMetricRow[]): string {
     return `
 <tr>
   <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-family:ui-monospace,monospace;font-size:12px;color:#111827;">${escapeHtml(row.chain_name)}</td>
+  <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-family:ui-monospace,monospace;font-size:11px;color:#065f46;">${escapeHtml(row.stage_name)}</td>
   <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${escapeHtml(row.layer)}</td>
   <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#111827;">${calls7} / ${calls30}</td>
   <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:${fallbackColor};font-weight:700;">${pct(fallback7, calls7)} / ${pct(fallback30, calls30)}</td>
@@ -271,6 +279,7 @@ function renderAiRoleChainMetrics(rows: AiRoleChainMetricRow[]): string {
   <thead>
     <tr style="background:#f9fafb;">
       <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">role chain</th>
+      <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">stage</th>
       <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">layer</th>
       <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">calls 7d/30d</th>
       <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">fallback 7d/30d</th>

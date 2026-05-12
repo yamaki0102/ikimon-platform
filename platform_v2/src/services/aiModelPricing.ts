@@ -30,14 +30,6 @@ export const AI_MODEL_PRICING: Record<string, AiModelPricing> = {
     outputUsdPer1M: 2.5,
     source: "https://ai.google.dev/gemini-api/docs/pricing",
   },
-  // Kept for non-curator legacy Hot path accounting only. Do not add it to
-  // curator fallback lists; quality is below the Sprint 7 bar.
-  [AI_MODELS.geminiFlashLiteFallback]: {
-    provider: "gemini",
-    inputUsdPer1M: 0.1,
-    outputUsdPer1M: 0.4,
-    source: "https://ai.google.dev/gemini-api/docs/pricing",
-  },
   // DeepSeek V4 Flash OpenAI-compatible API pricing, checked 2026-04-29.
   [CURATOR_DEEPSEEK_MODEL]: {
     provider: "deepseek",

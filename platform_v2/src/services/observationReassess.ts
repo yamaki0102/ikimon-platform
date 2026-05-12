@@ -809,11 +809,7 @@ async function runGemini(
   // Hot-layer budget gate: throws AiBudgetExceededError when monthly cap reached.
   await assertAiBudgetAllowed("hot");
   if (photos.length > 0) {
-    try {
-      return await runVisualTwoStageGemini(prompt, photos, meta);
-    } catch {
-      return runSingleGeminiReassess(prompt, photos, meta);
-    }
+    return runVisualTwoStageGemini(prompt, photos, meta);
   }
   return runSingleGeminiReassess(prompt, photos, meta);
 }
