@@ -86,7 +86,7 @@ function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
   if (!input || typeof input !== "object") return null;
   const record = input as Record<string, unknown>;
   const status = typeof record.status === "string" ? record.status : null;
-  if (status && !["redacted", "no_faces", "unavailable"].includes(status)) return null;
+  if (status && !["pending", "redacted", "no_faces", "unavailable"].includes(status)) return null;
   const faceCount = Number(record.faceCount);
   return {
     detector: typeof record.detector === "string" ? record.detector.slice(0, 80) : null,
@@ -155,6 +155,7 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
   let visitId = "";
   let occurrenceId = "";
   let relativePath = "";
+  let originalRelativePath = "";
 
   try {
     await client.query("begin");
@@ -184,9 +185,68 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
     visitId = target.visit_id;
     occurrenceId = target.occurrence_id;
     relativePath = path.posix.join("uploads", "v2-observations", visitId, fileName);
+    originalRelativePath = path.posix.join("photo-originals", "v2-observations", visitId, fileName);
     const absolutePath = path.join(config.legacyPublicRoot, ...relativePath.split("/"));
+    const originalAbsolutePath = path.join(config.legacyDataRoot, ...originalRelativePath.split("/"));
     await mkdir(path.dirname(absolutePath), { recursive: true });
+    await mkdir(path.dirname(originalAbsolutePath), { recursive: true });
+    await writeFile(originalAbsolutePath, buffer);
     await writeFile(absolutePath, buffer);
+
+    const originalBlobId = await upsertAssetBlob(client, {
+      storageBackend: "local_private_fs",
+      storagePath: originalRelativePath,
+      mediaType: "image",
+      mimeType: normalizedImage.mimeType,
+      publicUrl: null,
+      sha256,
+      bytes: buffer.byteLength,
+      widthPx: normalizedImage.widthPx,
+      heightPx: normalizedImage.heightPx,
+      sourcePayload: {
+        source: "v2_photo_upload_original",
+        visit_id: visitId,
+        media_role: mediaRole,
+        face_privacy: facePrivacy,
+        privacy_processing_status: "pending",
+        private_storage_root: "legacy_data",
+        display_relative_path: relativePath,
+        normalized_max_edge_px: 2560,
+        original_bytes: originalBuffer.byteLength,
+      },
+    });
+
+    const originalLegacyAssetKey = `observation_photo_original:${visitId}:upload:${sha256}`;
+    await client.query(
+      `insert into evidence_assets (
+          asset_id, blob_id, occurrence_id, visit_id, asset_role, legacy_asset_key, legacy_relative_path, source_payload
+       ) values (
+          $1::uuid, $2::uuid, $3, $4, 'observation_photo_original', $5, $6, $7::jsonb
+       )
+       on conflict (legacy_asset_key) do update set
+          blob_id = excluded.blob_id,
+          occurrence_id = excluded.occurrence_id,
+          visit_id = excluded.visit_id,
+          legacy_relative_path = excluded.legacy_relative_path,
+          source_payload = excluded.source_payload`,
+      [
+        randomUUID(),
+        originalBlobId,
+        occurrenceId,
+        visitId,
+        originalLegacyAssetKey,
+        originalRelativePath,
+        JSON.stringify({
+          source: "v2_photo_upload_original",
+          filename: input.filename,
+          media_role: mediaRole,
+          face_privacy: facePrivacy,
+          privacy_processing_status: "pending",
+          private_storage_root: "legacy_data",
+          display_relative_path: relativePath,
+        }),
+      ],
+    );
 
     const blobId = await upsertAssetBlob(client, {
       storageBackend: "local_fs",
@@ -203,6 +263,9 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         visit_id: visitId,
         media_role: mediaRole,
         face_privacy: facePrivacy,
+        privacy_processing_status: "pending",
+        original_relative_path: originalRelativePath,
+        original_storage_backend: "local_private_fs",
         normalized_max_edge_px: 2560,
         original_bytes: originalBuffer.byteLength,
       },
@@ -234,6 +297,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
           filename: input.filename,
           media_role: mediaRole,
           face_privacy: facePrivacy,
+          privacy_processing_status: "pending",
+          original_relative_path: originalRelativePath,
         }),
       ],
     );
@@ -252,6 +317,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         source: "v2_photo_upload",
         filename: input.filename,
         face_privacy: facePrivacy,
+        privacy_processing_status: "pending",
+        original_relative_path: originalRelativePath,
       },
     });
 
@@ -328,6 +395,8 @@ export async function uploadObservationPhoto(input: ObservationPhotoUploadInput)
         media_role: mediaRole,
         face_privacy: facePrivacy,
         relative_path: relativePath,
+        original_relative_path: originalRelativePath,
+        privacy_processing_status: "pending",
       },
     }]);
   } catch {

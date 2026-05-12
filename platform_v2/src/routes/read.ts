@@ -31,7 +31,6 @@ import {
 } from "../services/localizedDisplay.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
-import { FACE_PRIVACY_CLIENT_SCRIPT } from "../ui/facePrivacyScript.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
@@ -2565,6 +2564,9 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
     var status = root.querySelector('[data-photo-recovery-status]');
     var endpoint = root.getAttribute('data-upload-endpoint') || '';
     var existingPhotoCount = Number(root.getAttribute('data-existing-photo-count') || '0');
+    var PHOTO_RECOVERY_MAX_EDGE = 2560;
+    var PHOTO_RECOVERY_JPEG_QUALITY = 0.88;
+    var PHOTO_RECOVERY_CONCURRENCY = 2;
     var setStatus = function(message, isError) {
       if (!status) return;
       status.textContent = message;
@@ -2576,6 +2578,95 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
         reader.onload = function(){ resolve(String(reader.result || '')); };
         reader.onerror = function(){ reject(new Error('file_read_failed')); };
         reader.readAsDataURL(file);
+      });
+    };
+    var mapWithConcurrency = function(items, limit, worker) {
+      var results = new Array(items.length);
+      var nextIndex = 0;
+      var workerCount = Math.max(1, Math.min(Number(limit) || 1, items.length || 1));
+      var runners = Array.from({ length: workerCount }).map(function() {
+        return Promise.resolve().then(function runNext() {
+          if (nextIndex >= items.length) return undefined;
+          var index = nextIndex;
+          nextIndex += 1;
+          return Promise.resolve(worker(items[index], index)).then(function(result) {
+            results[index] = result;
+            return runNext();
+          });
+        });
+      });
+      return Promise.all(runners).then(function(){ return results; });
+    };
+    var loadImageElementForUpload = function(file) {
+      return new Promise(function(resolve, reject) {
+        var url = URL.createObjectURL(file);
+        var image = new Image();
+        image.onload = function() {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = function() {
+          URL.revokeObjectURL(url);
+          reject(new Error('photo_decode_failed'));
+        };
+        image.src = url;
+      });
+    };
+    var loadImageForUpload = function(file) {
+      var createBitmap = typeof window.createImageBitmap === 'function'
+        ? window.createImageBitmap.bind(window)
+        : (typeof createImageBitmap === 'function' ? createImageBitmap : null);
+      if (!createBitmap) return loadImageElementForUpload(file);
+      return createBitmap(file, { imageOrientation: 'from-image' }).catch(function(){
+        return createBitmap(file).catch(function(){ return loadImageElementForUpload(file); });
+      });
+    };
+    var canvasToJpegDataUrl = function(canvas, quality) {
+      return new Promise(function(resolve) {
+        if (!canvas || typeof canvas.toBlob !== 'function') {
+          resolve(canvas.toDataURL('image/jpeg', quality));
+          return;
+        }
+        canvas.toBlob(function(blob) {
+          if (!blob) {
+            resolve(canvas.toDataURL('image/jpeg', quality));
+            return;
+          }
+          readFileAsDataUrl(blob).then(resolve).catch(function(){ resolve(canvas.toDataURL('image/jpeg', quality)); });
+        }, 'image/jpeg', quality);
+      });
+    };
+    var preparePhotoUpload = function(file) {
+      return loadImageForUpload(file).then(function(image) {
+        var width = Number(image.naturalWidth || image.width || 0);
+        var height = Number(image.naturalHeight || image.height || 0);
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('photo_decode_failed');
+        var scale = Math.min(1, PHOTO_RECOVERY_MAX_EDGE / Math.max(width, height));
+        var targetWidth = Math.max(1, Math.round(width * scale));
+        var targetHeight = Math.max(1, Math.round(height * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        var context = canvas.getContext('2d');
+        if (!context) throw new Error('photo_canvas_unavailable');
+        context.drawImage(image, 0, 0, targetWidth, targetHeight);
+        if (image && typeof image.close === 'function') image.close();
+        return canvasToJpegDataUrl(canvas, PHOTO_RECOVERY_JPEG_QUALITY).then(function(base64Data) {
+          var safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
+          return {
+            filename: safeName + '.jpg',
+            mimeType: 'image/jpeg',
+            base64Data: base64Data
+          };
+        });
+      }).catch(function() {
+        return readFileAsDataUrl(file).then(function(base64Data) {
+          return {
+            filename: file.name || 'upload.jpg',
+            mimeType: file.type || 'image/jpeg',
+            base64Data: base64Data
+          };
+        });
       });
     };
     if (!form || !input || !button || !endpoint) return;
@@ -2591,32 +2682,45 @@ function renderObservationPhotoRecoveryScript(isOwner: boolean): string {
       button.disabled = true;
       var uploaded = 0;
       var failed = [];
-      files.reduce(function(chain, file, index) {
-        return chain.then(function() {
-          setStatus('保存中 ' + String(index + 1) + '/' + String(files.length), false);
-          return readFileAsDataUrl(file).then(function(base64Data) {
-            return fetch(endpoint, {
-              method: 'POST',
-              headers: { 'content-type': 'application/json', accept: 'application/json' },
-              credentials: 'same-origin',
-              body: JSON.stringify({
-                filename: file.name || ('photo-' + String(index + 1) + '.jpg'),
-                mimeType: file.type || 'image/jpeg',
-                base64Data: base64Data,
-                mediaRole: existingPhotoCount === 0 && uploaded === 0 ? 'primary_subject' : 'context'
-              })
-            }).then(function(response) {
-              return response.json().catch(function(){ return {}; }).then(function(json) {
-                if (!response.ok || !json || json.ok === false) {
-                  failed.push(String((json && json.error) || response.status || 'upload_failed'));
-                  return;
-                }
-                uploaded += 1;
-              });
+      var prepared = 0;
+      setStatus('写真を圧縮しています 0/' + String(files.length), false);
+      mapWithConcurrency(files, PHOTO_RECOVERY_CONCURRENCY, function(file, index) {
+        return preparePhotoUpload(file).then(function(upload) {
+          prepared += 1;
+          setStatus('写真を圧縮しています ' + String(prepared) + '/' + String(files.length), false);
+          return { upload: upload, index: index };
+        });
+      }).then(function(items) {
+        var completed = 0;
+        setStatus('保存中 0/' + String(items.length), false);
+        return mapWithConcurrency(items, PHOTO_RECOVERY_CONCURRENCY, function(item) {
+          return fetch(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              filename: item.upload.filename,
+              mimeType: item.upload.mimeType,
+              base64Data: item.upload.base64Data,
+              mediaRole: existingPhotoCount === 0 && item.index === 0 ? 'primary_subject' : 'context'
+            })
+          }).then(function(response) {
+            return response.json().catch(function(){ return {}; }).then(function(json) {
+              completed += 1;
+              setStatus('保存中 ' + String(completed) + '/' + String(items.length), false);
+              if (!response.ok || !json || json.ok === false) {
+                failed.push(String((json && json.error) || response.status || 'upload_failed'));
+                return;
+              }
+              uploaded += 1;
             });
+          }).catch(function(error) {
+            completed += 1;
+            setStatus('保存中 ' + String(completed) + '/' + String(items.length), true);
+            failed.push(String(error && error.message || 'network'));
           });
         });
-      }, Promise.resolve()).then(function() {
+      }).then(function() {
         if (uploaded > 0 && failed.length === 0) {
           setStatus('保存しました。表示を更新します。', false);
           setTimeout(function(){ window.location.reload(); }, 700);
@@ -2718,6 +2822,7 @@ const START_STATE_STYLES = `
     .start-guide { padding-bottom: 104px; }
     .site-footer { padding-bottom: 104px; }
     .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; padding: 8px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 20px 44px rgba(15,23,42,.2); display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); gap: 8px; }
+    .has-global-record-launcher .record-capture-dock { display: none; }
   }
 `;
 
@@ -7288,8 +7393,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </section>
       <script>
-        window.ikimonFacePrivacyAssetBase = ${JSON.stringify(withBasePath(basePath, "/assets/face-privacy"))};
-${FACE_PRIVACY_CLIENT_SCRIPT}
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
         const form = document.getElementById('record-form');
@@ -7370,6 +7473,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+        const PHOTO_UPLOAD_CONCURRENCY = 2;
         const PHOTO_EXIF_READ_MAX_BYTES = 8 * 1024 * 1024;
         const FRESH_MEDIA_LOCATION_WINDOW_MS = 10 * 60 * 1000;
         const MAX_VIDEO_BASIC_POST_BYTES = 200000000;
@@ -9207,7 +9311,33 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           reader.onerror = () => reject(new Error('file_read_failed'));
           reader.readAsDataURL(file);
         });
-        const loadImageForUpload = (file) => new Promise((resolve, reject) => {
+        const mapWithConcurrency = async (items, limit, worker) => {
+          const results = new Array(items.length);
+          let nextIndex = 0;
+          const workerCount = Math.max(1, Math.min(Number(limit) || 1, items.length || 1));
+          await Promise.all(Array.from({ length: workerCount }, async () => {
+            while (nextIndex < items.length) {
+              const index = nextIndex;
+              nextIndex += 1;
+              results[index] = await worker(items[index], index);
+            }
+          }));
+          return results;
+        };
+        const canvasToJpegDataUrl = (canvas, quality) => new Promise((resolve) => {
+          if (!canvas || typeof canvas.toBlob !== 'function') {
+            resolve(canvas.toDataURL('image/jpeg', quality));
+            return;
+          }
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(canvas.toDataURL('image/jpeg', quality));
+              return;
+            }
+            readFileAsDataUrl(blob).then(resolve).catch(() => resolve(canvas.toDataURL('image/jpeg', quality)));
+          }, 'image/jpeg', quality);
+        });
+        const loadImageElementForUpload = (file) => new Promise((resolve, reject) => {
           const url = URL.createObjectURL(file);
           const image = new Image();
           image.onload = () => {
@@ -9220,6 +9350,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           };
           image.src = url;
         });
+        const loadImageForUpload = async (file) => {
+          const createBitmap = typeof window.createImageBitmap === 'function'
+            ? window.createImageBitmap.bind(window)
+            : (typeof createImageBitmap === 'function' ? createImageBitmap : null);
+          if (createBitmap) {
+            try {
+              return await createBitmap(file, { imageOrientation: 'from-image' });
+            } catch (_) {
+              try {
+                return await createBitmap(file);
+              } catch (_) {
+                // Fall back to HTMLImageElement decoding below.
+              }
+            }
+          }
+          return await loadImageElementForUpload(file);
+        };
         const preparePhotoUpload = async (file) => {
           try {
             const image = await loadImageForUpload(file);
@@ -9235,25 +9382,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             const context = canvas.getContext('2d');
             if (!context) throw new Error('photo_canvas_unavailable');
             context.drawImage(image, 0, 0, targetWidth, targetHeight);
-            const privacyResult = window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.redactCanvasFaces === 'function'
-              ? await window.ikimonFacePrivacy.redactCanvasFaces(canvas)
-              : { available: false, redacted: false, faceCount: 0, error: 'face_privacy_unavailable' };
-            const base64Data = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_QUALITY);
+            if (image && typeof image.close === 'function') image.close();
+            const base64Data = await canvasToJpegDataUrl(canvas, PHOTO_UPLOAD_JPEG_QUALITY);
             const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
             return {
               filename: safeName + '.jpg',
               mimeType: 'image/jpeg',
               base64Data,
-              facePrivacy: window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.summarizeFacePrivacy === 'function'
-                ? window.ikimonFacePrivacy.summarizeFacePrivacy(privacyResult)
-                : null,
+              facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
             };
           } catch (_) {
             return {
               filename: file.name || 'upload.jpg',
               mimeType: file.type || 'image/jpeg',
               base64Data: await readFileAsDataUrl(file),
-              facePrivacy: { detector: 'browser_face_detector', status: 'unavailable', faceCount: 0, error: 'photo_canvas_fallback' },
+              facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: 'photo_canvas_fallback' },
             };
           }
         };
@@ -9505,6 +9648,14 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
             syncPreview();
           });
         });
+        const delegateToGlobalRecordLauncher = (action) => {
+          if (action !== 'photo' && action !== 'video' && action !== 'gallery') return false;
+          if (window.matchMedia && !window.matchMedia('(max-width: 720px)').matches) return false;
+          const trigger = document.querySelector('[data-global-record-trigger="' + action + '"]');
+          if (!trigger || typeof trigger.click !== 'function') return false;
+          trigger.click();
+          return true;
+        };
         captureButtons.forEach((button) => {
           button.addEventListener('click', () => {
             const action = button.getAttribute('data-capture-action') || 'gallery';
@@ -9520,6 +9671,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               setAutofillStatus([]);
               return;
             }
+            if (delegateToGlobalRecordLauncher(action)) return;
             const target = document.querySelector('[data-record-media-input][data-capture-kind="' + action + '"]') || mediaInput;
             if (target && typeof target.click === 'function') target.click();
           });
@@ -9781,13 +9933,22 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               if (photoUploadList.length > 0) {
                 setStatus('<div class="row"><div>写真を記録用に整えています...</div></div>');
               }
-              for (let index = 0; index < photoUploadList.length; index += 1) {
-                const item = photoUploadList[index];
+              let preparedPhotoCount = 0;
+              const preparedPhotoItems = await mapWithConcurrency(photoUploadList, PHOTO_UPLOAD_CONCURRENCY, async (item) => {
                 const upload = await preparePhotoUpload(item.file);
                 const hash = await sha256Hex(upload.base64Data);
-                preparedPhotoUploads.push({ upload, role: item.role });
-                clientPhotoHashes.push(hash || [upload.filename, upload.mimeType, String(item.file && item.file.size || 0)].join(':'));
-              }
+                preparedPhotoCount += 1;
+                setStatus('<div class="row"><div>写真を記録用に整えています... ' + String(preparedPhotoCount) + '/' + String(photoUploadList.length) + '</div></div>');
+                return {
+                  upload,
+                  role: item.role,
+                  hash: hash || [upload.filename, upload.mimeType, String(item.file && item.file.size || 0)].join(':'),
+                };
+              });
+              preparedPhotoItems.forEach((item) => {
+                preparedPhotoUploads.push({ upload: item.upload, role: item.role });
+                clientPhotoHashes.push(item.hash);
+              });
               const observedAtIso = new Date(String(data.get('observedAt'))).toISOString();
               const latitude = Number(data.get('latitude'));
               const longitude = Number(data.get('longitude'));
@@ -9993,10 +10154,9 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
                 });
               };
 
-              for (let index = 0; index < preparedPhotoUploads.length; index += 1) {
-                const item = preparedPhotoUploads[index];
+              await mapWithConcurrency(preparedPhotoUploads, PHOTO_UPLOAD_CONCURRENCY, async (item, index) => {
                 await uploadPhotoFile(item.upload, item.role, index + 1, preparedPhotoUploads.length);
-              }
+              });
               if (preparedPhotoUploads.length > 0) {
                 extraStatus = '写真' + String(preparedPhotoUploads.length) + '枚を同じ記録に保存しました。';
               }
@@ -10403,6 +10563,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
           .record-subject-context-tags { justify-content: flex-start; max-width: none; }
           .record-has-media .record-subject-context { display: none; }
           .record-capture-dock { position: fixed; left: 12px; right: 12px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40; margin: 0; grid-template-columns: 1.2fr repeat(3, minmax(0, .82fr)); border-radius: 24px; padding: 8px; box-shadow: 0 20px 44px rgba(15,23,42,.2); }
+          .has-global-record-launcher .record-capture-dock { display: none; }
           .record-has-media .record-capture-dock { display: none; }
           .record-dock-action { min-height: 58px; }
           .record-dock-icon { width: 28px; height: 28px; }

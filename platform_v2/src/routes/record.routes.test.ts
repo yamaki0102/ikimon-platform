@@ -83,10 +83,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /MAX_PHOTO_FILES = 6/);
         assert.match(response.body, /PHOTO_UPLOAD_MAX_EDGE = 2560/);
         assert.match(response.body, /PHOTO_UPLOAD_JPEG_QUALITY = 0\.88/);
-        assert.match(response.body, /ikimonFacePrivacy/);
-        assert.match(response.body, /ikimonFacePrivacyAssetBase/);
-        assert.match(response.body, /assets\/face-privacy/);
-        assert.match(response.body, /redactCanvasFaces\(canvas\)/);
+        assert.match(response.body, /PHOTO_UPLOAD_CONCURRENCY = 2/);
+        assert.doesNotMatch(response.body, /redactCanvasFaces\(canvas\)/);
+        assert.match(response.body, /server_async_face_privacy/);
         assert.match(response.body, /facePrivacy: upload\.facePrivacy \|\| null/);
         assert.match(response.body, /MAX_VIDEO_BASIC_POST_BYTES = 200000000/);
         assert.match(response.body, /MAX_VIDEO_TUS_BYTES = 1024 \* 1024 \* 1024/);
@@ -104,7 +103,8 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /動画は保存済みです。公開までの状態を下に表示しています。/);
         assert.match(response.body, /動画は保存済みです。公開準備が続いています。画面を閉じても大丈夫です。/);
         assert.match(response.body, /preparePhotoUpload/);
-        assert.match(response.body, /canvas\.toDataURL\('image\/jpeg', PHOTO_UPLOAD_JPEG_QUALITY\)/);
+        assert.match(response.body, /canvasToJpegDataUrl\(canvas, PHOTO_UPLOAD_JPEG_QUALITY\)/);
+        assert.match(response.body, /mapWithConcurrency\(preparedPhotoUploads, PHOTO_UPLOAD_CONCURRENCY/);
         assert.match(response.body, /let selectedMediaFiles = \[\]/);
         assert.match(response.body, /let selectedVideoFile = null/);
         assert.match(response.body, /写真' \+ String\(photoCount\) \+ '枚/);

@@ -11,7 +11,6 @@ import {
   type SitePageDefinition,
   type SiteShellLayoutKind,
 } from "../siteMap.js";
-import { FACE_PRIVACY_CLIENT_SCRIPT } from "./facePrivacyScript.js";
 
 export type SiteAction = {
   href: string;
@@ -880,11 +879,8 @@ function normalizePathname(path: string): string {
 function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
   const pathname = normalizePathname(currentPath);
   return !(
-    pathname === "/record" ||
-    pathname.startsWith("/record/") ||
     pathname === "/guide" ||
     (pathname.startsWith("/guide/") && pathname !== "/guide/outcomes") ||
-    pathname === "/records" ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
     pathname === "/debug" ||
@@ -1220,8 +1216,6 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
 
 function globalRecordEntryScript(basePath: string): string {
   return `<script>
-window.ikimonFacePrivacyAssetBase = ${JSON.stringify(withBasePath(basePath, "/assets/face-privacy"))};
-${FACE_PRIVACY_CLIENT_SCRIPT}
 (function () {
   const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
   const DB_NAME = 'ikimon-record-draft';
@@ -1230,6 +1224,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const MAX_PHOTO_DRAFT_FILES = 6;
   const PHOTO_UPLOAD_MAX_EDGE = 2560;
   const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+  const PHOTO_UPLOAD_CONCURRENCY = 2;
   const CAMERA_PHOTO_IDEAL_WIDTH = 2560;
   const CAMERA_PHOTO_IDEAL_HEIGHT = 1920;
   const CAMERA_VIDEO_IDEAL_WIDTH = 1280;
@@ -1391,7 +1386,33 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const digest = await window.crypto.subtle.digest('SHA-256', bytes);
     return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
   };
-  const loadImageForUpload = (file) => new Promise((resolve, reject) => {
+  const mapWithConcurrency = async (items, limit, worker) => {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    const workerCount = Math.max(1, Math.min(Number(limit) || 1, items.length || 1));
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await worker(items[index], index);
+      }
+    }));
+    return results;
+  };
+  const canvasToJpegDataUrl = (canvas, quality) => new Promise((resolve) => {
+    if (!canvas || typeof canvas.toBlob !== 'function') {
+      resolve(canvas.toDataURL('image/jpeg', quality));
+      return;
+    }
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        resolve(canvas.toDataURL('image/jpeg', quality));
+        return;
+      }
+      readFileAsDataUrl(blob).then(resolve).catch(() => resolve(canvas.toDataURL('image/jpeg', quality)));
+    }, 'image/jpeg', quality);
+  });
+  const loadImageElementForUpload = (file) => new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
@@ -1404,6 +1425,23 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     };
     image.src = url;
   });
+  const loadImageForUpload = async (file) => {
+    const createBitmap = typeof window.createImageBitmap === 'function'
+      ? window.createImageBitmap.bind(window)
+      : (typeof createImageBitmap === 'function' ? createImageBitmap : null);
+    if (createBitmap) {
+      try {
+        return await createBitmap(file, { imageOrientation: 'from-image' });
+      } catch (_) {
+        try {
+          return await createBitmap(file);
+        } catch (_) {
+          // Fall back to HTMLImageElement decoding below.
+        }
+      }
+    }
+    return await loadImageElementForUpload(file);
+  };
   const preparePhotoUpload = async (file) => {
     const originalType = String(file && file.type || 'image/jpeg').toLowerCase();
     if (originalType === 'image/gif') {
@@ -1427,24 +1465,21 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       const context = canvas.getContext('2d');
       if (!context) throw new Error('photo_canvas_unavailable');
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
-      const privacyResult = window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.redactCanvasFaces === 'function'
-        ? await window.ikimonFacePrivacy.redactCanvasFaces(canvas)
-        : { available: false, redacted: false, faceCount: 0, error: 'face_privacy_unavailable' };
-      const base64Data = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_QUALITY);
+      if (image && typeof image.close === 'function') image.close();
+      const base64Data = await canvasToJpegDataUrl(canvas, PHOTO_UPLOAD_JPEG_QUALITY);
       const safeName = String(file.name || 'upload.jpg').replace(/\.[A-Za-z0-9]+$/, '') || 'upload';
       return {
         filename: safeName + '.jpg',
         mimeType: 'image/jpeg',
         base64Data,
-        facePrivacy: window.ikimonFacePrivacy && typeof window.ikimonFacePrivacy.summarizeFacePrivacy === 'function'
-          ? window.ikimonFacePrivacy.summarizeFacePrivacy(privacyResult)
-          : null,
+        facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null },
       };
     } catch (_) {
       return {
         filename: file.name || 'upload.jpg',
         mimeType: file.type || 'image/jpeg',
         base64Data: await readFileAsDataUrl(file),
+        facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: 'photo_canvas_fallback' },
       };
     }
   };
@@ -1778,14 +1813,19 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const metadata = capturedReviewMeta || {};
     try {
       setStatus('写真を記録用に整えています...');
-      const uploads = [];
-      const uploadHashes = [];
-      for (let index = 0; index < files.length; index += 1) {
-        const upload = await preparePhotoUpload(files[index]);
+      let preparedCount = 0;
+      const preparedUploads = await mapWithConcurrency(files, PHOTO_UPLOAD_CONCURRENCY, async (file) => {
+        const upload = await preparePhotoUpload(file);
         const hash = await sha256Hex(upload.base64Data);
-        uploads.push(upload);
-        uploadHashes.push(hash || [upload.filename, upload.mimeType, String(files[index] && files[index].size || 0)].join(':'));
-      }
+        preparedCount += 1;
+        setStatus('写真を記録用に整えています... ' + String(preparedCount) + '/' + String(files.length));
+        return {
+          upload,
+          hash: hash || [upload.filename, upload.mimeType, String(file && file.size || 0)].join(':'),
+        };
+      });
+      const uploads = preparedUploads.map((item) => item.upload);
+      const uploadHashes = preparedUploads.map((item) => item.hash);
       let detailId = photoDraftRetryDetailId;
       if (!detailId) {
         let location = metadata.location || null;
@@ -1845,11 +1885,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         detailId = String(observationJson.occurrenceId || observationId);
         photoDraftRetryDetailId = detailId;
       }
-      const failedUploads = [];
-      const uploadedIndexes = [];
-      for (let index = 0; index < uploads.length; index += 1) {
-        const upload = uploads[index];
-        setStatus('写真を保存しています... ' + String(index + 1) + '/' + String(uploads.length));
+      const retryHadUploadedPhoto = photoDraftRetryHasUploadedPhoto;
+      let completedUploads = 0;
+      setStatus('写真を保存しています... 0/' + String(uploads.length));
+      const uploadResults = await mapWithConcurrency(uploads, PHOTO_UPLOAD_CONCURRENCY, async (upload, index) => {
         let photoResponse = null;
         let photoJson = {};
         try {
@@ -1861,26 +1900,31 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
               filename: upload.filename,
               mimeType: upload.mimeType,
               base64Data: upload.base64Data,
-              mediaRole: !photoDraftRetryHasUploadedPhoto && uploadedIndexes.length === 0 ? 'primary_subject' : 'context',
+              mediaRole: !retryHadUploadedPhoto && index === 0 ? 'primary_subject' : 'context',
               facePrivacy: upload.facePrivacy || null,
             }),
           });
           photoJson = await photoResponse.json().catch(() => ({}));
         } catch (error) {
-          failedUploads.push({
+          return {
             index,
             error: String(error && error.message || 'photo_upload_network_failed'),
-          });
-          continue;
+          };
+        } finally {
+          completedUploads += 1;
+          setStatus('写真を保存しています... ' + String(completedUploads) + '/' + String(uploads.length));
         }
         if (!photoResponse.ok || !photoJson.ok) {
-          failedUploads.push({
+          return {
             index,
             error: String(photoJson.error || photoResponse.status || 'photo_upload_failed'),
-          });
-          continue;
+          };
         }
-        uploadedIndexes.push(index);
+        return { index };
+      });
+      const failedUploads = uploadResults.filter((item) => item && item.error);
+      const uploadedIndexes = uploadResults.filter((item) => item && !item.error).map((item) => item.index);
+      if (uploadedIndexes.length > 0) {
         photoDraftRetryHasUploadedPhoto = true;
       }
       if (failedUploads.length > 0) {
