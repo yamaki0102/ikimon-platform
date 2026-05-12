@@ -4065,7 +4065,7 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
     return "";
   }
   return `<details class="obs-fold">
-    <summary>AIのヒントで見つかった候補 <span class="obs-fold-count">${bundle.aiCandidates.length}</span></summary>
+    <summary>AI判定の候補 <span class="obs-fold-count">${bundle.aiCandidates.length}</span></summary>
     <div class="obs-nearby-grid">
       ${bundle.aiCandidates.map((candidate) => `
         <div class="obs-nearby-card">
@@ -11782,9 +11782,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ? "詳しい人の同定が入り、名前の確かさが高まっています。"
           : trustStage === "community_support"
             ? "何人かの同定がそろい、強い候補になっています。"
-            : "いま見えている名前は仮の候補です。AIのヒントと人の同定で、少しずつ確かになります。";
+            : "いま見えている名前は仮の候補です。AI判定の候補と人の同定で、少しずつ確かになります。";
     const trustSteps = [
-      { id: "ai_suggestion", label: "AIのヒント", meta: "候補と見分けのヒント" },
+      { id: "ai_suggestion", label: "AI判定の候補", meta: "AIが出した低信頼の候補" },
       { id: "community_support", label: "みんなの同定", meta: "見方がそろう" },
       { id: "authority_backed", label: "詳しい人の同定", meta: "名前がより確かに" },
       { id: "public_claim", label: "公開に使いやすい", meta: "記録として使いやすい段階" },
@@ -11863,11 +11863,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               : `${featuredSubjectDisplay.primaryLabel} を先に見ると、この記録の状態をつかみやすいです。`;
           const focusLead = hasAiDefault
             ? subjectCount >= 2
-              ? "AIのヒントを手がかりに、この記録に写っているものを切り替えて確認できます。"
+              ? "AI判定の候補を手がかりに、この記録に写っているものを切り替えて確認できます。"
               : mediaCopy.focusLead
-            : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、名前の記録・AIのヒント・分類がその場で切り替わります。" : "この見つけたものの状態をそのまま確かめられます。"}`;
+            : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、名前の記録・AI判定の候補・分類がその場で切り替わります。" : "この見つけたものの状態をそのまま確かめられます。"}`;
           const focusPillLabel = prominentAiCandidateCount > 0
-            ? `${subjectCount}件 + AI候補 ${prominentAiCandidateCount}`
+            ? `${subjectCount}件 + AI判定候補 ${prominentAiCandidateCount}`
             : `${subjectCount}件`;
           const featuredChips: string[] = [];
           if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(featuredSubject.rank)}</span>`);
@@ -11913,7 +11913,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           return `<div class="obs-focus">
             <div class="obs-focus-head">
               <div>
-                <div class="obs-story-eyebrow">${hasAiDefault ? "AIのヒント" : "この記録に写っているもの"}</div>
+                <div class="obs-story-eyebrow">${hasAiDefault ? "AI判定の候補" : "この記録に写っているもの"}</div>
                 <h2 class="obs-focus-title">${escapeHtml(focusHeading)}</h2>
                 <p class="obs-focus-copy">${escapeHtml(focusLead)}</p>
               </div>

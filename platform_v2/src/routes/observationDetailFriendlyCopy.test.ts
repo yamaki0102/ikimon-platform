@@ -15,6 +15,7 @@ function sourceBetween(startMarker: string, endMarker: string): string {
 
 const detailCopySource = [
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
+  sourceBetween("function renderAiCandidates", "function renderSubjectTaxonomy"),
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
   sourceBetween("function renderObservationRecordStory", "function observationLearningDoneText"),
@@ -36,7 +37,7 @@ test("observation detail page keeps the friendly learning-first vocabulary", () 
     "写真・動画・音",
     "同定",
     "何の生きものかを見きわめる",
-    "AIのヒント",
+    "AI判定の候補",
     "みんなの記録に足されます",
   ]) {
     assert.match(detailCopySource, new RegExp(term));
