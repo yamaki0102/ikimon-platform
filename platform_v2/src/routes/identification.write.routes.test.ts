@@ -43,6 +43,25 @@ test("public dispute write requires a session", async () => {
   }
 });
 
+test("AI judgement review requires a session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/observation-records/occ-1/ai-review",
+      headers: { "content-type": "application/json" },
+      payload: {
+        reviewState: "agree",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.json().error, "session_required");
+  } finally {
+    await app.close();
+  }
+});
+
 test("specialist dispute resolution requires a session before touching DB", async () => {
   const app = buildApp();
   try {
@@ -61,4 +80,3 @@ test("specialist dispute resolution requires a session before touching DB", asyn
     await app.close();
   }
 });
-

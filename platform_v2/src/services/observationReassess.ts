@@ -41,6 +41,10 @@ import {
 import { normalizeManagementActionCandidatesFromRaw } from "./observationAiAssessment.js";
 import { upsertAiInferredManagementActions } from "./managementActionConfirmation.js";
 import { ensureVisitPlaceLink } from "./visitPlaceAutoLink.js";
+import {
+  markPrimaryOccurrenceAsAiJudgement,
+  materializeAiJudgementObservationRecord,
+} from "./aiJudgementObservationRecords.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -447,6 +451,7 @@ type LoadedPhotoInput = ReassessImageInput & {
 
 type ResolvedObservationTarget = {
   visitId: string;
+  visitLegacyObservationId: string | null;
   selectedOccurrenceId: string;
   primaryOccurrenceId: string;
   selectedSubjectIndex: number;
@@ -508,6 +513,13 @@ function normalizeBand(b: string | undefined): "high" | "medium" | "low" | "unkn
   const v = String(b ?? "").toLowerCase().trim();
   if (v === "high" || v === "medium" || v === "low") return v;
   return "unknown";
+}
+
+function confidenceFromBand(band: "high" | "medium" | "low" | "unknown"): number {
+  if (band === "high") return 0.85;
+  if (band === "medium") return 0.6;
+  if (band === "low") return 0.35;
+  return 0.25;
 }
 
 function normalizeRectCandidate(region: GeminiRegion): NormalizedRegion | null {
@@ -641,6 +653,7 @@ async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<Load
 async function resolveObservationTarget(client: PoolClient, observationId: string): Promise<ResolvedObservationTarget | null> {
   const result = await client.query<{
     visit_id: string;
+    visit_legacy_observation_id: string | null;
     selected_occurrence_id: string | null;
     primary_occurrence_id: string;
     selected_subject_index: number | null;
@@ -661,6 +674,7 @@ async function resolveObservationTarget(client: PoolClient, observationId: strin
         LIMIT 1
      )
      SELECT v.visit_id,
+            v.legacy_observation_id AS visit_legacy_observation_id,
             selected.occurrence_id AS selected_occurrence_id,
             primary_occurrence.occurrence_id AS primary_occurrence_id,
             selected.subject_index AS selected_subject_index,
@@ -687,6 +701,7 @@ async function resolveObservationTarget(client: PoolClient, observationId: strin
   if (!row) return null;
   return {
     visitId: row.visit_id,
+    visitLegacyObservationId: row.visit_legacy_observation_id,
     selectedOccurrenceId: row.selected_occurrence_id ?? row.primary_occurrence_id,
     primaryOccurrenceId: row.primary_occurrence_id,
     selectedSubjectIndex: row.selected_subject_index ?? 0,
@@ -1264,6 +1279,12 @@ export async function reassessObservation(
         }),
       ],
     );
+    await markPrimaryOccurrenceAsAiJudgement(client, {
+      occurrenceId: target.primaryOccurrenceId,
+      aiRunId: aiRun.aiRunId,
+      confidence: confidenceFromBand(band),
+      sourceTag,
+    });
 
     for (let index = 0; index < photos.length; index += 1) {
       const photo = photos[index];
@@ -1422,6 +1443,27 @@ export async function reassessObservation(
       const candidateKey = buildCandidateKey(candidate.vernacularName, candidate.scientificName, candidate.rankHint);
       const matchedSubject = candidateKey ? subjectByKey.get(candidateKey) ?? null : null;
       const candidateId = randomUUID();
+      const stableCandidateKey = candidateKey || `${candidate.vernacularName}:${index}`;
+      const aiJudgementRecord = await materializeAiJudgementObservationRecord(client, {
+        visitId: target.visitId,
+        visitLegacyObservationId: target.visitLegacyObservationId,
+        aiRunId: aiRun.aiRunId,
+        candidateId,
+        candidateKey: stableCandidateKey,
+        vernacularName: candidate.vernacularName,
+        scientificName: candidate.scientificName,
+        taxonRank: candidate.rankHint,
+        confidence: candidate.confidence,
+        note: candidate.note,
+        sourceTag,
+        gbif: {
+          usageKey: gbif?.usageKey ?? null,
+          matchType: gbif?.matchType ?? "NONE",
+          confidence: gbif?.confidence ?? null,
+        },
+        matchedOccurrenceId: matchedSubject?.occurrenceId ?? null,
+      });
+      const candidateOccurrenceId = aiJudgementRecord.occurrenceId;
       await client.query(
         `INSERT INTO observation_ai_subject_candidates (
            candidate_id,
@@ -1456,16 +1498,20 @@ export async function reassessObservation(
           candidateId,
           aiRun.aiRunId,
           target.visitId,
-          matchedSubject?.occurrenceId ?? null,
-          candidateKey || `${candidate.vernacularName}:${index}`,
+          candidateOccurrenceId,
+          stableCandidateKey,
           candidate.vernacularName || null,
           candidate.scientificName || null,
           candidate.rankHint,
           candidate.confidence,
-          matchedSubject ? "matched" : "proposed",
+          candidateOccurrenceId ? "matched" : "proposed",
           candidate.note,
           JSON.stringify({
             sourceTag,
+            aiJudgement: {
+              materialized: aiJudgementRecord.materialized,
+              matchedExisting: aiJudgementRecord.matchedExisting,
+            },
             gbif: {
               usageKey: gbif?.usageKey ?? null,
               matchType: gbif?.matchType ?? "NONE",
@@ -1487,7 +1533,7 @@ export async function reassessObservation(
           aiRun.aiRunId,
           assessmentId,
           target.visitId,
-          matchedSubject?.occurrenceId ?? null,
+          candidateOccurrenceId,
           candidateId,
           candidate.vernacularName || candidate.scientificName || null,
           candidate.scientificName || null,
@@ -1535,7 +1581,7 @@ export async function reassessObservation(
            )`,
           [
             aiRun.aiRunId,
-            matchedSubject?.occurrenceId ?? null,
+            candidateOccurrenceId,
             candidateId,
             photo.assetId,
             JSON.stringify(region.rect),
@@ -1561,7 +1607,7 @@ export async function reassessObservation(
             aiRun.aiRunId,
             assessmentId,
             target.visitId,
-            matchedSubject?.occurrenceId ?? null,
+            candidateOccurrenceId,
             candidateId,
             photo.assetId,
             region.assetIndex,

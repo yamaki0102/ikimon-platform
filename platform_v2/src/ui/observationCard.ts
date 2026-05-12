@@ -29,8 +29,8 @@ type KindCopy = { badge: string; attribution: (observer: string) => string };
 
 const kindCopy: Record<SiteLang, { observation: KindCopy; identification: KindCopy }> = {
   ja: {
-    observation: { badge: "観察レコード", attribution: (o) => o },
-    identification: { badge: "📝 同定", attribution: (o) => `${o} さんの観察` },
+    observation: { badge: "見つけたもの", attribution: (o) => o },
+    identification: { badge: "名前の記録", attribution: (o) => `${o} さんの記録` },
   },
   en: {
     observation: { badge: "📷 Observation", attribution: (o) => o },

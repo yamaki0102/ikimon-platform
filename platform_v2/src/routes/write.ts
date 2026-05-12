@@ -48,6 +48,7 @@ import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
+import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
 import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
@@ -467,6 +468,31 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "track_upsert_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      reviewState?: ObservationRecordAiReviewState;
+    };
+  }>("/api/v1/observation-records/:id/ai-review", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      return await submitObservationRecordAiReview({
+        occurrenceId: request.params.id,
+        actorUserId: session.userId,
+        reviewState: request.body?.reviewState ?? "later",
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "ai_review_submit_failed",
       };
     }
   });
