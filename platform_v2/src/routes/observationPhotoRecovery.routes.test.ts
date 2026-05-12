@@ -17,7 +17,9 @@ test("observation detail lets owners recover missing photos without exposing rev
   assert.match(readRoutes, /この動画記録に写真を追加/);
   assert.doesNotMatch(readRoutes, /動画サムネイルを Gemini に渡しています/);
   assert.match(readRoutes, /\/api\/v1\/observations\/\$\{encodeURIComponent\(options\.visitId\)\}\/photos\/upload/);
-  assert.match(readRoutes, /mediaRole: existingPhotoCount === 0 && uploaded === 0 \? 'primary_subject' : 'context'/);
+  assert.match(readRoutes, /PHOTO_RECOVERY_CONCURRENCY = 2/);
+  assert.match(readRoutes, /preparePhotoUpload/);
+  assert.match(readRoutes, /mediaRole: existingPhotoCount === 0 && item\.index === 0 \? 'primary_subject' : 'context'/);
   assert.match(landingSnapshot, /own observation library, including review rows that need media recovery/);
   assert.match(landingSnapshot, /coalesce\(v\.public_visibility, 'public'\) <> 'hidden'/);
 });

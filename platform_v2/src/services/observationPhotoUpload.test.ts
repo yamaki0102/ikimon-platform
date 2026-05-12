@@ -14,6 +14,12 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /heightPx: normalizedImage\.heightPx/);
   assert.match(source, /normalizeFacePrivacy/);
   assert.match(source, /face_privacy: facePrivacy/);
+  assert.match(source, /"pending", "redacted", "no_faces", "unavailable"/);
+  assert.match(source, /photo-originals/);
+  assert.match(source, /storageBackend: "local_private_fs"/);
+  assert.match(source, /observation_photo_original/);
+  assert.match(source, /privacy_processing_status: "pending"/);
+  assert.match(source, /original_relative_path: originalRelativePath/);
   assert.match(source, /set public_visibility = 'public'/);
   assert.match(source, /quality_review_status = 'accepted'/);
   assert.match(source, /reason <> 'missing_photo'/);
