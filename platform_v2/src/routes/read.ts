@@ -32,10 +32,7 @@ import {
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
-import {
-  countProminentAiCandidates,
-  rankProminentAiCandidates,
-} from "../ui/observationCandidatePresentation.js";
+import { rankProminentAiCandidates } from "../ui/observationCandidatePresentation.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
 import { getIdentificationConsensus, type IdentificationConsensusResult } from "../services/identificationConsensus.js";
@@ -66,6 +63,12 @@ import {
   type ObservationVisitCandidate,
   type ObservationVisitSubject,
 } from "../services/observationVisitBundle.js";
+import {
+  buildVisibleRecordItems,
+  formatObservationRecordTitle,
+  visibleRecordMeta,
+  type VisibleRecordItem,
+} from "../services/observationSceneReadModel.js";
 import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import {
   getHomeSnapshot,
@@ -1024,8 +1027,8 @@ function verificationStatusLabel(status: IdentificationConsensusResult["identifi
 const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
-  .obs-reading-media { min-width: 0; }
-  .obs-reading-panel { display: grid; gap: 10px; align-self: start; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+  .obs-reading-media { min-width: 0; order: 2; }
+  .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 1; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
   .obs-reading-kicker { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
   .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(24px, 3.6vw, 44px); line-height: 1.08; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
   .obs-reading-lead { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.6; font-weight: 700; }
@@ -1052,7 +1055,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-story-note { color: #64748b; font-size: 11.5px; line-height: 1.55; font-weight: 760; }
   @media (min-width: 960px) {
     .obs-reading-hero { grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); align-items: start; gap: 28px; }
-    .obs-reading-panel { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; }
+    .obs-reading-media { order: 1; }
+    .obs-reading-panel { order: 2; position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; }
   }
   .obs-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
   .obs-summary-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); font-size: 11.5px; line-height: 1.4; }
@@ -1088,7 +1092,10 @@ const OBSERVATION_DETAIL_STYLES = `
   @media (max-width: 720px) {
     .obs-reading-panel { padding: 15px; border-radius: 16px; }
     .obs-summary-strip { grid-template-columns: 1fr; }
-    .obs-record-brief-grid { grid-template-columns: 1fr; }
+    .obs-record-brief-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .obs-record-brief-card { min-height: 68px; padding: 8px 7px; }
+    .obs-record-brief-card strong { font-size: 12px; }
+    .obs-record-brief-card small { font-size: 10px; }
     .obs-read-progress { top: 50px; margin-inline: -4px; }
     .obs-next-action { min-height: 64px; }
   }
@@ -1168,6 +1175,18 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-focus-card.is-current .obs-focus-card-state { background: rgba(59,130,246,.12); color: #1d4ed8; }
   .obs-focus-card-name { font-size: 15px; font-weight: 900; color: #0f172a; line-height: 1.35; }
   .obs-focus-card-meta { font-size: 11.5px; line-height: 1.6; color: #64748b; font-weight: 700; }
+  .obs-visible-records { margin-top: 10px; }
+  .obs-visible-record-card.is-candidate { border-color: rgba(14,165,233,.18); background: linear-gradient(135deg, #ffffff, #f0f9ff); }
+  .obs-visible-record-card.is-reference { opacity: .92; background: #f8fafc; }
+  .obs-visible-record-history { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: rgba(59,130,246,.08); color: #1e3a8a; font-size: 11px; line-height: 1.45; }
+  .obs-visible-record-history strong { font-size: 11.5px; color: #1d4ed8; }
+  .obs-visible-record-history span { color: #475569; }
+  .obs-visible-record-note { margin: -2px 0 0; color: #475569; font-size: 11.5px; line-height: 1.55; font-weight: 700; }
+  .obs-visible-record-action { width: 100%; min-height: 40px; padding: 9px 11px; border: 0; border-radius: 12px; background: #059669; color: #fff; font-size: 12px; font-weight: 950; cursor: pointer; }
+  .obs-visible-record-action:disabled { opacity: .72; cursor: wait; }
+  .obs-visible-record-boundary { display: inline-flex; align-items: center; color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 800; }
+  .obs-visible-record-reference { margin: 0; background: rgba(248,250,252,.86); }
+  .obs-visible-record-reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 0 12px 12px; }
   .obs-ai-readout { display: grid; gap: 10px; padding: 14px 16px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
   .obs-ai-readout.is-low, .obs-ai-readout.is-tent { border-color: rgba(239,68,68,.18); background: linear-gradient(180deg, #fff7f7, #fff); }
   .obs-ai-readout.is-medium { border-color: rgba(245,158,11,.22); background: linear-gradient(180deg, #fffdf2, #fff); }
@@ -1188,7 +1207,15 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-focus-featured { flex-direction: column; }
     .obs-focus-open { width: 100%; }
     .obs-focus-rail { display: flex; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
-    .obs-focus-card { min-width: 220px; scroll-snap-align: start; }
+    .obs-focus-rail:not(.obs-visible-record-main) .obs-focus-card { min-width: 220px; scroll-snap-align: start; }
+    .obs-visible-record-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; gap: 8px; scroll-snap-type: none; }
+    .obs-visible-record-main .obs-focus-card { min-width: 0; padding: 10px 8px; gap: 6px; scroll-snap-align: none; }
+    .obs-visible-record-main .obs-focus-card-role { font-size: 9.5px; letter-spacing: 0; text-transform: none; }
+    .obs-visible-record-main .obs-focus-card-state { padding: 2px 6px; font-size: 9px; }
+    .obs-visible-record-main .obs-focus-card-name { font-size: 12.5px; overflow-wrap: anywhere; }
+    .obs-visible-record-main .obs-focus-card-meta { font-size: 10px; line-height: 1.45; }
+    .obs-visible-record-main .obs-visible-record-note,
+    .obs-visible-record-main .obs-visible-record-boundary { display: none; }
     .obs-ai-readout-grid { grid-template-columns: 1fr; }
   }
   .obs-reassess-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)); border: 1px dashed rgba(59,130,246,.3); margin: 14px 0 0; }
@@ -1553,6 +1580,69 @@ type RankedSubject = SiblingSubject & {
 
 function highLearningCandidates(candidates: ObservationVisitCandidate[]): ObservationVisitCandidate[] {
   return rankProminentAiCandidates(candidates, 4);
+}
+
+function renderVisibleRecordCard(item: VisibleRecordItem): string {
+  const className = [
+    "obs-focus-card",
+    "obs-visible-record-card",
+    item.isFeatured ? "is-featured" : "",
+    item.isCurrent ? "is-current" : "",
+    item.trustLevel === "reference" ? "is-reference" : "",
+    item.source === "candidate" ? "is-candidate" : "",
+  ].filter(Boolean).join(" ");
+  const stateLabel = item.isCurrent ? "表示中" : item.isFeatured ? "有力" : item.source === "candidate" ? item.trustLabel : "";
+  const meta = visibleRecordMeta(item).join(" · ");
+  const body = `
+    <div class="obs-focus-card-top">
+      <span class="obs-focus-card-role">${escapeHtml(item.roleLabel)}</span>
+      ${stateLabel ? `<span class="obs-focus-card-state" data-subject-state>${escapeHtml(stateLabel)}</span>` : `<span class="obs-focus-card-state" data-subject-state hidden></span>`}
+    </div>
+    <div class="obs-focus-card-name">${escapeHtml(item.displayName)}</div>
+    <div class="obs-focus-card-meta">${escapeHtml(meta || item.note || "同じ場面の手がかり")}</div>
+    ${item.historyLabel ? `<div class="obs-visible-record-history"><strong>${escapeHtml(item.historyLabel)}</strong>${item.historyDetail ? `<span>${escapeHtml(item.historyDetail)}</span>` : ""}</div>` : ""}
+    ${item.note ? `<p class="obs-visible-record-note">${escapeHtml(friendlyObservationText(item.note, 72))}</p>` : ""}
+    ${item.adoptEndpoint && item.candidateId
+      ? `<button type="button"
+           class="obs-visible-record-action"
+           data-adopt-candidate="${escapeHtml(item.candidateId)}"
+           data-adopt-endpoint="${escapeHtml(item.adoptEndpoint)}">見つけたものとして残す</button>`
+      : item.source === "candidate"
+        ? `<span class="obs-visible-record-boundary">自動候補。確定名ではありません。</span>`
+        : ""}`;
+
+  if (item.href && item.occurrenceId) {
+    return `<a class="${className}"
+       href="${escapeHtml(item.href)}"
+       data-subject-switch="1"
+       data-subject-id="${escapeHtml(item.occurrenceId)}">${body}</a>`;
+  }
+  return `<div class="${className}" data-visible-record-candidate="${escapeHtml(item.candidateId ?? "")}">${body}</div>`;
+}
+
+export function renderVisibleRecordItemsPanel(items: VisibleRecordItem[]): string {
+  const mainItems = items.filter((item) => item.bucket === "main");
+  const referenceItems = items.filter((item) => item.bucket === "reference");
+  const cards = (mainItems.length > 0 ? mainItems : items).map(renderVisibleRecordCard).join("");
+  const referenceBlock = referenceItems.length > 0 && mainItems.length > 0
+    ? `<details class="obs-fold obs-visible-record-reference">
+         <summary>参考候補 <span class="obs-fold-count">${referenceItems.length}</span></summary>
+         <div class="obs-visible-record-reference-grid">${referenceItems.map(renderVisibleRecordCard).join("")}</div>
+       </details>`
+    : "";
+  return `<div class="obs-focus obs-visible-records" data-visible-records-panel>
+    <div class="obs-focus-head">
+      <div>
+        <div class="obs-story-eyebrow">今日ここで見えたもの</div>
+        <h2 class="obs-focus-title">1つの名前ではなく、場面ごと見返せます。</h2>
+        <p class="obs-focus-copy">主対象、訪花中の虫、周囲の草を分けて見ます。自動候補は確定名ではありません。</p>
+      </div>
+      <span class="obs-focus-pill">${escapeHtml(`${items.length}件`)}</span>
+    </div>
+    <div class="obs-focus-rail obs-visible-record-main">${cards}</div>
+    ${referenceBlock}
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status hidden></div>
+  </div>`;
 }
 
 function renderAiCandidateLearningPanel(options: {
@@ -4425,28 +4515,34 @@ function landcoverStoryLabel(raw: string): string {
 function renderObservationRecordStory(options: {
   snapshot: ObservationDetailSnapshot;
   subject: ObservationVisitSubject;
-  subjects: ObservationVisitSubject[];
+  recordItems: VisibleRecordItem[];
   siteBrief: SiteBrief | null;
   regionalStory: RegionalStoryCue | null;
   civicContext: CivicObservationContext | null;
 }): string {
-  const subjectName = formatTaxonDisplayName(options.snapshot, "ja").primaryLabel;
   const ai = options.subject.aiAssessment;
   const diagnostic = (ai?.diagnosticFeaturesSeen ?? [])
     .map((item) => friendlyObservationText(item, 34))
     .filter((item) => /花|葉|草|緑|地面|茎|実|群落|広がり|蜜|訪花/.test(item))
     .slice(0, 2);
-  const visualPhrase = diagnostic.length > 0
-    ? diagnostic.join("、")
-    : options.snapshot.photoAssets.length + options.snapshot.videoAssets.length > 0
-      ? "花や葉、まわりの地面"
-      : "その場のメモ";
-  const otherSubjects = options.subjects
-    .filter((subject) => subject.occurrenceId !== options.subject.occurrenceId)
-    .map((subject) => subject.displayName)
-    .filter((name) => name && name !== "同定待ち")
+  const recordSceneParts = options.recordItems
+    .map((item) => {
+      if (/ハチ|蜂|bee/i.test(item.displayName) || /訪花/.test(item.roleLabel) || /訪花/.test(item.note ?? "")) return "訪花中のハチ";
+      if (/イネ科|草|芝|poaceae/i.test(item.displayName) || /草/.test(item.roleLabel)) return "周囲の草";
+      if (/花|葉|群落|地面|茎/.test(diagnostic.join("、"))) return "花の群落";
+      return item.source === "candidate" ? "同じ場面の候補" : "主対象";
+    })
+    .filter((value, index, list) => value && list.indexOf(value) === index)
     .slice(0, 3);
-  const hasBee = otherSubjects.some((name) => /ハチ|蜂|bee/i.test(name));
+  const visualPhrase = recordSceneParts.length > 0
+    ? recordSceneParts.join("、")
+    : diagnostic.length > 0
+      ? diagnostic.join("、")
+      : options.snapshot.photoAssets.length + options.snapshot.videoAssets.length > 0
+        ? "花や葉、まわりの地面"
+        : "その場のメモ";
+  const hasBee = recordSceneParts.some((name) => /ハチ|蜂|bee/i.test(name));
+  const hasMultipleRecords = options.recordItems.length >= 2;
   const vegetation = areaStoryCandidate(ai?.areaInference.vegetationStructureCandidates);
   const humanInfluence = areaStoryCandidate(ai?.areaInference.humanInfluenceCandidates)
     ?? areaStoryCandidate(ai?.areaInference.managementHintCandidates);
@@ -4459,12 +4555,12 @@ function renderObservationRecordStory(options: {
     : [];
   const lines: string[] = [];
 
-  lines.push(`${subjectName}の写真と、見た日時・場所が残っています。名前だけでなく、この時期のこの場所の様子を見返せる記録です。`);
+  lines.push(`今日は、${visualPhrase}を同じ場面として見返せます。名前を1つ当てるためだけでなく、この時期のこの場所の様子を残す記録です。`);
 
   if (hasBee) {
-    lines.push(`同じ場面にハチも写っているなら、花を見に来た相手まで一緒に見えます。花だけでなく、そこを使う生きものまで読み返せる場面です。`);
-  } else if (otherSubjects.length > 0) {
-    lines.push(`同じ記録には ${otherSubjects.join("、")} も見えています。主役の近くに何がいたかが残ると、あとから場所の様子を比べやすくなります。`);
+    lines.push(`花だけでなく、そこを使う相手まで残ると、次に同じ場所を見る理由ができます。訪花の有無や時間帯の違いも比べやすくなります。`);
+  } else if (hasMultipleRecords) {
+    lines.push(`複数の見つけたものを分けておくと、主対象の近くに何があったかをあとから見返せます。自動候補は人の確認で少しずつ確かになります。`);
   }
 
   const placeParts = [
@@ -4479,8 +4575,10 @@ function renderObservationRecordStory(options: {
   }
 
   const title = hasBee
-    ? "花と訪問者が一緒に写った記録"
-    : "写真と場所が残った記録";
+    ? "花・訪問者・足元をまとめて見返す記録"
+    : hasMultipleRecords
+      ? "複数の見つけたものが写った記録"
+      : "写真と場所が残った記録";
   const civic = options.civicContext?.activityLabel?.trim();
   return `<div class="obs-record-story">
     <div class="obs-record-story-head">
@@ -4538,19 +4636,19 @@ function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot)
 function renderObservationReadingHero(options: {
   mediaBlock: string;
   snapshot: ObservationDetailSnapshot;
-  displayName: string;
+  recordTitle: string;
   observerDisplay: string;
   observerHref: string;
   observedAt: string;
   placeLabel: string;
   badges: string[];
   focusRailBlock: string;
+  visibleRecordCount: number;
   summaryStrip: string;
   nextActionRail: string;
   trustStageLabel: string;
   trustLead: string;
   recordsHref: string;
-  subjectCount: number;
   evidenceLabel: string;
   recordModeLabel: string;
 }): string {
@@ -4574,18 +4672,18 @@ function renderObservationReadingHero(options: {
           <div class="obs-record-brief-card">
             <span>証拠</span>
             <strong>${escapeHtml(options.evidenceLabel)}</strong>
-            <small>${escapeHtml(`${options.subjectCount}件の見つけたもの`)}</small>
+            <small>${escapeHtml(`${options.visibleRecordCount}件の見つけたもの`)}</small>
           </div>
           <div class="obs-record-brief-card">
-            <span>対象</span>
-            <strong>${escapeHtml(options.displayName)}</strong>
+            <span>見つけたもの</span>
+            <strong>${escapeHtml(`${options.visibleRecordCount}件`)}</strong>
             <small>${escapeHtml(options.recordModeLabel)}</small>
           </div>
         </div>
       </div>
       <div class="obs-current-find">
-        <div class="obs-current-find-kicker">いまの候補</div>
-        <h1 class="obs-reading-title">${escapeHtml(options.displayName)}</h1>
+        <div class="obs-current-find-kicker">この日の場面</div>
+        <h1 class="obs-reading-title">${escapeHtml(options.recordTitle)}</h1>
         <div class="obs-hero-byline">
           <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
             ${options.snapshot.observerAvatarUrl
@@ -4597,6 +4695,7 @@ function renderObservationReadingHero(options: {
       </div>
       ${options.badges.length > 0 ? `<div class="obs-hero-badges">${options.badges.join("")}</div>` : ""}
       ${options.summaryStrip}
+      ${options.focusRailBlock}
       <div class="obs-reading-trust">
         <span>同定</span>
         <strong>${escapeHtml(options.trustStageLabel)}</strong>
@@ -4604,7 +4703,6 @@ function renderObservationReadingHero(options: {
       </div>
       <a class="obs-original-record-link" href="${escapeHtml(options.recordsHref)}">記録一覧へ</a>
       ${options.nextActionRail}
-      ${options.focusRailBlock}
     </aside>
   </section>`;
 }
@@ -11709,9 +11807,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     // ===== Layer 0: ヒーロー =====
     const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject);
     const currentSubjectDisplay = formatTaxonDisplayName(currentSubject, lang);
-    const featuredSubjectDisplay = formatTaxonDisplayName(featuredSubject, lang);
     const snapshotDisplay = formatTaxonDisplayName(snapshot, lang);
     const observerDisplay = formatActorDisplay(snapshot.observerName, lang);
+    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
     const relatedObservationsHref = appendLangToHref(
       withBasePath(
         basePath,
@@ -11722,11 +11820,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     );
 
-    const prominentAiCandidateCount = countProminentAiCandidates(bundle.aiCandidates);
+    const visibleRecordItems = buildVisibleRecordItems({
+      basePath,
+      lang,
+      bundle,
+      currentSubject,
+      featuredSubject,
+      isOwner,
+    });
+    const visibleAiCandidateCount = visibleRecordItems.filter((item) => item.source === "candidate").length;
     const badges: string[] = [];
-    if (subjectCount >= 2) badges.push(`<span class="obs-badge obs-badge-species">🧩 ${subjectCount}件の見つけたもの</span>`);
-    if (prominentAiCandidateCount > 0) badges.push(`<span class="obs-badge obs-badge-species">候補 ${prominentAiCandidateCount} 件</span>`);
-    if (featuredSubject) badges.push(`<span class="obs-badge obs-badge-species">⭐ 有力 ${escapeHtml(featuredSubjectDisplay.primaryLabel)}</span>`);
+    badges.push(`<span class="obs-badge obs-badge-species">🧩 ${visibleRecordItems.length}件の見つけたもの</span>`);
+    if (visibleAiCandidateCount > 0) badges.push(`<span class="obs-badge obs-badge-species">自動候補 ${visibleAiCandidateCount}件</span>`);
     if (currentSubject && featuredSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId) {
       badges.push(`<span class="obs-badge obs-badge-nearby" data-current-subject-badge>👀 表示中 ${escapeHtml(currentSubjectDisplay.primaryLabel)}</span>`);
     }
@@ -11738,8 +11843,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     if (snapshot.audioAssets.length > 0) badges.push(`<span class="obs-badge obs-badge-video">音あり</span>`);
 
     const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
-    const rankedSubjects = bundle.subjects;
-    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
     const aiCandidateLearningPanel = isOwner
       ? renderAiCandidateLearningPanel({
           basePath,
@@ -11865,96 +11968,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </div>
     </details>`;
 
-    const focusRailBlock = featuredSubject
-      ? (() => {
-          const hasAiDefault = bundle.selectionSource === "latest_ai_default";
-          const focusHeading = currentSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId
-            ? `今見ている ${currentSubjectDisplay.primaryLabel} だけが主役とは限らず、${featuredSubjectDisplay.primaryLabel} がいちばん有力です。`
-            : hasAiDefault
-              ? `写真から見ると、いまの候補は${featuredSubjectDisplay.primaryLabel}です。`
-              : `${featuredSubjectDisplay.primaryLabel} を先に見ると状態をつかみやすいです。`;
-          const focusLead = hasAiDefault
-            ? subjectCount >= 2
-              ? "候補を切り替えて、写っているものを確認できます。"
-              : mediaCopy.focusLead
-            : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、名前の記録・候補・なかま分けがその場で切り替わります。" : "この見つけたものの状態をそのまま確かめられます。"}`;
-          const focusPillLabel = prominentAiCandidateCount > 0
-            ? `候補 ${prominentAiCandidateCount}件`
-            : `${subjectCount}件`;
-          const featuredChips: string[] = [];
-          if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(publicRankHint(featuredSubject.rank) || rankLabelJa(featuredSubject.rank))}</span>`);
-          const featuredAiJudgementLabel = aiJudgementStateLabel(featuredSubject);
-          if (featuredAiJudgementLabel) featuredChips.push(`<span class="obs-focus-chip">自動候補: ${escapeHtml(featuredAiJudgementLabel)}</span>`);
-          if (featuredSubject.scientificName) featuredChips.push(`<span class="obs-focus-chip">🔬 ${escapeHtml(featuredSubject.scientificName)}</span>`);
-          if (featuredSubject.identificationCount > 0) featuredChips.push(`<span class="obs-focus-chip">🧭 名前 ${featuredSubject.identificationCount}件</span>`);
-          if (featuredSubject.latestAssessmentBand && featuredSubject.latestAssessmentBand !== "unknown") {
-            featuredChips.push(`<span class="obs-focus-chip">🤖 ${escapeHtml(confidenceLabel(featuredSubject.latestAssessmentBand))}</span>`);
-          } else if (typeof featuredSubject.confidence === "number") {
-            featuredChips.push(`<span class="obs-focus-chip">📷 ${Math.round(featuredSubject.confidence * 100)}%</span>`);
-          }
-          const cards = rankedSubjects.map((subject) => {
-            const subjectHref = appendLangToHref(
-              withBasePath(basePath, buildObservationDetailPath(bundle.visitId, subject.occurrenceId)),
-              lang,
-            );
-            const subjectMeta: string[] = [];
-            const subjectDisplay = formatTaxonDisplayName(subject, lang);
-            if (subject.rank) subjectMeta.push(publicRankHint(subject.rank) || rankLabelJa(subject.rank));
-            const subjectAiJudgementLabel = aiJudgementStateLabel(subject);
-            if (subjectAiJudgementLabel) subjectMeta.push(`自動候補: ${subjectAiJudgementLabel}`);
-            if (subject.identificationCount > 0) subjectMeta.push(`名前 ${subject.identificationCount}件`);
-            else if (subject.latestAssessmentBand && subject.latestAssessmentBand !== "unknown") subjectMeta.push(confidenceLabel(subject.latestAssessmentBand));
-            else if (typeof subject.confidence === "number") subjectMeta.push(`${Math.round(subject.confidence * 100)}%`);
-            const stateLabel = subject.occurrenceId === bundle.canonicalSubjectId
-              ? "表示中"
-              : subject.occurrenceId === featuredSubject.occurrenceId
-                ? "有力"
-                : "";
-            return `<a class="obs-focus-card${subject.occurrenceId === featuredSubject.occurrenceId ? " is-featured" : ""}${subject.occurrenceId === bundle.canonicalSubjectId ? " is-current" : ""}"
-                     href="${escapeHtml(subjectHref)}"
-                     data-subject-switch="1"
-                     data-subject-id="${escapeHtml(subject.occurrenceId)}">
-              <div class="obs-focus-card-top">
-                <span class="obs-focus-card-role">${escapeHtml(subject.roleLabel)}</span>
-                ${stateLabel ? `<span class="obs-focus-card-state" data-subject-state>${escapeHtml(stateLabel)}</span>` : `<span class="obs-focus-card-state" data-subject-state hidden></span>`}
-              </div>
-              <div class="obs-focus-card-name">${escapeHtml(subjectDisplay.primaryLabel)}</div>
-              <div class="obs-focus-card-meta">${escapeHtml(subjectMeta.join(" · ") || subject.focusReason)}</div>
-            </a>`;
-          }).join("");
-          return `<div class="obs-focus">
-            <div class="obs-focus-head">
-              <div>
-                <div class="obs-story-eyebrow">${hasAiDefault ? "自動候補" : "この記録に写っているもの"}</div>
-                <h2 class="obs-focus-title">${escapeHtml(focusHeading)}</h2>
-                <p class="obs-focus-copy">${escapeHtml(focusLead)}</p>
-              </div>
-              <span class="obs-focus-pill">${escapeHtml(focusPillLabel)}</span>
-            </div>
-            <div data-obs-switch-ai-readout>${renderHeroAiReadout(currentSubject)}</div>
-            <div class="obs-focus-featured">
-              <div>
-                <div class="obs-focus-role">${escapeHtml(featuredSubject.roleLabel)}</div>
-                <div class="obs-focus-name-row">
-                  <span class="obs-focus-name">${escapeHtml(featuredSubjectDisplay.primaryLabel)}</span>
-                  ${featuredSubject.rank ? `<span class="obs-focus-rank">${escapeHtml(publicRankHint(featuredSubject.rank) || rankLabelJa(featuredSubject.rank))}</span>` : ""}
-                </div>
-                <div class="obs-focus-meta">${featuredChips.join("")}</div>
-              </div>
-              <span class="obs-focus-open${bundle.lockedByHuman ? " is-current" : ""}">${escapeHtml(
-                bundle.selectionSource === "specialist_lock"
-                  ? "専門家固定"
-                  : bundle.selectionSource === "human_consensus"
-                    ? "みんなの確認あり"
-                    : bundle.selectionSource === "latest_ai_default"
-                      ? "自動候補"
-                      : "安定既定",
-              )}</span>
-            </div>
-            ${subjectCount > 1 ? `<div class="obs-focus-rail">${cards}</div>` : ""}
-          </div>`;
-        })()
-      : "";
+    const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems);
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
       placeId: snapshot.placeId,
@@ -12009,22 +12023,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     // 上部のアクション案内を廃止（下部 ctaBlock に関連リンクとして集約済みのため重複削除）
     const nextActionRail = "";
     void nextActions;
+    const recordTitle = formatObservationRecordTitle(snapshot.observedAt, heroPlaceLabel);
     const heroBlock = renderObservationReadingHero({
       mediaBlock,
       snapshot,
-      displayName: snapshotDisplay.primaryLabel,
+      recordTitle,
       observerDisplay,
       observerHref: appendLangToHref(buildObserverProfileHref(basePath, snapshot.observerUserId) ?? "#", lang),
       observedAt: snapshot.observedAt,
       placeLabel: heroPlaceLabel,
       badges,
       focusRailBlock,
+      visibleRecordCount: visibleRecordItems.length,
       summaryStrip,
       nextActionRail,
       trustStageLabel,
       trustLead,
       recordsHref: appendLangToHref(withBasePath(basePath, isOwner ? "/records?view=mine" : "/records?view=public"), lang),
-      subjectCount,
       evidenceLabel,
       recordModeLabel: observationRecordModeLabel(snapshot),
     });
@@ -12058,7 +12073,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const recordStoryBlock = renderObservationRecordStory({
       snapshot,
       subject: currentSubject,
-      subjects: bundle.subjects,
+      recordItems: visibleRecordItems,
       siteBrief: siteBriefResult ?? null,
       regionalStory,
       civicContext,
@@ -12213,6 +12228,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<details class="obs-fold"><summary>🏞️ 環境の情報 <span class="obs-fold-count">${grouped.environment.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul></details>` : "";
     const contextBlock = (coexistingSection || soundsSection || envSection)
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">${escapeHtml(mediaCopy.contextHeading)}</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
+    const hasAdoptableVisibleCandidate = visibleRecordItems.some((item) => Boolean(item.adoptEndpoint));
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject)}</template>
@@ -12400,14 +12416,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const candidateAdoptionScript = isOwner && aiCandidateLearningPanel
+    const candidateAdoptionScript = isOwner && (aiCandidateLearningPanel || hasAdoptableVisibleCandidate)
       ? `<script>(function(){
-           var panel = document.querySelector('[data-ai-cutout-panel]');
-           if (!panel) return;
-           var buttons = Array.prototype.slice.call(panel.querySelectorAll('[data-adopt-candidate][data-adopt-endpoint]'));
-           var status = panel.querySelector('[data-adopt-candidate-status]');
+           var panels = Array.prototype.slice.call(document.querySelectorAll('[data-ai-cutout-panel], [data-visible-records-panel]'));
+           if (!panels.length) return;
+           var buttons = [];
+           panels.forEach(function(panel){
+             buttons = buttons.concat(Array.prototype.slice.call(panel.querySelectorAll('[data-adopt-candidate][data-adopt-endpoint]')));
+           });
+           var status = document.querySelector('[data-adopt-candidate-status]');
            var setStatus = function(message, isError) {
              if (!status) return;
+             status.hidden = false;
              status.textContent = message;
              status.classList.toggle('is-error', Boolean(isError));
            };
@@ -12561,7 +12581,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshotDisplay.primaryLabel} | ikimon`,
+      `${recordTitle} | ikimon`,
       detailBody,
       "みつける",
       undefined,

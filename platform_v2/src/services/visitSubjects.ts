@@ -15,6 +15,9 @@ export type VisitSubjectSummary = SubjectRankInput & {
   aiReviewDisagreeCount: number;
   aiCandidateName: string | null;
   aiCandidateRank: string | null;
+  adoptedFromAiCandidate: boolean;
+  adoptedCandidateId: string | null;
+  adoptedCandidateNote: string | null;
   /** displayName が AI 候補 (人手 vernacular/scientific 欠落で AI 名を借りている) ときのみ true。 */
   isAiCandidate: boolean;
 };
@@ -133,7 +136,12 @@ export async function getVisitSubjectSummaries(
     const latestAssessment = latestAssessments.get(row.occurrence_id);
     const aiReviews = aiReviewCounts.get(row.occurrence_id) ?? { agree: 0, disagree: 0 };
     const specialistPayload = ((row.source_payload ?? {}) as { specialist_review?: { decision?: string } }).specialist_review;
-    const v2SubjectPayload = ((row.source_payload ?? {}) as { v2_subject?: { role_hint?: string } }).v2_subject;
+    const sourcePayload = (row.source_payload ?? {}) as {
+      source?: string;
+      candidate_id?: string;
+      v2_subject?: { role_hint?: string; note?: string | null };
+    };
+    const v2SubjectPayload = sourcePayload.v2_subject;
     const humanName = row.vernacular_name || row.scientific_name || null;
     const aiName = row.ai_candidate_name && row.ai_candidate_name.trim() ? row.ai_candidate_name.trim() : null;
     const displayName = humanName || aiName || "同定待ち";
@@ -158,6 +166,9 @@ export async function getVisitSubjectSummaries(
       isPrimary: row.subject_index === 0,
       aiCandidateName: aiName,
       aiCandidateRank: row.ai_candidate_rank ?? null,
+      adoptedFromAiCandidate: sourcePayload.source === "ai_candidate_adoption",
+      adoptedCandidateId: sourcePayload.candidate_id ?? null,
+      adoptedCandidateNote: v2SubjectPayload?.note ?? null,
       isAiCandidate: !humanName && !!aiName,
     };
   });

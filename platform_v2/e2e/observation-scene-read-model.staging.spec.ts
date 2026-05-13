@@ -1,0 +1,121 @@
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  cleanupFixtures,
+  createStagingApiContext,
+  maybeCaptureQaScreenshot,
+  newStagingContext,
+  requireEnv,
+  seedRegressionFixtures,
+  type SeededRegressionFixtureBundle,
+  uniqueFixturePrefix,
+  type ViewportProfile,
+} from "./support/staging.js";
+
+const VIEWPORTS: ViewportProfile[] = [
+  { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
+  { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+];
+
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+}
+
+async function stabilizeVisualDiff(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+        caret-color: transparent !important;
+      }
+      video { visibility: hidden !important; }
+    `,
+  });
+}
+
+async function visibleRecordTextInFirstViewport(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const nodes = [...document.body.querySelectorAll("h1,.obs-visible-record-card")];
+    return nodes
+      .filter((node) => {
+        const rect = node.getBoundingClientRect();
+        return rect.bottom > 0 && rect.top < window.innerHeight;
+      })
+      .map((node) => (node.textContent ?? "").replace(/\s+/g, " ").trim())
+      .join(" | ");
+  });
+}
+
+test.describe.serial("observation scene read model visual QA", () => {
+  let api: APIRequestContext;
+  let fixturePrefix = "";
+  let writeKey = "";
+  let fixture: SeededRegressionFixtureBundle;
+  let cleanedUp = false;
+
+  test.beforeAll(async ({ playwright }) => {
+    writeKey = requireEnv("V2_PRIVILEGED_WRITE_API_KEY");
+    api = await createStagingApiContext(playwright);
+    fixturePrefix = uniqueFixturePrefix("observation-scene");
+    fixture = await seedRegressionFixtures(api, writeKey, fixturePrefix);
+  });
+
+  test.afterAll(async () => {
+    if (!cleanedUp) {
+      await cleanupFixtures(api, writeKey, fixturePrefix).catch(() => undefined);
+    }
+    await api.dispose();
+  });
+
+  for (const profile of VIEWPORTS) {
+    test(`scene first viewport exposes multiple visible records on ${profile.slug}`, async ({ browser }) => {
+      const context = await newStagingContext(browser, profile);
+      const page = await context.newPage();
+      try {
+        const href = `/observations/${encodeURIComponent(fixture.scene.visitId)}?subject=${encodeURIComponent(fixture.scene.occurrenceId)}&lang=ja`;
+        await page.goto(href, { waitUntil: "domcontentloaded" });
+
+        await expect(page.locator("h1")).toContainText("浜松市の観察記録");
+        await expect(page.locator("body")).toContainText("今日ここで見えたもの");
+        await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
+        await expect(page.locator("body")).toContainText("セイヨウミツバチ");
+        await expect(page.locator("body")).toContainText("イネ科の一種");
+        await expect(page.locator("body")).toContainText("参考候補");
+        await expect(page.locator("body")).not.toContainText("AI 主役");
+        await expect(page.locator("body")).not.toContainText("AI 主対象");
+        await expect(page.locator("body")).not.toContainText("ヒメイワダレソウ画像全体に広がる群落");
+
+        const names = await page.locator(".obs-visible-record-card .obs-focus-card-name").allInnerTexts();
+        expect(names.slice(0, 3)).toEqual(["ヒメイワダレソウ", "セイヨウミツバチ", "イネ科の一種"]);
+        const firstViewportText = await visibleRecordTextInFirstViewport(page);
+        expect(firstViewportText).toContain("浜松市の観察記録");
+        expect(firstViewportText).toContain("ヒメイワダレソウ");
+        expect(firstViewportText).toContain("セイヨウミツバチ");
+        expect(firstViewportText).toContain("イネ科の一種");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("訪花中の候補");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("手がかりあり");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "小さな黒い点" })).toContainText("参考");
+        await expectNoHorizontalOverflow(page);
+
+        await maybeCaptureQaScreenshot(page, `observation-scene-${profile.slug}.jpg`);
+        if (process.env.OBSERVATION_SCENE_ASSERT_SCREENSHOTS === "1") {
+          await stabilizeVisualDiff(page);
+          await expect(page.locator(".obs-reading-hero")).toHaveScreenshot(`observation-scene-hero-${profile.slug}.png`, {
+            animations: "disabled",
+            maxDiffPixelRatio: 0.03,
+          });
+        }
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test("cleanup route removes seeded scene fixture", async () => {
+    await cleanupFixtures(api, writeKey, fixturePrefix);
+    cleanedUp = true;
+  });
+});

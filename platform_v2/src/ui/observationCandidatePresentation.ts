@@ -11,7 +11,10 @@ export type AiCandidateForPresentation = {
 };
 
 export const AI_CANDIDATE_REGION_CONFIDENCE_MIN = 0.45;
+export const AI_CANDIDATE_MEDIUM_CONFIDENCE_MIN = 0.5;
 export const AI_CANDIDATE_STRONG_CONFIDENCE_MIN = 0.72;
+
+export type AiCandidateTrustLevel = "strong" | "medium" | "reference";
 
 export function candidateHasVisibleRegion(candidate: AiCandidateForPresentation): boolean {
   return candidate.regions.some((region) => {
@@ -20,14 +23,24 @@ export function candidateHasVisibleRegion(candidate: AiCandidateForPresentation)
   });
 }
 
-function isOpenCandidate(candidate: AiCandidateForPresentation): boolean {
+export function isOpenCandidate(candidate: AiCandidateForPresentation): boolean {
   if (candidate.suggestedOccurrenceId) return false;
   return candidate.candidateStatus === "proposed" || candidate.candidateStatus === "matched";
 }
 
+export function classifyAiCandidateTrustLevel(candidate: AiCandidateForPresentation): AiCandidateTrustLevel {
+  if ((candidate.confidence ?? 0) >= AI_CANDIDATE_STRONG_CONFIDENCE_MIN || candidateHasVisibleRegion(candidate)) {
+    return "strong";
+  }
+  if ((candidate.confidence ?? 0) >= AI_CANDIDATE_MEDIUM_CONFIDENCE_MIN) {
+    return "medium";
+  }
+  return "reference";
+}
+
 export function isProminentAiCandidate(candidate: AiCandidateForPresentation): boolean {
   if (!isOpenCandidate(candidate)) return false;
-  return (candidate.confidence ?? 0) >= AI_CANDIDATE_STRONG_CONFIDENCE_MIN || candidateHasVisibleRegion(candidate);
+  return classifyAiCandidateTrustLevel(candidate) === "strong";
 }
 
 function candidatePresentationScore(candidate: AiCandidateForPresentation): number {

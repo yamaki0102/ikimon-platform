@@ -33,6 +33,7 @@ export type SeededRegressionFixtureBundle = {
   manual: SeededRegressionFixture;
   historical: SeededRegressionFixture;
   smoke: SeededRegressionFixture;
+  scene: SeededRegressionFixture;
 };
 
 export type ViewportProfile = {

@@ -6,7 +6,7 @@ import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp, ups
 const TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
 const FIXTURE_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{2,80}$/;
 
-type RegressionFixtureKind = "manual" | "historical" | "smoke";
+type RegressionFixtureKind = "manual" | "historical" | "smoke" | "scene";
 
 type RegressionFixtureSeedInput = {
   fixturePrefix: string;
@@ -31,6 +31,7 @@ export type StagingRegressionFixtureSeedResult = {
   manual: RegressionFixtureSummary;
   historical: RegressionFixtureSummary;
   smoke: RegressionFixtureSummary;
+  scene: RegressionFixtureSummary;
 };
 
 type FixturePhoto = {
@@ -54,6 +55,16 @@ type FixtureMediaRegion = {
   note: string;
 };
 
+type FixtureAiCandidate = {
+  candidateKey: string;
+  vernacularName: string | null;
+  scientificName: string | null;
+  taxonRank: string | null;
+  confidenceScore: number | null;
+  note: string;
+  regions?: FixtureMediaRegion[];
+};
+
 type FixtureVisitInput = {
   kind: RegressionFixtureKind;
   fixturePrefix: string;
@@ -75,6 +86,7 @@ type FixtureVisitInput = {
   evidenceTier: number;
   photo: FixturePhoto;
   mediaRegions?: FixtureMediaRegion[];
+  aiCandidates?: FixtureAiCandidate[];
 };
 
 function assertFixturePrefix(value: string): string {
@@ -320,7 +332,8 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
   );
   const storedAssetId = assetResult.rows[0]?.asset_id ?? assetId;
 
-  if (input.mediaRegions && input.mediaRegions.length > 0) {
+  const needsAiRun = (input.mediaRegions?.length ?? 0) > 0 || (input.aiCandidates?.length ?? 0) > 0;
+  if (needsAiRun) {
     await client.query(
       `delete from observation_ai_runs
         where visit_id = $1
@@ -355,7 +368,7 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
       ],
     );
 
-    for (const region of input.mediaRegions) {
+    for (const region of input.mediaRegions ?? []) {
       await client.query(
         `insert into subject_media_regions (
             ai_run_id, occurrence_id, candidate_id, asset_id, normalized_rect,
@@ -379,6 +392,73 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
         ],
       );
     }
+
+    for (const candidate of input.aiCandidates ?? []) {
+      const candidateResult = await client.query<{ candidate_id: string }>(
+        `insert into observation_ai_subject_candidates (
+            ai_run_id, visit_id, suggested_occurrence_id, candidate_key,
+            vernacular_name, scientific_name, taxon_rank, confidence_score,
+            candidate_status, note, source_payload, created_at, updated_at
+         ) values (
+            $1::uuid, $2, null, $3, $4, $5, $6, $7,
+            'proposed', $8, $9::jsonb, now(), now()
+         )
+         on conflict (ai_run_id, candidate_key) do update set
+            vernacular_name = excluded.vernacular_name,
+            scientific_name = excluded.scientific_name,
+            taxon_rank = excluded.taxon_rank,
+            confidence_score = excluded.confidence_score,
+            candidate_status = excluded.candidate_status,
+            note = excluded.note,
+            source_payload = excluded.source_payload,
+            updated_at = now()
+         returning candidate_id::text as candidate_id`,
+        [
+          aiRunId,
+          visitId,
+          candidate.candidateKey,
+          candidate.vernacularName,
+          candidate.scientificName,
+          candidate.taxonRank,
+          candidate.confidenceScore,
+          candidate.note,
+          JSON.stringify({
+            source: sourceName,
+            fixture_prefix: input.fixturePrefix,
+            scenario: input.kind,
+            role: candidate.candidateKey,
+          }),
+        ],
+      );
+      const candidateId = candidateResult.rows[0]?.candidate_id;
+      if (!candidateId) continue;
+
+      for (const region of candidate.regions ?? []) {
+        await client.query(
+          `insert into subject_media_regions (
+              ai_run_id, occurrence_id, candidate_id, asset_id, normalized_rect,
+              frame_time_ms, confidence_score, source_kind, source_model, source_payload, created_at
+           ) values (
+              $1::uuid, null, $2::uuid, $3::uuid, $4::jsonb,
+              null, $5, 'staging_fixture', 'scene-read-model-fixture', $6::jsonb, now()
+           )`,
+          [
+            aiRunId,
+            candidateId,
+            storedAssetId,
+            JSON.stringify(region.rect),
+            region.confidenceScore,
+            JSON.stringify({
+              source: sourceName,
+              fixture_prefix: input.fixturePrefix,
+              scenario: input.kind,
+              role: candidate.candidateKey,
+              note: region.note,
+            }),
+          ],
+        );
+      }
+    }
   }
 
   return {
@@ -391,7 +471,9 @@ async function upsertFixtureVisit(client: PoolClient, input: FixtureVisitInput):
     expectedVisibility:
       input.kind === "manual"
         ? "manual_only"
-        : input.kind === "historical"
+        : input.kind === "scene"
+          ? "manual_only"
+          : input.kind === "historical"
           ? "all_research_artifacts_only"
           : "excluded",
   };
@@ -407,10 +489,11 @@ export async function seedStagingRegressionFixtures(
   const displayName = "Regression Field Note Observer";
 
   try {
-    const [manualPhoto, historicalPhoto, smokePhoto] = await Promise.all([
+    const [manualPhoto, historicalPhoto, smokePhoto, scenePhoto] = await Promise.all([
       ensureFixturePhoto(fixturePrefix, "manual"),
       ensureFixturePhoto(fixturePrefix, "historical"),
       ensureFixturePhoto(fixturePrefix, "smoke"),
+      ensureFixturePhoto(fixturePrefix, "scene"),
     ]);
 
     const now = Date.now();
@@ -495,6 +578,68 @@ export async function seedStagingRegressionFixtures(
       photo: smokePhoto,
     });
 
+    const scene = await upsertFixtureVisit(client, {
+      kind: "scene",
+      fixturePrefix,
+      userId,
+      observedAt: new Date(now - 10 * 60 * 1000).toISOString(),
+      latitude: 34.7106,
+      longitude: 137.7264,
+      prefecture: "静岡県",
+      municipality: "浜松市",
+      localityNote: "staging regression scene fixture",
+      siteId: `${fixturePrefix}-scene-site`,
+      siteName: "Regression Scene Flower Patch",
+      note: "white flower mat with visiting bee and surrounding grass",
+      subjectLabel: "ヒメイワダレソウ",
+      scientificName: "Phyla nodiflora",
+      sourceKind: "v2_observation",
+      sourcePayload: { source: "regression_seed_scene" },
+      qualityGrade: "casual",
+      evidenceTier: 1,
+      photo: scenePhoto,
+      mediaRegions: [
+        {
+          rect: { x: 0.12, y: 0.18, width: 0.76, height: 0.55 },
+          confidenceScore: 0.93,
+          note: "flower-mat-primary-fixture",
+        },
+      ],
+      aiCandidates: [
+        {
+          candidateKey: "visiting-bee",
+          vernacularName: "セイヨウミツバチ",
+          scientificName: "Apis mellifera",
+          taxonRank: "species",
+          confidenceScore: 0.9,
+          note: "白い花で訪花中のハチ",
+          regions: [
+            {
+              rect: { x: 0.58, y: 0.24, width: 0.18, height: 0.12 },
+              confidenceScore: 0.81,
+              note: "visiting-bee-region-fixture",
+            },
+          ],
+        },
+        {
+          candidateKey: "surrounding-grass",
+          vernacularName: "イネ科の一種",
+          scientificName: null,
+          taxonRank: "lifeform",
+          confidenceScore: 0.56,
+          note: "群落の周囲に細い葉の草が混じる",
+        },
+        {
+          candidateKey: "weak-reference",
+          vernacularName: "小さな黒い点",
+          scientificName: null,
+          taxonRank: null,
+          confidenceScore: 0.28,
+          note: "位置と分類が弱い参考候補",
+        },
+      ],
+    });
+
     await client.query("commit");
 
     return {
@@ -506,6 +651,7 @@ export async function seedStagingRegressionFixtures(
       manual,
       historical,
       smoke,
+      scene,
     };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
