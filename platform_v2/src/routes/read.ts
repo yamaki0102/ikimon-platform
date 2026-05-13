@@ -1006,21 +1006,21 @@ function consensusStatusLabel(status: IdentificationConsensusResult["consensusSt
 function verificationStatusLabel(status: IdentificationConsensusResult["identificationVerificationStatus"] | null | undefined): string {
   switch (status) {
     case "authority_reviewed":
-      return "authority / expert review 済み";
+      return "専門家確認";
     case "community_consensus":
-      return "community consensus 済み";
+      return "みんなで確認";
     case "blocked_open_dispute":
-      return "open dispute により保留";
+      return "要追加証拠";
     case "blocked_taxonomy_match":
-      return "GBIF backbone 照合待ち";
+      return "分類照合待ち";
     case "blocked_lineage_conflict":
-      return "分類系列の衝突を確認中";
+      return "分類整理待ち";
     case "needs_media":
-      return "証拠メディア待ち";
+      return "要追加証拠";
     case "needs_identification":
-      return "同定待ち";
+      return "未確認";
     default:
-      return "追加レビュー待ち";
+      return "未確認";
   }
 }
 
@@ -2078,7 +2078,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
     ? `${aiAssessment.recommendedTaxonName}の候補です。`
     : `${subject.displayName}の候補です。`;
   const rec = aiAssessment.recommendedTaxonName
-    ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-ai-readout-rank">${escapeHtml(publicRankHint(aiAssessment.recommendedRank) || "候補")}</span>` : ""}</div>`
+    ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span><span class="obs-ai-readout-rank">${escapeHtml([aiAssessment.recommendedRank ? publicRankHint(aiAssessment.recommendedRank) || "候補" : "候補", bandLabel].filter(Boolean).join(" / "))}</span></div>`
     : "";
   const clues = aiAssessment.diagnosticFeaturesSeen.slice(0, 3);
   const clueList = clues.length > 0
@@ -2099,7 +2099,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
         <p class="obs-hint-eyebrow">写真の手がかり</p>
         <h3 class="obs-ai-readout-title">${escapeHtml(headline)}</h3>
       </div>
-      <span class="obs-ai-readout-badge">${escapeHtml(bandLabel)}</span>
+      <span class="obs-ai-readout-badge">AI推定</span>
     </div>
     ${rec}
     ${clueList}
@@ -4328,10 +4328,10 @@ function renderIdentificationParticipation(options: {
   const aiReviewStateLabel = snapshot.aiReviewAgreeCount > 0 && snapshot.aiReviewDisagreeCount > 0
     ? "確認が割れています"
     : snapshot.aiReviewAgreeCount > 0
-      ? "人の確認あり"
+      ? "みんなで確認"
       : snapshot.aiReviewDisagreeCount > 0
         ? "違う意見あり"
-        : "自動候補";
+        : "AI推定";
   const aiReviewBlock = isAiJudgement
     ? `<div class="obs-ai-review" data-ai-review-panel data-ai-review-endpoint="${escapeHtml(aiReviewEndpoint)}">
         <div class="obs-ai-review-head">
@@ -4488,9 +4488,9 @@ function aiJudgementStateLabel(input: {
   const agree = Number(input.aiReviewAgreeCount ?? 0);
   const disagree = Number(input.aiReviewDisagreeCount ?? 0);
   if (agree > 0 && disagree > 0) return "確認が割れています";
-  if (agree > 0 || Number(input.identificationCount ?? 0) > 0) return "人の確認あり";
+  if (agree > 0 || Number(input.identificationCount ?? 0) > 0) return "みんなで確認";
   if (disagree > 0) return "違う意見あり";
-  return "自動候補";
+  return "AI推定";
 }
 
 function areaStoryCandidate(candidates: Array<{ label: string; why?: string; confidence?: number | null }> | undefined): string | null {

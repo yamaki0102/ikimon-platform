@@ -71,3 +71,22 @@ test("QA report keeps exportReady blockers visible", () => {
   assert.equal(report.blockerCounts.external_export_not_allowed, 1);
   assert.equal(report.records.find((item) => item.occurrenceID === "blocked")?.exportReady, false);
 });
+
+test("QA report blocks AI-only and method-incomplete export candidates", () => {
+  const report = buildResearchExportQaReport([
+    record({
+      occurrenceID: "ai-only",
+      readiness: {
+        exportReady: false,
+        verificationState: "ai_suggested",
+        methodReady: false,
+        effortDenominatorReady: false,
+      },
+    }),
+  ], "2026-05-14T00:00:00.000Z");
+
+  const blockers = report.records[0]?.blockers ?? [];
+  assert.match(blockers.join(","), /ai_candidate_requires_human_review/);
+  assert.match(blockers.join(","), /missing_method_contract/);
+  assert.match(blockers.join(","), /missing_effort_denominator/);
+});

@@ -59,6 +59,7 @@ function csvCell(value: unknown): string {
 
 export function exportReadinessBlockers(record: ResearchExportRecord): string[] {
   const blockers: string[] = [];
+  const verificationState = typeof record.readiness.verificationState === "string" ? record.readiness.verificationState : null;
   if (!record.licenseStatus.externalExportAllowed) blockers.push("external_export_not_allowed");
   if (record.licenseStatus.withdrawalStatus !== "active") blockers.push("rights_withdrawn_or_missing");
   if (!record.licenseStatus.datasetLicense) blockers.push("missing_dataset_license");
@@ -67,6 +68,12 @@ export function exportReadinessBlockers(record: ResearchExportRecord): string[] 
   if (!record.dataGeneralizations.location || record.dataGeneralizations.location === "not_set" || record.dataGeneralizations.location === "exact_private") {
     blockers.push("missing_location_generalization");
   }
+  if (record.readiness.methodReady === false) blockers.push("missing_method_contract");
+  if (record.readiness.effortDenominatorReady === false) blockers.push("missing_effort_denominator");
+  if (verificationState === "ai_suggested") blockers.push("ai_candidate_requires_human_review");
+  if (verificationState === "unverified" || verificationState === "needs_more_evidence") blockers.push("verification_required_for_export");
+  if (verificationState === "sensitive_hidden") blockers.push("sensitive_record_requires_policy_review");
+  if (verificationState === "rejected") blockers.push("rejected_record_not_exportable");
   if (!record.readiness.exportReady) blockers.push("record_not_export_ready");
   return [...new Set(blockers)];
 }

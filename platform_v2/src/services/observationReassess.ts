@@ -938,7 +938,7 @@ export async function reassessObservation(
     // Skip when the caller forced a refresh via overridePhotos or explicit
     // sourceTag != "photo". Otherwise build the cache key from the canonical
     // inputs and try to short-circuit the Gemini call entirely.
-    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
+    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v4";
     const sourceTag = options.sourceTag?.trim() || "photo";
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
@@ -1014,7 +1014,7 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
       sourceTag,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v3";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v4";
 
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);

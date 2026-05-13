@@ -45,9 +45,9 @@ export function visibleRecordTrustLabel(level: VisibleRecordTrustLevel): string 
     case "reviewed":
       return "確認あり";
     case "strong":
-      return "有力";
+      return "AI推定";
     case "medium":
-      return "手がかりあり";
+      return "AI推定";
     case "reference":
       return "参考";
   }
@@ -154,11 +154,11 @@ export function buildVisibleRecordItems(options: {
       confidence,
       trustLevel,
       trustLabel: trustLevel === "reviewed"
-        ? subject.hasSpecialistApproval
-          ? "詳しい人の確認あり"
+        ? subject.hasSpecialistApproval || (subject.evidenceTier ?? 0) >= 3
+          ? "専門家確認"
           : subject.identificationCount > 0
-            ? "名前の提案あり"
-            : "記録済み"
+            ? "みんなで確認"
+            : "未確認"
         : visibleRecordTrustLabel(trustLevel),
       bucket: trustLevel === "reference" ? "reference" : "main",
       href: appendLangToHref(
