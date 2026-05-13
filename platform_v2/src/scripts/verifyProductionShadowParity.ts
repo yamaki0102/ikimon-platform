@@ -337,6 +337,7 @@ async function main(): Promise<void> {
       track_points: string;
       observation_visits: string;
       observation_occurrences: string;
+      additional_observation_occurrences: string;
       identifications_linked: string;
       evidence_assets_linked: string;
     }>(
@@ -357,7 +358,16 @@ async function main(): Promise<void> {
              select 1 from visits v
              where v.visit_id = o.visit_id
                and v.source_kind = 'legacy_observation'
-           )) as observation_occurrences,
+           )
+             and coalesce(o.subject_index, 0) = 0) as observation_occurrences,
+          (select count(*)::text
+           from occurrences o
+           where exists (
+             select 1 from visits v
+             where v.visit_id = o.visit_id
+               and v.source_kind = 'legacy_observation'
+           )
+             and coalesce(o.subject_index, 0) <> 0) as additional_observation_occurrences,
           (select count(*)::text
            from identifications ident
            where exists (
@@ -366,14 +376,18 @@ async function main(): Promise<void> {
              join visits v on v.visit_id = o.visit_id
              where o.occurrence_id = ident.occurrence_id
                and v.source_kind = 'legacy_observation'
+               and coalesce(o.subject_index, 0) = 0
            )) as identifications_linked,
           (select count(*)::text
            from evidence_assets ea
            where ea.asset_role = 'observation_photo'
              and exists (
-               select 1 from visits v
-               where v.visit_id = ea.visit_id
+               select 1
+               from occurrences o
+               join visits v on v.visit_id = o.visit_id
+               where o.occurrence_id = ea.occurrence_id
                  and v.source_kind = 'legacy_observation'
+                 and coalesce(o.subject_index, 0) = 0
            )) as evidence_assets_linked`,
       [sourceTokenHashes],
     );
@@ -424,6 +438,7 @@ async function main(): Promise<void> {
         trackPoints: Number(actualCounts?.track_points ?? 0),
         observationVisits: Number(actualCounts?.observation_visits ?? 0),
         observationOccurrences: Number(actualCounts?.observation_occurrences ?? 0),
+        additionalObservationOccurrences: Number(actualCounts?.additional_observation_occurrences ?? 0),
         identificationsLinked: Number(actualCounts?.identifications_linked ?? 0),
         evidenceAssetsLinked: Number(actualCounts?.evidence_assets_linked ?? 0),
       },
