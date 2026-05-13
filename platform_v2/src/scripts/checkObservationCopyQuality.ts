@@ -1,0 +1,95 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const routeSource = readFileSync(new URL("../routes/read.ts", import.meta.url), "utf8");
+
+function sourceBetween(startMarker: string, endMarker: string): string {
+  const start = routeSource.indexOf(startMarker);
+  const end = routeSource.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(start, -1, `missing ${startMarker}`);
+  assert.notEqual(end, -1, `missing ${endMarker}`);
+  return routeSource.slice(start, end);
+}
+
+const sections = {
+  candidatePanel: sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
+  heroReadout: sourceBetween("function renderHeroAiReadout", "type ObservationMediaCopyContext"),
+  subjectHint: sourceBetween("function renderSubjectHint", "function renderCivicContextBlock"),
+  subjectTaxonomy: sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
+  identify: sourceBetween("function renderIdentificationParticipation", "type ObservationNextAction"),
+  learning: sourceBetween("function observationLearningDoneText", "function renderObservationNextActionRail"),
+  nextCapture: sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
+  recordStory: sourceBetween("function renderObservationRecordStory", "function observationLearningDoneText"),
+  routeAssembly: sourceBetween("const prominentAiCandidateCount", "const nextActions: ObservationNextAction[]"),
+};
+
+const publicCopySource = Object.values(sections).join("\n");
+
+const forbiddenTerms = [
+  "AIのヒント",
+  "AI判定",
+  "AI推定",
+  "species / genus / family",
+  "run:",
+  "taxonomy:",
+  "マクロ",
+  "花序",
+  "鋸歯",
+  "総苞",
+  "植生構造",
+  "遷移段階",
+  "人為影響",
+  "決定論",
+  "エビデンス",
+  "データ駆動",
+  "地域の見方が一段深くなる",
+  "ところが面白い",
+  "いっしょに絞るためのメモ",
+];
+
+const failures: string[] = [];
+
+for (const term of forbiddenTerms) {
+  if (publicCopySource.includes(term)) {
+    failures.push(`forbidden observation detail copy term: ${term}`);
+  }
+}
+
+const initialAutomaticBlockSpecs: Array<[string, string, string]> = [
+  ["hero readout", sections.heroReadout, "obs-ai-readout"],
+  ["extra candidate panel", sections.candidatePanel, "obs-ai-cutout"],
+  ["next capture panel", sections.nextCapture, "obs-visual-next-capture"],
+];
+
+const initiallyVisibleAutomaticBlocks = initialAutomaticBlockSpecs.filter(([, source, marker]) => source.includes(marker));
+
+if (initiallyVisibleAutomaticBlocks.length > 3) {
+  failures.push(`too many initially visible automatic-reading blocks: ${initiallyVisibleAutomaticBlocks.map(([name]) => name).join(", ")}`);
+}
+
+for (const [name, source] of [
+  ["subject hint", sections.subjectHint],
+  ["subject comparison", sections.subjectTaxonomy],
+] as const) {
+  if (name === "subject hint" && !source.includes("<details class=\"obs-fold obs-hint-fold\"")) {
+    failures.push("subject hint must be collapsed behind details on first view");
+  }
+  if (name === "subject comparison" && source.includes("function renderSubjectComparison") && !source.includes("<details class=\"obs-fold\">")) {
+    failures.push("subject comparison must stay collapsed behind details");
+  }
+}
+
+const longKanjiRuns = [...publicCopySource.matchAll(/[\p{Script=Han}]{9,}/gu)]
+  .map((match) => match[0])
+  .filter((value) => !["観察レコード"].some((allowed) => value.includes(allowed)));
+if (longKanjiRuns.length > 0) {
+  failures.push(`long kanji-only runs in public observation copy: ${[...new Set(longKanjiRuns)].slice(0, 8).join(", ")}`);
+}
+
+if (failures.length > 0) {
+  console.error("Observation copy quality gate failed:");
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
+
+console.log(`PASS: observation detail copy keeps automatic-reading blocks <= 3 and avoids hard public jargon`);
