@@ -48,6 +48,23 @@ test("app sends HSTS in production", async () => {
   }
 });
 
+test("root route serves the landing HTML even for generic accept headers", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+      headers: { accept: "*/*" },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.match(String(response.headers["content-type"] ?? ""), /^text\/html/);
+    assert.doesNotMatch(response.body, /"status":"bootstrapping"/);
+    assert.match(response.body, /ikimon\.life/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("contact submit endpoint is rate-limited before mail or database work", async () => {
   const app = buildApp();
   try {
