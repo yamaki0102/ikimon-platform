@@ -504,29 +504,21 @@ export function buildApp() {
     });
   }
   app.get("/", async (request, reply) => {
-    const accept = String(request.headers.accept ?? "");
-    if (accept.includes("text/html")) {
-      const context = await getPreviewContext();
-      context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
-      const lang = detectLangFromUrl(requestUrl(request));
-      const session = await getSessionFromCookie(request.headers.cookie);
-      const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
-      const snapshot = await getLandingSnapshot(viewerUserId);
-      reply.type("text/html; charset=utf-8");
-      reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
-      return buildLandingRootHtml(
-        context,
-        lang,
-        requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
-        snapshot,
-        queryOverrideHonored,
-      );
-    }
-
-    return {
-      service: "ikimon-platform-v2",
-      status: "bootstrapping",
-    };
+    const context = await getPreviewContext();
+    context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
+    const lang = detectLangFromUrl(requestUrl(request));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
+    const snapshot = await getLandingSnapshot(viewerUserId);
+    reply.type("text/html; charset=utf-8");
+    reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    return buildLandingRootHtml(
+      context,
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      snapshot,
+      queryOverrideHonored,
+    );
   });
 
   app.get("/qa/site-map", async (request, reply) => {
