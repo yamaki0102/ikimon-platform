@@ -67,6 +67,18 @@ function machineEvidenceStatus(row: Pick<OccurrenceRow, "basis_of_record" | "ai_
   return "ai_candidate";
 }
 
+function exportVerificationState(row: OccurrenceRow, machineStatus: ReturnType<typeof machineEvidenceStatus>): string {
+  if (machineStatus === "reviewer_rejected" || row.data_quality === "rejected") return "rejected";
+  if (row.civic_risk_lane === "rare_sensitive" && row.public_precision === "hidden") return "sensitive_hidden";
+  if (row.identification_verification_status === "authority_reviewed" || row.consensus_status === "authority_backed" || row.evidence_tier >= 3 || machineStatus === "reviewer_verified") {
+    return "expert_verified";
+  }
+  if (row.identification_verification_status === "community_consensus" || row.consensus_status === "community_consensus") return "community_reviewed";
+  if (machineStatus === "ai_candidate" || row.ai_assessment_status === "ai_judgement") return "ai_suggested";
+  if (row.identification_verification_status.startsWith("blocked_") || row.identification_verification_status.startsWith("needs_")) return "needs_more_evidence";
+  return "unverified";
+}
+
 function normalizeMediaRoleQuery(value: string | undefined): string | null {
   if (!value) {
     return null;
@@ -85,6 +97,9 @@ function includeMachineObservationsQuery(query: Record<string, string>): boolean
 
 function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<string, unknown> {
   const machineStatus = machineEvidenceStatus(row);
+  const isProtocolLikeRecord = Boolean(row.visit_mode === "survey" || row.field_scan_mode || row.catch_outcome || row.basis_of_record === "MachineObservation");
+  const methodReady = Boolean(row.observation_method || row.field_scan_mode || row.visit_mode || row.catch_outcome || row.photo_url || row.machine_media_ref);
+  const effortDenominatorReady = !isProtocolLikeRecord || Boolean(row.effort_minutes || row.water_effort_minutes || row.protocol_id);
   const exportReady = Boolean(
     row.external_export_allowed
     && row.withdrawal_status === "active"
@@ -126,6 +141,9 @@ function mapOccurrenceRow(row: OccurrenceRow): ResearchExportRecord & Record<str
     identificationVerificationStatus: row.identification_verification_status,
     readiness: {
       exportReady,
+      verificationState: exportVerificationState(row, machineStatus),
+      methodReady,
+      effortDenominatorReady,
       reviewReady: row.identification_verification_status !== "tier3_export_candidate" || row.evidence_tier >= 3,
       modelReady: Boolean(
         row.basis_of_record === "MachineObservation"

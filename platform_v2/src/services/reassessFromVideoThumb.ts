@@ -252,7 +252,7 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
       differenceScore: Math.max(frame.selection.diffScore, frame.selection.colorDiffScore),
       qualityScore: frame.selection.qualityScore,
     })),
-    promptVersion: "observation_reassess.md/v3+video_adaptive_frames",
+    promptVersion: "observation_reassess.md/v4+video_adaptive_frames",
     sourceTag: "video_adaptive_frames",
   });
 

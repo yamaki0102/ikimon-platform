@@ -2,6 +2,11 @@ import type { Pool, PoolClient } from "pg";
 import { createHash } from "node:crypto";
 import { getPool } from "../db.js";
 import { getCivicObservationContext, type CivicObservationContext } from "./civicNatureContext.js";
+import {
+  buildMonitoringRecordContract,
+  summarizeMonitoringRecordContractForPrompt,
+  type MonitoringRecordContractV0,
+} from "./monitoringRecordContract.js";
 import { buildMonitoringReadiness, type MonitoringReadiness } from "./monitoringReadiness.js";
 import { getObservationDataRights, type ObservationDataRights } from "./observationDataRights.js";
 import {
@@ -153,7 +158,7 @@ export type ObservationPackageReportOutput = {
 };
 
 export type ObservationPackage = {
-  packageVersion: "observation_package/v1" | "observation_package/v1.1" | "observation_package/v1.2" | "observation_package/v1.3";
+  packageVersion: "observation_package/v1" | "observation_package/v1.1" | "observation_package/v1.2" | "observation_package/v1.3" | "observation_package/v1.4";
   packageId: string;
   generatedAt: string;
   visit: ObservationPackageVisit;
@@ -176,6 +181,7 @@ export type ObservationPackage = {
   civicContext?: CivicObservationContext | null;
   dataRights?: ObservationDataRights | null;
   readiness?: MonitoringReadiness;
+  monitoringRecordContract?: MonitoringRecordContractV0;
   extensions?: {
     waterRecord: WaterRecordExtension | null;
   };
@@ -666,8 +672,30 @@ export async function buildObservationPackage(
     hasExternalTaxonId,
   });
 
-  return {
-    packageVersion: "observation_package/v1.3",
+  const readiness = buildMonitoringReadiness({
+    visit: {
+      locationPrecision: inferLocationPrecision(visitRow),
+      visitMode: visitRow.visit_mode,
+      effortMinutes: toNumber(visitRow.effort_minutes),
+      targetTaxaScope: visitRow.target_taxa_scope,
+      completeChecklistFlag: Boolean(visitRow.complete_checklist_flag),
+      placeId: visitRow.place_id,
+    },
+    occurrences,
+    evidenceAssets: assets.rows,
+    reviewState: reviewStateFor(occurrences),
+    civicContext,
+    dataRights,
+    waterRecord,
+    methodContext,
+    fieldScanContext,
+    governanceContext,
+    dataProductChain,
+    trendAbundancePolicy,
+  });
+
+  const pkg: ObservationPackage = {
+    packageVersion: "observation_package/v1.4",
     packageId: packageIdFor(visitId, input.targetOccurrenceId ?? input.occurrenceId),
     generatedAt,
     visit,
@@ -689,31 +717,16 @@ export async function buildObservationPackage(
     monitoringPackage,
     civicContext,
     dataRights,
-    readiness: buildMonitoringReadiness({
-      visit: {
-        locationPrecision: inferLocationPrecision(visitRow),
-        visitMode: visitRow.visit_mode,
-        effortMinutes: toNumber(visitRow.effort_minutes),
-        targetTaxaScope: visitRow.target_taxa_scope,
-        completeChecklistFlag: Boolean(visitRow.complete_checklist_flag),
-        placeId: visitRow.place_id,
-      },
-      occurrences,
-      evidenceAssets: assets.rows,
-      reviewState: reviewStateFor(occurrences),
-      civicContext,
-      dataRights,
-      waterRecord,
-      methodContext,
-      fieldScanContext,
-      governanceContext,
-      dataProductChain,
-      trendAbundancePolicy,
-    }),
+    readiness,
     extensions: {
       waterRecord,
     },
     runtimeVersion,
+  };
+
+  return {
+    ...pkg,
+    monitoringRecordContract: buildMonitoringRecordContract(pkg),
   };
 }
 
@@ -729,6 +742,7 @@ export function summarizeObservationPackageForPrompt(pkg: ObservationPackage | n
     `safe_rank=${target?.safePublicRank ?? "unknown"}`,
     `evidence_tier=${target?.evidenceTier ?? "none"}`,
     `review=${pkg.reviewState.reviewStatus}`,
+    summarizeMonitoringRecordContractForPrompt(pkg.monitoringRecordContract),
     `media_roles=${mediaRoles.join(",") || "none"}`,
     missing.length > 0 ? `previous_missing=${missing.join(" / ")}` : "",
   ].filter(Boolean).join("\n");

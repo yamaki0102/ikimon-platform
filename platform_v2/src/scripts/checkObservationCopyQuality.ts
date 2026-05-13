@@ -64,7 +64,6 @@ const publicCopySource = [
 const forbiddenTerms = [
   "AIのヒント",
   "AI判定",
-  "AI推定",
   "次にできること",
   "みんなの記録に足されます",
   "次に撮るヒント",

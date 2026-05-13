@@ -245,9 +245,9 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.deepEqual(
     anonymousItems.map((item) => [item.displayName, item.trustLabel, item.bucket, item.roleLabel]),
     [
-      ["ヒメイワダレソウ", "有力", "main", "主対象"],
-      ["セイヨウミツバチ", "有力", "main", "訪花中の候補"],
-      ["イネ科の一種", "手がかりあり", "main", "周囲の草"],
+      ["ヒメイワダレソウ", "AI推定", "main", "主対象"],
+      ["セイヨウミツバチ", "AI推定", "main", "訪花中の候補"],
+      ["イネ科の一種", "AI推定", "main", "周囲の草"],
       ["小さな黒い点", "参考", "reference", "別の生きもの候補"],
     ],
   );
