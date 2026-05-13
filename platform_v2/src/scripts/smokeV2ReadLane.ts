@@ -10,6 +10,35 @@ type SmokeOptions = {
   baseUrl: string;
 };
 
+type HtmlSmokeCheck = {
+  name: string;
+  url: string;
+  markers: string[];
+  forbiddenMarkers?: string[];
+  allowedStatuses: number[];
+};
+
+const representativeSceneReadVisitId = "record-1778549526406";
+const representativeSceneReadPath =
+  `/ja/observations/${representativeSceneReadVisitId}?subject=occ%3A${representativeSceneReadVisitId}%3A0`;
+
+const representativeSceneReadMarkers = [
+  "2026.05.12 浜松市の観察記録",
+  "3件の見つけたもの",
+  "ヒメイワダレソウ",
+  "セイヨウミツバチ",
+  "イネ科の一種",
+  "訪花中の候補",
+  "周囲の草",
+  "自動候補は確定名ではありません",
+];
+
+const representativeSceneReadForbiddenMarkers = [
+  "\"status\":\"bootstrapping\"",
+  "1件の見つけたもの",
+  "AI 主役 100%",
+];
+
 function parseArgs(argv: string[]): SmokeOptions {
   const options: SmokeOptions = {
     baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
@@ -42,7 +71,7 @@ function visualQaCheckForPage(
   baseUrl: string,
   page: SitePageDefinition,
   context: { userId: string; visitId: string; occurrenceId: string },
-): { name: string; url: string; marker: string; allowedStatuses: number[] } | null {
+): HtmlSmokeCheck | null {
   const qa = page.visualQa;
   if (!qa?.smoke) {
     return null;
@@ -55,9 +84,72 @@ function visualQaCheckForPage(
   return {
     name: `visual:${sitePageLabel(page)}`,
     url: `${baseUrl.replace(/\/+$/, "")}${path}${path.includes("?") ? "&" : "?"}lang=ja`,
-    marker: qa.expectedText.ja,
+    markers: [qa.expectedText.ja],
     allowedStatuses: qa.allowStatus ?? [200],
   };
+}
+
+function sceneReadSmokeMode(): "auto" | "required" | "skip" {
+  const raw = process.env.IKIMON_SCENE_READ_SMOKE?.trim().toLowerCase();
+  if (raw === "required" || raw === "skip") {
+    return raw;
+  }
+  return "auto";
+}
+
+async function representativeSceneReadExists(pool: ReturnType<typeof getPool>): Promise<boolean> {
+  const result = await pool.query<{ exists: boolean }>(
+    `select exists (
+       select 1
+       from occurrences
+       where visit_id = $1
+       limit 1
+     )`,
+    [representativeSceneReadVisitId],
+  );
+  return result.rows[0]?.exists === true;
+}
+
+async function representativeSceneReadCheck(
+  baseUrl: string,
+  pool: ReturnType<typeof getPool>,
+): Promise<{ check?: HtmlSmokeCheck; skipped?: { name: string; reason: string } }> {
+  const mode = sceneReadSmokeMode();
+  if (mode === "skip") {
+    return { skipped: { name: "scene:representative-observation-detail", reason: "IKIMON_SCENE_READ_SMOKE=skip" } };
+  }
+
+  const exists = await representativeSceneReadExists(pool);
+  if (!exists && mode === "auto") {
+    return { skipped: { name: "scene:representative-observation-detail", reason: "representative scene fixture not present" } };
+  }
+  if (!exists && mode === "required") {
+    throw new Error(`representative scene fixture missing: ${representativeSceneReadVisitId}`);
+  }
+
+  return {
+    check: {
+      name: "scene:representative-observation-detail",
+      url: `${baseUrl.replace(/\/+$/, "")}${representativeSceneReadPath}`,
+      markers: representativeSceneReadMarkers,
+      forbiddenMarkers: representativeSceneReadForbiddenMarkers,
+      allowedStatuses: [200],
+    },
+  };
+}
+
+function validateHtmlSmokeCheck(html: string, check: HtmlSmokeCheck): string | null {
+  const missingMarkers = check.markers.filter((marker) => !html.includes(marker));
+  if (missingMarkers.length > 0) {
+    return `marker_missing:${missingMarkers.join("|")}`;
+  }
+
+  const presentForbiddenMarkers = (check.forbiddenMarkers ?? []).filter((marker) => html.includes(marker));
+  if (presentForbiddenMarkers.length > 0) {
+    return `forbidden_marker_present:${presentForbiddenMarkers.join("|")}`;
+  }
+
+  return null;
 }
 
 async function main(): Promise<void> {
@@ -92,11 +184,19 @@ async function main(): Promise<void> {
       .filter((check): check is NonNullable<typeof check> => Boolean(check));
     const seenUrls = new Set<string>();
     const checks = registryChecks.filter((check) => {
-      const key = `${check.url}::${check.marker}`;
+      const key = `${check.url}::${check.markers.join("|")}`;
       if (seenUrls.has(key)) return false;
       seenUrls.add(key);
       return true;
     });
+    const skippedChecks: Array<{ name: string; reason: string }> = [];
+    const sceneCheck = await representativeSceneReadCheck(baseUrl, pool);
+    if (sceneCheck.check) {
+      checks.push(sceneCheck.check);
+    }
+    if (sceneCheck.skipped) {
+      skippedChecks.push(sceneCheck.skipped);
+    }
 
     const results: Array<{ name: string; url: string; ok: boolean; error?: string }> = [];
     let failed = false;
@@ -104,8 +204,9 @@ async function main(): Promise<void> {
     for (const check of checks) {
       try {
         const { html, status } = await fetchHtml(check.url, check.allowedStatuses);
-        if (!html.includes(check.marker)) {
-          results.push({ name: check.name, url: check.url, ok: false, error: `marker_missing:${check.marker}` });
+        const validationError = validateHtmlSmokeCheck(html, check);
+        if (validationError) {
+          results.push({ name: check.name, url: check.url, ok: false, error: validationError });
           failed = true;
           continue;
         }
@@ -127,6 +228,7 @@ async function main(): Promise<void> {
       visitId,
       userId,
       checks: results,
+      skippedChecks,
       status: failed ? "failed" : "passed",
     }, null, 2));
 
