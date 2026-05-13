@@ -12,6 +12,7 @@ import { recordGuideRoutePoint } from "../services/guideRouteTrack.js";
 import { analyzeScene, saveGuideRecord, type GuideFrameInput, type GuideMode, type SceneResult } from "../services/guideSession.js";
 import { buildGuideScript, generateTts } from "../services/guideTts.js";
 import { meshKey100m } from "../services/observationEventEffort.js";
+import { hookGuideSceneToEvent, type ObservationEventSourcePayload } from "../services/observationEventDualWrite.js";
 import { resolveFieldsForPoint } from "../services/resolveFieldsForPoint.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import type { TtsLang } from "../services/guideTts.js";
@@ -40,6 +41,15 @@ function parseGuideMode(raw: unknown): GuideMode {
 function parseFiniteNumber(raw: unknown): number | null {
   const value = typeof raw === "number" ? raw : (typeof raw === "string" && raw !== "" ? Number(raw) : NaN);
   return Number.isFinite(value) ? value : null;
+}
+
+function parseEventSourcePayload(body: Record<string, unknown>): ObservationEventSourcePayload {
+  return {
+    eventSessionId: body.eventSessionId,
+    eventCode: body.eventCode ?? body.event_code,
+    teamId: body.teamId ?? body.team_id,
+    participantRole: body.participantRole ?? body.participant_role,
+  };
 }
 
 function guidePromotionStatusCode(message: string): number {
@@ -367,6 +377,7 @@ async function applyGuideAutoSave(input: {
   lang: TtsLang;
   locationQuality?: Record<string, unknown> | null;
   sessionDistanceM?: number | null;
+  eventSource?: ObservationEventSourcePayload | null;
 }): Promise<PendingGuideAutoSave> {
   const decision = decideGuideAutoSave({ result: input.sceneResult, siteBrief: input.siteBrief, guideMode: input.guideMode });
   if (decision.decision === "skip") {
@@ -446,6 +457,29 @@ async function applyGuideAutoSave(input: {
       locationQuality: input.locationQuality ?? null,
       sessionDistanceM: input.sessionDistanceM ?? null,
     }).catch(() => undefined);
+    if (input.eventSource) {
+      await hookGuideSceneToEvent({
+        body: input.eventSource,
+        guideRecordId,
+        sceneId: input.sceneId,
+        guideSessionId: input.sessionId,
+        userId: input.userId,
+        lat: input.lat,
+        lng: input.lng,
+        capturedAt: input.capturedAt,
+        payload: {
+          scene_summary: copy.delayedSummary,
+          detected_species: input.sceneResult.detectedSpecies,
+          detected_features: input.sceneResult.detectedFeatures,
+          primary_subject: input.sceneResult.primarySubject ?? null,
+          environment_context: input.sceneResult.environmentContext ?? null,
+          guide_mode: input.guideMode,
+          facePrivacy: input.facePrivacy,
+          visual_extract_model: input.sceneResult.visualExtractModel ?? null,
+          text_model: input.sceneResult.textModel ?? null,
+        },
+      }).catch(() => undefined);
+    }
     return { state: "saved", guideRecordId, ...decision };
   } catch (error) {
     return {
@@ -492,6 +526,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     }
 
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "anonymous";
+    const eventSource = parseEventSourcePayload(body);
     const lang = parseLang(body.lang);
     const guideMode = parseGuideMode(body.guideMode);
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
@@ -601,6 +636,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
           lang,
           locationQuality,
           sessionDistanceM,
+          eventSource,
         });
         await recordGuideRoutePoint({
           sessionId,
@@ -959,6 +995,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
   app.post("/api/v1/guide/record", async (request, reply) => {
     const body = request.body as Record<string, unknown>;
     const sessionId = typeof body.sessionId === "string" ? body.sessionId : "manual";
+    const eventSource = parseEventSourcePayload(body);
     const lang = parseLang(body.lang);
     const lat = Number(body.lat);
     const lng = Number(body.lng);
@@ -1023,6 +1060,29 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       },
       sessionDistanceM: parseFiniteNumber(body.sessionDistanceM),
     }).catch((error) => app.log.warn({ error, guideRecordId: id }, "guide environment mesh update failed"));
+    await hookGuideSceneToEvent({
+      body: eventSource,
+      guideRecordId: id,
+      sceneId: typeof body.sceneId === "string" ? body.sceneId : null,
+      guideSessionId: sessionId,
+      userId: session?.userId ?? null,
+      lat,
+      lng,
+      capturedAt: typeof body.capturedAt === "string" ? body.capturedAt : null,
+      payload: {
+        scene_summary: typeof body.sceneSummary === "string" ? body.sceneSummary : "",
+        detected_species: Array.isArray(body.detectedSpecies)
+          ? (body.detectedSpecies as unknown[]).filter((s): s is string => typeof s === "string")
+          : [],
+        detected_features: parseDetectedFeatures(body.detectedFeatures),
+        primary_subject: parsePrimarySubject(body.primarySubject),
+        environment_context: typeof body.environmentContext === "string" ? body.environmentContext : null,
+        guide_mode: parseGuideMode(body.guideMode),
+        facePrivacy,
+        visual_extract_model: typeof body.visualExtractModel === "string" ? body.visualExtractModel : null,
+        text_model: typeof body.textModel === "string" ? body.textModel : null,
+      },
+    }).catch((error) => app.log.warn({ error, guideRecordId: id }, "guide event hook failed"));
 
     return reply.send({ guideRecordId: id });
   });

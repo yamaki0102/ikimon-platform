@@ -15,6 +15,8 @@ type EventfulClient = PoolClient & {
 
 export type LiveEventType =
   | "observation_added"
+  | "guide_scene_added"
+  | "field_scan_added"
   | "absence_recorded"
   | "target_hit"
   | "rare_species"

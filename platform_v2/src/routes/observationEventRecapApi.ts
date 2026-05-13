@@ -1,5 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
+import {
+  generatePlaceEventCapsule,
+  getPlaceEventCapsule,
+  publicCapsuleView,
+  updatePlaceEventCapsuleReviewStatus,
+  type CapsuleReviewStatus,
+} from "../services/observationEventCapsule.js";
 import { buildRecap } from "../services/observationEventRecap.js";
 import { getSessionByEventCode, getSessionById } from "../services/observationEventModeManager.js";
 import { runQuestGeneration } from "../services/observationEventQuestEngine.js";
@@ -7,6 +14,21 @@ import { decideQuest } from "../services/observationEventQuestEngine.js";
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+function capsuleStatusCode(message: string): number {
+  if (message === "session_not_found" || message === "capsule_not_found") return 404;
+  if (message === "organizer_only") return 403;
+  if (message === "privacy_risk_queue_not_resolved") return 409;
+  if (message.endsWith("_required") || message === "invalid_review_status") return 400;
+  return 500;
+}
+
+function parseReviewStatus(value: unknown): CapsuleReviewStatus | null {
+  const allowed = ["draft", "needs_review", "approved_private", "approved_public", "published"] as const;
+  return typeof value === "string" && (allowed as readonly string[]).includes(value)
+    ? value as CapsuleReviewStatus
+    : null;
 }
 
 export async function registerObservationEventRecapRoutes(app: FastifyInstance): Promise<void> {
@@ -42,6 +64,66 @@ export async function registerObservationEventRecapRoutes(app: FastifyInstance):
       });
       if (!recap) return reply.status(404).send({ error: "recap not built" });
       return reply.send(recap);
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/capsule/generate
+  app.post<{ Params: { sessionId: string }; Body: { use_ai?: boolean; useAi?: boolean } }>(
+    "/api/v1/observation-events/:sessionId/capsule/generate",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      try {
+        const capsule = await generatePlaceEventCapsule({
+          sessionId: request.params.sessionId,
+          actorUserId: auth.userId,
+          useAi: request.body?.useAi ?? request.body?.use_ai,
+        });
+        return reply.send({ ok: true, capsule });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "capsule_generate_failed";
+        return reply.status(capsuleStatusCode(message)).send({ ok: false, error: message });
+      }
+    },
+  );
+
+  // GET /api/v1/observation-events/:sessionId/capsule
+  app.get<{ Params: { sessionId: string } }>(
+    "/api/v1/observation-events/:sessionId/capsule",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      const capsule = await getPlaceEventCapsule(session.sessionId);
+      if (!capsule) return reply.status(404).send({ error: "capsule not found" });
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (auth?.userId === session.organizerUserId) {
+        return reply.send({ ok: true, capsule, visibility: "organizer" });
+      }
+      const publicView = publicCapsuleView(capsule);
+      if (!publicView) return reply.status(403).send({ error: "capsule not public" });
+      return reply.send({ ok: true, capsule: publicView, visibility: "public" });
+    },
+  );
+
+  // PATCH /api/v1/observation-events/:sessionId/capsule/review
+  app.patch<{ Params: { sessionId: string }; Body: { review_status?: string; reviewStatus?: string } }>(
+    "/api/v1/observation-events/:sessionId/capsule/review",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const reviewStatus = parseReviewStatus(request.body?.reviewStatus ?? request.body?.review_status);
+      if (!reviewStatus) return reply.status(400).send({ ok: false, error: "invalid_review_status" });
+      try {
+        const capsule = await updatePlaceEventCapsuleReviewStatus({
+          sessionId: request.params.sessionId,
+          actorUserId: auth.userId,
+          reviewStatus,
+        });
+        return reply.send({ ok: true, capsule });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "capsule_review_failed";
+        return reply.status(capsuleStatusCode(message)).send({ ok: false, error: message });
+      }
     },
   );
 

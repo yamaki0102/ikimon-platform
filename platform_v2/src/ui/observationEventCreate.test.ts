@@ -23,6 +23,22 @@ test("event create form includes the area planner map surface for authenticated 
   assert.match(html, /地図を読み込めない場合/);
 });
 
+test("event create form treats fixed place event fields and source modes as first-class", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+
+  assert.match(html, /name="place_label"/);
+  assert.match(html, /name="meeting_point"/);
+  assert.match(html, /name="source_mode_record"/);
+  assert.match(html, /name="source_mode_guide"/);
+  assert.match(html, /name="source_mode_field_scan"/);
+  assert.match(html, /name="public_story_enabled"/);
+  assert.match(html, /name="ai_recap_enabled"/);
+  assert.match(script, /place_event/);
+  assert.match(script, /source_modes/);
+  assert.match(script, /consent_policy_version: "place_event_capsule\/v1"/);
+});
+
 test("event create script hydrates MapLibre with CDN fallback and field_id preselection", () => {
   const script = eventCreateScript();
 

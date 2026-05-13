@@ -11,6 +11,7 @@ import {
 } from "../services/fieldscanAudio.js";
 import { findSimilarSegments } from "../services/audioEmbedding.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { hookFieldScanAudioToEvent, type ObservationEventSourcePayload } from "../services/observationEventDualWrite.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
 const AUDIO_SUBMIT_BAD_REQUEST_ERRORS = new Set([
@@ -69,6 +70,22 @@ export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<
           ...body,
           userId: body.userId ?? session?.userId ?? null,
         });
+        const eventSource = body as AudioSegmentSubmitInput & ObservationEventSourcePayload;
+        await hookFieldScanAudioToEvent({
+          body: eventSource,
+          segmentId: result.segmentId,
+          fieldscanSessionId: body.sessionId,
+          userId: body.userId ?? session?.userId ?? null,
+          lat: body.lat ?? null,
+          lng: body.lng ?? null,
+          recordedAt: body.recordedAt,
+          durationSec: body.durationSec ?? null,
+          payload: {
+            privacy_status: result.privacyStatus,
+            created: result.created,
+            meta: body.meta ?? {},
+          },
+        }).catch((error) => app.log.warn({ error, segmentId: result.segmentId }, "fieldscan event hook failed"));
         return { ok: true, ...result };
       } catch (error) {
         const message = error instanceof Error ? error.message : "audio_submit_failed";

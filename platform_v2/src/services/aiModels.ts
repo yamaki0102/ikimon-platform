@@ -44,6 +44,8 @@ export const AI_MODEL_ROLES = {
   observationEventQuestFallback: AI_MODELS.geminiFlashLite,
   observationEventAreaPrimary: AI_MODELS.geminiFlashLite,
   observationEventAreaFallback: AI_MODELS.geminiFlashLite,
+  observationEventCapsulePrimary: AI_MODELS.geminiFlashLite,
+  observationEventCapsuleFallback: AI_MODELS.geminiFlashLite,
   digitizedRagAnswerPrimary: AI_MODELS.geminiFlashLite,
   digitizedRagAnswerFallback: AI_MODELS.geminiFlashLite,
 } as const;
@@ -71,6 +73,8 @@ export const AI_MODEL_ROLE_REFS = {
   observationEventQuestFallback: AI_MODEL_CATALOG.geminiFlashLite,
   observationEventAreaPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   observationEventAreaFallback: AI_MODEL_CATALOG.geminiFlashLite,
+  observationEventCapsulePrimary: AI_MODEL_CATALOG.geminiFlashLite,
+  observationEventCapsuleFallback: AI_MODEL_CATALOG.geminiFlashLite,
   digitizedRagAnswerPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   digitizedRagAnswerFallback: AI_MODEL_CATALOG.geminiFlashLite,
 } as const satisfies Record<keyof typeof AI_MODEL_ROLES, AiModelRef>;
@@ -86,6 +90,7 @@ export const AI_MODEL_ROLE_CHAINS = {
   observationVisualSummary: [AI_MODEL_ROLE_REFS.observationVisualSummaryPrimary],
   observationEventQuest: [AI_MODEL_ROLE_REFS.observationEventQuestPrimary],
   observationEventArea: [AI_MODEL_ROLE_REFS.observationEventAreaPrimary],
+  observationEventCapsule: [AI_MODEL_ROLE_REFS.observationEventCapsulePrimary],
   digitizedRagAnswer: [AI_MODEL_ROLE_REFS.digitizedRagAnswerPrimary],
 } as const;
 
@@ -105,6 +110,7 @@ export const AI_MODEL_CHAIN_ENV_KEYS = {
   observationVisualSummary: "AI_MODEL_CHAIN_OBSERVATION_VISUAL_SUMMARY",
   observationEventQuest: "AI_MODEL_CHAIN_OBSERVATION_EVENT_QUEST",
   observationEventArea: "AI_MODEL_CHAIN_OBSERVATION_EVENT_AREA",
+  observationEventCapsule: "AI_MODEL_CHAIN_OBSERVATION_EVENT_CAPSULE",
   digitizedRagAnswer: "AI_MODEL_CHAIN_DIGITIZED_RAG_ANSWER",
 } as const satisfies Record<AiModelRoleChainName, string>;
 

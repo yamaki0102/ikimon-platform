@@ -977,6 +977,11 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
   const trailBundles = new Map();
   const manuallySavedSceneIds = new Set();
   const sessionId = 'guide-' + Math.random().toString(36).slice(2);
+  const guideStartParams = new URLSearchParams(window.location.search || '');
+  const eventCode = guideStartParams.get('event') || guideStartParams.get('eventCode') || '';
+  const eventSessionId = guideStartParams.get('eventSessionId') || '';
+  const eventTeamId = guideStartParams.get('teamId') || '';
+  const eventParticipantRole = guideStartParams.get('participantRole') || 'guide';
   const preferredMime = pickAudioMimeType();
   const OFFLINE_DB_NAME = 'ikimon-guide-offline-v1';
   const OFFLINE_DB_VERSION = 1;
@@ -2400,6 +2405,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
         lang: payload.lang,
         guideMode: payload.guideMode || 'walk',
         sessionId: payload.sessionId,
+        eventCode: payload.eventCode || eventCode || null,
+        eventSessionId: payload.eventSessionId || eventSessionId || null,
+        teamId: payload.teamId || eventTeamId || null,
+        participantRole: payload.participantRole || eventParticipantRole || null,
         capturedAt: payload.capturedAt,
         audioPrivacy: {
           clientSkippedCount: payload.audioPrivacySkippedCount || 0,
@@ -2426,6 +2435,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       sessionDistanceM: payload.sessionDistanceM,
       lang: payload.lang,
       guideMode: payload.guideMode || 'walk',
+      eventCode: payload.eventCode || eventCode || null,
+      eventSessionId: payload.eventSessionId || eventSessionId || null,
+      teamId: payload.teamId || eventTeamId || null,
+      participantRole: payload.participantRole || eventParticipantRole || null,
       frameThumb: payload.frameThumb,
       frameBlob: payload.frameBlob,
       frames: payload.frames || null,
@@ -2646,6 +2659,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     return {
       externalId: newQueueId('guide-audio'),
       sessionId: sessionId,
+      eventCode: eventCode || null,
+      eventSessionId: eventSessionId || null,
+      teamId: eventTeamId || null,
+      participantRole: eventParticipantRole || null,
       recordedAt: new Date().toISOString(),
       durationSec: Math.round(measuredDurationMs / 100) / 10,
       lat: lastKnownPosition.lat,
@@ -3377,6 +3394,10 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId,
+        eventCode: eventCode || null,
+        eventSessionId: eventSessionId || null,
+        teamId: eventTeamId || null,
+        participantRole: eventParticipantRole || null,
         lang: getLang(),
         lat: scene.lat || lastKnownPosition.lat,
         lng: scene.lng || lastKnownPosition.lng,

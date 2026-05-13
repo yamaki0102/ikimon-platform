@@ -179,6 +179,16 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
     if (!startedAtRaw) {
       return reply.status(400).send({ error: "started_at required" });
     }
+    const title = asString(body.title);
+    if (!title) {
+      return reply.status(400).send({ error: "title required" });
+    }
+    const fieldId = asString(body.field_id);
+    const locationLat = asNumber(body.location_lat);
+    const locationLng = asNumber(body.location_lng);
+    if (!fieldId && (locationLat === null || locationLng === null)) {
+      return reply.status(400).send({ error: "field_id or location_lat/location_lng required" });
+    }
 
     const primaryModeRaw = asString(body.primary_mode);
     const primaryMode: EventMode = isEventMode(primaryModeRaw) ? primaryModeRaw : "discovery";
@@ -196,14 +206,14 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       const created = await createSession({
         legacyEventId: asString(body.legacy_event_id),
         eventCode: asString(body.event_code),
-        title: asString(body.title) ?? "",
+        title,
         organizerUserId: session.userId,
         corporationId: asString(body.corporation_id),
         plan: body.plan === "public" ? "public" : "community",
         primaryMode,
         activeModes,
-        locationLat: asNumber(body.location_lat),
-        locationLng: asNumber(body.location_lng),
+        locationLat,
+        locationLng,
         locationRadiusM: asNumber(body.location_radius_m) ?? 1000,
         startedAt: startedAtRaw,
         endedAt: asString(body.ended_at),
@@ -211,7 +221,7 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         config: (body.config && typeof body.config === "object")
           ? (body.config as Record<string, unknown>)
           : {},
-        fieldId: asString(body.field_id),
+        fieldId,
         templateSourceSessionId: asString(body.template_source_session_id),
       });
       return reply.status(201).send(created);
