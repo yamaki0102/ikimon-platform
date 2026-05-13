@@ -1362,10 +1362,22 @@ function collectiveValueForSubject(subjectKind: ObservationSubjectKind, target: 
 
 /** 出典カードから観察に直結する1行を抽出（タグ + summary を要約的に） */
 function citationActionLine(card: RegionalKnowledgeCard, target: string): string {
-  const tags = (card.tags ?? []).slice(0, 3).filter(Boolean);
-  const tagPhrase = tags.length > 0 ? `「${tags.join("・")}」の文脈で` : "";
   const summary = text(card.summary).replace(/[。.]+$/u, "");
-  return `『${card.sourceLabel}』では${summary || card.title}。${tagPhrase}${target}の記録を重ねると、地域の見方が一段深くなる。`;
+  const lead = summary || card.title;
+  const targetLabel = text(target) || "今日見えたもの";
+  if (card.category === "ecology" || card.category === "policy") {
+    return `${lead}。${targetLabel}だけでなく、まわりの草・水・日当たりも一緒に見る理由になります。`;
+  }
+  if (card.category === "water") {
+    return `${lead}。水の近くでは、湿った土や水ぎわも一緒に残すと次に比べやすくなります。`;
+  }
+  if (card.category === "landform") {
+    return `${lead}。坂、日なた、日陰、風の通り方を添えると、${targetLabel}がここに出た理由を考えやすくなります。`;
+  }
+  if (card.category === "agriculture" || card.category === "local_life") {
+    return `${lead}。草刈り跡や道の端など、人が使う場所の様子も一緒に見る手がかりになります。`;
+  }
+  return `${lead}。次は${targetLabel}と一緒に、周囲の地面や道の端も残すと比べやすくなります。`;
 }
 
 function nextObservationCopy(angleKey: string, placeLabel: string, observation: RegionalStoryObservationInput | undefined, cards: RegionalKnowledgeCard[] = []): string {
@@ -1485,7 +1497,7 @@ export async function getRegionalStoryCue(input: RegionalStoryInput): Promise<Re
   const preferredPool = input.surface === "observation"
     ? merged.filter((card) => card.category !== "cultural_asset" || cardDirectlyMatchesPlace(card, input.place))
     : merged;
-  const candidatePool = preferredPool.length >= maxCards ? preferredPool : merged;
+  const candidatePool = input.surface === "observation" && preferredPool.length > 0 ? preferredPool : merged;
   const angle = chooseAngle(candidatePool.slice(0, maxCards), exposures, input.surface);
   const fresh = candidatePool.filter((card) => !blocked.has(`${card.cardId}:${angle.key}`));
   const selected = (fresh.length > 0 ? fresh : candidatePool).slice(0, maxCards);

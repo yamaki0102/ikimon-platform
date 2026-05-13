@@ -25,12 +25,14 @@ test("regional story returns sourced Hamamatsu cards without requiring the datab
   assert.ok(story);
   assert.ok(story.cards.length >= 1);
   assert.ok(story.cards.every((card) => card.sourceUrl.startsWith("https://")));
+  assert.ok(story.cards.every((card) => card.category !== "cultural_asset"));
   assert.notEqual(story.cards[0]?.cardId, "hamamatsu-adeac-castle");
   assert.equal(story.cards[0]?.cardId, "hamamatsu-environment-biodiversity");
   assert.match(story.placeHook, /再訪|変化|見る|揃える/);
   assert.match(story.nextObservationAngle, /見る|残す|撮る|比べ|追う|並べ|入れる|揃える/);
   assert.match(story.collectiveNote, /重ね|季節|時刻|条件|読め|分かる|見える|比較/);
   assert.doesNotMatch(story.whyHere, /この地域には、昔の写真や文化誌/);
+  assert.doesNotMatch(story.whyHere, /文化財|地域の見方が一段深くなる|オープンデータ/);
   // 春のタンポポ → 春の植物向けヒントが含まれること
   assert.match(story.whyHere, /つぼみ|花|葉|株|日当たり/);
 });

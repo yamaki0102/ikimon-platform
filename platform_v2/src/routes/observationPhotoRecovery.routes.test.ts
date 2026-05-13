@@ -13,7 +13,7 @@ test("observation detail lets owners recover missing photos without exposing rev
   assert.match(readRoutes, /renderObservationPhotoRecoveryPanel/);
   assert.match(readRoutes, /data-photo-recovery/);
   assert.match(readRoutes, /映像フレームから拾えている手がかり/);
-  assert.match(readRoutes, /動画をもう一度見て、AIのヒントを更新できます/);
+  assert.match(readRoutes, /動画をもう一度見て、見分けるメモを更新できます/);
   assert.match(readRoutes, /この動画記録に写真を追加/);
   assert.doesNotMatch(readRoutes, /動画サムネイルを Gemini に渡しています/);
   assert.match(readRoutes, /\/api\/v1\/observations\/\$\{encodeURIComponent\(options\.visitId\)\}\/photos\/upload/);

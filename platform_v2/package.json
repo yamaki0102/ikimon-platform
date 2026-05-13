@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
+    "build": "npm run check:observation-copy && npm run sync:face-privacy-assets && tsc -p tsconfig.json && node -e \"const fs=require('node:fs');fs.cpSync('src/prompts','dist/prompts',{recursive:true});fs.cpSync('src/content','dist/content',{recursive:true});\"",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test:node": "tsx --test \"src/**/*.test.ts\"",
@@ -70,6 +70,7 @@
     "readiness": "tsx src/scripts/readinessReport.ts",
     "rehearse:cutover": "tsx src/scripts/rehearseCutover.ts",
     "check:public-terms": "tsx src/scripts/checkPublicSurfaceTerms.ts",
+    "check:observation-copy": "tsx src/scripts/checkObservationCopyQuality.ts",
     "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts",
     "import:feedback-knowledge": "tsx src/scripts/importObservationFeedbackKnowledgeClaims.ts",
     "import:invasive-knowledge": "tsx src/scripts/importInvasiveKnowledgeClaims.ts",
