@@ -1913,6 +1913,7 @@ function friendlyObservationText(text: string | null | undefined, maxLength = 92
     [/近くから写真\s*が/g, "近くの写真が"],
     [/の近くから/g, "を近くから"],
     [/在来種との識別に必須/g, "似た種類と比べる手がかり"],
+    [/匍匐性植物優占/g, "地面をはう植物が多い"],
     [/マクロ/g, "近くから"],
     [/花序/g, "花の集まり"],
     [/鋸歯/g, "葉のギザギザ"],
@@ -1933,7 +1934,12 @@ function friendlyObservationText(text: string | null | undefined, maxLength = 92
     [/\btaxonomy\b/gi, "名前の分け方"],
   ];
   for (const [pattern, replacement] of replacements) value = value.replace(pattern, replacement);
-  value = value.replace(/\s+([がをには])/g, "$1").replace(/([、。])\1+/g, "$1");
+  value = value
+    .replace(/地面をはうの/g, "地面をはう")
+    .replace(/花の横からの近くから/g, "花を横から近くで")
+    .replace(/花びらの細部の近くの写真/g, "花びらを近くで写した写真")
+    .replace(/\s+([がをには])/g, "$1")
+    .replace(/([、。])\1+/g, "$1");
   return compactAiReadoutText(value, maxLength);
 }
 
@@ -1979,8 +1985,8 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
   const headline = aiAssessment.recommendedTaxonName
-    ? `${aiAssessment.recommendedTaxonName} の候補です。`
-    : `${subject.displayName} の候補です。`;
+    ? `${aiAssessment.recommendedTaxonName}の候補です。`
+    : `${subject.displayName}の候補です。`;
   const rec = aiAssessment.recommendedTaxonName
     ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-ai-readout-rank">${escapeHtml(publicRankHint(aiAssessment.recommendedRank) || "候補")}</span>` : ""}</div>`
     : "";
@@ -4469,7 +4475,7 @@ function renderObservationRecordStory(options: {
     moisture ? moisture : null,
   ].filter((item): item is string => Boolean(item));
   if (placeParts.length > 0) {
-    lines.push(`写真や地図からは、${placeParts.slice(0, 3).join("、")}といった手がかりも見えます。断定ではなく、見返すための目印です。`);
+    lines.push(`写真や地図からは、${placeParts.slice(0, 3).map((item) => friendlyObservationText(item, 30)).join("、")}といった手がかりも見えます。断定ではなく、見返すための目印です。`);
   }
 
   const title = hasBee
