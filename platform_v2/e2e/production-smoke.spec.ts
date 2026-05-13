@@ -68,9 +68,15 @@ async function jsonFromResponse(response: import("@playwright/test").Response, l
   return payload!;
 }
 
-async function registerSmokeUser(api: APIRequestContext, baseUrl: string, prefix: string): Promise<string> {
+async function registerSmokeUser(
+  api: APIRequestContext,
+  baseUrl: string,
+  prefix: string,
+  suffix?: string,
+): Promise<{ email: string; userId: string }> {
   const password = `IkimonUiSmoke${prefix.replace(/\W/g, "").slice(-16)}!`;
-  const email = `${prefix}@example.invalid`;
+  const accountKey = suffix ? `${prefix}-${suffix}` : prefix;
+  const email = `${accountKey}@example.invalid`;
   const response = await api.post(joinUrl(baseUrl, "/api/v1/auth/register"), {
     headers: {
       accept: "application/json",
@@ -78,16 +84,40 @@ async function registerSmokeUser(api: APIRequestContext, baseUrl: string, prefix
       origin: baseUrl,
     },
     data: {
-      displayName: `候補UIスモーク ${prefix}`,
+      displayName: `候補UIスモーク ${accountKey}`,
       email,
       password,
       redirect: "/record",
     },
   });
-  const payload = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  const payload = (await response.json().catch(() => null)) as {
+    ok?: boolean;
+    error?: string;
+    session?: { userId?: string };
+  } | null;
   expect(response.ok(), payload?.error ?? "register_failed").toBeTruthy();
   expect(payload?.ok, payload?.error ?? "register_failed").toBeTruthy();
-  return email;
+  expect(payload?.session?.userId, payload?.error ?? "missing_user_id").toBeTruthy();
+  return { email, userId: payload!.session!.userId! };
+}
+
+async function pollRecentEvent(
+  api: APIRequestContext,
+  baseUrl: string,
+  sessionId: string,
+  type: string,
+): Promise<JsonPayload> {
+  const deadline = Date.now() + 20_000;
+  let lastPayload: JsonPayload = {};
+  while (Date.now() < deadline) {
+    const response = await api.get(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/recent?limit=50`));
+    lastPayload = (await response.json().catch(() => ({}))) as JsonPayload;
+    const events = Array.isArray(lastPayload.events) ? lastPayload.events as JsonPayload[] : [];
+    const found = events.find((event) => event.type === type);
+    if (found) return found;
+    await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+  throw new Error(`recent event not found: ${type}; last=${JSON.stringify(lastPayload).slice(0, 600)}`);
 }
 
 async function fillRequiredRecordFields(page: Page): Promise<void> {
@@ -161,7 +191,7 @@ test.describe("production candidate smoke", () => {
     });
 
     try {
-      const email = await registerSmokeUser(context.request, baseUrl, prefix);
+      const account = await registerSmokeUser(context.request, baseUrl, prefix);
       const page = await context.newPage();
 
       await page.goto(joinUrl(baseUrl, "/record?lang=ja"), { waitUntil: "domcontentloaded" });
@@ -176,7 +206,7 @@ test.describe("production candidate smoke", () => {
       await page.locator("#record-submit-panel button[type='submit']").click();
       const photoResponse = await photoUpload;
       const photoPayload = await jsonFromResponse(photoResponse, "photo upload");
-      expect(photoResponse.ok(), `photo upload HTTP status for ${email}`).toBeTruthy();
+      expect(photoResponse.ok(), `photo upload HTTP status for ${account.email}`).toBeTruthy();
       expect(photoPayload.ok, "photo upload must keep the shared ok:true contract").toBe(true);
       await recordSmokeCheckpoint("photo_api_contract", { httpStatus: photoResponse.status() });
       await expect(page.locator("#record-status")).toContainText("記録を保存しました");
@@ -213,6 +243,208 @@ test.describe("production candidate smoke", () => {
       });
     } finally {
       await context.close();
+    }
+  });
+
+  test("place event capsule flow works with organizer, recorder, guide, and scanner accounts", async ({ browser }) => {
+    test.setTimeout(180_000);
+
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
+    const baseUrl = productionSmokeBaseUrl();
+    const prefix = productionSmokePrefix();
+    const organizerContext = await browser.newContext({ ignoreHTTPSErrors: true });
+    const recorderContext = await browser.newContext({ ignoreHTTPSErrors: true });
+    const guideContext = await browser.newContext({ ignoreHTTPSErrors: true });
+    const scannerContext = await browser.newContext({ ignoreHTTPSErrors: true });
+    const publicContext = await browser.newContext({ ignoreHTTPSErrors: true });
+
+    try {
+      const [organizer, recorder, guideUser, scanner] = await Promise.all([
+        registerSmokeUser(organizerContext.request, baseUrl, prefix, "organizer"),
+        registerSmokeUser(recorderContext.request, baseUrl, prefix, "recorder"),
+        registerSmokeUser(guideContext.request, baseUrl, prefix, "guide"),
+        registerSmokeUser(scannerContext.request, baseUrl, prefix, "scanner"),
+      ]);
+      const eventCode = `PE${Date.now().toString(36).toUpperCase()}`;
+      const startedAt = new Date().toISOString();
+      const createResponse = await organizerContext.request.post(joinUrl(baseUrl, "/api/v1/observation-events"), {
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          origin: baseUrl,
+        },
+        data: {
+          title: `連理の木の下 ${prefix}`,
+          event_code: eventCode,
+          plan: "public",
+          primary_mode: "discovery",
+          active_modes: ["discovery", "effort_maximize"],
+          location_lat: 34.7108,
+          location_lng: 137.7261,
+          location_radius_m: 35,
+          started_at: startedAt,
+          target_species: ["クスノキ"],
+          config: {
+            place_event: {
+              place_label: `連理の木の下 ${prefix}`,
+              meeting_point: "木の根元",
+              event_kind: "fixed_place_observation",
+              audience: "production_smoke",
+              consent_policy_version: "place_event_capsule/v1",
+              source_modes: ["record", "guide", "field_scan"],
+              public_story_enabled: true,
+              ai_recap_enabled: false,
+            },
+          },
+        },
+      });
+      const created = await jsonFromResponse(createResponse, "place event create");
+      expect(createResponse.ok(), String(created.error ?? "event_create_failed")).toBeTruthy();
+      const sessionId = String(created.sessionId ?? "");
+      expect(sessionId, "created session id").toBeTruthy();
+
+      for (const [context, account, role] of [
+        [recorderContext, recorder, "recorder"],
+        [guideContext, guideUser, "guide"],
+        [scannerContext, scanner, "scanner"],
+      ] as const) {
+        const response = await context.request.post(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/checkin`), {
+          headers: { accept: "application/json", "content-type": "application/json", origin: baseUrl },
+          data: { display_name: `候補UIスモーク ${prefix}-${role}`, is_minor: false, share_location: true },
+        });
+        expect(response.ok(), `${role} checkin`).toBeTruthy();
+      }
+
+      const observedAt = new Date().toISOString();
+      const recordResponse = await recorderContext.request.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
+        headers: { accept: "application/json", "content-type": "application/json", origin: baseUrl },
+        data: {
+          clientSubmissionId: `${prefix}-record-${Date.now()}`,
+          userId: recorder.userId,
+          observedAt,
+          latitude: 34.7108,
+          longitude: 137.7261,
+          localityNote: `連理の木の下 ${prefix}`,
+          note: `production place event smoke record ${prefix}`,
+          taxon: { vernacularName: "クスノキ", scientificName: "Cinnamomum camphora", rank: "species" },
+          sourcePayload: { source: "production_place_event_smoke", fixturePrefix: prefix },
+          eventSessionId: sessionId,
+          eventCode,
+          participantRole: "record",
+        },
+      });
+      const recordPayload = await jsonFromResponse(recordResponse, "place event record");
+      expect(recordResponse.ok(), String(recordPayload.error ?? "record_failed")).toBeTruthy();
+      await pollRecentEvent(organizerContext.request, baseUrl, sessionId, "observation_added");
+
+      const guideResponse = await guideContext.request.post(joinUrl(baseUrl, "/api/v1/guide/record"), {
+        headers: { accept: "application/json", "content-type": "application/json", origin: baseUrl },
+        data: {
+          sessionId,
+          sceneId: `${prefix}-guide-scene`,
+          eventSessionId: sessionId,
+          eventCode,
+          participantRole: "guide",
+          lang: "ja",
+          lat: 34.71082,
+          lng: 137.72612,
+          capturedAt: observedAt,
+          returnedAt: new Date().toISOString(),
+          sceneSummary: "連理の木の根元に常緑樹の葉と落ち葉が見える",
+          detectedSpecies: ["クスノキ"],
+          detectedFeatures: [{ kind: "vegetation", label: "evergreen_tree" }],
+          primarySubject: { name: "クスノキ", confidence: 0.62 },
+          environmentContext: "樹木の根元と落ち葉のある狭い地点",
+          facePrivacy: { status: "no_face", faceCount: 0 },
+          guideMode: "site_context",
+        },
+      });
+      expect(guideResponse.ok(), "guide record").toBeTruthy();
+      await pollRecentEvent(organizerContext.request, baseUrl, sessionId, "guide_scene_added");
+
+      const scanResponse = await scannerContext.request.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
+        headers: { accept: "application/json", "content-type": "application/json", origin: baseUrl },
+        data: {
+          clientSubmissionId: `${prefix}-scan-${Date.now()}`,
+          userId: scanner.userId,
+          observedAt,
+          latitude: 34.71079,
+          longitude: 137.72608,
+          localityNote: `連理の木の下 ${prefix}`,
+          note: `production place event smoke field scan ${prefix}`,
+          taxon: { vernacularName: "地点スキャン", scientificName: null, rank: "unknown" },
+          fieldScan: {
+            scanMode: "site_snapshot",
+            methodPayload: { source: "production_place_event_smoke", fixturePrefix: prefix },
+            qualityPayload: { repeatablePoint: true },
+          },
+          sourcePayload: { source: "production_place_event_smoke", fixturePrefix: prefix },
+          eventSessionId: sessionId,
+          eventCode,
+          participantRole: "field_scan",
+        },
+      });
+      const scanPayload = await jsonFromResponse(scanResponse, "place event field scan");
+      expect(scanResponse.ok(), String(scanPayload.error ?? "field_scan_failed")).toBeTruthy();
+      await pollRecentEvent(organizerContext.request, baseUrl, sessionId, "field_scan_added");
+
+      const endResponse = await organizerContext.request.post(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/end`), {
+        headers: { accept: "application/json", origin: baseUrl },
+      });
+      expect(endResponse.ok(), "end event").toBeTruthy();
+
+      const generateResponse = await organizerContext.request.post(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/capsule/generate`), {
+        headers: { accept: "application/json", "content-type": "application/json", origin: baseUrl },
+        data: { useAi: false },
+      });
+      const generated = await jsonFromResponse(generateResponse, "capsule generate");
+      expect(generateResponse.ok(), String(generated.error ?? "capsule_generate_failed")).toBeTruthy();
+      const capsule = generated.capsule as JsonPayload;
+      expect((capsule.sourceCounts as JsonPayload).observations).toBe(1);
+      expect((capsule.sourceCounts as JsonPayload).guideScenes).toBe(1);
+      expect((capsule.sourceCounts as JsonPayload).fieldScans).toBe(1);
+      expect((capsule.readiness as JsonPayload).exportReady).toBe(true);
+      expect(JSON.stringify(capsule.recordCandidates)).toContain('"identificationStatus":"suggested"');
+      expect(JSON.stringify(capsule.publicStoryDraft)).toContain("live:");
+
+      const blockedPublicResponse = await publicContext.request.get(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/capsule`));
+      expect(blockedPublicResponse.status(), "capsule should stay private before review").toBe(403);
+
+      const publishResponse = await organizerContext.request.patch(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/capsule/review`), {
+        headers: { accept: "application/json", "content-type": "application/json", origin: baseUrl },
+        data: { reviewStatus: "published" },
+      });
+      const published = await jsonFromResponse(publishResponse, "capsule publish");
+      expect(publishResponse.ok(), String(published.error ?? "capsule_publish_failed")).toBeTruthy();
+      expect((published.capsule as JsonPayload).reviewStatus).toBe("published");
+
+      const publicResponse = await publicContext.request.get(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/capsule`));
+      const publicPayload = await jsonFromResponse(publicResponse, "public capsule");
+      expect(publicResponse.ok(), "public capsule after publish").toBeTruthy();
+      expect(publicPayload.visibility).toBe("public");
+      expect(JSON.stringify(publicPayload)).not.toContain("privateDigest");
+
+      const recapPage = await organizerContext.newPage();
+      await recapPage.goto(joinUrl(baseUrl, `/events/${sessionId}/recap`), { waitUntil: "domcontentloaded" });
+      await expect(recapPage.locator("[data-can-manage='true']")).toBeVisible();
+      await expect(recapPage.locator("body")).toContainText("地点ストーリー");
+      await recordSmokeCheckpoint("place_event_capsule_flow", {
+        sessionId,
+        eventCode,
+        organizerUserId: organizer.userId,
+      });
+    } finally {
+      await Promise.all([
+        organizerContext.close(),
+        recorderContext.close(),
+        guideContext.close(),
+        scannerContext.close(),
+        publicContext.close(),
+      ]);
     }
   });
 });

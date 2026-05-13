@@ -47,8 +47,20 @@ export function renderEventCreateBody(args: {
       <input name="title" required maxlength="80" placeholder="例: 春の里山観察会" />
     </label>
 
+    <label>場所ラベル
+      <input name="place_label" maxlength="80" placeholder="例: 連理の木の下" />
+    </label>
+
+    <label>集合場所
+      <input name="meeting_point" maxlength="120" placeholder="例: 正門前ベンチ集合" />
+    </label>
+
     <label>開始日時
       <input name="started_at" required type="datetime-local" />
+    </label>
+
+    <label>終了日時
+      <input name="ended_at" type="datetime-local" />
     </label>
 
     <label>参加コード(6 文字英数大文字、空欄なら自動生成)
@@ -65,6 +77,15 @@ export function renderEventCreateBody(args: {
     <label>目標種(カンマ区切り、最大 12 種)
       <input name="target_species" placeholder="例: ヤマセミ, エナガ, シジュウカラ" />
     </label>
+
+    <fieldset style="border:1px solid var(--evt-line); border-radius:12px; padding:12px; display:grid; gap:8px;">
+      <legend class="evt-eyebrow">当日の入口</legend>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_record" checked /> 記録する</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_guide" checked /> ガイドで見る</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_field_scan" checked /> フィールドスキャン</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="public_story_enabled" checked /> 公開用ストーリー下書きを作る</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> Gemini Flash-Lite paid/Vertex 前提でAI下書き対象にする</label>
+    </fieldset>
 
     <fieldset class="evt-area-planner">
       <legend>開催エリア</legend>
@@ -1208,6 +1229,8 @@ export function eventCreateScript(): string {
     const fd = new FormData(form);
     const startedAtLocal = String(fd.get("started_at") || "");
     const startedAt = startedAtLocal ? new Date(startedAtLocal).toISOString() : new Date().toISOString();
+    const endedAtLocal = String(fd.get("ended_at") || "");
+    const endedAt = endedAtLocal ? new Date(endedAtLocal).toISOString() : null;
     const eventCode = String(fd.get("event_code") || "").toUpperCase().replace(/[^A-Z0-9]/g, "") || genEventCode();
     const targetSpecies = String(fd.get("target_species") || "")
       .split(/[,、]/).map(s => s.trim()).filter(Boolean).slice(0, 12);
@@ -1232,6 +1255,7 @@ export function eventCreateScript(): string {
       title: fd.get("title"),
       event_code: eventCode,
       started_at: startedAt,
+      ended_at: endedAt,
       primary_mode: fd.get("primary_mode"),
       active_modes: [fd.get("primary_mode")],
       target_species: targetSpecies,
@@ -1248,6 +1272,20 @@ export function eventCreateScript(): string {
         field_resolution_action: fieldResolution.action,
         announcement_text: announcementText,
         announcement_generated: announcementText === areaState.announcementAutoDraft,
+        place_event: {
+          place_label: String(fd.get("place_label") || "").trim() || null,
+          meeting_point: String(fd.get("meeting_point") || "").trim() || null,
+          event_kind: "fixed_place_observation",
+          audience: "event_participants",
+          consent_policy_version: "place_event_capsule/v1",
+          source_modes: [
+            fd.get("source_mode_record") === "on" ? "record" : null,
+            fd.get("source_mode_guide") === "on" ? "guide" : null,
+            fd.get("source_mode_field_scan") === "on" ? "field_scan" : null,
+          ].filter(Boolean),
+          public_story_enabled: fd.get("public_story_enabled") === "on",
+          ai_recap_enabled: fd.get("ai_recap_enabled") === "on",
+        },
       },
     };
     const r = await fetch("/api/v1/observation-events", {

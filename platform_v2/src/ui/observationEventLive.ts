@@ -118,7 +118,15 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
   <footer class="evt-live-actions" role="group" aria-label="観察アクション">
     <button class="evt-live-action-btn" data-mood="record" type="button" data-action="record">
       <span class="evt-live-action-icon">📷</span>
-      <span>観察を投稿</span>
+      <span>記録する</span>
+    </button>
+    <button class="evt-live-action-btn" data-mood="record" type="button" data-action="guide">
+      <span class="evt-live-action-icon">🧭</span>
+      <span>ガイドで見る</span>
+    </button>
+    <button class="evt-live-action-btn" data-mood="record" type="button" data-action="scan">
+      <span class="evt-live-action-icon">📡</span>
+      <span>スキャン</span>
     </button>
     <button class="evt-live-action-btn" data-mood="check" type="button" data-action="searched">
       <span class="evt-live-action-icon">🤔</span>
@@ -259,6 +267,8 @@ export function observationEventLiveScript(): string {
       case "quest":    return "✨";
       case "announce": return "📣";
       case "absence":  return "❌";
+      case "guide":    return "🧭";
+      case "scan":     return "📡";
       case "milestone":return "🏁";
       case "fanfare":  return "🎉";
       default:         return "🌿";
@@ -296,6 +306,18 @@ export function observationEventLiveScript(): string {
       } else {
         pushFeed("", "観察を記録しました", ts);
       }
+    }
+    else if (row.type === "guide_scene_added"){
+      obsState.obs++;
+      pushObservationFeature(payload, ts);
+      const label = payload.scene_summary || payload.primary_subject?.name || "ガイド場面";
+      pushFeed("guide", "<b>" + escapeText(label) + "</b>", ts);
+    }
+    else if (row.type === "field_scan_added"){
+      obsState.obs++;
+      pushObservationFeature(payload, ts);
+      const label = payload.taxon_name || payload.scan_mode || "場所の状態";
+      pushFeed("scan", "<b>" + escapeText(label) + "</b> をスキャン", ts);
     }
     else if (row.type === "absence_recorded"){
       obsState.absence++;
@@ -644,7 +666,30 @@ export function observationEventLiveScript(): string {
   const recordBtn = document.querySelector('[data-action="record"]');
   recordBtn?.addEventListener("click", () => {
     const code = root.dataset.eventCode || "";
-    const url = "/record" + (code ? "?event=" + encodeURIComponent(code) : "");
+    const session = root.dataset.sessionId || "";
+    const params = new URLSearchParams();
+    if (code) params.set("event", code);
+    if (session) params.set("eventSessionId", session);
+    const url = "/record" + (params.toString() ? "?" + params.toString() : "");
+    window.location.href = url;
+  });
+  document.querySelector('[data-action="guide"]')?.addEventListener("click", () => {
+    const code = root.dataset.eventCode || "";
+    const session = root.dataset.sessionId || "";
+    const params = new URLSearchParams();
+    if (code) params.set("event", code);
+    if (session) params.set("eventSessionId", session);
+    window.location.href = "/guide" + (params.toString() ? "?" + params.toString() : "");
+  });
+  document.querySelector('[data-action="scan"]')?.addEventListener("click", () => {
+    const code = root.dataset.eventCode || "";
+    const session = root.dataset.sessionId || "";
+    const params = new URLSearchParams();
+    params.set("fieldScanMode", "site_snapshot");
+    params.set("activityIntent", "share");
+    if (code) params.set("event", code);
+    if (session) params.set("eventSessionId", session);
+    const url = "/record?" + params.toString();
     window.location.href = url;
   });
 

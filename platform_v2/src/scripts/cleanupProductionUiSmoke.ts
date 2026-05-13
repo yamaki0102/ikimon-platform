@@ -170,6 +170,28 @@ async function cleanupProductionUiSmoke(options: CleanupOptions): Promise<Cleanu
     streamUids = videos.rows.map((row) => row.stream_uid).filter(Boolean);
     matched.videos = streamUids.length;
 
+    const eventSessions = await client.query<{ session_id: string }>(
+      `select session_id::text
+         from observation_event_sessions
+        where ($1::text[] <> '{}'::text[] and organizer_user_id = any($1::text[]))
+           or title like $2
+           or config::text like $2`,
+      [userIds, `%${options.fixturePrefix}%`],
+    );
+    const eventSessionIds = eventSessions.rows.map((row) => row.session_id);
+    matched.eventSessions = eventSessionIds.length;
+
+    const guideRecords = await client.query<{ guide_record_id: string }>(
+      `select guide_record_id::text
+         from guide_records
+        where ($1::text[] <> '{}'::text[] and user_id = any($1::text[]))
+           or session_id = any($2::text[])
+           or scene_summary like $3`,
+      [userIds, eventSessionIds, `%${options.fixturePrefix}%`],
+    );
+    const guideRecordIds = guideRecords.rows.map((row) => row.guide_record_id);
+    matched.guideRecords = guideRecordIds.length;
+
     if (!options.dryRun) {
       await client.query("begin");
       try {
@@ -218,6 +240,21 @@ async function cleanupProductionUiSmoke(options: CleanupOptions): Promise<Cleanu
             where occurrence_id = any($1::text[])
                or user_id = any($2::text[])`,
           [occurrenceIds, userIds],
+        );
+        deleted.guideLatencyStates = await deleteCount(
+          client,
+          `delete from guide_record_latency_states where guide_record_id = any($1::uuid[])`,
+          [guideRecordIds],
+        );
+        deleted.guideRecords = await deleteCount(
+          client,
+          `delete from guide_records where guide_record_id = any($1::uuid[])`,
+          [guideRecordIds],
+        );
+        deleted.eventSessions = await deleteCount(
+          client,
+          `delete from observation_event_sessions where session_id = any($1::uuid[])`,
+          [eventSessionIds],
         );
         deleted.assets = await deleteCount(client, `delete from evidence_assets where asset_id = any($1::uuid[])`, [assetIds]);
         deleted.visits = await deleteCount(client, `delete from visits where visit_id = any($1::text[])`, [visitIds]);

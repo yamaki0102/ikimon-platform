@@ -10234,6 +10234,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const fixedPointId = String(data.get('fixedPointId') || '').trim();
               const routeId = String(data.get('routeId') || '').trim();
               const areaId = String(data.get('areaId') || '').trim();
+              const eventCode = String(recordStartParams.get('event') || recordStartParams.get('eventCode') || '').trim();
+              const eventSessionId = String(recordStartParams.get('eventSessionId') || '').trim();
+              const eventTeamId = String(recordStartParams.get('teamId') || '').trim();
+              const eventParticipantRole = String(recordStartParams.get('participantRole') || participantRole || '').trim();
               if (recordMode === 'survey') {
                 if (!targetTaxaScope) {
                   throw new Error('survey_target_scope_required');
@@ -10387,6 +10391,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                       },
                     }
                   : null,
+                eventCode: eventCode || null,
+                eventSessionId: eventSessionId || null,
+                teamId: eventTeamId || null,
+                participantRole: eventParticipantRole || null,
                 fieldScan: fieldScanMode
                   ? {
                       scanMode: fieldScanMode,

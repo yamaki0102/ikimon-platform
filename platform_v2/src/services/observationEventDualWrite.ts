@@ -16,12 +16,16 @@ interface ObservationLikeInput {
   eventCode?: unknown;
   eventSessionId?: unknown;
   teamId?: unknown;
+  participantRole?: unknown;
   // 既存 upsert input の良くある形
   userId?: unknown;
   latitude?: unknown;
   longitude?: unknown;
   observedAt?: unknown;
   taxon?: { vernacularName?: unknown; scientificName?: unknown } | null | unknown;
+  fieldScan?: unknown;
+  visitMode?: unknown;
+  governanceContext?: unknown;
 }
 
 interface ObservationLikeResult {
@@ -33,6 +37,13 @@ interface ObservationLikeResult {
 interface SessionLookup {
   sessionId: string;
   isLive: boolean;
+}
+
+export interface ObservationEventSourcePayload {
+  eventCode?: unknown;
+  eventSessionId?: unknown;
+  teamId?: unknown;
+  participantRole?: unknown;
 }
 
 const eventCodeCache = new Map<string, { value: SessionLookup | null; expiresAt: number }>();
@@ -61,6 +72,22 @@ async function lookupSessionByEventCode(eventCode: string): Promise<SessionLooku
   }
 }
 
+async function lookupSessionById(sessionId: string): Promise<SessionLookup | null> {
+  try {
+    const result = await getPool().query<{ session_id: string; ended_at: string | null }>(
+      `SELECT session_id, ended_at::text AS ended_at
+       FROM observation_event_sessions
+       WHERE session_id = $1
+       LIMIT 1`,
+      [sessionId],
+    );
+    const row = result.rows[0];
+    return row ? { sessionId: row.session_id, isLive: row.ended_at === null } : null;
+  } catch {
+    return null;
+  }
+}
+
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
@@ -77,20 +104,30 @@ function extractTaxonName(input: ObservationLikeInput): string | null {
   return asString(t.vernacularName) ?? asString(t.scientificName);
 }
 
+async function resolveLiveEventSession(input: ObservationEventSourcePayload): Promise<string | null> {
+  const eventCode = asString(input.eventCode);
+  const explicitSessionId = asString(input.eventSessionId);
+  if (explicitSessionId) {
+    const lookup = await lookupSessionById(explicitSessionId);
+    return lookup?.isLive ? lookup.sessionId : null;
+  }
+  if (eventCode) {
+    const lookup = await lookupSessionByEventCode(eventCode);
+    return lookup?.isLive ? lookup.sessionId : null;
+  }
+  return null;
+}
+
+function observationLiveType(input: ObservationLikeInput): "observation_added" | "field_scan_added" {
+  if (input.fieldScan && typeof input.fieldScan === "object") return "field_scan_added";
+  return "observation_added";
+}
+
 export async function hookObservationToEvent(args: {
   body: ObservationLikeInput;
   result: ObservationLikeResult;
 }): Promise<void> {
-  const eventCode = asString(args.body.eventCode);
-  const explicitSessionId = asString(args.body.eventSessionId);
-  if (!eventCode && !explicitSessionId) return;
-
-  let sessionId: string | null = explicitSessionId;
-  if (!sessionId && eventCode) {
-    const lookup = await lookupSessionByEventCode(eventCode);
-    if (!lookup || !lookup.isLive) return;
-    sessionId = lookup.sessionId;
-  }
+  const sessionId = await resolveLiveEventSession(args.body);
   if (!sessionId) return;
 
   const teamId = asString(args.body.teamId);
@@ -103,7 +140,7 @@ export async function hookObservationToEvent(args: {
   try {
     await appendLiveEvent({
       sessionId,
-      type: "observation_added",
+      type: observationLiveType(args.body),
       scope: "all",
       actorUserId: userId,
       teamId,
@@ -114,6 +151,9 @@ export async function hookObservationToEvent(args: {
         lat,
         lng,
         observed_at: observedAt,
+        source_type: observationLiveType(args.body) === "field_scan_added" ? "field_scan" : "record",
+        participant_role: asString(args.body.participantRole),
+        field_scan: args.body.fieldScan && typeof args.body.fieldScan === "object" ? args.body.fieldScan as Record<string, unknown> : null,
       },
     });
   } catch (err) {
@@ -156,4 +196,70 @@ export async function hookObservationToEvent(args: {
       // sliding-window 検出は best-effort
     }
   }
+}
+
+export async function hookGuideSceneToEvent(args: {
+  body: ObservationEventSourcePayload;
+  guideRecordId?: string | null;
+  sceneId?: string | null;
+  guideSessionId?: string | null;
+  userId?: string | null;
+  teamId?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  capturedAt?: string | null;
+  payload?: Record<string, unknown>;
+}): Promise<void> {
+  const sessionId = await resolveLiveEventSession(args.body);
+  if (!sessionId) return;
+  await appendLiveEvent({
+    sessionId,
+    type: "guide_scene_added",
+    scope: "all",
+    actorUserId: args.userId ?? null,
+    teamId: args.teamId ?? asString(args.body.teamId),
+    payload: {
+      guide_record_id: args.guideRecordId ?? null,
+      scene_id: args.sceneId ?? null,
+      guide_session_id: args.guideSessionId ?? null,
+      lat: args.lat ?? null,
+      lng: args.lng ?? null,
+      captured_at: args.capturedAt ?? null,
+      participant_role: asString(args.body.participantRole),
+      ...(args.payload ?? {}),
+    },
+  });
+}
+
+export async function hookFieldScanAudioToEvent(args: {
+  body: ObservationEventSourcePayload;
+  segmentId: string;
+  fieldscanSessionId: string;
+  userId?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  recordedAt?: string | null;
+  durationSec?: number | null;
+  payload?: Record<string, unknown>;
+}): Promise<void> {
+  const sessionId = await resolveLiveEventSession(args.body);
+  if (!sessionId) return;
+  await appendLiveEvent({
+    sessionId,
+    type: "field_scan_added",
+    scope: "all",
+    actorUserId: args.userId ?? null,
+    teamId: asString(args.body.teamId),
+    payload: {
+      segment_id: args.segmentId,
+      fieldscan_session_id: args.fieldscanSessionId,
+      scan_mode: "audio_segment",
+      lat: args.lat ?? null,
+      lng: args.lng ?? null,
+      recorded_at: args.recordedAt ?? null,
+      duration_sec: args.durationSec ?? null,
+      participant_role: asString(args.body.participantRole),
+      ...(args.payload ?? {}),
+    },
+  });
 }

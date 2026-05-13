@@ -11,6 +11,8 @@ import { getSessionById, type ObservationEventSessionRow } from "./observationEv
 
 export interface RecapHighlights {
   observationCount: number;
+  guideSceneCount: number;
+  fieldScanCount: number;
   uniqueSpeciesCount: number;
   absencesCount: number;
   participantsCount: number;
@@ -56,6 +58,9 @@ export interface RecapImpactRecord {
 
 export interface ObservationEventRecap {
   session: ObservationEventSessionRow;
+  permissions: {
+    canManage: boolean;
+  };
   highlights: RecapHighlights;
   effort: SessionEffortSummary;
   teams: RecapTeamSummary[];
@@ -96,6 +101,8 @@ export async function buildRecap(
   ] = await Promise.all([
     pool.query<{
       obs_count: string;
+      guide_scene_count: string;
+      field_scan_count: string;
       species_count: string;
       absence_count: string;
       participants: string;
@@ -106,6 +113,8 @@ export async function buildRecap(
     }>(
       `SELECT
          COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type='observation_added'), 0)::text AS obs_count,
+         COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type='guide_scene_added'), 0)::text AS guide_scene_count,
+         COALESCE((SELECT COUNT(*) FROM observation_event_live_events WHERE session_id = $1 AND type='field_scan_added'), 0)::text AS field_scan_count,
          COALESCE((SELECT COUNT(DISTINCT payload->>'taxon_name') FROM observation_event_live_events WHERE session_id = $1 AND type='observation_added' AND payload->>'taxon_name' IS NOT NULL), 0)::text AS species_count,
          COALESCE((SELECT COUNT(*) FROM observation_event_absences WHERE session_id = $1), 0)::text AS absence_count,
          COALESCE((SELECT COUNT(*) FROM observation_event_participants WHERE session_id = $1), 0)::text AS participants,
@@ -193,6 +202,8 @@ export async function buildRecap(
 
   const highlights: RecapHighlights = {
     observationCount: Number(h?.obs_count ?? 0),
+    guideSceneCount: Number(h?.guide_scene_count ?? 0),
+    fieldScanCount: Number(h?.field_scan_count ?? 0),
     uniqueSpeciesCount: Number(h?.species_count ?? 0),
     absencesCount: Number(h?.absence_count ?? 0),
     participantsCount: Number(h?.participants ?? 0),
@@ -260,6 +271,9 @@ export async function buildRecap(
 
   return {
     session,
+    permissions: {
+      canManage: Boolean(options.viewerUserId && options.viewerUserId === session.organizerUserId),
+    },
     highlights,
     effort,
     teams,

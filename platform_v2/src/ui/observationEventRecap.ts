@@ -22,6 +22,10 @@ function timelineLabel(entry: RecapTimelineEntry): string {
   switch (entry.type) {
     case "observation_added":
       return `🌿 <b>${escapeHtml(String(p.taxon_name ?? "観察"))}</b> を発見`;
+    case "guide_scene_added":
+      return `🧭 <b>${escapeHtml(String(p.scene_summary ?? p.primary_subject ?? "ガイド場面"))}</b>`;
+    case "field_scan_added":
+      return `📡 <b>${escapeHtml(String(p.taxon_name ?? p.scan_mode ?? "場所の状態"))}</b> をスキャン`;
     case "absence_recorded":
       return `❌ <b>${escapeHtml(String(p.searched_taxon ?? "種不明"))}</b> を確かめた`;
     case "checkin":
@@ -50,7 +54,7 @@ function timelineLabel(entry: RecapTimelineEntry): string {
 }
 
 export function renderRecapBody(recap: ObservationEventRecap): string {
-  const { session, highlights, effort, teams, timeline, impacts, myContribution } = recap;
+  const { session, permissions, highlights, effort, teams, timeline, impacts, myContribution } = recap;
   const headerDate = formatDate(highlights.startedAt);
   const heroStats = `
     <div><strong>${highlights.observationCount}</strong><span>観察</span></div>
@@ -119,7 +123,7 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
           </li>`).join("");
 
   return `
-<section class="evt-recap-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}">
+<section class="evt-recap-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-can-manage="${permissions.canManage ? "true" : "false"}">
   <article class="evt-result-card">
     <span class="evt-result-eyebrow">${escapeHtml(headerDate)} • ${highlights.durationMinutes ?? "?"} 分</span>
     <h2>${escapeHtml(session.title || "観察会の振り返り")}</h2>
@@ -139,6 +143,7 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
     <button class="evt-recap-tab is-active" data-tab="overview" type="button">全体</button>
     <button class="evt-recap-tab" data-tab="teams" type="button">班</button>
     <button class="evt-recap-tab" data-tab="me" type="button">あなた</button>
+    <button class="evt-recap-tab" data-tab="capsule" type="button">地点ストーリー</button>
     <button class="evt-recap-tab" data-tab="timeline" type="button">タイムライン</button>
     <button class="evt-recap-tab" data-tab="impact" type="button">科学的影響</button>
   </div>
@@ -150,6 +155,8 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
     <h2 class="evt-heading" style="margin-top:24px;">セッションの数字</h2>
     <div class="evt-stagger" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px;">
       <div class="evt-card"><span class="evt-eyebrow">観察</span><strong style="font-size:24px;">${highlights.observationCount}</strong></div>
+      <div class="evt-card"><span class="evt-eyebrow">ガイド場面</span><strong style="font-size:24px;">${highlights.guideSceneCount}</strong></div>
+      <div class="evt-card"><span class="evt-eyebrow">スキャン</span><strong style="font-size:24px;">${highlights.fieldScanCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">種数</span><strong style="font-size:24px;">${highlights.uniqueSpeciesCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">不在</span><strong style="font-size:24px;">${highlights.absencesCount}</strong></div>
       <div class="evt-card"><span class="evt-eyebrow">クエスト達成</span><strong style="font-size:24px;">${highlights.questsCompleted}</strong></div>
@@ -167,6 +174,15 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
 
   <section class="evt-recap-section" data-tab-panel="me" style="display:none;">
     ${personalSection || `<p class="evt-lead">参加者 URL でアクセスすると、あなたの貢献が見られます。</p>`}
+  </section>
+
+  <section class="evt-recap-section" data-tab-panel="capsule" style="display:none;">
+    <h2 class="evt-heading">地点観察パッケージ</h2>
+    <p class="evt-lead">通常記録、ガイド、フィールドスキャンを束ねた公開前レビュー用の下書きです。</p>
+    <div class="evt-card" data-capsule-panel>
+      <p class="evt-lead">${permissions.canManage ? "まだ生成されていません。主催者は生成できます。" : "公開承認された地点ストーリーが表示されます。"}</p>
+      ${permissions.canManage ? `<button type="button" class="evt-btn evt-btn-primary" data-capsule-generate>地点ストーリーを生成</button>` : ""}
+    </div>
   </section>
 
   <section class="evt-recap-section" data-tab-panel="timeline" style="display:none;">
@@ -218,6 +234,86 @@ export function recapScript(): string {
       }
     });
   });
+  const capsulePanel = document.querySelector("[data-capsule-panel]");
+  const capsuleGenerate = document.querySelector("[data-capsule-generate]");
+  const sessionId = root?.dataset.sessionId || "";
+  const canManageCapsule = root?.dataset.canManage === "true";
+  const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function renderCapsule(capsule, visibility){
+    if (!capsulePanel || !capsule) return;
+    const story = capsule.publicStoryDraft || {};
+    const counts = capsule.sourceCounts || {};
+    const risks = Array.isArray(capsule.privacyRiskQueue) ? capsule.privacyRiskQueue : [];
+    const sections = Array.isArray(story.sections) ? story.sections : [];
+    capsulePanel.innerHTML = ''
+      + '<span class="evt-eyebrow">' + escapeHtml(visibility || capsule.reviewStatus || 'draft') + '</span>'
+      + '<h3 style="margin:8px 0 4px;">' + escapeHtml(story.title || '地点ストーリー') + '</h3>'
+      + '<p class="evt-lead">' + escapeHtml(story.lead || '') + '</p>'
+      + '<div style="display:flex; gap:6px; flex-wrap:wrap; margin:12px 0;">'
+      + '<span class="evt-badge evt-mode-discovery">記録 ' + escapeHtml(counts.observations || 0) + '</span>'
+      + '<span class="evt-badge evt-mode-quest">ガイド ' + escapeHtml(counts.guideScenes || 0) + '</span>'
+      + '<span class="evt-badge evt-mode-effort">スキャン ' + escapeHtml(counts.fieldScans || 0) + '</span>'
+      + '<span class="evt-badge evt-mode-absence">要確認 ' + escapeHtml(risks.length) + '</span>'
+      + '</div>'
+      + sections.map(section => '<article style="border-top:1px solid var(--evt-line); padding-top:10px; margin-top:10px;">'
+        + '<strong>' + escapeHtml(section.heading) + '</strong>'
+        + '<p class="evt-lead" style="margin-top:4px;">' + escapeHtml(section.body) + '</p>'
+        + '<p class="evt-eyebrow">refs: ' + escapeHtml((section.sourceRefs || []).join(', ')) + '</p>'
+        + '</article>').join('')
+      + (risks.length ? '<p class="evt-lead" style="margin-top:12px; color:#b45309;">公開前に人物・声・未成年・希少種位置の確認が必要です。</p>' : '')
+      + (canManageCapsule ? '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">'
+        + '<button type="button" class="evt-btn evt-btn-primary" data-capsule-generate>再生成</button>'
+        + '<button type="button" class="evt-btn" data-capsule-publish>公開承認</button>'
+        + '</div>' : '');
+    if (canManageCapsule) {
+      capsulePanel.querySelector('[data-capsule-generate]')?.addEventListener('click', generateCapsule);
+      capsulePanel.querySelector('[data-capsule-publish]')?.addEventListener('click', publishCapsule);
+    }
+  }
+  async function loadCapsule(){
+    if (!sessionId || !capsulePanel) return;
+    try {
+      const res = await fetch('/api/v1/observation-events/' + encodeURIComponent(sessionId) + '/capsule', { credentials: 'include' });
+      if (!res.ok) return;
+      const json = await res.json();
+      renderCapsule(json.capsule, json.visibility);
+    } catch (_) {}
+  }
+  async function generateCapsule(){
+    if (!canManageCapsule) return;
+    if (!sessionId || !capsulePanel) return;
+    capsulePanel.innerHTML = '<p class="evt-lead">生成中...</p>';
+    const res = await fetch('/api/v1/observation-events/' + encodeURIComponent(sessionId) + '/capsule/generate', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ useAi: true })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.capsule) {
+      capsulePanel.innerHTML = '<p class="evt-lead">生成できませんでした: ' + escapeHtml(json.error || res.status) + '</p>';
+      return;
+    }
+    renderCapsule(json.capsule, 'organizer');
+  }
+  async function publishCapsule(){
+    if (!canManageCapsule) return;
+    if (!sessionId) return;
+    const res = await fetch('/api/v1/observation-events/' + encodeURIComponent(sessionId) + '/capsule/review', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reviewStatus: 'published' })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert('公開できません: ' + (json.error || res.status));
+      return;
+    }
+    renderCapsule(json.capsule, 'organizer');
+  }
+  capsuleGenerate?.addEventListener('click', generateCapsule);
+  void loadCapsule();
 })();
 `;
 }
