@@ -272,7 +272,7 @@ prepare_release() {
   npm run verify:production-shadow -- --import-version=production_shadow_live
   npm run report:legacy-drift -- --json
   npm run smoke:v2-lane -- --base-url="http://127.0.0.1:${port}"
-  npm run smoke:v2-read-lane -- --base-url="http://127.0.0.1:${port}"
+  IKIMON_SCENE_READ_SMOKE=required npm run smoke:v2-read-lane -- --base-url="http://127.0.0.1:${port}"
 
   printf '%s\n' "${active}" > "${STATE_DIR}/previous_color"
   printf '%s\n' "${inactive}" > "${STATE_DIR}/candidate_color"
@@ -351,7 +351,7 @@ promote_candidate() {
   rm -f "${rendered}"
   export_runtime_env
   if ! npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-lane -- --base-url="${PUBLIC_BASE_URL}" ||
-     ! npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-read-lane -- --base-url="${PUBLIC_BASE_URL}"; then
+     ! IKIMON_SCENE_READ_SMOKE=required npm --prefix "${RUNTIME_DIR}/${candidate}" run smoke:v2-read-lane -- --base-url="${PUBLIC_BASE_URL}"; then
     restore_nginx_snapshot "${snapshot}" || true
     printf '%s\n' "${previous}" > "${STATE_DIR}/active_color"
     exit 1
