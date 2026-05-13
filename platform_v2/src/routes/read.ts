@@ -1361,6 +1361,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .regional-story-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
   .regional-story-eyebrow { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
   .regional-story h2 { margin: 6px 0 0; color: #10251a; font-size: clamp(22px, 3vw, 32px); line-height: 1.18; letter-spacing: 0; }
+  .regional-story-details > summary { cursor: pointer; list-style: none; }
+  .regional-story-details > summary::-webkit-details-marker { display: none; }
+  .regional-story-summary-title { display: block; margin-top: 6px; color: #10251a; font-size: clamp(18px, 2.4vw, 24px); line-height: 1.25; letter-spacing: 0; }
   .regional-story-head > span { flex: 0 0 auto; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
   .regional-story-lead { margin: 0; color: #475569; line-height: 1.8; font-weight: 720; }
   .regional-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -1902,6 +1905,14 @@ function friendlyObservationText(text: string | null | undefined, maxLength = 92
   let value = String(text ?? "").replace(/\s+/g, " ").trim();
   if (!value) return "";
   const replacements: Array<[RegExp, string]> = [
+    [/個々の花の詳細な構造（花冠の裂片の様子）/g, "花びらの細部"],
+    [/花の集まり（花の集まり）/g, "花の集まり"],
+    [/地面をはうの茎/g, "地面をはう茎"],
+    [/横からの近くから/g, "横から近くで"],
+    [/真上近くから/g, "真上から"],
+    [/近くから写真\s*が/g, "近くの写真が"],
+    [/の近くから/g, "を近くから"],
+    [/在来種との識別に必須/g, "似た種類と比べる手がかり"],
     [/マクロ/g, "近くから"],
     [/花序/g, "花の集まり"],
     [/鋸歯/g, "葉のギザギザ"],
@@ -1922,6 +1933,7 @@ function friendlyObservationText(text: string | null | undefined, maxLength = 92
     [/\btaxonomy\b/gi, "名前の分け方"],
   ];
   for (const [pattern, replacement] of replacements) value = value.replace(pattern, replacement);
+  value = value.replace(/\s+([がをには])/g, "$1").replace(/([、。])\1+/g, "$1");
   return compactAiReadoutText(value, maxLength);
 }
 
@@ -1954,19 +1966,21 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
     return `<section class="obs-ai-readout is-tent">
       <div class="obs-ai-readout-top">
         <div>
-          <p class="obs-hint-eyebrow">まず見えていること</p>
-          <h3 class="obs-ai-readout-title">この見つけたものは、まだ名前を決めずに見ておけます。</h3>
+          <p class="obs-hint-eyebrow">写真の手がかり</p>
+          <h3 class="obs-ai-readout-title">名前はまだ保留です。</h3>
         </div>
-        <span class="obs-ai-readout-badge">様子見</span>
+        <span class="obs-ai-readout-badge">未確認</span>
       </div>
-      <p class="obs-ai-readout-note">名前が決まる前でも、写真やメモはあとでたしかめる手がかりになります。</p>
+      <p class="obs-ai-readout-note">写真やメモは残っています。必要なときに見返せます。</p>
     </section>`;
   }
 
   const band = aiAssessment.confidenceBand;
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
-  const headline = friendlyObservationText(aiAssessment.simpleSummary || aiAssessment.narrative || `${subject.displayName} の候補として見ています。`, 104);
+  const headline = aiAssessment.recommendedTaxonName
+    ? `${aiAssessment.recommendedTaxonName} の候補です。`
+    : `${subject.displayName} の候補です。`;
   const rec = aiAssessment.recommendedTaxonName
     ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-ai-readout-rank">${escapeHtml(publicRankHint(aiAssessment.recommendedRank) || "候補")}</span>` : ""}</div>`
     : "";
@@ -1980,13 +1994,13 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
       ? `${friendlyObservationText(aiAssessment.missingEvidence[0], 48)} が見えないため、ここでは決めきっていません。`
       : "";
   const notes = [
-    stopReason ? `<p class="obs-ai-readout-note"><strong>確認中のポイント</strong>${escapeHtml(friendlyObservationText(stopReason))}</p>` : "",
+    stopReason ? `<p class="obs-ai-readout-note"><strong>保留している点</strong>${escapeHtml(friendlyObservationText(stopReason, 76))}</p>` : "",
   ].filter(Boolean).join("");
 
   return `<section class="obs-ai-readout ${bandClass}">
     <div class="obs-ai-readout-top">
       <div>
-        <p class="obs-hint-eyebrow">まず見えていること</p>
+        <p class="obs-hint-eyebrow">写真の手がかり</p>
         <h3 class="obs-ai-readout-title">${escapeHtml(headline)}</h3>
       </div>
       <span class="obs-ai-readout-badge">${escapeHtml(bandLabel)}</span>
@@ -2058,9 +2072,9 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
       areaLabel: "写真・映像フレームからのエリア推察",
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
       shotAriaLabel: "名前の確認に役立つ写真・映像",
-      shotHeading: "あると助かる写真・映像",
-      shotReminder: "無理に揃える必要はありません。別角度があると、名前の確認が楽になります。",
-      focusLead: "写真・映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
+      shotHeading: "足せるなら便利な写真・映像",
+      shotReminder: "無理に揃えるものではありません。別角度があると名前を見やすくなります。",
+      focusLead: "見えている特徴と、保留している点だけをまとめています。",
       contextHeading: "写真・動画・音から拾えたこと",
       reassessHint: "写真や動画をもう一度見て、見分けるメモを更新できます。",
       videoReassessLoadingText: "AIで動画を確認しています…",
@@ -2076,9 +2090,9 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     areaLabel: "この 1 枚からのエリア推察",
     areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
     shotAriaLabel: "名前の確認に役立つ写真",
-    shotHeading: "あると助かる写真",
-    shotReminder: "無理に揃える必要はありません。別角度があると、名前の確認が楽になります。",
-    focusLead: "写真から読めている手がかりと、まだ止めている理由を先に確認できます。",
+    shotHeading: "足せるなら便利な写真",
+    shotReminder: "無理に揃えるものではありません。別角度があると名前を見やすくなります。",
+    focusLead: "見えている特徴と、保留している点だけをまとめています。",
     contextHeading: "写真と音から拾えたこと",
     reassessHint: "写真をもう一度見て、見分けるメモを更新できます。",
     videoReassessLoadingText: "AIで動画を確認しています…",
@@ -2282,7 +2296,7 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   });
   const literatureBlock = meaningfulCards.length > 0
     ? `<div class="regional-story-cards" aria-label="参照した地域資料">
-        <div class="regional-story-cards-eye">参照した地域資料</div>
+        <div class="regional-story-cards-eye">地域資料</div>
         ${meaningfulCards.map((card) => {
           const icon = REGIONAL_CATEGORY_ICON[card.category] ?? "📚";
           return `<a class="regional-story-card" href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noreferrer noopener">
@@ -2299,14 +2313,14 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   const nextAngle = story.nextObservationAngle?.trim();
   const nextAngleBlock = nextAngle
     ? `<div class="regional-story-next">
-        <small>📸 見返すときの一案</small>
+        <small>見返すなら</small>
         <strong>${escapeHtml(softenActionCueText(nextAngle, 92))}</strong>
       </div>`
     : "";
   const collective = story.collectiveNote?.trim();
   const collectiveBlock = collective
     ? `<div class="regional-story-collective">
-        <small>🌱 記録が増えると比べられること</small>
+        <small>比べられること</small>
         <strong>${escapeHtml(softenActionCueText(collective, 96))}</strong>
       </div>`
     : "";
@@ -2314,6 +2328,22 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   const badge = story.sourceMode === "fallback"
     ? story.angleLabel
     : `${story.angleLabel}・地域資料あり`;
+  if (variant === "observation") {
+    return `<section class="${className}" data-testid="regional-story">
+      <details class="regional-story-details">
+        <summary class="regional-story-head">
+          <div>
+            <span class="regional-story-eyebrow">場所の手がかり</span>
+            <strong class="regional-story-summary-title">${escapeHtml(story.placeHook)}</strong>
+          </div>
+          <span>${escapeHtml(story.sourceMode === "fallback" ? story.angleLabel : "地域資料あり")}</span>
+        </summary>
+        <p class="regional-story-lead">${escapeHtml(softenActionCueText(story.whyHere, 118))}</p>
+        <div class="regional-story-grid">${nextAngleBlock}${collectiveBlock}</div>
+        ${literatureBlock}
+      </details>
+    </section>`;
+  }
   return `<section class="${className}" data-testid="regional-story">
     <div class="regional-story-head">
       <div>
@@ -4105,7 +4135,7 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
     return "";
   }
   return `<details class="obs-fold">
-    <summary>まだ残していない候補 <span class="obs-fold-count">${bundle.aiCandidates.length}</span></summary>
+    <summary>ほかの自動候補 <span class="obs-fold-count">${bundle.aiCandidates.length}</span></summary>
     <div class="obs-nearby-grid">
       ${bundle.aiCandidates.map((candidate) => `
         <div class="obs-nearby-card">
@@ -4114,7 +4144,7 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
             <div class="obs-nearby-meta">${escapeHtml([
               publicRankHint(candidate.rank) || null,
               typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : null,
-              candidate.candidateStatus === "matched" && candidate.suggestedOccurrenceId ? "すでにある見つけたもの" : "まだ残していない候補",
+              candidate.candidateStatus === "matched" && candidate.suggestedOccurrenceId ? "記録済み" : "候補",
             ].filter(Boolean).join(" · "))}</div>
             ${candidate.note ? `<p class="obs-id-note">${escapeHtml(candidate.note)}</p>` : ""}
           </div>
@@ -4136,7 +4166,7 @@ function renderSubjectTaxonomy(
          ${subject.lineage.map((lineage) => `<span class="obs-lineage-item"><small>${escapeHtml(publicRankHint(lineage.rank) || rankLabelJa(lineage.rank))}</small>${escapeHtml(lineage.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
        </div>`
     : "";
-  const layer2Title = subjectCount >= 2 ? "この記録に写っているものの名前" : "見つけたものの名前";
+  const layer2Title = "名前の記録";
   const layer2Note = featuredSubject && subject.occurrenceId !== featuredSubject.occurrenceId
     ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(subjectDisplay.primaryLabel)}</strong> を見ています。最初に見る候補は <strong>${escapeHtml(featuredDisplay?.primaryLabel ?? featuredSubject.displayName)}</strong> ですが、上のカードから切り替えられます。</p>`
     : bundle.lockedByHuman
@@ -4158,22 +4188,15 @@ function renderSubjectTaxonomy(
              </div>
            </li>`).join("")}
         </ul>`
-    : `<p class="obs-empty">まだ名前は決まっていません。自動候補がある場合も確定名ではありません。最初の名前を提案できます。</p>`;
+    : `<p class="obs-empty">人の同定はまだありません。自動候補は確定名ではありません。</p>`;
   return `
     <section class="section obs-layer obs-layer-2">
-      <div class="obs-terminology-strip" aria-label="このページの単位">
-        <span>見つけたもの</span>
-        <span>名前を確認</span>
-        <span>${subjectCount}件</span>
-      </div>
       <h2 class="obs-layer-title">${layer2Title}</h2>
       ${layer2Note}
       ${lineageChips}
-      <h3 class="obs-layer-subtitle">名前の記録</h3>
       ${idsList}
       ${renderSubjectComparison(bundle, subject)}
       ${renderAiCandidates(bundle)}
-      <p class="obs-ai-note">自動候補は名前を考える手がかりです。人の確認が入ると、そちらを優先します。</p>
     </section>`;
 }
 
@@ -4269,55 +4292,54 @@ function renderIdentificationParticipation(options: {
         <div class="obs-identify-status" data-identify-status>Ready.</div>
       </form>`
     : `<div class="obs-identify-login">
-        <strong>ログインすると名前や気づきを書けます。</strong>
-        <p>見るだけならこのまま使えます。書き込むときは、誰の気づきか分かるようにログインが必要です。</p>
+        <strong>書き込むにはログインが必要です。</strong>
+        <p>見るだけならこのまま使えます。</p>
        </div>`;
 
   return `<section id="identify" class="section obs-layer obs-identify-panel">
     <div class="obs-identify-head">
       <div>
-        <div class="obs-story-eyebrow">名前を確かめる</div>
-        <h2 class="obs-layer-title">名前をみんなで確かめる</h2>
-        <p class="obs-layer-note">見つけたものに、名前と理由を足せます。分からないときは「白いチョウの仲間」のような書き方で十分です。</p>
+        <div class="obs-story-eyebrow">同定</div>
+        <h2 class="obs-layer-title">名前を確かめる</h2>
+        <p class="obs-layer-note">確定名ではありません。分かる範囲の名前や理由を残せます。</p>
       </div>
       <span class="obs-identify-pill">${escapeHtml(consensusStatusLabel(consensus?.consensusStatus))}</span>
     </div>
     <div class="obs-consensus-grid">
       <div class="obs-consensus-card">
-        <span>いま見ているもの</span>
+        <span>候補</span>
         <strong>${escapeHtml(targetLabel)}</strong>
       </div>
       <div class="obs-consensus-card">
-        <span>名前のまとまり</span>
+        <span>みんなの見方</span>
         <strong>${escapeHtml(currentConsensus)}</strong>
       </div>
       <div class="obs-consensus-card">
-        <span>公開に使えるか</span>
+        <span>状態</span>
         <strong>${escapeHtml(verificationStatusLabel(consensus?.identificationVerificationStatus))}</strong>
-      </div>
-      <div class="obs-consensus-card">
-        <span>どこまで分かるか</span>
-        <strong>${escapeHtml(consensus ? `${rankLabelJa(consensus.precisionCeilingRank)}までたしかめられます` : "確認中")}</strong>
       </div>
     </div>
     <div class="obs-needed-box">
-      <div class="obs-story-eyebrow">確かめる材料</div>
+      <div class="obs-story-eyebrow">あると見やすい材料</div>
       <ul>${neededList.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
     </div>
     ${aiReviewBlock}
-    <div class="obs-identify-split">
-      <div>
-        <h3>反対意見</h3>
-        ${disputes}
+    <details class="obs-fold obs-identify-fold">
+      <summary>名前や気づきを足す</summary>
+      <div class="obs-identify-split">
+        <div>
+          <h3>別の見方</h3>
+          ${disputes}
+        </div>
+        <div>
+          <h3>書き込む</h3>
+          ${form}
+          ${options.canUseSpecialistWorkbench
+            ? `<a class="obs-specialist-link" href="${escapeHtml(specialistHref)}">specialist batch review で開く</a>`
+            : ""}
+        </div>
       </div>
-      <div>
-        <h3>名前や気づきを足す</h3>
-        ${form}
-        ${options.canUseSpecialistWorkbench
-          ? `<a class="obs-specialist-link" href="${escapeHtml(specialistHref)}">specialist batch review で開く</a>`
-          : ""}
-      </div>
-    </div>
+    </details>
   </section>`;
 }
 
@@ -4338,10 +4360,8 @@ function renderObservationSummaryStrip(options: {
   subjectCount: number;
   mediaCount: number;
 }): string {
-  const evidenceLabel = `${options.subjectCount}件の見つけたもの / ${options.mediaCount}件の証拠`;
-  return `<div class="obs-summary-strip" aria-label="この記録の数">
-    <span class="obs-summary-chip"><span class="obs-summary-chip-label">記録の中身</span><span class="obs-summary-chip-value">${escapeHtml(evidenceLabel)}</span></span>
-  </div>`;
+  void options;
+  return "";
 }
 
 function observationEvidenceLabel(snapshot: ObservationDetailSnapshot): string {
@@ -4433,7 +4453,7 @@ function renderObservationRecordStory(options: {
     : [];
   const lines: string[] = [];
 
-  lines.push(`この写真には、${subjectName}だけでなく、${visualPhrase}も残っています。名前を当てるためだけではなく、「この季節のこの場所は、こんな様子だった」とあとで思い出せる記録です。`);
+  lines.push(`${subjectName}の写真と、見た日時・場所が残っています。名前だけでなく、この時期のこの場所の様子を見返せる記録です。`);
 
   if (hasBee) {
     lines.push(`同じ場面にハチも写っているなら、花を見に来た相手まで一緒に見えます。花だけでなく、そこを使う生きものまで読み返せる場面です。`);
@@ -4449,30 +4469,23 @@ function renderObservationRecordStory(options: {
     moisture ? moisture : null,
   ].filter((item): item is string => Boolean(item));
   if (placeParts.length > 0) {
-    lines.push(`地図や写真からは、${placeParts.slice(0, 4).join("、")}といった手がかりがあります。断定はせず、次に同じ場所を見るときの目印として使えます。`);
-  }
-
-  if (options.snapshot.municipality || options.snapshot.publicLocation?.label) {
-    const place = options.snapshot.publicLocation?.label || options.snapshot.municipality || "この地域";
-    lines.push(`${place}で同じような記録が増えると、花が多い場所、手入れされた場所、虫が集まりやすい場所の違いが少しずつ見えてきます。`);
+    lines.push(`写真や地図からは、${placeParts.slice(0, 3).join("、")}といった手がかりも見えます。断定ではなく、見返すための目印です。`);
   }
 
   const title = hasBee
     ? "花と訪問者が一緒に写った記録"
-    : humanInfluence
-      ? "花と手入れの気配が読める記録"
-      : "写真から場所の様子まで読める記録";
+    : "写真と場所が残った記録";
   const civic = options.civicContext?.activityLabel?.trim();
   return `<div class="obs-record-story">
     <div class="obs-record-story-head">
       <div>
-        <div class="obs-record-story-eye">この記録のストーリー</div>
+        <div class="obs-record-story-eye">記録の読み取り</div>
         <h3 class="obs-record-story-title">${escapeHtml(title)}</h3>
       </div>
       <span class="obs-record-story-pill">${escapeHtml(civic || "写真・場所・地域")}</span>
     </div>
     <div class="obs-record-story-body">
-      ${lines.slice(0, 4).map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+      ${lines.slice(0, 2).map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
     </div>
     <small class="obs-record-story-note">AIと地図からの仮説を含みます。正確な判断は写真・現地確認・人の同定と合わせて見ます。</small>
   </div>`;
@@ -4492,6 +4505,10 @@ function renderObservationNextActionRail(actions: ObservationNextAction[]): stri
 
 function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot): string {
   if (snapshot.nextCaptureSuggestions.length === 0) return "";
+  const suggestions = snapshot.nextCaptureSuggestions
+    .filter((item) => item.priority === "high")
+    .concat(snapshot.nextCaptureSuggestions.filter((item) => item.priority !== "high"))
+    .slice(0, 2);
   const roleLabels: Record<string, string> = {
     full_body: "全体",
     close_up_organ: "細部",
@@ -4500,9 +4517,9 @@ function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot)
     scale_reference: "スケール",
   };
   return `<div class="obs-visual-next-capture">
-    <div class="obs-story-eyebrow">あると便利な写真</div>
+    <div class="obs-story-eyebrow">写真を足すなら</div>
     <div class="obs-visual-next-grid">
-      ${snapshot.nextCaptureSuggestions.map((item) => `
+      ${suggestions.map((item) => `
         <div class="obs-visual-next-card${item.priority === "high" ? " is-high" : ""}">
           <span>${escapeHtml(roleLabels[item.role] ?? item.role)}${item.priority === "high" ? " / 優先" : ""}</span>
           <strong>${escapeHtml(friendlyObservationText(item.target, 38))}</strong>
@@ -4541,27 +4558,27 @@ function renderObservationReadingHero(options: {
     </div>
     <aside class="obs-reading-panel" aria-label="この日の記録と見つけたもの">
       <div id="summary" class="obs-record-brief" data-obs-section="summary" aria-label="この日の記録">
-        <div class="obs-record-brief-kicker">この日の記録</div>
+        <div class="obs-record-brief-kicker">記録</div>
         <div class="obs-record-brief-grid">
           <div class="obs-record-brief-card">
-            <span>いつ・どこで</span>
+            <span>日時・場所</span>
             <strong>${escapeHtml(formatAbsolute(options.observedAt))}</strong>
             <small>${escapeHtml(options.placeLabel)}</small>
           </div>
           <div class="obs-record-brief-card">
-            <span>何が残っているか</span>
+            <span>証拠</span>
             <strong>${escapeHtml(options.evidenceLabel)}</strong>
             <small>${escapeHtml(`${options.subjectCount}件の見つけたもの`)}</small>
           </div>
           <div class="obs-record-brief-card">
-            <span>いま見ているもの</span>
+            <span>対象</span>
             <strong>${escapeHtml(options.displayName)}</strong>
             <small>${escapeHtml(options.recordModeLabel)}</small>
           </div>
         </div>
       </div>
       <div class="obs-current-find">
-        <div class="obs-current-find-kicker">見つけたもの</div>
+        <div class="obs-current-find-kicker">いまの候補</div>
         <h1 class="obs-reading-title">${escapeHtml(options.displayName)}</h1>
         <div class="obs-hero-byline">
           <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
@@ -4570,8 +4587,6 @@ function renderObservationReadingHero(options: {
               : `<span class="obs-hero-avatar">${escapeHtml((options.observerDisplay || "?").slice(0, 1))}</span>`}
             <span>${escapeHtml(options.observerDisplay)}</span>
           </a>
-          <span class="obs-hero-when">${escapeHtml(formatAbsolute(options.observedAt))}</span>
-          <span class="obs-hero-place">${escapeHtml(options.placeLabel)}</span>
         </div>
       </div>
       ${options.badges.length > 0 ? `<div class="obs-hero-badges">${options.badges.join("")}</div>` : ""}
@@ -4600,7 +4615,7 @@ function renderObservationReadProgress(options: {
     { href: "#photos", key: "photos", label: "写真・動画・音" },
     { href: "#trust", key: "trust", label: "反応" },
     { href: "#story", key: "story", label: "気づき" },
-    { href: "#next-hints", key: "next_hints", label: "見るポイント" },
+    { href: "#next-hints", key: "next_hints", label: "写真メモ" },
     { href: "#identify", key: "identify", label: "同定" },
     { href: "#place", key: "place", label: "場所" },
     { href: "#related", key: "related", label: "関連" },
@@ -4806,6 +4821,9 @@ const PROFILE_HUB_STYLES = `
   .regional-story-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
   .regional-story-eyebrow { color: #047857; font-size: 11px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
   .regional-story h2 { margin: 6px 0 0; color: #10251a; font-size: clamp(22px, 3vw, 32px); line-height: 1.18; letter-spacing: 0; }
+  .regional-story-details > summary { cursor: pointer; list-style: none; }
+  .regional-story-details > summary::-webkit-details-marker { display: none; }
+  .regional-story-summary-title { display: block; margin-top: 6px; color: #10251a; font-size: clamp(18px, 2.4vw, 24px); line-height: 1.25; letter-spacing: 0; }
   .regional-story-head > span { flex: 0 0 auto; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
   .regional-story-lead { margin: 0; color: #475569; line-height: 1.8; font-weight: 720; }
   .regional-story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -11765,12 +11783,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               : "";
     const trustLead =
       trustStage === "public_claim"
-          ? "詳しい人の同定と写真・動画・音の条件を満たし、公開に使いやすい段階です。"
+          ? "詳しい人の確認と証拠があります。"
         : trustStage === "authority_backed"
-          ? "詳しい人の同定が入り、名前の確かさが高まっています。"
+          ? "詳しい人の確認があります。"
           : trustStage === "community_support"
-            ? "何人かの同定がそろい、強い候補になっています。"
-            : "いま見えている名前は仮の候補です。自動候補と人の確認で、少しずつ確かになります。";
+            ? "複数の見方が近づいています。"
+            : "仮の候補です。確定名ではありません。";
     const trustSteps = [
       { id: "ai_suggestion", label: "自動候補", meta: "写真から拾った仮の候補" },
       { id: "community_support", label: "みんなの確認", meta: "見方がそろう" },
@@ -11847,15 +11865,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const focusHeading = currentSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId
             ? `今見ている ${currentSubjectDisplay.primaryLabel} だけが主役とは限らず、${featuredSubjectDisplay.primaryLabel} がいちばん有力です。`
             : hasAiDefault
-              ? `${featuredSubjectDisplay.primaryLabel} は、いま確認する主な候補です。`
-              : `${featuredSubjectDisplay.primaryLabel} を先に見ると、この記録の状態をつかみやすいです。`;
+              ? `写真から見ると、いまの候補は${featuredSubjectDisplay.primaryLabel}です。`
+              : `${featuredSubjectDisplay.primaryLabel} を先に見ると状態をつかみやすいです。`;
           const focusLead = hasAiDefault
             ? subjectCount >= 2
-              ? "自動候補を手がかりに、この記録に写っているものを切り替えて確認できます。"
+              ? "候補を切り替えて、写っているものを確認できます。"
               : mediaCopy.focusLead
             : `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、名前の記録・候補・なかま分けがその場で切り替わります。" : "この見つけたものの状態をそのまま確かめられます。"}`;
           const focusPillLabel = prominentAiCandidateCount > 0
-            ? `${subjectCount}件 + 候補 ${prominentAiCandidateCount}`
+            ? `候補 ${prominentAiCandidateCount}件`
             : `${subjectCount}件`;
           const featuredChips: string[] = [];
           if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(publicRankHint(featuredSubject.rank) || rankLabelJa(featuredSubject.rank))}</span>`);
@@ -12121,7 +12139,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : "";
     const layer3 = (nearbyCards || peersLine || seasonalBar)
       ? `<section id="place" class="section obs-layer obs-layer-3" data-obs-section="place">
-           <h2 class="obs-layer-title">この場所の物語</h2>
+           <h2 class="obs-layer-title">この場所</h2>
            ${peersLine}
            ${nearbyCards}
            ${seasonalBar ? `<div class="obs-seasonal-wrap"><div class="obs-story-eyebrow">同地点の月別観察数</div>${seasonalBar}</div>` : ""}
@@ -12164,9 +12182,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     if (insight && insight.rarityNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📍 出会いやすさ</div><p>${escapeHtml(insight.rarityNote)}</p></div>`);
     const layer6 = insightBits.length > 0
       ? `<section class="section obs-layer obs-layer-6">
-           <h2 class="obs-layer-title">この生きものについて</h2>
-           <div class="obs-insight-grid">${insightBits.join("")}</div>
-           <p class="obs-ai-note">この記述はAIの参考情報です。図鑑や詳しい人の確認も合わせて見てください。</p>
+           <details class="obs-fold obs-insight-fold">
+             <summary>この生きものについて <span class="obs-fold-count">参考</span></summary>
+             <div class="obs-insight-grid">${insightBits.join("")}</div>
+             <p class="obs-ai-note">この記述はAIの参考情報です。図鑑や詳しい人の確認も合わせて見てください。</p>
+           </details>
          </section>`
       : "";
 
