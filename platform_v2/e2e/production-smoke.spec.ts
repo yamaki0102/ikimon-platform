@@ -75,12 +75,18 @@ function sessionCookieFromResponse(response: import("@playwright/test").APIRespo
   return match?.[1] ?? "";
 }
 
-function jsonHeaders(baseUrl: string, account?: SmokeAccount): Record<string, string> {
+function authHeaders(baseUrl: string, account?: SmokeAccount): Record<string, string> {
   return {
     accept: "application/json",
-    "content-type": "application/json",
     origin: baseUrl,
     ...(account?.sessionCookie ? { cookie: account.sessionCookie } : {}),
+  };
+}
+
+function jsonHeaders(baseUrl: string, account?: SmokeAccount): Record<string, string> {
+  return {
+    ...authHeaders(baseUrl, account),
+    "content-type": "application/json",
   };
 }
 
@@ -408,9 +414,10 @@ test.describe("production candidate smoke", () => {
       await pollRecentEvent(organizerContext.request, baseUrl, sessionId, "field_scan_added");
 
       const endResponse = await organizerContext.request.post(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/end`), {
-        headers: jsonHeaders(baseUrl, organizer),
+        headers: authHeaders(baseUrl, organizer),
       });
-      expect(endResponse.ok(), "end event").toBeTruthy();
+      const ended = await jsonFromResponse(endResponse, "end event");
+      expect(endResponse.ok(), String(ended.error ?? "end_event_failed")).toBeTruthy();
 
       const generateResponse = await organizerContext.request.post(joinUrl(baseUrl, `/api/v1/observation-events/${sessionId}/capsule/generate`), {
         headers: jsonHeaders(baseUrl, organizer),
