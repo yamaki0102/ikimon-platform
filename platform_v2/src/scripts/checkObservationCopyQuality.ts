@@ -18,10 +18,12 @@ const sections = {
   subjectHint: sourceBetween("function renderSubjectHint", "function renderCivicContextBlock"),
   subjectTaxonomy: sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   identify: sourceBetween("function renderIdentificationParticipation", "type ObservationNextAction"),
-  learning: sourceBetween("function observationLearningDoneText", "function renderObservationNextActionRail"),
   nextCapture: sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
-  recordStory: sourceBetween("function renderObservationRecordStory", "function observationLearningDoneText"),
+  recordStory: sourceBetween("function renderObservationRecordStory", "function renderObservationNextActionRail"),
+  heroShell: sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress"),
   routeAssembly: sourceBetween("const prominentAiCandidateCount", "const nextActions: ObservationNextAction[]"),
+  heroCall: sourceBetween("const heroBlock = renderObservationReadingHero", "    // 下部の旧要約ブロック"),
+  cta: sourceBetween("const ctaBlock = `", "    // ===== Layer 6: 豆知識 ====="),
 };
 
 async function observationRegionalStoryPublicCopy(): Promise<string> {
@@ -62,6 +64,22 @@ const forbiddenTerms = [
   "AIのヒント",
   "AI判定",
   "AI推定",
+  "次にできること",
+  "みんなの記録に足されます",
+  "次に撮るヒント",
+  "次に見る",
+  "次はここも撮る",
+  "もう一度見に行く理由",
+  "次に撮るならこの角度",
+  "次にほしい写真やメモ",
+  "次に足すべき",
+  "追撮すると",
+  "わかったこと",
+  "まだ知りたいこと",
+  "残ったこと",
+  "確かめる余地",
+  "機会があれば",
+  "あとで比べやすくなります",
   "species / genus / family",
   "run:",
   "taxonomy:",
@@ -121,6 +139,12 @@ const initiallyVisibleAutomaticBlocks = initialAutomaticBlockSpecs.filter(([, so
 
 if (initiallyVisibleAutomaticBlocks.length > 3) {
   failures.push(`too many initially visible automatic-reading blocks: ${initiallyVisibleAutomaticBlocks.map(([name]) => name).join(", ")}`);
+}
+
+for (const forbiddenHeroMarker of ["obs-learning-cards", "obs-community-note", "obs-ai-cutout", "aiCandidateLearningPanel", "learningBlock"]) {
+  if (sections.heroShell.includes(forbiddenHeroMarker) || sections.heroCall.includes(forbiddenHeroMarker)) {
+    failures.push(`observation hero must stay wireframe-focused and not include ${forbiddenHeroMarker}`);
+  }
 }
 
 for (const [name, source] of [

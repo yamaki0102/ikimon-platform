@@ -1042,16 +1042,6 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-brief-card small { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 750; }
   .obs-current-find { display: grid; gap: 9px; padding: 4px 0 0; }
   .obs-current-find-kicker { color: #0369a1; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
-  .obs-learning-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .obs-learning-card { display: grid; grid-template-rows: auto auto 1fr; gap: 5px; min-height: 104px; padding: 12px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
-  .obs-learning-card.is-done { background: linear-gradient(180deg, #f0fdf4, #fff); border-color: rgba(16,185,129,.2); }
-  .obs-learning-card.is-question { background: linear-gradient(180deg, #fff7ed, #fff); border-color: rgba(245,158,11,.2); }
-  .obs-learning-card.is-next { background: linear-gradient(180deg, #eff6ff, #fff); border-color: rgba(59,130,246,.18); }
-  .obs-learning-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; background: rgba(15,23,42,.06); font-size: 15px; }
-  .obs-learning-card strong { color: #0f172a; font-size: 13px; line-height: 1.3; font-weight: 950; }
-  .obs-learning-card p { margin: 0; color: #475569; font-size: 11.8px; line-height: 1.55; font-weight: 760; }
-  .obs-community-note { display: grid; gap: 4px; padding: 10px 12px; border-radius: 13px; background: rgba(240,253,244,.72); border: 1px solid rgba(16,185,129,.16); color: #475569; font-size: 12px; line-height: 1.55; font-weight: 760; }
-  .obs-community-note strong { color: #047857; font-size: 12.5px; font-weight: 950; }
   .obs-record-story { display: grid; gap: 12px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,253,244,.86)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 16px 44px rgba(15,23,42,.06); }
   .obs-record-story-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .obs-record-story-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
@@ -1098,7 +1088,7 @@ const OBSERVATION_DETAIL_STYLES = `
   @media (max-width: 720px) {
     .obs-reading-panel { padding: 15px; border-radius: 16px; }
     .obs-summary-strip { grid-template-columns: 1fr; }
-    .obs-record-brief-grid, .obs-learning-cards { grid-template-columns: 1fr; }
+    .obs-record-brief-grid { grid-template-columns: 1fr; }
     .obs-read-progress { top: 50px; margin-inline: -4px; }
     .obs-next-action { min-height: 64px; }
   }
@@ -1989,12 +1979,8 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
     : aiAssessment.missingEvidence.length > 0
       ? `${friendlyObservationText(aiAssessment.missingEvidence[0], 48)} が見えないため、ここでは決めきっていません。`
       : "";
-  const nextLook = aiAssessment.nextStepText
-    || aiAssessment.confirmMore[0]
-    || (aiAssessment.missingEvidence[0] ? `次は ${friendlyObservationText(aiAssessment.missingEvidence[0], 48)} が見える写真があると分かりやすくなります。` : "");
   const notes = [
-    stopReason ? `<p class="obs-ai-readout-note"><strong>まだ決めない理由</strong>${escapeHtml(friendlyObservationText(stopReason))}</p>` : "",
-    nextLook ? `<p class="obs-ai-readout-note"><strong>次に見る</strong>${escapeHtml(friendlyObservationText(nextLook))}</p>` : "",
+    stopReason ? `<p class="obs-ai-readout-note"><strong>確認中のポイント</strong>${escapeHtml(friendlyObservationText(stopReason))}</p>` : "",
   ].filter(Boolean).join("");
 
   return `<section class="obs-ai-readout ${bandClass}">
@@ -2049,12 +2035,12 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     return {
       clueHeading: "映像フレームから拾えている手がかり",
       missingHeading: "この映像からは読み取れないもの",
-      nextEvidenceHeading: "次に足すべき証拠カット",
+      nextEvidenceHeading: "あると助かる証拠カット",
       areaLabel: "映像フレームからのエリア推察",
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
-      shotAriaLabel: "追撮すると研究価値が上がる証拠カット",
-      shotHeading: "次はここも撮ると、名前をたしかめやすい",
-      shotReminder: "静止画や短い映像カットが揃うと、名前の確認がしやすくなります。",
+      shotAriaLabel: "名前の確認に役立つ証拠カット",
+      shotHeading: "あると助かる証拠カット",
+      shotReminder: "無理に揃える必要はありません。短い映像カットがあると、名前の確認が楽になります。",
       focusLead: "映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
       contextHeading: "動画・音から拾えたこと",
       reassessHint: "動画をもう一度見て、見分けるメモを更新できます。",
@@ -2068,12 +2054,12 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     return {
       clueHeading: "写真・映像フレームから拾えている手がかり",
       missingHeading: "この記録のメディアからは読み取れないもの",
-      nextEvidenceHeading: "次に足すべき写真・映像",
+      nextEvidenceHeading: "あると助かる写真・映像",
       areaLabel: "写真・映像フレームからのエリア推察",
       areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
-      shotAriaLabel: "追撮すると研究価値が上がる写真・映像",
-      shotHeading: "次はここも撮ると、名前をたしかめやすい",
-      shotReminder: "写真や映像カットが揃うと、名前の確認がしやすくなります。",
+      shotAriaLabel: "名前の確認に役立つ写真・映像",
+      shotHeading: "あると助かる写真・映像",
+      shotReminder: "無理に揃える必要はありません。別角度があると、名前の確認が楽になります。",
       focusLead: "写真・映像フレームから読めている手がかりと、まだ止めている理由を先に確認できます。",
       contextHeading: "写真・動画・音から拾えたこと",
       reassessHint: "写真や動画をもう一度見て、見分けるメモを更新できます。",
@@ -2086,12 +2072,12 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
   return {
     clueHeading: "写真から拾えている手がかり",
     missingHeading: "この写真からは読み取れないもの",
-    nextEvidenceHeading: "次に撮るべき写真",
+    nextEvidenceHeading: "あると助かる写真",
     areaLabel: "この 1 枚からのエリア推察",
     areaReminder: "自動メモです。断定ではありません。地図の情報と合わせて見てください。",
-    shotAriaLabel: "追撮すると研究価値が上がる写真",
-    shotHeading: "次はここも撮ると、名前をたしかめやすい",
-    shotReminder: "写真が揃うと、名前の確認がしやすくなります。",
+    shotAriaLabel: "名前の確認に役立つ写真",
+    shotHeading: "あると助かる写真",
+    shotReminder: "無理に揃える必要はありません。別角度があると、名前の確認が楽になります。",
     focusLead: "写真から読めている手がかりと、まだ止めている理由を先に確認できます。",
     contextHeading: "写真と音から拾えたこと",
     reassessHint: "写真をもう一度見て、見分けるメモを更新できます。",
@@ -2272,6 +2258,17 @@ const REGIONAL_CATEGORY_ICON: Record<string, string> = {
   local_life: "🏘️",
 };
 
+function softenActionCueText(value: string, maxLength = 90): string {
+  const text = friendlyObservationText(value, maxLength).trim();
+  return text
+    .replace(/^次(?:は|に)(?:見るなら|撮るなら|足すなら|できることは)?(?:、|\s)*/u, "")
+    .replace(/^もう一度(?:見に行く|見る)(?:なら|と)?(?:、|\s)*/u, "")
+    .replace(/^まず(?:は|、|\s)*/u, "")
+    .replace(/^機会があれば(?:、|\s)*/u, "")
+    .replace(/^(?:ぜひ|必ず)(?:、|\s)*/u, "")
+    .trim();
+}
+
 function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, variant: "observation" | "profile" | "compact" = "observation"): string {
   if (!story) return "";
   const rawCards = story.cards.slice(0, variant === "observation" ? 2 : 1);
@@ -2302,15 +2299,15 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   const nextAngle = story.nextObservationAngle?.trim();
   const nextAngleBlock = nextAngle
     ? `<div class="regional-story-next">
-        <small>📸 次に撮るならこの角度</small>
-        <strong>${escapeHtml(nextAngle)}</strong>
+        <small>📸 見返すときの一案</small>
+        <strong>${escapeHtml(softenActionCueText(nextAngle, 92))}</strong>
       </div>`
     : "";
   const collective = story.collectiveNote?.trim();
   const collectiveBlock = collective
     ? `<div class="regional-story-collective">
-        <small>🌱 もう1件で見えること</small>
-        <strong>${escapeHtml(collective)}</strong>
+        <small>🌱 記録が増えると比べられること</small>
+        <strong>${escapeHtml(softenActionCueText(collective, 96))}</strong>
       </div>`
     : "";
   const className = `regional-story regional-story--${variant}`;
@@ -2320,7 +2317,7 @@ function renderRegionalStoryPanel(story: RegionalStoryCue | null | undefined, va
   return `<section class="${className}" data-testid="regional-story">
     <div class="regional-story-head">
       <div>
-        <div class="regional-story-eyebrow">もう一度見に行く理由</div>
+        <div class="regional-story-eyebrow">この場所を見返すヒント</div>
         <h2>${escapeHtml(story.placeHook)}</h2>
       </div>
       <span>${escapeHtml(badge)}</span>
@@ -4196,7 +4193,11 @@ function renderIdentificationParticipation(options: {
   const targetLabel = snapshotDisplay.primaryLabel;
   const needed = consensus?.neededEvidence.length
     ? consensus.neededEvidence
-    : ["名前の提案、理由メモ、または詳しい人の確認を追加する"];
+    : ["名前の提案や理由メモが1件あると、見方を比べやすくなります"];
+  const neededList = needed.map((item) => softenActionCueText(item, 74)
+    .replace(/を少なくとも1件追加する/u, "が1件あると、見方を比べやすくなります")
+    .replace(/を追加する/u, "があると、見方を比べやすくなります")
+    .replace(/する$/u, "できると助かります"));
   const defaultName = snapshot.scientificName || (snapshotDisplay.isAwaitingId ? "" : snapshotDisplay.primaryLabel);
   const defaultRank = snapshot.scientificName ? "species" : "";
   const endpointId = encodeURIComponent(snapshot.occurrenceId);
@@ -4300,8 +4301,8 @@ function renderIdentificationParticipation(options: {
       </div>
     </div>
     <div class="obs-needed-box">
-      <div class="obs-story-eyebrow">次にほしい写真やメモ</div>
-      <ul>${needed.map((item) => `<li>${escapeHtml(friendlyObservationText(item))}</li>`).join("")}</ul>
+      <div class="obs-story-eyebrow">確かめる材料</div>
+      <ul>${neededList.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
     </div>
     ${aiReviewBlock}
     <div class="obs-identify-split">
@@ -4477,62 +4478,6 @@ function renderObservationRecordStory(options: {
   </div>`;
 }
 
-function observationLearningDoneText(snapshot: ObservationDetailSnapshot, subject: ObservationVisitSubject, trustStageLabel: string): string {
-  const parts: string[] = [];
-  if (snapshot.photoAssets.length > 0) parts.push("写真が残った");
-  if (snapshot.videoAssets.length > 0) parts.push("動画が残った");
-  if (snapshot.audioAssets.length > 0) parts.push("音が残った");
-  if (snapshot.placeId || snapshot.publicLocation?.label) parts.push("場所と時間が残った");
-  if (subject.aiAssessment || subject.identificationCount > 0 || subject.scientificName || subject.vernacularName) {
-    parts.push(`名前は「${trustStageLabel}」まで進んだ`);
-  }
-  return parts.slice(0, 3).join(" / ") || "あとで見返せる形で残せた";
-}
-
-function observationLearningQuestionText(subject: ObservationVisitSubject, snapshot: ObservationDetailSnapshot): string {
-  const ai = subject.aiAssessment;
-  const missing = ai?.missingEvidence.find((item) => item.trim()) ?? "";
-  if (missing) return `${friendlyObservationText(missing, 48)} が見えると、名前をたしかめやすくなります。`;
-  if (snapshot.nextCaptureSuggestions[0]?.target) return `${friendlyObservationText(snapshot.nextCaptureSuggestions[0]!.target, 48)} をもう一度見ると、次の手がかりになります。`;
-  if (subject.identificationCount === 0) return "名前はまだみんなでたしかめられます。";
-  return "同じ場所で季節が変わった時の様子も知りたいところです。";
-}
-
-function observationLearningNextText(snapshot: ObservationDetailSnapshot, subject: ObservationVisitSubject): string {
-  const ai = subject.aiAssessment;
-  if (ai?.nextStepText) return friendlyObservationText(ai.nextStepText, 74);
-  if (ai?.confirmMore[0]) return friendlyObservationText(ai.confirmMore[0]!, 74);
-  if (snapshot.nextCaptureSuggestions[0]?.rationale) return friendlyObservationText(snapshot.nextCaptureSuggestions[0]!.rationale, 74);
-  return "同じ場所でもう一度見たり、同定する人に手がかりを足せます。";
-}
-
-function renderObservationLearningCards(options: {
-  snapshot: ObservationDetailSnapshot;
-  subject: ObservationVisitSubject;
-  trustStageLabel: string;
-}): string {
-  const doneText = observationLearningDoneText(options.snapshot, options.subject, options.trustStageLabel);
-  const questionText = observationLearningQuestionText(options.subject, options.snapshot);
-  const nextText = observationLearningNextText(options.snapshot, options.subject);
-  return `<div class="obs-learning-cards" aria-label="この記録からの学び">
-    <div class="obs-learning-card is-done">
-      <span class="obs-learning-icon">✓</span>
-      <strong>わかったこと</strong>
-      <p>${escapeHtml(doneText)}</p>
-    </div>
-    <div class="obs-learning-card is-question">
-      <span class="obs-learning-icon">?</span>
-      <strong>まだ知りたいこと</strong>
-      <p>${escapeHtml(questionText)}</p>
-    </div>
-    <div class="obs-learning-card is-next">
-      <span class="obs-learning-icon">→</span>
-      <strong>次にできること</strong>
-      <p>${escapeHtml(nextText)}</p>
-    </div>
-  </div>`;
-}
-
 function renderObservationNextActionRail(actions: ObservationNextAction[]): string {
   return `<div class="obs-next-actions" aria-label="次の一歩">
     ${actions.map((action) => `<a class="obs-next-action${action.primary ? " is-primary" : ""}"
@@ -4555,7 +4500,7 @@ function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot)
     scale_reference: "スケール",
   };
   return `<div class="obs-visual-next-capture">
-    <div class="obs-story-eyebrow">次に撮るヒント</div>
+    <div class="obs-story-eyebrow">あると便利な写真</div>
     <div class="obs-visual-next-grid">
       ${snapshot.nextCaptureSuggestions.map((item) => `
         <div class="obs-visual-next-card${item.priority === "high" ? " is-high" : ""}">
@@ -4581,12 +4526,10 @@ function renderObservationReadingHero(options: {
   nextActionRail: string;
   trustStageLabel: string;
   trustLead: string;
-  aiCandidateLearningPanel: string;
   recordsHref: string;
   subjectCount: number;
   evidenceLabel: string;
   recordModeLabel: string;
-  learningBlock: string;
 }): string {
   return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
     <div class="obs-reading-media obs-media-evidence-shell">
@@ -4638,15 +4581,9 @@ function renderObservationReadingHero(options: {
         <strong>${escapeHtml(options.trustStageLabel)}</strong>
         <p>${escapeHtml(options.trustLead)}</p>
       </div>
-      ${options.learningBlock}
-      <div class="obs-community-note">
-        <strong>みんなの記録に足されます</strong>
-        <span>この場所の季節の変化が見えやすくなり、同定する人の手がかりになります。</span>
-      </div>
       <a class="obs-original-record-link" href="${escapeHtml(options.recordsHref)}">記録一覧へ</a>
       ${options.nextActionRail}
       ${options.focusRailBlock}
-      ${options.aiCandidateLearningPanel}
     </aside>
   </section>`;
 }
@@ -4663,7 +4600,7 @@ function renderObservationReadProgress(options: {
     { href: "#photos", key: "photos", label: "写真・動画・音" },
     { href: "#trust", key: "trust", label: "反応" },
     { href: "#story", key: "story", label: "気づき" },
-    { href: "#next-hints", key: "next_hints", label: "次に見る" },
+    { href: "#next-hints", key: "next_hints", label: "見るポイント" },
     { href: "#identify", key: "identify", label: "同定" },
     { href: "#place", key: "place", label: "場所" },
     { href: "#related", key: "related", label: "関連" },
@@ -11779,14 +11716,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
     const rankedSubjects = bundle.subjects;
     const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
-    const aiCandidateLearningPanel = renderAiCandidateLearningPanel({
-      basePath,
-      lang,
-      visitId: bundle.visitId,
-      candidates: bundle.aiCandidates,
-      isOwner,
-      mediaContext,
-    });
+    const aiCandidateLearningPanel = isOwner
+      ? renderAiCandidateLearningPanel({
+          basePath,
+          lang,
+          visitId: bundle.visitId,
+          candidates: bundle.aiCandidates,
+          isOwner,
+          mediaContext,
+        })
+      : "";
     const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
     const regionalStory = await getRegionalStoryCue({
       surface: "observation",
@@ -12043,12 +11982,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       mediaCount: snapshot.photoAssets.length + snapshot.videoAssets.length + snapshot.audioAssets.length,
     });
     const evidenceLabel = observationEvidenceLabel(snapshot);
-    const learningBlock = renderObservationLearningCards({
-      snapshot,
-      subject: currentSubject,
-      trustStageLabel,
-    });
-    // 上部のアクション案内を廃止（下部 ctaBlock に「関連と次の一歩」として集約済みのため重複削除）
+    // 上部のアクション案内を廃止（下部 ctaBlock に関連リンクとして集約済みのため重複削除）
     const nextActionRail = "";
     void nextActions;
     const heroBlock = renderObservationReadingHero({
@@ -12065,12 +11999,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       nextActionRail,
       trustStageLabel,
       trustLead,
-      aiCandidateLearningPanel,
       recordsHref: appendLangToHref(withBasePath(basePath, isOwner ? "/records?view=mine" : "/records?view=public"), lang),
       subjectCount,
       evidenceLabel,
       recordModeLabel: observationRecordModeLabel(snapshot),
-      learningBlock,
     });
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
@@ -12095,6 +12027,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     });
 
     const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</div>`;
+    const aiCandidateLearningBlock = aiCandidateLearningPanel
+      ? `<div class="obs-reading-section" data-obs-section="co_candidates">${aiCandidateLearningPanel}</div>`
+      : "";
     const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
     const recordStoryBlock = renderObservationRecordStory({
       snapshot,
@@ -12196,7 +12131,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     // ===== Layer 5: CTA =====
     const ctaBlock = `
       <section id="related" class="section obs-layer obs-cta" data-obs-section="related">
-        <h2 class="obs-layer-title">関連と次の一歩</h2>
+        <h2 class="obs-layer-title">関連ページ</h2>
         <div class="obs-cta-grid">
           <a class="obs-cta-item" href="${escapeHtml(revisitRecordHref)}" data-observation-primary-cta="revisit_place_footer" data-kpi-action="observation:primary:revisit_place_footer">
             <span class="obs-cta-icon">📝</span>
@@ -12594,7 +12529,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
-    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer2}${layer1}${hintBlock}${identifyBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer2}${aiCandidateLearningBlock}${layer1}${hintBlock}${identifyBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
     const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");

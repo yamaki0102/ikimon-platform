@@ -19,13 +19,14 @@ const detailCopySource = [
   sourceBetween("function renderAiCandidates", "function renderSubjectTaxonomy"),
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
-  sourceBetween("function renderObservationRecordStory", "function observationLearningDoneText"),
-  sourceBetween("function renderObservationLearningCards", "function renderObservationReadingHero"),
+  sourceBetween("function renderObservationRecordStory", "function renderObservationNextActionRail"),
+  sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
   sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress"),
   sourceBetween("function renderSubjectHint", "function renderCivicContextBlock"),
+  sourceBetween("const ctaBlock = `", "    // ===== Layer 6: 豆知識 ====="),
 ].join("\n");
 
-test("observation detail page keeps the friendly learning-first vocabulary", () => {
+test("observation detail page keeps the friendly observation vocabulary", () => {
   for (const term of [
     "この日の記録",
     "この記録のストーリー",
@@ -33,17 +34,16 @@ test("observation detail page keeps the friendly learning-first vocabulary", () 
     "自動で作った候補",
     "観察レコードの信頼度",
     "見つけたもの",
-    "わかったこと",
-    "まだ知りたいこと",
-    "次にできること",
     "写真・動画・音",
     "まず見えていること",
+    "確認中のポイント",
     "ほかにも写っていそうなもの",
     "自動候補",
     "名前をみんなで確かめる",
-    "みんなの記録に足されます",
     "見分けるメモ",
-    "次に撮るヒント",
+    "あると便利な写真",
+    "確かめる材料",
+    "関連ページ",
   ]) {
     assert.match(detailCopySource, new RegExp(term));
   }
@@ -64,6 +64,18 @@ test("observation detail primary copy does not expose internal record terms", ()
     "対象と証拠",
     "AIのヒント",
     "AI判定",
+    "次にできること",
+    "みんなの記録に足されます",
+    "次に撮るヒント",
+    "次に見る",
+    "もう一度見に行く理由",
+    "次にほしい写真やメモ",
+    "わかったこと",
+    "まだ知りたいこと",
+    "残ったこと",
+    "確かめる余地",
+    "機会があれば",
+    "あとで比べやすくなります",
     "species / genus / family",
     "run:",
     "taxonomy:",
@@ -85,6 +97,6 @@ test("observation detail primary copy does not expose internal record terms", ()
 });
 
 test("observation record story does not duplicate regional story lead", () => {
-  const recordStorySource = sourceBetween("function renderObservationRecordStory", "function observationLearningDoneText");
+  const recordStorySource = sourceBetween("function renderObservationRecordStory", "function renderObservationNextActionRail");
   assert.doesNotMatch(recordStorySource, /regionalStory\?\.whyHere/);
 });
