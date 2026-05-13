@@ -42,12 +42,35 @@ const forbiddenTerms = [
   "決定論",
   "エビデンス",
   "データ駆動",
+  "生物多様性",
+  "コミュニティ",
+  "オープンデータ",
+  "デジタルツイン",
   "地域の見方が一段深くなる",
   "ところが面白い",
   "いっしょに絞るためのメモ",
 ];
 
 const failures: string[] = [];
+
+function normalizeCopySegment(value: string): string {
+  return value
+    .replace(/\s+/g, "")
+    .replace(/[、。！？!?，．「」（）]/g, "")
+    .trim();
+}
+
+function extractJapaneseCopySegments(source: string): string[] {
+  const displayLikeText = source
+    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "\n")
+    .replace(/\$\{[^}]*\}/g, "\n")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/&[a-z0-9#]+;/gi, " ")
+    .replace(/[A-Za-z0-9_:.#/[\\\]=?&%+~-]+/g, "\n");
+  return [...displayLikeText.matchAll(/[ぁ-んァ-ヶー一-龠々〆ヵヶ、。！？「」（）・\s]{10,}/g)]
+    .map((match) => normalizeCopySegment(match[0]))
+    .filter((value) => value.length >= 10 && /[ぁ-んァ-ヶ一-龠]/.test(value));
+}
 
 for (const term of forbiddenTerms) {
   if (publicCopySource.includes(term)) {
@@ -86,10 +109,21 @@ if (longKanjiRuns.length > 0) {
   failures.push(`long kanji-only runs in public observation copy: ${[...new Set(longKanjiRuns)].slice(0, 8).join(", ")}`);
 }
 
+const copySegmentCounts = new Map<string, number>();
+for (const segment of extractJapaneseCopySegments(publicCopySource)) {
+  copySegmentCounts.set(segment, (copySegmentCounts.get(segment) ?? 0) + 1);
+}
+const duplicatedCopySegments = [...copySegmentCounts.entries()]
+  .filter(([, count]) => count > 1)
+  .map(([segment, count]) => `${segment} (${count})`);
+if (duplicatedCopySegments.length > 0) {
+  failures.push(`duplicated observation detail copy segments: ${duplicatedCopySegments.slice(0, 8).join(", ")}`);
+}
+
 if (failures.length > 0) {
   console.error("Observation copy quality gate failed:");
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`PASS: observation detail copy keeps automatic-reading blocks <= 3 and avoids hard public jargon`);
+console.log(`PASS: observation detail copy keeps automatic-reading blocks <= 3 and avoids hard, abstract, or duplicated public copy`);

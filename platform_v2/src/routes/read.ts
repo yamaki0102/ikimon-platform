@@ -1689,10 +1689,10 @@ function subjectPriorityScore(subject: SiblingSubject, currentOccurrenceId: stri
 
 function subjectFocusReason(subject: SiblingSubject): string {
   if (subject.identificationCount > 0) {
-    return `コミュニティ同定が ${subject.identificationCount} 件集まっている対象`;
+    return `みんなの名前確認が ${subject.identificationCount} 件集まっている対象`;
   }
   if (subject.latestAssessmentBand === "high") {
-    return "AI が写真からかなり有力と見ている対象";
+    return "写真からかなり有力そうに見える対象";
   }
   if (typeof subject.confidence === "number" && subject.confidence >= 0.75) {
     return "写真由来の確率が高く、先に見たほうが理解しやすい対象";
@@ -11974,7 +11974,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 bundle.selectionSource === "specialist_lock"
                   ? "専門家固定"
                   : bundle.selectionSource === "human_consensus"
-                    ? "コミュニティ安定"
+                    ? "みんなの確認あり"
                     : bundle.selectionSource === "latest_ai_default"
                       ? "自動候補"
                       : "安定既定",
