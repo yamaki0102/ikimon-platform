@@ -169,6 +169,9 @@ const GENERIC_PLACE_MATCH_TERMS = new Set([
   "オープンデータ",
 ]);
 
+const OBSERVATION_REGIONAL_ABSTRACT_COPY = /生物多様性|オープンデータ|デジタルツイン|コミュニティ|地域の見方が一段深くなる/u;
+const OBSERVATION_BROAD_HERITAGE_COPY = /文化財一覧|文化財/u;
+
 const ANGLES: Array<{
   key: string;
   label: string;
@@ -943,6 +946,62 @@ function cardDirectlyMatchesPlace(card: RegionalKnowledgeCard, place: RegionalSt
   );
 }
 
+function observationRegionalCardText(card: RegionalKnowledgeCard): string {
+  return [
+    card.title,
+    card.summary,
+    card.sourceLabel,
+    ...card.tags,
+    ...(card.observationHooks ?? []),
+  ].map(text).filter(Boolean).join(" ");
+}
+
+function observationFriendlyRegionalText(value: string): string {
+  return value
+    .replace(/生物多様性/g, "生きもののつながり")
+    .replace(/オープンデータ/g, "地域資料")
+    .replace(/デジタルツイン/g, "場所の記録")
+    .replace(/コミュニティ/g, "みんな")
+    .replace(/文化財一覧/g, "地域資料")
+    .replace(/文化財/g, "地域資料")
+    .replace(/第3次浜松市環境基本計画/g, "浜松市 環境基本計画");
+}
+
+function isObservationFriendlyRegionalCard(card: RegionalKnowledgeCard, place: RegionalStoryPlaceInput): boolean {
+  const cardText = observationRegionalCardText(card);
+  if (card.category === "cultural_asset" && !cardDirectlyMatchesPlace(card, place)) return false;
+  if (!cardDirectlyMatchesPlace(card, place) && OBSERVATION_BROAD_HERITAGE_COPY.test(cardText)) return false;
+  if (OBSERVATION_REGIONAL_ABSTRACT_COPY.test(observationFriendlyRegionalText(cardText))) return false;
+  return true;
+}
+
+function sanitizeObservationRegionalCard(card: RegionalKnowledgeCard): RegionalKnowledgeCard {
+  return {
+    ...card,
+    title: observationFriendlyRegionalText(card.title),
+    summary: observationFriendlyRegionalText(card.summary),
+    sourceLabel: observationFriendlyRegionalText(card.sourceLabel),
+    tags: card.tags.map(observationFriendlyRegionalText),
+    observationHooks: card.observationHooks?.map(observationFriendlyRegionalText),
+  };
+}
+
+function sanitizeObservationRegionalCue(cue: RegionalStoryCue, place: RegionalStoryPlaceInput): RegionalStoryCue {
+  if (cue.surface !== "observation") return cue;
+  const cards = cue.cards
+    .filter((card) => isObservationFriendlyRegionalCard(card, place))
+    .map(sanitizeObservationRegionalCard);
+  return {
+    ...cue,
+    placeHook: observationFriendlyRegionalText(cue.placeHook),
+    whyHere: observationFriendlyRegionalText(cue.whyHere),
+    nextObservationAngle: observationFriendlyRegionalText(cue.nextObservationAngle),
+    collectiveNote: observationFriendlyRegionalText(cue.collectiveNote),
+    cards,
+    usedCardIds: cards.map((card) => card.cardId),
+  };
+}
+
 function observationCardPriority(card: RegionalKnowledgeCard, place: RegionalStoryPlaceInput): number {
   if (cardDirectlyMatchesPlace(card, place)) return 100;
   if (card.category === "ecology") return 80;
@@ -1495,7 +1554,7 @@ export async function getRegionalStoryCue(input: RegionalStoryInput): Promise<Re
   const exposures = await loadRecentExposures(input);
   const blocked = new Set(exposures.map((item) => `${item.card_id}:${item.angle_key}`));
   const preferredPool = input.surface === "observation"
-    ? merged.filter((card) => card.category !== "cultural_asset" || cardDirectlyMatchesPlace(card, input.place))
+    ? merged.filter((card) => isObservationFriendlyRegionalCard(card, input.place)).map(sanitizeObservationRegionalCard)
     : merged;
   const candidatePool = input.surface === "observation" && preferredPool.length > 0 ? preferredPool : merged;
   const angle = chooseAngle(candidatePool.slice(0, maxCards), exposures, input.surface);
@@ -1507,7 +1566,7 @@ export async function getRegionalStoryCue(input: RegionalStoryInput): Promise<Re
       ? "db"
       : "seed";
   const deterministicCue = composeStory(input, selected, angle, sourceMode);
-  const cue = await composeRegionalStoryWithGemini(input, deterministicCue, exposures);
+  const cue = sanitizeObservationRegionalCue(await composeRegionalStoryWithGemini(input, deterministicCue, exposures), input.place);
   if (input.recordExposure !== false) {
     await recordRegionalStoryExposure(input, cue);
   }

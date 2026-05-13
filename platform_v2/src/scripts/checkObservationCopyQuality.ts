@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { getRegionalStoryCue } from "../services/regionalStory.js";
 
 const routeSource = readFileSync(new URL("../routes/read.ts", import.meta.url), "utf8");
 
@@ -23,7 +24,39 @@ const sections = {
   routeAssembly: sourceBetween("const prominentAiCandidateCount", "const nextActions: ObservationNextAction[]"),
 };
 
-const publicCopySource = Object.values(sections).join("\n");
+async function observationRegionalStoryPublicCopy(): Promise<string> {
+  const story = await getRegionalStoryCue({
+    surface: "observation",
+    viewerUserId: null,
+    recordExposure: false,
+    place: {
+      placeId: "copy-gate:hamamatsu",
+      placeName: "浜松市中央区の公園",
+      municipality: "浜松市",
+      publicLabel: "浜松市",
+      allowPrecisePlaceLabel: true,
+    },
+    observation: {
+      observationId: "copy-gate-observation",
+      displayName: "タンポポ",
+      observedAt: "2026-04-20T10:00:00Z",
+    },
+    maxCards: 2,
+  });
+  if (!story) return "";
+  return [
+    story.placeHook,
+    story.whyHere,
+    story.nextObservationAngle,
+    story.collectiveNote,
+    ...story.cards.flatMap((card) => [card.title, card.summary, card.sourceLabel, ...card.tags]),
+  ].join("\n");
+}
+
+const publicCopySource = [
+  Object.values(sections).join("\n"),
+  await observationRegionalStoryPublicCopy(),
+].join("\n");
 
 const forbiddenTerms = [
   "AIのヒント",
