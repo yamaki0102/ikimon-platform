@@ -62,11 +62,15 @@ const snapshot = {
 test("observation media renders boxes only for displayable regions", () => {
   assert.equal(displayableRegionsForAsset(subject, "asset-vertical").length, 1);
 
-  const { mediaBlock } = renderObservationMedia(snapshot, subject);
+  const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject);
   assert.match(mediaBlock, /data-obs-image-frame/);
   assert.match(mediaBlock, /width="320" height="640"/);
-  assert.match(mediaBlock, />主役<\/span>/);
-  assert.match(mediaBlock, /AI 主役 92%/);
+  assert.match(mediaBlock, />主対象<\/span>/);
+  assert.doesNotMatch(mediaBlock, /AI 主対象 92%/);
+  assert.doesNotMatch(mediaBlock, /AI 主対象/);
+  assert.doesNotMatch(galleryScript, /主役/);
+  assert.doesNotMatch(galleryScript, /confidenceLabel/);
+  assert.match(galleryScript, /suggestedRole !== actualRole/);
   assert.match(mediaBlock, /visible-region-fixture/);
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
   assert.match(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
@@ -116,6 +120,8 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
   assert.match(mediaBlock, /src="\/thumb\/sm\/photos\/visit-1\/photo_1\.jpg"/);
   assert.match(mediaBlock, />周囲<\/span>/);
   assert.match(mediaBlock, />別対象候補<\/span>/);
+  assert.doesNotMatch(mediaBlock, /提案 周囲/);
+  assert.doesNotMatch(mediaBlock, /AI 別対象候補/);
   assert.doesNotMatch(mediaBlock, /<img src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);
 });
 
@@ -173,7 +179,7 @@ test("observation media renders video media role badges", () => {
 
   assert.match(mediaBlock, /<strong>動画<\/strong>/);
   assert.match(mediaBlock, />音・動き<\/span>/);
-  assert.match(mediaBlock, /提案 音・動き/);
+  assert.doesNotMatch(mediaBlock, /提案 音・動き/);
 });
 
 test("observation media explains when video is still processing", () => {

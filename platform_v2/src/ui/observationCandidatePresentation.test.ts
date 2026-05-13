@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   candidateHasVisibleRegion,
+  classifyAiCandidateTrustLevel,
   countProminentAiCandidates,
   isProminentAiCandidate,
   rankProminentAiCandidates,
@@ -34,6 +35,12 @@ test("weak candidates need visible region evidence before surfacing in the hero"
   assert.equal(isProminentAiCandidate(weakNoRegion), false);
   assert.equal(candidateHasVisibleRegion(weakWithRegion), true);
   assert.equal(isProminentAiCandidate(weakWithRegion), true);
+});
+
+test("candidate trust levels split strong, medium, and reference display", () => {
+  assert.equal(classifyAiCandidateTrustLevel(candidate({ confidence: 0.9 })), "strong");
+  assert.equal(classifyAiCandidateTrustLevel(candidate({ confidence: 0.58 })), "medium");
+  assert.equal(classifyAiCandidateTrustLevel(candidate({ confidence: 0.31 })), "reference");
 });
 
 test("already adopted candidates do not remain in the prominent action list", () => {

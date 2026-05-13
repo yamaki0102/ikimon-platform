@@ -15,7 +15,7 @@ type RegionSwitchMap = Record<string, Array<{
 }>>;
 
 const MEDIA_ROLE_LABELS: Record<MediaRoleView, string> = {
-  primary_subject: "主役",
+  primary_subject: "主対象",
   context: "周囲",
   sound_motion: "音・動き",
   secondary_candidate: "別対象候補",
@@ -174,16 +174,13 @@ function mediaRoleBadge(asset: Pick<PhotoAsset | VideoAsset, "mediaRole">, compa
 }
 
 function mediaRoleSuggestionBadge(
-  asset: Pick<PhotoAsset | VideoAsset, "suggestedMediaRole" | "suggestedMediaRoleConfidence" | "suggestedMediaRoleSource">,
+  asset: Pick<PhotoAsset | VideoAsset, "mediaRole" | "suggestedMediaRole" | "suggestedMediaRoleSource">,
   compact = false,
 ): string {
   const role = normalizeMediaRoleView(asset.suggestedMediaRole);
   if (!role) return "";
-  const confidence = typeof asset.suggestedMediaRoleConfidence === "number"
-    ? ` ${Math.round(asset.suggestedMediaRoleConfidence * 100)}%`
-    : "";
-  const prefix = asset.suggestedMediaRoleSource === "heuristic" ? "提案" : "AI";
-  return `<span class="obs-media-ai-role${compact ? " is-compact" : ""}" data-obs-media-role-suggestion>${prefix} ${escapeHtml(MEDIA_ROLE_LABELS[role])}${confidence}</span>`;
+  if (role === normalizeMediaRoleView(asset.mediaRole)) return "";
+  return `<span class="obs-media-ai-role${compact ? " is-compact" : ""}" data-obs-media-role-suggestion>${escapeHtml(MEDIA_ROLE_LABELS[role])}</span>`;
 }
 
 function frameTimeLabel(frameTimeMs: number | null): string {
@@ -395,7 +392,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        if (previewRoleBadge) {
          var role = t.getAttribute('data-obs-thumb-media-role') || '';
          var roleLabels = {
-           primary_subject: '主役',
+           primary_subject: '主対象',
            context: '周囲',
            sound_motion: '音・動き',
            secondary_candidate: '別対象候補'
@@ -406,18 +403,16 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        }
        if (previewSuggestionBadge) {
          var suggestedRole = t.getAttribute('data-obs-thumb-suggested-role') || '';
-         var suggestedConfidence = Number(t.getAttribute('data-obs-thumb-suggested-confidence') || '');
-         var suggestedSource = t.getAttribute('data-obs-thumb-suggested-source') || '';
+         var actualRole = t.getAttribute('data-obs-thumb-media-role') || '';
          var roleLabels2 = {
-           primary_subject: '主役',
+           primary_subject: '主対象',
            context: '周囲',
            sound_motion: '音・動き',
            secondary_candidate: '別対象候補'
          };
-         var confidenceLabel = Number.isFinite(suggestedConfidence) && suggestedConfidence > 0 ? ' ' + Math.round(suggestedConfidence * 100) + '%' : '';
-         var prefix = suggestedSource === 'heuristic' ? '提案' : 'AI';
-         previewSuggestionBadge.textContent = roleLabels2[suggestedRole] ? prefix + ' ' + roleLabels2[suggestedRole] + confidenceLabel : '';
-         previewSuggestionBadge.hidden = !roleLabels2[suggestedRole];
+         var hasSuggestion = !!roleLabels2[suggestedRole] && suggestedRole !== actualRole;
+         previewSuggestionBadge.textContent = hasSuggestion ? roleLabels2[suggestedRole] : '';
+         previewSuggestionBadge.hidden = !hasSuggestion;
        }
        if (previewRegions && regions) {
          previewRegions.innerHTML = regions.innerHTML;

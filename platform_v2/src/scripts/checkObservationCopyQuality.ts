@@ -13,6 +13,7 @@ function sourceBetween(startMarker: string, endMarker: string): string {
 }
 
 const sections = {
+  visibleRecords: sourceBetween("function renderVisibleRecordItemsPanel", "function renderAiCandidateLearningPanel"),
   candidatePanel: sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
   heroReadout: sourceBetween("function renderHeroAiReadout", "type ObservationMediaCopyContext"),
   subjectHint: sourceBetween("function renderSubjectHint", "function renderCivicContextBlock"),
@@ -21,7 +22,7 @@ const sections = {
   nextCapture: sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
   recordStory: sourceBetween("function renderObservationRecordStory", "function renderObservationNextActionRail"),
   heroShell: sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress"),
-  routeAssembly: sourceBetween("const prominentAiCandidateCount", "const nextActions: ObservationNextAction[]"),
+  routeAssembly: sourceBetween("const visibleRecordItems", "const nextActions: ObservationNextAction[]"),
   heroCall: sourceBetween("const heroBlock = renderObservationReadingHero", "    // 下部の旧要約ブロック"),
   cta: sourceBetween("const ctaBlock = `", "    // ===== Layer 6: 豆知識 ====="),
 };
