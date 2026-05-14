@@ -41,15 +41,24 @@ const detailCopySource = [
 test("observation detail page keeps the friendly observation vocabulary", () => {
   for (const term of [
     "この写真に写っているもの",
-    "の中を一緒に探せます",
-    "から分かること",
-    "写真・場所・地域",
     "からの自動候補",
     "名前のいま",
     "そう見える理由",
     "まだ決めきらない理由",
     "見つけたもの",
     "写真・動画・音",
+    "写っているもの",
+    "この組み合わせから読む",
+    "同定の根拠",
+    "AIが写真から拾った仮説です",
+    "この候補を支持",
+    "この候補は保留",
+    "この候補は違うかも",
+    "未検出を追加",
+    "足元に咲く花",
+    "花を使う虫",
+    "人の手が入る草地",
+    "小さな季節の物語",
     "ほかにも写っていそうなもの",
     "観測レコードにする",
     "写っている対象として知らせる",
@@ -60,7 +69,6 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "からの提案",
     "見分けるメモ",
     "次に見つけるなら",
-    "この場面で分かったこと",
     "あると見やすい材料",
     "関連ページ",
   ]) {
@@ -124,6 +132,15 @@ test("observation detail primary copy does not expose internal record terms", ()
     "地域の見方が一段深くなる",
     "ところが面白い",
     "いっしょに絞るためのメモ",
+    "完成案",
+    "Photo First",
+    "自己効力感",
+    "ジョブ・クラフティング",
+    "Autonomy",
+    "Relatedness",
+    "写真を見たら、すぐ動ける",
+    "候補名だけで終わらせず",
+    "主役っぽいもの、一緒に写ってるかもしれないもの、周りの草",
   ]) {
     assert.doesNotMatch(detailCopySource, new RegExp(term));
   }
@@ -143,10 +160,19 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(heroSource, /options\.recordTitle/);
   assert.doesNotMatch(heroSource, /obs-reading-title">\$\{escapeHtml\(options\.displayName\)\}/);
   assert.match(visibleItemsSource, /mediaVisibleSurfaceLabel/);
-  assert.match(visibleItemsSource, /主役っぽいもの、一緒に写ってるかもしれないもの、周りの草/);
+  assert.match(visibleItemsSource, /obs-focus-title">写っているもの/);
+  assert.match(visibleItemsSource, /この組み合わせから読む/);
+  assert.match(visibleItemsSource, /名前だけでなく、その場を使うものと草地の状態/);
   assert.match(visibleItemsSource, /参考候補/);
   assert.match(visibleCardSource, /観測レコードにする/);
-  assert.match(storySource, /花・訪問者・足元を一緒に読める場面/);
+  assert.match(storySource, /小さな季節の物語/);
+  assert.match(storySource, /足元に咲く花/);
+  assert.match(storySource, /花を使う虫/);
+  assert.match(storySource, /人の手が入る草地/);
+  assert.match(detailCopySource, /同定の根拠/);
+  assert.match(detailCopySource, /AIが写真から拾った仮説です/);
+  assert.match(detailCopySource, /この候補を支持/);
+  assert.match(detailCopySource, /未検出を追加/);
 });
 
 test("visible record fixture surfaces plant, bee, grass, and folds low-confidence candidates", () => {
@@ -299,7 +325,7 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
 
   const videoHtml = renderVisibleRecordItemsPanel(anonymousItems, { hasPhotos: false, hasVideos: true });
   assert.match(videoHtml, /この映像に写っているもの/);
-  assert.match(videoHtml, /映像の中を一緒に探せます/);
+  assert.match(videoHtml, /写っているもの/);
   assert.match(videoHtml, /この映像からの自動候補。確定名ではありません。/);
 });
 
