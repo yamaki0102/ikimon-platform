@@ -1148,6 +1148,9 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-record-brief-card small { font-size: 10px; }
     .obs-read-progress { top: 50px; margin-inline: -4px; }
     .obs-next-action { min-height: 64px; }
+    .obs-record-story-head { display: grid; justify-content: stretch; gap: 8px; }
+    .obs-record-story-title { font-size: 17px; line-height: 1.45; overflow-wrap: anywhere; }
+    .obs-record-story-pill { justify-self: start; max-width: 100%; white-space: normal; }
     .obs-record-story-cards { grid-template-columns: 1fr; }
   }
   .obs-hero { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 18px; margin-bottom: 30px; }
