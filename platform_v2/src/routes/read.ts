@@ -1120,6 +1120,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-media-evidence-title { font-size: 12px; }
     .obs-media-evidence-count { font-size: 10.5px; }
     .obs-media-discovery { gap: 6px; padding: 8px 9px; border-radius: 12px; }
+    .obs-media-discovery-head { display: none; }
     .obs-media-discovery-title { font-size: 12px; }
     .obs-media-discovery-target { min-height: 34px; max-width: 142px; padding: 6px 8px; }
     .obs-media-discovery-name { font-size: 11px; }
