@@ -77,7 +77,7 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-lightbox-toggle:hover { background: #0f172a; transform: scale(1.04); }
   .obs-lightbox-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
   .obs-lightbox-hint { position: fixed; left: 0; right: 0; bottom: 16px; text-align: center; color: rgba(255,255,255,.8); font-size: 12px; font-weight: 700; letter-spacing: .04em; pointer-events: none; z-index: 10010; padding: 0 16px; }
-  .obs-hero-media-stack { display: grid; gap: 10px; }
+  .obs-hero-media-stack { position: relative; z-index: 1; display: grid; gap: 10px; }
   .obs-hero-photo-stack { display: grid; gap: 10px; }
   .obs-hero-video { display: grid; gap: 8px; }
   .obs-hero-video-frame { position: relative; width: 100%; padding-top: 56.25%; border-radius: 20px; overflow: hidden; background: #020617; }
