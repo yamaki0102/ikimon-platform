@@ -30,6 +30,7 @@ jobs:
       run_php_tests: ${{ steps.plan.outputs.run_php_tests }}
       run_platform_v2: ${{ steps.plan.outputs.run_platform_v2 }}
       run_record_funnel_browser_qa: ${{ steps.plan.outputs.run_record_funnel_browser_qa }}
+      run_scene_read_smoke: ${{ steps.plan.outputs.run_scene_read_smoke }}
       run_deploy_manifest_check: ${{ steps.plan.outputs.run_deploy_manifest_check }}
     steps:
       - uses: actions/checkout@v5
@@ -72,12 +73,14 @@ jobs:
           RUN_PHP_TESTS=false
           RUN_PLATFORM_V2=false
           RUN_RECORD_FUNNEL_BROWSER_QA=false
+          RUN_SCENE_READ_SMOKE=false
           RUN_DEPLOY_MANIFEST_CHECK=false
 
           if [ "$PHP_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PHP_LINT=true; fi
           if [ "$PHP_CHANGED" = "true" ]; then RUN_PHP_TESTS=true; fi
           if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_PLATFORM_V2=true; fi
           if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_RECORD_FUNNEL_BROWSER_QA=true; fi
+          if [ "$V2_CHANGED" = "true" ] || [ "$DEPLOY_CHANGED" = "true" ]; then RUN_SCENE_READ_SMOKE=true; fi
           if [ "$DEPLOY_CHANGED" = "true" ]; then RUN_DEPLOY_MANIFEST_CHECK=true; fi
 
           {
@@ -89,11 +92,12 @@ jobs:
             echo "run_php_tests=$RUN_PHP_TESTS"
             echo "run_platform_v2=$RUN_PLATFORM_V2"
             echo "run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA"
+            echo "run_scene_read_smoke=$RUN_SCENE_READ_SMOKE"
             echo "run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
           } >> "$GITHUB_OUTPUT"
 
           echo "php_changed=$PHP_CHANGED v2_changed=$V2_CHANGED migration_changed=$MIGRATION_CHANGED deploy_changed=$DEPLOY_CHANGED"
-          echo "run_php_lint=$RUN_PHP_LINT run_php_tests=$RUN_PHP_TESTS run_platform_v2=$RUN_PLATFORM_V2 run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
+          echo "run_php_lint=$RUN_PHP_LINT run_php_tests=$RUN_PHP_TESTS run_platform_v2=$RUN_PLATFORM_V2 run_record_funnel_browser_qa=$RUN_RECORD_FUNNEL_BROWSER_QA run_scene_read_smoke=$RUN_SCENE_READ_SMOKE run_deploy_manifest_check=$RUN_DEPLOY_MANIFEST_CHECK"
 
           {
             echo "## CI scope"
@@ -106,6 +110,7 @@ jobs:
             echo "- PHPUnit: $RUN_PHP_TESTS"
             echo "- platform_v2 checks: $RUN_PLATFORM_V2"
             echo "- /record funnel browser QA: $RUN_RECORD_FUNNEL_BROWSER_QA"
+            echo "- scene read local smoke: $RUN_SCENE_READ_SMOKE"
             echo "- deploy manifest sync: $RUN_DEPLOY_MANIFEST_CHECK"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -214,6 +219,123 @@ jobs:
         working-directory: platform_v2
         run: npm run eval:navigable-os
 
+  scene-read-smoke:
+    name: Scene Read Local Smoke
+    runs-on: ubuntu-latest
+    needs: [plan, lint]
+    if: needs.plan.outputs.run_scene_read_smoke == 'true'
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ikimon_v2_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ikimon_v2_ci
+      V2_PRIVILEGED_WRITE_API_KEY: ci-write-key
+      ALLOW_QUERY_USER_ID: "1"
+      PORT: "3200"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install platform_v2 dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Build platform_v2
+        working-directory: platform_v2
+        run: npm run build
+
+      - name: Enable CI database extensions
+        working-directory: platform_v2
+        run: |
+          node --input-type=module <<'NODE'
+          import { Client } from "pg";
+
+          const client = new Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          await client.query("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE");
+          await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+          await client.query("CREATE EXTENSION IF NOT EXISTS vector");
+          await client.end();
+          NODE
+
+      - name: Apply CI database migrations
+        working-directory: platform_v2
+        run: npm run migrate -- --allow-destructive
+
+      - name: Start local platform_v2 runtime
+        working-directory: platform_v2
+        run: |
+          npm run start > ../platform-v2-scene-read-smoke.log 2>&1 &
+          echo "$!" > ../platform-v2-scene-read-smoke.pid
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+            if curl -fsS http://127.0.0.1:3200/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat ../platform-v2-scene-read-smoke.log
+          exit 1
+
+      - name: Seed regression scene fixture
+        working-directory: platform_v2
+        run: |
+          prefix="scene-read-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "SCENE_READ_FIXTURE_PREFIX=${prefix}" >> "$GITHUB_ENV"
+          curl -fsS \
+            -X POST http://127.0.0.1:3200/api/v1/ops/staging/fixtures/seed-regression \
+            -H "x-ikimon-write-key: ${V2_PRIVILEGED_WRITE_API_KEY}" \
+            -H "content-type: application/json" \
+            --data "{\"fixturePrefix\":\"${prefix}\"}"
+
+      - name: Run scene read smoke against PR runtime
+        working-directory: platform_v2
+        run: |
+          IKIMON_SCENE_READ_SMOKE=required \
+          IKIMON_SCENE_READ_VISIT_ID="${SCENE_READ_FIXTURE_PREFIX}-scene" \
+          IKIMON_SCENE_READ_SUBJECT_ID="occ:${SCENE_READ_FIXTURE_PREFIX}-scene:0" \
+          IKIMON_SCENE_READ_REQUIRED_MARKERS="浜松市で見つけた記録|まず写真から分かること|名前のいま|この写真に写っているもの|ヒメイワダレソウ|セイヨウミツバチ|イネ科の一種|自動候補は確定名ではありません" \
+          IKIMON_SCENE_READ_FORBIDDEN_MARKERS="\"status\":\"bootstrapping\"|AI 主役 100%|訪花中の候補" \
+          npm run smoke:v2-read-lane -- --base-url=http://127.0.0.1:3200
+
+      - name: Cleanup local scene fixture
+        if: always()
+        run: |
+          if [ -n "${SCENE_READ_FIXTURE_PREFIX:-}" ]; then
+            curl -fsS \
+              -X POST http://127.0.0.1:3200/api/v1/ops/staging/fixtures/cleanup \
+              -H "x-ikimon-write-key: ${V2_PRIVILEGED_WRITE_API_KEY}" \
+              -H "content-type: application/json" \
+              --data "{\"fixturePrefix\":\"${SCENE_READ_FIXTURE_PREFIX}\"}" || true
+          fi
+          if [ -f platform-v2-scene-read-smoke.pid ]; then
+            kill "$(cat platform-v2-scene-read-smoke.pid)" || true
+          fi
+
+      - name: Upload scene read smoke logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: scene-read-smoke-runtime-log
+          path: platform-v2-scene-read-smoke.log
+          if-no-files-found: ignore
+
   record-funnel-browser-qa:
     name: Record Funnel Browser QA
     runs-on: ubuntu-latest
@@ -248,7 +370,7 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [plan, lint, test, platform-v2, record-funnel-browser-qa]
+    needs: [plan, lint, test, platform-v2, scene-read-smoke, record-funnel-browser-qa]
     if: always()
     steps:
       - name: Check results
@@ -257,8 +379,8 @@ jobs:
             [[ "$1" == "success" || "$1" == "skipped" ]]
           }
 
-          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}" || ! ok_result "${{ needs.record-funnel-browser-qa.result }}"; then
-            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"
+          if ! ok_result "${{ needs.plan.result }}" || ! ok_result "${{ needs.lint.result }}" || ! ok_result "${{ needs.test.result }}" || ! ok_result "${{ needs.platform-v2.result }}" || ! ok_result "${{ needs.scene-read-smoke.result }}" || ! ok_result "${{ needs.record-funnel-browser-qa.result }}"; then
+            echo "Quality Gate failed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"
             exit 1
           fi
-          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"
+          echo "Quality Gate passed: plan=${{ needs.plan.result }}, lint=${{ needs.lint.result }}, test=${{ needs.test.result }}, platform-v2=${{ needs.platform-v2.result }}, scene-read-smoke=${{ needs.scene-read-smoke.result }}, record-funnel-browser-qa=${{ needs.record-funnel-browser-qa.result }}"

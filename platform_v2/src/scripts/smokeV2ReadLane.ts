@@ -18,9 +18,7 @@ type HtmlSmokeCheck = {
   allowedStatuses: number[];
 };
 
-const representativeSceneReadVisitId = "record-1778549526406";
-const representativeSceneReadPath =
-  `/ja/observations/${representativeSceneReadVisitId}?subject=occ%3A${representativeSceneReadVisitId}%3A0`;
+const defaultRepresentativeSceneReadVisitId = "record-1778549526406";
 
 const representativeSceneReadMarkers = [
   "浜松市で見つけた記録",
@@ -101,7 +99,28 @@ function sceneReadSmokeMode(): "auto" | "required" | "skip" {
   return "auto";
 }
 
-async function representativeSceneReadExists(pool: ReturnType<typeof getPool>): Promise<boolean> {
+function markerListFromEnv(name: string, fallback: string[]): string[] {
+  const raw = process.env[name]?.trim();
+  if (!raw) {
+    return fallback;
+  }
+  return raw
+    .split("|")
+    .map((marker) => marker.trim())
+    .filter(Boolean);
+}
+
+function representativeSceneReadTarget(): { visitId: string; subjectId: string; path: string } {
+  const visitId = process.env.IKIMON_SCENE_READ_VISIT_ID?.trim() || defaultRepresentativeSceneReadVisitId;
+  const subjectId = process.env.IKIMON_SCENE_READ_SUBJECT_ID?.trim() || `occ:${visitId}:0`;
+  return {
+    visitId,
+    subjectId,
+    path: `/ja/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(subjectId)}`,
+  };
+}
+
+async function representativeSceneReadExists(pool: ReturnType<typeof getPool>, visitId: string): Promise<boolean> {
   const result = await pool.query<{ exists: boolean }>(
     `select exists (
        select 1
@@ -109,7 +128,7 @@ async function representativeSceneReadExists(pool: ReturnType<typeof getPool>): 
        where visit_id = $1
        limit 1
      )`,
-    [representativeSceneReadVisitId],
+    [visitId],
   );
   return result.rows[0]?.exists === true;
 }
@@ -123,20 +142,21 @@ async function representativeSceneReadCheck(
     return { skipped: { name: "scene:representative-observation-detail", reason: "IKIMON_SCENE_READ_SMOKE=skip" } };
   }
 
-  const exists = await representativeSceneReadExists(pool);
+  const target = representativeSceneReadTarget();
+  const exists = await representativeSceneReadExists(pool, target.visitId);
   if (!exists && mode === "auto") {
     return { skipped: { name: "scene:representative-observation-detail", reason: "representative scene fixture not present" } };
   }
   if (!exists && mode === "required") {
-    throw new Error(`representative scene fixture missing: ${representativeSceneReadVisitId}`);
+    throw new Error(`representative scene fixture missing: ${target.visitId}`);
   }
 
   return {
     check: {
       name: "scene:representative-observation-detail",
-      url: `${baseUrl.replace(/\/+$/, "")}${representativeSceneReadPath}`,
-      markers: representativeSceneReadMarkers,
-      forbiddenMarkers: representativeSceneReadForbiddenMarkers,
+      url: `${baseUrl.replace(/\/+$/, "")}${target.path}`,
+      markers: markerListFromEnv("IKIMON_SCENE_READ_REQUIRED_MARKERS", representativeSceneReadMarkers),
+      forbiddenMarkers: markerListFromEnv("IKIMON_SCENE_READ_FORBIDDEN_MARKERS", representativeSceneReadForbiddenMarkers),
       allowedStatuses: [200],
     },
   };
