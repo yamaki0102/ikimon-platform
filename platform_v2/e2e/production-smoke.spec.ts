@@ -18,7 +18,7 @@ const canonicalAiSubjectScenes = [
   },
   {
     path: "/ja/observations/record-1778643230506",
-    expectedSubjects: ["クスノキ属", "オシダ属"],
+    expectedSubjects: ["クスノキ属", "カエデ属"],
   },
 ] as const;
 const fixtureLeakPattern = /e2e_test_|prod-media-smoke|smoke-ui|smoke_regression_fixture|regression fixture|staging regression|fixture_prefix/i;
