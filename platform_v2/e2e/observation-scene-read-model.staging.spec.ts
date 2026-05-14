@@ -38,7 +38,7 @@ async function stabilizeVisualDiff(page: Page): Promise<void> {
 
 async function visibleRecordTextInFirstViewport(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const nodes = [...document.body.querySelectorAll("h1,.obs-visible-record-card")];
+    const nodes = [...document.body.querySelectorAll("h1,.obs-first-read,.obs-ai-readout,.obs-visible-record-card")];
     return nodes
       .filter((node) => {
         const rect = node.getBoundingClientRect();
@@ -94,9 +94,9 @@ test.describe.serial("observation scene read model visual QA", () => {
         expect(names.slice(0, 3)).toEqual(["ヒメイワダレソウ", "セイヨウミツバチ", "イネ科の一種"]);
         const firstViewportText = await visibleRecordTextInFirstViewport(page);
         expect(firstViewportText).toContain("浜松市で見つけた記録");
+        expect(firstViewportText).toContain("まず写真から分かること");
+        expect(firstViewportText).toContain("名前のいま");
         expect(firstViewportText).toContain("ヒメイワダレソウ");
-        expect(firstViewportText).toContain("セイヨウミツバチ");
-        expect(firstViewportText).toContain("イネ科の一種");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("一緒に写ってるかも");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("周りの草");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "小さな黒い点" })).toContainText("参考");
