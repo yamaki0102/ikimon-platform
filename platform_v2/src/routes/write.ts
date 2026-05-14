@@ -50,6 +50,12 @@ import { adoptObservationCandidate } from "../services/observationCandidateAdopt
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
+import {
+  createKnowledgeSourceCorrection,
+  createReferenceCaptureBatch,
+  type KnowledgeSourceCorrectionInput,
+  type ReferenceCaptureItemInput,
+} from "../services/referenceLibrary.js";
 import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
@@ -259,6 +265,57 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.post<{
+    Body: {
+      items?: ReferenceCaptureItemInput[];
+      countryCode?: string | null;
+    };
+  }>("/api/v1/references/capture-batches", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      return await createReferenceCaptureBatch({
+        userId: session.userId,
+        items: Array.isArray(request.body?.items) ? request.body.items : [],
+        countryCode: request.body?.countryCode ?? null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "reference_capture_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { sourceId: string };
+    Body: Omit<KnowledgeSourceCorrectionInput, "sourceId" | "verifiedByUserId">;
+  }>("/api/v1/references/:sourceId/corrections", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      if (!/admin|analyst|specialist/i.test(session.roleName)) {
+        throw new Error("specialist_role_required");
+      }
+      return await createKnowledgeSourceCorrection({
+        ...request.body,
+        sourceId: request.params.sourceId,
+        verifiedByUserId: request.body?.verificationStatus === "official_confirmed" ? session.userId : null,
+      });
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "reference_correction_failed",
+      };
+    }
+  });
+
   app.post<{ Body: ObservationUpsertInput }>("/api/v1/observations/upsert", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
@@ -401,6 +458,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       proposedRank?: string | null;
       notes?: string | null;
       stance?: PublicIdentificationStance;
+      referenceSourceIds?: string[];
+      referenceLocator?: string | null;
     };
   }>("/api/v1/observations/:id/identifications", async (request, reply) => {
     try {
@@ -416,6 +475,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         proposedRank: request.body?.proposedRank ?? null,
         notes: request.body?.notes ?? null,
         stance,
+        referenceSourceIds: Array.isArray(request.body?.referenceSourceIds)
+          ? request.body.referenceSourceIds.map((value) => String(value))
+          : [],
+        referenceLocator: request.body?.referenceLocator ?? null,
       });
     } catch (error) {
       reply.code(errorStatus(error, 400));

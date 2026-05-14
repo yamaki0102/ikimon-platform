@@ -48,6 +48,8 @@ export const AI_MODEL_ROLES = {
   observationEventCapsuleFallback: AI_MODELS.geminiFlashLite,
   digitizedRagAnswerPrimary: AI_MODELS.geminiFlashLite,
   digitizedRagAnswerFallback: AI_MODELS.geminiFlashLite,
+  referenceCoverExtractPrimary: AI_MODELS.geminiFlashImage,
+  referenceCoverExtractFallback: AI_MODELS.geminiFlashLite,
 } as const;
 
 export const AI_MODEL_ROLE_REFS = {
@@ -77,6 +79,8 @@ export const AI_MODEL_ROLE_REFS = {
   observationEventCapsuleFallback: AI_MODEL_CATALOG.geminiFlashLite,
   digitizedRagAnswerPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   digitizedRagAnswerFallback: AI_MODEL_CATALOG.geminiFlashLite,
+  referenceCoverExtractPrimary: AI_MODEL_CATALOG.geminiFlashImage,
+  referenceCoverExtractFallback: AI_MODEL_CATALOG.geminiFlashLite,
 } as const satisfies Record<keyof typeof AI_MODEL_ROLES, AiModelRef>;
 
 export const AI_MODEL_ROLE_CHAINS = {
@@ -92,6 +96,7 @@ export const AI_MODEL_ROLE_CHAINS = {
   observationEventArea: [AI_MODEL_ROLE_REFS.observationEventAreaPrimary],
   observationEventCapsule: [AI_MODEL_ROLE_REFS.observationEventCapsulePrimary],
   digitizedRagAnswer: [AI_MODEL_ROLE_REFS.digitizedRagAnswerPrimary],
+  referenceCoverExtract: [AI_MODEL_ROLE_REFS.referenceCoverExtractPrimary, AI_MODEL_ROLE_REFS.referenceCoverExtractFallback],
 } as const;
 
 export const CURATOR_DEFAULT_MODEL = AI_MODEL_ROLES.curatorDefault;
@@ -112,6 +117,7 @@ export const AI_MODEL_CHAIN_ENV_KEYS = {
   observationEventArea: "AI_MODEL_CHAIN_OBSERVATION_EVENT_AREA",
   observationEventCapsule: "AI_MODEL_CHAIN_OBSERVATION_EVENT_CAPSULE",
   digitizedRagAnswer: "AI_MODEL_CHAIN_DIGITIZED_RAG_ANSWER",
+  referenceCoverExtract: "AI_MODEL_CHAIN_REFERENCE_COVER_EXTRACT",
 } as const satisfies Record<AiModelRoleChainName, string>;
 
 function refFromCatalogOrModel(raw: string): AiModelRef {

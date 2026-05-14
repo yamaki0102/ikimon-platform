@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import { computeIdentificationConsensus, getIdentificationConsensus } from "./identificationConsensus.js";
+import { recordIdentificationReferenceSelections } from "./referenceLibrary.js";
 import { normalizeRank } from "./taxonRank.js";
 import { tryPromoteToTier3 } from "./tierPromotion.js";
 
@@ -13,6 +14,8 @@ export type SubmitObservationIdentificationInput = {
   proposedRank?: string | null;
   notes?: string | null;
   stance: PublicIdentificationStance;
+  referenceSourceIds?: string[];
+  referenceLocator?: string | null;
 };
 
 export type OpenObservationDisputeInput = {
@@ -64,7 +67,7 @@ async function resolveOccurrenceId(client: PoolClient, id: string): Promise<{ oc
 async function upsertPublicIdentification(
   client: PoolClient,
   input: SubmitObservationIdentificationInput,
-): Promise<void> {
+): Promise<string> {
   const proposedName = normalizeText(input.proposedName);
   if (!proposedName) throw new Error("identification_name_required");
   const proposedRank = normalizeText(input.proposedRank);
@@ -76,7 +79,7 @@ async function upsertPublicIdentification(
     updatedAt: new Date().toISOString(),
   };
 
-  await client.query(
+  const result = await client.query<{ identification_id: string }>(
     `insert into identifications (
         occurrence_id, actor_user_id, actor_kind, proposed_name, proposed_rank,
         legacy_identification_key, identification_method, confidence_score,
@@ -92,7 +95,8 @@ async function upsertPublicIdentification(
         is_current = true,
         notes = excluded.notes,
         source_payload = excluded.source_payload,
-        created_at = now()`,
+        created_at = now()
+     returning identification_id::text`,
     [
       input.occurrenceId,
       input.actorUserId,
@@ -103,6 +107,8 @@ async function upsertPublicIdentification(
       JSON.stringify(payload),
     ],
   );
+  const identificationId = result.rows[0]?.identification_id;
+  if (!identificationId) throw new Error("identification_upsert_failed");
 
   await client.query(
     `update occurrences
@@ -114,6 +120,7 @@ async function upsertPublicIdentification(
       where occurrence_id = $1`,
     [input.occurrenceId],
   );
+  return identificationId;
 }
 
 export async function submitObservationIdentification(input: SubmitObservationIdentificationInput) {
@@ -125,9 +132,16 @@ export async function submitObservationIdentification(input: SubmitObservationId
     await client.query("begin");
     const occurrence = await resolveOccurrenceId(client, input.occurrenceId);
     occurrenceId = occurrence.occurrenceId;
-    await upsertPublicIdentification(client, {
+    const identificationId = await upsertPublicIdentification(client, {
       ...input,
       occurrenceId,
+    });
+    await recordIdentificationReferenceSelections(client, {
+      identificationId,
+      selectedByUserId: input.actorUserId,
+      sourceIds: input.referenceSourceIds ?? [],
+      locator: input.referenceLocator ?? null,
+      referenceRole: "primary_basis",
     });
     await client.query("commit");
   } catch (error) {
