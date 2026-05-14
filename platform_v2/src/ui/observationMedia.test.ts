@@ -3,9 +3,11 @@ import test from "node:test";
 import type { ObservationDetailSnapshot } from "../services/readModels.js";
 import type { ObservationVisitSubject } from "../services/observationVisitBundle.js";
 import {
+  OBSERVATION_MEDIA_STYLES,
   OBSERVATION_REGION_SUMMARY_TEXT,
   displayableRegionsForAsset,
   renderObservationMedia,
+  type ObservationMediaAnnotationTarget,
 } from "./observationMedia.js";
 
 const subject = {
@@ -77,7 +79,41 @@ test("observation media renders boxes only for displayable regions", () => {
 });
 
 test("observation media exposes tappable annotation targets", () => {
-  const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject, [
+  const annotationTargets: ObservationMediaAnnotationTarget[] = [
+    {
+      key: "subject:occ:media-regression:0",
+      occurrenceId: "occ:media-regression:0",
+      candidateId: null,
+      displayName: "縦長fixture",
+      roleLabel: "主役っぽい",
+      trustLabel: "AI推定",
+      proposalKind: "none",
+      adoptEndpoint: null,
+      regions: subject.regions,
+    },
+  ];
+  const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject, annotationTargets);
+
+  assert.match(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
+  assert.match(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
+  assert.match(mediaBlock, /縦長fixture/);
+  assert.match(mediaBlock, /枠をタップすると対象を切り替えられます/);
+  assert.match(galleryScript, /closest\('\[data-annotation-target\]'\)/);
+});
+
+test("observation media keeps thumb annotation templates outside thumb buttons", () => {
+  const multiPhotoSnapshot = {
+    ...snapshot,
+    photoAssets: [
+      snapshot.photoAssets[0]!,
+      {
+        ...snapshot.photoAssets[0]!,
+        assetId: "asset-second",
+        url: "/assets/regression/second-region-fixture.svg",
+      },
+    ],
+  } as unknown as ObservationDetailSnapshot;
+  const { mediaBlock, galleryScript } = renderObservationMedia(multiPhotoSnapshot, subject, [
     {
       key: "subject:occ:media-regression:0",
       occurrenceId: "occ:media-regression:0",
@@ -91,11 +127,44 @@ test("observation media exposes tappable annotation targets", () => {
     },
   ]);
 
-  assert.match(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
-  assert.match(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
-  assert.match(mediaBlock, /縦長fixture/);
-  assert.match(mediaBlock, /枠をタップすると対象を切り替えられます/);
-  assert.match(galleryScript, /closest\('\[data-annotation-target\]'\)/);
+  assert.match(mediaBlock, /<template data-obs-thumb-annotations="asset-vertical">/);
+  assert.doesNotMatch(mediaBlock, /<span hidden data-obs-thumb-annotations=/);
+  for (const match of mediaBlock.matchAll(/<button type="button" class="obs-hero-thumb[\s\S]*?<\/button>/g)) {
+    assert.doesNotMatch(match[0], /data-obs-thumb-annotations/);
+    assert.doesNotMatch(match[0], /class="obs-annotation-target/);
+  }
+  assert.match(galleryScript, /templateFor\('data-obs-thumb-annotations'/);
+});
+
+test("observation media avoids strong blue fills on large current regions", () => {
+  const fullFrameSubject = {
+    ...subject,
+    regions: [
+      {
+        ...subject.regions[0]!,
+        rect: { x: 0, y: 0, width: 1, height: 1 },
+        note: "画像全体に広がる群落",
+      },
+    ],
+  } as ObservationVisitSubject;
+
+  const { mediaBlock } = renderObservationMedia(snapshot, fullFrameSubject, [
+    {
+      key: "subject:occ:media-regression:0",
+      occurrenceId: "occ:media-regression:0",
+      candidateId: null,
+      displayName: "縦長fixture",
+      roleLabel: "主役っぽい",
+      trustLabel: "AI推定",
+      proposalKind: "none",
+      adoptEndpoint: null,
+      regions: fullFrameSubject.regions,
+    },
+  ]);
+
+  assert.match(mediaBlock, /class="obs-region-box is-large-region"/);
+  assert.match(mediaBlock, /class="obs-annotation-target is-current is-large-region"/);
+  assert.doesNotMatch(OBSERVATION_MEDIA_STYLES, /rgba\(37,99,235,\.13\)/);
 });
 
 test("observation media uses v2 thumbnails for legacy upload photos", () => {

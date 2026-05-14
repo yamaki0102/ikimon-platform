@@ -34,6 +34,7 @@ const MEDIA_ROLE_LABELS: Record<MediaRoleView, string> = {
 };
 
 export const REGION_DISPLAY_CONF_MIN = 0.5;
+export const REGION_LARGE_AREA_MIN = 0.55;
 export const OBSERVATION_REGION_SUMMARY_TEXT = "枠をタップすると対象を切り替えられます。位置はAIの参考です。";
 
 export const OBSERVATION_MEDIA_STYLES = `
@@ -92,14 +93,18 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
   .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
   .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
-  .obs-region-box { position: absolute; border: 1.5px dashed rgba(14,165,233,.92); border-radius: 12px; background: rgba(14,165,233,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
+  .obs-region-box { position: absolute; border: 1.5px solid rgba(20,184,166,.72); border-radius: 12px; background: rgba(20,184,166,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
+  .obs-region-box.is-large-region { background: transparent; border-color: rgba(15,23,42,.24); box-shadow: inset 0 0 0 1px rgba(255,255,255,.58); }
   .obs-region-box-label { position: absolute; left: 8px; top: 8px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
   .obs-annotation-layer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
-  .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 36px; min-height: 36px; padding: 0; border: 2px solid rgba(16,185,129,.95); border-radius: 13px; background: rgba(16,185,129,.1); box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.18); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease; }
-  .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,1); background: rgba(16,185,129,.18); outline: none; }
-  .obs-annotation-target.is-current { border-color: rgba(37,99,235,.98); background: rgba(37,99,235,.13); }
-  .obs-annotation-target.is-candidate { border-color: rgba(245,158,11,.98); background: rgba(245,158,11,.14); }
+  .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 36px; min-height: 36px; padding: 0; border: 2px solid rgba(16,185,129,.82); border-radius: 13px; background: rgba(16,185,129,.055); box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.16); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease; }
+  .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,1); background: rgba(16,185,129,.11); outline: none; }
+  .obs-annotation-target.is-current { border-color: rgba(13,148,136,.92); background: rgba(13,148,136,.055); }
+  .obs-annotation-target.is-candidate { border-color: rgba(245,158,11,.9); background: rgba(245,158,11,.07); }
+  .obs-annotation-target.is-large-region { background: transparent; border-color: rgba(13,148,136,.72); box-shadow: inset 0 0 0 1px rgba(255,255,255,.55), 0 10px 22px rgba(15,23,42,.12); }
+  .obs-annotation-target.is-large-region.is-current { background: transparent; border-color: rgba(13,148,136,.84); }
+  .obs-annotation-target.is-large-region.is-candidate { background: transparent; border-color: rgba(245,158,11,.74); }
   .obs-annotation-label { position: absolute; left: 6px; top: 6px; max-width: min(170px, 46vw); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 8px; border-radius: 10px; background: rgba(15,23,42,.86); color: #fff; text-align: left; box-shadow: 0 8px 20px rgba(15,23,42,.18); }
   .obs-annotation-label strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.15; font-weight: 950; }
   .obs-annotation-label small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(226,232,240,.9); font-size: 9.5px; line-height: 1.15; font-weight: 850; }
@@ -150,6 +155,11 @@ export function isDisplayableRegion(region: Pick<SubjectMediaRegionView, "rect" 
   return Boolean(region.rect) && (region.confidenceScore ?? 1) >= REGION_DISPLAY_CONF_MIN;
 }
 
+function isLargeRegionRect(rect: SubjectMediaRegionView["rect"]): boolean {
+  if (!rect) return false;
+  return rect.width * rect.height >= REGION_LARGE_AREA_MIN;
+}
+
 export function displayableRegionsForAsset(
   subject: Pick<ObservationVisitSubject, "regions">,
   assetId: string,
@@ -165,7 +175,8 @@ export function renderObservationRegionBoxes(
     .map((region) => {
       const rect = region.rect;
       if (!rect) return "";
-      return `<span class="obs-region-box"
+      const className = `obs-region-box${isLargeRegionRect(rect) ? " is-large-region" : ""}`;
+      return `<span class="${className}"
         style="left:${(rect.x * 100).toFixed(2)}%;top:${(rect.y * 100).toFixed(2)}%;width:${(rect.width * 100).toFixed(2)}%;height:${(rect.height * 100).toFixed(2)}%;">
         ${region.note ? `<span class="obs-region-box-label">${escapeHtml(region.note)}</span>` : ""}
       </span>`;
@@ -203,6 +214,7 @@ function renderObservationAnnotationButtons(
         "obs-annotation-target",
         target.occurrenceId === currentOccurrenceId ? "is-current" : "",
         target.proposalKind === "ai_candidate" ? "is-candidate" : "",
+        isLargeRegionRect(rect) ? "is-large-region" : "",
       ].filter(Boolean).join(" ");
       const meta = [
         target.roleLabel,
@@ -334,6 +346,8 @@ function renderPhotoGallery(
       const suggestedRole = normalizeMediaRoleView(asset.suggestedMediaRole);
       const suggestedConfidence = typeof asset.suggestedMediaRoleConfidence === "number" ? asset.suggestedMediaRoleConfidence.toFixed(4) : "";
       const suggestedSource = asset.suggestedMediaRoleSource ?? "";
+      const regionTemplate = renderObservationRegionBoxes(currentSubject, asset.assetId);
+      const annotationTemplate = renderObservationAnnotationButtons(annotationTargets, asset.assetId, currentSubject.occurrenceId);
       return `
          <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-full-src="${escapeHtml(asset.url)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}" data-obs-thumb-suggested-role="${escapeHtml(suggestedRole ?? "")}" data-obs-thumb-suggested-confidence="${escapeHtml(suggestedConfidence)}" data-obs-thumb-suggested-source="${escapeHtml(suggestedSource)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
            <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
@@ -341,9 +355,9 @@ function renderPhotoGallery(
            ${mediaRoleSuggestionBadge(asset, true)}
            <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
            <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
-           <span hidden data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${renderObservationRegionBoxes(currentSubject, asset.assetId)}</span>
-           <span hidden data-obs-thumb-annotations="${escapeHtml(asset.assetId)}">${renderObservationAnnotationButtons(annotationTargets, asset.assetId, currentSubject.occurrenceId)}</span>
-         </button>`;
+         </button>
+         <template data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${regionTemplate}</template>
+         <template data-obs-thumb-annotations="${escapeHtml(asset.assetId)}">${annotationTemplate}</template>`;
     }).join("")}</div>`
     : "";
   return `<div class="obs-hero-gallery" data-obs-gallery>
@@ -498,6 +512,14 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        summary.hidden = !hasVisibleRegion;
        summary.textContent = hasVisibleRegion ? '${OBSERVATION_REGION_SUMMARY_TEXT}' : '';
      };
+     var cssEscape = function(value) {
+       if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+       return String(value).replace(/["\\\\]/g, '\\\\$&');
+     };
+     var templateFor = function(attr, assetId) {
+       if (!assetId) return null;
+       return gallery.querySelector('template[' + attr + '="' + cssEscape(assetId) + '"]');
+     };
 
      var selectThumb = function(t){
        if (!t || t.classList.contains('is-active')) return;
@@ -506,8 +528,8 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        var assetId = t.getAttribute('data-obs-thumb-asset-id');
        var imageWidth = t.getAttribute('data-obs-thumb-width');
        var imageHeight = t.getAttribute('data-obs-thumb-height');
-       var regions = t.querySelector('[data-obs-thumb-regions]');
-       var annotations = t.querySelector('[data-obs-thumb-annotations]');
+       var regions = templateFor('data-obs-thumb-regions', assetId || '');
+       var annotations = templateFor('data-obs-thumb-annotations', assetId || '');
        thumbs.forEach(function(x){ x.classList.remove('is-active'); });
        t.classList.add('is-active');
        if (previewImg && imageWidth && imageHeight) {
@@ -548,13 +570,14 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
          previewSuggestionBadge.textContent = hasSuggestion ? roleLabels2[suggestedRole] : '';
          previewSuggestionBadge.hidden = !hasSuggestion;
        }
-       if (previewRegions && regions) {
-         previewRegions.innerHTML = regions.innerHTML;
+       if (previewRegions) {
+         var regionHtml = regions ? regions.innerHTML : '';
+         previewRegions.innerHTML = regionHtml;
          previewRegions.setAttribute('data-region-layer', assetId || '');
-         updateRegionSummary(regions.innerHTML);
+         updateRegionSummary(regionHtml);
        }
-       if (previewAnnotations && annotations) {
-         previewAnnotations.innerHTML = annotations.innerHTML;
+       if (previewAnnotations) {
+         previewAnnotations.innerHTML = annotations ? annotations.innerHTML : '';
        }
        window.dispatchEvent(new CustomEvent('ikimon:media-asset-selected', { detail: { assetId: assetId || '' } }));
      };

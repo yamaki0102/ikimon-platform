@@ -111,6 +111,7 @@ import {
   OBSERVATION_MEDIA_STYLES,
   OBSERVATION_REGION_SUMMARY_TEXT,
   REGION_DISPLAY_CONF_MIN,
+  REGION_LARGE_AREA_MIN,
   renderObservationMedia,
   toSubjectRegionMap,
   type ObservationMediaAnnotationTarget,
@@ -12631,6 +12632,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var featuredSubjectId = ${JSON.stringify(featuredSubject.occurrenceId)};
            var regionMap = ${JSON.stringify(subjectRegionMap)};
            var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
+           var regionLargeAreaMin = ${REGION_LARGE_AREA_MIN};
            var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
@@ -12651,7 +12653,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                var layer = document.querySelector('[data-region-layer="' + region.assetId.replace(/"/g, '\\"') + '"]');
                if (!layer) return;
                var box = document.createElement('span');
-               box.className = 'obs-region-box';
+               var regionArea = Number(region.rect.width || 0) * Number(region.rect.height || 0);
+               box.className = 'obs-region-box' + (regionArea >= regionLargeAreaMin ? ' is-large-region' : '');
                box.style.left = (region.rect.x * 100) + '%';
                box.style.top = (region.rect.y * 100) + '%';
                box.style.width = (region.rect.width * 100) + '%';
