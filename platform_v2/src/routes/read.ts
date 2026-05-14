@@ -1043,6 +1043,19 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-media-evidence-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
   .obs-media-evidence-title { display: inline-flex; align-items: center; gap: 7px; color: #0f172a; font-size: 13px; font-weight: 950; }
   .obs-media-evidence-count { color: #475569; font-size: 11.5px; font-weight: 850; }
+  .obs-media-discovery { display: grid; gap: 8px; padding: 10px 11px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(240,249,255,.9)); border: 1px solid rgba(16,185,129,.2); }
+  .obs-media-discovery-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .obs-media-discovery-title { color: #0f172a; font-size: 13px; line-height: 1.25; font-weight: 950; }
+  .obs-media-discovery-count { flex-shrink: 0; color: #047857; font-size: 11px; line-height: 1; font-weight: 950; }
+  .obs-media-discovery-rail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 1px; scrollbar-width: none; }
+  .obs-media-discovery-rail::-webkit-scrollbar { display: none; }
+  .obs-media-discovery-target { flex: 0 0 auto; max-width: 170px; min-height: 38px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font: inherit; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.05); }
+  .obs-media-discovery-target:hover, .obs-media-discovery-target:focus-visible { border-color: rgba(16,185,129,.34); background: #ecfdf5; outline: none; }
+  .obs-media-discovery-target.is-current { border-color: rgba(37,99,235,.34); background: #eff6ff; }
+  .obs-media-discovery-target.is-candidate { border-color: rgba(245,158,11,.32); background: #fffbeb; }
+  .obs-media-discovery-target.is-current.is-candidate { border-color: rgba(37,99,235,.34); background: #eff6ff; }
+  .obs-media-discovery-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.2; font-weight: 950; }
+  .obs-media-discovery-role { color: #64748b; font-size: 10px; line-height: 1; font-weight: 900; }
   .obs-record-brief { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(236,253,245,.78), rgba(239,246,255,.78)); border: 1px solid rgba(16,185,129,.18); }
   .obs-record-brief-kicker { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
   .obs-record-brief-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -1106,6 +1119,11 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-media-evidence-head { padding: 7px 9px; border-radius: 12px; }
     .obs-media-evidence-title { font-size: 12px; }
     .obs-media-evidence-count { font-size: 10.5px; }
+    .obs-media-discovery { gap: 6px; padding: 8px 9px; border-radius: 12px; }
+    .obs-media-discovery-title { font-size: 12px; }
+    .obs-media-discovery-target { min-height: 34px; max-width: 142px; padding: 6px 8px; }
+    .obs-media-discovery-name { font-size: 11px; }
+    .obs-media-discovery-role { display: none; }
     .obs-record-brief,
     .obs-hero-badges,
     .obs-summary-strip { display: none; }
@@ -1672,6 +1690,39 @@ function mediaVisibleSurfaceLabel(context: ObservationMediaCopyContext): string 
   if (context.hasVideos && context.hasPhotos) return "この写真・動画に写っているもの";
   if (context.hasVideos) return "この映像に写っているもの";
   return "この写真に写っているもの";
+}
+
+function renderMediaDiscoveryPicker(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext): string {
+  const targets = items
+    .filter((item) => Boolean(item.occurrenceId || item.candidateId))
+    .slice(0, 8);
+  if (targets.length === 0) return "";
+  const sceneNoun = mediaSceneNoun(mediaContext);
+  return `<div class="obs-media-discovery" data-media-discovery>
+    <div class="obs-media-discovery-head">
+      <span class="obs-media-discovery-title">${escapeHtml(`${sceneNoun}の中から選ぶ`)}</span>
+      <span class="obs-media-discovery-count">${escapeHtml(`${targets.length}件`)}</span>
+    </div>
+    <div class="obs-media-discovery-rail" aria-label="${escapeHtml(`${sceneNoun}に写っている対象`)}">
+      ${targets.map((item) => {
+        const attrs = [
+          `data-annotation-target="${escapeHtml(item.key)}"`,
+          `data-annotation-label="${escapeHtml(item.displayName)}"`,
+          item.occurrenceId ? `data-annotation-subject-id="${escapeHtml(item.occurrenceId)}"` : "",
+          item.candidateId ? `data-annotation-candidate-id="${escapeHtml(item.candidateId)}"` : "",
+        ].filter(Boolean).join(" ");
+        const className = [
+          "obs-media-discovery-target",
+          item.isCurrent ? "is-current" : "",
+          item.source === "candidate" ? "is-candidate" : "",
+        ].filter(Boolean).join(" ");
+        return `<button type="button" class="${className}" ${attrs} aria-label="${escapeHtml(`${item.displayName}を見る`)}">
+          <span class="obs-media-discovery-name">${escapeHtml(item.displayName)}</span>
+          <span class="obs-media-discovery-role">${escapeHtml(item.roleLabel)}</span>
+        </button>`;
+      }).join("")}
+    </div>
+  </div>`;
 }
 
 function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
@@ -4870,6 +4921,7 @@ function renderObservationReadingHero(options: {
   placeLabel: string;
   badges: string[];
   focusRailBlock: string;
+  mediaDiscoveryBlock: string;
   visibleRecordCount: number;
   summaryStrip: string;
   firstReadBlock: string;
@@ -4884,11 +4936,12 @@ function renderObservationReadingHero(options: {
 }): string {
   return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
     <div class="obs-reading-media obs-media-evidence-shell">
-      <div class="obs-media-evidence-head" aria-label="写真・動画・音">
-        <span class="obs-media-evidence-title">写真・動画・音</span>
-        <span class="obs-media-evidence-count">${escapeHtml(options.evidenceLabel)}</span>
+      <div class="obs-media-evidence-head" aria-label="${escapeHtml(options.mediaDiscoveryBlock ? "写ってるものを探す" : "写真・動画・音")}">
+        <span class="obs-media-evidence-title">${options.mediaDiscoveryBlock ? "写ってるものを探す" : "写真・動画・音"}</span>
+        <span class="obs-media-evidence-count">${escapeHtml(options.mediaDiscoveryBlock ? `${options.visibleRecordCount}件 / ${options.evidenceLabel}` : options.evidenceLabel)}</span>
       </div>
       ${options.mediaBlock}
+      ${options.mediaDiscoveryBlock}
     </div>
     <aside class="obs-reading-panel" aria-label="この${escapeHtml(options.mediaSceneLabel)}と見つけたもの">
       <div id="summary" class="obs-record-brief" data-obs-section="summary" aria-label="この${escapeHtml(options.mediaSceneLabel)}の記録">
@@ -12239,6 +12292,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     </details>`;
 
     const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems, mediaContext);
+    const mediaDiscoveryBlock = renderMediaDiscoveryPicker(visibleRecordItems, mediaContext);
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
       placeId: snapshot.placeId,
@@ -12304,6 +12358,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       placeLabel: heroPlaceLabel,
       badges,
       focusRailBlock,
+      mediaDiscoveryBlock,
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip,
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
@@ -12692,6 +12747,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              Array.prototype.slice.call(document.querySelectorAll('[data-annotation-subject-id]')).forEach(function(node){
                node.classList.toggle('is-current', node.getAttribute('data-annotation-subject-id') === currentSubjectId);
              });
+             Array.prototype.slice.call(document.querySelectorAll('[data-annotation-candidate-id]')).forEach(function(node){
+               node.classList.remove('is-current');
+             });
+           };
+           var setActiveCandidateAnnotations = function(candidateId) {
+             Array.prototype.slice.call(document.querySelectorAll('[data-annotation-subject-id]')).forEach(function(node){
+               node.classList.remove('is-current');
+             });
+             Array.prototype.slice.call(document.querySelectorAll('[data-annotation-candidate-id]')).forEach(function(node){
+               node.classList.toggle('is-current', node.getAttribute('data-annotation-candidate-id') === candidateId);
+             });
            };
            var focusCandidateCard = function(candidateId) {
              var selector = '[data-visible-record-candidate="' + cssEscape(candidateId) + '"]';
@@ -12718,6 +12784,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var subjectId = target.getAttribute('data-annotation-subject-id') || '';
              var candidateId = target.getAttribute('data-annotation-candidate-id') || '';
              if (subjectId) {
+               if (subjectId === currentSubjectId) {
+                 setActiveAnnotations(subjectId);
+                 return;
+               }
                var link = document.querySelector('[data-subject-switch][data-subject-id="' + cssEscape(subjectId) + '"]');
                if (link) {
                  link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -12728,7 +12798,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                window.location.href = baseObservationHref + sep + 'subject=' + encodeURIComponent(subjectId) + langSuffix;
                return;
              }
-             if (candidateId && focusCandidateCard(candidateId)) return;
+             if (candidateId && focusCandidateCard(candidateId)) {
+               setActiveCandidateAnnotations(candidateId);
+               return;
+             }
            }, { capture: true });
            window.addEventListener('ikimon:subject-rendered', function(event){
              var detail = event && event.detail ? event.detail : {};
