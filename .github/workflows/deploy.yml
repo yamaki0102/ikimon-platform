@@ -186,6 +186,7 @@ jobs:
           const checkpointPath = "platform_v2/test-results/production-smoke-checkpoints.jsonl";
           const cleanupPath = "platform_v2/test-results/production-ui-smoke-cleanup.json";
           const labels = {
+            canonical_scene_ai_subject_records: "写真内AI対象の観測レコード化",
             photo_api_contract: "写真API契約 ok:true",
             photo_ui_post: "写真UI投稿",
             video_ui_post: "動画UI投稿",

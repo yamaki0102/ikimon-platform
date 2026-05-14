@@ -1750,7 +1750,7 @@ function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: Observat
       ? `<button type="button"
            class="obs-visible-record-action"
            data-adopt-candidate="${escapeHtml(item.candidateId)}"
-           data-adopt-endpoint="${escapeHtml(item.adoptEndpoint)}">これも写ってると提案</button>`
+           data-adopt-endpoint="${escapeHtml(item.adoptEndpoint)}">${escapeHtml(item.adoptLabel ?? "観測レコードにする")}</button>`
       : item.source === "candidate"
         ? `<span class="obs-visible-record-boundary">この${escapeHtml(mediaSceneNoun(mediaContext))}からの自動候補。確定名ではありません。</span>`
         : ""}`;
@@ -1829,6 +1829,7 @@ function renderAiCandidateLearningPanel(options: {
   visitId: string;
   candidates: ObservationVisitCandidate[];
   canProposeSubject: boolean;
+  isOwner: boolean;
   mediaContext?: ObservationMediaCopyContext;
 }): string {
   const candidates = highLearningCandidates(options.candidates);
@@ -1842,7 +1843,7 @@ function renderAiCandidateLearningPanel(options: {
       <div>
         <p class="obs-ai-cutout-eye">ほかにも写っていそうなもの</p>
         <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、ほかにも見つけたものがありそうです" : `この${sceneNoun}に、ほかにも見つけたものがありそうです`)}</h2>
-        <p class="obs-ai-cutout-copy">自動で拾った候補です。提案すると、この${escapeHtml(sceneNoun)}に写る別の対象として名前を確かめられます。</p>
+        <p class="obs-ai-cutout-copy">自動で拾った候補です。この${escapeHtml(sceneNoun)}に写る別の対象として名前を確かめられます。</p>
       </div>
       <span class="obs-ai-cutout-pill">${candidates.length} 件</span>
     </div>
@@ -1858,8 +1859,8 @@ function renderAiCandidateLearningPanel(options: {
           ? `<button type="button"
                class="obs-ai-cutout-action"
                data-adopt-candidate="${escapeHtml(candidate.candidateId)}"
-               data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/propose`))}">
-               これも写ってると提案
+               data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/${options.isOwner ? "adopt" : "propose"}`))}">
+               ${escapeHtml(options.isOwner ? "観測レコードにする" : "写っている対象として知らせる")}
              </button>`
           : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">同定する</a>`;
         return `<div class="obs-ai-cutout-card">
@@ -1872,7 +1873,7 @@ function renderAiCandidateLearningPanel(options: {
         </div>`;
       }).join("")}
     </div>
-    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.canProposeSubject ? escapeHtml(`提案すると、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に写る対象として表示されます。投稿者の正式な主張ではありません。`) : "ログインすると、写っているかもしれない対象を提案できます。自動候補は確定名ではありません。"}</div>
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.canProposeSubject ? escapeHtml(`同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に写る対象として扱います。名前は人の確認でさらに確かになります。`) : "ログインすると、写っているかもしれない対象を知らせられます。自動候補は確定名ではありません。"}</div>
   </section>`;
 }
 
@@ -12175,6 +12176,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           visitId: bundle.visitId,
           candidates: bundle.aiCandidates,
           canProposeSubject: Boolean(viewerUserId),
+          isOwner,
           mediaContext,
         });
     const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
@@ -12773,7 +12775,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              if (status) {
                status.hidden = false;
                status.classList.remove('is-error');
-               status.textContent = '枠で選んだ候補です。写っていると思ったら提案できます。';
+               status.textContent = '枠で選んだ候補です。写っている対象として記録できます。';
              }
              return true;
            };
@@ -12866,8 +12868,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                if (!endpoint) return;
                buttons.forEach(function(item){ item.disabled = true; });
                var original = button.textContent;
-               button.textContent = '提案しています…';
-                setStatus(${JSON.stringify(`この${mediaSceneNoun(mediaContext)}に写っているものとして提案しています。`)}, false);
+               button.textContent = '記録しています…';
+                setStatus(${JSON.stringify(`この${mediaSceneNoun(mediaContext)}に写っているものとして記録しています。`)}, false);
                fetch(endpoint, {
                  method: 'POST',
                  headers: { accept: 'application/json' },
@@ -12878,9 +12880,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                })
                .then(function(result){
                  if (!result.ok) {
-                   throw new Error(String((result.json && result.json.error) || 'candidate_proposal_failed'));
+                   throw new Error(String((result.json && result.json.error) || 'candidate_record_failed'));
                  }
-                 setStatus('提案しました。新しい対象を開きます。', false);
+                 setStatus('記録に反映しました。対象を開きます。', false);
                  var occurrenceId = String(result.json.occurrenceId || '');
                  var visitId = String(result.json.visitId || ${JSON.stringify(bundle.visitId)});
                  var next = ${JSON.stringify(appendLangToHref(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`), lang))};
@@ -12892,7 +12894,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                .catch(function(error){
                  button.textContent = original;
                  buttons.forEach(function(item){ item.disabled = false; });
-                 setStatus('提案できませんでした: ' + String(error && error.message || 'network'), true);
+                 setStatus('記録に反映できませんでした: ' + String(error && error.message || 'network'), true);
                });
              });
            });

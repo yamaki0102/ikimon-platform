@@ -30,6 +30,7 @@ export type VisibleRecordItem = {
   isCurrent: boolean;
   isFeatured: boolean;
   adoptEndpoint: string | null;
+  adoptLabel: string | null;
   proposalKind: "none" | "community_subject" | "ai_candidate";
 };
 
@@ -132,6 +133,38 @@ function subjectTrustLevel(subject: ObservationVisitSubject): VisibleRecordTrust
   return "strong";
 }
 
+function isAiJudgementObservationRecord(subject: ObservationVisitSubject): boolean {
+  return subject.subjectSource === "ai_judgement_observation_record";
+}
+
+function subjectVisibleRoleLabel(subject: ObservationVisitSubject): string {
+  if (subject.subjectSource === "community_subject_proposal") return "一緒に写ってるかも";
+  if (isAiJudgementObservationRecord(subject)) {
+    return subject.roleHint === "vegetation" ? "周りの草" : "一緒に写っているもの";
+  }
+  return subject.isPrimary ? "主役っぽい" : subject.roleLabel;
+}
+
+function subjectHistoryLabel(subject: ObservationVisitSubject): string | null {
+  if (subject.subjectSource === "community_subject_proposal") return "この場面からの提案";
+  if (subject.adoptedFromAiCandidate) return "AI候補から見つけたもの";
+  if (isAiJudgementObservationRecord(subject)) return "AIが写真から分けた観測レコード";
+  return null;
+}
+
+function subjectHistoryDetail(subject: ObservationVisitSubject): string | null {
+  if (subject.subjectSource === "community_subject_proposal") {
+    return "投稿者の正式な主張ではなく、この場面を見た人の提案です。名前は人の確認で確かになります。";
+  }
+  if (subject.adoptedFromAiCandidate) {
+    return "AI候補を、同じ場面に写る対象として分けています。名前は人の確認でさらに確かになります。";
+  }
+  if (isAiJudgementObservationRecord(subject)) {
+    return "最初から同じ場面に写っている対象として分けています。名前はAI推定で、人の確認でさらに確かになります。";
+  }
+  return null;
+}
+
 export function buildVisibleRecordItems(options: {
   basePath: string;
   lang: SiteLang;
@@ -152,11 +185,7 @@ export function buildVisibleRecordItems(options: {
       occurrenceId: subject.occurrenceId,
       candidateId: null,
       displayName: subjectDisplay.primaryLabel,
-      roleLabel: subject.subjectSource === "community_subject_proposal"
-        ? "一緒に写ってるかも"
-        : subject.isPrimary
-          ? "主役っぽい"
-          : subject.roleLabel,
+      roleLabel: subjectVisibleRoleLabel(subject),
       rankLabel: subject.rank ? publicRankHint(subject.rank) || rankLabelJa(subject.rank) : null,
       confidence,
       trustLevel,
@@ -173,19 +202,12 @@ export function buildVisibleRecordItems(options: {
         options.lang,
       ),
       note: subject.focusReason,
-      historyLabel: subject.subjectSource === "community_subject_proposal"
-        ? "この場面からの提案"
-        : subject.adoptedFromAiCandidate
-          ? "AI候補から見つけたもの"
-          : null,
-      historyDetail: subject.subjectSource === "community_subject_proposal"
-        ? "投稿者の正式な主張ではなく、この場面を見た人の提案です。名前は人の確認で確かになります。"
-        : subject.adoptedFromAiCandidate
-          ? "AI候補を、同じ場面に写る対象として分けています。名前は人の確認でさらに確かになります。"
-        : null,
+      historyLabel: subjectHistoryLabel(subject),
+      historyDetail: subjectHistoryDetail(subject),
       isCurrent: subject.occurrenceId === options.currentSubject.occurrenceId,
       isFeatured: subject.occurrenceId === options.featuredSubject.occurrenceId,
       adoptEndpoint: null,
+      adoptLabel: null,
       proposalKind: subject.subjectSource === "community_subject_proposal" ? "community_subject" : "none",
     };
   });
@@ -215,9 +237,16 @@ export function buildVisibleRecordItems(options: {
       historyDetail: null,
       isCurrent: false,
       isFeatured: false,
-      adoptEndpoint: (options.canProposeSubject ?? options.isOwner)
-        ? withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.bundle.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/propose`)
-        : null,
+      adoptEndpoint: options.isOwner
+        ? withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.bundle.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/adopt`)
+        : (options.canProposeSubject ?? false)
+          ? withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.bundle.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/propose`)
+          : null,
+      adoptLabel: options.isOwner
+        ? "観測レコードにする"
+        : (options.canProposeSubject ?? false)
+          ? "写っている対象として知らせる"
+          : null,
       proposalKind: "ai_candidate",
     };
   });
