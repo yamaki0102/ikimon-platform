@@ -21,17 +21,18 @@ type HtmlSmokeCheck = {
 const defaultRepresentativeSceneReadVisitId = "record-1778549526406";
 
 const representativeSceneReadMarkers = [
-  "浜松市で見つけた記録",
-  "3件の見つけたもの",
-  "まず写真から分かること",
-  "名前のいま",
-  "この写真に写っているもの",
+  "写っているもの",
+  "この組み合わせから読む",
+  "同定の根拠",
+  "AIが写真から拾った仮説です",
   "ヒメイワダレソウ",
   "セイヨウミツバチ",
   "イネ科の一種",
-  "一緒に写ってるかも",
-  "周りの草",
-  "自動候補は確定名ではありません",
+  "この候補を支持",
+  "この候補は保留",
+  "この候補は違うかも",
+  "未検出を追加",
+  "この記録から言えること",
 ];
 
 const representativeSceneReadForbiddenMarkers = [
