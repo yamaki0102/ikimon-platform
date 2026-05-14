@@ -50,6 +50,17 @@ test("visible AI subject candidate migration backfills occurrence records", asyn
   assert.match(migration, /candidate_status = 'matched'/);
 });
 
+test("observation reassess records candidate materialization telemetry", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "observationReassess.ts"), "utf8");
+
+  assert.match(source, /materializedCandidateRecordCount/);
+  assert.match(source, /matchedCandidateRecordCount/);
+  assert.match(source, /candidateOnlyCount/);
+  assert.match(source, /aiSubjectRecordMaterialization/);
+  assert.match(source, /proposalUiFallbackRiskCount/);
+  assert.match(source, /UPDATE observation_ai_runs/);
+});
+
 test("AI judgement review records agree/disagree/later and only agree creates an identification", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "observationRecordAiReview.ts"), "utf8");
 
