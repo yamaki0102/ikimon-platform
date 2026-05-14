@@ -4870,8 +4870,8 @@ function renderObservationReadingHero(options: {
       ${options.badges.length > 0 ? `<div class="obs-hero-badges">${options.badges.join("")}</div>` : ""}
       ${options.summaryStrip}
       <div data-obs-switch-first-read>${options.firstReadBlock}</div>
-      ${options.focusRailBlock}
       <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
+      ${options.focusRailBlock}
       <a class="obs-original-record-link" href="${escapeHtml(options.recordsHref)}">記録一覧へ</a>
       ${options.nextActionRail}
     </aside>
