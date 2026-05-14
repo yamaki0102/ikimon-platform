@@ -39,6 +39,7 @@ import { registerObservationEventRecapRoutes } from "./routes/observationEventRe
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
 import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
 import { registerObservationPackageApiRoutes } from "./routes/observationPackageApi.js";
+import { registerReferenceRoutes } from "./routes/references.js";
 import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
 import { registerSampleReportRoute } from "./routes/sampleReport.js";
@@ -539,6 +540,7 @@ export function buildApp() {
   void registerMarketingRoutes(app);
   void registerSampleReportRoute(app);
   void registerStewardshipActionRoutes(app);
+  void registerReferenceRoutes(app);
   void registerReadRoutes(app);
   void app.register(async (writeScope) => {
     await writeScope.register(rateLimit, {

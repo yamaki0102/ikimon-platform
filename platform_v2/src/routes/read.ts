@@ -85,6 +85,12 @@ import {
   type ProfileSnapshot,
 } from "../services/readModels.js";
 import { getProfileNoteDigest, type ProfileNoteDigest } from "../services/profileNoteDigest.js";
+import {
+  getReferenceProfileSummary,
+  listReferenceCandidatesForIdentification,
+  type ReferenceCandidate,
+  type ReferenceProfileSummary,
+} from "../services/referenceLibrary.js";
 import { getRegionalStoryCue, type RegionalKnowledgeCard, type RegionalStoryCue } from "../services/regionalStory.js";
 import {
   assertSpecialistAdminSession,
@@ -1316,6 +1322,18 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-identify-fields input, .obs-identify-fields textarea { width: 100%; border: 1px solid rgba(15,23,42,.14); border-radius: 12px; padding: 12px 13px; font: inherit; background: #fff; color: #0f172a; }
   .obs-identify-fields input { min-height: 50px; }
   .obs-identify-fields textarea { min-height: 104px; resize: vertical; }
+  .obs-reference-picker { display: grid; gap: 9px; padding: 12px; border-radius: 12px; border: 1px solid rgba(14,165,233,.16); background: rgba(240,249,255,.72); }
+  .obs-reference-picker-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+  .obs-reference-picker-head strong { color: #0f172a; font-size: 13px; line-height: 1.35; }
+  .obs-reference-picker-head a { color: #0369a1; font-size: 12px; font-weight: 900; text-decoration: none; }
+  .obs-reference-options { display: grid; gap: 7px; }
+  .obs-reference-option { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; padding: 9px; border-radius: 10px; background: rgba(255,255,255,.84); border: 1px solid rgba(15,23,42,.08); }
+  .obs-reference-option input { width: 18px; height: 18px; margin-top: 2px; }
+  .obs-reference-option span, .obs-reference-option small { display: block; min-width: 0; overflow-wrap: anywhere; }
+  .obs-reference-option span { color: #0f172a; font-size: 12.5px; line-height: 1.45; font-weight: 900; }
+  .obs-reference-option small { margin-top: 3px; color: #64748b; font-size: 11.5px; line-height: 1.45; font-weight: 720; }
+  .obs-reference-locator { display: grid; gap: 5px; font-size: 12px; font-weight: 900; color: #334155; }
+  .obs-reference-locator input { width: 100%; min-height: 44px; border: 1px solid rgba(15,23,42,.14); border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; color: #0f172a; }
   .obs-identify-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .obs-identify-actions .btn { min-height: 52px; padding-inline: 16px; }
   .obs-identify-status { min-height: 32px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 800; }
@@ -4302,6 +4320,7 @@ function renderIdentificationParticipation(options: {
   consensus: IdentificationConsensusResult | null;
   viewerSession: SessionSnapshot | null;
   canUseSpecialistWorkbench: boolean;
+  referenceCandidates?: ReferenceCandidate[];
 }): string {
   const { basePath, snapshot, consensus, viewerSession } = options;
   const snapshotDisplay = formatTaxonDisplayName(snapshot, "ja");
@@ -4372,6 +4391,32 @@ function renderIdentificationParticipation(options: {
     : `<p class="obs-empty">別の見方はまだありません。別の名前や、もっと証拠がいることに気づいたら、ここから記録できます。</p>`;
 
   const rankValue = `<input name="proposedRank" type="hidden" value="${escapeHtml(defaultRank)}" />`;
+  const referenceCandidates = options.referenceCandidates ?? [];
+  const referencePicker = viewerSession
+    ? `<div class="obs-reference-picker">
+        <div class="obs-reference-picker-head">
+          <strong>参照資料を選ぶ</strong>
+          <a href="${escapeHtml(withBasePath(basePath, "/references/capture"))}">資料を登録</a>
+        </div>
+        ${referenceCandidates.length > 0
+          ? `<div class="obs-reference-options">
+              ${referenceCandidates.slice(0, 6).map((candidate) => `<label class="obs-reference-option">
+                <input type="checkbox" name="referenceSourceIds" value="${escapeHtml(candidate.sourceId)}" ${candidate.owned ? "checked" : ""} />
+                <span>
+                  ${escapeHtml(candidate.title)}
+                  <small>${escapeHtml([
+                    candidate.reason,
+                    candidate.owned ? "所有確認済み" : "共有カタログ",
+                    candidate.taxonLabels.slice(0, 3).join(" / "),
+                    candidate.usedCount > 0 ? `過去に${candidate.usedCount}回使用` : "",
+                  ].filter(Boolean).join(" · "))}</small>
+                </span>
+              </label>`).join("")}
+            </div>`
+          : `<p class="obs-empty">この分類群の参照資料はまだありません。</p>`}
+        <label class="obs-reference-locator"><span>ページ・図版番号</span><input name="referenceLocator" type="text" maxlength="160" placeholder="例: p.42 / 図3 / 検索ページ" /></label>
+      </div>`
+    : "";
   const form = viewerSession
     ? `<form class="obs-identify-form" data-identify-form data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}">
         <div class="obs-identify-fields">
@@ -4379,6 +4424,7 @@ function renderIdentificationParticipation(options: {
           ${rankValue}
           <label class="is-wide"><span>理由メモ</span><textarea name="notes" rows="3" placeholder="見えた形、似ている種類との違い、追加でほしい写真など"></textarea></label>
         </div>
+        ${referencePicker}
         <div class="obs-identify-actions">
           <button type="button" class="btn btn-solid" data-identify-action="support">この名前だと思う</button>
           <button type="button" class="btn secondary" data-identify-action="alternative">別の名前だと思う</button>
@@ -4962,6 +5008,12 @@ const PROFILE_HUB_STYLES = `
   .profile-life-strip { display: flex; flex-wrap: wrap; gap: 8px; }
   .profile-life-pill { display: inline-flex; align-items: center; max-width: 100%; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #ecfdf5; color: #065f46; font-size: 12px; font-weight: 900; overflow-wrap: anywhere; }
   .profile-library-link { display: inline-flex; align-items: center; justify-content: center; width: fit-content; max-width: 100%; min-height: 42px; padding: 10px 14px; border-radius: 999px; background: #10251a; color: #fff; font-weight: 950; text-align: center; text-decoration: none; white-space: normal; }
+  .profile-reference-shell { min-width: 0; display: grid; gap: 14px; padding: 22px; border-radius: 8px; border: 1px solid rgba(14,165,233,.16); background: linear-gradient(135deg, rgba(240,249,255,.86), rgba(255,255,255,.94)); box-shadow: 0 14px 32px rgba(15,23,42,.05); }
+  .profile-reference-grid { display: grid; grid-template-columns: 160px 160px minmax(0,1fr); gap: 10px; align-items: stretch; }
+  .profile-reference-stat, .profile-reference-recent { min-width: 0; min-height: 116px; padding: 14px; border-radius: 8px; border: 1px solid rgba(14,165,233,.14); background: rgba(255,255,255,.82); overflow-wrap: anywhere; }
+  .profile-reference-stat span, .profile-reference-recent span { display: block; color: #0369a1; font-size: 11px; line-height: 1.2; font-weight: 950; }
+  .profile-reference-stat strong, .profile-reference-recent strong { display: block; margin-top: 8px; color: #10251a; font-size: 22px; line-height: 1.25; font-weight: 950; }
+  .profile-reference-recent p { margin: 8px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.65; font-weight: 720; }
   .profile-action-card { min-width: 0; display: grid; gap: 10px; min-height: 176px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 12px 28px rgba(15,23,42,.05); overflow-wrap: anywhere; }
   .profile-action-card h3 { margin: 0; font-size: 19px; line-height: 1.35; color: #0f172a; }
   .profile-action-card p { margin: 0; color: #64748b; line-height: 1.7; }
@@ -4997,13 +5049,13 @@ const PROFILE_HUB_STYLES = `
     .profile-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .profile-next-grid, .profile-life-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .profile-reading-points { grid-template-columns: 1fr; }
-    .profile-history-line, .profile-growth-grid, .profile-contribution-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .profile-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 620px) {
     .profile-summary-grid, .profile-next-grid, .profile-life-grid { grid-template-columns: 1fr; }
-    .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .regional-story-grid { grid-template-columns: 1fr; }
+    .profile-history-line, .profile-growth-grid, .profile-contribution-grid, .profile-reference-grid, .regional-story-grid { grid-template-columns: 1fr; }
     .regional-story-head { flex-direction: column; }
-    .profile-reading-digest, .profile-history-shell, .profile-growth-shell, .profile-contribution-shell { padding: 16px; }
+    .profile-reading-digest, .profile-history-shell, .profile-growth-shell, .profile-contribution-shell, .profile-reference-shell { padding: 16px; }
     .profile-summary-card { min-height: 96px; padding: 15px; border-radius: 8px; }
     .profile-reading-main h3 { max-width: 100%; font-size: 27px; line-height: 1.18; }
     .profile-reading-actions .btn, .profile-hub-actions .btn, .profile-library-link { width: 100%; border-radius: 14px; }
@@ -5411,10 +5463,40 @@ function renderProfileLifeList(snapshot: ProfileSnapshot): string {
   </section>`;
 }
 
-function renderSelfProfileHub(basePath: string, lang: SiteLang, snapshot: ProfileSnapshot, digest: ProfileNoteDigest | null = null, regionalStories: RegionalStoryCue[] = []): string {
+function renderProfileReferenceLibrary(basePath: string, summary: ReferenceProfileSummary | null = null): string {
+  const recent = summary?.recent[0] ?? null;
+  return `<section class="section" data-testid="profile-reference-library">
+    <div class="section-header"><div><div class="eyebrow">References</div><h2>所有確認済み資料</h2></div></div>
+    <div class="profile-reference-shell">
+      <div class="profile-reference-grid">
+        <div class="profile-reference-stat"><span>所有確認済み</span><strong>${escapeHtml(formatProfileNumber(summary?.ownedVerifiedCount ?? 0))}</strong></div>
+        <div class="profile-reference-stat"><span>要整理</span><strong>${escapeHtml(formatProfileNumber(summary?.needsReviewCount ?? 0))}</strong></div>
+        <div class="profile-reference-recent">
+          <span>最近の資料</span>
+          <strong>${escapeHtml(recent?.title ?? "まだ登録はありません")}</strong>
+          <p>${escapeHtml(recent ? `${recent.taxonLabels.slice(0, 3).join(" / ") || "分類群未整理"} · 同定 ${recent.usedCount}回` : "表紙/ISBNを登録すると、同定フォームで再利用できます。")}</p>
+        </div>
+      </div>
+      <div class="profile-reading-actions">
+        <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/references"))}">資料一覧を見る</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/references/capture"))}">表紙を連続登録</a>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderSelfProfileHub(
+  basePath: string,
+  lang: SiteLang,
+  snapshot: ProfileSnapshot,
+  digest: ProfileNoteDigest | null = null,
+  regionalStories: RegionalStoryCue[] = [],
+  referenceSummary: ReferenceProfileSummary | null = null,
+): string {
   return `${renderProfileChannelHero(basePath, snapshot)}
     ${renderProfileIntro(basePath, snapshot, true)}
     ${renderProfileNextActions(basePath, snapshot, digest)}
+    ${renderProfileReferenceLibrary(basePath, referenceSummary)}
     ${renderProfileLifeList(snapshot)}
     ${renderProfilePlaceStories(regionalStories)}
     ${renderProfileHistory(snapshot)}
@@ -11777,11 +11859,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectIdentifyEntries = await Promise.all(
       bundle.subjects.map(async (subject) => {
         if (subject.occurrenceId === snapshot.occurrenceId) {
-          return [subject.occurrenceId, { snapshot, consensus }] as const;
+          const referenceCandidates = viewerUserId
+            ? await listReferenceCandidatesForIdentification({ userId: viewerUserId, occurrenceId: subject.occurrenceId }).catch(() => [])
+            : [];
+          return [subject.occurrenceId, { snapshot, consensus, referenceCandidates }] as const;
         }
-        const [subjectSnapshot, subjectConsensus] = await Promise.all([
+        const [subjectSnapshot, subjectConsensus, referenceCandidates] = await Promise.all([
           getObservationDetailSnapshot(subject.occurrenceId, { viewerUserId }).catch(() => null),
           getIdentificationConsensus(subject.occurrenceId).catch(() => null),
+          viewerUserId
+            ? listReferenceCandidatesForIdentification({ userId: viewerUserId, occurrenceId: subject.occurrenceId }).catch(() => [])
+            : Promise.resolve([]),
         ]);
         return [
           subject.occurrenceId,
@@ -11798,6 +11886,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               nextCaptureSuggestions: snapshot.nextCaptureSuggestions,
             },
             consensus: subjectConsensus,
+            referenceCandidates,
           },
         ] as const;
       }),
@@ -12130,6 +12219,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       consensus,
       viewerSession,
       canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
+      referenceCandidates: subjectIdentifyMap.get(currentSubject.occurrenceId)?.referenceCandidates ?? [],
     })}</div>`;
 
     // ===== Layer 3: 場所の物語 =====
@@ -12240,6 +12330,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         consensus: subjectIdentifyMap.get(subject.occurrenceId)?.consensus ?? null,
         viewerSession,
         canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
+        referenceCandidates: subjectIdentifyMap.get(subject.occurrenceId)?.referenceCandidates ?? [],
       })}</template>`).join("");
     // supportBlock は reactionBar のみ表示。trustLadderBlock は hero に既出のため重複削除
     const supportBlock = reactionBar
@@ -12525,6 +12616,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             var proposedName = String(data.get('proposedName') || '').trim();
             var proposedRank = String(data.get('proposedRank') || '').trim();
             var notes = String(data.get('notes') || '').trim();
+            var referenceSourceIds = Array.prototype.slice.call(form.querySelectorAll('input[name="referenceSourceIds"]:checked')).map(function(input){ return input.value; }).filter(Boolean);
+            var referenceLocator = String(data.get('referenceLocator') || '').trim();
             var identifyEndpoint = form.getAttribute('data-identify-endpoint') || '';
             var disputeEndpoint = form.getAttribute('data-dispute-endpoint') || '';
             var isAlternative = action === 'alternative';
@@ -12538,7 +12631,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               ? { kind: 'alternative_id', proposedName: proposedName, proposedRank: proposedRank, reason: notes }
               : isNeedsEvidence
                 ? { kind: 'needs_more_evidence', reason: notes || '証拠が足りない' }
-                : { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support' };
+                : { proposedName: proposedName, proposedRank: proposedRank, notes: notes, stance: 'support', referenceSourceIds: referenceSourceIds, referenceLocator: referenceLocator };
             setStatus('保存中...', false);
             fetch(endpoint, {
               method: 'POST',
@@ -12708,9 +12801,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         appendLangToHref(withBasePath(basePath, "/profile"), lang),
       );
     }
-    const [snapshot, digest] = await Promise.all([
+    const [snapshot, digest, referenceSummary] = await Promise.all([
       getProfileSnapshot(session.userId),
       getProfileNoteDigest(session.userId),
+      getReferenceProfileSummary(session.userId).catch(() => null),
     ]);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
@@ -12741,7 +12835,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       `マイページ | ${snapshot.displayName} | ikimon`,
-      renderSelfProfileHub(basePath, lang, snapshot, digest, regionalStories),
+      renderSelfProfileHub(basePath, lang, snapshot, digest, regionalStories, referenceSummary),
       "ホーム",
       {
         eyebrow: snapshot.rankLabel || "観察者",
