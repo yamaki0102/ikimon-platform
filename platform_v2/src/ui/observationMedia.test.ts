@@ -76,6 +76,28 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.match(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
 });
 
+test("observation media exposes tappable annotation targets", () => {
+  const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject, [
+    {
+      key: "subject:occ:media-regression:0",
+      occurrenceId: "occ:media-regression:0",
+      candidateId: null,
+      displayName: "縦長fixture",
+      roleLabel: "主役っぽい",
+      trustLabel: "AI推定",
+      proposalKind: "none",
+      adoptEndpoint: null,
+      regions: subject.regions,
+    },
+  ]);
+
+  assert.match(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
+  assert.match(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
+  assert.match(mediaBlock, /縦長fixture/);
+  assert.match(mediaBlock, /枠をタップすると対象を切り替えられます/);
+  assert.match(galleryScript, /closest\('\[data-annotation-target\]'\)/);
+});
+
 test("observation media uses v2 thumbnails for legacy upload photos", () => {
   const legacyUploadSnapshot = {
     ...snapshot,

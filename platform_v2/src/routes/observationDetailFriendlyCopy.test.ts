@@ -6,7 +6,11 @@ import { buildVisibleRecordItems } from "../services/observationSceneReadModel.j
 import { renderVisibleRecordItemsPanel } from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
+const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
 const cardSource = readFileSync(new URL("../ui/observationCard.ts", import.meta.url), "utf8");
+const mediaSource = readFileSync(new URL("../ui/observationMedia.ts", import.meta.url), "utf8");
+const subjectProposalSource = readFileSync(new URL("../services/observationSubjectProposal.ts", import.meta.url), "utf8");
+const identificationParticipationSource = readFileSync(new URL("../services/identificationParticipation.ts", import.meta.url), "utf8");
 
 function sourceBetween(startMarker: string, endMarker: string): string {
   const start = routeSource.indexOf(startMarker);
@@ -17,6 +21,8 @@ function sourceBetween(startMarker: string, endMarker: string): string {
 }
 
 const detailCopySource = [
+  sourceBetween("function mediaSceneNoun", "function renderAiCandidateLearningPanel"),
+  sourceBetween("function renderVisibleRecordCard", "export function renderVisibleRecordItemsPanel"),
   sourceBetween("function renderVisibleRecordItemsPanel", "function renderAiCandidateLearningPanel"),
   sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
@@ -27,25 +33,32 @@ const detailCopySource = [
   sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
   sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress"),
   sourceBetween("function renderSubjectHint", "function renderCivicContextBlock"),
+  sourceBetween("const layer1 =", "    // ===== Layer 2: 同定 ====="),
   sourceBetween("const ctaBlock = `", "    // ===== Layer 6: 豆知識 ====="),
 ].join("\n");
 
 test("observation detail page keeps the friendly observation vocabulary", () => {
   for (const term of [
-    "この日の記録",
-    "記録の読み取り",
+    "この写真に写っているもの",
+    "の中を一緒に探せます",
+    "から分かること",
     "写真・場所・地域",
-    "自動で作った候補",
-    "観察レコードの信頼度",
+    "からの自動候補",
+    "名前のいま",
+    "そう見える理由",
+    "まだ決めきらない理由",
     "見つけたもの",
     "写真・動画・音",
-    "写真の手がかり",
-    "保留している点",
     "ほかにも写っていそうなもの",
+    "これも写ってると提案",
+    "投稿者の正式な主張ではありません",
+    "投稿者には通知され",
     "自動候補",
     "名前を確かめる",
+    "からの提案",
     "見分けるメモ",
-    "写真を足すなら",
+    "次に見つけるなら",
+    "この場面で分かったこと",
     "あると見やすい材料",
     "関連ページ",
   ]) {
@@ -62,7 +75,6 @@ test("observation detail primary copy does not expose internal record terms", ()
     "素晴らしい",
     "元の記録を見る",
     "対象ごとの記録",
-    "同定に参加",
     "名前をたしかめる",
     "観察の要約",
     "対象と証拠",
@@ -90,6 +102,11 @@ test("observation detail primary copy does not expose internal record terms", ()
     "確かめる余地",
     "機会があれば",
     "あとで比べやすくなります",
+    "あとから見返す",
+    "あとで見返",
+    "見返せ",
+    "記録を育てる",
+    "地域に貢献",
     "species / genus / family",
     "run:",
     "taxonomy:",
@@ -123,11 +140,11 @@ test("observation detail hero treats the page as a multi-record scene", () => {
 
   assert.match(heroSource, /options\.recordTitle/);
   assert.doesNotMatch(heroSource, /obs-reading-title">\$\{escapeHtml\(options\.displayName\)\}/);
-  assert.match(visibleItemsSource, /今日ここで見えたもの/);
-  assert.match(visibleItemsSource, /主対象、訪花中の虫、周囲の草/);
+  assert.match(visibleItemsSource, /mediaVisibleSurfaceLabel/);
+  assert.match(visibleItemsSource, /主役っぽいもの、一緒に写ってるかもしれないもの、周りの草/);
   assert.match(visibleItemsSource, /参考候補/);
-  assert.match(visibleCardSource, /見つけたものとして残す/);
-  assert.match(storySource, /花・訪問者・足元をまとめて見返す記録/);
+  assert.match(visibleCardSource, /これも写ってると提案/);
+  assert.match(storySource, /花・訪問者・足元を一緒に読める場面/);
 });
 
 test("visible record fixture surfaces plant, bee, grass, and folds low-confidence candidates", () => {
@@ -169,6 +186,8 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
     adoptedFromAiCandidate: false,
     adoptedCandidateId: null,
     adoptedCandidateNote: null,
+    subjectSource: null,
+    proposedByUserId: null,
     isAiCandidate: false,
     hasSpecialistApproval: false,
     identifications: [],
@@ -233,6 +252,15 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
     featuredSubject: plant,
     isOwner: false,
   });
+  const loggedInNonOwnerItems = buildVisibleRecordItems({
+    basePath: "",
+    lang: "ja",
+    bundle,
+    currentSubject: plant,
+    featuredSubject: plant,
+    isOwner: false,
+    canProposeSubject: true,
+  });
   const ownerItems = buildVisibleRecordItems({
     basePath: "",
     lang: "ja",
@@ -245,24 +273,31 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.deepEqual(
     anonymousItems.map((item) => [item.displayName, item.trustLabel, item.bucket, item.roleLabel]),
     [
-      ["ヒメイワダレソウ", "AI推定", "main", "主対象"],
-      ["セイヨウミツバチ", "AI推定", "main", "訪花中の候補"],
-      ["イネ科の一種", "AI推定", "main", "周囲の草"],
-      ["小さな黒い点", "参考", "reference", "別の生きもの候補"],
+      ["ヒメイワダレソウ", "AI推定", "main", "主役っぽい"],
+      ["セイヨウミツバチ", "AI推定", "main", "一緒に写ってるかも"],
+      ["イネ科の一種", "AI推定", "main", "周りの草"],
+      ["小さな黒い点", "参考", "reference", "一緒に写ってるかも"],
     ],
   );
 
   const anonymousHtml = renderVisibleRecordItemsPanel(anonymousItems);
+  const loggedInNonOwnerHtml = renderVisibleRecordItemsPanel(loggedInNonOwnerItems);
   const ownerHtml = renderVisibleRecordItemsPanel(ownerItems);
 
-  assert.match(anonymousHtml, /今日ここで見えたもの/);
+  assert.match(anonymousHtml, /この写真に写っているもの/);
   assert.match(anonymousHtml, /ヒメイワダレソウ/);
   assert.match(anonymousHtml, /セイヨウミツバチ/);
   assert.match(anonymousHtml, /イネ科の一種/);
   assert.match(anonymousHtml, /参考候補 <span class="obs-fold-count">1<\/span>/);
-  assert.match(anonymousHtml, /自動候補。確定名ではありません。/);
-  assert.doesNotMatch(anonymousHtml, /見つけたものとして残す/);
-  assert.match(ownerHtml, /見つけたものとして残す/);
+  assert.match(anonymousHtml, /この写真からの自動候補。確定名ではありません。/);
+  assert.doesNotMatch(anonymousHtml, /これも写ってると提案/);
+  assert.match(loggedInNonOwnerHtml, /これも写ってると提案/);
+  assert.match(ownerHtml, /これも写ってると提案/);
+
+  const videoHtml = renderVisibleRecordItemsPanel(anonymousItems, { hasPhotos: false, hasVideos: true });
+  assert.match(videoHtml, /この映像に写っているもの/);
+  assert.match(videoHtml, /映像の中を一緒に探せます/);
+  assert.match(videoHtml, /この映像からの自動候補。確定名ではありません。/);
 });
 
 test("visible record card keeps the history after an AI candidate is adopted", () => {
@@ -292,6 +327,8 @@ test("visible record card keeps the history after an AI candidate is adopted", (
     adoptedFromAiCandidate: false,
     adoptedCandidateId: null,
     adoptedCandidateNote: null,
+    subjectSource: null,
+    proposedByUserId: null,
     isAiCandidate: false,
     hasSpecialistApproval: false,
     identifications: [],
@@ -315,6 +352,8 @@ test("visible record card keeps the history after an AI candidate is adopted", (
     adoptedFromAiCandidate: true,
     adoptedCandidateId: "candidate-history",
     adoptedCandidateNote: "白い花で訪花中",
+    subjectSource: "ai_candidate_adoption",
+    proposedByUserId: null,
   } as ObservationVisitSubject;
   const bundle = {
     visitId: "scene-history",
@@ -339,7 +378,50 @@ test("visible record card keeps the history after an AI candidate is adopted", (
     isOwner: true,
   }));
 
-  assert.match(html, /AI候補から残した見つけたもの/);
-  assert.match(html, /候補を正式な見つけたものとして残した履歴があります/);
+  assert.match(html, /AI候補から見つけたもの/);
+  assert.match(html, /AI候補を、同じ場面に写る対象として分けています/);
   assert.match(html, /セイヨウミツバチ/);
+});
+
+test("community subject proposal is separated from owner-only candidate adoption", () => {
+  assert.match(writeRouteSource, /\/api\/v1\/observations\/:id\/candidates\/:candidateId\/propose/);
+  assert.match(subjectProposalSource, /community_subject_proposal/);
+  assert.match(subjectProposalSource, /proposed_by_user_id/);
+  assert.match(subjectProposalSource, /subject_proposal/);
+  assert.match(subjectProposalSource, /alert_deliveries/);
+  assert.match(subjectProposalSource, /channel,\s+delivery_status, delivered_at, payload_json/);
+  assert.match(subjectProposalSource, /proposal_status: "proposed"/);
+  assert.doesNotMatch(subjectProposalSource, /observation_not_owned/);
+  assert.doesNotMatch(subjectProposalSource, /candidate\.user_id\s*!==\s*input\.actorUserId/);
+});
+
+test("media annotations let visitors choose subjects from the photo or video surface", () => {
+  assert.match(mediaSource, /ObservationMediaAnnotationTarget/);
+  assert.match(mediaSource, /data-annotation-target/);
+  assert.match(mediaSource, /data-annotation-subject-id/);
+  assert.match(mediaSource, /data-annotation-candidate-id/);
+  assert.match(mediaSource, /obs-video-annotation-rail/);
+  assert.match(mediaSource, /枠をタップすると対象を切り替えられます。位置はAIの参考です。/);
+  assert.match(routeSource, /buildObservationMediaAnnotationTargets/);
+  assert.match(routeSource, /renderObservationMedia\(snapshot, currentSubject, mediaAnnotationTargets\)/);
+  assert.match(routeSource, /data-proposal-focus/);
+});
+
+test("identification and dispute writes refresh the visit display state", () => {
+  assert.match(identificationParticipationSource, /refreshVisitDisplayStateAfterIdentification/);
+  assert.match(identificationParticipationSource, /deriveVisitDisplayState/);
+  assert.match(identificationParticipationSource, /upsertVisitDisplayState/);
+  assert.match(identificationParticipationSource, /await refreshVisitDisplayStateAfterIdentification\(client, visitId\);/);
+});
+
+test("occurrence query parameter is accepted and canonicalized to subject", () => {
+  assert.match(routeSource, /Querystring: \{ subject\?: string; occurrence\?: string \}/);
+  assert.match(routeSource, /request\.query\.subject \?\? request\.query\.occurrence \?\? null/);
+  assert.match(routeSource, /buildObservationDetailPath\(bundle\.visitId, bundle\.canonicalSubjectId\)/);
+});
+
+test("open disputes pause assertive more-about copy", () => {
+  assert.match(routeSource, /hasOpenNameDispute/);
+  assert.match(routeSource, /名前の見方が割れているため、候補が固まったら詳しく読めます。/);
+  assert.match(routeSource, /renderHeroAiReadout\(currentSubject, consensus\?\.hasOpenDispute === true\)/);
 });

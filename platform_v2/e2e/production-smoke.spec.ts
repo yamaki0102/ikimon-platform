@@ -24,6 +24,23 @@ function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function stagingBasicAuthHeader(): string | null {
+  const username = process.env.STAGING_BASIC_AUTH_USER?.trim();
+  const password = process.env.STAGING_BASIC_AUTH_PASS?.trim();
+  if (!username || !password) return null;
+  return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+}
+
+function sameOriginBasicAuthHeaders(targetUrl: string, pageUrl: string): Record<string, string> | undefined {
+  const authorization = stagingBasicAuthHeader();
+  if (!authorization) return undefined;
+  try {
+    return new URL(targetUrl).origin === new URL(pageUrl).origin ? { authorization } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function productionSmokeBaseUrl(): string {
   return process.env.PRODUCTION_SMOKE_BASE_URL ?? "http://127.0.0.1:13202";
 }
@@ -187,7 +204,9 @@ test.describe("production candidate smoke", () => {
         const url = new URL(src, page.url()).toString();
         if (checkedThumbs.has(url)) continue;
         checkedThumbs.add(url);
-        const imageResponse = await request.get(url);
+        const imageResponse = await request.get(url, {
+          headers: sameOriginBasicAuthHeaders(url, page.url()),
+        });
         expect(imageResponse.status(), `${url} status`).toBeLessThan(400);
         expect(imageResponse.headers()["content-type"] ?? "", `${url} content-type`).toMatch(/^image\//);
         const body = await imageResponse.body();

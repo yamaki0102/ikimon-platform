@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Readable } from "node:stream";
 import { loadConfig } from "../config.js";
 import {
@@ -46,7 +46,7 @@ import {
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
-import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
+import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
 import { confirmManagementActionCandidate } from "../services/managementActionConfirmation.js";
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
@@ -401,31 +401,41 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  const handleCandidateProposal = async (
+    request: FastifyRequest<{ Params: { id: string; candidateId: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+      const result = await proposeObservationSubjectFromCandidate({
+        visitId: request.params.id,
+        candidateId: request.params.candidateId,
+        actorUserId: session.userId,
+      });
+      return {
+        ok: true,
+        ...result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "candidate_proposal_failed",
+      };
+    }
+  };
+
+  app.post<{ Params: { id: string; candidateId: string } }>(
+    "/api/v1/observations/:id/candidates/:candidateId/propose",
+    handleCandidateProposal,
+  );
+
   app.post<{ Params: { id: string; candidateId: string } }>(
     "/api/v1/observations/:id/candidates/:candidateId/adopt",
-    async (request, reply) => {
-      try {
-        const session = await getSessionFromCookie(request.headers.cookie);
-        if (!session) {
-          throw new Error("session_required");
-        }
-        const result = await adoptObservationCandidate({
-          visitId: request.params.id,
-          candidateId: request.params.candidateId,
-          actorUserId: session.userId,
-        });
-        return {
-          ok: true,
-          ...result,
-        };
-      } catch (error) {
-        reply.code(errorStatus(error, 400));
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : "candidate_adoption_failed",
-        };
-      }
-    },
+    handleCandidateProposal,
   );
 
   app.post<{ Params: { id: string } }>(

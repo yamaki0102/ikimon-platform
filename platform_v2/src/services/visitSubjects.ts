@@ -18,6 +18,8 @@ export type VisitSubjectSummary = SubjectRankInput & {
   adoptedFromAiCandidate: boolean;
   adoptedCandidateId: string | null;
   adoptedCandidateNote: string | null;
+  subjectSource: string | null;
+  proposedByUserId: string | null;
   /** displayName が AI 候補 (人手 vernacular/scientific 欠落で AI 名を借りている) ときのみ true。 */
   isAiCandidate: boolean;
 };
@@ -139,6 +141,7 @@ export async function getVisitSubjectSummaries(
     const sourcePayload = (row.source_payload ?? {}) as {
       source?: string;
       candidate_id?: string;
+      proposed_by_user_id?: string;
       v2_subject?: { role_hint?: string; note?: string | null };
     };
     const v2SubjectPayload = sourcePayload.v2_subject;
@@ -166,9 +169,11 @@ export async function getVisitSubjectSummaries(
       isPrimary: row.subject_index === 0,
       aiCandidateName: aiName,
       aiCandidateRank: row.ai_candidate_rank ?? null,
-      adoptedFromAiCandidate: sourcePayload.source === "ai_candidate_adoption",
+      adoptedFromAiCandidate: sourcePayload.source === "ai_candidate_adoption" || sourcePayload.source === "community_subject_proposal",
       adoptedCandidateId: sourcePayload.candidate_id ?? null,
       adoptedCandidateNote: v2SubjectPayload?.note ?? null,
+      subjectSource: sourcePayload.source ?? null,
+      proposedByUserId: sourcePayload.proposed_by_user_id ?? null,
       isAiCandidate: !humanName && !!aiName,
     };
   });
