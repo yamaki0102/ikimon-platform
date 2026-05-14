@@ -113,6 +113,7 @@ import {
   REGION_DISPLAY_CONF_MIN,
   renderObservationMedia,
   toSubjectRegionMap,
+  type ObservationMediaAnnotationTarget,
 } from "../ui/observationMedia.js";
 import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 import { buildPlaceRecordHref, formatShortDate, pickPlaceFocus } from "../ui/placeRevisit.js";
@@ -170,8 +171,8 @@ function layout(
   footerNote?: string,
 ): string {
   const defaultFooterNote = lang === "ja"
-    ? "いつもの道で見つけた自然を、あとで見返せる形に残す。"
-    : "Save nearby nature in a form you can revisit later.";
+    ? "いつもの道で見つけた自然を、その場で読み解く。"
+    : "Read nearby nature from the scene you found.";
   return renderSiteDocument({
     basePath,
     title,
@@ -1049,6 +1050,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-brief-card span { color: #64748b; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .obs-record-brief-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
   .obs-record-brief-card small { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 750; }
+  .obs-first-read { display: grid; gap: 5px; padding: 13px 14px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-first-read-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-first-read p { margin: 0; color: #334155; font-size: 13px; line-height: 1.7; font-weight: 760; }
   .obs-current-find { display: grid; gap: 9px; padding: 4px 0 0; }
   .obs-current-find-kicker { color: #0369a1; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
   .obs-record-story { display: grid; gap: 12px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,253,244,.86)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 16px 44px rgba(15,23,42,.06); }
@@ -1175,6 +1179,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-focus-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(15,23,42,.08); }
   .obs-focus-card.is-featured { border-color: rgba(16,185,129,.28); background: linear-gradient(135deg, #f0fdf4, #ffffff); }
   .obs-focus-card.is-current { box-shadow: inset 0 0 0 2px rgba(59,130,246,.16); border-color: rgba(59,130,246,.24); }
+  .obs-focus-card.is-annotation-focus { border-color: rgba(245,158,11,.34); box-shadow: 0 0 0 4px rgba(245,158,11,.16), 0 12px 24px rgba(15,23,42,.1); }
   .obs-focus-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .obs-focus-card-role { font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
   .obs-focus-card-state { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(16,185,129,.12); color: #047857; font-size: 10px; font-weight: 900; }
@@ -1203,6 +1208,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-readout.is-medium .obs-ai-readout-badge { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.28); color: #92400e; }
   .obs-ai-readout-rec { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; color: #0f172a; font-size: 14px; font-weight: 900; }
   .obs-ai-readout-rank { color: #64748b; font-size: 12px; font-weight: 800; }
+  .obs-ai-readout-section-label { margin: 0 0 6px; color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .obs-ai-readout-clues { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
   .obs-ai-readout-clues li { padding: 4px 9px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11.5px; line-height: 1.35; font-weight: 800; }
   .obs-ai-readout-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -1304,6 +1310,15 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-consensus-card strong { font-size: 14px; color: #0f172a; line-height: 1.45; }
   .obs-needed-box { padding: 13px 15px; border-radius: 13px; background: rgba(254,249,195,.62); border: 1px solid rgba(234,179,8,.22); }
   .obs-needed-box ul { margin: 6px 0 0; padding-left: 18px; color: #713f12; font-size: 13px; line-height: 1.7; }
+  .obs-proposal-trust { display: grid; gap: 10px; padding: 13px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(255,251,235,.9), rgba(255,255,255,.96)); border: 1px solid rgba(245,158,11,.24); }
+  .obs-proposal-trust p { margin: 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 760; }
+  .obs-proposal-trust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 7px; }
+  .obs-proposal-trust-stat { display: grid; gap: 2px; padding: 9px 10px; border-radius: 11px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.07); }
+  .obs-proposal-trust-stat span { color: #64748b; font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-proposal-trust-stat strong { color: #0f172a; font-size: 13px; line-height: 1.25; font-weight: 950; }
+  .obs-proposal-trust-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+  .obs-proposal-trust-actions button { min-height: 40px; padding: 8px 11px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 900; cursor: pointer; }
+  .obs-proposal-trust-actions button:hover, .obs-proposal-trust-actions button:focus-visible { background: #ecfdf5; border-color: rgba(16,185,129,.26); outline: none; }
   .obs-identify-split { display: grid; grid-template-columns: 1fr; gap: 14px; }
   @media (min-width: 880px) { .obs-identify-split { grid-template-columns: .92fr 1.08fr; } }
   .obs-identify-split h3 { margin: 0 0 9px; font-size: 14px; color: #0f172a; font-weight: 900; }
@@ -1336,6 +1351,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reference-locator input { width: 100%; min-height: 44px; border: 1px solid rgba(15,23,42,.14); border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; color: #0f172a; }
   .obs-identify-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .obs-identify-actions .btn { min-height: 52px; padding-inline: 16px; }
+  .obs-identify-actions .btn.is-annotation-focus { box-shadow: 0 0 0 4px rgba(16,185,129,.18); border-color: rgba(16,185,129,.34); }
   .obs-identify-status { min-height: 32px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 800; }
   .obs-identify-status.is-error { color: #b91c1c; background: #fef2f2; }
   .obs-identify-login { padding: 13px 14px; border-radius: 12px; background: #f8fafc; border: 1px dashed rgba(15,23,42,.14); }
@@ -1600,7 +1616,25 @@ function highLearningCandidates(candidates: ObservationVisitCandidate[]): Observ
   return rankProminentAiCandidates(candidates, 4);
 }
 
-function renderVisibleRecordCard(item: VisibleRecordItem): string {
+function mediaSceneNoun(context: ObservationMediaCopyContext): string {
+  if (context.hasVideos && context.hasPhotos) return "写真・動画";
+  if (context.hasVideos) return "映像";
+  return "写真";
+}
+
+function mediaSceneFrom(context: ObservationMediaCopyContext): string {
+  if (context.hasVideos && context.hasPhotos) return "写真・動画";
+  if (context.hasVideos) return "映像";
+  return "写真";
+}
+
+function mediaVisibleSurfaceLabel(context: ObservationMediaCopyContext): string {
+  if (context.hasVideos && context.hasPhotos) return "この写真・動画に写っているもの";
+  if (context.hasVideos) return "この映像に写っているもの";
+  return "この写真に写っているもの";
+}
+
+function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
   const className = [
     "obs-focus-card",
     "obs-visible-record-card",
@@ -1624,9 +1658,9 @@ function renderVisibleRecordCard(item: VisibleRecordItem): string {
       ? `<button type="button"
            class="obs-visible-record-action"
            data-adopt-candidate="${escapeHtml(item.candidateId)}"
-           data-adopt-endpoint="${escapeHtml(item.adoptEndpoint)}">見つけたものとして残す</button>`
+           data-adopt-endpoint="${escapeHtml(item.adoptEndpoint)}">これも写ってると提案</button>`
       : item.source === "candidate"
-        ? `<span class="obs-visible-record-boundary">自動候補。確定名ではありません。</span>`
+        ? `<span class="obs-visible-record-boundary">この${escapeHtml(mediaSceneNoun(mediaContext))}からの自動候補。確定名ではありません。</span>`
         : ""}`;
 
   if (item.href && item.occurrenceId) {
@@ -1638,22 +1672,27 @@ function renderVisibleRecordCard(item: VisibleRecordItem): string {
   return `<div class="${className}" data-visible-record-candidate="${escapeHtml(item.candidateId ?? "")}">${body}</div>`;
 }
 
-export function renderVisibleRecordItemsPanel(items: VisibleRecordItem[]): string {
+export function renderVisibleRecordItemsPanel(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
+  return renderVisibleRecordItemsPanelForMedia(items, mediaContext);
+}
+
+function renderVisibleRecordItemsPanelForMedia(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext): string {
   const mainItems = items.filter((item) => item.bucket === "main");
   const referenceItems = items.filter((item) => item.bucket === "reference");
-  const cards = (mainItems.length > 0 ? mainItems : items).map(renderVisibleRecordCard).join("");
+  const cards = (mainItems.length > 0 ? mainItems : items).map((item) => renderVisibleRecordCard(item, mediaContext)).join("");
   const referenceBlock = referenceItems.length > 0 && mainItems.length > 0
     ? `<details class="obs-fold obs-visible-record-reference">
          <summary>参考候補 <span class="obs-fold-count">${referenceItems.length}</span></summary>
-         <div class="obs-visible-record-reference-grid">${referenceItems.map(renderVisibleRecordCard).join("")}</div>
+         <div class="obs-visible-record-reference-grid">${referenceItems.map((item) => renderVisibleRecordCard(item, mediaContext)).join("")}</div>
        </details>`
     : "";
+  const sceneNoun = mediaSceneNoun(mediaContext);
   return `<div class="obs-focus obs-visible-records" data-visible-records-panel>
     <div class="obs-focus-head">
       <div>
-        <div class="obs-story-eyebrow">今日ここで見えたもの</div>
-        <h2 class="obs-focus-title">1つの名前ではなく、場面ごと見返せます。</h2>
-        <p class="obs-focus-copy">主対象、訪花中の虫、周囲の草を分けて見ます。自動候補は確定名ではありません。</p>
+        <div class="obs-story-eyebrow">${escapeHtml(mediaVisibleSurfaceLabel(mediaContext))}</div>
+        <h2 class="obs-focus-title">${escapeHtml(sceneNoun)}の中を一緒に探せます。</h2>
+        <p class="obs-focus-copy">主役っぽいもの、一緒に写ってるかもしれないもの、周りの草を分けて見ます。自動候補は確定名ではありません。</p>
       </div>
       <span class="obs-focus-pill">${escapeHtml(`${items.length}件`)}</span>
     </div>
@@ -1663,12 +1702,41 @@ export function renderVisibleRecordItemsPanel(items: VisibleRecordItem[]): strin
   </div>`;
 }
 
+function buildObservationMediaAnnotationTargets(
+  items: VisibleRecordItem[],
+  bundle: ObservationVisitBundle,
+): ObservationMediaAnnotationTarget[] {
+  const subjectRegions = new Map(bundle.subjects.map((subject) => [subject.occurrenceId, subject.regions]));
+  const candidateRegions = new Map(bundle.aiCandidates.map((candidate) => [candidate.candidateId, candidate.regions]));
+  return items
+    .map((item) => {
+      const regions = item.occurrenceId
+        ? subjectRegions.get(item.occurrenceId) ?? []
+        : item.candidateId
+          ? candidateRegions.get(item.candidateId) ?? []
+          : [];
+      if (regions.length === 0) return null;
+      return {
+        key: item.key,
+        occurrenceId: item.occurrenceId,
+        candidateId: item.candidateId,
+        displayName: item.displayName,
+        roleLabel: item.roleLabel,
+        trustLabel: item.trustLabel,
+        proposalKind: item.proposalKind,
+        adoptEndpoint: item.adoptEndpoint,
+        regions,
+      } satisfies ObservationMediaAnnotationTarget;
+    })
+    .filter((item): item is ObservationMediaAnnotationTarget => Boolean(item));
+}
+
 function renderAiCandidateLearningPanel(options: {
   basePath: string;
   lang: SiteLang;
   visitId: string;
   candidates: ObservationVisitCandidate[];
-  isOwner: boolean;
+  canProposeSubject: boolean;
   mediaContext?: ObservationMediaCopyContext;
 }): string {
   const candidates = highLearningCandidates(options.candidates);
@@ -1676,12 +1744,13 @@ function renderAiCandidateLearningPanel(options: {
   const identifyHref = appendLangToHref(withBasePath(options.basePath, `/observations/${encodeURIComponent(options.visitId)}#identify`), options.lang);
   const mediaCopy = observationMediaCopy(options.mediaContext ?? photoOnlyMediaContext());
   const isVideoOnly = Boolean(options.mediaContext?.hasVideos && !options.mediaContext.hasPhotos);
+  const sceneNoun = mediaSceneNoun(options.mediaContext ?? photoOnlyMediaContext());
   return `<section class="obs-ai-cutout" data-ai-cutout-panel>
     <div class="obs-ai-cutout-head">
       <div>
         <p class="obs-ai-cutout-eye">ほかにも写っていそうなもの</p>
-        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、ほかにも見つけたものがありそうです" : "この記録に写っているものが、ほかにもありそうです")}</h2>
-        <p class="obs-ai-cutout-copy">自動で拾った候補です。名前はあとから人が見てたしかめます。</p>
+        <h2 class="obs-ai-cutout-title">${escapeHtml(isVideoOnly ? "映像の中に、ほかにも見つけたものがありそうです" : `この${sceneNoun}に、ほかにも見つけたものがありそうです`)}</h2>
+        <p class="obs-ai-cutout-copy">自動で拾った候補です。提案すると、この${escapeHtml(sceneNoun)}に写る別の対象として名前を確かめられます。</p>
       </div>
       <span class="obs-ai-cutout-pill">${candidates.length} 件</span>
     </div>
@@ -1693,25 +1762,25 @@ function renderAiCandidateLearningPanel(options: {
           publicRankHint(candidate.rank) || null,
           candidate.regions.length > 0 ? "位置の手がかりあり" : "位置は確認待ち",
         ].filter((item): item is string => Boolean(item));
-        const action = options.isOwner
+        const action = options.canProposeSubject
           ? `<button type="button"
                class="obs-ai-cutout-action"
                data-adopt-candidate="${escapeHtml(candidate.candidateId)}"
-               data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/adopt`))}">
-               見つけたものとして残す
+               data-adopt-endpoint="${escapeHtml(withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/candidates/${encodeURIComponent(candidate.candidateId)}/propose`))}">
+               これも写ってると提案
              </button>`
           : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">同定する</a>`;
         return `<div class="obs-ai-cutout-card">
           <div>
             <strong>${escapeHtml(candidate.displayName)}</strong>
             ${meta.length > 0 ? `<div class="obs-ai-cutout-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
-            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(friendlyObservationText(candidate.note, 74))}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(isVideoOnly ? "同じ映像から見つけた候補です。まずは仮で残し、あとで名前を見ます。" : "同じ記録の写真や動画から見つけた候補です。まずは仮で残し、あとで名前を見ます。")}</p>`}
+            ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(friendlyObservationText(candidate.note, 74))}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(`同じ${sceneNoun}から見つけた候補です。写っているかを人が確かめます。`)}</p>`}
           </div>
           ${action}
         </div>`;
       }).join("")}
     </div>
-    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.isOwner ? escapeHtml(`残すと、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に紐づく見つけたものとして追加されます。`) : "記録者以外も、名前の確認を手伝えます。自動候補は確定名ではありません。"}</div>
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.canProposeSubject ? escapeHtml(`提案すると、同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に写る対象として表示されます。投稿者の正式な主張ではありません。`) : "ログインすると、写っているかもしれない対象を提案できます。自動候補は確定名ではありません。"}</div>
   </section>`;
 }
 
@@ -2074,18 +2143,18 @@ function publicRankHint(rank: string | null | undefined): string {
   }
 }
 
-function renderHeroAiReadout(subject: ObservationVisitSubject): string {
+function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
     return `<section class="obs-ai-readout is-tent">
       <div class="obs-ai-readout-top">
         <div>
-          <p class="obs-hint-eyebrow">写真の手がかり</p>
-          <h3 class="obs-ai-readout-title">名前はまだ保留です。</h3>
+          <p class="obs-hint-eyebrow">名前のいま</p>
+          <h3 class="obs-ai-readout-title">${hasOpenDispute ? "名前の見方が割れています。" : "写真から名前を探している段階です。"}</h3>
         </div>
-        <span class="obs-ai-readout-badge">未確認</span>
+        <span class="obs-ai-readout-badge">${hasOpenDispute ? "確認中" : "未確認"}</span>
       </div>
-      <p class="obs-ai-readout-note">写真やメモは残っています。必要なときに見返せます。</p>
+      <p class="obs-ai-readout-note">${hasOpenDispute ? "別の名前の提案があるため、候補が固まるまで断定しません。" : "写っている形や場所から、分かる人が手がかりを足せます。"}</p>
     </section>`;
   }
 
@@ -2093,8 +2162,8 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
   const headline = aiAssessment.recommendedTaxonName
-    ? `${aiAssessment.recommendedTaxonName}の候補です。`
-    : `${subject.displayName}の候補です。`;
+    ? hasOpenDispute ? `${aiAssessment.recommendedTaxonName}も候補の一つです。` : `${aiAssessment.recommendedTaxonName}の候補です。`
+    : hasOpenDispute ? `${subject.displayName}も候補の一つです。` : `${subject.displayName}の候補です。`;
   const rec = aiAssessment.recommendedTaxonName
     ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span><span class="obs-ai-readout-rank">${escapeHtml([aiAssessment.recommendedRank ? publicRankHint(aiAssessment.recommendedRank) || "候補" : "候補", bandLabel].filter(Boolean).join(" / "))}</span></div>`
     : "";
@@ -2107,20 +2176,21 @@ function renderHeroAiReadout(subject: ObservationVisitSubject): string {
     : aiAssessment.missingEvidence.length > 0
       ? `${friendlyObservationText(aiAssessment.missingEvidence[0], 48)} が見えないため、ここでは決めきっていません。`
       : "";
+  const disputeReason = hasOpenDispute ? "別の名前の提案があるため、ここでは決めきりません。" : "";
   const notes = [
-    stopReason ? `<p class="obs-ai-readout-note"><strong>保留している点</strong>${escapeHtml(friendlyObservationText(stopReason, 76))}</p>` : "",
+    (disputeReason || stopReason) ? `<p class="obs-ai-readout-note"><strong>まだ決めきらない理由</strong>${escapeHtml(friendlyObservationText(disputeReason || stopReason, 76))}</p>` : "",
   ].filter(Boolean).join("");
 
   return `<section class="obs-ai-readout ${bandClass}">
     <div class="obs-ai-readout-top">
       <div>
-        <p class="obs-hint-eyebrow">写真の手がかり</p>
+        <p class="obs-hint-eyebrow">名前のいま</p>
         <h3 class="obs-ai-readout-title">${escapeHtml(headline)}</h3>
       </div>
-      <span class="obs-ai-readout-badge">AI推定</span>
+      <span class="obs-ai-readout-badge">${hasOpenDispute ? "見方が割れています" : "AI推定"}</span>
     </div>
     ${rec}
-    ${clueList}
+    ${clueList ? `<div><p class="obs-ai-readout-section-label">そう見える理由</p>${clueList}</div>` : ""}
     ${notes ? `<div class="obs-ai-readout-grid">${notes}</div>` : ""}
   </section>`;
 }
@@ -4230,14 +4300,14 @@ function renderSubjectComparison(bundle: ObservationVisitBundle, subject: Observ
     ? `${previous.recommendedTaxonName ?? subject.displayName} / ${confidenceLabel(previous.confidenceBand)}`
     : "前のヒントはまだありません";
   return `<details class="obs-fold">
-    <summary>見え方の変化を見る <span class="obs-fold-count">確認中</span></summary>
+    <summary>前の候補を見る <span class="obs-fold-count">確認中</span></summary>
     <div class="obs-hint-sub">
       <div class="obs-hint-eye">今回の見え方</div>
       <p>${escapeHtml(currentText)}</p>
       ${bundle.selectedRun ? `<p class="obs-hint-foot">自動メモ: ${escapeHtml(bundle.selectedRun.generatedAt)}</p>` : ""}
     </div>
     <div class="obs-hint-sub">
-      <div class="obs-hint-eye">ひとつ前の見え方</div>
+      <div class="obs-hint-eye">前の候補</div>
       <p>${escapeHtml(previousText)}</p>
       ${bundle.previousRun ? `<p class="obs-hint-foot">自動メモ: ${escapeHtml(bundle.previousRun.generatedAt)}</p>` : ""}
     </div>
@@ -4317,6 +4387,8 @@ function renderSubjectTaxonomy(
 function renderIdentificationParticipation(options: {
   basePath: string;
   snapshot: NonNullable<Awaited<ReturnType<typeof getObservationDetailSnapshot>>>;
+  subject?: ObservationVisitSubject;
+  mediaContext?: ObservationMediaCopyContext;
   consensus: IdentificationConsensusResult | null;
   viewerSession: SessionSnapshot | null;
   canUseSpecialistWorkbench: boolean;
@@ -4336,6 +4408,29 @@ function renderIdentificationParticipation(options: {
     .replace(/を少なくとも1件追加する/u, "が1件あると、見方を比べやすくなります")
     .replace(/を追加する/u, "があると、見方を比べやすくなります")
     .replace(/する$/u, "できると助かります"));
+  const openDisputeCount = snapshot.disputes.filter((item) => item.status === "open").length;
+  const isCommunitySubjectProposal = options.subject?.subjectSource === "community_subject_proposal";
+  const proposalSceneNoun = mediaSceneNoun(options.mediaContext ?? photoOnlyMediaContext());
+  const proposalTrustBlock = isCommunitySubjectProposal
+    ? `<div class="obs-proposal-trust" data-subject-proposal-trust>
+        <div>
+          <div class="obs-story-eyebrow">この${escapeHtml(proposalSceneNoun)}からの提案</div>
+          <p>投稿者の正式な主張ではありません。投稿者には通知され、見た人は名前・反対意見・証拠不足をここで足せます。</p>
+        </div>
+        <div class="obs-proposal-trust-grid">
+          <div class="obs-proposal-trust-stat"><span>名前の提案</span><strong>${escapeHtml(`${snapshot.identifications.length}件`)}</strong></div>
+          <div class="obs-proposal-trust-stat"><span>別の見方</span><strong>${escapeHtml(openDisputeCount > 0 ? `${openDisputeCount}件あり` : "まだなし")}</strong></div>
+          <div class="obs-proposal-trust-stat"><span>状態</span><strong>${escapeHtml(consensusStatusLabel(consensus?.consensusStatus))}</strong></div>
+        </div>
+        ${viewerSession
+          ? `<div class="obs-proposal-trust-actions">
+              <button type="button" data-proposal-focus="support">合っていそう</button>
+              <button type="button" data-proposal-focus="alternative">別の名前かも</button>
+              <button type="button" data-proposal-focus="needs_more_evidence">もっと証拠がいる</button>
+            </div>`
+          : `<p>ログインすると、この提案に名前や理由を足せます。</p>`}
+      </div>`
+    : "";
   const defaultName = snapshot.scientificName || (snapshotDisplay.isAwaitingId ? "" : snapshotDisplay.primaryLabel);
   const defaultRank = snapshot.scientificName ? "species" : "";
   const endpointId = encodeURIComponent(snapshot.occurrenceId);
@@ -4465,6 +4560,7 @@ function renderIdentificationParticipation(options: {
       <div class="obs-story-eyebrow">あると見やすい材料</div>
       <ul>${neededList.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
     </div>
+    ${proposalTrustBlock}
     ${aiReviewBlock}
     <details class="obs-fold obs-identify-fold">
       <summary>名前や気づきを足す</summary>
@@ -4565,6 +4661,7 @@ function renderObservationRecordStory(options: {
   siteBrief: SiteBrief | null;
   regionalStory: RegionalStoryCue | null;
   civicContext: CivicObservationContext | null;
+  mediaContext: ObservationMediaCopyContext;
 }): string {
   const ai = options.subject.aiAssessment;
   const diagnostic = (ai?.diagnosticFeaturesSeen ?? [])
@@ -4600,13 +4697,14 @@ function renderObservationRecordStory(options: {
         .slice(0, 3)
     : [];
   const lines: string[] = [];
+  const sceneNoun = mediaSceneNoun(options.mediaContext);
 
-  lines.push(`今日は、${visualPhrase}を同じ場面として見返せます。名前を1つ当てるためだけでなく、この時期のこの場所の様子を残す記録です。`);
+  lines.push(`この${sceneNoun}では、${visualPhrase}が同じ場面に写っています。名前を1つ当てるだけでなく、形、周りの草、そこに来る虫まで探せる場面です。`);
 
   if (hasBee) {
-    lines.push(`花だけでなく、そこを使う相手まで残ると、次に同じ場所を見る理由ができます。訪花の有無や時間帯の違いも比べやすくなります。`);
+    lines.push(`花だけでなく、そこに来る相手も見えると、時間帯や季節で何が来るかを探せます。`);
   } else if (hasMultipleRecords) {
-    lines.push(`複数の見つけたものを分けておくと、主対象の近くに何があったかをあとから見返せます。自動候補は人の確認で少しずつ確かになります。`);
+    lines.push(`複数の見つけたものを分けると、主役のそばに何があったかがその場で分かります。自動候補は人の確認で少しずつ確かになります。`);
   }
 
   const placeParts = [
@@ -4617,19 +4715,19 @@ function renderObservationRecordStory(options: {
     moisture ? moisture : null,
   ].filter((item): item is string => Boolean(item));
   if (placeParts.length > 0) {
-    lines.push(`写真や地図からは、${placeParts.slice(0, 3).map((item) => friendlyObservationText(item, 30)).join("、")}といった手がかりも見えます。断定ではなく、見返すための目印です。`);
+    lines.push(`${sceneNoun}や地図からは、${placeParts.slice(0, 3).map((item) => friendlyObservationText(item, 30)).join("、")}といった手がかりも見えます。断定ではなく、この場面を読むための目印です。`);
   }
 
   const title = hasBee
-    ? "花・訪問者・足元をまとめて見返す記録"
+    ? "花・訪問者・足元を一緒に読める場面"
     : hasMultipleRecords
-      ? "複数の見つけたものが写った記録"
-      : "写真と場所が残った記録";
+      ? "複数の見つけたものが写った場面"
+      : `${sceneNoun}と場所から読める記録`;
   const civic = options.civicContext?.activityLabel?.trim();
   return `<div class="obs-record-story">
     <div class="obs-record-story-head">
       <div>
-        <div class="obs-record-story-eye">記録の読み取り</div>
+        <div class="obs-record-story-eye">まず${escapeHtml(mediaSceneFrom(options.mediaContext))}から分かること</div>
         <h3 class="obs-record-story-title">${escapeHtml(title)}</h3>
       </div>
       <span class="obs-record-story-pill">${escapeHtml(civic || "写真・場所・地域")}</span>
@@ -4667,7 +4765,7 @@ function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot)
     scale_reference: "スケール",
   };
   return `<div class="obs-visual-next-capture">
-    <div class="obs-story-eyebrow">写真を足すなら</div>
+    <div class="obs-story-eyebrow">次に見つけるなら</div>
     <div class="obs-visual-next-grid">
       ${suggestions.map((item) => `
         <div class="obs-visual-next-card${item.priority === "high" ? " is-high" : ""}">
@@ -4676,6 +4774,33 @@ function renderVisualNextCaptureSuggestions(snapshot: ObservationDetailSnapshot)
           <p>${escapeHtml(friendlyObservationText(item.rationale, 62))}</p>
         </div>`).join("")}
     </div>
+  </div>`;
+}
+
+function renderPhotoFirstRead(
+  subject: ObservationVisitSubject,
+  recordItems: VisibleRecordItem[],
+  hasOpenDispute: boolean,
+  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+): string {
+  const ai = subject.aiAssessment;
+  const clue = (ai?.diagnosticFeaturesSeen ?? [])
+    .map((item) => friendlyObservationText(item, 54))
+    .find((item) => /花|葉|草|茎|地面|実|羽|脚|模様|色|形/.test(item));
+  const scene = clue || subject.focusReason || "写っている形や周りの様子";
+  const candidateName = ai?.recommendedTaxonName || subject.displayName || "名前確認中の生きもの";
+  const coSubjects = recordItems.filter((item) => item.source === "candidate" || item.proposalKind !== "none").length;
+  const sceneFrom = mediaSceneFrom(mediaContext);
+  const line1 = `${scene}が${sceneFrom}から見えます。`;
+  const line2 = hasOpenDispute
+    ? `${candidateName}も候補の一つですが、別の見方があるため名前はまだ決めきりません。`
+    : coSubjects > 0
+      ? `${candidateName}の候補に加えて、一緒に写っていそうなものも探せます。`
+      : `${candidateName}の候補として読めます。`;
+  return `<div class="obs-first-read">
+    <div class="obs-first-read-eye">まず${escapeHtml(sceneFrom)}から分かること</div>
+    <p>${escapeHtml(line1)}</p>
+    <p>${escapeHtml(line2)}</p>
   </div>`;
 }
 
@@ -4691,12 +4816,15 @@ function renderObservationReadingHero(options: {
   focusRailBlock: string;
   visibleRecordCount: number;
   summaryStrip: string;
+  firstReadBlock: string;
+  nameStatusBlock: string;
   nextActionRail: string;
   trustStageLabel: string;
   trustLead: string;
   recordsHref: string;
   evidenceLabel: string;
   recordModeLabel: string;
+  mediaSceneLabel: string;
 }): string {
   return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
     <div class="obs-reading-media obs-media-evidence-shell">
@@ -4706,8 +4834,8 @@ function renderObservationReadingHero(options: {
       </div>
       ${options.mediaBlock}
     </div>
-    <aside class="obs-reading-panel" aria-label="この日の記録と見つけたもの">
-      <div id="summary" class="obs-record-brief" data-obs-section="summary" aria-label="この日の記録">
+    <aside class="obs-reading-panel" aria-label="この${escapeHtml(options.mediaSceneLabel)}と見つけたもの">
+      <div id="summary" class="obs-record-brief" data-obs-section="summary" aria-label="この${escapeHtml(options.mediaSceneLabel)}の記録">
         <div class="obs-record-brief-kicker">記録</div>
         <div class="obs-record-brief-grid">
           <div class="obs-record-brief-card">
@@ -4728,7 +4856,7 @@ function renderObservationReadingHero(options: {
         </div>
       </div>
       <div class="obs-current-find">
-        <div class="obs-current-find-kicker">この日の場面</div>
+        <div class="obs-current-find-kicker">${escapeHtml(options.mediaSceneLabel)}の場面</div>
         <h1 class="obs-reading-title">${escapeHtml(options.recordTitle)}</h1>
         <div class="obs-hero-byline">
           <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
@@ -4741,12 +4869,9 @@ function renderObservationReadingHero(options: {
       </div>
       ${options.badges.length > 0 ? `<div class="obs-hero-badges">${options.badges.join("")}</div>` : ""}
       ${options.summaryStrip}
+      <div data-obs-switch-first-read>${options.firstReadBlock}</div>
       ${options.focusRailBlock}
-      <div class="obs-reading-trust">
-        <span>同定</span>
-        <strong>${escapeHtml(options.trustStageLabel)}</strong>
-        <p>${escapeHtml(options.trustLead)}</p>
-      </div>
+      <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
       <a class="obs-original-record-link" href="${escapeHtml(options.recordsHref)}">記録一覧へ</a>
       ${options.nextActionRail}
     </aside>
@@ -4761,16 +4886,16 @@ function renderObservationReadProgress(options: {
 }): string {
   const endpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
   const sections = [
-    { href: "#summary", key: "summary", label: "この日の記録" },
+    { href: "#summary", key: "summary", label: "場面の記録" },
     { href: "#photos", key: "photos", label: "写真・動画・音" },
     { href: "#trust", key: "trust", label: "反応" },
     { href: "#story", key: "story", label: "気づき" },
-    { href: "#next-hints", key: "next_hints", label: "写真メモ" },
+    { href: "#next-hints", key: "next_hints", label: "次に探す" },
     { href: "#identify", key: "identify", label: "同定" },
     { href: "#place", key: "place", label: "場所" },
     { href: "#related", key: "related", label: "関連" },
   ];
-  return `<nav class="obs-read-progress" aria-label="観察ページの読み進め">
+  return `<nav class="obs-read-progress" aria-label="記録ページの読み進め">
     ${sections.map((section) => `<a href="${section.href}" data-obs-progress-link="${section.key}">${escapeHtml(section.label)}</a>`).join("")}
   </nav>
   <script>(function(){
@@ -11798,12 +11923,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return renderHomePageHtml(basePath, lang, snapshot, canUseSpecialistWorkbench(session));
   });
 
-  app.get<{ Params: { id: string }; Querystring: { subject?: string } }>("/observations/:id", async (request, reply) => {
+  app.get<{ Params: { id: string }; Querystring: { subject?: string; occurrence?: string } }>("/observations/:id", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const viewerUserId = viewerSession?.userId ?? null;
-    const bundle = await getObservationVisitBundle(request.params.id, request.query.subject);
+    const requestedSubjectId = request.query.subject ?? request.query.occurrence ?? null;
+    const bundle = await getObservationVisitBundle(request.params.id, requestedSubjectId);
     if (!bundle) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
@@ -11894,11 +12020,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectIdentifyMap = new Map(subjectIdentifyEntries);
 
     // ===== Layer 0: ヒーロー =====
-    const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject);
+    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
+    const visibleRecordItems = buildVisibleRecordItems({
+      basePath,
+      lang,
+      bundle,
+      currentSubject,
+      featuredSubject,
+      isOwner,
+      canProposeSubject: Boolean(viewerUserId),
+    });
+    const mediaAnnotationTargets = buildObservationMediaAnnotationTargets(visibleRecordItems, bundle);
+    const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject, mediaAnnotationTargets);
     const currentSubjectDisplay = formatTaxonDisplayName(currentSubject, lang);
     const snapshotDisplay = formatTaxonDisplayName(snapshot, lang);
     const observerDisplay = formatActorDisplay(snapshot.observerName, lang);
-    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
     const relatedObservationsHref = appendLangToHref(
       withBasePath(
         basePath,
@@ -11908,15 +12044,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ),
       lang,
     );
-
-    const visibleRecordItems = buildVisibleRecordItems({
-      basePath,
-      lang,
-      bundle,
-      currentSubject,
-      featuredSubject,
-      isOwner,
-    });
     const visibleAiCandidateCount = visibleRecordItems.filter((item) => item.source === "candidate").length;
     const badges: string[] = [];
     badges.push(`<span class="obs-badge obs-badge-species">🧩 ${visibleRecordItems.length}件の見つけたもの</span>`);
@@ -11932,16 +12059,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     if (snapshot.audioAssets.length > 0) badges.push(`<span class="obs-badge obs-badge-video">音あり</span>`);
 
     const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
-    const aiCandidateLearningPanel = isOwner
-      ? renderAiCandidateLearningPanel({
+    const aiCandidateLearningPanel = renderAiCandidateLearningPanel({
           basePath,
           lang,
           visitId: bundle.visitId,
           candidates: bundle.aiCandidates,
-          isOwner,
+          canProposeSubject: Boolean(viewerUserId),
           mediaContext,
-        })
-      : "";
+        });
     const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
     const regionalStory = await getRegionalStoryCue({
       surface: "observation",
@@ -12022,7 +12147,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               : "比較したい観察として、どれだけ歩いたか・手順・範囲を残した記録です。比較の精度を上げるための記録で、増減や不在をここだけで断定しません。";
             return `<div class="obs-story-block">
               <div class="obs-story-eyebrow">この日の見方</div>
-              <p>この記録は、あとで同じ場所と比べられるように、見た範囲や時間も残しています。</p>
+              <p>この記録では、見た範囲や時間も分かります。写真だけで言い切れない変化は、ここでは断定しません。</p>
               ${protocolChips.length > 0 ? `<div class="obs-focus-meta">${protocolChips.join("")}</div>` : ""}
               ${surveyResultLabel ? `<p style="margin-top:10px">${escapeHtml(surveyResultLabel)}</p>` : ""}
               <small class="obs-ai-note">${escapeHtml(boundaryNote)}</small>
@@ -12057,7 +12182,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </div>
     </details>`;
 
-    const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems);
+    const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems, mediaContext);
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
       placeId: snapshot.placeId,
@@ -12125,12 +12250,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       focusRailBlock,
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip,
+      firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
+      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true),
       nextActionRail,
       trustStageLabel,
       trustLead,
       recordsHref: appendLangToHref(withBasePath(basePath, isOwner ? "/records?view=mine" : "/records?view=public"), lang),
       evidenceLabel,
       recordModeLabel: observationRecordModeLabel(snapshot),
+      mediaSceneLabel: mediaSceneNoun(mediaContext),
     });
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
@@ -12166,6 +12294,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       siteBrief: siteBriefResult ?? null,
       regionalStory,
       civicContext,
+      mediaContext,
     });
 
     // ===== Layer 1: 物語 =====
@@ -12206,7 +12335,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const civicContextBlock = renderCivicContextBlock(civicContext, snapshot, basePath, lang);
     const layer1 = (recordStoryBlock || surveySummary || ownerNote || aiFirst || footprintCard || civicContextBlock)
       ? `<section id="story" class="section obs-layer obs-layer-1" data-obs-section="story">
-           <h2 class="obs-layer-title">この日の記録について</h2>
+           <h2 class="obs-layer-title">この場面で分かったこと</h2>
            <div class="obs-layer-body">${recordStoryBlock}${surveySummary}${ownerNote}${civicContextBlock}${aiFirst}${footprintCard}</div>
          </section>`
       : "";
@@ -12216,6 +12345,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const identifyBlock = `<div data-obs-section="identify" data-obs-switch-identify>${renderIdentificationParticipation({
       basePath,
       snapshot,
+      subject: currentSubject,
+      mediaContext,
       consensus,
       viewerSession,
       canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
@@ -12291,15 +12422,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     if (insight && insight.ecologyNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🌿 生き方</div><p>${escapeHtml(insight.ecologyNote)}</p></div>`);
     if (insight && insight.lookAlikeNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🔍 似た仲間</div><p>${escapeHtml(insight.lookAlikeNote)}</p></div>`);
     if (insight && insight.rarityNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📍 出会いやすさ</div><p>${escapeHtml(insight.rarityNote)}</p></div>`);
-    const layer6 = insightBits.length > 0
+    const hasOpenNameDispute = consensus?.hasOpenDispute === true;
+    const layer6 = hasOpenNameDispute
       ? `<section class="section obs-layer obs-layer-6">
            <details class="obs-fold obs-insight-fold">
-             <summary>この生きものについて <span class="obs-fold-count">参考</span></summary>
+             <summary>もっと知る <span class="obs-fold-count">確認中</span></summary>
+             <p class="obs-ai-note">名前の見方が割れているため、候補が固まったら詳しく読めます。</p>
+           </details>
+         </section>`
+      : insightBits.length > 0
+        ? `<section class="section obs-layer obs-layer-6">
+           <details class="obs-fold obs-insight-fold">
+             <summary>もっと知る <span class="obs-fold-count">参考</span></summary>
              <div class="obs-insight-grid">${insightBits.join("")}</div>
              <p class="obs-ai-note">この記述はAIの参考情報です。図鑑や詳しい人の確認も合わせて見てください。</p>
            </details>
          </section>`
-      : "";
+        : "";
 
     // ===== コンテキスト折り畳み (Phase D 既存、保持) =====
     const grouped = obsContext ? groupFeaturesByLayer(obsContext.features) : { coexistingTaxa: [], environment: [], sounds: [] };
@@ -12321,12 +12460,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const hasAdoptableVisibleCandidate = visibleRecordItems.some((item) => Boolean(item.adoptEndpoint));
 
     const subjectTemplates = bundle.subjects.map((subject) => `
-      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject)}</template>
+      <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
         snapshot: subjectIdentifyMap.get(subject.occurrenceId)?.snapshot ?? snapshot,
+        subject,
+        mediaContext,
         consensus: subjectIdentifyMap.get(subject.occurrenceId)?.consensus ?? null,
         viewerSession,
         canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
@@ -12376,6 +12518,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var regionMap = ${JSON.stringify(subjectRegionMap)};
            var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
            var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
+           var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
@@ -12440,9 +12583,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            };
            var renderSubject = function(subjectId, push){
              var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
+             var firstReadTemplate = selectTemplate('data-subject-first-read-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
              var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
+             if (firstReadRoot && firstReadTemplate) firstReadRoot.innerHTML = firstReadTemplate.innerHTML;
              if (aiReadoutRoot && aiReadoutTemplate) aiReadoutRoot.innerHTML = aiReadoutTemplate.innerHTML;
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
@@ -12450,6 +12595,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              renderRegions(subjectId);
              updateStateLabels(subjectId);
              window.dispatchEvent(new CustomEvent('ikimon:identify-panel-replaced'));
+             window.dispatchEvent(new CustomEvent('ikimon:subject-rendered', { detail: { subjectId: subjectId } }));
              currentSubjectId = subjectId;
              if (push) {
                var active = links.find(function(link){ return link.getAttribute('data-subject-id') === subjectId; });
@@ -12470,7 +12616,69 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var subjectId = params.get('subject');
              if (subjectId) renderSubject(subjectId, false);
            });
+           window.addEventListener('ikimon:media-asset-selected', function(){
+             renderRegions(currentSubjectId);
+           });
            renderSubject(currentSubjectId, false);
+         })();</script>`
+      : "";
+    const annotationScript = mediaAnnotationTargets.length > 0
+      ? `<script>(function(){
+           var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
+           var baseObservationHref = ${JSON.stringify(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`))};
+           var langSuffix = ${JSON.stringify(lang === "ja" ? "&lang=ja" : lang === "en" ? "&lang=en" : "")};
+           var cssEscape = function(value) {
+             if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+             return String(value).replace(/["\\\\]/g, '\\\\$&');
+           };
+           var setActiveAnnotations = function(subjectId) {
+             currentSubjectId = subjectId || currentSubjectId;
+             Array.prototype.slice.call(document.querySelectorAll('[data-annotation-subject-id]')).forEach(function(node){
+               node.classList.toggle('is-current', node.getAttribute('data-annotation-subject-id') === currentSubjectId);
+             });
+           };
+           var focusCandidateCard = function(candidateId) {
+             var selector = '[data-visible-record-candidate="' + cssEscape(candidateId) + '"]';
+             var card = document.querySelector(selector);
+             if (!card) return false;
+             card.classList.add('is-annotation-focus');
+             card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+             window.setTimeout(function(){ card.classList.remove('is-annotation-focus'); }, 1800);
+             var button = card.querySelector('[data-adopt-candidate]');
+             if (button && typeof button.focus === 'function') button.focus({ preventScroll: true });
+             var status = document.querySelector('[data-adopt-candidate-status]');
+             if (status) {
+               status.hidden = false;
+               status.classList.remove('is-error');
+               status.textContent = '枠で選んだ候補です。写っていると思ったら提案できます。';
+             }
+             return true;
+           };
+           document.addEventListener('click', function(event){
+             var target = event.target instanceof Element ? event.target.closest('[data-annotation-target]') : null;
+             if (!target) return;
+             event.preventDefault();
+             event.stopPropagation();
+             var subjectId = target.getAttribute('data-annotation-subject-id') || '';
+             var candidateId = target.getAttribute('data-annotation-candidate-id') || '';
+             if (subjectId) {
+               var link = document.querySelector('[data-subject-switch][data-subject-id="' + cssEscape(subjectId) + '"]');
+               if (link) {
+                 link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+                 setActiveAnnotations(subjectId);
+                 return;
+               }
+               var sep = baseObservationHref.indexOf('?') >= 0 ? '&' : '?';
+               window.location.href = baseObservationHref + sep + 'subject=' + encodeURIComponent(subjectId) + langSuffix;
+               return;
+             }
+             if (candidateId && focusCandidateCard(candidateId)) return;
+           }, { capture: true });
+           window.addEventListener('ikimon:subject-rendered', function(event){
+             var detail = event && event.detail ? event.detail : {};
+             if (detail.subjectId) setActiveAnnotations(detail.subjectId);
+           });
+           setActiveAnnotations(currentSubjectId);
          })();</script>`
       : "";
     const reassessScript = isOwner
@@ -12507,7 +12715,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const candidateAdoptionScript = isOwner && (aiCandidateLearningPanel || hasAdoptableVisibleCandidate)
+    const candidateAdoptionScript = viewerUserId && (aiCandidateLearningPanel || hasAdoptableVisibleCandidate)
       ? `<script>(function(){
            var panels = Array.prototype.slice.call(document.querySelectorAll('[data-ai-cutout-panel], [data-visible-records-panel]'));
            if (!panels.length) return;
@@ -12528,8 +12736,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                if (!endpoint) return;
                buttons.forEach(function(item){ item.disabled = true; });
                var original = button.textContent;
-               button.textContent = '追加しています…';
-                setStatus('同じ日時・場所・写真に紐づく別の見つけたものとして追加しています。', false);
+               button.textContent = '提案しています…';
+                setStatus(${JSON.stringify(`この${mediaSceneNoun(mediaContext)}に写っているものとして提案しています。`)}, false);
                fetch(endpoint, {
                  method: 'POST',
                  headers: { accept: 'application/json' },
@@ -12540,9 +12748,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                })
                .then(function(result){
                  if (!result.ok) {
-                   throw new Error(String((result.json && result.json.error) || 'candidate_adoption_failed'));
+                   throw new Error(String((result.json && result.json.error) || 'candidate_proposal_failed'));
                  }
-                 setStatus('追加しました。新しい見つけたものを開きます。', false);
+                 setStatus('提案しました。新しい対象を開きます。', false);
                  var occurrenceId = String(result.json.occurrenceId || '');
                  var visitId = String(result.json.visitId || ${JSON.stringify(bundle.visitId)});
                  var next = ${JSON.stringify(appendLangToHref(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`), lang))};
@@ -12554,7 +12762,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                .catch(function(error){
                  button.textContent = original;
                  buttons.forEach(function(item){ item.disabled = false; });
-                 setStatus('追加できませんでした: ' + String(error && error.message || 'network'), true);
+                 setStatus('提案できませんでした: ' + String(error && error.message || 'network'), true);
                });
              });
            });
@@ -12661,15 +12869,49 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
         });
       };
+      var bindProposalQuickActions = function(){
+        Array.prototype.slice.call(document.querySelectorAll('[data-proposal-focus]')).forEach(function(button){
+          if (button.getAttribute('data-proposal-focus-bound') === '1') return;
+          button.setAttribute('data-proposal-focus-bound', '1');
+          button.addEventListener('click', function(){
+            var action = button.getAttribute('data-proposal-focus') || 'support';
+            var panel = button.closest('[data-obs-switch-identify]') || document;
+            var fold = panel.querySelector('.obs-identify-fold');
+            if (fold) fold.setAttribute('open', 'open');
+            var form = panel.querySelector('[data-identify-form]');
+            if (!form) return;
+            var status = form.querySelector('[data-identify-status]');
+            var targetButton = form.querySelector('[data-identify-action="' + action + '"]');
+            if (status) {
+              status.classList.remove('is-error');
+              status.textContent = action === 'support'
+                ? '名前と理由を入れて「この名前だと思う」で保存できます。'
+                : action === 'alternative'
+                  ? '別の名前と理由を入れて保存できます。'
+                  : '見えにくい部分や足りない写真を理由メモに残せます。';
+            }
+            var focusTarget = action === 'needs_more_evidence'
+              ? form.querySelector('textarea[name="notes"]')
+              : form.querySelector('input[name="proposedName"]');
+            if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus({ preventScroll: false });
+            if (targetButton) {
+              targetButton.classList.add('is-annotation-focus');
+              window.setTimeout(function(){ targetButton.classList.remove('is-annotation-focus'); }, 1200);
+            }
+          });
+        });
+      };
       bindAiReviewPanels();
       bindIdentifyForms();
+      bindProposalQuickActions();
       window.addEventListener('ikimon:identify-panel-replaced', bindAiReviewPanels);
       window.addEventListener('ikimon:identify-panel-replaced', bindIdentifyForms);
+      window.addEventListener('ikimon:identify-panel-replaced', bindProposalQuickActions);
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
-    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer2}${aiCandidateLearningBlock}${layer1}${hintBlock}${identifyBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
-    const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${hintBlock}${layer2}${identifyBlock}${aiCandidateLearningBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
+    const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

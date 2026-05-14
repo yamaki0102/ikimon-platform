@@ -1,9 +1,12 @@
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
 import { computeIdentificationConsensus, getIdentificationConsensus } from "./identificationConsensus.js";
+import { ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from "./observationAiRuns.js";
 import { recordIdentificationReferenceSelections } from "./referenceLibrary.js";
 import { normalizeRank } from "./taxonRank.js";
 import { tryPromoteToTier3 } from "./tierPromotion.js";
+import { deriveVisitDisplayState, upsertVisitDisplayState } from "./visitDisplayState.js";
+import { getVisitSubjectSummaries } from "./visitSubjects.js";
 
 export type PublicIdentificationStance = "support" | "alternative";
 
@@ -62,6 +65,13 @@ async function resolveOccurrenceId(client: PoolClient, id: string): Promise<{ oc
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
   };
+}
+
+async function refreshVisitDisplayStateAfterIdentification(client: PoolClient, visitId: string): Promise<void> {
+  await ensureLegacyAiRunsForVisit(client, visitId);
+  const latestRun = await getLatestObservationAiRunForVisit(client, visitId);
+  const subjects = await getVisitSubjectSummaries(visitId, client);
+  await upsertVisitDisplayState(client, deriveVisitDisplayState(visitId, subjects, latestRun?.aiRunId ?? null));
 }
 
 async function upsertPublicIdentification(
@@ -128,10 +138,12 @@ export async function submitObservationIdentification(input: SubmitObservationId
   const pool = getPool();
   const client = await pool.connect();
   let occurrenceId = "";
+  let visitId = "";
   try {
     await client.query("begin");
     const occurrence = await resolveOccurrenceId(client, input.occurrenceId);
     occurrenceId = occurrence.occurrenceId;
+    visitId = occurrence.visitId;
     const identificationId = await upsertPublicIdentification(client, {
       ...input,
       occurrenceId,
@@ -143,6 +155,7 @@ export async function submitObservationIdentification(input: SubmitObservationId
       locator: input.referenceLocator ?? null,
       referenceRole: "primary_basis",
     });
+    await refreshVisitDisplayStateAfterIdentification(client, visitId);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -172,11 +185,13 @@ export async function openObservationDispute(input: OpenObservationDisputeInput)
   const pool = getPool();
   const client = await pool.connect();
   let occurrenceId = "";
+  let visitId = "";
   let disputeId = "";
   try {
     await client.query("begin");
     const occurrence = await resolveOccurrenceId(client, input.occurrenceId);
     occurrenceId = occurrence.occurrenceId;
+    visitId = occurrence.visitId;
 
     if (input.kind === "alternative_id" && proposedName) {
       await upsertPublicIdentification(client, {
@@ -213,6 +228,7 @@ export async function openObservationDispute(input: OpenObservationDisputeInput)
       ],
     );
     disputeId = result.rows[0]?.dispute_id ?? "";
+    await refreshVisitDisplayStateAfterIdentification(client, visitId);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -243,26 +259,30 @@ export async function resolveIdentificationDispute(input: ResolveIdentificationD
   const pool = getPool();
   const client = await pool.connect();
   let occurrenceId = "";
+  let visitId = "";
   try {
     await client.query("begin");
     const disputeResult = await client.query<{
       dispute_id: string;
       occurrence_id: string;
+      visit_id: string;
       kind: string;
       proposed_name: string | null;
       proposed_rank: string | null;
       reason: string | null;
       source_payload: Record<string, unknown> | null;
     }>(
-      `select dispute_id::text, occurrence_id, kind, proposed_name, proposed_rank, reason, source_payload
-         from identification_disputes
-        where dispute_id = $1
+      `select d.dispute_id::text, d.occurrence_id, o.visit_id, d.kind, d.proposed_name, d.proposed_rank, d.reason, d.source_payload
+         from identification_disputes d
+         join occurrences o on o.occurrence_id = d.occurrence_id
+        where d.dispute_id = $1
         limit 1`,
       [input.disputeId],
     );
     const dispute = disputeResult.rows[0];
     if (!dispute) throw new Error("dispute_not_found");
     occurrenceId = dispute.occurrence_id;
+    visitId = dispute.visit_id;
 
     const note = normalizeText(input.note);
     const nextPayload = {
@@ -336,6 +356,7 @@ export async function resolveIdentificationDispute(input: ResolveIdentificationD
       );
     }
 
+    await refreshVisitDisplayStateAfterIdentification(client, visitId);
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");

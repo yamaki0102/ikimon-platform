@@ -198,6 +198,19 @@ function buildEmailContent(triggerKind: string, payloadJson: unknown): { subject
         ].join("\n");
       return { subject, body };
     }
+    case "subject_proposal": {
+      return {
+        subject: `【ikimon.life】写真・動画に別の対象が提案されました`,
+        body: [
+          String(payload.title ?? "別の対象が提案されました"),
+          ``,
+          String(payload.body ?? `${verName}も写っているかもしれません。`),
+          `観察ページ: ${observationUrl}`,
+          ``,
+          `投稿者の正式な主張ではなく、この写真・動画を見た人からの提案です。`,
+        ].join("\n"),
+      };
+    }
     default: {
       return {
         subject: `【ikimon.life】観察通知 (${triggerKind})`,

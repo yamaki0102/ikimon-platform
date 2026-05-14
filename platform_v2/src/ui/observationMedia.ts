@@ -14,6 +14,18 @@ type RegionSwitchMap = Record<string, Array<{
   confidenceScore: number | null;
 }>>;
 
+export type ObservationMediaAnnotationTarget = {
+  key: string;
+  occurrenceId: string | null;
+  candidateId: string | null;
+  displayName: string;
+  roleLabel: string;
+  trustLabel: string;
+  proposalKind: "none" | "community_subject" | "ai_candidate";
+  adoptEndpoint: string | null;
+  regions: SubjectMediaRegionView[];
+};
+
 const MEDIA_ROLE_LABELS: Record<MediaRoleView, string> = {
   primary_subject: "主対象",
   context: "周囲",
@@ -22,7 +34,7 @@ const MEDIA_ROLE_LABELS: Record<MediaRoleView, string> = {
 };
 
 export const REGION_DISPLAY_CONF_MIN = 0.5;
-export const OBSERVATION_REGION_SUMMARY_TEXT = "AI が対象位置の参考矩形を重ねています。";
+export const OBSERVATION_REGION_SUMMARY_TEXT = "枠をタップすると対象を切り替えられます。位置はAIの参考です。";
 
 export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-gallery { display: grid; gap: 10px; border-radius: 20px; background: #ffffff; border: 1px solid rgba(15,23,42,.08); padding: 8px; box-shadow: 0 18px 42px rgba(15,23,42,.07); }
@@ -83,6 +95,26 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-region-box { position: absolute; border: 1.5px dashed rgba(14,165,233,.92); border-radius: 12px; background: rgba(14,165,233,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
   .obs-region-box-label { position: absolute; left: 8px; top: 8px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
+  .obs-annotation-layer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+  .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 36px; min-height: 36px; padding: 0; border: 2px solid rgba(16,185,129,.95); border-radius: 13px; background: rgba(16,185,129,.1); box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.18); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease; }
+  .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,1); background: rgba(16,185,129,.18); outline: none; }
+  .obs-annotation-target.is-current { border-color: rgba(37,99,235,.98); background: rgba(37,99,235,.13); }
+  .obs-annotation-target.is-candidate { border-color: rgba(245,158,11,.98); background: rgba(245,158,11,.14); }
+  .obs-annotation-label { position: absolute; left: 6px; top: 6px; max-width: min(170px, 46vw); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 8px; border-radius: 10px; background: rgba(15,23,42,.86); color: #fff; text-align: left; box-shadow: 0 8px 20px rgba(15,23,42,.18); }
+  .obs-annotation-label strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.15; font-weight: 950; }
+  .obs-annotation-label small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(226,232,240,.9); font-size: 9.5px; line-height: 1.15; font-weight: 850; }
+  .obs-annotation-target.is-annotation-focus { animation: obsAnnotationPulse 1.1s ease 2; }
+  .obs-video-annotation-rail { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 0; }
+  .obs-video-annotation-button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font: inherit; font-size: 11.5px; line-height: 1.25; font-weight: 900; cursor: pointer; }
+  .obs-video-annotation-button:hover, .obs-video-annotation-button:focus-visible { background: #ecfdf5; border-color: rgba(16,185,129,.28); outline: none; }
+  .obs-video-annotation-button.is-candidate { background: #fffbeb; border-color: rgba(245,158,11,.24); }
+  .obs-video-annotation-button small { color: #64748b; font-weight: 850; }
+  @keyframes obsAnnotationPulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.18); } 50% { box-shadow: 0 0 0 5px rgba(16,185,129,.28), 0 16px 32px rgba(15,23,42,.2); } }
+  @media (max-width: 640px) {
+    .obs-annotation-label { left: 4px; top: 4px; max-width: min(132px, 42vw); padding: 4px 6px; }
+    .obs-annotation-label strong { font-size: 10px; }
+    .obs-annotation-label small { display: none; }
+  }
   .obs-audio-evidence { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
   .obs-audio-evidence div { display: grid; gap: 2px; }
   .obs-audio-evidence strong { color: #0f172a; font-size: 13px; line-height: 1.35; }
@@ -123,6 +155,72 @@ export function renderObservationRegionBoxes(
       </span>`;
     })
     .join("");
+}
+
+function annotationTargetDataAttrs(target: ObservationMediaAnnotationTarget): string {
+  const attrs = [
+    `data-annotation-target="${escapeHtml(target.key)}"`,
+    `data-annotation-label="${escapeHtml(target.displayName)}"`,
+  ];
+  if (target.occurrenceId) attrs.push(`data-annotation-subject-id="${escapeHtml(target.occurrenceId)}"`);
+  if (target.candidateId) attrs.push(`data-annotation-candidate-id="${escapeHtml(target.candidateId)}"`);
+  if (target.adoptEndpoint) attrs.push(`data-annotation-propose-endpoint="${escapeHtml(target.adoptEndpoint)}"`);
+  return attrs.join(" ");
+}
+
+function renderObservationAnnotationButtons(
+  targets: ObservationMediaAnnotationTarget[],
+  assetId: string,
+  currentOccurrenceId: string,
+): string {
+  return targets
+    .flatMap((target) => {
+      return target.regions
+        .filter((region) => region.assetId === assetId && isDisplayableRegion(region))
+        .map((region) => ({ target, region }));
+    })
+    .slice(0, 14)
+    .map(({ target, region }) => {
+      const rect = region.rect;
+      if (!rect) return "";
+      const className = [
+        "obs-annotation-target",
+        target.occurrenceId === currentOccurrenceId ? "is-current" : "",
+        target.proposalKind === "ai_candidate" ? "is-candidate" : "",
+      ].filter(Boolean).join(" ");
+      const meta = [
+        target.roleLabel,
+        frameTimeLabel(region.frameTimeMs),
+        target.trustLabel,
+      ].filter(Boolean).join(" · ");
+      return `<button type="button"
+        class="${className}"
+        style="left:${(rect.x * 100).toFixed(2)}%;top:${(rect.y * 100).toFixed(2)}%;width:${(rect.width * 100).toFixed(2)}%;height:${(rect.height * 100).toFixed(2)}%;"
+        aria-label="${escapeHtml(`${target.displayName}を選ぶ`)}"
+        ${annotationTargetDataAttrs(target)}>
+        <span class="obs-annotation-label"><strong>${escapeHtml(target.displayName)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>
+      </button>`;
+    })
+    .join("");
+}
+
+function renderVideoAnnotationRail(targets: ObservationMediaAnnotationTarget[], assetId: string): string {
+  const entries = targets
+    .flatMap((target) => target.regions
+      .filter((region) => region.assetId === assetId && isDisplayableRegion(region))
+      .map((region) => ({ target, region })))
+    .slice(0, 10);
+  if (entries.length === 0) return "";
+  return `<div class="obs-video-annotation-rail" aria-label="映像に写っている対象">
+    ${entries.map(({ target, region }) => {
+      const timeLabel = frameTimeLabel(region.frameTimeMs);
+      const className = `obs-video-annotation-button${target.proposalKind === "ai_candidate" ? " is-candidate" : ""}`;
+      return `<button type="button" class="${className}" ${annotationTargetDataAttrs(target)}>
+        <span>${escapeHtml(target.displayName)}</span>
+        ${timeLabel ? `<small>${escapeHtml(timeLabel)}</small>` : ""}
+      </button>`;
+    }).join("")}
+  </div>`;
 }
 
 export function toSubjectRegionMap(subjects: Array<Pick<ObservationVisitSubject, "occurrenceId" | "regions">>): RegionSwitchMap {
@@ -201,7 +299,11 @@ function videoFrameThumbUrl(thumbnailUrl: string | null, frameTimeMs: number | n
   }
 }
 
-function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject): string {
+function renderPhotoGallery(
+  snapshot: ObservationDetailSnapshot,
+  currentSubject: ObservationVisitSubject,
+  annotationTargets: ObservationMediaAnnotationTarget[] = [],
+): string {
   if (snapshot.photoAssets.length === 0) return "";
   const first = snapshot.photoAssets[0]!;
   const firstDisplayUrl = photoDisplayUrl(first, "lg");
@@ -224,6 +326,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
            <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
            <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
            <span hidden data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${renderObservationRegionBoxes(currentSubject, asset.assetId)}</span>
+           <span hidden data-obs-thumb-annotations="${escapeHtml(asset.assetId)}">${renderObservationAnnotationButtons(annotationTargets, asset.assetId, currentSubject.occurrenceId)}</span>
          </button>`;
     }).join("")}</div>`
     : "";
@@ -234,6 +337,7 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
       <span class="obs-hero-image-frame" data-obs-image-frame>
         <img src="${escapeHtml(firstDisplayUrl)}" data-obs-full-src="${escapeHtml(firstFullUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
         <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions>${renderObservationRegionBoxes(currentSubject, first.assetId)}</span>
+        <span class="obs-annotation-layer" data-obs-preview-annotations>${renderObservationAnnotationButtons(annotationTargets, first.assetId, currentSubject.occurrenceId)}</span>
       </span>
       <button type="button" class="obs-hero-zoom" data-obs-zoom aria-label="画像を拡大">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
@@ -243,7 +347,12 @@ function renderPhotoGallery(snapshot: ObservationDetailSnapshot, currentSubject:
   </div>`;
 }
 
-function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: ObservationVisitSubject, primaryVideo: VideoAsset | null): string {
+function renderVideoPlayer(
+  snapshot: ObservationDetailSnapshot,
+  currentSubject: ObservationVisitSubject,
+  primaryVideo: VideoAsset | null,
+  annotationTargets: ObservationMediaAnnotationTarget[] = [],
+): string {
   if (!primaryVideo) return "";
   const videoRegion = currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId && isDisplayableRegion(region)) ?? null;
   const videoEvidence = (snapshot.visualEvidence ?? [])
@@ -286,6 +395,7 @@ function renderVideoPlayer(snapshot: ObservationDetailSnapshot, currentSubject: 
        ${videoRegion ? `<span class="obs-region-video-note">AI が動画フレーム上の対象位置を記録しています</span>` : ""}
        ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
      </div>
+     ${renderVideoAnnotationRail(annotationTargets, primaryVideo.assetId)}
      ${videoEvidenceHtml}
    </div>`;
 }
@@ -313,14 +423,20 @@ function renderAudioEvidence(snapshot: ObservationDetailSnapshot): string {
 export function renderObservationMedia(
   snapshot: ObservationDetailSnapshot,
   currentSubject: ObservationVisitSubject,
+  annotationTargets: ObservationMediaAnnotationTarget[] = [],
 ): { mediaBlock: string; galleryScript: string } {
   const firstPhoto = snapshot.photoAssets[0] ?? null;
   const initialPhotoRegionCount = firstPhoto
-    ? displayableRegionsForAsset(currentSubject, firstPhoto.assetId).length
+    ? Math.max(
+      displayableRegionsForAsset(currentSubject, firstPhoto.assetId).length,
+      annotationTargets.reduce((count, target) => {
+        return count + target.regions.filter((region) => region.assetId === firstPhoto.assetId && isDisplayableRegion(region)).length;
+      }, 0),
+    )
     : 0;
-  const photoGallery = renderPhotoGallery(snapshot, currentSubject);
+  const photoGallery = renderPhotoGallery(snapshot, currentSubject, annotationTargets);
   const primaryVideo = snapshot.videoAssets[0] ?? null;
-  const videoPlayer = renderVideoPlayer(snapshot, currentSubject, primaryVideo);
+  const videoPlayer = renderVideoPlayer(snapshot, currentSubject, primaryVideo, annotationTargets);
   const audioEvidence = renderAudioEvidence(snapshot);
   const mediaBlock = (videoPlayer || photoGallery || audioEvidence)
     ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${audioEvidence}${initialPhotoRegionCount > 0 ? `<p class="obs-region-summary" data-region-summary>${OBSERVATION_REGION_SUMMARY_TEXT}</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
@@ -352,6 +468,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
      var preview = gallery.querySelector('[data-obs-preview]');
      var previewImg = preview && preview.querySelector('[data-obs-preview-img]');
      var previewRegions = preview && preview.querySelector('[data-obs-preview-regions]');
+     var previewAnnotations = preview && preview.querySelector('[data-obs-preview-annotations]');
      var previewRoleBadge = preview && preview.querySelector('[data-obs-media-role-badge]');
      var previewSuggestionBadge = preview && preview.querySelector('[data-obs-media-role-suggestion]');
      var thumbs = Array.prototype.slice.call(gallery.querySelectorAll('.obs-hero-thumb'));
@@ -374,6 +491,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        var imageWidth = t.getAttribute('data-obs-thumb-width');
        var imageHeight = t.getAttribute('data-obs-thumb-height');
        var regions = t.querySelector('[data-obs-thumb-regions]');
+       var annotations = t.querySelector('[data-obs-thumb-annotations]');
        thumbs.forEach(function(x){ x.classList.remove('is-active'); });
        t.classList.add('is-active');
        if (previewImg && imageWidth && imageHeight) {
@@ -419,6 +537,10 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
          previewRegions.setAttribute('data-region-layer', assetId || '');
          updateRegionSummary(regions.innerHTML);
        }
+       if (previewAnnotations && annotations) {
+         previewAnnotations.innerHTML = annotations.innerHTML;
+       }
+       window.dispatchEvent(new CustomEvent('ikimon:media-asset-selected', { detail: { assetId: assetId || '' } }));
      };
 
      thumbs.forEach(function(t){
@@ -455,6 +577,7 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
 
      if (preview) {
        preview.addEventListener('click', function(e){
+         if (e.target.closest && e.target.closest('[data-annotation-target]')) return;
          if (e.target.closest && e.target.closest('[data-obs-zoom]')) { e.preventDefault(); openLightbox(); return; }
          openLightbox();
        });
