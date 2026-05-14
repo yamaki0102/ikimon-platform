@@ -1034,8 +1034,8 @@ function verificationStatusLabel(status: IdentificationConsensusResult["identifi
 const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
-  .obs-reading-media { min-width: 0; order: 2; }
-  .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 1; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+  .obs-reading-media { min-width: 0; order: 1; }
+  .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
   .obs-reading-kicker { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
   .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(24px, 3.6vw, 44px); line-height: 1.08; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
   .obs-reading-lead { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.6; font-weight: 700; }
@@ -1100,8 +1100,23 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-visual-next-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
   .obs-summary-section, .obs-support-panel, .obs-layer, .obs-reading-hero { scroll-margin-top: 96px; }
   @media (max-width: 720px) {
-    .obs-reading-panel { padding: 15px; border-radius: 16px; }
-    .obs-summary-strip { grid-template-columns: 1fr; }
+    .obs-reading-hero { gap: 10px; margin-top: 8px; margin-bottom: 12px; }
+    .obs-reading-panel { gap: 8px; padding: 10px; border-radius: 16px; box-shadow: none; }
+    .obs-media-evidence-shell { gap: 7px; }
+    .obs-media-evidence-head { padding: 7px 9px; border-radius: 12px; }
+    .obs-media-evidence-title { font-size: 12px; }
+    .obs-media-evidence-count { font-size: 10.5px; }
+    .obs-record-brief,
+    .obs-hero-badges,
+    .obs-summary-strip { display: none; }
+    .obs-current-find { gap: 5px; padding: 0; }
+    .obs-current-find-kicker { font-size: 9.5px; letter-spacing: .08em; }
+    .obs-reading-title { font-size: 22px; line-height: 1.14; }
+    .obs-hero-byline { gap: 6px; font-size: 11px; line-height: 1.3; }
+    .obs-hero-avatar { width: 20px; height: 20px; font-size: 10px; }
+    .obs-first-read { gap: 3px; padding: 9px 10px; border-radius: 12px; }
+    .obs-first-read-eye { font-size: 9.5px; letter-spacing: .06em; }
+    .obs-first-read p { font-size: 12px; line-height: 1.45; }
     .obs-record-brief-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .obs-record-brief-card { min-height: 68px; padding: 8px 7px; }
     .obs-record-brief-card strong { font-size: 12px; }
@@ -1148,16 +1163,16 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-trust-step-label { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #0f172a; }
   .obs-trust-step-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(59,130,246,.12); color: #1d4ed8; font-size: 10px; font-weight: 900; }
   .obs-trust-step-meta { font-size: 11.5px; line-height: 1.6; color: #64748b; font-weight: 700; }
-  .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; }
-  .obs-reaction { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 800; font-size: 12.5px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
+  .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 0; }
+  .obs-reaction { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 800; font-size: 12px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
   .obs-reaction:hover { background: #f9fafb; transform: translateY(-1px); }
   .obs-reaction.is-reacted { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.3); color: #047857; }
-  .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 800; }
+  .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 6px; border-radius: 10px; font-size: 10.5px; font-weight: 800; }
   .obs-reaction-label { display: none; }
   @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
-  .obs-support-panel { display: grid; gap: 14px; padding: 16px; border-radius: 18px; background: rgba(255,255,255,.76); border: 1px solid rgba(15,23,42,.07); box-shadow: 0 10px 26px rgba(15,23,42,.04); }
+  .obs-support-panel { display: grid; gap: 9px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.76); border: 1px solid rgba(15,23,42,.07); box-shadow: 0 8px 20px rgba(15,23,42,.035); }
   .obs-support-actions { display: grid; gap: 10px; }
-  .obs-support-title { margin: 0; font-size: 14px; font-weight: 900; color: #0f172a; }
+  .obs-support-title { margin: 0; font-size: 13px; font-weight: 900; color: #0f172a; }
   .obs-support-note { margin: 0; color: #64748b; font-size: 12px; line-height: 1.6; }
   .obs-focus { display: grid; gap: 12px; margin-top: 16px; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(236,253,245,.92)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 28px rgba(16,185,129,.08); }
   .obs-focus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -1228,36 +1243,60 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-visible-record-main .obs-focus-card-meta { font-size: 10px; line-height: 1.45; }
     .obs-visible-record-main .obs-visible-record-note,
     .obs-visible-record-main .obs-visible-record-boundary { display: none; }
-    .obs-ai-readout-grid { grid-template-columns: 1fr; }
+    .obs-ai-readout { gap: 6px; padding: 9px 10px; border-radius: 12px; }
+    .obs-ai-readout-top { gap: 8px; }
+    .obs-ai-readout-title { font-size: 13px; line-height: 1.35; }
+    .obs-ai-readout-badge { padding: 3px 7px; font-size: 10px; }
+    .obs-ai-readout-rec { gap: 5px; font-size: 12.5px; line-height: 1.25; }
+    .obs-ai-readout-rank { font-size: 10.5px; }
+    .obs-ai-readout-section-label { margin-bottom: 4px; font-size: 9.5px; letter-spacing: .06em; }
+    .obs-ai-readout-clues { gap: 4px; }
+    .obs-ai-readout-clues li { padding: 3px 6px; font-size: 10px; line-height: 1.2; }
+    .obs-ai-readout-note { padding: 7px 8px; border-radius: 10px; font-size: 10.5px; line-height: 1.35; }
+    .obs-ai-readout-note strong { margin-bottom: 1px; font-size: 9.5px; letter-spacing: .06em; }
+    .obs-ai-readout-grid { grid-template-columns: 1fr; gap: 5px; }
   }
-  .obs-reassess-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)); border: 1px dashed rgba(59,130,246,.3); margin: 14px 0 0; }
-  .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; padding: 10px 18px; background: #111827; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(15,23,42,.25); }
+  .obs-reassess-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: linear-gradient(135deg, rgba(59,130,246,.07), rgba(16,185,129,.07)); border: 1px dashed rgba(59,130,246,.25); margin: 8px 0 0; }
+  .obs-reassess-row.section, .obs-photo-recovery.section, .obs-owner-delete.section { margin-top: 10px; }
+  .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; min-height: 36px; padding: 8px 13px; background: #111827; color: #fff; font-weight: 850; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(15,23,42,.2); }
   .obs-reassess-btn:hover { background: #1f2937; }
   .obs-reassess-btn[disabled] { opacity: .6; cursor: progress; }
-  .obs-reassess-hint { color: #475569; font-size: 12px; line-height: 1.4; }
-  .obs-reassess-status { font-size: 12px; font-weight: 700; color: #047857; }
+  .obs-reassess-hint { flex: 1 1 220px; color: #475569; font-size: 11.5px; line-height: 1.35; }
+  .obs-reassess-status { font-size: 11.5px; font-weight: 750; color: #047857; }
   .obs-reassess-status.is-error { color: #b91c1c; }
-  .obs-photo-recovery { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px; border-radius: 16px; background: linear-gradient(135deg, rgba(254,249,195,.78), rgba(236,253,245,.88)); border: 1px solid rgba(234,179,8,.24); margin-top: 0; }
-  .obs-photo-recovery h2 { margin: 4px 0 0; color: #0f172a; font-size: 18px; line-height: 1.28; }
-  .obs-photo-recovery p { margin: 7px 0 0; color: #475569; font-size: 13px; line-height: 1.65; font-weight: 720; }
-  .obs-photo-recovery-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
-  .obs-photo-recovery-picker { position: relative; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 9px 14px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.12); color: #334155; font-size: 12px; font-weight: 900; cursor: pointer; overflow: hidden; }
+  .obs-photo-recovery, .obs-owner-delete { padding: 0; border-radius: 14px; overflow: hidden; }
+  .obs-photo-recovery { background: linear-gradient(135deg, rgba(254,249,195,.58), rgba(236,253,245,.72)); border: 1px solid rgba(234,179,8,.22); }
+  .obs-owner-delete { background: #fff7ed; border: 1px solid rgba(234,88,12,.2); }
+  .obs-owner-tool-details { display: block; }
+  .obs-owner-tool-summary { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 12px; cursor: pointer; list-style: none; }
+  .obs-owner-tool-summary::-webkit-details-marker { display: none; }
+  .obs-owner-tool-summary::marker { content: ""; }
+  .obs-owner-tool-summary span:first-child { display: grid; gap: 2px; min-width: 0; }
+  .obs-owner-tool-summary strong { color: #0f172a; font-size: 14px; line-height: 1.25; font-weight: 950; }
+  .obs-owner-tool-summary small { color: #475569; font-size: 11.5px; line-height: 1.35; font-weight: 760; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .obs-owner-tool-open { flex-shrink: 0; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11px; line-height: 1; font-weight: 900; }
+  .obs-owner-tool-details[open] .obs-owner-tool-open { background: rgba(15,23,42,.08); }
+  .obs-owner-tool-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 0 12px 12px; }
+  .obs-owner-tool-body p { margin: 0; color: #475569; font-size: 12px; line-height: 1.5; font-weight: 720; }
+  .obs-owner-delete .obs-owner-tool-body p { color: #9a3412; }
+  .obs-photo-recovery-form { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; justify-content: flex-end; }
+  .obs-photo-recovery-picker { position: relative; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.12); color: #334155; font-size: 12px; font-weight: 900; cursor: pointer; overflow: hidden; }
   .obs-photo-recovery-picker input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .obs-photo-recovery-submit { min-height: 44px; padding: 9px 16px; border-radius: 999px; border: 0; background: #111827; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .obs-photo-recovery-submit { min-height: 38px; padding: 8px 13px; border-radius: 999px; border: 0; background: #111827; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
   .obs-photo-recovery-submit[disabled] { opacity: .6; cursor: progress; }
-  .obs-photo-recovery-status { grid-column: 1 / -1; min-height: 22px; color: #047857; font-size: 12px; font-weight: 850; }
+  .obs-photo-recovery-status { grid-column: 1 / -1; min-height: 18px; color: #047857; font-size: 11.5px; font-weight: 850; }
   .obs-photo-recovery-status.is-error { color: #b91c1c; }
-  .obs-owner-delete { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px; border-radius: 16px; background: #fff7ed; border: 1px solid rgba(234,88,12,.22); }
-  .obs-owner-delete h2 { margin: 4px 0 0; color: #7c2d12; font-size: 18px; line-height: 1.28; }
-  .obs-owner-delete p { margin: 7px 0 0; color: #9a3412; font-size: 13px; line-height: 1.65; font-weight: 720; }
-  .obs-owner-delete-button { min-height: 44px; padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(185,28,28,.22); background: #b91c1c; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .obs-owner-delete .obs-owner-tool-summary strong { color: #7c2d12; }
+  .obs-owner-delete-button { min-height: 38px; padding: 8px 13px; border-radius: 999px; border: 1px solid rgba(185,28,28,.22); background: #b91c1c; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
   .obs-owner-delete-button[disabled] { opacity: .62; cursor: progress; }
-  .obs-owner-delete-status { grid-column: 1 / -1; min-height: 22px; color: #9a3412; font-size: 12px; font-weight: 850; }
+  .obs-owner-delete-status { grid-column: 1 / -1; min-height: 18px; color: #9a3412; font-size: 11.5px; font-weight: 850; }
   .obs-owner-delete-status.is-error { color: #b91c1c; }
   @media (max-width: 760px) {
-    .obs-photo-recovery, .obs-owner-delete { grid-template-columns: 1fr; }
+    .obs-owner-tool-summary { gap: 10px; padding: 9px 10px; }
+    .obs-owner-tool-summary small { white-space: normal; }
+    .obs-owner-tool-body { grid-template-columns: 1fr; padding-inline: 10px; }
     .obs-photo-recovery-form { justify-content: stretch; }
-    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button { width: 100%; min-height: 52px; border-radius: 14px; }
+    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button { width: 100%; min-height: 42px; border-radius: 12px; }
   }
 
   .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
@@ -2826,19 +2865,27 @@ function renderObservationPhotoRecoveryPanel(options: {
   });
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/photos/upload`);
   return `<section class="section obs-photo-recovery" data-photo-recovery data-upload-endpoint="${escapeHtml(endpoint)}" data-existing-photo-count="${escapeHtml(String(options.existingPhotoCount))}">
-    <div>
-      <div class="obs-story-eyebrow">${escapeHtml(mediaCopy.photoRecoveryEyebrow)}</div>
-      <h2>${escapeHtml(mediaCopy.photoRecoveryTitle)}</h2>
-      <p>${escapeHtml(mediaCopy.photoRecoveryBody)}</p>
-    </div>
-    <form class="obs-photo-recovery-form">
-      <label class="obs-photo-recovery-picker">
-        <span>写真を選ぶ</span>
-        <input type="file" accept="image/*" multiple />
-      </label>
-      <button type="submit" class="obs-photo-recovery-submit">写真を保存</button>
-    </form>
-    <div class="obs-photo-recovery-status" data-photo-recovery-status aria-live="polite"></div>
+    <details class="obs-owner-tool-details">
+      <summary class="obs-owner-tool-summary">
+        <span>
+          <span class="obs-story-eyebrow">${escapeHtml(mediaCopy.photoRecoveryEyebrow)}</span>
+          <strong>${escapeHtml(mediaCopy.photoRecoveryTitle)}</strong>
+          <small>${escapeHtml(mediaCopy.photoRecoveryBody)}</small>
+        </span>
+        <span class="obs-owner-tool-open">開く</span>
+      </summary>
+      <div class="obs-owner-tool-body">
+        <p>${escapeHtml(mediaCopy.photoRecoveryBody)}</p>
+        <form class="obs-photo-recovery-form">
+          <label class="obs-photo-recovery-picker">
+            <span>写真を選ぶ</span>
+            <input type="file" accept="image/*" multiple />
+          </label>
+          <button type="submit" class="obs-photo-recovery-submit">写真を保存</button>
+        </form>
+        <div class="obs-photo-recovery-status" data-photo-recovery-status aria-live="polite"></div>
+      </div>
+    </details>
   </section>`;
 }
 
@@ -3040,13 +3087,21 @@ function renderObservationOwnerDeletePanel(options: {
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/hide`);
   const notesHref = appendLangToHref(withBasePath(options.basePath, "/records?view=mine"), options.lang);
   return `<section class="section obs-owner-delete" data-owner-delete data-delete-endpoint="${escapeHtml(endpoint)}" data-after-delete-href="${escapeHtml(notesHref)}">
-    <div>
-      <div class="obs-story-eyebrow">Delete</div>
-      <h2>この観察を削除</h2>
-      <p>誤って公開した記録はここから自分の一覧と公開ページから外せます。写真ファイルは監査用に残し、表示だけを止めます。</p>
-    </div>
-    <button type="button" class="obs-owner-delete-button" data-owner-delete-button>削除する</button>
-    <div class="obs-owner-delete-status" data-owner-delete-status aria-live="polite"></div>
+    <details class="obs-owner-tool-details">
+      <summary class="obs-owner-tool-summary">
+        <span>
+          <span class="obs-story-eyebrow">削除</span>
+          <strong>この観察を削除</strong>
+          <small>一覧と公開ページから外します。写真ファイルは監査用に残します。</small>
+        </span>
+        <span class="obs-owner-tool-open">開く</span>
+      </summary>
+      <div class="obs-owner-tool-body">
+        <p>誤って公開した記録はここから自分の一覧と公開ページから外せます。写真ファイルは監査用に残し、表示だけを止めます。</p>
+        <button type="button" class="obs-owner-delete-button" data-owner-delete-button>削除する</button>
+        <div class="obs-owner-delete-status" data-owner-delete-status aria-live="polite"></div>
+      </div>
+    </details>
   </section>`;
 }
 

@@ -49,6 +49,15 @@ async function visibleRecordTextInFirstViewport(page: Page): Promise<string> {
   });
 }
 
+async function expectWithinFirstViewport(page: Page, selector: string): Promise<void> {
+  const box = await page.locator(selector).first().boundingBox();
+  expect(box, `${selector} should have a layout box`).not.toBeNull();
+  if (!box) return;
+  const height = await page.evaluate(() => window.innerHeight);
+  expect(box.y, `${selector} should start in the first viewport`).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height, `${selector} should fit in the first viewport`).toBeLessThanOrEqual(height + 8);
+}
+
 test.describe.serial("observation scene read model visual QA", () => {
   let api: APIRequestContext;
   let fixturePrefix = "";
@@ -96,6 +105,9 @@ test.describe.serial("observation scene read model visual QA", () => {
         expect(firstViewportText).toContain("浜松市で見つけた記録");
         expect(firstViewportText).toContain("まず写真から分かること");
         if (profile.isMobile) {
+          await expectWithinFirstViewport(page, ".obs-reading-media");
+          await expectWithinFirstViewport(page, ".obs-first-read");
+          await expectWithinFirstViewport(page, ".obs-ai-readout");
           expect(firstViewportText).toContain("名前のいま");
         }
         expect(firstViewportText).toContain("ヒメイワダレソウ");

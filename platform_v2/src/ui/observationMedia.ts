@@ -111,6 +111,21 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-video-annotation-button small { color: #64748b; font-weight: 850; }
   @keyframes obsAnnotationPulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.18); } 50% { box-shadow: 0 0 0 5px rgba(16,185,129,.28), 0 16px 32px rgba(15,23,42,.2); } }
   @media (max-width: 640px) {
+    .obs-hero-gallery { gap: 6px; padding: 6px; border-radius: 16px; box-shadow: 0 8px 22px rgba(15,23,42,.06); }
+    .obs-hero-preview { min-height: 190px; max-height: 210px; border-radius: 12px; }
+    .obs-hero-image-frame { max-height: 210px; }
+    .obs-hero-image-frame img { max-height: 210px; }
+    .obs-hero-zoom { top: 8px; right: 8px; width: 36px; height: 36px; }
+    .obs-hero-zoom svg { width: 18px; height: 18px; }
+    .obs-hero-thumbs { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+    .obs-hero-thumb { border-radius: 8px; }
+    .obs-hero-thumb-active-label { display: none; }
+    .obs-media-role-badge { left: 8px; top: 8px; min-height: 24px; padding: 5px 8px; font-size: 10px; }
+    .obs-media-ai-role { left: 8px; top: 38px; min-height: 22px; padding: 4px 7px; font-size: 9px; }
+    .obs-region-summary { font-size: 10.5px; line-height: 1.35; }
+    .obs-video-annotation-rail { gap: 5px; padding-top: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .obs-video-annotation-rail::-webkit-scrollbar { display: none; }
+    .obs-video-annotation-button { flex: 0 0 auto; min-height: 32px; padding: 6px 8px; font-size: 10.5px; }
     .obs-annotation-label { left: 4px; top: 4px; max-width: min(132px, 42vw); padding: 4px 6px; }
     .obs-annotation-label strong { font-size: 10px; }
     .obs-annotation-label small { display: none; }
