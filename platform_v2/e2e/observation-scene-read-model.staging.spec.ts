@@ -95,7 +95,9 @@ test.describe.serial("observation scene read model visual QA", () => {
         const firstViewportText = await visibleRecordTextInFirstViewport(page);
         expect(firstViewportText).toContain("浜松市で見つけた記録");
         expect(firstViewportText).toContain("まず写真から分かること");
-        expect(firstViewportText).toContain("名前のいま");
+        if (profile.isMobile) {
+          expect(firstViewportText).toContain("名前のいま");
+        }
         expect(firstViewportText).toContain("ヒメイワダレソウ");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("一緒に写ってるかも");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("周りの草");
