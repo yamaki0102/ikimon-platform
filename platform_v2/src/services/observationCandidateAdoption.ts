@@ -1,4 +1,7 @@
 import { getPool } from "../db.js";
+import { ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from "./observationAiRuns.js";
+import { deriveVisitDisplayState, getStoredVisitDisplayState, upsertVisitDisplayState } from "./visitDisplayState.js";
+import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { makeOccurrenceId } from "./writeSupport.js";
 
 export type AdoptObservationCandidateInput = {
@@ -149,6 +152,14 @@ export async function adoptObservationCandidate(
           and occurrence_id is null`,
       [occurrenceId, candidate.candidate_id],
     );
+
+    const storedDisplayState = await getStoredVisitDisplayState(client, candidate.visit_id).catch(() => null);
+    if (!storedDisplayState || !storedDisplayState.lockedByHuman) {
+      await ensureLegacyAiRunsForVisit(client, candidate.visit_id);
+      const latestRun = await getLatestObservationAiRunForVisit(client, candidate.visit_id);
+      const subjects = await getVisitSubjectSummaries(candidate.visit_id, client);
+      await upsertVisitDisplayState(client, deriveVisitDisplayState(candidate.visit_id, subjects, latestRun?.aiRunId ?? null));
+    }
 
     await client.query("commit");
     return {

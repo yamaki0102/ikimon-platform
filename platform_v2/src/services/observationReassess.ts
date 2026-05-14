@@ -56,6 +56,9 @@ export type ReassessResult = {
   narrative: string;
   candidateCount: number;
   regionCount: number;
+  materializedCandidateRecordCount: number;
+  matchedCandidateRecordCount: number;
+  candidateOnlyCount: number;
   gbifMatchedPrimary: boolean;
   gbifMatchedCoexistingCount: number;
   modelUsed: string;
@@ -1436,6 +1439,9 @@ export async function reassessObservation(
 
     let candidateCount = 0;
     let regionCount = 0;
+    let materializedCandidateRecordCount = 0;
+    let matchedCandidateRecordCount = 0;
+    let candidateOnlyCount = 0;
     for (let index = 0; index < preparedCandidates.length; index += 1) {
       const candidate = preparedCandidates[index];
       if (!candidate) continue;
@@ -1464,6 +1470,15 @@ export async function reassessObservation(
         matchedOccurrenceId: matchedSubject?.occurrenceId ?? null,
       });
       const candidateOccurrenceId = aiJudgementRecord.occurrenceId;
+      if (candidateOccurrenceId) {
+        if (aiJudgementRecord.materialized) {
+          materializedCandidateRecordCount += 1;
+        } else if (aiJudgementRecord.matchedExisting) {
+          matchedCandidateRecordCount += 1;
+        }
+      } else {
+        candidateOnlyCount += 1;
+      }
       await client.query(
         `INSERT INTO observation_ai_subject_candidates (
            candidate_id,
@@ -1717,6 +1732,25 @@ export async function reassessObservation(
       );
     }
 
+    await client.query(
+      `UPDATE observation_ai_runs
+          SET source_payload = source_payload || $2::jsonb
+        WHERE ai_run_id = $1::uuid`,
+      [
+        aiRun.aiRunId,
+        JSON.stringify({
+          aiSubjectRecordMaterialization: {
+            totalCandidateCount: candidateCount,
+            materializedCandidateRecordCount,
+            matchedCandidateRecordCount,
+            candidateOnlyCount,
+            occurrenceBackedCandidateCount: materializedCandidateRecordCount + matchedCandidateRecordCount,
+            proposalUiFallbackRiskCount: candidateOnlyCount,
+          },
+        }),
+      ],
+    );
+
     const storedDisplayState = await getStoredVisitDisplayState(client, target.visitId).catch(() => null);
     const latestSubjects = await getVisitSubjectSummaries(target.visitId, client);
     let resolvedDisplayState = storedDisplayState;
@@ -1737,6 +1771,9 @@ export async function reassessObservation(
       narrative,
       candidateCount,
       regionCount,
+      materializedCandidateRecordCount,
+      matchedCandidateRecordCount,
+      candidateOnlyCount,
       gbifMatchedPrimary,
       gbifMatchedCoexistingCount,
       modelUsed,

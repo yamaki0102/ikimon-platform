@@ -11,6 +11,16 @@ const pages = [
 ];
 
 const publicSurfacePages = ["/", "/records", "/map"];
+const canonicalAiSubjectScenes = [
+  {
+    path: "/ja/observations/record-1778549526406?subject=occ%3Arecord-1778549526406%3A0",
+    expectedSubjects: ["セイヨウミツバチ", "イネ科の一種"],
+  },
+  {
+    path: "/ja/observations/record-1778643230506",
+    expectedSubjects: ["クスノキ属", "オシダ属"],
+  },
+] as const;
 const fixtureLeakPattern = /e2e_test_|prod-media-smoke|smoke-ui|smoke_regression_fixture|regression fixture|staging regression|fixture_prefix/i;
 const smokePhotoBase64 =
   "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";
@@ -215,6 +225,46 @@ test.describe("production candidate smoke", () => {
     }
     expect(checkedThumbs.size, "public smoke should inspect at least one public thumbnail").toBeGreaterThan(0);
   });
+
+  for (const scene of canonicalAiSubjectScenes) {
+    test(`canonical scene renders visible AI subjects as observation records: ${scene.path}`, async ({ page }) => {
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
+    const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
+    expect(response?.ok(), "canonical AI subject scene should be readable").toBeTruthy();
+    await expect(page.locator("body")).toContainText("この写真に写っているもの");
+
+    for (const name of scene.expectedSubjects) {
+      const card = page.locator(".obs-visible-record-card").filter({ hasText: name }).first();
+      await expect(card, `${name} visible record card`).toBeVisible();
+      await expect(card, `${name} is an occurrence-backed observation record`).toHaveAttribute(
+        "href",
+        /[?&]subject=occ%3A[^&]+%3A\d+/,
+      );
+      await expect(card, `${name} keeps the AI-only observation-record boundary visible`).toContainText(
+        "AIが写真から分けた観測レコード",
+      );
+
+      const picker = page.locator(".obs-media-discovery-target").filter({ hasText: name }).first();
+      await expect(picker, `${name} picker item`).toBeVisible();
+      await expect(picker, `${name} picker is subject-backed, not candidate-backed`).toHaveAttribute(
+        "data-annotation-subject-id",
+        /occ:[^:]+:\d+/,
+      );
+    }
+
+    await expect(page.locator("body")).not.toContainText("これも写ってると提案");
+    await expect(page.locator("body")).not.toContainText("写っている対象として知らせる");
+    await expect(page.locator("body")).not.toContainText("観測レコードにする");
+    await recordSmokeCheckpoint("canonical_scene_ai_subject_records", {
+      path: scene.path,
+      expectedSubjects: scene.expectedSubjects,
+    });
+  });
+  }
 
   test("mobile record UI saves photo and video against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
