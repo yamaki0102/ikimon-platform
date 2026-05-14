@@ -23,13 +23,16 @@ const representativeSceneReadPath =
   `/ja/observations/${representativeSceneReadVisitId}?subject=occ%3A${representativeSceneReadVisitId}%3A0`;
 
 const representativeSceneReadMarkers = [
-  "2026.05.12 浜松市の観察記録",
+  "浜松市で見つけた記録",
   "3件の見つけたもの",
+  "まず写真から分かること",
+  "名前のいま",
+  "この写真に写っているもの",
   "ヒメイワダレソウ",
   "セイヨウミツバチ",
   "イネ科の一種",
-  "訪花中の候補",
-  "周囲の草",
+  "一緒に写ってるかも",
+  "周りの草",
   "自動候補は確定名ではありません",
 ];
 
@@ -37,6 +40,7 @@ const representativeSceneReadForbiddenMarkers = [
   "\"status\":\"bootstrapping\"",
   "1件の見つけたもの",
   "AI 主役 100%",
+  "訪花中の候補",
 ];
 
 function parseArgs(argv: string[]): SmokeOptions {
