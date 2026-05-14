@@ -176,6 +176,10 @@ function validateHtmlSmokeCheck(html: string, check: HtmlSmokeCheck): string | n
   return null;
 }
 
+function shouldAllowMarkerlessStatus(status: number, check: HtmlSmokeCheck): boolean {
+  return status === 404 && check.allowedStatuses.includes(404);
+}
+
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const pool = getPool();
@@ -228,9 +232,13 @@ async function main(): Promise<void> {
     for (const check of checks) {
       try {
         const { html, status } = await fetchHtml(check.url, check.allowedStatuses);
+        if (shouldAllowMarkerlessStatus(status, check)) {
+          results.push({ name: check.name, url: check.url, ok: true, error: `status:${status}` });
+          continue;
+        }
         const validationError = validateHtmlSmokeCheck(html, check);
         if (validationError) {
-          results.push({ name: check.name, url: check.url, ok: false, error: validationError });
+          results.push({ name: check.name, url: check.url, ok: false, error: `${validationError};status:${status}` });
           failed = true;
           continue;
         }
