@@ -78,8 +78,10 @@ test.describe.serial("observation scene read model visual QA", () => {
         const href = `/observations/${encodeURIComponent(fixture.scene.visitId)}?subject=${encodeURIComponent(fixture.scene.occurrenceId)}&lang=ja`;
         await page.goto(href, { waitUntil: "domcontentloaded" });
 
-        await expect(page.locator("h1")).toContainText("浜松市の観察記録");
-        await expect(page.locator("body")).toContainText("今日ここで見えたもの");
+        await expect(page.locator("h1")).toContainText("浜松市で見つけた記録");
+        await expect(page.locator("body")).toContainText("まず写真から分かること");
+        await expect(page.locator("body")).toContainText("この写真に写っているもの");
+        await expect(page.locator("body")).toContainText("名前のいま");
         await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
         await expect(page.locator("body")).toContainText("セイヨウミツバチ");
         await expect(page.locator("body")).toContainText("イネ科の一種");
@@ -91,13 +93,14 @@ test.describe.serial("observation scene read model visual QA", () => {
         const names = await page.locator(".obs-visible-record-card .obs-focus-card-name").allInnerTexts();
         expect(names.slice(0, 3)).toEqual(["ヒメイワダレソウ", "セイヨウミツバチ", "イネ科の一種"]);
         const firstViewportText = await visibleRecordTextInFirstViewport(page);
-        expect(firstViewportText).toContain("浜松市の観察記録");
+        expect(firstViewportText).toContain("浜松市で見つけた記録");
         expect(firstViewportText).toContain("ヒメイワダレソウ");
         expect(firstViewportText).toContain("セイヨウミツバチ");
         expect(firstViewportText).toContain("イネ科の一種");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("訪花中の候補");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("手がかりあり");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("一緒に写ってるかも");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("周りの草");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "小さな黒い点" })).toContainText("参考");
+        await expect(page.locator("[data-annotation-target]").first()).toBeVisible();
         await expectNoHorizontalOverflow(page);
 
         await maybeCaptureQaScreenshot(page, `observation-scene-${profile.slug}.jpg`);

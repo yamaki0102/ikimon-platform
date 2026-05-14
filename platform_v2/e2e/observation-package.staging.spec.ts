@@ -39,7 +39,7 @@ test("observation package endpoint returns a reviewed package with staging auth"
     expect(response.ok(), payload?.error ?? "observation_package_failed").toBeTruthy();
     expect(payload?.ok).toBe(true);
     const pkg = payload?.package;
-    expect(pkg?.packageVersion).toBe("observation_package/v1.3");
+    expect(pkg?.packageVersion).toBe("observation_package/v1.4");
     expect(pkg?.methodContext).toBeTruthy();
     expect(pkg?.dataProductChain).toBeTruthy();
     expect(pkg?.readiness).toBeTruthy();
