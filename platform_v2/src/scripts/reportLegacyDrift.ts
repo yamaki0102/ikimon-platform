@@ -122,6 +122,14 @@ function normalizeVerifyRun(row: MigrationRunRow): NormalizedVerifyRun {
   };
 }
 
+function isTerminalDeltaRun(row: MigrationRunRow): boolean {
+  return row.status === "succeeded" || row.status === "skipped" || row.status === "failed";
+}
+
+function selectLatestDeltaRun(rows: MigrationRunRow[]): MigrationRunRow | null {
+  return rows.find(isTerminalDeltaRun) ?? rows[0] ?? null;
+}
+
 async function createReportRun(options: ReportOptions): Promise<string> {
   const result = await getPool().query<{ migration_run_id: string }>(
     `insert into migration_runs (
@@ -216,7 +224,7 @@ async function main(): Promise<void> {
 
     const normalizedVerifyRuns = verifyRunsResult.rows.map(normalizeVerifyRun);
     const latestVerify = normalizedVerifyRuns[0] ?? null;
-    const latestDelta = deltaRunsResult.rows[0] ?? null;
+    const latestDelta = selectLatestDeltaRun(deltaRunsResult.rows);
     const latestCursor = cursorResult.rows[0] ?? null;
 
     const latestVerifyAgeHours = hoursSince(latestVerify?.finishedAt ?? latestVerify?.startedAt ?? null);
