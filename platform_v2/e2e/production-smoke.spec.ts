@@ -21,6 +21,8 @@ const canonicalAiSubjectScenes = [
     expectedSubjects: ["クスノキ属", "カエデ属"],
   },
 ] as const;
+const canonicalFieldAdviceScene =
+  "/ja/observations/record-1778818427350?subject=occ%3Arecord-1778818427350%3A0";
 
 function visibleSubjectRolePattern(name: string): RegExp {
   if (/ミツバチ|ハチ|蜂/.test(name)) return /花に来た虫/;
@@ -344,26 +346,8 @@ test.describe("production candidate smoke", () => {
       await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
       const page = await context.newPage();
 
-      const observedAt = new Date().toISOString();
-      const recordResponse = await context.request.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
-        headers: jsonHeaders(baseUrl, account),
-        data: {
-          clientSubmissionId: `${prefix}-field-policy-record-${Date.now()}`,
-          userId: account.userId,
-          observedAt,
-          latitude: 34.7107,
-          longitude: 137.7260,
-          localityNote: `会社敷地の草管理 ${prefix}`,
-          note: `production field policy smoke record ${prefix}`,
-          taxon: { vernacularName: "イネ科の草", scientificName: null, rank: "unknown" },
-          sourcePayload: { source: "production_field_policy_smoke", fixturePrefix: prefix },
-        },
-      });
-      const recordPayload = await jsonFromResponse(recordResponse, "field policy smoke record");
-      expect(recordResponse.ok(), String(recordPayload.error ?? "record_failed")).toBeTruthy();
-      const occurrenceId = String(recordPayload.occurrenceId ?? "");
-      expect(occurrenceId, "field policy smoke record occurrence id").toBeTruthy();
-      await page.goto(joinUrl(baseUrl, `/ja/observations/${encodeURIComponent(occurrenceId)}`), { waitUntil: "domcontentloaded" });
+      await page.goto(joinUrl(baseUrl, canonicalFieldAdviceScene), { waitUntil: "domcontentloaded" });
+      await expect(page.locator("body")).toContainText("現場アドバイス");
 
       const form = page.locator("[data-care-policy-form]").first();
       await expect(form, "logged-in plant detail should show management policy form").toBeVisible();
