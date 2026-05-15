@@ -1802,6 +1802,14 @@ function visibleRecordRead(item: VisibleRecordItem): { role: string; badge: stri
     };
   }
 
+  if (/カラスノエンドウ|スズメノエンドウ|エンドウ|マメ科|vicia/.test(text)) {
+    return {
+      role: item.isFeatured || item.isCurrent ? "代表候補" : "写っている植物",
+      badge,
+      body: "形や名前だけでなく、どこまで広がり、周囲の草や裸地とどう接しているかまで写ると、この場所でのふるまいが見えてきます。",
+    };
+  }
+
   if (/鳥|ハト|鳩|カワラバト|カラス|スズメ|bird|aves/.test(text)) {
     return {
       role: "この場所を使う鳥",
@@ -2334,7 +2342,9 @@ function friendlyObservationText(text: string | null | undefined, maxLength = 92
   ];
   for (const [pattern, replacement] of replacements) value = value.replace(pattern, replacement);
   value = value
+    .replace(/地面をはう地面をはう/g, "地面をはう")
     .replace(/地面をはうの/g, "地面をはう")
+    .replace(/地面をはう地面をはう/g, "地面をはう")
     .replace(/花の横からの近くから/g, "花を横から近くで")
     .replace(/花びらの細部の近くの写真/g, "花びらを近くで写した写真")
     .replace(/\s+([がをには])/g, "$1")

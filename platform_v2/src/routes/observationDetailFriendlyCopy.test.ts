@@ -264,6 +264,17 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
         regions: [],
       },
       {
+        candidateId: "cand-vetch",
+        suggestedOccurrenceId: null,
+        displayName: "カラスノエンドウ",
+        scientificName: "Vicia sativa",
+        rank: "species",
+        confidence: 0.52,
+        candidateStatus: "proposed",
+        note: "マメ科の植物らしい葉が端に写る",
+        regions: [],
+      },
+      {
         candidateId: "cand-low",
         suggestedOccurrenceId: null,
         displayName: "小さな黒い点",
@@ -309,6 +320,7 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
       ["ヒメイワダレソウ", "AI推定", "main", "代表候補"],
       ["セイヨウミツバチ", "AI推定", "main", "花に来た虫"],
       ["イネ科の一種", "AI推定", "main", "草地と裸地"],
+      ["カラスノエンドウ", "AI推定", "main", "写っている植物"],
       ["小さな黒い点", "参考", "reference", "一緒に写るもの"],
     ],
   );
@@ -321,9 +333,12 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.match(anonymousHtml, /ヒメイワダレソウ/);
   assert.match(anonymousHtml, /セイヨウミツバチ/);
   assert.match(anonymousHtml, /イネ科の一種/);
+  assert.match(anonymousHtml, /カラスノエンドウ/);
+  assert.match(anonymousHtml, /写っている植物/);
   assert.match(anonymousHtml, /参考候補 <span class="obs-fold-count">1<\/span>/);
   assert.match(anonymousHtml, /花資源としての役割/);
   assert.match(anonymousHtml, /刈られ方、踏まれ方、乾きやすさ/);
+  assert.doesNotMatch(anonymousHtml, /カラスノエンドウ[\s\S]{0,160}この場所を使う鳥/);
   assert.doesNotMatch(anonymousHtml, /一緒に写ってるかも/);
   assert.doesNotMatch(anonymousHtml, /周りの草/);
   assert.doesNotMatch(anonymousHtml, /この写真からの自動候補。確定名ではありません。/);
