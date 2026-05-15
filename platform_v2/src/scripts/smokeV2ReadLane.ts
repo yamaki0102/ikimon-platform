@@ -22,7 +22,7 @@ const defaultRepresentativeSceneReadVisitId = "record-1778549526406";
 
 const representativeSceneReadMarkers = [
   "写っているもの",
-  "この組み合わせから読む",
+  "AIの場面読み",
   "同定の根拠",
   "AIが写真から拾った仮説です",
   "ヒメイワダレソウ",
