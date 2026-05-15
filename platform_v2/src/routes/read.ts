@@ -2866,6 +2866,10 @@ function renderSubjectHint(
 ): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
+    const careAdvice = renderVegetationCareAdviceCard(subject, {
+      ...fieldAdviceContext,
+      basePath,
+    });
     return `<details class="obs-fold obs-hint-fold">
       <summary>くわしい見分けメモ <span class="obs-fold-count">様子見</span></summary>
       <section class="obs-hint-section is-tent">
@@ -2877,6 +2881,7 @@ function renderSubjectHint(
         <span class="obs-hint-badge">様子見</span>
       </div>
       <p class="obs-hint-foot">この見つけたものは、同定する人を待っています。ほかの候補は下から確認できます。</p>
+      ${careAdvice}
       </section>
     </details>`;
   }
