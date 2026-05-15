@@ -110,7 +110,6 @@ import {
 } from "../ui/mapExplorer.js";
 import {
   OBSERVATION_MEDIA_STYLES,
-  OBSERVATION_REGION_SUMMARY_TEXT,
   REGION_DISPLAY_CONF_MIN,
   REGION_LARGE_AREA_MIN,
   renderObservationMedia,
@@ -1105,9 +1104,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-next-action.is-primary { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.25); box-shadow: 0 10px 24px rgba(16,185,129,.08); }
   .obs-next-action-label { font-size: 14px; font-weight: 950; line-height: 1.3; }
   .obs-next-action-body { color: inherit; opacity: .72; font-size: 12px; line-height: 1.45; font-weight: 760; }
-  .obs-read-progress { position: sticky; top: 56px; z-index: 20; display: flex; gap: 6px; overflow-x: auto; margin: 8px 0 18px; padding: 8px 4px; background: rgba(255,255,255,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(15,23,42,.06); scrollbar-width: none; }
+  .obs-read-progress { position: sticky; top: 56px; z-index: 20; display: flex; gap: 6px; overflow-x: auto; margin: 4px 0 10px; padding: 5px 4px; background: rgba(255,255,255,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(15,23,42,.06); scrollbar-width: none; }
   .obs-read-progress::-webkit-scrollbar { display: none; }
-  .obs-read-progress a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 38px; padding: 8px 12px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 12px; line-height: 1; font-weight: 900; text-decoration: none; }
+  .obs-read-progress a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 32px; padding: 6px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11.5px; line-height: 1; font-weight: 900; text-decoration: none; }
   .obs-read-progress a:hover, .obs-read-progress a:focus-visible { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.24); outline: none; }
   .obs-reading-flow { display: grid; gap: 18px; max-width: var(--ikimon-content-max); margin: 0 auto; }
   .obs-reading-section { display: grid; gap: 14px; scroll-margin-top: 96px; }
@@ -1247,8 +1246,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-readout.is-low, .obs-ai-readout.is-tent { border-color: rgba(239,68,68,.18); background: linear-gradient(180deg, #fff7f7, #fff); }
   .obs-ai-readout.is-medium { border-color: rgba(245,158,11,.22); background: linear-gradient(180deg, #fffdf2, #fff); }
   .obs-ai-readout-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .obs-ai-readout-title { margin: 0; color: #0f172a; font-size: 15.5px; line-height: 1.5; font-weight: 900; }
-  .obs-ai-readout-badge { flex-shrink: 0; padding: 5px 10px; border-radius: 999px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.26); color: #047857; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .obs-ai-readout-title { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 900; }
+  .obs-ai-readout-badge { flex-shrink: 0; padding: 4px 8px; border-radius: 999px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.26); color: #047857; font-size: 10px; font-weight: 900; white-space: nowrap; }
   .obs-ai-readout.is-low .obs-ai-readout-badge, .obs-ai-readout.is-tent .obs-ai-readout-badge { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.22); color: #991b1b; }
   .obs-ai-readout.is-medium .obs-ai-readout-badge { background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.28); color: #92400e; }
   .obs-ai-readout-rec { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; color: #0f172a; font-size: 14px; font-weight: 900; }
@@ -1286,24 +1285,26 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-readout-note strong { display: inline; margin: 0 4px 0 0; font-size: 9.5px; letter-spacing: .04em; }
     .obs-ai-readout-grid { grid-template-columns: 1fr; gap: 5px; }
   }
-  .obs-reassess-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: linear-gradient(135deg, rgba(59,130,246,.07), rgba(16,185,129,.07)); border: 1px dashed rgba(59,130,246,.25); margin: 8px 0 0; }
-  .obs-reassess-row.section, .obs-photo-recovery.section, .obs-owner-delete.section { margin-top: 10px; }
+  .obs-owner-tools { display: grid; gap: 8px; max-width: var(--ikimon-content-max); margin: 0 auto 14px; }
+  .obs-owner-tools .section { margin: 0; }
+  .obs-reassess-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.9); border: 1px dashed rgba(59,130,246,.2); margin: 0; }
+  .obs-reassess-row.section, .obs-photo-recovery.section, .obs-owner-delete.section { margin-top: 0; }
   .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; min-height: 36px; padding: 8px 13px; background: #111827; color: #fff; font-weight: 850; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(15,23,42,.2); }
   .obs-reassess-btn:hover { background: #1f2937; }
   .obs-reassess-btn[disabled] { opacity: .6; cursor: progress; }
   .obs-reassess-hint { flex: 1 1 220px; color: #475569; font-size: 11.5px; line-height: 1.35; }
   .obs-reassess-status { font-size: 11.5px; font-weight: 750; color: #047857; }
   .obs-reassess-status.is-error { color: #b91c1c; }
-  .obs-photo-recovery, .obs-owner-delete { padding: 0; border-radius: 14px; overflow: hidden; }
-  .obs-photo-recovery { background: linear-gradient(135deg, rgba(254,249,195,.58), rgba(236,253,245,.72)); border: 1px solid rgba(234,179,8,.22); }
-  .obs-owner-delete { background: #fff7ed; border: 1px solid rgba(234,88,12,.2); }
+  .obs-photo-recovery, .obs-owner-delete { padding: 0; border-radius: 12px; overflow: hidden; }
+  .obs-photo-recovery { background: rgba(254,252,232,.72); border: 1px solid rgba(234,179,8,.18); }
+  .obs-owner-delete { background: rgba(255,247,237,.72); border: 1px solid rgba(234,88,12,.16); }
   .obs-owner-tool-details { display: block; }
-  .obs-owner-tool-summary { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 12px; cursor: pointer; list-style: none; }
+  .obs-owner-tool-summary { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 11px; cursor: pointer; list-style: none; }
   .obs-owner-tool-summary::-webkit-details-marker { display: none; }
   .obs-owner-tool-summary::marker { content: ""; }
   .obs-owner-tool-summary span:first-child { display: grid; gap: 2px; min-width: 0; }
-  .obs-owner-tool-summary strong { color: #0f172a; font-size: 14px; line-height: 1.25; font-weight: 950; }
-  .obs-owner-tool-summary small { color: #475569; font-size: 11.5px; line-height: 1.35; font-weight: 760; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .obs-owner-tool-summary strong { color: #0f172a; font-size: 13px; line-height: 1.25; font-weight: 950; }
+  .obs-owner-tool-summary small { color: #475569; font-size: 11px; line-height: 1.3; font-weight: 760; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .obs-owner-tool-open { flex-shrink: 0; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11px; line-height: 1; font-weight: 900; }
   .obs-owner-tool-details[open] .obs-owner-tool-open { background: rgba(15,23,42,.08); }
   .obs-owner-tool-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 0 12px 12px; }
@@ -1321,6 +1322,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-owner-delete-button[disabled] { opacity: .62; cursor: progress; }
   .obs-owner-delete-status { grid-column: 1 / -1; min-height: 18px; color: #9a3412; font-size: 11.5px; font-weight: 850; }
   .obs-owner-delete-status.is-error { color: #b91c1c; }
+  @media (min-width: 960px) {
+    .obs-owner-tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, .8fr); align-items: stretch; }
+    .obs-owner-tools .obs-reassess-row { min-height: 46px; }
+    .obs-owner-tool-summary small, .obs-reassess-hint { display: none; }
+    .obs-owner-tool-body { grid-template-columns: 1fr; }
+    .obs-photo-recovery-form { justify-content: stretch; }
+  }
   @media (max-width: 760px) {
     .obs-owner-tool-summary { gap: 10px; padding: 9px 10px; }
     .obs-owner-tool-summary small { white-space: normal; }
@@ -1634,10 +1642,26 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-management-meta span { font-size: 10.5px; font-weight: 800; color: #64748b; padding: 2px 7px; border-radius: 999px; background: rgba(148,163,184,.12); }
   .obs-management-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .obs-management-actions .btn { min-height: 34px; padding: 6px 10px; font-size: 12px; }
+  .obs-care-advice { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(255,255,255,.95), rgba(240,253,244,.86)); border: 1px solid rgba(16,185,129,.2); display: grid; gap: 12px; }
+  .obs-care-advice.is-consult { background: linear-gradient(135deg, rgba(255,247,237,.96), rgba(255,251,235,.9)); border-color: rgba(245,158,11,.28); }
+  .obs-care-advice.is-suppress { background: linear-gradient(135deg, rgba(239,246,255,.94), rgba(240,253,244,.86)); border-color: rgba(14,165,233,.22); }
+  .obs-care-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .obs-care-title { margin: 0; color: #0f172a; font-size: 15px; line-height: 1.4; font-weight: 950; }
+  .obs-care-lead { margin: 4px 0 0; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 740; }
+  .obs-care-status { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 28px; padding: 4px 9px; border-radius: 999px; background: rgba(16,185,129,.12); color: #047857; border: 1px solid rgba(16,185,129,.25); font-size: 10.5px; line-height: 1.15; font-weight: 950; }
+  .obs-care-advice.is-consult .obs-care-status { background: rgba(245,158,11,.13); color: #92400e; border-color: rgba(245,158,11,.3); }
+  .obs-care-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 10px; }
+  .obs-care-panel { padding: 12px 13px; border-radius: 12px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.07); }
+  .obs-care-panel strong { display: block; margin-bottom: 6px; color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
+  .obs-care-panel ul { margin: 0; padding-left: 17px; color: #334155; font-size: 12.5px; line-height: 1.65; font-weight: 740; }
+  .obs-care-note { margin: 0; color: #64748b; font-size: 11.5px; line-height: 1.6; font-weight: 760; }
   @media (max-width: 680px) {
     .obs-management-item { grid-template-columns: 1fr; }
     .obs-management-actions { justify-content: stretch; }
     .obs-management-actions .btn { flex: 1; }
+    .obs-care-grid { grid-template-columns: 1fr; }
+    .obs-care-head { display: grid; }
+    .obs-care-status { width: fit-content; }
   }
 
   .obs-area-card { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(240,253,244,.7), rgba(239,246,255,.7)); border: 1px solid rgba(14,165,233,.18); display: flex; flex-direction: column; gap: 12px; }
@@ -1918,6 +1942,32 @@ function sceneAtomForVisibleItem(item: VisibleRecordItem): string {
   return item.displayName;
 }
 
+function sceneReadTextForVisibleItems(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext): string {
+  const labels = items.map((item) => `${item.displayName} ${item.roleLabel} ${item.note ?? ""}`).join(" ");
+  const sceneNoun = mediaSceneNoun(mediaContext);
+  if (/アメリカシャクナゲ|カルミア|kalmia/i.test(labels)) {
+    const companions = [
+      /背景|樹木|木|低木|植栽/i.test(labels) ? "背後の樹木" : "",
+      /ツルニチニチソウ|グランドカバー|斑入り/i.test(labels) ? "足元の斑入りグランドカバー" : "",
+      /雑草|草地|裸地|礫|踏圧/i.test(labels) ? "草地と裸地" : "",
+    ].filter(Boolean);
+    return `AIは満開の植栽低木を主役に、${companions.length > 0 ? companions.join("、") : "周囲の植栽帯"}が同じ${sceneNoun}に重なる場面として読んでいます。`;
+  }
+  if (/ヒメイワダレソウ|イワダレソウ/i.test(labels) && /ハチ|蜂|bee|訪花/i.test(labels)) {
+    return `AIは低く広がる白い花を主役に、訪花中の虫と周囲の草地が同じ${sceneNoun}に入った場面として読んでいます。`;
+  }
+  const atoms = items
+    .map(sceneAtomForVisibleItem)
+    .filter((value, index, list) => value && list.indexOf(value) === index)
+    .slice(0, 4);
+  if (atoms.length >= 2) {
+    const [main, ...rest] = atoms;
+    return `AIは${main}を主役に、${rest.join("、")}が同じ${sceneNoun}に入った場面として読んでいます。`;
+  }
+  if (atoms.length === 1) return `AIは${atoms[0]}を中心に、周囲との位置関係をこの${sceneNoun}から読もうとしています。`;
+  return `AIは名前だけでなく、主役と周囲の状態を同じ${sceneNoun}から読もうとしています。`;
+}
+
 function formatSceneRecordTitle(items: VisibleRecordItem[], fallback: string): string {
   const atoms = items
     .map(sceneAtomForVisibleItem)
@@ -1936,8 +1986,8 @@ function renderObservationSceneOverview(items: VisibleRecordItem[], mediaContext
   return `<article class="obs-first-read obs-scene-overview">
     <div class="obs-first-read-eye">${escapeHtml(mediaVisibleSurfaceLabel(mediaContext))}</div>
     ${atoms.length > 0 ? `<div class="obs-media-discovery-rail" aria-label="${escapeHtml(`${sceneNoun}から読める要素`)}">${atoms.map((atom) => `<span class="obs-media-discovery-target" style="cursor:default"><span class="obs-media-discovery-name">${escapeHtml(atom)}</span></span>`).join("")}</div>` : ""}
-    <strong>この組み合わせから読む</strong>
-    <p>名前だけでなく、その場を使うものと草地の状態まで残っている点に価値があります。</p>
+    <strong>AIの場面読み</strong>
+    <p>${escapeHtml(sceneReadTextForVisibleItems(items, mediaContext))}</p>
   </article>`;
 }
 
@@ -2203,6 +2253,100 @@ function renderInvasiveCard(invasive: InvasiveResponse, subjectName: string): st
   </section>`;
 }
 
+function renderVegetationCareAdviceCard(subject: ObservationVisitSubject): string {
+  const ai = subject.aiAssessment;
+  const display = formatTaxonDisplayName(subject, "ja").primaryLabel;
+  const text = [
+    display,
+    subject.displayName,
+    subject.vernacularName,
+    subject.scientificName,
+    subject.roleLabel,
+    subject.focusReason,
+    subject.roleHint,
+    ai?.recommendedTaxonName,
+    ai?.bestSpecificTaxonName,
+    ai?.simpleSummary,
+    ai?.narrative,
+    ...(ai?.diagnosticFeaturesSeen ?? []),
+  ].filter(Boolean).join(" ");
+  const isLikelyPlant = /植物|花|草|雑草|木|樹|低木|葉|茎|株|群落|植栽|グランドカバー|つる|蔓|イネ科|シャクナゲ|カルミア|ツルニチニチソウ|ヒメイワダレソウ|plant|tree|grass|vinca|kalmia/i.test(text);
+  if (!isLikelyPlant && !ai?.invasiveResponse?.isInvasive) return "";
+
+  const invasive = ai?.invasiveResponse?.isInvasive ? ai.invasiveResponse : null;
+  const strictInvasive = invasive?.mhlwCategory === "iaspecified" || invasive?.recommendedAction === "report_only" || invasive?.recommendedAction === "do_not_handle";
+  const controlledRemoval = invasive?.recommendedAction === "controlled_removal";
+  const managedPlanting = /植栽|園芸|低木|シャクナゲ|カルミア|kalmia/i.test(text);
+  const spreadingGround = /雑草|草地|イネ科|グランドカバー|ツルニチニチソウ|つる|蔓|地下茎|種子|裸地|踏圧|vinca/i.test(text);
+
+  const status = strictInvasive
+    ? "相談"
+    : controlledRemoval
+      ? "計画的に抑える"
+      : managedPlanting
+        ? "手入れ対象"
+        : spreadingGround
+          ? "抜く前に確認"
+          : "様子見";
+  const className = strictInvasive ? "is-consult" : controlledRemoval || spreadingGround ? "is-suppress" : "";
+  const title = strictInvasive
+    ? "抜く前に、管理者か自治体へ確認"
+    : controlledRemoval
+      ? "広げない前提で、計画的に抑える候補"
+      : managedPlanting
+        ? "抜く対象というより、植栽として手入れを判断"
+        : spreadingGround
+          ? "抜くか残すかは、広がり方と場所で判断"
+          : "今は抜く/残すを決めず、材料を集める";
+  const lead = strictInvasive
+    ? "特定外来生物などの可能性がある場合、生きたまま移動・保管すると問題になることがあります。写真と場所を残し、勝手に持ち出さない判断が先です。"
+    : controlledRemoval
+      ? "外来種の根拠がある候補です。ただし、処分方法や作業時期を誤ると拡げることがあります。種や根が広がる前に、管理方法を決めてから扱います。"
+      : managedPlanting
+        ? "会社や施設の植栽帯では、花木そのものより、足元の植物・裸地・通路へのはみ出しを見て手入れ量を決めるのが現実的です。"
+        : spreadingGround
+          ? "会社の敷地では、見た目だけで全部抜くより、通路・排水・植栽への影響、種がつく時期、増え方を見て範囲管理する方が失敗しにくいです。"
+          : "この1件だけでは管理判断を強く出しません。同じ場所で増えるか、何に影響しているかを見てから決めます。";
+  const nextChecks = strictInvasive
+    ? ["同定が合っているかを人が確認する", "生きたまま別の場所へ動かさない", "管理者・自治体に写真と場所を共有する"]
+    : controlledRemoval
+      ? ["花・実・種がつく前か確認する", "抜いた後に根や破片が残らない方法を決める", "処分時に他の区画へ落とさない"]
+      : managedPlanting
+        ? ["通路や排水を邪魔しているか見る", "足元のグランドカバーが植栽を覆いすぎていないか見る", "花後・剪定時期・景観目的を確認する"]
+        : spreadingGround
+          ? ["種がつく前か、地下茎やつるで増えるタイプか見る", "残したい植栽や通路を覆っていないか見る", "一部だけ残して次回の増え方を比べる"]
+          : ["同じ場所で何度か記録する", "花・葉・株元が分かる写真を追加する", "会社の管理目的と照らす"];
+  const avoid = strictInvasive
+    ? ["素手で扱わない", "袋に入れて生きたまま持ち歩かない", "別区画へ移さない"]
+    : invasive
+      ? ["刈った破片を散らさない", "土ごと他の場所へ移さない", "確信がないまま大量処分しない"]
+      : ["全部を一度に裸地化しない", "花や実だけで同定を決め打ちしない", "周囲の虫や土の状態を無視しない"];
+  const basis = invasive?.actionBasis
+    ? `外来種メモ: ${invasive.actionBasis}`
+    : "これは作業判断の入口です。最終判断は同定、敷地の目的、安全、現地ルールで決めてください。";
+  return `<section class="obs-care-advice ${className}" aria-label="草や植栽の管理ヒント">
+    <div class="obs-care-head">
+      <div>
+        <div class="obs-hint-eyebrow">管理のヒント</div>
+        <h3 class="obs-care-title">${escapeHtml(title)}</h3>
+        <p class="obs-care-lead">${escapeHtml(lead)}</p>
+      </div>
+      <span class="obs-care-status">${escapeHtml(status)}</span>
+    </div>
+    <div class="obs-care-grid">
+      <div class="obs-care-panel">
+        <strong>先に見ること</strong>
+        <ul>${nextChecks.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      <div class="obs-care-panel">
+        <strong>避けること</strong>
+        <ul>${avoid.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+    </div>
+    <p class="obs-care-note">${escapeHtml(basis)}</p>
+  </section>`;
+}
+
 function renderSizeCard(size: SizeAssessment, subjectName: string): string {
   const cls = size.sizeClass;
   const isExceptional = cls === "exceptional";
@@ -2405,9 +2549,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const band = aiAssessment.confidenceBand;
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
-  const headline = hasOpenDispute
-    ? "別の見方もあるため、名前は確認中です。"
-    : "写真からの見立てです。確定名ではありません。";
+  const headline = hasOpenDispute ? "見方が割れています" : "写真からの仮説";
   const rec = aiAssessment.recommendedTaxonName
     ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span><span class="obs-ai-readout-rank">${escapeHtml([aiAssessment.recommendedRank ? publicRankHint(aiAssessment.recommendedRank) || "候補" : "候補", bandLabel].filter(Boolean).join(" / "))}</span></div>`
     : "";
@@ -2428,10 +2570,9 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   return `<section class="obs-ai-readout ${bandClass}">
     <div class="obs-ai-readout-top">
       <div>
-        <p class="obs-hint-eyebrow">代表候補と記録ステータス</p>
         <h3 class="obs-ai-readout-title">${escapeHtml(headline)}</h3>
       </div>
-      <span class="obs-ai-readout-badge">${hasOpenDispute ? "見方が割れています" : "写真からの仮説"}</span>
+      <span class="obs-ai-readout-badge">${hasOpenDispute ? "確認中" : "確定名ではありません"}</span>
     </div>
     ${rec}
     ${clueList ? `<div><p class="obs-ai-readout-section-label">そう見える理由</p>${clueList}</div>` : ""}
@@ -2608,6 +2749,7 @@ function renderSubjectHint(
     : "";
   const runMeta = `<p class="obs-hint-foot">このメモは次の観察につなぐための参考情報です。名前の決定には入りません。</p>`;
   const threeLens = renderThreeLensCards(subject);
+  const careAdvice = renderVegetationCareAdviceCard(subject);
   return `<details class="obs-fold obs-hint-fold">
     <summary>くわしい見分けメモ <span class="obs-fold-count">${escapeHtml(bandLabel)}</span></summary>
     <section class="obs-hint-section ${bandClass}">
@@ -2622,6 +2764,7 @@ function renderSubjectHint(
     ${rec}${best}
     <div class="obs-hint-grid">${clues}${missingPhoto}${stop}${placeSeason}${boost}${nextStep}</div>
     ${claimRefs}
+    ${careAdvice}
     ${managementActions}
     ${areaInference}
     ${shotSuggestions}
@@ -3068,19 +3211,30 @@ function renderObservationPhotoRecoveryPanel(options: {
     hasPhotos,
     hasVideos: false,
   });
+  const recoveryCopy = hasPhotos
+    ? {
+        eyebrow: "写真追加",
+        title: "この記録に写真を追加",
+        body: "別角度や周辺の写真を、同じ記録に追加できます。",
+      }
+    : {
+        eyebrow: mediaCopy.photoRecoveryEyebrow,
+        title: mediaCopy.photoRecoveryTitle,
+        body: mediaCopy.photoRecoveryBody,
+      };
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/photos/upload`);
   return `<section class="section obs-photo-recovery" data-photo-recovery data-upload-endpoint="${escapeHtml(endpoint)}" data-existing-photo-count="${escapeHtml(String(options.existingPhotoCount))}">
     <details class="obs-owner-tool-details">
       <summary class="obs-owner-tool-summary">
         <span>
-          <span class="obs-story-eyebrow">${escapeHtml(mediaCopy.photoRecoveryEyebrow)}</span>
-          <strong>${escapeHtml(mediaCopy.photoRecoveryTitle)}</strong>
-          <small>${escapeHtml(mediaCopy.photoRecoveryBody)}</small>
+          <span class="obs-story-eyebrow">${escapeHtml(recoveryCopy.eyebrow)}</span>
+          <strong>${escapeHtml(recoveryCopy.title)}</strong>
+          <small>${escapeHtml(recoveryCopy.body)}</small>
         </span>
         <span class="obs-owner-tool-open">開く</span>
       </summary>
       <div class="obs-owner-tool-body">
-        <p>${escapeHtml(mediaCopy.photoRecoveryBody)}</p>
+        <p>${escapeHtml(recoveryCopy.body)}</p>
         <form class="obs-photo-recovery-form">
           <label class="obs-photo-recovery-picker">
             <span>写真を選ぶ</span>
@@ -4810,6 +4964,18 @@ function fallbackCandidateReadingForSubject(options: {
 const MAX_IDENTITY_EVIDENCE_TARGETS = 16;
 const IDENTITY_EVIDENCE_SEARCH_THRESHOLD = 7;
 
+function identityEvidenceSummary(input: {
+  features: string[];
+  weakPoints: string[];
+  fallback?: string | null;
+}): string {
+  const feature = input.features.find((item) => item && !/候補|確認|可能性|読んでいます/.test(item));
+  const weakPoint = input.weakPoints.find((item) => item && !/細部が見える写真/.test(item));
+  if (feature && weakPoint) return `${feature.replace(/。$/u, "")}。ただし、${weakPoint.replace(/^ただし、?/u, "").replace(/。$/u, "")}。`;
+  if (feature) return feature;
+  return friendlyObservationText(input.fallback || "", 104);
+}
+
 function renderSubjectEvidenceTabs(options: {
   basePath: string;
   lang: SiteLang;
@@ -4868,12 +5034,12 @@ function renderSubjectEvidenceTabs(options: {
     return {
       key: subject.occurrenceId,
       name: display,
-      status: ai ? confidenceLabel(ai.confidenceBand) || "写真からの仮説" : "確認待ち",
-      summary: ai?.simpleSummary
-        ? friendlyObservationText(ai.simpleSummary, 104)
-        : ai?.stopReason
-          ? friendlyObservationText(ai.stopReason, 104)
-          : friendlyObservationText(fallbackReading.visibleFeatures?.[0] || subject.focusReason || "写真から拾った候補です。確定名ではなく、人の確認で強くなります。", 104),
+      status: ai ? "写真からの仮説" : "確認待ち",
+      summary: identityEvidenceSummary({
+        features,
+        weakPoints,
+        fallback: ai?.narrative || ai?.stopReason || fallbackReading.visibleFeatures?.[0] || subject.focusReason,
+      }),
       compareLabel: "比べたい相手",
       compareText: "",
       features,
@@ -4904,7 +5070,11 @@ function renderSubjectEvidenceTabs(options: {
         key: candidate.candidateId,
         name: candidate.displayName,
         status: "未検出候補",
-        summary: friendlyObservationText(candidate.note || sourceReading.visibleFeatures?.[0] || "AIが同じ写真から拾った、まだ観測レコードになっていない候補です。", 104),
+        summary: identityEvidenceSummary({
+          features: (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [candidate.note || ""]).map((item) => friendlyObservationText(item, 64)).filter(Boolean),
+          weakPoints,
+          fallback: null,
+        }),
         compareLabel: "比べたい相手",
         compareText: "",
         features: (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [candidate.note || "同じ場面に写っている可能性があります。"]).map((item) => friendlyObservationText(item, 64)),
@@ -4940,7 +5110,7 @@ function renderSubjectEvidenceTabs(options: {
     ${targets.map((target, index) => `<article class="obs-id-panel" id="obs-id-panel-${index}" role="tabpanel" aria-labelledby="obs-id-tab-${index}" data-obs-id-panel="${escapeHtml(String(index))}"${index === 0 ? "" : " hidden"}>
       <div class="obs-id-summary">
         <span class="obs-id-status-pill">${escapeHtml(target.status)}</span>
-        <p>${escapeHtml(target.summary)}</p>
+        ${target.summary ? `<p>${escapeHtml(target.summary)}</p>` : ""}
         ${target.compareText ? `<div class="obs-id-compare">
           <strong>${escapeHtml(target.compareLabel)}</strong>
           <span>${escapeHtml(target.compareText)}</span>
@@ -5347,15 +5517,49 @@ function renderObservationRecordStory(options: {
   const place = options.snapshot.municipality || options.snapshot.placeName || options.snapshot.publicLocation?.label || "この場所";
   const sceneNoun = mediaSceneNoun(options.mediaContext);
   const subjectLabel = formatTaxonDisplayName(options.subject, "ja").primaryLabel;
-  const flowerText = /ヒメイワダレソウ|イワダレソウ/.test(subjectLabel)
-    ? "低く広がる白い花が、道端の小さな面をつくっています。名前だけでなく、どこまで広がり、裸地や草とどう接しているかが見える記録です。"
-    : `${sceneNoun}の中に、主役の形と周囲の状態が一緒に残っています。名前だけでなく、その場でどう見えていたかを読み返せます。`;
-  const visitorText = hasBee
-    ? "花に来た虫が一緒に写ることで、この場所が花資源として使われている場面になります。小さな訪花の記録が、季節の動きを残します。"
-    : hasMultipleRecords
-      ? "複数の対象を分けて残すと、主役のそばに何があったかを後から比べられます。1つの名前で終わらない場面の記録です。"
-      : "同じ画角で別の日にも記録すると、そこを使う虫や周囲の変化が見えてきます。";
-  const groundText = "低い草丈、裸地、礫、踏まれた感じが写っています。同じ場所を季節ごとに重ねると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。";
+  const allRecordText = options.recordItems.map((item) => `${item.displayName} ${item.roleLabel} ${item.note ?? ""}`).join(" ");
+  const isKalmiaScene = /アメリカシャクナゲ|カルミア|kalmia/i.test(`${subjectLabel} ${allRecordText}`);
+  const hasGroundCover = /ツルニチニチソウ|ツルニチソウ|グランドカバー|斑入り/i.test(allRecordText);
+  const hasManagedGround = /雑草|草地|裸地|礫|踏圧|植栽/i.test(allRecordText);
+  const storyCards = isKalmiaScene
+    ? [
+        {
+          title: "満開の植栽低木",
+          body: "花だけを切り出すのではなく、低木の株全体、花の密度、周囲の植栽との重なりが残っています。園芸植物がその場所でどう見えていたかを読み返せる記録です。",
+        },
+        {
+          title: hasGroundCover ? "株元を覆う植物" : "足元の植栽",
+          body: hasGroundCover
+            ? "主役の下に斑入りの葉をもつグランドカバーが広がり、花木と地表を覆う植物が同じ植栽帯で重なっていることが分かります。"
+            : "主役の足元まで写っているため、花木だけでなく地表の管理状態や別の植物との接し方も後から確認できます。",
+        },
+        {
+          title: "管理された植栽帯",
+          body: hasManagedGround
+            ? "草地、裸地、礫、踏まれた面が一緒に残るため、開花だけでなく人の手入れや歩行圧が入る場所として比べられます。"
+            : "同じ画角で季節を重ねると、開花量、足元の植物、背景の樹木の変化を植栽帯の記録として追えます。",
+        },
+      ]
+    : [
+        {
+          title: /ヒメイワダレソウ|イワダレソウ/.test(subjectLabel) ? "足元に咲く花" : "主役の見え方",
+          body: /ヒメイワダレソウ|イワダレソウ/.test(subjectLabel)
+            ? "低く広がる白い花が、道端の小さな面をつくっています。名前だけでなく、どこまで広がり、裸地や草とどう接しているかが見える記録です。"
+            : `${sceneNoun}の中に、主役の形と周囲の状態が一緒に残っています。名前だけでなく、その場でどう見えていたかを読み返せます。`,
+        },
+        {
+          title: hasBee ? "花を使う虫" : "一緒に写るもの",
+          body: hasBee
+            ? "花に来た虫が一緒に写ることで、この場所が花資源として使われている場面になります。小さな訪花の記録が、季節の動きを残します。"
+            : hasMultipleRecords
+              ? "複数の対象を分けて残すと、主役のそばに何があったかを後から比べられます。1つの名前で終わらない場面の記録です。"
+              : "同じ画角で別の日にも記録すると、そこを使う虫や周囲の変化が見えてきます。",
+        },
+        {
+          title: "人の手が入る草地",
+          body: "低い草丈、裸地、礫、踏まれた感じが写っています。同じ場所を季節ごとに重ねると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。",
+        },
+      ];
   return `<div class="obs-record-story">
     <div class="obs-record-story-head">
       <div>
@@ -5365,9 +5569,7 @@ function renderObservationRecordStory(options: {
       <span class="obs-record-story-pill">${escapeHtml(recordSceneParts.length > 0 ? recordSceneParts.join("・") : "写真・場所・地域")}</span>
     </div>
     <div class="obs-record-story-cards">
-      <div class="obs-record-story-card"><strong>足元に咲く花</strong><p>${escapeHtml(flowerText)}</p></div>
-      <div class="obs-record-story-card"><strong>${escapeHtml(hasBee ? "花を使う虫" : "一緒に写るもの")}</strong><p>${escapeHtml(visitorText)}</p></div>
-      <div class="obs-record-story-card"><strong>人の手が入る草地</strong><p>${escapeHtml(groundText)}</p></div>
+      ${storyCards.map((card) => `<div class="obs-record-story-card"><strong>${escapeHtml(card.title)}</strong><p>${escapeHtml(card.body)}</p></div>`).join("")}
     </div>
   </div>`;
 }
@@ -12818,7 +13020,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     </details>`;
 
     const focusRailBlock = renderVisibleRecordItemsPanel(visibleRecordItems, mediaContext);
-    const mediaDiscoveryBlock = renderMediaDiscoveryPicker(visibleRecordItems, mediaContext);
+    // 写真上の対象切替UIは、場面読みより目立つ割に情報量が薄いため表示しない。
+    // 画像内の枠クリックや下部の記録カードへの連動は残す。
+    const mediaDiscoveryBlock = "";
 
     const revisitRecordHref = buildPlaceRecordHref(basePath, lang, viewerUserId, {
       placeId: snapshot.placeId,
@@ -13138,7 +13342,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           `<button type="button"
                    class="obs-reassess-btn"
                    data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess"))}"
-                   data-loading-text="AIで確認しています…">🔄 写真をもう一度見る</button>`,
+                   data-loading-text="AIで確認しています…">写真をもう一度見る</button>`,
         );
       }
       if (snapshot.videoAssets.length > 0) {
@@ -13146,7 +13350,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           `<button type="button"
                    class="obs-reassess-btn"
                    data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess-from-video"))}"
-                   data-loading-text="${escapeHtml(mediaCopy.videoReassessLoadingText)}">🎬 動画をもう一度見る</button>`,
+                   data-loading-text="${escapeHtml(mediaCopy.videoReassessLoadingText)}">動画をもう一度見る</button>`,
         );
       }
     }
@@ -13156,6 +13360,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            <span class="obs-reassess-hint">${escapeHtml(mediaCopy.reassessHint)}</span>
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
+      : "";
+    const ownerToolsBlock = (photoRecoveryBlock || ownerDeleteBlock || reassessBlock)
+      ? `<section class="obs-owner-tools" aria-label="投稿者用ツール">${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}</section>`
       : "";
     const subjectRegionMap = toSubjectRegionMap(bundle.subjects);
     const switchScript = subjectCount > 1
@@ -13176,7 +13383,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              return document.querySelector('template[' + attr + '="' + subjectId.replace(/"/g, '\\"') + '"]');
            };
            var renderRegions = function(subjectId){
-             Array.prototype.slice.call(document.querySelectorAll('[data-region-layer]')).forEach(function(layer){ layer.innerHTML = ''; });
+             Array.prototype.slice.call(document.querySelectorAll('[data-region-layer]')).forEach(function(layer){
+               layer.innerHTML = '';
+               layer.hidden = true;
+             });
              var regions = regionMap[subjectId] || [];
              var visibleRegionCount = 0;
              regions.forEach(function(region){
@@ -13184,6 +13394,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                if (typeof region.confidenceScore === 'number' && region.confidenceScore < regionDisplayConfMin) return;
                var layer = document.querySelector('[data-region-layer="' + region.assetId.replace(/"/g, '\\"') + '"]');
                if (!layer) return;
+               layer.hidden = false;
                var box = document.createElement('span');
                var regionArea = Number(region.rect.width || 0) * Number(region.rect.height || 0);
                box.className = 'obs-region-box' + (regionArea >= regionLargeAreaMin ? ' is-large-region' : '');
@@ -13202,8 +13413,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              });
              var regionSummary = document.querySelector('[data-region-summary]');
              if (regionSummary) {
-               regionSummary.hidden = visibleRegionCount === 0;
-                regionSummary.textContent = visibleRegionCount > 0 ? ${JSON.stringify(OBSERVATION_REGION_SUMMARY_TEXT)} : '';
+               regionSummary.hidden = true;
+               regionSummary.textContent = '';
              }
            };
            var updateStateLabels = function(subjectId){
@@ -13578,7 +13789,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
     const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${focusRailBlock}${hintBlock}${layer2}${identifyBlock}${aiCandidateLearningBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
-    const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

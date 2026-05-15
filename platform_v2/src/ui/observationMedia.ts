@@ -92,7 +92,7 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-video-meta .obs-media-ai-role { position: static; min-height: 24px; padding: 5px 9px; font-size: 10px; box-shadow: none; pointer-events: auto; }
   .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
   .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
-  .obs-region-layer { display: none; }
+  .obs-region-layer { display: block; }
   .obs-region-box { position: absolute; border: 1px solid rgba(20,184,166,.44); border-radius: 12px; background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
   .obs-region-box.is-large-region { background: transparent; border-color: rgba(15,23,42,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.42); }
   .obs-region-box-label { display: none; }
@@ -150,6 +150,18 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-video-evidence-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: #e2e8f0; display: block; }
   .obs-video-evidence-frame figcaption { display: grid; gap: 2px; color: #334155; font-size: 10px; line-height: 1.35; font-weight: 800; }
   .obs-video-evidence-frame small { color: #64748b; font-weight: 750; }
+  .obs-media-ledger { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .obs-media-ledger-item { display: grid; gap: 2px; min-height: 62px; padding: 10px 11px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-media-ledger-item strong { display: flex; align-items: center; gap: 6px; color: #0f172a; font-size: 11px; line-height: 1.25; font-weight: 950; }
+  .obs-media-ledger-item span { color: #0f172a; font-size: 14px; line-height: 1.2; font-weight: 950; }
+  .obs-media-ledger-item small { color: #64748b; font-size: 10.5px; line-height: 1.35; font-weight: 750; }
+  @media (max-width: 640px) {
+    .obs-media-ledger { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+    .obs-media-ledger-item { min-height: 54px; padding: 7px; border-radius: 10px; }
+    .obs-media-ledger-item strong { font-size: 10px; }
+    .obs-media-ledger-item span { font-size: 12px; }
+    .obs-media-ledger-item small { font-size: 9.5px; }
+  }
 `;
 
 export function isDisplayableRegion(region: Pick<SubjectMediaRegionView, "rect" | "confidenceScore">): boolean {
@@ -337,6 +349,7 @@ function renderPhotoGallery(
   const first = snapshot.photoAssets[0]!;
   const firstDisplayUrl = photoDisplayUrl(first, "lg");
   const firstFullUrl = first.url;
+  const firstRegionHtml = renderObservationRegionBoxes(currentSubject, first.assetId);
   const firstRoleBadge = `<span class="obs-media-role-badge" data-obs-media-role-badge hidden></span>`;
   const firstSuggestionBadge = `<span class="obs-media-ai-role" data-obs-media-role-suggestion hidden></span>`;
   const thumbsHtml = snapshot.photoAssets.length >= 2
@@ -365,7 +378,7 @@ function renderPhotoGallery(
       ${firstSuggestionBadge}
       <span class="obs-hero-image-frame" data-obs-image-frame>
         <img src="${escapeHtml(firstDisplayUrl)}" data-obs-full-src="${escapeHtml(firstFullUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
-        <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions hidden></span>
+        <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions${firstRegionHtml ? "" : " hidden"}>${firstRegionHtml}</span>
         <span class="obs-annotation-layer" data-obs-preview-annotations hidden></span>
       </span>
       <button type="button" class="obs-hero-zoom" data-obs-zoom aria-label="画像を拡大">
@@ -449,6 +462,20 @@ function renderAudioEvidence(snapshot: ObservationDetailSnapshot): string {
   </section>`;
 }
 
+function renderMediaLedger(snapshot: ObservationDetailSnapshot): string {
+  const photoCount = snapshot.photoAssets?.length ?? 0;
+  const videoCount = snapshot.videoAssets?.length ?? 0;
+  const audioCount = snapshot.audioAssets?.length ?? 0;
+  const photoDetail = photoCount >= 3 ? "全体・細部・周囲" : photoCount > 1 ? "複数角度" : photoCount === 1 ? "主写真" : "未記録";
+  const videoDetail = videoCount > 0 ? "動きあり" : "動きは未記録";
+  const audioDetail = audioCount > 0 ? "音声あり" : "環境音は未記録";
+  return `<div class="obs-media-ledger" aria-label="メディア台帳">
+    <div class="obs-media-ledger-item"><strong>写真</strong><span>${escapeHtml(`${photoCount}枚`)}</span><small>${escapeHtml(photoDetail)}</small></div>
+    <div class="obs-media-ledger-item"><strong>動画</strong><span>${escapeHtml(`${videoCount}本`)}</span><small>${escapeHtml(videoDetail)}</small></div>
+    <div class="obs-media-ledger-item"><strong>音</strong><span>${escapeHtml(`${audioCount}件`)}</span><small>${escapeHtml(audioDetail)}</small></div>
+  </div>`;
+}
+
 export function renderObservationMedia(
   snapshot: ObservationDetailSnapshot,
   currentSubject: ObservationVisitSubject,
@@ -458,8 +485,9 @@ export function renderObservationMedia(
   const primaryVideo = snapshot.videoAssets[0] ?? null;
   const videoPlayer = renderVideoPlayer(snapshot, currentSubject, primaryVideo, annotationTargets);
   const audioEvidence = renderAudioEvidence(snapshot);
+  const mediaLedger = renderMediaLedger(snapshot);
   const mediaBlock = (videoPlayer || photoGallery || audioEvidence)
-    ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${audioEvidence}<p class="obs-region-summary" data-region-summary hidden></p></div>`
+    ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${audioEvidence}${mediaLedger}<p class="obs-region-summary" data-region-summary hidden></p></div>`
     : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
 
   return {

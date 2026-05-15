@@ -276,6 +276,7 @@ test.describe("production candidate smoke", () => {
     const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
     expect(response?.ok(), "canonical AI subject scene should be readable").toBeTruthy();
     await expect(page.locator("body")).toContainText("この写真に写っているもの");
+    await expect(page.locator(".obs-first-read"), "scene read summary").toContainText("AIの場面読み");
 
     for (const name of scene.expectedSubjects) {
       const card = page.locator(".obs-visible-record-card").filter({ hasText: name }).first();
@@ -289,13 +290,6 @@ test.describe("production candidate smoke", () => {
       );
       await expect(card, `${name} does not expose internal AI materialization copy`).not.toContainText(
         "AIが写真から分けた観測レコード",
-      );
-
-      const picker = page.locator(".obs-media-discovery-target").filter({ hasText: name }).first();
-      await expect(picker, `${name} picker item`).toBeVisible();
-      await expect(picker, `${name} picker is subject-backed, not candidate-backed`).toHaveAttribute(
-        "data-annotation-subject-id",
-        /occ:[^:]+:\d+/,
       );
     }
 

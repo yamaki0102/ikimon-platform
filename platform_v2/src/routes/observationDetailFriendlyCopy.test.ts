@@ -27,6 +27,7 @@ const detailCopySource = [
   sourceBetween("function renderVisibleRecordItemsPanel", "function renderAiCandidateLearningPanel"),
   sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
+  sourceBetween("function renderVegetationCareAdviceCard", "function renderSizeCard"),
   sourceBetween("function renderAiCandidates", "function renderSubjectTaxonomy"),
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
@@ -49,7 +50,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "見つけたもの",
     "写真・動画・音",
     "写っているもの",
-    "この組み合わせから読む",
+    "AIの場面読み",
     "同定の根拠",
     "AIが写真から拾った仮説です",
     "見えている特徴",
@@ -73,6 +74,9 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "名前を確かめる",
     "からの提案",
     "見分けるメモ",
+    "管理のヒント",
+    "先に見ること",
+    "避けること",
     "次に見つけるなら",
     "あると見やすい材料",
     "関連ページ",
@@ -166,8 +170,8 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.doesNotMatch(heroSource, /obs-reading-title">\$\{escapeHtml\(options\.displayName\)\}/);
   assert.match(visibleItemsSource, /mediaVisibleSurfaceLabel/);
   assert.match(visibleItemsSource, /obs-focus-title">写っているもの/);
-  assert.match(visibleItemsSource, /この組み合わせから読む/);
-  assert.match(visibleItemsSource, /名前だけでなく、その場を使うものと草地の状態/);
+  assert.match(visibleItemsSource, /AIの場面読み/);
+  assert.match(visibleItemsSource, /sceneReadTextForVisibleItems/);
   assert.match(visibleItemsSource, /参考候補/);
   assert.match(visibleCardSource, /観測レコードにする/);
   assert.match(storySource, /小さな季節の物語/);
@@ -179,6 +183,16 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(detailCopySource, /証拠不足で保留/);
   assert.match(detailCopySource, /別の写り込みを追加/);
   assert.doesNotMatch(detailCopySource, /obs-ai-readout-note[^}]*-webkit-line-clamp/);
+});
+
+test("vegetation care advice is cautious and grounded in management context", () => {
+  const careSource = sourceBetween("function renderVegetationCareAdviceCard", "function renderSizeCard");
+  assert.match(careSource, /抜く前に、管理者か自治体へ確認/);
+  assert.match(careSource, /生きたまま別の場所へ動かさない/);
+  assert.match(careSource, /通路・排水・植栽への影響/);
+  assert.match(careSource, /最終判断は同定、敷地の目的、安全、現地ルール/);
+  assert.doesNotMatch(careSource, /どんどん抜/);
+  assert.doesNotMatch(careSource, /必ず抜/);
 });
 
 test("visible record fixture surfaces plant, bee, grass, and folds low-confidence candidates", () => {
@@ -482,11 +496,12 @@ test("media annotations are moved out of the photo surface", () => {
   assert.match(mediaSource, /data-annotation-subject-id/);
   assert.match(mediaSource, /data-annotation-candidate-id/);
   assert.match(mediaSource, /obs-video-annotation-rail/);
-  assert.match(mediaSource, /写真上の位置は参考情報です。対象の切り替えは下の一覧から行えます。/);
+  assert.match(mediaSource, /summary\.hidden = true/);
   assert.match(mediaSource, /<span class="obs-annotation-layer" data-obs-preview-annotations hidden><\/span>/);
   assert.match(routeSource, /buildObservationMediaAnnotationTargets/);
   assert.match(routeSource, /renderObservationMedia\(snapshot, currentSubject, mediaAnnotationTargets\)/);
   assert.match(routeSource, /data-proposal-focus/);
+  assert.match(routeSource, /regionSummary\.hidden = true/);
 });
 
 test("identification and dispute writes refresh the visit display state", () => {

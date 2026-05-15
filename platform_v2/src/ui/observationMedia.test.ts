@@ -73,7 +73,7 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.doesNotMatch(galleryScript, /主役/);
   assert.doesNotMatch(galleryScript, /confidenceLabel/);
   assert.match(galleryScript, /suggestedRole !== actualRole/);
-  assert.doesNotMatch(mediaBlock, /visible-region-fixture/);
+  assert.match(mediaBlock, /visible-region-fixture/);
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
   assert.doesNotMatch(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
 });
@@ -161,7 +161,7 @@ test("observation media avoids strong blue fills on large current regions", () =
     },
   ]);
 
-  assert.doesNotMatch(mediaBlock, /class="obs-region-box is-large-region"/);
+  assert.match(mediaBlock, /class="obs-region-box is-large-region"/);
   assert.doesNotMatch(mediaBlock, /class="obs-annotation-target is-current is-large-region"/);
   assert.doesNotMatch(OBSERVATION_MEDIA_STYLES, /rgba\(37,99,235,\.13\)/);
 });
