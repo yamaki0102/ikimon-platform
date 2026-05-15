@@ -9,10 +9,31 @@ export type SubmitObservationRecordAiReviewInput = {
   reviewState: ObservationRecordAiReviewState;
 };
 
+export type AiJudgementIdentificationNameInput = {
+  scientificName?: string | null;
+  vernacularName?: string | null;
+  candidateScientificName?: string | null;
+  candidateVernacularName?: string | null;
+  aiRecommendedTaxonName?: string | null;
+};
+
 function assertReviewState(value: string): asserts value is ObservationRecordAiReviewState {
   if (value !== "agree" && value !== "disagree" && value !== "later") {
     throw new Error("invalid_ai_review_state");
   }
+}
+
+function normalizedText(value: string | null | undefined): string | null {
+  const trimmed = String(value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function resolveAiJudgementIdentificationName(input: AiJudgementIdentificationNameInput): string | null {
+  return normalizedText(input.scientificName)
+    ?? normalizedText(input.vernacularName)
+    ?? normalizedText(input.candidateScientificName)
+    ?? normalizedText(input.candidateVernacularName)
+    ?? normalizedText(input.aiRecommendedTaxonName);
 }
 
 export async function submitObservationRecordAiReview(input: SubmitObservationRecordAiReviewInput) {
@@ -32,6 +53,11 @@ export async function submitObservationRecordAiReview(input: SubmitObservationRe
       taxon_rank: string | null;
       ai_run_id: string | null;
       candidate_id: string | null;
+      candidate_scientific_name: string | null;
+      candidate_vernacular_name: string | null;
+      candidate_taxon_rank: string | null;
+      ai_recommended_taxon_name: string | null;
+      ai_recommended_rank: string | null;
     }>(
       `select o.occurrence_id,
               o.ai_assessment_status,
@@ -39,16 +65,28 @@ export async function submitObservationRecordAiReview(input: SubmitObservationRe
               o.vernacular_name,
               o.taxon_rank,
               c.ai_run_id::text,
-              c.candidate_id::text
+              c.candidate_id::text,
+              c.scientific_name as candidate_scientific_name,
+              c.vernacular_name as candidate_vernacular_name,
+              c.taxon_rank as candidate_taxon_rank,
+              ai.recommended_taxon_name as ai_recommended_taxon_name,
+              ai.recommended_rank as ai_recommended_rank
          from occurrences o
          join visits v on v.visit_id = o.visit_id
          left join lateral (
-           select candidate_id, ai_run_id
+           select candidate_id, ai_run_id, scientific_name, vernacular_name, taxon_rank
              from observation_ai_subject_candidates c
             where c.suggested_occurrence_id = o.occurrence_id
             order by c.updated_at desc
             limit 1
          ) c on true
+         left join lateral (
+           select recommended_taxon_name, recommended_rank
+             from observation_ai_assessments a
+            where a.occurrence_id = o.occurrence_id
+            order by a.generated_at desc
+            limit 1
+         ) ai on true
         where o.occurrence_id = $1
           and coalesce(v.public_visibility, 'public') <> 'hidden'
         limit 1`,
@@ -87,8 +125,17 @@ export async function submitObservationRecordAiReview(input: SubmitObservationRe
     );
 
     if (input.reviewState === "agree") {
-      const proposedName = occurrence.scientific_name || occurrence.vernacular_name;
+      const proposedName = resolveAiJudgementIdentificationName({
+        scientificName: occurrence.scientific_name,
+        vernacularName: occurrence.vernacular_name,
+        candidateScientificName: occurrence.candidate_scientific_name,
+        candidateVernacularName: occurrence.candidate_vernacular_name,
+        aiRecommendedTaxonName: occurrence.ai_recommended_taxon_name,
+      });
       if (!proposedName) throw new Error("identification_name_required");
+      const proposedRank = normalizedText(occurrence.taxon_rank)
+        ?? normalizedText(occurrence.candidate_taxon_rank)
+        ?? normalizedText(occurrence.ai_recommended_rank);
       const legacyIdentificationKey = `v2_ai_judgement_agree:${occurrenceId}:${input.actorUserId}`;
       await client.query(
         `insert into identifications (
@@ -111,7 +158,7 @@ export async function submitObservationRecordAiReview(input: SubmitObservationRe
           occurrenceId,
           input.actorUserId,
           proposedName,
-          occurrence.taxon_rank,
+          proposedRank,
           legacyIdentificationKey,
           JSON.stringify({
             source: "ai_judgement_agree",
