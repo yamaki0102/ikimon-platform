@@ -1,5 +1,7 @@
 import type { PlaceSnapshot, PlaceSnapshotNextAction, PlaceSnapshotStewardshipComparison } from "../services/placeSnapshot.js";
 import type { AreaObservationGalleryItem, AreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
+import type { PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
+import type { PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
 import type { RelationshipAxis } from "../services/relationshipScore.js";
 import { escapeHtml } from "./siteShell.js";
 
@@ -206,6 +208,173 @@ function stewardshipComparisonCard(comparison: PlaceSnapshotStewardshipCompariso
   </article>`;
 }
 
+function selectOption(value: string, current: string, label: string): string {
+  return `<option value="${escapeHtml(value)}"${value === current ? " selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
+function managementPolicySummary(policy: PlaceManagementPolicy | null): string {
+  if (!policy) return "方針未設定";
+  const goal: Record<PlaceManagementPolicy["managementGoal"], string> = {
+    balanced: "安全と景観を部分管理",
+    keep_clear: "通路・排水はすっきり",
+    native_patch: "在来草地を残す",
+    flowering_allowed: "花の時期は一部残す",
+    invasive_watch: "外来種候補を早めに確認",
+  };
+  const tolerance: Record<PlaceManagementPolicy["weedTolerance"], string> = {
+    low: "草は少なめ",
+    medium: "必要部分だけ抑える",
+    high: "草花を多めに残す",
+  };
+  return `${goal[policy.managementGoal]} / ${tolerance[policy.weedTolerance]}`;
+}
+
+function renderManagementPolicyForm(policy: PlaceManagementPolicy | null, options: {
+  canEditPolicy: boolean;
+  placeId: string | null;
+  basePath: string;
+}): string {
+  if (!options.canEditPolicy || !options.placeId) return "";
+  const current = policy ?? {
+    managementGoal: "balanced",
+    weedTolerance: "medium",
+    invasiveResponse: "ask_first",
+    mowingFrequency: "as_needed",
+    notes: "",
+  };
+  const endpoint = `${options.basePath}/api/v1/places/${encodeURIComponent(options.placeId)}/management-policy`;
+  return `<form class="ps-management-policy" data-care-policy-form data-endpoint="${escapeHtml(endpoint)}">
+    <strong>会社敷地の管理方針</strong>
+    <div class="ps-management-policy-grid">
+      <label>方針
+        <select name="managementGoal">
+          ${selectOption("balanced", current.managementGoal, "安全と景観を部分管理")}
+          ${selectOption("keep_clear", current.managementGoal, "通路・排水はすっきり")}
+          ${selectOption("native_patch", current.managementGoal, "在来草地を残す")}
+          ${selectOption("flowering_allowed", current.managementGoal, "花の時期は一部残す")}
+          ${selectOption("invasive_watch", current.managementGoal, "外来種候補を早めに確認")}
+        </select>
+      </label>
+      <label>草の許容
+        <select name="weedTolerance">
+          ${selectOption("low", current.weedTolerance, "少なめ")}
+          ${selectOption("medium", current.weedTolerance, "必要部分だけ抑える")}
+          ${selectOption("high", current.weedTolerance, "草花を多めに残す")}
+        </select>
+      </label>
+      <label>外来種候補
+        <select name="invasiveResponse">
+          ${selectOption("ask_first", current.invasiveResponse, "確認してから作業")}
+          ${selectOption("controlled_removal", current.invasiveResponse, "計画的に除去")}
+          ${selectOption("observe", current.invasiveResponse, "まず観察")}
+        </select>
+      </label>
+      <label>草刈り頻度
+        <select name="mowingFrequency">
+          ${selectOption("as_needed", current.mowingFrequency, "必要時")}
+          ${selectOption("monthly", current.mowingFrequency, "月1目安")}
+          ${selectOption("seasonal", current.mowingFrequency, "季節ごと")}
+          ${selectOption("rare", current.mowingFrequency, "なるべく少なく")}
+        </select>
+      </label>
+    </div>
+    <label>メモ
+      <textarea name="notes" maxlength="600" placeholder="例: 正面通路は短く、花壇脇は花が終わるまで残す">${escapeHtml(current.notes)}</textarea>
+    </label>
+    <div class="ps-management-policy-actions">
+      <button type="submit">方針を保存</button>
+      <span data-care-policy-status aria-live="polite">${policy ? "保存済み" : ""}</span>
+    </div>
+  </form>`;
+}
+
+function renderManagementPolicyScript(canEditPolicy: boolean): string {
+  if (!canEditPolicy) return "";
+  return `<script>(function(){
+    if (window.__ikimonCarePolicyBound) return;
+    window.__ikimonCarePolicyBound = true;
+    document.addEventListener('submit', function(event) {
+      var form = event.target && event.target.closest ? event.target.closest('[data-care-policy-form]') : null;
+      if (!form) return;
+      event.preventDefault();
+      var status = form.querySelector('[data-care-policy-status]');
+      var button = form.querySelector('button[type="submit"]');
+      var endpoint = form.getAttribute('data-endpoint') || '';
+      var data = new FormData(form);
+      var payload = {
+        managementGoal: String(data.get('managementGoal') || ''),
+        weedTolerance: String(data.get('weedTolerance') || ''),
+        invasiveResponse: String(data.get('invasiveResponse') || ''),
+        mowingFrequency: String(data.get('mowingFrequency') || ''),
+        notes: String(data.get('notes') || '')
+      };
+      if (button) button.disabled = true;
+      if (status) { status.textContent = '保存中...'; status.classList.remove('is-error'); }
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      }).then(function(response) {
+        return response.json().catch(function(){ return {}; }).then(function(json) {
+          if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'save_failed'));
+          if (status) status.textContent = '保存しました';
+        });
+      }).catch(function(error) {
+        if (status) { status.textContent = '保存できませんでした: ' + String(error && error.message || 'network'); status.classList.add('is-error'); }
+      }).finally(function(){ if (button) button.disabled = false; });
+    });
+  })();</script>`;
+}
+
+function renderVegetationPrioritySection(snapshot: PlaceSnapshot, options: {
+  managementPolicy?: PlaceManagementPolicy | null;
+  vegetationTrend?: PlaceVegetationTrend | null;
+  canEditPolicy?: boolean;
+  basePath?: string;
+} = {}): string {
+  const placeId = snapshot.relationshipScore.placeId ?? null;
+  const policy = options.managementPolicy ?? null;
+  const trend = options.vegetationTrend ?? null;
+  if (!trend && !options.canEditPolicy) return "";
+  const priorityLabel = trend?.priority === "high" ? "優先度 高" : trend?.priority === "medium" ? "優先度 中" : "優先度 低";
+  const tasks = trend?.nextActions.length
+    ? trend.nextActions
+    : ["同じ場所で次回も記録", "作業前後を分けて撮る", "敷地の方針を先に保存"];
+  const evidence = trend?.evidence.length
+    ? trend.evidence
+    : ["同じ場所の連続記録が増えると、増えているか抑えられているかを判定できます。"];
+  return `<section class="ps-section ps-management">
+    <div class="ps-section-head">
+      <div>
+        <div class="ps-eyebrow">Field Advice</div>
+        <h2>草管理の優先順位</h2>
+      </div>
+      <span class="ps-priority is-${escapeHtml(trend?.priority ?? "low")}">${escapeHtml(priorityLabel)}</span>
+    </div>
+    <p class="ps-section-lead">${escapeHtml(trend?.headline ?? "この場所の管理方針を保存して、次の観察から優先順位を出します。")}</p>
+    <div class="ps-grid ps-grid-3">
+      <article class="ps-card ps-management-main">
+        <span class="ps-badge">判定</span>
+        <h3>${escapeHtml(trend?.summary ?? "まだ連続記録が薄いため、現場判断は仮置きです。")}</h3>
+        <p>保存方針: ${escapeHtml(managementPolicySummary(policy))}</p>
+      </article>
+      ${tasks.slice(0, 3).map((task, index) => `<article class="ps-card">
+        <span class="ps-badge">作業 ${index + 1}</span>
+        <h3>${escapeHtml(task)}</h3>
+        <p>${escapeHtml(index === 0 ? "優先して見る場所を決め、全面作業ではなく比較できる形で残します。" : "次の記録と比べられるよう、同じ範囲で確認します。")}</p>
+      </article>`).join("")}
+    </div>
+    <div class="ps-management-evidence">${evidence.slice(0, 4).map((item) => `<span class="ps-chip">${escapeHtml(item)}</span>`).join("")}</div>
+    ${renderManagementPolicyForm(policy, {
+      canEditPolicy: Boolean(options.canEditPolicy),
+      placeId,
+      basePath: options.basePath ?? "",
+    })}
+    ${renderManagementPolicyScript(Boolean(options.canEditPolicy))}
+  </section>`;
+}
+
 function renderStewardshipImpact(snapshot: PlaceSnapshot): string {
   const impact = snapshot.stewardshipImpact;
   const cards = impact.comparisons.length === 0
@@ -254,7 +423,12 @@ function renderAccessGuidance(snapshot: PlaceSnapshot): string {
   </section>`;
 }
 
-export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
+export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot, options: {
+  managementPolicy?: PlaceManagementPolicy | null;
+  vegetationTrend?: PlaceVegetationTrend | null;
+  canEditPolicy?: boolean;
+  basePath?: string;
+} = {}): string {
   const s = snapshot.observationSummary;
   const m = snapshot.machineObservationSummary;
   const seasonText = s.seasonLabels.length > 0 ? s.seasonLabels.join("・") : "これから";
@@ -324,6 +498,8 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot): string {
     </section>
 
     ${renderStewardshipImpact(snapshot)}
+
+    ${renderVegetationPrioritySection(snapshot, options)}
 
     <section class="ps-section">
       <div class="ps-section-head">
@@ -663,6 +839,103 @@ export const PLACE_SNAPSHOT_STYLES = `
   gap: 8px;
   margin-top: 14px;
 }
+.ps-management {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(240,253,244,.72);
+  border: 1px solid rgba(16,185,129,.18);
+}
+.ps-priority {
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 900;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid rgba(16,185,129,.22);
+}
+.ps-priority.is-high {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: rgba(239,68,68,.22);
+}
+.ps-priority.is-medium {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: rgba(245,158,11,.25);
+}
+.ps-management-main h3 {
+  font-size: 18px;
+}
+.ps-management-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ps-management-policy {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.10);
+}
+.ps-management-policy > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+.ps-management-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.ps-management-policy label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+}
+.ps-management-policy select,
+.ps-management-policy textarea {
+  width: 100%;
+  border: 1px solid rgba(15,23,42,.14);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font: inherit;
+  color: #0f172a;
+  background: #fff;
+}
+.ps-management-policy textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+.ps-management-policy-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.ps-management-policy-actions button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 16px;
+  font-weight: 900;
+  color: #fff;
+  background: #047857;
+}
+.ps-management-policy-actions button:disabled {
+  opacity: .65;
+}
+.ps-management-policy-actions span {
+  font-size: 13px;
+  color: #047857;
+  font-weight: 800;
+}
+.ps-management-policy-actions span.is-error {
+  color: #b91c1c;
+}
 .ps-album-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -840,6 +1113,9 @@ export const PLACE_SNAPSHOT_STYLES = `
   .ps-album-tabs {
     grid-template-columns: 1fr;
   }
+  .ps-management-policy-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .ps-teaser {
     grid-template-columns: 1fr;
   }
@@ -874,6 +1150,9 @@ export const PLACE_SNAPSHOT_STYLES = `
   }
   .ps-section-head {
     display: block;
+  }
+  .ps-management-policy-grid {
+    grid-template-columns: 1fr;
   }
   .ps-source { display: inline-flex; margin-top: 8px; }
 }

@@ -164,6 +164,63 @@ test("place snapshot aggregates multi-season evidence without certainty claims",
   assert.doesNotMatch(html, /AIが確定|TNFD準拠を保証|専門家不要|不在が分かる/);
 });
 
+test("place snapshot surfaces vegetation priority tasks and editable site policy", () => {
+  const snapshot = composePlaceSnapshot({
+    field: field(),
+    stats: stats({ totalSessions: 3, totalObservations: 6, uniqueSpeciesCount: 3 }),
+    canonical: {
+      totalObservations: 6,
+      totalVisits: 3,
+      uniqueTaxa: 3,
+      taxonRankCount: 2,
+      months: [4, 5],
+      effortFilled: 2,
+      effortTotal: 3,
+      acceptedCount: 1,
+      reviewTotal: 3,
+      nativeCount: 1,
+      exoticCount: 1,
+      unknownOriginCount: 4,
+      stewardshipActionCount: 1,
+    },
+    placeId: "site:office-yard",
+    now: new Date("2026-05-01T00:00:00.000Z"),
+  });
+  const html = renderPlaceSnapshotBody(snapshot, {
+    canEditPolicy: true,
+    managementPolicy: {
+      placeId: "site:office-yard",
+      userId: "user-1",
+      managementGoal: "keep_clear",
+      weedTolerance: "low",
+      invasiveResponse: "controlled_removal",
+      mowingFrequency: "monthly",
+      notes: "正面通路は短く保つ",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    },
+    vegetationTrend: {
+      status: "increasing",
+      priority: "high",
+      recordCount: 4,
+      recentRecordCount: 3,
+      recentScore: 5,
+      previousScore: 1,
+      stewardshipActionCount: 0,
+      headline: "同じ場所で草の圧が上がっています",
+      summary: "直近の記録で草管理シグナルが増えています。",
+      evidence: ["同じ場所の記録: 4件", "直近45日の草管理シグナル: 5"],
+      nextActions: ["通路・排水・植栽を邪魔する範囲を先に作業", "同じ角度で次回も撮る", "外来種候補は処分方法を確認"],
+    },
+  });
+
+  assert.match(html, /草管理の優先順位/);
+  assert.match(html, /優先度 高/);
+  assert.match(html, /通路・排水・植栽を邪魔する範囲を先に作業/);
+  assert.match(html, /会社敷地の管理方針/);
+  assert.match(html, /site%3Aoffice-yard\/management-policy/);
+  assert.match(html, /保存方針: 通路・排水はすっきり \/ 草は少なめ/);
+});
+
 test("place snapshot teaser embeds a light field-detail entry point", () => {
   const snapshot = composePlaceSnapshot({
     field: field(),
