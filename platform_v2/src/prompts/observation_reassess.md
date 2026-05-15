@@ -78,6 +78,15 @@
   - `rationale` — なぜそれが必要か（40字以内、例「似種識別に必須」「生息環境の文脈記録」）
   - `priority` — `high`（種確定に必須）| `medium`（研究価値を高める）
   既に写っているものは提案しなくて良い。最大 5 要素、必要なければ空配列。
+- `candidate_readings` — **ページの同定タブにそのまま使う、候補ごとの読み**。`recommended_taxon_name` と `coexisting_taxa` に出した候補をすべて含める。対象ごとに「見えている特徴 / 弱い点 / 撮り方 / 地域との読み」が安定して出るよう、抽象説明ではなく写真と場所に結びつける。最大 10 件。
+  - `name` — 表示名。`recommended_taxon_name` または `coexisting_taxa[].name` と合わせる
+  - `scientific_name` — 学名。不明なら空文字
+  - `rank` — `species|genus|family|order|lifeform`
+  - `role` — `代表候補|花に来た虫|草地と裸地|背景の木・植栽|一緒に写るもの` のような場面内の役割
+  - `visible_features` — 写真から実際に見えている特徴。1〜4件。「候補です」だけは禁止
+  - `weak_points` — 確定や細分化に足りない点。1〜4件
+  - `shooting_tips` — 詳しくする撮り方。1〜4件。部位・角度・距離・時間帯のどれかを具体的に含める
+  - `regional_read` — 地域・場所・季節との読み。80字以内。断定禁止。地域情報が使えない場合は、場所情報がないため地域読みは保留と書く
 - `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。**
   - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足", "media_regions": [...] }`
 - `recommended_media_regions` — 主対象が画像のどこにあるかの概形。**分からなければ空配列でよい。** 各要素:
@@ -182,6 +191,28 @@
   "shot_suggestions": [
     {"role":"close_up_organ","target":"後翅裏面","rationale":"似種識別に必須","priority":"high"},
     {"role":"habitat_wide","target":"周辺3m全景","rationale":"生息環境の文脈記録","priority":"medium"}
+  ],
+  "candidate_readings": [
+    {
+      "name": "ヒメイワダレソウ",
+      "scientific_name": "Phyla nodiflora",
+      "rank": "species",
+      "role": "代表候補",
+      "visible_features": ["地面をはう低い群落", "小さな白い花が密に咲く", "葉が地表近くに広がる"],
+      "weak_points": ["花序を横から見た形が足りない", "葉の鋸歯と茎の毛が近接で見えない"],
+      "shooting_tips": ["花序を真上と横から撮る", "葉の表裏と茎の毛を近くで撮る", "同じ画角で群落の広がりを残す"],
+      "regional_read": "浜松市の足元で、緑化植物らしい低い群落と草地管理の関係を比べられる可能性があります。"
+    },
+    {
+      "name": "セイヨウミツバチ",
+      "scientific_name": "Apis mellifera",
+      "rank": "species",
+      "role": "花に来た虫",
+      "visible_features": ["白い花の近くに小型のハチがいる", "訪花中の姿に見える"],
+      "weak_points": ["腹部の帯、翅、脚の花粉団子が十分に見えない"],
+      "shooting_tips": ["花に止まった横姿を1枚撮る", "腹部と脚が見える近景を撮る"],
+      "regional_read": "小さなグランドカバーの花が、都市の足元で花資源として使われている可能性を残せます。"
+    }
   ],
   "recommended_media_regions": [
     {"asset_index":0,"rect":{"x":0.12,"y":0.18,"width":0.42,"height":0.51},"frame_time_ms":0,"confidence":0.83,"note":"主対象"}

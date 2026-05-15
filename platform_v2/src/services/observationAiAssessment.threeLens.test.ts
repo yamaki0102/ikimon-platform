@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   extractNavigableOsFromAssessmentPayload,
   normalizeInvasiveResponseFromRaw,
+  normalizeCandidateReadingsFromRaw,
   normalizeManagementActionCandidatesFromRaw,
   normalizeNoveltyHintFromRaw,
   normalizeSizeAssessmentFromRaw,
@@ -94,6 +95,29 @@ test("normalizeSizeAssessmentFromRaw rejects invalid size_class", () => {
   const out = normalizeSizeAssessmentFromRaw({ typical_size_cm: 5, size_class: "huge" });
   assert.ok(out);
   assert.equal(out!.sizeClass, null);
+});
+
+test("normalizeCandidateReadingsFromRaw keeps per-candidate page sections", () => {
+  const out = normalizeCandidateReadingsFromRaw([
+    {
+      name: "セイヨウミツバチ",
+      scientific_name: "Apis mellifera",
+      rank: "species",
+      role: "花に来た虫",
+      visible_features: ["白い花に止まっている", "腹部の帯が見える"],
+      weak_points: ["脚の花粉団子が見えない"],
+      shooting_tips: ["花に止まった横姿を撮る"],
+      regional_read: "足元の花が花資源として使われている可能性があります。",
+    },
+    { name: "セイヨウミツバチ", visible_features: ["重複"] },
+    { visible_features: ["名前なし"] },
+  ]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0]!.name, "セイヨウミツバチ");
+  assert.equal(out[0]!.scientificName, "Apis mellifera");
+  assert.deepEqual(out[0]!.weakPoints, ["脚の花粉団子が見えない"]);
+  assert.deepEqual(out[0]!.shootingTips, ["花に止まった横姿を撮る"]);
+  assert.match(out[0]!.regionalRead, /花資源/);
 });
 
 test("normalizeManagementActionCandidatesFromRaw keeps explicit AI candidates", () => {

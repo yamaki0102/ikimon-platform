@@ -52,6 +52,17 @@ export type ShotSuggestion = {
   priority: "high" | "medium";
 };
 
+export type CandidateReading = {
+  name: string;
+  scientificName: string;
+  rank: string | null;
+  role: string;
+  visibleFeatures: string[];
+  weakPoints: string[];
+  shootingTips: string[];
+  regionalRead: string;
+};
+
 export type SizeClass = "tiny" | "small" | "typical" | "large" | "exceptional";
 
 export type SizeAssessment = {
@@ -125,6 +136,7 @@ export type AiAssessment = {
   areaInference: AreaInference;
   managementActionCandidates: ManagementActionCandidate[];
   shotSuggestions: ShotSuggestion[];
+  candidateReadings: CandidateReading[];
   sizeAssessment: SizeAssessment | null;
   noveltyHint: NoveltyHint | null;
   invasiveResponse: InvasiveResponse | null;
@@ -211,6 +223,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     parsedFromRaw?.["management_action_candidates"],
     areaInference,
   );
+  const candidateReadings = normalizeCandidateReadingsFromRaw(parsedFromRaw?.["candidate_readings"]);
   const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
   const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
   const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
@@ -240,6 +253,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     areaInference,
     managementActionCandidates,
     shotSuggestions,
+    candidateReadings,
     sizeAssessment,
     noveltyHint,
     invasiveResponse,
@@ -369,6 +383,33 @@ function objOrNull(value: unknown): Record<string, unknown> | null {
 function stringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean))];
+}
+
+export function normalizeCandidateReadingsFromRaw(raw: unknown): CandidateReading[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CandidateReading[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const obj = objOrNull(entry);
+    if (!obj) continue;
+    const name = trimStr(obj["name"]).slice(0, 80);
+    if (!name) continue;
+    const reading: CandidateReading = {
+      name,
+      scientificName: trimStr(obj["scientific_name"]).slice(0, 120),
+      rank: trimStr(obj["rank"]).slice(0, 30) || null,
+      role: trimStr(obj["role"]).slice(0, 40),
+      visibleFeatures: stringArray(obj["visible_features"]).slice(0, 4),
+      weakPoints: stringArray(obj["weak_points"]).slice(0, 4),
+      shootingTips: stringArray(obj["shooting_tips"]).slice(0, 4),
+      regionalRead: trimStr(obj["regional_read"]).slice(0, 140),
+    };
+    const key = reading.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(reading);
+  }
+  return out.slice(0, 12);
 }
 
 export function extractNavigableOsFromAssessmentPayload(

@@ -4,6 +4,7 @@ import {
   getLatestAiAssessment,
   extractNavigableOsFromAssessmentPayload,
   normalizeInvasiveResponseFromRaw,
+  normalizeCandidateReadingsFromRaw,
   normalizeManagementActionCandidatesFromRaw,
   normalizeNoveltyHintFromRaw,
   normalizeSizeAssessmentFromRaw,
@@ -321,6 +322,7 @@ async function getAssessmentMap(
       parsedFromRaw?.["management_action_candidates"],
       areaInference,
     );
+    const candidateReadings = normalizeCandidateReadingsFromRaw(parsedFromRaw?.["candidate_readings"]);
     const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
     const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
     const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
@@ -349,6 +351,7 @@ async function getAssessmentMap(
       areaInference,
       managementActionCandidates,
       shotSuggestions: readShotSuggestions(row.shot_suggestions),
+      candidateReadings,
       sizeAssessment,
       noveltyHint,
       invasiveResponse,
