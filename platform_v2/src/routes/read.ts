@@ -40,6 +40,8 @@ import { getObserverStats } from "../services/observerStats.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
+import { getPlaceManagementPolicy, type PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
+import { getPlaceVegetationTrend, type PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
 import {
   civicContextLabel,
   getCivicObservationContext,
@@ -1285,56 +1287,35 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-readout-note strong { display: inline; margin: 0 4px 0 0; font-size: 9.5px; letter-spacing: .04em; }
     .obs-ai-readout-grid { grid-template-columns: 1fr; gap: 5px; }
   }
-  .obs-owner-tools { display: grid; gap: 8px; max-width: var(--ikimon-content-max); margin: 0 auto 14px; }
+  .obs-owner-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; max-width: var(--ikimon-content-max); margin: 0 auto 12px; padding: 7px 9px; border-radius: 14px; background: rgba(255,255,255,.82); border: 1px solid rgba(148,163,184,.24); box-shadow: 0 6px 16px rgba(15,23,42,.04); }
+  .obs-owner-tools::before { content: "管理"; flex: 0 0 auto; color: #64748b; font-size: 10px; line-height: 1; letter-spacing: .08em; font-weight: 950; text-transform: uppercase; }
   .obs-owner-tools .section { margin: 0; }
-  .obs-reassess-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.9); border: 1px dashed rgba(59,130,246,.2); margin: 0; }
+  .obs-owner-tool,
+  .obs-reassess-row { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 34px; padding: 0; border: 0; background: transparent; margin: 0; }
   .obs-reassess-row.section, .obs-photo-recovery.section, .obs-owner-delete.section { margin-top: 0; }
-  .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; min-height: 36px; padding: 8px 13px; background: #111827; color: #fff; font-weight: 850; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(15,23,42,.2); }
+  .obs-owner-tool-label { color: #64748b; font-size: 10px; line-height: 1; letter-spacing: .05em; font-weight: 950; }
+  .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; min-height: 32px; padding: 7px 11px; background: #111827; color: #fff; font-weight: 850; font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
   .obs-reassess-btn:hover { background: #1f2937; }
   .obs-reassess-btn[disabled] { opacity: .6; cursor: progress; }
-  .obs-reassess-hint { flex: 1 1 220px; color: #475569; font-size: 11.5px; line-height: 1.35; }
-  .obs-reassess-status { font-size: 11.5px; font-weight: 750; color: #047857; }
+  .obs-reassess-status { max-width: 260px; font-size: 11px; font-weight: 750; color: #047857; }
   .obs-reassess-status.is-error { color: #b91c1c; }
-  .obs-photo-recovery, .obs-owner-delete { padding: 0; border-radius: 12px; overflow: hidden; }
-  .obs-photo-recovery { background: rgba(254,252,232,.72); border: 1px solid rgba(234,179,8,.18); }
-  .obs-owner-delete { background: rgba(255,247,237,.72); border: 1px solid rgba(234,88,12,.16); }
-  .obs-owner-tool-details { display: block; }
-  .obs-owner-tool-summary { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 11px; cursor: pointer; list-style: none; }
-  .obs-owner-tool-summary::-webkit-details-marker { display: none; }
-  .obs-owner-tool-summary::marker { content: ""; }
-  .obs-owner-tool-summary span:first-child { display: grid; gap: 2px; min-width: 0; }
-  .obs-owner-tool-summary strong { color: #0f172a; font-size: 13px; line-height: 1.25; font-weight: 950; }
-  .obs-owner-tool-summary small { color: #475569; font-size: 11px; line-height: 1.3; font-weight: 760; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .obs-owner-tool-open { flex-shrink: 0; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.8); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11px; line-height: 1; font-weight: 900; }
-  .obs-owner-tool-details[open] .obs-owner-tool-open { background: rgba(15,23,42,.08); }
-  .obs-owner-tool-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; align-items: center; padding: 0 12px 12px; }
-  .obs-owner-tool-body p { margin: 0; color: #475569; font-size: 12px; line-height: 1.5; font-weight: 720; }
-  .obs-owner-delete .obs-owner-tool-body p { color: #9a3412; }
-  .obs-photo-recovery-form { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; justify-content: flex-end; }
-  .obs-photo-recovery-picker { position: relative; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.12); color: #334155; font-size: 12px; font-weight: 900; cursor: pointer; overflow: hidden; }
+  .obs-photo-recovery, .obs-owner-delete { padding: 0; border-radius: 0; overflow: visible; }
+  .obs-photo-recovery-form { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .obs-photo-recovery-picker { position: relative; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.12); color: #334155; font-size: 11.5px; font-weight: 900; cursor: pointer; overflow: hidden; }
   .obs-photo-recovery-picker input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .obs-photo-recovery-submit { min-height: 38px; padding: 8px 13px; border-radius: 999px; border: 0; background: #111827; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .obs-photo-recovery-submit { min-height: 32px; padding: 7px 11px; border-radius: 999px; border: 0; background: #111827; color: #fff; font: inherit; font-size: 11.5px; font-weight: 900; cursor: pointer; }
   .obs-photo-recovery-submit[disabled] { opacity: .6; cursor: progress; }
-  .obs-photo-recovery-status { grid-column: 1 / -1; min-height: 18px; color: #047857; font-size: 11.5px; font-weight: 850; }
+  .obs-photo-recovery-status { max-width: 260px; color: #047857; font-size: 11px; font-weight: 850; }
   .obs-photo-recovery-status.is-error { color: #b91c1c; }
-  .obs-owner-delete .obs-owner-tool-summary strong { color: #7c2d12; }
-  .obs-owner-delete-button { min-height: 38px; padding: 8px 13px; border-radius: 999px; border: 1px solid rgba(185,28,28,.22); background: #b91c1c; color: #fff; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .obs-owner-delete-button { min-height: 32px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(185,28,28,.22); background: #fff7ed; color: #9a3412; font: inherit; font-size: 11.5px; font-weight: 900; cursor: pointer; }
   .obs-owner-delete-button[disabled] { opacity: .62; cursor: progress; }
-  .obs-owner-delete-status { grid-column: 1 / -1; min-height: 18px; color: #9a3412; font-size: 11.5px; font-weight: 850; }
+  .obs-owner-delete-status { max-width: 260px; color: #9a3412; font-size: 11px; font-weight: 850; }
   .obs-owner-delete-status.is-error { color: #b91c1c; }
-  @media (min-width: 960px) {
-    .obs-owner-tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, .8fr); align-items: stretch; }
-    .obs-owner-tools .obs-reassess-row { min-height: 46px; }
-    .obs-owner-tool-summary small, .obs-reassess-hint { display: none; }
-    .obs-owner-tool-body { grid-template-columns: 1fr; }
-    .obs-photo-recovery-form { justify-content: stretch; }
-  }
   @media (max-width: 760px) {
-    .obs-owner-tool-summary { gap: 10px; padding: 9px 10px; }
-    .obs-owner-tool-summary small { white-space: normal; }
-    .obs-owner-tool-body { grid-template-columns: 1fr; padding-inline: 10px; }
-    .obs-photo-recovery-form { justify-content: stretch; }
-    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button { width: 100%; min-height: 42px; border-radius: 12px; }
+    .obs-owner-tools { align-items: flex-start; }
+    .obs-owner-tools::before { width: 100%; }
+    .obs-owner-tool, .obs-reassess-row, .obs-photo-recovery-form { width: 100%; }
+    .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button, .obs-reassess-btn { min-height: 38px; border-radius: 12px; }
   }
 
   .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
@@ -1655,11 +1636,25 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-care-panel strong { display: block; margin-bottom: 6px; color: #0f172a; font-size: 12px; line-height: 1.35; font-weight: 950; }
   .obs-care-panel ul { margin: 0; padding-left: 17px; color: #334155; font-size: 12.5px; line-height: 1.65; font-weight: 740; }
   .obs-care-note { margin: 0; color: #64748b; font-size: 11.5px; line-height: 1.6; font-weight: 760; }
+  .obs-care-policy { display: grid; gap: 8px; padding: 12px 13px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
+  .obs-care-policy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .obs-care-policy label { display: grid; gap: 4px; color: #475569; font-size: 10.5px; font-weight: 900; }
+  .obs-care-policy select, .obs-care-policy textarea { width: 100%; border: 1px solid rgba(15,23,42,.14); border-radius: 10px; background: #fff; color: #0f172a; font: inherit; font-size: 12px; font-weight: 760; }
+  .obs-care-policy select { min-height: 34px; padding: 6px 8px; }
+  .obs-care-policy textarea { min-height: 54px; padding: 8px; resize: vertical; }
+  .obs-care-policy-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .obs-care-policy button { min-height: 34px; padding: 7px 12px; border: 0; border-radius: 999px; background: #0f172a; color: #fff; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; }
+  .obs-care-policy-status { color: #047857; font-size: 11px; font-weight: 850; }
+  .obs-care-policy-status.is-error { color: #b91c1c; }
+  .obs-care-priority { display: inline-flex; align-items: center; width: fit-content; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: rgba(14,165,233,.12); color: #075985; border: 1px solid rgba(14,165,233,.22); font-size: 10.5px; line-height: 1.2; font-weight: 950; }
+  .obs-care-priority.is-high { background: rgba(239,68,68,.10); color: #991b1b; border-color: rgba(239,68,68,.22); }
+  .obs-care-priority.is-low { background: rgba(100,116,139,.10); color: #475569; border-color: rgba(100,116,139,.2); }
   @media (max-width: 680px) {
     .obs-management-item { grid-template-columns: 1fr; }
     .obs-management-actions { justify-content: stretch; }
     .obs-management-actions .btn { flex: 1; }
     .obs-care-grid { grid-template-columns: 1fr; }
+    .obs-care-policy-grid { grid-template-columns: 1fr; }
     .obs-care-head { display: grid; }
     .obs-care-status { width: fit-content; }
   }
@@ -2253,9 +2248,156 @@ function renderInvasiveCard(invasive: InvasiveResponse, subjectName: string): st
   </section>`;
 }
 
-function renderVegetationCareAdviceCard(subject: ObservationVisitSubject): string {
+function selectOption(value: string, current: string, label: string): string {
+  return `<option value="${escapeHtml(value)}"${value === current ? " selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
+function policySummary(policy: PlaceManagementPolicy | null): string {
+  if (!policy) return "方針未設定";
+  const goal: Record<PlaceManagementPolicy["managementGoal"], string> = {
+    balanced: "安全と景観を部分管理",
+    keep_clear: "通路・排水はすっきり",
+    native_patch: "在来草地を残す",
+    flowering_allowed: "花の時期は一部残す",
+    invasive_watch: "外来種候補を早めに確認",
+  };
+  const tolerance: Record<PlaceManagementPolicy["weedTolerance"], string> = {
+    low: "草は少なめ",
+    medium: "必要部分だけ抑える",
+    high: "草花を多めに残す",
+  };
+  return `${goal[policy.managementGoal]} / ${tolerance[policy.weedTolerance]}`;
+}
+
+function renderPolicyForm(policy: PlaceManagementPolicy | null, options: {
+  canEditPolicy: boolean;
+  placeId: string | null;
+  basePath: string;
+}): string {
+  if (!options.canEditPolicy || !options.placeId) return "";
+  const current = policy ?? {
+    managementGoal: "balanced",
+    weedTolerance: "medium",
+    invasiveResponse: "ask_first",
+    mowingFrequency: "as_needed",
+    notes: "",
+  };
+  const endpoint = withBasePath(options.basePath, `/api/v1/places/${encodeURIComponent(options.placeId)}/management-policy`);
+  return `<form class="obs-care-policy" data-care-policy-form data-endpoint="${escapeHtml(endpoint)}">
+    <strong>会社敷地の管理方針</strong>
+    <div class="obs-care-policy-grid">
+      <label>方針
+        <select name="managementGoal">
+          ${selectOption("balanced", current.managementGoal, "安全と景観を部分管理")}
+          ${selectOption("keep_clear", current.managementGoal, "通路・排水はすっきり")}
+          ${selectOption("native_patch", current.managementGoal, "在来草地を残す")}
+          ${selectOption("flowering_allowed", current.managementGoal, "花の時期は一部残す")}
+          ${selectOption("invasive_watch", current.managementGoal, "外来種候補を早めに確認")}
+        </select>
+      </label>
+      <label>草の許容
+        <select name="weedTolerance">
+          ${selectOption("low", current.weedTolerance, "少なめ")}
+          ${selectOption("medium", current.weedTolerance, "必要部分だけ抑える")}
+          ${selectOption("high", current.weedTolerance, "草花を多めに残す")}
+        </select>
+      </label>
+      <label>外来種候補
+        <select name="invasiveResponse">
+          ${selectOption("ask_first", current.invasiveResponse, "確認してから作業")}
+          ${selectOption("controlled_removal", current.invasiveResponse, "計画的に除去")}
+          ${selectOption("observe", current.invasiveResponse, "まず観察")}
+        </select>
+      </label>
+      <label>草刈り頻度
+        <select name="mowingFrequency">
+          ${selectOption("as_needed", current.mowingFrequency, "必要時")}
+          ${selectOption("monthly", current.mowingFrequency, "月1目安")}
+          ${selectOption("seasonal", current.mowingFrequency, "季節ごと")}
+          ${selectOption("rare", current.mowingFrequency, "なるべく少なく")}
+        </select>
+      </label>
+    </div>
+    <label>メモ
+      <textarea name="notes" maxlength="600" placeholder="例: 正面通路は短く、花壇脇は花が終わるまで残す">${escapeHtml(current.notes)}</textarea>
+    </label>
+    <div class="obs-care-policy-actions">
+      <button type="submit">方針を保存</button>
+      <span class="obs-care-policy-status" data-care-policy-status aria-live="polite">${policy ? "保存済み" : ""}</span>
+    </div>
+  </form>`;
+}
+
+function renderCarePolicyScript(canEditPolicy: boolean): string {
+  if (!canEditPolicy) return "";
+  return `<script>(function(){
+    if (window.__ikimonCarePolicyBound) return;
+    window.__ikimonCarePolicyBound = true;
+    document.addEventListener('submit', function(event) {
+      var form = event.target && event.target.closest ? event.target.closest('[data-care-policy-form]') : null;
+      if (!form) return;
+      event.preventDefault();
+      var status = form.querySelector('[data-care-policy-status]');
+      var button = form.querySelector('button[type="submit"]');
+      var endpoint = form.getAttribute('data-endpoint') || '';
+      var data = new FormData(form);
+      var payload = {
+        managementGoal: String(data.get('managementGoal') || ''),
+        weedTolerance: String(data.get('weedTolerance') || ''),
+        invasiveResponse: String(data.get('invasiveResponse') || ''),
+        mowingFrequency: String(data.get('mowingFrequency') || ''),
+        notes: String(data.get('notes') || '')
+      };
+      if (button) button.disabled = true;
+      if (status) { status.textContent = '保存中...'; status.classList.remove('is-error'); }
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      }).then(function(response) {
+        return response.json().catch(function(){ return {}; }).then(function(json) {
+          if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'save_failed'));
+          if (status) status.textContent = '保存しました';
+        });
+      }).catch(function(error) {
+        if (status) { status.textContent = '保存できませんでした: ' + String(error && error.message || 'network'); status.classList.add('is-error'); }
+      }).finally(function(){ if (button) button.disabled = false; });
+    });
+  })();</script>`;
+}
+
+function renderTrendPanel(trend: PlaceVegetationTrend | null, policy: PlaceManagementPolicy | null): string {
+  if (!trend) return "";
+  const priorityLabel = trend.priority === "high" ? "優先度 高" : trend.priority === "medium" ? "優先度 中" : "優先度 低";
+  return `<div class="obs-care-panel">
+    <strong>同じ場所から読む優先順位</strong>
+    <span class="obs-care-priority is-${escapeHtml(trend.priority)}">${escapeHtml(priorityLabel)}</span>
+    <p>${escapeHtml(trend.headline)}</p>
+    <p>${escapeHtml(trend.summary)}</p>
+    <ul>${[...trend.evidence, `保存方針: ${policySummary(policy)}`].map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+  </div>`;
+}
+
+function renderVegetationCareAdviceCard(subject: ObservationVisitSubject, options: {
+  policy?: PlaceManagementPolicy | null;
+  trend?: PlaceVegetationTrend | null;
+  canEditPolicy?: boolean;
+  placeId?: string | null;
+  basePath?: string;
+} = {}): string {
   const ai = subject.aiAssessment;
+  const area = ai?.areaInference ?? null;
+  const managementActions = ai?.managementActionCandidates ?? [];
   const display = formatTaxonDisplayName(subject, "ja").primaryLabel;
+  const areaHintLines = [
+    ...(area?.vegetationStructureCandidates ?? []),
+    ...(area?.humanInfluenceCandidates ?? []),
+    ...(area?.managementHintCandidates ?? []),
+  ].map((candidate) => [candidate.label, candidate.why].filter(Boolean).join(": "));
+  const managementActionLines = managementActions.map((candidate) =>
+    [candidate.label, candidate.why].filter(Boolean).join(": "),
+  );
   const text = [
     display,
     subject.displayName,
@@ -2269,6 +2411,8 @@ function renderVegetationCareAdviceCard(subject: ObservationVisitSubject): strin
     ai?.simpleSummary,
     ai?.narrative,
     ...(ai?.diagnosticFeaturesSeen ?? []),
+    ...areaHintLines,
+    ...managementActionLines,
   ].filter(Boolean).join(" ");
   const isLikelyPlant = /植物|花|草|雑草|木|樹|低木|葉|茎|株|群落|植栽|グランドカバー|つる|蔓|イネ科|シャクナゲ|カルミア|ツルニチニチソウ|ヒメイワダレソウ|plant|tree|grass|vinca|kalmia/i.test(text);
   if (!isLikelyPlant && !ai?.invasiveResponse?.isInvasive) return "";
@@ -2276,8 +2420,11 @@ function renderVegetationCareAdviceCard(subject: ObservationVisitSubject): strin
   const invasive = ai?.invasiveResponse?.isInvasive ? ai.invasiveResponse : null;
   const strictInvasive = invasive?.mhlwCategory === "iaspecified" || invasive?.recommendedAction === "report_only" || invasive?.recommendedAction === "do_not_handle";
   const controlledRemoval = invasive?.recommendedAction === "controlled_removal";
+  const actionKinds = new Set(managementActions.map((candidate) => candidate.actionKind));
+  const removalOrMowingSignal = actionKinds.has("invasive_removal") || actionKinds.has("mowing") || actionKinds.has("cleanup");
+  const sitePressureSignal = actionKinds.has("bare_ground") || actionKinds.has("trampling") || actionKinds.has("pruning");
   const managedPlanting = /植栽|園芸|低木|シャクナゲ|カルミア|kalmia/i.test(text);
-  const spreadingGround = /雑草|草地|イネ科|グランドカバー|ツルニチニチソウ|つる|蔓|地下茎|種子|裸地|踏圧|vinca/i.test(text);
+  const spreadingGround = removalOrMowingSignal || sitePressureSignal || /雑草|草地|イネ科|グランドカバー|ツルニチニチソウ|つる|蔓|地下茎|種子|裸地|踏圧|vinca/i.test(text);
 
   const status = strictInvasive
     ? "相談"
@@ -2296,38 +2443,64 @@ function renderVegetationCareAdviceCard(subject: ObservationVisitSubject): strin
       : managedPlanting
         ? "抜く対象というより、植栽として手入れを判断"
         : spreadingGround
-          ? "抜くか残すかは、広がり方と場所で判断"
+          ? "全部抜くより、区画を決めて抑える"
           : "今は抜く/残すを決めず、材料を集める";
   const lead = strictInvasive
-    ? "特定外来生物などの可能性がある場合、生きたまま移動・保管すると問題になることがあります。写真と場所を残し、勝手に持ち出さない判断が先です。"
+    ? "写真AIの読取で外来種の可能性が出たときは、作業量より先に扱い方の確認です。生きたまま移動・保管すると問題になることがあります。"
     : controlledRemoval
-      ? "外来種の根拠がある候補です。ただし、処分方法や作業時期を誤ると拡げることがあります。種や根が広がる前に、管理方法を決めてから扱います。"
+      ? "外来種の根拠がある候補です。ただし、処分方法や作業時期を誤ると拡げることがあります。場所の管理目的に合わせて、先に手順を決めます。"
       : managedPlanting
         ? "会社や施設の植栽帯では、花木そのものより、足元の植物・裸地・通路へのはみ出しを見て手入れ量を決めるのが現実的です。"
         : spreadingGround
-          ? "会社の敷地では、見た目だけで全部抜くより、通路・排水・植栽への影響、種がつく時期、増え方を見て範囲管理する方が失敗しにくいです。"
-          : "この1件だけでは管理判断を強く出しません。同じ場所で増えるか、何に影響しているかを見てから決めます。";
-  const nextChecks = strictInvasive
+          ? "会社の敷地では、見た目だけで一面を裸地化するより、通路・排水・植栽への影響、種がつく時期、増え方を見て範囲管理する方が失敗しにくいです。"
+          : "この1件だけでは管理判断を強く出しません。写真AIの読取と、場所の管理目的を並べてから決めます。";
+  const nextActions = strictInvasive
     ? ["同定が合っているかを人が確認する", "生きたまま別の場所へ動かさない", "管理者・自治体に写真と場所を共有する"]
     : controlledRemoval
-      ? ["花・実・種がつく前か確認する", "抜いた後に根や破片が残らない方法を決める", "処分時に他の区画へ落とさない"]
+      ? ["花・実・種がつく前か確認する", "作業範囲と処分方法を先に決める", "抜いた根や破片を他の区画へ落とさない"]
       : managedPlanting
-        ? ["通路や排水を邪魔しているか見る", "足元のグランドカバーが植栽を覆いすぎていないか見る", "花後・剪定時期・景観目的を確認する"]
+        ? ["通路や排水を邪魔している部分だけ整える", "足元のグランドカバーが植栽を覆いすぎていないか見る", "花後・剪定時期・景観目的を確認する"]
         : spreadingGround
-          ? ["種がつく前か、地下茎やつるで増えるタイプか見る", "残したい植栽や通路を覆っていないか見る", "一部だけ残して次回の増え方を比べる"]
+          ? ["残す区画と抑える区画を決める", "通路・排水・植栽を邪魔する範囲から作業する", "一部だけ残して次回の増え方を比べる"]
           : ["同じ場所で何度か記録する", "花・葉・株元が分かる写真を追加する", "会社の管理目的と照らす"];
+  const evidence = [
+    ...managementActions.slice(0, 2).map((candidate) => `管理候補: ${candidate.label}${candidate.why ? `（${candidate.why}）` : ""}`),
+    ...(area?.managementHintCandidates ?? []).slice(0, 2).map((candidate) => `手入れの跡: ${candidate.label}${candidate.why ? `（${candidate.why}）` : ""}`),
+    ...(area?.humanInfluenceCandidates ?? []).slice(0, 1).map((candidate) => `場所の文脈: ${candidate.label}${candidate.why ? `（${candidate.why}）` : ""}`),
+  ].filter(Boolean);
+  const evidenceItems = evidence.length > 0
+    ? evidence
+    : ["写真AIの読取だけでは作業判断が弱いので、同じ場所の増え方・通路や排水への影響・管理目的を追加で見る"];
+  const policy = options.policy ?? null;
+  const trend = options.trend ?? null;
+  const policyDrivenAction = policy?.managementGoal === "keep_clear"
+    ? "保存した方針に合わせ、通路・排水まわりを優先する"
+    : policy?.managementGoal === "native_patch" || policy?.managementGoal === "flowering_allowed"
+      ? "保存した方針に合わせ、残す区画を先に決める"
+      : policy?.managementGoal === "invasive_watch"
+        ? "保存した方針に合わせ、外来種候補は作業前に確認する"
+        : "";
+  const fieldActions = policyDrivenAction ? [policyDrivenAction, ...nextActions.slice(0, 2)] : nextActions;
   const avoid = strictInvasive
     ? ["素手で扱わない", "袋に入れて生きたまま持ち歩かない", "別区画へ移さない"]
     : invasive
       ? ["刈った破片を散らさない", "土ごと他の場所へ移さない", "確信がないまま大量処分しない"]
-      : ["全部を一度に裸地化しない", "花や実だけで同定を決め打ちしない", "周囲の虫や土の状態を無視しない"];
-  const basis = invasive?.actionBasis
-    ? `外来種メモ: ${invasive.actionBasis}`
-    : "これは作業判断の入口です。最終判断は同定、敷地の目的、安全、現地ルールで決めてください。";
-  return `<section class="obs-care-advice ${className}" aria-label="草や植栽の管理ヒント">
+      : ["一度に裸地化しない", "花や実だけで同定を決め打ちしない", "周囲の虫や土の状態を無視しない"];
+  const basisParts = [
+    invasive?.actionBasis ? `外来種メモ: ${invasive.actionBasis}` : "",
+    policy ? `保存方針: ${policySummary(policy)}。` : "",
+    "最終判断は同定、敷地の目的、安全、現地ルールで決めてください。",
+  ].filter(Boolean);
+  const trendPanel = renderTrendPanel(trend, policy);
+  const policyForm = renderPolicyForm(policy, {
+    canEditPolicy: Boolean(options.canEditPolicy),
+    placeId: options.placeId ?? null,
+    basePath: options.basePath ?? "",
+  });
+  return `<section class="obs-care-advice ${className}" aria-label="現場アドバイス">
     <div class="obs-care-head">
       <div>
-        <div class="obs-hint-eyebrow">管理のヒント</div>
+        <div class="obs-hint-eyebrow">現場アドバイス</div>
         <h3 class="obs-care-title">${escapeHtml(title)}</h3>
         <p class="obs-care-lead">${escapeHtml(lead)}</p>
       </div>
@@ -2335,15 +2508,22 @@ function renderVegetationCareAdviceCard(subject: ObservationVisitSubject): strin
     </div>
     <div class="obs-care-grid">
       <div class="obs-care-panel">
-        <strong>先に見ること</strong>
-        <ul>${nextChecks.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        <strong>この場でやること</strong>
+        <ul>${fieldActions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
       </div>
+      <div class="obs-care-panel">
+        <strong>判断材料</strong>
+        <ul>${evidenceItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      ${trendPanel}
       <div class="obs-care-panel">
         <strong>避けること</strong>
         <ul>${avoid.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
       </div>
     </div>
-    <p class="obs-care-note">${escapeHtml(basis)}</p>
+    ${policyForm}
+    <p class="obs-care-note">${escapeHtml(basisParts.join(" "))}</p>
+    ${renderCarePolicyScript(Boolean(options.canEditPolicy))}
   </section>`;
 }
 
@@ -2647,7 +2827,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
       contextHeading: "写真・動画・音から拾えたこと",
       reassessHint: "写真や動画をもう一度見て、見分けるメモを更新できます。",
       videoReassessLoadingText: "AIで動画を確認しています…",
-      photoRecoveryEyebrow: "Add photos",
+      photoRecoveryEyebrow: "写真追加",
       photoRecoveryTitle: "この記録に写真を追加",
       photoRecoveryBody: "別角度や周辺の写真を同じ記録に追加できます。",
     };
@@ -2665,7 +2845,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
     contextHeading: "写真と音から拾えたこと",
     reassessHint: "写真をもう一度見て、見分けるメモを更新できます。",
     videoReassessLoadingText: "AIで動画を確認しています…",
-    photoRecoveryEyebrow: "Photo recovery",
+    photoRecoveryEyebrow: "写真復旧",
     photoRecoveryTitle: "この記録に写真を復旧",
     photoRecoveryBody: "写真の保存が途中で止まった記録は、ここから同じ記録に写真だけ追加できます。",
   };
@@ -2677,6 +2857,12 @@ function renderSubjectHint(
   photoAssets: { roleTag: string | null }[] | null = null,
   basePath = "",
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+  fieldAdviceContext: {
+    policy?: PlaceManagementPolicy | null;
+    trend?: PlaceVegetationTrend | null;
+    canEditPolicy?: boolean;
+    placeId?: string | null;
+  } = {},
 ): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
@@ -2749,7 +2935,10 @@ function renderSubjectHint(
     : "";
   const runMeta = `<p class="obs-hint-foot">このメモは次の観察につなぐための参考情報です。名前の決定には入りません。</p>`;
   const threeLens = renderThreeLensCards(subject);
-  const careAdvice = renderVegetationCareAdviceCard(subject);
+  const careAdvice = renderVegetationCareAdviceCard(subject, {
+    ...fieldAdviceContext,
+    basePath,
+  });
   return `<details class="obs-fold obs-hint-fold">
     <summary>くわしい見分けメモ <span class="obs-fold-count">${escapeHtml(bandLabel)}</span></summary>
     <section class="obs-hint-section ${bandClass}">
@@ -3223,28 +3412,16 @@ function renderObservationPhotoRecoveryPanel(options: {
         body: mediaCopy.photoRecoveryBody,
       };
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/photos/upload`);
-  return `<section class="section obs-photo-recovery" data-photo-recovery data-upload-endpoint="${escapeHtml(endpoint)}" data-existing-photo-count="${escapeHtml(String(options.existingPhotoCount))}">
-    <details class="obs-owner-tool-details">
-      <summary class="obs-owner-tool-summary">
-        <span>
-          <span class="obs-story-eyebrow">${escapeHtml(recoveryCopy.eyebrow)}</span>
-          <strong>${escapeHtml(recoveryCopy.title)}</strong>
-          <small>${escapeHtml(recoveryCopy.body)}</small>
-        </span>
-        <span class="obs-owner-tool-open">開く</span>
-      </summary>
-      <div class="obs-owner-tool-body">
-        <p>${escapeHtml(recoveryCopy.body)}</p>
-        <form class="obs-photo-recovery-form">
-          <label class="obs-photo-recovery-picker">
-            <span>写真を選ぶ</span>
-            <input type="file" accept="image/*" multiple />
-          </label>
-          <button type="submit" class="obs-photo-recovery-submit">写真を保存</button>
-        </form>
-        <div class="obs-photo-recovery-status" data-photo-recovery-status aria-live="polite"></div>
-      </div>
-    </details>
+  return `<section class="section obs-owner-tool obs-photo-recovery" data-photo-recovery data-upload-endpoint="${escapeHtml(endpoint)}" data-existing-photo-count="${escapeHtml(String(options.existingPhotoCount))}" title="${escapeHtml(recoveryCopy.body)}">
+    <form class="obs-photo-recovery-form" aria-label="${escapeHtml(recoveryCopy.title)}">
+      <span class="obs-owner-tool-label">${escapeHtml(recoveryCopy.eyebrow)}</span>
+      <label class="obs-photo-recovery-picker">
+        <span>選択</span>
+        <input type="file" accept="image/*" multiple />
+      </label>
+      <button type="submit" class="obs-photo-recovery-submit">保存</button>
+      <span class="obs-photo-recovery-status" data-photo-recovery-status aria-live="polite"></span>
+    </form>
   </section>`;
 }
 
@@ -3445,22 +3622,10 @@ function renderObservationOwnerDeletePanel(options: {
   if (!options.isOwner) return "";
   const endpoint = withBasePath(options.basePath, `/api/v1/observations/${encodeURIComponent(options.visitId)}/hide`);
   const notesHref = appendLangToHref(withBasePath(options.basePath, "/records?view=mine"), options.lang);
-  return `<section class="section obs-owner-delete" data-owner-delete data-delete-endpoint="${escapeHtml(endpoint)}" data-after-delete-href="${escapeHtml(notesHref)}">
-    <details class="obs-owner-tool-details">
-      <summary class="obs-owner-tool-summary">
-        <span>
-          <span class="obs-story-eyebrow">削除</span>
-          <strong>この観察を削除</strong>
-          <small>一覧と公開ページから外します。写真ファイルは監査用に残します。</small>
-        </span>
-        <span class="obs-owner-tool-open">開く</span>
-      </summary>
-      <div class="obs-owner-tool-body">
-        <p>誤って公開した記録はここから自分の一覧と公開ページから外せます。写真ファイルは監査用に残し、表示だけを止めます。</p>
-        <button type="button" class="obs-owner-delete-button" data-owner-delete-button>削除する</button>
-        <div class="obs-owner-delete-status" data-owner-delete-status aria-live="polite"></div>
-      </div>
-    </details>
+  return `<section class="section obs-owner-tool obs-owner-delete" data-owner-delete data-delete-endpoint="${escapeHtml(endpoint)}" data-after-delete-href="${escapeHtml(notesHref)}" title="一覧と公開ページから外します。写真ファイルは監査用に残します。">
+    <span class="obs-owner-tool-label">削除</span>
+    <button type="button" class="obs-owner-delete-button" data-owner-delete-button>削除</button>
+    <span class="obs-owner-delete-status" data-owner-delete-status aria-live="polite"></span>
   </section>`;
 }
 
@@ -12818,6 +12983,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       getIdentificationConsensus(bundle.canonicalSubjectId).catch(() => null),
       getCivicObservationContext(bundle.visitId).catch(() => null),
     ]);
+    const managementPolicy = await getPlaceManagementPolicy(snapshot.placeId, viewerUserId).catch(() => null);
+    const vegetationTrend = await getPlaceVegetationTrend(snapshot.placeId, managementPolicy).catch(() => null);
+    const fieldAdviceContext = {
+      policy: managementPolicy,
+      trend: vegetationTrend,
+      canEditPolicy: Boolean(viewerUserId && snapshot.placeId),
+      placeId: snapshot.placeId,
+    };
     const subjectIdentifyEntries = await Promise.all(
       bundle.subjects.map(async (subject) => {
         if (subject.occurrenceId === snapshot.occurrenceId) {
@@ -13127,7 +13300,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     });
 
-    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</div>`;
+    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</div>`;
     const aiCandidateLearningBlock = aiCandidateLearningPanel
       ? `<div id="co-candidates" class="obs-reading-section" data-obs-section="co_candidates">${aiCandidateLearningPanel}</div>`
       : "";
@@ -13313,7 +13486,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true)}</template>
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
@@ -13356,8 +13529,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     }
     const reassessBlock = isOwner && reassessButtons.length > 0
       ? `<section class="section obs-reassess-row" aria-label="見分けるメモを更新">
+           <span class="obs-owner-tool-label">AI</span>
            ${reassessButtons.join("")}
-           <span class="obs-reassess-hint">${escapeHtml(mediaCopy.reassessHint)}</span>
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
       : "";

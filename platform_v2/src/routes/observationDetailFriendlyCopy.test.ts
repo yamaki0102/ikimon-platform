@@ -27,7 +27,7 @@ const detailCopySource = [
   sourceBetween("function renderVisibleRecordItemsPanel", "function renderAiCandidateLearningPanel"),
   sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
-  sourceBetween("function renderVegetationCareAdviceCard", "function renderSizeCard"),
+  sourceBetween("function selectOption", "function renderSizeCard"),
   sourceBetween("function renderAiCandidates", "function renderSubjectTaxonomy"),
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
@@ -74,8 +74,11 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "名前を確かめる",
     "からの提案",
     "見分けるメモ",
-    "管理のヒント",
-    "先に見ること",
+    "現場アドバイス",
+    "この場でやること",
+    "判断材料",
+    "会社敷地の管理方針",
+    "同じ場所から読む優先順位",
     "避けること",
     "次に見つけるなら",
     "あると見やすい材料",
@@ -186,13 +189,38 @@ test("observation detail hero treats the page as a multi-record scene", () => {
 });
 
 test("vegetation care advice is cautious and grounded in management context", () => {
-  const careSource = sourceBetween("function renderVegetationCareAdviceCard", "function renderSizeCard");
+  const careSource = sourceBetween("function selectOption", "function renderSizeCard");
+  assert.match(careSource, /現場アドバイス/);
+  assert.match(careSource, /managementActionCandidates/);
+  assert.match(careSource, /managementHintCandidates/);
+  assert.match(careSource, /写真AIの読取/);
+  assert.match(careSource, /場所の管理目的/);
+  assert.match(careSource, /区画を決めて抑える/);
+  assert.match(careSource, /PlaceManagementPolicy/);
+  assert.match(careSource, /PlaceVegetationTrend/);
+  assert.match(careSource, /会社敷地の管理方針/);
+  assert.match(careSource, /同じ場所から読む優先順位/);
   assert.match(careSource, /抜く前に、管理者か自治体へ確認/);
   assert.match(careSource, /生きたまま別の場所へ動かさない/);
   assert.match(careSource, /通路・排水・植栽への影響/);
   assert.match(careSource, /最終判断は同定、敷地の目的、安全、現地ルール/);
   assert.doesNotMatch(careSource, /どんどん抜/);
   assert.doesNotMatch(careSource, /必ず抜/);
+});
+
+test("owner-only controls stay compact and avoid support-card copy", () => {
+  const ownerSource = [
+    sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),
+    sourceBetween("function renderObservationOwnerDeletePanel", "function renderObservationOwnerDeleteScript"),
+    sourceBetween("const reassessBlock =", "const ownerToolsBlock ="),
+  ].join("\n");
+  assert.match(ownerSource, /obs-owner-tool/);
+  assert.match(ownerSource, /obs-owner-tool-label/);
+  assert.match(ownerSource, /data-photo-recovery-status/);
+  assert.match(ownerSource, /data-owner-delete-status/);
+  assert.doesNotMatch(ownerSource, /obs-owner-tool-details/);
+  assert.doesNotMatch(ownerSource, /obs-owner-tool-body/);
+  assert.doesNotMatch(routeSource, /Photo recovery/);
 });
 
 test("visible record fixture surfaces plant, bee, grass, and folds low-confidence candidates", () => {
