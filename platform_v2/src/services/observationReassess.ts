@@ -152,6 +152,16 @@ type GeminiJson = {
   area_inference?: GeminiAreaInference;
   management_action_candidates?: GeminiManagementActionCandidate[];
   shot_suggestions?: GeminiShotSuggestion[];
+  candidate_readings?: Array<{
+    name?: string;
+    scientific_name?: string;
+    rank?: string;
+    role?: string;
+    visible_features?: string[];
+    weak_points?: string[];
+    shooting_tips?: string[];
+    regional_read?: string;
+  }>;
   recommended_media_regions?: GeminiRegion[];
   coexisting_taxa?: Array<{
     name?: string;
@@ -1017,7 +1027,7 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
       sourceTag,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v4";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5";
 
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);

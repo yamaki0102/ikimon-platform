@@ -52,6 +52,7 @@ import {
   invasiveActionLabel,
   mhlwCategoryLabel,
   sizeClassLabel,
+  type CandidateReading,
   type InvasiveResponse,
   type ManagementActionCandidate,
   type NoveltyHint,
@@ -4565,6 +4566,34 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
   </details>`;
 }
 
+function normalizeCandidateReadingKey(value: string | null | undefined): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function candidateReadingMap(bundle: ObservationVisitBundle): Map<string, CandidateReading> {
+  const map = new Map<string, CandidateReading>();
+  for (const subject of bundle.subjects) {
+    for (const reading of subject.aiAssessment?.candidateReadings ?? []) {
+      const keys = [reading.name, reading.scientificName].map(normalizeCandidateReadingKey).filter(Boolean);
+      for (const key of keys) {
+        if (!map.has(key)) map.set(key, reading);
+      }
+    }
+  }
+  return map;
+}
+
+function findCandidateReading(
+  map: Map<string, CandidateReading>,
+  names: Array<string | null | undefined>,
+): CandidateReading | null {
+  for (const name of names) {
+    const hit = map.get(normalizeCandidateReadingKey(name));
+    if (hit) return hit;
+  }
+  return null;
+}
+
 function renderSubjectEvidenceTabs(options: {
   basePath: string;
   lang: SiteLang;
@@ -4574,24 +4603,45 @@ function renderSubjectEvidenceTabs(options: {
   const subjectIds = new Set(options.bundle.subjects.map((subject) => subject.occurrenceId));
   const identifyHref = appendLangToHref(withBasePath(options.basePath, `/observations/${encodeURIComponent(options.visitId)}#identify`), options.lang);
   const missingHref = appendLangToHref(withBasePath(options.basePath, `/observations/${encodeURIComponent(options.visitId)}#co-candidates`), options.lang);
+  const readings = candidateReadingMap(options.bundle);
   const subjectTargets = options.bundle.subjects.map((subject) => {
     const ai = subject.aiAssessment;
     const display = formatTaxonDisplayName(subject, options.lang).primaryLabel;
-    const features = (ai?.diagnosticFeaturesSeen ?? [])
+    const reading = findCandidateReading(readings, [
+      display,
+      subject.displayName,
+      subject.vernacularName,
+      subject.scientificName,
+      ai?.recommendedTaxonName,
+      ai?.bestSpecificTaxonName,
+    ]);
+    const features = (reading?.visibleFeatures?.length ? reading.visibleFeatures : ai?.diagnosticFeaturesSeen ?? [])
       .map((item) => friendlyObservationText(item, 64))
       .filter(Boolean)
       .slice(0, 4);
-    const shots = (ai?.shotSuggestions ?? [])
-      .map((item) => `${friendlyObservationText(item.target, 26)}: ${friendlyObservationText(item.rationale, 54)}`)
+    const shots = (reading?.shootingTips?.length
+      ? reading.shootingTips
+      : (ai?.shotSuggestions ?? []).map((item) => `${friendlyObservationText(item.target, 26)}: ${friendlyObservationText(item.rationale, 54)}`))
       .filter(Boolean)
       .slice(0, 4);
     const similar = (ai?.similarTaxa ?? [])
       .map((item) => item.name)
       .filter(Boolean)
       .slice(0, 3);
-    const compareText = similar.length > 0
+    const weakPoints = (reading?.weakPoints?.length
+      ? reading.weakPoints
+      : similar.length > 0
+        ? [`${similar.join("、")}。${friendlyObservationText((ai?.distinguishingTips ?? ai?.confirmMore ?? [])[0] ?? "", 80)}`]
+        : [friendlyObservationText((ai?.missingEvidence ?? ai?.confirmMore ?? [])[0] ?? "近くで見える細部が増えると、候補を絞りやすくなります。", 92)])
+      .map((item) => friendlyObservationText(item, 92))
+      .filter(Boolean)
+      .slice(0, 4);
+    const regionalRead = reading?.regionalRead
+      ? friendlyObservationText(reading.regionalRead, 120)
+      : friendlyObservationText(ai?.geographicContext || ai?.seasonalContext || "場所や季節の読みは、写真と地域情報が増えるほど強くなります。", 120);
+    const compareText = weakPoints[0] || (similar.length > 0
       ? `${similar.join("、")}。${friendlyObservationText((ai?.distinguishingTips ?? ai?.confirmMore ?? [])[0] ?? "", 80)}`
-      : friendlyObservationText((ai?.missingEvidence ?? ai?.confirmMore ?? [])[0] ?? "近くで見える細部が増えると、候補を絞りやすくなります。", 92);
+      : friendlyObservationText((ai?.missingEvidence ?? ai?.confirmMore ?? [])[0] ?? "近くで見える細部が増えると、候補を絞りやすくなります。", 92));
     return {
       key: subject.occurrenceId,
       name: display,
@@ -4601,26 +4651,39 @@ function renderSubjectEvidenceTabs(options: {
         : ai?.stopReason
           ? friendlyObservationText(ai.stopReason, 104)
           : friendlyObservationText(subject.focusReason || "写真から拾った候補です。確定名ではなく、人の確認で強くなります。", 104),
-      compareLabel: similar.length > 0 ? "比べたい相手" : "弱いところ",
+      compareLabel: "弱い点",
       compareText,
       features,
+      weakPoints,
       shots,
+      regionalRead,
     };
   });
   const candidateTargets = options.bundle.aiCandidates
     .filter((candidate) => isOpenCandidate(candidate))
     .filter((candidate) => !candidate.suggestedOccurrenceId || !subjectIds.has(candidate.suggestedOccurrenceId))
     .slice(0, Math.max(0, 8 - subjectTargets.length))
-    .map((candidate) => ({
-      key: candidate.candidateId,
-      name: candidate.displayName,
-      status: "未検出候補",
-      summary: friendlyObservationText(candidate.note || "AIが同じ写真から拾った、まだ観測レコードになっていない候補です。", 104),
-      compareLabel: "確かめたいこと",
-      compareText: candidate.rank ? `${publicRankHint(candidate.rank) || rankLabelJa(candidate.rank)}までの候補です。位置や細部を人が確認すると扱いやすくなります。` : "写真内の位置や細部を人が確認すると扱いやすくなります。",
-      features: [candidate.note || "同じ場面に写っている可能性があります。"].map((item) => friendlyObservationText(item, 64)),
-      shots: ["対象が入る引き写真", "形が分かる近景", "周囲との位置関係"].slice(0, 3),
-    }));
+    .map((candidate) => {
+      const reading = findCandidateReading(readings, [candidate.displayName, candidate.scientificName]);
+      const weakPoints = (reading?.weakPoints?.length
+        ? reading.weakPoints
+        : [candidate.rank ? `${publicRankHint(candidate.rank) || rankLabelJa(candidate.rank)}までの候補です。位置や細部を人が確認すると扱いやすくなります。` : "写真内の位置や細部を人が確認すると扱いやすくなります。"])
+        .map((item) => friendlyObservationText(item, 92))
+        .filter(Boolean)
+        .slice(0, 4);
+      return {
+        key: candidate.candidateId,
+        name: candidate.displayName,
+        status: "未検出候補",
+        summary: friendlyObservationText(candidate.note || "AIが同じ写真から拾った、まだ観測レコードになっていない候補です。", 104),
+        compareLabel: "弱い点",
+        compareText: weakPoints[0] || "写真内の位置や細部を人が確認すると扱いやすくなります。",
+        features: (reading?.visibleFeatures?.length ? reading.visibleFeatures : [candidate.note || "同じ場面に写っている可能性があります。"]).map((item) => friendlyObservationText(item, 64)),
+        weakPoints,
+        shots: (reading?.shootingTips?.length ? reading.shootingTips : ["対象が入る引き写真", "形が分かる近景", "周囲との位置関係"]).slice(0, 4),
+        regionalRead: friendlyObservationText(reading?.regionalRead || "場所や季節の読みは、写真と地域情報が増えるほど強くなります。", 120),
+      };
+    });
   const targets = [...subjectTargets, ...candidateTargets].filter((target) => target.name);
   if (targets.length === 0) return "";
   return `<section id="identity-evidence" class="section obs-layer obs-id-evidence" data-obs-section="identity_evidence">
@@ -4648,8 +4711,16 @@ function renderSubjectEvidenceTabs(options: {
           <ul class="obs-id-evidence-list">${(target.features.length > 0 ? target.features : ["この写真から拾った候補です。"]).map((item, itemIndex) => `<li><b>${itemIndex + 1}</b><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
         </div>
         <div class="obs-id-evidence-card">
+          <h3>弱い点</h3>
+          <ul class="obs-id-evidence-list">${(target.weakPoints.length > 0 ? target.weakPoints : [target.compareText]).map((item, itemIndex) => `<li><b>${itemIndex + 1}</b><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+        </div>
+        <div class="obs-id-evidence-card">
           <h3>詳しくする撮り方</h3>
           <ul class="obs-id-shot-list">${(target.shots.length > 0 ? target.shots : ["全体が分かる引き写真", "形が分かる近景", "周囲との関係"]).map((item, itemIndex) => `<li><b>${itemIndex + 1}</b><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+        </div>
+        <div class="obs-id-evidence-card">
+          <h3>地域との読み</h3>
+          <p>${escapeHtml(target.regionalRead)}</p>
         </div>
       </div>
       <div class="obs-id-actions" aria-label="${escapeHtml(`${target.name}への同定アクション`)}">
