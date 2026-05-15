@@ -81,6 +81,39 @@ async function recordSmokeCheckpoint(phase: string, details: JsonPayload = {}): 
   );
 }
 
+async function expectObservationTextNotClipped(page: Page): Promise<void> {
+  const offenders = await page.evaluate(() => {
+    const scope = document.querySelector("main") ?? document.body;
+    return Array.from(scope.querySelectorAll<HTMLElement>("*"))
+      .filter((el) => {
+        if (el.matches("script, style, template, svg, path, img, picture, video, canvas")) return false;
+        if (el.closest(".obs-hero-preview, .obs-hero-thumb, .obs-lightbox, .obs-media-discovery-rail, .obs-id-tabs")) return false;
+        const text = (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+        if (text.length < 8) return false;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 12 || rect.height < 10) return false;
+        const style = window.getComputedStyle(el);
+        if (style.visibility === "hidden" || style.display === "none") return false;
+        const lineClamp = style.getPropertyValue("-webkit-line-clamp");
+        const clampsText = lineClamp && lineClamp !== "none" && lineClamp !== "0";
+        const clipsInlineText = el.scrollWidth > el.clientWidth + 2
+          && /hidden|clip/.test(style.overflowX)
+          && style.whiteSpace === "nowrap";
+        const clipsBlockText = el.scrollHeight > el.clientHeight + 2
+          && /hidden|clip/.test(style.overflowY)
+          && style.maxHeight !== "none";
+        return Boolean(clampsText || clipsInlineText || clipsBlockText);
+      })
+      .slice(0, 10)
+      .map((el) => ({
+        tag: el.tagName.toLowerCase(),
+        className: String(el.className || ""),
+        text: (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120),
+      }));
+  });
+  expect(offenders, JSON.stringify(offenders, null, 2)).toEqual([]);
+}
+
 function smokePhotoFile(prefix: string) {
   return {
     name: `${prefix}-photo.png`,
@@ -274,6 +307,30 @@ test.describe("production candidate smoke", () => {
       expectedSubjects: scene.expectedSubjects,
     });
   });
+  }
+
+  for (const scene of canonicalAiSubjectScenes) {
+    test(`canonical scene mobile layout keeps media and readout usable: ${scene.path}`, async ({ page }) => {
+      test.skip(
+        !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+        "requires a production candidate base URL or SSH tunnel",
+      );
+
+      await page.setViewportSize({ width: 320, height: 760 });
+      const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
+      expect(response?.ok(), "canonical AI subject scene should be readable on 320px").toBeTruthy();
+      await expect(page.locator("body")).toContainText("この写真に写っているもの");
+      await expect(page.locator("body")).toContainText("同定の根拠");
+      await expect(page.locator(".obs-hero-preview .obs-media-role-badge")).toBeHidden();
+      await expect(page.locator(".obs-hero-preview .obs-annotation-target")).toHaveCount(0);
+      const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(horizontalOverflow, "record detail should not horizontally overflow at 320px").toBeLessThanOrEqual(1);
+      await expectObservationTextNotClipped(page);
+      await recordSmokeCheckpoint("canonical_scene_mobile_layout", {
+        path: scene.path,
+        viewport: "320x760",
+      });
+    });
   }
 
   test("mobile record UI saves photo and video against the production candidate", async ({ browser }) => {

@@ -310,7 +310,7 @@ jobs:
           IKIMON_SCENE_READ_SMOKE=required \
           IKIMON_SCENE_READ_VISIT_ID="${SCENE_READ_FIXTURE_PREFIX}-scene" \
           IKIMON_SCENE_READ_SUBJECT_ID="occ:${SCENE_READ_FIXTURE_PREFIX}-scene:0" \
-          IKIMON_SCENE_READ_REQUIRED_MARKERS="写っているもの|この組み合わせから読む|同定の根拠|AIが写真から拾った仮説です|ヒメイワダレソウ|セイヨウミツバチ|イネ科の一種|この候補を支持|この候補は保留|この候補は違うかも|未検出を追加|この記録から言えること" \
+          IKIMON_SCENE_READ_REQUIRED_MARKERS="写っているもの|この組み合わせから読む|同定の根拠|AIが写真から拾った仮説です|ヒメイワダレソウ|セイヨウミツバチ|イネ科の一種|ヒメイワダレソウを支持|証拠不足で保留|別名を提案|別の写り込みを追加|この記録から言えること" \
           IKIMON_SCENE_READ_FORBIDDEN_MARKERS="\"status\":\"bootstrapping\"|AI 主役 100%|訪花中の候補" \
           npm run smoke:v2-read-lane -- --base-url=http://127.0.0.1:3200
 
