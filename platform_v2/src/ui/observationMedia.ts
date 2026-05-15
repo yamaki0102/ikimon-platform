@@ -46,8 +46,8 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-zoom { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border-radius: 50%; background: rgba(15,23,42,.78); color: #fff; border: 0; display: grid; place-items: center; cursor: pointer; transition: transform .18s ease, background .18s ease; box-shadow: 0 6px 16px rgba(0,0,0,.28); }
   .obs-hero-zoom:hover { background: #0f172a; transform: scale(1.06); }
   .obs-hero-zoom svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-  .obs-hero-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
-  .obs-hero-thumb { border: 0; padding: 0; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; cursor: pointer; position: relative; background: none; opacity: .78; transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease; box-shadow: 0 0 0 1px rgba(15,23,42,.08); }
+  .obs-hero-thumbs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .obs-hero-thumb { flex: 0 0 76px; width: 76px; border: 0; padding: 0; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; cursor: pointer; position: relative; background: none; opacity: .78; transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease; box-shadow: 0 0 0 1px rgba(15,23,42,.08); }
   .obs-hero-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .22s ease; }
   .obs-hero-thumb:hover { opacity: 1; transform: translateY(-2px); }
   .obs-hero-thumb:hover img { transform: scale(1.06); }
