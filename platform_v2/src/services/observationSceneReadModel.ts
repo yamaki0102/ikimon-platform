@@ -100,6 +100,9 @@ function sceneRoleLabelForText(text: string, options: { isPrimary?: boolean; rol
   if (/イネ科|草|芝|gramin|poaceae|裸地|礫|踏圧/.test(haystack) || options.rank === "lifeform" || options.roleHint === "vegetation") {
     return "草地と裸地";
   }
+  if (/カラスノエンドウ|スズメノエンドウ|エンドウ|マメ科|vicia/.test(haystack)) {
+    return options.isPrimary ? "代表候補" : "写っている植物";
+  }
   if (/鳥|ハト|鳩|カワラバト|カラス|スズメ|bird|aves/.test(haystack)) return "この場所を使う鳥";
   if (/樹|木|クスノキ|カエデ|サクラ|落葉|常緑|tree|植栽/.test(haystack)) return "背景の木・植栽";
   if (/花|葉|茎|群落|グランドカバー|ヒメイワダレソウ|イワダレソウ|タンポポ|ツワブキ|サツキ|クチナシ|植物|plant/.test(haystack)) {
