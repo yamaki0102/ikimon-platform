@@ -4656,6 +4656,92 @@ function fallbackCandidateReadingForSubject(options: {
       regionalRead: "緑化で使われる植物が、道端や公園の小さな草地でどれくらい広がっているかを読む材料になります。",
     };
   }
+  if (name.includes("アメリカシャクナゲ") || name.includes("カルミア") || name.includes("kalmia")) {
+    return {
+      name: options.name,
+      scientificName: "Kalmia latifolia",
+      rank: "species",
+      role: "植栽の花",
+      visibleFeatures: [
+        "濃いピンクから淡いピンクの花がまとまって咲いています。",
+        "皿形の花冠と、花の内側に入る雄しべの構造が見えます。",
+        "低木状の枝ぶりと、厚みのある緑葉が同じ株に写っています。",
+      ],
+      weakPoints: [
+        "品種や近い園芸植物まで見るには、花の正面、葉の表裏、枝先の付き方をもう少し近くで見たいです。",
+      ],
+      shootingTips: [
+        "花を正面から撮り、雄しべの付き方を残す",
+        "葉の表裏と枝先を近くで撮る",
+        "株全体と周囲の植栽帯が分かる引き写真を残す",
+      ],
+      regionalRead: "浜松市の街なかの植栽として、開花の時期、管理された低木、足元のグランドカバーを一緒に読める記録です。",
+    };
+  }
+  if (name.includes("ツルニチニチソウ") || name.includes("ツルニチソウ") || name.includes("vinca")) {
+    return {
+      name: options.name,
+      scientificName: "Vinca major",
+      rank: "species",
+      role: "足元のグランドカバー",
+      visibleFeatures: [
+        "低木の足元に、斑入りの楕円形の葉が広がっています。",
+        "葉が対になって付くように見え、地表を覆うグランドカバーとして読めます。",
+      ],
+      weakPoints: [
+        "紫色の5裂花が写っていないため、ツルニチニチソウ類としては保留が残ります。",
+        "ヒメツルニチニチソウとの比較には、葉の大きさ、葉縁、茎の毛、つるの伸び方が欲しいです。",
+      ],
+      shootingTips: [
+        "花がある時期に、花を正面と横から撮る",
+        "葉の大きさ、葉縁、斑入りの有無を近くで撮る",
+        "茎が地面を這う様子と株元を撮る",
+      ],
+      regionalRead: "植栽帯の足元で低木と混じるグランドカバーとして、管理地の植物の重なりを読む材料になります。",
+    };
+  }
+  if (name.includes("雑草群落") || name.includes("草本群落") || name.includes("草地")) {
+    return {
+      name: options.name,
+      scientificName: "",
+      rank: "lifeform",
+      role: "周囲の草地",
+      visibleFeatures: [
+        "植栽の足元に、低い草本と裸地が混じって見えます。",
+        "主役の花木だけでなく、管理された地表面の状態が同じ写真に残っています。",
+      ],
+      weakPoints: [
+        "草の種類まで分けるには、葉の形、株元、花や穂が見える近景が必要です。",
+      ],
+      shootingTips: [
+        "足元の草を真上から撮る",
+        "葉、株元、花や穂があれば近くで撮る",
+        "裸地、落ち葉、踏まれた場所が入る引き写真を残す",
+      ],
+      regionalRead: "街なかの植栽帯で、草が残る場所、裸地になる場所、人の手入れの強さを後から比べられます。",
+    };
+  }
+  if (name.includes("背景の樹木") || name.includes("背景の木") || name.includes("樹木")) {
+    return {
+      name: options.name,
+      scientificName: "",
+      rank: "lifeform",
+      role: "背景の木・植栽",
+      visibleFeatures: [
+        "花木の奥に、別の緑葉の樹木が写っています。",
+        "植栽帯が単独の花木ではなく、複数の植物で構成されていることが分かります。",
+      ],
+      weakPoints: [
+        "種類を絞るには、葉の形、枝の付き方、樹皮、花や実が見える写真が必要です。",
+      ],
+      shootingTips: [
+        "葉の表裏と枝先を撮る",
+        "幹や樹皮を近くで撮る",
+        "花木との位置関係が分かる引き写真を残す",
+      ],
+      regionalRead: "背景の木も、街路や敷地の植栽構成を読む手がかりになります。花だけでなく場所の緑の層を残せます。",
+    };
+  }
   if (name.includes("セイヨウミツバチ") || name.includes("ミツバチ")) {
     return {
       name: options.name,

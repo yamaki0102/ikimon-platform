@@ -512,6 +512,17 @@ test("identity evidence stays usable when AI returns many candidates", () => {
   assert.match(evidenceSource, /該当する候補がありません/);
 });
 
+test("identity evidence fallback keeps common planted-scene subjects specific", () => {
+  const fallbackSource = sourceBetween("function fallbackCandidateReadingForSubject", "const MAX_IDENTITY_EVIDENCE_TARGETS");
+
+  assert.match(fallbackSource, /アメリカシャクナゲ/);
+  assert.match(fallbackSource, /皿形の花冠/);
+  assert.match(fallbackSource, /ツルニチニチソウ/);
+  assert.match(fallbackSource, /紫色の5裂花/);
+  assert.match(fallbackSource, /雑草群落/);
+  assert.match(fallbackSource, /背景の樹木/);
+});
+
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
   assert.match(routeSource, /名前の見方が割れているため、候補が固まったら詳しく読めます。/);
