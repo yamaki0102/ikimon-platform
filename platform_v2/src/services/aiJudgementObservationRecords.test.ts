@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { shouldMaterializeAiJudgement } from "./aiJudgementObservationRecords.js";
+import { resolveAiJudgementIdentificationName } from "./observationRecordAiReview.js";
 
 test("AI judgement materialization keeps biological record candidates only", () => {
   assert.equal(shouldMaterializeAiJudgement({
@@ -67,5 +68,23 @@ test("AI judgement review records agree/disagree/later and only agree creates an
   assert.match(source, /review_state/);
   assert.match(source, /value !== "agree" && value !== "disagree" && value !== "later"/);
   assert.match(source, /not_ai_judgement_record/);
+  assert.match(source, /observation_ai_assessments/);
+  assert.match(source, /ai_recommended_taxon_name/);
   assert.match(source, /identification_method[^]*ai_judgement_agree/);
+});
+
+test("AI judgement agree can use the displayed AI assessment candidate name", () => {
+  assert.equal(resolveAiJudgementIdentificationName({
+    scientificName: "",
+    vernacularName: null,
+    candidateScientificName: null,
+    candidateVernacularName: null,
+    aiRecommendedTaxonName: "カワラヒワ",
+  }), "カワラヒワ");
+
+  assert.equal(resolveAiJudgementIdentificationName({
+    scientificName: "Chloris sinica",
+    vernacularName: "カワラヒワ",
+    aiRecommendedTaxonName: "カワラヒワ",
+  }), "Chloris sinica");
 });
