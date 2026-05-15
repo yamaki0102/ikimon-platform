@@ -350,6 +350,7 @@ test.describe("production candidate smoke", () => {
       await expect(page.locator("body")).toContainText("現場アドバイス");
 
       const form = page.locator("[data-care-policy-form]").first();
+      await form.evaluate((element) => element.closest("details")?.setAttribute("open", ""));
       await expect(form, "logged-in plant detail should show management policy form").toBeVisible();
       await form.locator("select[name='managementGoal']").selectOption("keep_clear");
       await form.locator("select[name='weedTolerance']").selectOption("low");
