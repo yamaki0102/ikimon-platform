@@ -327,6 +327,57 @@ test.describe("production candidate smoke", () => {
     });
   }
 
+  test("logged-in field manager can save site management policy from observation UI", async ({ browser }) => {
+    test.setTimeout(90_000);
+
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
+    const baseUrl = productionSmokeBaseUrl();
+    const prefix = productionSmokePrefix();
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+
+    try {
+      const account = await registerSmokeUser(context.request, baseUrl, prefix, "field-policy");
+      await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
+      const page = await context.newPage();
+
+      await page.goto(joinUrl(baseUrl, canonicalAiSubjectScenes[0].path), { waitUntil: "domcontentloaded" });
+      const plantCard = page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" }).first();
+      await expect(plantCard, "plant subject should be selectable for field advice smoke").toBeVisible();
+      const href = await plantCard.getAttribute("href");
+      expect(href, "plant subject should expose a detail link").toBeTruthy();
+      await page.goto(joinUrl(baseUrl, href!), { waitUntil: "domcontentloaded" });
+
+      const form = page.locator("[data-care-policy-form]").first();
+      await expect(form, "logged-in plant detail should show management policy form").toBeVisible();
+      await form.locator("select[name='managementGoal']").selectOption("keep_clear");
+      await form.locator("select[name='weedTolerance']").selectOption("low");
+      await form.locator("select[name='invasiveResponse']").selectOption("controlled_removal");
+      await form.locator("select[name='mowingFrequency']").selectOption("monthly");
+      await form.locator("textarea[name='notes']").fill(`production smoke field policy ${prefix}`);
+
+      const saveResponse = page.waitForResponse((response) =>
+        response.url().includes("/api/v1/places/") &&
+        response.url().includes("/management-policy") &&
+        response.request().method() === "POST",
+      );
+      await form.locator("button[type='submit']").click();
+      const response = await saveResponse;
+      const payload = await jsonFromResponse(response, "field policy save");
+      expect(response.ok(), String(payload.error ?? "policy_save_failed")).toBeTruthy();
+      await expect(form.locator("[data-care-policy-status]")).toContainText("保存しました");
+      await recordSmokeCheckpoint("field_policy_ui_save", {
+        path: page.url(),
+        userId: account.userId,
+      });
+    } finally {
+      await context.close();
+    }
+  });
+
   test("mobile record UI saves photo and video against the production candidate", async ({ browser }) => {
     test.setTimeout(180_000);
 

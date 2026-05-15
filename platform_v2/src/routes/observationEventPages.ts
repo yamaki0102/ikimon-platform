@@ -58,6 +58,8 @@ import {
   PLACE_SNAPSHOT_STYLES,
   renderPlaceSnapshotBody,
 } from "../ui/placeSnapshot.js";
+import { getPlaceManagementPolicy } from "../services/placeManagementPolicy.js";
+import { getPlaceVegetationTrend } from "../services/placeVegetationTrend.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { getFieldManagerRole } from "../services/fieldManagers.js";
 
@@ -141,6 +143,7 @@ async function areaSnapshotViewer(
   request: { headers: { cookie?: string } },
   fieldId: string,
 ): Promise<{
+  userId: string | null;
   isAdminOrAnalyst: boolean;
   fieldRole: Awaited<ReturnType<typeof getFieldManagerRole>> | null;
 }> {
@@ -151,7 +154,7 @@ async function areaSnapshotViewer(
   const fieldRole = session
     ? await getFieldManagerRole(session.userId, fieldId).catch(() => null)
     : null;
-  return { isAdminOrAnalyst, fieldRole };
+  return { userId: session?.userId ?? null, isAdminOrAnalyst, fieldRole };
 }
 
 export async function registerObservationEventPagesRoutes(app: FastifyInstance): Promise<void> {
@@ -173,6 +176,9 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           body: `<main class="ps-shell"><section class="ps-hero"><div><div class="ps-eyebrow">この場所のいま</div><h1>フィールドが見つかりません</h1><p>フィールドDBから対象の場所を選び直してください。</p></div></section></main>`,
         });
       }
+      const placeId = snapshot.relationshipScore.placeId ?? null;
+      const managementPolicy = await getPlaceManagementPolicy(placeId, viewer.userId).catch(() => null);
+      const vegetationTrend = await getPlaceVegetationTrend(placeId, managementPolicy).catch(() => null);
       reply.type("text/html; charset=utf-8");
       return renderSiteDocument({
         basePath: "",
@@ -180,7 +186,12 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         description: `${snapshot.field.name}の観察データ、季節、仮説、次の一手を1枚で読む場所のスナップショットです。`,
         extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,
         lang,
-        body: renderPlaceSnapshotBody(snapshot),
+        body: renderPlaceSnapshotBody(snapshot, {
+          managementPolicy,
+          vegetationTrend,
+          canEditPolicy: Boolean(viewer.userId && placeId),
+          basePath: "",
+        }),
       });
     },
   );
