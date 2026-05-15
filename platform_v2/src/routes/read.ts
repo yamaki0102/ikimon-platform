@@ -1282,7 +1282,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-readout-clues { gap: 4px; }
     .obs-ai-readout-clues li { padding: 3px 6px; font-size: 10px; line-height: 1.2; }
     .obs-ai-readout-clues li:nth-child(n+3) { display: none; }
-    .obs-ai-readout-note { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; padding: 5px 7px; border-radius: 10px; font-size: 10.5px; line-height: 1.3; }
+    .obs-ai-readout-note { display: block; overflow: visible; padding: 6px 7px; border-radius: 10px; font-size: 10.5px; line-height: 1.45; }
     .obs-ai-readout-note strong { display: inline; margin: 0 4px 0 0; font-size: 9.5px; letter-spacing: .04em; }
     .obs-ai-readout-grid { grid-template-columns: 1fr; gap: 5px; }
   }

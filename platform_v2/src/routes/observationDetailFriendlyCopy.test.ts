@@ -178,6 +178,7 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(detailCopySource, /AIが写真から拾った仮説です/);
   assert.match(detailCopySource, /この候補を支持/);
   assert.match(detailCopySource, /未検出を追加/);
+  assert.doesNotMatch(detailCopySource, /obs-ai-readout-note[^}]*-webkit-line-clamp/);
 });
 
 test("visible record fixture surfaces plant, bee, grass, and folds low-confidence candidates", () => {
