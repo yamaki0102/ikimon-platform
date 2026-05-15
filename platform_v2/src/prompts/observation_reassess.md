@@ -17,6 +17,7 @@
 - 観察地点タグ: ${siteBriefLabel}
 - 観察者プロファイル: ${profileDigestSummary}
 - ObservationPackage: ${observationPackageSummary}
+  - `observed_subjects` が含まれる場合、それはこの記録ページに既に分かれている対象候補である。写真だけで主対象を選び直して他を落とすのではなく、見えている限り `candidate_readings` に全件を残す。
   - `monitoring_contract` が含まれる場合、`record_core / method / verification / ai_provenance / trend_claim / export_ready` を、画像推論より強い制約として扱う。
 - reviewed knowledge_claims: ${knowledgeClaimsContext}
 
@@ -78,7 +79,7 @@
   - `rationale` — なぜそれが必要か（40字以内、例「似種識別に必須」「生息環境の文脈記録」）
   - `priority` — `high`（種確定に必須）| `medium`（研究価値を高める）
   既に写っているものは提案しなくて良い。最大 5 要素、必要なければ空配列。
-- `candidate_readings` — **ページの同定タブにそのまま使う、候補ごとの読み**。`recommended_taxon_name` と `coexisting_taxa` に出した候補をすべて含める。対象ごとに「見えている特徴 / 弱い点 / 撮り方 / 地域との読み」が安定して出るよう、抽象説明ではなく写真と場所に結びつける。最大 10 件。
+- `candidate_readings` — **ページの同定タブにそのまま使う、候補ごとの読み**。`observed_subjects`、`recommended_taxon_name`、`coexisting_taxa` に出した候補をすべて含める。対象ごとに「見えている特徴 / 弱い点 / 撮り方 / 地域との読み」が安定して出るよう、抽象説明ではなく写真と場所に結びつける。最大 10 件。`observed_subjects` にある候補が写真上で弱い場合も削除せず、`weak_points` に「どこが足りないか」を書く。
   - `name` — 表示名。`recommended_taxon_name` または `coexisting_taxa[].name` と合わせる
   - `scientific_name` — 学名。不明なら空文字
   - `rank` — `species|genus|family|order|lifeform`
