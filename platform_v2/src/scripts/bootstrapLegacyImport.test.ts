@@ -23,6 +23,15 @@ test("legacy track bootstrap clears prior imported track points before full relo
   assert.match(source, /delete from visit_track_points vtp[\s\S]*v\.source_kind = 'legacy_track_session'/);
 });
 
+test("legacy bootstrap serializes real database imports with a postgres advisory lock", async () => {
+  const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
+
+  assert.match(source, /LEGACY_IMPORT_ADVISORY_LOCK_KEY/);
+  assert.match(source, /pg_advisory_lock\(hashtext\(\$1\)\)/);
+  assert.match(source, /pg_advisory_unlock\(hashtext\(\$1\)\)/);
+  assert.match(source, /if \(options\.dryRun\)[\s\S]*return task\(\)/);
+});
+
 test("legacy bootstrap preserves existing privileged user roles", async () => {
   const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
 
