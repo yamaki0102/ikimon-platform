@@ -2305,6 +2305,7 @@ function friendlyObservationText(text: string | null | undefined, maxLength = 92
   const replacements: Array<[RegExp, string]> = [
     [/個々の花の詳細な構造（花冠の裂片の様子）/g, "花びらの細部"],
     [/花の集まり（花の集まり）/g, "花の集まり"],
+    [/地面をはう地面をはう/g, "地面をはう"],
     [/地面をはうの茎/g, "地面をはう茎"],
     [/横からの近くから/g, "横から近くで"],
     [/真上近くから/g, "真上から"],
