@@ -485,6 +485,16 @@ test("occurrence query parameter is accepted and canonicalized to subject", () =
   assert.match(routeSource, /buildObservationDetailPath\(bundle\.visitId, bundle\.canonicalSubjectId\)/);
 });
 
+test("identity evidence stays usable when AI returns many candidates", () => {
+  const evidenceSource = sourceBetween("function renderSubjectEvidenceTabs", "function renderSubjectTaxonomy");
+
+  assert.match(evidenceSource, /MAX_IDENTITY_EVIDENCE_TARGETS/);
+  assert.match(evidenceSource, /IDENTITY_EVIDENCE_SEARCH_THRESHOLD/);
+  assert.match(evidenceSource, /候補名で絞り込み/);
+  assert.match(evidenceSource, /data-obs-id-search-text/);
+  assert.match(evidenceSource, /該当する候補がありません/);
+});
+
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
   assert.match(routeSource, /名前の見方が割れているため、候補が固まったら詳しく読めます。/);
