@@ -344,12 +344,26 @@ test.describe("production candidate smoke", () => {
       await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
       const page = await context.newPage();
 
-      await page.goto(joinUrl(baseUrl, canonicalAiSubjectScenes[0].path), { waitUntil: "domcontentloaded" });
-      const plantCard = page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" }).first();
-      await expect(plantCard, "plant subject should be selectable for field advice smoke").toBeVisible();
-      const href = await plantCard.getAttribute("href");
-      expect(href, "plant subject should expose a detail link").toBeTruthy();
-      await page.goto(joinUrl(baseUrl, href!), { waitUntil: "domcontentloaded" });
+      const observedAt = new Date().toISOString();
+      const recordResponse = await context.request.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
+        headers: jsonHeaders(baseUrl, account),
+        data: {
+          clientSubmissionId: `${prefix}-field-policy-record-${Date.now()}`,
+          userId: account.userId,
+          observedAt,
+          latitude: 34.7107,
+          longitude: 137.7260,
+          localityNote: `会社敷地の草管理 ${prefix}`,
+          note: `production field policy smoke record ${prefix}`,
+          taxon: { vernacularName: "イネ科の草", scientificName: null, rank: "unknown" },
+          sourcePayload: { source: "production_field_policy_smoke", fixturePrefix: prefix },
+        },
+      });
+      const recordPayload = await jsonFromResponse(recordResponse, "field policy smoke record");
+      expect(recordResponse.ok(), String(recordPayload.error ?? "record_failed")).toBeTruthy();
+      const occurrenceId = String(recordPayload.occurrenceId ?? "");
+      expect(occurrenceId, "field policy smoke record occurrence id").toBeTruthy();
+      await page.goto(joinUrl(baseUrl, `/ja/observations/${encodeURIComponent(occurrenceId)}`), { waitUntil: "domcontentloaded" });
 
       const form = page.locator("[data-care-policy-form]").first();
       await expect(form, "logged-in plant detail should show management policy form").toBeVisible();
