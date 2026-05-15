@@ -173,6 +173,16 @@ type GeminiJson = {
   }>;
 };
 
+type GeminiCoexistingTaxon = NonNullable<GeminiJson["coexisting_taxa"]>[number];
+type GeminiCandidateReading = NonNullable<GeminiJson["candidate_readings"]>[number];
+
+type MultiSubjectGuardResult = {
+  promotedFromCandidateReadings: number;
+  rescueTriggered: boolean;
+  rescueCandidateCount: number;
+  rescueModelUsed: string | null;
+};
+
 const AREA_INFERENCE_KEYS = [
   "vegetation_structure_candidates",
   "succession_stage_candidates",
@@ -568,6 +578,103 @@ function buildCandidateKey(vernacularName: string, scientificName: string, rank:
     .join("|");
 }
 
+function normalizeCandidateName(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function coexistingCandidateKey(candidate: GeminiCoexistingTaxon): string {
+  const rank = normalizeRank(candidate.rank);
+  return buildCandidateKey(
+    normalizeCandidateName(candidate.name),
+    normalizeCandidateName(candidate.scientific_name),
+    rank === "unknown" ? null : rank,
+  );
+}
+
+function isSameAsPrimaryCandidate(candidate: {
+  name?: unknown;
+  scientific_name?: unknown;
+  rank?: unknown;
+}, primary: { vernacularName: string; scientificName: string }): boolean {
+  const name = normalizeCandidateName(candidate.name).toLowerCase();
+  const scientificName = normalizeCandidateName(candidate.scientific_name).toLowerCase();
+  const primaryNames = [primary.vernacularName, primary.scientificName]
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (primaryNames.length === 0) return false;
+  return Boolean((name && primaryNames.includes(name)) || (scientificName && primaryNames.includes(scientificName)));
+}
+
+function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): GeminiCoexistingTaxon | null {
+  const name = normalizeCandidateName(reading.name);
+  const scientificName = normalizeCandidateName(reading.scientific_name);
+  if (!name && !scientificName) return null;
+  const rank = normalizeRank(reading.rank);
+  const visible = Array.isArray(reading.visible_features)
+    ? reading.visible_features.filter((value) => typeof value === "string" && value.trim()).slice(0, 3)
+    : [];
+  const weak = Array.isArray(reading.weak_points)
+    ? reading.weak_points.filter((value) => typeof value === "string" && value.trim()).slice(0, 2)
+    : [];
+  return {
+    name,
+    scientific_name: scientificName,
+    rank: rank === "unknown" ? "lifeform" : rank,
+    confidence: 0.45,
+    note: [normalizeCandidateName(reading.role), ...visible, ...weak].filter(Boolean).join(" / ").slice(0, 240),
+    media_regions: [],
+  };
+}
+
+function mergeCoexistingCandidates(
+  base: GeminiCoexistingTaxon[],
+  additions: GeminiCoexistingTaxon[],
+  primary: { vernacularName: string; scientificName: string },
+): { candidates: GeminiCoexistingTaxon[]; added: number } {
+  const candidates: GeminiCoexistingTaxon[] = [];
+  const seen = new Set<string>();
+  const push = (candidate: GeminiCoexistingTaxon): boolean => {
+    const name = normalizeCandidateName(candidate.name);
+    const scientificName = normalizeCandidateName(candidate.scientific_name);
+    if (!name && !scientificName) return false;
+    if (isSameAsPrimaryCandidate(candidate, primary)) return false;
+    const key = coexistingCandidateKey(candidate) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    candidates.push(candidate);
+    return true;
+  };
+  for (const candidate of base) push(candidate);
+  let added = 0;
+  for (const candidate of additions) {
+    if (push(candidate)) added += 1;
+  }
+  return { candidates, added };
+}
+
+export function promoteCandidateReadingsToCoexistingTaxa(
+  input: {
+    coexistingTaxa?: GeminiJson["coexisting_taxa"];
+    candidateReadings?: GeminiJson["candidate_readings"];
+    primaryVernacularName?: string;
+    primaryScientificName?: string;
+  },
+): { candidates: GeminiCoexistingTaxon[]; promoted: number } {
+  const base = Array.isArray(input.coexistingTaxa)
+    ? input.coexistingTaxa.filter((value) => Boolean(value))
+    : [];
+  const additions = Array.isArray(input.candidateReadings)
+    ? input.candidateReadings
+        .map(candidateReadingToCoexistingTaxon)
+        .filter((value): value is GeminiCoexistingTaxon => Boolean(value))
+    : [];
+  const merged = mergeCoexistingCandidates(base, additions, {
+    vernacularName: input.primaryVernacularName ?? "",
+    scientificName: input.primaryScientificName ?? "",
+  });
+  return { candidates: merged.candidates, promoted: merged.added };
+}
+
 function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[]): string {
   const hash = createHash("sha256");
   hash.update(sourceTag);
@@ -829,6 +936,74 @@ JSONのみ出力。`;
   };
 }
 
+async function runVisualSubjectRescue(
+  prompt: string,
+  photos: ReassessImageInput[],
+  primary: { vernacularName: string; scientificName: string },
+  meta: GeminiCostMeta = {},
+): Promise<{ candidates: GeminiCoexistingTaxon[]; modelUsed: string }> {
+  if (photos.length === 0) return { candidates: [], modelUsed: "" };
+  const parts: AiRouterPart[] = photos.map((photo) => ({
+    inlineData: { mimeType: photo.mime, data: photo.b64 },
+  }));
+  parts.push({
+    text: `${prompt}
+
+追加の品質ゲートです。前段の解析が副対象を 0 件にしたため、写真内の「主対象以外」を拾い直してください。
+このプロダクトの価値は、1つの観察シーンから複数の同定候補を分けて残せることです。主対象だけで終えないでください。
+
+主対象として既に扱うもの:
+- 和名/表示名: ${primary.vernacularName || "不明"}
+- 学名: ${primary.scientificName || "不明"}
+
+返す対象:
+- 主対象とは別に写る植物、つる、低木、草本、昆虫、菌類、明確な生活形を最大 6 件。
+- 種や属まで分からなければ family/order/lifeform でよい。
+- 落葉・裸地・人工物だけの非生物は coexisting_taxa に入れず、note に環境文脈として短く含める。
+- 主対象の重複候補は返さない。
+
+JSONのみ:
+{
+  "coexisting_taxa": [
+    {
+      "name": "常緑つる植物",
+      "scientific_name": "",
+      "rank": "lifeform",
+      "confidence": 0.5,
+      "note": "主対象の背後に光沢のある常緑葉が別群として写る",
+      "media_regions": [
+        {"asset_index": 0, "rect": {"x": 0.1, "y": 0.1, "width": 0.3, "height": 0.3}, "confidence": 0.5, "note": "おおよその位置"}
+      ]
+    }
+  ]
+}`,
+  });
+  const response = await generateAiTextWithRoleChain({
+    chainName: "observationVisualExtract",
+    parts,
+    retriesPerModel: 1,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_subject_rescue",
+      userId: meta.userId ?? null,
+      visitId: meta.visitId ?? null,
+      occurrenceId: meta.occurrenceId ?? null,
+      metadata: { sourceTag: meta.sourceTag ?? "photo" },
+    },
+  }).catch(() => null);
+  if (!response) return { candidates: [], modelUsed: "" };
+  const parsed = parseGeminiJson(response.text || "{}");
+  const candidates = Array.isArray(parsed.coexisting_taxa)
+    ? parsed.coexisting_taxa.filter((value) => {
+        if (!value) return false;
+        const name = normalizeCandidateName(value.name);
+        const scientificName = normalizeCandidateName(value.scientific_name);
+        return Boolean(name || scientificName);
+      })
+    : [];
+  return { candidates, modelUsed: response.model };
+}
+
 async function runGemini(
   prompt: string,
   photos: ReassessImageInput[],
@@ -1060,7 +1235,7 @@ export async function reassessObservation(
       },
     );
     const shotSuggestions = normalizeShotSuggestions(parsed.shot_suggestions);
-    const coexisting = Array.isArray(parsed.coexisting_taxa)
+    const rawCoexisting = Array.isArray(parsed.coexisting_taxa)
       ? parsed.coexisting_taxa.filter((value) => {
           if (!value) return false;
           const name = typeof value.name === "string" ? value.name.trim() : "";
@@ -1068,6 +1243,37 @@ export async function reassessObservation(
           return name.length > 0 || scientificName.length > 0;
         })
       : [];
+    const primaryNamesForGuard = {
+      vernacularName: recommendedName || target.vernacularName || "",
+      scientificName: recommendedScientificName || target.scientificName || "",
+    };
+    const readingCandidates = Array.isArray(parsed.candidate_readings)
+      ? parsed.candidate_readings
+          .map(candidateReadingToCoexistingTaxon)
+          .filter((value): value is GeminiCoexistingTaxon => Boolean(value))
+      : [];
+    const readingMerge = mergeCoexistingCandidates(rawCoexisting, readingCandidates, primaryNamesForGuard);
+    let coexisting = readingMerge.candidates;
+    const multiSubjectGuard: MultiSubjectGuardResult = {
+      promotedFromCandidateReadings: readingMerge.added,
+      rescueTriggered: false,
+      rescueCandidateCount: 0,
+      rescueModelUsed: null,
+    };
+    if (coexisting.length === 0 && photos.length > 0) {
+      const rescue = await runVisualSubjectRescue(prompt, photos, primaryNamesForGuard, {
+        userId: options.triggeredBy ?? null,
+        visitId: target.visitId,
+        occurrenceId: target.primaryOccurrenceId,
+        sourceTag,
+      });
+      const rescuedMerge = mergeCoexistingCandidates(coexisting, rescue.candidates, primaryNamesForGuard);
+      coexisting = rescuedMerge.candidates;
+      multiSubjectGuard.rescueTriggered = true;
+      multiSubjectGuard.rescueCandidateCount = rescuedMerge.added;
+      multiSubjectGuard.rescueModelUsed = rescue.modelUsed || null;
+    }
+    parsed.coexisting_taxa = coexisting;
 
     const primaryRankHint = rank === "unknown" ? null : rank;
     const primaryMatchName = recommendedScientificName || recommendedName;
@@ -1165,6 +1371,12 @@ export async function reassessObservation(
             claimType: claim.claimType,
             scopeMatch: claim.scopeMatch,
           })),
+        },
+        multiSubjectGuard: {
+          promotedFromCandidateReadings: multiSubjectGuard.promotedFromCandidateReadings,
+          rescueTriggered: multiSubjectGuard.rescueTriggered,
+          rescueCandidateCount: multiSubjectGuard.rescueCandidateCount,
+          rescueModelUsed: multiSubjectGuard.rescueModelUsed,
         },
         invasiveLookup: {
           termCount: invasiveLookupTerms.length,
@@ -1274,6 +1486,12 @@ export async function reassessObservation(
           parsed: {
             ...gatedParsed,
             claim_refs_used: claimRefsUsed,
+            multi_subject_guard: {
+              promoted_from_candidate_readings: multiSubjectGuard.promotedFromCandidateReadings,
+              rescue_triggered: multiSubjectGuard.rescueTriggered,
+              rescue_candidate_count: multiSubjectGuard.rescueCandidateCount,
+              rescue_model_used: multiSubjectGuard.rescueModelUsed,
+            },
             management_action_candidates: managementActionCandidates.map((candidate) => ({
               action_kind: candidate.actionKind,
               label: candidate.label,
