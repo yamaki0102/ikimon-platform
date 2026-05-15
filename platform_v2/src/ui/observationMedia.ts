@@ -93,19 +93,20 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
   .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
   .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
-  .obs-region-box { position: absolute; border: 1.5px solid rgba(20,184,166,.72); border-radius: 12px; background: rgba(20,184,166,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
-  .obs-region-box.is-large-region { background: transparent; border-color: rgba(15,23,42,.24); box-shadow: inset 0 0 0 1px rgba(255,255,255,.58); }
-  .obs-region-box-label { position: absolute; left: 8px; top: 8px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; }
+  .obs-region-box { position: absolute; border: 1px solid rgba(20,184,166,.44); border-radius: 12px; background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+  .obs-region-box.is-large-region { background: transparent; border-color: rgba(15,23,42,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.42); }
+  .obs-region-box-label { display: none; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
   .obs-annotation-layer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
-  .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 36px; min-height: 36px; padding: 0; border: 2px solid rgba(16,185,129,.82); border-radius: 13px; background: rgba(16,185,129,.055); box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.16); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease; }
-  .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,1); background: rgba(16,185,129,.11); outline: none; }
-  .obs-annotation-target.is-current { border-color: rgba(13,148,136,.92); background: rgba(13,148,136,.055); }
-  .obs-annotation-target.is-candidate { border-color: rgba(245,158,11,.9); background: rgba(245,158,11,.07); }
-  .obs-annotation-target.is-large-region { background: transparent; border-color: rgba(13,148,136,.72); box-shadow: inset 0 0 0 1px rgba(255,255,255,.55), 0 10px 22px rgba(15,23,42,.12); }
-  .obs-annotation-target.is-large-region.is-current { background: transparent; border-color: rgba(13,148,136,.84); }
-  .obs-annotation-target.is-large-region.is-candidate { background: transparent; border-color: rgba(245,158,11,.74); }
-  .obs-annotation-label { position: absolute; left: 6px; top: 6px; max-width: min(170px, 46vw); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 8px; border-radius: 10px; background: rgba(15,23,42,.86); color: #fff; text-align: left; box-shadow: 0 8px 20px rgba(15,23,42,.18); }
+  .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 34px; min-height: 34px; padding: 0; border: 1px solid rgba(16,185,129,.34); border-radius: 12px; background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.32); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease, box-shadow .14s ease; }
+  .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,.82); background: rgba(236,253,245,.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 10px 22px rgba(15,23,42,.12); outline: none; }
+  .obs-annotation-target.is-current { border-color: rgba(13,148,136,.5); background: transparent; }
+  .obs-annotation-target.is-candidate { border-color: rgba(245,158,11,.46); background: transparent; }
+  .obs-annotation-target.is-large-region { background: transparent; border-color: rgba(13,148,136,.3); box-shadow: inset 0 0 0 1px rgba(255,255,255,.32); }
+  .obs-annotation-target.is-large-region.is-current { background: transparent; border-color: rgba(13,148,136,.42); }
+  .obs-annotation-target.is-large-region.is-candidate { background: transparent; border-color: rgba(245,158,11,.36); }
+  .obs-annotation-label { position: absolute; left: 6px; top: 6px; max-width: min(170px, 46vw); display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 8px; border-radius: 10px; background: rgba(15,23,42,.86); color: #fff; text-align: left; box-shadow: 0 8px 20px rgba(15,23,42,.18); opacity: 0; transform: translateY(3px); pointer-events: none; transition: opacity .14s ease, transform .14s ease; }
+  .obs-annotation-target:hover .obs-annotation-label, .obs-annotation-target:focus-visible .obs-annotation-label { opacity: 1; transform: translateY(0); }
   .obs-annotation-label strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.15; font-weight: 950; }
   .obs-annotation-label small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(226,232,240,.9); font-size: 9.5px; line-height: 1.15; font-weight: 850; }
   .obs-annotation-target.is-annotation-focus { animation: obsAnnotationPulse 1.1s ease 2; }

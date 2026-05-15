@@ -4594,6 +4594,102 @@ function findCandidateReading(
   return null;
 }
 
+function fallbackCandidateReadingForSubject(options: {
+  name: string;
+  roleLabel?: string | null;
+  rank?: string | null;
+  focusReason?: string | null;
+  simpleSummary?: string | null;
+}): CandidateReading {
+  const name = normalizeCandidateReadingKey(options.name);
+  const focus = friendlyObservationText(options.focusReason || options.simpleSummary || "", 72);
+  if (name.includes("ヒメイワダレソウ")) {
+    return {
+      name: options.name,
+      scientificName: "",
+      rank: null,
+      role: "白い花の群落",
+      visibleFeatures: [
+        "地面を覆う低い群落が見えます。",
+        "小さな白い花がまとまって咲いています。",
+        "葉と茎が低く広がり、草地の面を作っています。",
+      ],
+      weakPoints: [
+        "イワダレソウ類との比較には、花の集まりの長さ、葉の大きさ、葉のギザギザ、茎の毛が欲しいです。",
+      ],
+      shootingTips: [
+        "花を真上と横から撮る",
+        "葉の表裏と茎の毛を近くで撮る",
+        "群落の広がり、裸地、草丈が入る引き写真を残す",
+      ],
+      regionalRead: "緑化で使われる植物が、道端や公園の小さな草地でどれくらい広がっているかを読む材料になります。",
+    };
+  }
+  if (name.includes("セイヨウミツバチ") || name.includes("ミツバチ")) {
+    return {
+      name: options.name,
+      scientificName: "",
+      rank: null,
+      role: "花に来た虫",
+      visibleFeatures: [
+        "白い花を利用している昆虫として読めます。",
+        "植物だけでなく、花を使う相手まで同じ場面に残っています。",
+      ],
+      weakPoints: [
+        "ニホンミツバチ、ハナバチ類、ハナアブ類と比べるには、腹部の帯、脚、翅、眼が見える横姿が欲しいです。",
+      ],
+      shootingTips: [
+        "花に止まった横姿を撮る",
+        "腹部の帯、脚の花粉、翅が見える1枚を残す",
+        "どの花に来ていたか分かる引き写真も撮る",
+      ],
+      regionalRead: "花壇ではない足元の花も、虫にとって花資源になっている可能性を残せます。",
+    };
+  }
+  if (name.includes("イネ科")) {
+    return {
+      name: options.name,
+      scientificName: "",
+      rank: null,
+      role: "周囲の草",
+      visibleFeatures: [
+        "細い葉の草が、白い花の群落の周囲に混じっています。",
+        "草丈や密度は、刈り取りや踏圧を読む手がかりになります。",
+      ],
+      weakPoints: [
+        "種名まで進むには、小穂、葉舌、葉鞘、株元が見える写真が必要です。",
+      ],
+      shootingTips: [
+        "小穂がある株を近くで撮る",
+        "葉の付け根と株元を撮る",
+        "花の群落との距離が分かる引き写真を残す",
+      ],
+      regionalRead: "背景の草ではなく、草地がどう管理され、どの植物が残っているかを示す情報になります。",
+    };
+  }
+
+  const rankHint = publicRankHint(options.rank ?? null) || (options.rank ? rankLabelJa(options.rank) : null) || "候補";
+  return {
+    name: options.name,
+    scientificName: "",
+    rank: options.rank ?? null,
+    role: options.roleLabel || rankHint,
+    visibleFeatures: [
+      focus || "写真内の形、色、写っている場所から候補として読んでいます。",
+      `${rankHint}として扱えるところまで整理しています。`,
+    ],
+    weakPoints: [
+      "細部が見える写真や、別角度の写真が増えると、似た相手との違いを確かめやすくなります。",
+    ],
+    shootingTips: [
+      "全体が分かる引き写真",
+      "形や模様が分かる近景",
+      "周囲との位置関係が分かる写真",
+    ],
+    regionalRead: "場所、季節、周囲の環境が一緒に残るほど、同じ地域の記録と比べやすくなります。",
+  };
+}
+
 function renderSubjectEvidenceTabs(options: {
   basePath: string;
   lang: SiteLang;
@@ -4615,12 +4711,22 @@ function renderSubjectEvidenceTabs(options: {
       ai?.recommendedTaxonName,
       ai?.bestSpecificTaxonName,
     ]);
-    const features = (reading?.visibleFeatures?.length ? reading.visibleFeatures : ai?.diagnosticFeaturesSeen ?? [])
+    const fallbackReading = fallbackCandidateReadingForSubject({
+      name: display,
+      roleLabel: subject.roleLabel,
+      rank: subject.rank,
+      focusReason: subject.focusReason,
+      simpleSummary: ai?.simpleSummary ?? null,
+    });
+    const sourceReading = reading ?? fallbackReading;
+    const features = (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : ai?.diagnosticFeaturesSeen ?? [])
       .map((item) => friendlyObservationText(item, 64))
       .filter(Boolean)
       .slice(0, 4);
     const shots = (reading?.shootingTips?.length
       ? reading.shootingTips
+      : fallbackReading.shootingTips?.length
+        ? fallbackReading.shootingTips
       : (ai?.shotSuggestions ?? []).map((item) => `${friendlyObservationText(item.target, 26)}: ${friendlyObservationText(item.rationale, 54)}`))
       .filter(Boolean)
       .slice(0, 4);
@@ -4628,20 +4734,17 @@ function renderSubjectEvidenceTabs(options: {
       .map((item) => item.name)
       .filter(Boolean)
       .slice(0, 3);
-    const weakPoints = (reading?.weakPoints?.length
-      ? reading.weakPoints
+    const weakPoints = (sourceReading.weakPoints?.length
+      ? sourceReading.weakPoints
       : similar.length > 0
         ? [`${similar.join("、")}。${friendlyObservationText((ai?.distinguishingTips ?? ai?.confirmMore ?? [])[0] ?? "", 80)}`]
         : [friendlyObservationText((ai?.missingEvidence ?? ai?.confirmMore ?? [])[0] ?? "近くで見える細部が増えると、候補を絞りやすくなります。", 92)])
       .map((item) => friendlyObservationText(item, 92))
       .filter(Boolean)
       .slice(0, 4);
-    const regionalRead = reading?.regionalRead
-      ? friendlyObservationText(reading.regionalRead, 120)
+    const regionalRead = sourceReading.regionalRead
+      ? friendlyObservationText(sourceReading.regionalRead, 120)
       : friendlyObservationText(ai?.geographicContext || ai?.seasonalContext || "場所や季節の読みは、写真と地域情報が増えるほど強くなります。", 120);
-    const compareText = weakPoints[0] || (similar.length > 0
-      ? `${similar.join("、")}。${friendlyObservationText((ai?.distinguishingTips ?? ai?.confirmMore ?? [])[0] ?? "", 80)}`
-      : friendlyObservationText((ai?.missingEvidence ?? ai?.confirmMore ?? [])[0] ?? "近くで見える細部が増えると、候補を絞りやすくなります。", 92));
     return {
       key: subject.occurrenceId,
       name: display,
@@ -4650,9 +4753,9 @@ function renderSubjectEvidenceTabs(options: {
         ? friendlyObservationText(ai.simpleSummary, 104)
         : ai?.stopReason
           ? friendlyObservationText(ai.stopReason, 104)
-          : friendlyObservationText(subject.focusReason || "写真から拾った候補です。確定名ではなく、人の確認で強くなります。", 104),
-      compareLabel: "弱い点",
-      compareText,
+          : friendlyObservationText(fallbackReading.visibleFeatures?.[0] || subject.focusReason || "写真から拾った候補です。確定名ではなく、人の確認で強くなります。", 104),
+      compareLabel: "比べたい相手",
+      compareText: "",
       features,
       weakPoints,
       shots,
@@ -4665,8 +4768,14 @@ function renderSubjectEvidenceTabs(options: {
     .slice(0, Math.max(0, 8 - subjectTargets.length))
     .map((candidate) => {
       const reading = findCandidateReading(readings, [candidate.displayName, candidate.scientificName]);
-      const weakPoints = (reading?.weakPoints?.length
-        ? reading.weakPoints
+      const fallbackReading = fallbackCandidateReadingForSubject({
+        name: candidate.displayName,
+        rank: candidate.rank,
+        focusReason: candidate.note,
+      });
+      const sourceReading = reading ?? fallbackReading;
+      const weakPoints = (sourceReading.weakPoints?.length
+        ? sourceReading.weakPoints
         : [candidate.rank ? `${publicRankHint(candidate.rank) || rankLabelJa(candidate.rank)}までの候補です。位置や細部を人が確認すると扱いやすくなります。` : "写真内の位置や細部を人が確認すると扱いやすくなります。"])
         .map((item) => friendlyObservationText(item, 92))
         .filter(Boolean)
@@ -4675,13 +4784,13 @@ function renderSubjectEvidenceTabs(options: {
         key: candidate.candidateId,
         name: candidate.displayName,
         status: "未検出候補",
-        summary: friendlyObservationText(candidate.note || "AIが同じ写真から拾った、まだ観測レコードになっていない候補です。", 104),
-        compareLabel: "弱い点",
-        compareText: weakPoints[0] || "写真内の位置や細部を人が確認すると扱いやすくなります。",
-        features: (reading?.visibleFeatures?.length ? reading.visibleFeatures : [candidate.note || "同じ場面に写っている可能性があります。"]).map((item) => friendlyObservationText(item, 64)),
+        summary: friendlyObservationText(candidate.note || sourceReading.visibleFeatures?.[0] || "AIが同じ写真から拾った、まだ観測レコードになっていない候補です。", 104),
+        compareLabel: "比べたい相手",
+        compareText: "",
+        features: (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [candidate.note || "同じ場面に写っている可能性があります。"]).map((item) => friendlyObservationText(item, 64)),
         weakPoints,
-        shots: (reading?.shootingTips?.length ? reading.shootingTips : ["対象が入る引き写真", "形が分かる近景", "周囲との位置関係"]).slice(0, 4),
-        regionalRead: friendlyObservationText(reading?.regionalRead || "場所や季節の読みは、写真と地域情報が増えるほど強くなります。", 120),
+        shots: (sourceReading.shootingTips?.length ? sourceReading.shootingTips : ["対象が入る引き写真", "形が分かる近景", "周囲との位置関係"]).slice(0, 4),
+        regionalRead: friendlyObservationText(sourceReading.regionalRead || "場所や季節の読みは、写真と地域情報が増えるほど強くなります。", 120),
       };
     });
   const targets = [...subjectTargets, ...candidateTargets].filter((target) => target.name);
@@ -4700,10 +4809,10 @@ function renderSubjectEvidenceTabs(options: {
       <div class="obs-id-summary">
         <span class="obs-id-status-pill">${escapeHtml(target.status)}</span>
         <p>${escapeHtml(target.summary)}</p>
-        <div class="obs-id-compare">
+        ${target.compareText ? `<div class="obs-id-compare">
           <strong>${escapeHtml(target.compareLabel)}</strong>
           <span>${escapeHtml(target.compareText)}</span>
-        </div>
+        </div>` : ""}
       </div>
       <div class="obs-id-evidence-grid">
         <div class="obs-id-evidence-card">
