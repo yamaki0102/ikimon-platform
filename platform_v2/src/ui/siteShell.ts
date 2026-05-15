@@ -3178,19 +3178,16 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     if (sessionStorage.getItem(key) === '1') {
       sent = true;
     }
-    const send = (actionKey, routeKey) => {
-      if (sent) return;
-      sent = true;
-      try { sessionStorage.setItem(key, '1'); } catch (_) {}
+    const postEvent = (eventName, actionKey, routeKey, metadata) => {
       const payload = {
-        eventName: 'first_action',
+        eventName,
         pagePath,
         actionKey,
         routeKey,
-        metadata: {
+        metadata: Object.assign({
           lang: document.documentElement.lang || 'ja',
           ts: new Date().toISOString(),
-        },
+        }, metadata || {}),
       };
       fetch(endpoint, {
         method: 'POST',
@@ -3199,6 +3196,20 @@ export function renderSiteDocument(options: SiteShellOptions): string {
         keepalive: true,
         credentials: 'same-origin',
       }).catch(() => undefined);
+    };
+    const sendFirstAction = (actionKey, routeKey) => {
+      if (sent) return;
+      sent = true;
+      try { sessionStorage.setItem(key, '1'); } catch (_) {}
+      postEvent('first_action', actionKey, routeKey);
+    };
+    const sendExplicitClick = (target, actionKey, routeKey) => {
+      const eventName = target.getAttribute('data-kpi-event');
+      if (!eventName) return;
+      postEvent(eventName, actionKey, routeKey, {
+        funnel: target.getAttribute('data-kpi-funnel') || '',
+        target: target.getAttribute('data-kpi-target') || routeKey || '',
+      });
     };
 
     document.addEventListener('click', (event) => {
@@ -3209,7 +3220,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       const href = tag === 'a' ? target.getAttribute('href') || '' : '';
       const routeKey = href && href.startsWith('/') ? href : '';
       const actionKey = target.getAttribute('data-kpi-action') || (text ? text : tag);
-      send(actionKey, routeKey);
+      sendExplicitClick(target, actionKey, routeKey);
+      sendFirstAction(actionKey, routeKey);
     }, { capture: true, passive: true });
   } catch (_) {}
 })();

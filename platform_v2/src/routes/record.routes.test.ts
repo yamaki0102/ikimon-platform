@@ -111,8 +111,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-submit-panel"/);
         assert.match(response.body, /id="record-submit-dock-meta"/);
         assert.match(response.body, /class="record-submit-primary">保存/);
+        assert.match(response.body, /data-first-record-candidate="1"/);
         assert.match(response.body, /\/api\/v1\/ui-kpi\/events/);
         assert.match(response.body, /recordSessionId/);
+        assert.match(response.body, /recordFirstRecordCandidate/);
+        assert.match(response.body, /firstRecordCandidate/);
         assert.match(response.body, /record_open/);
         assert.match(response.body, /capture_method_selected/);
         assert.match(response.body, /media_selected/);

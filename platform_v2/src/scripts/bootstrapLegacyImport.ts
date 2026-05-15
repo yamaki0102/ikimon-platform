@@ -21,6 +21,8 @@ type ImportOptions = {
   dryRun: boolean;
 };
 
+const LEGACY_IMPORT_ADVISORY_LOCK_KEY = "ikimon.bootstrap_legacy_import";
+
 type LegacyUser = JsonRecord & {
   id: string;
   name?: string;
@@ -1409,6 +1411,20 @@ async function ensureDatabaseReady() {
   }
 }
 
+async function withLegacyImportLock<T>(options: ImportOptions, task: () => Promise<T>): Promise<T> {
+  if (options.dryRun) {
+    return task();
+  }
+
+  const pool = getPool();
+  await pool.query("select pg_advisory_lock(hashtext($1))", [LEGACY_IMPORT_ADVISORY_LOCK_KEY]);
+  try {
+    return await task();
+  } finally {
+    await pool.query("select pg_advisory_unlock(hashtext($1))", [LEGACY_IMPORT_ADVISORY_LOCK_KEY]);
+  }
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   console.log("bootstrapLegacyImport options", options);
@@ -1427,11 +1443,13 @@ async function main() {
     await ensureDatabaseReady();
   }
 
-  await importUsers(options, legacyUsers, legacyObservations);
-  await importRememberTokens(options, legacyTokens);
-  await importInvites(options, legacyInvites);
-  await importObservations(options, legacyObservations);
-  await importTracks(options, legacyTracks);
+  await withLegacyImportLock(options, async () => {
+    await importUsers(options, legacyUsers, legacyObservations);
+    await importRememberTokens(options, legacyTokens);
+    await importInvites(options, legacyInvites);
+    await importObservations(options, legacyObservations);
+    await importTracks(options, legacyTracks);
+  });
 
   console.log(JSON.stringify(summary, null, 2));
 

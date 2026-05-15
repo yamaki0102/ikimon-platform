@@ -145,10 +145,13 @@ test("landing top empty state does not render sample images", () => {
   assert.doesNotMatch(html, /\/uploads\/sample_/);
   assert.match(html, /prototype-topa/);
   assert.doesNotMatch(html, /今日のikimon\.life/);
-  assert.match(html, /いま見えている自然/);
-  assert.match(html, /みんなが残した写真、動画、ガイド、同定待ち/);
+  assert.match(html, /今日見つけた生きものを、名前が分からなくても残せる。/);
+  assert.match(html, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
   assert.match(html, /記録する/);
-  assert.match(html, /同定待ち/);
+  assert.match(html, /名前を確かめる/);
+  assert.match(html, /名前は後でいい/);
+  assert.match(html, /AIは候補まで/);
+  assert.match(html, /位置は安全側/);
   assert.match(html, /地域マップ/);
   assert.match(html, /音の標本棚/);
   assert.match(html, /鳴き声と環境音を、楽しい記録から研究データへ。/);
@@ -167,19 +170,22 @@ test("landing top empty state does not render sample images", () => {
   assert.match(html, /名前が分からなくても大丈夫/);
   assert.match(html, /\/records\?view=needs_id/);
   assert.match(html, /data-kpi-action="landing:topA:primary:record"/);
+  assert.match(html, /data-kpi-event="primary_cta_click"/);
+  assert.match(html, /data-kpi-funnel="landing_record"/);
   assert.match(html, /data-kpi-action="landing:topA:shelf:localMap"/);
 });
 
 test("landing top localizes the content-first shelves in English", () => {
   const html = renderTop(emptySnapshot, "en");
 
-  assert.match(html, /Nature people are finding now/);
+  assert.match(html, /Save what you found today/);
   assert.match(html, /Everyone&#39;s finds/);
   assert.match(html, /Photos and videos/);
   assert.match(html, /Found with guides/);
   assert.match(html, /Make the first find/);
   assert.match(html, /Start with media/);
   assert.match(html, /Names can come later/);
+  assert.match(html, /AI stays as a hint/);
   assert.doesNotMatch(html, /いま見えている自然/);
   assert.doesNotMatch(html, /みんなの発見/);
 });
@@ -197,6 +203,46 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.match(html, /prototype-topa-evidence-badge/);
   assert.doesNotMatch(html, /新着投稿/);
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
+});
+
+test("landing top makes the signed-in latest observation the continuation hero", () => {
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: "user-1",
+    myFeed: [photoObservation],
+    myPlaces: [{
+      placeId: "place-1",
+      placeName: "浜松城公園",
+      municipality: "浜松市",
+      lastObservedAt: "2026-04-08T09:00:00.000Z",
+      previousObservedAt: null,
+      firstObservedAt: "2026-04-08T09:00:00.000Z",
+      visitCount: 1,
+      latestDisplayName: "モンシロチョウ",
+      revisitReason: null,
+      nextLookFor: null,
+      lastRecordMode: null,
+      lastSurveyResult: null,
+      absenceSemantics: null,
+      latitude: 34.7116,
+      longitude: 137.7274,
+    }],
+    habit: {
+      todayCount: 0,
+      thisWeekCount: 2,
+      activeDaysLast60: 4,
+      daysSinceLast: 1,
+      streak: 1,
+    },
+  });
+
+  assert.match(html, /前回の自分から続ける/);
+  assert.match(html, /直近の発見/);
+  assert.match(html, /モンシロチョウ/);
+  assert.match(html, /前回の記録を見る/);
+  assert.match(html, /同じ場所でもう1件/);
+  assert.match(html, /data-kpi-action="landing:story:revisit_record"/);
+  assert.match(html, /data-kpi-funnel="landing_record"/);
 });
 
 test("landing top folds video items into the evidence shelf with visible video badges", () => {
@@ -275,9 +321,10 @@ test("landing top does not render opaque overflow summary cards", () => {
   assert.doesNotMatch(html, /トップでは個別カードを並べすぎず/);
 });
 
-test("landing top A keeps revisit as a daily action while local map shelf stays visible", () => {
+test("landing top A keeps revisit as a signed-in daily action while local map shelf stays visible", () => {
   const html = renderTop({
     ...photoSnapshot,
+    viewerUserId: "user-1",
     stats: { observationCount: 2, speciesCount: 2, placeCount: 1 },
     feed: [photoObservation, alternatePhotoObservation],
     dailyDashboard: {
