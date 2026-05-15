@@ -208,6 +208,19 @@ test("vegetation care advice is cautious and grounded in management context", ()
   assert.doesNotMatch(careSource, /必ず抜/);
 });
 
+test("no-ai plant detail can still surface site management policy controls", () => {
+  const subjectHintSource = sourceBetween("function renderSubjectHint", "function renderCivicContextBlock");
+  const noAiStart = subjectHintSource.indexOf("if (!aiAssessment)");
+  const noAiEnd = subjectHintSource.indexOf("const band =", noAiStart);
+  assert.notEqual(noAiStart, -1, "missing no-ai subject hint branch");
+  assert.notEqual(noAiEnd, -1, "missing ai subject hint branch after no-ai branch");
+  const noAiSource = subjectHintSource.slice(noAiStart, noAiEnd);
+
+  assert.match(noAiSource, /renderVegetationCareAdviceCard/);
+  assert.match(noAiSource, /fieldAdviceContext/);
+  assert.match(noAiSource, /basePath/);
+});
+
 test("owner-only controls stay compact and avoid support-card copy", () => {
   const ownerSource = [
     sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),
