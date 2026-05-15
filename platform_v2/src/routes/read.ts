@@ -1440,9 +1440,17 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-specialist-link { display: inline-flex; margin-top: 10px; font-weight: 900; color: #0369a1; text-decoration: none; }
   .obs-id-evidence { display: grid; gap: 12px; padding: 16px; border-radius: 18px; background: linear-gradient(180deg, #ffffff, #f7fcf9); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 14px 34px rgba(15,23,42,.045); }
   .obs-id-evidence-note { width: fit-content; max-width: 100%; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #64748b; font-size: 11px; line-height: 1.25; font-weight: 850; }
+  .obs-id-filter { display: flex; align-items: center; gap: 8px; width: min(100%, 460px); padding: 6px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-id-filter input { flex: 1 1 auto; min-width: 0; min-height: 34px; border: 0; outline: 0; background: transparent; color: #0f172a; font: inherit; font-size: 13px; font-weight: 850; padding: 0 8px; }
+  .obs-id-filter input::placeholder { color: #94a3b8; }
+  .obs-id-filter-count { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 28px; padding: 4px 9px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
   .obs-id-tabs { display: flex; flex-wrap: wrap; gap: 7px; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.84); border: 1px solid rgba(15,23,42,.08); width: fit-content; max-width: 100%; }
+  .obs-id-tabs.is-many { width: 100%; max-height: 164px; overflow: auto; border-radius: 16px; align-content: flex-start; }
   .obs-id-tab { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: #334155; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; }
+  .obs-id-tab[hidden] { display: none; }
   .obs-id-tab[aria-selected="true"] { background: #ecfdf5; border-color: rgba(16,185,129,.3); color: #047857; }
+  .obs-id-empty { display: none; padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #64748b; font-size: 12px; font-weight: 850; }
+  .obs-id-empty.is-visible { display: block; }
   .obs-id-panel { display: grid; gap: 11px; }
   .obs-id-panel[hidden] { display: none; }
   .obs-id-summary { display: grid; gap: 8px; padding: 13px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
@@ -1473,6 +1481,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-review-head { flex-direction: column; }
     .obs-ai-review-actions { display: grid; grid-template-columns: 1fr; }
     .obs-ai-review-actions button { width: 100%; }
+    .obs-id-filter { width: 100%; border-radius: 14px; }
     .obs-id-tabs { width: 100%; border-radius: 14px; }
     .obs-id-tab { flex: 1 1 140px; }
     .obs-id-evidence-grid, .obs-id-actions { grid-template-columns: 1fr; }
@@ -4690,6 +4699,9 @@ function fallbackCandidateReadingForSubject(options: {
   };
 }
 
+const MAX_IDENTITY_EVIDENCE_TARGETS = 16;
+const IDENTITY_EVIDENCE_SEARCH_THRESHOLD = 7;
+
 function renderSubjectEvidenceTabs(options: {
   basePath: string;
   lang: SiteLang;
@@ -4765,7 +4777,7 @@ function renderSubjectEvidenceTabs(options: {
   const candidateTargets = options.bundle.aiCandidates
     .filter((candidate) => isOpenCandidate(candidate))
     .filter((candidate) => !candidate.suggestedOccurrenceId || !subjectIds.has(candidate.suggestedOccurrenceId))
-    .slice(0, Math.max(0, 8 - subjectTargets.length))
+    .slice(0, Math.max(0, MAX_IDENTITY_EVIDENCE_TARGETS - subjectTargets.length))
     .map((candidate) => {
       const reading = findCandidateReading(readings, [candidate.displayName, candidate.scientificName]);
       const fallbackReading = fallbackCandidateReadingForSubject({
@@ -4795,6 +4807,7 @@ function renderSubjectEvidenceTabs(options: {
     });
   const targets = [...subjectTargets, ...candidateTargets].filter((target) => target.name);
   if (targets.length === 0) return "";
+  const showCandidateSearch = targets.length >= IDENTITY_EVIDENCE_SEARCH_THRESHOLD;
   return `<section id="identity-evidence" class="section obs-layer obs-id-evidence" data-obs-section="identity_evidence">
     <div class="obs-identify-head">
       <div>
@@ -4802,9 +4815,20 @@ function renderSubjectEvidenceTabs(options: {
         <div class="obs-id-evidence-note">AIが写真から拾った仮説です。人の確認で強くなります。</div>
       </div>
     </div>
-    <div class="obs-id-tabs" role="tablist" aria-label="AI候補の同定根拠">
-      ${targets.map((target, index) => `<button class="obs-id-tab" type="button" role="tab" aria-selected="${index === 0 ? "true" : "false"}" aria-controls="obs-id-panel-${index}" id="obs-id-tab-${index}" data-obs-id-tab="${escapeHtml(String(index))}">${escapeHtml(target.name)}</button>`).join("")}
+    ${showCandidateSearch ? `<label class="obs-id-filter">
+      <input type="search" placeholder="候補名で絞り込み" autocomplete="off" data-obs-id-search>
+      <span class="obs-id-filter-count" data-obs-id-visible-count>${targets.length}件</span>
+    </label>` : ""}
+    <div class="obs-id-tabs${showCandidateSearch ? " is-many" : ""}" role="tablist" aria-label="AI候補の同定根拠">
+      ${targets.map((target, index) => {
+        const searchText = [target.name, target.status, target.summary, target.compareText, ...target.features, ...target.weakPoints]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return `<button class="obs-id-tab" type="button" role="tab" aria-selected="${index === 0 ? "true" : "false"}" aria-controls="obs-id-panel-${index}" id="obs-id-tab-${index}" data-obs-id-tab="${escapeHtml(String(index))}" data-obs-id-search-text="${escapeHtml(searchText)}">${escapeHtml(target.name)}</button>`;
+      }).join("")}
     </div>
+    <div class="obs-id-empty" data-obs-id-empty hidden>該当する候補がありません</div>
     ${targets.map((target, index) => `<article class="obs-id-panel" id="obs-id-panel-${index}" role="tabpanel" aria-labelledby="obs-id-tab-${index}" data-obs-id-panel="${escapeHtml(String(index))}"${index === 0 ? "" : " hidden"}>
       <div class="obs-id-summary">
         <span class="obs-id-status-pill">${escapeHtml(target.status)}</span>
@@ -4847,17 +4871,50 @@ function renderSubjectEvidenceTabs(options: {
   <script>(function(){
     var root = document.getElementById('identity-evidence');
     if (!root) return;
-    root.addEventListener('click', function(event){
-      var tab = event.target instanceof Element ? event.target.closest('[data-obs-id-tab]') : null;
+    var tabs = Array.prototype.slice.call(root.querySelectorAll('[data-obs-id-tab]'));
+    var panels = Array.prototype.slice.call(root.querySelectorAll('[data-obs-id-panel]'));
+    var search = root.querySelector('[data-obs-id-search]');
+    var count = root.querySelector('[data-obs-id-visible-count]');
+    var empty = root.querySelector('[data-obs-id-empty]');
+    function selectTab(tab){
       if (!tab) return;
       var target = tab.getAttribute('data-obs-id-tab') || '';
-      root.querySelectorAll('[data-obs-id-tab]').forEach(function(item){
+      tabs.forEach(function(item){
         item.setAttribute('aria-selected', String(item === tab));
       });
-      root.querySelectorAll('[data-obs-id-panel]').forEach(function(panel){
+      panels.forEach(function(panel){
         panel.hidden = panel.getAttribute('data-obs-id-panel') !== target;
       });
+    }
+    function applyFilter(){
+      if (!search) return;
+      var query = (search.value || '').trim().toLowerCase();
+      var visible = [];
+      tabs.forEach(function(tab){
+        var haystack = tab.getAttribute('data-obs-id-search-text') || tab.textContent || '';
+        var matches = !query || haystack.toLowerCase().indexOf(query) !== -1;
+        tab.hidden = !matches;
+        if (matches) visible.push(tab);
+      });
+      if (count) count.textContent = visible.length + '件';
+      if (empty) {
+        empty.hidden = visible.length !== 0;
+        empty.classList.toggle('is-visible', visible.length === 0);
+      }
+      var selected = tabs.find(function(tab){ return tab.getAttribute('aria-selected') === 'true'; });
+      if (!selected || selected.hidden) {
+        if (visible[0]) {
+          selectTab(visible[0]);
+        } else {
+          panels.forEach(function(panel){ panel.hidden = true; });
+        }
+      }
+    }
+    root.addEventListener('click', function(event){
+      var tab = event.target instanceof Element ? event.target.closest('[data-obs-id-tab]') : null;
+      selectTab(tab);
     });
+    if (search) search.addEventListener('input', applyFilter);
   })();</script>`;
 }
 
