@@ -94,26 +94,41 @@ function publicRankHint(rank: string | null | undefined): string {
   }
 }
 
+function sceneRoleLabelForText(text: string, options: { isPrimary?: boolean; roleHint?: string | null; rank?: string | null } = {}): string {
+  const haystack = text.toLowerCase();
+  if (/ハチ|蜂|bee|ミツバチ|訪花|吸蜜|花粉/.test(haystack)) return "花に来た虫";
+  if (/イネ科|草|芝|gramin|poaceae|裸地|礫|踏圧/.test(haystack) || options.rank === "lifeform" || options.roleHint === "vegetation") {
+    return "草地と裸地";
+  }
+  if (/鳥|ハト|鳩|カワラバト|カラス|スズメ|bird|aves/.test(haystack)) return "この場所を使う鳥";
+  if (/樹|木|クスノキ|カエデ|サクラ|落葉|常緑|tree|植栽/.test(haystack)) return "背景の木・植栽";
+  if (/花|葉|茎|群落|グランドカバー|ヒメイワダレソウ|イワダレソウ|タンポポ|ツワブキ|サツキ|クチナシ|植物|plant/.test(haystack)) {
+    return options.isPrimary ? "代表候補" : "写っている植物";
+  }
+  return options.isPrimary ? "代表候補" : "一緒に写るもの";
+}
+
 function candidateRoleLabel(candidate: ObservationVisitCandidate): string {
-  const name = candidate.displayName;
-  const note = candidate.note ?? "";
-  if (/ハチ|蜂|bee/i.test(name) || /訪花|吸蜜|花粉/i.test(note)) return "一緒に写ってるかも";
-  if (/イネ科|草|芝|gramin|poaceae/i.test(name) || candidate.rank === "lifeform") return "周りの草";
-  if (candidate.rank === "family" || candidate.rank === "order") return "名前確認中";
-  return "一緒に写ってるかも";
+  return sceneRoleLabelForText(`${candidate.displayName} ${candidate.note ?? ""}`, {
+    rank: candidate.rank,
+  });
 }
 
 function roleSortWeight(item: VisibleRecordItem): number {
   if (item.source === "subject") return 0;
   switch (item.roleLabel) {
-    case "一緒に写ってるかも":
+    case "花に来た虫":
       return 1;
-    case "周りの草":
+    case "草地と裸地":
       return 2;
-    case "名前確認中":
+    case "背景の木・植栽":
       return 3;
-    default:
+    case "写っている植物":
       return 4;
+    case "一緒に写るもの":
+      return 5;
+    default:
+      return 6;
   }
 }
 
@@ -138,11 +153,18 @@ function isAiJudgementObservationRecord(subject: ObservationVisitSubject): boole
 }
 
 function subjectVisibleRoleLabel(subject: ObservationVisitSubject): string {
-  if (subject.subjectSource === "community_subject_proposal") return "一緒に写ってるかも";
+  if (subject.subjectSource === "community_subject_proposal") return "追加提案";
   if (isAiJudgementObservationRecord(subject)) {
-    return subject.roleHint === "vegetation" ? "周りの草" : "一緒に写っているもの";
+    return sceneRoleLabelForText(`${formatTaxonDisplayName(subject, "ja").primaryLabel} ${subject.focusReason ?? ""} ${subject.roleLabel}`, {
+      roleHint: subject.roleHint,
+      rank: subject.rank,
+    });
   }
-  return subject.isPrimary ? "主役っぽい" : subject.roleLabel;
+  return sceneRoleLabelForText(`${formatTaxonDisplayName(subject, "ja").primaryLabel} ${subject.focusReason ?? ""} ${subject.roleLabel}`, {
+    isPrimary: subject.isPrimary,
+    roleHint: subject.roleHint,
+    rank: subject.rank,
+  });
 }
 
 function subjectHistoryLabel(subject: ObservationVisitSubject): string | null {

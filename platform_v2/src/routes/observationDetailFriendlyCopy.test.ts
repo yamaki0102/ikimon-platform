@@ -302,10 +302,10 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.deepEqual(
     anonymousItems.map((item) => [item.displayName, item.trustLabel, item.bucket, item.roleLabel]),
     [
-      ["ヒメイワダレソウ", "AI推定", "main", "主役っぽい"],
-      ["セイヨウミツバチ", "AI推定", "main", "一緒に写ってるかも"],
-      ["イネ科の一種", "AI推定", "main", "周りの草"],
-      ["小さな黒い点", "参考", "reference", "一緒に写ってるかも"],
+      ["ヒメイワダレソウ", "AI推定", "main", "代表候補"],
+      ["セイヨウミツバチ", "AI推定", "main", "花に来た虫"],
+      ["イネ科の一種", "AI推定", "main", "草地と裸地"],
+      ["小さな黒い点", "参考", "reference", "一緒に写るもの"],
     ],
   );
 
@@ -320,6 +320,8 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.match(anonymousHtml, /参考候補 <span class="obs-fold-count">1<\/span>/);
   assert.match(anonymousHtml, /花資源としての役割/);
   assert.match(anonymousHtml, /刈られ方、踏まれ方、乾きやすさ/);
+  assert.doesNotMatch(anonymousHtml, /一緒に写ってるかも/);
+  assert.doesNotMatch(anonymousHtml, /周りの草/);
   assert.doesNotMatch(anonymousHtml, /この写真からの自動候補。確定名ではありません。/);
   assert.doesNotMatch(anonymousHtml, /観測レコードにする/);
   assert.doesNotMatch(anonymousHtml, /写っている対象として知らせる/);
