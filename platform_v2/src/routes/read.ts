@@ -1218,7 +1218,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-focus-open { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 999px; text-decoration: none; background: #111827; color: #fff; font-size: 12.5px; font-weight: 900; white-space: nowrap; box-shadow: 0 6px 18px rgba(15,23,42,.16); }
   .obs-focus-open:hover { background: #1f2937; }
   .obs-focus-open.is-current { background: rgba(16,185,129,.12); color: #047857; box-shadow: none; }
-  .obs-focus-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .obs-focus-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .obs-focus-card { display: flex; flex-direction: column; gap: 8px; padding: 13px 14px; border-radius: 14px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
   .obs-focus-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(15,23,42,.08); }
   .obs-focus-card.is-featured { border-color: rgba(16,185,129,.28); background: linear-gradient(135deg, #f0fdf4, #ffffff); }
@@ -1236,7 +1236,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-visible-record-history { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: rgba(59,130,246,.08); color: #1e3a8a; font-size: 11px; line-height: 1.45; }
   .obs-visible-record-history strong { font-size: 11.5px; color: #1d4ed8; }
   .obs-visible-record-history span { color: #475569; }
-  .obs-visible-record-note { margin: -2px 0 0; color: #475569; font-size: 11.5px; line-height: 1.55; font-weight: 700; }
+  .obs-visible-record-note { margin: -2px 0 0; color: #334155; font-size: 12.5px; line-height: 1.68; font-weight: 760; }
   .obs-visible-record-action { width: 100%; min-height: 40px; padding: 9px 11px; border: 0; border-radius: 12px; background: #059669; color: #fff; font-size: 12px; font-weight: 950; cursor: pointer; }
   .obs-visible-record-action:disabled { opacity: .72; cursor: wait; }
   .obs-visible-record-boundary { display: inline-flex; align-items: center; color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 800; }
@@ -1264,14 +1264,13 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-focus-open { width: 100%; }
     .obs-focus-rail { display: flex; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
     .obs-focus-rail:not(.obs-visible-record-main) .obs-focus-card { min-width: 220px; scroll-snap-align: start; }
-    .obs-visible-record-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; gap: 8px; scroll-snap-type: none; }
-    .obs-visible-record-main .obs-focus-card { min-width: 0; padding: 10px 8px; gap: 6px; scroll-snap-align: none; }
-    .obs-visible-record-main .obs-focus-card-role { font-size: 9.5px; letter-spacing: 0; text-transform: none; }
-    .obs-visible-record-main .obs-focus-card-state { padding: 2px 6px; font-size: 9px; }
-    .obs-visible-record-main .obs-focus-card-name { font-size: 12.5px; overflow-wrap: anywhere; }
-    .obs-visible-record-main .obs-focus-card-meta { font-size: 10px; line-height: 1.45; }
-    .obs-visible-record-main .obs-visible-record-note,
-    .obs-visible-record-main .obs-visible-record-boundary { display: none; }
+    .obs-visible-record-main { display: grid; grid-template-columns: 1fr; overflow: visible; gap: 8px; scroll-snap-type: none; }
+    .obs-visible-record-main .obs-focus-card { min-width: 0; padding: 12px; gap: 7px; scroll-snap-align: none; }
+    .obs-visible-record-main .obs-focus-card-role { font-size: 10px; letter-spacing: .05em; text-transform: none; }
+    .obs-visible-record-main .obs-focus-card-state { padding: 2px 7px; font-size: 9.5px; }
+    .obs-visible-record-main .obs-focus-card-name { font-size: 14px; overflow-wrap: anywhere; }
+    .obs-visible-record-main .obs-focus-card-meta { font-size: 10.5px; line-height: 1.45; }
+    .obs-visible-record-main .obs-visible-record-note { display: block; font-size: 11.5px; line-height: 1.6; }
     .obs-ai-readout { gap: 5px; padding: 8px 9px; border-radius: 12px; }
     .obs-ai-readout-top { gap: 8px; }
     .obs-ai-readout-title { font-size: 12.5px; line-height: 1.3; }
@@ -1766,6 +1765,64 @@ function renderMediaDiscoveryPicker(items: VisibleRecordItem[], mediaContext: Ob
   </div>`;
 }
 
+function visibleRecordRead(item: VisibleRecordItem): { role: string; badge: string; body: string } {
+  const text = `${item.displayName} ${item.roleLabel} ${item.rankLabel ?? ""} ${item.note ?? ""}`.toLowerCase();
+  const badge =
+    item.trustLevel === "reviewed"
+      ? "確認あり"
+      : item.rankLabel
+        ? item.rankLabel
+        : item.source === "candidate" || item.proposalKind === "ai_candidate"
+          ? "仮説"
+          : "記録";
+
+  if (/ハチ|蜂|bee|ミツバチ|訪花|花粉|吸蜜/.test(text)) {
+    return {
+      role: "花に来た虫",
+      badge,
+      body: "花を利用している相手として重要です。外来かどうかだけで終わらせず、どの花に来ていたかを残すと、その場所の花資源としての役割が見えてきます。",
+    };
+  }
+
+  if (/イネ科|poaceae|grass|芝|草|lifeform/.test(text)) {
+    return {
+      role: "草地と裸地",
+      badge,
+      body: "細い草、草丈、密度、土や礫の見え方は背景ではありません。刈られ方、踏まれ方、乾きやすさを読む手がかりになります。",
+    };
+  }
+
+  if (/鳥|ハト|鳩|カワラバト|カラス|スズメ|bird|aves/.test(text)) {
+    return {
+      role: "この場所を使う鳥",
+      badge,
+      body: "名前だけでなく、階段、手すり、植栽、人との距離まで一緒に残ると、都市や公園のどこを使っているかが読める記録になります。",
+    };
+  }
+
+  if (/樹|木|クスノキ|カエデ|サクラ|落葉|常緑|tree|植栽/.test(text)) {
+    return {
+      role: "背景の木・植栽",
+      badge,
+      body: "主対象の背景に見える木や植栽も、環境を読む材料です。日陰、足元の湿り気、管理された植え込みとの関係が後から比べやすくなります。",
+    };
+  }
+
+  if (/花|葉|茎|群落|グランドカバー|ヒメイワダレソウ|イワダレソウ|タンポポ|ツワブキ|サツキ|クチナシ|植物|plant/.test(text)) {
+    return {
+      role: item.isFeatured || item.isCurrent ? "代表候補" : "写っている植物",
+      badge,
+      body: "形や名前だけでなく、どこまで広がり、周囲の草や裸地とどう接しているかまで写ると、この場所でのふるまいが見えてきます。",
+    };
+  }
+
+  return {
+    role: item.isFeatured || item.isCurrent ? "代表候補" : "一緒に写るもの",
+    badge,
+    body: "この場面を読む材料のひとつです。名前がまだ粗くても、位置、数、まわりとの関係が残るほど、時間がたっても使いやすい記録になります。",
+  };
+}
+
 function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
   const className = [
     "obs-focus-card",
@@ -1775,25 +1832,26 @@ function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: Observat
     item.trustLevel === "reference" ? "is-reference" : "",
     item.source === "candidate" ? "is-candidate" : "",
   ].filter(Boolean).join(" ");
-  const stateLabel = item.isCurrent ? "表示中" : item.isFeatured ? "有力" : item.source === "candidate" ? item.trustLabel : "";
-  const meta = visibleRecordMeta(item).join(" · ");
+  const read = visibleRecordRead(item);
+  const meta = visibleRecordMeta(item)
+    .filter((value) => value !== item.roleLabel && value !== item.trustLabel)
+    .join(" · ");
+  const stateLabel = item.isCurrent ? "表示中" : read.badge;
   const body = `
     <div class="obs-focus-card-top">
-      <span class="obs-focus-card-role">${escapeHtml(item.roleLabel)}</span>
+      <span class="obs-focus-card-role">${escapeHtml(read.role)}</span>
       ${stateLabel ? `<span class="obs-focus-card-state" data-subject-state>${escapeHtml(stateLabel)}</span>` : `<span class="obs-focus-card-state" data-subject-state hidden></span>`}
     </div>
     <div class="obs-focus-card-name">${escapeHtml(item.displayName)}</div>
-    <div class="obs-focus-card-meta">${escapeHtml(meta || item.note || "同じ場面の手がかり")}</div>
-    ${item.historyLabel ? `<div class="obs-visible-record-history"><strong>${escapeHtml(item.historyLabel)}</strong>${item.historyDetail ? `<span>${escapeHtml(item.historyDetail)}</span>` : ""}</div>` : ""}
-    ${item.note ? `<p class="obs-visible-record-note">${escapeHtml(friendlyObservationText(item.note, 72))}</p>` : ""}
+    ${meta ? `<div class="obs-focus-card-meta">${escapeHtml(meta)}</div>` : ""}
+    <p class="obs-visible-record-note">${escapeHtml(read.body)}</p>
     ${item.adoptEndpoint && item.candidateId
       ? `<button type="button"
            class="obs-visible-record-action"
            data-adopt-candidate="${escapeHtml(item.candidateId)}"
            data-adopt-endpoint="${escapeHtml(item.adoptEndpoint)}">${escapeHtml(item.adoptLabel ?? "観測レコードにする")}</button>`
-      : item.source === "candidate"
-        ? `<span class="obs-visible-record-boundary">この${escapeHtml(mediaSceneNoun(mediaContext))}からの自動候補。確定名ではありません。</span>`
-        : ""}`;
+      : ""}`;
+  void mediaContext;
 
   if (item.href && item.occurrenceId) {
     return `<a class="${className}"

@@ -41,7 +41,8 @@ const detailCopySource = [
 test("observation detail page keeps the friendly observation vocabulary", () => {
   for (const term of [
     "この写真に写っているもの",
-    "からの自動候補",
+    "花に来た虫",
+    "草地と裸地",
     "名前のいま",
     "そう見える理由",
     "まだ決めきらない理由",
@@ -317,7 +318,9 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   assert.match(anonymousHtml, /セイヨウミツバチ/);
   assert.match(anonymousHtml, /イネ科の一種/);
   assert.match(anonymousHtml, /参考候補 <span class="obs-fold-count">1<\/span>/);
-  assert.match(anonymousHtml, /この写真からの自動候補。確定名ではありません。/);
+  assert.match(anonymousHtml, /花資源としての役割/);
+  assert.match(anonymousHtml, /刈られ方、踏まれ方、乾きやすさ/);
+  assert.doesNotMatch(anonymousHtml, /この写真からの自動候補。確定名ではありません。/);
   assert.doesNotMatch(anonymousHtml, /観測レコードにする/);
   assert.doesNotMatch(anonymousHtml, /写っている対象として知らせる/);
   assert.match(loggedInNonOwnerHtml, /写っている対象として知らせる/);
@@ -326,7 +329,7 @@ test("visible record fixture surfaces plant, bee, grass, and folds low-confidenc
   const videoHtml = renderVisibleRecordItemsPanel(anonymousItems, { hasPhotos: false, hasVideos: true });
   assert.match(videoHtml, /この映像に写っているもの/);
   assert.match(videoHtml, /写っているもの/);
-  assert.match(videoHtml, /この映像からの自動候補。確定名ではありません。/);
+  assert.match(videoHtml, /この場所でのふるまい/);
 });
 
 test("visible record card keeps the history after an AI candidate is adopted", () => {
@@ -426,12 +429,12 @@ test("visible record card keeps the history after an AI candidate is adopted", (
     isOwner: true,
   }));
 
-  assert.match(html, /AI候補から見つけたもの/);
-  assert.match(html, /AI候補を、同じ場面に写る対象として分けています/);
   assert.match(html, /セイヨウミツバチ/);
-  assert.match(html, /AIが写真から分けた観測レコード/);
-  assert.match(html, /最初から同じ場面に写っている対象として分けています/);
-  assert.match(html, /周りの草/);
+  assert.match(html, /花に来た虫/);
+  assert.match(html, /草地と裸地/);
+  assert.match(html, /どの花に来ていたか/);
+  assert.doesNotMatch(html, /AI候補から見つけたもの/);
+  assert.doesNotMatch(html, /AIが写真から分けた観測レコード/);
 });
 
 test("community subject proposal is separated from owner-only candidate adoption", () => {
