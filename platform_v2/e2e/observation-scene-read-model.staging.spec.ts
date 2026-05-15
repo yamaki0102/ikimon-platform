@@ -117,9 +117,10 @@ test.describe.serial("observation scene read model visual QA", () => {
           expect(firstViewportText).toContain("名前のいま");
         }
         expect(firstViewportText).toContain("ヒメイワダレソウ");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("一緒に写ってるかも");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("周りの草");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "小さな黒い点" })).toContainText("参考");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("花に来た虫");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("草地と裸地");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "小さな黒い点" })).toContainText("仮説");
+        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).not.toContainText("AIが写真から分けた観測レコード");
         await expect(page.locator("[data-annotation-target]").first()).toBeVisible();
         await page.locator(".obs-media-discovery-target").filter({ hasText: "セイヨウミツバチ" }).first().click();
         await expect(page.locator(".obs-media-discovery-target").filter({ hasText: "セイヨウミツバチ" }).first()).toHaveClass(/is-current/);
