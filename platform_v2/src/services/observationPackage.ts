@@ -53,6 +53,8 @@ export type ObservationPackageOccurrence = {
   visitId: string;
   scientificName: string | null;
   vernacularName: string | null;
+  priorAiName?: string | null;
+  priorAiRank?: string | null;
   taxonRank: string | null;
   confidenceScore: number | null;
   evidenceTier: number | null;
@@ -372,6 +374,8 @@ export async function buildObservationPackage(
     scientific_name: string | null;
     vernacular_name: string | null;
     taxon_rank: string | null;
+    prior_ai_name: string | null;
+    prior_ai_rank: string | null;
     confidence_score: string | number | null;
     evidence_tier: string | number | null;
     quality_grade: string | null;
@@ -383,12 +387,24 @@ export async function buildObservationPackage(
             scientific_name,
             vernacular_name,
             taxon_rank,
+            prior_ai.recommended_taxon_name AS prior_ai_name,
+            prior_ai.recommended_rank AS prior_ai_rank,
             confidence_score::text AS confidence_score,
             evidence_tier::text AS evidence_tier,
             quality_grade,
             occurrence_status,
             source_payload
        FROM occurrences
+       LEFT JOIN LATERAL (
+         SELECT recommended_taxon_name,
+                recommended_rank
+           FROM observation_ai_assessments
+          WHERE occurrence_id = occurrences.occurrence_id
+            AND nullif(recommended_taxon_name, '') IS NOT NULL
+            AND confidence_band IN ('high', 'medium')
+          ORDER BY generated_at DESC
+          LIMIT 1
+       ) prior_ai ON true
       WHERE visit_id = $1
       ORDER BY CASE WHEN occurrence_id = $2 THEN 0 ELSE 1 END, subject_index ASC, created_at ASC`,
     [visitId, input.targetOccurrenceId ?? input.occurrenceId ?? ""],
@@ -403,6 +419,8 @@ export async function buildObservationPackage(
       visitId: row.visit_id,
       scientificName: row.scientific_name,
       vernacularName: row.vernacular_name,
+      priorAiName: row.prior_ai_name,
+      priorAiRank: row.prior_ai_rank,
       taxonRank: row.taxon_rank,
       confidenceScore: toNumber(row.confidence_score),
       evidenceTier,
@@ -735,10 +753,20 @@ export function summarizeObservationPackageForPrompt(pkg: ObservationPackage | n
   const target = pkg.occurrences[0] ?? null;
   const mediaRoles = [...new Set(pkg.evidenceAssets.map((asset) => asset.mediaRole))].filter(Boolean);
   const missing = pkg.feedbackPayload?.missingEvidence?.slice(0, 4) ?? [];
+  const observedSubjects = pkg.occurrences
+    .slice(0, 10)
+    .map((occurrence, index) => {
+      const name = occurrence.vernacularName || occurrence.scientificName || occurrence.priorAiName || "未同定";
+      const rank = occurrence.taxonRank || occurrence.priorAiRank || "unknown";
+      const confidence = occurrence.confidenceScore !== null ? ` confidence=${occurrence.confidenceScore}` : "";
+      return `${index + 1}:${name} (${rank}${confidence})`;
+    })
+    .join(" / ");
   return [
     `package=${pkg.packageId}`,
     `visit=${pkg.visit.visitId}`,
     `place=${pkg.visit.observedPrefecture ?? ""}/${pkg.visit.observedMunicipality ?? ""}`,
+    observedSubjects ? `observed_subjects=${observedSubjects}` : "",
     `safe_rank=${target?.safePublicRank ?? "unknown"}`,
     `evidence_tier=${target?.evidenceTier ?? "none"}`,
     `review=${pkg.reviewState.reviewStatus}`,
