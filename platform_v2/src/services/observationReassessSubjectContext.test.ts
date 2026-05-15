@@ -60,5 +60,7 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
 
   assert.match(prompt, /observed_subjects/);
   assert.match(prompt, /candidate_readings.*observed_subjects/s);
-  assert.match(service, /observation_reassess\.md\/v5\.1/);
+  assert.match(prompt, /候補ごとに\*\*その分類群でなければ意味が薄い特徴\*\*/);
+  assert.match(prompt, /ツルニチニチソウなら/);
+  assert.match(service, /observation_reassess\.md\/v5\.2/);
 });

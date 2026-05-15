@@ -67,18 +67,18 @@ test("observation media renders boxes only for displayable regions", () => {
   const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject);
   assert.match(mediaBlock, /data-obs-image-frame/);
   assert.match(mediaBlock, /width="320" height="640"/);
-  assert.match(mediaBlock, />主対象<\/span>/);
+  assert.doesNotMatch(mediaBlock, />主対象<\/span>/);
   assert.doesNotMatch(mediaBlock, /AI 主対象 92%/);
   assert.doesNotMatch(mediaBlock, /AI 主対象/);
   assert.doesNotMatch(galleryScript, /主役/);
   assert.doesNotMatch(galleryScript, /confidenceLabel/);
   assert.match(galleryScript, /suggestedRole !== actualRole/);
-  assert.match(mediaBlock, /visible-region-fixture/);
+  assert.doesNotMatch(mediaBlock, /visible-region-fixture/);
   assert.doesNotMatch(mediaBlock, /low-confidence-hidden-fixture/);
-  assert.match(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
+  assert.doesNotMatch(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
 });
 
-test("observation media exposes tappable annotation targets", () => {
+test("observation media keeps annotation data out of the photo surface", () => {
   const annotationTargets: ObservationMediaAnnotationTarget[] = [
     {
       key: "subject:occ:media-regression:0",
@@ -94,10 +94,9 @@ test("observation media exposes tappable annotation targets", () => {
   ];
   const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject, annotationTargets);
 
-  assert.match(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
-  assert.match(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
-  assert.match(mediaBlock, /縦長fixture/);
-  assert.match(mediaBlock, /枠をタップすると対象を切り替えられます/);
+  assert.doesNotMatch(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
+  assert.doesNotMatch(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
+  assert.doesNotMatch(mediaBlock, /枠をタップすると対象を切り替えられます/);
   assert.match(galleryScript, /closest\('\[data-annotation-target\]'\)/);
 });
 
@@ -162,8 +161,8 @@ test("observation media avoids strong blue fills on large current regions", () =
     },
   ]);
 
-  assert.match(mediaBlock, /class="obs-region-box is-large-region"/);
-  assert.match(mediaBlock, /class="obs-annotation-target is-current is-large-region"/);
+  assert.doesNotMatch(mediaBlock, /class="obs-region-box is-large-region"/);
+  assert.doesNotMatch(mediaBlock, /class="obs-annotation-target is-current is-large-region"/);
   assert.doesNotMatch(OBSERVATION_MEDIA_STYLES, /rgba\(37,99,235,\.13\)/);
 });
 
@@ -209,8 +208,8 @@ test("observation media uses v2 thumbnails for legacy upload photos", () => {
   assert.match(mediaBlock, /data-obs-thumb-src="\/thumb\/lg\/photos\/visit-1\/photo_1\.jpg"/);
   assert.match(mediaBlock, /data-obs-thumb-full-src="\/uploads\/photos\/visit-1\/photo_1\.jpg"/);
   assert.match(mediaBlock, /src="\/thumb\/sm\/photos\/visit-1\/photo_1\.jpg"/);
-  assert.match(mediaBlock, />周囲<\/span>/);
-  assert.match(mediaBlock, />別対象候補<\/span>/);
+  assert.doesNotMatch(mediaBlock, />周囲<\/span>/);
+  assert.doesNotMatch(mediaBlock, />別対象候補<\/span>/);
   assert.doesNotMatch(mediaBlock, /提案 周囲/);
   assert.doesNotMatch(mediaBlock, /AI 別対象候補/);
   assert.doesNotMatch(mediaBlock, /<img src="\/uploads\/photos\/visit-1\/photo_0\.webp"/);

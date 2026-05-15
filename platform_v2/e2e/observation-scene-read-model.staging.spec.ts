@@ -87,11 +87,10 @@ test.describe.serial("observation scene read model visual QA", () => {
         const href = `/observations/${encodeURIComponent(fixture.scene.visitId)}?subject=${encodeURIComponent(fixture.scene.occurrenceId)}&lang=ja`;
         await page.goto(href, { waitUntil: "domcontentloaded" });
 
-        await expect(page.locator("h1")).toContainText("浜松市で見つけた記録");
+        await expect(page.locator("h1")).toContainText("白い花の群落");
         await expect(page.locator("body")).toContainText("まず写真から分かること");
         await expect(page.locator("body")).toContainText("この写真に写っているもの");
-        await expect(page.locator("body")).toContainText("名前のいま");
-        await expect(page.locator(".obs-media-evidence-title")).toContainText("写ってるものを探す");
+        await expect(page.locator("body")).toContainText("代表候補と記録ステータス");
         await expect(page.locator(".obs-media-discovery")).toBeVisible();
         await expect(page.locator(".obs-media-discovery-target").filter({ hasText: "ヒメイワダレソウ" })).toBeVisible();
         await expect(page.locator(".obs-media-discovery-target").filter({ hasText: "セイヨウミツバチ" })).toBeVisible();
@@ -106,15 +105,14 @@ test.describe.serial("observation scene read model visual QA", () => {
         const names = await page.locator(".obs-visible-record-card .obs-focus-card-name").allInnerTexts();
         expect(names.slice(0, 3)).toEqual(["ヒメイワダレソウ", "セイヨウミツバチ", "イネ科の一種"]);
         const firstViewportText = await visibleRecordTextInFirstViewport(page);
-        expect(firstViewportText).toContain("浜松市で見つけた記録");
-        expect(firstViewportText).toContain("写真の中から選ぶ");
+        expect(firstViewportText).toContain("白い花の群落");
         expect(firstViewportText).toContain("まず写真から分かること");
         if (profile.isMobile) {
           await expectWithinFirstViewport(page, ".obs-reading-media");
           await expectWithinFirstViewport(page, ".obs-media-discovery");
           await expectWithinFirstViewport(page, ".obs-first-read");
           await expectWithinFirstViewport(page, ".obs-ai-readout");
-          expect(firstViewportText).toContain("名前のいま");
+          expect(firstViewportText).toContain("代表候補と記録ステータス");
         }
         expect(firstViewportText).toContain("ヒメイワダレソウ");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("花に来た虫");

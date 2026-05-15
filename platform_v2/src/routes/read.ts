@@ -1037,12 +1037,12 @@ const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
   .obs-reading-media { min-width: 0; order: 1; }
-  .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+  .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
   .obs-reading-kicker { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
   .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(24px, 3.6vw, 44px); line-height: 1.08; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
   .obs-reading-lead { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.6; font-weight: 700; }
   .obs-media-evidence-shell { display: grid; gap: 10px; }
-  .obs-media-evidence-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); }
+  .obs-media-evidence-head { display: none; }
   .obs-media-evidence-title { display: inline-flex; align-items: center; gap: 7px; color: #0f172a; font-size: 13px; font-weight: 950; }
   .obs-media-evidence-count { color: #475569; font-size: 11.5px; font-weight: 850; }
   .obs-media-discovery { position: relative; z-index: 5; display: grid; gap: 8px; padding: 10px 11px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(240,249,255,.9)); border: 1px solid rgba(16,185,129,.2); }
@@ -1065,7 +1065,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-brief-card span { color: #64748b; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .obs-record-brief-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
   .obs-record-brief-card small { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 750; }
-  .obs-first-read { display: grid; gap: 5px; padding: 13px 14px; border-radius: 14px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-first-read { display: grid; gap: 7px; padding: 14px; border-radius: 14px; background: linear-gradient(135deg, #ffffff, #f0fdf4); border: 1px solid rgba(16,185,129,.18); }
   .obs-first-read-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .obs-scene-overview strong { color: #0f172a; font-size: 12.5px; line-height: 1.35; font-weight: 950; }
   .obs-first-read p { margin: 0; color: #334155; font-size: 13px; line-height: 1.7; font-weight: 760; }
@@ -1086,7 +1086,7 @@ const OBSERVATION_DETAIL_STYLES = `
   @media (min-width: 960px) {
     .obs-reading-hero { grid-template-columns: minmax(0, 1.18fr) minmax(330px, .82fr); align-items: start; gap: 28px; }
     .obs-reading-media { order: 1; }
-    .obs-reading-panel { order: 2; position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow: auto; }
+    .obs-reading-panel { order: 2; }
   }
   .obs-summary-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
   .obs-summary-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); font-size: 11.5px; line-height: 1.4; }
@@ -1140,7 +1140,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-hero-byline { margin-top: 5px; font-size: 11px; }
     .obs-reading-title { font-size: 20px; line-height: 1.1; }
     .obs-hero-avatar { width: 20px; height: 20px; font-size: 10px; }
-    .obs-first-read { gap: 3px; padding: 8px 9px; border-radius: 12px; }
+    .obs-first-read { gap: 5px; padding: 10px; border-radius: 12px; }
     .obs-first-read-eye { font-size: 9.5px; letter-spacing: .06em; }
     .obs-first-read p { font-size: 11.5px; line-height: 1.35; }
     .obs-record-brief-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1469,7 +1469,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-id-vote, .obs-id-missing { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
   .obs-id-missing { padding-left: 10px; border-left: 1px solid rgba(15,23,42,.08); }
   .obs-id-action { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 11px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.1); color: #0f172a; text-decoration: none; font-size: 12px; line-height: 1.2; font-weight: 950; }
-  .obs-id-action.is-primary { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.26); }
+  .obs-id-action.is-primary { background: #d1fae5; color: #065f46; border-color: rgba(16,185,129,.32); }
   .obs-id-action.is-add { background: #eff6ff; color: #1d4ed8; border-color: rgba(59,130,246,.18); }
   @media (max-width: 640px) {
     .obs-identify-panel { padding: 16px; border-radius: 16px; }
@@ -1910,9 +1910,20 @@ function renderVisibleRecordItemsPanelForMedia(items: VisibleRecordItem[], media
 
 function sceneAtomForVisibleItem(item: VisibleRecordItem): string {
   if (/ハチ|蜂|bee/i.test(item.displayName) || /訪花/.test(item.roleLabel) || /訪花/.test(item.note ?? "")) return "訪花中のハチ";
-  if (/イネ科|草|芝|poaceae/i.test(item.displayName) || /草/.test(item.roleLabel)) return "周囲のイネ科草";
-  if (/花|葉|群落|地面|茎|ヒメイワダレソウ|イワダレソウ/.test(item.displayName) || /花|群落/.test(item.note ?? "")) return "白い花の群落";
+  if (/ツルニチニチソウ|ツルニチソウ|グランドカバー|つる/i.test(item.displayName) || /グランドカバー/.test(item.note ?? "")) return "足元のグランドカバー";
+  if (/背景|樹木|木|低木|植栽/i.test(item.displayName) || /庭木|樹木|植栽/.test(item.note ?? "")) return "背景の樹木";
+  if (/イネ科|雑草|草|芝|poaceae/i.test(item.displayName) || /草/.test(item.roleLabel)) return "周囲の草地";
+  if (/ヒメイワダレソウ|イワダレソウ/.test(item.displayName) || /白い花|群落/.test(item.note ?? "")) return "白い花の群落";
+  if (/シャクナゲ|カルミア|ツツジ|花|葉|群落|地面|茎|ヒメイワダレソウ|イワダレソウ/.test(item.displayName) || /花|群落/.test(item.note ?? "")) return "植栽の花";
   return item.displayName;
+}
+
+function formatSceneRecordTitle(items: VisibleRecordItem[], fallback: string): string {
+  const atoms = items
+    .map(sceneAtomForVisibleItem)
+    .filter((value, index, list) => value && list.indexOf(value) === index)
+    .slice(0, 3);
+  return atoms.length >= 2 ? atoms.join("・") : fallback;
 }
 
 function renderObservationSceneOverview(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext): string {
@@ -2394,9 +2405,9 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const band = aiAssessment.confidenceBand;
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
-  const headline = aiAssessment.recommendedTaxonName
-    ? hasOpenDispute ? `${aiAssessment.recommendedTaxonName}も候補の一つです。` : `${aiAssessment.recommendedTaxonName}の候補です。`
-    : hasOpenDispute ? `${subject.displayName}も候補の一つです。` : `${subject.displayName}の候補です。`;
+  const headline = hasOpenDispute
+    ? "別の見方もあるため、名前は確認中です。"
+    : "写真からの見立てです。確定名ではありません。";
   const rec = aiAssessment.recommendedTaxonName
     ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span><span class="obs-ai-readout-rank">${escapeHtml([aiAssessment.recommendedRank ? publicRankHint(aiAssessment.recommendedRank) || "候補" : "候補", bandLabel].filter(Boolean).join(" / "))}</span></div>`
     : "";
@@ -2417,10 +2428,10 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   return `<section class="obs-ai-readout ${bandClass}">
     <div class="obs-ai-readout-top">
       <div>
-        <p class="obs-hint-eyebrow">名前のいま</p>
+        <p class="obs-hint-eyebrow">代表候補と記録ステータス</p>
         <h3 class="obs-ai-readout-title">${escapeHtml(headline)}</h3>
       </div>
-      <span class="obs-ai-readout-badge">${hasOpenDispute ? "見方が割れています" : "AI推定"}</span>
+      <span class="obs-ai-readout-badge">${hasOpenDispute ? "見方が割れています" : "写真からの仮説"}</span>
     </div>
     ${rec}
     ${clueList ? `<div><p class="obs-ai-readout-section-label">そう見える理由</p>${clueList}</div>` : ""}
@@ -4869,12 +4880,12 @@ function renderSubjectEvidenceTabs(options: {
       </div>
       <div class="obs-id-actions" aria-label="${escapeHtml(`${target.name}への同定アクション`)}">
         <div class="obs-id-vote">
-          <a class="obs-id-action is-primary" href="${escapeHtml(identifyHref)}">この候補を支持</a>
-          <a class="obs-id-action" href="${escapeHtml(identifyHref)}">この候補は保留</a>
-          <a class="obs-id-action" href="${escapeHtml(identifyHref)}">この候補は違うかも</a>
+          <a class="obs-id-action is-primary" href="${escapeHtml(identifyHref)}">${escapeHtml(target.name)}を支持</a>
+          <a class="obs-id-action" href="${escapeHtml(identifyHref)}">証拠不足で保留</a>
+          <a class="obs-id-action" href="${escapeHtml(identifyHref)}">別名を提案</a>
         </div>
         <div class="obs-id-missing">
-          <a class="obs-id-action is-add" href="${escapeHtml(missingHref)}">未検出を追加</a>
+          <a class="obs-id-action is-add" href="${escapeHtml(missingHref)}">別の写り込みを追加</a>
         </div>
       </div>
     </article>`).join("")}
@@ -5366,10 +5377,6 @@ function renderObservationReadingHero(options: {
 }): string {
   return `<section id="photos" class="section obs-reading-hero" data-obs-section="photos">
     <div class="obs-reading-media obs-media-evidence-shell">
-      <div class="obs-media-evidence-head" aria-label="${escapeHtml(options.mediaDiscoveryBlock ? "写ってるものを探す" : "写真・動画・音")}">
-        <span class="obs-media-evidence-title">${options.mediaDiscoveryBlock ? "写ってるものを探す" : "写真・動画・音"}</span>
-        <span class="obs-media-evidence-count">${escapeHtml(options.mediaDiscoveryBlock ? `${options.visibleRecordCount}件 / ${options.evidenceLabel}` : options.evidenceLabel)}</span>
-      </div>
       ${options.mediaBlock}
       ${options.mediaDiscoveryBlock}
     </div>
@@ -5398,6 +5405,8 @@ function renderObservationReadingHero(options: {
         <div class="obs-current-find-kicker">${escapeHtml(options.mediaSceneLabel)}の場面</div>
         <h1 class="obs-reading-title">${escapeHtml(options.recordTitle)}</h1>
         <div class="obs-hero-byline">
+          <span class="obs-hero-when">${escapeHtml(formatAbsolute(options.observedAt))}</span>
+          <span class="obs-hero-place">${escapeHtml(options.placeLabel)}</span>
           <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
             ${options.snapshot.observerAvatarUrl
               ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(options.snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((options.observerDisplay || "?").slice(0, 1))}}))" />`
@@ -5410,7 +5419,6 @@ function renderObservationReadingHero(options: {
       ${options.summaryStrip}
       ${options.sceneOverviewBlock}
       <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
-      ${options.focusRailBlock}
       <a class="obs-original-record-link" href="${escapeHtml(options.recordsHref)}">記録一覧へ</a>
       ${options.nextActionRail}
     </aside>
@@ -12779,7 +12787,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     // 上部のアクション案内を廃止（下部 ctaBlock に関連リンクとして集約済みのため重複削除）
     const nextActionRail = "";
     void nextActions;
-    const recordTitle = formatObservationRecordTitle(snapshot.observedAt, heroPlaceLabel);
+    const recordTitle = formatSceneRecordTitle(
+      visibleRecordItems,
+      formatObservationRecordTitle(snapshot.observedAt, heroPlaceLabel),
+    );
     const heroBlock = renderObservationReadingHero({
       mediaBlock,
       snapshot,
@@ -13480,7 +13491,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
-    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${hintBlock}${layer2}${identifyBlock}${aiCandidateLearningBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${focusRailBlock}${hintBlock}${layer2}${identifyBlock}${aiCandidateLearningBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
     const detailBody = `${heroBlock}${readProgressBlock}${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");

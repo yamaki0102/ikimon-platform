@@ -56,10 +56,10 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "弱い点",
     "詳しくする撮り方",
     "地域との読み",
-    "この候補を支持",
-    "この候補は保留",
-    "この候補は違うかも",
-    "未検出を追加",
+    "を支持",
+    "証拠不足で保留",
+    "別名を提案",
+    "別の写り込みを追加",
     "足元に咲く花",
     "花を使う虫",
     "人の手が入る草地",
@@ -176,8 +176,8 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(storySource, /人の手が入る草地/);
   assert.match(detailCopySource, /同定の根拠/);
   assert.match(detailCopySource, /AIが写真から拾った仮説です/);
-  assert.match(detailCopySource, /この候補を支持/);
-  assert.match(detailCopySource, /未検出を追加/);
+  assert.match(detailCopySource, /証拠不足で保留/);
+  assert.match(detailCopySource, /別の写り込みを追加/);
   assert.doesNotMatch(detailCopySource, /obs-ai-readout-note[^}]*-webkit-line-clamp/);
 });
 
@@ -476,13 +476,14 @@ test("community subject proposal is separated from owner-only candidate adoption
   assert.doesNotMatch(subjectProposalSource, /candidate\.user_id\s*!==\s*input\.actorUserId/);
 });
 
-test("media annotations let visitors choose subjects from the photo or video surface", () => {
+test("media annotations are moved out of the photo surface", () => {
   assert.match(mediaSource, /ObservationMediaAnnotationTarget/);
   assert.match(mediaSource, /data-annotation-target/);
   assert.match(mediaSource, /data-annotation-subject-id/);
   assert.match(mediaSource, /data-annotation-candidate-id/);
   assert.match(mediaSource, /obs-video-annotation-rail/);
-  assert.match(mediaSource, /枠をタップすると対象を切り替えられます。位置はAIの参考です。/);
+  assert.match(mediaSource, /写真上の位置は参考情報です。対象の切り替えは下の一覧から行えます。/);
+  assert.match(mediaSource, /<span class="obs-annotation-layer" data-obs-preview-annotations hidden><\/span>/);
   assert.match(routeSource, /buildObservationMediaAnnotationTargets/);
   assert.match(routeSource, /renderObservationMedia\(snapshot, currentSubject, mediaAnnotationTargets\)/);
   assert.match(routeSource, /data-proposal-focus/);
