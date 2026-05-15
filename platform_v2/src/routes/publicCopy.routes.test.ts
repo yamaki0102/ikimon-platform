@@ -5,6 +5,32 @@ import { buildApp } from "../app.js";
 import { renderHomePageHtml } from "./read.js";
 import type { HomeSnapshot } from "../services/readModels.js";
 
+async function withEnv(
+  overrides: Record<string, string | undefined>,
+  run: () => Promise<void>,
+): Promise<void> {
+  const previous = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, process.env[key]);
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+  try {
+    await run();
+  } finally {
+    for (const [key, value] of previous.entries()) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 const shallowJaRoutes = [
   "/?lang=ja",
   "/records?lang=ja",
@@ -107,12 +133,12 @@ test("home hero uses the senior-friendly top A action surface", async () => {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Enjoy Life/);
-    assert.match(response.body, /いま見えている自然/);
-    assert.match(response.body, /みんなが残した写真、動画、ガイド、同定待ち/);
+    assert.match(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
+    assert.match(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
     assert.match(response.body, /記録する/);
-    assert.match(response.body, /再訪/);
-    assert.match(response.body, /近く/);
-    assert.match(response.body, /同定待ち/);
+    assert.match(response.body, /近くを見る/);
+    assert.match(response.body, /名前を確かめる/);
+    assert.match(response.body, /名前は後でいい/);
     assert.match(response.body, /マイページ/);
     assert.match(response.body, /みんなの発見/);
     assert.match(response.body, /写真/);
@@ -268,6 +294,32 @@ test("records mine tab keeps source lanes and library controls", async () => {
   } finally {
     await app.close();
   }
+});
+
+test("records mine tab frames personal history as an observation story", async () => {
+  await withEnv(
+    {
+      ALLOW_QUERY_USER_ID: "1",
+    },
+    async () => {
+      const app = buildApp();
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/records?view=mine&userId=story-user&lang=ja",
+          headers: { accept: "text/html" },
+        });
+        assert.equal(response.statusCode, 200);
+        assert.match(response.body, /自分の自然観察ストーリー/);
+        assert.match(response.body, /最初の章を始める。/);
+        assert.match(response.body, /data-kpi-action="records:story:first_record"/);
+        assert.match(response.body, /data-kpi-funnel="landing_record"/);
+        assert.match(response.body, /data-testid="records-workbench"/);
+      } finally {
+        await app.close();
+      }
+    },
+  );
 });
 
 test("guide route connects live use to outcomes and the next record", async () => {

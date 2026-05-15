@@ -8329,6 +8329,117 @@ function recordWorkbenchEntriesForView(
   return all;
 }
 
+function recordsStoryCopy(lang: SiteLang): {
+  eyebrow: string;
+  title: string;
+  lead: string;
+  latest: string;
+  revisit: string;
+  naming: string;
+  openLatest: string;
+  addRecord: string;
+  emptyTitle: string;
+  emptyLead: string;
+} {
+  if (lang === "en") {
+    return {
+      eyebrow: "My observation story",
+      title: "Turn records into a trail, not a list.",
+      lead: "Start from the last field note, revisit a place, and keep the naming work visible.",
+      latest: "Latest chapter",
+      revisit: "Place thread",
+      naming: "Name thread",
+      openLatest: "Open latest",
+      addRecord: "Add the next record",
+      emptyTitle: "Start the first chapter.",
+      emptyLead: "One photo, video, sound, place, or note is enough to begin your nature story.",
+    };
+  }
+  return {
+    eyebrow: "自分の自然観察ストーリー",
+    title: "記録を一覧ではなく、続きのある物語にする。",
+    lead: "前回の発見、よく行く場所、名前を確かめる余地を、次の行動につなげます。",
+    latest: "最新の章",
+    revisit: "場所の続き",
+    naming: "名前の続き",
+    openLatest: "最新を見る",
+    addRecord: "次の記録を足す",
+    emptyTitle: "最初の章を始める。",
+    emptyLead: "写真・動画・音・場所・ひとことのどれか1つで、自分の自然観察ストーリーが始まります。",
+  };
+}
+
+function renderRecordsStoryStrip(
+  basePath: string,
+  lang: SiteLang,
+  snapshot: LandingSnapshot,
+  ownEntries: LandingObservation[],
+): string {
+  const copy = recordsStoryCopy(lang);
+  const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
+  if (ownEntries.length === 0) {
+    return `<section class="records-story" aria-label="${escapeHtml(copy.eyebrow)}">
+      <div class="records-story-head">
+        <span>${escapeHtml(copy.eyebrow)}</span>
+        <h1>${escapeHtml(copy.emptyTitle)}</h1>
+        <p>${escapeHtml(copy.emptyLead)}</p>
+      </div>
+      <a class="records-story-primary" href="${escapeHtml(recordHref)}" data-kpi-action="records:story:first_record" data-kpi-event="primary_cta_click" data-kpi-funnel="landing_record" data-kpi-target="${escapeHtml(recordHref)}">${escapeHtml(copy.addRecord)}</a>
+    </section>`;
+  }
+
+  const latest = ownEntries[0]!;
+  const latestTitle = formatTaxonDisplayName({
+    vernacularName: latest.vernacularName,
+    scientificName: latest.scientificName,
+    displayName: latest.displayName,
+    aiCandidateName: latest.aiCandidateName,
+    fallback: latest.proposedName ?? (lang === "ja" ? "名前を確かめている記録" : "Record to identify"),
+  }, lang).primaryLabel;
+  const latestHref = notesDetailHref(basePath, lang, latest);
+  const revisitId = latest.visitId || latest.detailId || latest.occurrenceId;
+  const revisitHref = appendLangToHref(withBasePath(basePath, `/record?start=gallery&revisitObservationId=${encodeURIComponent(revisitId)}`), lang);
+  const latestPlace = notesPlaceLine(latest, lang, "owner") || (lang === "ja" ? "場所未設定" : "No place yet");
+  const namedCount = ownEntries.filter((obs) => !notesLibraryIsUncertain(obs)).length;
+  const needsNameCount = Math.max(0, ownEntries.length - namedCount);
+  const placeCount = snapshot.myPlaces.length || new Set(ownEntries.map((obs) => notesPlaceLine(obs, lang, "owner")).filter(Boolean)).size;
+  const activeDays = snapshot.habit?.activeDaysLast60 ?? 0;
+  const latestLine = `${notesLibraryDateLabel(latest, lang)} · ${latestPlace}`;
+
+  return `<section class="records-story" aria-label="${escapeHtml(copy.eyebrow)}">
+    <div class="records-story-head">
+      <span>${escapeHtml(copy.eyebrow)}</span>
+      <h1>${escapeHtml(copy.title)}</h1>
+      <p>${escapeHtml(copy.lead)}</p>
+    </div>
+    <div class="records-story-metrics" aria-label="${escapeHtml(copy.eyebrow)} metrics">
+      <span><strong>${escapeHtml(formatNotesNumber(ownEntries.length, lang))}</strong>${escapeHtml(notesItemCountLabel(ownEntries.length, lang).replace(/^[\d,.]+\s*/, ""))}</span>
+      <span><strong>${escapeHtml(formatNotesNumber(placeCount, lang))}</strong>${escapeHtml(lang === "ja" ? "場所" : "places")}</span>
+      <span><strong>${escapeHtml(formatNotesNumber(activeDays, lang))}</strong>${escapeHtml(lang === "ja" ? "観察日" : "days")}</span>
+    </div>
+    <div class="records-story-cards">
+      <a class="records-story-card is-featured" href="${escapeHtml(latestHref)}" data-kpi-action="records:story:latest">
+        <small>${escapeHtml(copy.latest)}</small>
+        <strong>${escapeHtml(latestTitle)}</strong>
+        <span>${escapeHtml(latestLine)}</span>
+        <em>${escapeHtml(copy.openLatest)}</em>
+      </a>
+      <a class="records-story-card" href="${escapeHtml(revisitHref)}" data-kpi-action="records:story:revisit" data-kpi-event="primary_cta_click" data-kpi-funnel="landing_record" data-kpi-target="${escapeHtml(revisitHref)}">
+        <small>${escapeHtml(copy.revisit)}</small>
+        <strong>${escapeHtml(latestPlace)}</strong>
+        <span>${escapeHtml(lang === "ja" ? "同じ場所で季節や個体数の変化を足す" : "Add the next change at the same place")}</span>
+        <em>${escapeHtml(copy.addRecord)}</em>
+      </a>
+      <a class="records-story-card" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=needs_id"), lang))}" data-kpi-action="records:story:naming">
+        <small>${escapeHtml(copy.naming)}</small>
+        <strong>${escapeHtml(formatNotesNumber(needsNameCount, lang))}</strong>
+        <span>${escapeHtml(lang === "ja" ? "名前を確かめる余地がある記録" : "Records still open for naming")}</span>
+        <em>${escapeHtml(lang === "ja" ? "確認待ちを見る" : "Open needs ID")}</em>
+      </a>
+    </div>
+  </section>`;
+}
+
 function renderRecordsWorkbench(
   basePath: string,
   lang: SiteLang,
@@ -8341,6 +8452,9 @@ function renderRecordsWorkbench(
   const ownEntries = snapshot.viewerUserId ? snapshot.myFeed : [];
   const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
+  const storyHtml = view === "mine" && snapshot.viewerUserId
+    ? renderRecordsStoryStrip(basePath, lang, snapshot, ownEntries)
+    : "";
   return `<div class="records-workbench" data-testid="records-workbench">
     <header class="records-topbar">
       <div class="records-topbar-brand">
@@ -8353,6 +8467,7 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <main class="records-main">
+      ${storyHtml}
       <section class="records-grid-panel" data-notes-library>
         ${renderNotesLibraryControls(lang)}
         ${entries.length > 0
@@ -8432,6 +8547,129 @@ const RECORDS_WORKBENCH_STYLES = `
     min-height: 0;
     padding: 10px 14px 14px;
   }
+  .records-story {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+    padding: 14px;
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.96)),
+      #fff;
+    box-shadow: 0 16px 42px rgba(15,23,42,.07);
+  }
+  .records-story-head {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+  .records-story-head span,
+  .records-story-card small {
+    color: #047857;
+    font-size: 11px;
+    font-weight: 950;
+  }
+  .records-story-head h1 {
+    margin: 0;
+    max-width: 22em;
+    color: #10251a;
+    font-size: clamp(22px, 2.6vw, 34px);
+    line-height: 1.14;
+    letter-spacing: 0;
+    font-weight: 950;
+  }
+  .records-story-head p {
+    margin: 0;
+    max-width: 64em;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 720;
+  }
+  .records-story-primary,
+  .records-story-card em {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: #047857;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 950;
+  }
+  .records-story-metrics {
+    display: flex;
+    gap: 8px;
+  }
+  .records-story-metrics span {
+    min-width: 74px;
+    display: grid;
+    gap: 3px;
+    padding: 9px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.74);
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 850;
+  }
+  .records-story-metrics strong {
+    color: #10251a;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-story-cards {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1.25fr 1fr 1fr;
+    gap: 10px;
+  }
+  .records-story-card {
+    min-width: 0;
+    min-height: 138px;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    padding: 13px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 12px;
+    background: #fff;
+    color: #0f172a;
+    text-decoration: none;
+  }
+  .records-story-card.is-featured {
+    background: #10251a;
+    color: #fff;
+  }
+  .records-story-card.is-featured small,
+  .records-story-card.is-featured span {
+    color: rgba(255,255,255,.72);
+  }
+  .records-story-card strong {
+    color: inherit;
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+  .records-story-card span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 760;
+  }
+  .records-story-card em {
+    justify-self: start;
+    margin-top: auto;
+    background: #fff;
+    color: #10251a;
+    border: 1px solid rgba(15,23,42,.08);
+  }
   .records-grid-panel {
     min-width: 0;
     display: grid;
@@ -8478,6 +8716,29 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
     .records-actions a.is-primary { font-size: 21px; }
     .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
+    .records-story {
+      grid-template-columns: 1fr;
+      align-items: start;
+      padding: 12px;
+      border-radius: 12px;
+    }
+    .records-story-head h1 { font-size: 22px; }
+    .records-story-head p { font-size: 13px; }
+    .records-story-metrics {
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .records-story-metrics::-webkit-scrollbar { display: none; }
+    .records-story-cards {
+      grid-template-columns: none;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(210px, 74vw);
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .records-story-cards::-webkit-scrollbar { display: none; }
+    .records-story-card { min-height: 130px; }
     .records-workbench .notes-library-controls {
       position: static;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -8533,6 +8794,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const recordForm = recordFormCopy(lang);
     const recordGuideHref = appendLangToHref(withBasePath(basePath, "/guide"), lang);
     const recordLearnHref = appendLangToHref(withBasePath(basePath, "/learn"), lang);
+    const recordLandingSnapshot = await getLandingSnapshot(viewerUserId).catch(() => null);
+    const firstRecordCandidate = recordLandingSnapshot ? recordLandingSnapshot.myFeed.length === 0 : false;
     return renderSiteDocument({
       basePath,
       title: recordCopy.title,
@@ -8615,7 +8878,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <button type="button" data-record-locate>${escapeHtml(recordCopy.locationAction)}</button>
             </div>
             <div id="record-autofill-status" class="record-autofill-status" hidden aria-live="polite"></div>
-            <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form" hidden>
+            <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" data-first-record-candidate="${firstRecordCandidate ? "1" : "0"}" class="record-form" hidden>
               <input id="record-media-photo" data-record-media-input data-capture-kind="photo" type="file" accept="image/*" capture="environment" multiple hidden />
               <input id="record-media-video" data-record-media-input data-capture-kind="video" type="file" accept="video/*" capture="environment" hidden />
               <input id="record-media" data-record-media-input data-capture-kind="gallery" type="file" accept="image/*,video/*" multiple hidden />
@@ -9140,6 +9403,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           : 'record-kpi-' + String(Date.now()) + '-' + String(Math.random()).slice(2);
         const recordStartParams = new URLSearchParams(window.location.search || '');
         const recordKpiStartMode = recordStartParams.get('start') || 'default';
+        const recordFirstRecordCandidate = Boolean(form && form.dataset && form.dataset.firstRecordCandidate === '1');
 
         const safeAllSelectedMediaFiles = () => {
           try {
@@ -9158,6 +9422,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             elapsedMs: Math.max(0, Date.now() - recordKpiStartedAt),
             captureKind: selectedCaptureKind || 'unknown',
             startMode: recordKpiStartMode,
+            firstRecordCandidate: recordFirstRecordCandidate,
             hasLocation: Boolean(coords),
             mediaCount: files.length,
             photoCount: selectedMediaFiles.length,

@@ -371,8 +371,9 @@ test.describe("landing top visual regression", () => {
       });
 
       await expect(page.locator(".prototype-topa")).toBeVisible();
-      await expect(page.locator("#landing-hero-heading")).toContainText("いま見えている自然");
+      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
       await expect(page.locator(".prototype-topa-actions")).toBeVisible();
+      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
       await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
       await expect(page.locator("#sound-intelligence")).toBeVisible();
       await expect(page.locator(".prototype-sound-flow article")).toHaveCount(4);
@@ -441,7 +442,8 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator("#landing-hero-heading")).toContainText("いま見えている自然");
+      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
+      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
       await expect(page.locator("#topa-today")).toContainText("みんなの発見");
       await expect(page.locator("#topa-photo")).toContainText("写真と動画");
       expect(await page.locator(".prototype-topa-card").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(20);
@@ -466,11 +468,11 @@ test.describe("landing top visual regression", () => {
 
       expect(metrics.scrollWidth, "production-density fixture has no horizontal scroll").toBe(metrics.clientWidth);
       if (viewport.name === "mobile") {
-        expect(metrics.firstShelfTop, "mobile shows real content before the fold").toBeLessThan(500);
-        expect(metrics.mediaShelfTop, "mobile exposes the second shelf as a next-scroll cue").toBeLessThan(900);
+        expect(metrics.firstShelfTop, "mobile shows real content after the first action block").toBeLessThan(620);
+        expect(metrics.mediaShelfTop, "mobile exposes the second shelf as a next-scroll cue").toBeLessThan(930);
         expect(metrics.visibleCards, "mobile first viewport includes multiple real cards").toBeGreaterThanOrEqual(2);
       } else {
-        expect(metrics.firstShelfTop, "desktop moves real content above the lower half").toBeLessThan(430);
+        expect(metrics.firstShelfTop, "desktop moves real content near the first action block").toBeLessThan(640);
         expect(metrics.visibleCards, "desktop first viewport gives a video-feed-like grid").toBeGreaterThanOrEqual(8);
       }
 
@@ -507,7 +509,8 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator("#landing-hero-heading")).toContainText("いま見えている自然");
+      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
+      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
       await expect(page.locator("#topa-today")).toContainText("みんなの発見");
       expect(await page.locator(".prototype-topa-card").count(), "live production card volume").toBeGreaterThan(12);
       await page.waitForFunction(() => {
