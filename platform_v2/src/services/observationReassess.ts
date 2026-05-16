@@ -959,7 +959,8 @@ async function runVisualSubjectRescue(
 返す対象:
 - 主対象とは別に写る植物、つる、低木、草本、昆虫、菌類、明確な生活形を最大 6 件。
 - 種や属まで分からなければ family/order/lifeform でよい。
-- 落葉・裸地・人工物だけの非生物は coexisting_taxa に入れず、note に環境文脈として短く含める。
+- 足元の草、イネ科草本、低い草丈、植栽、花、樹木など実体のある植生は背景扱いで捨てず、種名不明なら lifeform/family で返す。
+- 裸地・礫・踏圧・人工物だけの非生物は coexisting_taxa に入れず、note に環境文脈として短く含める。
 - 主対象の重複候補は返さない。
 
 JSONのみ:
@@ -1126,7 +1127,7 @@ export async function reassessObservation(
     // Skip when the caller forced a refresh via overridePhotos or explicit
     // sourceTag != "photo". Otherwise build the cache key from the canonical
     // inputs and try to short-circuit the Gemini call entirely.
-    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.3";
+    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.4";
     const sourceTag = options.sourceTag?.trim() || "photo";
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
@@ -1202,7 +1203,7 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
       sourceTag,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.3";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.4";
 
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);

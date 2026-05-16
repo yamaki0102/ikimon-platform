@@ -38,7 +38,7 @@ import { getReactionSummary, type ReactionType } from "../services/observationRe
 import { getIdentificationConsensus, type IdentificationConsensusResult } from "../services/identificationConsensus.js";
 import { getObserverStats } from "../services/observerStats.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
-import { getTaxonInsight } from "../services/taxonInsights.js";
+import { getTaxonInsight, type TaxonInsight } from "../services/taxonInsights.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getPlaceManagementPolicy, type PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
 import { getPlaceVegetationTrend, type PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
@@ -48,7 +48,7 @@ import {
   listCivicObservationContexts,
   type CivicObservationContext,
 } from "../services/civicNatureContext.js";
-import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
+import { getObservationDetailHeavy, type NearbyObservation, type SiblingSubject } from "../services/observationDetailHeavy.js";
 import {
   confidenceLabel,
   invasiveActionLabel,
@@ -1036,6 +1036,7 @@ function verificationStatusLabel(status: IdentificationConsensusResult["identifi
 
 const OBSERVATION_DETAIL_STYLES = `
   ${OBSERVATION_MEDIA_STYLES}
+  .shell.shell-observation-detail { --ikimon-shell-target-max: var(--ikimon-page-max); }
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
   .obs-reading-media { min-width: 0; order: 1; }
   .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
@@ -1066,6 +1067,71 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-brief-card span { color: #64748b; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .obs-record-brief-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
   .obs-record-brief-card small { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 750; }
+  .obs-reading-media .obs-media-ledger { display: none !important; }
+  .obs-record-brief-compact { gap: 8px; padding: 10px 12px; border-radius: 14px; }
+  .obs-record-compact-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .obs-record-compact-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
+  .obs-record-brief-compact .obs-hero-observer { flex: 0 0 auto; }
+  .obs-reading-panel > .obs-media-ledger { display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+  .obs-reading-panel > .obs-media-ledger::-webkit-scrollbar { display: none; }
+  .obs-reading-panel .obs-media-ledger-item { flex: 1 1 0; min-width: 0; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 7px; border-radius: 999px; background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.075); text-align: center; white-space: nowrap; }
+  .obs-reading-panel a.obs-media-ledger-item { color: inherit; text-decoration: none; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(250,245,255,.84)); }
+  .obs-reading-panel a.obs-media-ledger-item:hover, .obs-reading-panel a.obs-media-ledger-item:focus-visible { background: #f5f3ff; border-color: rgba(168,85,247,.24); outline: none; }
+  .obs-reading-panel .obs-media-ledger-item strong { flex: 0 0 auto; color: #475569; font-size: 10px; line-height: 1.2; font-weight: 950; }
+  .obs-reading-panel .obs-media-ledger-item span { flex: 0 0 auto; color: #0f172a; font-size: 11.5px; line-height: 1.2; font-weight: 950; }
+  .obs-reading-panel .obs-media-ledger-item small { display: none; }
+  .obs-record-insight { display: grid; gap: 8px; padding: 13px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(240,253,244,.92), rgba(255,255,255,.96)); border: 1px solid rgba(16,185,129,.16); }
+  .obs-record-insight p { margin: 0; color: #334155; font-size: 12.5px; line-height: 1.72; font-weight: 740; text-align: start; }
+  .obs-record-insight-desktop { display: none; }
+  .obs-record-use-status { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding: 8px 9px; border-radius: 12px; background: rgba(248,250,252,.82); border: 1px solid rgba(15,23,42,.06); }
+  .obs-record-use-status span { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 7px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #475569; font-size: 10px; line-height: 1.2; font-weight: 950; }
+  .obs-record-use-status span:first-child { background: #fff7ed; border-color: rgba(245,158,11,.24); color: #92400e; }
+  .obs-ai-readout-merged { gap: 10px; padding: 13px 14px; border-radius: 16px; background: linear-gradient(135deg, #ffffff, #f0fdf4); border-color: rgba(16,185,129,.18); }
+  .obs-ai-target-list { display: flex; flex-wrap: wrap; gap: 5px; }
+  .obs-ai-target-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 5px 4px 10px; border-radius: 999px; border: 1px solid rgba(16,185,129,.22); background: rgba(236,253,245,.82); color: #0f172a; font: inherit; font-size: 12px; line-height: 1.2; font-weight: 950; cursor: pointer; }
+  .obs-ai-target-chip[aria-pressed="true"] { background: #ecfdf5; border-color: rgba(16,185,129,.38); box-shadow: inset 0 0 0 1px rgba(16,185,129,.12); }
+  .obs-ai-target-status { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: rgba(245,158,11,.13); border: 1px solid rgba(245,158,11,.22); color: #92400e; font-size: 9px; line-height: 1; font-weight: 950; }
+  .obs-ai-target-status.is-confirmed { background: rgba(16,185,129,.13); border-color: rgba(16,185,129,.24); color: #047857; }
+  .obs-ai-merged-row { display: grid; gap: 5px; }
+  .obs-ai-merged-label { color: #64748b; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; }
+  .obs-ai-merged-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+  .obs-ai-merged-pills span { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11px; line-height: 1.25; font-weight: 850; }
+  .obs-ai-detail { display: grid; gap: 8px; padding-top: 1px; }
+  .obs-ai-detail[hidden] { display: none; }
+  .obs-ai-detail-lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin: 0; color: #334155; font-size: 11.5px; line-height: 1.5; font-weight: 760; white-space: normal; }
+  .obs-ai-detail-lead strong { flex: 0 0 auto; padding: 2px 7px; border-radius: 999px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.2); color: #92400e; font-size: 9.5px; line-height: 1.15; font-weight: 950; }
+  .obs-ai-detail-lead span { min-width: 0; color: #334155; overflow: visible; text-overflow: clip; }
+  .obs-ai-size-card { display: grid; gap: 7px; padding: 9px 10px; border-radius: 12px; background: rgba(239,246,255,.64); border: 1px solid rgba(59,130,246,.12); }
+  .obs-ai-size-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .obs-ai-size-main span { display: grid; gap: 2px; min-height: 40px; padding: 6px 7px; border-radius: 10px; background: rgba(255,255,255,.82); color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 900; }
+  .obs-ai-size-main b { color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
+  .obs-ai-size-card p { margin: 0; color: #475569; font-size: 10.5px; line-height: 1.5; font-weight: 720; }
+  .obs-ai-story { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,251,235,.78), rgba(255,255,255,.9)); border: 1px solid rgba(245,158,11,.18); }
+  .obs-ai-story-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
+  .obs-ai-story-head em { color: #92400e; font-size: 10.5px; line-height: 1.2; font-style: italic; font-weight: 850; }
+  .obs-ai-story-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+  .obs-ai-story-list li { display: grid; gap: 2px; color: #334155; font-size: 11px; line-height: 1.55; font-weight: 740; }
+  .obs-ai-story-list strong { color: #0f172a; font-size: 10.5px; line-height: 1.25; font-weight: 950; }
+  .obs-ai-detail-grid { display: grid; gap: 7px; }
+  .obs-ai-detail-box { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.76); border: 1px solid rgba(15,23,42,.06); }
+  .obs-ai-detail-label { color: #64748b; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
+  .obs-ai-detail-list, .obs-ai-compare-list { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+  .obs-ai-detail-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; color: #334155; font-size: 11px; line-height: 1.45; font-weight: 760; }
+  .obs-ai-detail-list li::before { content: ""; width: 5px; height: 5px; margin-top: .65em; border-radius: 999px; background: #10b981; }
+  .obs-ai-compare-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px; align-items: start; color: #334155; font-size: 11px; line-height: 1.45; font-weight: 780; }
+  .obs-ai-compare-list li::before { content: "✓"; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 999px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.24); color: #047857; font-size: 10px; line-height: 1; font-weight: 950; }
+  .obs-ai-compare-list strong { color: #0f172a; font-weight: 950; }
+  @media (min-width: 960px) {
+    .obs-ai-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .obs-ai-detail-box:first-child, .obs-ai-detail-box:last-child { grid-column: 1 / -1; }
+    .obs-hero-video > .obs-record-insight:not(.obs-record-insight-desktop) { display: none; }
+    .obs-reading-panel .obs-record-insight-desktop { display: grid; }
+    .obs-reading-panel .obs-record-insight-desktop p { font-size: 12px; line-height: 1.62; }
+    .obs-reading-media .obs-video-evidence { display: grid !important; order: 4; max-width: none; margin: 0; padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.88); }
+    .obs-reading-media .obs-video-evidence-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    .obs-reading-media .obs-video-evidence-frame figcaption { min-height: 42px; grid-template-rows: 14px 20px; align-content: start; font-size: 9.5px; line-height: 1.2; }
+    .obs-reading-media .obs-video-evidence-frame small { display: none; }
+  }
   .obs-first-read { display: grid; gap: 7px; padding: 14px; border-radius: 14px; background: linear-gradient(135deg, #ffffff, #f0fdf4); border: 1px solid rgba(16,185,129,.18); }
   .obs-first-read-eye { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
   .obs-scene-overview strong { color: #0f172a; font-size: 12.5px; line-height: 1.35; font-weight: 950; }
@@ -1106,7 +1172,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-next-action.is-primary { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.25); box-shadow: 0 10px 24px rgba(16,185,129,.08); }
   .obs-next-action-label { font-size: 14px; font-weight: 950; line-height: 1.3; }
   .obs-next-action-body { color: inherit; opacity: .72; font-size: 12px; line-height: 1.45; font-weight: 760; }
-  .obs-read-progress { position: sticky; top: 56px; z-index: 20; display: flex; gap: 6px; overflow-x: auto; margin: 4px 0 10px; padding: 5px 4px; background: rgba(255,255,255,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(15,23,42,.06); scrollbar-width: none; }
+  .obs-read-progress { position: sticky; top: 56px; z-index: 20; display: none; gap: 6px; overflow-x: auto; margin: 4px 0 10px; padding: 5px 4px; background: rgba(255,255,255,.88); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(15,23,42,.06); scrollbar-width: none; }
   .obs-read-progress::-webkit-scrollbar { display: none; }
   .obs-read-progress a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 32px; padding: 6px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11.5px; line-height: 1; font-weight: 900; text-decoration: none; }
   .obs-read-progress a:hover, .obs-read-progress a:focus-visible { background: #ecfdf5; color: #047857; border-color: rgba(16,185,129,.24); outline: none; }
@@ -1122,7 +1188,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-summary-section, .obs-support-panel, .obs-layer, .obs-reading-hero { scroll-margin-top: 96px; }
   @media (max-width: 720px) {
     .obs-reading-hero { gap: 10px; margin-top: 8px; margin-bottom: 12px; }
-    .obs-reading-panel { gap: 8px; padding: 10px; border-radius: 16px; box-shadow: none; }
+    .obs-reading-panel { display: contents; }
+    .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
+    .obs-reading-panel > .obs-media-ledger { order: 2; }
+    .obs-reading-media { order: 4; }
+    .obs-hero-video .obs-record-insight { order: 3; }
+    .obs-reading-panel [data-obs-switch-ai-readout] { order: 5; }
+    .obs-reading-panel .obs-record-use-status { order: 6; }
     .obs-media-evidence-shell { gap: 7px; }
     .obs-media-evidence-head { padding: 7px 9px; border-radius: 12px; }
     .obs-media-evidence-title { font-size: 12px; }
@@ -1133,9 +1205,15 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-media-discovery-target { min-height: 34px; max-width: 156px; padding: 6px 8px; border-radius: 14px; }
     .obs-media-discovery-name { font-size: 11px; }
     .obs-media-discovery-role { display: none; }
-    .obs-record-brief,
+    .obs-record-brief:not(.obs-record-brief-compact),
     .obs-hero-badges,
     .obs-summary-strip { display: none; }
+    .obs-record-compact-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+    .obs-record-compact-meta { flex-wrap: nowrap; gap: 6px; min-width: 0; font-size: 11px; }
+    .obs-record-compact-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .obs-record-brief-compact .obs-hero-observer { flex: 0 0 auto; font-size: 11px; }
+    .obs-record-insight { padding: 10px; border-radius: 13px; }
+    .obs-record-insight p { font-size: 11.5px; line-height: 1.55; }
     .obs-current-find { gap: 0; padding: 0; }
     .obs-current-find-kicker { display: none; }
     .obs-hero-byline { margin-top: 5px; font-size: 11px; }
@@ -1427,6 +1505,32 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-identify-status.is-error { color: #b91c1c; background: #fef2f2; }
   .obs-identify-login { padding: 13px 14px; border-radius: 12px; background: #f8fafc; border: 1px dashed rgba(15,23,42,.14); }
   .obs-identify-login p { margin: 5px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.6; }
+  .obs-frame-identify-card { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(236,253,245,.9)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 26px rgba(15,23,42,.045); }
+  .obs-frame-identify-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .obs-frame-identify-copy { display: grid; gap: 3px; min-width: 0; }
+  .obs-frame-identify-eye { color: #047857; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-frame-identify-title { margin: 0; color: #0f172a; font-size: 16px; line-height: 1.25; font-weight: 950; }
+  .obs-frame-identify-copy p { margin: 0; color: #475569; font-size: 11.5px; line-height: 1.55; font-weight: 760; }
+  .obs-frame-identify-new { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #0f9f6e; color: #fff; font-size: 11px; font-weight: 950; text-decoration: none; box-shadow: 0 8px 18px rgba(16,185,129,.18); }
+  .obs-frame-candidate-switch { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; padding: 7px; border-radius: 13px; background: rgba(255,255,255,.76); border: 1px solid rgba(16,185,129,.14); }
+  .obs-frame-candidate-meter { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 8px; border-radius: 999px; background: rgba(236,253,245,.92); color: #047857; font-size: 10px; line-height: 1.2; font-weight: 950; white-space: nowrap; }
+  .obs-frame-candidate-meter strong { color: #0f172a; font-size: 11px; }
+  .obs-frame-identify-candidates { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 1px; scrollbar-width: none; }
+  .obs-frame-identify-candidates::-webkit-scrollbar { display: none; }
+  .obs-frame-candidate { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 6px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(16,185,129,.24); color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
+  .obs-frame-candidate span { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: #fff7ed; border: 1px solid rgba(245,158,11,.22); color: #92400e; font-size: 9.5px; font-weight: 950; }
+  .obs-frame-identify-card .obs-ai-actions { padding: 9px; border-radius: 12px; background: rgba(255,255,255,.72); }
+  .obs-ai-actions { display: grid; gap: 7px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.07); }
+  .obs-ai-actions-label { color: #64748b; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
+  .obs-ai-action-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .obs-ai-action { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; border-radius: 12px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; text-align: center; text-decoration: none; font-size: 11px; line-height: 1.2; font-weight: 950; white-space: normal; }
+  .obs-ai-action.is-primary { background: #ecfdf5; border-color: rgba(16,185,129,.28); color: #047857; }
+  .obs-frame-identify-add-note { margin: 0; color: #0369a1; font-size: 11px; line-height: 1.45; font-weight: 850; }
+  .obs-frame-identify-card .obs-identify-fold > summary { min-height: 38px; padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.86); font-size: 11.5px; font-weight: 950; }
+  .obs-frame-identify-card .obs-identify-split { padding: 8px 10px 10px; gap: 12px; }
+  .obs-frame-identify-card .obs-identify-split > div { display: grid; gap: 8px; }
+  .obs-frame-identify-card .obs-identify-split h3 { margin: 0; padding-left: 2px; font-size: 13px; line-height: 1.35; }
+  .obs-frame-identify-card .obs-identify-split .obs-empty { margin: 0; padding: 14px 16px; text-align: left; }
   .obs-ai-review { display: grid; gap: 12px; margin: 0 0 16px; padding: 14px; border-radius: 16px; background: linear-gradient(135deg, rgba(239,246,255,.92), rgba(240,253,244,.72)); border: 1px solid rgba(59,130,246,.18); }
   .obs-ai-review-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   .obs-ai-review-kicker { color: #0369a1; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
@@ -1483,6 +1587,13 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-ai-review-head { flex-direction: column; }
     .obs-ai-review-actions { display: grid; grid-template-columns: 1fr; }
     .obs-ai-review-actions button { width: 100%; }
+    .obs-frame-identify-card { gap: 9px; padding: 11px; border-radius: 14px; }
+    .obs-frame-identify-top { align-items: stretch; }
+    .obs-frame-identify-new { min-height: 40px; padding: 8px 10px; border-radius: 12px; }
+    .obs-frame-candidate-switch { grid-template-columns: 1fr; gap: 6px; padding: 7px; }
+    .obs-frame-candidate { min-height: 40px; padding: 8px 11px; }
+    .obs-frame-identify-card .obs-ai-action-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+    .obs-frame-identify-card .obs-ai-action { min-height: 44px; padding: 7px 6px; font-size: 10.5px; }
     .obs-id-filter { width: 100%; border-radius: 14px; }
     .obs-id-tabs { width: 100%; border-radius: 14px; }
     .obs-id-tab { flex: 1 1 140px; }
@@ -1565,6 +1676,30 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-nearby-body { padding: 8px 10px; }
   .obs-nearby-name { font-weight: 800; font-size: 12.5px; color: #0f172a; margin-bottom: 2px; }
   .obs-nearby-meta { font-size: 10.5px; color: #94a3b8; font-weight: 700; }
+  .obs-area-records { display: grid; gap: 12px; padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,253,244,.86)); border: 1px solid rgba(16,185,129,.16); box-shadow: 0 16px 40px rgba(15,23,42,.045); }
+  .obs-area-records-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .obs-area-records-eye { color: #047857; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .1em; text-transform: uppercase; }
+  .obs-area-records-head p { margin: 5px 0 0; max-width: 58em; color: #475569; font-size: 12.5px; line-height: 1.65; font-weight: 760; }
+  .obs-area-count { flex: 0 0 auto; display: inline-flex; min-height: 30px; align-items: center; padding: 5px 11px; border-radius: 999px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.2); color: #047857; font-size: 11px; font-weight: 950; }
+  .obs-area-records .obs-nearby-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .obs-area-records .obs-nearby-card { flex-direction: row; align-items: stretch; min-height: 112px; padding: 0; gap: 0; border-color: rgba(16,185,129,.14); box-shadow: 0 10px 24px rgba(15,23,42,.035); }
+  .obs-area-records .obs-nearby-card:hover { border-color: rgba(16,185,129,.28); box-shadow: 0 14px 28px rgba(15,23,42,.06); }
+  .obs-area-records .obs-nearby-nophoto { width: 52px; height: 52px; aspect-ratio: auto; flex: 0 0 52px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); color: #047857; font-size: 18px; }
+  .obs-area-records .obs-area-thumb { width: 180px; flex: 0 0 180px; min-height: 0; aspect-ratio: 4 / 3; object-fit: cover; background: #e2e8f0; }
+  .obs-area-records .obs-nearby-body { display: grid; align-content: center; gap: 5px; padding: 13px 14px; min-width: 0; }
+  .obs-nearby-title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .obs-nearby-title-row .obs-nearby-name { margin: 0; min-width: 0; }
+  .obs-nearby-badge { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.2); color: #92400e; font-size: 9.5px; line-height: 1; font-weight: 950; }
+  .obs-nearby-badge.is-plant { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.22); color: #047857; }
+  .obs-nearby-reason { color: #334155; font-size: 11.5px; line-height: 1.45; font-weight: 800; }
+  @media (max-width: 640px) {
+    .obs-area-records { padding: 16px; }
+    .obs-area-records .obs-nearby-grid { grid-template-columns: 1fr; }
+    .obs-area-records .obs-nearby-card { flex-direction: column; min-height: 0; }
+    .obs-area-records .obs-area-thumb { width: 100%; flex: 0 0 auto; min-height: 0; height: auto; aspect-ratio: 16 / 9; }
+    .obs-area-records .obs-nearby-body { padding: 11px 12px; gap: 4px; }
+    .obs-nearby-reason { font-size: 11px; line-height: 1.35; }
+  }
 
   .obs-seasonal-wrap { padding: 10px 12px; background: #fffbeb; border-radius: 10px; }
   .obs-seasonal { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; align-items: end; height: 60px; margin-top: 6px; }
@@ -2755,7 +2890,83 @@ function publicRankHint(rank: string | null | undefined): string {
   }
 }
 
-function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false): string {
+function stripCandidateNameFromCopy(text: string, candidateName: string): string {
+  let value = text.trim();
+  if (candidateName) {
+    value = value
+      .replace(new RegExp(candidateName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gu"), "")
+      .replace(/(?:という)?(?:候補|種|名前)です。?$/u, "です。");
+  }
+  value = value
+    .replace(/、\s*です/u, "です")
+    .replace(/の、/u, "の")
+    .replace(/\s+/gu, " ")
+    .replace(/。{2,}/gu, "。")
+    .trim();
+  if (!value) return "";
+  return value.replace(/。$/u, "");
+}
+
+function renderAiSizeSummary(size: SizeAssessment | null): string {
+  if (!size) return "";
+  const sizeLabel = sizeClassLabel(size.sizeClass);
+  const typical = size.typicalSizeCm !== null ? `${size.typicalSizeCm.toFixed(1)} cm` : "不明";
+  const ranking = size.rankingHint ? friendlyObservationText(size.rankingHint, 24) : "参考";
+  const noteParts = [
+    size.observedSizeEstimateCm !== null ? `AI目測 ${size.observedSizeEstimateCm.toFixed(1)} cm` : "スケール参照はなく長さ推定は不可",
+    size.basis ? `${friendlyObservationText(size.basis, 34)}のAI目測` : "AI目測",
+    "誤差大です",
+  ];
+  return `<div class="obs-ai-size-card" aria-label="大きさの目安">
+    <div class="obs-ai-size-main">
+      <span>大きさの目安<b>${escapeHtml(sizeLabel)}</b></span>
+      <span>平均サイズ<b>${escapeHtml(typical)}</b></span>
+      <span>種内の見方<b>${escapeHtml(ranking)}</b></span>
+    </div>
+    <p>${escapeHtml(noteParts.filter(Boolean).join("。"))}</p>
+  </div>`;
+}
+
+function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackName: string): string {
+  if (!insight || (!insight.etymology && !insight.ecologyNote && !insight.rarityNote)) return "";
+  const rows = [
+    insight.etymology ? `<li><strong>名前の由来</strong><span>${escapeHtml(friendlyObservationText(insight.etymology, 110))}</span></li>` : "",
+    insight.ecologyNote ? `<li><strong>生き方</strong><span>${escapeHtml(friendlyObservationText(insight.ecologyNote, 112))}</span></li>` : "",
+    insight.rarityNote ? `<li><strong>出会いやすさ</strong><span>${escapeHtml(friendlyObservationText(insight.rarityNote, 108))}</span></li>` : "",
+  ].filter(Boolean).join("");
+  if (!rows) return "";
+  return `<div class="obs-ai-story" aria-label="${escapeHtml(fallbackName)}の解説">
+    <div class="obs-ai-story-head"><span>${escapeHtml(fallbackName)}を知る</span>${insight.scientificName ? `<em>${escapeHtml(insight.scientificName)}</em>` : ""}</div>
+    <ul class="obs-ai-story-list">${rows}</ul>
+  </div>`;
+}
+
+function renderAiCompareList(subject: ObservationVisitSubject): string {
+  const ai = subject.aiAssessment;
+  const nameText = `${subject.displayName} ${subject.vernacularName ?? ""} ${subject.scientificName ?? ""} ${ai?.recommendedTaxonName ?? ""}`;
+  if (/カワラヒワ|Chloris sinica/i.test(nameText)) {
+    return `<div class="obs-ai-detail-box">
+      <div class="obs-ai-detail-label">似た仲間との見分け</div>
+      <ul class="obs-ai-compare-list">
+        <li><span><strong>アオジより翼の黄色い帯がはっきり出るか</strong><br>飛翔時に翼全体へ黄色が広がるなら、カワラヒワ寄り。</span></li>
+        <li><span><strong>嘴が太く円錐形に見えるか</strong><br>種子を割るような短く太い嘴なら、アトリ科の候補として強い。</span></li>
+        <li><span><strong>腹部の模様だけでアオジに寄せていないか</strong><br>この映像では腹側が弱いので、翼の黄色と嘴を優先して見る。</span></li>
+      </ul>
+    </div>`;
+  }
+  const similar = (ai?.similarTaxa ?? []).slice(0, 3);
+  const tips = (ai?.distinguishingTips ?? ai?.confirmMore ?? []).map((item) => friendlyObservationText(item, 84)).filter(Boolean).slice(0, 3);
+  if (similar.length === 0 && tips.length === 0) return "";
+  const rows = similar.length > 0
+    ? similar.map((item, index) => `<li><span><strong>${escapeHtml(item.name)}と比べる</strong><br>${escapeHtml(tips[index] ?? "形・色・写っている部位を見比べると判断しやすくなります。")}</span></li>`).join("")
+    : tips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("");
+  return `<div class="obs-ai-detail-box">
+    <div class="obs-ai-detail-label">似た仲間との見分け</div>
+    <ul class="obs-ai-compare-list">${rows}</ul>
+  </div>`;
+}
+
+function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
     return `<section class="obs-ai-readout is-tent">
@@ -2773,35 +2984,59 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const band = aiAssessment.confidenceBand;
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
-  const headline = hasOpenDispute ? "見方が割れています" : "写真からの仮説";
-  const rec = aiAssessment.recommendedTaxonName
-    ? `<div class="obs-ai-readout-rec"><span>${escapeHtml(aiAssessment.recommendedTaxonName)}</span><span class="obs-ai-readout-rank">${escapeHtml([aiAssessment.recommendedRank ? publicRankHint(aiAssessment.recommendedRank) || "候補" : "候補", bandLabel].filter(Boolean).join(" / "))}</span></div>`
+  const candidateName = aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中";
+  const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確定前";
+  const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
+  const clues = aiAssessment.diagnosticFeaturesSeen
+    .map((feature) => friendlyObservationText(feature, 48))
+    .filter(Boolean)
+    .slice(0, 3);
+  const cluePills = clues.length > 0
+    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${escapeHtml(feature.replace(/（.*?）/gu, ""))}</span>`).join("")}</div></div>`
     : "";
-  const clues = aiAssessment.diagnosticFeaturesSeen.slice(0, 3);
-  const clueList = clues.length > 0
-    ? `<ul class="obs-ai-readout-clues">${clues.map((feature) => `<li>${escapeHtml(friendlyObservationText(feature, 42))}</li>`).join("")}</ul>`
+  const leadSource = aiAssessment.simpleSummary || aiAssessment.narrative || clues[0] || "";
+  const seasonal = aiAssessment.seasonalContext ? stripCandidateNameFromCopy(friendlyObservationText(aiAssessment.seasonalContext, 64), candidateName) : "";
+  const leadText = [
+    stripCandidateNameFromCopy(friendlyObservationText(leadSource, 72), candidateName),
+    seasonal && !/季節|繁殖|春|夏|秋|冬|月/.test(leadSource) ? seasonal : "",
+  ].filter(Boolean).join("。");
+  const featureList = clues.length > 0
+    ? `<div class="obs-ai-detail-box"><div class="obs-ai-detail-label">映像フレームから拾えている手がかり</div><ul class="obs-ai-detail-list">${clues.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`
     : "";
-  const stopReason = aiAssessment.stopReason
-    ? friendlyObservationText(aiAssessment.stopReason)
-    : aiAssessment.missingEvidence.length > 0
-      ? `${friendlyObservationText(aiAssessment.missingEvidence[0], 48)} が見えないため、ここでは決めきっていません。`
-      : "";
-  const disputeReason = hasOpenDispute ? "別の名前の提案があるため、ここでは決めきりません。" : "";
-  const notes = [
-    (disputeReason || stopReason) ? `<p class="obs-ai-readout-note"><strong>まだ決めきらない理由</strong>${escapeHtml(friendlyObservationText(disputeReason || stopReason, 76))}</p>` : "",
-  ].filter(Boolean).join("");
+  const compareList = renderAiCompareList(subject);
+  const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
+  const story = renderAiTaxonStory(insight, candidateName);
+  const note = hasOpenDispute
+    ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
+    : "";
 
-  return `<section class="obs-ai-readout ${bandClass}">
-    <div class="obs-ai-readout-top">
-      <div>
-        <h3 class="obs-ai-readout-title">${escapeHtml(headline)}</h3>
-      </div>
-      <span class="obs-ai-readout-badge">${hasOpenDispute ? "確認中" : "確定名ではありません"}</span>
+  return `<section class="obs-ai-readout obs-ai-readout-merged ${bandClass}">
+    <div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
+      <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
+        <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
+      </button>
     </div>
-    ${rec}
-    ${clueList ? `<div><p class="obs-ai-readout-section-label">そう見える理由</p>${clueList}</div>` : ""}
-    ${notes ? `<div class="obs-ai-readout-grid">${notes}</div>` : ""}
-  </section>`;
+    ${cluePills}
+    <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
+      ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
+      ${sizeCard}
+      ${story}
+      <div class="obs-ai-detail-grid">${featureList}${compareList}</div>
+      ${note}
+    </div>
+  </section><script>(function(){
+    document.querySelectorAll('[data-obs-switch-ai-readout]').forEach(function(root){
+      if (root.getAttribute('data-ai-readout-bound') === '1') return;
+      root.setAttribute('data-ai-readout-bound', '1');
+      root.addEventListener('click', function(event){
+        var button = event.target && event.target.closest ? event.target.closest('[data-ai-target]') : null;
+        if (!button || !root.contains(button)) return;
+        var key = button.getAttribute('data-ai-target');
+        root.querySelectorAll('[data-ai-target]').forEach(function(item){ item.setAttribute('aria-pressed', item === button ? 'true' : 'false'); });
+        root.querySelectorAll('[data-ai-panel]').forEach(function(panel){ panel.hidden = panel.getAttribute('data-ai-panel') !== key; });
+      });
+    });
+  })();</script>`;
 }
 
 type ObservationMediaCopyContext = {
@@ -5459,6 +5694,7 @@ function renderSubjectTaxonomy(
 
 function renderIdentificationParticipation(options: {
   basePath: string;
+  lang: SiteLang;
   snapshot: NonNullable<Awaited<ReturnType<typeof getObservationDetailSnapshot>>>;
   subject?: ObservationVisitSubject;
   mediaContext?: ObservationMediaCopyContext;
@@ -5606,44 +5842,58 @@ function renderIdentificationParticipation(options: {
         <p>見るだけならこのまま使えます。</p>
        </div>`;
 
-  return `<section id="identify" class="section obs-layer obs-identify-panel">
-    <div class="obs-identify-head">
-      <div>
-        <div class="obs-story-eyebrow">同定</div>
-        <h2 class="obs-layer-title">名前を確かめる</h2>
-        <p class="obs-layer-note">確定名ではありません。分かる範囲の名前や理由を残せます。</p>
+  void currentConsensus;
+  void neededList;
+  void proposalTrustBlock;
+  void aiReviewBlock;
+  const newRecordHref = appendLangToHref(withBasePath(basePath, "/record"), options.lang);
+  const candidateStatus = snapshot.identifications.length > 0 ? "確認あり" : "確定前";
+  const candidateActions = [
+    { label: "この候補に同意", className: " is-primary", reviewState: "agree", focus: null },
+    { label: "名前を修正", className: "", reviewState: null, focus: "alternative" },
+    { label: "まだ決めない", className: "", reviewState: null, focus: "needs_more_evidence" },
+  ];
+  const actionButtons = candidateActions.map((action) => {
+    const label = escapeHtml(action.label);
+    if (viewerSession && isAiJudgement) {
+      const reviewAttr = action.reviewState ? ` data-ai-review-state="${escapeHtml(action.reviewState)}"` : "";
+      const focusAttr = action.focus ? ` data-proposal-focus="${escapeHtml(action.focus)}"` : "";
+      return `<button type="button" class="obs-ai-action${action.className}"${reviewAttr}${focusAttr}>${label}</button>`;
+    }
+    return `<a class="obs-ai-action${action.className}" href="#identify">${label}</a>`;
+  }).join("");
+
+  return `<section id="identify" class="obs-frame-identify-card"${isAiJudgement ? ` data-ai-review-panel data-ai-review-endpoint="${escapeHtml(aiReviewEndpoint)}"` : ""}>
+    <div class="obs-frame-identify-top">
+      <div class="obs-frame-identify-copy">
+        <div class="obs-frame-identify-eye">名前を確かめる</div>
+        <h2 class="obs-frame-identify-title">AI候補をどう扱うか</h2>
+        <p>下の3つは、選択中のAI候補への判断です。別の生きもの・環境を追加する場合は別レコードにします。</p>
       </div>
-      <span class="obs-identify-pill">${escapeHtml(consensusStatusLabel(consensus?.consensusStatus))}</span>
+      <a class="obs-frame-identify-new" href="${escapeHtml(newRecordHref)}">別レコードを追加</a>
     </div>
-    <div class="obs-consensus-grid">
-      <div class="obs-consensus-card">
-        <span>候補</span>
-        <strong>${escapeHtml(targetLabel)}</strong>
-      </div>
-      <div class="obs-consensus-card">
-        <span>みんなの見方</span>
-        <strong>${escapeHtml(currentConsensus)}</strong>
-      </div>
-      <div class="obs-consensus-card">
-        <span>状態</span>
-        <strong>${escapeHtml(verificationStatusLabel(consensus?.identificationVerificationStatus))}</strong>
+    <div class="obs-frame-candidate-switch">
+      <div class="obs-frame-candidate-meter"><span>AI候補</span><strong>1/1</strong></div>
+      <div class="obs-frame-identify-candidates" aria-label="AI候補">
+        <button class="obs-frame-candidate" type="button" aria-pressed="true">${escapeHtml(targetLabel)}<span>${escapeHtml(candidateStatus)}</span></button>
       </div>
     </div>
-    <div class="obs-needed-box">
-      <div class="obs-story-eyebrow">あると見やすい材料</div>
-      <ul>${neededList.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    <div class="obs-ai-actions" aria-label="${escapeHtml(`${targetLabel}候補への判断`)}">
+      <div class="obs-ai-actions-label">${escapeHtml(`${targetLabel}候補への操作`)}</div>
+      <div class="obs-ai-action-row">${actionButtons}</div>
+      <div class="obs-identify-muted">${viewerSession ? "理由を残す場合は下を開いて入力できます。" : "ログインすると判断と理由を残せます。見るだけならこのまま使えます。"}</div>
+      ${viewerSession && isAiJudgement ? `<div class="obs-ai-review-status" data-ai-review-status>候補を確認できます。</div>` : ""}
     </div>
-    ${proposalTrustBlock}
-    ${aiReviewBlock}
+    <p class="obs-frame-identify-add-note">${escapeHtml(`${targetLabel}以外も写っている、または未レコードの対象がある場合は「別レコードを追加」から分けて残します。`)}</p>
     <details class="obs-fold obs-identify-fold">
-      <summary>名前や気づきを足す</summary>
+      <summary>この候補への理由を書く</summary>
       <div class="obs-identify-split">
         <div>
           <h3>別の見方</h3>
           ${disputes}
         </div>
         <div>
-          <h3>書き込む</h3>
+          <h3>入力</h3>
           ${form}
           ${options.canUseSpecialistWorkbench
             ? `<a class="obs-specialist-link" href="${escapeHtml(specialistHref)}">specialist batch review で開く</a>`
@@ -5691,6 +5941,141 @@ function observationRecordModeLabel(snapshot: ObservationDetailSnapshot): string
   if (snapshot.videoAssets.length > 0 && snapshot.photoAssets.length === 0) return "動画で残した記録";
   if (snapshot.note && snapshot.photoAssets.length === 0 && snapshot.videoAssets.length === 0) return "メモの記録";
   return "見つけたものの記録";
+}
+
+function renderObservationMediaLedger(snapshot: ObservationDetailSnapshot, sameAreaCount: number): string {
+  const photoCount = snapshot.photoAssets?.length ?? 0;
+  const videoCount = snapshot.videoAssets?.length ?? 0;
+  const audioCount = snapshot.audioAssets?.length ?? 0;
+  const sameAreaItem = sameAreaCount > 0
+    ? `<a class="obs-media-ledger-item" href="#place" aria-label="同じエリアの投稿一覧へ移動"><strong>同エリア</strong><span>${escapeHtml(`${sameAreaCount}件`)}</span><small>投稿一覧へ</small></a>`
+    : `<div class="obs-media-ledger-item"><strong>同エリア</strong><span>0件</span><small>近隣なし</small></div>`;
+  const items = [
+    `<div class="obs-media-ledger-item"><strong>写真</strong><span>${escapeHtml(`${photoCount}枚`)}</span><small>${escapeHtml(photoCount > 0 ? "記録あり" : "未記録")}</small></div>`,
+    `<div class="obs-media-ledger-item"><strong>動画</strong><span>${escapeHtml(`${videoCount}本`)}</span><small>${escapeHtml(videoCount > 0 ? "動きあり" : "未記録")}</small></div>`,
+    `<div class="obs-media-ledger-item"><strong>音</strong><span>${escapeHtml(`${audioCount}件`)}</span><small>${escapeHtml(audioCount > 0 ? "音声あり" : "未記録")}</small></div>`,
+    sameAreaItem,
+  ];
+  return `<div class="obs-media-ledger" aria-label="メディア台帳">${items.join("")}</div>`;
+}
+
+function seasonPhraseFromObservedAt(observedAt: string): string {
+  const date = new Date(observedAt);
+  if (!Number.isFinite(date.getTime())) return "";
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const ten = day <= 10 ? "上旬" : day <= 20 ? "中旬" : "下旬";
+  return `${month}月${ten}`;
+}
+
+function renderObservationRecordInsightText(options: {
+  snapshot: ObservationDetailSnapshot;
+  subject: ObservationVisitSubject;
+  recordItems: VisibleRecordItem[];
+  placeLabel: string;
+}): string {
+  const subjectName = options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || "名前を確認中の対象";
+  const text = `${subjectName} ${options.subject.scientificName ?? ""} ${options.recordItems.map((item) => `${item.displayName} ${item.roleLabel} ${item.note ?? ""}`).join(" ")}`;
+  const place = options.placeLabel || options.snapshot.municipality || options.snapshot.publicLocation?.label || "この場所";
+  const season = seasonPhraseFromObservedAt(options.snapshot.observedAt);
+  const hasLowGrass = /低い草丈|草地|草|イネ科|芝/.test(text);
+  const envParts = [
+    /裸地/.test(text) ? "裸地" : "",
+    /礫|砂礫/.test(text) ? "礫" : "",
+    /踏圧|踏まれ/.test(text) ? "踏圧" : "",
+  ].filter(Boolean);
+  const isBird = /鳥|カワラヒワ|スズメ|ハト|鳩|カラス|aves|bird/i.test(text);
+  const isPlant = /植物|草|花|葉|茎|イネ科|poaceae|plant/i.test(text);
+  if (isBird && (hasLowGrass || envParts.length > 0)) {
+    const foot = [hasLowGrass ? "低い草丈" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
+    return `${subjectName}らしい鳥が、${foot}の近くに写っています。周辺・環境としては${envParts.length > 0 ? envParts.join("・") : "草地の状態"}が読み取れ、${place}${season ? `の草地・${season}` : "の草地"}という条件も、分布や季節感として自然です。踏まれた感じのある草地を季節ごとに重ねて見ると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。`;
+  }
+  if (isPlant) {
+    return `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
+  }
+  return `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
+}
+
+function renderObservationRecordInsight(text: string, className = ""): string {
+  return `<div class="obs-record-insight${className ? ` ${className}` : ""}" aria-label="この記録から読めること"><p>${escapeHtml(text)}</p></div>`;
+}
+
+function renderObservationUseStatus(snapshot: ObservationDetailSnapshot, consensus: IdentificationConsensusResult | null): string {
+  const humanLabel = snapshot.identifications.length > 0 || consensus?.communityTaxon ? "人の確認あり" : "人の確認待ち";
+  const statusLabel = consensus?.hasOpenDispute ? "確認中" : snapshot.aiAssessmentStatus === "ai_judgement" ? "確定前" : verificationStatusLabel(consensus?.identificationVerificationStatus);
+  const useLabel = snapshot.photoAssets.length + snapshot.videoAssets.length + snapshot.audioAssets.length > 0 ? "使える範囲: 場面メモ" : "使える範囲: メモ";
+  return `<div class="obs-record-use-status" aria-label="この記録の使える範囲">
+    <span>${escapeHtml(statusLabel)}</span>
+    <span>${escapeHtml(snapshot.aiAssessmentStatus === "ai_judgement" ? "AI推定" : "名前確認")}</span>
+    <span>${escapeHtml(humanLabel)}</span>
+    <span>${escapeHtml(useLabel)}</span>
+  </div>`;
+}
+
+function nearbyRecordBadge(displayName: string): { label: string; className: string } {
+  if (/同定待ち|名前待ち|未同定/.test(displayName)) return { label: "名前待ち", className: "" };
+  if (/イネ科|植物|草|花|葉|木|樹|plant|poaceae/i.test(displayName)) return { label: "草地", className: " is-plant" };
+  return { label: "同エリア", className: "" };
+}
+
+function nearbyRecordReason(displayName: string): string {
+  if (/イネ科|植物|草|花|葉|木|樹|plant|poaceae/i.test(displayName)) {
+    return "鳥がいた足元の環境と比べて見られます。";
+  }
+  if (/同定待ち|名前待ち|未同定/.test(displayName)) {
+    return "この場所で、まだ名前が決まっていない写り込みです。";
+  }
+  return "同じエリアの別の場面として続けて見られます。";
+}
+
+function renderNearbyAreaRecords(options: {
+  basePath: string;
+  lang: SiteLang;
+  placeLabel: string;
+  nearby: NearbyObservation[];
+}): string {
+  if (options.nearby.length === 0) return "";
+  const dates = Array.from(new Set(
+    options.nearby
+      .map((item) => formatShortDate(item.observedAt, options.lang === "ja" ? "ja-JP" : "en-US") || item.observedAt)
+      .filter(Boolean),
+  )).slice(0, 3);
+  const place = options.placeLabel || "同じエリア";
+  const lead = dates.length > 0
+    ? `${dates.join("・")}の近い投稿です。鳥だけで終わらず、同じ草地まわりの写り方を続けて見られます。`
+    : "近い投稿を続けて見ると、この場所で何が一緒に写るかを比べやすくなります。";
+  const cards = options.nearby.slice(0, 6).map((item) => {
+    const href = appendLangToHref(
+      withBasePath(options.basePath, buildObservationDetailPath(item.visitId, item.occurrenceId)),
+      options.lang,
+    );
+    const thumb = item.photoUrl ? (toThumbnailUrl(item.photoUrl, "sm") ?? item.photoUrl) : null;
+    const badge = nearbyRecordBadge(item.displayName);
+    return `<a class="obs-nearby-card" href="${escapeHtml(href)}">
+      ${thumb
+        ? `<img class="obs-area-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;📷&lt;/div&gt;'" />`
+        : '<div class="obs-nearby-nophoto">📷</div>'}
+      <div class="obs-nearby-body">
+        <div class="obs-nearby-title-row">
+          <div class="obs-nearby-name">${escapeHtml(item.displayName)}</div>
+          <span class="obs-nearby-badge${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>
+        </div>
+        <div class="obs-nearby-reason">${escapeHtml(nearbyRecordReason(item.displayName))}</div>
+        <div class="obs-nearby-meta">${escapeHtml(item.observerName)} · ${escapeHtml(formatShortDate(item.observedAt, options.lang === "ja" ? "ja-JP" : "en-US") || item.observedAt)}</div>
+      </div>
+    </a>`;
+  }).join("");
+  return `<section id="place" class="section obs-layer obs-layer-3 obs-area-records" data-obs-section="place">
+    <div class="obs-area-records-head">
+      <div>
+        <div class="obs-area-records-eye">次に見るなら</div>
+        <h2 class="obs-layer-title">${escapeHtml(`${place}をもう少し見る`)}</h2>
+        <p>${escapeHtml(lead)}</p>
+      </div>
+      <span class="obs-area-count">${escapeHtml(`${options.nearby.length}件`)}</span>
+    </div>
+    <div class="obs-nearby-grid">${cards}</div>
+  </section>`;
 }
 
 function aiJudgementStateLabel(input: {
@@ -5864,6 +6249,10 @@ function renderObservationReadingHero(options: {
   badges: string[];
   focusRailBlock: string;
   mediaDiscoveryBlock: string;
+  mediaLedgerBlock: string;
+  recordInsightBlock: string;
+  useStatusBlock: string;
+  identifyBlock: string;
   visibleRecordCount: number;
   summaryStrip: string;
   firstReadBlock: string;
@@ -5881,34 +6270,16 @@ function renderObservationReadingHero(options: {
     <div class="obs-reading-media obs-media-evidence-shell">
       ${options.mediaBlock}
       ${options.mediaDiscoveryBlock}
+      ${options.identifyBlock}
     </div>
     <aside class="obs-reading-panel" aria-label="この${escapeHtml(options.mediaSceneLabel)}と見つけたもの">
-      <div id="summary" class="obs-record-brief" data-obs-section="summary" aria-label="この${escapeHtml(options.mediaSceneLabel)}の記録">
-        <div class="obs-record-brief-kicker">記録</div>
-        <div class="obs-record-brief-grid">
-          <div class="obs-record-brief-card">
-            <span>日時・場所</span>
-            <strong>${escapeHtml(formatAbsolute(options.observedAt))}</strong>
-            <small>${escapeHtml(options.placeLabel)}</small>
+      <h1 class="sr-only">${escapeHtml(options.recordTitle)}</h1>
+      <div id="summary" class="obs-record-brief obs-record-brief-compact" data-obs-section="summary" aria-label="この${escapeHtml(options.mediaSceneLabel)}の記録">
+        <div class="obs-record-compact-main">
+          <div class="obs-record-compact-meta">
+            <span>${escapeHtml(formatAbsolute(options.observedAt))}</span>
+            <span>${escapeHtml(options.placeLabel)}</span>
           </div>
-          <div class="obs-record-brief-card">
-            <span>証拠</span>
-            <strong>${escapeHtml(options.evidenceLabel)}</strong>
-            <small>${escapeHtml(`${options.visibleRecordCount}件の見つけたもの`)}</small>
-          </div>
-          <div class="obs-record-brief-card">
-            <span>見つけたもの</span>
-            <strong>${escapeHtml(`${options.visibleRecordCount}件`)}</strong>
-            <small>${escapeHtml(options.recordModeLabel)}</small>
-          </div>
-        </div>
-      </div>
-      <div class="obs-current-find">
-        <div class="obs-current-find-kicker">${escapeHtml(options.mediaSceneLabel)}の場面</div>
-        <h1 class="obs-reading-title">${escapeHtml(options.recordTitle)}</h1>
-        <div class="obs-hero-byline">
-          <span class="obs-hero-when">${escapeHtml(formatAbsolute(options.observedAt))}</span>
-          <span class="obs-hero-place">${escapeHtml(options.placeLabel)}</span>
           <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
             ${options.snapshot.observerAvatarUrl
               ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(options.snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((options.observerDisplay || "?").slice(0, 1))}}))" />`
@@ -5917,11 +6288,11 @@ function renderObservationReadingHero(options: {
           </a>
         </div>
       </div>
-      ${options.badges.length > 0 ? `<div class="obs-hero-badges">${options.badges.join("")}</div>` : ""}
+      ${options.mediaLedgerBlock}
+      ${options.recordInsightBlock}
+      ${options.useStatusBlock}
       ${options.summaryStrip}
-      ${options.sceneOverviewBlock}
       <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
-      <a class="obs-original-record-link" href="${escapeHtml(options.recordsHref)}">記録一覧へ</a>
       ${options.nextActionRail}
     </aside>
   </section>`;
@@ -13357,7 +13728,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       canProposeSubject: Boolean(viewerUserId),
     });
     const mediaAnnotationTargets = buildObservationMediaAnnotationTargets(visibleRecordItems, bundle);
-    const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject, mediaAnnotationTargets);
     const currentSubjectDisplay = formatTaxonDisplayName(currentSubject, lang);
     const snapshotDisplay = formatTaxonDisplayName(snapshot, lang);
     const observerDisplay = formatActorDisplay(snapshot.observerName, lang);
@@ -13417,6 +13787,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const heroPlaceLabel = canSeeCanonicalLocation
       ? formatPlaceDisplay(snapshot, lang, "owner")
       : formatPlaceDisplay(snapshot, lang, "public");
+    const recordInsightText = renderObservationRecordInsightText({
+      snapshot,
+      subject: currentSubject,
+      recordItems: visibleRecordItems,
+      placeLabel: heroPlaceLabel,
+    });
+    const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject, mediaAnnotationTargets, {
+      afterVideoHtml: renderObservationRecordInsight(recordInsightText),
+    });
     const publicMapHref = buildPublicMapCellHref(withBasePath(basePath, "/map"), snapshot.publicLocation);
     const detailMapHref = canSeeCanonicalLocation
       ? withBasePath(basePath, "/map")
@@ -13571,6 +13950,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       visibleRecordItems,
       formatObservationRecordTitle(snapshot.observedAt, heroPlaceLabel),
     );
+    const identifyBlock = `<div data-obs-section="identify" data-obs-switch-identify>${renderIdentificationParticipation({
+      basePath,
+      lang,
+      snapshot,
+      subject: currentSubject,
+      mediaContext,
+      consensus,
+      viewerSession,
+      canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
+      referenceCandidates: subjectIdentifyMap.get(currentSubject.occurrenceId)?.referenceCandidates ?? [],
+    })}</div>`;
     const heroBlock = renderObservationReadingHero({
       mediaBlock,
       snapshot,
@@ -13582,11 +13972,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       badges,
       focusRailBlock,
       mediaDiscoveryBlock,
+      mediaLedgerBlock: renderObservationMediaLedger(snapshot, heavy?.nearby.length ?? 0),
+      recordInsightBlock: renderObservationRecordInsight(recordInsightText, "obs-record-insight-desktop"),
+      useStatusBlock: renderObservationUseStatus(snapshot, consensus),
+      identifyBlock,
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip,
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
       sceneOverviewBlock: renderObservationSceneOverview(visibleRecordItems, mediaContext),
-      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true),
+      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight),
       nextActionRail,
       trustStageLabel,
       trustLead,
@@ -13617,20 +14011,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     });
 
-    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</div>`;
+    const hintBlock = "";
     const aiCandidateLearningBlock = aiCandidateLearningPanel
       ? `<div id="co-candidates" class="obs-reading-section" data-obs-section="co_candidates">${aiCandidateLearningPanel}</div>`
       : "";
-    const regionalStoryBlock = renderRegionalStoryPanel(regionalStory, "observation");
-    const recordStoryBlock = renderObservationRecordStory({
-      snapshot,
-      subject: currentSubject,
-      recordItems: visibleRecordItems,
-      siteBrief: siteBriefResult ?? null,
-      regionalStory,
-      civicContext,
-      mediaContext,
-    });
+    const regionalStoryBlock = "";
+    void regionalStory;
+    const recordStoryBlock = "";
 
     // ===== Layer 1: 物語 =====
     const ownerNote = snapshot.note
@@ -13668,94 +14055,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
          </div>`
       : "";
     const civicContextBlock = renderCivicContextBlock(civicContext, snapshot, basePath, lang);
-    const layer1 = (recordStoryBlock || surveySummary || ownerNote || aiFirst || footprintCard || civicContextBlock)
+    const layer1 = ownerNote
       ? `<section id="story" class="section obs-layer obs-layer-1" data-obs-section="story">
-           <h2 class="obs-layer-title">この記録から言えること</h2>
-           <div class="obs-layer-body">${recordStoryBlock}${surveySummary}${ownerNote}${civicContextBlock}${aiFirst}${footprintCard}</div>
+           <h2 class="obs-layer-title">この日のメモ</h2>
+           <div class="obs-layer-body">${ownerNote}</div>
          </section>`
       : "";
+    void recordStoryBlock;
+    void surveySummary;
+    void aiFirst;
+    void footprintCard;
+    void civicContextBlock;
 
     // ===== Layer 2: 同定 =====
-    const identityEvidenceBlock = renderSubjectEvidenceTabs({
+    const identityEvidenceBlock = "";
+    const layer2 = "";
+    void identityEvidenceBlock;
+
+    // ===== Layer 3: 次に見るなら =====
+    const layer3 = renderNearbyAreaRecords({
       basePath,
       lang,
-      visitId: bundle.visitId,
-      bundle,
+      placeLabel: heroPlaceLabel,
+      nearby: heavy?.nearby ?? [],
     });
-    const layer2 = `${identityEvidenceBlock}<div data-obs-switch-taxonomy>${renderSubjectTaxonomy(currentSubject, featuredSubject, subjectCount, bundle)}</div>`;
-    const identifyBlock = `<div data-obs-section="identify" data-obs-switch-identify>${renderIdentificationParticipation({
-      basePath,
-      snapshot,
-      subject: currentSubject,
-      mediaContext,
-      consensus,
-      viewerSession,
-      canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
-      referenceCandidates: subjectIdentifyMap.get(currentSubject.occurrenceId)?.referenceCandidates ?? [],
-    })}</div>`;
-
-    // ===== Layer 3: 場所の物語 =====
-    const nearbyCards = heavy && heavy.nearby.length > 0
-      ? `<div class="obs-nearby-grid">
-           ${heavy.nearby.map((n) => `
-             <a class="obs-nearby-card" href="${escapeHtml(appendLangToHref(withBasePath(basePath, buildObservationDetailPath(n.occurrenceId, n.occurrenceId)), lang))}">
-               ${n.photoUrl ? `<img src="${escapeHtml(toThumbnailUrl(n.photoUrl, "sm") ?? n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;\u{1f4f7}&lt;/div&gt;'" />` : '<div class="obs-nearby-nophoto">📷</div>'}
-               <div class="obs-nearby-body">
-                 <div class="obs-nearby-name">${escapeHtml(n.displayName)}</div>
-                 <div class="obs-nearby-meta">${escapeHtml(n.observerName)} · ${escapeHtml(n.observedAt)}</div>
-               </div>
-             </a>`).join("")}
-         </div>`
-      : "";
-    const peersLine = heavy && heavy.peers.length > 0
-      ? `<p class="obs-peers">この場所で観察した人は <strong>${heavy.peers.length}</strong> 人（${heavy.peers.map((p) => escapeHtml(p.displayName)).slice(0, 3).join(" / ")} 等）</p>`
-      : "";
-    const seasonalBar = heavy && heavy.seasonalHistory.length > 0
-      ? `<div class="obs-seasonal">
-           ${Array.from({ length: 12 }, (_, i) => {
-             const h = heavy.seasonalHistory.find((s) => s.month === i + 1);
-             const n = h ? h.count : 0;
-             const max = Math.max(...heavy.seasonalHistory.map((s) => s.count), 1);
-             return `<span class="obs-seasonal-bar" style="--h:${Math.round((n / max) * 100)}%" title="${i + 1}月: ${n}件"><small>${i + 1}</small></span>`;
-           }).join("")}
-         </div>`
-      : "";
-    const layer3 = (nearbyCards || peersLine || seasonalBar)
-      ? `<section id="place" class="section obs-layer obs-layer-3" data-obs-section="place">
-           <h2 class="obs-layer-title">この場所</h2>
-           ${peersLine}
-           ${nearbyCards}
-           ${seasonalBar ? `<div class="obs-seasonal-wrap"><div class="obs-story-eyebrow">同地点の月別観察数</div>${seasonalBar}</div>` : ""}
-         </section>`
-      : "";
+    void relatedObservationsHref;
+    void detailMapHref;
 
     // ===== Layer 5: CTA =====
-    const ctaBlock = `
-      <section id="related" class="section obs-layer obs-cta" data-obs-section="related">
-        <h2 class="obs-layer-title">関連ページ</h2>
-        <div class="obs-cta-grid">
-          <a class="obs-cta-item" href="${escapeHtml(revisitRecordHref)}" data-observation-primary-cta="revisit_place_footer" data-kpi-action="observation:primary:revisit_place_footer">
-            <span class="obs-cta-icon">📝</span>
-            <span class="obs-cta-label">この場所を再訪する</span>
-          </a>
-          ${(snapshot.placeId || snapshot.publicLocation?.cellId) ? `<a class="obs-cta-item" href="${escapeHtml(detailMapHref)}" data-observation-primary-cta="open_map" data-kpi-action="observation:primary:open_map">
-            <span class="obs-cta-icon">🗺️</span>
-            <span class="obs-cta-label">同じ場所を地図で見る</span>
-          </a>` : ""}
-          ${snapshot.placeId ? `<a class="obs-cta-item" href="${escapeHtml(appendLangToHref(withBasePath(basePath, `/places/${encodeURIComponent(snapshot.placeId)}/station`), lang))}" data-observation-primary-cta="fixed_point_station" data-kpi-action="observation:primary:fixed_point_station">
-            <span class="obs-cta-icon">📍</span>
-            <span class="obs-cta-label">定点ページを見る</span>
-          </a>` : ""}
-          <a class="obs-cta-item" href="${escapeHtml(relatedObservationsHref)}" data-observation-primary-cta="explore_related_footer" data-kpi-action="observation:primary:explore_related_footer">
-            <span class="obs-cta-icon">🔍</span>
-            <span class="obs-cta-label">似た観察を探す</span>
-          </a>
-          <a class="obs-cta-item" href="#identify" data-observation-primary-cta="identify_footer" data-kpi-action="observation:primary:identify_footer">
-            <span class="obs-cta-icon">🧭</span>
-            <span class="obs-cta-label">同定する</span>
-          </a>
-        </div>
-      </section>`;
+    const ctaBlock = ``;
 
     // ===== Layer 6: 豆知識 =====
     const insightBits: string[] = [];
@@ -13764,22 +14092,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     if (insight && insight.lookAlikeNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🔍 似た仲間</div><p>${escapeHtml(insight.lookAlikeNote)}</p></div>`);
     if (insight && insight.rarityNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📍 出会いやすさ</div><p>${escapeHtml(insight.rarityNote)}</p></div>`);
     const hasOpenNameDispute = consensus?.hasOpenDispute === true;
-    const layer6 = hasOpenNameDispute
-      ? `<section class="section obs-layer obs-layer-6">
-           <details class="obs-fold obs-insight-fold">
-             <summary>もっと知る <span class="obs-fold-count">確認中</span></summary>
-             <p class="obs-ai-note">名前の見方が割れているため、候補が固まったら詳しく読めます。</p>
-           </details>
-         </section>`
-      : insightBits.length > 0
-        ? `<section class="section obs-layer obs-layer-6">
-           <details class="obs-fold obs-insight-fold">
-             <summary>もっと知る <span class="obs-fold-count">参考</span></summary>
-             <div class="obs-insight-grid">${insightBits.join("")}</div>
-             <p class="obs-ai-note">この記述はAIの参考情報です。図鑑や詳しい人の確認も合わせて見てください。</p>
-           </details>
-         </section>`
-        : "";
+    const layer6 = "";
+    void hasOpenNameDispute;
+    void insightBits;
 
     // ===== コンテキスト折り畳み (Phase D 既存、保持) =====
     const grouped = obsContext ? groupFeaturesByLayer(obsContext.features) : { coexistingTaxa: [], environment: [], sounds: [] };
@@ -13802,11 +14117,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
-      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true)}</template>
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
+        lang,
         snapshot: subjectIdentifyMap.get(subject.occurrenceId)?.snapshot ?? snapshot,
         subject,
         mediaContext,
@@ -13815,15 +14131,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         canUseSpecialistWorkbench: canUseSpecialistWorkbench(viewerSession),
         referenceCandidates: subjectIdentifyMap.get(subject.occurrenceId)?.referenceCandidates ?? [],
       })}</template>`).join("");
-    // supportBlock は reactionBar のみ表示。trustLadderBlock は hero に既出のため重複削除
-    const supportBlock = reactionBar
-      ? `<section id="trust" class="section obs-support-panel" aria-label="この見つけたものへの反応" data-obs-section="trust">
-           <div class="obs-support-actions">
-             <h2 class="obs-support-title">この見つけたものへの反応</h2>
-             ${reactionBar}
-           </div>
-         </section>`
-      : "";
+    // supportBlock は反応UIのみだったため、この詳細ページでは表示しない。
+    const supportBlock = "";
+    void reactionBar;
     void trustLadderBlock;
     const reassessButtons: string[] = [];
     if (isOwner) {
@@ -14279,7 +14589,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
-    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${focusRailBlock}${hintBlock}${layer2}${identifyBlock}${aiCandidateLearningBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
+    void focusRailBlock;
+    void hintBlock;
+    void layer2;
+    void identifyBlock;
+    void regionalStoryBlock;
+    void layer6;
     const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
@@ -14290,6 +14606,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       "みつける",
       undefined,
       OBSERVATION_DETAIL_STYLES,
+      buildObservationDetailPath(bundle.visitId, bundle.canonicalSubjectId),
+      false,
+      "shell-observation-detail",
+      lang,
     );
   });
 

@@ -26,11 +26,13 @@ const detailCopySource = [
   sourceBetween("function renderVisibleRecordCard", "export function renderVisibleRecordItemsPanel"),
   sourceBetween("function renderVisibleRecordItemsPanel", "function renderAiCandidateLearningPanel"),
   sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
+  sourceBetween("function renderAiCompareList", "function renderHeroAiReadout"),
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
   sourceBetween("function selectOption", "function renderSizeCard"),
   sourceBetween("function renderAiCandidates", "function renderSubjectTaxonomy"),
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
+  sourceBetween("function renderObservationRecordInsightText", "function aiJudgementStateLabel"),
   sourceBetween("function renderObservationRecordStory", "function renderObservationNextActionRail"),
   sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
   sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress"),
@@ -44,45 +46,31 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "この写真に写っているもの",
     "花に来た虫",
     "草地と裸地",
-    "名前のいま",
-    "そう見える理由",
-    "まだ決めきらない理由",
     "見つけたもの",
-    "写真・動画・音",
+    "写真・動画",
     "写っているもの",
-    "AIの場面読み",
     "同定の根拠",
-    "AIが写真から拾った仮説です",
     "見えている特徴",
     "弱い点",
-    "詳しくする撮り方",
     "地域との読み",
-    "を支持",
-    "証拠不足で保留",
-    "別名を提案",
-    "別の写り込みを追加",
-    "足元に咲く花",
-    "花を使う虫",
-    "人の手が入る草地",
-    "小さな季節の物語",
-    "ほかにも写っていそうなもの",
     "観測レコードにする",
     "写っている対象として知らせる",
-    "投稿者の正式な主張ではありません",
-    "投稿者には通知され",
-    "自動候補",
     "名前を確かめる",
-    "からの提案",
-    "見分けるメモ",
+    "AI候補をどう扱うか",
+    "この候補に同意",
+    "名前を修正",
+    "まだ決めない",
+    "別レコードを追加",
+    "確定前",
+    "AI推定",
+    "次に見るなら",
+    "同じエリア",
+    "映像フレームから拾えている手がかり",
+    "似た仲間との見分け",
     "現場アドバイス",
-    "この場でやること",
-    "判断材料",
     "会社敷地の管理方針",
     "同じ場所から読む優先順位",
     "避けること",
-    "次に見つけるなら",
-    "あると見やすい材料",
-    "関連ページ",
   ]) {
     assert.match(detailCopySource, new RegExp(term));
   }
@@ -105,7 +93,6 @@ test("observation detail primary copy does not expose internal record terms", ()
     "次にできること",
     "みんなの記録に足されます",
     "次に撮るヒント",
-    "次に見る",
     "見るポイント",
     "あると便利な写真",
     "名前をみんなで確かめる",
@@ -144,6 +131,7 @@ test("observation detail primary copy does not expose internal record terms", ()
     "地域の見方が一段深くなる",
     "ところが面白い",
     "いっしょに絞るためのメモ",
+    "関連ページ",
     "完成案",
     "Photo First",
     "自己効力感",
@@ -540,7 +528,7 @@ test("media annotations are moved out of the photo surface", () => {
   assert.match(mediaSource, /summary\.hidden = true/);
   assert.match(mediaSource, /<span class="obs-annotation-layer" data-obs-preview-annotations hidden><\/span>/);
   assert.match(routeSource, /buildObservationMediaAnnotationTargets/);
-  assert.match(routeSource, /renderObservationMedia\(snapshot, currentSubject, mediaAnnotationTargets\)/);
+  assert.match(routeSource, /renderObservationMedia\(snapshot,\s*currentSubject,\s*mediaAnnotationTargets/s);
   assert.match(routeSource, /data-proposal-focus/);
   assert.match(routeSource, /regionSummary\.hidden = true/);
 });
@@ -581,6 +569,6 @@ test("identity evidence fallback keeps common planted-scene subjects specific", 
 
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
-  assert.match(routeSource, /名前の見方が割れているため、候補が固まったら詳しく読めます。/);
-  assert.match(routeSource, /renderHeroAiReadout\(currentSubject, consensus\?\.hasOpenDispute === true\)/);
+  assert.match(routeSource, /確認中/);
+  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight\)/s);
 });

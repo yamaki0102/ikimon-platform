@@ -13,26 +13,36 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function expectVideoMetaUsable(page: Page): Promise<void> {
+async function expectPolishedObservationPage(page: Page): Promise<void> {
   const metrics = await page.evaluate(() => {
-    const meta = document.querySelector<HTMLElement>(".obs-hero-video-meta");
-    const label = document.querySelector<HTMLElement>(".obs-hero-video-meta-main strong");
-    const metaRect = meta?.getBoundingClientRect();
-    const labelRect = label?.getBoundingClientRect();
+    const bodyText = document.body.textContent ?? "";
+    const ledger = document.querySelector<HTMLElement>(".obs-reading-panel > .obs-media-ledger");
+    const area = document.querySelector<HTMLElement>(".obs-area-records");
+    const small = document.querySelector<HTMLElement>(".obs-video-evidence-frame small");
     return {
-      hasVideoMeta: Boolean(meta),
-      metaText: meta?.textContent?.replace(/\s+/g, " ").trim() ?? "",
-      metaHeight: metaRect?.height ?? 0,
-      labelWidth: labelRect?.width ?? 0,
-      labelHeight: labelRect?.height ?? 0,
+      hasOldRelated: bodyText.includes("関連ページ"),
+      hasReactionPanel: bodyText.includes("この見つけたものへの反応"),
+      hasVideoFrameMetaNote: bodyText.includes("AI が動画フレーム上の対象位置を記録しています"),
+      hasFrameReasonVisible: small ? getComputedStyle(small).display !== "none" : false,
+      ledgerText: ledger?.textContent?.replace(/\s+/g, " ").trim() ?? "",
+      areaText: area?.textContent?.replace(/\s+/g, " ").trim() ?? "",
+      areaImageCount: document.querySelectorAll(".obs-area-records img, .obs-area-records .obs-nearby-nophoto").length,
+      areaHrefs: Array.from(document.querySelectorAll<HTMLAnchorElement>(".obs-area-records .obs-nearby-card")).map((anchor) => anchor.getAttribute("href") ?? ""),
+      framePreviewTargets: document.querySelectorAll(".obs-video-evidence-frame button, .obs-video-evidence-frame img[role='button']").length,
     };
   });
 
-  expect(metrics.hasVideoMeta, "target observation should expose video metadata").toBeTruthy();
-  expect(metrics.metaText).toContain("動画");
-  expect(metrics.labelWidth, "video label should not collapse into vertical text").toBeGreaterThan(20);
-  expect(metrics.labelHeight, "video label should remain one compact line").toBeLessThan(28);
-  expect(metrics.metaHeight, "video metadata row should stay compact on mobile").toBeLessThan(48);
+  expect(metrics.hasOldRelated, "old related-link block should be removed").toBe(false);
+  expect(metrics.hasReactionPanel, "reaction block should be removed").toBe(false);
+  expect(metrics.hasVideoFrameMetaNote, "duplicated video frame note should be removed").toBe(false);
+  expect(metrics.hasFrameReasonVisible, "frame selection reason should not be visible").toBe(false);
+  expect(metrics.ledgerText).toContain("写真");
+  expect(metrics.ledgerText).toContain("動画");
+  expect(metrics.ledgerText).toContain("同エリア");
+  expect(metrics.areaText).toContain("次に見るなら");
+  expect(metrics.areaImageCount, "same-area cards need thumbnail affordance").toBeGreaterThanOrEqual(2);
+  expect(metrics.areaHrefs.some((href) => /\/observations\/occ%3A/i.test(href)), "same-area cards should link to record detail, not occurrence ids").toBe(false);
+  expect(metrics.framePreviewTargets, "video frames should be clickable for preview").toBeGreaterThan(0);
 }
 
 test.describe("target observation detail local repro", () => {
@@ -44,11 +54,53 @@ test.describe("target observation detail local repro", () => {
     await expect(page.locator("body")).toContainText("AIが見た動画フレーム");
     await expect(page.locator(".obs-hero-video-frame")).toBeVisible();
     expect(await page.locator(".obs-video-evidence-frame").count()).toBeGreaterThan(0);
-    await expectVideoMetaUsable(page);
+    await expectPolishedObservationPage(page);
     await expectNoHorizontalOverflow(page);
 
     await page.screenshot({
       path: path.resolve("test-results", "observation-detail-target-mobile.png"),
+      fullPage: false,
+    });
+  });
+
+  test("desktop layout keeps the two-column polish and frame preview", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const response = await page.goto(targetPath(), { waitUntil: "domcontentloaded" });
+    expect(response?.status(), "target observation status").toBeLessThan(500);
+
+    await expect(page.locator(".obs-reading-hero")).toBeVisible();
+    await expect(page.locator(".obs-reading-panel")).toBeVisible();
+    await expectPolishedObservationPage(page);
+    await expectNoHorizontalOverflow(page);
+
+    const layoutMetrics = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>(".desktop-side-nav")?.getBoundingClientRect();
+      const hero = document.querySelector<HTMLElement>(".obs-reading-hero")?.getBoundingClientRect();
+      return {
+        navRight: nav ? Math.round(nav.right) : 0,
+        heroLeft: hero ? Math.round(hero.left) : 0,
+      };
+    });
+    expect(layoutMetrics.navRight, "collapsed side nav should not cover the reading content").toBeLessThanOrEqual(layoutMetrics.heroLeft);
+
+    const previewTarget = page.locator(".obs-video-evidence-frame button, .obs-video-evidence-frame img[role='button']").first();
+    await previewTarget.click();
+    await expect(page.locator(".obs-frame-preview.is-open")).toBeVisible();
+    await page.locator("[data-frame-zoom-in]").click();
+    const zoomMetrics = await page.evaluate(() => {
+      const stage = document.querySelector<HTMLElement>(".obs-frame-preview-stage");
+      const img = document.querySelector<HTMLElement>(".obs-frame-preview-img");
+      return {
+        zoomed: stage?.dataset.zoomed === "1" || stage?.classList.contains("is-zoomed"),
+        wider: Boolean(stage && img && img.getBoundingClientRect().width > stage.getBoundingClientRect().width * 0.9),
+        scrollable: Boolean(stage && (stage.scrollWidth > stage.clientWidth || stage.scrollHeight > stage.clientHeight)),
+      };
+    });
+    expect(zoomMetrics.zoomed).toBeTruthy();
+    expect(zoomMetrics.wider || zoomMetrics.scrollable, "zoomed preview should expose panning area").toBeTruthy();
+
+    await page.screenshot({
+      path: path.resolve("test-results", "observation-detail-target-desktop.png"),
       fullPage: false,
     });
   });

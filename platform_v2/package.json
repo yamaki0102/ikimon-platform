@@ -77,6 +77,7 @@
     "check:observation-copy": "tsx src/scripts/checkObservationCopyQuality.ts",
     "check:prompt-schema-leakage": "tsx src/scripts/checkPromptSchemaExampleLeakage.ts",
     "import:legacy-ai-assessments": "tsx src/scripts/importLegacyAiAssessments.ts",
+    "refresh:recent-observation-ai": "tsx src/scripts/refreshRecentObservationAi.ts",
     "import:feedback-knowledge": "tsx src/scripts/importObservationFeedbackKnowledgeClaims.ts",
     "import:invasive-knowledge": "tsx src/scripts/importInvasiveKnowledgeClaims.ts",
     "smoke:feedback-knowledge": "tsx src/scripts/smokeObservationFeedbackKnowledge.ts",

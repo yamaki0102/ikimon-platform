@@ -891,6 +891,10 @@ function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
 }
 
 function isReadingSurface(currentPath: string): boolean {
+  const pathname = normalizePathname(currentPath);
+  if (pathname.startsWith("/observations/")) {
+    return true;
+  }
   return (getSiteShellLayoutForPath(currentPath) ?? fallbackSiteShellLayoutKind(currentPath)) === "reading";
 }
 
@@ -3018,7 +3022,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const shellLayoutClassName = `shell-layout-${shellLayoutKind}`;
   const mainClassName = ["shell", shellLayoutClassName, shellClassName].filter(Boolean).map(escapeHtml).join(" ");
   const shouldRenderFooter = false;
-  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingSurface(currentPath) ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
+  const isReadingPage = isReadingSurface(currentPath);
+  const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
   const appLaunchHeadScript = `<script>
 (function () {
   try {
@@ -3273,6 +3278,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 
   const desktopSideNavToggle = document.querySelector('[data-desktop-side-nav-toggle]');
   const isImmersiveSurface = Boolean(document.querySelector('.site-shell.is-immersive-surface'));
+  const prefersCollapsedSideNav = Boolean(document.querySelector('.site-shell.is-reading-surface'));
   function setDesktopSideNavCollapsed(collapsed) {
     document.body.classList.toggle('is-desktop-side-nav-collapsed', collapsed);
     if (desktopSideNavToggle) {
@@ -3281,9 +3287,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     }
   }
   try {
-    setDesktopSideNavCollapsed(isImmersiveSurface || localStorage.getItem(storageKeys.desktopSideNavCollapsed) === '1');
+    setDesktopSideNavCollapsed(isImmersiveSurface || prefersCollapsedSideNav || localStorage.getItem(storageKeys.desktopSideNavCollapsed) === '1');
   } catch (_) {
-    setDesktopSideNavCollapsed(isImmersiveSurface);
+    setDesktopSideNavCollapsed(isImmersiveSurface || prefersCollapsedSideNav);
   }
   if (desktopSideNavToggle) {
     desktopSideNavToggle.addEventListener('click', () => {
@@ -5800,8 +5806,7 @@ ${alternateLinks}
       body.is-desktop-side-nav-collapsed .desktop-side-nav-link::before {
         left: 3px;
       }
-      body.is-desktop-side-nav-collapsed .desktop-side-nav-label,
-      body.is-desktop-side-nav-collapsed .brand-wordmark {
+      body.is-desktop-side-nav-collapsed .desktop-side-nav-label {
         display: none;
       }
       body.is-desktop-side-nav-collapsed .desktop-side-nav-section--secondary,
@@ -5919,6 +5924,54 @@ ${alternateLinks}
         width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-shell-margin-left) - var(--ikimon-shell-margin-right)));
         margin-left: var(--ikimon-shell-margin-left);
         margin-right: var(--ikimon-shell-margin-right);
+      }
+    }
+    @media (min-width: 1161px) {
+      body:has(.site-shell.is-reading-surface) {
+        --ikimon-desktop-sidebar-w: 64px;
+        --ikimon-reading-nav-safe-left: 104px;
+        --ikimon-reading-safe-right: 24px;
+      }
+      body:has(.site-shell.is-reading-surface) .site-header-inner {
+        grid-template-columns: 204px minmax(280px, 640px) auto;
+      }
+      body:has(.site-shell.is-reading-surface) .site-brand-cluster {
+        width: 204px;
+      }
+      body:has(.site-shell.is-reading-surface) .site-shell::after {
+        content: "";
+        position: fixed;
+        inset: 58px 0 0;
+        z-index: 60;
+        pointer-events: none;
+        background: rgba(15,23,42,.18);
+        opacity: 0;
+        transition: opacity .18s ease;
+      }
+      body:has(.site-shell.is-reading-surface):not(.is-desktop-side-nav-collapsed) .site-shell::after {
+        opacity: 1;
+      }
+      body:has(.site-shell.is-reading-surface) .shell,
+      body:has(.site-shell.is-reading-surface) .shell.shell-bleed,
+      body:has(.site-shell.is-reading-surface) .footer-inner {
+        width: min(var(--ikimon-shell-target-max), calc(100vw - var(--ikimon-reading-nav-safe-left) - var(--ikimon-reading-safe-right)));
+        margin-left: max(var(--ikimon-reading-nav-safe-left), calc((100vw - var(--ikimon-shell-target-max)) / 2));
+        margin-right: auto;
+      }
+      body:has(.site-shell.is-reading-surface) .shell.shell-map {
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+      }
+      body:has(.site-shell.is-reading-surface) .desktop-side-nav {
+        width: 64px;
+        padding-right: 0;
+        box-shadow: 10px 0 26px rgba(15,23,42,.08);
+      }
+      body:has(.site-shell.is-reading-surface):not(.is-desktop-side-nav-collapsed) .desktop-side-nav {
+        width: 204px;
+        padding-right: 10px;
+        box-shadow: 20px 0 46px rgba(15,23,42,.18);
       }
     }
     @media (max-width: 1160px) {
@@ -6153,7 +6206,7 @@ ${alternateLinks}
     ${options.extraStyles ?? ""}
   </style>
 </head>
-<body>
+<body${isReadingPage || isImmersiveSurface ? ' class="is-desktop-side-nav-collapsed"' : ""}>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   ${appLaunchScreenHtml}
   ${languageSuggestionHtml}
