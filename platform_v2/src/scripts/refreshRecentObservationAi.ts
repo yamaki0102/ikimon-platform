@@ -112,6 +112,8 @@ async function collectRecentTargets(args: Args): Promise<RecentTargetRow[]> {
         on ab.blob_id = ea.blob_id
       where ${visibilitySql}
         and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?regression[-_]?fixture)([-_]|$)'
+        and v.visit_id !~* '^(prod-photo-post|prod-media-smoke|smoke-ui)-'
+        and o.occurrence_id !~* '^(occ:)?(prod-photo-post|prod-media-smoke|smoke-ui)-'
       group by v.visit_id, o.occurrence_id, o.vernacular_name, o.scientific_name,
                v.observed_at, v.public_visibility, v.quality_review_status, v.created_at
       having count(*) filter (where ea.asset_role in ('observation_photo', 'observation_video')) > 0
