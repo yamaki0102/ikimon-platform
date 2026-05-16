@@ -84,7 +84,7 @@ const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
 const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school", "user_defined"]);
 const LIVE_OSM_TILE_Z = 14;
-const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
+const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v3";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
 const ADMIN_LAYER_LEVELS = [
@@ -324,6 +324,34 @@ function tilesForBbox(bbox: [number, number, number, number], z = LIVE_OSM_TILE_
     }
   }
   return tiles;
+}
+
+function tileBbox(tile: { z: number; x: number; y: number }): [number, number, number, number] {
+  const n = 2 ** tile.z;
+  const west = tile.x / n * 360 - 180;
+  const east = (tile.x + 1) / n * 360 - 180;
+  const northRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)));
+  const southRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * (tile.y + 1) / n)));
+  const north = northRad * 180 / Math.PI;
+  const south = southRad * 180 / Math.PI;
+  return [west, south, east, north];
+}
+
+function bboxForTiles(tiles: Array<{ z: number; x: number; y: number }>): [number, number, number, number] | null {
+  if (tiles.length === 0) return null;
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const tile of tiles) {
+    const [west, south, east, north] = tileBbox(tile);
+    minLng = Math.min(minLng, west);
+    minLat = Math.min(minLat, south);
+    maxLng = Math.max(maxLng, east);
+    maxLat = Math.max(maxLat, north);
+  }
+  if (!Number.isFinite(minLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLng) || !Number.isFinite(maxLat)) return null;
+  return [minLng, minLat, maxLng, maxLat];
 }
 
 function walkGeometryNumbers(value: unknown, visit: (lng: number, lat: number) => void): void {
@@ -610,21 +638,19 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     }];
   });
 
-  const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
-    (sources.includes("osm_park") && !features.some((feature) => feature.properties.source === "osm_park")) ||
-    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school")) ||
-    sources.includes("user_defined")
-  );
+  const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources);
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
     const cachedFeatures = cached.freshComplete ? cached.freshFeatures : [];
     if (cached.freshComplete) {
       features.push(...cachedFeatures);
     } else {
-      const live = await fetchLiveOsmAreaPolygons(query, limit - features.length);
+      const tileCoverageBbox = bboxForTiles(cached.tiles);
+      const liveQuery = tileCoverageBbox ? { ...query, bbox: tileCoverageBbox } : query;
+      const live = await fetchLiveOsmAreaPolygons(liveQuery, limit - features.length);
       if (live.ok) {
         await writeLiveOsmTileCache(cached.tiles, live.features);
-        features.push(...live.features);
+        features.push(...dedupeAreaFeatures(live.features, limit - features.length, query.bbox));
       } else {
         features.push(...cached.staleFeatures);
       }
@@ -655,6 +681,8 @@ export const __test__ = {
   liveElementToFeature,
   tileForLngLat,
   tilesForBbox,
+  tileBbox,
+  bboxForTiles,
   featureTouchesBbox,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
