@@ -68,10 +68,9 @@ for (const profile of HOME_VIEWPORTS) {
     try {
       await suppressMapLibreForSmoke(page);
       await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-      await expect(page.locator(".prototype-topa")).toBeVisible();
+      await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
       await expect(page.locator(".prototype-content-wall")).toBeVisible();
       await expect(page.locator(".prototype-content-lane").first()).toBeVisible();
-      await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible();
       await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible();
       await expect(page.locator("#topa-local-map")).toBeVisible();
       await expect(page.locator(".prototype-local-panel.is-invasive")).toBeVisible();
@@ -127,6 +126,8 @@ test("logged-in staging home shows personal guide outcomes shelf", async ({ brow
   try {
     await suppressMapLibreForSmoke(page);
     await page.goto("/?lang=ja", { waitUntil: "networkidle" });
+    await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible();
+    await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible();
     const guideShelf = page.locator("#topa-guide");
     await expect(guideShelf).toBeVisible();
     await expect(guideShelf).toContainText("ガイドの記録");

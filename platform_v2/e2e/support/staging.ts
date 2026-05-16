@@ -75,6 +75,7 @@ export function stagingContextOptions(overrides: Partial<BrowserContextOptions> 
   const user = process.env.STAGING_BASIC_AUTH_USER?.trim();
   const pass = process.env.STAGING_BASIC_AUTH_PASS?.trim();
   return {
+    baseURL: STAGING_BASE_URL,
     ignoreHTTPSErrors: true,
     httpCredentials: user && pass ? { username: user, password: pass } : undefined,
     ...overrides,
