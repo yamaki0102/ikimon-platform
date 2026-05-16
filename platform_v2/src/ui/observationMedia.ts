@@ -129,10 +129,19 @@ export const OBSERVATION_MEDIA_STYLES = `
     .obs-hero-thumb-active-label { display: none; }
     .obs-media-role-badge { left: 8px; top: 8px; min-height: 24px; padding: 5px 8px; font-size: 10px; }
     .obs-media-ai-role { left: 8px; top: 38px; min-height: 22px; padding: 4px 7px; font-size: 9px; }
+    .obs-hero-video { gap: 6px; }
+    .obs-hero-video-frame { border-radius: 16px; }
+    .obs-hero-video-meta { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; font-size: 11px; line-height: 1.25; }
+    .obs-hero-video-meta-main { min-width: max-content; white-space: nowrap; }
+    .obs-region-video-note { min-width: 0; font-size: 10.5px; line-height: 1.35; }
+    .obs-hero-video-meta > a { grid-column: 1 / -1; justify-self: end; font-size: 11px; }
     .obs-region-summary { font-size: 10.5px; line-height: 1.35; }
     .obs-video-annotation-rail { gap: 5px; padding-top: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .obs-video-annotation-rail::-webkit-scrollbar { display: none; }
     .obs-video-annotation-button { flex: 0 0 auto; min-height: 32px; padding: 6px 8px; font-size: 10.5px; }
+    .obs-video-evidence { gap: 7px; padding: 8px; }
+    .obs-video-evidence-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    .obs-video-evidence-frame figcaption { font-size: 9.5px; line-height: 1.25; }
     .obs-annotation-label { left: 4px; top: 4px; max-width: min(132px, 42vw); padding: 4px 6px; }
     .obs-annotation-label strong { font-size: 10px; }
     .obs-annotation-label small { display: none; }
