@@ -116,6 +116,11 @@ async function expectObservationTextNotClipped(page: Page): Promise<void> {
   expect(offenders, JSON.stringify(offenders, null, 2)).toEqual([]);
 }
 
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+}
+
 function smokePhotoFile(prefix: string) {
   return {
     name: `${prefix}-photo.png`,
@@ -328,6 +333,53 @@ test.describe("production candidate smoke", () => {
       });
     });
   }
+
+  test("logged-in invasive species pages render against the production candidate", async ({ browser }) => {
+    test.setTimeout(120_000);
+
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
+    const baseUrl = productionSmokeBaseUrl();
+    const prefix = productionSmokePrefix();
+    const context = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      viewport: { width: 1440, height: 900 },
+    });
+
+    try {
+      const account = await registerSmokeUser(context.request, baseUrl, prefix, "invasive");
+      await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
+      const page = await context.newPage();
+
+      await page.goto(joinUrl(baseUrl, "/learn/invasive-species?lang=ja"), { waitUntil: "domcontentloaded" });
+      await expect(page.locator("body")).toContainText("外来種を見つけたときの安全メモ");
+      await expect(page.locator("body")).toContainText("全26件");
+      for (const name of ["オオキンケイギク", "ナガエツルノゲイトウ", "ヒアリ", "ヌートリア"]) {
+        await expect(page.locator("a").filter({ hasText: name }).first()).toBeVisible();
+      }
+      await expectNoHorizontalOverflow(page);
+      await page.screenshot({ path: "test-results/production-invasive-list-desktop.png", fullPage: true });
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(joinUrl(baseUrl, "/learn/invasive-species/solenopsis-invicta?lang=ja"), { waitUntil: "domcontentloaded" });
+      await expect(page.locator("body")).toContainText("ヒアリ");
+      await expect(page.locator("body")).toContainText(/触らない|自治体や管理者/);
+      await expect(page.locator("body")).toContainText("外来生物法");
+      await expect(page.locator("a").filter({ hasText: "出典を開く" }).first()).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await page.screenshot({ path: "test-results/production-invasive-detail-mobile.png", fullPage: true });
+      await recordSmokeCheckpoint("logged_in_invasive_species_pages", {
+        listPath: "/learn/invasive-species",
+        detailPath: "/learn/invasive-species/solenopsis-invicta",
+        userId: account.userId,
+      });
+    } finally {
+      await context.close();
+    }
+  });
 
   test("logged-in field manager can save site management policy from observation UI", async ({ browser }) => {
     test.setTimeout(90_000);
