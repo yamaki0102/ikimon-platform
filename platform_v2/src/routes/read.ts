@@ -1058,6 +1058,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-media-discovery-target.is-current { border-color: rgba(37,99,235,.34); background: #eff6ff; }
   .obs-media-discovery-target.is-candidate { border-color: rgba(245,158,11,.32); background: #fffbeb; }
   .obs-media-discovery-target.is-current.is-candidate { border-color: rgba(37,99,235,.34); background: #eff6ff; }
+  .obs-media-discovery-target.is-static { cursor: default; color: #475569; background: rgba(255,255,255,.64); box-shadow: none; }
+  .obs-media-discovery-target.is-static:hover, .obs-media-discovery-target.is-static:focus-visible { border-color: rgba(15,23,42,.1); background: rgba(255,255,255,.64); }
   .obs-media-discovery-name { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.25; font-weight: 950; }
   .obs-media-discovery-role { color: #64748b; font-size: 10px; line-height: 1; font-weight: 900; }
   .obs-record-brief { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(236,253,245,.78), rgba(239,246,255,.78)); border: 1px solid rgba(16,185,129,.18); }
@@ -1505,27 +1507,29 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-identify-status.is-error { color: #b91c1c; background: #fef2f2; }
   .obs-identify-login { padding: 13px 14px; border-radius: 12px; background: #f8fafc; border: 1px dashed rgba(15,23,42,.14); }
   .obs-identify-login p { margin: 5px 0 0; color: #64748b; font-size: 12.5px; line-height: 1.6; }
-  .obs-frame-identify-card { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(236,253,245,.9)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 26px rgba(15,23,42,.045); }
+  .obs-frame-identify-card { display: grid; gap: 9px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.88); border: 1px solid rgba(16,185,129,.16); box-shadow: 0 8px 22px rgba(15,23,42,.04); }
   .obs-frame-identify-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .obs-frame-identify-copy { display: grid; gap: 3px; min-width: 0; }
-  .obs-frame-identify-eye { color: #047857; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
-  .obs-frame-identify-title { margin: 0; color: #0f172a; font-size: 16px; line-height: 1.25; font-weight: 950; }
-  .obs-frame-identify-copy p { margin: 0; color: #475569; font-size: 11.5px; line-height: 1.55; font-weight: 760; }
-  .obs-frame-identify-new { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #0f9f6e; color: #fff; font-size: 11px; font-weight: 950; text-decoration: none; box-shadow: 0 8px 18px rgba(16,185,129,.18); }
-  .obs-frame-candidate-switch { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; padding: 7px; border-radius: 13px; background: rgba(255,255,255,.76); border: 1px solid rgba(16,185,129,.14); }
+  .obs-frame-identify-eye { color: #047857; font-size: 9.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-frame-identify-title { margin: 0; color: #0f172a; font-size: 14.5px; line-height: 1.3; font-weight: 950; }
+  .obs-frame-identify-copy p { max-width: 58ch; margin: 0; color: #475569; font-size: 11px; line-height: 1.55; font-weight: 760; }
+  .obs-frame-identify-new { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; border-radius: 999px; background: #0f9f6e; color: #fff; font-size: 10.5px; line-height: 1.1; font-weight: 950; text-decoration: none; box-shadow: 0 8px 18px rgba(16,185,129,.16); }
+  .obs-frame-candidate-switch { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; padding: 7px; border-radius: 12px; background: rgba(248,250,252,.72); border: 1px solid rgba(15,23,42,.07); }
   .obs-frame-candidate-meter { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 8px; border-radius: 999px; background: rgba(236,253,245,.92); color: #047857; font-size: 10px; line-height: 1.2; font-weight: 950; white-space: nowrap; }
   .obs-frame-candidate-meter strong { color: #0f172a; font-size: 11px; }
   .obs-frame-identify-candidates { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 1px; scrollbar-width: none; }
   .obs-frame-identify-candidates::-webkit-scrollbar { display: none; }
   .obs-frame-candidate { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 6px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(16,185,129,.24); color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
   .obs-frame-candidate span { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: #fff7ed; border: 1px solid rgba(245,158,11,.22); color: #92400e; font-size: 9.5px; font-weight: 950; }
-  .obs-frame-identify-card .obs-ai-actions { padding: 9px; border-radius: 12px; background: rgba(255,255,255,.72); }
+  .obs-frame-identify-card .obs-ai-actions { padding: 8px; border-radius: 12px; background: rgba(255,255,255,.72); }
   .obs-ai-actions { display: grid; gap: 7px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.07); }
   .obs-ai-actions-label { color: #64748b; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
   .obs-ai-action-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .obs-ai-action { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; border-radius: 12px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; text-align: center; text-decoration: none; font-size: 11px; line-height: 1.2; font-weight: 950; white-space: normal; }
+  .obs-ai-action { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 8px; border-radius: 11px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; text-align: center; text-decoration: none; font-size: 10.5px; line-height: 1.2; font-weight: 950; white-space: normal; }
   .obs-ai-action.is-primary { background: #ecfdf5; border-color: rgba(16,185,129,.28); color: #047857; }
-  .obs-frame-identify-add-note { margin: 0; color: #0369a1; font-size: 11px; line-height: 1.45; font-weight: 850; }
+  .obs-identify-muted { margin: 0; color: #64748b; font-size: 10.5px; line-height: 1.45; font-weight: 760; }
+  .obs-frame-identify-card .obs-ai-review-status { font-size: 10.5px; line-height: 1.4; font-weight: 820; }
+  .obs-frame-identify-add-note { margin: 0; color: #0369a1; font-size: 10.5px; line-height: 1.45; font-weight: 820; }
   .obs-frame-identify-card .obs-identify-fold > summary { min-height: 38px; padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.86); font-size: 11.5px; font-weight: 950; }
   .obs-frame-identify-card .obs-identify-split { padding: 8px 10px 10px; gap: 12px; }
   .obs-frame-identify-card .obs-identify-split > div { display: grid; gap: 8px; }
@@ -2120,15 +2124,34 @@ function formatSceneRecordTitle(items: VisibleRecordItem[], fallback: string): s
 }
 
 function renderObservationSceneOverview(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext): string {
-  const atoms = items
-    .map(sceneAtomForVisibleItem)
-    .concat(items.length > 0 ? ["裸地・礫・踏圧"] : [])
-    .filter((value, index, list) => value && list.indexOf(value) === index)
-    .slice(0, 5);
+  const atomTargets = items
+    .map((item) => ({
+      label: sceneAtomForVisibleItem(item),
+      item,
+    }))
+    .filter((target, index, list) => target.label && list.findIndex((candidate) => candidate.label === target.label) === index)
+    .slice(0, 4);
+  const hasGroundContext = items.length > 0;
   const sceneNoun = mediaSceneNoun(mediaContext);
+  const switcher = atomTargets.length > 0 || hasGroundContext
+    ? `<div class="obs-media-discovery-rail" aria-label="${escapeHtml(`${sceneNoun}から読める要素`)}">${atomTargets.map(({ label, item }) => {
+        const attrs = [
+          `data-scene-overview-target="${escapeHtml(item.key)}"`,
+          `data-annotation-target="${escapeHtml(item.key)}"`,
+          item.occurrenceId ? `data-annotation-subject-id="${escapeHtml(item.occurrenceId)}"` : "",
+          item.candidateId ? `data-annotation-candidate-id="${escapeHtml(item.candidateId)}"` : "",
+        ].filter(Boolean).join(" ");
+        const className = [
+          "obs-media-discovery-target",
+          item.isCurrent ? "is-current" : "",
+          item.source === "candidate" ? "is-candidate" : "",
+        ].filter(Boolean).join(" ");
+        return `<button type="button" class="${className}" ${attrs} aria-label="${escapeHtml(`${label}を見る`)}"><span class="obs-media-discovery-name">${escapeHtml(label)}</span></button>`;
+      }).join("")}${hasGroundContext ? `<span class="obs-media-discovery-target is-static" aria-disabled="true"><span class="obs-media-discovery-name">裸地・礫・踏圧</span></span>` : ""}</div>`
+    : "";
   return `<article class="obs-first-read obs-scene-overview">
     <div class="obs-first-read-eye">${escapeHtml(mediaVisibleSurfaceLabel(mediaContext))}</div>
-    ${atoms.length > 0 ? `<div class="obs-media-discovery-rail" aria-label="${escapeHtml(`${sceneNoun}から読める要素`)}">${atoms.map((atom) => `<span class="obs-media-discovery-target" style="cursor:default"><span class="obs-media-discovery-name">${escapeHtml(atom)}</span></span>`).join("")}</div>` : ""}
+    ${switcher}
     <strong>AIの場面読み</strong>
     <p>${escapeHtml(sceneReadTextForVisibleItems(items, mediaContext))}</p>
   </article>`;
@@ -14171,6 +14194,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : "";
     const invasiveReportingGuidanceBlock = renderInvasiveReportingGuidanceBlock(currentSubject, basePath, lang);
     const subjectRegionMap = toSubjectRegionMap(bundle.subjects);
+    const hasAnnotationSwitchTargets = mediaAnnotationTargets.length > 0 || visibleRecordItems.some((item) => Boolean(item.occurrenceId || item.candidateId));
     const switchScript = subjectCount > 1
       ? `<script>(function(){
            var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
@@ -14288,7 +14312,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            renderSubject(currentSubjectId, false);
          })();</script>`
       : "";
-    const annotationScript = mediaAnnotationTargets.length > 0
+    const annotationScript = hasAnnotationSwitchTargets
       ? `<script>(function(){
            var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
            var baseObservationHref = ${JSON.stringify(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`))};
