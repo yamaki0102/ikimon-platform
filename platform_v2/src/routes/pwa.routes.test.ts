@@ -13,6 +13,8 @@ test("manifest is app-first and localized from device or query language", async 
     assert.equal(response.statusCode, 200);
     assert.match(response.headers["content-type"] as string, /application\/manifest\+json/);
     const manifest = JSON.parse(response.body) as {
+      name: string;
+      short_name: string;
       start_url: string;
       display: string;
       background_color: string;
@@ -20,6 +22,8 @@ test("manifest is app-first and localized from device or query language", async 
       shortcuts: Array<{ url: string }>;
       icons: Array<{ src: string; purpose?: string }>;
     };
+    assert.equal(manifest.name, "ikimon");
+    assert.equal(manifest.short_name, "ikimon");
     assert.equal(manifest.start_url, "/en/?source=pwa");
     assert.equal(manifest.display, "standalone");
     assert.equal(manifest.background_color, "#f5fbf7");
@@ -82,7 +86,7 @@ test("app outbox debug page is noindexed and reads the client outbox", async () 
     assert.match(response.body, /data-outbox-debug/);
     assert.match(response.body, /window\.ikimonAppOutbox\.all/);
     assert.match(response.body, /ikimonRequestAppOutboxSync/);
-    assert.match(response.body, /App outbox debug \| ikimon\.life/);
+    assert.match(response.body, /App outbox debug \| ikimon/);
   } finally {
     await app.close();
   }

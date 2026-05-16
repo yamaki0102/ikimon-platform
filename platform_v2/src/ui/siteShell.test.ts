@@ -48,13 +48,14 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /desktop-side-nav-section--signed-in/);
   assert.match(html, /desktop-side-nav-section--personalized/);
   assert.match(html, /data-side-nav-personalized-list/);
+  assert.doesNotMatch(html, /ログインすると、フォロー中の分類群や観察エリアをここに固定します。/);
   assert.match(html, /desktop-side-nav-mini-card/);
   assert.match(html, /class="shell shell-layout-home"/);
   assert.match(html, /href="\/ja\/records">記録を見る/);
   assert.match(html, /href="\/ja\/records" title="記録を見る"/);
   assert.doesNotMatch(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
   assert.match(html, /href="\/ja\/learn\/updates"/);
-  assert.match(html, /desktop-side-nav-section-title">今日使う/);
+  assert.doesNotMatch(html, /desktop-side-nav-section-title">今日使う/);
   assert.match(html, /desktop-side-nav-section-title">今日の続き/);
   assert.match(html, /desktop-side-nav-section-title">フォロー中/);
   assert.match(html, /desktop-side-nav-section-title">探す・見る/);
@@ -79,6 +80,11 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
+  assert.match(html, /<span class="brand-wordmark" aria-label="ikimon">/);
+  assert.doesNotMatch(html, /class="brand-domain">\.life/);
+  assert.match(html, /<meta name="application-name" content="ikimon" \/>/);
+  assert.match(html, /<meta property="og:site_name" content="ikimon" \/>/);
+  assert.match(html, /<span>ikimon<\/span>\s*<span>Enjoy Life<\/span>/);
 });
 
 test("mobile menu panel can render outside the sticky header", () => {
@@ -106,14 +112,30 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   const head = html.slice(0, html.indexOf("</head>"));
 
   assert.match(html, /class="lang-switch-label"/);
-  assert.match(html, /<span>Language<\/span>/);
+  assert.match(html, /class="lang-switch-current">EN<\/span>/);
   assert.match(html, /<span class="lang-switch-name">English<\/span>/);
+  assert.match(html, /\.lang-switch::after/);
+  assert.match(html, /\.lang-switch:hover::after,\s*\.lang-switch:focus-within::after/);
   assert.match(html, /aria-current="true"/);
   assert.match(head, /<link rel="canonical" href="https:\/\/ikimon\.life\/ja\/" \/>/);
   assert.match(head, /<meta name="robots" content="noindex,follow" \/>/);
   assert.match(head, /hreflang="ja"/);
   assert.match(head, /hreflang="x-default"/);
   assert.doesNotMatch(head, /hreflang="en"/);
+});
+
+test("site shell normalizes service name in visible page titles", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "地域カード管理 — ikimon.life",
+    body: "<p>body</p>",
+    lang: "ja",
+  });
+
+  assert.match(html, /<title>地域カード管理 — ikimon<\/title>/);
+  assert.match(html, /<meta property="og:title" content="地域カード管理 — ikimon" \/>/);
+  assert.match(html, /<meta name="twitter:title" content="地域カード管理 — ikimon" \/>/);
+  assert.doesNotMatch(html, /<title>[^<]*ikimon\.life/);
 });
 
 test("browser language handling asks before switching away from Japanese SEO entry", () => {
@@ -126,7 +148,7 @@ test("browser language handling asks before switching away from Japanese SEO ent
   });
 
   assert.match(html, /data-language-suggestion/);
-  assert.match(html, /Use ikimon\.life in English\?/);
+  assert.match(html, /Use ikimon in English\?/);
   assert.match(html, /Cambiar a español/);
   assert.match(html, /Mudar para português/);
   assert.match(html, /ikimon:locale-suggestion-dismissed-v1/);

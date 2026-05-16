@@ -166,6 +166,17 @@ function parsePrimarySubject(raw: unknown): SceneResult["primarySubject"] | null
   };
 }
 
+function parseAbsenceBoundary(raw: unknown): SceneResult["absenceBoundary"] | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const value = raw as Record<string, unknown>;
+  const rawState = String(value.state ?? "");
+  const state = rawState === "searched_not_found" || rawState === "absence_candidate"
+    ? rawState
+    : "non_detection_note";
+  const note = typeof value.note === "string" ? value.note.trim().slice(0, 220) : "";
+  return note ? { state, note } : null;
+}
+
 type PendingGuideScene = {
   sceneId: string;
   sessionId: string;
@@ -1040,6 +1051,12 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         facePrivacy,
         visualExtractModel: typeof body.visualExtractModel === "string" ? body.visualExtractModel : null,
         textModel: typeof body.textModel === "string" ? body.textModel : null,
+        guideSignals: {
+          newSignals: Array.isArray(body.newSignals) ? body.newSignals.filter((s): s is string => typeof s === "string").slice(0, 8) : [],
+          continuedSignals: Array.isArray(body.continuedSignals) ? body.continuedSignals.filter((s): s is string => typeof s === "string").slice(0, 8) : [],
+          coverageHints: Array.isArray(body.coverageHints) ? body.coverageHints.filter((s): s is string => typeof s === "string").slice(0, 8) : [],
+          absenceBoundary: parseAbsenceBoundary(body.absenceBoundary),
+        },
       },
       lang,
     });

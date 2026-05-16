@@ -21,7 +21,7 @@ export const APP_THEME_COLOR = "#d8efe3";
 
 export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   ja: {
-    name: "ikimon.life",
+    name: "ikimon",
     shortName: "ikimon",
     description: "身近な生きものを楽しみ、地域の自然を記録し、地図とガイドで見返す生物多様性アプリ。",
     installTitle: "ikimon を端末に追加",
@@ -36,7 +36,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     retry: "再接続を試す",
   },
   en: {
-    name: "ikimon.life",
+    name: "ikimon",
     shortName: "ikimon",
     description: "A field app for recording nearby nature with Guide, Record, and Map.",
     installTitle: "Add ikimon to this device",
@@ -51,7 +51,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     retry: "Try again",
   },
   es: {
-    name: "ikimon.life",
+    name: "ikimon",
     shortName: "ikimon",
     description: "Una app de campo para registrar naturaleza cercana con Guía, Registro y Mapa.",
     installTitle: "Añadir ikimon al dispositivo",
@@ -66,7 +66,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
     retry: "Intentar de nuevo",
   },
   "pt-BR": {
-    name: "ikimon.life",
+    name: "ikimon",
     shortName: "ikimon",
     description: "Um app de campo para registrar a natureza próxima com Guia, Registro e Mapa.",
     installTitle: "Adicionar ikimon ao dispositivo",
@@ -128,7 +128,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
-  <title>${copy.offlineTitle} | ikimon.life</title>
+  <title>${copy.offlineTitle} | ikimon</title>
   <style>
     *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:${APP_LAUNCH_BACKGROUND_COLOR};color:#0f172a}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:56px;height:56px;border-radius:16px;background:#ecfdf5;display:grid;place-items:center;color:#047857;font-weight:950;font-size:24px}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:#475569;line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:8px;border:1px solid rgba(15,23,42,.1);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:#064e3b;background:#fff}.retry{background:#10b981;color:#fff;border:0;font:inherit;cursor:pointer}
   </style>

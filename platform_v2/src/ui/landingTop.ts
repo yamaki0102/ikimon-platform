@@ -103,6 +103,10 @@ function landingObservationMeta(lang: SiteLang, obs: LandingObservation): string
   return landingItemMeta(lang, obs);
 }
 
+function landingObservationTimestamp(obs: LandingObservation): string {
+  return (obs.entryType === "identification" ? obs.identifiedAt : obs.observedAt) ?? obs.observedAt;
+}
+
 function displayObservationName(obs: LandingObservation | null | undefined, fallback: string): string {
   return obs?.displayName || obs?.aiCandidateName || fallback;
 }
@@ -126,12 +130,25 @@ function itemImageUrl(
 ): string | null {
   const sourceUrl = item?.photoUrl || item?.mediaUrl || null;
   if (!sourceUrl) return null;
-  if (preset === "original") return sourceUrl;
-  return toThumbnailUrl(sourceUrl, preset) ?? sourceUrl;
+  const mediaUrl = preset === "original" ? sourceUrl : (toThumbnailUrl(sourceUrl, preset) ?? sourceUrl);
+  return landingPreviewMediaUrl(mediaUrl);
 }
 
 function observationImageUrl(obs: LandingObservation | null | undefined, preset: ThumbnailPreset | "original"): string | null {
   return itemImageUrl(obs, preset);
+}
+
+function landingPreviewMediaUrl(url: string | null): string | null {
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  const origin = (
+    process.env.IKIMON_PUBLIC_MEDIA_ORIGIN
+    || (process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203" ? "https://ikimon.life" : "")
+  ).trim().replace(/\/+$/, "");
+  if (!origin || !/^\/(?:thumb|uploads|data\/uploads)\//.test(url)) return url;
+  if (process.env.PORT === "3203" || process.env.ALLOW_QUERY_USER_ID === "1") {
+    return `/__preview-media${url}`;
+  }
+  return `${origin}${url}`;
 }
 
 function isSameLandingPhoto(left: LandingObservation | null | undefined, right: LandingObservation | null | undefined): boolean {
@@ -225,25 +242,25 @@ function landingDailyActionCopy(lang: SiteLang, kind: LandingDailyCardKind): Lan
       recordToday: { icon: "+", title: "記録する", fallbackBody: "名前が分からなくても始められます。" },
       revisitPlace: { icon: "↻", title: "前回の続き", fallbackBody: "同じ場所の変化を見る。" },
       nearbyPulse: { icon: "◎", title: "近くを見る", fallbackBody: "記録が増えた場所を開く。" },
-      needsId: { icon: "ID", title: "名前を確かめる", fallbackBody: "分からない記録を少し確かめる。" },
+      needsId: { icon: "?", title: "名前を確かめる", fallbackBody: "分からない記録を少し確かめる。" },
     },
     en: {
       recordToday: { icon: "+", title: "Post", fallbackBody: "A record can start before you know the name." },
       revisitPlace: { icon: "↻", title: "Revisit", fallbackBody: "Look for what changed in the same place." },
       nearbyPulse: { icon: "◎", title: "Nearby", fallbackBody: "Open places where records are growing." },
-      needsId: { icon: "ID", title: "Needs ID", fallbackBody: "Check one record that needs a name." },
+      needsId: { icon: "?", title: "Needs ID", fallbackBody: "Check one record that needs a name." },
     },
     es: {
       recordToday: { icon: "+", title: "Guardar foto", fallbackBody: "Puedes registrar antes de saber el nombre." },
       revisitPlace: { icon: "↻", title: "Volver", fallbackBody: "Mira que cambio en el mismo lugar." },
       nearbyPulse: { icon: "◎", title: "Cerca", fallbackBody: "Abre lugares con mas registros." },
-      needsId: { icon: "ID", title: "Ayudar a nombrar", fallbackBody: "Revisa un registro sin nombre claro." },
+      needsId: { icon: "?", title: "Ayudar a nombrar", fallbackBody: "Revisa un registro sin nombre claro." },
     },
     "pt-BR": {
       recordToday: { icon: "+", title: "Salvar foto", fallbackBody: "Voce pode registrar antes de saber o nome." },
       revisitPlace: { icon: "↻", title: "Voltar", fallbackBody: "Veja o que mudou no mesmo lugar." },
       nearbyPulse: { icon: "◎", title: "Perto", fallbackBody: "Abra lugares com mais registros." },
-      needsId: { icon: "ID", title: "Ajudar no nome", fallbackBody: "Revise um registro sem nome claro." },
+      needsId: { icon: "?", title: "Ajudar no nome", fallbackBody: "Revise um registro sem nome claro." },
     },
   };
   return localized[lang]?.[kind] ?? localized.ja[kind];
@@ -311,7 +328,6 @@ function dailyActionKpi(kind: LandingDailyCardKind): string {
 function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingStrings, card: LandingDailyCard): string {
   const action = landingDailyActionCopy(lang, card.kind);
   const cardCopy = copy.dailyDashboard.cards[card.kind];
-  const body = [card.primaryText, card.secondaryText].filter(Boolean).join(" · ") || action.fallbackBody;
   const href = landingHref(basePath, lang, card.href);
   const metricHtml = card.metricValue && card.metricValue > 0
     ? `<em><strong>${escapeHtml(formatLandingNumber(copy, card.metricValue))}</strong>${escapeHtml(cardCopy.metricLabel)}</em>`
@@ -323,22 +339,8 @@ function renderDailyActionCard(basePath: string, lang: SiteLang, copy: LandingSt
   return `<a class="prototype-topa-action prototype-topa-action-${escapeHtml(card.kind)}${primaryClass}" href="${escapeHtml(href)}" data-kpi-action="${escapeHtml(dailyActionKpi(card.kind))}"${recordKpiAttrs}>
     <span class="prototype-topa-action-icon" aria-hidden="true">${escapeHtml(action.icon)}</span>
     <strong>${escapeHtml(action.title)}</strong>
-    <small>${escapeHtml(body)}</small>
     ${metricHtml}
   </a>`;
-}
-
-function continuationLead(lang: SiteLang, daysSinceLast: number | null | undefined): string {
-  if (lang === "en") {
-    if (daysSinceLast === 0) return "Continue from today's field note instead of starting from a blank page.";
-    if (daysSinceLast === 1) return "Continue from yesterday's field note and add the next change.";
-    if (typeof daysSinceLast === "number") return `Continue from the field note you left ${daysSinceLast} days ago.`;
-    return "Continue from your latest field note and turn it into a trail.";
-  }
-  if (daysSinceLast === 0) return "今日の記録から続けて、同じ場所・同じ対象の変化を残せます。";
-  if (daysSinceLast === 1) return "昨日の記録から続けて、次に見えた変化を足せます。";
-  if (typeof daysSinceLast === "number") return `${daysSinceLast}日前の記録から続けて、自然観察を途切れない流れにします。`;
-  return "直近の記録から続けて、自分の観察の流れを育てます。";
 }
 
 function renderLandingContinuation(basePath: string, lang: SiteLang, copy: LandingStrings, snapshot: LandingSnapshot): string {
@@ -378,7 +380,6 @@ function renderLandingContinuation(basePath: string, lang: SiteLang, copy: Landi
     <div class="prototype-topa-story-copy">
       <small>${escapeHtml(storyCopy.eyebrow)}</small>
       <h2><span>${escapeHtml(storyCopy.titlePrefix)}</span>${escapeHtml(title)}</h2>
-      <p>${escapeHtml(continuationLead(lang, snapshot.habit?.daysSinceLast))}</p>
       <em>${escapeHtml(meta)}</em>
       <div class="prototype-topa-story-actions">
         <a href="${escapeHtml(detailHref)}" data-kpi-action="landing:story:latest">${escapeHtml(storyCopy.openLabel)}</a>
@@ -386,6 +387,795 @@ function renderLandingContinuation(basePath: string, lang: SiteLang, copy: Landi
       </div>
     </div>
     ${habitHtml}
+  </section>`;
+}
+
+type LandingContentWallCopy = {
+  eyebrow: string;
+  title: string;
+  mineEyebrow: string;
+  mineTitle: string;
+  communityEyebrow: string;
+  communityTitle: string;
+  emptyTitle: string;
+  emptyBody: string;
+  mineEmptyTitle: string;
+  communityEmptyTitle: string;
+  emptyCta: string;
+  allCta: string;
+};
+
+function landingContentWallCopy(lang: SiteLang): LandingContentWallCopy {
+  const localized: Record<SiteLang, LandingContentWallCopy> = {
+    ja: {
+      eyebrow: "WATCH",
+      title: "投稿一覧",
+      mineEyebrow: "MY RECORDS",
+      mineTitle: "自分の記録",
+      communityEyebrow: "EVERYONE'S RECORDS",
+      communityTitle: "みんなの記録",
+      emptyTitle: "表示できる投稿を準備中です",
+      emptyBody: "投稿が入ると、ここにサムネイルで並びます。",
+      mineEmptyTitle: "自分の投稿はまだありません",
+      communityEmptyTitle: "みんなの投稿を準備中です",
+      emptyCta: "記録する",
+      allCta: "すべて見る",
+    },
+    en: {
+      eyebrow: "WATCH",
+      title: "Posts",
+      mineEyebrow: "MY RECORDS",
+      mineTitle: "My records",
+      communityEyebrow: "EVERYONE'S RECORDS",
+      communityTitle: "Everyone's records",
+      emptyTitle: "Posts are still warming up",
+      emptyBody: "New posts will appear here as thumbnails.",
+      mineEmptyTitle: "No posts from you yet",
+      communityEmptyTitle: "Everyone's posts are still warming up",
+      emptyCta: "Post a record",
+      allCta: "See all",
+    },
+    es: {
+      eyebrow: "WATCH",
+      title: "Publicaciones",
+      mineEyebrow: "MY RECORDS",
+      mineTitle: "Mis registros",
+      communityEyebrow: "EVERYONE'S RECORDS",
+      communityTitle: "Registros de todos",
+      emptyTitle: "Aun no hay publicaciones",
+      emptyBody: "Los registros con foto o video apareceran aqui.",
+      mineEmptyTitle: "Aun no tienes publicaciones",
+      communityEmptyTitle: "Aun no hay publicaciones de todos",
+      emptyCta: "Registrar",
+      allCta: "Ver todo",
+    },
+    "pt-BR": {
+      eyebrow: "WATCH",
+      title: "Publicacoes",
+      mineEyebrow: "MY RECORDS",
+      mineTitle: "Meus registros",
+      communityEyebrow: "EVERYONE'S RECORDS",
+      communityTitle: "Registros de todos",
+      emptyTitle: "Ainda nao ha publicacoes",
+      emptyBody: "Registros com foto ou video aparecerao aqui.",
+      mineEmptyTitle: "Ainda nao ha publicacoes suas",
+      communityEmptyTitle: "Ainda nao ha publicacoes de todos",
+      emptyCta: "Registrar",
+      allCta: "Ver tudo",
+    },
+  };
+  return localized[lang] ?? localized.ja;
+}
+
+type LandingContentWallItem = LandingObservation & {
+  contentSource: "mine" | "community";
+  contentRecordCount?: number;
+  contentSubjects?: LandingContentWallSubject[];
+};
+
+type LandingContentWallSubject = {
+  occurrenceId: string;
+  name: string;
+  confidence: number | null;
+  identificationCount: number;
+  evidenceTier: number | null;
+};
+
+function landingContentWallGroupKey(obs: LandingContentWallItem): string {
+  return obs.visitId
+    || obs.detailId
+    || [
+      obs.observerUserId,
+      landingObservationTimestamp(obs),
+      obs.photoUrl || obs.mediaUrl || obs.occurrenceId,
+    ].filter(Boolean).join(":");
+}
+
+function landingContentWallSubject(obs: LandingContentWallItem): LandingContentWallSubject {
+  const confidence = typeof obs.confidenceScore === "number" && Number.isFinite(obs.confidenceScore)
+    ? obs.confidenceScore
+    : typeof obs.evidenceTier === "number" && Number.isFinite(obs.evidenceTier)
+      ? obs.evidenceTier / 3
+      : null;
+  return {
+    occurrenceId: obs.occurrenceId,
+    name: displayObservationName(obs, "同定待ち"),
+    confidence,
+    identificationCount: obs.identificationCount ?? 0,
+    evidenceTier: obs.evidenceTier ?? null,
+  };
+}
+
+function compareLandingContentSubjects(a: LandingContentWallSubject, b: LandingContentWallSubject): number {
+  const confidenceDelta = (b.confidence ?? -1) - (a.confidence ?? -1);
+  if (confidenceDelta !== 0) return confidenceDelta;
+  const idDelta = b.identificationCount - a.identificationCount;
+  if (idDelta !== 0) return idDelta;
+  const tierDelta = (b.evidenceTier ?? -1) - (a.evidenceTier ?? -1);
+  if (tierDelta !== 0) return tierDelta;
+  return a.name.localeCompare(b.name, "ja");
+}
+
+function landingContentWallItems(snapshot: LandingSnapshot, source: LandingContentWallItem["contentSource"]): LandingContentWallItem[] {
+  const items = (source === "mine"
+    ? snapshot.myFeed.map((obs) => ({ ...obs, contentSource: "mine" as const }))
+    : snapshot.feed
+      .filter((obs) => !snapshot.viewerUserId || obs.observerUserId !== snapshot.viewerUserId)
+      .map((obs) => ({ ...obs, contentSource: "community" as const }))
+  ).sort((a, b) => landingObservationTimestamp(b).localeCompare(landingObservationTimestamp(a)));
+  const counts = new Map<string, number>();
+  const subjectsByKey = new Map<string, LandingContentWallSubject[]>();
+  const subjectIdsByKey = new Map<string, Set<string>>();
+  for (const obs of items) {
+    const key = landingContentWallGroupKey(obs);
+    const previous = counts.get(key) ?? 0;
+    counts.set(key, obs.subjectCount && obs.subjectCount > 1 ? Math.max(previous, obs.subjectCount) : previous + 1);
+    const subjectIds = subjectIdsByKey.get(key) ?? new Set<string>();
+    if (!subjectIds.has(obs.occurrenceId)) {
+      subjectIds.add(obs.occurrenceId);
+      subjectIdsByKey.set(key, subjectIds);
+      const subjects = subjectsByKey.get(key) ?? [];
+      subjects.push(landingContentWallSubject(obs));
+      subjectsByKey.set(key, subjects);
+    }
+  }
+  const grouped: LandingContentWallItem[] = [];
+  const seen = new Set<string>();
+  for (const obs of items) {
+    const key = landingContentWallGroupKey(obs);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const contentSubjects = (subjectsByKey.get(key) ?? [landingContentWallSubject(obs)])
+      .slice()
+      .sort(compareLandingContentSubjects);
+    grouped.push({
+      ...obs,
+      displayName: contentSubjects[0]?.name ?? obs.displayName,
+      contentRecordCount: Math.max(contentSubjects.length, counts.get(key) ?? 1),
+      contentSubjects,
+    });
+  }
+  return grouped.slice(0, 18);
+}
+
+function renderLandingContentSubjects(obs: LandingContentWallItem): string {
+  const subjects = obs.contentSubjects ?? [];
+  if (subjects.length <= 1) return "";
+  const second = subjects[1];
+  if (!second) return "";
+  const rest = Math.max(0, (obs.contentRecordCount ?? subjects.length) - 2);
+  const restHtml = rest > 0 ? `<em>+${escapeHtml(String(rest))}</em>` : "";
+  return `<span class="prototype-content-subjects" aria-label="${escapeHtml("確度順の観察対象")}"><span>${escapeHtml(second.name)}</span>${restHtml}</span>`;
+}
+
+function renderLandingContentAvatar(obs: LandingContentWallItem): string {
+  const avatarUrl = itemImageUrl({ photoUrl: obs.observerAvatarUrl }, "sm");
+  const fallback = `<span class="prototype-content-avatar-symbol"></span>`;
+  const image = avatarUrl
+    ? `<img src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />`
+    : "";
+  return `<span class="prototype-content-avatar" aria-hidden="true">${image}${fallback}</span>`;
+}
+
+function renderLandingContentWallCard(
+  basePath: string,
+  lang: SiteLang,
+  copy: LandingStrings,
+  obs: LandingContentWallItem,
+  index: number,
+): string {
+  const href = observationDetailHref(basePath, lang, obs);
+  const title = obs.contentSubjects?.[0]?.name ?? displayObservationName(obs, copy.heroPhotoFallback);
+  const placeLabel = observationPlaceLabel(obs) || copy.heroLatestLabel;
+  const mediaIcon = obs.hasVideo ? "video" : obs.photoUrl ? "image" : obs.entryType === "identification" ? "id" : "record";
+  const imageUrl = observationImageUrl(obs, "md");
+  const observerName = obs.observerName || (lang === "ja" ? "観察者" : "Observer");
+  const recordCount = Math.max(obs.contentRecordCount ?? 1, obs.subjectCount ?? 1);
+  const thumbHtml = imageUrl
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(title)}" loading="${index < 4 ? "eager" : "lazy"}" decoding="async" />`
+    : `<span class="prototype-content-empty-thumb" aria-hidden="true"></span>`;
+  return `<a class="prototype-content-card is-${escapeHtml(obs.contentSource)}" href="${escapeHtml(href)}" data-kpi-action="landing:content_wall:${escapeHtml(obs.contentSource)}">
+    <span class="prototype-content-thumb">
+      ${thumbHtml}
+      <span class="prototype-content-icon-row" aria-hidden="true">
+        <span class="prototype-content-icon is-${escapeHtml(mediaIcon)}"></span>
+      </span>
+    </span>
+    <span class="prototype-content-body">
+      <span class="prototype-content-title-line">
+        <strong>${escapeHtml(title)}</strong>
+        ${renderLandingContentSubjects(obs)}
+      </span>
+      <span class="prototype-content-author">
+        ${renderLandingContentAvatar(obs)}
+        <span class="prototype-content-author-copy">
+          <em>${escapeHtml(observerName)}</em>
+          <small>${escapeHtml(placeLabel)}</small>
+        </span>
+      </span>
+    </span>
+  </a>`;
+}
+
+function renderLandingContentWallEmpty(title: string, body: string, href: string, cta: string): string {
+  return `<a class="prototype-content-empty" href="${escapeHtml(href)}" data-kpi-action="landing:content_wall:empty">
+    <strong>${escapeHtml(title)}</strong>
+    <span>${escapeHtml(body)}</span>
+    <em>${escapeHtml(cta)}</em>
+  </a>`;
+}
+
+function renderLandingContentWallLane(
+  basePath: string,
+  lang: SiteLang,
+  copy: LandingStrings,
+  wallCopy: LandingContentWallCopy,
+  source: LandingContentWallItem["contentSource"],
+  items: LandingContentWallItem[],
+): string {
+  const recordHref = landingHref(basePath, lang, "/record");
+  const title = source === "mine" ? wallCopy.mineTitle : wallCopy.communityTitle;
+  const eyebrow = source === "mine" ? wallCopy.mineEyebrow : wallCopy.communityEyebrow;
+  const emptyTitle = source === "mine" ? wallCopy.mineEmptyTitle : wallCopy.communityEmptyTitle;
+  const moreHref = landingHref(basePath, lang, source === "mine" ? "/records?view=mine" : "/records?view=public");
+  const moreLabel = lang === "ja" ? "もっと見る" : lang === "en" ? "View more" : lang === "es" ? "Ver mas" : "Ver mais";
+  const moreAria = lang === "ja"
+    ? `${title}の投稿をもっと見る`
+    : source === "mine" ? "View more of your posts" : "View more community posts";
+  const cardsHtml = items.length > 0
+    ? items.map((obs, index) => renderLandingContentWallCard(basePath, lang, copy, obs, index)).join("")
+    : renderLandingContentWallEmpty(emptyTitle, wallCopy.emptyBody, recordHref, wallCopy.emptyCta);
+  return `<section class="prototype-content-lane is-${escapeHtml(source)}" aria-label="${escapeHtml(title)}">
+      <div class="prototype-content-lane-head">
+        <div class="prototype-content-lane-title">
+          <span>${escapeHtml(eyebrow)}</span>
+          <h3>${escapeHtml(title)}</h3>
+        </div>
+        <a class="prototype-content-lane-more" href="${escapeHtml(moreHref)}" aria-label="${escapeHtml(moreAria)}" data-kpi-action="landing:content_wall:${escapeHtml(source)}:more">${escapeHtml(moreLabel)}</a>
+      </div>
+      <div class="prototype-content-grid">${cardsHtml}</div>
+    </section>`;
+}
+
+function renderLandingContentWall(options: LandingTopRenderOptions): string {
+  const { basePath, lang, copy, snapshot } = options;
+  const wallCopy = landingContentWallCopy(lang);
+  const mineItems = snapshot.viewerUserId ? landingContentWallItems(snapshot, "mine") : [];
+  const communityItems = landingContentWallItems(snapshot, "community");
+  const mineLimit = Math.min(6, Math.max(4, communityItems.length));
+  const communityLimit = 12;
+  const laneHtml = [
+    snapshot.viewerUserId ? renderLandingContentWallLane(basePath, lang, copy, wallCopy, "mine", mineItems.slice(0, mineLimit)) : "",
+    renderLandingContentWallLane(basePath, lang, copy, wallCopy, "community", communityItems.slice(0, snapshot.viewerUserId ? communityLimit : 18)),
+  ].filter(Boolean).join("");
+  const splitClass = snapshot.viewerUserId ? " is-split" : "";
+
+  return `<section class="prototype-content-wall" aria-label="${escapeHtml(wallCopy.title)}">
+    <div class="prototype-content-lanes${splitClass}">${laneHtml}</div>
+  </section>`;
+}
+
+type LandingNearbyCard = {
+  title: string;
+  meta: string;
+  count: number;
+  countLabel: string;
+  speciesCount: number;
+  observerCount: number;
+  localityLabel: string;
+  href: string;
+  kind: "field" | "place";
+  label: string;
+  imageUrl: string | null;
+  insight: string;
+};
+
+function compactNearbyLabel(value: string | null | undefined): string {
+  const label = value?.trim() ?? "";
+  return label
+    .replace(/・発見の探索区$/u, "")
+    .replace(/^愛管株式会社\s+/u, "")
+    .replace(/\s*\/\s*[^/]+$/u, "")
+    .trim() || "観察エリア";
+}
+
+function normalizedNearbyName(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function isMeaningfulNearbyPlace(place: LandingSnapshot["myPlaces"][number]): boolean {
+  const placeName = compactNearbyLabel(place.placeName);
+  if (!placeName || placeName === "観察エリア") return false;
+  const normalizedPlace = normalizedNearbyName(placeName);
+  return normalizedPlace !== normalizedNearbyName(place.municipality) &&
+    normalizedPlace !== normalizedNearbyName(place.latestDisplayName) &&
+    place.visitCount > 0;
+}
+
+function nearbyFieldLabel(source: string | null | undefined, adminLevel: string | null | undefined): string {
+  const key = adminLevel || source || "";
+  if (key === "school") return "学校";
+  if (key === "osm_park" || key === "park") return "公園";
+  if (key === "symbiosis" || source === "nature_symbiosis_site") return "自然共生サイト";
+  if (key === "protected" || source === "protected_area") return "保全";
+  if (key === "oecm" || source === "oecm") return "OECM";
+  if (key === "tsunag" || source === "tsunag") return "TSUNAG";
+  return "エリア";
+}
+
+function normalizeDisplaySubject(value: string | null | undefined): string {
+  const subject = value?.trim() ?? "";
+  if (!subject || subject === "同定待ち") return "";
+  return subject;
+}
+
+function nearbyLocalityLabel(input: {
+  localityLabel?: string | null;
+  city?: string | null;
+  prefecture?: string | null;
+  title?: string | null;
+}): string {
+  if (normalizedNearbyName(input.title).includes("連理の木の下で")) return "浜松市浜名区";
+  let label = (input.localityLabel || input.city || "").trim();
+  const prefecture = input.prefecture?.trim() ?? "";
+  const title = normalizedNearbyName(input.title);
+  if (prefecture && label.startsWith(prefecture)) label = label.slice(prefecture.length).trim();
+  label = label.replace(/\s+/g, "");
+  if (!label) return "";
+  if (normalizedNearbyName(label) === title) return "";
+  return label;
+}
+
+function nearbyGrowthInsight(field: Pick<LandingSnapshot["nearbyFields"][number], "observationCount" | "speciesCount" | "observerCount" | "signatureDisplayName" | "latestDisplayName">): string {
+  const observations = Math.max(0, field.observationCount || 0);
+  const species = Math.max(0, field.speciesCount || 0);
+  const observers = Math.max(0, field.observerCount || 0);
+  const signature = normalizeDisplaySubject(field.signatureDisplayName || field.latestDisplayName || "");
+  if (species >= 8 && observers >= 2) return "次の調査で増減を比べる基準が育っています";
+  if (species >= 3) return "確認済みの種を基準に、次回の変化を見られます";
+  if (signature && observations >= 3) return `${signature}を同じ場所で見返せます`;
+  if (species >= 2) return "同じエリアの確認種として束ねられています";
+  if (observers >= 2) return "複数人の記録を同じ場所で見返せます";
+  return "次の記録が比較の起点になります";
+}
+
+function nearbySubjectEvidence(card: LandingNearbyCard): string {
+  const subject = normalizeDisplaySubject(card.meta);
+  const species = Math.max(0, card.speciesCount || 0);
+  if (species >= 2) return subject ? `${subject}など${species}種を確認済み` : `${species}種を確認済み`;
+  if (subject) return `${subject}を確認済み`;
+  return "同じ場所の記録を蓄積中";
+}
+
+function nearbyMetricItems(copy: LandingStrings, card: LandingNearbyCard): string[] {
+  const items = [`${formatLandingNumber(copy, card.count)}${card.countLabel}`];
+  if (card.speciesCount > 0) items.push(`${formatLandingNumber(copy, card.speciesCount)}種`);
+  if (card.observerCount > 1) items.push(`${formatLandingNumber(copy, card.observerCount)}人`);
+  return items;
+}
+
+function nearbyMetricText(copy: LandingStrings, card: LandingNearbyCard): string {
+  return nearbyMetricItems(copy, card).join(" ・ ");
+}
+
+function selectNearbyCards(candidates: LandingNearbyCard[], limit: number): LandingNearbyCard[] {
+  const selected: LandingNearbyCard[] = [];
+  const seenImages = new Set<string>();
+  const seenTitles = new Set<string>();
+
+  for (const card of candidates) {
+    const imageKey = normalizedNearbyName(card.imageUrl);
+    const titleKey = normalizedNearbyName(card.title);
+    if ((imageKey && seenImages.has(imageKey)) || seenTitles.has(titleKey)) continue;
+    selected.push(card);
+    if (imageKey) seenImages.add(imageKey);
+    seenTitles.add(titleKey);
+    if (selected.length >= limit) return selected;
+  }
+
+  for (const card of candidates) {
+    if (selected.includes(card)) continue;
+    selected.push(card);
+    if (selected.length >= limit) break;
+  }
+  return selected;
+}
+
+function buildLandingNearbyCards(snapshot: LandingSnapshot, basePath: string, lang: SiteLang, placesHref: string): LandingNearbyCard[] {
+  const fieldCards = (snapshot.nearbyFields ?? [])
+    .filter((field) => field.observationCount > 0 && compactNearbyLabel(field.name) !== "観察エリア")
+    .map((field): LandingNearbyCard => ({
+      title: compactNearbyLabel(field.name),
+      meta: compactNearbyLabel(field.latestDisplayName || field.city || field.prefecture),
+      count: field.observationCount,
+      countLabel: "記録",
+      speciesCount: field.speciesCount,
+      observerCount: field.observerCount,
+      localityLabel: nearbyLocalityLabel({
+        localityLabel: field.localityLabel,
+        city: field.city,
+        prefecture: field.prefecture,
+        title: field.name,
+      }),
+      href: landingHref(basePath, lang, `/places/${encodeURIComponent(field.fieldId)}/snapshot`),
+      kind: "field",
+      label: nearbyFieldLabel(field.source, field.adminLevel),
+      imageUrl: field.latestPhotoUrl,
+      insight: nearbyGrowthInsight(field),
+    }));
+  const placeCards = snapshot.viewerUserId
+    ? snapshot.myPlaces
+      .filter(isMeaningfulNearbyPlace)
+      .slice(0, Math.max(0, 3 - fieldCards.length))
+      .map((place): LandingNearbyCard => ({
+        title: compactNearbyLabel(place.placeName),
+        meta: compactNearbyLabel(place.latestDisplayName || place.nextLookFor || place.municipality),
+        count: place.visitCount,
+        countLabel: "記録",
+        speciesCount: 0,
+        observerCount: 1,
+        localityLabel: nearbyLocalityLabel({
+          localityLabel: place.municipality,
+          city: place.municipality,
+          title: place.placeName,
+        }),
+        href: placesHref,
+        kind: "place",
+        label: "場所",
+        imageUrl: null,
+        insight: place.latestDisplayName
+          ? `${compactNearbyLabel(place.latestDisplayName)}を見返せる場所`
+          : "次の記録で変化を比べられる場所",
+      }))
+    : [];
+  return selectNearbyCards([...fieldCards, ...placeCards], 3);
+}
+
+function renderLandingNearbySection(options: LandingTopRenderOptions): string {
+  const { basePath, lang, snapshot } = options;
+  const mapHref = landingHref(basePath, lang, "/map");
+  const placesHref = landingHref(basePath, lang, "/records?view=places");
+  const cards = buildLandingNearbyCards(snapshot, basePath, lang, placesHref);
+  const cardHtml = cards.length > 0
+    ? cards.map((card, index) => {
+      const variant = index === 0 ? "feature" : "compact";
+      const thumbUrl = landingPreviewMediaUrl(toThumbnailUrl(card.imageUrl, "md") ?? card.imageUrl);
+      const thumbHtml = thumbUrl
+        ? `<i class="prototype-monitoring-thumb"><img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" decoding="async" /></i>`
+        : `<i class="prototype-monitoring-thumb is-empty" aria-hidden="true"></i>`;
+      return `<a class="prototype-monitoring-card is-${escapeHtml(variant)} is-${escapeHtml(card.kind)}" href="${escapeHtml(card.href)}" data-kpi-action="landing:nearby:${escapeHtml(card.kind)}">
+        ${thumbHtml}
+        <span class="prototype-monitoring-meta-row">
+          <span class="prototype-monitoring-label">${escapeHtml(card.label)}</span>
+          ${card.localityLabel ? `<span class="prototype-monitoring-locality">${escapeHtml(card.localityLabel)}</span>` : ""}
+        </span>
+        <strong>${escapeHtml(card.title)}</strong>
+        <small>${escapeHtml(nearbySubjectEvidence(card))}</small>
+        <p>${escapeHtml(card.insight)}</p>
+        <em class="prototype-monitoring-metrics">${escapeHtml(nearbyMetricText(options.copy, card))}</em>
+      </a>`;
+    }).join("")
+    : `<a class="prototype-monitoring-empty" href="${escapeHtml(mapHref)}" data-kpi-action="landing:nearby:empty">公開できるエリアを準備中です</a>`;
+
+  return `<section class="prototype-monitoring-areas" id="topa-local-map" aria-label="育つ観察エリア">
+    <div class="prototype-monitoring-head">
+      <div class="prototype-monitoring-title"><span>MONITORING AREA</span><h2>育つ観察エリア</h2></div>
+      <a href="${escapeHtml(mapHref)}" data-kpi-action="landing:topA:shelf:localMap">地図で見る</a>
+    </div>
+    <div class="prototype-monitoring-grid">${cardHtml}</div>
+  </section>`;
+}
+
+type LandingInvasiveWatchItem = {
+  category: string;
+  title: string;
+  body: string;
+  impact: string;
+  cue: string;
+  motif: "plant" | "aquaticPlant" | "insect" | "spider" | "reptile" | "fish" | "mammal" | "bird";
+};
+
+function landingLocalityText(snapshot: LandingSnapshot): string {
+  const values = [
+    ...snapshot.nearbyFields.flatMap((field) => [
+      field.name,
+      field.city,
+      field.prefecture,
+      field.localityLabel,
+    ]),
+    ...snapshot.myPlaces.flatMap((place) => [
+      place.placeName,
+      place.municipality,
+      place.latestDisplayName,
+      place.nextLookFor,
+    ]),
+  ];
+  return values.filter(Boolean).join(" ");
+}
+
+function buildLandingInvasiveWatchItems(snapshot: LandingSnapshot): LandingInvasiveWatchItem[] {
+  const text = landingLocalityText(snapshot);
+  const isHamamatsu = /浜松市|浜名区|中央区|天竜区|北区|西区|東区|南区/u.test(text);
+  const isShizuoka = isHamamatsu || /静岡県|静岡市|磐田市|湖西市|掛川市|袋井市|藤枝市|焼津市|沼津市|富士市/u.test(text);
+  if (!isShizuoka) return [];
+  return [
+    { category: "植物", title: "オオキンケイギク", body: "道路脇・空き地の黄色い群落", impact: "在来の野草の場所を奪う", cue: "生きたまま運ばない", motif: "plant" },
+    { category: "水草", title: "ナガエツルノゲイトウ", body: "水路・湿地に広がる草のマット", impact: "水辺や農地へ切れ端から広がる", cue: "切れ端を流さない", motif: "aquaticPlant" },
+    { category: "昆虫", title: "ヒアリ", body: "小さな赤褐色のアリ", impact: "刺される被害や定着リスク", cue: "毒針がある。触らない", motif: "insect" },
+    { category: "哺乳類", title: "ヌートリア", body: "川沿い・水路の足あとや巣穴", impact: "農作物や希少植物を食べる", cue: "許可なく捕獲しない", motif: "mammal" },
+  ];
+}
+
+const invasiveThumbByMotif: Record<LandingInvasiveWatchItem["motif"], string> = {
+  plant: "/assets/img/invasive/invasive-plant.png",
+  aquaticPlant: "/assets/img/invasive/invasive-aquatic-plant.png",
+  insect: "/assets/img/invasive/invasive-insect.png",
+  spider: "/assets/img/invasive/invasive-spider.png",
+  reptile: "/assets/img/invasive/invasive-reptile.png",
+  fish: "/assets/img/invasive/invasive-fish.png",
+  mammal: "/assets/img/invasive/invasive-mammal.png",
+  bird: "/assets/img/invasive/invasive-bird.png",
+};
+
+function renderInvasiveThumb(motif: LandingInvasiveWatchItem["motif"]): string {
+  return `<i class="prototype-invasive-thumb is-${escapeHtml(motif)}"><img src="${escapeHtml(invasiveThumbByMotif[motif])}" alt="" loading="lazy" decoding="async" /></i>`;
+}
+
+function formatNearbyEventWhen(raw: string): string {
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function renderLandingLocalFollowups(options: LandingTopRenderOptions): string {
+  const { basePath, lang, snapshot } = options;
+  const invasiveHref = landingHref(basePath, lang, "/learn/invasive-species-reporting");
+  const eventsHref = landingHref(basePath, lang, "/community/events");
+  const newEventHref = landingHref(basePath, lang, "/community/events/new");
+  const invasiveItems = buildLandingInvasiveWatchItems(snapshot);
+  const invasiveHtml = invasiveItems.map((item) => `<a class="prototype-local-watch-card is-${escapeHtml(item.motif)}" href="${escapeHtml(invasiveHref)}" data-kpi-action="landing:local:invasive">
+        ${renderInvasiveThumb(item.motif)}
+        <span class="prototype-invasive-meta"><em>${escapeHtml(item.category)}</em><mark>${escapeHtml(item.cue)}</mark></span>
+        <strong class="prototype-invasive-name">${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.body)}</small>
+        <small class="prototype-invasive-impact">${escapeHtml(item.impact)}</small>
+      </a>`).join("");
+  const nearbyEvents = (snapshot.nearbyEvents ?? [])
+    .slice()
+    .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime())
+    .slice(0, 3);
+  const eventsHtml = nearbyEvents.length > 0
+    ? nearbyEvents.map((event) => {
+      const href = event.eventCode
+        ? landingHref(basePath, lang, `/community/events/${encodeURIComponent(event.eventCode)}/join`)
+        : landingHref(basePath, lang, `/events/${encodeURIComponent(event.sessionId)}/live`);
+      const place = event.fieldName || event.city || event.prefecture || "近くのエリア";
+      const when = formatNearbyEventWhen(event.startedAt);
+      return `<a class="prototype-local-event-row" href="${escapeHtml(href)}" data-kpi-action="landing:local:event">
+        <span>${escapeHtml(when || "予定")}</span>
+        <strong>${escapeHtml(event.title)}</strong>
+        <small>${escapeHtml(place)}${event.participantCount > 0 ? ` ・ ${formatLandingNumber(options.copy, event.participantCount)}人` : ""}</small>
+      </a>`;
+    }).join("")
+    : `<div class="prototype-local-event-empty">
+        <strong>近くの予定はまだありません</strong>
+        <small>エリアに観察会が入ったらここに出ます</small>
+        <a href="${escapeHtml(newEventHref)}" data-kpi-action="landing:local:event:create">この近くで開く</a>
+      </div>`;
+
+  const invasivePanel = invasiveItems.length > 0
+    ? `<article class="prototype-local-panel is-invasive">
+      <div class="prototype-monitoring-head">
+        <div class="prototype-monitoring-title"><span>INVASIVE SIGNALS</span><h2>近くの外来種メモ</h2></div>
+        <a href="${escapeHtml(invasiveHref)}" data-kpi-action="landing:local:invasive:list">一覧を見る</a>
+      </div>
+      <div class="prototype-local-list">${invasiveHtml}</div>
+    </article>`
+    : "";
+
+  return `<section class="prototype-local-followups${invasivePanel ? "" : " is-single"}" aria-label="近くの外来種と観察会">
+    ${invasivePanel}
+    <article class="prototype-local-panel is-events">
+      <div class="prototype-monitoring-head">
+        <div class="prototype-monitoring-title"><span>FIELD EVENTS</span><h2>近くの観察会</h2></div>
+        <a href="${escapeHtml(eventsHref)}" data-kpi-action="landing:local:event:list">一覧を見る</a>
+      </div>
+      <div class="prototype-local-list">${eventsHtml}</div>
+    </article>
+  </section>`;
+}
+
+function landingGuideOutcomeItems(snapshot: LandingSnapshot): LandingTopGuideItem[] {
+  const seen = new Set<string>();
+  const items: LandingTopGuideItem[] = [];
+  for (const item of snapshot.guideOutcomes ?? []) {
+    if (!isLandingGuideItem(item) || seen.has(item.guideRecordId)) continue;
+    seen.add(item.guideRecordId);
+    items.push(item);
+  }
+  if (items.length > 0) return items;
+
+  for (const shelf of snapshot.topShelves ?? []) {
+    if (shelf.kind !== "guide") continue;
+    for (const item of shelf.items) {
+      if (!isLandingGuideItem(item) || seen.has(item.guideRecordId)) continue;
+      seen.add(item.guideRecordId);
+      items.push(item);
+    }
+  }
+  return items;
+}
+
+type LandingGuideOutcomeGroup = {
+  sessionId: string;
+  observerName: string;
+  href: string;
+  photoUrl: string | null;
+  items: LandingTopGuideItem[];
+};
+
+function landingGuideOutcomeGroups(snapshot: LandingSnapshot): LandingGuideOutcomeGroup[] {
+  const groups = new Map<string, LandingGuideOutcomeGroup>();
+  for (const item of landingGuideOutcomeItems(snapshot)) {
+    const key = item.sessionId || item.guideRecordId;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.items.push(item);
+      if (!existing.photoUrl && item.photoUrl) existing.photoUrl = item.photoUrl;
+      continue;
+    }
+    groups.set(key, {
+      sessionId: key,
+      observerName: item.observerName || "誰か",
+      href: item.href,
+      photoUrl: item.photoUrl,
+      items: [item],
+    });
+  }
+  return Array.from(groups.values()).slice(0, 3);
+}
+
+function guideOutcomeSubject(item: LandingTopGuideItem): string {
+  const detected = item.detectedSpecies.find((name) => name.trim());
+  const raw = item.displayName || detected || "自然の気配";
+  const text = [raw, item.summary, ...item.detectedSpecies].filter(Boolean).join(" ");
+  if (/舗装路|道路|線路|鉄道|防音壁|コンクリート|住宅|架線|電柱/u.test(raw)) {
+    if (/林|樹|竹|広葉|常緑|落葉/u.test(text)) return "沿線の緑";
+    if (/草|雑草|植生|群落|つる植物/u.test(text)) return "道ばたの草地";
+    return "場所の表情";
+  }
+  if (/常緑.*落葉|落葉.*常緑|二次林|竹林|広葉樹|幼樹/u.test(raw)) return "沿線の樹林";
+  if (/雑草|草地|草本|群落|つる植物/u.test(raw)) return "道ばたの草地";
+  if (/水辺|水路|湿地|川|池/u.test(raw)) return "水辺の気配";
+  return raw.length > 18 ? `${raw.slice(0, 18)}…` : raw;
+}
+
+function guideOutcomeTheme(item: LandingTopGuideItem): "water" | "green" | "sound" | "place" {
+  const text = [item.displayName, item.summary, ...item.detectedSpecies].filter(Boolean).join(" ");
+  if (/鳥の声|鳴き声|音声|自然音/u.test(text)) return "sound";
+  if (/水辺|水路|川|池|湿地/u.test(text) && !/期待できる|探る段階/u.test(text)) return "water";
+  if (/草|雑草|樹|林|竹|葉|植生|群落|花/u.test(text)) return "green";
+  return "place";
+}
+
+function guideOutcomeBody(item: LandingTopGuideItem): string {
+  const theme = guideOutcomeTheme(item);
+  if (theme === "water") return "水辺のまわりに、草と地形の表情が見えてきた";
+  if (theme === "sound") return "姿だけでは残らない気配が、場面として残った";
+  if (theme === "green") return "何気ない景色に、植生の重なりが見えてきた";
+  return "いつもの場所の状態が成果になった";
+}
+
+function guideOutcomeFeeling(item: LandingTopGuideItem): string {
+  const theme = guideOutcomeTheme(item);
+  if (theme === "water") return "水辺が少し立体的に見える";
+  if (theme === "sound") return "音も自然の輪郭になった";
+  if (theme === "green") return "通りすぎる緑に顔つきが出た";
+  return "名前の前に、場所の状態が成果になった";
+}
+
+function guideGroupTheme(group: LandingGuideOutcomeGroup): "water" | "green" | "sound" | "place" {
+  const themes = group.items.map(guideOutcomeTheme);
+  if (themes.includes("sound")) return "sound";
+  if (themes.includes("water")) return "water";
+  if (themes.includes("green")) return "green";
+  return "place";
+}
+
+function guideGroupTitle(group: LandingGuideOutcomeGroup): string {
+  const first = group.items[0];
+  if (!first) return "ガイドで見えたことが残った";
+  if (group.items.length === 1) return `${guideOutcomeSubject(first)}が見えてきた`;
+  const theme = guideGroupTheme(group);
+  if (theme === "water") return "水辺の気配がまとまって見えてきた";
+  if (theme === "sound") return "音と景色がひとつの場面になった";
+  if (theme === "green") return "緑の重なりがまとまって見えてきた";
+  return "場所の表情がまとまって見えてきた";
+}
+
+function guideGroupBody(group: LandingGuideOutcomeGroup): string {
+  const first = group.items[0];
+  if (!first) return "いつもの場所の状態が成果になった";
+  if (group.items.length === 1) return guideOutcomeBody(first);
+  const subjects = Array.from(new Set(group.items.map(guideOutcomeSubject))).slice(0, 2);
+  return `${group.items.length}シーンから、${subjects.join("と")}がひとつの流れとして残った`;
+}
+
+function guideGroupFeeling(group: LandingGuideOutcomeGroup): string {
+  const first = group.items[0];
+  if (!first) return "一回のガイドが、場所の成果になった";
+  if (group.items.length === 1) return guideOutcomeFeeling(first);
+  const theme = guideGroupTheme(group);
+  if (theme === "green") return "一回のガイドが、場所の緑の表情になった";
+  if (theme === "water") return "一回のガイドが、水辺の表情になった";
+  if (theme === "sound") return "一回のガイドが、音のある場面になった";
+  return "一回のガイドが、場所の成果になった";
+}
+
+function renderLandingGuideOutcomes(options: LandingTopRenderOptions): string {
+  const { basePath, lang, snapshot } = options;
+  const summaryCards = (snapshot.guideOutcomeSummaries ?? []).slice(0, 4).map((summary) => {
+    const imageUrl = itemImageUrl({ photoUrl: summary.mediaThumbUrl }, "md");
+    const avatarUrl = itemImageUrl({ photoUrl: summary.observerAvatarUrl }, "sm");
+    const imageHtml = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('is-empty');this.remove();" />`
+      : `<span aria-hidden="true">GUIDE</span>`;
+    return `<a class="prototype-guide-outcome-card is-${escapeHtml(summary.primaryTheme)}" href="${escapeHtml(landingHref(basePath, lang, summary.href))}" data-kpi-action="landing:guide-outcomes:summary">
+      <i class="prototype-guide-outcome-thumb">${imageHtml}</i>
+      <span class="prototype-guide-outcome-user">
+        <i>${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" />` : escapeHtml(summary.observerName.slice(0, 1) || "G")}</i>
+        <b>${escapeHtml(summary.observerName)}</b>
+        ${summary.publicLocationLabel ? `<small>${escapeHtml(summary.publicLocationLabel)}</small>` : ""}
+      </span>
+      <strong>${escapeHtml(summary.headline)}</strong>
+      <small>${escapeHtml(summary.body)}</small>
+      <em>${escapeHtml(summary.evidenceLine)}</em>
+    </a>`;
+  });
+  const groups = landingGuideOutcomeGroups(snapshot);
+  if (summaryCards.length === 0 && groups.length === 0) return "";
+  const href = landingHref(basePath, lang, "/guide/outcomes");
+  const cards = groups.map((group) => {
+    const imageUrl = itemImageUrl({ photoUrl: group.photoUrl }, "md");
+    const actor = `${group.observerName} がガイドを使って`;
+    const imageHtml = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('is-empty');this.remove();" />`
+      : `<span aria-hidden="true">GUIDE</span>`;
+    return `<a class="prototype-guide-outcome-card" href="${escapeHtml(landingHref(basePath, lang, group.href))}" data-kpi-action="landing:guide-outcomes:card">
+      <i class="prototype-guide-outcome-thumb">${imageHtml}</i>
+      <span>${escapeHtml(actor)}</span>
+      <strong>${escapeHtml(guideGroupTitle(group))}</strong>
+      <small>${escapeHtml(guideGroupBody(group))}</small>
+      <em>${escapeHtml(guideGroupFeeling(group))}</em>
+    </a>`;
+  }).join("");
+
+  return `<section class="prototype-guide-outcomes" aria-label="ガイドで見えたこと">
+    <div class="prototype-monitoring-head">
+      <div class="prototype-monitoring-title"><span>GUIDE OUTCOMES</span><h2>ガイドの記録</h2></div>
+      <a href="${escapeHtml(href)}" data-kpi-action="landing:guide-outcomes:list">一覧を見る</a>
+    </div>
+    <div class="prototype-guide-outcome-grid">${summaryCards.join("") || cards}</div>
   </section>`;
 }
 
@@ -769,81 +1559,16 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
 }
 
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
-  const { basePath, lang, copy, snapshot, isLoggedIn } = options;
-  const hero = landingHeroText(lang);
-  const trustItems = landingHeroTrustItems(lang);
-  const stats = hero.stats.map((stat) => ({
-    label: stat.label,
-    value: snapshot.stats[stat.key],
-  }));
-  const statsHtml = stats
-    .map((stat) => `<span><strong>${escapeHtml(formatLandingNumber(copy, stat.value))}</strong>${escapeHtml(stat.label)}</span>`)
-    .join("");
-  const dailyCards = prioritizeHeroDailyCards(snapshot.dailyDashboard?.dailyCards ?? [], isLoggedIn);
-  const dailyActionsHtml = dailyCards.map((card) => renderDailyActionCard(basePath, lang, copy, card)).join("");
-  const trustHtml = trustItems.map((item) => `<span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.body)}</small></span>`).join("");
-  const continuationHtml = renderLandingContinuation(basePath, lang, copy, snapshot);
-
-  return `<section class="prototype-topa" aria-labelledby="landing-hero-heading">
-    <div class="prototype-topa-intro">
-      <h1 id="landing-hero-heading">${escapeHtml(hero.heading)}</h1>
-      <p>${escapeHtml(hero.lead)}</p>
-    </div>
-    ${continuationHtml}
-    <nav class="prototype-topa-actions" aria-label="${escapeHtml(copy.dailyDashboard.eyebrow)}">
-      ${dailyActionsHtml}
-    </nav>
-    <div class="prototype-topa-trust" aria-label="記録前に知っておける安心材料">${trustHtml}</div>
-    <form class="prototype-topa-search" role="search" action="${escapeHtml(landingHref(basePath, lang, "/records"))}" method="get" aria-label="${escapeHtml(hero.searchLabel)}">
-      <span aria-hidden="true">🔍</span>
-      <input type="search" name="q" placeholder="${escapeHtml(hero.searchPlaceholder)}" aria-label="${escapeHtml(hero.searchLabel)}" />
-      <button type="submit">${escapeHtml(hero.searchButton)}</button>
-    </form>
-    <div class="prototype-topa-metrics" aria-label="ikimon.lifeの公開記録数">${statsHtml}</div>
-  </section>`;
+  void options;
+  return "";
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
-  const { basePath, lang, copy, snapshot } = options;
-  const shelves = (snapshot.topShelves && snapshot.topShelves.length > 0)
-    ? snapshot.topShelves
-    : fallbackLandingShelves(snapshot);
-  const contentShelvesHtml = shelves.map((shelf, index) => renderLandingShelf(options, shelf, index)).join("");
-
-  const regionalStory = snapshot.regionalStory ?? null;
-  const mapHref = landingHref(basePath, lang, "/map");
-  const mapCells = toMapMiniCells(snapshot.mapPreviewCells, mapHref);
-  const mapHtml = renderMapMini({
-    id: "ikimon-topa-map-mini",
-    cells: mapCells,
-    mapHref,
-    mapCtaLabel: "地図で見る",
-    mapCtaKpiAction: "landing:topA:shelf:localMap",
-    emptyLabel: "公開できる地図データを準備中です",
-    height: 320,
-  });
-  const regionalStoryHtml = regionalStory
-    ? `<div class="prototype-topa-map-note">
-        <strong>${escapeHtml(regionalStory.placeHook)}</strong>
-        <span>${escapeHtml(regionalStory.nextObservationAngle)}</span>
-      </div>`
-    : `<div class="prototype-topa-map-note">
-        <strong>近くで記録が増えた場所</strong>
-        <span>再訪問を頼むのではなく、地域の変化が見える場所として表示します。</span>
-      </div>`;
-
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
-    ${contentShelvesHtml}
-    ${renderSoundIntelligenceSection(basePath, lang)}
-
-    <div class="prototype-topa-map-shelf" id="topa-local-map">
-      <div class="prototype-topa-map-copy">
-        <small>地域マップ</small>
-        <h2>地図から探す。</h2>
-        ${regionalStoryHtml}
-      </div>
-      <div class="prototype-topa-map-board">${mapHtml}</div>
-    </div>
+    ${renderLandingContentWall(options)}
+    ${renderLandingNearbySection(options)}
+    ${renderLandingGuideOutcomes(options)}
+    ${renderLandingLocalFollowups(options)}
   </section>`;
 }
 
@@ -1036,10 +1761,10 @@ export function renderLandingTopSections(options: LandingTopRenderOptions): Land
 export const LANDING_TOP_STYLES = `
   body {
     background:
-      linear-gradient(90deg, rgba(16,185,129,.07) 1px, transparent 1px),
-      linear-gradient(0deg, rgba(14,165,233,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16,185,129,.038) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.032) 1px, transparent 1px),
       linear-gradient(180deg, #ffffff 0%, #f9fffe 48%, #f2fbf7 100%);
-    background-size: 48px 48px, 48px 48px, auto;
+    background-size: 56px 56px, 56px 56px, auto;
   }
   .site-header { background: rgba(255,255,255,.84); border-bottom-color: rgba(26,46,31,.08); }
   .site-header-inner { min-height: 58px; }
@@ -1403,6 +2128,317 @@ export const LANDING_TOP_STYLES = `
     color: #fff;
     border-color: #10251a;
   }
+  .prototype-content-wall {
+    display: grid;
+    gap: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .prototype-content-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 18px 14px;
+  }
+  .prototype-content-lanes {
+    display: grid;
+    gap: 28px;
+  }
+  .prototype-content-lanes.is-split {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .prototype-content-lane {
+    min-width: 0;
+    display: grid;
+    gap: 14px;
+  }
+  .prototype-content-lane + .prototype-content-lane {
+    padding-top: 22px;
+    border-top: 1px solid rgba(15,23,42,.08);
+  }
+  .prototype-content-lane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 0 2px;
+  }
+  .prototype-content-lane-title {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .prototype-content-lane-title span {
+    min-width: 0;
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .prototype-content-lane.is-community .prototype-content-lane-title span {
+    color: #0369a1;
+  }
+  .prototype-content-lane-head h3 {
+    margin: 0;
+    color: #10251a;
+    font-size: 19px;
+    line-height: 1.25;
+    letter-spacing: 0;
+    font-weight: 950;
+  }
+  .prototype-content-lane-more {
+    min-height: 32px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 2px;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    color: #0f766e;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: none;
+  }
+  .prototype-content-lane-more::after {
+    content: "";
+    width: 11px;
+    height: 11px;
+    display: block;
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M13.3 5.3 20 12l-6.7 6.7-1.4-1.4 4.3-4.3H4v-2h12.2l-4.3-4.3 1.4-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M13.3 5.3 20 12l-6.7 6.7-1.4-1.4 4.3-4.3H4v-2h12.2l-4.3-4.3 1.4-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .prototype-content-lane-more:hover {
+    color: #047857;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .prototype-content-card {
+    min-width: 0;
+    display: grid;
+    gap: 9px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .prototype-content-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 22px 22px, 22px 22px, auto;
+    box-shadow: 0 10px 24px rgba(15,23,42,.07);
+  }
+  .prototype-content-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    transition: transform .18s ease;
+  }
+  .prototype-content-card:hover .prototype-content-thumb img {
+    transform: scale(1.025);
+  }
+  .prototype-content-empty-thumb {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: #e7f5ef;
+    color: #047857;
+    font-size: 14px;
+    font-weight: 950;
+  }
+  .prototype-content-icon-row {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .prototype-content-icon {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(16,37,26,.86);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(15,23,42,.16);
+  }
+  .prototype-content-icon::before {
+    content: "";
+    width: 13px;
+    height: 13px;
+    display: block;
+    background: currentColor;
+    mask: var(--prototype-content-icon-mask) center / contain no-repeat;
+    -webkit-mask: var(--prototype-content-icon-mask) center / contain no-repeat;
+  }
+  .prototype-content-icon.is-image { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M5 5h14v14H5V5Zm2 2v8.6l3.2-3.2 2.6 2.6 1.7-1.7L17 15.8V7H7Zm2.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z'/%3E%3C/svg%3E"); }
+  .prototype-content-icon.is-video { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 6h11v12H4V6Zm13 4.2 4-2.4v8.4l-4-2.4v-3.6Z'/%3E%3C/svg%3E"); }
+  .prototype-content-icon.is-id { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 5h16v14H4V5Zm3 3v2h10V8H7Zm0 4v2h6v-2H7Z'/%3E%3C/svg%3E"); }
+  .prototype-content-icon.is-record { --prototype-content-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 5v3h3v2h-3v3h-2v-3H8v-2h3V8h2Z'/%3E%3C/svg%3E"); }
+  .prototype-content-body {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+  }
+  .prototype-content-title-line {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .prototype-content-title-line > strong {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 15px;
+    line-height: 1.38;
+    font-weight: 950;
+  }
+  .prototype-content-subjects {
+    min-width: 0;
+    max-width: 48%;
+    flex: 0 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+  .prototype-content-subjects span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .prototype-content-subjects em {
+    flex: 0 0 auto;
+    min-width: 20px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(15,23,42,.06);
+    color: #475569;
+    font-size: 10px;
+    line-height: 1;
+    font-style: normal;
+    font-weight: 950;
+  }
+  .prototype-content-author {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+  }
+  .prototype-content-avatar {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 999px;
+    background: linear-gradient(135deg,#d1fae5,#bae6fd);
+    color: #065f46;
+  }
+  .prototype-content-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .prototype-content-avatar-symbol {
+    width: 11px;
+    height: 11px;
+    display: block;
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .prototype-content-author-copy {
+    min-width: 0;
+    display: contents;
+  }
+  .prototype-content-author-copy em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #334155;
+    font-size: 12px;
+    line-height: 1.25;
+    font-style: normal;
+    font-weight: 900;
+  }
+  .prototype-content-author-copy small {
+    min-width: 0;
+    justify-self: end;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 850;
+    text-align: right;
+  }
+  .prototype-content-empty {
+    min-height: 160px;
+    display: grid;
+    align-content: center;
+    gap: 7px;
+    padding: 14px;
+    border: 1px dashed rgba(15,23,42,.16);
+    border-radius: 8px;
+    background: rgba(248,250,252,.88);
+  }
+  .prototype-content-empty strong {
+    color: #10251a;
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 950;
+  }
+  .prototype-content-empty span {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 720;
+  }
+  .prototype-content-empty em {
+    width: fit-content;
+    color: #047857;
+    font-size: 12px;
+    line-height: 1.25;
+    font-style: normal;
+    font-weight: 950;
+  }
   .prototype-topa-shelves {
     display: grid;
     gap: 18px;
@@ -1664,6 +2700,587 @@ export const LANDING_TOP_STYLES = `
     font-size: 15px;
     line-height: 1.6;
     font-weight: 700;
+  }
+  .prototype-monitoring-areas {
+    display: grid;
+    gap: 12px;
+    scroll-margin-top: 92px;
+  }
+  .prototype-monitoring-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .prototype-monitoring-title {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+  .prototype-monitoring-title span {
+    width: fit-content;
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .prototype-monitoring-title h2 {
+    margin: 0;
+    color: #10251a;
+    font-size: 20px;
+    line-height: 1.15;
+    font-weight: 950;
+  }
+  .prototype-monitoring-title small {
+    min-width: 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+  .prototype-monitoring-head > a {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #0f766e;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .prototype-monitoring-head > a::after {
+    content: "";
+    width: 11px;
+    height: 11px;
+    display: block;
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M13.3 5.3 20 12l-6.7 6.7-1.4-1.4 4.3-4.3H4v-2h12.2l-4.3-4.3 1.4-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M13.3 5.3 20 12l-6.7 6.7-1.4-1.4 4.3-4.3H4v-2h12.2l-4.3-4.3 1.4-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .prototype-monitoring-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+  }
+  .prototype-monitoring-card {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: 168px auto auto auto 1fr auto;
+    align-content: start;
+    gap: 9px;
+    padding: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,.88);
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 14px 34px rgba(15,23,42,.06);
+  }
+  .prototype-monitoring-card.is-feature {
+    min-height: 0;
+    border-color: rgba(15,118,110,.15);
+    background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(240,253,250,.82));
+  }
+  .prototype-monitoring-card:not(.is-feature) {
+    min-height: 0;
+  }
+  .prototype-monitoring-thumb {
+    display: block;
+    overflow: hidden;
+    border-radius: 7px;
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.11) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.09) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 20px 20px, 20px 20px, auto;
+  }
+  .prototype-monitoring-card.is-feature .prototype-monitoring-thumb {
+    width: 100%;
+    height: 168px;
+    min-height: 0;
+  }
+  .prototype-monitoring-card:not(.is-feature) .prototype-monitoring-thumb {
+    width: 100%;
+    height: 168px;
+  }
+  .prototype-monitoring-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  .prototype-monitoring-thumb.is-empty::before {
+    content: "";
+    width: 30px;
+    height: 30px;
+    display: block;
+    margin: 48px auto 0;
+    background: #0f766e;
+    opacity: .76;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm0 3.1 5 1.9v4c0 3.5-2 6.9-5 8-3-1.1-5-4.5-5-8V7l5-1.9Zm0 3.4a2.5 2.5 0 0 0-2.5 2.5c0 1.9 2.5 4.5 2.5 4.5s2.5-2.6 2.5-4.5A2.5 2.5 0 0 0 12 8.5Z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm0 3.1 5 1.9v4c0 3.5-2 6.9-5 8-3-1.1-5-4.5-5-8V7l5-1.9Zm0 3.4a2.5 2.5 0 0 0-2.5 2.5c0 1.9 2.5 4.5 2.5 4.5s2.5-2.6 2.5-4.5A2.5 2.5 0 0 0 12 8.5Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .prototype-monitoring-meta-row {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .prototype-monitoring-label {
+    width: fit-content;
+    min-height: 22px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(15,118,110,.09);
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .prototype-monitoring-locality {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+  .prototype-monitoring-card strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #10251a;
+    font-weight: 950;
+  }
+  .prototype-monitoring-card.is-feature strong {
+    font-size: 17px;
+    line-height: 1.32;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .prototype-monitoring-card:not(.is-feature) strong {
+    font-size: 17px;
+    line-height: 1.32;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .prototype-monitoring-card small {
+    min-width: 0;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 850;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .prototype-monitoring-card p {
+    min-width: 0;
+    margin: 0;
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 850;
+  }
+  .prototype-monitoring-card:not(.is-feature) p {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .prototype-monitoring-metrics {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: auto;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+    font-style: normal;
+    font-weight: 800;
+  }
+  .prototype-monitoring-card:not(.is-feature) .prototype-monitoring-metrics {
+    font-size: 11px;
+  }
+  .prototype-monitoring-empty {
+    min-height: 76px;
+    display: grid;
+    place-items: center start;
+    padding: 12px;
+    border: 1px dashed rgba(15,23,42,.14);
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 850;
+  }
+  .prototype-local-followups {
+    display: grid;
+    grid-template-columns: minmax(0, 1.42fr) minmax(320px, .58fr);
+    gap: 12px;
+    align-items: stretch;
+  }
+  .prototype-local-followups.is-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .prototype-local-panel {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+    padding: 13px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,.84);
+    box-shadow: 0 14px 34px rgba(15,23,42,.045);
+  }
+  .prototype-local-panel.is-invasive {
+    background:
+      radial-gradient(circle at 14% 18%, rgba(251,191,36,.16), transparent 28%),
+      radial-gradient(circle at 92% 8%, rgba(20,184,166,.13), transparent 28%),
+      linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,251,235,.78));
+  }
+  .prototype-local-panel.is-events {
+    background: linear-gradient(135deg, rgba(255,255,255,.94), rgba(240,249,255,.76));
+  }
+  .prototype-guide-outcomes {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(15,118,110,.12);
+    border-radius: 8px;
+    background:
+      radial-gradient(circle at 8% 12%, rgba(20,184,166,.12), transparent 30%),
+      linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,253,250,.78));
+    box-shadow: 0 14px 34px rgba(15,23,42,.045);
+  }
+  .prototype-guide-outcome-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .prototype-guide-outcome-card {
+    min-width: 0;
+    min-height: 218px;
+    display: grid;
+    grid-template-rows: 88px auto auto 1fr auto;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,.9);
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 12px 28px rgba(15,23,42,.05);
+  }
+  .prototype-guide-outcome-thumb {
+    width: 100%;
+    height: 88px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 7px;
+    background: linear-gradient(135deg, rgba(240,253,250,.98), rgba(255,255,255,.9));
+    color: #0f766e;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 950;
+    box-shadow: inset 0 0 0 1px rgba(15,118,110,.08);
+  }
+  .prototype-guide-outcome-thumb.is-empty::before {
+    content: "GUIDE";
+    color: #0f766e;
+    font-size: 10px;
+    font-weight: 950;
+  }
+  .prototype-guide-outcome-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  .prototype-guide-outcome-card span {
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .prototype-guide-outcome-user {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 24px minmax(0, auto) 1fr;
+    gap: 7px;
+    align-items: center;
+  }
+  .prototype-guide-outcome-user i {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #d1fae5;
+    color: #047857;
+    font-size: 10px;
+    font-weight: 950;
+    font-style: normal;
+  }
+  .prototype-guide-outcome-user i img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .prototype-guide-outcome-user b {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+  .prototype-guide-outcome-user small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    justify-self: end;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.1;
+    font-weight: 900;
+  }
+  .prototype-guide-outcome-card strong {
+    min-width: 0;
+    color: #10251a;
+    font-size: 15px;
+    line-height: 1.28;
+    font-weight: 950;
+  }
+  .prototype-guide-outcome-card small {
+    min-width: 0;
+    color: #475569;
+    font-size: 11.5px;
+    line-height: 1.38;
+    font-weight: 850;
+  }
+  .prototype-guide-outcome-card em {
+    min-width: 0;
+    color: #0f766e;
+    font-size: 11.5px;
+    line-height: 1.38;
+    font-style: normal;
+    font-weight: 950;
+  }
+  .prototype-local-list {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .prototype-local-panel.is-invasive .prototype-local-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .prototype-local-watch-card {
+    min-width: 0;
+    min-height: 234px;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 88px auto auto auto 1fr;
+    gap: 7px;
+    padding: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,.9);
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 12px 28px rgba(15,23,42,.05);
+  }
+  .prototype-local-watch-card::before {
+    content: "";
+    position: absolute;
+    inset: auto -28px -36px auto;
+    width: 118px;
+    height: 118px;
+    border-radius: 999px;
+    background: rgba(15,118,110,.065);
+  }
+  .prototype-invasive-thumb {
+    width: 100%;
+    height: 88px;
+    position: relative;
+    z-index: 1;
+    display: block;
+    overflow: hidden;
+    border-radius: 7px;
+    background: #f8fffc;
+    box-shadow: inset 0 0 0 1px rgba(15,118,110,.08);
+  }
+  .prototype-invasive-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+  .prototype-invasive-meta {
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+  .prototype-invasive-meta em {
+    flex: 0 0 auto;
+    min-height: 21px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: rgba(15,118,110,.09);
+    color: #0f766e;
+    font-style: normal;
+    font-weight: 950;
+  }
+  .prototype-local-watch-card.is-urgent .prototype-invasive-meta em {
+    background: rgba(217,119,6,.12);
+    color: #92400e;
+  }
+  .prototype-invasive-name {
+    min-width: 0;
+    color: #10251a;
+    font-size: 16px;
+    line-height: 1.28;
+    font-weight: 950;
+  }
+  .prototype-local-watch-card small {
+    min-width: 0;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+  .prototype-local-watch-card .prototype-invasive-impact {
+    color: #0f766e;
+    font-weight: 950;
+  }
+  .prototype-local-watch-card mark {
+    width: fit-content;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-self: end;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(146,64,14,.08);
+    color: #92400e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: inset 0 0 0 1px rgba(146,64,14,.08);
+  }
+  .prototype-local-watch-card.is-urgent mark {
+    background: rgba(217,119,6,.1);
+    color: #92400e;
+  }
+  .prototype-local-event-row,
+  .prototype-local-watch-empty,
+  .prototype-local-event-empty {
+    min-width: 0;
+    min-height: 62px;
+    display: grid;
+    grid-template-columns: minmax(54px, auto) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: 3px 10px;
+    padding: 10px;
+    border: 1px solid rgba(15,23,42,.07);
+    border-radius: 8px;
+    background: rgba(255,255,255,.78);
+    color: inherit;
+    text-decoration: none;
+  }
+  .prototype-local-event-row span {
+    grid-row: 1 / span 2;
+    align-self: center;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(15,118,110,.09);
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+  .prototype-local-event-row strong,
+  .prototype-local-event-empty strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .prototype-local-event-row small,
+  .prototype-local-event-empty small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 800;
+  }
+  .prototype-local-watch-empty {
+    grid-template-columns: minmax(0, 1fr);
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 850;
+  }
+  .prototype-local-event-empty {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .prototype-local-event-empty strong,
+  .prototype-local-event-empty small {
+    grid-column: 1;
+  }
+  .prototype-local-event-empty a {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 950;
+    text-decoration: none;
+    white-space: nowrap;
   }
   .prototype-topa-map-shelf {
     display: grid;
@@ -2242,6 +3859,13 @@ export const LANDING_TOP_STYLES = `
       margin-left: var(--ikimon-shell-margin-left);
       margin-right: var(--ikimon-shell-margin-right);
     }
+    .prototype-content-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 20px 14px;
+    }
+    .prototype-content-lane-head h3 {
+      font-size: 19px;
+    }
   }
   @media (min-width: 1161px) and (max-width: 1380px) {
     .shell.shell-bleed.prototype-shell {
@@ -2293,6 +3917,8 @@ export const LANDING_TOP_STYLES = `
     }
     .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-trust { grid-template-columns: 1fr; }
+    .prototype-content-lanes.is-split { grid-template-columns: 1fr; }
+    .prototype-content-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
     .prototype-topa-map-shelf { grid-template-columns: 1fr; }
     .prototype-sound-os { grid-template-columns: 1fr; }
     .prototype-hero,
@@ -2305,7 +3931,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 720px) {
-    .shell.shell-bleed.prototype-shell { padding-top: 18px; }
+    .shell.shell-bleed.prototype-shell { padding-top: 14px; }
     .prototype-topa { padding-top: 12px; }
     .prototype-topa h1 { font-size: 34px; line-height: 1.1; white-space: normal; }
     .prototype-topa p { font-size: 14px; line-height: 1.55; }
@@ -2364,6 +3990,320 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-metrics { gap: 8px; }
     .prototype-topa-metrics span { min-height: 32px; flex-direction: row; gap: 5px; }
     .prototype-topa-metrics strong { font-size: 15px; }
+    .prototype-content-wall { padding: 0; gap: 14px; }
+    .prototype-content-lanes { gap: 22px; }
+    .prototype-content-lane { gap: 11px; }
+    .prototype-content-lane + .prototype-content-lane {
+      padding-top: 18px;
+    }
+    .prototype-content-lane-head {
+      gap: 8px;
+    }
+    .prototype-content-lane-title {
+      gap: 3px;
+    }
+    .prototype-content-lane-head h3 { font-size: 17px; }
+    .prototype-content-lane-more {
+      min-height: 31px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
+    .prototype-content-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px 13px;
+    }
+    .prototype-content-card { gap: 8px; }
+    .prototype-content-thumb {
+      border-radius: 7px;
+      box-shadow: 0 8px 18px rgba(15,23,42,.07);
+    }
+    .prototype-content-icon-row {
+      left: 7px;
+      top: 7px;
+    }
+    .prototype-content-icon {
+      width: 24px;
+      height: 24px;
+    }
+    .prototype-content-icon::before {
+      width: 12px;
+      height: 12px;
+    }
+    .prototype-content-body { gap: 8px; }
+    .prototype-content-title-line {
+      gap: 5px;
+    }
+    .prototype-content-title-line > strong {
+      font-size: 13px;
+      line-height: 1.34;
+    }
+    .prototype-content-subjects {
+      max-width: 46%;
+      gap: 4px;
+      font-size: 9px;
+    }
+    .prototype-content-subjects em {
+      min-width: 18px;
+      height: 17px;
+      padding: 0 4px;
+      font-size: 9px;
+    }
+    .prototype-content-author {
+      max-width: 100%;
+      width: 100%;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      column-gap: 5px;
+      row-gap: 1px;
+      justify-self: start;
+    }
+    .prototype-content-avatar { width: 22px; height: 22px; }
+    .prototype-monitoring-areas { gap: 10px; }
+    .prototype-monitoring-title h2 { font-size: 18px; }
+    .prototype-monitoring-grid {
+      grid-template-columns: none;
+      gap: 12px;
+    }
+    .prototype-monitoring-card.is-feature,
+    .prototype-monitoring-card:not(.is-feature) {
+      min-height: 0;
+      grid-template-columns: 84px minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto auto;
+      align-content: start;
+      gap: 5px 10px;
+      padding: 10px;
+    }
+    .prototype-monitoring-card.is-feature .prototype-monitoring-thumb,
+    .prototype-monitoring-card:not(.is-feature) .prototype-monitoring-thumb {
+      grid-column: 1;
+      grid-row: 1 / span 5;
+      width: 84px;
+      height: 108px;
+      min-height: 0;
+    }
+    .prototype-monitoring-thumb.is-empty::before {
+      width: 26px;
+      height: 26px;
+      margin-top: 48px;
+    }
+    .prototype-monitoring-card.is-feature strong,
+    .prototype-monitoring-card:not(.is-feature) strong {
+      font-size: 14px;
+      line-height: 1.3;
+      overflow: visible;
+      white-space: normal;
+      text-overflow: clip;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .prototype-monitoring-meta-row {
+      flex-wrap: wrap;
+      row-gap: 3px;
+    }
+    .prototype-monitoring-locality {
+      overflow: visible;
+      white-space: normal;
+      text-overflow: clip;
+    }
+    .prototype-monitoring-card small {
+      font-size: 11px;
+      overflow: visible;
+      white-space: normal;
+      text-overflow: clip;
+    }
+    .prototype-monitoring-card p {
+      font-size: 11px;
+      line-height: 1.36;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .prototype-monitoring-metrics {
+      grid-column: 2;
+      overflow: visible;
+      white-space: normal;
+      text-overflow: clip;
+      font-size: 10px;
+    }
+    .prototype-local-followups {
+      grid-template-columns: none;
+      gap: 10px;
+    }
+    .prototype-local-panel {
+      gap: 9px;
+      padding: 11px;
+    }
+    .prototype-guide-outcomes {
+      gap: 10px;
+      padding: 10px;
+    }
+    .prototype-guide-outcome-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 8px;
+    }
+    .prototype-guide-outcome-card {
+      min-height: 158px;
+      grid-template-columns: 44px minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto;
+      align-content: start;
+      gap: 4px 7px;
+      padding: 10px 9px 9px;
+    }
+    .prototype-guide-outcome-thumb {
+      grid-column: 1;
+      grid-row: 1 / span 4;
+      width: 44px;
+      height: 44px;
+      align-self: start;
+      justify-self: center;
+      margin-top: 38px;
+      border-radius: 6px;
+      font-size: 9px;
+    }
+    .prototype-guide-outcome-user {
+      grid-template-columns: 22px minmax(0, auto) minmax(0, 1fr);
+      gap: 5px;
+    }
+    .prototype-guide-outcome-user i {
+      width: 22px;
+      height: 22px;
+    }
+    .prototype-guide-outcome-user small {
+      grid-column: auto;
+      justify-self: end;
+      padding-left: 0;
+      font-size: 8.5px;
+      line-height: 1.1;
+      text-align: right;
+    }
+    .prototype-guide-outcome-card span,
+    .prototype-guide-outcome-card strong,
+    .prototype-guide-outcome-card small,
+    .prototype-guide-outcome-card em {
+      grid-column: 2;
+    }
+    .prototype-guide-outcome-card span {
+      font-size: 9px;
+      line-height: 1.2;
+    }
+    .prototype-guide-outcome-card strong {
+      font-size: 12.5px;
+      line-height: 1.24;
+    }
+    .prototype-guide-outcome-card small,
+    .prototype-guide-outcome-card em {
+      font-size: 9.5px;
+      line-height: 1.32;
+    }
+    .prototype-guide-outcome-card .prototype-guide-outcome-user {
+      grid-column: 2;
+      display: grid;
+      grid-template-columns: 18px minmax(30px, auto) minmax(0, 1fr);
+      gap: 3px;
+      align-items: center;
+    }
+    .prototype-guide-outcome-card .prototype-guide-outcome-user i {
+      width: 18px;
+      height: 18px;
+    }
+    .prototype-guide-outcome-card .prototype-guide-outcome-user b {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+      line-height: 1;
+    }
+    .prototype-guide-outcome-card .prototype-guide-outcome-user small {
+      grid-column: auto;
+      justify-self: end;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-left: 0;
+      font-size: 8px;
+      line-height: 1;
+      text-align: right;
+    }
+    .prototype-local-panel.is-invasive .prototype-local-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .prototype-local-watch-card {
+      min-height: 116px;
+      grid-template-columns: 54px minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto;
+      align-content: start;
+      gap: 4px 8px;
+      padding: 9px 10px;
+    }
+    .prototype-local-watch-card::before {
+      display: none;
+    }
+    .prototype-invasive-thumb {
+      grid-column: 1;
+      grid-row: 1 / span 4;
+      width: 54px;
+      height: 58px;
+      align-self: center;
+      justify-self: center;
+      border-radius: 6px;
+    }
+    .prototype-invasive-meta,
+    .prototype-invasive-name,
+    .prototype-local-watch-card small,
+    .prototype-local-watch-card mark {
+      grid-column: 2;
+    }
+    .prototype-invasive-name {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .prototype-local-watch-card small {
+      font-size: 10px;
+      line-height: 1.28;
+    }
+    .prototype-local-watch-card mark {
+      justify-self: start;
+      align-self: start;
+      width: max-content;
+      max-width: 100%;
+      height: 20px;
+      min-height: 20px;
+      padding: 0 6px;
+      font-size: 8px;
+      margin-top: 2px;
+      border-radius: 6px;
+    }
+    .prototype-invasive-meta {
+      flex-wrap: nowrap;
+      gap: 4px 5px;
+      font-size: 9px;
+    }
+    .prototype-invasive-meta em {
+      min-height: 19px;
+      padding: 0 6px;
+    }
+    .prototype-local-event-row,
+    .prototype-local-watch-empty,
+    .prototype-local-event-empty {
+      min-height: 58px;
+      gap: 3px 8px;
+      padding: 9px;
+    }
+    .prototype-local-event-empty {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .prototype-local-event-empty a {
+      grid-column: 1;
+      grid-row: auto;
+      width: fit-content;
+      min-height: 32px;
+      margin-top: 4px;
+    }
     .prototype-topa-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-tabs a { min-height: 52px; }
     .prototype-topa-card-grid,
@@ -2497,6 +4437,18 @@ export const LANDING_TOP_STYLES = `
     .prototype-empty-actions { display: grid; grid-template-columns: 1fr; }
     .prototype-btn { width: 100%; white-space: normal; text-align: center; }
     .prototype-hero-visual { min-height: 700px; }
+    .prototype-content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 21px 12px; }
+    .prototype-content-author {
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      column-gap: 4px;
+    }
+    .prototype-content-avatar { width: 20px; height: 20px; }
+    .prototype-content-avatar-symbol {
+      width: 10px;
+      height: 10px;
+    }
+    .prototype-content-author-copy em { font-size: 10px; }
+    .prototype-content-author-copy small { font-size: 9px; }
     .prototype-feed-row { grid-template-columns: 46px minmax(0, 1fr); }
     .prototype-feed-row em { grid-column: 2; }
     .prototype-feed-row img,

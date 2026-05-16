@@ -2,7 +2,7 @@ import type { PartialAppStrings } from "./strings.js";
 
 export const en: PartialAppStrings = {
   landing: {
-    title: "ikimon.life — Walk, find, write it in the notebook",
+    title: "ikimon — Enjoy Life through nearby nature",
     heroEyebrow: "feel the field.",
     heroHeading: "Your usual walk <span class=\"hero-emphasis\">becomes an adventure.</span>",
     heroHeadingPlain: "Your usual walk becomes an adventure.",
@@ -70,7 +70,7 @@ export const en: PartialAppStrings = {
     bizTitle: "A regional partnership entry built around reasons to visit and return",
     bizBody: "For schools, municipalities, and companies, ikimon starts with place stewardship and repeatable observation loops before any deep workspace promise.",
     bizCta: "For Business",
-    footerNote: "ikimon.life v2 — Walk, find, write it in the notebook.",
+    footerNote: "ikimon — Enjoy Life.",
   },
   fieldLoop: {
     eyebrow: "how ikimon works",

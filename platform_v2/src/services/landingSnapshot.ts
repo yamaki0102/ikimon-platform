@@ -24,8 +24,11 @@ import type {
   LandingFeaturedObservation,
   LandingHeroReason,
   LandingHeroScoreBreakdown,
+  LandingGuideOutcomeSummary,
   LandingHabitStats,
   LandingMapPreviewCell,
+  LandingNearbyEvent,
+  LandingNearbyField,
   LandingObservation,
   LandingSnapshot,
   LandingStats,
@@ -35,6 +38,7 @@ import type {
   LandingTopShelfItem,
   LandingTopShelfKind,
 } from "./readModels.js";
+import { refreshGuideSessionPublicSummaries, type GuideSessionSummarySourceRow } from "./guideSessionPublicSummary.js";
 
 function normalizeAssetUrl(value: string | null | undefined): string | null {
   if (!value) {
@@ -184,6 +188,7 @@ type FeedRow = {
   visit_mode: string | null;
   record_mode: string | null;
   identification_count: string;
+  confidence_score: string | number | null;
   evidence_tier: number | null;
   quality_grade: string | null;
 };
@@ -208,6 +213,37 @@ type GuideTopRow = {
   primary_subject: unknown;
   environment_context: string | null;
   seasonal_note: string | null;
+  meta: Record<string, unknown> | null;
+};
+
+type NearbyFieldRow = {
+  field_id: string;
+  name: string | null;
+  source: string | null;
+  admin_level: string | null;
+  city: string | null;
+  prefecture: string | null;
+  locality_label: string | null;
+  observation_count: string | number | null;
+  species_count: string | number | null;
+  observer_count: string | number | null;
+  latest_display_name: string | null;
+  signature_display_name: string | null;
+  latest_observed_at: string | null;
+  latest_photo_url: string | null;
+};
+
+type NearbyEventRow = {
+  session_id: string;
+  event_code: string | null;
+  title: string | null;
+  started_at: string;
+  ended_at: string | null;
+  field_id: string | null;
+  field_name: string | null;
+  city: string | null;
+  prefecture: string | null;
+  participant_count: string | number | null;
 };
 
 const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
@@ -276,6 +312,7 @@ const FEED_SQL_BASE = `
       from identifications i
       where i.occurrence_id = o.occurrence_id
     ) as identification_count,
+    o.confidence_score::text as confidence_score,
     o.evidence_tier,
     o.quality_grade
   from occurrences o
@@ -373,6 +410,144 @@ const PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL = `
   and coalesce(o.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
 `;
 
+const LANDING_NEARBY_FIELD_ACTIVITY_SQL = `
+  with recent_public_observations as (
+    select
+      o.occurrence_id,
+      v.visit_id,
+      v.observed_at,
+      v.point_latitude,
+      v.point_longitude,
+      v.source_payload,
+      v.resolved_field_ids,
+      coalesce(v.user_id, v.source_payload->>'observer_id', v.source_payload->>'recorded_by', 'anonymous:' || v.visit_id::text) as observer_key,
+      photo.public_url as photo_url,
+      coalesce(
+        nullif(o.vernacular_name, ''),
+        nullif(o.scientific_name, ''),
+        ident.display_name,
+        nullif(ai.recommended_taxon_name, ''),
+        '同定待ち'
+      ) as display_name
+    from occurrences o
+    join visits v on v.visit_id = o.visit_id
+    left join users u on u.user_id = v.user_id
+    left join lateral (
+      select recommended_taxon_name
+      from observation_ai_assessments a
+      where a.occurrence_id = o.occurrence_id
+      order by generated_at desc
+      limit 1
+    ) ai on true
+    left join lateral (
+      select
+        case
+          when btrim(i.proposed_name) = '' then null
+          when lower(btrim(i.proposed_name)) in ('unresolved', 'awaiting id') then null
+          when btrim(i.proposed_name) = '同定待ち' then null
+          else btrim(i.proposed_name)
+        end as display_name
+      from identifications i
+      where i.occurrence_id = o.occurrence_id
+        and coalesce(i.is_current, true)
+      order by i.created_at desc
+      limit 1
+    ) ident on true
+    left join lateral (
+      select coalesce(ab.public_url, ab.storage_path) as public_url
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+        and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+      order by
+        case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+        ea.created_at asc
+      limit 1
+    ) photo on true
+    where v.observed_at >= now() - interval '365 days'
+      and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
+      and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
+      and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+    order by v.observed_at desc
+    limit 1500
+  ),
+  linked_field_observations as (
+    select r.*, linked_field.field_id
+    from recent_public_observations r
+    join lateral (
+      select field_id
+      from (
+        select unnest(coalesce(r.resolved_field_ids, '{}'::uuid[])) as field_id, 0 as priority
+        union
+        select nullif(r.source_payload->>'field_id', '')::uuid as field_id, 0 as priority
+        where nullif(r.source_payload->>'field_id', '') ~* '^[0-9a-f-]{36}$'
+        union
+        select
+          f2.field_id,
+          case coalesce(f2.admin_level, f2.source)
+            when 'symbiosis' then 1
+            when 'nature_symbiosis_site' then 2
+            when 'osm_park' then 3
+            when 'park' then 3
+            when 'school' then 4
+            else 5
+          end as priority
+        from observation_fields f2
+        where r.point_latitude is not null
+          and r.point_longitude is not null
+          and f2.valid_to is null
+          and f2.bbox_min_lat is not null
+          and f2.bbox_min_lat <= r.point_latitude
+          and f2.bbox_max_lat >= r.point_latitude
+          and f2.bbox_min_lng <= r.point_longitude
+          and f2.bbox_max_lng >= r.point_longitude
+          and coalesce(f2.admin_level, f2.source) in ('park', 'osm_park', 'protected', 'protected_area', 'oecm', 'symbiosis', 'nature_symbiosis_site', 'tsunag', 'school', 'user_defined')
+      ) candidates
+      order by priority
+      limit 3
+    ) linked_field on true
+  ),
+  active_fields as (
+    select
+      f.field_id,
+      f.name,
+      f.source,
+      f.admin_level,
+      f.city,
+      f.prefecture,
+      coalesce(
+        nullif(btrim(f.payload->>'locality_label'), ''),
+        nullif(btrim(f.payload->>'address'), ''),
+        nullif(btrim(f.payload->>'address_ja'), ''),
+        nullif(btrim(f.payload#>>'{raw_properties,所在地}'), ''),
+        nullif(btrim(f.payload#>>'{raw_properties,address}'), ''),
+        nullif(btrim(f.city), '')
+      ) as locality_label,
+      count(distinct r.occurrence_id)::text as observation_count,
+      count(distinct nullif(r.display_name, '同定待ち'))::text as species_count,
+      count(distinct r.observer_key)::text as observer_count,
+      (array_agg(r.display_name order by r.observed_at desc))[1] as latest_display_name,
+      mode() within group (order by nullif(r.display_name, '同定待ち'))
+        filter (where nullif(r.display_name, '同定待ち') is not null) as signature_display_name,
+      (array_agg(r.photo_url order by (r.photo_url is null), r.observed_at desc))[1] as latest_photo_url,
+      max(r.observed_at)::text as latest_observed_at
+    from observation_fields f
+    join linked_field_observations r on r.field_id = f.field_id
+    where f.valid_to is null
+      and nullif(btrim(f.name), '') is not null
+      and coalesce(f.admin_level, f.source) in ('park', 'osm_park', 'protected', 'protected_area', 'oecm', 'symbiosis', 'nature_symbiosis_site', 'tsunag', 'school', 'user_defined')
+      and coalesce(f.admin_level, '') not in ('admin_municipality', 'admin_prefecture', 'admin_country')
+      and lower(btrim(f.name)) <> lower(btrim(coalesce(f.city, '')))
+      and lower(btrim(f.name)) <> lower(btrim(coalesce(f.prefecture, '')))
+    group by f.field_id, f.name, f.source, f.admin_level, f.city, f.prefecture, f.payload
+  )
+  select field_id::text, name, source, admin_level, city, prefecture, locality_label, observation_count, species_count, observer_count, latest_display_name, signature_display_name, latest_observed_at, latest_photo_url
+  from active_fields
+  where observation_count::int > 0
+  order by observation_count::int desc, latest_observed_at desc
+  limit 8
+`;
+
 const AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
   visitIdColumn: "v.visit_id",
@@ -418,6 +593,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     photoUrls: normalizeAssetUrls(row.photo_urls),
     photoCount: Math.max(0, Number(row.photo_count ?? 0) || 0),
     identificationCount: Number(row.identification_count),
+    confidenceScore: row.confidence_score != null ? Number(row.confidence_score) : null,
     librarySourceKind: landingLibrarySourceKind(row),
     hasVideo: Number(row.video_count ?? 0) > 0,
     latitude: safeLat,
@@ -1269,6 +1445,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       topShelves: [],
       overflowSummaries: [],
       myPlaces: [],
+      nearbyFields: [],
+      nearbyEvents: [],
       mapPreviewCells: [],
       ambient: [],
       habit: null,
@@ -1306,7 +1484,21 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   if (userId) {
     try {
       const result = await pool.query<GuideTopRow>(
-        `select
+        `with recent_guide_sessions as (
+           select gr.session_id,
+                  max(coalesce(gls.captured_at, gls.returned_at, gr.created_at)) as latest_at
+             from guide_records gr
+             left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
+            where gr.user_id = $1
+              and coalesce(gls.delivery_state, 'ready') <> 'archived'
+              and (nullif(btrim(coalesce(gr.scene_summary, '')), '') is not null
+                or gls.primary_subject <> '{}'::jsonb
+                or coalesce(array_length(gr.detected_species, 1), 0) > 0)
+            group by gr.session_id
+            order by latest_at desc
+            limit 12
+         )
+          select
             gr.guide_record_id::text as guide_record_id,
             gr.session_id,
             gr.occurrence_id,
@@ -1325,6 +1517,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
             gls.primary_subject,
             gls.environment_context,
             gls.seasonal_note,
+            gls.meta,
             exists (
               select 1
                 from audio_segments audio
@@ -1338,6 +1531,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
                limit 1
             ) as has_promotable_audio
           from guide_records gr
+          join recent_guide_sessions rgs on rgs.session_id = gr.session_id
           left join guide_record_latency_states gls on gls.guide_record_id = gr.guide_record_id
           left join users u on u.user_id = gr.user_id
           left join lateral (
@@ -1352,8 +1546,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
             and (nullif(btrim(coalesce(gr.scene_summary, '')), '') is not null
               or gls.primary_subject <> '{}'::jsonb
               or coalesce(array_length(gr.detected_species, 1), 0) > 0)
-          order by coalesce(gls.captured_at, gls.returned_at, gr.created_at) desc
-          limit 80`,
+          order by rgs.latest_at desc, coalesce(gls.captured_at, gls.returned_at, gr.created_at) desc
+          limit 240`,
         [userId],
       );
       guideTopRows = result.rows;
@@ -1473,6 +1667,85 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       myPlaces = home.myPlaces;
     } catch {
       myPlaces = [];
+    }
+  }
+
+  // Named registered areas with recent public activity. These drive the top
+  // "nearby" shelf, so municipality-only aggregate cells do not crowd it out.
+  let nearbyFields: LandingNearbyField[] = [];
+  try {
+    const result = await pool.query<NearbyFieldRow>(LANDING_NEARBY_FIELD_ACTIVITY_SQL);
+    nearbyFields = result.rows
+      .map((row): LandingNearbyField | null => {
+        const name = row.name?.trim();
+        if (!name) return null;
+        return {
+          fieldId: row.field_id,
+          name,
+          source: row.source,
+          adminLevel: row.admin_level,
+          city: row.city,
+          prefecture: row.prefecture,
+          localityLabel: row.locality_label,
+          observationCount: Number(row.observation_count) || 0,
+          speciesCount: Number(row.species_count) || 0,
+          observerCount: Number(row.observer_count) || 0,
+          latestDisplayName: normalizeDisplayName(row.latest_display_name) ?? row.latest_display_name,
+          signatureDisplayName: normalizeDisplayName(row.signature_display_name) ?? row.signature_display_name,
+          latestObservedAt: row.latest_observed_at,
+          latestPhotoUrl: normalizeAssetUrl(row.latest_photo_url),
+        };
+      })
+      .filter((field): field is LandingNearbyField => Boolean(field && field.observationCount > 0));
+  } catch {
+    nearbyFields = [];
+  }
+
+  let nearbyEvents: LandingNearbyEvent[] = [];
+  const nearbyFieldIds = nearbyFields.map((field) => field.fieldId).filter(Boolean).slice(0, 8);
+  if (nearbyFieldIds.length > 0) {
+    try {
+      const result = await pool.query<NearbyEventRow>(
+        `select
+           s.session_id::text as session_id,
+           s.event_code,
+           nullif(btrim(s.title), '') as title,
+           s.started_at::text as started_at,
+           s.ended_at::text as ended_at,
+           s.field_id::text as field_id,
+           f.name as field_name,
+           f.city,
+           f.prefecture,
+           coalesce((
+             select count(*)::text
+             from observation_event_participants p
+             where p.session_id = s.session_id
+           ), '0') as participant_count
+         from observation_event_sessions s
+         left join observation_fields f on f.field_id = s.field_id
+         where s.field_id = any($1::uuid[])
+           and coalesce(s.ended_at, s.started_at + interval '1 day') >= now() - interval '1 day'
+         order by
+           case when coalesce(s.ended_at, s.started_at + interval '1 day') >= now() then 0 else 1 end,
+           abs(extract(epoch from (s.started_at - now()))),
+           s.started_at desc
+         limit 6`,
+        [nearbyFieldIds],
+      );
+      nearbyEvents = result.rows.map((row): LandingNearbyEvent => ({
+        sessionId: row.session_id,
+        eventCode: row.event_code,
+        title: row.title?.trim() || "観察会",
+        startedAt: row.started_at,
+        endedAt: row.ended_at,
+        fieldId: row.field_id,
+        fieldName: row.field_name,
+        city: row.city,
+        prefecture: row.prefecture,
+        participantCount: Number(row.participant_count) || 0,
+      }));
+    } catch {
+      nearbyEvents = [];
     }
   }
 
@@ -1695,13 +1968,61 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       municipality: item.municipality,
       photoUrl: item.photoUrl,
     }));
+  let guideOutcomeSummaries: LandingGuideOutcomeSummary[] = [];
+  if (userId && guideTopRows.length > 0) {
+    const summaryRows: GuideSessionSummarySourceRow[] = guideTopRows.map((row) => ({
+      guideRecordId: row.guide_record_id,
+      sessionId: row.session_id,
+      userId: row.observer_user_id,
+      occurrenceId: row.occurrence_id,
+      observerName: row.observer_name,
+      observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
+      lat: toNumberOrNull(row.latitude),
+      lng: toNumberOrNull(row.longitude),
+      sceneSummary: row.scene_summary,
+      detectedSpecies: row.detected_species,
+      detectedFeatures: Array.isArray(row.detected_features) ? row.detected_features as GuideSessionSummarySourceRow["detectedFeatures"] : [],
+      capturedAt: row.captured_at,
+      returnedAt: row.returned_at,
+      createdAt: row.created_at,
+      frameThumb: row.frame_thumb,
+      primarySubject: row.primary_subject,
+      environmentContext: row.environment_context,
+      seasonalNote: row.seasonal_note,
+      meta: row.meta,
+    }));
+    guideOutcomeSummaries = (await refreshGuideSessionPublicSummaries(summaryRows, userId).catch(() => []))
+      .map((summary) => ({
+        sessionId: summary.sessionId,
+        observerName: summary.observerName,
+        observerAvatarUrl: summary.observerAvatarUrl,
+        recordCount: summary.recordCount,
+        headline: summary.headline,
+        body: summary.body,
+        evidenceLine: summary.evidenceLine,
+        motivationLine: summary.motivationLine,
+        claimBoundary: summary.claimBoundary,
+        primaryTheme: summary.primaryTheme,
+        featuredSubjects: summary.featuredSubjects,
+        publicLocationLabel: summary.publicLocationLabel,
+        mediaThumbUrl: summary.mediaThumbUrl,
+        href: summary.href,
+      }));
+  }
   const filteredMyPlaces = filterLandingDummyPlaces(myPlaces);
   const topSelection = buildLandingTopShelves(publicFeedAll, {
     preferredMunicipalities: buildPreferredMunicipalities(userId, filteredMyPlaces, publicFeedAll),
     extraItems: guideItems,
   });
   const selectedFeed = uniqueLandingObservationList(topSelection.shelves.flatMap((shelf) => shelf.items).filter(isLandingObservationItem));
-  const publicFeed = selectedFeed.length > 0 ? selectedFeed.slice(0, 24) : publicFeedAll.slice(0, 12);
+  const publicFeedPool = userId
+    ? [
+        ...publicFeedAll.filter((obs) => obs.observerUserId !== userId),
+        ...publicFeedAll.filter((obs) => obs.observerUserId === userId),
+      ]
+    : publicFeedAll;
+  const publicFeed = publicFeedPool.slice(0, 36);
+  const storyFeed = selectedFeed.length > 0 ? selectedFeed : publicFeed;
   const combined = filterLandingDummyObservations([...ownObservationEntries, ...ownIdentificationEntries]).sort((a, b) => {
     const aTs = (a.entryType === "identification" ? a.identifiedAt : a.observedAt) ?? "";
     const bTs = (b.entryType === "identification" ? b.identifiedAt : b.observedAt) ?? "";
@@ -1716,14 +2037,14 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
         longitude: filteredMyPlaces[0].longitude,
         allowPrecisePlaceLabel: true,
       }
-    : publicFeed[0]
+    : storyFeed[0]
       ? {
           placeId: null,
-          placeName: publicFeed[0].placeName,
-          municipality: publicFeed[0].municipality,
-          latitude: publicFeed[0].latitude,
-          longitude: publicFeed[0].longitude,
-          publicLabel: publicFeed[0].publicLocation.label,
+          placeName: storyFeed[0].placeName,
+          municipality: storyFeed[0].municipality,
+          latitude: storyFeed[0].latitude,
+          longitude: storyFeed[0].longitude,
+          publicLabel: storyFeed[0].publicLocation.label,
           allowPrecisePlaceLabel: false,
         }
       : {
@@ -1735,11 +2056,11 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     surface: "landing",
     viewerUserId: userId,
     place: regionalStoryPlace,
-    observation: publicFeed[0]
+    observation: storyFeed[0]
       ? {
-          observationId: publicFeed[0].occurrenceId,
-          observedAt: publicFeed[0].observedAt,
-          displayName: publicFeed[0].displayName,
+          observationId: storyFeed[0].occurrenceId,
+          observedAt: storyFeed[0].observedAt,
+          displayName: storyFeed[0].displayName,
         }
       : undefined,
     maxCards: 1,
@@ -1751,8 +2072,12 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     feed: publicFeed,
     myFeed: combined.slice(0, 96),
     topShelves: topSelection.shelves,
+    guideOutcomes: guideItems,
+    guideOutcomeSummaries,
     overflowSummaries: topSelection.overflowSummaries,
     myPlaces: filteredMyPlaces,
+    nearbyFields,
+    nearbyEvents,
     mapPreviewCells: buildMapPreviewCells(filteredFeedRows),
     ambient,
     habit,

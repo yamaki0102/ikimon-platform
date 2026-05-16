@@ -505,6 +505,32 @@ export function buildApp() {
       return LEGACY_SERVICE_WORKER_CLEANUP_SCRIPT;
     });
   }
+
+  app.get<{ Params: { "*": string } }>("/__preview-media/*", async (request, reply) => {
+    const enabled = process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || process.env.ALLOW_QUERY_USER_ID === "1" || process.env.PORT === "3203";
+    const origin = (process.env.IKIMON_PUBLIC_MEDIA_ORIGIN || "https://ikimon.life").trim().replace(/\/+$/, "");
+    const rel = request.params["*"] ?? "";
+    if (!enabled || !rel || rel.includes("..") || !/^(?:thumb|uploads|data\/uploads)\//.test(rel)) {
+      reply.code(404).type("text/plain").send("not found");
+      return;
+    }
+    const upstream = await fetch(`${origin}/${rel}`);
+    if (!upstream.ok) {
+      reply.code(upstream.status).type("text/plain").send("not found");
+      return;
+    }
+    const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+    if (!contentType.startsWith("image/")) {
+      reply.code(404).type("text/plain").send("not found");
+      return;
+    }
+    const bytes = Buffer.from(await upstream.arrayBuffer());
+    reply
+      .type(contentType)
+      .header("Cache-Control", "public, max-age=300")
+      .send(bytes);
+  });
+
   app.get("/", async (request, reply) => {
     const context = await getPreviewContext();
     context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);

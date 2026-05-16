@@ -39,6 +39,7 @@ type RecentObservation = {
   aiCandidateName?: string | null;
   aiCandidateRank?: string | null;
   isAiCandidate?: boolean;
+  confidenceScore?: number | null;
   observedAt: string;
   observerName: string;
   placeName: string;
@@ -2176,6 +2177,23 @@ export type LandingTopOverflowSummary = {
   sampleObservation: LandingObservation;
 };
 
+export type LandingGuideOutcomeSummary = {
+  sessionId: string;
+  observerName: string;
+  observerAvatarUrl: string | null;
+  recordCount: number;
+  headline: string;
+  body: string;
+  evidenceLine: string;
+  motivationLine: string;
+  claimBoundary: string;
+  primaryTheme: "green" | "water" | "sound" | "place";
+  featuredSubjects: string[];
+  publicLocationLabel: string | null;
+  mediaThumbUrl: string | null;
+  href: string;
+};
+
 export type LandingMapPreviewCell = {
   cellId: string;
   label: string;
@@ -2187,6 +2205,36 @@ export type LandingMapPreviewCell = {
   centroidLat: number;
   centroidLng: number;
   polygon: [number, number][];
+};
+
+export type LandingNearbyField = {
+  fieldId: string;
+  name: string;
+  source: string | null;
+  adminLevel: string | null;
+  city: string | null;
+  prefecture: string | null;
+  localityLabel: string | null;
+  observationCount: number;
+  speciesCount: number;
+  observerCount: number;
+  latestDisplayName: string | null;
+  signatureDisplayName: string | null;
+  latestObservedAt: string | null;
+  latestPhotoUrl: string | null;
+};
+
+export type LandingNearbyEvent = {
+  sessionId: string;
+  eventCode: string | null;
+  title: string;
+  startedAt: string;
+  endedAt: string | null;
+  fieldId: string | null;
+  fieldName: string | null;
+  city: string | null;
+  prefecture: string | null;
+  participantCount: number;
 };
 
 export type AmbientObserver = {
@@ -2228,8 +2276,12 @@ export type LandingSnapshot = {
   feed: LandingObservation[];
   myFeed: LandingObservation[];
   topShelves?: LandingTopShelf[];
+  guideOutcomes?: LandingTopGuideItem[];
+  guideOutcomeSummaries?: LandingGuideOutcomeSummary[];
   overflowSummaries?: LandingTopOverflowSummary[];
   myPlaces: HomePlace[];
+  nearbyFields: LandingNearbyField[];
+  nearbyEvents: LandingNearbyEvent[];
   mapPreviewCells: LandingMapPreviewCell[];
   ambient: AmbientObserver[];
   habit: LandingHabitStats | null;

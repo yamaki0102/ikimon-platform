@@ -4,7 +4,7 @@ import { getObservationEventStrings } from "./observationEventStrings.js";
 
 export const ja: AppStrings = {
   landing: {
-    title: "ikimon.life | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる",
+    title: "ikimon | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる",
     heroEyebrow: "Enjoy Life",
     heroHeading: "生きものを楽しむ。<br><span class=\"hero-emphasis\">暮らしと地球のいのちを楽しむ。</span>",
     heroHeadingPlain: "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",

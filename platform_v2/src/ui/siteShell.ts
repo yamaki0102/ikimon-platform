@@ -355,7 +355,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "更新情報",
       },
       personalizedEmpty: "ログインすると、フォロー中の分類群や観察エリアをここに固定します。",
-      legalTagline: "身近な自然を記録する。",
+      legalTagline: "Enjoy Life",
     },
     en: {
       primaryTitle: "Daily",
@@ -387,7 +387,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Updates",
       },
       personalizedEmpty: "Sign in to pin followed taxa and observation areas here.",
-      legalTagline: "Record nearby nature.",
+      legalTagline: "Enjoy Life",
     },
     es: {
       primaryTitle: "Diario",
@@ -419,7 +419,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Novedades",
       },
       personalizedEmpty: "Entra para fijar taxones y areas de observacion.",
-      legalTagline: "Registrar la naturaleza cercana.",
+      legalTagline: "Enjoy Life",
     },
     "pt-BR": {
       primaryTitle: "Diario",
@@ -451,7 +451,7 @@ function sideNavDirectoryCopy(lang: SiteLang): SideNavDirectoryCopy {
         updates: "Novidades",
       },
       personalizedEmpty: "Entre para fixar taxons e areas de observacao.",
-      legalTagline: "Registrar a natureza proxima.",
+      legalTagline: "Enjoy Life",
     },
   };
   return localized[lang] ?? localized.ja;
@@ -579,8 +579,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
             { href: "/records?view=needs_id", label: directoryCopy.links.identifyQueue, match: ["/records?view=needs_id"] },
             { href: "/records?view=public", label: directoryCopy.links.taxaSearch, match: ["/records?view=public"] },
           ])}
-        </div>
-        <p class="desktop-side-nav-personalized-empty" data-side-nav-personalized-empty>${escapeHtml(directoryCopy.personalizedEmpty)}</p>`;
+        </div>`;
   const groups: SideNavGroup[] = [
     {
       title: directoryCopy.groups.guest,
@@ -636,7 +635,6 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const primaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--primary" : "site-mobile-menu-section";
   const secondaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--secondary" : "site-mobile-menu-section";
   const primary = `<section class="${primaryClass}">
-        <h2 class="desktop-side-nav-section-title">${escapeHtml(directoryCopy.primaryTitle)}</h2>
         ${primaryItems
           .map((item) => renderDesktopSideNavLink(basePath, lang, currentPath, normalizedPath, item, copy[item.key] ?? item.key))
           .join("")}
@@ -651,7 +649,7 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
     )
     .join("");
   const legal = `<div class="desktop-side-nav-legal">
-    <span>ikimon.life</span>
+    <span>ikimon</span>
     <span>${escapeHtml(directoryCopy.legalTagline)}</span>
   </div>`;
   return `<div class="${rootClass}">${primary}${secondary}${legal}</div>`;
@@ -674,8 +672,11 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
     "pt-BR": "Idioma",
   };
 
+  const currentLanguage = supportedLanguages.find((language) => language.code === lang);
+  const currentShortLabel = currentLanguage?.shortLabel ?? lang.toUpperCase();
+
   return `<div class="${classes.join(" ")}" aria-label="${escapeHtml(switchCopy[lang])}">
-    <span class="lang-switch-label">${desktopSideNavIcon("language")}<span>${escapeHtml(switchCopy[lang])}</span></span>
+    <span class="lang-switch-label">${desktopSideNavIcon("language")}<span class="lang-switch-current">${escapeHtml(currentShortLabel)}</span></span>
     <div class="lang-switch-options">${supportedLanguages
     .map((language) => {
       const activeClass = language.code === lang ? " is-active" : "";
@@ -714,9 +715,8 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav: s
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
           <span class="brand-logo-lockup">
             <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ikimon.life">
+            <span class="brand-wordmark" aria-label="ikimon">
               <span class="brand-name">ikimon</span>
-              <span class="brand-domain">.life</span>
             </span>
           </span>
         </a>
@@ -861,7 +861,7 @@ function footer(basePath: string, lang: SiteLang, _footerNote?: string): string 
       </section>
 
       <div class="footer-bottom">
-        <span>ikimon.life｜生きものを楽しみ、記録から観察レコードを育てる。</span>
+        <span>ikimon｜Enjoy Life</span>
         <span><a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>・<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a></span>
       </div>
     </div>
@@ -2961,8 +2961,13 @@ function ogLocale(lang: SiteLang): string {
   return map[lang];
 }
 
+function displayPageTitle(title: string): string {
+  return title.replace(/\bikimon\.life\b/g, "ikimon");
+}
+
 export function renderSiteDocument(options: SiteShellOptions): string {
   const lang = options.lang ?? "ja";
+  const pageTitle = displayPageTitle(options.title);
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
   const uiLangs = options.alternateLangs?.length ? options.alternateLangs : supportedLanguages.map((language) => language.code);
   const seoAlternateLangs: SiteLang[] = ["ja"];
@@ -3167,19 +3172,19 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const supported = { ja: 'ja', en: 'en', es: 'es', pt: 'pt-BR', 'pt-br': 'pt-BR' };
   const languageSuggestionCopy = {
     en: {
-      title: 'Use ikimon.life in English?',
+      title: 'Use ikimon in English?',
       body: 'You can switch the interface. Search indexing stays focused on Japanese.',
       action: 'Switch to English',
       dismiss: 'Keep Japanese'
     },
     es: {
-      title: '¿Usar ikimon.life en español?',
+      title: '¿Usar ikimon en español?',
       body: 'Puedes cambiar la interfaz. La búsqueda sigue centrada en japonés.',
       action: 'Cambiar a español',
       dismiss: 'Seguir en japonés'
     },
     'pt-BR': {
-      title: 'Usar ikimon.life em português?',
+      title: 'Usar ikimon em português?',
       body: 'Voce pode mudar a interface. A busca continua focada em japones.',
       action: 'Mudar para português',
       dismiss: 'Manter japones'
@@ -3432,7 +3437,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
-  <meta name="application-name" content="ikimon.life" />
+  <meta name="application-name" content="ikimon" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="ikimon" />
   <link rel="manifest" href="${escapeHtml(manifestHref)}" />
@@ -3440,19 +3445,19 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png" />
-  <title>${escapeHtml(options.title)}</title>
+  <title>${escapeHtml(pageTitle)}</title>
   <meta name="description" content="${escapeHtml(description)}" />${robotsMeta}
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
 ${alternateLinks}
   <link rel="alternate" hreflang="x-default" href="${escapeHtml(xDefaultHref)}" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="ikimon.life" />
+  <meta property="og:site_name" content="ikimon" />
   <meta property="og:locale" content="${escapeHtml(ogLocale(lang))}" />
-  <meta property="og:title" content="${escapeHtml(options.title)}" />
+  <meta property="og:title" content="${escapeHtml(pageTitle)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
   <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="${escapeHtml(options.title)}" />
+  <meta name="twitter:title" content="${escapeHtml(pageTitle)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   ${options.structuredDataHtml ?? ""}
   ${appLaunchHeadScript}
@@ -3913,14 +3918,28 @@ ${alternateLinks}
     .site-search-input::placeholder { color: #94a3b8; }
     @media (max-width: 720px) { .site-search { flex: 1 1 100%; max-width: 100%; order: 3; } }
     .lang-switch {
+      position: relative;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px;
+      padding: 0;
       border-radius: 999px;
       background: rgba(255,255,255,.88);
       border: 1px solid rgba(148,163,184,.24);
       box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    }
+    .lang-switch::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      height: 10px;
+      display: none;
+    }
+    .lang-switch:hover::after,
+    .lang-switch:focus-within::after {
+      display: block;
     }
     .lang-switch-label,
     .lang-switch-options {
@@ -3930,17 +3949,38 @@ ${alternateLinks}
     }
     .lang-switch-label {
       min-height: 40px;
-      padding: 0 8px;
+      padding: 0 11px;
       color: #334155;
       font-size: 12px;
       font-weight: 850;
       line-height: 1;
       white-space: nowrap;
     }
+    .lang-switch-current {
+      min-width: 18px;
+      text-align: center;
+      letter-spacing: .04em;
+    }
     .lang-switch-label .desktop-side-nav-icon {
       width: 17px;
       height: 17px;
       color: #047857;
+    }
+    .lang-switch-options {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 20;
+      display: none;
+      padding: 4px;
+      border: 1px solid rgba(148,163,184,.24);
+      border-radius: 999px;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 18px 38px rgba(15,23,42,.14);
+    }
+    .lang-switch:hover .lang-switch-options,
+    .lang-switch:focus-within .lang-switch-options {
+      display: inline-flex;
     }
     .lang-switch-link {
       display: inline-flex;
@@ -4343,9 +4383,15 @@ ${alternateLinks}
       padding: 0 6px;
     }
     .lang-switch-mobile .lang-switch-options {
+      position: static;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
     }
     .lang-switch-mobile .lang-switch-link {
       justify-content: flex-start;
