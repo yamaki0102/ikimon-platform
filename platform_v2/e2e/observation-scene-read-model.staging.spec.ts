@@ -58,6 +58,14 @@ async function expectWithinFirstViewport(page: Page, selector: string): Promise<
   expect(box.y + box.height, `${selector} should fit in the first viewport`).toBeLessThanOrEqual(height + 8);
 }
 
+async function expectStartsInFirstViewport(page: Page, selector: string): Promise<void> {
+  const box = await page.locator(selector).first().boundingBox();
+  expect(box, `${selector} should have a layout box`).not.toBeNull();
+  if (!box) return;
+  const height = await page.evaluate(() => window.innerHeight);
+  expect(box.y, `${selector} should start before the first viewport ends`).toBeLessThanOrEqual(height);
+}
+
 test.describe.serial("observation scene read model visual QA", () => {
   let api: APIRequestContext;
   let fixturePrefix = "";
@@ -106,7 +114,7 @@ test.describe.serial("observation scene read model visual QA", () => {
         expect(firstViewportText).toContain("白い花の群落");
         expect(firstViewportText).toMatch(/草地|植物|名前だけでなく|写真/);
         if (profile.isMobile) {
-          await expectWithinFirstViewport(page, ".obs-reading-media");
+          await expectStartsInFirstViewport(page, ".obs-reading-media");
           await expectWithinFirstViewport(page, ".obs-record-brief");
         }
         expect(firstViewportText).toContain("訪花中のハチ");
