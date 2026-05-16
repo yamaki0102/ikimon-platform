@@ -163,6 +163,9 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(visibleItemsSource, /obs-focus-title">写っているもの/);
   assert.match(visibleItemsSource, /AIの場面読み/);
   assert.match(visibleItemsSource, /sceneReadTextForVisibleItems/);
+  assert.match(visibleItemsSource, /data-scene-overview-target/);
+  assert.match(visibleItemsSource, /data-annotation-subject-id/);
+  assert.match(visibleItemsSource, /data-annotation-candidate-id/);
   assert.match(visibleItemsSource, /参考候補/);
   assert.match(visibleCardSource, /観測レコードにする/);
   assert.match(storySource, /小さな季節の物語/);
@@ -173,6 +176,7 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(detailCopySource, /AIが写真から拾った仮説です/);
   assert.match(detailCopySource, /証拠不足で保留/);
   assert.match(detailCopySource, /別の写り込みを追加/);
+  assert.match(routeSource, /hasAnnotationSwitchTargets/);
   assert.doesNotMatch(detailCopySource, /obs-ai-readout-note[^}]*-webkit-line-clamp/);
 });
 
