@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
@@ -51,4 +52,12 @@ test("public map observations expose list items instead of point features", asyn
   } finally {
     await app.close();
   }
+});
+
+test("area polygon route logs high zoom empty viewport diagnostics", () => {
+  const source = readFileSync(new URL("./mapApi.ts", import.meta.url), "utf8");
+  assert.match(source, /area_polygons_high_zoom_empty_viewport/);
+  assert.match(source, /bbox/);
+  assert.match(source, /zoom/);
+  assert.match(source, /sources/);
 });

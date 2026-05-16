@@ -9,6 +9,8 @@ const {
   liveElementToFeature,
   tileForLngLat,
   tilesForBbox,
+  tileBbox,
+  bboxForTiles,
   featureTouchesBbox,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
@@ -122,6 +124,20 @@ test("tilesForBbox returns bounded web mercator tile keys", () => {
   assert.ok(tiles.every((tile) => tile.z === 14));
   const one = tileForLngLat(137.41, 34.74);
   assert.ok(tiles.some((tile) => tile.x === one.x && tile.y === one.y));
+});
+
+test("bboxForTiles expands a high zoom viewport to the complete live OSM cache tile", () => {
+  const viewport: [number, number, number, number] = [137.6960, 34.6955, 137.6985, 34.6972];
+  const tiles = tilesForBbox(viewport);
+  const expanded = bboxForTiles(tiles);
+  assert.ok(expanded);
+  assert.ok(expanded[0] <= viewport[0]);
+  assert.ok(expanded[1] <= viewport[1]);
+  assert.ok(expanded[2] >= viewport[2]);
+  assert.ok(expanded[3] >= viewport[3]);
+
+  const tile = tileForLngLat(137.697, 34.696);
+  assert.deepEqual(tileBbox({ z: 14, x: tile.x, y: tile.y }), bboxForTiles([{ z: 14, x: tile.x, y: tile.y }]));
 });
 
 test("featureTouchesBbox keeps cached tile features local to the current viewport", () => {

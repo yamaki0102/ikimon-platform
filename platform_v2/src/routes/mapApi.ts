@@ -231,6 +231,26 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       sources,
       limit: limit ?? undefined,
     });
+    const [minLng, minLat, maxLng, maxLat] = bbox;
+    const liveSources = sources ?? [];
+    const liveSourceRequested = sources == null
+      || liveSources.includes("osm_park")
+      || liveSources.includes("school")
+      || liveSources.includes("user_defined");
+    if (
+      (zoom ?? 0) >= 13
+      && liveSourceRequested
+      && collection.features.length === 0
+      && (maxLng - minLng) <= 0.02
+      && (maxLat - minLat) <= 0.02
+    ) {
+      request.log.warn({
+        bbox,
+        zoom,
+        sources: sources ?? "default",
+        limit: limit ?? null,
+      }, "area_polygons_high_zoom_empty_viewport");
+    }
     reply
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "public, max-age=60");
