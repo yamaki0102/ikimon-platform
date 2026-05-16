@@ -36,6 +36,33 @@ export type SeededRegressionFixtureBundle = {
   scene: SeededRegressionFixture;
 };
 
+export type SeededRallyFixtureBundle = {
+  fixturePrefix: string;
+  user: {
+    userId: string;
+    displayName: string;
+  };
+  session: {
+    sessionId: string;
+    eventCode: string;
+    title: string;
+  };
+  station: {
+    stationId: string;
+    name: string;
+  };
+  missions: {
+    open: { missionId: string; title: string };
+    sunnyStation: { missionId: string; title: string };
+    rainFallback: { missionId: string; title: string };
+  };
+  progress: {
+    actualCount: number;
+    goalCount: number;
+    percent: number;
+  };
+};
+
 export type ViewportProfile = {
   slug: string;
   viewport: { width: number; height: number };
@@ -122,6 +149,12 @@ type SeedRegressionResponse = {
   fixture?: SeededRegressionFixtureBundle;
 };
 
+type SeedRallyResponse = {
+  ok: boolean;
+  error?: string;
+  fixture?: SeededRallyFixtureBundle;
+};
+
 type CleanupResponse = {
   ok: boolean;
   error?: string;
@@ -143,6 +176,26 @@ export async function seedRegressionFixtures(
   const payload = (await response.json()) as SeedRegressionResponse;
   expect(response.ok(), payload.error ?? "seed_regression_failed").toBeTruthy();
   expect(payload.ok, payload.error ?? "seed_regression_failed").toBeTruthy();
+  expect(payload.fixture).toBeTruthy();
+  return payload.fixture!;
+}
+
+export async function seedRallyFixtures(
+  api: APIRequestContext,
+  writeKey: string,
+  fixturePrefix: string,
+): Promise<SeededRallyFixtureBundle> {
+  const response = await api.post("/api/v1/ops/staging/fixtures/seed-rally", {
+    headers: {
+      "x-ikimon-write-key": writeKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: { fixturePrefix },
+  });
+  const payload = (await response.json()) as SeedRallyResponse;
+  expect(response.ok(), payload.error ?? "seed_rally_failed").toBeTruthy();
+  expect(payload.ok, payload.error ?? "seed_rally_failed").toBeTruthy();
   expect(payload.fixture).toBeTruthy();
   return payload.fixture!;
 }

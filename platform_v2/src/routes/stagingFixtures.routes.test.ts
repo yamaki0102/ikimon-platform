@@ -50,6 +50,19 @@ test("staging fixture routes enforce staging gate and privileged key", async () 
         assert.equal(disabledSeed.statusCode, 404);
         assert.equal(disabledSeed.json().error, "staging_regression_seed_disabled");
 
+        const disabledRallySeed = await app.inject({
+          method: "POST",
+          url: "/api/v1/ops/staging/fixtures/seed-rally",
+          headers: {
+            "x-ikimon-write-key": "test-write-key",
+          },
+          payload: {
+            fixturePrefix: "rally-smoke-test",
+          },
+        });
+        assert.equal(disabledRallySeed.statusCode, 404);
+        assert.equal(disabledRallySeed.json().error, "staging_rally_seed_disabled");
+
         const disabledCleanup = await app.inject({
           method: "POST",
           url: "/api/v1/ops/staging/fixtures/cleanup",
@@ -85,6 +98,16 @@ test("staging fixture routes enforce staging gate and privileged key", async () 
         });
         assert.equal(missingKeySeed.statusCode, 403);
         assert.equal(missingKeySeed.json().error, "forbidden_privileged_write");
+
+        const missingKeyRallySeed = await app.inject({
+          method: "POST",
+          url: "/api/v1/ops/staging/fixtures/seed-rally",
+          payload: {
+            fixturePrefix: "rally-smoke-test",
+          },
+        });
+        assert.equal(missingKeyRallySeed.statusCode, 403);
+        assert.equal(missingKeyRallySeed.json().error, "forbidden_privileged_write");
 
         const missingKeyCleanup = await app.inject({
           method: "POST",
