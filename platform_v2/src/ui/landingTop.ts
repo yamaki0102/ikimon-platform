@@ -1170,7 +1170,7 @@ function renderLandingGuideOutcomes(options: LandingTopRenderOptions): string {
     </a>`;
   }).join("");
 
-  return `<section class="prototype-guide-outcomes" aria-label="ガイドで見えたこと">
+  return `<section id="topa-guide" class="prototype-guide-outcomes" aria-label="ガイドで見えたこと">
     <div class="prototype-monitoring-head">
       <div class="prototype-monitoring-title"><span>GUIDE OUTCOMES</span><h2>ガイドの記録</h2></div>
       <a href="${escapeHtml(href)}" data-kpi-action="landing:guide-outcomes:list">一覧を見る</a>
