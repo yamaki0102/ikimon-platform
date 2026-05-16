@@ -32,10 +32,10 @@
 
 ```json
 {
-  "etymology": "属名 Aphis はギリシャ語で…",
-  "ecology_note": "新芽の汁を吸って暮らす…",
-  "look_alike_note": "アブラムシ類は全国に数百種。羽の有無で見分けやすい。",
-  "rarity_note": "住宅地でも春〜秋によく出会える。"
+  "etymology": "<学名の由来を80字以内>",
+  "ecology_note": "<生態のツボを100字以内>",
+  "look_alike_note": "<間違いやすい近縁種と見分け方を80字以内>",
+  "rarity_note": "<地域や季節での出会いやすさを60字以内>"
 }
 ```
 

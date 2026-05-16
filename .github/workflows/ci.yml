@@ -207,6 +207,10 @@ jobs:
         working-directory: platform_v2
         run: npm run typecheck
 
+      - name: Check prompt JSON schema examples
+        working-directory: platform_v2
+        run: npm run check:prompt-schema-leakage
+
       - name: Build platform_v2
         working-directory: platform_v2
         run: npm run build
