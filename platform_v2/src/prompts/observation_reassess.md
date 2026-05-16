@@ -147,13 +147,16 @@
 
 ## 出力 JSON スキーマ
 
+以下は**形式だけのスキーマ**。山括弧 `<>` の placeholder や、ここにある文字列をそのまま返してはいけない。
+実際の写真・動画フレーム・観察メモ・ObservationPackage から読める対象だけを値に入れる。
+
 ```json
 {
   "confidence_band": "high|medium|low",
   "recommended_rank": "species|genus|family|order|lifeform",
-  "recommended_taxon_name": "ヒメスミレ",
-  "recommended_scientific_name": "Viola inconspicua",
-  "best_specific_taxon_name": "ヒメスミレ",
+  "recommended_taxon_name": "<主対象の表示名>",
+  "recommended_scientific_name": "<主対象の学名>",
+  "best_specific_taxon_name": "<最も細かい候補名>",
   "narrative": "...",
   "simple_summary": "...",
   "observer_boost": "",
@@ -163,13 +166,11 @@
   "fun_fact_grounded": true,
   "diagnostic_features_seen": ["...", "..."],
   "missing_evidence": ["...", "..."],
-  "similar_taxa": [{"name":"タチツボスミレ","rank":"species"}],
+  "similar_taxa": [{"name":"<比較候補名>","rank":"species"}],
   "distinguishing_tips": ["...", "..."],
   "confirm_more": [
-    "6月上旬に再訪すれば、いま蕾だった距が伸びて種同定の決め手になる",
-    "花を真横から撮ると距の長さと色（白か紫か）が判別できる",
-    "葉裏の毛の有無をマクロで撮ると属の絞り込みに効く",
-    "同じ株を月1で記録すると、この場所の開花フェノロジーが残る"
+    "<追加撮影や再訪で確かめたいこと>",
+    "<分類群ごとの決め手になる観察ポイント>"
   ],
   "claim_refs_used": ["claim-id-if-used"],
   "geographic_context": "...",
@@ -193,29 +194,29 @@
     }
   ],
   "shot_suggestions": [
-    {"role":"close_up_organ","target":"後翅裏面","rationale":"似種識別に必須","priority":"high"},
-    {"role":"habitat_wide","target":"周辺3m全景","rationale":"生息環境の文脈記録","priority":"medium"}
+    {"role":"close_up_organ","target":"<識別に必要な部位>","rationale":"<必要な理由>","priority":"high"},
+    {"role":"habitat_wide","target":"<周辺環境>","rationale":"<文脈記録の理由>","priority":"medium"}
   ],
   "candidate_readings": [
     {
-      "name": "ヒメイワダレソウ",
-      "scientific_name": "Phyla nodiflora",
+      "name": "<候補Aの表示名>",
+      "scientific_name": "<候補Aの学名>",
       "rank": "species",
       "role": "代表候補",
-      "visible_features": ["地面をはう低い群落", "小さな白い花が密に咲く", "葉が地表近くに広がる"],
-      "weak_points": ["花序を横から見た形が足りない", "葉の鋸歯と茎の毛が近接で見えない"],
-      "shooting_tips": ["花序を真上と横から撮る", "葉の表裏と茎の毛を近くで撮る", "同じ画角で群落の広がりを残す"],
-      "regional_read": "浜松市の足元で、緑化植物らしい低い群落と草地管理の関係を比べられる可能性があります。"
+      "visible_features": ["<画像上で見える特徴>", "<候補Aらしさに関係する特徴>"],
+      "weak_points": ["<まだ見えない決め手>", "<誤同定しやすい弱点>"],
+      "shooting_tips": ["<次に撮る部位>", "<撮影角度や距離>"],
+      "regional_read": "<場所・季節と結びつく非断定の読み>"
     },
     {
-      "name": "セイヨウミツバチ",
-      "scientific_name": "Apis mellifera",
-      "rank": "species",
-      "role": "花に来た虫",
-      "visible_features": ["白い花の近くに小型のハチがいる", "訪花中の姿に見える"],
-      "weak_points": ["腹部の帯、翅、脚の花粉団子が十分に見えない"],
-      "shooting_tips": ["花に止まった横姿を1枚撮る", "腹部と脚が見える近景を撮る"],
-      "regional_read": "小さなグランドカバーの花が、都市の足元で花資源として使われている可能性を残せます。"
+      "name": "<候補Bの表示名>",
+      "scientific_name": "<候補Bの学名>",
+      "rank": "family",
+      "role": "副対象",
+      "visible_features": ["<画像上で見える特徴>"],
+      "weak_points": ["<まだ見えない決め手>"],
+      "shooting_tips": ["<次に撮る部位>"],
+      "regional_read": "<場所・季節と結びつく非断定の読み>"
     }
   ],
   "recommended_media_regions": [
@@ -223,14 +224,14 @@
   ],
   "coexisting_taxa": [
     {
-      "name":"カラスノエンドウ",
-      "scientific_name":"Vicia sativa subsp. nigra",
-      "rank":"species",
-      "confidence":0.8,
-      "note":"在来",
+      "name":"<副対象の表示名>",
+      "scientific_name":"<副対象の学名>",
+      "rank":"family",
+      "confidence":0.6,
+      "note":"<非断定の補足>",
       "invasive_lite": { "is_invasive": false, "mhlw_category": null },
       "media_regions":[
-        {"asset_index":0,"rect":{"x":0.58,"y":0.22,"width":0.23,"height":0.31},"frame_time_ms":0,"confidence":0.68,"note":"右上の葉群"}
+        {"asset_index":0,"rect":{"x":0.58,"y":0.22,"width":0.23,"height":0.31},"frame_time_ms":0,"confidence":0.68,"note":"<副対象の位置>"}
       ]
     }
   ],
@@ -238,14 +239,14 @@
     "typical_size_cm": 12.5,
     "observed_size_estimate_cm": 28.0,
     "size_class": "large",
-    "ranking_hint": "この種としては大きい部類（参考値）",
-    "basis": "隣接した手指の幅から推定",
+    "ranking_hint": "この分類群としては大きい部類（参考値）",
+    "basis": "<画像内の比較対象から推定>",
     "hedge": "AIによる目測のため誤差大。確定値ではありません。"
   },
   "novelty_hint": {
     "is_potentially_novel": false,
     "novelty_score": 0.05,
-    "reasoning": "形態は既知のスミレ属と一致",
+    "reasoning": "画像証拠は既知分類群の範囲で説明できる",
     "hedge": "新種判定はAIにはできません。可能性の示唆に留まります。"
   },
   "invasive_response": {

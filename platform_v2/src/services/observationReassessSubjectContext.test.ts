@@ -65,3 +65,15 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(prompt, /ツルニチニチソウなら/);
   assert.match(service, /observation_reassess\.md\/v5\.3/);
 });
+
+test("reassess JSON schema avoids concrete taxon examples that can leak into output", () => {
+  const prompt = readFileSync(new URL("../prompts/observation_reassess.md", import.meta.url), "utf8");
+  const schema = prompt.slice(prompt.indexOf("## 出力 JSON スキーマ"));
+
+  assert.match(schema, /形式だけのスキーマ/);
+  assert.match(schema, /placeholder/);
+  assert.doesNotMatch(schema, /カラスノエンドウ|Vicia sativa/i);
+  assert.doesNotMatch(schema, /ヒメイワダレソウ|Phyla nodiflora/i);
+  assert.doesNotMatch(schema, /セイヨウミツバチ|Apis mellifera/i);
+  assert.doesNotMatch(schema, /ヒメスミレ|Viola inconspicua/i);
+});
