@@ -68,11 +68,15 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
 
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
       <input type="checkbox" name="share_location" checked />
-      <span>同じ班員にだけ位置を共有(100m メッシュ粒度)</span>
+      <span>開催中だけ、主催者に現在地を共有</span>
     </label>
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
       <input type="checkbox" name="is_minor" />
-      <span>未成年です(位置共有は自動で OFF)</span>
+      <span>未成年です</span>
+    </label>
+    <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
+      <input type="checkbox" name="guardian_location_consent" />
+      <span>未成年の位置共有について、保護者または引率者の同意があります</span>
     </label>
 
     ${isAuthenticated
@@ -118,7 +122,8 @@ export function checkinScript(): string {
     ev.preventDefault();
     const fd = new FormData(form);
     const isMinor = fd.get("is_minor") === "on";
-    const shareLocation = fd.get("share_location") === "on" && !isMinor;
+    const guardianConsent = fd.get("guardian_location_consent") === "on";
+    const shareLocation = fd.get("share_location") === "on";
     const teamId = fd.get("team_id") || null;
     const guestToken = ensureGuestToken();
     const payload = {
@@ -126,6 +131,8 @@ export function checkinScript(): string {
       team_id: teamId,
       share_location: shareLocation,
       is_minor: isMinor,
+      guardian_location_consent: guardianConsent,
+      location_share_consent_type: isMinor ? (guardianConsent ? "guardian" : null) : "self",
       guest_token: guestToken,
     };
     const r = await fetch("/api/v1/observation-events/" + sessionId + "/checkin", {
@@ -140,7 +147,7 @@ export function checkinScript(): string {
     }
     if (window.evtFanfare) window.evtFanfare("ようこそ!");
     setTimeout(() => {
-      window.location.href = "../../events/" + sessionId + "/live";
+      window.location.href = "../../events/" + sessionId + "/rally";
     }, 600);
   });
 })();
