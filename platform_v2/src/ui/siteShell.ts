@@ -1248,6 +1248,8 @@ function globalRecordEntryScript(basePath: string): string {
   let capturedReviewMeta = null;
   let reviewObjectUrl = '';
   let sheetVideoTrimState = null;
+  let sheetOpenedAt = 0;
+  let capturePressedAt = 0;
   const sheet = document.querySelector('[data-global-record-camera-sheet]');
   const backdrop = document.querySelector('[data-global-record-camera-close].global-record-camera-backdrop');
   const cameraVideo = document.querySelector('[data-global-record-camera-video]');
@@ -1287,6 +1289,59 @@ function globalRecordEntryScript(basePath: string): string {
     },
   };
   const apiPath = (path) => BASE_PATH + path;
+  const nowMs = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
+  const durationSince = (startedAt) => Math.max(0, Math.round(nowMs() - Number(startedAt || 0)));
+  const sendGlobalRecordKpi = (metricName, durationMs, metadata) => {
+    try {
+      const payload = {
+        eventName: 'funnel_step',
+        pagePath: location.pathname + location.search,
+        routeKey: 'global_record_capture',
+        actionKey: String(metricName || 'global_record_metric').slice(0, 128),
+        metadata: Object.assign({
+          funnel: 'global_record_capture_latency',
+          metricName,
+          durationMs: Math.round(Number(durationMs) || 0),
+          kind: activeKind || '',
+          photoCount: selectedPhotoDraftFiles().length,
+          lang: document.documentElement.lang || 'ja',
+          ts: new Date().toISOString(),
+        }, metadata || {}),
+      };
+      fetch(apiPath('/api/v1/ui-kpi/events'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+        credentials: 'same-origin',
+      }).catch(() => undefined);
+    } catch (_) {}
+  };
+  const sendGlobalRecordErrorKpi = (actionKey, message, metadata) => {
+    try {
+      const payload = {
+        eventName: 'funnel_error',
+        pagePath: location.pathname + location.search,
+        routeKey: 'global_record_capture',
+        actionKey: String(actionKey || 'global_record_error').slice(0, 128),
+        metadata: Object.assign({
+          funnel: 'global_record_capture_latency',
+          error: String(message || 'unknown_error').slice(0, 160),
+          kind: activeKind || '',
+          photoCount: selectedPhotoDraftFiles().length,
+          lang: document.documentElement.lang || 'ja',
+          ts: new Date().toISOString(),
+        }, metadata || {}),
+      };
+      fetch(apiPath('/api/v1/ui-kpi/events'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+        credentials: 'same-origin',
+      }).catch(() => undefined);
+    } catch (_) {}
+  };
   const cameraVideoConstraints = () => activeKind === 'video'
     ? {
         facingMode: { ideal: 'environment' },
@@ -1804,6 +1859,7 @@ function globalRecordEntryScript(basePath: string): string {
     if (directPostInFlight) return;
     const files = selectedPhotoDraftFiles();
     if (!files.length) return;
+    const directPostStartedAt = nowMs();
     directPostInFlight = true;
     if (captureButton) {
       captureButton.disabled = true;
@@ -1814,8 +1870,15 @@ function globalRecordEntryScript(basePath: string): string {
     try {
       setStatus('写真を記録用に整えています...');
       let preparedCount = 0;
+      const prepareStartedAt = nowMs();
+      const totalInputBytes = files.reduce((sum, file) => sum + Number(file && file.size || 0), 0);
       const preparedUploads = await mapWithConcurrency(files, PHOTO_UPLOAD_CONCURRENCY, async (file) => {
+        const filePrepareStartedAt = nowMs();
         const upload = await preparePhotoUpload(file);
+        sendGlobalRecordKpi('photo_prepare_file_ms', durationSince(filePrepareStartedAt), {
+          fileSizeBytes: Number(file && file.size || 0),
+          outputBytesApprox: String(upload.base64Data || '').length,
+        });
         const hash = await sha256Hex(upload.base64Data);
         preparedCount += 1;
         setStatus('写真を記録用に整えています... ' + String(preparedCount) + '/' + String(files.length));
@@ -1826,12 +1889,18 @@ function globalRecordEntryScript(basePath: string): string {
       });
       const uploads = preparedUploads.map((item) => item.upload);
       const uploadHashes = preparedUploads.map((item) => item.hash);
+      sendGlobalRecordKpi('photo_prepare_ms', durationSince(prepareStartedAt), {
+        fileCount: files.length,
+        totalInputBytes,
+        totalOutputBytesApprox: uploads.reduce((sum, upload) => sum + String(upload.base64Data || '').length, 0),
+        concurrency: PHOTO_UPLOAD_CONCURRENCY,
+      });
       let detailId = photoDraftRetryDetailId;
       if (!detailId) {
         let location = metadata.location || null;
         if (!location) {
           setStatus('記録に使う地点を確認しています...');
-          location = await readCaptureLocation({ enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 2500 });
+          location = await readCaptureLocation({ enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 2500, kpiSource: 'direct_post_fallback' });
           if (location && capturedReviewMeta === metadata) {
             metadata.location = location;
             metadata.locationPending = false;
@@ -1852,6 +1921,7 @@ function globalRecordEntryScript(basePath: string): string {
         const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
         const observationId = 'record-' + Date.now();
         setStatus('記録を保存しています...');
+        const upsertStartedAt = nowMs();
         const observationResponse = await fetch(apiPath('/api/v1/observations/upsert'), {
           method: 'POST',
           headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -1883,6 +1953,11 @@ function globalRecordEntryScript(basePath: string): string {
           }),
         });
         const observationJson = await observationResponse.json().catch(() => ({}));
+        sendGlobalRecordKpi('observation_upsert_ms', durationSince(upsertStartedAt), {
+          status: observationResponse.status,
+          ok: Boolean(observationResponse.ok && observationJson.ok),
+          fileCount: files.length,
+        });
         if (!observationResponse.ok || !observationJson.ok) {
           throw new Error(observationJson.error || 'observation_upsert_failed');
         }
@@ -1892,9 +1967,11 @@ function globalRecordEntryScript(basePath: string): string {
       const retryHadUploadedPhoto = photoDraftRetryHasUploadedPhoto;
       let completedUploads = 0;
       setStatus('写真を保存しています... 0/' + String(uploads.length));
+      const uploadBatchStartedAt = nowMs();
       const uploadResults = await mapWithConcurrency(uploads, PHOTO_UPLOAD_CONCURRENCY, async (upload, index) => {
         let photoResponse = null;
         let photoJson = {};
+        const uploadStartedAt = nowMs();
         try {
           photoResponse = await fetch(apiPath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
             method: 'POST',
@@ -1910,6 +1987,10 @@ function globalRecordEntryScript(basePath: string): string {
           });
           photoJson = await photoResponse.json().catch(() => ({}));
         } catch (error) {
+          sendGlobalRecordErrorKpi('photo_upload_failed', String(error && error.message || 'photo_upload_network_failed'), {
+            durationMs: durationSince(uploadStartedAt),
+            index,
+          });
           return {
             index,
             error: String(error && error.message || 'photo_upload_network_failed'),
@@ -1918,6 +1999,12 @@ function globalRecordEntryScript(basePath: string): string {
           completedUploads += 1;
           setStatus('写真を保存しています... ' + String(completedUploads) + '/' + String(uploads.length));
         }
+        sendGlobalRecordKpi('photo_upload_ms', durationSince(uploadStartedAt), {
+          status: photoResponse ? photoResponse.status : 0,
+          ok: Boolean(photoResponse && photoResponse.ok && photoJson.ok),
+          index,
+          fileCount: uploads.length,
+        });
         if (!photoResponse.ok || !photoJson.ok) {
           return {
             index,
@@ -1928,6 +2015,12 @@ function globalRecordEntryScript(basePath: string): string {
       });
       const failedUploads = uploadResults.filter((item) => item && item.error);
       const uploadedIndexes = uploadResults.filter((item) => item && !item.error).map((item) => item.index);
+      sendGlobalRecordKpi('photo_upload_batch_ms', durationSince(uploadBatchStartedAt), {
+        fileCount: uploads.length,
+        succeeded: uploadedIndexes.length,
+        failed: failedUploads.length,
+        concurrency: PHOTO_UPLOAD_CONCURRENCY,
+      });
       if (uploadedIndexes.length > 0) {
         photoDraftRetryHasUploadedPhoto = true;
       }
@@ -1942,6 +2035,16 @@ function globalRecordEntryScript(basePath: string): string {
         return;
       }
       resetPhotoDraftAfterDirectPost('記録を保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
+      sendGlobalRecordKpi('direct_post_total_ms', durationSince(directPostStartedAt), {
+        fileCount: uploads.length,
+        detailId,
+      });
+    } catch (error) {
+      sendGlobalRecordErrorKpi('direct_post_failed', error && error.message ? String(error.message) : 'direct_post_failed', {
+        durationMs: durationSince(directPostStartedAt),
+        fileCount: files.length,
+      });
+      throw error;
     } finally {
       directPostInFlight = false;
       if (startButton) startButton.disabled = false;
@@ -2012,6 +2115,7 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const openSheet = (kind, options) => {
     if (!(options && options.keepReview)) clearReview();
+    sheetOpenedAt = nowMs();
     activeKind = kind;
     setSheetKind(kind);
     setPhotoDraftLayout(kind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream);
@@ -2041,10 +2145,14 @@ function globalRecordEntryScript(basePath: string): string {
   const startCamera = async () => {
     if (!activeKind) return;
     if (cameraStartInFlight) return;
+    const cameraStartedAt = nowMs();
     setPhotoDraftLayout(false);
     if (!(activeKind === 'photo' && selectedPhotoDraftFiles().length > 0)) clearReview();
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
       setStatus('このブラウザでは撮影を開始できません。ブラウザのカメラ許可を確認してください。');
+      sendGlobalRecordErrorKpi('camera_start_failed', 'media_devices_unavailable', {
+        durationMs: durationSince(cameraStartedAt),
+      });
       return;
     }
     const requestId = cameraRequestId + 1;
@@ -2086,8 +2194,15 @@ function globalRecordEntryScript(basePath: string): string {
       if (startButton) startButton.hidden = true;
       setFooterActionMode('capture');
       setStatus(activeKind === 'video' ? '動画記録は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
+      sendGlobalRecordKpi('camera_start_ms', durationSince(cameraStartedAt), {
+        fromSheetOpenMs: sheetOpenedAt ? durationSince(sheetOpenedAt) : null,
+        constraintsKind: activeKind,
+      });
     } catch (_) {
       setStatus('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
+      sendGlobalRecordErrorKpi('camera_start_failed', 'get_user_media_failed', {
+        durationMs: durationSince(cameraStartedAt),
+      });
       if (startButton) {
         startButton.hidden = false;
         startButton.disabled = false;
@@ -2099,7 +2214,13 @@ function globalRecordEntryScript(basePath: string): string {
     }
   };
   const readCaptureLocation = (options) => new Promise((resolve) => {
+    const locationStartedAt = nowMs();
+    const kpiSource = options && options.kpiSource ? String(options.kpiSource) : 'capture_location';
     if (!navigator.geolocation) {
+      sendGlobalRecordErrorKpi('gps_wait_failed', 'geolocation_unavailable', {
+        durationMs: durationSince(locationStartedAt),
+        kpiSource,
+      });
       resolve(null);
       return;
     }
@@ -2108,14 +2229,34 @@ function globalRecordEntryScript(basePath: string): string {
       maximumAge: 30000,
       timeout: 7000,
     }, options || {});
+    delete merged.kpiSource;
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        capturedAt: new Date().toISOString(),
-      }),
-      () => resolve(null),
+      (position) => {
+        sendGlobalRecordKpi('gps_wait_ms', durationSince(locationStartedAt), {
+          kpiSource,
+          success: true,
+          accuracy: position.coords.accuracy,
+          enableHighAccuracy: Boolean(merged.enableHighAccuracy),
+          timeout: Number(merged.timeout || 0),
+          maximumAge: Number(merged.maximumAge || 0),
+        });
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          capturedAt: new Date().toISOString(),
+        });
+      },
+      (error) => {
+        sendGlobalRecordErrorKpi('gps_wait_failed', error && error.code ? 'geolocation_error_' + String(error.code) : 'geolocation_error', {
+          durationMs: durationSince(locationStartedAt),
+          kpiSource,
+          enableHighAccuracy: Boolean(merged.enableHighAccuracy),
+          timeout: Number(merged.timeout || 0),
+          maximumAge: Number(merged.maximumAge || 0),
+        });
+        resolve(null);
+      },
       merged,
     );
   });
@@ -2126,7 +2267,7 @@ function globalRecordEntryScript(basePath: string): string {
   });
   const fillCaptureLocationLater = (metadata, successMessage, fallbackMessage) => {
     if (!metadata || !metadata.locationPending) return;
-    void readCaptureLocation().then((location) => {
+    void readCaptureLocation({ kpiSource: 'capture_review_background' }).then((location) => {
       if (capturedReviewMeta !== metadata) return;
       metadata.location = location;
       metadata.locationPending = false;
@@ -2320,6 +2461,8 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const capturePhoto = () => {
     if (!cameraVideo || !activeStream) return;
+    const captureStartedAt = capturePressedAt || nowMs();
+    const encodeStartedAt = nowMs();
     const width = cameraVideo.videoWidth || 1280;
     const height = cameraVideo.videoHeight || 960;
     const canvas = document.createElement('canvas');
@@ -2337,6 +2480,17 @@ function globalRecordEntryScript(basePath: string): string {
       stopActiveStream();
       const metadata = buildCaptureMetadata();
       showCapturedReview(file, 'photo', metadata);
+      sendGlobalRecordKpi('capture_encode_ms', durationSince(encodeStartedAt), {
+        width,
+        height,
+        blobBytes: Number(blob.size || 0),
+      });
+      sendGlobalRecordKpi('capture_to_review_ms', durationSince(captureStartedAt), {
+        width,
+        height,
+        blobBytes: Number(blob.size || 0),
+      });
+      capturePressedAt = 0;
       fillCaptureLocationLater(
         metadata,
         '撮影地点も保存しました。写真はすぐ記録できます。',
@@ -2383,6 +2537,13 @@ function globalRecordEntryScript(basePath: string): string {
       stopActiveStream();
       const metadata = buildCaptureMetadata();
       showCapturedReview(file, 'video', metadata);
+      if (capturePressedAt) {
+        sendGlobalRecordKpi('capture_to_review_ms', durationSince(capturePressedAt), {
+          mediaType: 'video',
+          blobBytes: Number(file.size || 0),
+        });
+        capturePressedAt = 0;
+      }
       fillCaptureLocationLater(
         metadata,
         '撮影地点も保存しました。下で区間、名前、メモを整えられます。',
@@ -2401,6 +2562,7 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const captureFromSheet = async () => {
     if (activeKind === 'photo' && activeStream) {
+      capturePressedAt = nowMs();
       capturePhoto();
       return;
     }
@@ -2435,10 +2597,15 @@ function globalRecordEntryScript(basePath: string): string {
       return;
     }
     if (activeKind === 'video') {
-      if (mediaRecorder && mediaRecorder.state === 'recording') stopVideoRecording();
-      else startVideoRecording();
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        capturePressedAt = nowMs();
+        stopVideoRecording();
+      } else {
+        startVideoRecording();
+      }
       return;
     }
+    capturePressedAt = nowMs();
     capturePhoto();
   };
   document.querySelectorAll('[data-global-record-trigger]').forEach((button) => {

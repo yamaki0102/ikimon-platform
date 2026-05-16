@@ -187,9 +187,16 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /height: min\(70dvh, calc\(100dvh - 176px\)\)/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
-  assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);\s+fillCaptureLocationLater/s);
+  assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);[\s\S]+fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
   assert.match(html, /timeout: 2500/);
+  assert.match(html, /global_record_capture_latency/);
+  assert.match(html, /capture_to_review_ms/);
+  assert.match(html, /gps_wait_ms/);
+  assert.match(html, /camera_start_ms/);
+  assert.match(html, /photo_prepare_ms/);
+  assert.match(html, /observation_upsert_ms/);
+  assert.match(html, /photo_upload_ms/);
   assert.match(html, /void startCamera\(\)/);
   assert.match(html, /MediaRecorder/);
   assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
