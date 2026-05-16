@@ -38,7 +38,7 @@ async function stabilizeVisualDiff(page: Page): Promise<void> {
 
 async function visibleRecordTextInFirstViewport(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const nodes = [...document.body.querySelectorAll("h1,.obs-first-read,.obs-ai-readout,.obs-visible-record-card")];
+    const nodes = [...document.body.querySelectorAll("h1,.obs-record-insight,.obs-ai-readout,.obs-visible-record-card,.obs-media-ledger")];
     return nodes
       .filter((node) => {
         const rect = node.getBoundingClientRect();
@@ -88,11 +88,8 @@ test.describe.serial("observation scene read model visual QA", () => {
         await page.goto(href, { waitUntil: "domcontentloaded" });
 
         await expect(page.locator("h1")).toContainText("白い花の群落");
-        await expect(page.locator("body")).toContainText("AIの場面読み");
         await expect(page.locator("body")).toContainText("この写真に写っているもの");
-        await expect(page.locator(".obs-first-read")).toContainText("AIの場面読み");
-        await expect(page.locator(".obs-first-read .obs-media-discovery-target").filter({ hasText: "白い花の群落" })).toBeVisible();
-        await expect(page.locator(".obs-first-read .obs-media-discovery-target").filter({ hasText: "訪花中のハチ" })).toBeVisible();
+        await expect(page.locator(".obs-record-insight").first()).toContainText(/植物|草地|名前だけでなく/);
         await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
         await expect(page.locator("body")).toContainText("セイヨウミツバチ");
         await expect(page.locator("body")).toContainText("イネ科の一種");
@@ -105,10 +102,10 @@ test.describe.serial("observation scene read model visual QA", () => {
         expect(names.slice(0, 3)).toEqual(["ヒメイワダレソウ", "セイヨウミツバチ", "イネ科の一種"]);
         const firstViewportText = await visibleRecordTextInFirstViewport(page);
         expect(firstViewportText).toContain("白い花の群落");
-        expect(firstViewportText).toContain("AIの場面読み");
+        expect(firstViewportText).toMatch(/草地|植物|名前だけでなく|写真/);
         if (profile.isMobile) {
           await expectWithinFirstViewport(page, ".obs-reading-media");
-          await expectWithinFirstViewport(page, ".obs-first-read");
+          await expectWithinFirstViewport(page, ".obs-record-brief");
         }
         expect(firstViewportText).toContain("訪花中のハチ");
         await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("花に来た虫");

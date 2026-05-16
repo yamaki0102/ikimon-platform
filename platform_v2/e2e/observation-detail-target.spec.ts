@@ -46,6 +46,11 @@ async function expectPolishedObservationPage(page: Page): Promise<void> {
 }
 
 test.describe("target observation detail local repro", () => {
+  test.skip(
+    Boolean(process.env.STAGING_BASE_URL) && !process.env.OBSERVATION_DETAIL_TARGET_PATH,
+    "target record is a production/local repro record and is not guaranteed to exist in staging fixtures",
+  );
+
   test("mobile video observation keeps evidence controls usable", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const response = await page.goto(targetPath(), { waitUntil: "domcontentloaded" });
