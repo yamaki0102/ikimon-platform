@@ -13,6 +13,7 @@ export type StagingFixtureCleanupInput = {
 
 type CleanupCounts = {
   users: number;
+  observationEventSessions: number;
   visits: number;
   occurrences: number;
   places: number;
@@ -42,6 +43,7 @@ export type StagingFixtureCleanupResult = {
 function emptyCounts(): CleanupCounts {
   return {
     users: 0,
+    observationEventSessions: 0,
     visits: 0,
     occurrences: 0,
     places: 0,
@@ -111,15 +113,24 @@ async function deleteCount(client: PoolClient, sql: string, params: unknown[] = 
   return Number(result.rows[0]?.c ?? 0);
 }
 
-async function deleteCountIfTableExists(client: PoolClient, sql: string, params: unknown[] = []): Promise<number> {
-  try {
-    return await deleteCount(client, sql, params);
-  } catch (error) {
-    if (isUndefinedTableError(error)) {
-      return 0;
-    }
-    throw error;
+async function tableExists(client: PoolClient, tableName: string): Promise<boolean> {
+  const result = await client.query<{ exists: boolean }>(
+    `select to_regclass($1) is not null as exists`,
+    [tableName],
+  );
+  return result.rows[0]?.exists ?? false;
+}
+
+async function deleteCountIfTableExists(
+  client: PoolClient,
+  tableName: string,
+  sql: string,
+  params: unknown[] = [],
+): Promise<number> {
+  if (!await tableExists(client, tableName)) {
+    return 0;
   }
+  return deleteCount(client, sql, params);
 }
 
 async function deleteFiles(storagePaths: string[]): Promise<{ deleted: number; warnings: string[] }> {
@@ -152,6 +163,7 @@ export async function cleanupStagingFixtures(
 
   try {
     const userPredicate = buildStagingFixturePredicate({ userIdColumn: "u.user_id" }, fixturePrefix);
+    const eventSessionPredicate = buildStagingFixturePredicate({ userIdColumn: "s.organizer_user_id" }, fixturePrefix);
     const visitPredicate = buildStagingFixturePredicate(
       {
         userIdColumn: "v.user_id",
@@ -172,35 +184,44 @@ export async function cleanupStagingFixtures(
     );
     const placePredicate = buildStagingFixturePredicate({ placeIdColumn: "p.place_id" }, fixturePrefix);
 
-    const [candidateUserIds, candidateVisitIds, candidateOccurrenceIds, candidateAssets, candidatePlaceIdsByPattern] =
-      await Promise.all([
-        queryTextArray(
-          client,
-          `select u.user_id as value
-             from users u
-            where ${userPredicate}`,
-        ),
-        queryTextArray(
-          client,
-          `select distinct v.visit_id as value
-             from visits v
-            where ${visitPredicate}`,
-        ),
-        queryTextArray(
-          client,
-          `select distinct o.occurrence_id as value
-             from occurrences o
-             join visits v on v.visit_id = o.visit_id
-            where ${occurrencePredicate}`,
-        ),
-        queryCandidateAssets(client, fixturePrefix),
-        queryTextArray(
-          client,
-          `select distinct p.place_id as value
-             from places p
-            where ${placePredicate}`,
-        ),
-      ]);
+    const candidateUserIds = await queryTextArray(
+      client,
+      `select u.user_id as value
+         from users u
+        where ${userPredicate}`,
+    );
+    const candidateEventSessionIds = await queryTextArray(
+      client,
+      `select s.session_id::text as value
+         from observation_event_sessions s
+        where ${eventSessionPredicate}
+           or ($1::text is not null and (
+                s.config->>'fixturePrefix' = $1
+             or s.config->>'fixture_prefix' = $1
+             or coalesce(s.event_code, '') like $1 || '%'
+           ))`,
+      [fixturePrefix],
+    );
+    const candidateVisitIds = await queryTextArray(
+      client,
+      `select distinct v.visit_id as value
+         from visits v
+        where ${visitPredicate}`,
+    );
+    const candidateOccurrenceIds = await queryTextArray(
+      client,
+      `select distinct o.occurrence_id as value
+         from occurrences o
+         join visits v on v.visit_id = o.visit_id
+        where ${occurrencePredicate}`,
+    );
+    const candidateAssets = await queryCandidateAssets(client, fixturePrefix);
+    const candidatePlaceIdsByPattern = await queryTextArray(
+      client,
+      `select distinct p.place_id as value
+         from places p
+        where ${placePredicate}`,
+    );
 
     const candidatePlaceIdsFromVisits = candidateVisitIds.length > 0
       ? await queryTextArray(
@@ -219,6 +240,7 @@ export async function cleanupStagingFixtures(
 
     const matched = emptyCounts();
     matched.users = candidateUserIds.length;
+    matched.observationEventSessions = candidateEventSessionIds.length;
     matched.visits = candidateVisitIds.length;
     matched.occurrences = candidateOccurrenceIds.length;
     matched.places = candidatePlaceIds.length;
@@ -322,10 +344,21 @@ export async function cleanupStagingFixtures(
         );
         deleted.observationReactions = await deleteCountIfTableExists(
           client,
+          "observation_reactions",
           `delete from observation_reactions
             where ($1::text[] <> '{}'::text[] and occurrence_id = any($1::text[]))
                or ($2::text[] <> '{}'::text[] and user_id = any($2::text[]))`,
           [candidateOccurrenceIds, candidateUserIds],
+        );
+      }
+
+      if (candidateEventSessionIds.length > 0) {
+        deleted.observationEventSessions = await deleteCountIfTableExists(
+          client,
+          "observation_event_sessions",
+          `delete from observation_event_sessions
+            where session_id = any($1::uuid[])`,
+          [candidateEventSessionIds],
         );
       }
 

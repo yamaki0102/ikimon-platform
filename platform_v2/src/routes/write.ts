@@ -61,6 +61,7 @@ import { assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
 import { seedStagingRegressionFixtures } from "../services/stagingRegressionFixtures.js";
+import { seedStagingRallyFixtures } from "../services/stagingRallyFixtures.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -912,6 +913,35 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     } catch (error) {
       const message = error instanceof Error ? error.message : "staging_regression_seed_failed";
       reply.code(message === "staging_regression_seed_disabled" ? 404 : errorStatus(error, 400));
+      return {
+        ok: false,
+        error: message,
+      };
+    }
+  });
+
+  app.post<{
+    Body: {
+      fixturePrefix?: string | null;
+    };
+  }>("/api/v1/ops/staging/fixtures/seed-rally", async (request, reply) => {
+    try {
+      assertPrivilegedWriteAccess(request);
+      if (!stagingFixtureOpsEnabled()) {
+        throw new Error("staging_rally_seed_disabled");
+      }
+      const fixturePrefix = request.body?.fixturePrefix?.trim();
+      if (!fixturePrefix) {
+        throw new Error("fixture_prefix_required");
+      }
+      const fixture = await seedStagingRallyFixtures({ fixturePrefix });
+      return {
+        ok: true,
+        fixture,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "staging_rally_seed_failed";
+      reply.code(message === "staging_rally_seed_disabled" ? 404 : errorStatus(error, 400));
       return {
         ok: false,
         error: message,

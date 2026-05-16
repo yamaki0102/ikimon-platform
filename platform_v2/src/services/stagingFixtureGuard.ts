@@ -5,10 +5,11 @@ const GLOBAL_STAGING_FIXTURE_PREFIXES = [
   "manual-occurrence-map-",
   "staging-session-smoke-",
   "staging-write-smoke-",
+  "rally-smoke-",
 ] as const;
 
 const GLOBAL_STAGING_FIXTURE_SOURCE_REGEX =
-  "^(sample[-_]cadence|smoke|manual[-_]occurrence[-_]map|staging[-_]session[-_]smoke|staging[-_]write[-_]smoke)";
+  "^(sample[-_]cadence|smoke|manual[-_]occurrence[-_]map|staging[-_]session[-_]smoke|staging[-_]write[-_]smoke|rally[-_]smoke)";
 
 export type StagingFixtureColumns = {
   userIdColumn?: string;
