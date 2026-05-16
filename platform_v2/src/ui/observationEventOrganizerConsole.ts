@@ -69,6 +69,7 @@ export function renderOrganizerConsoleBody(session: ObservationEventSessionRow):
 
     <div style="display:grid; gap:8px;">
       <a class="evt-btn evt-btn-ghost" href="../live">参加者ライブ画面へ</a>
+      <a class="evt-btn evt-btn-ghost" href="../rally">観察ラリー画面へ</a>
       <a class="evt-btn evt-btn-ghost" href="./edit">⚙ 観察会を編集</a>
       <a class="evt-btn evt-btn-ghost" href="./recap">📊 振り返り(終了後も常に有効)</a>
       <button type="button" class="evt-btn evt-btn-danger" data-organizer-end>セッションを終了</button>
@@ -106,6 +107,86 @@ export function renderOrganizerConsoleBody(session: ObservationEventSessionRow):
         <span class="evt-lead">受諾→達成</span>
       </div>
     </div>
+
+    <section class="evt-card" style="display:grid; gap:12px; padding:14px;">
+      <header style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+        <div>
+          <span class="evt-eyebrow">観察ラリー</span>
+          <h2 class="evt-heading" style="margin-top:4px;">地点固定と全体ミッションを同時に運用</h2>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+          <button type="button" class="evt-btn evt-btn-ghost" data-rally-weather-rain style="min-height:36px; padding:6px 14px;">雨天モードに切替</button>
+          <button type="button" class="evt-btn evt-btn-ghost" data-rally-refresh style="min-height:36px; padding:6px 14px;">再読込</button>
+        </div>
+      </header>
+
+      <div data-rally-summary style="display:grid; gap:8px;"></div>
+
+      <details>
+        <summary style="cursor:pointer; font-weight:700; padding:6px 0;">地点を追加</summary>
+        <form data-rally-station-form style="display:grid; gap:8px; margin-top:8px;">
+          <input name="name" required placeholder="例: A地点 企業前の街路樹" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <input name="lat" type="number" step="0.000001" placeholder="緯度" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+            <input name="lng" type="number" step="0.000001" placeholder="経度" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          </div>
+          <input name="danger_note" placeholder="注意点（道路横、川沿い、私有地など）" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="is_private" /> 私有地・企業敷地を含む</label>
+          <button type="submit" class="evt-btn evt-btn-primary">地点を追加</button>
+        </form>
+      </details>
+
+      <details open>
+        <summary style="cursor:pointer; font-weight:700; padding:6px 0;">ミッションを追加</summary>
+        <form data-rally-mission-form style="display:grid; gap:8px; margin-top:8px;">
+          <input name="title" required placeholder="例: 街路樹シーンを20件集める" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          <input name="target" required placeholder="対象（例: 街路樹、樹皮、水辺、落ち葉）" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          <input name="fallback_group" placeholder="差し替えグループ（例: tree-main。雨天用と同じ値にする）" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <select name="count_unit" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;">
+              <option value="scene">シーン</option>
+              <option value="individual">個体</option>
+              <option value="location">地点</option>
+              <option value="comparison_pair">比較ペア</option>
+              <option value="station_clear">地点クリア</option>
+              <option value="team_completion">班達成</option>
+            </select>
+            <input name="goal_count" required type="number" min="1" value="20" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;" />
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <select name="location_binding" data-rally-location-binding style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;">
+              <option value="none">場所非限定</option>
+              <option value="station_required">地点固定</option>
+              <option value="within_area">エリア内</option>
+              <option value="near_route">ルート沿い</option>
+              <option value="any_registered_station">登録地点のどこか</option>
+            </select>
+            <select name="station_id" data-rally-station-select style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;">
+              <option value="">地点なし</option>
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <select name="verification_policy" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;">
+              <option value="auto">自動カウント</option>
+              <option value="organizer_review">主催者承認</option>
+              <option value="ai_assisted">AI補助確認</option>
+              <option value="qr">QR</option>
+            </select>
+            <select name="weather_sensitivity" style="border:1px solid var(--evt-line); border-radius:12px; padding:8px 12px; font:inherit;">
+              <option value="all_weather">全天候</option>
+              <option value="rain_ok">雨OK</option>
+              <option value="dry_only">乾燥時のみ</option>
+              <option value="sunny_only">晴天時のみ</option>
+              <option value="wind_sensitive">強風注意</option>
+              <option value="temperature_sensitive">気温依存</option>
+            </select>
+          </div>
+          <button type="submit" class="evt-btn evt-btn-primary">ミッションを公開</button>
+        </form>
+      </details>
+
+      <div data-rally-mission-list style="display:grid; gap:8px;"></div>
+    </section>
 
     <section>
       <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -174,6 +255,11 @@ export function organizerConsoleScript(): string {
   const partEl = root.querySelector('[data-evt-stat="participants"]');
   const feedList = root.querySelector("[data-evt-feed-list]");
   const clock = root.querySelector("[data-evt-clock]");
+  const rallySummary = root.querySelector("[data-rally-summary]");
+  const rallyMissionList = root.querySelector("[data-rally-mission-list]");
+  const rallyStationSelect = root.querySelector("[data-rally-station-select]");
+  const rallyLocationBinding = root.querySelector("[data-rally-location-binding]");
+  let rallySnapshot = { course: null, stations: [], missions: [], progress: [] };
   function tick(){ if (clock) clock.textContent = new Date().toLocaleTimeString("ja-JP"); }
   setInterval(tick, 1000); tick();
 
@@ -194,6 +280,130 @@ export function organizerConsoleScript(): string {
       '<p class="evt-lead" style="margin-top:4px;">' + text + '</p>';
     feedList.prepend(card);
     while (feedList.children.length > 30) feedList.lastElementChild?.remove();
+  }
+  function rallyMissionId(m){ return m?.missionId || m?.mission_id || ""; }
+  function rallyStationId(s){ return s?.stationId || s?.station_id || ""; }
+  function rallyProgressFor(missionId){
+    return (rallySnapshot.progress || []).find(p => (p.missionId || p.mission_id) === missionId) || null;
+  }
+  function rallyUnitLabel(unit){
+    return ({
+      scene: "件",
+      individual: "本",
+      location: "地点",
+      comparison_pair: "組",
+      station_clear: "クリア",
+      team_completion: "班",
+    })[unit] || "件";
+  }
+  function rallyBindingLabel(binding){
+    return ({
+      none: "場所非限定",
+      station_required: "地点固定",
+      within_area: "エリア内",
+      near_route: "ルート沿い",
+      any_registered_station: "登録地点のどこか",
+    })[binding] || binding || "";
+  }
+  function rallyStatusLabel(status){
+    return ({
+      draft: "下書き",
+      published: "公開中",
+      paused: "一時停止",
+      replaced: "差し替え済",
+      closed: "終了",
+    })[status] || status || "";
+  }
+  function renderRally(){
+    const missions = rallySnapshot.missions || [];
+    const stations = rallySnapshot.stations || [];
+    const active = missions.filter(m => (m.status || "") === "published");
+    const top = missions
+      .map(m => ({ mission: m, progress: rallyProgressFor(rallyMissionId(m)) }))
+      .sort((a, b) => Number(b.progress?.percent || 0) - Number(a.progress?.percent || 0))[0];
+    if (rallySummary) {
+      const percent = Math.round(Number(top?.progress?.percent || 0));
+      const actual = Number(top?.progress?.actualCount ?? top?.progress?.actual_count ?? 0);
+      const goal = Number(top?.mission?.goalCount ?? top?.mission?.goal_count ?? 0);
+      const unit = rallyUnitLabel(top?.mission?.countUnit || top?.mission?.count_unit);
+      rallySummary.innerHTML = rallySnapshot.course
+        ? '<div class="evt-card" style="padding:10px 12px;">' +
+            '<div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">' +
+              '<strong>' + escapeText(active.length) + '件のミッション公開中</strong>' +
+              '<span class="evt-badge evt-mode-quest">' + escapeText(String(percent)) + '%</span>' +
+            '</div>' +
+            '<p class="evt-lead" style="font-size:13px; margin-top:4px;">' +
+              (top?.mission ? escapeText(top.mission.title || "") + ' ' + actual + '/' + goal + unit : 'ミッションを追加すると進捗が出ます。') +
+            '</p>' +
+          '</div>'
+        : '<p class="evt-lead">ラリーはまだ未作成です。地点かミッションを追加すると自動で作成されます。</p>';
+    }
+    if (rallyStationSelect) {
+      const current = rallyStationSelect.value;
+      rallyStationSelect.innerHTML = '<option value="">地点なし</option>' + stations.map(s =>
+        '<option value="' + escapeText(rallyStationId(s)) + '">' + escapeText(s.name || s.code || "地点") + '</option>'
+      ).join("");
+      if (current) rallyStationSelect.value = current;
+    }
+    if (rallyMissionList) {
+      rallyMissionList.innerHTML = missions.map(m => {
+        const missionId = rallyMissionId(m);
+        const progress = rallyProgressFor(missionId);
+        const actual = Number(progress?.actualCount ?? progress?.actual_count ?? 0);
+        const goal = Number(m.goalCount ?? m.goal_count ?? 1);
+        const percent = Math.round(Number(progress?.percent || 0));
+        const unit = rallyUnitLabel(m.countUnit || m.count_unit);
+        const status = m.status || "";
+        const canOperate = status !== "closed" && status !== "replaced";
+        const publishButton = status === "published"
+          ? '<button type="button" class="evt-btn evt-btn-ghost" data-rally-mission-action="pause" data-mission-id="' + escapeText(missionId) + '" style="min-height:34px; padding:6px 10px;">一時停止</button>'
+          : (canOperate ? '<button type="button" class="evt-btn evt-btn-primary" data-rally-mission-action="publish" data-mission-id="' + escapeText(missionId) + '" style="min-height:34px; padding:6px 10px;">公開</button>' : '');
+        const replaceButton = canOperate
+          ? '<button type="button" class="evt-btn evt-btn-ghost" data-rally-mission-action="replace" data-mission-id="' + escapeText(missionId) + '" style="min-height:34px; padding:6px 10px;">差し替え</button>'
+          : '';
+        const extendButton = canOperate
+          ? '<button type="button" class="evt-btn evt-btn-ghost" data-rally-mission-action="extend" data-mission-id="' + escapeText(missionId) + '" style="min-height:34px; padding:6px 10px;">目標変更</button>'
+          : '';
+        const closeButton = canOperate
+          ? '<button type="button" class="evt-btn evt-btn-danger" data-rally-mission-action="close" data-mission-id="' + escapeText(missionId) + '" style="min-height:34px; padding:6px 10px;">終了</button>'
+          : '';
+        return '<article class="evt-card" style="padding:12px; display:grid; gap:8px;">' +
+          '<div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">' +
+            '<div>' +
+              '<span class="evt-eyebrow">' + escapeText(rallyBindingLabel(m.locationBinding || m.location_binding)) + ' / ' + escapeText(m.countUnit || m.count_unit) + ' / ' + escapeText(rallyStatusLabel(status)) + '</span>' +
+              '<h3 class="evt-heading" style="font-size:18px; margin:3px 0 0;">' + escapeText(m.title || "") + '</h3>' +
+            '</div>' +
+            '<span class="evt-badge evt-mode-quest">' + percent + '%</span>' +
+          '</div>' +
+          '<p class="evt-lead" style="font-size:13px;">' + actual + '/' + goal + unit + '。対象: ' + escapeText(m.target || "") + '</p>' +
+          '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + publishButton + extendButton + replaceButton + closeButton + '</div>' +
+        '</article>';
+      }).join("") || '<p class="evt-lead">まだミッションがありません。</p>';
+    }
+  }
+  async function loadRallySnapshot(){
+    try {
+      const r = await fetch("/api/v1/observation-events/" + sessionId + "/rally", { credentials: "include" });
+      if (!r.ok) return;
+      const data = await r.json();
+      rallySnapshot = data.rally || rallySnapshot;
+      renderRally();
+    } catch(_){}
+  }
+  async function updateRallyMission(missionId, action, extra){
+    const body = { action, ...(extra || {}) };
+    const r = await fetch("/api/v1/observation-events/" + sessionId + "/rally/missions/" + encodeURIComponent(missionId), {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      alert(data.error || "ミッション更新に失敗しました");
+      return;
+    }
+    await loadRallySnapshot();
   }
   function handle(row){
     const p = row.payload || {};
@@ -219,6 +429,19 @@ export function organizerConsoleScript(): string {
     }
     else if (row.type === "announce"){
       pushFeed("配信", escapeText(p.message || ""));
+    }
+    else if (String(row.type || "").startsWith("rally_")){
+      void loadRallySnapshot();
+      if (row.type === "rally_goal_exceeded") {
+        pushFeed("観察ラリー", escapeText(p.mission?.title || "ミッション") + " が " + escapeText(String(p.threshold || "")) + "% を突破");
+      } else if (row.type === "rally_next_action" && p.mode === "rain") {
+        pushFeed("観察ラリー", "雨天モードへ切替: " + escapeText(String(p.replaced_count || 0)) + "件差し替え / " + escapeText(String(p.published_count || 0)) + "件公開");
+      } else if (row.type === "rally_task_submitted") {
+        pushFeed("観察ラリー", escapeText(p.title || "ミッション") + " に追加");
+      }
+    }
+    else if (row.type === "participant_location_ping"){
+      pushFeed("位置共有", escapeText(p.display_name || "参加者") + " の現在地を更新");
     }
     refresh();
   }
@@ -288,6 +511,108 @@ export function organizerConsoleScript(): string {
     });
   });
 
+  root.querySelector("[data-rally-refresh]")?.addEventListener("click", () => void loadRallySnapshot());
+  root.querySelector("[data-rally-weather-rain]")?.addEventListener("click", async () => {
+    if (!confirm("雨に弱い公開ミッションを差し替え済みにし、同じ差し替えグループの雨天用ミッションを公開します。進捗は消えません。")) return;
+    const r = await fetch("/api/v1/observation-events/" + sessionId + "/rally/preflight/weather-mode", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "rain", reason: "主催者による雨天モード切替" }),
+    });
+    if (r.ok) {
+      const data = await r.json().catch(() => ({}));
+      pushFeed("観察ラリー", "雨天モードへ切替: " + (data.replaced?.length || 0) + "件差し替え / " + (data.published?.length || 0) + "件公開");
+      await loadRallySnapshot();
+      if (window.evtFanfare) window.evtFanfare("雨天モードに切替");
+    } else {
+      const data = await r.json().catch(() => ({}));
+      alert(data.error || "雨天モード切替に失敗しました");
+    }
+  });
+  root.querySelector("[data-rally-station-form]")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const form = ev.target;
+    const fd = new FormData(form);
+    const payload = {
+      name: fd.get("name"),
+      lat: fd.get("lat") ? Number(fd.get("lat")) : null,
+      lng: fd.get("lng") ? Number(fd.get("lng")) : null,
+      is_private: fd.get("is_private") === "on",
+      danger_note: fd.get("danger_note") || "",
+    };
+    const r = await fetch("/api/v1/observation-events/" + sessionId + "/rally/stations", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+      form.reset();
+      await loadRallySnapshot();
+    } else {
+      alert("地点追加に失敗しました");
+    }
+  });
+  root.querySelector("[data-rally-mission-form]")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const form = ev.target;
+    const fd = new FormData(form);
+    const locationBinding = String(fd.get("location_binding") || "none");
+    const stationId = String(fd.get("station_id") || "");
+    if (locationBinding === "station_required" && !stationId) {
+      alert("地点固定ミッションには地点を選んでください。");
+      return;
+    }
+    const payload = {
+      title: fd.get("title"),
+      target: fd.get("target"),
+      count_unit: fd.get("count_unit"),
+      goal_count: Number(fd.get("goal_count") || 1),
+      location_binding: locationBinding,
+      station_id: stationId || null,
+      verification_policy: fd.get("verification_policy"),
+      weather_sensitivity: fd.get("weather_sensitivity"),
+      fallback_group: fd.get("fallback_group") || "",
+      status: "published",
+    };
+    const r = await fetch("/api/v1/observation-events/" + sessionId + "/rally/missions", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+      form.reset();
+      if (rallyLocationBinding) rallyLocationBinding.value = "none";
+      await loadRallySnapshot();
+    } else {
+      const data = await r.json().catch(() => ({}));
+      alert(data.error || "ミッション追加に失敗しました");
+    }
+  });
+  rallyMissionList?.addEventListener("click", async (ev) => {
+    const btn = ev.target instanceof Element ? ev.target.closest("[data-rally-mission-action]") : null;
+    if (!btn) return;
+    const missionId = btn.getAttribute("data-mission-id");
+    const action = btn.getAttribute("data-rally-mission-action");
+    if (!missionId || !action) return;
+    if (action === "extend") {
+      const current = (rallySnapshot.missions || []).find(m => rallyMissionId(m) === missionId);
+      const nextGoal = Number(prompt("新しい目標数", String(current?.goalCount ?? current?.goal_count ?? "")));
+      if (!Number.isFinite(nextGoal) || nextGoal <= 0) return;
+      await updateRallyMission(missionId, "extend", { goal_count: nextGoal, reason: "開催中の目標調整" });
+      return;
+    }
+    if (action === "replace") {
+      if (!confirm("進捗を残したまま、このミッションを差し替え済みにしますか？新しいミッションは別途追加します。")) return;
+      await updateRallyMission(missionId, "replace", { reason: "開催中のミッション差し替え" });
+      return;
+    }
+    if (action === "close" && !confirm("このミッションを終了しますか？")) return;
+    await updateRallyMission(missionId, action, {});
+  });
+
   // Team CRUD
   const teamForm = root.querySelector("[data-organizer-team-form]");
   const teamList = root.querySelector("[data-evt-team-list]");
@@ -354,12 +679,6 @@ export function organizerConsoleScript(): string {
     }
     return originalHandle(row);
   }
-  // override existing handle
-  if (evtSource){
-    evtSource.removeEventListener("snapshot", () => {});
-    evtSource.removeEventListener("live", () => {});
-  }
-
   // Participant list
   const participantList = root.querySelector("[data-evt-participant-list]");
   async function loadParticipants(){
@@ -398,6 +717,7 @@ export function organizerConsoleScript(): string {
   }
   root.querySelector("[data-organizer-refresh-participants]")?.addEventListener("click", loadParticipants);
   loadParticipants();
+  loadRallySnapshot();
 
   refresh();
 })();

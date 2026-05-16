@@ -19,6 +19,10 @@ import {
   observationEventLiveScript,
 } from "../ui/observationEventLive.js";
 import {
+  renderObservationRallyBody,
+  observationRallyScript,
+} from "../ui/observationRally.js";
+import {
   renderOrganizerConsoleBody,
   organizerConsoleScript,
 } from "../ui/observationEventOrganizerConsole.js";
@@ -429,6 +433,38 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
           guestToken: asString(request.query.token),
         }),
         extraScript: observationEventLiveScript(),
+      });
+      reply.type("text/html; charset=utf-8");
+      return html;
+    },
+  );
+
+  // /events/:sessionId/rally  --- 観察ラリー参加者画面
+  app.get<{ Params: { sessionId: string }; Querystring: { token?: string } }>(
+    "/events/:sessionId/rally",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId).catch(() => null);
+      if (!session) {
+        reply.code(404);
+        reply.type("text/html; charset=utf-8");
+        return pageDocument({
+          basePath: "",
+          title: "観察ラリー — セッションが見つかりません",
+          currentPath: currentPathOf(request),
+          body: `<section class="evt-recap-shell"><article class="evt-card"><h1 class="evt-heading">セッションが見つかりません</h1></article></section>`,
+        });
+      }
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const html = pageDocument({
+        basePath: "",
+        title: `${session.title || "観察会"} 観察ラリー — ikimon.life`,
+        currentPath: currentPathOf(request),
+        body: renderObservationRallyBody({
+          session,
+          guestToken: asString(request.query.token),
+          isOrganizer: auth ? auth.userId === session.organizerUserId : false,
+        }),
+        extraScript: observationRallyScript(),
       });
       reply.type("text/html; charset=utf-8");
       return html;

@@ -28,6 +28,20 @@ import { planObservationEventArea } from "../services/observationEventAreaPlanne
 import { getAreaLocalSignals } from "../services/observationEventAreaSignals.js";
 import { listNearbyFields } from "../services/observationFieldRegistry.js";
 import { getSiteBrief } from "../services/siteBrief.js";
+import {
+  changeRallyMission,
+  createRallyMission,
+  createRallyStation,
+  ensureRallyCourse,
+  getRallySnapshot,
+  isLocationShareOpen,
+  locationShareUntil,
+  recordRallySubmission,
+  resolveLocationShareConsent,
+  reviewRallySubmission,
+  switchRallyWeatherMode,
+  type RallyRevisionAction,
+} from "../services/observationRally.js";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -49,6 +63,12 @@ function asString(value: unknown): string | null {
 function asNumber(value: unknown): number | null {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 interface ParticipantContext {
@@ -413,6 +433,14 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       const isMinor = request.body?.is_minor === true;
       const teamId = asString(request.body?.team_id);
       const shareLocation = request.body?.share_location !== false; // default ON
+      const locationConsent = resolveLocationShareConsent({
+        wantsShare: shareLocation,
+        isMinor,
+        consentType: asString(request.body?.location_share_consent_type),
+        guardianConsent: request.body?.guardian_location_consent === true,
+      });
+      const shareUntil = locationConsent !== null ? locationShareUntil(session)?.toISOString() ?? null : null;
+      const locationShareEnabled = locationConsent !== null && shareUntil !== null;
 
       if (!auth && !guestToken) {
         return reply.status(400).send({ error: "user or guest_token required" });
@@ -421,9 +449,11 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
       const upsert = await getPool().query<{ participant_id: string }>(
         `INSERT INTO observation_event_participants (
             session_id, user_id, guest_token, display_name, team_id, role, status,
-            checked_in_at, share_location, is_minor
+            checked_in_at, share_location, is_minor,
+            location_share_started_at, location_share_until, location_share_consent_type
          ) VALUES ($1, $2, $3, $4, $5, 'participant', 'checked_in',
-                   NOW(), $6, $7)
+                   NOW(), $6, $7,
+                   CASE WHEN $6 THEN NOW() ELSE NULL END, $8, $9)
          ON CONFLICT (session_id, user_id)
          WHERE user_id IS NOT NULL DO UPDATE SET
             display_name = EXCLUDED.display_name,
@@ -431,7 +461,10 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
             status       = 'checked_in',
             checked_in_at = NOW(),
             share_location = EXCLUDED.share_location,
-            is_minor     = EXCLUDED.is_minor
+            is_minor     = EXCLUDED.is_minor,
+            location_share_started_at = EXCLUDED.location_share_started_at,
+            location_share_until = EXCLUDED.location_share_until,
+            location_share_consent_type = EXCLUDED.location_share_consent_type
          RETURNING participant_id`,
         [
           session.sessionId,
@@ -439,8 +472,10 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
           guestToken,
           displayName,
           teamId,
-          shareLocation && !isMinor,
+          locationShareEnabled,
           isMinor,
+          shareUntil,
+          locationConsent,
         ],
       );
       // Guest path uses different unique index, so we re-run for guests if needed.
@@ -449,8 +484,10 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         const guestUpsert = await getPool().query<{ participant_id: string }>(
           `INSERT INTO observation_event_participants (
               session_id, user_id, guest_token, display_name, team_id, role, status,
-              checked_in_at, share_location, is_minor
-           ) VALUES ($1, NULL, $2, $3, $4, 'participant', 'checked_in', NOW(), $5, $6)
+              checked_in_at, share_location, is_minor,
+              location_share_started_at, location_share_until, location_share_consent_type
+           ) VALUES ($1, NULL, $2, $3, $4, 'participant', 'checked_in', NOW(), $5, $6,
+                     CASE WHEN $5 THEN NOW() ELSE NULL END, $7, $8)
            ON CONFLICT (session_id, guest_token)
            WHERE guest_token IS NOT NULL DO UPDATE SET
               display_name = EXCLUDED.display_name,
@@ -458,15 +495,20 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
               status       = 'checked_in',
               checked_in_at = NOW(),
               share_location = EXCLUDED.share_location,
-              is_minor     = EXCLUDED.is_minor
+              is_minor     = EXCLUDED.is_minor,
+              location_share_started_at = EXCLUDED.location_share_started_at,
+              location_share_until = EXCLUDED.location_share_until,
+              location_share_consent_type = EXCLUDED.location_share_consent_type
            RETURNING participant_id`,
           [
             session.sessionId,
             guestToken,
             displayName,
             teamId,
-            shareLocation && !isMinor,
+            locationShareEnabled,
             isMinor,
+            shareUntil,
+            locationConsent,
           ],
         );
         participantId = guestUpsert.rows[0]?.participant_id ?? null;
@@ -487,6 +529,7 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
           participant_id: participantId,
           display_name: displayName,
           team_id: teamId,
+          location_share: locationShareEnabled,
         },
       });
 
@@ -669,6 +712,298 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         payload: { kind: "role", participant_id: row.participant_id, declared_job: declaredJob },
       });
       return reply.send({ participant_id: row.participant_id, declared_job: declaredJob });
+    },
+  );
+
+  // GET /api/v1/observation-events/:sessionId/rally  — 観察ラリー snapshot
+  app.get<{ Params: { sessionId: string } }>(
+    "/api/v1/observation-events/:sessionId/rally",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      const rally = await getRallySnapshot(session.sessionId);
+      return reply.send({ session, rally });
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/rally/course  — 主催者がラリーを開始/更新
+  app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/course",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) return reply.status(403).send({ error: "organizer only" });
+      const statusRaw = asString(request.body?.status);
+      const course = await ensureRallyCourse({
+        sessionId: session.sessionId,
+        actorUserId: auth.userId,
+        title: asString(request.body?.title) ?? "観察ラリー",
+        status: statusRaw === "live" || statusRaw === "closed" || statusRaw === "draft"
+          ? statusRaw
+          : "preflight",
+        config: asObject(request.body?.config) ?? {},
+      });
+      return reply.send({ course });
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/rally/stations  — 主催者が地点/範囲/ルートを追加
+  app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/stations",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) return reply.status(403).send({ error: "organizer only" });
+      const name = asString(request.body?.name);
+      if (!name) return reply.status(400).send({ error: "name required" });
+      const station = await createRallyStation({
+        sessionId: session.sessionId,
+        actorUserId: auth.userId,
+        station: {
+          fieldId: asString(request.body?.field_id),
+          code: asString(request.body?.code),
+          name,
+          description: asString(request.body?.description),
+          lat: asNumber(request.body?.lat),
+          lng: asNumber(request.body?.lng),
+          radiusM: asNumber(request.body?.radius_m),
+          polygon: asObject(request.body?.polygon),
+          routeGeojson: asObject(request.body?.route_geojson),
+          isPrivate: request.body?.is_private === true,
+          accessNote: asString(request.body?.access_note),
+          dangerNote: asString(request.body?.danger_note),
+          sortOrder: Math.round(asNumber(request.body?.sort_order) ?? 0),
+        },
+      });
+      return reply.status(201).send({ station });
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/rally/missions  — 主催者が地点固定/非固定ミッションを追加
+  app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/missions",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) return reply.status(403).send({ error: "organizer only" });
+      const title = asString(request.body?.title);
+      const target = asString(request.body?.target);
+      const goalCount = asNumber(request.body?.goal_count);
+      if (!title || !target || goalCount === null || goalCount <= 0) {
+        return reply.status(400).send({ error: "title, target, positive goal_count required" });
+      }
+      try {
+        const mission = await createRallyMission({
+          sessionId: session.sessionId,
+          actorUserId: auth.userId,
+          mission: {
+            stationId: asString(request.body?.station_id),
+            replacementForMissionId: asString(request.body?.replacement_for_mission_id),
+            scope: asString(request.body?.scope),
+            locationBinding: asString(request.body?.location_binding),
+            title,
+            target,
+            countUnit: asString(request.body?.count_unit),
+            goalCount,
+            countingPolicy: asObject(request.body?.counting_policy),
+            verificationPolicy: asString(request.body?.verification_policy),
+            weatherSensitivity: asString(request.body?.weather_sensitivity),
+            fallbackGroup: asString(request.body?.fallback_group),
+            status: asString(request.body?.status),
+            startsAt: asString(request.body?.starts_at),
+            endsAt: asString(request.body?.ends_at),
+            sortOrder: Math.round(asNumber(request.body?.sort_order) ?? 0),
+          },
+        });
+        return reply.status(201).send({ mission });
+      } catch (error) {
+        return reply.status(400).send({ error: error instanceof Error ? error.message : "mission create failed" });
+      }
+    },
+  );
+
+  // PATCH /api/v1/observation-events/:sessionId/rally/missions/:missionId  — publish/pause/replace/extend/close
+  app.patch<{ Params: { sessionId: string; missionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/missions/:missionId",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) return reply.status(403).send({ error: "organizer only" });
+      const actionRaw = asString(request.body?.action);
+      const allowed = ["publish", "pause", "replace", "extend", "close"] as const;
+      if (!actionRaw || !(allowed as readonly string[]).includes(actionRaw)) {
+        return reply.status(400).send({ error: "invalid action" });
+      }
+      try {
+        const mission = await changeRallyMission({
+          sessionId: session.sessionId,
+          missionId: request.params.missionId,
+          action: actionRaw as RallyRevisionAction,
+          actorUserId: auth.userId,
+          reason: asString(request.body?.reason),
+          goalCount: asNumber(request.body?.goal_count),
+          endsAt: asString(request.body?.ends_at),
+        });
+        return reply.send({ mission });
+      } catch (error) {
+        return reply.status(400).send({ error: error instanceof Error ? error.message : "mission update failed" });
+      }
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/rally/preflight/weather-mode  — fallback_group 単位の雨天切替
+  app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/preflight/weather-mode",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) return reply.status(403).send({ error: "organizer only" });
+      const mode = asString(request.body?.mode);
+      if (mode !== "rain") return reply.status(400).send({ error: "invalid weather mode" });
+      try {
+        const result = await switchRallyWeatherMode({
+          sessionId: session.sessionId,
+          actorUserId: auth.userId,
+          mode,
+          reason: asString(request.body?.reason),
+        });
+        return reply.send(result);
+      } catch (error) {
+        return reply.status(400).send({ error: error instanceof Error ? error.message : "weather mode switch failed" });
+      }
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/rally/submissions  — 参加者がミッションへ追加
+  app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/submissions",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const guestToken = asString(request.body?.guest_token);
+      if (!auth && !guestToken) return reply.status(400).send({ error: "user or guest_token required" });
+      const missionId = asString(request.body?.mission_id);
+      if (!missionId) return reply.status(400).send({ error: "mission_id required" });
+      const ctx = await resolveParticipantContext(session, request.headers.cookie, guestToken);
+      try {
+        const result = await recordRallySubmission({
+          sessionId: session.sessionId,
+          missionId,
+          userId: auth?.userId ?? null,
+          guestToken,
+          teamId: asString(request.body?.team_id) ?? ctx.teamId,
+          stationId: asString(request.body?.station_id),
+          sourceType: asString(request.body?.source_type),
+          sourceRef: asString(request.body?.source_ref),
+          countValue: asNumber(request.body?.count_value),
+          lat: asNumber(request.body?.lat),
+          lng: asNumber(request.body?.lng),
+          payload: asObject(request.body?.payload) ?? {},
+        });
+        return reply.status(201).send(result);
+      } catch (error) {
+        return reply.status(400).send({ error: error instanceof Error ? error.message : "submission failed" });
+      }
+    },
+  );
+
+  // PATCH /api/v1/observation-events/:sessionId/rally/submissions/:submissionId/review  — 主催者承認
+  app.patch<{ Params: { sessionId: string; submissionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/rally/submissions/:submissionId/review",
+    async (request, reply) => {
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      if (!auth) return reply.status(401).send({ error: "login required" });
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      if (session.organizerUserId !== auth.userId) return reply.status(403).send({ error: "organizer only" });
+      const next = request.body?.review_status === "rejected" ? "rejected" : "accepted";
+      try {
+        const result = await reviewRallySubmission({
+          sessionId: session.sessionId,
+          submissionId: request.params.submissionId,
+          reviewStatus: next,
+          actorUserId: auth.userId,
+        });
+        return reply.send(result);
+      } catch (error) {
+        return reply.status(400).send({ error: error instanceof Error ? error.message : "review failed" });
+      }
+    },
+  );
+
+  // POST /api/v1/observation-events/:sessionId/location  — 開催時間限定・主催者限定の位置共有
+  app.post<{ Params: { sessionId: string }; Body: Record<string, unknown> }>(
+    "/api/v1/observation-events/:sessionId/location",
+    async (request, reply) => {
+      const session = await getSessionById(request.params.sessionId);
+      if (!session) return reply.status(404).send({ error: "session not found" });
+      const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+      const guestToken = asString(request.body?.guest_token);
+      if (!auth && !guestToken) return reply.status(400).send({ error: "user or guest_token required" });
+      if (!isLocationShareOpen(session)) return reply.status(403).send({ error: "location sharing is outside event time" });
+      const lat = asNumber(request.body?.lat);
+      const lng = asNumber(request.body?.lng);
+      if (lat === null || lng === null) return reply.status(400).send({ error: "lat and lng required" });
+      const participantResult = await getPool().query<{
+        participant_id: string;
+        display_name: string;
+        team_id: string | null;
+        share_location: boolean;
+        location_share_until: string | null;
+      }>(
+        `SELECT participant_id, display_name, team_id, share_location,
+                location_share_until::text AS location_share_until
+         FROM observation_event_participants
+         WHERE session_id = $1
+           AND (
+             (user_id IS NOT NULL AND user_id = $2)
+             OR (guest_token IS NOT NULL AND guest_token = $3)
+           )
+         LIMIT 1`,
+        [session.sessionId, auth?.userId ?? null, guestToken],
+      );
+      const participant = participantResult.rows[0];
+      if (!participant) return reply.status(404).send({ error: "participant not found" });
+      const shareUntilMs = participant.location_share_until ? Date.parse(participant.location_share_until) : 0;
+      if (!participant.share_location || !Number.isFinite(shareUntilMs) || Date.now() > shareUntilMs) {
+        return reply.status(403).send({ error: "location sharing is not enabled" });
+      }
+      await getPool().query(
+        `UPDATE observation_event_participants
+         SET last_lat = $3, last_lng = $4, last_ping_at = NOW()
+         WHERE session_id = $1
+           AND participant_id = $2
+           AND share_location = TRUE
+           AND location_share_until >= NOW()`,
+        [session.sessionId, participant.participant_id, lat, lng],
+      );
+      const event = await appendLiveEvent({
+        sessionId: session.sessionId,
+        type: "participant_location_ping",
+        scope: "organizer",
+        actorUserId: auth?.userId ?? null,
+        actorGuestToken: guestToken,
+        teamId: participant.team_id,
+        payload: {
+          participant_id: participant.participant_id,
+          display_name: participant.display_name,
+          team_id: participant.team_id,
+          lat,
+          lng,
+        },
+      });
+      return reply.send({ ok: true, event });
     },
   );
 
