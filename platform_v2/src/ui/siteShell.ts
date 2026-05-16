@@ -1831,7 +1831,11 @@ function globalRecordEntryScript(basePath: string): string {
         let location = metadata.location || null;
         if (!location) {
           setStatus('記録に使う地点を確認しています...');
-          location = await readCaptureLocation();
+          location = await readCaptureLocation({ enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 2500 });
+          if (location && capturedReviewMeta === metadata) {
+            metadata.location = location;
+            metadata.locationPending = false;
+          }
         }
         if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
           throw new Error('location_required');
@@ -2094,11 +2098,16 @@ function globalRecordEntryScript(basePath: string): string {
       if (requestId === cameraRequestId) cameraStartInFlight = false;
     }
   };
-  const readCaptureLocation = () => new Promise((resolve) => {
+  const readCaptureLocation = (options) => new Promise((resolve) => {
     if (!navigator.geolocation) {
       resolve(null);
       return;
     }
+    const merged = Object.assign({
+      enableHighAccuracy: true,
+      maximumAge: 30000,
+      timeout: 7000,
+    }, options || {});
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({
         latitude: position.coords.latitude,
@@ -2107,14 +2116,23 @@ function globalRecordEntryScript(basePath: string): string {
         capturedAt: new Date().toISOString(),
       }),
       () => resolve(null),
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 7000 },
+      merged,
     );
   });
-  const buildCaptureMetadata = async () => {
-    const capturedAt = new Date().toISOString();
-    setStatus('撮影地点を確認しています...');
-    const location = await readCaptureLocation();
-    return { capturedAt, location };
+  const buildCaptureMetadata = () => ({
+    capturedAt: new Date().toISOString(),
+    location: null,
+    locationPending: true,
+  });
+  const fillCaptureLocationLater = (metadata, successMessage, fallbackMessage) => {
+    if (!metadata || !metadata.locationPending) return;
+    void readCaptureLocation().then((location) => {
+      if (capturedReviewMeta !== metadata) return;
+      metadata.location = location;
+      metadata.locationPending = false;
+      if (location) setStatus(successMessage);
+      else setStatus(fallbackMessage);
+    });
   };
   const prepareSheetVideoTrim = (file) => {
     resetSheetVideoTrim();
@@ -2317,8 +2335,13 @@ function globalRecordEntryScript(basePath: string): string {
       }
       const file = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
       stopActiveStream();
-      const metadata = await buildCaptureMetadata();
+      const metadata = buildCaptureMetadata();
       showCapturedReview(file, 'photo', metadata);
+      fillCaptureLocationLater(
+        metadata,
+        '撮影地点も保存しました。写真はすぐ記録できます。',
+        '写真はすぐ記録できます。位置は記録時にもう一度確認します。',
+      );
     }, 'image/jpeg', 0.9);
   };
   const stopVideoRecording = () => {
@@ -2358,8 +2381,13 @@ function globalRecordEntryScript(basePath: string): string {
         captureButton.textContent = '録画開始';
       }
       stopActiveStream();
-      const metadata = await buildCaptureMetadata();
+      const metadata = buildCaptureMetadata();
       showCapturedReview(file, 'video', metadata);
+      fillCaptureLocationLater(
+        metadata,
+        '撮影地点も保存しました。下で区間、名前、メモを整えられます。',
+        '下で区間、名前、メモを整えられます。位置は記録画面で指定できます。',
+      );
     };
     recordingStartedAt = Date.now();
     mediaRecorder.start(1000);
@@ -2427,8 +2455,13 @@ function globalRecordEntryScript(basePath: string): string {
       if (!files.length) return;
       if (kind === 'photo') {
         openSheet('photo', { reviewOnly: true, keepReview: true });
-        const metadata = await buildCaptureMetadata();
+        const metadata = buildCaptureMetadata();
         addPhotoDraftFiles(files, metadata);
+        fillCaptureLocationLater(
+          metadata,
+          '撮影地点も保存しました。写真' + String(selectedPhotoDraftFiles().length) + '枚をまとめています。',
+          '位置は記録時にもう一度確認します。写真' + String(selectedPhotoDraftFiles().length) + '枚をまとめています。',
+        );
         input.value = '';
         return;
       }

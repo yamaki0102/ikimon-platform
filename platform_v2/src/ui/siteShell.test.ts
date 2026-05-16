@@ -187,6 +187,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /height: min\(70dvh, calc\(100dvh - 176px\)\)/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
+  assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);\s+fillCaptureLocationLater/s);
+  assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
+  assert.match(html, /timeout: 2500/);
   assert.match(html, /void startCamera\(\)/);
   assert.match(html, /MediaRecorder/);
   assert.match(html, /MAX_PHOTO_DRAFT_FILES = 6/);
