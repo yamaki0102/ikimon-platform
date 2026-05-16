@@ -56,7 +56,7 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-async function sendMailViaSendmail(to: string, subject: string, body: string, extraHeaders: Record<string, string> = {}): Promise<{ ok: boolean; error?: string }> {
+export async function sendMailViaSendmail(to: string, subject: string, body: string, extraHeaders: Record<string, string> = {}): Promise<{ ok: boolean; error?: string }> {
   return new Promise((resolve) => {
     const headers: Record<string, string> = {
       From: NOREPLY_FROM,

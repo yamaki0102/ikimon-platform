@@ -1,0 +1,272 @@
+{
+  "source": "E:/Projects/ikimon-internal/docs/research/shizuoka_invasive_species_reporting_contacts_2026-05-16.md",
+  "verifiedAt": "2026-05-16",
+  "defaultSendPermissionStatus": "not_requested",
+  "notes": [
+    "自治体・機関側の明示的な受信許可が入るまでは自動送信しない。",
+    "メールが公開されている窓口でも、v1では sendPermissionStatus=approved と alertRecipientId の両方が揃った場合だけ配送対象にする。"
+  ],
+  "jurisdictions": [
+    { "key": "jp-shizuoka", "countryCode": "JP", "adminArea1": "静岡県", "localityLabel": "静岡県", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-shizuoka", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "静岡市", "localityLabel": "静岡県静岡市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-hamamatsu", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "浜松市", "localityLabel": "静岡県浜松市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-numazu", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "沼津市", "localityLabel": "静岡県沼津市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-mishima", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "三島市", "localityLabel": "静岡県三島市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-fujieda", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "藤枝市", "localityLabel": "静岡県藤枝市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-shimada", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "島田市", "localityLabel": "静岡県島田市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-fukuroi", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "袋井市", "localityLabel": "静岡県袋井市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-kosai", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "湖西市", "localityLabel": "静岡県湖西市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-kakegawa", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "掛川市", "localityLabel": "静岡県掛川市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-yaizu", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "焼津市", "localityLabel": "静岡県焼津市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-makinohara", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "牧之原市", "localityLabel": "静岡県牧之原市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-izu", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "伊豆市", "localityLabel": "静岡県伊豆市", "languages": ["ja"], "timezone": "Asia/Tokyo" },
+    { "key": "jp-shizuoka-fuji", "countryCode": "JP", "adminArea1": "静岡県", "municipality": "富士市", "localityLabel": "静岡県富士市", "languages": ["ja"], "timezone": "Asia/Tokyo" }
+  ],
+  "contacts": [
+    {
+      "key": "shizuoka-pref-nature",
+      "jurisdictionKey": "jp-shizuoka",
+      "organizationName": "静岡県",
+      "departmentName": "自然保護課",
+      "contactRole": "prefecture",
+      "deliveryMode": "email",
+      "email": "shizenhogo@pref.shizuoka.lg.jp",
+      "sendPermissionStatus": "not_requested",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.pref.shizuoka.jp/kurashikankyo/shizenkankyo/wild/yasei/1017688.html",
+      "rules": [
+        {
+          "category": "emergency_biosecurity",
+          "urgency": "urgent",
+          "taxonNames": ["ヒアリ", "アカカミアリ", "セアカゴケグモ", "ハイイロゴケグモ", "カミツキガメ"],
+          "mhlwCategories": ["iaspecified"],
+          "requiredFields": ["写真", "発見場所", "発見日時", "個体数", "発見者連絡先"],
+          "handlingWarnings": ["素手で触らない", "生きたまま運ばない", "駆除判断を自己判断しない"],
+          "userGuidanceJa": "危険生物・特定外来生物の可能性がある場合は、安全を優先して写真と場所を残してください。",
+          "authorityGuidanceJa": "AI候補であることを明示し、詳細位置・写真URL・観察日時を確認依頼として共有します。"
+        },
+        {
+          "category": "sighting_report",
+          "urgency": "normal",
+          "taxonNames": ["オオキンケイギク", "オオフサモ", "ナガエツルノゲイトウ", "アライグマ"],
+          "mhlwCategories": ["iaspecified", "priority"],
+          "requiredFields": ["写真", "発見場所", "発見日時", "分布範囲または個体数"],
+          "handlingWarnings": ["根や茎の破片を散らさない", "別の場所へ移さない"],
+          "userGuidanceJa": "植物は花・葉・茎・群落範囲が分かる写真があると確認しやすくなります。",
+          "authorityGuidanceJa": "外来種候補の分布把握に使える情報として、写真・位置・日時・規模を共有します。"
+        }
+      ]
+    },
+    {
+      "key": "shizuoka-city-snapping-turtle",
+      "jurisdictionKey": "jp-shizuoka-shizuoka",
+      "organizationName": "静岡市",
+      "departmentName": "環境共生課",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.shizuoka.lg.jp/",
+      "rules": [
+        {
+          "category": "emergency_biosecurity",
+          "urgency": "urgent",
+          "taxonNames": ["カミツキガメ"],
+          "mhlwCategories": ["iaspecified"],
+          "requiredFields": ["写真", "発見場所", "発見日時", "大きさ", "安全上の状況"],
+          "handlingWarnings": ["近づかない", "捕まえない", "移動させない"],
+          "userGuidanceJa": "カミツキガメの疑いは接近せず、場所と写真を残してください。",
+          "authorityGuidanceJa": "危険生物の疑いとして、AI候補・詳細位置・写真を確認依頼として共有します。"
+        }
+      ]
+    },
+    {
+      "key": "hamamatsu-fire-ant",
+      "jurisdictionKey": "jp-shizuoka-hamamatsu",
+      "organizationName": "浜松市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.hamamatsu.shizuoka.jp/",
+      "rules": [
+        {
+          "category": "emergency_biosecurity",
+          "urgency": "urgent",
+          "taxonNames": ["ヒアリ", "アカカミアリ"],
+          "mhlwCategories": ["iaspecified"],
+          "requiredFields": ["写真", "発見場所", "発見日時", "個体数", "巣らしきものの有無"],
+          "handlingWarnings": ["素手で触らない", "刺激しない", "生きたまま運ばない"],
+          "userGuidanceJa": "ヒアリ類の疑いは刺傷リスクがあるため、安全な距離から記録してください。",
+          "authorityGuidanceJa": "緊急度の高い外来アリ候補として、詳細位置と写真を確認依頼に含めます。"
+        },
+        {
+          "category": "management_consultation",
+          "urgency": "normal",
+          "taxonNames": ["オオキンケイギク", "外来植物"],
+          "mhlwCategories": ["iaspecified", "priority"],
+          "requiredFields": ["写真", "発見場所", "分布範囲", "管理者が分かる場合は管理者名"],
+          "handlingWarnings": ["種子や根を散らさない", "作業前に処分方法を確認する"],
+          "userGuidanceJa": "防除相談では、どの範囲にどれくらい広がっているかが重要です。",
+          "authorityGuidanceJa": "管理相談に使える範囲情報として共有します。"
+        }
+      ]
+    },
+    {
+      "key": "numazu-redback",
+      "jurisdictionKey": "jp-shizuoka-numazu",
+      "organizationName": "沼津市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.numazu.shizuoka.jp/",
+      "rules": [
+        { "category": "emergency_biosecurity", "urgency": "urgent", "taxonNames": ["セアカゴケグモ"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "発見場所", "発見日時", "個体数"], "handlingWarnings": ["素手で触らない", "卵のうを不用意に壊さない"], "userGuidanceJa": "咬傷リスクがあるため触らず記録してください。", "authorityGuidanceJa": "危険生物候補として写真・詳細位置を確認依頼に含めます。" }
+      ]
+    },
+    {
+      "key": "mishima-invasive",
+      "jurisdictionKey": "jp-shizuoka-mishima",
+      "organizationName": "三島市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.mishima.shizuoka.jp/",
+      "rules": [
+        { "category": "sighting_report", "urgency": "normal", "taxonNames": ["特定外来生物"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "発見場所", "発見日時"], "handlingWarnings": ["生きたまま運ばない", "自己判断で放さない"], "userGuidanceJa": "特定外来生物の疑いは写真と場所を残してください。", "authorityGuidanceJa": "地域窓口で確認できるようAI候補と根拠を共有します。" }
+      ]
+    },
+    {
+      "key": "fujieda-invasive",
+      "jurisdictionKey": "jp-shizuoka-fujieda",
+      "organizationName": "藤枝市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.fujieda.shizuoka.jp/",
+      "rules": [
+        { "category": "emergency_biosecurity", "urgency": "urgent", "taxonNames": ["ヒアリ", "セアカゴケグモ"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "発見場所", "発見日時", "個体数"], "handlingWarnings": ["触らない", "刺激しない"], "userGuidanceJa": "危険生物候補は安全距離から記録してください。", "authorityGuidanceJa": "緊急通報候補として写真・位置を共有します。" },
+        { "category": "sighting_report", "urgency": "normal", "taxonNames": ["オオキンケイギク"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "場所", "群落範囲"], "handlingWarnings": ["種子を散らさない"], "userGuidanceJa": "花・葉・群落範囲を記録してください。", "authorityGuidanceJa": "分布把握用の候補として共有します。" }
+      ]
+    },
+    {
+      "key": "shimada-invasive",
+      "jurisdictionKey": "jp-shizuoka-shimada",
+      "organizationName": "島田市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.shimada.shizuoka.jp/",
+      "rules": [
+        { "category": "sighting_report", "urgency": "normal", "taxonNames": ["特定外来生物", "ヒアリ", "ゴケグモ類"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "発見場所", "発見日時"], "handlingWarnings": ["触らない", "運ばない"], "userGuidanceJa": "疑い段階でも写真と場所が重要です。", "authorityGuidanceJa": "確認依頼として詳細位置と写真を共有します。" }
+      ]
+    },
+    {
+      "key": "fukuroi-invasive",
+      "jurisdictionKey": "jp-shizuoka-fukuroi",
+      "organizationName": "袋井市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.fukuroi.shizuoka.jp/",
+      "rules": [
+        { "category": "emergency_biosecurity", "urgency": "urgent", "taxonNames": ["アカカミアリ", "特定外来生物"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "発見場所", "発見日時", "個体数"], "handlingWarnings": ["素手で触らない", "生きたまま運ばない"], "userGuidanceJa": "外来アリ類の疑いは安全優先で記録してください。", "authorityGuidanceJa": "緊急確認候補として共有します。" }
+      ]
+    },
+    {
+      "key": "kosai-fire-ant",
+      "jurisdictionKey": "jp-shizuoka-kosai",
+      "organizationName": "湖西市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.kosai.shizuoka.jp/",
+      "rules": [
+        { "category": "emergency_biosecurity", "urgency": "urgent", "taxonNames": ["ヒアリ"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "発見場所", "発見日時", "個体数"], "handlingWarnings": ["触らない", "巣を刺激しない"], "userGuidanceJa": "ヒアリ疑いは近づかず記録してください。", "authorityGuidanceJa": "詳細位置と写真を確認依頼に含めます。" }
+      ]
+    },
+    {
+      "key": "kakegawa-burweed",
+      "jurisdictionKey": "jp-shizuoka-kakegawa",
+      "organizationName": "掛川市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.kakegawa.shizuoka.jp/",
+      "rules": [
+        { "category": "sighting_report", "urgency": "normal", "taxonNames": ["メリケントキンソウ"], "mhlwCategories": ["priority"], "requiredFields": ["写真", "発見場所", "範囲", "人やペットへの影響"], "handlingWarnings": ["とげに注意する", "靴や道具に種を付けて運ばない"], "userGuidanceJa": "とげのある果実や広がりが分かる写真が役立ちます。", "authorityGuidanceJa": "分布・管理候補として共有します。" }
+      ]
+    },
+    {
+      "key": "yaizu-aquatic-plants",
+      "jurisdictionKey": "jp-shizuoka-yaizu",
+      "organizationName": "焼津市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.yaizu.lg.jp/",
+      "rules": [
+        { "category": "management_consultation", "urgency": "normal", "taxonNames": ["オオキンケイギク", "オオフサモ", "ナガエツルノゲイトウ"], "mhlwCategories": ["iaspecified"], "requiredFields": ["写真", "水路・河川名", "発見場所", "広がり"], "handlingWarnings": ["水草の切れ端を流さない", "土や水ごと移さない"], "userGuidanceJa": "水辺の植物は切れ端で広がることがあるため、まず写真と場所を残してください。", "authorityGuidanceJa": "防除相談に使う候補として詳細位置・写真を共有します。" }
+      ]
+    },
+    {
+      "key": "makinohara-invasive",
+      "jurisdictionKey": "jp-shizuoka-makinohara",
+      "organizationName": "牧之原市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.makinohara.shizuoka.jp/",
+      "rules": [
+        { "category": "management_consultation", "urgency": "normal", "taxonNames": ["外来植物", "特定外来生物"], "mhlwCategories": ["iaspecified", "priority"], "requiredFields": ["写真", "発見場所", "範囲", "管理者情報"], "handlingWarnings": ["移動・譲渡をしない", "処分方法を確認する"], "userGuidanceJa": "管理や駆除の相談は、場所の管理者と広がりの情報が重要です。", "authorityGuidanceJa": "管理相談候補として共有します。" }
+      ]
+    },
+    {
+      "key": "izu-invasive",
+      "jurisdictionKey": "jp-shizuoka-izu",
+      "organizationName": "伊豆市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.izu.shizuoka.jp/",
+      "rules": [
+        { "category": "management_consultation", "urgency": "normal", "taxonNames": ["外来植物", "特定外来生物"], "mhlwCategories": ["iaspecified", "priority"], "requiredFields": ["写真", "発見場所", "発見日時", "範囲"], "handlingWarnings": ["生きたまま運ばない", "作業前に相談する"], "userGuidanceJa": "疑い段階でも写真・場所・範囲を残してください。", "authorityGuidanceJa": "確認・相談候補として共有します。" }
+      ]
+    },
+    {
+      "key": "fuji-survey-programs",
+      "jurisdictionKey": "jp-shizuoka-fuji",
+      "organizationName": "富士市",
+      "departmentName": "環境部局",
+      "contactRole": "municipality",
+      "deliveryMode": "external_form",
+      "sendPermissionStatus": "external_only",
+      "supportedLanguages": ["ja"],
+      "officialUrl": "https://www.city.fuji.shizuoka.jp/",
+      "rules": [
+        { "category": "time_limited_program", "urgency": "seasonal", "taxonNames": ["外来植物", "いきもの調査"], "mhlwCategories": ["iaspecified", "priority"], "requiredFields": ["写真", "発見場所", "発見日時", "調査名"], "handlingWarnings": ["募集期間と対象を確認する", "危険な場所へ入らない"], "userGuidanceJa": "年度調査や駆除イベントは募集期間・対象地域が決まるため、公式情報を確認してください。", "authorityGuidanceJa": "期間限定事業の候補として、対象期間内のみ接続します。" }
+      ]
+    }
+  ]
+}

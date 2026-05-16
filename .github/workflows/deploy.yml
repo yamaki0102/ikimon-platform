@@ -288,6 +288,8 @@ jobs:
             https://ikimon.life/explore \
             https://ikimon.life/map \
             https://ikimon.life/learn \
+            https://ikimon.life/learn/invasive-species-reporting \
+            https://ikimon.life/for-business/invasive-reporting \
             https://ikimon.life/contact
           do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")

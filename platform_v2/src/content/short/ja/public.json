@@ -632,6 +632,18 @@
         "activeNav": "learn",
         "bodyPageId": "learn-technology"
       },
+      "learnInvasiveSpeciesReporting": {
+        "title": "外来種の情報提供 | ikimon.life",
+        "eyebrow": "外来種",
+        "heading": "外来種候補を見つけたとき、どこへ何を伝えるか",
+        "lead": "静岡県内の窓口を起点に、緊急通報、写真・発見情報提供、防除相談、違法行為、年度事業を分けて、求められる情報と触らないための注意を整理します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-invasive-species-reporting",
+        "afterActions": [
+          { "href": "/record", "label": "記録する" },
+          { "href": "/for-business/invasive-reporting", "label": "自治体向けの説明を見る" }
+        ]
+      },
       "learnMethodology": {
         "title": "記録・データ・信頼性 | ikimon.life",
         "eyebrow": "研究と信頼性",
@@ -710,6 +722,18 @@
         "lead": "まず対象場所と参加者を決め、楽しんで続けられる観察体験から始めます。必要に応じて、レポート・可視化・発信を段階的に足します。",
         "activeNav": "business",
         "bodyPageId": "for-business-pricing"
+      },
+      "forBusinessInvasiveReporting": {
+        "title": "外来種自動情報提供 | ikimon.life",
+        "eyebrow": "自治体・機関向け",
+        "heading": "外来種候補の自動情報提供を、許可制で受け取る",
+        "lead": "AI判定後に自動で届く条件、共有される情報、詳細位置の扱い、AI判定の限界、受信開始・停止方法を説明します。",
+        "activeNav": "business",
+        "bodyPageId": "for-business-invasive-reporting",
+        "afterActions": [
+          { "href": "/learn/invasive-species-reporting", "label": "利用者向けの説明を見る" },
+          { "href": "/contact", "label": "受信設定を相談する" }
+        ]
       },
       "forBusinessDemo": {
         "title": "団体向け画面デモ | ikimon.life",

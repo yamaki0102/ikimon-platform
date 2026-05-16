@@ -41,10 +41,11 @@ test("emitAlertsForOccurrence: in-trigger invasive issues municipality + researc
     client,
   );
   assert.equal(summary.municipalityInvasive, 0); // mock returns no rows
+  assert.equal(summary.invasiveReportingMatched, 0);
   // SQL がそれぞれ走った形跡があれば良い
   const allText = history.map((q) => q.text).join("\n");
+  assert.match(allText, /invasive_reporting_rules/);
   assert.match(allText, /alert_recipients/);
-  assert.match(allText, /municipality_invasive/);
   assert.match(allText, /researcher/);
   assert.match(allText, /taxon_alert_subscriptions/);
 });
@@ -65,7 +66,7 @@ test("emitAlertsForOccurrence: native subject does NOT emit municipality_invasiv
     client,
   );
   const allText = history.map((q) => q.text).join("\n");
-  assert.doesNotMatch(allText, /municipality_invasive/);
+  assert.doesNotMatch(allText, /invasive_reporting_rules/);
 });
 
 test("emitAlertsForOccurrence: novelty_score below 0.5 does not emit researcher novelty", async () => {
