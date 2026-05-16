@@ -11,6 +11,7 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerLegacyAssetRoutes } from "./routes/legacyAssets.js";
 import { registerPwaRoutes } from "./routes/pwa.js";
 import { registerLlmoRoutes } from "./routes/llmo.js";
+import { registerInvasiveSpeciesRoutes } from "./routes/invasiveSpecies.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
 import { registerOpsRoutes } from "./routes/ops.js";
@@ -563,6 +564,7 @@ export function buildApp() {
   void registerLlmoRoutes(app);
   void registerSiteMapRoutes(app);
   void registerLegacyAssetRoutes(app);
+  void registerInvasiveSpeciesRoutes(app);
   void registerMapApiRoutes(app);
   void registerMarketingRoutes(app);
   void registerSampleReportRoute(app);

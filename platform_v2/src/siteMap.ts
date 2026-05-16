@@ -1,5 +1,6 @@
 import { appendLangToHref, supportedLanguages, type SiteLang } from "./i18n.js";
 import { getShortCopy, hasLocalizedLongform, hasLocalizedShortCopy } from "./content/index.js";
+import { invasiveSpeciesDetailPath, INVASIVE_SPECIES_LIST_PATH, listInvasiveSpecies } from "./services/invasiveSpeciesCatalog.js";
 
 export type RouteLane =
   | "start"
@@ -311,6 +312,16 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     title: { ja: "自然観察とテクノロジー", en: "Nature technology" },
     summary: { ja: "AI、環境DNA、分類名、データセットを観察の信頼性から読む。", en: "AI, eDNA, taxonomy, and datasets." },
     marketing: { pageKey: "learnTechnology" },
+  },
+  {
+    path: INVASIVE_SPECIES_LIST_PATH,
+    lane: "learn",
+    layout: "reading",
+    audience: "public",
+    auth: "public",
+    navVisibility: ["footer", "qa", "xml"],
+    title: { ja: "外来種一覧", en: "Invasive species" },
+    summary: { ja: "外来種を見つけたときの安全行動と公式情報への導線。", en: "Safety notes and official sources for invasive species." },
   },
   {
     path: "/learn/invasive-species-reporting",
@@ -1103,6 +1114,10 @@ export function xmlSitemapPages(): SitePageDefinition[] {
   return listPagesByVisibility("xml").filter((page) => !page.path.includes(":"));
 }
 
+function invasiveSpeciesSitemapPaths(): string[] {
+  return listInvasiveSpecies().map(invasiveSpeciesDetailPath);
+}
+
 type MarketingPageMeta = {
   bodyPageId: string;
 };
@@ -1142,7 +1157,7 @@ function escapeXml(value: string): string {
 export function buildXmlSitemap(origin: string, today = new Date()): string {
   const base = normalizeOrigin(origin || "https://ikimon.life");
   const lastmod = today.toISOString().slice(0, 10);
-  const urls = xmlSitemapPages()
+  const staticUrls = xmlSitemapPages()
     .flatMap((page) => {
       const langs: SiteLang[] = ["ja"];
       return langs.map((lang) => {
@@ -1158,8 +1173,18 @@ ${alternates}
 ${xDefault}
   </url>`;
       });
-    })
-    .join("\n");
+    });
+  const invasiveUrls = invasiveSpeciesSitemapPaths().map((path) => {
+    const localizedPath = appendLangToHref(path, "ja");
+    const xDefault = `    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeXml(`${base}${localizedPath}`)}" />`;
+    return `  <url>
+    <loc>${escapeXml(`${base}${localizedPath}`)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <xhtml:link rel="alternate" hreflang="ja" href="${escapeXml(`${base}${localizedPath}`)}" />
+${xDefault}
+  </url>`;
+  });
+  const urls = [...staticUrls, ...invasiveUrls].join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${urls}

@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import type { FieldLoopStrings, LandingStrings } from "../i18n/strings.js";
+import { findInvasiveSpeciesByName, invasiveSpeciesDetailPath, INVASIVE_SPECIES_LIST_PATH } from "../services/invasiveSpeciesCatalog.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import type {
   LandingObservation,
@@ -892,8 +893,14 @@ type LandingInvasiveWatchItem = {
   body: string;
   impact: string;
   cue: string;
+  href: string;
   motif: "plant" | "aquaticPlant" | "insect" | "spider" | "reptile" | "fish" | "mammal" | "bird";
 };
+
+function landingInvasiveHref(name: string): string {
+  const item = findInvasiveSpeciesByName(name);
+  return item ? invasiveSpeciesDetailPath(item) : INVASIVE_SPECIES_LIST_PATH;
+}
 
 function landingLocalityText(snapshot: LandingSnapshot): string {
   const values = [
@@ -919,10 +926,10 @@ function buildLandingInvasiveWatchItems(snapshot: LandingSnapshot): LandingInvas
   const isShizuoka = isHamamatsu || /静岡県|静岡市|磐田市|湖西市|掛川市|袋井市|藤枝市|焼津市|沼津市|富士市/u.test(text);
   if (!isShizuoka) return [];
   return [
-    { category: "植物", title: "オオキンケイギク", body: "道路脇・空き地の黄色い群落", impact: "在来の野草の場所を奪う", cue: "生きたまま運ばない", motif: "plant" },
-    { category: "水草", title: "ナガエツルノゲイトウ", body: "水路・湿地に広がる草のマット", impact: "水辺や農地へ切れ端から広がる", cue: "切れ端を流さない", motif: "aquaticPlant" },
-    { category: "昆虫", title: "ヒアリ", body: "小さな赤褐色のアリ", impact: "刺される被害や定着リスク", cue: "毒針がある。触らない", motif: "insect" },
-    { category: "哺乳類", title: "ヌートリア", body: "川沿い・水路の足あとや巣穴", impact: "農作物や希少植物を食べる", cue: "許可なく捕獲しない", motif: "mammal" },
+    { category: "植物", title: "オオキンケイギク", body: "道路脇・空き地の黄色い群落", impact: "在来の野草の場所を奪う", cue: "生きたまま運ばない", href: landingInvasiveHref("オオキンケイギク"), motif: "plant" },
+    { category: "水草", title: "ナガエツルノゲイトウ", body: "水路・湿地に広がる草のマット", impact: "水辺や農地へ切れ端から広がる", cue: "切れ端を流さない", href: landingInvasiveHref("ナガエツルノゲイトウ"), motif: "aquaticPlant" },
+    { category: "昆虫", title: "ヒアリ", body: "小さな赤褐色のアリ", impact: "刺される被害や定着リスク", cue: "毒針がある。触らない", href: landingInvasiveHref("ヒアリ"), motif: "insect" },
+    { category: "哺乳類", title: "ヌートリア", body: "川沿い・水路の足あとや巣穴", impact: "農作物や希少植物を食べる", cue: "許可なく捕獲しない", href: landingInvasiveHref("ヌートリア"), motif: "mammal" },
   ];
 }
 
@@ -949,11 +956,11 @@ function formatNearbyEventWhen(raw: string): string {
 
 function renderLandingLocalFollowups(options: LandingTopRenderOptions): string {
   const { basePath, lang, snapshot } = options;
-  const invasiveHref = landingHref(basePath, lang, "/learn/invasive-species-reporting");
+  const invasiveHref = landingHref(basePath, lang, INVASIVE_SPECIES_LIST_PATH);
   const eventsHref = landingHref(basePath, lang, "/community/events");
   const newEventHref = landingHref(basePath, lang, "/community/events/new");
   const invasiveItems = buildLandingInvasiveWatchItems(snapshot);
-  const invasiveHtml = invasiveItems.map((item) => `<a class="prototype-local-watch-card is-${escapeHtml(item.motif)}" href="${escapeHtml(invasiveHref)}" data-kpi-action="landing:local:invasive">
+  const invasiveHtml = invasiveItems.map((item) => `<a class="prototype-local-watch-card is-${escapeHtml(item.motif)}" href="${escapeHtml(landingHref(basePath, lang, item.href))}" data-kpi-action="landing:local:invasive:${escapeHtml(item.title)}">
         ${renderInvasiveThumb(item.motif)}
         <span class="prototype-invasive-meta"><em>${escapeHtml(item.category)}</em><mark>${escapeHtml(item.cue)}</mark></span>
         <strong class="prototype-invasive-name">${escapeHtml(item.title)}</strong>
