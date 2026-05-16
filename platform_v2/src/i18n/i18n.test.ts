@@ -5,13 +5,13 @@ import { formatStatLabel, getStrings } from "./index.js";
 
 test("ja returns the canonical dictionary", () => {
   const s = getStrings("ja");
-  assert.strictEqual(s.landing.title, "ikimon.life | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる");
+  assert.strictEqual(s.landing.title, "ikimon | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる");
   assert.strictEqual(s.fieldLoop.eyebrow, "使い方");
 });
 
 test("en overrides landing and keeps the english field-loop page shape", () => {
   const s = getStrings("en");
-  assert.ok(s.landing.title.startsWith("ikimon.life"));
+  assert.ok(s.landing.title.startsWith("ikimon — Enjoy Life"));
   assert.strictEqual(s.landing.tools.lens.eyebrow, "Lens");
   assert.strictEqual(s.fieldLoop.title, "Find. Learn. Save. Help someone else.");
 });

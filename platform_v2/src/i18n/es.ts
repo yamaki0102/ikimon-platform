@@ -2,7 +2,7 @@ import type { PartialAppStrings } from "./strings.js";
 
 export const es: PartialAppStrings = {
   landing: {
-    title: "ikimon.life — Camina, descubre, escríbelo en el cuaderno",
+    title: "ikimon — Enjoy Life | Disfrutar y registrar la naturaleza cercana",
     heroEyebrow: "feel the field.",
     heroHeading: "Tu paseo de siempre <span class=\"hero-emphasis\">se vuelve una aventura.</span>",
     heroHeadingPlain: "Tu paseo de siempre se vuelve una aventura.",
@@ -70,7 +70,7 @@ export const es: PartialAppStrings = {
     bizTitle: "Entrada de colaboración regional basada en razones para visitar y volver",
     bizBody: "Para escuelas, municipios y empresas, ikimon empieza con place stewardship y bucles de observación repetibles antes de prometer un workspace profundo.",
     bizCta: "Para organizaciones",
-    footerNote: "ikimon.life v2 — Camina, descubre, escríbelo en el cuaderno.",
+    footerNote: "ikimon — Enjoy Life.",
   },
   fieldLoop: {
     eyebrow: "cómo funciona ikimon",

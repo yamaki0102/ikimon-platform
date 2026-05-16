@@ -6,6 +6,7 @@ import { getPool } from "../db.js";
 import { generateAiTextWithRoleChain, type AiRouterPart } from "./aiModelRouter.js";
 import { canonicalizeSpeciesFeatures, canonicalizeTaxonList } from "./guideRecordInsights.js";
 import { isLikelyGuideNonBiologicalName } from "./guideNonBiological.js";
+import { refreshGuideSessionPublicSummaryForSession } from "./guideSessionPublicSummary.js";
 import type { TtsLang } from "./guideTts.js";
 
 export type GuideMode = "walk" | "vehicle";
@@ -140,7 +141,7 @@ function buildGuideTextIntegrationPrompt(prompt: string, visualExtractText: stri
 視覚解析結果:
 ${visualExtractText.slice(0, 12000)}
 
-最終的な guide scene JSON を作ってください。summary、environmentContext、seasonalNote、newSignals、continuedSignals、coverageHints、saveRecommendation は、野外で次に何を見るべきかが分かる密度に整えてください。特に努力量とエリア網羅は、短く削らず、記録価値や不足の判断に使ってください。
+最終的な guide scene JSON を作ってください。summary、environmentContext、seasonalNote、newSignals、continuedSignals、coverageHints、absenceBoundary、saveRecommendation は、野外で何が言えるようになったかが分かる密度に整えてください。特に努力量、エリア網羅、探したが見つからなかった情報は、短く削らず、記録価値や不足の判断に使ってください。
 ただし、視覚解析結果にない種名や断定的な不在は追加しないでください。
 
 JSON のみ出力。コードブロックやコメントは不要。`;
@@ -573,6 +574,9 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
           JSON.stringify(meta),
         ],
       );
+      if (input.userId) {
+        await refreshGuideSessionPublicSummaryForSession(input.userId, input.sessionId).catch(() => []);
+      }
     }
 
     return guideRecordId;

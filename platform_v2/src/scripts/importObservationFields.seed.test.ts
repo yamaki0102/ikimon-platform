@@ -41,11 +41,12 @@ function collectOfficialUrls(value: unknown, filePath: string, trail = "$"): Arr
 
 test("aikan renri official URL points to the owner primary source, not an ikimon article", async () => {
   const seed = JSON.parse(await readFile(seedPath, "utf8")) as {
-    sites?: Array<{ certification_id?: string; official_url?: string }>;
+    sites?: Array<{ certification_id?: string; city?: string; official_url?: string }>;
   };
   const site = seed.sites?.find((entry) => entry.certification_id === "aikan-renri-ikan-hq");
 
   assert.ok(site, "aikan renri seed must exist");
+  assert.equal(site.city, "浜松市浜名区");
   assert.equal(site.official_url, "https://i-kan.co.jp/company/biodiversity/");
   assert.doesNotMatch(site.official_url ?? "", /^https:\/\/ikimon\.life\//);
 });

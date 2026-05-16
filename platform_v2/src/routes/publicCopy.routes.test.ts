@@ -127,25 +127,27 @@ test("updates page keeps the full release history on the v2 public shell", async
   }
 });
 
-test("home hero uses the senior-friendly top A action surface", async () => {
+test("home page uses the current content-first top surface", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({ method: "GET", url: "/?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Enjoy Life/);
-    assert.match(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
-    assert.match(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
+    assert.match(response.body, /<title>ikimon \| Enjoy Life/);
+    assert.match(response.body, /prototype-content-wall/);
+    assert.match(response.body, /EVERYONE&#39;S RECORDS/);
+    assert.match(response.body, /みんなの記録/);
+    assert.match(response.body, /育つ観察エリア/);
+    assert.match(response.body, /FIELD EVENTS/);
+    assert.match(response.body, /近くの観察会/);
     assert.match(response.body, /記録する/);
-    assert.match(response.body, /近くを見る/);
-    assert.match(response.body, /名前を確かめる/);
-    assert.match(response.body, /名前は後でいい/);
-    assert.match(response.body, /マイページ/);
-    assert.match(response.body, /みんなの発見/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
+    assert.match(response.body, /選ぶ/);
     assert.match(response.body, /ガイド/);
     assert.match(response.body, /同定待ち/);
-    assert.match(response.body, /getElementById\("ikimon-topa-map-mini"\)/);
+    assert.doesNotMatch(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
+    assert.doesNotMatch(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
     assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);
     assert.doesNotMatch(response.body, /見つける、確かめる、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
@@ -255,8 +257,8 @@ test("map page localizes the browser title in English", async () => {
     const response = await app.inject({ method: "GET", url: "/en/map", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /<html lang="en">/);
-    assert.match(response.body, /<title>Life map \| ikimon\.life<\/title>/);
-    assert.doesNotMatch(response.body, /<title>地域のいのちマップ \| ikimon\.life<\/title>/);
+    assert.match(response.body, /<title>Life map \| ikimon<\/title>/);
+    assert.doesNotMatch(response.body, /<title>地域のいのちマップ \| ikimon<\/title>/);
   } finally {
     await app.close();
   }

@@ -1,6 +1,6 @@
 {
   "landing": {
-    "title": "ikimon.life | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる",
+    "title": "ikimon | Enjoy Life - 生きものを楽しみ、記録から観察レコードを育てる",
     "heroEyebrow": "Enjoy Life",
     "heroHeadingPlain": "生きものを楽しむ。暮らしを楽しむ。地球のいのちを楽しむ。",
     "heroHeadingLine1": "生きものを楽しむ。",
@@ -633,7 +633,7 @@
         "bodyPageId": "learn-technology"
       },
       "learnInvasiveSpeciesReporting": {
-        "title": "外来種の情報提供 | ikimon.life",
+        "title": "外来種の情報提供 | ikimon",
         "eyebrow": "外来種",
         "heading": "外来種候補を見つけたとき、どこへ何を伝えるか",
         "lead": "静岡県内の窓口を起点に、緊急通報、写真・発見情報提供、防除相談、違法行為、年度事業を分けて、求められる情報と触らないための注意を整理します。",
@@ -641,6 +641,7 @@
         "bodyPageId": "learn-invasive-species-reporting",
         "afterActions": [
           { "href": "/record", "label": "記録する" },
+          { "href": "/map", "label": "地図で近くを見る" },
           { "href": "/for-business/invasive-reporting", "label": "自治体向けの説明を見る" }
         ]
       },

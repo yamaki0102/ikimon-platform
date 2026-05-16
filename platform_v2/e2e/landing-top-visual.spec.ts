@@ -146,6 +146,7 @@ function liveProductionSnapshot(data: ProductionPublicDataSnapshot): LandingSnap
     feed,
     myFeed: [],
     myPlaces: [],
+    nearbyFields: [],
     mapPreviewCells: [],
     ambient: [],
     habit: null,
@@ -311,6 +312,7 @@ function productionDensitySnapshot(): LandingSnapshot {
     feed,
     myFeed: [],
     myPlaces: [],
+    nearbyFields: [],
     mapPreviewCells: [],
     ambient: [],
     habit: null,
@@ -370,51 +372,40 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator(".prototype-topa")).toBeVisible();
-      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
-      await expect(page.locator(".prototype-topa-actions")).toBeVisible();
-      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
       await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
-      await expect(page.locator("#sound-intelligence")).toBeVisible();
-      await expect(page.locator(".prototype-sound-flow article")).toHaveCount(4);
+      await expect(page.locator(".prototype-content-wall")).toBeVisible();
+      await expect(page.locator(".prototype-content-lane").first()).toBeVisible();
       await expect(page.locator("#topa-local-map")).toBeVisible();
-      await expect(page.locator(".prototype-topa-map-board")).toBeVisible();
+      await expect(page.locator(".prototype-local-panel.is-events")).toBeVisible();
 
       const metrics = await page.evaluate(() => {
-        const countTracks = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
-        const mapBoard = document.querySelector(".prototype-topa-map-board");
-        const soundSection = document.querySelector("#sound-intelligence");
-        const soundFlow = document.querySelector(".prototype-sound-flow");
-        const soundSectionStyle = soundSection ? getComputedStyle(soundSection) : null;
-        const soundFlowStyle = soundFlow ? getComputedStyle(soundFlow) : null;
-        const mapBoardRect = mapBoard?.getBoundingClientRect();
+        const contentWall = document.querySelector(".prototype-content-wall")?.getBoundingClientRect();
+        const monitoring = document.querySelector("#topa-local-map")?.getBoundingClientRect();
+        const localFollowups = document.querySelector(".prototype-local-followups")?.getBoundingClientRect();
         return {
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
           hasSampleText: document.documentElement.outerHTML.includes("sample_"),
           hasOldQuestion: document.documentElement.outerHTML.includes("今日は、どこを見に行く？"),
-          firstShelfTop: Math.round(document.querySelector("#topa-today")?.getBoundingClientRect().top ?? 9999),
-          soundSectionTrackCount: countTracks(soundSectionStyle?.gridTemplateColumns ?? ""),
-          soundFlowTrackCount: countTracks(soundFlowStyle?.gridTemplateColumns ?? ""),
-          soundActionCount: document.querySelectorAll(".prototype-sound-actions a").length,
-          mapBoardHeight: Math.round(mapBoardRect?.height ?? 0),
+          contentWallTop: Math.round(contentWall?.top ?? 9999),
+          monitoringTop: Math.round(monitoring?.top ?? 9999),
+          localFollowupsTop: Math.round(localFollowups?.top ?? 9999),
+          laneCount: document.querySelectorAll(".prototype-content-lane").length,
+          cardCount: document.querySelectorAll(".prototype-content-card").length,
         };
       });
 
       expect(metrics.scrollWidth, "no horizontal scroll").toBe(metrics.clientWidth);
       expect(metrics.hasSampleText, "no sample image fallback").toBe(false);
       expect(metrics.hasOldQuestion, "top page no longer asks a weak navigation question").toBe(false);
-      expect(metrics.soundActionCount, "sound section keeps the three route choices").toBe(3);
+      expect(metrics.laneCount, "top page keeps at least one feed lane").toBeGreaterThanOrEqual(1);
 
       if (viewport.name === "mobile") {
-        expect(metrics.firstShelfTop, "mobile content shelves start in the first viewport").toBeLessThan(620);
-        expect(metrics.soundSectionTrackCount, "mobile sound section stacks").toBe(1);
-        expect(metrics.soundFlowTrackCount, "mobile sound cards stack").toBe(1);
-        expect(metrics.mapBoardHeight, "mobile map board matches prototype compact height").toBeLessThanOrEqual(460);
+        expect(metrics.contentWallTop, "mobile starts from real content instead of a hero block").toBeLessThan(360);
+        expect(metrics.monitoringTop, "mobile brings monitoring areas into the early scroll").toBeLessThan(1200);
       } else {
-        expect(metrics.soundSectionTrackCount, "desktop sound section keeps copy and cards side by side").toBeGreaterThanOrEqual(2);
-        expect(metrics.soundFlowTrackCount, "desktop sound cards stay two-column").toBeGreaterThanOrEqual(2);
-        expect(metrics.mapBoardHeight, "desktop map board keeps local preview height").toBeGreaterThanOrEqual(360);
+        expect(metrics.contentWallTop, "desktop starts from real content instead of a hero block").toBeLessThan(260);
+        expect(metrics.localFollowupsTop, "desktop keeps local follow-up panels within the landing surface").toBeLessThan(1600);
       }
 
       if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {
@@ -442,17 +433,16 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
-      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
-      await expect(page.locator("#topa-today")).toContainText("みんなの発見");
-      await expect(page.locator("#topa-photo")).toContainText("写真と動画");
-      expect(await page.locator(".prototype-topa-card").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(20);
+      await expect(page.locator(".prototype-content-wall")).toBeVisible();
+      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("みんなの記録");
+      await expect(page.locator("#topa-local-map")).toBeVisible();
+      expect(await page.locator(".prototype-content-card").count(), "fixture keeps production-like card volume").toBeGreaterThanOrEqual(8);
 
       const metrics = await page.evaluate(() => {
         const viewportHeight = window.innerHeight;
-        const firstShelf = document.querySelector("#topa-today")?.getBoundingClientRect();
-        const mediaShelf = document.querySelector("#topa-photo")?.getBoundingClientRect();
-        const visibleCards = Array.from(document.querySelectorAll(".prototype-topa-card"))
+        const contentWall = document.querySelector(".prototype-content-wall")?.getBoundingClientRect();
+        const monitoring = document.querySelector("#topa-local-map")?.getBoundingClientRect();
+        const visibleCards = Array.from(document.querySelectorAll(".prototype-content-card"))
           .filter((card) => {
             const rect = card.getBoundingClientRect();
             return rect.bottom > 0 && rect.top < viewportHeight;
@@ -460,20 +450,20 @@ test.describe("landing top visual regression", () => {
         return {
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
-          firstShelfTop: Math.round(firstShelf?.top ?? 9999),
-          mediaShelfTop: Math.round(mediaShelf?.top ?? 9999),
+          contentWallTop: Math.round(contentWall?.top ?? 9999),
+          monitoringTop: Math.round(monitoring?.top ?? 9999),
           visibleCards,
         };
       });
 
       expect(metrics.scrollWidth, "production-density fixture has no horizontal scroll").toBe(metrics.clientWidth);
       if (viewport.name === "mobile") {
-        expect(metrics.firstShelfTop, "mobile shows real content after the first action block").toBeLessThan(620);
-        expect(metrics.mediaShelfTop, "mobile exposes the second shelf as a next-scroll cue").toBeLessThan(930);
+        expect(metrics.contentWallTop, "mobile shows real content immediately").toBeLessThan(120);
+        expect(metrics.monitoringTop, "mobile exposes monitoring areas after the first feed lane").toBeLessThan(1600);
         expect(metrics.visibleCards, "mobile first viewport includes multiple real cards").toBeGreaterThanOrEqual(2);
       } else {
-        expect(metrics.firstShelfTop, "desktop moves real content near the first action block").toBeLessThan(640);
-        expect(metrics.visibleCards, "desktop first viewport gives a video-feed-like grid").toBeGreaterThanOrEqual(8);
+        expect(metrics.contentWallTop, "desktop shows real content immediately").toBeLessThan(80);
+        expect(metrics.visibleCards, "desktop first viewport gives a dense content grid").toBeGreaterThanOrEqual(6);
       }
 
       if (process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1") {
@@ -509,31 +499,30 @@ test.describe("landing top visual regression", () => {
         `,
       });
 
-      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
-      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
-      await expect(page.locator("#topa-today")).toContainText("みんなの発見");
-      expect(await page.locator(".prototype-topa-card").count(), "live production card volume").toBeGreaterThan(12);
+      await expect(page.locator(".prototype-content-wall")).toBeVisible();
+      await expect(page.locator(".prototype-content-lane.is-community")).toContainText("みんなの記録");
+      expect(await page.locator(".prototype-content-card").count(), "live production card volume").toBeGreaterThanOrEqual(8);
       await page.waitForFunction(() => {
-        return Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-topa-card img"))
+        return Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-content-card img"))
           .filter((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0).length >= 6;
       }, null, { timeout: 20_000 });
 
       const metrics = await page.evaluate(() => {
         const viewportHeight = window.innerHeight;
-        const firstShelf = document.querySelector("#topa-today")?.getBoundingClientRect();
-        const mediaShelf = document.querySelector("#topa-photo")?.getBoundingClientRect();
-        const visibleCards = Array.from(document.querySelectorAll(".prototype-topa-card"))
+        const contentWall = document.querySelector(".prototype-content-wall")?.getBoundingClientRect();
+        const monitoring = document.querySelector("#topa-local-map")?.getBoundingClientRect();
+        const visibleCards = Array.from(document.querySelectorAll(".prototype-content-card"))
           .filter((card) => {
             const rect = card.getBoundingClientRect();
             return rect.bottom > 0 && rect.top < viewportHeight;
           }).length;
-        const loadedImages = Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-topa-card img"))
+        const loadedImages = Array.from(document.querySelectorAll<HTMLImageElement>(".prototype-content-card img"))
           .filter((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0).length;
         return {
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
-          firstShelfTop: Math.round(firstShelf?.top ?? 9999),
-          mediaShelfTop: Math.round(mediaShelf?.top ?? 9999),
+          contentWallTop: Math.round(contentWall?.top ?? 9999),
+          monitoringTop: Math.round(monitoring?.top ?? 9999),
           visibleCards,
           loadedImages,
         };
@@ -542,12 +531,12 @@ test.describe("landing top visual regression", () => {
       expect(metrics.scrollWidth, "live production data has no horizontal scroll").toBe(metrics.clientWidth);
       expect(metrics.loadedImages, "production thumbnails load inside cards").toBeGreaterThanOrEqual(6);
       if (viewport.name === "mobile") {
-        expect(metrics.firstShelfTop, "mobile shows real production content before the fold").toBeLessThan(500);
-        expect(metrics.mediaShelfTop, "mobile exposes a second content shelf as a next-scroll cue").toBeLessThan(900);
+        expect(metrics.contentWallTop, "mobile shows real production content immediately").toBeLessThan(120);
+        expect(metrics.monitoringTop, "mobile exposes monitoring areas after the first feed lane").toBeLessThan(1600);
         expect(metrics.visibleCards, "mobile first viewport includes several production cards").toBeGreaterThanOrEqual(2);
       } else {
-        expect(metrics.firstShelfTop, "desktop moves live content above the lower half").toBeLessThan(430);
-        expect(metrics.visibleCards, "desktop first viewport gives a dense content grid").toBeGreaterThanOrEqual(8);
+        expect(metrics.contentWallTop, "desktop moves live content to the top of the landing surface").toBeLessThan(80);
+        expect(metrics.visibleCards, "desktop first viewport gives a dense content grid").toBeGreaterThanOrEqual(6);
       }
 
       await testInfo.attach(`${viewport.name}-production-public-data-summary`, {

@@ -51,6 +51,8 @@ const snapshot: LandingSnapshot = {
   feed: [observation],
   myFeed: [],
   myPlaces: [],
+  nearbyFields: [],
+  nearbyEvents: [],
   mapPreviewCells: [],
   ambient: [{
     userId: "user-1",
