@@ -7,6 +7,7 @@ export type LineageBreadcrumb = {
 };
 
 export type NearbyObservation = {
+  visitId: string;
   occurrenceId: string;
   displayName: string;
   observerName: string;
@@ -117,6 +118,7 @@ export async function getObservationDetailHeavy(
   if (placeId) {
     try {
       const rows = await pool.query<{
+        visit_id: string;
         occurrence_id: string;
         display_name: string;
         observer_name: string;
@@ -124,26 +126,44 @@ export async function getObservationDetailHeavy(
         observed_at: string;
         photo_url: string | null;
       }>(
-        `SELECT o.occurrence_id,
+        `SELECT v.visit_id,
+                o.occurrence_id,
                 coalesce(nullif(o.vernacular_name,''), o.scientific_name, '同定待ち') AS display_name,
                 ${DETAIL_OBSERVER_NAME_SQL} AS observer_name,
                 u.user_id AS observer_user_id,
                 to_char(v.observed_at, 'YYYY-MM-DD') AS observed_at,
-                (SELECT coalesce(ab.public_url, ab.storage_path)
+                (SELECT CASE
+                         WHEN ea.asset_role = 'observation_video' THEN coalesce(
+                           nullif(ea.source_payload->>'thumbnail_url', ''),
+                           nullif(ab.source_payload->>'thumbnail_url', ''),
+                           nullif(ab.source_payload->>'thumbnailUrl', ''),
+                           nullif(ea.source_payload->>'poster_url', ''),
+                           nullif(ab.source_payload->>'poster_url', ''),
+                           ab.public_url,
+                           ab.storage_path,
+                           nullif(ab.source_payload->>'iframe_url', '')
+                         )
+                         ELSE coalesce(ab.public_url, ab.storage_path)
+                       END
                    FROM evidence_assets ea
                    JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
                    WHERE ea.occurrence_id = o.occurrence_id
-                     AND ea.asset_role = 'observation_photo'
-                   ORDER BY ea.created_at ASC LIMIT 1) AS photo_url
+                     AND ea.asset_role IN ('observation_photo', 'observation_video')
+                   ORDER BY CASE WHEN ea.asset_role = 'observation_photo' THEN 0 ELSE 1 END,
+                            ea.created_at ASC
+                   LIMIT 1) AS photo_url
            FROM visits v
            JOIN occurrences o ON o.visit_id = v.visit_id
            JOIN users u ON u.user_id = v.user_id
-          WHERE v.place_id = $1 AND o.occurrence_id <> $2
+          WHERE v.place_id = $1
+            AND o.occurrence_id <> $2
+            AND ($3::text IS NULL OR v.visit_id <> $3)
           ORDER BY v.observed_at DESC LIMIT 6`,
-        [placeId, occurrenceId],
+        [placeId, occurrenceId, visitId],
       );
       for (const r of rows.rows) {
         nearby.push({
+          visitId: r.visit_id,
           occurrenceId: r.occurrence_id,
           displayName: r.display_name,
           observerName: r.observer_name,

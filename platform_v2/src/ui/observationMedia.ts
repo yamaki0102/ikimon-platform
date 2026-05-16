@@ -129,10 +129,19 @@ export const OBSERVATION_MEDIA_STYLES = `
     .obs-hero-thumb-active-label { display: none; }
     .obs-media-role-badge { left: 8px; top: 8px; min-height: 24px; padding: 5px 8px; font-size: 10px; }
     .obs-media-ai-role { left: 8px; top: 38px; min-height: 22px; padding: 4px 7px; font-size: 9px; }
+    .obs-hero-video { gap: 6px; }
+    .obs-hero-video-frame { border-radius: 16px; }
+    .obs-hero-video-meta { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; font-size: 11px; line-height: 1.25; }
+    .obs-hero-video-meta-main { min-width: max-content; white-space: nowrap; }
+    .obs-region-video-note { min-width: 0; font-size: 10.5px; line-height: 1.35; }
+    .obs-hero-video-meta > a { grid-column: 1 / -1; justify-self: end; font-size: 11px; }
     .obs-region-summary { font-size: 10.5px; line-height: 1.35; }
     .obs-video-annotation-rail { gap: 5px; padding-top: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
     .obs-video-annotation-rail::-webkit-scrollbar { display: none; }
     .obs-video-annotation-button { flex: 0 0 auto; min-height: 32px; padding: 6px 8px; font-size: 10.5px; }
+    .obs-video-evidence { gap: 7px; padding: 8px; }
+    .obs-video-evidence-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    .obs-video-evidence-frame figcaption { font-size: 9.5px; line-height: 1.25; }
     .obs-annotation-label { left: 4px; top: 4px; max-width: min(132px, 42vw); padding: 4px 6px; }
     .obs-annotation-label strong { font-size: 10px; }
     .obs-annotation-label small { display: none; }
@@ -147,9 +156,41 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-video-evidence-head span { color: #64748b; font-size: 11px; font-weight: 800; }
   .obs-video-evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
   .obs-video-evidence-frame { margin: 0; display: grid; gap: 4px; }
+  .obs-video-evidence-preview { width: 100%; border: 0; padding: 0; border-radius: 8px; background: transparent; cursor: zoom-in; overflow: hidden; }
+  .obs-video-evidence-preview:focus-visible { outline: 3px solid rgba(16,185,129,.45); outline-offset: 2px; }
   .obs-video-evidence-frame img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: #e2e8f0; display: block; }
   .obs-video-evidence-frame figcaption { display: grid; gap: 2px; color: #334155; font-size: 10px; line-height: 1.35; font-weight: 800; }
   .obs-video-evidence-frame small { color: #64748b; font-weight: 750; }
+  .obs-frame-subjects { min-height: 18px; display: flex; flex-wrap: wrap; gap: 3px; align-items: flex-start; }
+  .obs-frame-subjects span { display: inline-flex; align-items: center; min-height: 18px; padding: 2px 6px; border-radius: 999px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.22); color: #047857; font-size: 9.5px; line-height: 1; font-weight: 950; }
+  .obs-frame-preview { position: fixed; inset: 0; z-index: 10020; display: none; align-items: center; justify-content: center; padding: 64px 56px 72px; background: rgba(8,12,20,.94); color: #fff; }
+  .obs-frame-preview.is-open { display: flex; }
+  .obs-frame-preview-inner { width: min(980px, calc(100vw - 112px)); display: grid; gap: 10px; }
+  .obs-frame-preview-stage { width: 100%; max-height: calc(100vh - 176px); display: flex; align-items: center; justify-content: center; overflow: auto; overscroll-behavior: contain; border-radius: 12px; background: #020617; box-shadow: 0 26px 70px rgba(0,0,0,.48); cursor: default; }
+  .obs-frame-preview-stage.is-zoomed { display: block; text-align: left; }
+  .obs-frame-preview-stage.is-dragging { cursor: grabbing; }
+  .obs-frame-preview-img { display: block; max-width: 100%; max-height: calc(100vh - 176px); user-select: none; pointer-events: auto; }
+  .obs-frame-preview-stage.is-zoomed .obs-frame-preview-img { max-width: none; max-height: none; margin: 0; }
+  .obs-frame-preview-caption { display: inline-flex; width: fit-content; max-width: 100%; padding: 5px 9px; border-radius: 999px; background: rgba(255,255,255,.14); color: rgba(255,255,255,.9); font-size: 12px; font-weight: 900; }
+  .obs-frame-preview-close { position: fixed; top: 18px; right: 18px; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 999px; background: #fff; color: #0f172a; font: inherit; font-size: 14px; font-weight: 950; cursor: pointer; box-shadow: 0 10px 28px rgba(0,0,0,.35); }
+  .obs-frame-preview-toolbar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(255,255,255,.94); box-shadow: 0 14px 36px rgba(0,0,0,.34); }
+  .obs-frame-preview-button { min-width: 38px; height: 38px; border: 0; border-radius: 999px; background: #f8fafc; color: #0f172a; font: inherit; font-size: 14px; font-weight: 950; cursor: pointer; }
+  .obs-frame-preview-button:hover, .obs-frame-preview-button:focus-visible { background: #ecfdf5; outline: none; }
+  .obs-frame-preview-nav { position: fixed; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; background: rgba(255,255,255,.94); box-shadow: 0 12px 32px rgba(0,0,0,.3); }
+  .obs-frame-preview-prev { left: 16px; }
+  .obs-frame-preview-next { right: 16px; }
+  .obs-frame-preview-count { min-width: 46px; text-align: center; color: #0f172a; font-size: 13px; font-weight: 950; }
+  @media (max-width: 640px) {
+    .obs-frame-preview { padding: 58px 12px 76px; }
+    .obs-frame-preview-inner { width: 100%; }
+    .obs-frame-preview-stage { max-height: calc(100vh - 166px); border-radius: 10px; }
+    .obs-frame-preview-img { max-height: calc(100vh - 166px); }
+    .obs-frame-preview-nav { top: auto; bottom: 76px; width: 42px; height: 42px; }
+    .obs-frame-preview-prev { left: 12px; }
+    .obs-frame-preview-next { right: 12px; }
+    .obs-frame-preview-toolbar { bottom: 14px; }
+    .obs-frame-preview-close { top: 12px; right: 12px; min-height: 40px; }
+  }
   .obs-media-ledger { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .obs-media-ledger-item { display: grid; gap: 2px; min-height: 62px; padding: 10px 11px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
   .obs-media-ledger-item strong { display: flex; align-items: center; gap: 6px; color: #0f172a; font-size: 11px; line-height: 1.25; font-weight: 950; }
@@ -262,6 +303,25 @@ function renderVideoAnnotationRail(targets: ObservationMediaAnnotationTarget[], 
       </button>`;
     }).join("")}
   </div>`;
+}
+
+function targetNamesForVideoFrame(
+  targets: ObservationMediaAnnotationTarget[],
+  assetId: string,
+  frameTimeMs: number | null,
+): string[] {
+  if (frameTimeMs == null) return [];
+  const names: string[] = [];
+  for (const target of targets) {
+    const hasFrame = target.regions.some((region) => (
+      region.assetId === assetId &&
+      isDisplayableRegion(region) &&
+      region.frameTimeMs != null &&
+      Math.abs(Number(region.frameTimeMs) - frameTimeMs) <= 350
+    ));
+    if (hasFrame && !names.includes(target.displayName)) names.push(target.displayName);
+  }
+  return names.slice(0, 3);
 }
 
 export function toSubjectRegionMap(subjects: Array<Pick<ObservationVisitSubject, "occurrenceId" | "regions">>): RegionSwitchMap {
@@ -391,25 +451,29 @@ function renderPhotoGallery(
 
 function renderVideoPlayer(
   snapshot: ObservationDetailSnapshot,
-  currentSubject: ObservationVisitSubject,
   primaryVideo: VideoAsset | null,
   annotationTargets: ObservationMediaAnnotationTarget[] = [],
+  afterVideoHtml = "",
 ): string {
   if (!primaryVideo) return "";
-  const videoRegion = currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId && isDisplayableRegion(region)) ?? null;
   const videoEvidence = (snapshot.visualEvidence ?? [])
     .filter((item) => item.mediaKind === "video_frame" && (!item.assetId || item.assetId === primaryVideo.assetId))
     .slice(0, 8);
   const videoEvidenceHtml = videoEvidence.length > 0
     ? `<div class="obs-video-evidence">
-        <div class="obs-video-evidence-head"><strong>AIが見た動画フレーム</strong><span>${videoEvidence.length}枚を根拠化</span></div>
+        <div class="obs-video-evidence-head"><strong>AIが見た動画フレーム</strong><span>${videoEvidence.length}枚</span></div>
         <div class="obs-video-evidence-grid">
-          ${videoEvidence.map((item) => {
+          ${videoEvidence.map((item, index) => {
             const thumbUrl = videoFrameThumbUrl(primaryVideo.thumbnailUrl, item.frameTimeMs);
             const score = typeof item.selectionScore === "number" ? `${Math.round(item.selectionScore * 100)}%` : "";
+            const targetNames = targetNamesForVideoFrame(annotationTargets, primaryVideo.assetId, item.frameTimeMs);
+            const caption = [frameTimeLabel(item.frameTimeMs) || "動画フレーム", score].filter(Boolean).join(" ");
+            const targetBadges = targetNames.length > 0
+              ? `<div class="obs-frame-subjects" aria-label="このフレームで見たもの">${targetNames.map((name) => `<span>${escapeHtml(name)}</span>`).join("")}</div>`
+              : `<div class="obs-frame-subjects" aria-hidden="true"></div>`;
             return `<figure class="obs-video-evidence-frame">
-              ${thumbUrl ? `<img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" />` : ""}
-              <figcaption><span>${escapeHtml(frameTimeLabel(item.frameTimeMs) || "動画フレーム")} ${escapeHtml(score)}</span><small>${escapeHtml(item.selectionReason || "代表フレーム")}</small></figcaption>
+              ${thumbUrl ? `<button type="button" class="obs-video-evidence-preview" data-video-frame-preview="${escapeHtml(String(index))}" data-frame-src="${escapeHtml(thumbUrl)}" data-frame-caption="${escapeHtml(caption)}"><img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" /></button>` : ""}
+              <figcaption><span>${escapeHtml(caption)}</span>${targetBadges}</figcaption>
             </figure>`;
           }).join("")}
         </div>
@@ -431,12 +495,11 @@ function renderVideoPlayer(
        </iframe>
        ${processingOverlay}
      </div>
-     <div class="obs-hero-video-meta">
-       <span class="obs-hero-video-meta-main"><strong>動画</strong>${mediaRoleBadge(primaryVideo)}</span>
-       ${mediaRoleSuggestionBadge(primaryVideo)}
-       ${videoRegion ? `<span class="obs-region-video-note">AI が動画フレーム上の対象位置を記録しています</span>` : ""}
-       ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
-     </div>
+     ${primaryVideo.watchUrl ? `<div class="obs-hero-video-meta">
+       <span class="obs-hero-video-meta-main">${mediaRoleBadge(primaryVideo)}${mediaRoleSuggestionBadge(primaryVideo)}</span>
+       <a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>
+     </div>` : ""}
+     ${afterVideoHtml}
      ${renderVideoAnnotationRail(annotationTargets, primaryVideo.assetId)}
      ${videoEvidenceHtml}
    </div>`;
@@ -480,10 +543,11 @@ export function renderObservationMedia(
   snapshot: ObservationDetailSnapshot,
   currentSubject: ObservationVisitSubject,
   annotationTargets: ObservationMediaAnnotationTarget[] = [],
+  options: { afterVideoHtml?: string } = {},
 ): { mediaBlock: string; galleryScript: string } {
   const photoGallery = renderPhotoGallery(snapshot, currentSubject, annotationTargets);
   const primaryVideo = snapshot.videoAssets[0] ?? null;
-  const videoPlayer = renderVideoPlayer(snapshot, currentSubject, primaryVideo, annotationTargets);
+  const videoPlayer = renderVideoPlayer(snapshot, primaryVideo, annotationTargets, options.afterVideoHtml ?? "");
   const audioEvidence = renderAudioEvidence(snapshot);
   const mediaLedger = renderMediaLedger(snapshot);
   const mediaBlock = (videoPlayer || photoGallery || audioEvidence)
@@ -492,13 +556,15 @@ export function renderObservationMedia(
 
   return {
     mediaBlock,
-    galleryScript: renderObservationGalleryScript(snapshot.photoAssets.length > 0),
+    galleryScript: renderObservationGalleryScript({
+      hasPhotoAssets: snapshot.photoAssets.length > 0,
+      hasVideoFrames: Boolean(snapshot.visualEvidence?.some((item) => item.mediaKind === "video_frame")),
+    }),
   };
 }
 
-function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
-  if (!hasPhotoAssets) return "";
-  return `<div class="obs-lightbox" data-obs-lightbox role="dialog" aria-modal="true" aria-label="画像を拡大表示">
+function renderObservationGalleryScript(options: { hasPhotoAssets: boolean; hasVideoFrames: boolean }): string {
+  const photoLightbox = options.hasPhotoAssets ? `<div class="obs-lightbox" data-obs-lightbox role="dialog" aria-modal="true" aria-label="画像を拡大表示">
      <button type="button" class="obs-lightbox-close" data-obs-lightbox-close aria-label="閉じる">
        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
        <span>閉じる</span>
@@ -509,7 +575,8 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
      </button>
      <div class="obs-lightbox-inner" data-obs-lightbox-inner><img class="obs-lightbox-img is-fit" data-obs-lightbox-img alt="" /></div>
      <div class="obs-lightbox-hint" data-obs-lightbox-hint>クリックで等倍 / ドラッグでパン / ホイールでスクロール / Esc で閉じる</div>
-   </div>
+   </div>` : "";
+  const photoScript = options.hasPhotoAssets ? `
    <script>(function(){
      var gallery = document.querySelector('[data-obs-gallery]');
      if (!gallery) return;
@@ -698,5 +765,194 @@ function renderObservationGalleryScript(hasPhotoAssets: boolean): string {
        if (e.key === 'Escape') closeLightbox();
        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFitMode(!lightboxImg.classList.contains('is-fit')); }
      });
-    })();</script>`;
+    })();</script>` : "";
+  const frameScript = options.hasVideoFrames ? renderVideoFramePreviewScript() : "";
+  return `${photoLightbox}${photoScript}${frameScript}`;
+}
+
+function renderVideoFramePreviewScript(): string {
+  return `<script>(function(){
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-video-frame-preview]'));
+    if (!buttons.length) return;
+    var preview;
+    var currentIndex = 0;
+    var zoom = 1;
+    var stageDrag = null;
+    function ensurePreview() {
+      if (preview) return preview;
+      preview = document.createElement('div');
+      preview.className = 'obs-frame-preview';
+      preview.setAttribute('role', 'dialog');
+      preview.setAttribute('aria-modal', 'true');
+      preview.setAttribute('aria-label', '動画フレームを拡大表示');
+      preview.innerHTML = '<button type="button" class="obs-frame-preview-close">閉じる</button><button type="button" class="obs-frame-preview-button obs-frame-preview-nav obs-frame-preview-prev" aria-label="前のフレーム">‹</button><button type="button" class="obs-frame-preview-button obs-frame-preview-nav obs-frame-preview-next" aria-label="次のフレーム">›</button><div class="obs-frame-preview-inner"><div class="obs-frame-preview-stage"><img class="obs-frame-preview-img" alt=""></div><div class="obs-frame-preview-caption"></div></div><div class="obs-frame-preview-toolbar" aria-label="フレーム表示操作"><button type="button" class="obs-frame-preview-button" data-frame-zoom-out aria-label="縮小">−</button><span class="obs-frame-preview-count">1/1</span><button type="button" class="obs-frame-preview-button" data-frame-zoom-in aria-label="拡大">＋</button><button type="button" class="obs-frame-preview-button" data-frame-zoom-reset aria-label="等倍に戻す">等倍</button></div>';
+      document.body.appendChild(preview);
+      var stage = preview.querySelector('.obs-frame-preview-stage');
+      var close = preview.querySelector('.obs-frame-preview-close');
+      var prev = preview.querySelector('.obs-frame-preview-prev');
+      var next = preview.querySelector('.obs-frame-preview-next');
+      var zoomOut = preview.querySelector('[data-frame-zoom-out]');
+      var zoomIn = preview.querySelector('[data-frame-zoom-in]');
+      var zoomReset = preview.querySelector('[data-frame-zoom-reset]');
+      if (close) close.addEventListener('click', closePreview);
+      if (prev) prev.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); showFrame(currentIndex - 1); });
+      if (next) next.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); showFrame(currentIndex + 1); });
+      if (zoomOut) zoomOut.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); setZoom(zoom - 0.5); });
+      if (zoomIn) zoomIn.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); setZoom(zoom + 1); });
+      if (zoomReset) zoomReset.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); setZoom(1); });
+      preview.addEventListener('click', function(event){
+        if (event.target === preview) closePreview();
+        if (event.target.closest && event.target.closest('.obs-frame-preview-prev')) showFrame(currentIndex - 1);
+        if (event.target.closest && event.target.closest('.obs-frame-preview-next')) showFrame(currentIndex + 1);
+        if (event.target.closest && event.target.closest('[data-frame-zoom-in]')) setZoom(zoom + 1);
+        if (event.target.closest && event.target.closest('[data-frame-zoom-out]')) setZoom(zoom - 0.5);
+        if (event.target.closest && event.target.closest('[data-frame-zoom-reset]')) setZoom(1);
+      });
+      preview.addEventListener('wheel', function(event){
+        if (!preview.classList.contains('is-open')) return;
+        event.preventDefault();
+        setZoom(zoom + (event.deltaY < 0 ? 0.18 : -0.18), event.clientX, event.clientY);
+      }, { passive: false });
+      if (stage) {
+        stage.addEventListener('pointerdown', function(event){
+          if (zoom <= 1 || event.button !== 0) return;
+          stageDrag = { x: event.clientX, y: event.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+          stage.classList.add('is-dragging');
+          try { stage.setPointerCapture(event.pointerId); } catch (_) {}
+          event.preventDefault();
+        });
+        stage.addEventListener('pointermove', function(event){
+          if (!stageDrag) return;
+          stage.scrollLeft = stageDrag.left - (event.clientX - stageDrag.x);
+          stage.scrollTop = stageDrag.top - (event.clientY - stageDrag.y);
+        });
+        var endDrag = function(event){
+          if (!stageDrag) return;
+          stageDrag = null;
+          stage.classList.remove('is-dragging');
+          try { stage.releasePointerCapture(event.pointerId); } catch (_) {}
+        };
+        stage.addEventListener('pointerup', endDrag);
+        stage.addEventListener('pointercancel', endDrag);
+      }
+      document.addEventListener('keydown', function(event){
+        if (!preview || !preview.classList.contains('is-open')) return;
+        if (event.key === 'Escape') closePreview();
+        if (event.key === 'ArrowLeft') showFrame(currentIndex - 1);
+        if (event.key === 'ArrowRight') showFrame(currentIndex + 1);
+        if (event.key === '+' || event.key === '=') setZoom(zoom + 1);
+        if (event.key === '-' || event.key === '_') setZoom(zoom - 0.5);
+      });
+      return preview;
+    }
+    function measureFit(img, stage) {
+      if (!img || !stage) return { width: 1, height: 1 };
+      if (zoom === 1 || !img.dataset.fitWidth || !img.dataset.fitHeight) {
+        var rect = img.getBoundingClientRect();
+        var width = Math.max(1, rect.width || img.naturalWidth || stage.clientWidth || 1);
+        var height = Math.max(1, rect.height || img.naturalHeight || stage.clientHeight || 1);
+        img.dataset.fitWidth = String(width);
+        img.dataset.fitHeight = String(height);
+      }
+      return {
+        width: Math.max(1, Number(img.dataset.fitWidth) || img.naturalWidth || 1),
+        height: Math.max(1, Number(img.dataset.fitHeight) || img.naturalHeight || 1)
+      };
+    }
+    function setZoom(nextZoom, originX, originY) {
+      var previousZoom = zoom;
+      zoom = Math.max(1, Math.min(4, Number(nextZoom) || 1));
+      var img = preview && preview.querySelector('.obs-frame-preview-img');
+      var stage = preview && preview.querySelector('.obs-frame-preview-stage');
+      if (!img || !stage) return;
+      var before = img.getBoundingClientRect();
+      var stageRect = stage.getBoundingClientRect();
+      var ratioX = typeof originX === 'number' && before.width > 0
+        ? (originX - before.left) / before.width
+        : (stage.scrollLeft + stage.clientWidth / 2) / Math.max(1, img.offsetWidth || before.width);
+      var ratioY = typeof originY === 'number' && before.height > 0
+        ? (originY - before.top) / before.height
+        : (stage.scrollTop + stage.clientHeight / 2) / Math.max(1, img.offsetHeight || before.height);
+      ratioX = Math.max(0, Math.min(1, ratioX));
+      ratioY = Math.max(0, Math.min(1, ratioY));
+      if (zoom === 1) {
+        stage.classList.remove('is-zoomed');
+        img.style.width = '';
+        img.style.height = '';
+        img.style.maxWidth = '';
+        img.style.maxHeight = '';
+        stage.scrollLeft = 0;
+        stage.scrollTop = 0;
+        return;
+      }
+      var fit = measureFit(img, stage);
+      stage.classList.add('is-zoomed');
+      img.style.width = Math.round(fit.width * zoom) + 'px';
+      img.style.height = Math.round(fit.height * zoom) + 'px';
+      img.style.maxWidth = 'none';
+      img.style.maxHeight = 'none';
+      window.requestAnimationFrame(function(){
+        if (previousZoom === 1 && typeof originX !== 'number') {
+          stage.scrollLeft = Math.max(0, (img.offsetWidth - stage.clientWidth) / 2);
+          stage.scrollTop = Math.max(0, (img.offsetHeight - stage.clientHeight) / 2);
+          return;
+        }
+        stage.scrollLeft = Math.max(0, ratioX * img.offsetWidth - (typeof originX === 'number' ? originX - stageRect.left : stage.clientWidth / 2));
+        stage.scrollTop = Math.max(0, ratioY * img.offsetHeight - (typeof originY === 'number' ? originY - stageRect.top : stage.clientHeight / 2));
+      });
+    }
+    function showFrame(nextIndex) {
+      if (!buttons.length) return;
+      currentIndex = (nextIndex + buttons.length) % buttons.length;
+      var button = buttons[currentIndex];
+      var src = button.getAttribute('data-frame-src') || '';
+      var caption = button.getAttribute('data-frame-caption') || '';
+      ensurePreview();
+      var img = preview.querySelector('.obs-frame-preview-img');
+      var cap = preview.querySelector('.obs-frame-preview-caption');
+      var count = preview.querySelector('.obs-frame-preview-count');
+      if (img && src) {
+        img.removeAttribute('data-fit-width');
+        img.removeAttribute('data-fit-height');
+        img.onload = function(){
+          var wantedZoom = zoom;
+          img.removeAttribute('data-fit-width');
+          img.removeAttribute('data-fit-height');
+          img.style.width = '';
+          img.style.height = '';
+          img.style.maxWidth = '';
+          img.style.maxHeight = '';
+          var stage = preview.querySelector('.obs-frame-preview-stage');
+          if (stage) stage.classList.remove('is-zoomed');
+          zoom = 1;
+          setZoom(wantedZoom);
+        };
+        img.src = src;
+      }
+      if (cap) cap.textContent = caption;
+      if (count) count.textContent = (currentIndex + 1) + '/' + buttons.length;
+      setZoom(1);
+    }
+    function openPreview(index) {
+      ensurePreview();
+      showFrame(index);
+      preview.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      var close = preview.querySelector('.obs-frame-preview-close');
+      if (close && typeof close.focus === 'function') close.focus({ preventScroll: true });
+    }
+    function closePreview() {
+      if (!preview) return;
+      preview.classList.remove('is-open');
+      document.body.style.overflow = '';
+      var button = buttons[currentIndex];
+      if (button && typeof button.focus === 'function') button.focus({ preventScroll: true });
+    }
+    buttons.forEach(function(button, index){
+      button.addEventListener('click', function(event){
+        event.preventDefault();
+        openPreview(index);
+      });
+    });
+  })();</script>`;
 }

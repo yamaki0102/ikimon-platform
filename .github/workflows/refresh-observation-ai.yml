@@ -1,0 +1,128 @@
+name: Refresh Recent Observation AI
+run-name: Refresh recent observation AI · ${{ github.event.inputs.target || 'staging' }} · limit ${{ github.event.inputs.limit || '5' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target database/runtime'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      limit:
+        description: 'Number of recent records to refresh (max 20)'
+        required: true
+        default: '5'
+        type: string
+      dry_run:
+        description: 'Preview selected records without calling AI'
+        required: false
+        default: true
+        type: boolean
+      public_only:
+        description: 'Only select public records, excluding review-visible records'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  refresh:
+    name: Refresh recent observation AI
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target == 'production' && 'production' || 'staging' }}
+    steps:
+      - name: Resolve inputs
+        id: vars
+        env:
+          INPUT_TARGET: ${{ github.event.inputs.target }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_PUBLIC_ONLY: ${{ github.event.inputs.public_only }}
+        run: |
+          set -euo pipefail
+          target="${INPUT_TARGET:-staging}"
+          limit="${INPUT_LIMIT:-5}"
+          dry_run="${INPUT_DRY_RUN:-true}"
+          public_only="${INPUT_PUBLIC_ONLY:-false}"
+
+          case "$target" in staging|production) ;; *) echo "invalid target: $target"; exit 1 ;; esac
+          printf '%s' "$limit" | grep -qE '^[0-9]{1,2}$' || { echo "limit must be numeric"; exit 1; }
+          if [ "$limit" -lt 1 ] || [ "$limit" -gt 20 ]; then echo "limit must be 1..20"; exit 1; fi
+          case "$dry_run" in true|false) ;; *) echo "dry_run must be true or false"; exit 1 ;; esac
+          case "$public_only" in true|false) ;; *) echo "public_only must be true or false"; exit 1 ;; esac
+
+          {
+            echo "target=$target"
+            echo "limit=$limit"
+            echo "dry_run=$dry_run"
+            echo "public_only=$public_only"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Run remote refresh
+        env:
+          TARGET: ${{ steps.vars.outputs.target }}
+          LIMIT: ${{ steps.vars.outputs.limit }}
+          DRY_RUN: ${{ steps.vars.outputs.dry_run }}
+          PUBLIC_ONLY: ${{ steps.vars.outputs.public_only }}
+        run: |
+          set -euo pipefail
+          b64() { printf '%s' "$1" | base64 -w 0; }
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "TARGET_B64='$(b64 "$TARGET")' LIMIT_B64='$(b64 "$LIMIT")' DRY_RUN_B64='$(b64 "$DRY_RUN")' PUBLIC_ONLY_B64='$(b64 "$PUBLIC_ONLY")' bash -s" <<'REMOTE'
+          set -euo pipefail
+          TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
+          LIMIT="$(printf '%s' "$LIMIT_B64" | base64 -d)"
+          DRY_RUN="$(printf '%s' "$DRY_RUN_B64" | base64 -d)"
+          PUBLIC_ONLY="$(printf '%s' "$PUBLIC_ONLY_B64" | base64 -d)"
+
+          case "$TARGET" in
+            production)
+              V2_DIR=/var/www/ikimon.life/repo/platform_v2
+              ENV_FILE=/etc/ikimon/production-v2.env
+              ;;
+            staging)
+              V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+              ENV_FILE=/etc/ikimon/staging-v2.env
+              ;;
+            *)
+              echo "invalid target: $TARGET"
+              exit 1
+              ;;
+          esac
+
+          [ -d "$V2_DIR" ] || { echo "missing platform_v2 dir: $V2_DIR"; exit 1; }
+          [ -f "$ENV_FILE" ] || { echo "missing env file: $ENV_FILE"; exit 1; }
+          cd "$V2_DIR"
+          set -a
+          . "$ENV_FILE"
+          set +a
+          [ -n "${DATABASE_URL:-}" ] || { echo "DATABASE_URL missing in $ENV_FILE"; exit 1; }
+          [ -n "${GEMINI_API_KEY:-}" ] || { echo "GEMINI_API_KEY missing in $ENV_FILE"; exit 1; }
+
+          npm ci --include=dev --silent
+          args=(-- --limit="$LIMIT")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ "$PUBLIC_ONLY" = "true" ]; then args+=(--public-only); fi
+          npm run refresh:recent-observation-ai "${args[@]}"
+          REMOTE
+
+      - name: Summary
+        run: |
+          {
+            echo "## Refresh recent observation AI"
+            echo ""
+            echo "- target: \`${{ steps.vars.outputs.target }}\`"
+            echo "- limit: \`${{ steps.vars.outputs.limit }}\`"
+            echo "- dry_run: \`${{ steps.vars.outputs.dry_run }}\`"
+            echo "- public_only: \`${{ steps.vars.outputs.public_only }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

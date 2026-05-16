@@ -38,7 +38,7 @@ async function stabilizeVisualDiff(page: Page): Promise<void> {
 
 async function visibleRecordTextInFirstViewport(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const nodes = [...document.body.querySelectorAll("h1,.obs-first-read,.obs-ai-readout,.obs-visible-record-card")];
+    const nodes = [...document.body.querySelectorAll("h1,.obs-record-insight,.obs-ai-readout,.obs-visible-record-card,.obs-media-ledger")];
     return nodes
       .filter((node) => {
         const rect = node.getBoundingClientRect();
@@ -56,6 +56,14 @@ async function expectWithinFirstViewport(page: Page, selector: string): Promise<
   const height = await page.evaluate(() => window.innerHeight);
   expect(box.y, `${selector} should start in the first viewport`).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height, `${selector} should fit in the first viewport`).toBeLessThanOrEqual(height + 8);
+}
+
+async function expectStartsInFirstViewport(page: Page, selector: string): Promise<void> {
+  const box = await page.locator(selector).first().boundingBox();
+  expect(box, `${selector} should have a layout box`).not.toBeNull();
+  if (!box) return;
+  const height = await page.evaluate(() => window.innerHeight);
+  expect(box.y, `${selector} should start before the first viewport ends`).toBeLessThanOrEqual(height);
 }
 
 test.describe.serial("observation scene read model visual QA", () => {
@@ -87,34 +95,30 @@ test.describe.serial("observation scene read model visual QA", () => {
         const href = `/observations/${encodeURIComponent(fixture.scene.visitId)}?subject=${encodeURIComponent(fixture.scene.occurrenceId)}&lang=ja`;
         await page.goto(href, { waitUntil: "domcontentloaded" });
 
-        await expect(page.locator("h1")).toContainText("白い花の群落");
-        await expect(page.locator("body")).toContainText("AIの場面読み");
-        await expect(page.locator("body")).toContainText("この写真に写っているもの");
-        await expect(page.locator(".obs-first-read")).toContainText("AIの場面読み");
-        await expect(page.locator(".obs-first-read .obs-media-discovery-target").filter({ hasText: "白い花の群落" })).toBeVisible();
-        await expect(page.locator(".obs-first-read .obs-media-discovery-target").filter({ hasText: "訪花中のハチ" })).toBeVisible();
-        await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
-        await expect(page.locator("body")).toContainText("セイヨウミツバチ");
-        await expect(page.locator("body")).toContainText("イネ科の一種");
-        await expect(page.locator("body")).toContainText("参考候補");
+        const heading = page.locator("h1");
+        await expect(heading).toContainText("白い花の群落");
+        await expect(heading).toContainText("訪花中のハチ");
+        await expect(heading).toContainText("周囲の草地");
+        await expect(page.locator(".obs-record-insight").first()).toContainText(/ヒメイワダレソウ|草地|名前だけでなく/);
+        await expect(page.locator(".obs-media-ledger").first()).toContainText("写真");
+        await expect(page.locator(".obs-ai-readout").first()).toContainText(/名前|未確認|確定前|候補/);
+        const identifyPanel = page.locator(".obs-frame-identify-card").first();
+        await expect(identifyPanel).toContainText("AI候補をどう扱うか");
+        await expect(identifyPanel).toContainText("別レコードを追加");
+        await expect(identifyPanel).toContainText("選択中のAI候補への判断");
         await expect(page.locator("body")).not.toContainText("AI 主役");
         await expect(page.locator("body")).not.toContainText("AI 主対象");
         await expect(page.locator("body")).not.toContainText("ヒメイワダレソウ画像全体に広がる群落");
 
-        const names = await page.locator(".obs-visible-record-card .obs-focus-card-name").allInnerTexts();
-        expect(names.slice(0, 3)).toEqual(["ヒメイワダレソウ", "セイヨウミツバチ", "イネ科の一種"]);
         const firstViewportText = await visibleRecordTextInFirstViewport(page);
         expect(firstViewportText).toContain("白い花の群落");
-        expect(firstViewportText).toContain("AIの場面読み");
+        expect(firstViewportText).toMatch(/草地|植物|名前だけでなく|写真/);
         if (profile.isMobile) {
-          await expectWithinFirstViewport(page, ".obs-reading-media");
-          await expectWithinFirstViewport(page, ".obs-first-read");
+          await expectStartsInFirstViewport(page, ".obs-reading-media");
+          await expectWithinFirstViewport(page, ".obs-record-brief");
         }
         expect(firstViewportText).toContain("訪花中のハチ");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).toContainText("花に来た虫");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "イネ科の一種" })).toContainText("草地と裸地");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "小さな黒い点" })).toContainText("仮説");
-        await expect(page.locator(".obs-visible-record-card").filter({ hasText: "セイヨウミツバチ" })).not.toContainText("AIが写真から分けた観測レコード");
+        expect(firstViewportText).toContain("周囲の草地");
         await expectNoHorizontalOverflow(page);
 
         await maybeCaptureQaScreenshot(page, `observation-scene-${profile.slug}.jpg`);

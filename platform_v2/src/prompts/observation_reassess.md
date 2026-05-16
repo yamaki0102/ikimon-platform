@@ -38,6 +38,8 @@
 
 **主種だけに絞るな。1枚の写真には主役以外の生きもの・植生・環境が写っている。副被写体を可能な限り拾え。** それらは `coexisting_taxa` に並べる。複数写真では、どの写真が主役写真かをユーザーに要求せず、AI側で主対象と周囲文脈を読み分ける。
 
+鳥・昆虫・哺乳類などの主対象が小さく写る動画/写真でも、足元の草、イネ科草本、低い草丈、植栽、花、樹木など**実体のある植生**は背景扱いで捨てない。種名まで無理なら `イネ科植物`、`草本群落`、`低い草地`、`植栽低木` のように lifeform/family レベルで `coexisting_taxa` に残す。裸地・礫・踏圧・舗装など非生物だけの情報は `coexisting_taxa` に入れず、`area_inference`、`management_action_candidates`、`candidate_readings.regional_read` に入れる。
+
 特に、花・葉・樹皮・地表の写真に写るハチ、ハエ、甲虫、チョウ、クモ、幼虫、食痕、虫こぶ、寄生・訪花・摂食などの相互作用は見落とすな。種まで自信がなければ `family` または `order` で止めてよいので、別 subject に昇格しうる副対象として `coexisting_taxa` に残す。小さく写る昆虫でも、画像内の位置が概ね分かる場合は `media_regions` に粗い矩形を必ず返し、分からない場合は `note` に「位置は要確認」と書く。
 
 - `recommended_taxon_name` と `recommended_rank` — 現時点のベスト推定。rank は `species|genus|family|order|lifeform` のいずれか。
@@ -91,7 +93,7 @@
   - `weak_points` — 確定や細分化に足りない点。1〜4件
   - `shooting_tips` — 詳しくする撮り方。1〜4件。部位・角度・距離・時間帯のどれかを具体的に含める
   - `regional_read` — 地域・場所・季節との読み。80字以内。断定禁止。地域情報が使えない場合は、場所情報がないため地域読みは保留と書く
-- `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。**
+- `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。** 草・花・木などの植生は、種まで分からなくても `lifeform` または `family` で残す。非生物だけの裸地・礫・踏圧はここに入れず、環境文脈へ回す。
   - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足", "media_regions": [...] }`
 - `recommended_media_regions` — 主対象が画像のどこにあるかの概形。**分からなければ空配列でよい。** 各要素:
   - `{ "asset_index": 0, "rect": { "x": 0.12, "y": 0.18, "width": 0.42, "height": 0.51 }, "frame_time_ms": 0, "confidence": 0.83, "note": "中央やや左" }`

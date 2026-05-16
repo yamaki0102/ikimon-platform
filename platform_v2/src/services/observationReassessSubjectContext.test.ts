@@ -63,7 +63,9 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(prompt, /`observed_subjects` に 4 件あれば原則 4 件/);
   assert.match(prompt, /候補ごとに\*\*その分類群でなければ意味が薄い特徴\*\*/);
   assert.match(prompt, /ツルニチニチソウなら/);
-  assert.match(service, /observation_reassess\.md\/v5\.3/);
+  assert.match(prompt, /草本|イネ科|植栽|花|樹木/);
+  assert.match(prompt, /coexisting_taxa/);
+  assert.match(service, /observation_reassess\.md\/v5\.4/);
 });
 
 test("reassess JSON schema avoids concrete taxon examples that can leak into output", () => {
