@@ -14012,7 +14012,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     });
 
-    const hintBlock = "";
+    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</div>`;
     const aiCandidateLearningBlock = aiCandidateLearningPanel
       ? `<div id="co-candidates" class="obs-reading-section" data-obs-section="co_candidates">${aiCandidateLearningPanel}</div>`
       : "";
