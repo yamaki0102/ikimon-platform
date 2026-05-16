@@ -5997,7 +5997,7 @@ function renderObservationRecordInsightText(options: {
 }
 
 function renderObservationRecordInsight(text: string, className = ""): string {
-  return `<div class="obs-record-insight${className ? ` ${className}` : ""}" aria-label="この記録から読めること"><p>${escapeHtml(text)}</p></div>`;
+  return `<div class="obs-record-insight${className ? ` ${className}` : ""}" aria-label="この記録から言えること"><p>${escapeHtml(text)}</p></div>`;
 }
 
 function renderObservationUseStatus(snapshot: ObservationDetailSnapshot, consensus: IdentificationConsensusResult | null): string {
@@ -6292,6 +6292,7 @@ function renderObservationReadingHero(options: {
       ${options.recordInsightBlock}
       ${options.useStatusBlock}
       ${options.summaryStrip}
+      ${options.sceneOverviewBlock}
       <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
       ${options.nextActionRail}
     </aside>
@@ -14068,9 +14069,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void civicContextBlock;
 
     // ===== Layer 2: 同定 =====
-    const identityEvidenceBlock = "";
-    const layer2 = "";
-    void identityEvidenceBlock;
+    const identityEvidenceBlock = renderSubjectEvidenceTabs({
+      basePath,
+      lang,
+      visitId: bundle.visitId,
+      bundle,
+    });
+    const layer2 = `${identityEvidenceBlock}<div data-obs-switch-taxonomy>${renderSubjectTaxonomy(currentSubject, featuredSubject, subjectCount, bundle)}</div>`;
 
     // ===== Layer 3: 次に見るなら =====
     const layer3 = renderNearbyAreaRecords({
@@ -14589,10 +14594,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
-    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
-    void focusRailBlock;
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${focusRailBlock}${hintBlock}${layer2}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
     void hintBlock;
-    void layer2;
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
