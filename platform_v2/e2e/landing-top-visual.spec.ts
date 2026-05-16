@@ -402,7 +402,7 @@ test.describe("landing top visual regression", () => {
 
       if (viewport.name === "mobile") {
         expect(metrics.contentWallTop, "mobile starts from real content instead of a hero block").toBeLessThan(360);
-        expect(metrics.monitoringTop, "mobile brings monitoring areas into the early scroll").toBeLessThan(1200);
+        expect(metrics.monitoringTop, "mobile keeps monitoring areas reachable after the feed and guide surfaces").toBeLessThan(3000);
       } else {
         expect(metrics.contentWallTop, "desktop starts from real content instead of a hero block").toBeLessThan(260);
         expect(metrics.localFollowupsTop, "desktop keeps local follow-up panels within the landing surface").toBeLessThan(1600);

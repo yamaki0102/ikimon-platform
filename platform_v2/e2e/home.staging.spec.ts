@@ -69,13 +69,15 @@ for (const profile of HOME_VIEWPORTS) {
       await suppressMapLibreForSmoke(page);
       await page.goto("/?lang=ja", { waitUntil: "networkidle" });
       await expect(page.locator(".prototype-topa")).toBeVisible();
-      await expect(page.locator("#landing-hero-heading")).toContainText("名前が分からなくても残せる");
-      await expect(page.locator(".prototype-topa a[href*='/record']").first()).toBeVisible();
-      await expect(page.locator(".prototype-topa-search")).toBeVisible();
-      await expect(page.locator(".prototype-topa-actions")).toBeVisible();
-      await expect(page.locator(".prototype-topa-trust span")).toHaveCount(3);
-      await expect(page.locator(".prototype-topa-shelves")).toBeVisible();
+      await expect(page.locator(".prototype-content-wall")).toBeVisible();
+      await expect(page.locator(".prototype-content-lane").first()).toBeVisible();
+      await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible();
+      await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible();
       await expect(page.locator("#topa-local-map")).toBeVisible();
+      await expect(page.locator(".prototype-local-panel.is-invasive")).toBeVisible();
+      await expect(page.locator(".prototype-local-panel.is-events")).toBeVisible();
+      await expect(page.locator("#landing-hero-heading")).toHaveCount(0);
+      await expect(page.locator(".prototype-topa-actions")).toHaveCount(0);
       await expect(page.locator(".landing-hero-timeline")).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
     } finally {
@@ -127,8 +129,8 @@ test("logged-in staging home shows personal guide outcomes shelf", async ({ brow
     await page.goto("/?lang=ja", { waitUntil: "networkidle" });
     const guideShelf = page.locator("#topa-guide");
     await expect(guideShelf).toBeVisible();
-    await expect(guideShelf).toContainText("自分のガイド成果");
-    await expect(guideShelf).toContainText(fixtureLabel);
+    await expect(guideShelf).toContainText("ガイドの記録");
+    await expect(guideShelf.locator(`a[href*="${encodeURIComponent(`home-guide-shelf-${fixtureSuffix}`)}"]`).first()).toBeVisible();
     await expect(guideShelf.locator("a[href*='/guide/outcomes']").first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: `test-results/home-personal-guide-shelf-${fixtureSuffix}.png`, fullPage: true });
