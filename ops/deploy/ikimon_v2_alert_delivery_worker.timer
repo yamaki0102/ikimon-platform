@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ikimon platform_v2 alert delivery worker
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=60s
+AccuracySec=10s
+Persistent=true
+Unit=ikimon-v2-alert-delivery-worker.service
+
+[Install]
+WantedBy=timers.target

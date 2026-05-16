@@ -28,6 +28,11 @@ on:
           - auto
           - fast
           - full
+      invasive_reporting_smoke_email:
+        description: 'Optional email address for one temporary invasive-reporting delivery smoke. Test rows are removed by the smoke script.'
+        required: false
+        default: ''
+        type: string
   push:
     branches: [staging]
 
@@ -336,6 +341,7 @@ jobs:
             DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
             IKIMON_MIGRATION_REPAIR_CHECKSUMS="$STAGING_MIGRATION_REPAIR_CHECKSUMS" DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run migrate
             DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:observation-fields:aikan-renri
+            DATABASE_URL="$V2_STAGING_DATABASE_URL" npm run import:invasive-reporting:shizuoka
             if [ "$SHOULD_RUN_KNOWLEDGE" = "true" ]; then
               echo "== npm run compile:knowledge-navigation dry-run =="
               DRY_RUN_JSON="$(DATABASE_URL="$V2_STAGING_DATABASE_URL" npx tsx src/scripts/compileKnowledgeNavigation.ts --dry-run --json)"
@@ -536,6 +542,8 @@ jobs:
               http://127.0.0.1:3200/map \
               http://127.0.0.1:3200/guide \
               http://127.0.0.1:3200/learn/field-loop \
+              http://127.0.0.1:3200/learn/invasive-species-reporting \
+              http://127.0.0.1:3200/for-business/invasive-reporting \
               http://127.0.0.1:3200/api/v1/research/occurrences \
               http://127.0.0.1:3200/ops/digitized-books/data \
               http://127.0.0.1:3200/ops/digitized-books/rag-data
@@ -659,3 +667,42 @@ jobs:
             platform_v2/test-results
             platform_v2/playwright-report/staging
           if-no-files-found: ignore
+
+  invasive-reporting-smoke:
+    name: Invasive Reporting Delivery Smoke
+    runs-on: ubuntu-latest
+    needs: verify-ssh
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.invasive_reporting_smoke_email != ''
+    environment: staging
+    steps:
+      - name: Mask invasive reporting smoke email
+        run: echo "::add-mask::${{ github.event.inputs.invasive_reporting_smoke_email }}"
+
+      - name: Send one temporary invasive reporting smoke email
+        uses: appleboy/ssh-action@v1
+        env:
+          INVASIVE_REPORTING_SMOKE_EMAIL: ${{ github.event.inputs.invasive_reporting_smoke_email }}
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: INVASIVE_REPORTING_SMOKE_EMAIL
+          script: |
+            set -euo pipefail
+            if [ -z "${INVASIVE_REPORTING_SMOKE_EMAIL:-}" ]; then
+              echo "No invasive reporting smoke email provided; skip."
+              exit 0
+            fi
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
+            if [ ! -f "$STAGING_ENV_FILE" ]; then
+              echo "Missing staging env file: $STAGING_ENV_FILE"
+              exit 1
+            fi
+            set -a
+            . "$STAGING_ENV_FILE"
+            set +a
+            env \
+              "DATABASE_URL=${DATABASE_URL}" \
+              "INVASIVE_REPORTING_SMOKE_EMAIL=${INVASIVE_REPORTING_SMOKE_EMAIL}" \
+              bash -lc "cd '$V2_DIR' && npm run smoke:invasive-reporting-delivery -- --to=\"\$INVASIVE_REPORTING_SMOKE_EMAIL\""

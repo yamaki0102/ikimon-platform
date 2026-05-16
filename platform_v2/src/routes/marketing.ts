@@ -353,7 +353,7 @@ const LEARN_HUB_COPY: Record<SiteLang, LearnHubCopy> = {
       {
         title: "社会と暮らしにつなぐ",
         body: "政策、企業活動、ウェルビーイング、技術を言いすぎず読む。",
-        paths: ["/learn/policy-and-business", "/learn/wellbeing", "/learn/technology"],
+        paths: ["/learn/policy-and-business", "/learn/wellbeing", "/learn/technology", "/learn/invasive-species-reporting"],
       },
     ],
     termsTitle: "用語から探す",

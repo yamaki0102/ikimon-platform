@@ -186,12 +186,15 @@ install_units() {
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_guide_environment.timer" /etc/systemd/system/ikimon-v2-guide-environment.timer
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_location_audit.service" /etc/systemd/system/ikimon-v2-location-audit.service
   install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_location_audit.timer" /etc/systemd/system/ikimon-v2-location-audit.timer
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_alert_delivery_worker.service" /etc/systemd/system/ikimon-v2-alert-delivery-worker.service
+  install -m 644 "${REPO_DIR}/ops/deploy/ikimon_v2_alert_delivery_worker.timer" /etc/systemd/system/ikimon-v2-alert-delivery-worker.timer
   systemctl daemon-reload
   systemctl enable --now ikimon-v2-media-worker.timer >/dev/null
   systemctl enable --now ikimon-v2-audio-worker.timer >/dev/null
   systemctl enable --now ikimon-v2-production-media-smoke.timer >/dev/null
   systemctl enable --now ikimon-v2-guide-environment.timer >/dev/null
   systemctl enable --now ikimon-v2-location-audit.timer >/dev/null
+  systemctl enable --now ikimon-v2-alert-delivery-worker.timer >/dev/null
 }
 
 ensure_private_uploads_dir() {
@@ -256,6 +259,7 @@ prepare_release() {
   npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
   npm run migrate
   npm run import:observation-fields:aikan-renri
+  npm run import:invasive-reporting:shizuoka
   npm run compile:knowledge-navigation
   npm run postdeploy:guide-environment
 

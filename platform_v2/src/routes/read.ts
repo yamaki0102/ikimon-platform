@@ -1311,11 +1311,24 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-owner-delete-button[disabled] { opacity: .62; cursor: progress; }
   .obs-owner-delete-status { max-width: 260px; color: #9a3412; font-size: 11px; font-weight: 850; }
   .obs-owner-delete-status.is-error { color: #b91c1c; }
+  .obs-invasive-reporting { max-width: var(--ikimon-content-max); margin: 0 auto 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(255,247,237,.96), rgba(240,253,244,.9)); border: 1px solid rgba(245,158,11,.26); box-shadow: 0 10px 26px rgba(15,23,42,.04); display: grid; gap: 12px; }
+  .obs-invasive-reporting-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+  .obs-invasive-reporting h2 { margin: 3px 0 0; color: #0f172a; font-size: 17px; line-height: 1.35; font-weight: 950; }
+  .obs-invasive-reporting p { margin: 0; color: #334155; font-size: 13px; line-height: 1.75; font-weight: 760; }
+  .obs-invasive-reporting-pill { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border-radius: 999px; background: rgba(245,158,11,.13); color: #92400e; border: 1px solid rgba(245,158,11,.28); font-size: 11px; font-weight: 950; }
+  .obs-invasive-reporting-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .obs-invasive-reporting-panel { padding: 12px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.08); }
+  .obs-invasive-reporting-panel strong { display: block; margin-bottom: 6px; color: #0f172a; font-size: 12px; font-weight: 950; }
+  .obs-invasive-reporting-panel ul { margin: 0; padding-left: 18px; color: #475569; font-size: 12px; line-height: 1.65; font-weight: 740; }
+  .obs-invasive-reporting-link { width: fit-content; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 999px; background: #111827; color: #fff; text-decoration: none; font-size: 12px; font-weight: 950; }
   @media (max-width: 760px) {
     .obs-owner-tools { align-items: flex-start; }
     .obs-owner-tools::before { width: 100%; }
     .obs-owner-tool, .obs-reassess-row, .obs-photo-recovery-form { width: 100%; }
     .obs-photo-recovery-picker, .obs-photo-recovery-submit, .obs-owner-delete-button, .obs-reassess-btn { min-height: 38px; border-radius: 12px; }
+    .obs-invasive-reporting { padding: 13px; border-radius: 14px; }
+    .obs-invasive-reporting-head { display: grid; }
+    .obs-invasive-reporting-grid { grid-template-columns: 1fr; }
   }
 
   .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
@@ -2245,6 +2258,37 @@ function renderInvasiveCard(invasive: InvasiveResponse, subjectName: string): st
       ${reportBtn}
     </div>
     <p class="detail-card-hedge">${escapeHtml(invasive.hedge)} 駆除前に必ずお住まいの自治体（環境部局）にご確認ください。</p>
+  </section>`;
+}
+
+function renderInvasiveReportingGuidanceBlock(subject: ObservationVisitSubject, basePath: string, lang: SiteLang): string {
+  const invasive = subject.aiAssessment?.invasiveResponse;
+  if (!invasive?.isInvasive) return "";
+  const categoryLabel = mhlwCategoryLabel(invasive.mhlwCategory) || "外来種候補";
+  const learnHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/invasive-species-reporting"), lang));
+  const required = ["写真", "発見場所", "発見日時", "個体数や広がり", "安全上の状況"];
+  const avoid = ["素手で触らない", "生きたまま運ばない", "駆除判断を自己判断しない", "水草や植物片を散らさない"];
+  return `<section class="obs-invasive-reporting" aria-label="外来種情報提供">
+    <div class="obs-invasive-reporting-head">
+      <div>
+        <div class="obs-story-eyebrow">外来種情報提供</div>
+        <h2>外来種情報提供の対象になる可能性があります</h2>
+      </div>
+      <span class="obs-invasive-reporting-pill">${escapeHtml(categoryLabel)}</span>
+    </div>
+    <p>AI候補が外来種 hard-gate を通った場合、地域ルールと受信許可が揃った自治体・機関にだけ、詳細位置・写真・観察日時を自動共有します。受信許可がない窓口には送らず、公式窓口を案内します。</p>
+    <div class="obs-invasive-reporting-grid">
+      <div class="obs-invasive-reporting-panel">
+        <strong>求められやすい情報</strong>
+        <ul>${required.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+      <div class="obs-invasive-reporting-panel">
+        <strong>この場で避けること</strong>
+        <ul>${avoid.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </div>
+    </div>
+    <p>AI候補であり、確定同定ではありません。詳細位置は公開ページには出ません。</p>
+    <a class="obs-invasive-reporting-link" href="${learnHref}">外来種情報提供の仕組みを見る</a>
   </section>`;
 }
 
@@ -12183,6 +12227,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const partialLink = savedDetailId
                 ? '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(savedDetailId)) + '">保存済みの見つけたものを見る</a> · メディアだけ再試行する場合はこの画面のまま再送信してください。</div>'
                 : '';
+              const invasiveReportingNote = savedDetailId
+                ? '<div class="meta">AI判定で外来種候補になった場合、許可済みの自治体・機関へ写真・日時・詳細位置を自動共有することがあります。公開ページに詳細位置は出ません。</div>'
+                : '';
               const statusHeading = savedDetailId ? '記録本体は保存済みです。' : '送信に失敗しました。';
               if (savedDetailId) pendingMediaRetryObservationId = observationId;
               const funnelErrorAction = message.startsWith('photo_upload_failed_at_')
@@ -12200,7 +12247,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 occurrenceId: savedDetailId || null,
                 partialRecordSaved: Boolean(savedDetailId),
               });
-              setStatus('<div class="row"><div>' + statusHeading + '<div class="meta">' + userMessage + '</div>' + partialLink + '</div></div>');
+              setStatus('<div class="row"><div>' + statusHeading + '<div class="meta">' + userMessage + '</div>' + partialLink + invasiveReportingNote + '</div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
               activeTusUpload = null;
@@ -13807,6 +13854,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const ownerToolsBlock = (photoRecoveryBlock || ownerDeleteBlock || reassessBlock)
       ? `<section class="obs-owner-tools" aria-label="投稿者用ツール">${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}</section>`
       : "";
+    const invasiveReportingGuidanceBlock = renderInvasiveReportingGuidanceBlock(currentSubject, basePath, lang);
     const subjectRegionMap = toSubjectRegionMap(bundle.subjects);
     const switchScript = subjectCount > 1
       ? `<script>(function(){
@@ -14232,7 +14280,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
     const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${focusRailBlock}${hintBlock}${layer2}${identifyBlock}${aiCandidateLearningBlock}${layer3}${regionalStoryBlock}${layer6}${contextBlock}${ctaBlock}</div>`;
-    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

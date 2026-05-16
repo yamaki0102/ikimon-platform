@@ -16,6 +16,7 @@
 
 import type { PoolClient } from "pg";
 import { getPool } from "../db.js";
+import { emitInvasiveReportingForOccurrence, isInvasiveReportingTrigger } from "./invasiveReporting.js";
 
 export type EmitAlertsContext = {
   occurrenceId: string;
@@ -43,6 +44,8 @@ export type EmitAlertsContext = {
 
 export type AlertDispatchSummary = {
   municipalityInvasive: number;
+  invasiveReportingMatched: number;
+  invasiveReportingSuppressed: number;
   researcherInvasive: number;
   researcherRare: number;
   researcherNovelty: number;
@@ -55,6 +58,8 @@ export async function emitAlertsForOccurrence(
 ): Promise<AlertDispatchSummary> {
   const summary: AlertDispatchSummary = {
     municipalityInvasive: 0,
+    invasiveReportingMatched: 0,
+    invasiveReportingSuppressed: 0,
     researcherInvasive: 0,
     researcherRare: 0,
     researcherNovelty: 0,
@@ -63,7 +68,10 @@ export async function emitAlertsForOccurrence(
 
   const exec = async (c: PoolClient): Promise<void> => {
     if (isInvasiveTrigger(ctx.invasiveStatus)) {
-      summary.municipalityInvasive = await emitMunicipalityInvasive(c, ctx);
+      const invasiveReporting = await emitInvasiveReportingForOccurrence(c, ctx);
+      summary.invasiveReportingMatched = invasiveReporting.matchedRules;
+      summary.invasiveReportingSuppressed = invasiveReporting.suppressedNoPermission;
+      summary.municipalityInvasive = invasiveReporting.pendingDeliveries;
       summary.researcherInvasive = await emitResearcherTrigger(c, ctx, "invasive");
     }
     if (ctx.isRare) {
@@ -90,9 +98,14 @@ export async function emitAlertsForOccurrence(
 }
 
 function isInvasiveTrigger(invasiveStatus: string | null): boolean {
-  return invasiveStatus === "iaspecified" || invasiveStatus === "priority";
+  return isInvasiveReportingTrigger(invasiveStatus);
 }
 
+/*
+ * Kept for historical migrations/tests context. New municipality delivery is
+ * permission-gated by invasive_reporting_contacts and emitted through
+ * emitInvasiveReportingForOccurrence above.
+ */
 async function emitMunicipalityInvasive(
   client: PoolClient,
   ctx: EmitAlertsContext,
@@ -106,12 +119,13 @@ async function emitMunicipalityInvasive(
         occurrence_id, recipient_id, trigger_kind, channel, payload_json
      )
      SELECT $1::text, r.recipient_id, 'municipality_invasive',
-            COALESCE(NULLIF(r.email, '') IS NOT NULL, false)::text || '_email',
+            'email',
             $5::jsonb
        FROM alert_recipients r
       WHERE r.is_active
         AND r.recipient_type = 'municipality'
         AND r.interest_invasive = true
+        AND NULLIF(r.email, '') IS NOT NULL
         AND ($2::text IS NULL OR r.prefecture = $2)
         AND ($3::text IS NULL OR r.municipality = $3 OR r.municipality IS NULL)
      ON CONFLICT (occurrence_id, recipient_id, trigger_kind) WHERE recipient_id IS NOT NULL DO NOTHING
@@ -158,11 +172,12 @@ async function emitResearcherTrigger(
         occurrence_id, recipient_id, trigger_kind, channel, payload_json
      )
      SELECT $1::text, r.recipient_id, $3,
-            COALESCE(NULLIF(r.email, '') IS NOT NULL, false)::text || '_email',
+            'email',
             $4::jsonb
        FROM alert_recipients r
       WHERE r.is_active
         AND r.recipient_type IN ('researcher','agency')
+        AND NULLIF(r.email, '') IS NOT NULL
         AND (${interestClause} ${taxonClause})
      ON CONFLICT (occurrence_id, recipient_id, trigger_kind) WHERE recipient_id IS NOT NULL DO NOTHING
      RETURNING recipient_id::text`,

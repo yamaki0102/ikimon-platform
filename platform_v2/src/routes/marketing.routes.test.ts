@@ -67,6 +67,7 @@ test("learn index frames the service in plain language", async () => {
     assert.match(response.body, /\/ja\/learn\/terms\/nature-connectedness/);
     assert.match(response.body, /\/ja\/learn\/biomonweek/);
     assert.match(response.body, /\/ja\/learn\/terms\/attention-restoration-theory/);
+    assert.match(response.body, /\/learn\/invasive-species-reporting/);
     assert.match(response.body, /記録・データ・信頼性について/);
     assert.match(response.body, /更新情報/);
     assert.doesNotMatch(response.body, /共同編集の Wiki/);
@@ -251,6 +252,46 @@ test("for researcher apply states the Tier 3 boundary and dispute exclusions", a
     assert.match(response.body, /Evidence Tier 3\+/);
     assert.match(response.body, /TNFD・30by30・ネイチャーポジティブ文脈/);
     assert.match(response.body, /観察データだけで、不在、増減、改善、因果関係を自動で証明することはしません/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("for business page links to invasive reporting partnership", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /外来種候補の自動情報提供/);
+    assert.match(response.body, /\/ja\/for-business\/invasive-reporting/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("invasive species reporting pages explain user and authority boundaries", async () => {
+  const app = buildApp();
+  try {
+    const learn = await app.inject({ method: "GET", url: "/learn/invasive-species-reporting?lang=ja" });
+    assert.equal(learn.statusCode, 200);
+    assert.match(learn.body, /外来種候補を見つけたとき、どこへ何を伝えるか/);
+    assert.match(learn.body, /緊急通報/);
+    assert.match(learn.body, /写真・発見情報提供/);
+    assert.match(learn.body, /防除協力・相談/);
+    assert.match(learn.body, /違法行為/);
+    assert.match(learn.body, /年度事業/);
+    assert.match(learn.body, /受信許可がない窓口には自動送信しません/);
+    assert.match(learn.body, /生きたまま運ばない/);
+    assert.match(learn.body, /EASIN/);
+    assert.match(learn.body, /EDDMapS/);
+
+    const authority = await app.inject({ method: "GET", url: "/for-business/invasive-reporting?lang=ja" });
+    assert.equal(authority.statusCode, 200);
+    assert.match(authority.body, /外来種候補の自動情報提供を、許可制で受け取る/);
+    assert.match(authority.body, /詳細位置は公開ページには出ません/);
+    assert.match(authority.body, /AI候補であり、確定同定ではありません/);
+    assert.match(authority.body, /受信開始・停止/);
+    assert.match(authority.body, /partner_api/);
   } finally {
     await app.close();
   }

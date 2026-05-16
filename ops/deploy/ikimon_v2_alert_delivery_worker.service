@@ -1,0 +1,11 @@
+[Unit]
+Description=ikimon platform_v2 alert delivery worker
+After=network-online.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/ikimon.life/repo
+ExecStart=/var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh runAlertDeliveryWorker --once --batch=50
+Nice=5
