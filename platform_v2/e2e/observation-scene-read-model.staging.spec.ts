@@ -88,7 +88,7 @@ test.describe.serial("observation scene read model visual QA", () => {
         await page.goto(href, { waitUntil: "domcontentloaded" });
 
         await expect(page.locator("h1")).toContainText("白い花の群落");
-        await expect(page.locator("body")).toContainText("この写真に写っているもの");
+        await expect(page.locator(".obs-visible-record-card").first()).toBeVisible();
         await expect(page.locator(".obs-record-insight").first()).toContainText(/植物|草地|名前だけでなく/);
         await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
         await expect(page.locator("body")).toContainText("セイヨウミツバチ");
