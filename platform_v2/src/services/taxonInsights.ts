@@ -108,10 +108,10 @@ export async function getTaxonInsight(opts: {
   const lang = opts.lang ?? "ja";
   const sn = looksLikeScientificName(opts.scientificName) ? opts.scientificName.trim() : "";
   const vn = (opts.vernacularName ?? "").trim();
-  if (!sn) return empty(sn, vn);
+  if (!sn && !vn) return empty(sn, vn);
 
   const pool = getPool();
-  const cacheKey = sn;
+  const cacheKey = sn || vn;
 
   // 1. キャッシュ参照
   const cached = await pool.query<{
@@ -144,6 +144,8 @@ export async function getTaxonInsight(opts: {
       source: "cache",
     };
   }
+
+  if (!sn) return empty(sn, vn);
 
   // cacheOnly: キャッシュ miss なら即 empty を返し、バックグラウンドで生成 queue
   if (opts.cacheOnly) {
