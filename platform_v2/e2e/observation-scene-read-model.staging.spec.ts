@@ -102,7 +102,7 @@ test.describe.serial("observation scene read model visual QA", () => {
         await expect(heading).toContainText("周囲の草地");
         await expect(page.locator(".obs-record-insight").first()).toContainText(/ヒメイワダレソウ|草地|名前だけでなく/);
         await expect(page.locator(".obs-media-ledger").first()).toContainText("写真");
-        await expect(page.locator(".obs-ai-readout").first()).toContainText(/名前|未確認|確定前|候補/);
+        await expect(page.locator(".obs-ai-readout").first()).toContainText(/名前|未確認|確認待ち|候補/);
         const identifyPanel = page.locator(".obs-frame-identify-card").first();
         await expect(identifyPanel).toContainText("IDENTIFICATION");
         await expect(identifyPanel).toContainText("同定に参加する");
