@@ -605,10 +605,13 @@ test("identification and dispute writes refresh the visit display state", () => 
   assert.match(identificationParticipationSource, /await refreshVisitDisplayStateAfterIdentification\(client, visitId\);/);
 });
 
-test("occurrence query parameter is accepted and canonicalized to subject", () => {
+test("subject query parameters are treated as internal tabs, not canonical pages", () => {
   assert.match(routeSource, /Querystring: \{ subject\?: string; occurrence\?: string \}/);
   assert.match(routeSource, /request\.query\.subject \?\? request\.query\.occurrence \?\? null/);
-  assert.match(routeSource, /buildObservationDetailPath\(bundle\.visitId, bundle\.canonicalSubjectId\)/);
+  assert.match(routeSource, /request\.params\.id !== bundle\.visitId \|\| request\.query\.subject \|\| request\.query\.occurrence/);
+  assert.match(routeSource, /const canonicalDetailPath = `\/observations\/\$\{encodeURIComponent\(bundle\.visitId\)\}`/);
+  assert.match(routeSource, /history\.replaceState\(\{ subject: subjectId \}, '', canonicalRecordHref\)/);
+  assert.doesNotMatch(routeSource, /history\.pushState\(\{ subject: subjectId \}, '', active\.href\)/);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {
