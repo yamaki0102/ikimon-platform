@@ -250,6 +250,18 @@ test("no-ai plant detail can still surface site management policy controls", () 
   assert.match(noAiSource, /basePath/);
 });
 
+test("identification candidate switch uses real bundle candidates instead of hardcoded 1 of 1", () => {
+  const identifySource = sourceBetween("function renderIdentificationCandidateSwitch", "function normalizeCandidateReadingKey");
+  const participationSource = sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel");
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  assert.match(identifySource, /usefulCount/);
+  assert.match(identifySource, /候補名が弱い/);
+  assert.match(identifySource, /bundle\.aiCandidates/);
+  assert.doesNotMatch(participationSource, /<strong>1\/1<\/strong>/);
+  assert.match(registrationSource, /bundle,\s+mediaContext/);
+});
+
 test("owner-only controls stay compact and avoid support-card copy", () => {
   const ownerSource = [
     sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),

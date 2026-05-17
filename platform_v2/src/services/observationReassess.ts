@@ -582,6 +582,12 @@ function normalizeCandidateName(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isUnhelpfulGenericCandidateName(value: unknown): boolean {
+  const text = normalizeCandidateName(value);
+  if (!text) return true;
+  return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|構成種[:：]?|植栽低木$/iu.test(text);
+}
+
 function coexistingCandidateKey(candidate: GeminiCoexistingTaxon): string {
   const rank = normalizeRank(candidate.rank);
   return buildCandidateKey(
@@ -609,6 +615,7 @@ function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): Gem
   const name = normalizeCandidateName(reading.name);
   const scientificName = normalizeCandidateName(reading.scientific_name);
   if (!name && !scientificName) return null;
+  if (!scientificName && isUnhelpfulGenericCandidateName(name)) return null;
   const rank = normalizeRank(reading.rank);
   const visible = Array.isArray(reading.visible_features)
     ? reading.visible_features.filter((value) => typeof value === "string" && value.trim()).slice(0, 3)
@@ -637,6 +644,7 @@ function mergeCoexistingCandidates(
     const name = normalizeCandidateName(candidate.name);
     const scientificName = normalizeCandidateName(candidate.scientific_name);
     if (!name && !scientificName) return false;
+    if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
     if (isSameAsPrimaryCandidate(candidate, primary)) return false;
     const key = coexistingCandidateKey(candidate) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
     if (!key || seen.has(key)) return false;
@@ -960,6 +968,7 @@ async function runVisualSubjectRescue(
 - 主対象とは別に写る植物、つる、低木、草本、昆虫、菌類、明確な生活形を最大 6 件。
 - 種や属まで分からなければ family/order/lifeform でよい。
 - 足元の草、イネ科草本、低い草丈、植栽、花、樹木など実体のある植生は背景扱いで捨てず、種名不明なら lifeform/family で返す。
+- 「未同定」「他の植栽」「複数の低木」だけの汎用名は返さない。確信が低くても、比較候補名か上位分類名にする。
 - 裸地・礫・踏圧・人工物だけの非生物は coexisting_taxa に入れず、note に環境文脈として短く含める。
 - 主対象の重複候補は返さない。
 
@@ -999,6 +1008,7 @@ JSONのみ:
         if (!value) return false;
         const name = normalizeCandidateName(value.name);
         const scientificName = normalizeCandidateName(value.scientific_name);
+        if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
         return Boolean(name || scientificName);
       })
     : [];
