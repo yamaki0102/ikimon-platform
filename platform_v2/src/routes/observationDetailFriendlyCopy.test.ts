@@ -217,13 +217,14 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(registrationSource, /const layer2 = ""/);
 });
 
-test("observation detail hero readout surfaces scene candidates for weak current subjects", () => {
+test("observation detail hero readout keeps scene candidates out of identification tabs", () => {
   const readoutSource = sourceBetween("function renderHeroAiReadout", "type ObservationMediaCopyContext");
   const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
 
   assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
   assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
-  assert.match(readoutSource, /sceneTargets \|\| `<div class="obs-ai-target-list obs-ai-primary-targets"/);
+  assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
+  assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
   assert.match(readoutSource, /この場面の候補を見ています/);
   assert.match(readoutSource, /同じ場面内の候補も確認できます/);
   assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle\)/);
@@ -623,6 +624,19 @@ test("AI activity ledger exposes the model used for auditability", () => {
   assert.match(routeSource, /options\.subject\?\.aiAssessment/);
   assert.match(routeSource, /options\.subject\?\.previousAiAssessment/);
   assert.match(routeSource, /<time>\$\{escapeHtml\(aiActivityMeta\)\}<\/time>/);
+});
+
+test("AI readout tabs only expose taxon-like identification subjects", () => {
+  const helperSource = sourceBetween("const IDENTIFICATION_TAB_RANKS", "function renderVisibleRecordCard");
+  const targetSource = sourceBetween("function renderHeroSceneCandidateTargets", "function renderHeroAiReadout");
+  const readoutSource = sourceBetween("function renderHeroAiReadout", "function renderSubjectHint");
+
+  assert.match(helperSource, /new Set\(\["species", "subspecies", "variety", "form", "genus", "family", "order", "class"\]\)/);
+  assert.match(helperSource, /未同定\|不明\|複数\|構成種\|群落\|植栽\|低木\|グランドカバー\|背景\|周囲/);
+  assert.match(targetSource, /bundle\.subjects\.filter\(isIdentificationTabSubject\)\.slice\(0, 4\)/);
+  assert.doesNotMatch(targetSource, /bundle\.subjects\.slice\(0, 4\)\.map/);
+  assert.match(readoutSource, /localNameCandidates \? "" : renderHeroSceneCandidateTargets\(subject, bundle\)/);
+  assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {
