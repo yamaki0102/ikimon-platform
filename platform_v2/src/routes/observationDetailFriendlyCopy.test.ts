@@ -223,6 +223,7 @@ test("observation detail hero readout surfaces scene candidates for weak current
 
   assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
   assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
+  assert.match(readoutSource, /sceneTargets \|\| `<div class="obs-ai-target-list obs-ai-primary-targets"/);
   assert.match(readoutSource, /この場面の候補を見ています/);
   assert.match(readoutSource, /同じ場面内の候補も確認できます/);
   assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle\)/);
