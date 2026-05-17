@@ -612,6 +612,8 @@ test("subject query parameters are treated as internal tabs, not canonical pages
   assert.match(routeSource, /request\.params\.id !== bundle\.visitId \|\| request\.query\.subject \|\| request\.query\.occurrence/);
   assert.match(routeSource, /const canonicalDetailPath = `\/observations\/\$\{encodeURIComponent\(bundle\.visitId\)\}`/);
   assert.match(routeSource, /history\.replaceState\(\{ subject: subjectId \}, '', canonicalRecordHref\)/);
+  assert.match(routeSource, /event\.target[\s\S]*?closest\('\[data-subject-switch\]\[data-subject-id\]'\)/);
+  assert.match(routeSource, /var getSubjectLinks = function\(\)/);
   assert.doesNotMatch(routeSource, /history\.pushState\(\{ subject: subjectId \}, '', active\.href\)/);
 });
 

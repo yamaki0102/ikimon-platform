@@ -14895,7 +14895,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var regionMap = ${JSON.stringify(subjectRegionMap)};
            var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
            var regionLargeAreaMin = ${REGION_LARGE_AREA_MIN};
-           var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
+           var getSubjectLinks = function(){
+             return Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
+           };
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
@@ -14941,6 +14943,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              }
            };
            var updateStateLabels = function(subjectId){
+             var links = getSubjectLinks();
              links.forEach(function(link){
                var isCurrent = link.getAttribute('data-subject-id') === subjectId;
                link.classList.toggle('is-current', isCurrent);
@@ -14984,14 +14987,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                history.replaceState({ subject: subjectId }, '', canonicalRecordHref);
              }
            };
-           links.forEach(function(link){
-             link.addEventListener('click', function(event){
-               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-               event.preventDefault();
-               var subjectId = link.getAttribute('data-subject-id');
-               if (!subjectId || subjectId === currentSubjectId) return;
-               renderSubject(subjectId, true);
-             });
+           document.addEventListener('click', function(event){
+             var link = event.target && event.target.closest ? event.target.closest('[data-subject-switch][data-subject-id]') : null;
+             if (!link) return;
+             if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+             event.preventDefault();
+             var subjectId = link.getAttribute('data-subject-id');
+             if (!subjectId || subjectId === currentSubjectId) return;
+             renderSubject(subjectId, true);
            });
            window.addEventListener('popstate', function(){
              var params = new URLSearchParams(window.location.search);
