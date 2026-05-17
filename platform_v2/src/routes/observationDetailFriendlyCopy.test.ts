@@ -630,13 +630,26 @@ test("AI readout tabs only expose taxon-like identification subjects", () => {
   const helperSource = sourceBetween("const IDENTIFICATION_TAB_RANKS", "function renderVisibleRecordCard");
   const targetSource = sourceBetween("function renderHeroSceneCandidateTargets", "function renderHeroAiReadout");
   const readoutSource = sourceBetween("function renderHeroAiReadout", "function renderSubjectHint");
+  const identifySwitchSource = sourceBetween("function renderIdentificationCandidateSwitch", "function normalizeCandidateReadingKey");
 
   assert.match(helperSource, /new Set\(\["species", "subspecies", "variety", "form", "genus", "family", "order", "class"\]\)/);
-  assert.match(helperSource, /未同定\|不明\|複数\|構成種\|群落\|植栽\|低木\|グランドカバー\|背景\|周囲/);
+  assert.match(helperSource, /未同定\|同定待ち\|名前待ち\|AI\\s\*候補\|他の植栽\|複数の低木\|植栽低木\|構成種\[:：\]\|不明\|群落\|グランドカバー\|背景\|周囲\|裸地\|踏圧/);
+  assert.match(helperSource, /function isIdentificationCandidateLike/);
   assert.match(targetSource, /bundle\.subjects\.filter\(isIdentificationTabSubject\)\.slice\(0, 4\)/);
   assert.doesNotMatch(targetSource, /bundle\.subjects\.slice\(0, 4\)\.map/);
   assert.match(readoutSource, /localNameCandidates \? "" : renderHeroSceneCandidateTargets\(subject, bundle\)/);
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
+  assert.match(identifySwitchSource, /isIdentificationCandidateLike\(\{ name: label, rank: candidate\.rank, scientificName: candidate\.scientificName \}\)/);
+  assert.doesNotMatch(identifySwitchSource, /candidates\.push\(\{[\s\S]*?isWeak: isWeakIdentificationCandidateName\(label\),[\s\S]*?\}\);\s*\n\s*\};\s*\n\s*\n\s*if \(options\.bundle\)/);
+});
+
+test("AI taxon story requires a real scientific name", () => {
+  const storySource = sourceBetween("function renderAiTaxonStory", "function renderAiCompareList");
+
+  assert.match(storySource, /isWeakIdentificationCandidateName\(fallbackName\)/);
+  assert.match(storySource, /isLatinScientificName\(scientificName\)/);
+  assert.match(storySource, /scientificName === fallbackName/);
+  assert.match(storySource, /renderLocalStoryTools\(fallbackName, scientificName\)/);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {
