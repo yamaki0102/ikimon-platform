@@ -283,7 +283,7 @@ test.describe("production candidate smoke", () => {
     const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
     expect(response?.ok(), "canonical AI subject scene should be readable").toBeTruthy();
     await expect(page.locator("body")).toContainText("この写真に写っているもの");
-    await expect(page.locator(".obs-first-read"), "scene read summary").toContainText("AIの場面読み");
+    await expect(page.locator(".obs-first-read"), "scene read summary").toContainText(/この写真に写っているもの|この映像に写っているもの/);
 
     for (const name of scene.expectedSubjects) {
       const card = page.locator(".obs-visible-record-card").filter({ hasText: name }).first();

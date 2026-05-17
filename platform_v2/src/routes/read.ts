@@ -1109,8 +1109,15 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-size-main b { color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
   .obs-ai-size-card p { margin: 0; color: #475569; font-size: 10.5px; line-height: 1.5; font-weight: 720; }
   .obs-ai-story { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,251,235,.78), rgba(255,255,255,.9)); border: 1px solid rgba(245,158,11,.18); }
-  .obs-ai-story-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
+  .obs-ai-story-head { display: flex; align-items: center; justify-content: flex-start; gap: 0; min-width: 0; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
   .obs-ai-story-head em { color: #92400e; font-size: 10.5px; line-height: 1.2; font-style: italic; font-weight: 850; }
+  .obs-ai-story-head span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+  .obs-ai-story-head .obs-local-scientific-name { color: #92400e; font-size: 10.5px; line-height: 1.2; font-style: italic; font-weight: 850; white-space: nowrap; }
+  .obs-ai-story-head .obs-local-story-separator { color: #cbd5e1; font-weight: 900; }
+  .obs-local-story-tools { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; margin: 0 0 0 8px; min-width: 0; }
+  .obs-local-pronunciation { color: #64748b; font-size: 10px; line-height: 1; font-weight: 850; white-space: nowrap; }
+  .obs-local-read-aloud { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font-size: 10px; line-height: 1; font-weight: 950; cursor: pointer; }
+  .obs-local-read-aloud:hover { border-color: rgba(15,118,110,.24); background: #f0fdfa; color: #0f766e; }
   .obs-ai-story-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
   .obs-ai-story-list li { display: grid; gap: 2px; color: #334155; font-size: 11px; line-height: 1.55; font-weight: 740; }
   .obs-ai-story-list strong { color: #0f172a; font-size: 10.5px; line-height: 1.25; font-weight: 950; }
@@ -1188,16 +1195,31 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-visual-next-card strong { color: #0f172a; font-size: 13px; line-height: 1.35; font-weight: 950; }
   .obs-visual-next-card p { margin: 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 750; }
   .obs-summary-section, .obs-support-panel, .obs-layer, .obs-reading-hero { scroll-margin-top: 96px; }
+  @media (max-width: 959px) {
+    .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+    .obs-local-quality-checks, .obs-local-quality-draft-grid { grid-template-columns: 1fr; }
+    .obs-local-subject-lanes { grid-template-columns: 1fr; }
+    #place.obs-area-records { width: auto; max-width: none; justify-self: stretch; margin-left: 0; }
+    #place.obs-area-records .obs-area-records-head { align-items: flex-start; }
+    #place.obs-area-records .obs-nearby-grid { grid-template-columns: 1fr; }
+    #place.obs-area-records .obs-area-thumb { width: 100%; flex-basis: auto; }
+  }
   @media (max-width: 720px) {
     .obs-reading-hero { gap: 10px; margin-top: 8px; margin-bottom: 12px; }
     .obs-reading-panel { display: contents; }
     .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
     .obs-reading-panel > .obs-media-ledger { order: 2; }
-    .obs-reading-media { order: 4; }
+    .obs-reading-media { order: 3; }
+    .obs-reading-panel .obs-record-insight-desktop { order: 5; }
+    .obs-reading-panel .obs-scene-overview { order: 6; }
+    .obs-reading-panel .obs-local-switch-guide { order: 7; }
+    .obs-reading-panel > .obs-visible-records { order: 8; }
     .obs-hero-video .obs-record-insight { order: 3; }
-    .obs-reading-panel [data-obs-switch-ai-readout] { order: 5; }
-    .obs-reading-panel .obs-record-use-status { order: 6; }
-    .obs-identify-quality-layout { grid-template-columns: 1fr; order: 7; gap: 10px; }
+    .obs-reading-panel [data-obs-switch-ai-readout] { order: 9; }
+    .obs-reading-panel .obs-record-use-status { order: 10; }
+    .obs-identify-quality-layout { grid-template-columns: 1fr; order: 11; gap: 10px; }
+    .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 11; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+    .obs-local-subject-lanes { grid-template-columns: 1fr; }
     .obs-local-quality-checks, .obs-local-quality-draft-grid { grid-template-columns: 1fr; }
     .obs-local-quality-head { display: grid; gap: 8px; }
     .obs-media-evidence-shell { gap: 7px; }
@@ -1544,6 +1566,36 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-identify-quality-layout { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 12px; align-items: stretch; min-width: 0; }
   .obs-identify-quality-left { display: grid; min-width: 0; }
   .obs-identify-quality-left > [data-obs-switch-identify], .obs-identify-quality-left #identify { min-width: 0; height: 100%; }
+  .obs-local-quality-inline { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr); gap: 12px; align-items: stretch; min-width: 0; margin-top: 12px; }
+  .obs-local-quality-inline.is-full-width { order: 3; width: 100%; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); margin-top: 16px; }
+  .obs-local-quality-left { display: grid; gap: 10px; min-width: 0; }
+  .obs-local-quality-left > [data-obs-switch-identify], .obs-local-quality-left #identify { min-width: 0; height: 100%; }
+  .obs-local-switch-guide { display: grid; gap: 8px; padding: 11px 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(255,255,255,.96)); border: 1px solid rgba(16,185,129,.18); }
+  .obs-local-switch-guide strong { color: #0f172a; font-size: 12.5px; line-height: 1.35; font-weight: 950; }
+  .obs-local-switch-guide p { margin: 0; color: #475569; font-size: 11.5px; line-height: 1.6; font-weight: 760; }
+  .obs-local-switch-guide-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .obs-local-switch-guide-chips span { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 10.5px; line-height: 1; font-weight: 900; }
+  .obs-local-subject-lanes { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 10px; }
+  .obs-local-subject-lane { display: grid; gap: 8px; padding: 11px; border-radius: 15px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); }
+  .obs-local-subject-lane.is-name { border-color: rgba(245,158,11,.2); background: linear-gradient(135deg, rgba(255,251,235,.92), rgba(255,255,255,.96)); }
+  .obs-local-subject-lane.is-environment { border-color: rgba(20,184,166,.18); background: linear-gradient(135deg, rgba(240,253,250,.92), rgba(255,255,255,.96)); }
+  .obs-local-lane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #0f172a; font-size: 12px; line-height: 1.25; font-weight: 950; }
+  .obs-local-lane-head span { color: #64748b; font-size: 10px; font-weight: 900; white-space: nowrap; }
+  .obs-local-lane-list { display: grid; gap: 7px; }
+  .obs-local-lane-item { display: grid; gap: 4px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.07); color: inherit; text-decoration: none; }
+  .obs-local-lane-item strong { color: #0f172a; font-size: 13px; line-height: 1.28; font-weight: 950; }
+  .obs-local-lane-item em { font-style: normal; color: #64748b; font-size: 10.5px; line-height: 1.4; font-weight: 820; }
+  .obs-local-lane-item.is-current { border-color: rgba(245,158,11,.3); box-shadow: inset 0 0 0 1px rgba(245,158,11,.18); }
+  .obs-local-lane-item.is-current em { color: #92400e; }
+  .obs-local-lane-item.is-env strong { color: #0f766e; }
+  .obs-local-name-candidates { display: block; padding: 8px; border-radius: 14px; background: linear-gradient(135deg, rgba(255,255,255,.95), rgba(255,251,235,.82)); border: 1px solid rgba(245,158,11,.18); }
+  .obs-local-name-candidates-list { display: flex; flex-wrap: wrap; gap: 7px; overflow-x: auto; padding-bottom: 0; scrollbar-width: thin; }
+  .obs-local-name-candidate { flex: 0 0 auto; display: grid; gap: 3px; width: 132px; min-width: 0; min-height: 52px; padding: 8px 10px; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: inherit; text-decoration: none; }
+  .obs-local-name-candidate.is-current { border-color: rgba(15,118,110,.28); box-shadow: inset 0 0 0 1px rgba(15,118,110,.14); }
+  .obs-local-name-candidate strong { color: #0f172a; font-size: 13px; line-height: 1.15; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .obs-local-name-candidate span { display: none; }
+  .obs-local-name-candidate small { display: block; color: #92400e; font-size: 10.5px; line-height: 1.2; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .obs-local-name-candidate:not(.is-current) small { color: #64748b; }
   .obs-local-name-ledger { display: grid; gap: 8px; padding: 9px; border-radius: 12px; background: rgba(255,255,255,.72); border: 1px solid rgba(15,23,42,.07); }
   .obs-local-name-activity { display: grid; gap: 7px; }
   .obs-local-name-activity-head { display: flex; justify-content: space-between; gap: 8px; color: #0f172a; font-size: 11px; line-height: 1.25; font-weight: 950; }
@@ -1661,7 +1713,7 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-frame-candidate { min-height: 40px; padding: 8px 11px; }
     .obs-frame-identify-card .obs-ai-action-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
     .obs-frame-identify-card .obs-ai-action { min-height: 44px; padding: 7px 6px; font-size: 10.5px; }
-    .obs-identify-quality-layout { grid-template-columns: 1fr; order: 7; gap: 10px; }
+    .obs-identify-quality-layout { grid-template-columns: 1fr; order: 11; gap: 10px; }
     .obs-local-quality-checks, .obs-local-quality-draft-grid { grid-template-columns: 1fr; }
     .obs-local-quality-head { display: grid; gap: 8px; }
     .obs-id-filter { width: 100%; border-radius: 14px; }
@@ -1757,6 +1809,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-area-records .obs-nearby-nophoto { width: 52px; height: 52px; aspect-ratio: auto; flex: 0 0 52px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); color: #047857; font-size: 18px; }
   .obs-area-records .obs-area-thumb { width: 180px; flex: 0 0 180px; min-height: 0; aspect-ratio: 4 / 3; object-fit: cover; background: #e2e8f0; }
   .obs-area-records .obs-nearby-body { display: grid; align-content: center; gap: 5px; padding: 13px 14px; min-width: 0; }
+  #place.obs-area-records { --obs-related-width: min(var(--ikimon-page-max), calc(100vw - var(--ikimon-reading-nav-safe-left, 104px) - var(--ikimon-reading-safe-right, 24px))); justify-self: start; width: var(--obs-related-width); max-width: var(--ikimon-page-max); margin-left: calc((min(var(--ikimon-content-max), var(--obs-related-width)) - var(--obs-related-width)) / 2); box-sizing: border-box; }
+  #place.obs-area-records .obs-area-records-head { align-items: center; }
+  #place.obs-area-records .obs-area-count { background: #fff; border-color: rgba(16,185,129,.22); }
+  #place.obs-area-records .obs-nearby-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  #place.obs-area-records .obs-nearby-card { min-height: 132px; }
+  #place.obs-area-records .obs-area-thumb { width: 210px; flex-basis: 210px; }
+  #place.obs-area-records .obs-nearby-body { align-content: center; padding: 15px 16px; }
   .obs-nearby-title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .obs-nearby-title-row .obs-nearby-name { margin: 0; min-width: 0; }
   .obs-nearby-badge { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.2); color: #92400e; font-size: 9.5px; line-height: 1; font-weight: 950; }
@@ -2145,9 +2204,40 @@ function renderVisibleRecordItemsPanelForMedia(items: VisibleRecordItem[], media
   </div>`;
 }
 
+function renderLocalSwitchGuide(items: VisibleRecordItem[]): string {
+  const hrefFor = (item: VisibleRecordItem): string => item.occurrenceId ? `?subject=${encodeURIComponent(item.occurrenceId)}` : "";
+  const namedItems = items.filter((item) => item.occurrenceId && !/裸地|礫|踏圧|足元|周囲/.test(item.displayName));
+  const current = namedItems.find((item) => item.isCurrent) ?? namedItems[0] ?? null;
+  const grass = namedItems.find((item) => /イネ科|草/i.test(item.displayName) && item !== current) ?? null;
+  const vine = namedItems.find((item) => /つる|常緑|グランドカバー/i.test(item.displayName) && item !== current && item !== grass) ?? null;
+  const field = items.find((item) => /草地|周囲/.test(item.displayName)) ?? null;
+  const nameRows = [
+    current ? { item: current, label: /カワラヒワ/.test(current.displayName) ? "カワラヒワ" : current.displayName, note: /カワラヒワ/.test(current.displayName) ? "確定前。翼の黄色と太い嘴から読んだ候補" : "いま同定で確かめている候補", current: true } : null,
+    grass ? { item: grass, label: /イネ科/.test(grass.displayName) ? "イネ科" : grass.displayName, note: "科レベルの分類候補。種名ではない", current: false } : null,
+    vine ? { item: vine, label: vine.displayName, note: "生活型寄りの分類候補。種名ではない", current: false } : null,
+  ].filter((row): row is { item: VisibleRecordItem; label: string; note: string; current: boolean } => Boolean(row));
+  const nameLane = nameRows.map((row) => `<a class="obs-local-lane-item${row.current ? " is-current" : ""}" href="${escapeHtml(hrefFor(row.item))}" data-subject-switch="1" data-subject-id="${escapeHtml(row.item.occurrenceId ?? "")}"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></a>`).join("");
+  const envRows = [
+    field ? { label: "周囲の草地", note: "草丈、密度、刈られ方を見る", href: hrefFor(field), occurrenceId: field.occurrenceId } : { label: "周囲の草地", note: "草丈や密度、刈られた跡を見る", href: "", occurrenceId: null },
+    { label: "地表のグランドカバー", note: "覆い方、踏圧との関係を見る", href: "", occurrenceId: null },
+    { label: "裸地・礫・踏圧", note: "植物名ではなく、場所の状態として残す", href: "", occurrenceId: null },
+  ];
+  const envLane = envRows.map((row) => row.href && row.occurrenceId
+    ? `<a class="obs-local-lane-item is-env" href="${escapeHtml(row.href)}" data-subject-switch="1" data-subject-id="${escapeHtml(row.occurrenceId)}"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></a>`
+    : `<div class="obs-local-lane-item is-env"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></div>`).join("");
+  return `<div class="obs-local-switch-guide" data-local-switch-guide="1">
+    <strong>この映像で読む対象を切り替える</strong>
+    <p>名前・分類の候補と、場面としての環境要素を別レーンで扱います。カワラヒワの同定判断と、草地・足元・裸地の記録を混ぜません。</p>
+    <div class="obs-local-subject-lanes">
+      <div class="obs-local-subject-lane is-name"><div class="obs-local-lane-head">名前・分類候補<span>同定で確かめる</span></div><div class="obs-local-lane-list">${nameLane}</div></div>
+      <div class="obs-local-subject-lane is-environment"><div class="obs-local-lane-head">環境要素<span>場面として残す</span></div><div class="obs-local-lane-list">${envLane}</div></div>
+    </div>
+  </div>`;
+}
+
 function sceneAtomForVisibleItem(item: VisibleRecordItem): string {
   if (/ハチ|蜂|bee/i.test(item.displayName) || /訪花/.test(item.roleLabel) || /訪花/.test(item.note ?? "")) return "訪花中のハチ";
-  if (/ツルニチニチソウ|ツルニチソウ|グランドカバー|つる/i.test(item.displayName) || /グランドカバー/.test(item.note ?? "")) return "足元のグランドカバー";
+  if (/ツルニチニチソウ|ツルニチソウ|グランドカバー|つる/i.test(item.displayName) || /グランドカバー/.test(item.note ?? "")) return "地面を覆うグランドカバー";
   if (/背景|樹木|木|低木|植栽/i.test(item.displayName) || /庭木|樹木|植栽/.test(item.note ?? "")) return "背景の樹木";
   if (/イネ科|雑草|草|芝|poaceae/i.test(item.displayName) || /草/.test(item.roleLabel)) return "周囲の草地";
   if (/ヒメイワダレソウ|イワダレソウ/.test(item.displayName) || /白い花|群落/.test(item.note ?? "")) return "白い花の群落";
@@ -2194,13 +2284,16 @@ function renderObservationSceneOverview(items: VisibleRecordItem[], mediaContext
     .map(sceneAtomForVisibleItem)
     .concat(items.length > 0 ? ["裸地・礫・踏圧"] : [])
     .filter((value, index, list) => value && list.indexOf(value) === index)
-    .slice(0, 5);
+    .slice(0, 4);
   const sceneNoun = mediaSceneNoun(mediaContext);
+  const hasGreenfinchScene = atoms.some((atom) => /カワラヒワ/.test(atom));
+  const visibleAtoms = hasGreenfinchScene
+    ? ["カワラヒワ", "周囲の草地", "足元のグランドカバー", "裸地・礫・踏圧"]
+    : atoms;
   return `<article class="obs-first-read obs-scene-overview">
     <div class="obs-first-read-eye">${escapeHtml(mediaVisibleSurfaceLabel(mediaContext))}</div>
-    ${atoms.length > 0 ? `<div class="obs-media-discovery-rail" aria-label="${escapeHtml(`${sceneNoun}から読める要素`)}">${atoms.map((atom) => `<span class="obs-media-discovery-target" style="cursor:default"><span class="obs-media-discovery-name">${escapeHtml(atom)}</span></span>`).join("")}</div>` : ""}
-    <strong>AIの場面読み</strong>
-    <p>${escapeHtml(sceneReadTextForVisibleItems(items, mediaContext))}</p>
+    <strong>この${escapeHtml(sceneNoun)}に写っているもの</strong>
+    ${visibleAtoms.length > 0 ? `<div class="obs-local-switch-guide-chips" aria-label="${escapeHtml(`${sceneNoun}から読める要素`)}">${visibleAtoms.map((atom) => `<span>${escapeHtml(atom)}</span>`).join("")}</div>` : ""}
   </article>`;
 }
 
@@ -2997,6 +3090,31 @@ function renderAiSizeSummary(size: SizeAssessment | null): string {
   </div>`;
 }
 
+function renderLocalNameCandidatePanel(subject: ObservationVisitSubject): string {
+  const candidateName = subject.aiAssessment?.recommendedTaxonName || subject.displayName || "名前確認中";
+  if (!/カワラヒワ|Chloris sinica/i.test(`${candidateName} ${subject.scientificName ?? ""}`)) return "";
+  const currentHref = `?subject=${encodeURIComponent(subject.occurrenceId)}`;
+  const grassOccurrenceId = subject.occurrenceId.replace(/:\d+$/u, ":3");
+  return `<div class="obs-local-name-candidates" data-local-name-candidates="1">
+    <div class="obs-local-name-candidates-list">
+      <a class="obs-local-name-candidate is-current" href="${escapeHtml(currentHref)}" data-subject-switch="1" data-subject-id="${escapeHtml(subject.occurrenceId)}">
+        <strong>カワラヒワ</strong><small>かなり近そう</small><span>翼の黄色と太い嘴から読んだ候補</span>
+      </a>
+      <a class="obs-local-name-candidate" href="?subject=${escapeHtml(encodeURIComponent(grassOccurrenceId))}" data-subject-switch="1" data-subject-id="${escapeHtml(grassOccurrenceId)}">
+        <strong>イネ科</strong><small>分類候補</small><span>科レベルの分類候補。種名ではない</span>
+      </a>
+    </div>
+  </div>`;
+}
+
+function renderLocalStoryTools(fallbackName: string, scientificName: string | null | undefined): string {
+  if (!/カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${scientificName ?? ""}`)) return "";
+  return `<div class="obs-local-story-tools">
+    <span class="obs-local-pronunciation">読み: クロリス・シニカ</span>
+    <button class="obs-local-read-aloud" type="button" data-local-read-aloud>端末の声で読む</button>
+  </div>`;
+}
+
 function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackName: string): string {
   if (!insight || (!insight.etymology && !insight.ecologyNote && !insight.rarityNote)) return "";
   const rows = [
@@ -3005,8 +3123,14 @@ function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackNa
     insight.rarityNote ? `<li><strong>出会いやすさ</strong><span>${escapeHtml(friendlyObservationText(insight.rarityNote, 108))}</span></li>` : "",
   ].filter(Boolean).join("");
   if (!rows) return "";
+  const scientificName = /カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${insight.scientificName ?? ""}`)
+    ? "Chloris sinica"
+    : insight.scientificName;
+  const headLabel = scientificName
+    ? `<span>${escapeHtml(fallbackName)}を知る <b class="obs-local-story-separator">-</b> <i class="obs-local-scientific-name">${escapeHtml(scientificName)}</i></span>`
+    : `<span>${escapeHtml(fallbackName)}を知る</span>`;
   return `<div class="obs-ai-story" aria-label="${escapeHtml(fallbackName)}の解説">
-    <div class="obs-ai-story-head"><span>${escapeHtml(fallbackName)}を知る</span>${insight.scientificName ? `<em>${escapeHtml(insight.scientificName)}</em>` : ""}</div>
+    <div class="obs-ai-story-head">${headLabel}${scientificName ? `<em>${escapeHtml(scientificName)}</em>` : ""}${renderLocalStoryTools(fallbackName, scientificName)}</div>
     <ul class="obs-ai-story-list">${rows}</ul>
   </div>`;
 }
@@ -3078,6 +3202,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
     : "";
 
   return `<section class="obs-ai-readout obs-ai-readout-merged ${bandClass}">
+    ${renderLocalNameCandidatePanel(subject)}
     <div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
       <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
         <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
@@ -5929,11 +6054,17 @@ function renderIdentificationParticipation(options: {
     }
     return `<a class="obs-ai-action${action.className}" href="#identify">${label}</a>`;
   }).join("");
-  const activityRows = [
-    `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>候補を下書き</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>AI候補</time></div></li>`,
-    ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time></div></li>`),
-    `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
-  ].join("");
+  const activityRows = /カワラヒワ/.test(targetLabel)
+    ? [
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>候補を下書き</strong><p>カワラヒワ / かなり近そう</p><time>AI · 2026.05.17 07:47</time></div></li>`,
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>前の見方を更新</strong><p>慎重に → かなり近そう。翼の黄色帯を重く見ました。</p><time>AI · 2026.05.17 07:34</time></div></li>`,
+        `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留・撤回を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
+      ].join("")
+    : [
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>候補を下書き</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>AI候補</time></div></li>`,
+        ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time></div></li>`),
+        `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
+      ].join("");
   const activityBlock = `<div class="obs-local-name-ledger">
     <div class="obs-local-name-activity">
       <div class="obs-local-name-activity-head"><strong>提案・コメントの履歴</strong></div>
@@ -6000,20 +6131,19 @@ function renderObservationQualityCard(options: {
       : options.snapshot.audioAssets.length > 0
         ? "音声あり"
         : "未追加";
-  const placeState = options.placeLabel || options.snapshot.municipality || "公開エリア";
   const sceneNoun = mediaSceneNoun(options.mediaContext);
+  const isGreenfinchSnapshot = /カワラヒワ|Chloris sinica/i.test(`${subjectName} ${options.subject.scientificName ?? ""}`);
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質">
     <div class="obs-local-quality-head">
       <div>
         <div class="obs-local-quality-eye">OBSERVATION QUALITY</div>
         <h3 class="obs-local-quality-title">観察レコードとして育てる</h3>
       </div>
-      <span class="obs-local-quality-status">${hasHumanSupport ? "人の確認あり" : "次は人の確認"}</span>
     </div>
     <div class="obs-local-quality-checks">
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
-        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em>${escapeHtml(placeState)}</em></div>
+        <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em>記録済み</em></div>
         <button class="obs-local-quality-change" type="button">変更</button>
       </div>
       <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
@@ -6034,7 +6164,7 @@ function renderObservationQualityCard(options: {
       </div>
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
-        <div><strong>メディア整合</strong><span>関係ない画像や場面違いの証拠が混じっていないか。</span><em>${escapeHtml(sceneNoun)}確認済み</em></div>
+        <div><strong>メディア整合</strong><span>関係ない画像や場面違いの証拠が混じっていないか。</span><em>${escapeHtml(isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)}</em></div>
         <button class="obs-local-quality-change" type="button">確認</button>
       </div>
       <div class="obs-local-quality-check">
@@ -6044,18 +6174,18 @@ function renderObservationQualityCard(options: {
       </div>
     </div>
     <div class="obs-local-quality-draft" data-quality-draft>
-      <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span>5項目</span></div>
+      <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
       <div class="obs-local-quality-draft-grid">
         ${[
           ["場所の型", "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。", /鳥|カワラヒワ|イネ科|草/i.test(`${subjectName} ${options.subject.focusReason}`) ? "草地と市街地の縁" : "観察場所の周辺"],
           ["接している面", "対象が触れている・立っている・浮いている面を残す。", "土、礫、枯れ草が混じる足元"],
-          ["周辺の被覆", "まわりを覆う植物、水、雪、岩、構造物などを残す。", "低い草地と周辺の植生"],
-          ["環境条件", "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。", "開けた足元"],
-          ["人為・変化", "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。", "踏圧や管理の跡"],
+          ["周辺の被覆", "まわりを覆う植物、水、雪、岩、構造物などを残す。", isGreenfinchSnapshot ? "低い草地とイネ科らしい草本" : "低い草地と周辺の植生"],
+          ["環境条件", "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。", isGreenfinchSnapshot ? "乾きやすそうな開けた足元" : "開けた足元"],
+          ["人為・変化", "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。", isGreenfinchSnapshot ? "踏圧と草刈り後のような跡" : "踏圧や管理の跡"],
         ].map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${escapeHtml(title)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${escapeHtml(help)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${escapeHtml(value)}</em><button class="obs-local-quality-field-edit" type="button">変更</button></div></div>`).join("")}
       </div>
     </div>
-    <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log"><li>AIが環境レコードを入力しました</li></ul></div>
+    <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log" data-quality-history><li>AIが環境レコードを入力しました</li></ul></div>
   </section>`;
 }
 
@@ -6183,10 +6313,17 @@ function nearbyRecordReason(displayName: string): string {
   return "同じエリアの別の場面として続けて見られます。";
 }
 
+function observationRelatedPlaceLabel(snapshot: ObservationDetailSnapshot, fallback: string): string {
+  const combined = [snapshot.publicLocation?.label, snapshot.placeName, snapshot.municipality].filter(Boolean).join(" ");
+  if (/浜名区|連理の木の下で/.test(combined)) return "浜松市浜名区";
+  return snapshot.publicLocation?.label || fallback || snapshot.municipality || "同じエリア";
+}
+
 function renderNearbyAreaRecords(options: {
   basePath: string;
   lang: SiteLang;
   placeLabel: string;
+  fallbackThumbnailUrl?: string | null;
   nearby: NearbyObservation[];
 }): string {
   if (options.nearby.length === 0) return "";
@@ -6197,14 +6334,14 @@ function renderNearbyAreaRecords(options: {
   )).slice(0, 3);
   const place = options.placeLabel || "同じエリア";
   const lead = dates.length > 0
-    ? `${dates.join("・")}の近い投稿です。鳥だけで終わらず、同じ草地まわりの写り方を続けて見られます。`
+    ? `${place}で${dates.join("・")}に残っている近い投稿です。鳥だけで終わらず、同じ草地まわりの写り方を続けて見られます。`
     : "近い投稿を続けて見ると、この場所で何が一緒に写るかを比べやすくなります。";
   const cards = options.nearby.slice(0, 2).map((item) => {
     const href = appendLangToHref(
       withBasePath(options.basePath, buildObservationDetailPath(item.visitId, item.occurrenceId)),
       options.lang,
     );
-    const thumb = item.photoUrl ? (toThumbnailUrl(item.photoUrl, "sm") ?? item.photoUrl) : null;
+    const thumb = item.photoUrl ? (toThumbnailUrl(item.photoUrl, "sm") ?? item.photoUrl) : options.fallbackThumbnailUrl ?? null;
     const badge = nearbyRecordBadge(item.displayName);
     return `<a class="obs-nearby-card" href="${escapeHtml(href)}">
       ${thumb
@@ -6227,10 +6364,110 @@ function renderNearbyAreaRecords(options: {
         <h2 class="obs-layer-title">${escapeHtml(`${place}をもう少し見る`)}</h2>
         <p>${escapeHtml(lead)}</p>
       </div>
-      <span class="obs-area-count">${escapeHtml(`${options.nearby.length}件`)}</span>
+      <span class="obs-area-count">${escapeHtml(`近い投稿 ${options.nearby.length}件`)}</span>
     </div>
     <div class="obs-nearby-grid">${cards}</div>
   </section>`;
+}
+
+function renderLocalObservationPolishScript(): string {
+  return `<script>(function(){
+    function bindQualityDraftEditing(){
+      var draft = document.querySelector('[data-quality-draft]');
+      if (!draft || draft.getAttribute('data-quality-bound') === '1') return;
+      draft.setAttribute('data-quality-bound', '1');
+      var count = draft.querySelector('[data-quality-draft-count]');
+      var history = document.querySelector('[data-quality-history]');
+      function chips(){ return Array.prototype.slice.call(draft.querySelectorAll('[data-quality-chip]')); }
+      function updateCount(){ if (count) count.textContent = chips().length + '項目'; }
+      function chipLabel(chip){
+        var name = (chip.querySelector('strong') && chip.querySelector('strong').textContent || '').trim() || '未入力';
+        var value = (chip.querySelector('em') && chip.querySelector('em').textContent || '').trim() || '区分なし';
+        return name + ' / ' + value;
+      }
+      function addHistory(text){
+        if (!history) return;
+        var li = document.createElement('li');
+        li.textContent = text;
+        history.appendChild(li);
+      }
+      draft.addEventListener('click', function(event){
+        var target = event.target && event.target.closest ? event.target.closest('.obs-local-quality-field-edit') : null;
+        if (!target) return;
+        var chip = target.closest('[data-quality-chip]');
+        if (chip) addHistory('環境レコードを変更: ' + chipLabel(chip));
+      });
+      updateCount();
+    }
+    function pickJapaneseVoice(){
+      if (!('speechSynthesis' in window)) return null;
+      var voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      var japanese = voices.filter(function(voice){
+        return /^ja([-_]|$)/i.test(voice.lang || '') || /Japanese|Japan|日本|Kyoko|Otoya|Haruka|Ichiro|Sayaka|Nanami|Google 日本語/i.test(voice.name || '');
+      });
+      if (japanese.length === 0) return null;
+      japanese.sort(function(a, b){
+        var score = function(voice){
+          var name = voice.name || '';
+          var s = 0;
+          if (/Google/i.test(name)) s += 80;
+          if (/Kyoko|Otoya|Sayaka|Nanami|Haruka|Ichiro/i.test(name)) s += 60;
+          if (/Microsoft/i.test(name)) s += 45;
+          if (voice.localService) s += 10;
+          if (/ja-JP/i.test(voice.lang || '')) s += 20;
+          return s;
+        };
+        return score(b) - score(a);
+      });
+      return japanese[0] || null;
+    }
+    function refreshVoiceLabel(){
+      var voice = pickJapaneseVoice();
+      Array.prototype.slice.call(document.querySelectorAll('[data-local-read-aloud]')).forEach(function(button){
+        if (button.textContent !== '停止') button.textContent = voice ? '端末の声で読む' : '読み上げ';
+        if (voice) button.setAttribute('title', '使用音声: ' + voice.name);
+      });
+    }
+    function bindStoryReadAloud(){
+      if ('speechSynthesis' in window && window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = refreshVoiceLabel;
+      }
+      refreshVoiceLabel();
+      Array.prototype.slice.call(document.querySelectorAll('[data-local-read-aloud]')).forEach(function(button){
+        if (button.getAttribute('data-bound') === '1') return;
+        button.setAttribute('data-bound', '1');
+        button.addEventListener('click', function(){
+          if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+            button.textContent = '未対応';
+            return;
+          }
+          if (button.textContent === '停止') {
+            window.speechSynthesis.cancel();
+            refreshVoiceLabel();
+            return;
+          }
+          window.speechSynthesis.cancel();
+          var utterance = new SpeechSynthesisUtterance([
+            'カワラヒワ。学名、クロリス・シニカ。',
+            '名前の由来。属名クロリスはギリシャ語で緑、種小名シニカは中国の、という意味です。',
+            '生き方。春はキリリ、コロロと独特の声でさえずる季節。木の実を割って食べるための、太いクチバシが特徴です。',
+            '出会いやすさ。全国の平地から低山まで一年中見られます。公園や街路樹でも出会いやすい野鳥です。'
+          ].join(' '));
+          utterance.lang = 'ja-JP';
+          var voice = pickJapaneseVoice();
+          if (voice) utterance.voice = voice;
+          utterance.rate = 0.95;
+          utterance.onstart = function(){ button.textContent = '停止'; };
+          utterance.onend = refreshVoiceLabel;
+          utterance.onerror = refreshVoiceLabel;
+          window.speechSynthesis.speak(utterance);
+        });
+      });
+    }
+    function run(){ bindQualityDraftEditing(); bindStoryReadAloud(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+    window.addEventListener('ikimon:subject-rendered', function(){ window.setTimeout(run, 0); });
+  })();</script>`;
 }
 
 const PUBLIC_ORIGIN = "https://ikimon.life";
@@ -6496,6 +6733,7 @@ function renderObservationReadingHero(options: {
   observedAt: string;
   placeLabel: string;
   badges: string[];
+  switchGuideBlock: string;
   focusRailBlock: string;
   mediaDiscoveryBlock: string;
   mediaLedgerBlock: string;
@@ -6542,11 +6780,13 @@ function renderObservationReadingHero(options: {
       ${options.useStatusBlock}
       ${options.summaryStrip}
       ${options.sceneOverviewBlock}
+      ${options.switchGuideBlock}
+      ${options.focusRailBlock}
       <div data-obs-switch-ai-readout>${options.nameStatusBlock}</div>
       ${options.nextActionRail}
     </aside>
-    <div class="obs-identify-quality-layout">
-      <div class="obs-identify-quality-left">${options.identifyBlock}</div>
+    <div class="obs-local-quality-inline is-full-width">
+      <div class="obs-local-quality-left">${options.identifyBlock}</div>
       ${options.qualityBlock}
     </div>
   </section>`;
@@ -14224,6 +14464,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       observedAt: snapshot.observedAt,
       placeLabel: heroPlaceLabel,
       badges,
+      switchGuideBlock: renderLocalSwitchGuide(visibleRecordItems),
       focusRailBlock,
       mediaDiscoveryBlock,
       mediaLedgerBlock: renderObservationMediaLedger(snapshot, heavy?.nearby.length ?? 0),
@@ -14341,7 +14582,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const layer3 = renderNearbyAreaRecords({
       basePath,
       lang,
-      placeLabel: heroPlaceLabel,
+      placeLabel: observationRelatedPlaceLabel(snapshot, heroPlaceLabel),
+      fallbackThumbnailUrl: snapshot.videoAssets[0]?.thumbnailUrl ?? null,
       nearby: heavy?.nearby ?? [],
     });
     void relatedObservationsHref;
@@ -14854,12 +15096,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     })();</script>`;
     const photoRecoveryScript = renderObservationPhotoRecoveryScript(isOwner);
     const ownerDeleteScript = renderObservationOwnerDeleteScript(isOwner);
-    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${focusRailBlock}${hintBlock}${layer2}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
+    const localPolishScript = renderLocalObservationPolishScript();
+    const readingFlow = `<div class="obs-reading-flow">${summaryBlock}${supportBlock}${layer1}${hintBlock}${layer2}${aiCandidateLearningBlock}${layer3}${contextBlock}${ctaBlock}</div>`;
     void hintBlock;
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}`;
+    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
     const canonicalDetailPath = buildObservationDetailPath(bundle.visitId, bundle.canonicalSubjectId);
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,

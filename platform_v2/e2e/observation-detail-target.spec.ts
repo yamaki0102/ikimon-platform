@@ -26,6 +26,7 @@ async function expectPolishedObservationPage(page: Page): Promise<void> {
       hasFrameReasonVisible: small ? getComputedStyle(small).display !== "none" : false,
       ledgerText: ledger?.textContent?.replace(/\s+/g, " ").trim() ?? "",
       areaText: area?.textContent?.replace(/\s+/g, " ").trim() ?? "",
+      bodyText,
       areaImageCount: document.querySelectorAll(".obs-area-records img, .obs-area-records .obs-nearby-nophoto").length,
       areaHrefs: Array.from(document.querySelectorAll<HTMLAnchorElement>(".obs-area-records .obs-nearby-card")).map((anchor) => anchor.getAttribute("href") ?? ""),
       framePreviewTargets: document.querySelectorAll(".obs-video-evidence-frame button, .obs-video-evidence-frame img[role='button']").length,
@@ -40,6 +41,13 @@ async function expectPolishedObservationPage(page: Page): Promise<void> {
   expect(metrics.ledgerText).toContain("動画");
   expect(metrics.ledgerText).toContain("同エリア");
   expect(metrics.areaText).toContain("次に見るなら");
+  expect(metrics.areaText).toContain("浜松市浜名区をもう少し見る");
+  expect(metrics.areaText).toContain("近い投稿 2件");
+  expect(metrics.bodyText).toContain("この映像で読む対象を切り替える");
+  expect(metrics.bodyText).toContain("かなり近そう");
+  expect(metrics.bodyText).toContain("分類候補");
+  expect(metrics.bodyText).toContain("Chloris sinica");
+  expect(metrics.bodyText).toContain("端末の声で読む");
   expect(metrics.areaImageCount, "same-area cards need thumbnail affordance").toBeGreaterThanOrEqual(2);
   expect(metrics.areaHrefs.some((href) => /\/observations\/occ%3A/i.test(href)), "same-area cards should link to record detail, not occurrence ids").toBe(false);
   expect(metrics.framePreviewTargets, "video frames should be clickable for preview").toBeGreaterThan(0);
