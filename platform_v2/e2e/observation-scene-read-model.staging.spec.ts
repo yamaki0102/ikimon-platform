@@ -14,6 +14,7 @@ import {
 const VIEWPORTS: ViewportProfile[] = [
   { slug: "desktop-1440", viewport: { width: 1440, height: 900 } },
   { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+  { slug: "mobile-625", viewport: { width: 625, height: 900 }, isMobile: true, hasTouch: true },
 ];
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
@@ -103,9 +104,12 @@ test.describe.serial("observation scene read model visual QA", () => {
         await expect(page.locator(".obs-media-ledger").first()).toContainText("写真");
         await expect(page.locator(".obs-ai-readout").first()).toContainText(/名前|未確認|確定前|候補/);
         const identifyPanel = page.locator(".obs-frame-identify-card").first();
-        await expect(identifyPanel).toContainText("AI候補をどう扱うか");
+        await expect(identifyPanel).toContainText("IDENTIFICATION");
+        await expect(identifyPanel).toContainText("同定に参加する");
         await expect(identifyPanel).toContainText("別レコードを追加");
-        await expect(identifyPanel).toContainText("選択中のAI候補への判断");
+        await expect(identifyPanel).toContainText("候補への操作");
+        await expect(page.locator(".obs-local-quality-card").first()).toContainText("OBSERVATION QUALITY");
+        await expect(page.locator(".obs-local-quality-card").first()).toContainText("観察レコードとして育てる");
         await expect(page.locator("body")).not.toContainText("AI 主役");
         await expect(page.locator("body")).not.toContainText("AI 主対象");
         await expect(page.locator("body")).not.toContainText("ヒメイワダレソウ画像全体に広がる群落");

@@ -321,7 +321,7 @@ test.describe("production candidate smoke", () => {
       const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
       expect(response?.ok(), "canonical AI subject scene should be readable on 320px").toBeTruthy();
       await expect(page.locator("body")).toContainText("この写真に写っているもの");
-      await expect(page.locator("body")).toContainText("同定の根拠");
+      await expect(page.locator("body")).toContainText("候補を確かめる材料");
       await expect(page.locator(".obs-hero-preview .obs-media-role-badge")).toBeHidden();
       await expect(page.locator(".obs-hero-preview .obs-annotation-target")).toHaveCount(0);
       const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
