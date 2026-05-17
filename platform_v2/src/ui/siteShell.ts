@@ -2680,7 +2680,7 @@ function globalRecordEntryScript(basePath: string): string {
 
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const accountCopy = accountUiCopy(lang);
-  const sessionEndpoint = withBasePath(basePath, "/api/v1/auth/session");
+  const sessionEndpoint = `${withBasePath(basePath, "/api/v1/auth/session")}?optional=1`;
   const personalizedEndpoint = withBasePath(basePath, "/api/v1/me/personalized-menu?limit=8");
   const alertsEndpoint = withBasePath(basePath, "/api/v1/me/alerts");
   const alertsReadEndpoint = withBasePath(basePath, "/api/v1/me/alerts/read");

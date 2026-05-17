@@ -617,6 +617,14 @@ test("subject query parameters are treated as internal tabs, not canonical pages
   assert.doesNotMatch(routeSource, /history\.pushState\(\{ subject: subjectId \}, '', active\.href\)/);
 });
 
+test("AI activity ledger exposes the model used for auditability", () => {
+  assert.match(routeSource, /function aiModelAuditMeta/);
+  assert.match(routeSource, /`モデル: \$\{model\}`/);
+  assert.match(routeSource, /options\.subject\?\.aiAssessment/);
+  assert.match(routeSource, /options\.subject\?\.previousAiAssessment/);
+  assert.match(routeSource, /<time>\$\{escapeHtml\(aiActivityMeta\)\}<\/time>/);
+});
+
 test("identity evidence stays usable when AI returns many candidates", () => {
   const evidenceSource = sourceBetween("function renderSubjectEvidenceTabs", "function renderSubjectTaxonomy");
 

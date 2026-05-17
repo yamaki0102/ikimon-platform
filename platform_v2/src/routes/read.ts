@@ -54,6 +54,7 @@ import {
   invasiveActionLabel,
   mhlwCategoryLabel,
   sizeClassLabel,
+  type AiAssessment,
   type CandidateReading,
   type InvasiveResponse,
   type ManagementActionCandidate,
@@ -988,6 +989,15 @@ function formatAbsolute(dateStr: string | null | undefined): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
   return `${y}.${mo}.${da} ${hh}:${mi}`;
+}
+
+function aiModelAuditMeta(
+  assessment: Pick<AiAssessment, "modelUsed" | "generatedAt"> | null | undefined,
+  fallbackDate: string | null = null,
+): string {
+  const model = assessment?.modelUsed?.trim() || "未記録";
+  const generatedAt = formatAbsolute(assessment?.generatedAt) || fallbackDate || "";
+  return ["AI", `モデル: ${model}`, generatedAt].filter(Boolean).join(" · ");
 }
 
 function canUseSpecialistWorkbench(session: SessionSnapshot | null | undefined): boolean {
@@ -6268,14 +6278,17 @@ function renderIdentificationParticipation(options: {
     }
     return `<a class="obs-ai-action${action.className}" href="#identify">${label}</a>`;
   }).join("");
-  const activityRows = /カワラヒワ/.test(targetLabel)
+  const isKawarahiwaTarget = /カワラヒワ/.test(targetLabel);
+  const aiActivityMeta = aiModelAuditMeta(options.subject?.aiAssessment, isKawarahiwaTarget ? "2026.05.17 07:47" : null);
+  const previousAiActivityMeta = aiModelAuditMeta(options.subject?.previousAiAssessment ?? options.subject?.aiAssessment, "2026.05.17 07:34");
+  const activityRows = isKawarahiwaTarget
     ? [
-        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>候補を下書き</strong><p>カワラヒワ / かなり近そう</p><time>AI · 2026.05.17 07:47</time></div></li>`,
-        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>前の見方を更新</strong><p>慎重に → かなり近そう。翼の黄色帯を重く見ました。</p><time>AI · 2026.05.17 07:34</time></div></li>`,
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>候補を下書き</strong><p>カワラヒワ / かなり近そう</p><time>${escapeHtml(aiActivityMeta)}</time></div></li>`,
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>前の見方を更新</strong><p>慎重に → かなり近そう。翼の黄色帯を重く見ました。</p><time>${escapeHtml(previousAiActivityMeta)}</time></div></li>`,
         `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留・撤回を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
       ].join("")
     : [
-        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>${escapeHtml(hasOnlyWeakCandidateName ? "候補名が不足" : "候補を下書き")}</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>${escapeHtml(hasOnlyWeakCandidateName ? "要追加候補" : "AI候補")}</time></div></li>`,
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>${escapeHtml(hasOnlyWeakCandidateName ? "候補名が不足" : "候補を下書き")}</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>${escapeHtml(aiActivityMeta)}</time></div></li>`,
         ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time></div></li>`),
         `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
       ].join("");

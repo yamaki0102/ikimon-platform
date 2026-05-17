@@ -247,6 +247,14 @@ test("observation media renders video media role badges", () => {
   const videoSnapshot = {
     ...snapshot,
     photoAssets: [],
+    visualEvidence: [
+      {
+        mediaKind: "video_frame",
+        assetId: "video-asset",
+        frameTimeMs: 1300,
+        selectionScore: 0.55,
+      },
+    ],
     videoAssets: [
       {
         assetId: "video-asset",
@@ -269,6 +277,7 @@ test("observation media renders video media role badges", () => {
 
   assert.match(mediaBlock, /<strong>動画<\/strong>/);
   assert.match(mediaBlock, />音・動き<\/span>/);
+  assert.match(mediaBlock, /aria-label="1\.3秒 55%を拡大表示"/);
   assert.doesNotMatch(mediaBlock, /提案 音・動き/);
 });
 
