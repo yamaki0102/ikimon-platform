@@ -47,6 +47,12 @@ function empty(scientificName: string, vernacularName: string): TaxonInsight {
   };
 }
 
+function looksLikeScientificName(value: string): boolean {
+  const text = value.trim();
+  if (!text) return false;
+  return /\b[A-Z][a-z]+(?: [a-z][a-z-]+)?\b/u.test(text);
+}
+
 function parseResponse(text: string): {
   etymology: string;
   ecologyNote: string;
@@ -100,12 +106,12 @@ export async function getTaxonInsight(opts: {
   cacheOnly?: boolean;
 }): Promise<TaxonInsight> {
   const lang = opts.lang ?? "ja";
-  const sn = opts.scientificName.trim();
+  const sn = looksLikeScientificName(opts.scientificName) ? opts.scientificName.trim() : "";
   const vn = (opts.vernacularName ?? "").trim();
-  if (!sn && !vn) return empty(sn, vn);
+  if (!sn) return empty(sn, vn);
 
   const pool = getPool();
-  const cacheKey = sn || vn;
+  const cacheKey = sn;
 
   // 1. キャッシュ参照
   const cached = await pool.query<{
