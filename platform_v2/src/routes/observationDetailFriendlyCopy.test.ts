@@ -31,6 +31,7 @@ const detailCopySource = [
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
   sourceBetween("function selectOption", "function renderSizeCard"),
   sourceBetween("function renderAiCandidates", "function renderSubjectTaxonomy"),
+  sourceBetween("function renderSubjectEvidenceTabs", "function renderSubjectTaxonomy"),
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
   sourceBetween("function renderObservationRecordInsightText", "function aiJudgementStateLabel"),
