@@ -3013,7 +3013,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     </div>
     <div class="language-suggestion-actions">
       <a class="language-suggestion-primary" data-language-suggestion-action href="/en/"></a>
-      <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss></button>
+      <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss aria-label="閉じる"></button>
     </div>
   </div>`;
   const shellClassName = options.shellClassName ?? "";
