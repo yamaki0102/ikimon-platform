@@ -14,11 +14,9 @@ const publicSurfacePages = ["/", "/records", "/map"];
 const canonicalAiSubjectScenes = [
   {
     path: "/ja/observations/record-1778549526406?subject=occ%3Arecord-1778549526406%3A0",
-    expectedSubjects: ["セイヨウミツバチ", "イネ科の一種"],
   },
   {
     path: "/ja/observations/record-1778643230506",
-    expectedSubjects: ["クスノキ属", "カエデ属"],
   },
 ] as const;
 const canonicalFieldAdviceScene =
@@ -282,19 +280,17 @@ test.describe("production candidate smoke", () => {
     await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
     await expect(page.locator("body")).toContainText("IDENTIFICATION");
     await expect(page.locator("body")).toContainText("OBSERVATION QUALITY");
+    await expect(page.locator(".obs-ai-readout")).toBeVisible();
     await expect(page.locator(".obs-local-quality-inline")).toBeVisible();
-
-    for (const name of scene.expectedSubjects) {
-      await expect(page.locator("body"), `${name} remains available in the compact readout`).toContainText(name);
-    }
+    await expect(page.locator(".obs-frame-identify-card")).toBeVisible();
+    await expect(page.locator(".obs-local-quality-card")).toBeVisible();
     await expect(page.locator(".obs-visible-record-card")).toHaveCount(0);
 
     await expect(page.locator("body")).not.toContainText("これも写ってると提案");
     await expect(page.locator("body")).not.toContainText("写っている対象として知らせる");
     await expect(page.locator("body")).not.toContainText("観測レコードにする");
-    await recordSmokeCheckpoint("canonical_scene_ai_subject_records", {
+    await recordSmokeCheckpoint("canonical_scene_snapshot_detail_flow", {
       path: scene.path,
-      expectedSubjects: scene.expectedSubjects,
     });
   });
   }
@@ -370,7 +366,7 @@ test.describe("production candidate smoke", () => {
     }
   });
 
-  test("logged-in field manager can save site management policy from observation UI", async ({ browser }) => {
+  test("observation detail keeps field-management edit UI out of the snapshot flow", async ({ browser }) => {
     test.setTimeout(90_000);
 
     test.skip(
@@ -379,39 +375,17 @@ test.describe("production candidate smoke", () => {
     );
 
     const baseUrl = productionSmokeBaseUrl();
-    const prefix = productionSmokePrefix();
     const context = await browser.newContext({ ignoreHTTPSErrors: true });
 
     try {
-      const account = await registerSmokeUser(context.request, baseUrl, prefix, "field-policy");
-      await context.setExtraHTTPHeaders({ cookie: account.sessionCookie });
       const page = await context.newPage();
 
       await page.goto(joinUrl(baseUrl, canonicalFieldAdviceScene), { waitUntil: "domcontentloaded" });
-      await expect(page.locator("body")).toContainText("現場アドバイス");
-
-      const form = page.locator("[data-care-policy-form]").first();
-      await form.evaluate((element) => element.closest("details")?.setAttribute("open", ""));
-      await expect(form, "logged-in plant detail should show management policy form").toBeVisible();
-      await form.locator("select[name='managementGoal']").selectOption("keep_clear");
-      await form.locator("select[name='weedTolerance']").selectOption("low");
-      await form.locator("select[name='invasiveResponse']").selectOption("controlled_removal");
-      await form.locator("select[name='mowingFrequency']").selectOption("monthly");
-      await form.locator("textarea[name='notes']").fill(`production smoke field policy ${prefix}`);
-
-      const saveResponse = page.waitForResponse((response) =>
-        response.url().includes("/api/v1/places/") &&
-        response.url().includes("/management-policy") &&
-        response.request().method() === "POST",
-      );
-      await form.locator("button[type='submit']").click();
-      const response = await saveResponse;
-      const payload = await jsonFromResponse(response, "field policy save");
-      expect(response.ok(), String(payload.error ?? "policy_save_failed")).toBeTruthy();
-      await expect(form.locator("[data-care-policy-status]")).toContainText("保存しました");
-      await recordSmokeCheckpoint("field_policy_ui_save", {
+      await expect(page.locator("body")).not.toContainText("現場アドバイス");
+      await expect(page.locator("[data-care-policy-form]")).toHaveCount(0);
+      await expect(page.locator("body")).toContainText("OBSERVATION QUALITY");
+      await recordSmokeCheckpoint("field_policy_ui_hidden_on_observation_detail", {
         path: page.url(),
-        userId: account.userId,
       });
     } finally {
       await context.close();
