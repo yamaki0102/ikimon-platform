@@ -5638,7 +5638,7 @@ function renderSubjectEvidenceTabs(options: {
   const readings = candidateReadingMap(options.bundle);
   const subjectTargets = options.bundle.subjects.map((subject) => {
     const ai = subject.aiAssessment;
-    const display = formatTaxonDisplayName(subject, options.lang).primaryLabel;
+    const display = observationDetailUiName(formatTaxonDisplayName(subject, options.lang).primaryLabel);
     const reading = findCandidateReading(readings, [
       display,
       subject.displayName,
@@ -5703,9 +5703,10 @@ function renderSubjectEvidenceTabs(options: {
     .filter((candidate) => !candidate.suggestedOccurrenceId || !subjectIds.has(candidate.suggestedOccurrenceId))
     .slice(0, Math.max(0, MAX_IDENTITY_EVIDENCE_TARGETS - subjectTargets.length))
     .map((candidate) => {
-      const reading = findCandidateReading(readings, [candidate.displayName, candidate.scientificName]);
+      const displayName = observationDetailUiName(candidate.displayName);
+      const reading = findCandidateReading(readings, [candidate.displayName, displayName, candidate.scientificName]);
       const fallbackReading = fallbackCandidateReadingForSubject({
-        name: candidate.displayName,
+        name: displayName,
         rank: candidate.rank,
         focusReason: candidate.note,
       });
@@ -5718,7 +5719,7 @@ function renderSubjectEvidenceTabs(options: {
         .slice(0, 4);
       return {
         key: candidate.candidateId,
-        name: candidate.displayName,
+        name: displayName,
         status: "未検出候補",
         summary: identityEvidenceSummary({
           features: (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [candidate.note || ""]).map((item) => friendlyObservationText(item, 64)).filter(Boolean),
