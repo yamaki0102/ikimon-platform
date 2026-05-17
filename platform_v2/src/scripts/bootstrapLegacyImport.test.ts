@@ -9,6 +9,15 @@ test("legacy observation visit upsert keeps the row classified as a legacy obser
   assert.match(source, /on conflict \(visit_id\) do update set[\s\S]*source_kind = excluded\.source_kind/);
 });
 
+test("legacy observation visit upsert only writes user_id when the user still exists", async () => {
+  const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
+
+  assert.match(
+    source,
+    /insert into visits \([\s\S]*case when exists \(select 1 from users u where u\.user_id = \$4\) then \$4 else null end/,
+  );
+});
+
 test("legacy no-photo quarantine preserves native video evidence publication", async () => {
   const source = await readFile(path.join(process.cwd(), "src/scripts/bootstrapLegacyImport.ts"), "utf8");
   assert.match(source, /hasValidNativeVideoEvidence/);
