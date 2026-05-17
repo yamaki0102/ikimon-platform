@@ -716,6 +716,32 @@
           { "href": "/contact", "label": "企業で活用する" }
         ]
       },
+      "impact": {
+        "title": "社会実装と影響 | ikimon.life",
+        "eyebrow": "Impact",
+        "heading": "小さな観察を、次の行動の材料へ",
+        "lead": "ikimon.life は、観察データだけで改善や適合を保証するものではありません。地域の自然を見直し、次の調査・学び・企業活動を考えるための材料を育てます。",
+        "activeNav": "business",
+        "bodyPageId": "impact",
+        "afterActions": [
+          { "href": "/learn/methodology", "label": "信頼性の考え方を見る" },
+          { "href": "/for-business", "label": "企業・自治体向けを見る" },
+          { "href": "/contact", "label": "相談する" }
+        ]
+      },
+      "cases": {
+        "title": "活用例 | ikimon.life",
+        "eyebrow": "Cases",
+        "heading": "使い方は、場所と目的から決める",
+        "lead": "ikimon.life は、観察会、学校・地域活動、企業や自治体の自然関連対応に、段階的に使えます。最初から大きな制度対応を約束せず、記録の流れを現場に合わせます。",
+        "activeNav": "business",
+        "bodyPageId": "cases",
+        "afterActions": [
+          { "href": "/impact", "label": "影響の考え方を見る" },
+          { "href": "/for-business", "label": "導入の始め方を見る" },
+          { "href": "/contact", "label": "相談する" }
+        ]
+      },
       "forBusinessPricing": {
         "title": "連携の始め方 | ikimon.life",
         "eyebrow": "企業・地域で活用",
