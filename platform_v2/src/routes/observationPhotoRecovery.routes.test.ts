@@ -12,7 +12,7 @@ test("observation detail lets owners recover missing photos without exposing rev
   assert.match(readModels, /or v\.user_id = \$2/);
   assert.match(readRoutes, /renderObservationPhotoRecoveryPanel/);
   assert.match(readRoutes, /data-photo-recovery/);
-  assert.match(readRoutes, /映像フレームから拾えている手がかり/);
+  assert.match(readRoutes, /clueHeading: "根拠"/);
   assert.match(readRoutes, /動画をもう一度見て、見分けるメモを更新できます/);
   assert.match(readRoutes, /この動画記録に写真を追加/);
   assert.doesNotMatch(readRoutes, /動画サムネイルを Gemini に渡しています/);

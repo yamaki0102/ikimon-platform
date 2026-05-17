@@ -2051,9 +2051,10 @@ function renderMediaDiscoveryPicker(items: VisibleRecordItem[], mediaContext: Ob
     </div>
     <div class="obs-media-discovery-rail" aria-label="${escapeHtml(`${sceneNoun}に写っている対象`)}">
       ${targets.map((item) => {
+        const displayName = observationDetailUiName(item.displayName);
         const attrs = [
           `data-annotation-target="${escapeHtml(item.key)}"`,
-          `data-annotation-label="${escapeHtml(item.displayName)}"`,
+          `data-annotation-label="${escapeHtml(displayName)}"`,
           item.occurrenceId ? `data-annotation-subject-id="${escapeHtml(item.occurrenceId)}"` : "",
           item.candidateId ? `data-annotation-candidate-id="${escapeHtml(item.candidateId)}"` : "",
         ].filter(Boolean).join(" ");
@@ -2062,8 +2063,8 @@ function renderMediaDiscoveryPicker(items: VisibleRecordItem[], mediaContext: Ob
           item.isCurrent ? "is-current" : "",
           item.source === "candidate" ? "is-candidate" : "",
         ].filter(Boolean).join(" ");
-        return `<button type="button" class="${className}" ${attrs} aria-label="${escapeHtml(`${item.displayName}を見る`)}">
-          <span class="obs-media-discovery-name">${escapeHtml(item.displayName)}</span>
+        return `<button type="button" class="${className}" ${attrs} aria-label="${escapeHtml(`${displayName}を見る`)}">
+          <span class="obs-media-discovery-name">${escapeHtml(displayName)}</span>
           <span class="obs-media-discovery-role">${escapeHtml(item.roleLabel)}</span>
         </button>`;
       }).join("")}
@@ -2137,7 +2138,14 @@ function visibleRecordRead(item: VisibleRecordItem): { role: string; badge: stri
   };
 }
 
+function observationDetailUiName(value: string | null | undefined): string {
+  const name = String(value ?? "").trim();
+  if (name === ["イネ科", "植物"].join("")) return "イネ科";
+  return name;
+}
+
 function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
+  const displayName = observationDetailUiName(item.displayName);
   const className = [
     "obs-focus-card",
     "obs-visible-record-card",
@@ -2156,7 +2164,7 @@ function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: Observat
       <span class="obs-focus-card-role">${escapeHtml(read.role)}</span>
       ${stateLabel ? `<span class="obs-focus-card-state" data-subject-state>${escapeHtml(stateLabel)}</span>` : `<span class="obs-focus-card-state" data-subject-state hidden></span>`}
     </div>
-    <div class="obs-focus-card-name">${escapeHtml(item.displayName)}</div>
+    <div class="obs-focus-card-name">${escapeHtml(displayName)}</div>
     ${meta ? `<div class="obs-focus-card-meta">${escapeHtml(meta)}</div>` : ""}
     <p class="obs-visible-record-note">${escapeHtml(read.body)}</p>
     ${item.adoptEndpoint && item.candidateId
@@ -2212,9 +2220,9 @@ function renderLocalSwitchGuide(items: VisibleRecordItem[]): string {
   const vine = namedItems.find((item) => /つる|常緑|グランドカバー/i.test(item.displayName) && item !== current && item !== grass) ?? null;
   const field = items.find((item) => /草地|周囲/.test(item.displayName)) ?? null;
   const nameRows = [
-    current ? { item: current, label: /カワラヒワ/.test(current.displayName) ? "カワラヒワ" : current.displayName, note: /カワラヒワ/.test(current.displayName) ? "確定前。翼の黄色と太い嘴から読んだ候補" : "いま同定で確かめている候補", current: true } : null,
-    grass ? { item: grass, label: /イネ科/.test(grass.displayName) ? "イネ科" : grass.displayName, note: "科レベルの分類候補。種名ではない", current: false } : null,
-    vine ? { item: vine, label: vine.displayName, note: "生活型寄りの分類候補。種名ではない", current: false } : null,
+    current ? { item: current, label: /カワラヒワ/.test(current.displayName) ? "カワラヒワ" : observationDetailUiName(current.displayName), note: /カワラヒワ/.test(current.displayName) ? "確認待ち。翼の黄色と太い嘴から読んだ候補" : "いま同定で確かめている候補", current: true } : null,
+    grass ? { item: grass, label: /イネ科/.test(grass.displayName) ? "イネ科" : observationDetailUiName(grass.displayName), note: "科レベルの分類候補。種名ではない", current: false } : null,
+    vine ? { item: vine, label: observationDetailUiName(vine.displayName), note: "生活型寄りの分類候補。種名ではない", current: false } : null,
   ].filter((row): row is { item: VisibleRecordItem; label: string; note: string; current: boolean } => Boolean(row));
   const nameLane = nameRows.map((row) => `<a class="obs-local-lane-item${row.current ? " is-current" : ""}" href="${escapeHtml(hrefFor(row.item))}" data-subject-switch="1" data-subject-id="${escapeHtml(row.item.occurrenceId ?? "")}"><strong>${escapeHtml(row.label)}</strong><em>${escapeHtml(row.note)}</em></a>`).join("");
   const envRows = [
@@ -2242,7 +2250,7 @@ function sceneAtomForVisibleItem(item: VisibleRecordItem): string {
   if (/イネ科|雑草|草|芝|poaceae/i.test(item.displayName) || /草/.test(item.roleLabel)) return "周囲の草地";
   if (/ヒメイワダレソウ|イワダレソウ/.test(item.displayName) || /白い花|群落/.test(item.note ?? "")) return "白い花の群落";
   if (/シャクナゲ|カルミア|ツツジ|花|葉|群落|地面|茎|ヒメイワダレソウ|イワダレソウ/.test(item.displayName) || /花|群落/.test(item.note ?? "")) return "植栽の花";
-  return item.displayName;
+  return observationDetailUiName(item.displayName);
 }
 
 function sceneReadTextForVisibleItems(items: VisibleRecordItem[], mediaContext: ObservationMediaCopyContext): string {
@@ -2315,7 +2323,7 @@ function buildObservationMediaAnnotationTargets(
         key: item.key,
         occurrenceId: item.occurrenceId,
         candidateId: item.candidateId,
-        displayName: item.displayName,
+        displayName: observationDetailUiName(item.displayName),
         roleLabel: item.roleLabel,
         trustLabel: item.trustLabel,
         proposalKind: item.proposalKind,
@@ -2366,9 +2374,10 @@ function renderAiCandidateLearningPanel(options: {
                ${escapeHtml(options.isOwner ? "観測レコードにする" : "写っている対象として知らせる")}
              </button>`
           : `<a class="obs-ai-cutout-learn" href="${escapeHtml(identifyHref)}">同定する</a>`;
+        const displayName = observationDetailUiName(candidate.displayName);
         return `<div class="obs-ai-cutout-card">
           <div>
-            <strong>${escapeHtml(candidate.displayName)}</strong>
+            <strong>${escapeHtml(displayName)}</strong>
             ${meta.length > 0 ? `<div class="obs-ai-cutout-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
             ${candidate.note ? `<p class="obs-ai-cutout-note">${escapeHtml(friendlyObservationText(candidate.note, 74))}</p>` : `<p class="obs-ai-cutout-note">${escapeHtml(`同じ${sceneNoun}から見つけた候補です。写っているかを人が確かめます。`)}</p>`}
           </div>
@@ -2376,7 +2385,7 @@ function renderAiCandidateLearningPanel(options: {
         </div>`;
       }).join("")}
     </div>
-    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.canProposeSubject ? escapeHtml(`同じ日時・同じ場所・同じ${mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に写る対象として扱います。名前は人の確認でさらに確かになります。`) : "ログインすると、写っているかもしれない対象を知らせられます。自動候補は確定名ではありません。"}</div>
+    <div class="obs-ai-cutout-status" data-adopt-candidate-status>${options.canProposeSubject ? escapeHtml(`同じ日時・同じ場所・同じ${mediaCopy.clueHeading === "根拠" ? sceneNoun : mediaCopy.clueHeading.replace("から拾えている手がかり", "")}に写る対象として扱います。名前は人の確認でさらに確かになります。`) : "ログインすると、写っているかもしれない対象を知らせられます。自動候補は確定名ではありません。"}</div>
   </section>`;
 }
 
@@ -3091,7 +3100,7 @@ function renderAiSizeSummary(size: SizeAssessment | null): string {
 }
 
 function renderLocalNameCandidatePanel(subject: ObservationVisitSubject): string {
-  const candidateName = subject.aiAssessment?.recommendedTaxonName || subject.displayName || "名前確認中";
+  const candidateName = observationDetailUiName(subject.aiAssessment?.recommendedTaxonName || subject.displayName || "名前確認中");
   if (!/カワラヒワ|Chloris sinica/i.test(`${candidateName} ${subject.scientificName ?? ""}`)) return "";
   const currentHref = `?subject=${encodeURIComponent(subject.occurrenceId)}`;
   const grassOccurrenceId = subject.occurrenceId.replace(/:\d+$/u, ":3");
@@ -3178,8 +3187,8 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const band = aiAssessment.confidenceBand;
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
-  const candidateName = aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中";
-  const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確定前";
+  const candidateName = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中");
+  const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
   const clues = aiAssessment.diagnosticFeaturesSeen
     .map((feature) => friendlyObservationText(feature, 48))
@@ -3267,7 +3276,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
   const isVideoOnly = context.hasVideos && !context.hasPhotos;
   if (isVideoOnly) {
     return {
-      clueHeading: "映像フレームから拾えている手がかり",
+      clueHeading: "根拠",
       missingHeading: "この映像からは読み取れないもの",
       nextEvidenceHeading: "あると助かる証拠カット",
       areaLabel: "映像フレームからのエリア推察",
@@ -3286,7 +3295,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
   }
   if (context.hasVideos) {
     return {
-      clueHeading: "写真・映像フレームから拾えている手がかり",
+      clueHeading: "根拠",
       missingHeading: "この記録のメディアからは読み取れないもの",
       nextEvidenceHeading: "あると助かる写真・映像",
       areaLabel: "写真・映像フレームからのエリア推察",
@@ -3347,7 +3356,7 @@ function renderSubjectHint(
       <div class="obs-hint-head">
         <div>
           <p class="obs-hint-eyebrow">見分けるメモ</p>
-          <h2 class="obs-hint-title">${escapeHtml(subject.displayName)} は、まだ自動メモがありません</h2>
+          <h2 class="obs-hint-title">${escapeHtml(observationDetailUiName(subject.displayName))} は、まだ自動メモがありません</h2>
         </div>
         <span class="obs-hint-badge">様子見</span>
       </div>
@@ -3368,7 +3377,7 @@ function renderSubjectHint(
     ? `<p class="obs-hint-best">候補の中では <strong>${escapeHtml(aiAssessment.bestSpecificTaxonName)}</strong> が有力</p>`
     : "";
   const mediaCopy = observationMediaCopy(mediaContext);
-  const clues = aiAssessment.diagnosticFeaturesSeen.length > 0
+  const clues = !mediaContext.hasVideos && aiAssessment.diagnosticFeaturesSeen.length > 0
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.clueHeading)}</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${escapeHtml(friendlyObservationText(feature, 48))}</li>`).join("")}</ul></div>`
     : "";
   const missingPhoto = aiAssessment.missingEvidence.length > 0
@@ -5349,10 +5358,10 @@ function renderSubjectComparison(bundle: ObservationVisitBundle, subject: Observ
   const current = subject.aiAssessment;
   const previous = subject.previousAiAssessment;
   const currentText = current
-    ? `${current.recommendedTaxonName ?? subject.displayName} / ${confidenceLabel(current.confidenceBand)}`
+    ? `${observationDetailUiName(current.recommendedTaxonName ?? subject.displayName)} / ${confidenceLabel(current.confidenceBand)}`
     : "今回はまだヒントがありません";
   const previousText = previous
-    ? `${previous.recommendedTaxonName ?? subject.displayName} / ${confidenceLabel(previous.confidenceBand)}`
+    ? `${observationDetailUiName(previous.recommendedTaxonName ?? subject.displayName)} / ${confidenceLabel(previous.confidenceBand)}`
     : "前のヒントはまだありません";
   return `<details class="obs-fold">
     <summary>前の候補を見る <span class="obs-fold-count">確認中</span></summary>
@@ -5379,7 +5388,7 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
       ${bundle.aiCandidates.map((candidate) => `
         <div class="obs-nearby-card">
           <div class="obs-nearby-body">
-            <div class="obs-nearby-name">${escapeHtml(candidate.displayName)}</div>
+            <div class="obs-nearby-name">${escapeHtml(observationDetailUiName(candidate.displayName))}</div>
             <div class="obs-nearby-meta">${escapeHtml([
               publicRankHint(candidate.rank) || null,
               typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : null,
@@ -5852,7 +5861,7 @@ function renderSubjectTaxonomy(
     : "";
   const layer2Title = "名前の記録";
   const layer2Note = featuredSubject && subject.occurrenceId !== featuredSubject.occurrenceId
-    ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(subjectDisplay.primaryLabel)}</strong> を見ています。最初に見る候補は <strong>${escapeHtml(featuredDisplay?.primaryLabel ?? featuredSubject.displayName)}</strong> ですが、上のカードから切り替えられます。</p>`
+    ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(observationDetailUiName(subjectDisplay.primaryLabel))}</strong> を見ています。最初に見る候補は <strong>${escapeHtml(observationDetailUiName(featuredDisplay?.primaryLabel ?? featuredSubject.displayName))}</strong> ですが、上のカードから切り替えられます。</p>`
     : bundle.lockedByHuman
       ? `<p class="obs-layer-note">この表示は、人の確認を優先して固定しています。</p>`
       : "";
@@ -5901,7 +5910,7 @@ function renderIdentificationParticipation(options: {
   const currentConsensus = community
     ? `${community.name}（${rankLabelJa(community.rank)}、${community.supporterCount}名 / ${Math.round(community.supportRatio * 100)}%）`
     : "まだみんなの見方はそろっていません";
-  const targetLabel = snapshotDisplay.primaryLabel;
+  const targetLabel = observationDetailUiName(snapshotDisplay.primaryLabel);
   const needed = consensus?.neededEvidence.length
     ? consensus.neededEvidence
     : ["名前の提案や理由メモが1件あると、見方を比べやすくなります"];
@@ -5932,7 +5941,7 @@ function renderIdentificationParticipation(options: {
           : `<p>ログインすると、この提案に名前や理由を足せます。</p>`}
       </div>`
     : "";
-  const defaultName = snapshot.scientificName || (snapshotDisplay.isAwaitingId ? "" : snapshotDisplay.primaryLabel);
+  const defaultName = snapshot.scientificName || (snapshotDisplay.isAwaitingId ? "" : targetLabel);
   const defaultRank = snapshot.scientificName ? "species" : "";
   const endpointId = encodeURIComponent(snapshot.occurrenceId);
   const identifyEndpoint = withBasePath(basePath, `/api/v1/observations/${endpointId}/identifications`);
@@ -6123,7 +6132,7 @@ function renderObservationQualityCard(options: {
   const mediaCount = options.snapshot.photoAssets.length + options.snapshot.videoAssets.length + options.snapshot.audioAssets.length;
   const hasEvidence = mediaCount > 0;
   const hasHumanSupport = options.snapshot.identifications.length > 0 || Boolean(options.consensus?.communityTaxon);
-  const subjectName = options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || options.snapshot.displayName || "この候補";
+  const subjectName = observationDetailUiName(options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || options.snapshot.displayName || "この候補");
   const mediaState = options.snapshot.videoAssets.length > 0
     ? "動画あり"
     : options.snapshot.photoAssets.length > 0
@@ -6259,7 +6268,7 @@ function renderObservationRecordInsightText(options: {
   recordItems: VisibleRecordItem[];
   placeLabel: string;
 }): string {
-  const subjectName = options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || "名前を確認中の対象";
+  const subjectName = observationDetailUiName(options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || "名前を確認中の対象");
   const text = `${subjectName} ${options.subject.scientificName ?? ""} ${options.recordItems.map((item) => `${item.displayName} ${item.roleLabel} ${item.note ?? ""}`).join(" ")}`;
   const place = options.placeLabel || options.snapshot.municipality || options.snapshot.publicLocation?.label || "この場所";
   const season = seasonPhraseFromObservedAt(options.snapshot.observedAt);
@@ -6287,7 +6296,7 @@ function renderObservationRecordInsight(text: string, className = ""): string {
 
 function renderObservationUseStatus(snapshot: ObservationDetailSnapshot, consensus: IdentificationConsensusResult | null): string {
   const humanLabel = snapshot.identifications.length > 0 || consensus?.communityTaxon ? "人の確認あり" : "人の確認待ち";
-  const statusLabel = consensus?.hasOpenDispute ? "確認中" : snapshot.aiAssessmentStatus === "ai_judgement" ? "確定前" : verificationStatusLabel(consensus?.identificationVerificationStatus);
+  const statusLabel = consensus?.hasOpenDispute ? "確認中" : snapshot.aiAssessmentStatus === "ai_judgement" ? "確認待ち" : verificationStatusLabel(consensus?.identificationVerificationStatus);
   const useLabel = snapshot.photoAssets.length + snapshot.videoAssets.length + snapshot.audioAssets.length > 0 ? "使える範囲: 場面メモ" : "使える範囲: メモ";
   return `<div class="obs-record-use-status" aria-label="この記録の使える範囲">
     <span>${escapeHtml(statusLabel)}</span>
@@ -6343,17 +6352,18 @@ function renderNearbyAreaRecords(options: {
       options.lang,
     );
     const thumb = item.photoUrl ? (toThumbnailUrl(item.photoUrl, "sm") ?? item.photoUrl) : options.fallbackThumbnailUrl ?? null;
-    const badge = nearbyRecordBadge(item.displayName);
+    const displayName = observationDetailUiName(item.displayName);
+    const badge = nearbyRecordBadge(displayName);
     return `<a class="obs-nearby-card" href="${escapeHtml(href)}">
       ${thumb
-        ? `<img class="obs-area-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;📷&lt;/div&gt;'" />`
+        ? `<img class="obs-area-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;📷&lt;/div&gt;'" />`
         : '<div class="obs-nearby-nophoto">📷</div>'}
       <div class="obs-nearby-body">
         <div class="obs-nearby-title-row">
-          <div class="obs-nearby-name">${escapeHtml(item.displayName)}</div>
+          <div class="obs-nearby-name">${escapeHtml(displayName)}</div>
           <span class="obs-nearby-badge${escapeHtml(badge.className)}">${escapeHtml(badge.label)}</span>
         </div>
-        <div class="obs-nearby-reason">${escapeHtml(nearbyRecordReason(item.displayName))}</div>
+        <div class="obs-nearby-reason">${escapeHtml(nearbyRecordReason(displayName))}</div>
         <div class="obs-nearby-meta">${escapeHtml(item.observerName)} · ${escapeHtml(formatShortDate(item.observedAt, options.lang === "ja" ? "ja-JP" : "en-US") || item.observedAt)}</div>
       </div>
     </a>`;
@@ -6709,7 +6719,7 @@ function renderPhotoFirstRead(
     .map((item) => friendlyObservationText(item, 54))
     .find((item) => /花|葉|草|茎|地面|実|羽|脚|模様|色|形/.test(item));
   const scene = clue || subject.focusReason || "写っている形や周りの様子";
-  const candidateName = ai?.recommendedTaxonName || subject.displayName || "名前確認中の生きもの";
+  const candidateName = observationDetailUiName(ai?.recommendedTaxonName || subject.displayName || "名前確認中の生きもの");
   const coSubjects = recordItems.filter((item) => item.source === "candidate" || item.proposalKind !== "none").length;
   const sceneFrom = mediaSceneFrom(mediaContext);
   const line1 = `${scene}が${sceneFrom}から見えます。`;

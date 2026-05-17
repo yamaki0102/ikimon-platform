@@ -71,11 +71,10 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "端末の声で読む",
     "近い投稿",
     "浜松市浜名区",
-    "確定前",
+    "確認待ち",
     "AI推定",
     "次に見るなら",
     "同じエリア",
-    "映像フレームから拾えている手がかり",
     "似た仲間との見分け",
     "現場アドバイス",
     "会社敷地の管理方針",
@@ -151,6 +150,9 @@ test("observation detail primary copy does not expose internal record terms", ()
     "写真を見たら、すぐ動ける",
     "候補名だけで終わらせず",
     "主役っぽいもの、一緒に写ってるかもしれないもの、周りの草",
+    "確定前",
+    "イネ科植物",
+    "映像フレームから拾えている手がかり",
   ]) {
     assert.doesNotMatch(detailCopySource, new RegExp(term));
   }
