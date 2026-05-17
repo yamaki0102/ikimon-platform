@@ -29,3 +29,16 @@ test("observation list cards bound recent visits before scanning valid media", a
   assert.doesNotMatch(listCardsQuery, /WHERE o\.visit_id = v\.visit_id[\s\S]*VALID_OBSERVATION_(?:PHOTO|VIDEO)_ASSET_SQL/);
   assert.doesNotMatch(listCardsQuery, /FROM observation_fields f\s+WHERE f\.valid_to IS NULL[\s\S]*v\.resolved_field_ids/);
 });
+
+test("public observation quality gate excludes production smoke fixtures from every public surface", async () => {
+  const qualityGate = await readFile(path.join(process.cwd(), "src", "services", "observationQualityGate.ts"), "utf8");
+
+  assert.match(qualityGate, /PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL/);
+  assert.match(qualityGate, /smoke\[-_\]\?ui/);
+  assert.match(qualityGate, /coalesce\(v\.source_payload::text, ''\) !~\* '\$\{PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL\}'/);
+  assert.match(qualityGate, /coalesce\(v\.note, ''\) !~\* '\$\{PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL\}'/);
+  assert.match(qualityGate, /coalesce\(v\.locality_note, ''\) !~\* '\$\{PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL\}'/);
+  assert.match(qualityGate, /from users public_quality_user/);
+  assert.match(qualityGate, /public_quality_user\.display_name/);
+  assert.doesNotMatch(qualityGate, /coalesce\(v\.source_payload::text, ''\) !~\* '\$\{PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL\}'/);
+});
