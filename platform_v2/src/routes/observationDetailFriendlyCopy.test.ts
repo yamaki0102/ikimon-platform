@@ -193,6 +193,23 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.doesNotMatch(detailCopySource, /obs-ai-readout-note[^}]*-webkit-line-clamp/);
 });
 
+test("observation detail visible order stays aligned with the canonical snapshot", () => {
+  const styleSource = sourceBetween("const OBSERVATION_DETAIL_STYLES", "function aiJudgementStateLabel");
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  assert.match(styleSource, /obs-reading-panel > h1\.sr-only[^}]*clip: rect/);
+  assert.match(styleSource, /obs-reading-panel \[data-obs-switch-ai-readout\] \{ order: 5;/);
+  assert.match(styleSource, /obs-local-quality-inline\.is-full-width \{ order: 7;/);
+  assert.match(registrationSource, /switchGuideBlock: ""/);
+  assert.match(registrationSource, /focusRailBlock: ""/);
+  assert.match(registrationSource, /useStatusBlock: ""/);
+  assert.match(registrationSource, /summaryStrip: ""/);
+  assert.match(registrationSource, /sceneOverviewBlock: ""/);
+  assert.match(registrationSource, /const hintBlock = ""/);
+  assert.match(registrationSource, /const aiCandidateLearningBlock = ""/);
+  assert.match(registrationSource, /const layer2 = ""/);
+});
+
 test("vegetation care advice is cautious and grounded in management context", () => {
   const careSource = sourceBetween("function selectOption", "function renderSizeCard");
   assert.match(careSource, /現場アドバイス/);

@@ -1042,6 +1042,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
   .obs-reading-media { min-width: 0; order: 1; }
   .obs-reading-panel { display: grid; gap: 10px; align-self: start; order: 2; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.06); }
+  .obs-reading-panel > h1.sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
   .obs-reading-kicker { color: #047857; font-size: 10.5px; font-weight: 950; letter-spacing: .12em; text-transform: uppercase; }
   .obs-reading-title { margin: 0; color: #0f172a; font-size: clamp(24px, 3.6vw, 44px); line-height: 1.08; font-weight: 950; letter-spacing: 0; overflow-wrap: anywhere; }
   .obs-reading-lead { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.6; font-weight: 700; }
@@ -1211,14 +1212,14 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-reading-panel > .obs-media-ledger { order: 2; }
     .obs-reading-media { order: 3; }
     .obs-reading-panel .obs-record-insight-desktop { order: 5; }
-    .obs-reading-panel .obs-scene-overview { order: 6; }
-    .obs-reading-panel .obs-local-switch-guide { order: 7; }
-    .obs-reading-panel > .obs-visible-records { order: 8; }
+    .obs-reading-panel .obs-scene-overview { order: 6; display: none !important; }
+    .obs-reading-panel .obs-local-switch-guide { order: 7; display: none !important; }
+    .obs-reading-panel > .obs-visible-records { order: 8; display: none !important; }
     .obs-hero-video .obs-record-insight { order: 3; }
-    .obs-reading-panel [data-obs-switch-ai-readout] { order: 9; }
-    .obs-reading-panel .obs-record-use-status { order: 10; }
+    .obs-reading-panel [data-obs-switch-ai-readout] { order: 5; }
+    .obs-reading-panel .obs-record-use-status { order: 6; display: none !important; }
     .obs-identify-quality-layout { grid-template-columns: 1fr; order: 11; gap: 10px; }
-    .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 11; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
+    .obs-local-quality-inline, .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; }
     .obs-local-subject-lanes { grid-template-columns: 1fr; }
     .obs-local-quality-checks, .obs-local-quality-draft-grid { grid-template-columns: 1fr; }
     .obs-local-quality-head { display: grid; gap: 8px; }
@@ -1568,6 +1569,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-identify-quality-left > [data-obs-switch-identify], .obs-identify-quality-left #identify { min-width: 0; height: 100%; }
   .obs-local-quality-inline { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr); gap: 12px; align-items: stretch; min-width: 0; margin-top: 12px; }
   .obs-local-quality-inline.is-full-width { order: 3; width: 100%; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); margin-top: 16px; }
+  @media (max-width: 720px) {
+    .obs-local-quality-inline.is-full-width { order: 7; grid-template-columns: 1fr; }
+  }
   .obs-local-quality-left { display: grid; gap: 10px; min-width: 0; }
   .obs-local-quality-left > [data-obs-switch-identify], .obs-local-quality-left #identify { min-width: 0; height: 100%; }
   .obs-local-switch-guide { display: grid; gap: 8px; padding: 11px 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(255,255,255,.96)); border: 1px solid rgba(16,185,129,.18); }
@@ -14290,9 +14294,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       maxCards: 2,
     }).catch(() => null);
-    const heroPlaceLabel = canSeeCanonicalLocation
+    const baseHeroPlaceLabel = canSeeCanonicalLocation
       ? formatPlaceDisplay(snapshot, lang, "owner")
       : formatPlaceDisplay(snapshot, lang, "public");
+    const heroPlaceLabel = observationRelatedPlaceLabel(snapshot, baseHeroPlaceLabel);
     const recordInsightText = renderObservationRecordInsightText({
       snapshot,
       subject: currentSubject,
@@ -14476,12 +14481,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       observedAt: snapshot.observedAt,
       placeLabel: heroPlaceLabel,
       badges,
-      switchGuideBlock: renderLocalSwitchGuide(visibleRecordItems),
-      focusRailBlock,
+      switchGuideBlock: "",
+      focusRailBlock: "",
       mediaDiscoveryBlock,
       mediaLedgerBlock: renderObservationMediaLedger(snapshot, heavy?.nearby.length ?? 0),
       recordInsightBlock: renderObservationRecordInsight(recordInsightText, "obs-record-insight-desktop"),
-      useStatusBlock: renderObservationUseStatus(snapshot, consensus),
+      useStatusBlock: "",
       identifyBlock,
       qualityBlock: renderObservationQualityCard({
         snapshot,
@@ -14491,9 +14496,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         mediaContext,
       }),
       visibleRecordCount: visibleRecordItems.length,
-      summaryStrip,
+      summaryStrip: "",
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
-      sceneOverviewBlock: renderObservationSceneOverview(visibleRecordItems, mediaContext),
+      sceneOverviewBlock: "",
       nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight),
       nextActionRail,
       trustStageLabel,
@@ -14525,10 +14530,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     });
 
-    const hintBlock = `<div id="next-hints" class="obs-reading-section" data-obs-section="next_hints" data-obs-switch-hint>${renderVisualNextCaptureSuggestions(snapshot)}${renderSubjectHint(currentSubject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</div>`;
-    const aiCandidateLearningBlock = aiCandidateLearningPanel
-      ? `<div id="co-candidates" class="obs-reading-section" data-obs-section="co_candidates">${aiCandidateLearningPanel}</div>`
-      : "";
+    const hintBlock = "";
+    const aiCandidateLearningBlock = "";
     const regionalStoryBlock = "";
     void regionalStory;
     const recordStoryBlock = "";
@@ -14582,13 +14585,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void civicContextBlock;
 
     // ===== Layer 2: 同定 =====
-    const identityEvidenceBlock = renderSubjectEvidenceTabs({
-      basePath,
-      lang,
-      visitId: bundle.visitId,
-      bundle,
-    });
-    const layer2 = `${identityEvidenceBlock}<div data-obs-switch-taxonomy>${renderSubjectTaxonomy(currentSubject, featuredSubject, subjectCount, bundle)}</div>`;
+    const identityEvidenceBlock = "";
+    const layer2 = "";
 
     // ===== Layer 3: 次に見るなら =====
     const layer3 = renderNearbyAreaRecords({
