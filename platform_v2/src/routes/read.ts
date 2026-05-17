@@ -2216,12 +2216,26 @@ function looksLikeTaxonName(value: string): boolean {
   return /(?:科|属|目|綱|門|界)$/u.test(name);
 }
 
-function isIdentificationTabSubject(subject: ObservationVisitSubject): boolean {
-  const name = subjectIdentificationName(subject);
-  if (/未同定|不明|複数|構成種|群落|植栽|低木|グランドカバー|背景|周囲/u.test(name)) return false;
-  const rank = subjectIdentificationRank(subject);
+function isWeakIdentificationCandidateName(value: string | null | undefined): boolean {
+  const text = String(value ?? "").trim();
+  if (!text) return true;
+  return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|植栽低木|構成種[:：]|不明|群落|グランドカバー|背景|周囲|裸地|踏圧/iu.test(text);
+}
+
+function isIdentificationCandidateLike(input: { name: string | null | undefined; rank?: string | null; scientificName?: string | null }): boolean {
+  const name = observationDetailUiName(input.name);
+  if (isWeakIdentificationCandidateName(name)) return false;
+  const rank = String(input.rank ?? "").trim().toLowerCase();
   if (IDENTIFICATION_TAB_RANKS.has(rank)) return true;
-  return looksLikeTaxonName(`${name} ${subject.scientificName ?? ""}`);
+  return looksLikeTaxonName(`${name} ${input.scientificName ?? ""}`);
+}
+
+function isIdentificationTabSubject(subject: ObservationVisitSubject): boolean {
+  return isIdentificationCandidateLike({
+    name: subjectIdentificationName(subject),
+    rank: subjectIdentificationRank(subject),
+    scientificName: subject.scientificName,
+  });
 }
 
 function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
@@ -3204,8 +3218,13 @@ function renderLocalStoryTools(fallbackName: string, scientificName: string | nu
   </div>`;
 }
 
+function isLatinScientificName(value: string | null | undefined): boolean {
+  return /\b[A-Z][a-z]+(?: [a-z][a-z-]+)?\b/u.test(String(value ?? "").trim());
+}
+
 function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackName: string): string {
   if (!insight || (!insight.etymology && !insight.ecologyNote && !insight.rarityNote)) return "";
+  if (isWeakIdentificationCandidateName(fallbackName)) return "";
   const rows = [
     insight.etymology ? `<li><strong>名前の由来</strong><span>${escapeHtml(friendlyObservationText(insight.etymology, 110))}</span></li>` : "",
     insight.ecologyNote ? `<li><strong>生き方</strong><span>${escapeHtml(friendlyObservationText(insight.ecologyNote, 112))}</span></li>` : "",
@@ -3215,6 +3234,7 @@ function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackNa
   const scientificName = /カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${insight.scientificName ?? ""}`)
     ? "Chloris sinica"
     : insight.scientificName;
+  if (!isLatinScientificName(scientificName) || scientificName === fallbackName) return "";
   const headLabel = scientificName
     ? `<span>${escapeHtml(fallbackName)}を知る <b class="obs-local-story-separator">-</b> <i class="obs-local-scientific-name">${escapeHtml(scientificName)}</i></span>`
     : `<span>${escapeHtml(fallbackName)}を知る</span>`;
@@ -5524,12 +5544,6 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
   </details>`;
 }
 
-function isWeakIdentificationCandidateName(value: string | null | undefined): boolean {
-  const text = String(value ?? "").trim();
-  if (!text) return true;
-  return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|植栽低木|構成種[:：]/iu.test(text);
-}
-
 function renderIdentificationCandidateSwitch(options: {
   basePath: string;
   lang: SiteLang;
@@ -5551,11 +5565,14 @@ function renderIdentificationCandidateSwitch(options: {
     key: string;
     label: string;
     status: string;
+    rank?: string | null;
+    scientificName?: string | null;
     href?: string | null;
     isCurrent?: boolean;
   }) => {
     const label = observationDetailUiName(candidate.label);
     const key = candidate.key || `${label}:${candidates.length}`;
+    if (!isIdentificationCandidateLike({ name: label, rank: candidate.rank, scientificName: candidate.scientificName })) return;
     if (!label || candidates.some((item) => item.key === key || item.label === label)) return;
     candidates.push({
       key,
@@ -5563,7 +5580,7 @@ function renderIdentificationCandidateSwitch(options: {
       status: candidate.status,
       href: candidate.href ?? null,
       isCurrent: Boolean(candidate.isCurrent),
-      isWeak: isWeakIdentificationCandidateName(label),
+      isWeak: false,
     });
   };
 
@@ -5574,6 +5591,8 @@ function renderIdentificationCandidateSwitch(options: {
       addCandidate({
         key: `subject:${subject.occurrenceId}`,
         label: display,
+        rank: subjectIdentificationRank(subject),
+        scientificName: subject.scientificName,
         status: subject.identificationCount > 0 ? "確認あり" : "確認待ち",
         href: appendLangToHref(
           withBasePath(options.basePath, buildObservationDetailPath(options.bundle.visitId, subject.occurrenceId)),
@@ -5592,6 +5611,8 @@ function renderIdentificationCandidateSwitch(options: {
       addCandidate({
         key: `candidate:${candidate.candidateId}`,
         label: candidate.displayName,
+        rank: candidate.rank,
+        scientificName: candidate.scientificName,
         status: candidate.suggestedOccurrenceId ? "記録済み" : typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補",
         href: occurrenceHref,
         isCurrent: false,
@@ -5607,21 +5628,23 @@ function renderIdentificationCandidateSwitch(options: {
       isCurrent: true,
     });
   }
-  if (!candidates.some((candidate) => candidate.isCurrent)) {
+  if (!candidates.some((candidate) => candidate.isCurrent) && isIdentificationCandidateLike({ name: options.targetLabel })) {
     candidates.unshift({
       key: "current",
       label: options.targetLabel,
       status: options.candidateStatus,
       href: null,
       isCurrent: true,
-      isWeak: isWeakIdentificationCandidateName(options.targetLabel),
+      isWeak: false,
     });
   }
 
   const usefulCount = candidates.filter((candidate) => !candidate.isWeak).length;
   const currentIndex = Math.max(0, candidates.findIndex((candidate) => candidate.isCurrent));
   const meterLabel = usefulCount > 0 ? "AI候補" : "候補名が弱い";
-  const meterValue = usefulCount > 0 ? `${currentIndex + 1}/${candidates.length}` : `0/${candidates.length}`;
+  const meterValue = usefulCount > 0
+    ? (candidates.some((candidate) => candidate.isCurrent) ? `${currentIndex + 1}/${candidates.length}` : `${usefulCount}件`)
+    : "0件";
   const warning = usefulCount === 0
     ? `<p class="obs-frame-candidate-warning">今の自動候補は「未同定」や植栽構造の粗いラベルだけです。名前候補としては不足しているため、別候補か追加証拠を足す前提で扱います。</p>`
     : "";
