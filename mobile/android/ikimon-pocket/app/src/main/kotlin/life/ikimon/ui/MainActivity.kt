@@ -142,10 +142,29 @@ class MainActivity : ComponentActivity() {
                 var movementMode by remember { mutableStateOf(MovementMode.WALK) }
                 var isActive by remember { mutableStateOf(false) }
                 var showAudioReview by remember { mutableStateOf(false) }
+                var showPermissionDisclosure by remember { mutableStateOf(false) }
+                var disclosureAccepted by remember { mutableStateOf(false) }
                 var pendingSnippets by remember { mutableStateOf(listOf<AudioSnippetStore.Snippet>()) }
                 val showResultSheet by _showResultSheet
                 val lastSummary by _lastSummary
                 val sessionRecap by _sessionRecap
+
+                fun beginSelectedSession(
+                    selectedMode: ScanMode,
+                    fieldSessionIntent: FieldSessionIntent,
+                    fieldTestLevel: FieldTestLevel,
+                    movementMode: MovementMode,
+                ) {
+                    _detections.clear()
+                    _sessionRecap.value = null
+                    _elapsedSeconds.intValue = 0
+                    when (selectedMode) {
+                        ScanMode.POCKET -> startPocketMode()
+                        ScanMode.FIELD -> startFieldScan(fieldSessionIntent, fieldTestLevel, movementMode)
+                    }
+                    isActive = true
+                    startTimer()
+                }
 
                 LaunchedEffect(showResultSheet) {
                     if (showResultSheet) {
@@ -253,15 +272,11 @@ class MainActivity : ComponentActivity() {
                         movementMode = movementMode,
                         onMovementModeSelected = { movementMode = it },
                         onStart = {
-                            _detections.clear()
-                            _sessionRecap.value = null
-                            _elapsedSeconds.intValue = 0
-                            when (selectedMode) {
-                                ScanMode.POCKET -> startPocketMode()
-                                ScanMode.FIELD -> startFieldScan(fieldSessionIntent, fieldTestLevel, movementMode)
+                            if (!disclosureAccepted) {
+                                showPermissionDisclosure = true
+                            } else {
+                                beginSelectedSession(selectedMode, fieldSessionIntent, fieldTestLevel, movementMode)
                             }
-                            isActive = true
-                            startTimer()
                         },
                         onRequestPermissions = { requestPermissions() },
                         loginState = _loginState.value,
@@ -278,6 +293,16 @@ class MainActivity : ComponentActivity() {
                         },
                         lastSessionCount = _detections.size,
                     )
+                    if (showPermissionDisclosure) {
+                        PermissionDisclosureDialog(
+                            onConfirm = {
+                                disclosureAccepted = true
+                                showPermissionDisclosure = false
+                                beginSelectedSession(selectedMode, fieldSessionIntent, fieldTestLevel, movementMode)
+                            },
+                            onDismiss = { showPermissionDisclosure = false },
+                        )
+                    }
                 }
             }
         }
@@ -868,6 +893,52 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun PermissionDisclosureDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val ink = Color(0xFF17211B)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("記録に使う情報", fontWeight = FontWeight.Bold, color = ink)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "いきものフィールドは、観察セッション中に位置情報、マイク、カメラを使います。",
+                    color = ink,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+                Text(
+                    "位置情報は歩いたルートと検出イベントを結びつけるため、マイクは自然音の手がかりを検出するため、カメラはフィールドスキャンの解析に使います。",
+                    color = ink.copy(alpha = 0.78f),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                )
+                Text(
+                    "記録中は通知を表示し、通知が出ている間だけセッションを続けます。いつでもアプリから停止できます。映像と音声は端末上の解析を優先し、サーバーには観察の要約と検出イベントを送信します。",
+                    color = ink.copy(alpha = 0.78f),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("同意して開始")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル")
+            }
+        },
+    )
 }
 
 @Composable

@@ -8,8 +8,8 @@
 - Version code: `80002`
 - Track target: Internal testing first, then closed/open/production after policy forms clear
 - AAB: `mobile/android/ikimon-pocket/app/build/outputs/bundle/release/app-release.aab`
-- AAB size: `139,773,382` bytes
-- AAB SHA-256: `69299D4F0F656DC225EBEFC6DCB9CFCC881443423D64FD302BDA3C6319B2609F`
+- AAB size: `139,776,072` bytes
+- AAB SHA-256: `D334343A0B3B521201041EC4BDEFEF41BF00EE812729B7FBA989A9BD8DD8BD20`
 - Upload signing certificate SHA-256: `13:9F:05:23:C4:FD:CB:C7:CD:65:16:C7:75:FF:FC:3F:72:19:9E:C0:2D:58:9C:B5:C2:4A:F1:66:88:8E:6F:AA`
 
 ## Play Console account decision
@@ -119,7 +119,6 @@ Manifest permissions present in this release:
 
 - `ACCESS_FINE_LOCATION`
 - `ACCESS_COARSE_LOCATION`
-- `ACCESS_BACKGROUND_LOCATION`
 - `RECORD_AUDIO`
 - `CAMERA`
 - `FOREGROUND_SERVICE`
@@ -129,11 +128,11 @@ Manifest permissions present in this release:
 - `INTERNET`
 - `HIGH_SAMPLING_RATE_SENSORS`
 
-Play review risk: `ACCESS_BACKGROUND_LOCATION` is the highest-friction item. Because the current app declares it and targets SDK 35, Play will likely require the background location declaration.
+Play review posture: the app no longer declares `ACCESS_BACKGROUND_LOCATION`. FieldScan uses user-started foreground services with ongoing notifications for location and microphone work during an active observation session. This keeps the permission surface closer to the current product behavior and avoids asking for always-on background location.
 
-Recommended declaration feature:
+Recommended foreground service declaration:
 
-Pocket observation mode records a user-started field session while the user is walking with the screen off or the app not in the foreground. Background location is used to connect detected natural-sound events and field context to the route of the same session. The app shows an ongoing foreground notification and the user can stop the session from the app.
+Pocket and Field observation modes record a user-started field session while the user is walking or observing. Location connects detected natural-sound events and field context to the route of the same session. The app shows an ongoing foreground notification while recording and the user can stop the session from the app.
 
 Video demo requirement:
 
@@ -141,7 +140,7 @@ Video demo requirement:
 - Show the in-app prominent disclosure.
 - Show permission runtime prompt.
 - Start Pocket observation mode.
-- Background the app or turn screen off.
+- Show the ongoing notification while recording.
 - Return to the app and stop the session.
 - Show route/event result.
 
@@ -154,13 +153,13 @@ Policy references:
 
 Use this before requesting location/audio permissions:
 
-いきものフィールドは、観察セッション中に位置情報とマイクを使います。ポケット観測では、アプリを閉じている間も、歩いたルートと自然音イベントを同じ観察記録に結びつけるために位置情報を取得します。記録中は通知が表示され、いつでも停止できます。カメラ映像と音声は端末上の解析を優先し、サーバーには観察の要約と検出イベントを送信します。
+いきものフィールドは、観察セッション中に位置情報、マイク、カメラを使います。位置情報は歩いたルートと検出イベントを結びつけるため、マイクは自然音の手がかりを検出するため、カメラはフィールドスキャンの解析に使います。記録中は通知を表示し、通知が出ている間だけセッションを続けます。いつでもアプリから停止できます。映像と音声は端末上の解析を優先し、サーバーには観察の要約と検出イベントを送信します。
 
 ## Privacy policy gap
 
 Before production review, the public privacy policy at `https://ikimon.life/ja/privacy` must explicitly mention the Android FieldScan app:
 
-- background/foreground location during user-started observation sessions
+- foreground-service location during user-started observation sessions
 - microphone use for natural-sound detection
 - camera use for field scan
 - on-device AI processing where available
@@ -178,5 +177,5 @@ Do not submit production review until this page is verified live.
 4. Fill Store listing, Data safety, App content, and Sensitive permissions.
 5. Add at least one tester group.
 6. Install on Pixel 10 Pro from internal track.
-7. Record background location permission video if Play requires it.
+7. Record foreground service permission video if Play requires it.
 8. Submit to closed/open/production only after privacy policy and declarations match the binary.
