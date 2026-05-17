@@ -49,18 +49,19 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "見つけたもの",
     "写真・動画",
     "写っているもの",
-    "同定の根拠",
+    "候補を確かめる材料",
     "見えている特徴",
     "弱い点",
     "地域との読み",
     "観測レコードにする",
     "写っている対象として知らせる",
-    "名前を確かめる",
-    "AI候補をどう扱うか",
-    "この候補に同意",
-    "名前を修正",
-    "まだ決めない",
+    "同定に参加する",
+    "同意する",
+    "別候補を提案",
+    "保留する",
     "別レコードを追加",
+    "OBSERVATION QUALITY",
+    "観察レコードとして育てる",
     "確定前",
     "AI推定",
     "次に見るなら",
@@ -169,10 +170,14 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.match(storySource, /足元に咲く花/);
   assert.match(storySource, /花を使う虫/);
   assert.match(storySource, /人の手が入る草地/);
-  assert.match(detailCopySource, /同定の根拠/);
-  assert.match(detailCopySource, /AIが写真から拾った仮説です/);
-  assert.match(detailCopySource, /証拠不足で保留/);
-  assert.match(detailCopySource, /別の写り込みを追加/);
+  assert.match(detailCopySource, /候補を確かめる材料/);
+  assert.match(detailCopySource, /AIが写真・動画から拾った候補です/);
+  assert.match(detailCopySource, /保留する/);
+  assert.match(detailCopySource, /別レコードを追加/);
+  assert.doesNotMatch(detailCopySource, /同定の根拠/);
+  assert.doesNotMatch(detailCopySource, /AIが写真から拾った仮説です/);
+  assert.doesNotMatch(detailCopySource, /証拠不足で保留/);
+  assert.doesNotMatch(detailCopySource, /別の写り込みを追加/);
   assert.doesNotMatch(detailCopySource, /obs-ai-readout-note[^}]*-webkit-line-clamp/);
 });
 
