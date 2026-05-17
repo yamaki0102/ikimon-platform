@@ -217,6 +217,18 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(registrationSource, /const layer2 = ""/);
 });
 
+test("observation detail hero readout surfaces scene candidates for weak current subjects", () => {
+  const readoutSource = sourceBetween("function renderHeroAiReadout", "type ObservationMediaCopyContext");
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
+  assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
+  assert.match(readoutSource, /この場面の候補を見ています/);
+  assert.match(readoutSource, /同じ場面内の候補も確認できます/);
+  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle\)/);
+  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle\)/);
+});
+
 test("vegetation care advice is cautious and grounded in management context", () => {
   const careSource = sourceBetween("function selectOption", "function renderSizeCard");
   assert.match(careSource, /手入れメモ/);
@@ -623,5 +635,5 @@ test("identity evidence fallback keeps common planted-scene subjects specific", 
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
   assert.match(routeSource, /確認中/);
-  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight\)/s);
+  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle\)/s);
 });
