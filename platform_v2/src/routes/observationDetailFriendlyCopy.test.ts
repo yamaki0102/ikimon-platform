@@ -200,6 +200,11 @@ test("observation detail visible order stays aligned with the canonical snapshot
   assert.match(styleSource, /obs-reading-panel > h1\.sr-only[^}]*clip: rect/);
   assert.match(styleSource, /obs-reading-panel \[data-obs-switch-ai-readout\] \{ order: 5;/);
   assert.match(styleSource, /obs-local-quality-inline\.is-full-width \{ order: 7;/);
+  assert.match(styleSource, /\.site-shell main \{ padding-top: 8px !important; \}/);
+  assert.match(styleSource, /\.obs-ai-detail-lead \{ display: none !important; \}/);
+  assert.match(styleSource, /\.obs-frame-candidate-meter \{ display: none !important; \}/);
+  assert.match(styleSource, /\.obs-reading-media \.obs-video-evidence-frame \{ flex: 0 0 clamp\(86px, 15\.2vw, 104px\) !important;/);
+  assert.match(styleSource, /#place\.obs-area-records \{ width: auto !important; max-width: none !important; justify-self: stretch !important; margin-left: 0 !important; \}/);
   assert.match(registrationSource, /switchGuideBlock: ""/);
   assert.match(registrationSource, /focusRailBlock: ""/);
   assert.match(registrationSource, /useStatusBlock: ""/);
