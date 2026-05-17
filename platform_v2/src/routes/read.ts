@@ -14335,10 +14335,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
     const canonicalHref = appendLangToHref(
-      withBasePath(basePath, buildObservationDetailPath(bundle.visitId, bundle.canonicalSubjectId)),
+      withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`),
       lang,
     );
-    if (request.params.id !== bundle.visitId || request.query.subject !== bundle.canonicalSubjectId) {
+    if (request.params.id !== bundle.visitId || request.query.subject || request.query.occurrence) {
       return reply.redirect(canonicalHref, 302);
     }
 
@@ -14890,6 +14890,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<script>(function(){
            var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
            var featuredSubjectId = ${JSON.stringify(featuredSubject.occurrenceId)};
+           var canonicalRecordHref = ${JSON.stringify(canonicalHref)};
            var regionMap = ${JSON.stringify(subjectRegionMap)};
            var regionDisplayConfMin = ${REGION_DISPLAY_CONF_MIN};
            var regionLargeAreaMin = ${REGION_LARGE_AREA_MIN};
@@ -14979,8 +14980,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              window.dispatchEvent(new CustomEvent('ikimon:subject-rendered', { detail: { subjectId: subjectId } }));
              currentSubjectId = subjectId;
              if (push) {
-               var active = links.find(function(link){ return link.getAttribute('data-subject-id') === subjectId; });
-               if (active && active.href) history.pushState({ subject: subjectId }, '', active.href);
+               history.replaceState({ subject: subjectId }, '', canonicalRecordHref);
              }
            };
            links.forEach(function(link){
@@ -15006,8 +15006,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const annotationScript = mediaAnnotationTargets.length > 0
       ? `<script>(function(){
            var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
-           var baseObservationHref = ${JSON.stringify(withBasePath(basePath, `/observations/${encodeURIComponent(bundle.visitId)}`))};
-           var langSuffix = ${JSON.stringify(lang === "ja" ? "&lang=ja" : lang === "en" ? "&lang=en" : "")};
+           var canonicalRecordHref = ${JSON.stringify(canonicalHref)};
            var cssEscape = function(value) {
              if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
              return String(value).replace(/["\\\\]/g, '\\\\$&');
@@ -15064,8 +15063,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                  setActiveAnnotations(subjectId);
                  return;
                }
-               var sep = baseObservationHref.indexOf('?') >= 0 ? '&' : '?';
-               window.location.href = baseObservationHref + sep + 'subject=' + encodeURIComponent(subjectId) + langSuffix;
+               window.location.href = canonicalRecordHref;
                return;
              }
              if (candidateId && focusCandidateCard(candidateId)) {
@@ -15316,7 +15314,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void regionalStoryBlock;
     void layer6;
     const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
-    const canonicalDetailPath = buildObservationDetailPath(bundle.visitId, bundle.canonicalSubjectId);
+    const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
       subject: currentSubject,
