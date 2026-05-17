@@ -70,6 +70,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "Chloris sinica",
     "端末の声で読む",
     "近い投稿",
+    "浜松市浜名区",
     "確定前",
     "AI推定",
     "次に見るなら",
