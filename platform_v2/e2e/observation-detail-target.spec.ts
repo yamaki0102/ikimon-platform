@@ -27,6 +27,7 @@ async function expectPolishedObservationPage(page: Page): Promise<void> {
       ledgerText: ledger?.textContent?.replace(/\s+/g, " ").trim() ?? "",
       areaText: area?.textContent?.replace(/\s+/g, " ").trim() ?? "",
       bodyText,
+      visibleText: document.body.innerText,
       areaImageCount: document.querySelectorAll(".obs-area-records img, .obs-area-records .obs-nearby-nophoto").length,
       areaHrefs: Array.from(document.querySelectorAll<HTMLAnchorElement>(".obs-area-records .obs-nearby-card")).map((anchor) => anchor.getAttribute("href") ?? ""),
       framePreviewTargets: document.querySelectorAll(".obs-video-evidence-frame button, .obs-video-evidence-frame img[role='button']").length,
@@ -43,7 +44,13 @@ async function expectPolishedObservationPage(page: Page): Promise<void> {
   expect(metrics.areaText).toContain("次に見るなら");
   expect(metrics.areaText).toContain("浜松市浜名区をもう少し見る");
   expect(metrics.areaText).toContain("近い投稿 2件");
-  expect(metrics.bodyText).toContain("この映像で読む対象を切り替える");
+  expect(metrics.visibleText).not.toContain("この映像で読む対象を切り替える");
+  expect(metrics.visibleText).not.toContain("この映像に写っているもの");
+  expect(metrics.visibleText).not.toContain("候補を確かめる材料");
+  expect(metrics.visibleText).not.toContain("名前の記録");
+  expect(metrics.visibleText).not.toContain("確定前");
+  expect(metrics.visibleText).not.toContain("イネ科植物");
+  expect(metrics.visibleText).not.toContain("映像フレームから拾えている手がかり");
   expect(metrics.bodyText).toContain("かなり近そう");
   expect(metrics.bodyText).toContain("分類候補");
   expect(metrics.bodyText).toContain("Chloris sinica");

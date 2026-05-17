@@ -24,12 +24,6 @@ const canonicalAiSubjectScenes = [
 const canonicalFieldAdviceScene =
   "/ja/observations/record-1778818427350?subject=occ%3Arecord-1778818427350%3A0";
 
-function visibleSubjectRolePattern(name: string): RegExp {
-  if (/ミツバチ|ハチ|蜂/.test(name)) return /花に来た虫/;
-  if (/イネ科|草|芝/.test(name)) return /草地と裸地/;
-  if (/クスノキ|カエデ|樹|木/.test(name)) return /背景の木・植栽|写っている植物/;
-  return /代表候補|一緒に写るもの|写っている植物/;
-}
 const fixtureLeakPattern = /e2e_test_|prod-media-smoke|smoke-ui|smoke_regression_fixture|regression fixture|staging regression|fixture_prefix/i;
 const smokePhotoBase64 =
   "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";
@@ -274,7 +268,7 @@ test.describe("production candidate smoke", () => {
   });
 
   for (const scene of canonicalAiSubjectScenes) {
-    test(`canonical scene renders visible AI subjects as observation records: ${scene.path}`, async ({ page }) => {
+    test(`canonical scene keeps snapshot-aligned AI subject detail flow: ${scene.path}`, async ({ page }) => {
     test.skip(
       !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
       "requires a production candidate base URL or SSH tunnel",
@@ -282,23 +276,18 @@ test.describe("production candidate smoke", () => {
 
     const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
     expect(response?.ok(), "canonical AI subject scene should be readable").toBeTruthy();
-    await expect(page.locator("body")).toContainText("この写真に写っているもの");
-    await expect(page.locator(".obs-first-read"), "scene read summary").toContainText(/この写真に写っているもの|この映像に写っているもの/);
+    await expect(page.locator("body")).not.toContainText("この写真に写っているもの");
+    await expect(page.locator("body")).not.toContainText("この映像に写っているもの");
+    await expect(page.locator("body")).not.toContainText("この映像で読む対象を切り替える");
+    await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
+    await expect(page.locator("body")).toContainText("IDENTIFICATION");
+    await expect(page.locator("body")).toContainText("OBSERVATION QUALITY");
+    await expect(page.locator(".obs-local-quality-inline")).toBeVisible();
 
     for (const name of scene.expectedSubjects) {
-      const card = page.locator(".obs-visible-record-card").filter({ hasText: name }).first();
-      await expect(card, `${name} visible record card`).toBeVisible();
-      await expect(card, `${name} is an occurrence-backed observation record`).toHaveAttribute(
-        "href",
-        /[?&]subject=occ%3A[^&]+%3A\d+/,
-      );
-      await expect(card, `${name} keeps a user-facing scene role visible`).toContainText(
-        visibleSubjectRolePattern(name),
-      );
-      await expect(card, `${name} does not expose internal AI materialization copy`).not.toContainText(
-        "AIが写真から分けた観測レコード",
-      );
+      await expect(page.locator("body"), `${name} remains available in the compact readout`).toContainText(name);
     }
+    await expect(page.locator(".obs-visible-record-card")).toHaveCount(0);
 
     await expect(page.locator("body")).not.toContainText("これも写ってると提案");
     await expect(page.locator("body")).not.toContainText("写っている対象として知らせる");
@@ -320,8 +309,8 @@ test.describe("production candidate smoke", () => {
       await page.setViewportSize({ width: 320, height: 760 });
       const response = await page.goto(scene.path, { waitUntil: "domcontentloaded" });
       expect(response?.ok(), "canonical AI subject scene should be readable on 320px").toBeTruthy();
-      await expect(page.locator("body")).toContainText("この写真に写っているもの");
-      await expect(page.locator("body")).toContainText("候補を確かめる材料");
+      await expect(page.locator("body")).not.toContainText("この写真に写っているもの");
+      await expect(page.locator("body")).not.toContainText("候補を確かめる材料");
       await expect(page.locator(".obs-hero-preview .obs-media-role-badge")).toBeHidden();
       await expect(page.locator(".obs-hero-preview .obs-annotation-target")).toHaveCount(0);
       const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

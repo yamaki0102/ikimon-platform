@@ -21,18 +21,15 @@ type HtmlSmokeCheck = {
 const defaultRepresentativeSceneReadVisitId = "record-1778549526406";
 
 const representativeSceneReadMarkers = [
-  "写っているもの",
-  "この映像で読む対象を切り替える",
-  "候補を確かめる材料",
-  "AIが写真・動画から拾った候補です",
   "ヒメイワダレソウ",
   "セイヨウミツバチ",
   "イネ科の一種",
-  "ヒメイワダレソウを支持",
   "保留する",
-  "別名を提案",
   "別レコードを追加",
-  "この記録から言えること",
+  "IDENTIFICATION",
+  "同定に参加する",
+  "OBSERVATION QUALITY",
+  "観察レコードとして育てる",
 ];
 
 const representativeSceneReadForbiddenMarkers = [
@@ -40,6 +37,9 @@ const representativeSceneReadForbiddenMarkers = [
   "1件の見つけたもの",
   "AI 主役 100%",
   "訪花中の候補",
+  "この映像で読む対象を切り替える",
+  "候補を確かめる材料",
+  "AIが写真・動画から拾った候補です",
 ];
 
 function parseArgs(argv: string[]): SmokeOptions {

@@ -314,8 +314,8 @@ jobs:
           IKIMON_SCENE_READ_SMOKE=required \
           IKIMON_SCENE_READ_VISIT_ID="${SCENE_READ_FIXTURE_PREFIX}-scene" \
           IKIMON_SCENE_READ_SUBJECT_ID="occ:${SCENE_READ_FIXTURE_PREFIX}-scene:0" \
-          IKIMON_SCENE_READ_REQUIRED_MARKERS="写っているもの|この映像で読む対象を切り替える|候補を確かめる材料|AIが写真・動画から拾った候補です|ヒメイワダレソウ|セイヨウミツバチ|イネ科の一種|ヒメイワダレソウを支持|保留する|別名を提案|別レコードを追加|この記録から言えること|IDENTIFICATION|同定に参加する|OBSERVATION QUALITY|観察レコードとして育てる" \
-          IKIMON_SCENE_READ_FORBIDDEN_MARKERS="\"status\":\"bootstrapping\"|AI 主役 100%|訪花中の候補" \
+          IKIMON_SCENE_READ_REQUIRED_MARKERS="ヒメイワダレソウ|セイヨウミツバチ|イネ科の一種|保留する|別レコードを追加|IDENTIFICATION|同定に参加する|OBSERVATION QUALITY|観察レコードとして育てる" \
+          IKIMON_SCENE_READ_FORBIDDEN_MARKERS="\"status\":\"bootstrapping\"|AI 主役 100%|訪花中の候補|この映像で読む対象を切り替える|候補を確かめる材料|AIが写真・動画から拾った候補です" \
           npm run smoke:v2-read-lane -- --base-url=http://127.0.0.1:3200
 
       - name: Cleanup local scene fixture
