@@ -106,18 +106,39 @@ test.describe("target observation detail local repro", () => {
     const previewTarget = page.locator(".obs-video-evidence-frame button, .obs-video-evidence-frame img[role='button']").first();
     await previewTarget.click();
     await expect(page.locator(".obs-frame-preview.is-open")).toBeVisible();
+    await expect(page.locator(".obs-frame-preview-img")).toBeVisible();
+    const fitMetrics = await page.evaluate(() => {
+      const img = document.querySelector<HTMLElement>(".obs-frame-preview-img");
+      return {
+        width: img?.getBoundingClientRect().width ?? 0,
+        height: img?.getBoundingClientRect().height ?? 0,
+      };
+    });
     await page.locator("[data-frame-zoom-in]").click();
     const zoomMetrics = await page.evaluate(() => {
       const stage = document.querySelector<HTMLElement>(".obs-frame-preview-stage");
       const img = document.querySelector<HTMLElement>(".obs-frame-preview-img");
       return {
         zoomed: stage?.dataset.zoomed === "1" || stage?.classList.contains("is-zoomed"),
-        wider: Boolean(stage && img && img.getBoundingClientRect().width > stage.getBoundingClientRect().width * 0.9),
-        scrollable: Boolean(stage && (stage.scrollWidth > stage.clientWidth || stage.scrollHeight > stage.clientHeight)),
+        width: img?.getBoundingClientRect().width ?? 0,
+        height: img?.getBoundingClientRect().height ?? 0,
       };
     });
     expect(zoomMetrics.zoomed).toBeTruthy();
-    expect(zoomMetrics.wider || zoomMetrics.scrollable, "zoomed preview should expose panning area").toBeTruthy();
+    expect(
+      zoomMetrics.width > fitMetrics.width || zoomMetrics.height > fitMetrics.height,
+      "zoom should enlarge the preview even when a vertical frame still fits the stage",
+    ).toBeTruthy();
+
+    await page.locator("[data-frame-zoom-in]").click();
+    await page.locator("[data-frame-zoom-in]").click();
+    const panMetrics = await page.evaluate(() => {
+      const stage = document.querySelector<HTMLElement>(".obs-frame-preview-stage");
+      return {
+        scrollable: Boolean(stage && (stage.scrollWidth > stage.clientWidth || stage.scrollHeight > stage.clientHeight)),
+      };
+    });
+    expect(panMetrics.scrollable, "further zoom should expose panning area").toBeTruthy();
 
     await page.screenshot({
       path: path.resolve("test-results", "observation-detail-target-desktop.png"),

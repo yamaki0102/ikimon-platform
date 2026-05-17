@@ -468,11 +468,12 @@ function renderVideoPlayer(
             const score = typeof item.selectionScore === "number" ? `${Math.round(item.selectionScore * 100)}%` : "";
             const targetNames = targetNamesForVideoFrame(annotationTargets, primaryVideo.assetId, item.frameTimeMs);
             const caption = [frameTimeLabel(item.frameTimeMs) || "動画フレーム", score].filter(Boolean).join(" ");
+            const previewLabel = `${caption || "動画フレーム"}を拡大表示`;
             const targetBadges = targetNames.length > 0
               ? `<div class="obs-frame-subjects" aria-label="このフレームで見たもの">${targetNames.map((name) => `<span>${escapeHtml(name)}</span>`).join("")}</div>`
               : `<div class="obs-frame-subjects" aria-hidden="true"></div>`;
             return `<figure class="obs-video-evidence-frame">
-              ${thumbUrl ? `<button type="button" class="obs-video-evidence-preview" data-video-frame-preview="${escapeHtml(String(index))}" data-frame-src="${escapeHtml(thumbUrl)}" data-frame-caption="${escapeHtml(caption)}"><img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" /></button>` : ""}
+              ${thumbUrl ? `<button type="button" class="obs-video-evidence-preview" data-video-frame-preview="${escapeHtml(String(index))}" data-frame-src="${escapeHtml(thumbUrl)}" data-frame-caption="${escapeHtml(caption)}" aria-label="${escapeHtml(previewLabel)}"><img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy" /></button>` : ""}
               <figcaption><span>${escapeHtml(caption)}</span>${targetBadges}</figcaption>
             </figure>`;
           }).join("")}

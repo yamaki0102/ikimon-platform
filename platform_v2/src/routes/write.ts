@@ -193,6 +193,14 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       if (!session) {
+        const query = request.query as { optional?: unknown };
+        if (query.optional === "1" || query.optional === "true") {
+          return {
+            ok: false,
+            error: "session_not_found",
+            session: null,
+          };
+        }
         reply.code(401);
         return {
           ok: false,
