@@ -1046,7 +1046,9 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
             observed_country, observed_prefecture, observed_municipality, locality_note, note,
             source_kind, source_payload, created_at, updated_at
          ) values (
-            $1, $2, $3, $4, $5, $6, 'manual', false, null, $7, $8,
+            $1, $2, $3,
+            case when exists (select 1 from users u where u.user_id = $4) then $4 else null end,
+            $5, $6, 'manual', false, null, $7, $8,
             $9, $10, $11, $12, $13, $14, 'legacy_observation', $15::jsonb, $16, now()
          )
          on conflict (visit_id) do update set
@@ -1266,7 +1268,9 @@ async function importObservations(options: ImportOptions, observations: LegacyOb
               occurrence_id, actor_user_id, actor_kind, proposed_name, proposed_rank, legacy_identification_key,
               identification_method, confidence_score, is_current, notes, source_payload
            ) values (
-              $1, $2, 'human', $3, $4, $5, 'legacy_taxon_snapshot', null, true, null, $6::jsonb
+              $1,
+              case when exists (select 1 from users u where u.user_id = $2) then $2 else null end,
+              'human', $3, $4, $5, 'legacy_taxon_snapshot', null, true, null, $6::jsonb
            ) on conflict (legacy_identification_key) do update set
               occurrence_id = excluded.occurrence_id,
               actor_user_id = excluded.actor_user_id,
