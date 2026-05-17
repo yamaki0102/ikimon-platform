@@ -77,7 +77,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "次に見るなら",
     "同じエリア",
     "似た仲間との見分け",
-    "現場アドバイス",
+    "手入れメモ",
     "会社敷地の管理方針",
     "同じ場所から読む優先順位",
     "避けること",
@@ -154,6 +154,8 @@ test("observation detail primary copy does not expose internal record terms", ()
     "確定前",
     "イネ科植物",
     "映像フレームから拾えている手がかり",
+    "名前の記録",
+    "現場アドバイス",
   ]) {
     assert.doesNotMatch(detailCopySource, new RegExp(term));
   }
@@ -217,7 +219,7 @@ test("observation detail visible order stays aligned with the canonical snapshot
 
 test("vegetation care advice is cautious and grounded in management context", () => {
   const careSource = sourceBetween("function selectOption", "function renderSizeCard");
-  assert.match(careSource, /現場アドバイス/);
+  assert.match(careSource, /手入れメモ/);
   assert.match(careSource, /managementActionCandidates/);
   assert.match(careSource, /managementHintCandidates/);
   assert.match(careSource, /写真AIの読取/);

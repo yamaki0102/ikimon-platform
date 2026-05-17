@@ -2893,10 +2893,10 @@ function renderVegetationCareAdviceCard(subject: ObservationVisitSubject, option
     placeId: options.placeId ?? null,
     basePath: options.basePath ?? "",
   });
-  return `<section class="obs-care-advice ${className}" aria-label="現場アドバイス">
+  return `<section class="obs-care-advice ${className}" aria-label="手入れメモ">
     <div class="obs-care-head">
       <div>
-        <div class="obs-hint-eyebrow">現場アドバイス</div>
+        <div class="obs-hint-eyebrow">手入れメモ</div>
         <h3 class="obs-care-title">${escapeHtml(title)}</h3>
         <p class="obs-care-lead">${escapeHtml(lead)}</p>
       </div>
@@ -5905,7 +5905,7 @@ function renderSubjectTaxonomy(
          ${subject.lineage.map((lineage) => `<span class="obs-lineage-item"><small>${escapeHtml(publicRankHint(lineage.rank) || rankLabelJa(lineage.rank))}</small>${escapeHtml(lineage.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
        </div>`
     : "";
-  const layer2Title = "名前の記録";
+  const layer2Title = "同定の履歴";
   const layer2Note = featuredSubject && subject.occurrenceId !== featuredSubject.occurrenceId
     ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(observationDetailUiName(subjectDisplay.primaryLabel))}</strong> を見ています。最初に見る候補は <strong>${escapeHtml(observationDetailUiName(featuredDisplay?.primaryLabel ?? featuredSubject.displayName))}</strong> ですが、上のカードから切り替えられます。</p>`
     : bundle.lockedByHuman
