@@ -99,11 +99,22 @@ export function hasNativeObservationPhoto(photos: unknown): boolean {
   });
 }
 
+const PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL = '(smoke[-_]?ui)';
+
 export const PUBLIC_OBSERVATION_QUALITY_SQL = `
   coalesce(v.public_visibility, 'public') = 'public'
   and coalesce(v.quality_review_status, 'accepted') = 'accepted'
   and coalesce(v.source_payload->'taxon'->>'key', '') !~* '^e2e_test_'
-  and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?regression[-_]?fixture)([-_]|$)'
+  and coalesce(v.source_payload->>'source', '') !~* '(^|[-_])(e2e|fixture|prod[-_]?media[-_]?smoke|smoke[-_]?test|smoke[-_]?ui|smoke[-_]?regression[-_]?fixture)([-_]|$)'
+  and coalesce(v.source_payload::text, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
+  and coalesce(v.note, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
+  and coalesce(v.locality_note, '') !~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
+  and not exists (
+    select 1
+      from users public_quality_user
+     where public_quality_user.user_id = v.user_id
+       and coalesce(public_quality_user.display_name, '') ~* '${PUBLIC_SMOKE_UI_VISIT_MARKER_PATTERN_SQL}'
+  )
 `;
 
 const PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL =
