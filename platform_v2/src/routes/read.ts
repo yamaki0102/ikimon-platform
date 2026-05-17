@@ -3271,6 +3271,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const candidateName = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中");
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
+  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle);
   const clues = aiAssessment.diagnosticFeaturesSeen
     .map((feature) => friendlyObservationText(feature, 48))
     .filter(Boolean)
@@ -3293,11 +3294,11 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
 
   return `<section class="obs-ai-readout obs-ai-readout-merged ${bandClass}">
     ${renderLocalNameCandidatePanel(subject)}
-    <div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
+    ${sceneTargets || `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
       <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
         <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
       </button>
-    </div>
+    </div>`}
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
