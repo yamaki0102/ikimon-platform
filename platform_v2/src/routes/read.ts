@@ -5446,6 +5446,126 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
   </details>`;
 }
 
+function isWeakIdentificationCandidateName(value: string | null | undefined): boolean {
+  const text = String(value ?? "").trim();
+  if (!text) return true;
+  return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|植栽低木|構成種[:：]/iu.test(text);
+}
+
+function renderIdentificationCandidateSwitch(options: {
+  basePath: string;
+  lang: SiteLang;
+  bundle?: ObservationVisitBundle | null;
+  currentSubject?: ObservationVisitSubject | null;
+  targetLabel: string;
+  candidateStatus: string;
+}): string {
+  const subjectIds = new Set<string>();
+  const candidates: Array<{
+    key: string;
+    label: string;
+    status: string;
+    href: string | null;
+    isCurrent: boolean;
+    isWeak: boolean;
+  }> = [];
+  const addCandidate = (candidate: {
+    key: string;
+    label: string;
+    status: string;
+    href?: string | null;
+    isCurrent?: boolean;
+  }) => {
+    const label = observationDetailUiName(candidate.label);
+    const key = candidate.key || `${label}:${candidates.length}`;
+    if (!label || candidates.some((item) => item.key === key || item.label === label)) return;
+    candidates.push({
+      key,
+      label,
+      status: candidate.status,
+      href: candidate.href ?? null,
+      isCurrent: Boolean(candidate.isCurrent),
+      isWeak: isWeakIdentificationCandidateName(label),
+    });
+  };
+
+  if (options.bundle) {
+    for (const subject of options.bundle.subjects) {
+      subjectIds.add(subject.occurrenceId);
+      const display = formatTaxonDisplayName(subject, options.lang).primaryLabel;
+      addCandidate({
+        key: `subject:${subject.occurrenceId}`,
+        label: display,
+        status: subject.identificationCount > 0 ? "確認あり" : "確認待ち",
+        href: appendLangToHref(
+          withBasePath(options.basePath, buildObservationDetailPath(options.bundle.visitId, subject.occurrenceId)),
+          options.lang,
+        ),
+        isCurrent: subject.occurrenceId === options.currentSubject?.occurrenceId,
+      });
+    }
+    for (const candidate of options.bundle.aiCandidates) {
+      const occurrenceHref = candidate.suggestedOccurrenceId && subjectIds.has(candidate.suggestedOccurrenceId)
+        ? appendLangToHref(
+            withBasePath(options.basePath, buildObservationDetailPath(options.bundle.visitId, candidate.suggestedOccurrenceId)),
+            options.lang,
+          )
+        : null;
+      addCandidate({
+        key: `candidate:${candidate.candidateId}`,
+        label: candidate.displayName,
+        status: candidate.suggestedOccurrenceId ? "記録済み" : typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補",
+        href: occurrenceHref,
+        isCurrent: false,
+      });
+    }
+  }
+
+  if (candidates.length === 0) {
+    addCandidate({
+      key: "current",
+      label: options.targetLabel,
+      status: options.candidateStatus,
+      isCurrent: true,
+    });
+  }
+  if (!candidates.some((candidate) => candidate.isCurrent)) {
+    candidates.unshift({
+      key: "current",
+      label: options.targetLabel,
+      status: options.candidateStatus,
+      href: null,
+      isCurrent: true,
+      isWeak: isWeakIdentificationCandidateName(options.targetLabel),
+    });
+  }
+
+  const usefulCount = candidates.filter((candidate) => !candidate.isWeak).length;
+  const currentIndex = Math.max(0, candidates.findIndex((candidate) => candidate.isCurrent));
+  const meterLabel = usefulCount > 0 ? "AI候補" : "候補名が弱い";
+  const meterValue = usefulCount > 0 ? `${currentIndex + 1}/${candidates.length}` : `0/${candidates.length}`;
+  const warning = usefulCount === 0
+    ? `<p class="obs-frame-candidate-warning">今の自動候補は「未同定」や植栽構造の粗いラベルだけです。名前候補としては不足しているため、別候補か追加証拠を足す前提で扱います。</p>`
+    : "";
+
+  const chips = candidates.map((candidate) => {
+    const className = `obs-frame-candidate${candidate.isCurrent ? " is-current" : ""}${candidate.isWeak ? " is-weak" : ""}`;
+    const body = `${escapeHtml(candidate.label)}<span>${escapeHtml(candidate.status)}</span>`;
+    if (candidate.href && !candidate.isCurrent) {
+      return `<a class="${className}" href="${escapeHtml(candidate.href)}">${body}</a>`;
+    }
+    return `<button class="${className}" type="button" aria-pressed="${candidate.isCurrent ? "true" : "false"}">${body}</button>`;
+  }).join("");
+
+  return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}">
+      <div class="obs-frame-candidate-meter"><span>${escapeHtml(meterLabel)}</span><strong>${escapeHtml(meterValue)}</strong></div>
+      <div class="obs-frame-identify-candidates" aria-label="AI候補">
+        ${chips}
+      </div>
+      ${warning}
+    </div>`;
+}
+
 function normalizeCandidateReadingKey(value: string | null | undefined): string {
   return String(value ?? "").trim().toLowerCase();
 }
@@ -5944,6 +6064,7 @@ function renderIdentificationParticipation(options: {
   lang: SiteLang;
   snapshot: NonNullable<Awaited<ReturnType<typeof getObservationDetailSnapshot>>>;
   subject?: ObservationVisitSubject;
+  bundle?: ObservationVisitBundle;
   mediaContext?: ObservationMediaCopyContext;
   consensus: IdentificationConsensusResult | null;
   viewerSession: SessionSnapshot | null;
@@ -6095,9 +6216,10 @@ function renderIdentificationParticipation(options: {
   void aiReviewBlock;
   const newRecordHref = appendLangToHref(withBasePath(basePath, "/record"), options.lang);
   const candidateStatus = snapshot.identifications.length > 0 ? "確認あり" : "確認待ち";
+  const hasOnlyWeakCandidateName = isWeakIdentificationCandidateName(targetLabel);
   const candidateActions = [
-    { label: "同意する", className: " is-primary", reviewState: "agree", focus: null },
-    { label: "別候補を提案", className: "", reviewState: null, focus: "alternative" },
+    { label: hasOnlyWeakCandidateName ? "候補を提案" : "同意する", className: " is-primary", reviewState: hasOnlyWeakCandidateName ? null : "agree", focus: hasOnlyWeakCandidateName ? "alternative" : null },
+    { label: hasOnlyWeakCandidateName ? "証拠不足" : "別候補を提案", className: "", reviewState: null, focus: hasOnlyWeakCandidateName ? "needs_more_evidence" : "alternative" },
     { label: "保留する", className: "", reviewState: null, focus: "needs_more_evidence" },
   ];
   const actionButtons = candidateActions.map((action) => {
@@ -6116,7 +6238,7 @@ function renderIdentificationParticipation(options: {
         `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留・撤回を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
       ].join("")
     : [
-        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>候補を下書き</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>AI候補</time></div></li>`,
+        `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>${escapeHtml(hasOnlyWeakCandidateName ? "候補名が不足" : "候補を下書き")}</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>${escapeHtml(hasOnlyWeakCandidateName ? "要追加候補" : "AI候補")}</time></div></li>`,
         ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time></div></li>`),
         `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
       ].join("");
@@ -6135,12 +6257,14 @@ function renderIdentificationParticipation(options: {
       </div>
       <a class="obs-frame-identify-new" href="${escapeHtml(newRecordHref)}">別レコードを追加</a>
     </div>
-    <div class="obs-frame-candidate-switch">
-      <div class="obs-frame-candidate-meter"><span>AI候補</span><strong>1/1</strong></div>
-      <div class="obs-frame-identify-candidates" aria-label="AI候補">
-        <button class="obs-frame-candidate" type="button" aria-pressed="true">${escapeHtml(targetLabel)}<span>${escapeHtml(candidateStatus)}</span></button>
-      </div>
-    </div>
+    ${renderIdentificationCandidateSwitch({
+      basePath,
+      lang: options.lang,
+      bundle: options.bundle,
+      currentSubject: options.subject ?? null,
+      targetLabel,
+      candidateStatus,
+    })}
     ${activityBlock}
     <div class="obs-ai-actions" aria-label="${escapeHtml(`${targetLabel}候補への判断`)}">
       <div class="obs-ai-actions-label">候補への操作</div>
@@ -14507,6 +14631,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
       snapshot,
       subject: currentSubject,
+      bundle,
       mediaContext,
       consensus,
       viewerSession,
@@ -14683,6 +14808,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         lang,
         snapshot: subjectIdentifyMap.get(subject.occurrenceId)?.snapshot ?? snapshot,
         subject,
+        bundle,
         mediaContext,
         consensus: subjectIdentifyMap.get(subject.occurrenceId)?.consensus ?? null,
         viewerSession,

@@ -52,3 +52,21 @@ test("multi-subject guard deduplicates existing coexisting taxa", () => {
   assert.equal(result.promoted, 1);
   assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["カタバミ類", "常緑低木"]);
 });
+
+test("multi-subject guard drops unhelpful unidentified labels without a scientific name", () => {
+  const result = promoteCandidateReadingsToCoexistingTaxa({
+    primaryVernacularName: "植栽低木",
+    primaryScientificName: "",
+    coexistingTaxa: [
+      { name: "他の植栽（未同定）", scientific_name: "", rank: "lifeform", confidence: 0.6 },
+      { name: "アメリカシャクナゲ", scientific_name: "Kalmia latifolia", rank: "species", confidence: 0.52 },
+    ],
+    candidateReadings: [
+      { name: "構成種：複数の低木（未同定）", scientific_name: "", rank: "lifeform", role: "背景の木本" },
+      { name: "ツツジ類", scientific_name: "Rhododendron", rank: "genus", role: "比較候補" },
+    ],
+  });
+
+  assert.equal(result.promoted, 1);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["アメリカシャクナゲ", "ツツジ類"]);
+});
