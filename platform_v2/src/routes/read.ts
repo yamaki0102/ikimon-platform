@@ -2199,6 +2199,31 @@ function observationDetailUiName(value: string | null | undefined): string {
   return name;
 }
 
+const IDENTIFICATION_TAB_RANKS = new Set(["species", "subspecies", "variety", "form", "genus", "family", "order", "class"]);
+
+function subjectIdentificationRank(subject: ObservationVisitSubject): string {
+  return String(subject.rank ?? subject.aiAssessment?.recommendedRank ?? subject.aiCandidateRank ?? "").trim().toLowerCase();
+}
+
+function subjectIdentificationName(subject: ObservationVisitSubject): string {
+  return observationDetailUiName(subject.aiAssessment?.recommendedTaxonName || subject.displayName || subject.vernacularName || subject.scientificName || "");
+}
+
+function looksLikeTaxonName(value: string): boolean {
+  const name = value.trim();
+  if (!name) return false;
+  if (/\b[A-Z][a-z]+ [a-z][a-z-]+\b/u.test(name)) return true;
+  return /(?:科|属|目|綱|門|界)$/u.test(name);
+}
+
+function isIdentificationTabSubject(subject: ObservationVisitSubject): boolean {
+  const name = subjectIdentificationName(subject);
+  if (/未同定|不明|複数|構成種|群落|植栽|低木|グランドカバー|背景|周囲/u.test(name)) return false;
+  const rank = subjectIdentificationRank(subject);
+  if (IDENTIFICATION_TAB_RANKS.has(rank)) return true;
+  return looksLikeTaxonName(`${name} ${subject.scientificName ?? ""}`);
+}
+
 function renderVisibleRecordCard(item: VisibleRecordItem, mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext()): string {
   const displayName = observationDetailUiName(item.displayName);
   const className = [
@@ -3226,8 +3251,10 @@ function renderAiCompareList(subject: ObservationVisitSubject): string {
 
 function renderHeroSceneCandidateTargets(currentSubject: ObservationVisitSubject, bundle: ObservationVisitBundle | null): string {
   if (!bundle || bundle.subjects.length <= 1) return "";
-  const chips = bundle.subjects.slice(0, 4).map((subject) => {
-    const name = observationDetailUiName(subject.aiAssessment?.recommendedTaxonName || subject.displayName || subject.vernacularName || "名前確認中");
+  const tabSubjects = bundle.subjects.filter(isIdentificationTabSubject).slice(0, 4);
+  if (tabSubjects.length <= 1 && tabSubjects[0]?.occurrenceId === currentSubject.occurrenceId) return "";
+  const chips = tabSubjects.map((subject) => {
+    const name = subjectIdentificationName(subject) || "名前確認中";
     const statusClass = subject.identificationCount > 0 ? " is-confirmed" : "";
     const status = subject.identificationCount > 0 ? "確認あり" : "確認待ち";
     const isCurrent = subject.occurrenceId === currentSubject.occurrenceId;
@@ -3281,7 +3308,15 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const candidateName = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中");
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
-  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle);
+  const localNameCandidates = renderLocalNameCandidatePanel(subject);
+  const sceneTargets = localNameCandidates ? "" : renderHeroSceneCandidateTargets(subject, bundle);
+  const currentTarget = !localNameCandidates && isIdentificationTabSubject(subject)
+    ? `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
+      <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
+        <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
+      </button>
+    </div>`
+    : "";
   const clues = aiAssessment.diagnosticFeaturesSeen
     .map((feature) => friendlyObservationText(feature, 48))
     .filter(Boolean)
@@ -3303,12 +3338,8 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
     : "";
 
   return `<section class="obs-ai-readout obs-ai-readout-merged ${bandClass}">
-    ${renderLocalNameCandidatePanel(subject)}
-    ${sceneTargets || `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
-      <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
-        <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
-      </button>
-    </div>`}
+    ${localNameCandidates}
+    ${sceneTargets || currentTarget}
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
