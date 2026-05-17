@@ -148,6 +148,7 @@ test("browser language handling asks before switching away from Japanese SEO ent
   });
 
   assert.match(html, /data-language-suggestion/);
+  assert.match(html, /data-language-suggestion-dismiss aria-label="閉じる"/);
   assert.match(html, /Use ikimon in English\?/);
   assert.match(html, /Cambiar a español/);
   assert.match(html, /Mudar para português/);
