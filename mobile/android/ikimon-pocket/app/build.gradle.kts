@@ -4,6 +4,20 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.isFile) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+fun localOrEnv(localKey: String, envKey: String): String? {
+    return localProperties.getProperty(localKey)?.takeIf { it.isNotBlank() }
+        ?: providers.environmentVariable(envKey).orNull?.takeIf { it.isNotBlank() }
+}
+
 android {
     namespace = "life.ikimon.pocket"
     compileSdk = 35
@@ -14,6 +28,33 @@ android {
         targetSdk = 35
         versionCode = 80002
         versionName = "0.8.1"
+    }
+
+    signingConfigs {
+        create("release") {
+            val uploadStoreFile = localOrEnv("fieldscanUploadStoreFile", "FIELD_SCAN_UPLOAD_STORE_FILE")
+            val uploadStorePassword = localOrEnv("fieldscanUploadStorePassword", "FIELD_SCAN_UPLOAD_STORE_PASSWORD")
+            val uploadKeyAlias = localOrEnv("fieldscanUploadKeyAlias", "FIELD_SCAN_UPLOAD_KEY_ALIAS")
+            val uploadKeyPassword = localOrEnv("fieldscanUploadKeyPassword", "FIELD_SCAN_UPLOAD_KEY_PASSWORD")
+
+            require(!uploadStoreFile.isNullOrBlank()) {
+                "Missing FieldScan upload keystore path. Set fieldscanUploadStoreFile in local.properties or FIELD_SCAN_UPLOAD_STORE_FILE."
+            }
+            require(!uploadStorePassword.isNullOrBlank()) {
+                "Missing FieldScan upload keystore password. Set fieldscanUploadStorePassword in local.properties or FIELD_SCAN_UPLOAD_STORE_PASSWORD."
+            }
+            require(!uploadKeyAlias.isNullOrBlank()) {
+                "Missing FieldScan upload key alias. Set fieldscanUploadKeyAlias in local.properties or FIELD_SCAN_UPLOAD_KEY_ALIAS."
+            }
+            require(!uploadKeyPassword.isNullOrBlank()) {
+                "Missing FieldScan upload key password. Set fieldscanUploadKeyPassword in local.properties or FIELD_SCAN_UPLOAD_KEY_PASSWORD."
+            }
+
+            storeFile = file(uploadStoreFile)
+            storePassword = uploadStorePassword
+            keyAlias = uploadKeyAlias
+            keyPassword = uploadKeyPassword
+        }
     }
 
     buildTypes {
@@ -32,6 +73,7 @@ android {
                 "\"https://ikimon.life/api/v1/mobile/field-sessions\"",
             )
             manifestPlaceholders["usesCleartextTraffic"] = "false"
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
