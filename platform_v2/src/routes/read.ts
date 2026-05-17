@@ -3214,9 +3214,45 @@ function renderAiCompareList(subject: ObservationVisitSubject): string {
   </div>`;
 }
 
-function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null): string {
+function renderHeroSceneCandidateTargets(currentSubject: ObservationVisitSubject, bundle: ObservationVisitBundle | null): string {
+  if (!bundle || bundle.subjects.length <= 1) return "";
+  const chips = bundle.subjects.slice(0, 4).map((subject) => {
+    const name = observationDetailUiName(subject.aiAssessment?.recommendedTaxonName || subject.displayName || subject.vernacularName || "名前確認中");
+    const statusClass = subject.identificationCount > 0 ? " is-confirmed" : "";
+    const status = subject.identificationCount > 0 ? "確認あり" : "確認待ち";
+    const isCurrent = subject.occurrenceId === currentSubject.occurrenceId;
+    const href = `?subject=${encodeURIComponent(subject.occurrenceId)}`;
+    const body = `<span>${escapeHtml(name)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(status)}</span>`;
+    if (isCurrent) {
+      return `<button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">${body}</button>`;
+    }
+    return `<a class="obs-ai-target-chip" href="${escapeHtml(href)}" data-subject-switch="1" data-subject-id="${escapeHtml(subject.occurrenceId)}" aria-pressed="false">${body}</a>`;
+  }).join("");
+  return `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AI候補">${chips}</div>`;
+}
+
+function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
+    const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle);
+    if (sceneTargets) {
+      const firstOther = bundle?.subjects.find((item) => item.occurrenceId !== subject.occurrenceId);
+      const otherName = firstOther ? observationDetailUiName(firstOther.aiAssessment?.recommendedTaxonName || firstOther.displayName || firstOther.vernacularName || "") : "";
+      const note = otherName
+        ? `いまは ${observationDetailUiName(subject.displayName)} を見ています。${otherName} など、同じ場面内の候補も確認できます。`
+        : "同じ場面内の候補も確認できます。";
+      return `<section class="obs-ai-readout obs-ai-readout-merged is-medium">
+      <div class="obs-ai-readout-top">
+        <div>
+          <p class="obs-hint-eyebrow">名前のいま</p>
+          <h3 class="obs-ai-readout-title">${hasOpenDispute ? "名前の見方が割れています。" : "この場面の候補を見ています。"}</h3>
+        </div>
+        <span class="obs-ai-readout-badge">${hasOpenDispute ? "確認中" : "AI候補"}</span>
+      </div>
+      ${sceneTargets}
+      <p class="obs-ai-readout-note">${escapeHtml(hasOpenDispute ? "別の名前の提案があるため、候補が固まるまで断定しません。" : note)}</p>
+    </section>`;
+    }
     return `<section class="obs-ai-readout is-tent">
       <div class="obs-ai-readout-top">
         <div>
@@ -14665,7 +14701,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       summaryStrip: "",
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
       sceneOverviewBlock: "",
-      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight),
+      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle),
       nextActionRail,
       trustStageLabel,
       trustLead,
@@ -14800,7 +14836,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
-      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null)}</template>
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
