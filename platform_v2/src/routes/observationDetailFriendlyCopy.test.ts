@@ -26,6 +26,7 @@ const detailCopySource = [
   sourceBetween("function renderVisibleRecordCard", "export function renderVisibleRecordItemsPanel"),
   sourceBetween("function renderVisibleRecordItemsPanel", "function renderAiCandidateLearningPanel"),
   sourceBetween("function renderAiCandidateLearningPanel", "function subjectSpecificityScore"),
+  sourceBetween("function renderLocalNameCandidatePanel", "function renderAiTaxonStory"),
   sourceBetween("function renderAiCompareList", "function renderHeroAiReadout"),
   sourceBetween("function renderHeroAiReadout", "function renderSubjectHint"),
   sourceBetween("function selectOption", "function renderSizeCard"),
@@ -33,6 +34,7 @@ const detailCopySource = [
   sourceBetween("function renderSubjectTaxonomy", "function renderIdentificationParticipation"),
   sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel"),
   sourceBetween("function renderObservationRecordInsightText", "function aiJudgementStateLabel"),
+  sourceBetween("function renderNearbyAreaRecords", "function renderLocalObservationPolishScript"),
   sourceBetween("function renderObservationRecordStory", "function renderObservationNextActionRail"),
   sourceBetween("function renderVisualNextCaptureSuggestions", "function renderObservationReadingHero"),
   sourceBetween("function renderObservationReadingHero", "function renderObservationReadProgress"),
@@ -62,6 +64,12 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "別レコードを追加",
     "OBSERVATION QUALITY",
     "観察レコードとして育てる",
+    "この映像で読む対象を切り替える",
+    "かなり近そう",
+    "分類候補",
+    "Chloris sinica",
+    "端末の声で読む",
+    "近い投稿",
     "確定前",
     "AI推定",
     "次に見るなら",
@@ -162,7 +170,7 @@ test("observation detail hero treats the page as a multi-record scene", () => {
   assert.doesNotMatch(heroSource, /obs-reading-title">\$\{escapeHtml\(options\.displayName\)\}/);
   assert.match(visibleItemsSource, /mediaVisibleSurfaceLabel/);
   assert.match(visibleItemsSource, /obs-focus-title">写っているもの/);
-  assert.match(visibleItemsSource, /AIの場面読み/);
+  assert.match(visibleItemsSource, /この映像で読む対象を切り替える/);
   assert.match(visibleItemsSource, /sceneReadTextForVisibleItems/);
   assert.match(visibleItemsSource, /参考候補/);
   assert.match(visibleCardSource, /観測レコードにする/);
