@@ -2014,9 +2014,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-merged-row { display: flex !important; align-items: center !important; gap: 8px !important; min-width: 0 !important; padding: 7px 9px !important; border-radius: 12px !important; background: rgba(248,250,252,.82) !important; border: 1px solid rgba(15,23,42,.07) !important; }
   .obs-frame-candidate-switch { grid-template-columns: minmax(0,1fr) !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; border-radius: 14px !important; }
   .obs-frame-candidate-meter { display: none !important; }
-  .obs-frame-identify-candidates { display: flex !important; gap: 6px !important; overflow: visible !important; padding: 0 !important; }
-  .obs-frame-candidate { min-height: 34px !important; padding: 7px 10px !important; border-radius: 12px !important; border-color: rgba(15,118,110,.22) !important; background: #fff !important; font-size: 12px !important; }
-  .obs-frame-candidate span { min-height: 18px !important; padding: 2px 6px !important; font-size: 9.5px !important; }
+  .obs-frame-identify-candidates { display: flex !important; flex-wrap: wrap !important; min-width: 0 !important; max-width: 100% !important; gap: 6px !important; overflow: hidden !important; padding: 0 !important; }
+  .obs-frame-candidate { flex: 1 1 min(100%, 150px) !important; min-width: 0 !important; max-width: 100% !important; min-height: 34px !important; padding: 7px 10px !important; border-radius: 12px !important; border-color: rgba(15,118,110,.22) !important; background: #fff !important; font-size: 12px !important; white-space: normal !important; overflow-wrap: anywhere !important; text-align: left !important; }
+  .obs-frame-candidate span { flex: 0 0 auto !important; min-height: 18px !important; padding: 2px 6px !important; font-size: 9.5px !important; white-space: nowrap !important; }
   .obs-frame-identify-card .obs-ai-actions { display: grid !important; grid-template-columns: auto minmax(0,1fr) !important; align-items: center !important; gap: 9px !important; padding: 9px !important; border-radius: 14px !important; background: rgba(255,255,255,.86) !important; border: 1px solid rgba(15,23,42,.07) !important; }
   .obs-frame-identify-card .obs-ai-actions-label { display: none !important; }
   .obs-frame-identify-card .obs-ai-action-row { display: grid !important; grid-template-columns: 1.25fr 1fr 1fr !important; gap: 6px !important; }
