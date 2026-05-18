@@ -60,6 +60,11 @@ function englishLocality(value: string | null): boolean {
   return /\b(shizuoka|hamamatsu|hamamatsu city|shizuoka prefecture|hamamatsu \/ shizuoka)\b/i.test(value ?? "");
 }
 
+function hasMunicipalityOrWard(value: string | null, municipality: string): boolean {
+  const label = value ?? "";
+  return label === municipality || label.startsWith(municipality);
+}
+
 function sourcePayloadSource(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const source = (value as Record<string, unknown>).source;
@@ -82,10 +87,10 @@ export function detectLocationAnomalies(rows: LocationAuditRow[]): LocationAudit
       if ((lat === 0 && lng === 0) || (pointLat === 0 && pointLng === 0)) reasons.push("zero_zero_coordinates");
       if (!inJapan(lat, lng)) reasons.push("coordinates_outside_japan");
       if (englishLocality(joinedLabel)) reasons.push("english_locality_label");
-      if (inHamamatsu(lat, lng) && (row.prefecture !== "静岡県" || row.municipality !== "浜松市")) {
+      if (inHamamatsu(lat, lng) && (row.prefecture !== "静岡県" || !hasMunicipalityOrWard(row.municipality, "浜松市"))) {
         reasons.push("hamamatsu_coordinate_label_mismatch");
       }
-      if (inShizuokaCity(lat, lng) && (row.prefecture !== "静岡県" || row.municipality !== "静岡市")) {
+      if (inShizuokaCity(lat, lng) && (row.prefecture !== "静岡県" || !hasMunicipalityOrWard(row.municipality, "静岡市"))) {
         reasons.push("shizuoka_city_coordinate_label_mismatch");
       }
     }

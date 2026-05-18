@@ -36,6 +36,18 @@ test("keeps explicit Japanese municipality labels", () => {
   );
 });
 
+test("keeps explicit ward-level Japanese municipality labels", () => {
+  assert.deepEqual(
+    normalizeObservationLocality({
+      prefecture: "静岡県",
+      municipality: "浜松市浜名区",
+      latitude: 34.8,
+      longitude: 137.7,
+    }),
+    { prefecture: "静岡県", municipality: "浜松市浜名区" },
+  );
+});
+
 test("does not treat zero-zero as usable observation coordinates", () => {
   assert.equal(hasUsableObservationCoordinates(0, 0), false);
   assert.equal(hasUsableObservationCoordinates(34.8142588, 137.7330983), true);
