@@ -206,6 +206,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-video-trim/);
   assert.match(html, /object-fit: contain/);
   assert.match(html, /global-record-camera-preview video\[hidden\]/);
+  assert.match(html, /\.global-record-camera-close \{[\s\S]+position: fixed;[\s\S]+z-index: 80;/);
+  assert.match(html, /--global-record-visual-top/);
   assert.match(html, /\.global-record-camera-actions \{/);
   assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-photo-tray/);
   assert.match(html, /global-record-camera-sheet\[data-camera-active="true"\] \.global-record-photo-tray/);

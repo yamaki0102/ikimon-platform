@@ -1336,14 +1336,17 @@ function globalRecordEntryScript(basePath: string): string {
     const layoutHeight = window.innerHeight || document.documentElement.clientHeight || 0;
     const left = viewport ? Math.max(0, viewport.offsetLeft || 0) : 0;
     const right = viewport ? Math.max(0, layoutWidth - ((viewport.offsetLeft || 0) + (viewport.width || layoutWidth))) : 0;
+    const top = viewport ? Math.max(0, viewport.offsetTop || 0) : 0;
     const bottom = viewport ? Math.max(0, layoutHeight - ((viewport.offsetTop || 0) + (viewport.height || layoutHeight))) : 0;
     document.documentElement.style.setProperty('--global-record-visual-left', left.toFixed(1) + 'px');
     document.documentElement.style.setProperty('--global-record-visual-right', right.toFixed(1) + 'px');
+    document.documentElement.style.setProperty('--global-record-visual-top', top.toFixed(1) + 'px');
     document.documentElement.style.setProperty('--global-record-visual-bottom', bottom.toFixed(1) + 'px');
   };
   const resetVisualViewportVars = () => {
     document.documentElement.style.removeProperty('--global-record-visual-left');
     document.documentElement.style.removeProperty('--global-record-visual-right');
+    document.documentElement.style.removeProperty('--global-record-visual-top');
     document.documentElement.style.removeProperty('--global-record-visual-bottom');
   };
   const setCameraLiveLayout = (enabled) => {
@@ -5247,6 +5250,7 @@ ${alternateLinks}
       box-shadow: 0 24px 70px rgba(15,23,42,.28);
     }
     .global-record-camera-head {
+      padding-right: 50px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
@@ -5266,6 +5270,10 @@ ${alternateLinks}
       font-weight: 750;
     }
     .global-record-camera-close {
+      position: fixed;
+      top: calc(max(18px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+      right: calc(18px + var(--global-record-visual-right, 0px));
+      z-index: 80;
       width: 38px;
       height: 38px;
       flex: 0 0 38px;
@@ -5273,12 +5281,14 @@ ${alternateLinks}
       place-items: center;
       border: 0;
       border-radius: 999px;
-      background: rgba(15,23,42,.06);
-      color: #0f172a;
+      background: rgba(15,23,42,.82);
+      color: #fff;
       font: inherit;
       font-size: 22px;
       line-height: 1;
       cursor: pointer;
+      box-shadow: 0 12px 32px rgba(15,23,42,.28);
+      backdrop-filter: blur(14px);
     }
     .global-record-camera-preview {
       position: relative;
@@ -5672,6 +5682,13 @@ ${alternateLinks}
         bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px));
         gap: 10px;
         padding: 10px;
+      }
+      .global-record-camera-head {
+        padding-right: 46px;
+      }
+      .global-record-camera-close {
+        top: calc(max(12px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+        right: calc(12px + var(--global-record-visual-right, 0px));
       }
       .global-record-camera-preview {
         height: min(70dvh, calc(100dvh - 176px));
