@@ -10999,6 +10999,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const hasSelectedMedia = () => allSelectedMediaFiles().length > 0;
         const hasNoteDraft = () => selectedCaptureKind === 'note';
         const hasRecordDraft = () => hasSelectedMedia() || hasNoteDraft();
+        const isVideoSimpleMode = () => selectedVideoFile instanceof File && isVideoFile(selectedVideoFile) && selectedPhotoFiles().length === 0;
         const selectedMediaSummaryText = () => {
           const parts = [];
           const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
@@ -11026,8 +11027,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const syncVideoPrimaryPhotoUi = () => {
           const hasVideo = selectedVideoFile instanceof File && isVideoFile(selectedVideoFile);
-          if (videoPrimaryPhotoWrap) videoPrimaryPhotoWrap.hidden = !hasVideo;
-          if (!hasVideo) selectedPrimaryPhotoFile = null;
+          const simpleVideo = isVideoSimpleMode();
+          if (videoPrimaryPhotoWrap) videoPrimaryPhotoWrap.hidden = !hasVideo || simpleVideo;
+          if (!hasVideo || simpleVideo) selectedPrimaryPhotoFile = null;
           if (videoPrimaryPhotoTitle) {
             videoPrimaryPhotoTitle.textContent = selectedPrimaryPhotoFile
               ? '主役写真: ' + (selectedPrimaryPhotoFile.name || '選択済み')
@@ -12271,6 +12273,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (form) form.hidden = !hasDraft;
           if (captureResult) captureResult.hidden = !hasDraft;
           document.documentElement.classList.toggle('record-has-media', hasDraft);
+          document.documentElement.classList.toggle('record-video-simple', isVideoSimpleMode());
           if (hasDraft) window.requestAnimationFrame(ensureRecordMap);
           const label = captureLabels[selectedCaptureKind] || captureLabels.gallery;
           const photoCount = selectedMediaFiles.length;
@@ -12319,6 +12322,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (form) form.hidden = true;
           if (captureResult) captureResult.hidden = false;
           document.documentElement.classList.remove('record-has-media');
+          document.documentElement.classList.remove('record-video-simple');
           const label = captureLabels[kind];
           if (captureResultTitle) captureResultTitle.textContent = label.title + 'で始める';
           if (captureResultHelp) captureResultHelp.textContent = 'ログイン後の続きです。下の「' + label.title.replace('を撮る', '').replace('から選ぶ', '') + '」を押すと始められます。';
@@ -12350,6 +12354,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           setSelectedMediaRole('primary_subject');
           updateLocationText();
           document.documentElement.classList.remove('record-has-media');
+          document.documentElement.classList.remove('record-video-simple');
           captureButtons.forEach((button) => {
             button.classList.remove('is-active');
             button.setAttribute('aria-pressed', 'false');
@@ -13510,6 +13515,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-has-media .record-capture-launcher,
         .record-has-media .record-confidence-strip,
         .record-has-media .record-secondary-links { display: none; }
+        .record-video-simple #record-video-guide,
+        .record-video-simple #record-video-primary-photo,
+        .record-video-simple .record-later-details { display: none !important; }
         .record-subject-context { margin: -2px 0 18px 16px; padding: 16px; border-radius: 20px; background: linear-gradient(135deg, rgba(236,253,245,.9), rgba(239,246,255,.9)); border: 1px solid rgba(16,185,129,.2); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
         .record-subject-context strong { display: block; margin-top: 4px; color: #0f172a; font-size: 15px; line-height: 1.35; }
         .record-subject-context p { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.7; font-weight: 750; }

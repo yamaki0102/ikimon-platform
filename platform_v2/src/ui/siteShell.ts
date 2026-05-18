@@ -956,19 +956,6 @@ type GlobalRecordEntryCopy = {
   actionLabel: string;
   start: string;
   capture: string;
-  inlineTitle: string;
-  dataEstimate: string;
-  meaningTitle: string;
-  meaningHelp: string;
-  roleLabel: string;
-  rolePrimary: string;
-  roleContext: string;
-  roleMotion: string;
-  roleSecondary: string;
-  nameLabel: string;
-  namePlaceholder: string;
-  noteLabel: string;
-  notePlaceholder: string;
   trimTitle: string;
   trimStart: string;
   trimEnd: string;
@@ -993,19 +980,6 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       actionLabel: "撮影操作",
       start: "カメラを起動",
       capture: "撮影する",
-      inlineTitle: "ここで少し整える",
-      dataEstimate: "送信量を確認中",
-      meaningTitle: "主役と周囲",
-      meaningHelp: "記録では主役を1つ選べばOK。周囲に写る生きものや環境も、AIが手がかりとして見ます。",
-      roleLabel: "このメディアの役割",
-      rolePrimary: "主役",
-      roleContext: "周囲",
-      roleMotion: "音・動き",
-      roleSecondary: "別対象候補",
-      nameLabel: "名前が分かれば",
-      namePlaceholder: "例: スズメ / セミ / 名前は不明",
-      noteLabel: "メモ",
-      notePlaceholder: "例: 水辺の柵の近く。鳴き声が聞こえた。",
       trimTitle: "記録に残す最大60秒を選ぶ",
       trimStart: "開始",
       trimEnd: "終了",
@@ -1027,19 +1001,6 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       actionLabel: "Capture actions",
       start: "Start camera",
       capture: "Capture",
-      inlineTitle: "Add a little context",
-      dataEstimate: "Checking upload size",
-      meaningTitle: "Subject and surroundings",
-      meaningHelp: "Choose one main subject. AI and people can still use nearby species and habitat as clues.",
-      roleLabel: "Role of this media",
-      rolePrimary: "Main subject",
-      roleContext: "Surroundings",
-      roleMotion: "Sound or motion",
-      roleSecondary: "Another candidate",
-      nameLabel: "Name if known",
-      namePlaceholder: "e.g. sparrow / cicada / unknown",
-      noteLabel: "Note",
-      notePlaceholder: "e.g. near the waterside fence; I heard a call.",
       trimTitle: "Choose up to 60 seconds",
       trimStart: "Start",
       trimEnd: "End",
@@ -1061,19 +1022,6 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       actionLabel: "Acciones de captura",
       start: "Iniciar camara",
       capture: "Capturar",
-      inlineTitle: "Anade un poco de contexto",
-      dataEstimate: "Calculando envio",
-      meaningTitle: "Sujeto y entorno",
-      meaningHelp: "Elige un sujeto principal. La IA y las personas tambien pueden usar especies cercanas y habitat como pistas.",
-      roleLabel: "Papel de este medio",
-      rolePrimary: "Sujeto principal",
-      roleContext: "Entorno",
-      roleMotion: "Sonido o movimiento",
-      roleSecondary: "Otro candidato",
-      nameLabel: "Nombre si lo sabes",
-      namePlaceholder: "ej. gorrion / cigarra / desconocido",
-      noteLabel: "Nota",
-      notePlaceholder: "ej. cerca de una valla junto al agua; escuche un canto.",
       trimTitle: "Elige hasta 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fin",
@@ -1095,19 +1043,6 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       actionLabel: "Acoes de captura",
       start: "Iniciar camera",
       capture: "Capturar",
-      inlineTitle: "Adicione um pouco de contexto",
-      dataEstimate: "Verificando tamanho do envio",
-      meaningTitle: "Sujeito e entorno",
-      meaningHelp: "Escolha um sujeito principal. IA e pessoas tambem podem usar especies proximas e habitat como pistas.",
-      roleLabel: "Papel desta midia",
-      rolePrimary: "Sujeito principal",
-      roleContext: "Entorno",
-      roleMotion: "Som ou movimento",
-      roleSecondary: "Outro candidato",
-      nameLabel: "Nome se souber",
-      namePlaceholder: "ex. pardal / cigarra / desconhecido",
-      noteLabel: "Nota",
-      notePlaceholder: "ex. perto da cerca junto a agua; ouvi um canto.",
       trimTitle: "Escolha ate 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fim",
@@ -1172,33 +1107,6 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>${escapeHtml(copy.capture)}</button>
     </div>
     <div class="global-record-camera-status" data-global-record-camera-status aria-live="polite"></div>
-    <div class="global-record-inline-edit" data-global-record-inline-edit hidden>
-      <div class="global-record-inline-edit-head">
-        <strong>${escapeHtml(copy.inlineTitle)}</strong>
-        <span data-global-record-data-estimate>${escapeHtml(copy.dataEstimate)}</span>
-      </div>
-      <div class="global-record-media-meaning">
-        <strong>${escapeHtml(copy.meaningTitle)}</strong>
-        <span>${escapeHtml(copy.meaningHelp)}</span>
-      </div>
-      <label>
-        <span>${escapeHtml(copy.roleLabel)}</span>
-        <select data-global-record-edit-role>
-          <option value="primary_subject">${escapeHtml(copy.rolePrimary)}</option>
-          <option value="context">${escapeHtml(copy.roleContext)}</option>
-          <option value="sound_motion">${escapeHtml(copy.roleMotion)}</option>
-          <option value="secondary_candidate">${escapeHtml(copy.roleSecondary)}</option>
-        </select>
-      </label>
-      <label>
-        <span>${escapeHtml(copy.nameLabel)}</span>
-        <input data-global-record-edit-name type="text" maxlength="120" placeholder="${escapeHtml(copy.namePlaceholder)}" />
-      </label>
-      <label>
-        <span>${escapeHtml(copy.noteLabel)}</span>
-        <textarea data-global-record-edit-note rows="2" maxlength="240" placeholder="${escapeHtml(copy.notePlaceholder)}"></textarea>
-      </label>
-    </div>
     <div class="global-record-video-trim" data-global-record-video-trim hidden>
       <div class="global-record-video-trim-head">
         <strong>${escapeHtml(copy.trimTitle)}</strong>
@@ -1244,6 +1152,7 @@ function globalRecordEntryScript(basePath: string): string {
   let directPostInFlight = false;
   let photoDraftRetryDetailId = '';
   let photoDraftRetryHasUploadedPhoto = false;
+  let photoDraftSubmitConfirmUntil = 0;
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
   let capturedReviewFile = null;
@@ -1267,11 +1176,6 @@ function globalRecordEntryScript(basePath: string): string {
   const photoGrid = document.querySelector('[data-global-record-photo-grid]');
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
-  const inlineEdit = document.querySelector('[data-global-record-inline-edit]');
-  const editRoleInput = document.querySelector('[data-global-record-edit-role]');
-  const editNameInput = document.querySelector('[data-global-record-edit-name]');
-  const editNoteInput = document.querySelector('[data-global-record-edit-note]');
-  const dataEstimate = document.querySelector('[data-global-record-data-estimate]');
   const trimWrap = document.querySelector('[data-global-record-video-trim]');
   const trimStart = document.querySelector('[data-global-record-video-trim-start]');
   const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
@@ -1400,39 +1304,16 @@ function globalRecordEntryScript(basePath: string): string {
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
   };
-  const formatDataSize = (bytes) => {
-    const value = Number(bytes);
-    if (!Number.isFinite(value) || value <= 0) return '0 MB';
-    const mb = value / (1024 * 1024);
-    if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
-    return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + ' MB';
+  const photoDraftSubmitLabel = () => {
+    const count = selectedPhotoDraftFiles().length;
+    return count > 0 ? 'この' + String(count) + '枚を記録' : '写真を撮る';
   };
-  const formatEstimateMinutes = (bytes) => {
-    const mb = Number(bytes) / (1024 * 1024);
-    if (!Number.isFinite(mb) || mb <= 0) return '約0分';
-    const minutes = mb / 10;
-    if (minutes < 1) return '約' + Math.max(1, Math.round(minutes * 60)) + '秒';
-    return '約' + (minutes >= 10 ? Math.round(minutes) : minutes.toFixed(1)) + '分';
-  };
-  const updateDataEstimate = (file, selectedSeconds) => {
-    if (!dataEstimate) return;
-    if (!file) {
-      dataEstimate.textContent = '送信量を確認中';
-      return;
+  const resetPhotoDraftSubmitConfirm = () => {
+    photoDraftSubmitConfirmUntil = 0;
+    if (captureButton && activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream && !directPostInFlight) {
+      captureButton.textContent = photoDraftSubmitLabel();
     }
-    let bytes = Array.isArray(file)
-      ? file.reduce((sum, item) => sum + Number(item && item.size || 0), 0)
-      : Number(file.size || 0);
-    if (sheetVideoTrimState && Number.isFinite(selectedSeconds) && Number(sheetVideoTrimState.duration || 0) > 0) {
-      bytes = bytes * Math.min(1, Number(selectedSeconds) / Number(sheetVideoTrimState.duration || 1));
-    }
-    dataEstimate.textContent = '送信目安 ' + formatDataSize(bytes) + ' / YouTube標準画質なら' + formatEstimateMinutes(bytes) + 'ぶん';
   };
-  const readInlineEdit = () => ({
-    mediaRole: editRoleInput ? String(editRoleInput.value || '').trim() : '',
-    vernacularName: editNameInput ? String(editNameInput.value || '').trim() : '',
-    localityNote: editNoteInput ? String(editNoteInput.value || '').trim() : '',
-  });
   const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
@@ -1554,14 +1435,11 @@ function globalRecordEntryScript(basePath: string): string {
     }
     return String(json.session.userId);
   };
-  const withInlineEditParams = (href, kind) => {
+  const withDraftParams = (href, kind) => {
     let target = String(href || '/record?start=' + encodeURIComponent(kind || 'gallery'));
     try {
       const url = new URL(target, window.location.origin);
-      const values = readInlineEdit();
       url.searchParams.set('draft', '1');
-      if (values.vernacularName) url.searchParams.set('vernacularName', values.vernacularName);
-      if (values.localityNote) url.searchParams.set('localityNote', values.localityNote);
       return url.pathname + url.search + url.hash;
     } catch (_) {
       const separator = target.indexOf('?') >= 0 ? '&' : '?';
@@ -1619,7 +1497,6 @@ function globalRecordEntryScript(basePath: string): string {
     if (cameraVideo && Math.abs(Number(cameraVideo.currentTime || 0) - start) > 0.4) {
       cameraVideo.currentTime = start;
     }
-    updateDataEstimate(sheetVideoTrimState.sourceFile, end - start);
   };
   const setPhotoDraftLayout = (enabled) => {
     if (!sheet) return;
@@ -1652,6 +1529,7 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const clearReview = () => {
     setPhotoDraftLayout(false);
+    photoDraftSubmitConfirmUntil = 0;
     capturedReviewFile = null;
     capturedPhotoFiles = [];
     capturedPhotoObjectUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -1660,11 +1538,6 @@ function globalRecordEntryScript(basePath: string): string {
     photoDraftRetryHasUploadedPhoto = false;
     capturedReviewMeta = null;
     resetSheetVideoTrim();
-    if (inlineEdit) inlineEdit.hidden = true;
-    if (editRoleInput) editRoleInput.value = 'primary_subject';
-    if (editNameInput) editNameInput.value = '';
-    if (editNoteInput) editNoteInput.value = '';
-    if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
     if (photoTray) photoTray.hidden = true;
     if (photoGrid) photoGrid.innerHTML = '';
     if (photoTrayCount) photoTrayCount.textContent = '写真0枚';
@@ -1753,15 +1626,14 @@ function globalRecordEntryScript(basePath: string): string {
         photoGrid.appendChild(cell);
       });
     }
-    updateDataEstimate(files);
   };
   const syncPhotoDraftControls = (message) => {
     const files = selectedPhotoDraftFiles();
     const [primaryFile] = files;
     capturedReviewFile = primaryFile || null;
+    photoDraftSubmitConfirmUntil = 0;
     renderPhotoTray();
     setPhotoDraftLayout(files.length > 0 && activeKind === 'photo' && !activeStream);
-    if (inlineEdit) inlineEdit.hidden = files.length === 0;
     if (startButton) {
       startButton.hidden = false;
       startButton.disabled = files.length >= MAX_PHOTO_DRAFT_FILES;
@@ -1770,9 +1642,14 @@ function globalRecordEntryScript(basePath: string): string {
     if (captureButton) {
       captureButton.hidden = files.length === 0;
       captureButton.disabled = false;
-      captureButton.textContent = files.length > 0 ? 'この' + String(files.length) + '枚を記録' : '写真を撮る';
+      captureButton.textContent = photoDraftSubmitLabel();
     }
-    setFooterActionMode(files.length > 0 ? 'submit' : 'start');
+    if (files.length > 0) {
+      setPrimaryAction(startButton, true);
+      setPrimaryAction(captureButton, false);
+    } else {
+      setFooterActionMode('start');
+    }
     if (files.length === 0) {
       if (cameraImage) {
         cameraImage.hidden = true;
@@ -1782,7 +1659,6 @@ function globalRecordEntryScript(basePath: string): string {
         empty.textContent = '写真を追加すると、ここにプレビューが出ます。';
         empty.hidden = false;
       }
-      if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
     }
     if (message) setStatus(message);
   };
@@ -1794,7 +1670,7 @@ function globalRecordEntryScript(basePath: string): string {
     capturedPhotoFiles.splice(to, 0, file);
     const [url] = capturedPhotoObjectUrls.splice(from, 1);
     capturedPhotoObjectUrls.splice(to, 0, url);
-    syncPhotoDraftControls('写真の順番を変更しました。AIは全体を見て主役と周囲を判断します。');
+    syncPhotoDraftControls('写真の順番を変更しました。');
   };
   const removePhotoDraft = (index) => {
     const target = Number(index);
@@ -1835,7 +1711,6 @@ function globalRecordEntryScript(basePath: string): string {
     capturedReviewMeta = null;
     renderPhotoTray();
     setPhotoDraftLayout(false);
-    if (inlineEdit) inlineEdit.hidden = true;
     if (cameraImage) {
       cameraImage.hidden = true;
       cameraImage.removeAttribute('src');
@@ -1845,7 +1720,6 @@ function globalRecordEntryScript(basePath: string): string {
       empty.textContent = '続けて写真を撮れます。';
       empty.hidden = false;
     }
-    if (dataEstimate) dataEstimate.textContent = '送信量を確認中';
     if (startButton) {
       startButton.hidden = false;
       startButton.disabled = false;
@@ -2053,7 +1927,7 @@ function globalRecordEntryScript(basePath: string): string {
       directPostInFlight = false;
       if (startButton) startButton.disabled = false;
       if (captureButton && selectedPhotoDraftFiles().length > 0 && captureButton.textContent === '記録中...') {
-        captureButton.textContent = 'この' + String(selectedPhotoDraftFiles().length) + '枚を記録';
+        captureButton.textContent = photoDraftSubmitLabel();
       }
     }
   };
@@ -2084,15 +1958,14 @@ function globalRecordEntryScript(basePath: string): string {
   const navigateWithDraft = async (files, kind, metadata) => {
     const target = document.querySelector('[data-global-record-trigger="' + kind + '"]');
     const href = target ? target.getAttribute('data-record-target') : '/record?start=' + encodeURIComponent(kind);
-    const inlineValues = readInlineEdit();
     const draftFiles = normalizeDraftFiles(files);
     const metadataWithRole = Object.assign({}, metadata || {}, {
-      mediaRole: inlineValues.mediaRole || (kind === 'video' ? 'sound_motion' : 'primary_subject'),
+      mediaRole: kind === 'video' ? 'sound_motion' : 'primary_subject',
     });
     try {
       const [primaryDraftFile = null] = draftFiles;
       await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
-      window.location.href = withInlineEditParams(href || '/record', kind);
+      window.location.href = withDraftParams(href || '/record', kind);
     } catch (_) {
       window.location.href = href || '/record?start=' + encodeURIComponent(kind);
     }
@@ -2123,7 +1996,6 @@ function globalRecordEntryScript(basePath: string): string {
     activeKind = kind;
     setSheetKind(kind);
     setPhotoDraftLayout(kind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream);
-    if (editRoleInput) editRoleInput.value = kind === 'video' ? 'sound_motion' : 'primary_subject';
     const label = labels[kind] || labels.photo;
     if (title) title.textContent = label.title;
     if (help) help.textContent = label.help;
@@ -2432,7 +2304,7 @@ function globalRecordEntryScript(basePath: string): string {
         cameraVideo.play().catch(() => undefined);
       }
       prepareSheetVideoTrim(file);
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。下で区間、名前、メモを整えられます。' : '下で区間、名前、メモを整えられます。位置は記録画面で指定できます。');
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。必要なら使う区間だけ選べます。' : '必要なら使う区間だけ選べます。位置は記録画面で確認します。');
       if (captureButton) captureButton.textContent = 'この内容で記録画面へ';
     } else {
       if (cameraVideo) cameraVideo.hidden = true;
@@ -2440,11 +2312,9 @@ function globalRecordEntryScript(basePath: string): string {
         cameraImage.src = reviewObjectUrl;
         cameraImage.hidden = false;
       }
-      updateDataEstimate(file);
-      setStatus(metadata && metadata.location ? '撮影地点も保存しました。名前とメモをここで整えられます。' : '名前とメモをここで整えられます。位置は記録画面で指定できます。');
+      setStatus(metadata && metadata.location ? '撮影地点も保存しました。この内容で記録画面へ進めます。' : 'この内容で記録画面へ進めます。位置は記録画面で確認します。');
       if (captureButton) captureButton.textContent = 'この内容で記録画面へ';
     }
-    if (inlineEdit) inlineEdit.hidden = false;
     if (startButton) {
       startButton.hidden = false;
       startButton.disabled = false;
@@ -2566,12 +2436,20 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const captureFromSheet = async () => {
     if (activeKind === 'photo' && activeStream) {
+      resetPhotoDraftSubmitConfirm();
       capturePressedAt = nowMs();
       capturePhoto();
       return;
     }
     if (activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream) {
       if (directPostInFlight) return;
+      if (nowMs() > photoDraftSubmitConfirmUntil) {
+        photoDraftSubmitConfirmUntil = nowMs() + 4500;
+        if (captureButton) captureButton.textContent = 'もう一度押すと記録';
+        setStatus('記録するなら同じボタンをもう一度押してください。続けて撮るなら左のボタンです。');
+        return;
+      }
+      photoDraftSubmitConfirmUntil = 0;
       if (captureButton) captureButton.disabled = true;
       try {
         await directPostPhotoDraft();
@@ -2643,6 +2521,7 @@ function globalRecordEntryScript(basePath: string): string {
     button.addEventListener('click', closeSheet);
   });
   if (startButton) startButton.addEventListener('click', () => {
+    resetPhotoDraftSubmitConfirm();
     if (capturedReviewFile) retakeCapture();
     else startCamera();
   });
@@ -5263,6 +5142,10 @@ ${alternateLinks}
     .global-record-camera-sheet[data-photo-draft="true"] .global-record-camera-preview {
       display: none;
     }
+    .global-record-camera-sheet[data-photo-draft="true"] {
+      grid-template-rows: auto auto auto auto auto;
+      align-content: start;
+    }
     .global-record-camera-empty {
       position: absolute;
       inset: 0;
@@ -5281,10 +5164,12 @@ ${alternateLinks}
     .global-record-photo-tray {
       display: grid;
       gap: 9px;
+      min-width: 0;
       padding: 10px;
       border-radius: 8px;
       background: #f8fafc;
       border: 1px solid rgba(15,23,42,.08);
+      overflow: hidden;
     }
     .global-record-photo-tray[hidden] {
       display: none;
@@ -5308,9 +5193,12 @@ ${alternateLinks}
       display: grid;
       grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 7px;
+      min-width: 0;
     }
     .global-record-photo-cell {
       position: relative;
+      min-width: 0;
+      min-height: 0;
       aspect-ratio: 1;
       overflow: hidden;
       border-radius: 8px;
@@ -5318,8 +5206,11 @@ ${alternateLinks}
       border: 1px solid rgba(15,23,42,.08);
     }
     .global-record-photo-cell img {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
+      max-width: 100%;
       object-fit: cover;
       display: block;
     }
