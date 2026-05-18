@@ -9,8 +9,11 @@ class CanonicalSyncFeatureTest extends TestCase
     protected function setUp(): void
     {
         $this->dbPath = DATA_DIR . '/ikimon.db';
-        $this->resetStaticPdo(CanonicalStore::class, 'pdo');
-        $this->resetStaticPdo(AuditLog::class, 'pdo');
+        $this->resetStaticProperty(CanonicalStore::class, 'pdo', null);
+        $this->resetStaticProperty(CanonicalStore::class, 'vernacularChecked', false);
+        $this->resetStaticProperty(CanonicalStore::class, 'sensorColumnsChecked', false);
+        $this->resetStaticProperty(CanonicalStore::class, 'placeColumnsChecked', false);
+        $this->resetStaticProperty(AuditLog::class, 'pdo', null);
         DataStore::setPath(DATA_DIR);
         $this->cleanupDbFiles();
         $this->createCanonicalTables();
@@ -198,10 +201,10 @@ class CanonicalSyncFeatureTest extends TestCase
         }
     }
 
-    private function resetStaticPdo(string $className, string $property): void
+    private function resetStaticProperty(string $className, string $property, mixed $value): void
     {
         $reflection = new ReflectionProperty($className, $property);
-        $reflection->setValue(null, null);
+        $reflection->setValue(null, $value);
     }
 
     private function cleanupDbFiles(): void
