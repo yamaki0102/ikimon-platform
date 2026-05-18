@@ -68,6 +68,27 @@ type CuratorRunRow = {
   attempt_no: number;
 };
 
+type AiCandidateNameHealthSummaryRow = {
+  source_kind: string;
+  total_7d: string;
+  missing_scientific_7d: string;
+  invalid_scientific_7d: string;
+  total_30d: string;
+  missing_scientific_30d: string;
+  invalid_scientific_30d: string;
+  latest_seen_at: string | null;
+};
+
+type AiCandidateNameHealthSampleRow = {
+  source_kind: string;
+  visit_id: string | null;
+  candidate_name: string | null;
+  candidate_rank: string | null;
+  scientific_name: string | null;
+  model_used: string | null;
+  seen_at: string | null;
+};
+
 function escapeHtml(value: string | null | undefined): string {
   if (value === null || value === undefined) return "";
   return String(value)
@@ -294,6 +315,241 @@ function renderAiRoleChainMetrics(rows: AiRoleChainMetricRow[]): string {
 </table>`;
 }
 
+async function fetchAiCandidateNameHealth(): Promise<{
+  summaries: AiCandidateNameHealthSummaryRow[];
+  samples: AiCandidateNameHealthSampleRow[];
+}> {
+  const pool = getPool();
+  try {
+    const result = await pool.query<AiCandidateNameHealthSummaryRow>(
+      `WITH json_candidates AS (
+         SELECT
+           'raw_json.candidate_readings'::text AS source_kind,
+           a.visit_id,
+           a.model_used,
+           a.generated_at AS seen_at,
+           item->>'name' AS candidate_name,
+           item->>'rank' AS candidate_rank,
+           item->>'scientific_name' AS scientific_name
+         FROM observation_ai_assessments a
+         CROSS JOIN LATERAL jsonb_array_elements(
+           CASE
+             WHEN jsonb_typeof(COALESCE(a.raw_json #> '{parsed,candidate_readings}', a.raw_json -> 'candidate_readings')) = 'array'
+               THEN COALESCE(a.raw_json #> '{parsed,candidate_readings}', a.raw_json -> 'candidate_readings')
+             ELSE '[]'::jsonb
+           END
+         ) AS item
+         WHERE a.generated_at >= NOW() - INTERVAL '30 days'
+
+         UNION ALL
+
+         SELECT
+           'raw_json.coexisting_taxa'::text AS source_kind,
+           a.visit_id,
+           a.model_used,
+           a.generated_at AS seen_at,
+           item->>'name' AS candidate_name,
+           item->>'rank' AS candidate_rank,
+           item->>'scientific_name' AS scientific_name
+         FROM observation_ai_assessments a
+         CROSS JOIN LATERAL jsonb_array_elements(
+           CASE
+             WHEN jsonb_typeof(COALESCE(a.raw_json #> '{parsed,coexisting_taxa}', a.raw_json -> 'coexisting_taxa')) = 'array'
+               THEN COALESCE(a.raw_json #> '{parsed,coexisting_taxa}', a.raw_json -> 'coexisting_taxa')
+             ELSE '[]'::jsonb
+           END
+         ) AS item
+         WHERE a.generated_at >= NOW() - INTERVAL '30 days'
+       ),
+       materialized_candidates AS (
+         SELECT
+           'observation_ai_subject_candidates'::text AS source_kind,
+           c.visit_id,
+           COALESCE(NULLIF(r.model_provider || ':' || r.model_name, ':'), '') AS model_used,
+           c.created_at AS seen_at,
+           COALESCE(c.vernacular_name, c.scientific_name) AS candidate_name,
+           c.taxon_rank AS candidate_rank,
+           c.scientific_name
+         FROM observation_ai_subject_candidates c
+         LEFT JOIN observation_ai_runs r ON r.ai_run_id = c.ai_run_id
+         WHERE c.created_at >= NOW() - INTERVAL '30 days'
+       ),
+       candidates AS (
+         SELECT * FROM json_candidates
+         UNION ALL
+         SELECT * FROM materialized_candidates
+       )
+       SELECT
+         source_kind,
+         COUNT(*) FILTER (WHERE seen_at >= NOW() - INTERVAL '7 days')::text AS total_7d,
+         COUNT(*) FILTER (
+           WHERE seen_at >= NOW() - INTERVAL '7 days'
+             AND NULLIF(BTRIM(COALESCE(scientific_name, '')), '') IS NULL
+         )::text AS missing_scientific_7d,
+         COUNT(*) FILTER (
+           WHERE seen_at >= NOW() - INTERVAL '7 days'
+             AND NULLIF(BTRIM(COALESCE(scientific_name, '')), '') IS NOT NULL
+             AND BTRIM(scientific_name) !~ '^[A-Z][a-z]+( [a-z][a-z-]+)?$'
+         )::text AS invalid_scientific_7d,
+         COUNT(*)::text AS total_30d,
+         COUNT(*) FILTER (WHERE NULLIF(BTRIM(COALESCE(scientific_name, '')), '') IS NULL)::text AS missing_scientific_30d,
+         COUNT(*) FILTER (
+           WHERE NULLIF(BTRIM(COALESCE(scientific_name, '')), '') IS NOT NULL
+             AND BTRIM(scientific_name) !~ '^[A-Z][a-z]+( [a-z][a-z-]+)?$'
+         )::text AS invalid_scientific_30d,
+         MAX(seen_at)::text AS latest_seen_at
+       FROM candidates
+       GROUP BY source_kind
+       ORDER BY source_kind`,
+    );
+    const samples = await pool.query<AiCandidateNameHealthSampleRow>(
+      `WITH json_candidates AS (
+         SELECT
+           'raw_json.candidate_readings'::text AS source_kind,
+           a.visit_id,
+           a.model_used,
+           a.generated_at AS seen_at,
+           item->>'name' AS candidate_name,
+           item->>'rank' AS candidate_rank,
+           item->>'scientific_name' AS scientific_name
+         FROM observation_ai_assessments a
+         CROSS JOIN LATERAL jsonb_array_elements(
+           CASE
+             WHEN jsonb_typeof(COALESCE(a.raw_json #> '{parsed,candidate_readings}', a.raw_json -> 'candidate_readings')) = 'array'
+               THEN COALESCE(a.raw_json #> '{parsed,candidate_readings}', a.raw_json -> 'candidate_readings')
+             ELSE '[]'::jsonb
+           END
+         ) AS item
+         WHERE a.generated_at >= NOW() - INTERVAL '30 days'
+
+         UNION ALL
+
+         SELECT
+           'raw_json.coexisting_taxa'::text AS source_kind,
+           a.visit_id,
+           a.model_used,
+           a.generated_at AS seen_at,
+           item->>'name' AS candidate_name,
+           item->>'rank' AS candidate_rank,
+           item->>'scientific_name' AS scientific_name
+         FROM observation_ai_assessments a
+         CROSS JOIN LATERAL jsonb_array_elements(
+           CASE
+             WHEN jsonb_typeof(COALESCE(a.raw_json #> '{parsed,coexisting_taxa}', a.raw_json -> 'coexisting_taxa')) = 'array'
+               THEN COALESCE(a.raw_json #> '{parsed,coexisting_taxa}', a.raw_json -> 'coexisting_taxa')
+             ELSE '[]'::jsonb
+           END
+         ) AS item
+         WHERE a.generated_at >= NOW() - INTERVAL '30 days'
+       ),
+       materialized_candidates AS (
+         SELECT
+           'observation_ai_subject_candidates'::text AS source_kind,
+           c.visit_id,
+           COALESCE(NULLIF(r.model_provider || ':' || r.model_name, ':'), '') AS model_used,
+           c.created_at AS seen_at,
+           COALESCE(c.vernacular_name, c.scientific_name) AS candidate_name,
+           c.taxon_rank AS candidate_rank,
+           c.scientific_name
+         FROM observation_ai_subject_candidates c
+         LEFT JOIN observation_ai_runs r ON r.ai_run_id = c.ai_run_id
+         WHERE c.created_at >= NOW() - INTERVAL '30 days'
+       ),
+       candidates AS (
+         SELECT * FROM json_candidates
+         UNION ALL
+         SELECT * FROM materialized_candidates
+       )
+       SELECT source_kind, visit_id, candidate_name, candidate_rank, scientific_name, model_used, seen_at::text AS seen_at
+       FROM candidates
+       WHERE NULLIF(BTRIM(COALESCE(scientific_name, '')), '') IS NULL
+          OR BTRIM(scientific_name) !~ '^[A-Z][a-z]+( [a-z][a-z-]+)?$'
+       ORDER BY seen_at DESC NULLS LAST
+       LIMIT 16`,
+    );
+    return { summaries: result.rows, samples: samples.rows };
+  } catch {
+    return { summaries: [], samples: [] };
+  }
+}
+
+function renderAiCandidateNameHealth(input: {
+  summaries: AiCandidateNameHealthSummaryRow[];
+  samples: AiCandidateNameHealthSampleRow[];
+}): string {
+  if (input.summaries.length === 0) {
+    return `<p style="color:#6b7280;font-size:13px;">直近 30 日の AI candidate scientific_name telemetry はまだありません。</p>`;
+  }
+  const summaryRows = input.summaries.map((row) => {
+    const total7 = Number(row.total_7d ?? 0);
+    const missing7 = Number(row.missing_scientific_7d ?? 0);
+    const invalid7 = Number(row.invalid_scientific_7d ?? 0);
+    const total30 = Number(row.total_30d ?? 0);
+    const missing30 = Number(row.missing_scientific_30d ?? 0);
+    const invalid30 = Number(row.invalid_scientific_30d ?? 0);
+    const bad7 = missing7 + invalid7;
+    const bad30 = missing30 + invalid30;
+    const badColor = bad7 > 0 ? "#ef4444" : bad30 > 0 ? "#f59e0b" : "#10b981";
+    return `<tr>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-family:ui-monospace,monospace;font-size:12px;color:#111827;">${escapeHtml(row.source_kind)}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#111827;">${total7}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:${badColor};font-weight:700;">${pct(missing7, total7)}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#92400e;font-weight:700;">${pct(invalid7, total7)}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#111827;">${total30}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:${bad30 > 0 ? "#f59e0b" : "#10b981"};font-weight:700;">${pct(missing30, total30)}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#92400e;font-weight:700;">${pct(invalid30, total30)}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280;">${escapeHtml((row.latest_seen_at ?? "—").slice(0, 19))}</td>
+    </tr>`;
+  }).join("");
+  const sampleRows = input.samples.length === 0
+    ? `<tr><td colspan="7" style="padding:10px;color:#10b981;font-size:12px;">欠落・不正な scientific_name のサンプルはありません。</td></tr>`
+    : input.samples.map((row) => `<tr>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-family:ui-monospace,monospace;font-size:11px;color:#6b7280;">${escapeHtml(row.source_kind)}</td>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#111827;">${escapeHtml(row.candidate_name ?? "—")}</td>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280;">${escapeHtml(row.candidate_rank ?? "—")}</td>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#ef4444;font-weight:700;">${escapeHtml(row.scientific_name || "missing")}</td>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280;">${escapeHtml(row.model_used || "—")}</td>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280;">${escapeHtml(row.visit_id ?? "—")}</td>
+      <td style="padding:7px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280;">${escapeHtml((row.seen_at ?? "—").slice(0, 19))}</td>
+    </tr>`).join("");
+  return `
+<div style="display:grid;gap:12px;">
+  <p style="margin:0;color:#6b7280;font-size:12px;">raw_json の候補配列と materialized candidate を分けて監視。missing は空欄、invalid は和名混入など Latin scientific name らしくない値。</p>
+  <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+    <thead>
+      <tr style="background:#f9fafb;">
+        <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">source</th>
+        <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">total 7d</th>
+        <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">missing 7d</th>
+        <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">invalid 7d</th>
+        <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">total 30d</th>
+        <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">missing 30d</th>
+        <th style="padding:8px;text-align:right;font-size:11px;color:#374151;text-transform:uppercase;">invalid 30d</th>
+        <th style="padding:8px;text-align:left;font-size:11px;color:#374151;text-transform:uppercase;">latest</th>
+      </tr>
+    </thead>
+    <tbody>${summaryRows}</tbody>
+  </table>
+  <details style="border:1px solid #e5e7eb;border-radius:8px;background:#fff;">
+    <summary style="cursor:pointer;padding:10px 12px;font-size:13px;font-weight:700;color:#374151;">欠落・不正 scientific_name の最新サンプル</summary>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">source</th>
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">candidate</th>
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">rank</th>
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">scientific_name</th>
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">model</th>
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">visit</th>
+          <th style="padding:7px;text-align:left;font-size:10px;color:#374151;text-transform:uppercase;">seen</th>
+        </tr>
+      </thead>
+      <tbody>${sampleRows}</tbody>
+    </table>
+  </details>
+</div>`;
+}
+
 async function fetchRecentCuratorRuns(): Promise<CuratorRunRow[]> {
   const pool = getPool();
   try {
@@ -473,7 +729,7 @@ async function fetchStalenessSummary(): Promise<StalenessSummary[]> {
 
 async function renderDashboard(): Promise<string> {
   const layers: AiCostLayer[] = ["hot", "warm", "cold"];
-  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, curatorRuns, aiRoleChainMetrics] = await Promise.all([
+  const [hotSummary, warmSummary, coldSummary, hotBudget, warmBudget, coldBudget, freshness, claimReview, staleness, curatorRuns, aiRoleChainMetrics, aiCandidateNameHealth] = await Promise.all([
     summarizeMonthlyCost("hot"),
     summarizeMonthlyCost("warm"),
     summarizeMonthlyCost("cold"),
@@ -485,6 +741,7 @@ async function renderDashboard(): Promise<string> {
     fetchStalenessSummary(),
     fetchRecentCuratorRuns(),
     fetchAiRoleChainMetrics(),
+    fetchAiCandidateNameHealth(),
   ]);
 
   const summaries = { hot: hotSummary, warm: warmSummary, cold: coldSummary };
@@ -507,6 +764,11 @@ async function renderDashboard(): Promise<string> {
   <section style="margin-bottom:24px;">
     <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">role chain 別 LLM telemetry</h2>
     ${renderAiRoleChainMetrics(aiRoleChainMetrics)}
+  </section>
+
+  <section style="margin-bottom:24px;">
+    <h2 style="font-size:14px;color:#374151;text-transform:uppercase;margin:0 0 12px;">AI候補 scientific_name 欠落率</h2>
+    ${renderAiCandidateNameHealth(aiCandidateNameHealth)}
   </section>
 
   <section style="margin-bottom:24px;">
