@@ -1005,6 +1005,135 @@ function buildObservationReadoutFixture(): {
   return { nawashiroSubject, akamigashiwaSubject, katabamiSubject, bundle, invalidInsight };
 }
 
+function buildKawarahiwaVideoReadoutFixture(): {
+  kawarahiwaSubject: ObservationVisitSubject;
+  bundle: ObservationVisitBundle;
+  insight: TaxonInsight;
+} {
+  const kawarahiwaSubject = {
+    occurrenceId: "occ:record-1778829649026:0",
+    visitId: "record-1778829649026",
+    subjectIndex: 0,
+    displayName: "カワラヒワ",
+    scientificName: null,
+    vernacularName: "カワラヒワ",
+    rank: "species",
+    roleHint: "primary",
+    confidence: null,
+    identificationCount: 0,
+    latestAssessmentBand: "high",
+    latestAssessmentGeneratedAt: "2026-05-17T00:00:00.000Z",
+    isPrimary: true,
+    priorityScore: 100,
+    focusReason: "翼の黄色い帯と太い嘴が見える動画候補です。",
+    roleLabel: "主対象",
+    evidenceTier: 0,
+    aiAssessmentStatus: null,
+    aiReviewAgreeCount: 0,
+    aiReviewDisagreeCount: 0,
+    aiCandidateName: null,
+    aiCandidateRank: null,
+    adoptedFromAiCandidate: false,
+    adoptedCandidateId: null,
+    adoptedCandidateNote: null,
+    subjectSource: null,
+    proposedByUserId: null,
+    isAiCandidate: false,
+    hasSpecialistApproval: false,
+    identifications: [],
+    lineage: [],
+    regions: [],
+    previousAiAssessment: null,
+    aiAssessment: {
+      assessmentId: "assess-kawarahiwa",
+      aiRunId: "run-kawarahiwa",
+      pipelineVersion: "test",
+      taxonomyVersion: "test",
+      interpretationStatus: "completed",
+      confidenceBand: "high",
+      modelUsed: "gemini-3.1-flash-image-preview+gemini-3.1-flash-lite",
+      recommendedRank: "species",
+      recommendedTaxonName: "カワラヒワ",
+      recommendedScientificName: "Chloris sinica",
+      bestSpecificTaxonName: "カワラヒワ",
+      narrative: "",
+      simpleSummary: "翼の黄色い帯と太い嘴から、カワラヒワにかなり近そうです。",
+      observerBoost: "",
+      nextStepText: "",
+      stopReason: "",
+      funFact: "",
+      funFactGrounded: false,
+      diagnosticFeaturesSeen: ["翼の黄色い帯", "太く円錐形の嘴", "小鳥らしい体型"],
+      missingEvidence: [],
+      similarTaxa: [],
+      distinguishingTips: [],
+      confirmMore: [],
+      geographicContext: "",
+      seasonalContext: "",
+      areaInference: {
+        vegetationStructureCandidates: [],
+        successionStageCandidates: [],
+        humanInfluenceCandidates: [],
+        moistureRegimeCandidates: [],
+        managementHintCandidates: [],
+      },
+      managementActionCandidates: [],
+      shotSuggestions: [],
+      candidateReadings: [],
+      sizeAssessment: {
+        typicalSizeCm: 15,
+        observedSizeEstimateCm: null,
+        sizeClass: "typical",
+        rankingHint: "平均的サイズ",
+        basis: "動画内の環境要素との相対比較。",
+        hedge: "誤差大です",
+      },
+      noveltyHint: null,
+      invasiveResponse: null,
+      claimRefsUsed: [],
+      navigableOs: null,
+      generatedAt: "2026-05-17T00:00:00.000Z",
+    },
+  } as ObservationVisitSubject;
+  const grassSubject = {
+    ...kawarahiwaSubject,
+    occurrenceId: "occ:record-1778829649026:3",
+    subjectIndex: 3,
+    displayName: "イネ科",
+    vernacularName: "イネ科",
+    scientificName: null,
+    rank: "family",
+    roleHint: "vegetation",
+    isPrimary: false,
+    aiAssessment: null,
+  } as ObservationVisitSubject;
+  const bundle = {
+    visitId: "record-1778829649026",
+    canonicalSubjectId: kawarahiwaSubject.occurrenceId,
+    featuredOccurrenceId: kawarahiwaSubject.occurrenceId,
+    selectedReason: "fixture",
+    selectionSource: "latest_ai_default",
+    lockedByHuman: false,
+    displayStability: "adaptive",
+    selectedRun: null,
+    previousRun: null,
+    subjects: [kawarahiwaSubject, grassSubject],
+    aiCandidates: [],
+  } as ObservationVisitBundle;
+  const insight = {
+    scientificName: "Chloris sinica",
+    vernacularName: "カワラヒワ",
+    etymology: "属名 Chloris はギリシャ語で緑を意味し、種小名 sinica は中国のという意味です。",
+    ecologyNote: "春は独特の声でさえずり、木の実や草の種を食べます。",
+    lookAlikeNote: "",
+    rarityNote: "全国の平地から低山まで一年中見られます。",
+    generatedAt: "2026-05-17T00:00:00.000Z",
+    source: "cache",
+  } as TaxonInsight;
+
+  return { kawarahiwaSubject, bundle, insight };
+}
+
 test("AI readout keeps scientific-name fallback when cached insight has an invalid scientific name", () => {
   const { nawashiroSubject, bundle, invalidInsight } = buildObservationReadoutFixture();
 
@@ -1087,6 +1216,39 @@ test("AI readout rendered contract follows the snapshot-like candidate order", (
     "追加で見る点",
     "花の色彩と形を近くからで撮る",
   ]);
+});
+
+test("AI readout rendered contract covers the kawarahiwa video classification lane", () => {
+  const { kawarahiwaSubject, bundle, insight } = buildKawarahiwaVideoReadoutFixture();
+
+  const html = renderHeroAiReadout(kawarahiwaSubject, false, insight, bundle);
+  const visibleText = visibleTextFromHtml(html);
+
+  assertVisibleTermsInOrder(html, [
+    "カワラヒワ",
+    "かなり近そう",
+    "翼の黄色と太い嘴から読んだ候補",
+    "イネ科",
+    "分類候補",
+    "科レベルの分類候補。種名ではない",
+    "根拠",
+    "翼の黄色い帯",
+    "太く円錐形の嘴",
+    "大きさの目安",
+    "平均サイズ",
+    "カワラヒワを知る",
+    "Chloris sinica",
+    "読み: クロリス・シニカ",
+    "端末の声で読む",
+    "名前の由来",
+    "似た仲間との見分け",
+    "アオジより翼の黄色い帯がはっきり出るか",
+  ]);
+  assert.match(html, /data-local-name-candidates="1"/);
+  assert.match(html, /href="\?subject=occ%3Arecord-1778829649026%3A3" data-subject-switch="1" data-subject-id="occ:record-1778829649026:3"/);
+  assert.match(html, /data-local-read-aloud-text="カワラヒワ。学名、クロリス・シニカ。/);
+  assert.doesNotMatch(visibleText, /Chloris sinica\s+Chloris sinica/);
+  assert.doesNotMatch(visibleText, /イネ科植物/);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {
