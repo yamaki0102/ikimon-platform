@@ -3301,8 +3301,34 @@ function renderHeroSceneCandidateTargets(currentSubject: ObservationVisitSubject
   return `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AI候補">${chips}</div>`;
 }
 
+function renderHeroAiCandidateTargets(bundle: ObservationVisitBundle | null): string {
+  if (!bundle || bundle.aiCandidates.length === 0) return "";
+  const subjectNames = new Set(bundle.subjects.map((subject) => observationDetailUiName(subject.displayName)));
+  const candidates = bundle.aiCandidates
+    .filter((candidate) =>
+      !subjectNames.has(observationDetailUiName(candidate.displayName))
+      && isIdentificationCandidateLike({
+        name: candidate.displayName,
+        rank: candidate.rank,
+        scientificName: candidate.scientificName,
+      })
+    )
+    .slice(0, 4);
+  if (candidates.length === 0) return "";
+  const chips = candidates.map((candidate) => {
+    const status = typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補";
+    const body = `<span>${escapeHtml(observationDetailUiName(candidate.displayName))}</span><span class="obs-ai-target-status">${escapeHtml(status)}</span>`;
+    if (candidate.suggestedOccurrenceId && bundle.subjects.some((subject) => subject.occurrenceId === candidate.suggestedOccurrenceId)) {
+      const href = `?subject=${encodeURIComponent(candidate.suggestedOccurrenceId)}`;
+      return `<a class="obs-ai-target-chip" href="${escapeHtml(href)}" data-subject-switch="1" data-subject-id="${escapeHtml(candidate.suggestedOccurrenceId)}" aria-pressed="false">${body}</a>`;
+    }
+    return `<button class="obs-ai-target-chip" type="button" aria-pressed="false">${body}</button>`;
+  }).join("");
+  return `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">${chips}</div>`;
+}
+
 function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null): string {
-  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle);
+  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle) || renderHeroAiCandidateTargets(bundle);
   const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
@@ -3390,7 +3416,7 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
   const localNameCandidates = renderLocalNameCandidatePanel(subject);
-  const sceneTargets = localNameCandidates ? "" : renderHeroSceneCandidateTargets(subject, bundle);
+  const sceneTargets = localNameCandidates ? "" : (renderHeroSceneCandidateTargets(subject, bundle) || renderHeroAiCandidateTargets(bundle));
   const currentTarget = !localNameCandidates && isIdentificationTabSubject(subject)
     ? `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
       <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">

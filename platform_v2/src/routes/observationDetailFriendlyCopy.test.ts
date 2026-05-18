@@ -295,6 +295,129 @@ test("identification candidate switch uses real bundle candidates instead of har
   assert.match(registrationSource, /bundle,\s+mediaContext/);
 });
 
+test("hero AI readout surfaces concrete taxon candidates when the primary label is weak", () => {
+  const subject = {
+    occurrenceId: "occ:record-weak:0",
+    visitId: "record-weak",
+    subjectIndex: 0,
+    displayName: "未同定の植栽低木",
+    scientificName: null,
+    vernacularName: null,
+    rank: "lifeform",
+    roleHint: "primary",
+    confidence: null,
+    identificationCount: 0,
+    latestAssessmentBand: "low",
+    latestAssessmentGeneratedAt: "2026-05-17T00:00:00.000Z",
+    isPrimary: true,
+    priorityScore: 40,
+    focusReason: "つやのある葉",
+    roleLabel: "主対象",
+    evidenceTier: 0,
+    aiAssessmentStatus: "ai_judgement",
+    aiReviewAgreeCount: 0,
+    aiReviewDisagreeCount: 0,
+    aiCandidateName: "未同定の植栽低木",
+    aiCandidateRank: "lifeform",
+    adoptedFromAiCandidate: false,
+    adoptedCandidateId: null,
+    adoptedCandidateNote: null,
+    subjectSource: null,
+    proposedByUserId: null,
+    isAiCandidate: true,
+    hasSpecialistApproval: false,
+    identifications: [],
+    lineage: [],
+    regions: [],
+    previousAiAssessment: null,
+    aiAssessment: {
+      assessmentId: "assess-weak",
+      aiRunId: "run-weak",
+      pipelineVersion: "test",
+      taxonomyVersion: "test",
+      interpretationStatus: "completed",
+      confidenceBand: "low",
+      modelUsed: "fixture",
+      recommendedRank: "lifeform",
+      recommendedTaxonName: "未同定の植栽低木",
+      recommendedScientificName: null,
+      bestSpecificTaxonName: null,
+      narrative: "",
+      simpleSummary: "つやのある葉が見えます。",
+      observerBoost: "",
+      nextStepText: "",
+      stopReason: "",
+      funFact: "",
+      funFactGrounded: false,
+      diagnosticFeaturesSeen: ["つやのある緑色の葉"],
+      missingEvidence: [],
+      similarTaxa: [],
+      distinguishingTips: [],
+      confirmMore: [],
+      geographicContext: "",
+      seasonalContext: "",
+      areaInference: {
+        vegetationStructureCandidates: [],
+        successionStageCandidates: [],
+        humanInfluenceCandidates: [],
+        moistureRegimeCandidates: [],
+        managementHintCandidates: [],
+      },
+      managementActionCandidates: [],
+      shotSuggestions: [],
+      candidateReadings: [],
+      sizeAssessment: null,
+      noveltyHint: null,
+      invasiveResponse: null,
+      claimRefsUsed: [],
+      navigableOs: null,
+      generatedAt: "2026-05-17T00:00:00.000Z",
+    },
+  } as ObservationVisitSubject;
+  const bundle = {
+    visitId: "record-weak",
+    canonicalSubjectId: subject.occurrenceId,
+    featuredOccurrenceId: subject.occurrenceId,
+    selectedReason: "fixture",
+    selectionSource: "latest_ai_default",
+    lockedByHuman: false,
+    displayStability: "adaptive",
+    selectedRun: null,
+    previousRun: null,
+    subjects: [subject],
+    aiCandidates: [
+      {
+        candidateId: "candidate-ligustrum",
+        suggestedOccurrenceId: null,
+        displayName: "トウネズミモチ",
+        scientificName: "Ligustrum lucidum",
+        rank: "species",
+        confidence: 0.45,
+        candidateStatus: "proposed",
+        note: "葉脈が候補",
+        regions: [],
+      },
+      {
+        candidateId: "candidate-tobira",
+        suggestedOccurrenceId: null,
+        displayName: "トベラ",
+        scientificName: "Pittosporum tobira",
+        rank: "species",
+        confidence: 0.45,
+        candidateStatus: "proposed",
+        note: "葉のつやが候補",
+        regions: [],
+      },
+    ],
+  } as ObservationVisitBundle;
+
+  const html = renderHeroAiReadout(subject, false, null, bundle);
+
+  assert.match(html, /トウネズミモチ/);
+  assert.match(html, /トベラ/);
+  assert.match(html, /45%/);
+});
+
 test("owner-only controls stay compact and avoid support-card copy", () => {
   const ownerSource = [
     sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),
@@ -656,7 +779,9 @@ test("AI readout tabs only expose taxon-like identification subjects", () => {
   assert.match(helperSource, /function isIdentificationCandidateLike/);
   assert.match(targetSource, /bundle\.subjects\.filter\(isIdentificationTabSubject\)\.slice\(0, 4\)/);
   assert.doesNotMatch(targetSource, /bundle\.subjects\.slice\(0, 4\)\.map/);
-  assert.match(readoutSource, /localNameCandidates \? "" : renderHeroSceneCandidateTargets\(subject, bundle\)/);
+  assert.match(targetSource, /function renderHeroAiCandidateTargets/);
+  assert.match(targetSource, /bundle\.aiCandidates/);
+  assert.match(readoutSource, /localNameCandidates \? "" : \(renderHeroSceneCandidateTargets\(subject, bundle\) \|\| renderHeroAiCandidateTargets\(bundle\)\)/);
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
   assert.match(identifySwitchSource, /isIdentificationCandidateLike\(\{ name: label, rank: candidate\.rank, scientificName: candidate\.scientificName \}\)/);
   assert.doesNotMatch(identifySwitchSource, /candidates\.push\(\{[\s\S]*?isWeak: isWeakIdentificationCandidateName\(label\),[\s\S]*?\}\);\s*\n\s*\};\s*\n\s*\n\s*if \(options\.bundle\)/);
