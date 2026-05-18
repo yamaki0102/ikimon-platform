@@ -115,15 +115,17 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startSheetTitle: "使うものを選んで開始します",
     startSheetBody: "歩き方に合わせて、カメラと音声を別々に選べます。あとから画面下のボタンで音声だけ切り替えることもできます。",
     missionChoiceTitle: "今日のミッション",
-    missionChoiceBody: "最初に目的を1つ選ぶと、カメラと音声のおすすめ設定を合わせます。",
+    missionChoiceBody: "移動手段に合わせて、カメラと音声の組み合わせを先に決めます。",
     missions: [
-      { id: "quick", label: "5分だけ見る", body: "近くの草地や水辺を短く見て、最初の手がかりを残す" },
-      { id: "sound", label: "音だけで歩く", body: "ポケットに入れて、鳥・虫・水音などの自然音を集める" },
+      { id: "quick", label: "徒歩で見ながら記録", body: "画面を見て歩ける時は、映像と音声の両方で手がかりを残す" },
+      { id: "sound", label: "ポケット音声", body: "ポケットに入れる時は映像を切り、鳥・虫・水音などの自然音だけ集める" },
       { id: "spot", label: "1地点を詳しく見る", body: "同じ場所で植生・地形・管理痕跡をゆっくり拾う" },
-      { id: "drive", label: "運転中に記録", body: "運転者は画面を操作せず、音声だけで道路沿いの自然音と環境手がかりを残す" },
+      { id: "open_ride", label: "自転車・オープンカー", body: "風や鳥・虫の音も拾える移動では、映像と音声の両方を使う" },
+      { id: "drive", label: "車内・電車・バス", body: "車内、電車、バス、新幹線などは、映像だけで通過した環境を残す" },
     ],
     missionPresetNotice: {
-      drive: "運転用にしました。運転者は画面を見ず、停車中か同乗者が操作してください。カメラOFF + 音声ON + 車窓モードで開始します。",
+      open_ride: "自転車・オープンカー向けにしました。カメラON + 音声ON + 移動中モードで、通過した環境と自然音を残します。",
+      drive: "車内・電車・バス向けにしました。次に見る指示は出さず、カメラON + 音声OFF + 移動中モードで通過ログを残します。",
     },
     cameraChoiceTitle: "カメラを使いますか？",
     cameraChoiceBody: "周囲の植物や地形を読み取る場合はONが向いています。ポケットに入れて音だけ集めるときはOFFにすると、映像は取得しません。",
@@ -143,7 +145,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     cameraOnlyNotice: "カメラだけで開始しました。音声は記録しません。",
     cameraAudioNotice: "カメラと音声で開始しました。人声らしい音は保存しません。",
     recommendedTitle: "おすすめ設定",
-    recommendedBody: "歩きながら見たり、自転車でゆっくり移動するなら「カメラON + 音声ON」が一番情報量を増やせます。",
+    recommendedBody: "徒歩、自転車、オープンカーのように自然音も拾える時は「カメラON + 音声ON」が一番情報量を増やせます。",
     recommendedApply: "おすすめを使う",
     recommendedPocketHint: "ポケットに入れて使う日は、カメラOFF + 音声ONに変えると映像を取らずに自然音だけ集められます。",
     sessionSummaryTitle: "今回のふりかえり",
@@ -172,7 +174,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     modeLabel: "移動モード",
     modes: [
       { id: "walk", label: "徒歩" },
-      { id: "vehicle", label: "車窓・自転車" },
+      { id: "vehicle", label: "乗り物移動" },
     ],
     categoryLabel: "ガイドカテゴリ",
     categories: [
@@ -189,11 +191,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "記録用写真を選ぶ",
     photoAnalysing: "写真を解析中…",
     analysing: "解析中…",
-    started: "ガイド中。解析用フレームは自動送信され、元画像は保存しません。",
+    started: "ガイド中。解析用フレームは自動送信され、元画像は保存しません。Trailでサムネイルと保存理由を確認できます。",
     stopped: "停止しました。解析済みの足跡は下に残ります。",
     playing: "▶ ガイド音声を再生中",
     privacyNotice: "開始直後は映像解析のみ。音声は下のボタンを押した場合だけ、自然音候補として短く保存します。",
-    frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけ自動で送り、保存するのはサムネイルと解析結果です。",
+    frameNotice: "端末画像全体のアップロードボタンはありません。解析用の小さなフレームだけ自動で送り、保存するのはサムネイル・解析結果・保存/除外理由です。自然音はONにした時だけ短い候補を別記録にします。",
     naturalSoundBadge: "音声は初期OFF",
     voiceExcludedNotice: "人声の可能性がある音を除外しました",
     audioOffNotice: "音声記録はOFFです。野外らしい発見は自動保存し、室内・人物中心・自然手がかりが弱いものは残しません。",
@@ -220,8 +222,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     playTrail: "聞く",
     saveTrail: "保存",
     autoSaveBadge: "自動保存",
-    autoSaved: "自動保存済み",
-    autoSkipped: "保存しませんでした",
+    autoSaved: "記録済み",
+    autoSkipped: "保存対象外",
     autoSaveError: "自動保存できませんでした",
     manualSave: "手動で保存",
     visualModelLabel: "視覚",
@@ -234,15 +236,17 @@ const COPY: Record<SiteLang, GuideCopy> = {
     startSheetTitle: "Choose what Guide can use",
     startSheetBody: "Camera and audio are separate choices. You can still change audio later.",
     missionChoiceTitle: "Today's mission",
-    missionChoiceBody: "Pick one intent first, and Guide will match the recommended camera and audio setup.",
+    missionChoiceBody: "Pick the movement style first, and Guide will match camera and audio.",
     missions: [
-      { id: "quick", label: "Look for 5 min", body: "Read nearby vegetation or water edges and leave the first field clue" },
-      { id: "sound", label: "Walk audio-only", body: "Keep the phone pocketed and collect bird, insect, or water cues" },
+      { id: "quick", label: "Walk with screen", body: "Use both camera and audio when you can watch the scene while walking" },
+      { id: "sound", label: "Pocket audio", body: "Turn camera off and collect bird, insect, or water cues when the phone stays pocketed" },
       { id: "spot", label: "Study one spot", body: "Stay in place and capture vegetation, landform, and management traces" },
-      { id: "drive", label: "Driving audio", body: "Keep the screen untouched while driving and collect roadside natural sound and habitat cues" },
+      { id: "open_ride", label: "Bike / open car", body: "Use both camera and audio when wind, birds, or insects can be captured" },
+      { id: "drive", label: "Car / train / bus", body: "Use camera only for enclosed vehicles, trains, buses, and bullet trains" },
     ],
     missionPresetNotice: {
-      drive: "Driving preset applied. Do not operate the screen while driving; use it parked or with a passenger. Starts as Camera off + Audio on + vehicle mode.",
+      open_ride: "Bike / open-car preset applied. Starts as Camera on + Audio on + moving mode.",
+      drive: "Enclosed-vehicle preset applied. Guide will not prompt what to look at next; starts as Camera on + Audio off + moving mode.",
     },
     cameraChoiceTitle: "Use the camera?",
     cameraChoiceBody: "Turn it on when you want plants, habitat, and landforms read from the scene. Turn it off for pocket audio-only walks.",
@@ -262,7 +266,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     cameraOnlyNotice: "Started with camera only. Audio is not recorded.",
     cameraAudioNotice: "Started with camera and audio. Speech-like clips are not saved.",
     recommendedTitle: "Recommended setup",
-    recommendedBody: "For walking or slow bike rides, Camera on + Audio on gives Guide the richest field clues.",
+    recommendedBody: "For walking, bikes, or open cars where natural sound is useful, Camera on + Audio on gives Guide the richest field clues.",
     recommendedApply: "Use recommended",
     recommendedPocketHint: "For pocket use, switch to Camera off + Audio on to collect natural sound without video.",
     sessionSummaryTitle: "Session recap",
@@ -291,7 +295,7 @@ const COPY: Record<SiteLang, GuideCopy> = {
     modeLabel: "Movement mode",
     modes: [
       { id: "walk", label: "Walk" },
-      { id: "vehicle", label: "Roadside / bike" },
+      { id: "vehicle", label: "Moving transit" },
     ],
     categoryLabel: "Guide Category",
     categories: [
@@ -308,11 +312,11 @@ const COPY: Record<SiteLang, GuideCopy> = {
     choosePhotoBtn: "Choose post photo",
     photoAnalysing: "Analysing photo…",
     analysing: "Analysing…",
-    started: "Guide is running. Small analysis frames are sent automatically; original device images are not stored.",
+    started: "Guide is running. Small analysis frames are sent automatically; original device images are not stored. Trail shows thumbnails and save reasons.",
     stopped: "Stopped. Analysed trail items remain below.",
     playing: "▶ Playing guide audio",
     privacyNotice: "Guide starts with video analysis only. Audio is saved only if you enable natural sound recording below.",
-    frameNotice: "There is no full-device-image upload button. Guide only sends small analysis frames and stores thumbnails plus results.",
+    frameNotice: "There is no full-device-image upload button. Guide only sends small analysis frames and stores thumbnails, results, and save/skip reasons. Natural sound is stored separately only when enabled.",
     naturalSoundBadge: "Audio off by default",
     voiceExcludedNotice: "Possible human voice was excluded",
     audioOffNotice: "Audio recording is off. Field-like discoveries are saved automatically; indoor, person-first, or weak nature signals are not kept.",
@@ -339,8 +343,8 @@ const COPY: Record<SiteLang, GuideCopy> = {
     playTrail: "Play",
     saveTrail: "Save",
     autoSaveBadge: "Auto-save",
-    autoSaved: "Auto-saved",
-    autoSkipped: "Not saved",
+    autoSaved: "Recorded",
+    autoSkipped: "Not retained",
     autoSaveError: "Auto-save failed",
     manualSave: "Save manually",
     visualModelLabel: "Visual",
@@ -1070,6 +1074,19 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     const text = String(message || '').trim();
     nowNext.hidden = !text;
     if (body) body.textContent = text;
+  }
+  function nextActionForMode(kind) {
+    if (getGuideMode() !== 'vehicle') {
+      return kind === 'initial' ? copy.nowNextInitial : copy.nowNextAnalysing;
+    }
+    if (getLang() === 'ja') {
+      return kind === 'initial'
+        ? '移動中は次に見る指示を出さず、通過ログとしてサムネイル・位置・保存理由を残します。'
+        : '移動中は見に戻らず、サムネイル・位置・保存理由を通過ログとして残します。';
+    }
+    return kind === 'initial'
+      ? 'While moving, Guide will not prompt what to look at next; it records thumbnails, location, and reasons as a pass-by log.'
+      : 'Do not go back while moving; Guide records thumbnails, location, and save reasons as a pass-by log.';
   }
   function escapeInline(value) {
     return String(value || '').replace(/[&<>\"']/g, function (char) {
@@ -2844,7 +2861,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
     if (!running) return;
     setStatus(copy.analysing);
     setNowState(copy.analysing);
-    setNextAction(copy.nowNextAnalysing);
+    setNextAction(nextActionForMode('analysing'));
     try {
       const bundle = Array.isArray(frameBundle) && frameBundle.length ? frameBundle : null;
       lastKnownPosition = bundle ? {
@@ -3072,14 +3089,18 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       setSelectValue('guide-mode-select', 'walk');
       setRadioChoice('guide-camera-choice', 'on');
       setRadioChoice('guide-audio-choice', 'on');
+    } else if (mission === 'open_ride') {
+      setSelectValue('guide-mode-select', 'vehicle');
+      setRadioChoice('guide-camera-choice', 'on');
+      setRadioChoice('guide-audio-choice', 'on');
     } else if (mission === 'drive') {
       setSelectValue('guide-mode-select', 'vehicle');
-      setRadioChoice('guide-camera-choice', 'off');
-      setRadioChoice('guide-audio-choice', 'on');
+      setRadioChoice('guide-camera-choice', 'on');
+      setRadioChoice('guide-audio-choice', 'off');
     } else {
       setSelectValue('guide-mode-select', 'walk');
       setRadioChoice('guide-camera-choice', 'on');
-      setRadioChoice('guide-audio-choice', 'off');
+      setRadioChoice('guide-audio-choice', 'on');
     }
     if (startSheetLive) startSheetLive.textContent = copy.missionPresetNotice[mission] || '';
   }
@@ -3279,7 +3300,7 @@ ${FACE_PRIVACY_CLIENT_SCRIPT}
       }
       setStatus(copy.started);
       setNowState(copy.started);
-      setNextAction(copy.nowNextInitial);
+      setNextAction(nextActionForMode('initial'));
       if (audioOptIn) void startOptionalAudioCapture();
       void prepareLiveAssist();
       if (nowWrap) nowWrap.hidden = false;

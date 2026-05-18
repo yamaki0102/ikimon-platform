@@ -334,9 +334,9 @@ export async function analyzeScene(opts: {
     frameBundleSummary: opts.context.frameBundleSummary ?? summarizeFrameBundleForPrompt(frames),
     effortSummary: opts.context.effortSummary ?? "不明",
     coverageSummary: opts.context.coverageSummary ?? "不明",
-    guideMode: guideMode === "vehicle" ? "車・自転車などの移動中モード" : "徒歩・立ち止まり観察モード",
+    guideMode: guideMode === "vehicle" ? "車・電車・バス・新幹線・自転車などの移動中モード" : "徒歩・立ち止まり観察モード",
     guideModeRules: guideMode === "vehicle"
-      ? "移動中なので種同定を主目的にしない。車窓から確実に読める植生帯、街路樹、草刈り、農地、水路、林縁、道路際、土地利用の変化を優先する。看板・ロゴ・車名・店舗名を生きものとして扱わない。種名は画像上で生物個体が明確な場合だけ返す。"
+      ? "移動中なので、その場で次に見る行動を促さない。車・電車・バス・新幹線・自転車などから確実に読める植生帯、街路樹、草刈り、農地、水路、林縁、道路際、土地利用の変化を通過ログとして優先する。看板・ロゴ・車名・店舗名を生きものとして扱わない。種名は画像上で生物個体が明確な場合だけ返す。"
       : "徒歩観察でも、種名だけに寄せず、植生・土地被覆・管理痕跡・水辺・林縁を同じ重さで扱う。看板・ロゴ・車名・店舗名を生きものとして扱わない。",
   });
 

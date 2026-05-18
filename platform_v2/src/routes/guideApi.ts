@@ -198,7 +198,7 @@ type PendingGuideScene = {
 
 type PendingGuideAutoSave =
   | ({ state: "saved"; guideRecordId: string } & GuideAutoSaveDecision)
-  | ({ state: "skipped" } & GuideAutoSaveDecision)
+  | ({ state: "skipped"; guideRecordId?: string } & GuideAutoSaveDecision)
   | ({ state: "error"; error: string } & GuideAutoSaveDecision);
 
 type FacePrivacySummary = {
@@ -259,7 +259,7 @@ function sceneAgeSeconds(capturedAt: string, now = new Date()): number {
   return Math.max(0, Math.round((now.getTime() - t) / 1000));
 }
 
-function buildDelayedSceneCopy(result: SceneResult, ageSec: number): {
+function buildDelayedSceneCopy(result: SceneResult, ageSec: number, guideMode: GuideMode): {
   delayedSummary: string;
   whyInteresting: string;
   nextLookTarget: string;
@@ -273,15 +273,30 @@ function buildDelayedSceneCopy(result: SceneResult, ageSec: number): {
   const whyInteresting = result.seasonalNote || result.environmentContext || (subject
     ? `${subject}だけでなく、周囲の環境と一緒に見ると発見が増えます。`
     : "種名が確定しなくても、植生・土地利用・水辺や道路際の状態として残せます。");
-  const nextLookTarget = subject
-    ? `${subject}をもう一度見るなら、全体・近い特徴・いた場所の3つを分けて確認すると進みます。`
-    : hasEnvironment
-      ? "次に見るなら、草丈・樹木の並び・水路・刈り込み跡・道路際のどれかを1つ足してください。"
-      : "次に見るなら、葉・花・実・足元の環境など、名前以外の手がかりを1つ足してください。";
+  const nextLookTarget = guideMode === "vehicle"
+    ? subject
+      ? `${subject}は追いかけず、移動中の通過ログとしてサムネイル・位置・周辺環境を残します。`
+      : hasEnvironment
+        ? "次に見る指示は出さず、水路・草地・林縁・道路際の変化を移動中の通過ログとして残します。"
+        : "次に見る指示は出さず、サムネイルと位置を通過ログとして残します。"
+    : subject
+      ? `${subject}をもう一度見るなら、全体・近い特徴・いた場所の3つを分けて確認すると進みます。`
+      : hasEnvironment
+        ? "次に見るなら、草丈・樹木の並び・水路・刈り込み跡・道路際のどれかを1つ足してください。"
+        : "次に見るなら、葉・花・実・足元の環境など、名前以外の手がかりを1つ足してください。";
   const uncertaintyReason = lowConfidence
     ? "このフレームだけでは特徴が足りないため、種名は確定せず環境の手がかりとして扱います。"
     : null;
   return { delayedSummary, whyInteresting, nextLookTarget, uncertaintyReason };
+}
+
+function shouldRetainSkippedGuideScene(decision: GuideAutoSaveDecision): boolean {
+  const codes = new Set(decision.reasonCodes);
+  if (codes.has("privacy_or_indoor_scene") || codes.has("duplicate_scene")) return false;
+  return codes.has("vehicle_structure_only_scene")
+    || codes.has("no_field_nature_signal")
+    || codes.has("model_skip")
+    || codes.has("built_up_location_model_skip");
 }
 
 function distanceFromCurrent(job: PendingGuideScene, currentLatRaw: unknown, currentLngRaw: unknown): number | null {
@@ -307,7 +322,7 @@ function buildScenePayload(job: PendingGuideScene, distanceFromCurrentM: number 
   }
 
   const ageSec = sceneAgeSeconds(job.capturedAt, new Date(job.returnedAt));
-  const copy = buildDelayedSceneCopy(job.result, ageSec);
+  const copy = buildDelayedSceneCopy(job.result, ageSec, job.guideMode);
   const deliveryState = distanceFromCurrentM != null && distanceFromCurrentM > 25 ? "deferred" : "ready";
 
   return {
@@ -392,11 +407,61 @@ async function applyGuideAutoSave(input: {
 }): Promise<PendingGuideAutoSave> {
   const decision = decideGuideAutoSave({ result: input.sceneResult, siteBrief: input.siteBrief, guideMode: input.guideMode });
   if (decision.decision === "skip") {
-    return { state: "skipped", ...decision };
+    if (!shouldRetainSkippedGuideScene(decision)) return { state: "skipped", ...decision };
+    const ageSec = sceneAgeSeconds(input.capturedAt, new Date(input.returnedAt));
+    const copy = buildDelayedSceneCopy(input.sceneResult, ageSec, input.guideMode);
+    const guideRecordId = await saveGuideRecord({
+      sessionId: input.sessionId,
+      userId: input.userId,
+      lat: input.lat,
+      lng: input.lng,
+      capturedAt: input.capturedAt,
+      returnedAt: input.returnedAt,
+      currentDistanceM: null,
+      deliveryState: "archived",
+      seenState: "dismissed",
+      frameThumb: input.frameThumb,
+      sceneHash: input.sceneResult.sceneHash,
+      sceneSummary: copy.delayedSummary,
+      detectedSpecies: input.sceneResult.detectedSpecies,
+      detectedFeatures: input.sceneResult.detectedFeatures,
+      primarySubject: input.sceneResult.primarySubject ?? null,
+      environmentContext: input.sceneResult.environmentContext ?? null,
+      seasonalNote: input.sceneResult.seasonalNote ?? null,
+      coexistingTaxa: input.sceneResult.coexistingTaxa ?? [],
+      confidenceContext: {
+        delayed: true,
+        ageSec,
+        autoSave: decision,
+        retainedForOutcomeReview: true,
+        facePrivacy: input.facePrivacy,
+        locationQuality: input.locationQuality ?? null,
+      },
+      mediaRefs: {
+        ...(input.frameThumb ? { frameThumb: input.frameThumb } : {}),
+        ...(input.facePrivacy ? { facePrivacy: input.facePrivacy } : {}),
+      },
+      meta: {
+        sceneId: input.sceneId,
+        guideMode: input.guideMode,
+        autoSave: decision,
+        retainedForOutcomeReview: true,
+        whyInteresting: copy.whyInteresting,
+        nextLookTarget: copy.nextLookTarget,
+        guideSignals: {
+          newSignals: input.sceneResult.newSignals ?? [],
+          continuedSignals: input.sceneResult.continuedSignals ?? [],
+          coverageHints: input.sceneResult.coverageHints ?? [],
+          absenceBoundary: input.sceneResult.absenceBoundary ?? null,
+        },
+      },
+      lang: input.lang,
+    });
+    return { state: "skipped", guideRecordId, ...decision };
   }
 
   const ageSec = sceneAgeSeconds(input.capturedAt, new Date(input.returnedAt));
-  const copy = buildDelayedSceneCopy(input.sceneResult, ageSec);
+  const copy = buildDelayedSceneCopy(input.sceneResult, ageSec, input.guideMode);
   try {
     const guideRecordId = await saveGuideRecord({
       sessionId: input.sessionId,

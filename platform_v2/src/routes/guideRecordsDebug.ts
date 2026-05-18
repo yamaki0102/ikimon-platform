@@ -20,6 +20,7 @@ import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 type GuideRecordDebugRow = GuideRecordInsightRow;
 
 type EditableFeature = { type: "species" | "vegetation" | "landform" | "structure" | "sound"; name: string; confidence?: number; note?: string };
+type GuideOutcomeFilter = "all" | "saved" | "non_detection" | "not_retained" | "audio";
 
 type CorrectionBody = {
   detectedSpecies?: unknown;
@@ -29,6 +30,51 @@ type CorrectionBody = {
   note?: unknown;
   correctionKind?: unknown;
 };
+
+function parseOutcomeFilter(raw: unknown): GuideOutcomeFilter {
+  return raw === "saved" || raw === "non_detection" || raw === "not_retained" || raw === "audio" ? raw : "all";
+}
+
+function rowAutoSave(row: GuideRecordDebugRow): Record<string, unknown> | null {
+  const raw = row.meta?.autoSave;
+  return raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
+}
+
+function rowReasonCodes(row: GuideRecordDebugRow): string[] {
+  const codes = rowAutoSave(row)?.reasonCodes;
+  return Array.isArray(codes) ? codes.map(String) : [];
+}
+
+function rowAbsenceState(row: GuideRecordDebugRow): string {
+  const guideSignals = row.meta?.guideSignals;
+  if (!guideSignals || typeof guideSignals !== "object" || Array.isArray(guideSignals)) return "";
+  const absenceBoundary = (guideSignals as Record<string, unknown>).absenceBoundary;
+  if (!absenceBoundary || typeof absenceBoundary !== "object" || Array.isArray(absenceBoundary)) return "";
+  return String((absenceBoundary as Record<string, unknown>).state ?? "");
+}
+
+function isNotRetainedGuideRow(row: GuideRecordDebugRow): boolean {
+  return rowAutoSave(row)?.decision === "skip" || row.delivery_state === "archived" || row.seen_state === "dismissed";
+}
+
+function isNonDetectionGuideRow(row: GuideRecordDebugRow): boolean {
+  const absenceState = rowAbsenceState(row);
+  return rowReasonCodes(row).includes("non_detection_record")
+    || absenceState === "searched_not_found"
+    || absenceState === "absence_candidate";
+}
+
+function isSavedGuideRow(row: GuideRecordDebugRow): boolean {
+  return !isNotRetainedGuideRow(row);
+}
+
+function filterGuideRows(rows: GuideRecordDebugRow[], filter: GuideOutcomeFilter): GuideRecordDebugRow[] {
+  if (filter === "saved") return rows.filter(isSavedGuideRow);
+  if (filter === "non_detection") return rows.filter(isNonDetectionGuideRow);
+  if (filter === "not_retained") return rows.filter(isNotRetainedGuideRow);
+  if (filter === "audio") return rows.filter((row) => Boolean(row.has_promotable_audio));
+  return rows;
+}
 
 function loginGate(nextPath = "/me/guide-records"): string {
   return `
@@ -755,6 +801,46 @@ function renderSimpleOutcomeHero(rows: GuideRecordDebugRow[], bundles: GuideReco
   </section>`;
 }
 
+function filterLabel(filter: GuideOutcomeFilter): string {
+  switch (filter) {
+    case "saved": return "保存済み";
+    case "non_detection": return "未検出";
+    case "not_retained": return "保存対象外";
+    case "audio": return "音声あり";
+    default: return "すべて";
+  }
+}
+
+function renderOutcomeFilterBar(rows: GuideRecordDebugRow[], active: GuideOutcomeFilter): string {
+  const counts: Record<GuideOutcomeFilter, number> = {
+    all: rows.length,
+    saved: rows.filter(isSavedGuideRow).length,
+    non_detection: rows.filter(isNonDetectionGuideRow).length,
+    not_retained: rows.filter(isNotRetainedGuideRow).length,
+    audio: rows.filter((row) => Boolean(row.has_promotable_audio)).length,
+  };
+  const filters: GuideOutcomeFilter[] = ["all", "saved", "non_detection", "not_retained", "audio"];
+  const links = filters.map((filter) => {
+    const href = filter === "all" ? "/guide/outcomes" : `/guide/outcomes?filter=${filter}`;
+    const cls = filter === active ? " is-active" : "";
+    return `<a class="grd-filter-chip${cls}" href="${escapeHtml(href)}" aria-current="${filter === active ? "page" : "false"}">${escapeHtml(filterLabel(filter))}<b>${counts[filter]}</b></a>`;
+  }).join("");
+  const note = active === "not_retained"
+    ? "人物・室内・重複など保存すべきでないものはここにも残しません。ここに出るのは、安全に確認できる低情報量の除外ログだけです。"
+    : active === "non_detection"
+      ? "何も確認できなかった記録も、探した範囲や通過環境が分かる場合は調査データとして残します。"
+      : "サムネイル、保存理由、未検出、音声の有無で、ガイド結果が妥当か確認できます。";
+  return `<section class="grd-filter-panel" aria-label="ガイド成果フィルタ"><div class="grd-filter-row">${links}</div><p>${escapeHtml(note)}</p></section>`;
+}
+
+function rowStateBadges(row: GuideRecordDebugRow): string {
+  const badges: string[] = [];
+  badges.push(isNotRetainedGuideRow(row) ? "保存対象外" : "保存済み");
+  if (isNonDetectionGuideRow(row)) badges.push("未検出");
+  if (row.has_promotable_audio) badges.push("音声あり");
+  return `<div class="grd-state-badges">${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>`;
+}
+
 function renderSimpleOutcomeCards(bundles: GuideRecordBundle[]): string {
   if (bundles.length === 0) return "";
   const cards = bundles.slice(0, 6).map((bundle) => {
@@ -773,6 +859,7 @@ function renderSimpleOutcomeCards(bundles: GuideRecordBundle[]): string {
         <span>${escapeHtml(formatTime(bundle.startAt))}</span>
         <span>${bundle.recordCount}件から要約</span>
       </div>
+      ${rowStateBadges(row)}
       <h2>${escapeHtml(row.scene_summary ?? "見つけたこと")}</h2>
       ${row.environment_context ? `<p>${escapeHtml(row.environment_context)}</p>` : ""}
       <div class="grd-species">${species.length ? species.slice(0, 4).map((item) => `<span title="${escapeHtml(item.sourceNames.join(", "))}">${escapeHtml(item.canonicalName)}<small>${escapeHtml(item.rank)}</small></span>`).join("") : `<span class="grd-muted">名前未確定でもOK</span>`}</div>
@@ -821,6 +908,15 @@ const STYLES = `
 .grd-next-one{grid-column:1/-1;border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px;display:grid;gap:4px;}
 .grd-next-one span{color:#a16207;font-size:11px;font-weight:950;text-transform:uppercase;}
 .grd-next-one p{margin:0;color:#713f12;font-size:14px;line-height:1.65;font-weight:900;}
+.grd-filter-panel{display:grid;gap:8px;border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:12px;margin:0 0 16px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
+.grd-filter-row{display:flex;gap:8px;flex-wrap:wrap;}
+.grd-filter-chip{min-height:38px;display:inline-flex;align-items:center;gap:7px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:999px;padding:7px 11px;text-decoration:none;font-size:12px;font-weight:950;}
+.grd-filter-chip b{min-width:22px;height:22px;display:inline-grid;place-items:center;border-radius:999px;background:#e2e8f0;color:#0f172a;font-size:11px;}
+.grd-filter-chip.is-active{border-color:#0f766e;background:#ecfdf5;color:#065f46;}
+.grd-filter-chip.is-active b{background:#0f766e;color:#fff;}
+.grd-filter-panel p{margin:0;color:#475569;font-size:12px;line-height:1.65;font-weight:800;}
+.grd-state-badges{display:flex;gap:6px;flex-wrap:wrap;}
+.grd-state-badges span{display:inline-flex;align-items:center;min-height:24px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:950;}
 .grd-simple-list{display:grid;gap:12px;margin-top:18px;}
 .grd-simple-list h2{font-size:18px;margin:0;color:#0f172a;}
 .grd-simple-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
@@ -1209,7 +1305,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
 }
 
 async function renderPage(
-  request: { headers: Record<string, unknown>; query?: { limit?: string } },
+  request: { headers: Record<string, unknown>; query?: { limit?: string; filter?: string } },
   reply: { type: (value: string) => void; code: (value: number) => void },
   options: { nextPath?: string; title?: string; heading?: string; lead?: string; simpleOutcomes?: boolean } = {},
 ): Promise<string> {
@@ -1229,13 +1325,15 @@ async function renderPage(
     });
   }
   const limit = Math.max(1, Math.min(100, Number.parseInt(request.query?.limit ?? "50", 10) || 50));
-  let rows: GuideRecordDebugRow[] = [];
+  let allRows: GuideRecordDebugRow[] = [];
   let errorHtml = "";
   try {
-    rows = await loadGuideRecords(session.userId, limit);
+    allRows = await loadGuideRecords(session.userId, limit);
   } catch (error) {
     errorHtml = `<section class="grd-empty"><h1>DBから取得できませんでした</h1><p>${escapeHtml(error instanceof Error ? error.message : String(error))}</p></section>`;
   }
+  const activeFilter = parseOutcomeFilter(request.query?.filter);
+  const rows = options.simpleOutcomes ? filterGuideRows(allRows, activeFilter) : allRows;
   const bundles = await addNextSamplingToBundles(bundleGuideRecords(rows));
   const qualityBySession = options.simpleOutcomes
     ? new Map<string, GuideTransectQuality>()
@@ -1264,7 +1362,7 @@ async function renderPage(
     </div>
   </header>
   ${errorHtml || (options.simpleOutcomes
-    ? `${renderSimpleOutcomeHero(rows, bundles)}${renderSimpleOutcomeCards(bundles)}`
+    ? `${renderOutcomeFilterBar(allRows, activeFilter)}${renderSimpleOutcomeHero(rows, bundles)}${renderSimpleOutcomeCards(bundles)}`
     : `${renderOutcomeContributionPanel(rows, bundles, qualityBySession, communitySummary)}${renderSummaryStats(rows, bundles, qualityBySession)}${renderGuideQualityPanel(qualityBySession)}${renderRouteMap()}${renderRouteTransect(bundles, qualityBySession)}${renderRecordCards(bundles)}`)}
 </div><script>${SCRIPT}</script>`;
   return renderSiteDocument({
@@ -1280,7 +1378,7 @@ async function renderPage(
 export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { limit?: string } }>("/me/guide-records", async (request, reply) => renderPage(request, reply));
   app.get<{ Querystring: { limit?: string } }>("/admin/debug/guide-records", async (request, reply) => renderPage(request, reply));
-  app.get<{ Querystring: { limit?: string } }>("/guide/outcomes", async (request, reply) => renderPage(request, reply, {
+  app.get<{ Querystring: { limit?: string; filter?: string } }>("/guide/outcomes", async (request, reply) => renderPage(request, reply, {
     nextPath: "/guide/outcomes",
     title: "ガイド成果 — ikimon.life",
     heading: "ガイド成果",

@@ -25,11 +25,13 @@ test("guide live capture starts video-only and asks for microphone separately", 
   assert.match(html, /Audio on/);
   assert.match(html, /Audio off/);
   assert.match(html, /Today&#39;s mission/);
-  assert.match(html, /Look for 5 min/);
-  assert.match(html, /Walk audio-only/);
+  assert.match(html, /Walk with screen/);
+  assert.match(html, /Pocket audio/);
   assert.match(html, /Study one spot/);
-  assert.match(html, /Driving audio/);
-  assert.match(html, /Driving preset applied/);
+  assert.match(html, /Bike \/ open car/);
+  assert.match(html, /Car \/ train \/ bus/);
+  assert.match(html, /Enclosed-vehicle preset applied/);
+  assert.match(html, /mission === 'open_ride'/);
   assert.match(html, /applyMissionPreset\(input\.value \|\| 'quick'\)/);
   assert.match(html, /mission === 'drive'/);
   assert.match(html, /setSelectValue\('guide-mode-select', 'vehicle'\)/);
@@ -154,13 +156,14 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
 
   assert.match(html, /使うものを選んで開始します/);
   assert.match(html, /今日のミッション/);
-  assert.match(html, /5分だけ見る/);
-  assert.match(html, /音だけで歩く/);
+  assert.match(html, /徒歩で見ながら記録/);
+  assert.match(html, /ポケット音声/);
   assert.match(html, /1地点を詳しく見る/);
-  assert.match(html, /運転中に記録/);
-  assert.match(html, /運転者は画面を見ず/);
+  assert.match(html, /自転車・オープンカー/);
+  assert.match(html, /車内・電車・バス/);
+  assert.match(html, /カメラON \+ 音声OFF \+ 移動中モード/);
   assert.match(html, /おすすめ設定/);
-  assert.match(html, /歩きながら見たり、自転車でゆっくり移動するなら/);
+  assert.match(html, /徒歩、自転車、オープンカー/);
   assert.match(html, /おすすめを使う/);
   assert.match(html, /ポケットに入れて使う日は/);
   assert.match(html, /ポケットに入れて音だけ集めるときはOFF/);
@@ -183,7 +186,7 @@ test("guide start sheet explains Japanese camera and audio choices gently", () =
   assert.match(html, /ゆっくり1方向へ向けて/);
   assert.match(html, /人工物だけでなく、近くの草/);
   assert.match(html, /未同期のもの/);
-  assert.match(html, /車窓・自転車/);
+  assert.match(html, /乗り物移動/);
   assert.match(html, /href="\/guide\/outcomes"/);
   assert.match(html, /ガイド成果を確認する/);
   assert.match(html, /オフライン中/);

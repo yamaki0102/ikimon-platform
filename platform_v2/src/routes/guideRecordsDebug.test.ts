@@ -20,3 +20,18 @@ test("guide outcomes cards separate candidates from promoted observations", () =
   assert.match(source, /nextAction === 'add_photo'/);
   assert.match(source, /AIガイド成果は未検証候補です/);
 });
+
+test("guide outcomes exposes quality filters for saved, non-detection, skipped, and audio records", () => {
+  const source = readFileSync(routePath, "utf8");
+
+  assert.match(source, /type GuideOutcomeFilter = "all" \| "saved" \| "non_detection" \| "not_retained" \| "audio"/);
+  assert.match(source, /function renderOutcomeFilterBar/);
+  assert.match(source, /保存済み/);
+  assert.match(source, /未検出/);
+  assert.match(source, /保存対象外/);
+  assert.match(source, /音声あり/);
+  assert.match(source, /isNonDetectionGuideRow/);
+  assert.match(source, /isNotRetainedGuideRow/);
+  assert.match(source, /has_promotable_audio/);
+  assert.match(source, /filterGuideRows\(allRows, activeFilter\)/);
+});
