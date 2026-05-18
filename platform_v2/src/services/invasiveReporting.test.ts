@@ -4,6 +4,7 @@ import type { PoolClient } from "pg";
 import {
   buildInvasiveReportingPayload,
   emitInvasiveReportingForOccurrence,
+  listInvasiveReportingVisibility,
 } from "./invasiveReporting.js";
 
 type Query = { text: string; values: unknown[] };
@@ -149,4 +150,62 @@ test("buildInvasiveReportingPayload keeps multilingual rule guidance and detaile
   assert.match(JSON.stringify(payload), /AI候補であり、確定同定ではありません/);
   assert.match(JSON.stringify(payload), /34\.9756/);
   assert.match(JSON.stringify(payload), /fire-ant\.jpg/);
+});
+
+test("listInvasiveReportingVisibility exposes permission status without creating deliveries", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, [
+    ruleRow(),
+    ruleRow({
+      organization_name: "静岡市",
+      department_name: "環境保全課",
+      alert_recipient_id: null,
+      send_permission_status: "external_only",
+      delivery_mode: "external_form",
+      reporting_category: "sighting_report",
+      urgency: "normal",
+    }),
+  ]);
+
+  const visibility = await listInvasiveReportingVisibility(client, ctx);
+
+  assert.equal(visibility.available, true);
+  assert.equal(visibility.reason, "ok");
+  assert.equal(visibility.matchedRules, 2);
+  assert.equal(visibility.autoDeliveryCount, 1);
+  assert.equal(visibility.contacts[0]?.organizationName, "静岡県");
+  assert.equal(visibility.contacts[0]?.autoDeliveryEnabled, true);
+  assert.equal(visibility.contacts[1]?.sendPermissionStatus, "external_only");
+  assert.equal(visibility.contacts[1]?.autoDeliveryEnabled, false);
+  assert.deepEqual(visibility.contacts[0]?.requiredFields, ["写真", "発見場所", "発見日時", "個体数"]);
+  assert.equal(history.some((q) => /INSERT INTO alert_deliveries/.test(q.text)), false);
+  assert.equal(history.some((q) => /INSERT INTO invasive_reporting_events/.test(q.text)), false);
+});
+
+test("listInvasiveReportingVisibility keeps non-trigger and missing location as explicit empty states", async () => {
+  const history: Query[] = [];
+  const client = makeMockClient(history, [ruleRow()]);
+
+  const nativeVisibility = await listInvasiveReportingVisibility(client, { ...ctx, invasiveStatus: "native" });
+  assert.deepEqual(nativeVisibility, {
+    available: true,
+    reason: "not_invasive_trigger",
+    matchedRules: 0,
+    autoDeliveryCount: 0,
+    contacts: [],
+  });
+
+  const noLocationVisibility = await listInvasiveReportingVisibility(client, {
+    ...ctx,
+    prefecture: null,
+    municipality: null,
+  });
+  assert.deepEqual(noLocationVisibility, {
+    available: true,
+    reason: "location_required",
+    matchedRules: 0,
+    autoDeliveryCount: 0,
+    contacts: [],
+  });
+  assert.equal(history.length, 0);
 });
