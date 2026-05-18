@@ -64,6 +64,10 @@ async function expectRenderedDocument(page: Page): Promise<void> {
   expect(text.length).toBeGreaterThan(20);
 }
 
+function withoutDefaultLocalePrefix(pathname: string): string {
+  return pathname === "/ja" ? "/" : pathname.replace(/^\/ja(?=\/)/, "");
+}
+
 const pages = listVisualQaPages();
 const assertScreenshots = process.env.VISUAL_QA_ASSERT_SCREENSHOTS === "1";
 
@@ -93,7 +97,7 @@ test.describe("sitemap registry visual smoke", () => {
           const status = response?.status() ?? 0;
           const allowed = qa.allowStatus ?? [200];
           expect(allowed, `${href} allowed statuses`).toContain(status);
-          expect(new URL(page.url()).pathname).toBe(new URL(href, "https://staging.ikimon.life").pathname);
+          expect(withoutDefaultLocalePrefix(new URL(page.url()).pathname)).toBe(new URL(href, "https://staging.ikimon.life").pathname);
 
           if (qa.readySelector) {
             await page.locator(qa.readySelector).first().waitFor({ state: "visible" });
