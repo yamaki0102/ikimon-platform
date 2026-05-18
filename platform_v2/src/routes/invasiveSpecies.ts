@@ -52,38 +52,37 @@ function scriptJson(value: unknown): string {
 
 function renderCommonSafety(): string {
   return `<section class="invasive-safety">
-    <span>共通の注意</span>
-    <h2>触らない、運ばない、捕獲しない。</h2>
-    <p>名前が合っているか不確かな段階では、近づきすぎず、写真・場所・日時を記録するところで止めます。生きた個体、卵、種子、植物片を運ばず、捕獲や駆除は自治体、土地管理者、専門機関の指示に従ってください。</p>
+    <span>見つけた人向け</span>
+    <h2>触らず、写真と場所を残す。</h2>
+    <p>外来種かもしれない生きものを見つけたら、近づきすぎず、写真・場所・日時を記録してください。生きもの、卵、種子、植物片は運ばず、捕獲や駆除は自治体や土地の管理者の案内に従ってください。</p>
   </section>`;
 }
 
 function renderActionSources(basePath: string, lang: SiteLang, item: InvasiveSpeciesCatalogItem): string {
   const partnershipHref = appendLangToHref(withBasePath(basePath, "/for-business/invasive-reporting"), lang);
-  const categorySourceLabel = item.category === "iaspecified" ? "環境省・外来生物法" : "環境省・生態系被害防止外来種リスト";
   const actionSources = [
     {
-      source: categorySourceLabel,
+      source: "国のルール",
       action: item.legalWarning || "生きた個体や植物片を運ばず、法令上の扱いを確認する。",
       status: item.categoryLabel,
     },
     {
-      source: "自治体・土地管理者",
-      action: item.actionBasis || "地域の分布状況と管理方針に合わせて、相談・通報・経過観察を判断する。",
-      status: "地域判断",
+      source: "地域の相談先",
+      action: item.actionBasis || "地域の状況に合わせて、自治体や土地の管理者が相談先や対応方法を案内します。",
+      status: "自治体・管理者",
     },
     {
       source: "ikimon.life",
-      action: "投稿後の外来種候補は、投稿地点と受信許可済み団体の条件が合う場合だけ自動共有します。許可がない団体へは自動送信せず、公式窓口を案内します。",
-      status: "許可制",
+      action: "投稿が外来種候補になり、地域と受け取り許可が合う団体がある場合だけ、その団体へ情報が届きます。関係ない団体へ勝手に送ることはありません。",
+      status: "条件つき",
     },
   ];
 
   return `<section class="invasive-action-sources" aria-label="推奨アクションの出し手">
     <div class="invasive-section-head">
-      <span>WHO ASKS WHAT</span>
-      <h2>どこが、何を求めているか</h2>
-      <p>同じ外来種でも、国の法令、自治体の募集、土地管理者の対応、ikimon.life の自動共有条件は分けて扱います。</p>
+      <span>どこに従う？</span>
+      <h2>まずは国のルールと、地域の案内を見る</h2>
+      <p>同じ外来種でも、法律で禁止されていることと、地域で相談してほしいことは少し違います。迷ったら「触らない・運ばない」を守り、自治体や土地の管理者へ相談してください。</p>
     </div>
     <div class="invasive-action-source-grid">
       ${actionSources.map((entry) => `<article class="invasive-action-source">
@@ -94,7 +93,7 @@ function renderActionSources(basePath: string, lang: SiteLang, item: InvasiveSpe
         <p>${escapeHtml(entry.action)}</p>
       </article>`).join("")}
     </div>
-    <a class="invasive-source-link" href="${escapeHtml(partnershipHref)}">団体向けの自動情報提供を見る</a>
+    <a class="invasive-source-link" href="${escapeHtml(partnershipHref)}">自治体・団体向けの受け取り相談</a>
   </section>`;
 }
 
@@ -103,25 +102,25 @@ function renderReportingVisibility(basePath: string, lang: SiteLang, item: Invas
   const apiPath = withBasePath(basePath, "/api/v1/invasive-reporting/recipients");
   return `<section class="invasive-reporting-visibility" aria-label="自動通報連携団体">
     <div class="invasive-section-head">
-      <span>AUTO REPORTING</span>
-      <h2>自動で届く団体の枠</h2>
-      <p>自動共有は種名だけでは決まりません。投稿地点、外来種カテゴリ、団体側の受信許可、配送方式がそろったときだけ送られます。</p>
+      <span>投稿したあと</span>
+      <h2>この投稿は、どこへ届く？</h2>
+      <p>ikimon.life では、受け取りを許可している自治体・研究機関・管理団体がある地域だけ、外来種候補の投稿情報を自動で届けます。連携先がない地域では、自動送信はしません。</p>
     </div>
     <div class="invasive-reporting-board">
       <article class="invasive-reporting-slot is-active">
-        <span>このページの対象</span>
+        <span>この生きもの</span>
         <strong>${escapeHtml(item.vernacularName)}</strong>
         <p>${escapeHtml(item.categoryLabel)} / ${escapeHtml(item.actionLabel)}</p>
       </article>
       <article class="invasive-reporting-slot">
-        <span>承認済み受信団体</span>
-        <strong>地域判定後に表示</strong>
-        <p>投稿地点と approved の団体ルールが一致した場合のみ、詳細位置・写真・日時を共有します。</p>
+        <span>届く可能性がある団体</span>
+        <strong>地域を入れると確認できます</strong>
+        <p>受け取り許可がある団体と投稿地点が合う場合だけ、写真・場所・日時などを共有します。</p>
       </article>
       <article class="invasive-reporting-slot is-empty">
-        <span>未連携の地域・団体</span>
-        <strong>自動送信なし</strong>
-        <p>連携先がなくても枠を残し、公式窓口の案内と団体からの申請導線を表示します。</p>
+        <span>届かない場合</span>
+        <strong>自動送信されません</strong>
+        <p>連携先がない地域では送信せず、必要に応じて公式窓口への相談を案内します。</p>
       </article>
     </div>
     <div class="invasive-region-check" data-inv-reporting-check data-api-path="${escapeHtml(apiPath)}" data-species='${escapeHtml(scriptJson({
@@ -130,20 +129,20 @@ function renderReportingVisibility(basePath: string, lang: SiteLang, item: Invas
       invasiveStatus: item.category,
     }))}'>
       <div>
-        <strong>投稿地点で届く先を確認</strong>
-        <p>都道府県と市区町村を入れると、現在登録されている連携先の許可状態を確認できます。</p>
+        <strong>投稿地点で確認する</strong>
+        <p>都道府県と市区町村を入れると、この地域で自動送信される団体があるか確認できます。</p>
       </div>
       <form class="invasive-region-form">
         <label>都道府県<input name="prefecture" autocomplete="address-level1" placeholder="例: 静岡県"></label>
         <label>市区町村<input name="municipality" autocomplete="address-level2" placeholder="例: 浜松市"></label>
         <button type="submit">確認</button>
       </form>
-      <div class="invasive-region-result" aria-live="polite">地域を入力すると、承認済み・公式フォームのみ・未申請の連携状態をここに表示します。</div>
+      <div class="invasive-region-result" aria-live="polite">地域を入力すると、自動で届く団体があるかをここに表示します。</div>
     </div>
     <div class="invasive-partner-cta">
       <div>
         <strong>自治体・研究機関・管理団体の方へ</strong>
-        <p>対象地域、対象種、必要情報、受信方法、停止条件を確認できれば、受信許可済みの連携先として登録できます。</p>
+        <p>対象地域、対象種、受け取りたい情報、停止条件を確認したうえで、受信先として登録できます。</p>
       </div>
       <a class="invasive-source-link" href="${escapeHtml(partnershipHref)}">受信連携を相談する</a>
     </div>
@@ -180,7 +179,7 @@ function renderReportingVisibilityScript(): string {
     }
     if (!data.contacts || data.contacts.length === 0) {
       var copy = data.reason === "location_required" ? "都道府県または市区町村を入力してください。" : "一致する連携先はまだ登録されていません。";
-      result.innerHTML = "<strong>自動で届く団体は未表示です</strong><p>" + esc(copy) + " 団体からの受信連携は下の導線から相談できます。</p>";
+      result.innerHTML = "<strong>この地域で自動送信される団体はまだありません</strong><p>" + esc(copy) + " 自治体・研究機関・管理団体の方は、下の相談窓口から受信連携を相談できます。</p>";
       return;
     }
     var cards = data.contacts.map(function(contact) {
@@ -189,7 +188,7 @@ function renderReportingVisibilityScript(): string {
       var fields = (contact.requiredFields || []).slice(0, 4).join(" / ");
       return '<article><span>' + esc(label) + '</span><strong>' + esc(contact.organizationName) + '</strong><p>' + esc([contact.departmentName, locality].filter(Boolean).join(" / ")) + '</p><p>' + esc(contact.userGuidanceJa || fields || "写真・場所・日時が判断材料になります。") + '</p></article>';
     }).join("");
-    result.innerHTML = '<strong>' + esc(String(data.autoDeliveryCount || 0)) + '件が自動共有対象</strong><div class="invasive-region-result-grid">' + cards + '</div>';
+    result.innerHTML = '<strong>' + esc(String(data.autoDeliveryCount || 0)) + '件へ自動送信されます</strong><div class="invasive-region-result-grid">' + cards + '</div>';
   }
   form && form.addEventListener("submit", function(event) {
     event.preventDefault();
