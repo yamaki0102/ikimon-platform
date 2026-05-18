@@ -3375,7 +3375,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
   </section>`;
 }
 
-function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null): string {
+export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
     return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle);

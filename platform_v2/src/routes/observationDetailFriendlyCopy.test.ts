@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { ObservationVisitBundle, ObservationVisitSubject } from "../services/observationVisitBundle.js";
+import type { TaxonInsight } from "../services/taxonInsights.js";
 import { buildVisibleRecordItems } from "../services/observationSceneReadModel.js";
-import { renderVisibleRecordItemsPanel } from "./read.js";
+import { renderHeroAiReadout, renderVisibleRecordItemsPanel } from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
@@ -681,6 +682,153 @@ test("AI taxon story requires a real scientific name", () => {
   assert.match(toolSource, /scientificNamePronunciation\(scientificName\)/);
   assert.match(scriptSource, /button\.getAttribute\('data-local-read-aloud-text'\)/);
   assert.doesNotMatch(scriptSource, /カワラヒワ。学名、クロリス・シニカ。/);
+});
+
+test("AI readout keeps scientific-name fallback when cached insight has an invalid scientific name", () => {
+  const nawashiroSubject = {
+    occurrenceId: "occ:record-1778828697689:0",
+    visitId: "record-1778828697689",
+    subjectIndex: 0,
+    displayName: "ナワシロイチゴ",
+    scientificName: null,
+    vernacularName: "ナワシロイチゴ",
+    rank: "species",
+    roleHint: "primary",
+    confidence: null,
+    identificationCount: 0,
+    latestAssessmentBand: "high",
+    latestAssessmentGeneratedAt: "2026-05-17T00:00:00.000Z",
+    isPrimary: true,
+    priorityScore: 100,
+    focusReason: "鮮やかな赤色の集合果",
+    roleLabel: "主対象",
+    evidenceTier: 0,
+    aiAssessmentStatus: null,
+    aiReviewAgreeCount: 0,
+    aiReviewDisagreeCount: 0,
+    aiCandidateName: null,
+    aiCandidateRank: null,
+    adoptedFromAiCandidate: false,
+    adoptedCandidateId: null,
+    adoptedCandidateNote: null,
+    subjectSource: null,
+    proposedByUserId: null,
+    isAiCandidate: false,
+    hasSpecialistApproval: false,
+    identifications: [],
+    lineage: [],
+    regions: [],
+    previousAiAssessment: null,
+    aiAssessment: {
+      assessmentId: "assess-nawashiro",
+      aiRunId: "run-nawashiro",
+      pipelineVersion: "test",
+      taxonomyVersion: "test",
+      interpretationStatus: "completed",
+      confidenceBand: "high",
+      modelUsed: "gemini-3.1-flash-image-preview+gemini-3.1-flash-lite",
+      recommendedRank: "species",
+      recommendedTaxonName: "ナワシロイチゴ",
+      recommendedScientificName: "Rubus parvifolius",
+      bestSpecificTaxonName: "ナワシロイチゴ",
+      narrative: "",
+      simpleSummary: "赤い実と3枚の葉っぱが特徴的な、ナワシロイチゴのようです。",
+      observerBoost: "",
+      nextStepText: "",
+      stopReason: "",
+      funFact: "",
+      funFactGrounded: false,
+      diagnosticFeaturesSeen: ["鮮やかな赤色の集合果", "葉のギザギザのある3出複葉", "5月の果実形成"],
+      missingEvidence: [],
+      similarTaxa: [],
+      distinguishingTips: [],
+      confirmMore: [],
+      geographicContext: "",
+      seasonalContext: "",
+      areaInference: {
+        vegetationStructureCandidates: [],
+        successionStageCandidates: [],
+        humanInfluenceCandidates: [],
+        moistureRegimeCandidates: [],
+        managementHintCandidates: [],
+      },
+      managementActionCandidates: [],
+      shotSuggestions: [],
+      candidateReadings: [],
+      sizeAssessment: {
+        typicalSizeCm: 1,
+        observedSizeEstimateCm: 1.2,
+        sizeClass: "typical",
+        rankingHint: "この種としては平均的な果実サイズ",
+        basis: "手指から推定のAI目測。",
+        hedge: "誤差大です",
+      },
+      noveltyHint: null,
+      invasiveResponse: null,
+      claimRefsUsed: [],
+      navigableOs: null,
+      generatedAt: "2026-05-17T00:00:00.000Z",
+    },
+  } as ObservationVisitSubject;
+  const bundle = {
+    visitId: "record-1778828697689",
+    canonicalSubjectId: nawashiroSubject.occurrenceId,
+    featuredOccurrenceId: nawashiroSubject.occurrenceId,
+    selectedReason: "fixture",
+    selectionSource: "latest_ai_default",
+    lockedByHuman: false,
+    displayStability: "adaptive",
+    selectedRun: null,
+    previousRun: null,
+    subjects: [
+      nawashiroSubject,
+      {
+        ...nawashiroSubject,
+        occurrenceId: "occ:record-1778828697689:1",
+        subjectIndex: 1,
+        displayName: "アカメガシワ",
+        vernacularName: "アカメガシワ",
+        scientificName: null,
+        rank: "species",
+        isPrimary: false,
+        roleHint: "coexisting",
+        aiAssessment: null,
+      },
+      {
+        ...nawashiroSubject,
+        occurrenceId: "occ:record-1778828697689:2",
+        subjectIndex: 2,
+        displayName: "カタバミ属",
+        vernacularName: "カタバミ属",
+        scientificName: null,
+        rank: "genus",
+        isPrimary: false,
+        roleHint: "coexisting",
+        aiAssessment: null,
+      },
+    ],
+    aiCandidates: [],
+  } as ObservationVisitBundle;
+  const invalidInsight = {
+    scientificName: "ナワシロイチゴ",
+    vernacularName: "ナワシロイチゴ",
+    etymology: "属名の Rubus は赤い実に関係します。",
+    ecologyNote: "",
+    lookAlikeNote: "",
+    rarityNote: "",
+    generatedAt: "2026-05-17T00:00:00.000Z",
+    source: "cache",
+  } as TaxonInsight;
+
+  const html = renderHeroAiReadout(nawashiroSubject, false, invalidInsight, bundle);
+
+  assert.match(html, /ナワシロイチゴを知る/);
+  assert.match(html, /Rubus parvifolius/);
+  assert.match(html, /端末の声で読む/);
+  assert.match(html, /data-subject-id="occ:record-1778828697689:1"/);
+  assert.match(html, /アカメガシワ/);
+  assert.match(html, /カタバミ属/);
+  assert.doesNotMatch(html, /ナワシロイチゴを知る[\s\S]{0,80}<i class="obs-local-scientific-name">ナワシロイチゴ<\/i>/);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {
