@@ -828,188 +828,13 @@ test("AI taxon story requires a real scientific name", () => {
   assert.doesNotMatch(scriptSource, /カワラヒワ。学名、クロリス・シニカ。/);
 });
 
-test("AI readout keeps scientific-name fallback when cached insight has an invalid scientific name", () => {
-  const nawashiroSubject = {
-    occurrenceId: "occ:record-1778828697689:0",
-    visitId: "record-1778828697689",
-    subjectIndex: 0,
-    displayName: "ナワシロイチゴ",
-    scientificName: null,
-    vernacularName: "ナワシロイチゴ",
-    rank: "species",
-    roleHint: "primary",
-    confidence: null,
-    identificationCount: 0,
-    latestAssessmentBand: "high",
-    latestAssessmentGeneratedAt: "2026-05-17T00:00:00.000Z",
-    isPrimary: true,
-    priorityScore: 100,
-    focusReason: "鮮やかな赤色の集合果",
-    roleLabel: "主対象",
-    evidenceTier: 0,
-    aiAssessmentStatus: null,
-    aiReviewAgreeCount: 0,
-    aiReviewDisagreeCount: 0,
-    aiCandidateName: null,
-    aiCandidateRank: null,
-    adoptedFromAiCandidate: false,
-    adoptedCandidateId: null,
-    adoptedCandidateNote: null,
-    subjectSource: null,
-    proposedByUserId: null,
-    isAiCandidate: false,
-    hasSpecialistApproval: false,
-    identifications: [],
-    lineage: [],
-    regions: [],
-    previousAiAssessment: null,
-    aiAssessment: {
-      assessmentId: "assess-nawashiro",
-      aiRunId: "run-nawashiro",
-      pipelineVersion: "test",
-      taxonomyVersion: "test",
-      interpretationStatus: "completed",
-      confidenceBand: "high",
-      modelUsed: "gemini-3.1-flash-image-preview+gemini-3.1-flash-lite",
-      recommendedRank: "species",
-      recommendedTaxonName: "ナワシロイチゴ",
-      recommendedScientificName: "Rubus parvifolius",
-      bestSpecificTaxonName: "ナワシロイチゴ",
-      narrative: "",
-      simpleSummary: "赤い実と3枚の葉っぱが特徴的な、ナワシロイチゴのようです。",
-      observerBoost: "",
-      nextStepText: "",
-      stopReason: "",
-      funFact: "",
-      funFactGrounded: false,
-      diagnosticFeaturesSeen: ["鮮やかな赤色の集合果", "葉のギザギザのある3出複葉", "5月の果実形成"],
-      missingEvidence: [],
-      similarTaxa: [],
-      distinguishingTips: [],
-      confirmMore: [],
-      geographicContext: "",
-      seasonalContext: "",
-      areaInference: {
-        vegetationStructureCandidates: [],
-        successionStageCandidates: [],
-        humanInfluenceCandidates: [],
-        moistureRegimeCandidates: [],
-        managementHintCandidates: [],
-      },
-      managementActionCandidates: [],
-      shotSuggestions: [],
-      candidateReadings: [
-        {
-          name: "ナワシロイチゴ",
-          scientificName: "Rubus parvifolius",
-          rank: "species",
-          role: "赤い集合果",
-          visibleFeatures: ["鮮やかな赤色の集合果", "葉のギザギザのある3出複葉", "5月の果実形成"],
-          weakPoints: ["近縁種との比較には葉裏と茎の毛をもう少し見たいです。"],
-          shootingTips: ["葉の表裏と茎の毛を近くで撮る"],
-          regionalRead: "浜松市周辺で初夏に果実が目立つ場面として読めます。",
-          sizeAssessment: null,
-        },
-        {
-          name: "アカメガシワ",
-          scientificName: "Mallotus japonicus",
-          rank: "species",
-          role: "同じ場面の樹木",
-          visibleFeatures: ["大きな葉の形状", "特徴的な脈"],
-          weakPoints: ["全景が不明瞭です。", "樹皮・花の集まりの未確認です。"],
-          shootingTips: ["葉の全体像と枝の付き方を撮る"],
-          regionalRead: "浜松市の二次林縁でよく見られるパイオニア種です。",
-          sizeAssessment: null,
-        },
-        {
-          name: "カタバミ属",
-          scientificName: "Oxalis",
-          rank: "genus",
-          role: "地表の草本",
-          visibleFeatures: ["地表の小さな3出複葉"],
-          weakPoints: ["花や果実の未確認です。", "種レベルの同定に不足します。"],
-          shootingTips: ["花の色彩と形を近くからで撮る"],
-          regionalRead: "道端や管理地で一般的です。",
-          sizeAssessment: null,
-        },
-      ],
-      sizeAssessment: {
-        typicalSizeCm: 1,
-        observedSizeEstimateCm: 1.2,
-        sizeClass: "typical",
-        rankingHint: "この種としては平均的な果実サイズ",
-        basis: "手指から推定のAI目測。",
-        hedge: "誤差大です",
-      },
-      noveltyHint: null,
-      invasiveResponse: null,
-      claimRefsUsed: [],
-      navigableOs: null,
-      generatedAt: "2026-05-17T00:00:00.000Z",
-    },
-  } as ObservationVisitSubject;
-  const bundle = {
-    visitId: "record-1778828697689",
-    canonicalSubjectId: nawashiroSubject.occurrenceId,
-    featuredOccurrenceId: nawashiroSubject.occurrenceId,
-    selectedReason: "fixture",
-    selectionSource: "latest_ai_default",
-    lockedByHuman: false,
-    displayStability: "adaptive",
-    selectedRun: null,
-    previousRun: null,
-    subjects: [
-      nawashiroSubject,
-      {
-        ...nawashiroSubject,
-        occurrenceId: "occ:record-1778828697689:1",
-        subjectIndex: 1,
-        displayName: "アカメガシワ",
-        vernacularName: "アカメガシワ",
-        scientificName: null,
-        rank: "species",
-        isPrimary: false,
-        roleHint: "coexisting",
-        aiAssessment: null,
-      },
-      {
-        ...nawashiroSubject,
-        occurrenceId: "occ:record-1778828697689:2",
-        subjectIndex: 2,
-        displayName: "カタバミ属",
-        vernacularName: "カタバミ属",
-        scientificName: null,
-        rank: "genus",
-        isPrimary: false,
-        roleHint: "coexisting",
-        aiAssessment: null,
-      },
-    ],
-    aiCandidates: [],
-  } as ObservationVisitBundle;
-  const invalidInsight = {
-    scientificName: "ナワシロイチゴ",
-    vernacularName: "ナワシロイチゴ",
-    etymology: "属名の Rubus は赤い実に関係します。",
-    ecologyNote: "",
-    lookAlikeNote: "",
-    rarityNote: "",
-    generatedAt: "2026-05-17T00:00:00.000Z",
-    source: "cache",
-  } as TaxonInsight;
-
-  const html = renderHeroAiReadout(nawashiroSubject, false, invalidInsight, bundle);
-
-  assert.match(html, /ナワシロイチゴを知る/);
-  assert.match(html, /Rubus parvifolius/);
-  assert.match(html, /端末の声で読む/);
-  assert.match(html, /data-subject-id="occ:record-1778828697689:1"/);
-  assert.match(html, /アカメガシワ/);
-  assert.match(html, /カタバミ属/);
-  assert.doesNotMatch(html, /ナワシロイチゴを知る[\s\S]{0,80}<i class="obs-local-scientific-name">ナワシロイチゴ<\/i>/);
-});
-
-test("AI readout rendered contract follows the snapshot-like candidate order", () => {
+function buildObservationReadoutFixture(): {
+  nawashiroSubject: ObservationVisitSubject;
+  akamigashiwaSubject: ObservationVisitSubject;
+  katabamiSubject: ObservationVisitSubject;
+  bundle: ObservationVisitBundle;
+  invalidInsight: TaxonInsight;
+} {
   const nawashiroSubject = {
     occurrenceId: "occ:record-1778828697689:0",
     visitId: "record-1778828697689",
@@ -1176,6 +1001,32 @@ test("AI readout rendered contract follows the snapshot-like candidate order", (
     generatedAt: "2026-05-17T00:00:00.000Z",
     source: "cache",
   } as TaxonInsight;
+
+  return { nawashiroSubject, akamigashiwaSubject, katabamiSubject, bundle, invalidInsight };
+}
+
+test("AI readout keeps scientific-name fallback when cached insight has an invalid scientific name", () => {
+  const { nawashiroSubject, bundle, invalidInsight } = buildObservationReadoutFixture();
+
+  const html = renderHeroAiReadout(nawashiroSubject, false, invalidInsight, bundle);
+
+  assert.match(html, /ナワシロイチゴを知る/);
+  assert.match(html, /Rubus parvifolius/);
+  assert.match(html, /端末の声で読む/);
+  assert.match(html, /data-subject-id="occ:record-1778828697689:1"/);
+  assert.match(html, /アカメガシワ/);
+  assert.match(html, /カタバミ属/);
+  assert.doesNotMatch(html, /ナワシロイチゴを知る[\s\S]{0,80}<i class="obs-local-scientific-name">ナワシロイチゴ<\/i>/);
+});
+
+test("AI readout rendered contract follows the snapshot-like candidate order", () => {
+  const {
+    nawashiroSubject,
+    akamigashiwaSubject,
+    katabamiSubject,
+    bundle,
+    invalidInsight,
+  } = buildObservationReadoutFixture();
 
   const primaryHtml = renderHeroAiReadout(nawashiroSubject, false, invalidInsight, bundle);
   const akamigashiwaHtml = renderHeroAiReadout(akamigashiwaSubject, false, null, bundle);
