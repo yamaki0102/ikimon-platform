@@ -3293,6 +3293,43 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
   const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
+  const readingMap = bundle ? candidateReadingMap(bundle) : new Map<string, CandidateReading>();
+  const sourceReading = findCandidateReading(readingMap, [
+    candidateName,
+    subject.displayName,
+    subject.vernacularName,
+    subject.scientificName,
+    subject.aiCandidateName,
+  ]) ?? fallbackCandidateReadingForSubject({
+    name: candidateName,
+    roleLabel: subject.roleLabel,
+    rank: subject.rank ?? subject.aiCandidateRank,
+    focusReason: subject.focusReason,
+  });
+  const clues = (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [subject.focusReason || ""])
+    .map((feature) => friendlyObservationText(feature, 48))
+    .filter(Boolean)
+    .slice(0, 3);
+  const cluePills = clues.length > 0
+    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${escapeHtml(feature.replace(/（.*?）/gu, ""))}</span>`).join("")}</div></div>`
+    : "";
+  const weakPoints = (sourceReading.weakPoints ?? [])
+    .map((item) => friendlyObservationText(item, 92))
+    .filter(Boolean)
+    .slice(0, 3);
+  const shootingTips = (sourceReading.shootingTips ?? [])
+    .map((item) => friendlyObservationText(item, 72))
+    .filter(Boolean)
+    .slice(0, 3);
+  const evidenceRows = weakPoints.length > 0
+    ? weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")
+    : `<li><span>${escapeHtml(candidateName)} は同じ場面内の名前候補として残っています。写真と人の確認で補います。</span></li>`;
+  const shootingRows = shootingTips.length > 0
+    ? `<div class="obs-ai-detail-box">
+        <div class="obs-ai-detail-label">追加で見る点</div>
+        <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+      </div>`
+    : "";
   const currentTarget = !sceneTargets && isIdentificationTabSubject(subject)
     ? `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
       <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
@@ -3302,17 +3339,20 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     : "";
   const summary = hasOpenDispute
     ? "別の名前の提案があるため、候補が固まるまで断定しません。"
-    : `${candidateName} は同じ場面内の名前候補として残っています。詳しい根拠は写真と人の確認で補います。`;
+    : sourceReading.regionalRead
+      ? friendlyObservationText(sourceReading.regionalRead, 96)
+      : `${candidateName} は同じ場面内の名前候補として残っています。詳しい根拠は写真と人の確認で補います。`;
   return `<section class="obs-ai-readout obs-ai-readout-merged is-tent">
     ${sceneTargets || currentTarget}
+    ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
+      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
       <div class="obs-ai-detail-grid">
         <div class="obs-ai-detail-box">
-          <div class="obs-ai-detail-label">候補の状態</div>
-          <ul class="obs-ai-detail-list">
-            <li><span><strong>${escapeHtml(candidateName)}</strong><br>${escapeHtml(summary)}</span></li>
-          </ul>
+          <div class="obs-ai-detail-label">確かめる点</div>
+          <ul class="obs-ai-detail-list">${evidenceRows}</ul>
         </div>
+        ${shootingRows}
       </div>
     </div>
   </section>`;

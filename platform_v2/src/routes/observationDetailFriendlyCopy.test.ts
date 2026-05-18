@@ -225,6 +225,16 @@ test("observation detail hero readout keeps scene candidates out of identificati
   assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
   assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle\)/);
   assert.match(readoutSource, /obs-ai-detail-box/);
+  assert.match(readoutSource, /candidateReadingMap\(bundle\)/);
+  assert.match(readoutSource, /findCandidateReading\(readingMap/);
+  assert.match(readoutSource, /fallbackCandidateReadingForSubject/);
+  assert.match(readoutSource, /obs-ai-merged-row/);
+  assert.match(readoutSource, /obs-ai-merged-label">根拠/);
+  assert.match(readoutSource, /sourceReading\.visibleFeatures/);
+  assert.match(readoutSource, /sourceReading\.weakPoints/);
+  assert.match(readoutSource, /sourceReading\.shootingTips/);
+  assert.match(readoutSource, /確かめる点/);
+  assert.match(readoutSource, /追加で見る点/);
   assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
   assert.match(readoutSource, /同じ場面内の名前候補として残っています/);
