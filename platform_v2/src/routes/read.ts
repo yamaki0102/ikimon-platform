@@ -3288,38 +3288,40 @@ function renderHeroSceneCandidateTargets(currentSubject: ObservationVisitSubject
   return `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AI候補">${chips}</div>`;
 }
 
+function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null): string {
+  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle);
+  const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
+  const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
+  const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
+  const currentTarget = !sceneTargets && isIdentificationTabSubject(subject)
+    ? `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
+      <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
+        <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
+      </button>
+    </div>`
+    : "";
+  const summary = hasOpenDispute
+    ? "別の名前の提案があるため、候補が固まるまで断定しません。"
+    : `${candidateName} は同じ場面内の名前候補として残っています。詳しい根拠は写真と人の確認で補います。`;
+  return `<section class="obs-ai-readout obs-ai-readout-merged is-tent">
+    ${sceneTargets || currentTarget}
+    <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
+      <div class="obs-ai-detail-grid">
+        <div class="obs-ai-detail-box">
+          <div class="obs-ai-detail-label">候補の状態</div>
+          <ul class="obs-ai-detail-list">
+            <li><span><strong>${escapeHtml(candidateName)}</strong><br>${escapeHtml(summary)}</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
 function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
-    const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle);
-    if (sceneTargets) {
-      const firstOther = bundle?.subjects.find((item) => item.occurrenceId !== subject.occurrenceId);
-      const otherName = firstOther ? observationDetailUiName(firstOther.aiAssessment?.recommendedTaxonName || firstOther.displayName || firstOther.vernacularName || "") : "";
-      const note = otherName
-        ? `いまは ${observationDetailUiName(subject.displayName)} を見ています。${otherName} など、同じ場面内の候補も確認できます。`
-        : "同じ場面内の候補も確認できます。";
-      return `<section class="obs-ai-readout obs-ai-readout-merged is-medium">
-      <div class="obs-ai-readout-top">
-        <div>
-          <p class="obs-hint-eyebrow">名前のいま</p>
-          <h3 class="obs-ai-readout-title">${hasOpenDispute ? "名前の見方が割れています。" : "この場面の候補を見ています。"}</h3>
-        </div>
-        <span class="obs-ai-readout-badge">${hasOpenDispute ? "確認中" : "AI候補"}</span>
-      </div>
-      ${sceneTargets}
-      <p class="obs-ai-readout-note">${escapeHtml(hasOpenDispute ? "別の名前の提案があるため、候補が固まるまで断定しません。" : note)}</p>
-    </section>`;
-    }
-    return `<section class="obs-ai-readout is-tent">
-      <div class="obs-ai-readout-top">
-        <div>
-          <p class="obs-hint-eyebrow">名前のいま</p>
-          <h3 class="obs-ai-readout-title">${hasOpenDispute ? "名前の見方が割れています。" : "写真から名前を探している段階です。"}</h3>
-        </div>
-        <span class="obs-ai-readout-badge">${hasOpenDispute ? "確認中" : "未確認"}</span>
-      </div>
-      <p class="obs-ai-readout-note">${hasOpenDispute ? "別の名前の提案があるため、候補が固まるまで断定しません。" : "写っている形や場所から、分かる人が手がかりを足せます。"}</p>
-    </section>`;
+    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle);
   }
 
   const band = aiAssessment.confidenceBand;
