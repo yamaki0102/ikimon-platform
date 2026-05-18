@@ -339,7 +339,7 @@ test("guide route connects live use to outcomes and the next record", async () =
     assert.match(outcomes.body, /ガイド成果を見るにはログインが必要です/);
     assert.match(outcomes.body, /redirect=%2Fguide%2Foutcomes/);
     assert.match(outcomes.body, /ログインして確認する/);
-    assert.match(outcomes.body, /ガイドで足跡を残す/);
+    assert.match(outcomes.body, /今日できたことを見る/);
 
     const alias = await app.inject({ method: "GET", url: "/guide/results?lang=ja" });
     assert.equal(alias.statusCode, 308);

@@ -35,15 +35,15 @@ function loginGate(nextPath = "/me/guide-records"): string {
 <div class="grd-wrap">
   <section class="grd-empty">
     <h1>ガイド成果を見るにはログインが必要です</h1>
-    <p>ライブガイドで保存された足跡、植生・土地利用の手がかり、次に見る場所を自分の成果として確認できます。</p>
+    <p>歩いて見つけたことを、あとで見返せる自分の成果としてまとめます。</p>
     <div class="grd-actions">
       <a class="grd-primary-link" href="/login?redirect=${encodeURIComponent(nextPath)}">ログインして確認する</a>
       <a class="grd-secondary-link" href="/guide">ライブガイドへ</a>
     </div>
     <div class="grd-loop-mini" aria-label="ガイド成果までの流れ">
-      <span><b>1</b>ガイドで足跡を残す</span>
-      <span><b>2</b>成果で見返す</span>
-      <span><b>3</b>地図から次へ戻る</span>
+      <span><b>1</b>歩いて見つける</span>
+      <span><b>2</b>今日できたことを見る</span>
+      <span><b>3</b>次に1つだけ足す</span>
     </div>
   </section>
 </div>`;
@@ -700,6 +700,97 @@ function renderRecordCards(bundles: GuideRecordBundle[]): string {
   }).join("")}</section>`;
 }
 
+function countBundleFeatures(bundles: GuideRecordBundle[]): OwnGuideFeatureCounts {
+  const counts: OwnGuideFeatureCounts = { vegetation: 0, landform: 0, sound: 0, species: 0 };
+  for (const bundle of bundles) {
+    counts.species += bundle.canonicalTaxa.length;
+    for (const feature of bundle.features) {
+      const type = String(feature.type ?? "");
+      if (type === "vegetation" || type === "landform" || type === "sound" || type === "species") counts[type] += 1;
+    }
+  }
+  return counts;
+}
+
+function firstUsefulNextStep(bundles: GuideRecordBundle[]): string {
+  for (const bundle of bundles) {
+    const next = bundle.nextSamplingProtocol?.trim();
+    if (next) return next;
+  }
+  const hasPhotoAction = bundles.some((bundle) => !bundle.representative.occurrence_id);
+  return hasPhotoAction
+    ? "気になったカードを1つ選んで、写真を足して通常の観察記録にします。"
+    : "同じ場所をもう一度歩いて、前回と違う手がかりを1つ足します。";
+}
+
+function renderSimpleOutcomeHero(rows: GuideRecordDebugRow[], bundles: GuideRecordBundle[]): string {
+  const sessions = new Set(rows.map((row) => row.session_id).filter(Boolean));
+  const counts = countBundleFeatures(bundles);
+  const hintTotal = counts.vegetation + counts.landform + counts.sound + counts.species;
+  if (rows.length === 0) {
+    return `<section class="grd-panel grd-simple-outcome">
+      <div class="grd-simple-main">
+        <span class="grd-simple-eyebrow">まだ成果はありません</span>
+        <h2>まず1回、ガイドを使って歩けばOKです。</h2>
+        <p>名前が分からなくても大丈夫。場所・時間・気づきが残れば、次に見返せる入口になります。</p>
+      </div>
+      <a class="grd-primary-link" href="/guide">ガイドを開始する</a>
+    </section>`;
+  }
+  return `<section class="grd-panel grd-simple-outcome" data-testid="guide-outcomes-simple">
+    <div class="grd-simple-main">
+      <span class="grd-simple-eyebrow">今日できていること</span>
+      <h2>${bundles.length}個の発見が、見返せる形になりました。</h2>
+      <p>${sessions.size}回のガイドで、${hintTotal}個の手がかりが残っています。完璧な同定より、次に確かめる材料ができたことを見ます。</p>
+    </div>
+    <div class="grd-simple-metrics" aria-label="ガイド成果の要約">
+      <span><b>${bundles.length}</b>発見</span>
+      <span><b>${hintTotal}</b>手がかり</span>
+      <span><b>${sessions.size}</b>回分</span>
+    </div>
+    <div class="grd-next-one">
+      <span>次はこれだけ</span>
+      <p>${escapeHtml(firstUsefulNextStep(bundles))}</p>
+    </div>
+  </section>`;
+}
+
+function renderSimpleOutcomeCards(bundles: GuideRecordBundle[]): string {
+  if (bundles.length === 0) return "";
+  const cards = bundles.slice(0, 6).map((bundle) => {
+    const row = bundle.representative;
+    const species = bundle.canonicalTaxa.length > 0 ? bundle.canonicalTaxa : canonicalizeTaxonList(row.detected_species ?? []);
+    const promotedOccurrenceId = typeof row.occurrence_id === "string" && row.occurrence_id.trim() ? row.occurrence_id.trim() : "";
+    const promotedVisitId = promotedOccurrenceId.replace(/^occ:/, "").replace(/:0$/, "");
+    const primaryAction = promotedOccurrenceId
+      ? `<a class="grd-primary-action" href="/observations/${escapeHtml(encodeURIComponent(promotedVisitId))}?occurrence=${escapeHtml(encodeURIComponent(promotedOccurrenceId))}">観察を見る</a>`
+      : row.has_promotable_audio
+        ? `<button class="grd-primary-action" type="button" data-guide-promote-id="${escapeHtml(row.guide_record_id)}">観察にする</button>`
+        : `<a class="grd-primary-action" href="/record?source=guide&guideRecordId=${escapeHtml(row.guide_record_id)}">写真を足す</a>`;
+    const topFeatures = bundle.features.slice(0, 4);
+    return `<article class="grd-simple-card">
+      <div class="grd-card-head">
+        <span>${escapeHtml(formatTime(bundle.startAt))}</span>
+        <span>${bundle.recordCount}件から要約</span>
+      </div>
+      <h2>${escapeHtml(row.scene_summary ?? "見つけたこと")}</h2>
+      ${row.environment_context ? `<p>${escapeHtml(row.environment_context)}</p>` : ""}
+      <div class="grd-species">${species.length ? species.slice(0, 4).map((item) => `<span title="${escapeHtml(item.sourceNames.join(", "))}">${escapeHtml(item.canonicalName)}<small>${escapeHtml(item.rank)}</small></span>`).join("") : `<span class="grd-muted">名前未確定でもOK</span>`}</div>
+      <div class="grd-features">${topFeatures.length ? renderFeaturePills(topFeatures) : `<span class="grd-muted">手がかりは次回追加できます</span>`}</div>
+      ${bundle.nextSamplingProtocol ? `<section class="grd-next-sampling"><b>次に見る</b><p>${escapeHtml(bundle.nextSamplingProtocol)}</p></section>` : ""}
+      <nav class="grd-card-actions" aria-label="この成果の次の行動">
+        ${primaryAction}
+        <a href="/guide">もう一度見る</a>
+      </nav>
+      <div class="grd-promote-status" data-guide-promote-status="${escapeHtml(row.guide_record_id)}"></div>
+    </article>`;
+  }).join("");
+  const more = bundles.length > 6
+    ? `<p class="grd-simple-more">残り${bundles.length - 6}件は、詳しい記録画面で確認できます。</p>`
+    : "";
+  return `<section class="grd-simple-list"><h2>見返す発見</h2><div class="grd-simple-grid">${cards}</div>${more}</section>`;
+}
+
 const STYLES = `
 .grd-wrap{max-width:1160px;margin:0 auto;padding:clamp(24px,4vw,48px) 16px 72px;color:#172033;}
 .grd-wrap,.grd-empty,.grd-card,.grd-panel{overflow-wrap:anywhere;}
@@ -719,6 +810,24 @@ const STYLES = `
 .grd-stat strong{font-size:18px;color:#0f766e;}
 .grd-panel{border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
 .grd-panel h2{font-size:18px;margin:0 0 12px;color:#0f172a;}
+.grd-simple-outcome{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;border-color:rgba(14,116,144,.18);background:linear-gradient(135deg,#ffffff,#ecfdf5);}
+.grd-simple-main{display:grid;gap:8px;}
+.grd-simple-eyebrow{width:max-content;max-width:100%;display:inline-flex;align-items:center;min-height:26px;border-radius:999px;background:#0f766e;color:#fff;padding:0 10px;font-size:11px;font-weight:950;}
+.grd-simple-main h2{font-size:clamp(20px,2.5vw,28px);line-height:1.28;margin:0;color:#0f172a;}
+.grd-simple-main p{margin:0;color:#475569;font-size:14px;line-height:1.75;font-weight:800;}
+.grd-simple-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;grid-column:1/-1;}
+.grd-simple-metrics span{min-width:0;display:grid;gap:2px;border:1px solid rgba(15,23,42,.08);background:rgba(255,255,255,.82);border-radius:12px;padding:10px;color:#475569;font-size:12px;font-weight:900;}
+.grd-simple-metrics b{font-size:24px;line-height:1;color:#0f766e;}
+.grd-next-one{grid-column:1/-1;border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px;display:grid;gap:4px;}
+.grd-next-one span{color:#a16207;font-size:11px;font-weight:950;text-transform:uppercase;}
+.grd-next-one p{margin:0;color:#713f12;font-size:14px;line-height:1.65;font-weight:900;}
+.grd-simple-list{display:grid;gap:12px;margin-top:18px;}
+.grd-simple-list h2{font-size:18px;margin:0;color:#0f172a;}
+.grd-simple-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
+.grd-simple-card{display:grid;gap:10px;border:1px solid #dbe7e2;background:#fff;border-radius:16px;padding:16px;box-shadow:0 10px 24px rgba(15,23,42,.04);}
+.grd-simple-card h2{font-size:16px;line-height:1.55;margin:0;color:#111827;}
+.grd-simple-card p{margin:0;font-size:13px;line-height:1.65;color:#334155;background:#f8fafc;border-radius:12px;padding:10px;}
+.grd-simple-more{margin:0;color:#64748b;font-size:12px;font-weight:900;}
 .grd-outcome-impact{display:grid;gap:14px;border-color:rgba(14,116,144,.18);background:linear-gradient(135deg,#ffffff,#f0fdfa);}
 .grd-outcome-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;}
 .grd-outcome-head h2{margin-bottom:5px;}
@@ -826,7 +935,7 @@ const STYLES = `
 .grd-feedback-row button[data-guide-bundle-feedback="merge_ok"]{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;}
 .grd-feedback-row button[data-guide-bundle-feedback="wrong"],.grd-feedback-row button[data-guide-hypothesis-feedback="wrong"]{border-color:#fecaca;background:#fff1f2;color:#be123c;}
 @media(max-width:900px){.grd-outcome-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media(max-width:760px){.grd-dashboard-grid,.grd-ops-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}.grd-outcome-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.grd-dashboard-grid,.grd-ops-grid{grid-template-columns:1fr}.grd-map-head{display:grid}.grd-map-links{justify-content:flex-start}.grd-outcome-grid{grid-template-columns:1fr}.grd-simple-outcome{grid-template-columns:1fr}.grd-simple-metrics{grid-template-columns:1fr}}
 `;
 
 const SCRIPT = `
@@ -1102,7 +1211,7 @@ async function renderEnvironmentDashboard(reply: { type: (value: string) => void
 async function renderPage(
   request: { headers: Record<string, unknown>; query?: { limit?: string } },
   reply: { type: (value: string) => void; code: (value: number) => void },
-  options: { nextPath?: string; title?: string; heading?: string; lead?: string } = {},
+  options: { nextPath?: string; title?: string; heading?: string; lead?: string; simpleOutcomes?: boolean } = {},
 ): Promise<string> {
   reply.type("text/html; charset=utf-8");
   const rawCookie = request.headers.cookie;
@@ -1128,11 +1237,15 @@ async function renderPage(
     errorHtml = `<section class="grd-empty"><h1>DBから取得できませんでした</h1><p>${escapeHtml(error instanceof Error ? error.message : String(error))}</p></section>`;
   }
   const bundles = await addNextSamplingToBundles(bundleGuideRecords(rows));
-  const qualityBySession = await loadGuideTransectQualityForSessions(session.userId, bundles.map((bundle) => bundle.sessionId)).catch(() => new Map<string, GuideTransectQuality>());
-  const communitySummary = await loadGuideCommunityContributionSummary(
-    session.userId,
-    bundles.map((bundle) => bundle.meshKey).filter((meshKey): meshKey is string => Boolean(meshKey)),
-  ).catch(() => null);
+  const qualityBySession = options.simpleOutcomes
+    ? new Map<string, GuideTransectQuality>()
+    : await loadGuideTransectQualityForSessions(session.userId, bundles.map((bundle) => bundle.sessionId)).catch(() => new Map<string, GuideTransectQuality>());
+  const communitySummary = options.simpleOutcomes
+    ? null
+    : await loadGuideCommunityContributionSummary(
+      session.userId,
+      bundles.map((bundle) => bundle.meshKey).filter((meshKey): meshKey is string => Boolean(meshKey)),
+    ).catch(() => null);
   const heading = options.heading ?? "自分のガイド記録";
   const lead = options.lead ?? "ログイン中の user_id に紐づく guide_records 最新件を30秒前後の代表カードに束ねます。種名だけでなく、植生・土地利用・水辺・道路際の手がかりを確認できます。";
   const body = `
@@ -1150,7 +1263,9 @@ async function renderPage(
       </nav>
     </div>
   </header>
-  ${errorHtml || `${renderOutcomeContributionPanel(rows, bundles, qualityBySession, communitySummary)}${renderSummaryStats(rows, bundles, qualityBySession)}${renderGuideQualityPanel(qualityBySession)}${renderRouteMap()}${renderRouteTransect(bundles, qualityBySession)}${renderRecordCards(bundles)}`}
+  ${errorHtml || (options.simpleOutcomes
+    ? `${renderSimpleOutcomeHero(rows, bundles)}${renderSimpleOutcomeCards(bundles)}`
+    : `${renderOutcomeContributionPanel(rows, bundles, qualityBySession, communitySummary)}${renderSummaryStats(rows, bundles, qualityBySession)}${renderGuideQualityPanel(qualityBySession)}${renderRouteMap()}${renderRouteTransect(bundles, qualityBySession)}${renderRecordCards(bundles)}`)}
 </div><script>${SCRIPT}</script>`;
   return renderSiteDocument({
     basePath: "",
@@ -1167,9 +1282,10 @@ export async function registerGuideRecordsDebugRoutes(app: FastifyInstance): Pro
   app.get<{ Querystring: { limit?: string } }>("/admin/debug/guide-records", async (request, reply) => renderPage(request, reply));
   app.get<{ Querystring: { limit?: string } }>("/guide/outcomes", async (request, reply) => renderPage(request, reply, {
     nextPath: "/guide/outcomes",
-    title: "ガイド成果確認 — ikimon.life",
-    heading: "ガイド成果確認",
-    lead: "ライブガイドで残した最新件の足跡を、代表カード、ルート、環境の手がかりとして見返します。写真投稿や通常記録とは分けて、歩いた場所で何が読めたかを確認するページです。",
+    title: "ガイド成果 — ikimon.life",
+    heading: "ガイド成果",
+    lead: "ライブガイドで見つけたことを、今日できたことと次の一歩だけに絞って見返します。",
+    simpleOutcomes: true,
   }));
   app.get("/guide/results", async (_request, reply) => reply.redirect("/guide/outcomes", 308));
   app.get("/me/guide-results", async (_request, reply) => reply.redirect("/guide/outcomes", 308));
