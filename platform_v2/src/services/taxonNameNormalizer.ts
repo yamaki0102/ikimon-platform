@@ -7,6 +7,9 @@ export type LocalTaxonNameMatch = {
 
 const LOCAL_TAXON_DICTIONARY: LocalTaxonNameMatch[] = [
   { vernacularName: "カワラヒワ", scientificName: "Chloris sinica", rank: "species", source: "local_dictionary" },
+  { vernacularName: "ナワシロイチゴ", scientificName: "Rubus parvifolius", rank: "species", source: "local_dictionary" },
+  { vernacularName: "アカメガシワ", scientificName: "Mallotus japonicus", rank: "species", source: "local_dictionary" },
+  { vernacularName: "カタバミ属", scientificName: "Oxalis", rank: "genus", source: "local_dictionary" },
   { vernacularName: "トウネズミモチ", scientificName: "Ligustrum lucidum", rank: "species", source: "local_dictionary" },
   { vernacularName: "トベラ", scientificName: "Pittosporum tobira", rank: "species", source: "local_dictionary" },
   { vernacularName: "ヒメムカシヨモギ", scientificName: "Erigeron canadensis", rank: "species", source: "local_dictionary" },

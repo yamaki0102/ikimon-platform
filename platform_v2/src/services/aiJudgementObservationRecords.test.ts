@@ -51,12 +51,26 @@ test("visible AI subject candidate migration backfills occurrence records", asyn
   assert.match(migration, /candidate_status = 'matched'/);
 });
 
+test("AI candidate scientific-name backfill updates all materialized read surfaces", async () => {
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0111_backfill_ai_candidate_scientific_names.sql"), "utf8");
+
+  assert.match(migration, /observation_ai_subject_candidates/);
+  assert.match(migration, /visual_subject_candidates/);
+  assert.match(migration, /occurrences/);
+  assert.match(migration, /ナワシロイチゴ[^]*Rubus parvifolius/);
+  assert.match(migration, /アカメガシワ[^]*Mallotus japonicus/);
+  assert.match(migration, /カタバミ属[^]*Oxalis/);
+  assert.match(migration, /migration_0111_ai_candidate_scientific_name_backfill/);
+});
+
 test("observation reassess records candidate materialization telemetry", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "observationReassess.ts"), "utf8");
 
   assert.match(source, /materializedCandidateRecordCount/);
   assert.match(source, /matchedCandidateRecordCount/);
   assert.match(source, /candidateOnlyCount/);
+  assert.match(source, /canonicalScientificNameFromGbif/);
+  assert.match(source, /scientificNameSource/);
   assert.match(source, /aiSubjectRecordMaterialization/);
   assert.match(source, /proposalUiFallbackRiskCount/);
   assert.match(source, /UPDATE observation_ai_runs/);
