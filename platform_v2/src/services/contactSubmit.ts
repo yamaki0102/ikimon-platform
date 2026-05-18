@@ -12,6 +12,8 @@ export type ContactSubmitInput = {
   userAgent?: string;
   ip?: string;
   userId?: string | null;
+  website?: string;
+  spamTrap?: string;
 };
 
 export type ContactSubmitResult = {

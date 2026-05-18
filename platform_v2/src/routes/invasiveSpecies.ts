@@ -154,6 +154,7 @@ function renderReportingVisibility(basePath: string, item: InvasiveSpeciesCatalo
         <label>対象地域<input name="area" required maxlength="300" placeholder="例: 静岡県浜松市、管理している公園名など"></label>
         <label class="is-wide">受け取りたい情報<textarea name="request" required minlength="5" maxlength="3000" placeholder="例: ヌートリアの写真、発見場所、日時を受け取りたい。対象地域は浜松市内。"></textarea></label>
         <label class="is-wide">補足<textarea name="note" maxlength="3000" placeholder="公式窓口URL、対象種、停止条件、電話連絡の可否など"></textarea></label>
+        <label class="invasive-partner-trap" aria-hidden="true">Webサイト<input name="website" autocomplete="off" tabindex="-1"></label>
         <div class="invasive-partner-form-actions">
           <button type="submit">この内容で相談する</button>
           <span class="invasive-partner-form-status" aria-live="polite"></span>
@@ -236,6 +237,7 @@ function renderReportingVisibilityScript(): string {
       var area = String(fd.get("area") || "").trim();
       var request = String(fd.get("request") || "").trim();
       var note = String(fd.get("note") || "").trim();
+      var website = String(fd.get("website") || "").trim();
       var lines = [
         "外来種情報の受信連携相談",
         "",
@@ -264,6 +266,7 @@ function renderReportingVisibilityScript(): string {
           organization: organization,
           name: name,
           email: email,
+          website: website,
           message: lines.join("\\n"),
           sourceUrl: location.href,
           userAgent: navigator.userAgent
@@ -431,6 +434,7 @@ const INVASIVE_SPECIES_STYLES = `
   .invasive-partner-form input,
   .invasive-partner-form textarea { width: 100%; min-height: 40px; border: 1px solid rgba(15,23,42,.14); border-radius: 8px; padding: 8px 10px; color: #10251a; background: #fff; font: inherit; font-size: 13px; }
   .invasive-partner-form textarea { min-height: 82px; resize: vertical; }
+  .invasive-partner-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
   .invasive-partner-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
   .invasive-partner-form button { min-height: 40px; border: 0; border-radius: 999px; padding: 8px 14px; background: #10251a; color: #fff; font-size: 13px; font-weight: 950; cursor: pointer; }
   .invasive-partner-form button:disabled { opacity: .56; cursor: wait; }
