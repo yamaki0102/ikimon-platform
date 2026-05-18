@@ -16,9 +16,9 @@
     "rank": "species",
     "mhlw_category": "iaspecified",
     "recommended_action": "report_only",
-    "action_basis": "特定外来生物（哺乳類）。河川敷・水田での被害多発。発見時は自治体に通報。",
-    "legal_warning": "捕獲・運搬・飼養は外来生物法により禁止。市民が直接捕殺するのは違法。",
-    "regional_caveat": "西日本（特に岡山・兵庫・京都・愛知）の河川域に多い。",
+    "action_basis": "水辺や田んぼの土手に巣穴を掘ったり、農作物や水辺の植物を食べたりすることがあります。見つけた場所の自治体に相談してください。",
+    "legal_warning": "許可なく捕まえる、運ぶ、飼うことは禁止されています。見つけても触らず、写真・場所・日時を記録するところまでにしてください。",
+    "regional_caveat": "西日本の川や水路で多く確認されています。東海など、ほかの地域でも見つかることがあります。",
     "source_url": "https://www.nies.go.jp/biodiversity/invasive/DB/detail/10140.html"
   },
   {

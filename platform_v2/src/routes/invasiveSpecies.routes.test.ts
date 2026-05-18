@@ -10,7 +10,7 @@ test("invasive species list renders all catalog records and featured links", asy
     const response = await app.inject({ method: "GET", url: "/learn/invasive-species?lang=ja" });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /外来種を見つけたときの安全メモ/);
-    assert.match(response.body, /触らない、運ばない、捕獲しない/);
+    assert.match(response.body, /触らず、写真と場所を残す/);
     assert.match(response.body, /環境省 特定外来生物等一覧/);
     for (const item of listInvasiveSpecies()) {
       assert.match(response.body, new RegExp(item.vernacularName));
@@ -32,13 +32,13 @@ test("invasive species detail renders legal caution and source link", async () =
     assert.match(response.body, /生きた状態での運搬・栽培・譲渡/);
     assert.match(response.body, /触らず、運ばず/);
     assert.match(response.body, /出典を開く/);
-    assert.match(response.body, /どこが、何を求めているか/);
-    assert.match(response.body, /環境省・外来生物法/);
-    assert.match(response.body, /自治体・土地管理者/);
-    assert.match(response.body, /投稿地点と受信許可済み団体の条件が合う場合だけ自動共有/);
-    assert.match(response.body, /承認済み受信団体/);
-    assert.match(response.body, /地域判定後に表示/);
-    assert.match(response.body, /投稿地点で届く先を確認/);
+    assert.match(response.body, /まずは国のルールと、地域の案内を見る/);
+    assert.match(response.body, /国のルール/);
+    assert.match(response.body, /地域の相談先/);
+    assert.match(response.body, /関係ない団体へ勝手に送ることはありません/);
+    assert.match(response.body, /届く可能性がある団体/);
+    assert.match(response.body, /地域を入れると確認できます/);
+    assert.match(response.body, /投稿地点で確認する/);
     assert.match(response.body, /data-inv-reporting-check/);
     assert.match(response.body, /\/api\/v1\/invasive-reporting\/recipients/);
     assert.match(response.body, /受信連携を相談する/);
