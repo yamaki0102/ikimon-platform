@@ -145,6 +145,13 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /id="record-video-trim"/);
         assert.match(response.body, /id="record-video-guide"/);
         assert.match(response.body, /id="record-video-primary-photo"/);
+        assert.match(response.body, /record-video-simple #record-video-guide/);
+        assert.match(response.body, /record-video-simple #record-video-primary-photo/);
+        assert.match(response.body, /record-video-simple \.record-later-details/);
+        assert.match(response.body, /const isVideoSimpleMode = \(\) => selectedVideoFile instanceof File && isVideoFile\(selectedVideoFile\) && selectedPhotoFiles\(\)\.length === 0/);
+        assert.match(response.body, /videoPrimaryPhotoWrap\) videoPrimaryPhotoWrap\.hidden = !hasVideo \|\| simpleVideo/);
+        assert.match(response.body, /classList\.toggle\('record-video-simple', isVideoSimpleMode\(\)\)/);
+        assert.match(response.body, /classList\.remove\('record-video-simple'\)/);
         assert.match(response.body, /主役写真を追加/);
         assert.match(response.body, /動画記録ナビ/);
         assert.match(response.body, /動画の長さを確認/);
