@@ -48,6 +48,7 @@ async function expectPolishedObservationPage(page: Page): Promise<void> {
   expect(metrics.visibleText).not.toContain("この映像に写っているもの");
   expect(metrics.visibleText).not.toContain("候補を確かめる材料");
   expect(metrics.visibleText).not.toContain("名前の記録");
+  expect(metrics.visibleText).not.toContain("現場アドバイス");
   expect(metrics.visibleText).not.toContain("確定前");
   expect(metrics.visibleText).not.toContain("イネ科植物");
   expect(metrics.visibleText).not.toContain("映像フレームから拾えている手がかり");
@@ -79,6 +80,22 @@ test.describe("target observation detail local repro", () => {
 
     await page.screenshot({
       path: path.resolve("test-results", "observation-detail-target-mobile.png"),
+      fullPage: false,
+    });
+  });
+
+  test("wide mobile layout keeps the snapshot order", async ({ page }) => {
+    await page.setViewportSize({ width: 625, height: 844 });
+    const response = await page.goto(targetPath(), { waitUntil: "domcontentloaded" });
+    expect(response?.status(), "target observation status").toBeLessThan(500);
+
+    await expect(page.locator("body")).toContainText("AIが見た動画フレーム");
+    await expect(page.locator(".obs-hero-video-frame")).toBeVisible();
+    await expectPolishedObservationPage(page);
+    await expectNoHorizontalOverflow(page);
+
+    await page.screenshot({
+      path: path.resolve("test-results", "observation-detail-target-mobile-625.png"),
       fullPage: false,
     });
   });

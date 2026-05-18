@@ -3,7 +3,8 @@
 ## 0. 正本
 
 - 対象ファイル: `C:\tmp\ikimon-observation-record-final-polish\snapshot.html`
-- SHA256: `1987CE475E7186F61D875B3406C31AC0F9963D9D759C5BEA9AABA890B2F4C13F`
+- Source SHA256: `1987CE475E7186F61D875B3406C31AC0F9963D9D759C5BEA9AABA890B2F4C13F`
+- LF正規化SHA256: `ADCD22D1EE8E7A1D54F6E1A5F162BBE808A68FAD46FA656AF874B1855428EBEB`
 - ローカル確認URL: `http://127.0.0.1:4307/snapshot.html`
 - 本命ページ: `https://ikimon.life/ja/observations/record-1778829649026?subject=occ%3Arecord-1778829649026%3A0`
 - 前提: このMDは「実際に見えている順番」を正本化する。DOM順や既存実装の都合を正本にしない。
