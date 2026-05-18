@@ -3321,6 +3321,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     .map((item) => friendlyObservationText(item, 72))
     .filter(Boolean)
     .slice(0, 3);
+  const sizeCard = renderAiSizeSummary(sourceReading.sizeAssessment);
   const evidenceRows = weakPoints.length > 0
     ? weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")
     : `<li><span>${escapeHtml(candidateName)} は同じ場面内の名前候補として残っています。写真と人の確認で補います。</span></li>`;
@@ -3347,6 +3348,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      ${sizeCard}
       <div class="obs-ai-detail-grid">
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">確かめる点</div>
@@ -5765,6 +5767,7 @@ function fallbackCandidateReadingForSubject(options: {
         "葉の表裏と茎の毛を近くで撮る",
         "群落の広がり、裸地、草丈が入る引き写真を残す",
       ],
+      sizeAssessment: null,
       regionalRead: "緑化で使われる植物が、道端や公園の小さな草地でどれくらい広がっているかを読む材料になります。",
     };
   }
@@ -5787,6 +5790,7 @@ function fallbackCandidateReadingForSubject(options: {
         "葉の表裏と枝先を近くで撮る",
         "株全体と周囲の植栽帯が分かる引き写真を残す",
       ],
+      sizeAssessment: null,
       regionalRead: "浜松市の街なかの植栽として、開花の時期、管理された低木、足元のグランドカバーを一緒に読める記録です。",
     };
   }
@@ -5809,6 +5813,7 @@ function fallbackCandidateReadingForSubject(options: {
         "葉の大きさ、葉縁、斑入りの有無を近くで撮る",
         "茎が地面を這う様子と株元を撮る",
       ],
+      sizeAssessment: null,
       regionalRead: "植栽帯の足元で低木と混じるグランドカバーとして、管理地の植物の重なりを読む材料になります。",
     };
   }
@@ -5830,6 +5835,7 @@ function fallbackCandidateReadingForSubject(options: {
         "葉、株元、花や穂があれば近くで撮る",
         "裸地、落ち葉、踏まれた場所が入る引き写真を残す",
       ],
+      sizeAssessment: null,
       regionalRead: "街なかの植栽帯で、草が残る場所、裸地になる場所、人の手入れの強さを後から比べられます。",
     };
   }
@@ -5851,6 +5857,7 @@ function fallbackCandidateReadingForSubject(options: {
         "幹や樹皮を近くで撮る",
         "花木との位置関係が分かる引き写真を残す",
       ],
+      sizeAssessment: null,
       regionalRead: "背景の木も、街路や敷地の植栽構成を読む手がかりになります。花だけでなく場所の緑の層を残せます。",
     };
   }
@@ -5872,6 +5879,7 @@ function fallbackCandidateReadingForSubject(options: {
         "腹部の帯、脚の花粉、翅が見える1枚を残す",
         "どの花に来ていたか分かる引き写真も撮る",
       ],
+      sizeAssessment: null,
       regionalRead: "花壇ではない足元の花も、虫にとって花資源になっている可能性を残せます。",
     };
   }
@@ -5893,6 +5901,7 @@ function fallbackCandidateReadingForSubject(options: {
         "葉の付け根と株元を撮る",
         "花の群落との距離が分かる引き写真を残す",
       ],
+      sizeAssessment: null,
       regionalRead: "背景の草ではなく、草地がどう管理され、どの植物が残っているかを示す情報になります。",
     };
   }
@@ -5915,6 +5924,7 @@ function fallbackCandidateReadingForSubject(options: {
       "形や模様が分かる近景",
       "周囲との位置関係が分かる写真",
     ],
+    sizeAssessment: null,
     regionalRead: "場所、季節、周囲の環境が一緒に残るほど、同じ地域の記録と比べやすくなります。",
   };
 }

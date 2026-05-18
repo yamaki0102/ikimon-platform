@@ -108,6 +108,14 @@ test("normalizeCandidateReadingsFromRaw keeps per-candidate page sections", () =
       weak_points: ["脚の花粉団子が見えない"],
       shooting_tips: ["花に止まった横姿を撮る"],
       regional_read: "足元の花が花資源として使われている可能性があります。",
+      size_assessment: {
+        typical_size_cm: 1.3,
+        observed_size_estimate_cm: null,
+        size_class: "typical",
+        ranking_hint: "平均的サイズ",
+        basis: "写真内にスケールなし",
+        hedge: "AI目測のため誤差大",
+      },
     },
     { name: "セイヨウミツバチ", visible_features: ["重複"] },
     { visible_features: ["名前なし"] },
@@ -118,6 +126,8 @@ test("normalizeCandidateReadingsFromRaw keeps per-candidate page sections", () =
   assert.deepEqual(out[0]!.weakPoints, ["脚の花粉団子が見えない"]);
   assert.deepEqual(out[0]!.shootingTips, ["花に止まった横姿を撮る"]);
   assert.match(out[0]!.regionalRead, /花資源/);
+  assert.equal(out[0]!.sizeAssessment?.typicalSizeCm, 1.3);
+  assert.equal(out[0]!.sizeAssessment?.sizeClass, "typical");
 });
 
 test("normalizeManagementActionCandidatesFromRaw keeps explicit AI candidates", () => {

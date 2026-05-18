@@ -83,7 +83,7 @@
   - `rationale` — なぜそれが必要か（40字以内、例「似種識別に必須」「生息環境の文脈記録」）
   - `priority` — `high`（種確定に必須）| `medium`（研究価値を高める）
   既に写っているものは提案しなくて良い。最大 5 要素、必要なければ空配列。
-- `candidate_readings` — **ページの同定タブにそのまま使う、候補ごとの読み**。`observed_subjects`、`recommended_taxon_name`、`coexisting_taxa` に出した候補をすべて含める。`observed_subjects` に 4 件あれば原則 4 件、10 件あれば最大 10 件を同じ順序で返す。対象ごとに「見えている特徴 / 弱い点 / 撮り方 / 地域との読み」が安定して出るよう、抽象説明ではなく写真と場所に結びつける。最大 10 件。`observed_subjects` にある候補が写真上で弱い場合も削除せず、`weak_points` に「どこが足りないか」を書く。
+- `candidate_readings` — **ページの同定タブにそのまま使う、候補ごとの読み**。`observed_subjects`、`recommended_taxon_name`、`coexisting_taxa` に出した候補をすべて含める。`observed_subjects` に 4 件あれば原則 4 件、10 件あれば最大 10 件を同じ順序で返す。主対象/同場面候補で情報量を変えず、全候補を同じ情報モデル（特徴、弱点、撮り方、地域読み、サイズ目安）で返す。対象ごとに「見えている特徴 / 弱い点 / 撮り方 / 地域との読み」が安定して出るよう、抽象説明ではなく写真と場所に結びつける。最大 10 件。`observed_subjects` にある候補が写真上で弱い場合も削除せず、`weak_points` に「どこが足りないか」を書く。
   - `observed_subjects` の表示名が汎用ラベルの場合、その汎用ラベルだけで終えず、同じ写真から比較すべき具体候補を別 item として足す。確信が低ければ `rank=genus|family|lifeform` とし、`weak_points` に保留理由を書く。
   - 候補ごとに**その分類群でなければ意味が薄い特徴**を書く。例: ツルニチニチソウなら「つる状の茎」「対生する楕円葉」「紫色の5裂花」「葉縁・斑入りの有無」、アメリカシャクナゲなら「皿形の花冠」「雄しべが花冠のくぼみに収まる」「革質の葉」など。`地面付近の緑葉` のような、別種にも当てはまる一文だけで終わらせない。
   - 写真で候補特有の特徴が見えない場合は、`visible_features` に一般的特徴を水増しせず、`weak_points` と `shooting_tips` を候補固有にする。例: 「ツルニチニチソウとして見るには花冠・つる性の茎・対生葉が見えない」「花の正面、葉の付き方、地表を這う茎を撮る」。
@@ -96,6 +96,7 @@
   - `weak_points` — 確定や細分化に足りない点。1〜4件
   - `shooting_tips` — 詳しくする撮り方。1〜4件。部位・角度・距離・時間帯のどれかを具体的に含める
   - `regional_read` — 地域・場所・季節との読み。80字以内。断定禁止。地域情報が使えない場合は、場所情報がないため地域読みは保留と書く
+  - `size_assessment` — その候補自身のサイズ目安。形はトップレベルの `size_assessment` と同じ。写真からスケール参照（手・指・コイン・既知の隣接物）が読み取れない場合、候補ごとの `observed_size_estimate_cm` も null にする
 - `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。** 草・花・木などの植生は、種まで分からなくても `lifeform` または `family` で残す。非生物だけの裸地・礫・踏圧はここに入れず、環境文脈へ回す。
   - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足", "media_regions": [...] }`
 - `recommended_media_regions` — 主対象が画像のどこにあるかの概形。**分からなければ空配列でよい。** 各要素:
@@ -211,7 +212,15 @@
       "visible_features": ["<画像上で見える特徴>", "<候補Aらしさに関係する特徴>"],
       "weak_points": ["<まだ見えない決め手>", "<誤同定しやすい弱点>"],
       "shooting_tips": ["<次に撮る部位>", "<撮影角度や距離>"],
-      "regional_read": "<場所・季節と結びつく非断定の読み>"
+      "regional_read": "<場所・季節と結びつく非断定の読み>",
+      "size_assessment": {
+        "typical_size_cm": 12.5,
+        "observed_size_estimate_cm": null,
+        "size_class": "typical",
+        "ranking_hint": "<この候補としてのサイズ感>",
+        "basis": "<スケール不明ならその旨>",
+        "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+      }
     },
     {
       "name": "<候補Bの表示名>",
@@ -221,7 +230,15 @@
       "visible_features": ["<画像上で見える特徴>"],
       "weak_points": ["<まだ見えない決め手>"],
       "shooting_tips": ["<次に撮る部位>"],
-      "regional_read": "<場所・季節と結びつく非断定の読み>"
+      "regional_read": "<場所・季節と結びつく非断定の読み>",
+      "size_assessment": {
+        "typical_size_cm": null,
+        "observed_size_estimate_cm": null,
+        "size_class": "typical",
+        "ranking_hint": "<この候補としてのサイズ感>",
+        "basis": "<スケール不明ならその旨>",
+        "hedge": "AIによる目測のため誤差大。確定値ではありません。"
+      }
     }
   ],
   "recommended_media_regions": [

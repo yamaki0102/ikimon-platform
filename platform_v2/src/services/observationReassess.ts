@@ -162,6 +162,14 @@ type GeminiJson = {
     weak_points?: string[];
     shooting_tips?: string[];
     regional_read?: string;
+    size_assessment?: {
+      typical_size_cm?: number | null;
+      observed_size_estimate_cm?: number | null;
+      size_class?: string | null;
+      ranking_hint?: string;
+      basis?: string;
+      hedge?: string;
+    };
   }>;
   recommended_media_regions?: GeminiRegion[];
   coexisting_taxa?: Array<{
@@ -378,16 +386,28 @@ function applyThreeLensGates(
       delete (out as Record<string, unknown>)["novelty_hint"];
     }
   }
-  const size = (parsed as Record<string, unknown>)["size_assessment"];
-  if (size && typeof size === "object") {
-    const obj = { ...(size as Record<string, unknown>) };
+  const gateSizeAssessment = (raw: unknown): Record<string, unknown> | null => {
+    if (!raw || typeof raw !== "object") return null;
+    const obj = { ...(raw as Record<string, unknown>) };
     const basis = typeof obj.basis === "string" ? obj.basis : "";
     const hasScaleHint = /手|指|コイン|スケール|物差し|定規|cm|mm/i.test(basis);
     if (!basis || !hasScaleHint) {
       obj.observed_size_estimate_cm = null;
     }
     obj.hedge = obj.hedge || "AIによる目測のため誤差大。確定値ではありません。";
-    (out as Record<string, unknown>)["size_assessment"] = obj;
+    return obj;
+  };
+  const size = (parsed as Record<string, unknown>)["size_assessment"];
+  const gatedSize = gateSizeAssessment(size);
+  if (gatedSize) {
+    (out as Record<string, unknown>)["size_assessment"] = gatedSize;
+  }
+  if (Array.isArray(out.candidate_readings)) {
+    out.candidate_readings = out.candidate_readings.map((reading) => {
+      const gatedCandidateSize = gateSizeAssessment(reading.size_assessment);
+      if (!gatedCandidateSize) return reading;
+      return { ...reading, size_assessment: gatedCandidateSize };
+    });
   }
   return out;
 }
@@ -1170,7 +1190,7 @@ export async function reassessObservation(
     // Skip when the caller forced a refresh via overridePhotos or explicit
     // sourceTag != "photo". Otherwise build the cache key from the canonical
     // inputs and try to short-circuit the Gemini call entirely.
-    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.4";
+    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.5";
     const sourceTag = options.sourceTag?.trim() || "photo";
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
@@ -1246,7 +1266,7 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
       sourceTag,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.4";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.5";
 
     const band = normalizeBand(parsed.confidence_band);
     let rank = normalizeRank(parsed.recommended_rank);
@@ -1293,6 +1313,33 @@ export async function reassessObservation(
     if (Array.isArray(parsed.candidate_readings)) {
       parsed.candidate_readings = parsed.candidate_readings.map(enrichCandidateReadingName);
     }
+    const candidateReadings = Array.isArray(parsed.candidate_readings) ? parsed.candidate_readings : [];
+    const candidateReadingByKey = new Map<string, GeminiCandidateReading>();
+    const registerCandidateReading = (reading: GeminiCandidateReading): void => {
+      const rank = normalizeRank(reading.rank);
+      const rankHint = rank === "unknown" ? null : rank;
+      const keys = [
+        buildCandidateKey(normalizeCandidateName(reading.name), normalizeCandidateName(reading.scientific_name), rankHint),
+        normalizeCandidateName(reading.name).toLowerCase(),
+        normalizeCandidateName(reading.scientific_name).toLowerCase(),
+      ].filter(Boolean);
+      for (const key of keys) {
+        if (!candidateReadingByKey.has(key)) candidateReadingByKey.set(key, reading);
+      }
+    };
+    candidateReadings.forEach(registerCandidateReading);
+    const findCandidateReadingFor = (input: { vernacularName: string; scientificName: string; rankHint: string | null }): GeminiCandidateReading | null => {
+      const keys = [
+        buildCandidateKey(input.vernacularName, input.scientificName, input.rankHint),
+        input.vernacularName.trim().toLowerCase(),
+        input.scientificName.trim().toLowerCase(),
+      ].filter(Boolean);
+      for (const key of keys) {
+        const reading = candidateReadingByKey.get(key);
+        if (reading) return reading;
+      }
+      return null;
+    };
     const rawCoexisting = Array.isArray(parsed.coexisting_taxa)
       ? parsed.coexisting_taxa.filter((value) => {
           if (!value) return false;
@@ -1336,6 +1383,11 @@ export async function reassessObservation(
 
     const primaryRankHint = rank === "unknown" ? null : rank;
     const primaryMatchName = recommendedScientificName || recommendedName;
+    const primaryCandidateReading = findCandidateReadingFor({
+      vernacularName: recommendedName,
+      scientificName: recommendedScientificName,
+      rankHint: primaryRankHint,
+    });
     const preparedCandidates = coexisting.map((candidate) => {
       const vernacularName = String(candidate.name ?? "").trim();
       const scientificName = String(candidate.scientific_name ?? "").trim();
@@ -1355,6 +1407,11 @@ export async function reassessObservation(
         regions: Array.isArray(candidate.media_regions)
           ? candidate.media_regions.map(normalizeRectCandidate).filter((region): region is NormalizedRegion => Boolean(region))
           : [],
+        candidateReading: findCandidateReadingFor({
+          vernacularName,
+          scientificName,
+          rankHint: normalizedRank === "unknown" ? null : normalizedRank,
+        }),
       };
     });
 
@@ -1629,7 +1686,11 @@ export async function reassessObservation(
         rank === "unknown" ? null : rank,
         band === "high" ? 0.85 : band === "medium" ? 0.6 : 0.35,
         narrative || simple || null,
-        JSON.stringify({ sourceTag, gbifMatched: gbifMatchedPrimary }),
+        JSON.stringify({
+          sourceTag,
+          candidateReading: primaryCandidateReading ?? null,
+          gbifMatched: gbifMatchedPrimary,
+        }),
       ],
     );
 
@@ -1810,6 +1871,7 @@ export async function reassessObservation(
           candidate.note,
           JSON.stringify({
             sourceTag,
+            candidateReading: candidate.candidateReading ?? null,
             aiJudgement: {
               materialized: aiJudgementRecord.materialized,
               matchedExisting: aiJudgementRecord.matchedExisting,
@@ -1844,6 +1906,7 @@ export async function reassessObservation(
           candidate.note,
           JSON.stringify({
             sourceTag,
+            candidateReading: candidate.candidateReading ?? null,
             gbif: {
               usageKey: gbif?.usageKey ?? null,
               matchType: gbif?.matchType ?? "NONE",
