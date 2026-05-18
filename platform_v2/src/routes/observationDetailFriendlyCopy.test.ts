@@ -235,7 +235,8 @@ test("observation detail hero readout keeps scene candidates out of identificati
   assert.match(readoutSource, /sourceReading\.shootingTips/);
   assert.match(readoutSource, /renderAiSizeSummary\(sourceReading\.sizeAssessment\)/);
   assert.match(readoutSource, /renderAiTaxonStory\(null, candidateName, sourceReading\.scientificName \|\| subject\.scientificName\)/);
-  assert.match(readoutSource, /renderAiTaxonStory\(insight, candidateName, subject\.scientificName \|\| aiAssessment\.recommendedScientificName\)/);
+  assert.match(readoutSource, /lookupLocalTaxonName\(candidateName\)\?\.scientificName/);
+  assert.match(readoutSource, /renderAiTaxonStory\(insight, candidateName, subject\.scientificName \|\| aiAssessment\.recommendedScientificName \|\| fallbackScientificName\)/);
   assert.match(readoutSource, /確かめる点/);
   assert.match(readoutSource, /追加で見る点/);
   assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
