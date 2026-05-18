@@ -32,6 +32,41 @@ test("invasive species detail renders legal caution and source link", async () =
     assert.match(response.body, /生きた状態での運搬・栽培・譲渡/);
     assert.match(response.body, /触らず、運ばず/);
     assert.match(response.body, /出典を開く/);
+    assert.match(response.body, /どこが、何を求めているか/);
+    assert.match(response.body, /環境省・外来生物法/);
+    assert.match(response.body, /自治体・土地管理者/);
+    assert.match(response.body, /投稿地点と受信許可済み団体の条件が合う場合だけ自動共有/);
+    assert.match(response.body, /承認済み受信団体/);
+    assert.match(response.body, /地域判定後に表示/);
+    assert.match(response.body, /投稿地点で届く先を確認/);
+    assert.match(response.body, /data-inv-reporting-check/);
+    assert.match(response.body, /\/api\/v1\/invasive-reporting\/recipients/);
+    assert.match(response.body, /受信連携を相談する/);
+    assert.match(response.body, /\/ja\/for-business\/invasive-reporting/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("nutria detail uses the species-level NIES source instead of the retired Env list URL", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/learn/invasive-species/myocastor-coypus?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /ヌートリア/);
+    assert.match(response.body, /https:\/\/www\.nies\.go\.jp\/biodiversity\/invasive\/DB\/detail\/10140\.html/);
+    assert.doesNotMatch(response.body, /https:\/\/www\.env\.go\.jp\/nature\/intro\/4control\/list\.html/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("invasive reporting recipients API validates required species query", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/v1/invasive-reporting/recipients?invasiveStatus=iaspecified" });
+    assert.equal(response.statusCode, 400);
+    assert.match(response.body, /bad_request/);
   } finally {
     await app.close();
   }

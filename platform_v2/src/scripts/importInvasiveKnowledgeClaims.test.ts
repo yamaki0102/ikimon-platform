@@ -86,9 +86,13 @@ test("invasive seed: includes ユーザー言及種 (セイヨウタンポポ・
   assert.ok(sciNames.has("Procambarus clarkii"), "アメリカザリガニ (Procambarus clarkii) が seed に必要");
 });
 
-test("invasive seed: source_url points to env.go.jp", async () => {
+test("invasive seed: source_url points to accepted official or specialist sources", async () => {
   const data = await loadSeed();
   for (const rec of data) {
-    assert.match(rec.source_url, /env\.go\.jp/, `source_url should be env.go.jp for ${rec.scientific_name}`);
+    assert.match(
+      rec.source_url,
+      /^https:\/\/(www\.env\.go\.jp|www\.nies\.go\.jp)\//,
+      `source_url should be env.go.jp or nies.go.jp for ${rec.scientific_name}`,
+    );
   }
 });

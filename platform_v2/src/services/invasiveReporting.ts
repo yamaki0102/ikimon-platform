@@ -1,10 +1,54 @@
 import type { PoolClient } from "pg";
 import type { EmitAlertsContext } from "./alertDispatcher.js";
 
+type ReportingQueryClient = Pick<PoolClient, "query">;
+
 export type InvasiveReportingEmitSummary = {
   matchedRules: number;
   pendingDeliveries: number;
   suppressedNoPermission: number;
+};
+
+export type InvasiveReportingVisibilityInput = {
+  invasiveStatus: string | null;
+  scientificName?: string | null;
+  vernacularName?: string | null;
+  genus?: string | null;
+  family?: string | null;
+  orderName?: string | null;
+  className?: string | null;
+  prefecture?: string | null;
+  municipality?: string | null;
+};
+
+export type InvasiveReportingVisibilityContact = {
+  organizationName: string;
+  departmentName: string;
+  contactRole: string;
+  deliveryMode: string;
+  sendPermissionStatus: string;
+  autoDeliveryEnabled: boolean;
+  reportingCategory: string;
+  urgency: string;
+  requiredFields: string[];
+  handlingWarnings: string[];
+  userGuidanceJa: string;
+  officialUrl: string;
+  jurisdiction: {
+    countryCode: string;
+    adminArea1: string | null;
+    adminArea2: string | null;
+    municipality: string | null;
+    localityLabel: string;
+  };
+};
+
+export type InvasiveReportingVisibility = {
+  available: boolean;
+  reason: "ok" | "not_invasive_trigger" | "location_required" | "unavailable";
+  matchedRules: number;
+  autoDeliveryCount: number;
+  contacts: InvasiveReportingVisibilityContact[];
 };
 
 type ReportingRuleRow = {
@@ -117,6 +161,47 @@ export async function emitInvasiveReportingForOccurrence(
   }
 }
 
+export async function listInvasiveReportingVisibility(
+  client: ReportingQueryClient,
+  input: InvasiveReportingVisibilityInput,
+): Promise<InvasiveReportingVisibility> {
+  if (!isInvasiveReportingTrigger(input.invasiveStatus)) {
+    return emptyVisibility("not_invasive_trigger", true);
+  }
+  if (!input.prefecture && !input.municipality) {
+    return emptyVisibility("location_required", true);
+  }
+
+  const ctx: EmitAlertsContext = {
+    occurrenceId: "visibility-preview",
+    visitId: "visibility-preview",
+    invasiveStatus: input.invasiveStatus,
+    scientificName: input.scientificName ?? "",
+    vernacularName: input.vernacularName ?? "",
+    genus: input.genus ?? null,
+    family: input.family ?? null,
+    orderName: input.orderName ?? null,
+    className: input.className ?? null,
+    prefecture: input.prefecture ?? null,
+    municipality: input.municipality ?? null,
+  };
+
+  try {
+    const rules = await findMatchingReportingRules(client, ctx);
+    const contacts = rules.map(toVisibilityContact);
+    return {
+      available: true,
+      reason: "ok",
+      matchedRules: contacts.length,
+      autoDeliveryCount: contacts.filter((contact) => contact.autoDeliveryEnabled).length,
+      contacts,
+    };
+  } catch (err) {
+    if (isMissingReportingTableError(err)) return emptyVisibility("unavailable", false);
+    throw err;
+  }
+}
+
 export function buildInvasiveReportingPayload(
   ctx: EmitAlertsContext,
   detail: ObservationReportingDetail | null,
@@ -201,7 +286,7 @@ export function buildInvasiveReportingPayload(
 }
 
 async function findMatchingReportingRules(
-  client: PoolClient,
+  client: ReportingQueryClient,
   ctx: EmitAlertsContext,
 ): Promise<ReportingRuleRow[]> {
   const taxonCandidates = [
@@ -387,6 +472,46 @@ function normalizeStringArray(value: unknown): string[] {
     return Object.values(value).map((item) => String(item)).filter((item) => item.length > 0);
   }
   return [];
+}
+
+function toVisibilityContact(rule: ReportingRuleRow): InvasiveReportingVisibilityContact {
+  return {
+    organizationName: rule.organization_name,
+    departmentName: rule.department_name ?? "",
+    contactRole: rule.contact_role,
+    deliveryMode: rule.delivery_mode,
+    sendPermissionStatus: rule.send_permission_status,
+    autoDeliveryEnabled:
+      rule.send_permission_status === "approved" &&
+      rule.delivery_mode === "email" &&
+      Boolean(rule.alert_recipient_id),
+    reportingCategory: rule.reporting_category,
+    urgency: rule.urgency,
+    requiredFields: normalizeStringArray(rule.required_fields),
+    handlingWarnings: normalizeStringArray(rule.handling_warnings),
+    userGuidanceJa: rule.user_guidance_ja ?? "",
+    officialUrl: rule.official_url ?? "",
+    jurisdiction: {
+      countryCode: rule.country_code,
+      adminArea1: rule.admin_area_1,
+      adminArea2: rule.admin_area_2,
+      municipality: rule.municipality,
+      localityLabel: rule.locality_label,
+    },
+  };
+}
+
+function emptyVisibility(
+  reason: InvasiveReportingVisibility["reason"],
+  available: boolean,
+): InvasiveReportingVisibility {
+  return {
+    available,
+    reason,
+    matchedRules: 0,
+    autoDeliveryCount: 0,
+    contacts: [],
+  };
 }
 
 function isMissingReportingTableError(err: unknown): boolean {
