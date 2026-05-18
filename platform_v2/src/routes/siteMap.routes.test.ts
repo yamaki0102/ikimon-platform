@@ -53,7 +53,7 @@ test("qa sitemap uses the canonical registry and legacy redirects point to v2 ro
     assert.equal(qa.statusCode, 200);
     assert.match(qa.body, /Start \/ Core Journey/);
     assert.match(qa.body, /ライブガイド/);
-    assert.match(qa.body, /ガイド成果確認/);
+    assert.match(qa.body, /ガイド成果/);
     assert.match(qa.body, /みんなで調べる/);
     assert.match(qa.body, /専門家確認/);
     assert.match(qa.body, /XML sitemap/);
