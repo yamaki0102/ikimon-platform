@@ -3409,7 +3409,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   ].filter(Boolean).join("。");
   const compareList = renderAiCompareList(subject);
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
-  const story = renderAiTaxonStory(insight, candidateName, subject.scientificName);
+  const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName);
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";

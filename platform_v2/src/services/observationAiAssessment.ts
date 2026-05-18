@@ -119,6 +119,7 @@ export type AiAssessment = {
   modelUsed: string;
   recommendedRank: string | null;
   recommendedTaxonName: string | null;
+  recommendedScientificName: string | null;
   bestSpecificTaxonName: string | null;
   narrative: string;
   simpleSummary: string;
@@ -225,6 +226,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     areaInference,
   );
   const candidateReadings = normalizeCandidateReadingsFromRaw(parsedFromRaw?.["candidate_readings"]);
+  const recommendedScientificName = trimStr(parsedFromRaw?.["recommended_scientific_name"]).slice(0, 120) || null;
   const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
   const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
   const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
@@ -236,6 +238,7 @@ export async function getLatestAiAssessment(occurrenceId: string): Promise<AiAss
     modelUsed: r.model_used,
     recommendedRank: r.recommended_rank,
     recommendedTaxonName: r.recommended_taxon_name,
+    recommendedScientificName,
     bestSpecificTaxonName: r.best_specific_taxon_name,
     narrative: r.narrative,
     simpleSummary: r.simple_summary,

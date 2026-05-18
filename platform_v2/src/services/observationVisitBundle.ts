@@ -323,6 +323,9 @@ async function getAssessmentMap(
       areaInference,
     );
     const candidateReadings = normalizeCandidateReadingsFromRaw(parsedFromRaw?.["candidate_readings"]);
+    const recommendedScientificName = typeof parsedFromRaw?.["recommended_scientific_name"] === "string"
+      ? parsedFromRaw["recommended_scientific_name"].trim().slice(0, 120) || null
+      : null;
     const sizeAssessment = parsedFromRaw ? normalizeSizeAssessmentFromRaw(parsedFromRaw["size_assessment"]) : null;
     const noveltyHint = parsedFromRaw ? normalizeNoveltyHintFromRaw(parsedFromRaw["novelty_hint"]) : null;
     const invasiveResponse = parsedFromRaw ? normalizeInvasiveResponseFromRaw(parsedFromRaw["invasive_response"]) : null;
@@ -333,6 +336,7 @@ async function getAssessmentMap(
       modelUsed: row.model_used,
       recommendedRank: row.recommended_rank,
       recommendedTaxonName: row.recommended_taxon_name,
+      recommendedScientificName,
       bestSpecificTaxonName: row.best_specific_taxon_name,
       narrative: row.narrative,
       simpleSummary: row.simple_summary,
