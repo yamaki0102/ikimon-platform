@@ -45,6 +45,7 @@ import {
   markPrimaryOccurrenceAsAiJudgement,
   materializeAiJudgementObservationRecord,
 } from "./aiJudgementObservationRecords.js";
+import { lookupLocalTaxonName } from "./taxonNameNormalizer.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -613,7 +614,8 @@ function isSameAsPrimaryCandidate(candidate: {
 
 function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): GeminiCoexistingTaxon | null {
   const name = normalizeCandidateName(reading.name);
-  const scientificName = normalizeCandidateName(reading.scientific_name);
+  const local = lookupLocalTaxonName(name);
+  const scientificName = normalizeCandidateName(reading.scientific_name) || local?.scientificName || "";
   if (!name && !scientificName) return null;
   if (!scientificName && isUnhelpfulGenericCandidateName(name)) return null;
   const rank = normalizeRank(reading.rank);
@@ -626,10 +628,40 @@ function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): Gem
   return {
     name,
     scientific_name: scientificName,
-    rank: rank === "unknown" ? "lifeform" : rank,
+    rank: rank === "unknown" || (rank === "lifeform" && local) ? local?.rank ?? "lifeform" : rank,
     confidence: 0.45,
     note: [normalizeCandidateName(reading.role), ...visible, ...weak].filter(Boolean).join(" / ").slice(0, 240),
     media_regions: [],
+  };
+}
+
+function enrichCoexistingTaxonName(candidate: GeminiCoexistingTaxon): GeminiCoexistingTaxon {
+  const name = normalizeCandidateName(candidate.name);
+  const scientificName = normalizeCandidateName(candidate.scientific_name);
+  if (scientificName) return candidate;
+  const local = lookupLocalTaxonName(name);
+  if (!local) return candidate;
+  const rank = normalizeRank(candidate.rank);
+  return {
+    ...candidate,
+    name: name || local.vernacularName,
+    scientific_name: local.scientificName,
+    rank: rank === "unknown" || rank === "lifeform" ? local.rank : rank,
+  };
+}
+
+function enrichCandidateReadingName(reading: GeminiCandidateReading): GeminiCandidateReading {
+  const name = normalizeCandidateName(reading.name);
+  const scientificName = normalizeCandidateName(reading.scientific_name);
+  if (scientificName) return reading;
+  const local = lookupLocalTaxonName(name);
+  if (!local) return reading;
+  const rank = normalizeRank(reading.rank);
+  return {
+    ...reading,
+    name: name || local.vernacularName,
+    scientific_name: local.scientificName,
+    rank: rank === "unknown" || rank === "lifeform" ? local.rank : rank,
   };
 }
 
@@ -641,15 +673,16 @@ function mergeCoexistingCandidates(
   const candidates: GeminiCoexistingTaxon[] = [];
   const seen = new Set<string>();
   const push = (candidate: GeminiCoexistingTaxon): boolean => {
-    const name = normalizeCandidateName(candidate.name);
-    const scientificName = normalizeCandidateName(candidate.scientific_name);
+    const enriched = enrichCoexistingTaxonName(candidate);
+    const name = normalizeCandidateName(enriched.name);
+    const scientificName = normalizeCandidateName(enriched.scientific_name);
     if (!name && !scientificName) return false;
     if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
-    if (isSameAsPrimaryCandidate(candidate, primary)) return false;
-    const key = coexistingCandidateKey(candidate) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
+    if (isSameAsPrimaryCandidate(enriched, primary)) return false;
+    const key = coexistingCandidateKey(enriched) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
     if (!key || seen.has(key)) return false;
     seen.add(key);
-    candidates.push(candidate);
+    candidates.push(enriched);
     return true;
   };
   for (const candidate of base) push(candidate);
@@ -1216,9 +1249,20 @@ export async function reassessObservation(
     const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.4";
 
     const band = normalizeBand(parsed.confidence_band);
-    const rank = normalizeRank(parsed.recommended_rank);
-    const recommendedName = String(parsed.recommended_taxon_name ?? "").trim();
-    const recommendedScientificName = String(parsed.recommended_scientific_name ?? "").trim();
+    let rank = normalizeRank(parsed.recommended_rank);
+    let recommendedName = String(parsed.recommended_taxon_name ?? "").trim();
+    let recommendedScientificName = String(parsed.recommended_scientific_name ?? "").trim();
+    const primaryLocalName = recommendedScientificName ? null : lookupLocalTaxonName(recommendedName || target.vernacularName || "");
+    if (primaryLocalName) {
+      recommendedName = recommendedName || primaryLocalName.vernacularName;
+      recommendedScientificName = primaryLocalName.scientificName;
+      if (rank === "unknown" || rank === "lifeform") {
+        rank = primaryLocalName.rank;
+      }
+      parsed.recommended_taxon_name = recommendedName;
+      parsed.recommended_scientific_name = recommendedScientificName;
+      parsed.recommended_rank = rank;
+    }
     const bestSpecific = String(parsed.best_specific_taxon_name ?? "").trim();
     const narrative = String(parsed.narrative ?? "").trim();
     const simple = String(parsed.simple_summary ?? "").trim();
@@ -1246,13 +1290,16 @@ export async function reassessObservation(
       },
     );
     const shotSuggestions = normalizeShotSuggestions(parsed.shot_suggestions);
+    if (Array.isArray(parsed.candidate_readings)) {
+      parsed.candidate_readings = parsed.candidate_readings.map(enrichCandidateReadingName);
+    }
     const rawCoexisting = Array.isArray(parsed.coexisting_taxa)
       ? parsed.coexisting_taxa.filter((value) => {
           if (!value) return false;
           const name = typeof value.name === "string" ? value.name.trim() : "";
           const scientificName = typeof value.scientific_name === "string" ? value.scientific_name.trim() : "";
           return name.length > 0 || scientificName.length > 0;
-        })
+        }).map(enrichCoexistingTaxonName)
       : [];
     const primaryNamesForGuard = {
       vernacularName: recommendedName || target.vernacularName || "",
@@ -1284,6 +1331,7 @@ export async function reassessObservation(
       multiSubjectGuard.rescueCandidateCount = rescuedMerge.added;
       multiSubjectGuard.rescueModelUsed = rescue.modelUsed || null;
     }
+    coexisting = coexisting.map(enrichCoexistingTaxonName);
     parsed.coexisting_taxa = coexisting;
 
     const primaryRankHint = rank === "unknown" ? null : rank;
