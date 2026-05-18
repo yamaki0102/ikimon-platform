@@ -1208,6 +1208,15 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const body = request.body ?? ({} as ContactSubmitInput);
       const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+      const botTrap = [body.website, body.spamTrap].some((value) => String(value ?? "").trim().length > 0);
+      if (botTrap) {
+        return {
+          ok: true,
+          submissionId: "",
+          notificationSent: false,
+          autoReplySent: false,
+        };
+      }
       const result = await submitContact({
         category: body.category,
         name: body.name,

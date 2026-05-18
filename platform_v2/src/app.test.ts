@@ -89,3 +89,30 @@ test("contact submit endpoint is rate-limited before mail or database work", asy
     await app.close();
   }
 });
+
+test("contact submit endpoint drops honeypot submissions before mail or database work", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/contact/submit",
+      remoteAddress: "203.0.113.20",
+      payload: {
+        category: "partnership",
+        organization: "Bot Organization",
+        email: "bot@example.com",
+        website: "https://spam.example",
+        message: "外来種情報の受信連携相談",
+      },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), {
+      ok: true,
+      submissionId: "",
+      notificationSent: false,
+      autoReplySent: false,
+    });
+  } finally {
+    await app.close();
+  }
+});
