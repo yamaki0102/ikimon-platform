@@ -89,3 +89,22 @@ test("multi-subject guard enriches known Japanese taxon names before materializa
     ["トベラ", "Pittosporum tobira", "species"],
   ]);
 });
+
+test("multi-subject guard enriches berry record candidates before materialization", () => {
+  const result = promoteCandidateReadingsToCoexistingTaxa({
+    primaryVernacularName: "果実",
+    primaryScientificName: "",
+    candidateReadings: [
+      { name: "ナワシロイチゴ", scientific_name: "", rank: "lifeform", role: "赤い集合果" },
+      { name: "アカメガシワ", scientific_name: "", rank: "lifeform", role: "周囲の木本" },
+      { name: "カタバミ属", scientific_name: "", rank: "lifeform", role: "足元の草本" },
+    ],
+  });
+
+  assert.equal(result.promoted, 3);
+  assert.deepEqual(result.candidates.map((candidate) => [candidate.name, candidate.scientific_name, candidate.rank]), [
+    ["ナワシロイチゴ", "Rubus parvifolius", "species"],
+    ["アカメガシワ", "Mallotus japonicus", "species"],
+    ["カタバミ属", "Oxalis", "genus"],
+  ]);
+});

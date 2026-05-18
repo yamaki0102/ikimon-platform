@@ -599,6 +599,21 @@ function buildCandidateKey(vernacularName: string, scientificName: string, rank:
     .join("|");
 }
 
+function looksLikeCanonicalScientificName(value: string): boolean {
+  return /^[A-Z][a-z]+(?: [a-z][a-z.-]+){0,3}$/.test(value.trim());
+}
+
+function canonicalScientificNameFromGbif(candidate: { scientificName: string }, gbif: GbifMatch | null | undefined): string | null {
+  if (candidate.scientificName) return null;
+  if (!gbif?.usageKey) return null;
+  const canonicalName = normalizeCandidateName(gbif.canonicalName);
+  if (!canonicalName || !looksLikeCanonicalScientificName(canonicalName)) return null;
+  const matchType = String(gbif.matchType ?? "").toUpperCase();
+  const confidence = typeof gbif.confidence === "number" && Number.isFinite(gbif.confidence) ? gbif.confidence : 0;
+  if (matchType !== "EXACT" && confidence < 95) return null;
+  return canonicalName;
+}
+
 function normalizeCandidateName(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -1388,9 +1403,10 @@ export async function reassessObservation(
       scientificName: recommendedScientificName,
       rankHint: primaryRankHint,
     });
-    const preparedCandidates = coexisting.map((candidate) => {
+    let preparedCandidates = coexisting.map((candidate) => {
       const vernacularName = String(candidate.name ?? "").trim();
       const scientificName = String(candidate.scientific_name ?? "").trim();
+      const scientificNameSource: "model" | "gbif_backbone" | null = scientificName ? "model" : null;
       const normalizedRank = normalizeRank(candidate.rank);
       const confidence =
         typeof candidate.confidence === "number" && Number.isFinite(candidate.confidence)
@@ -1399,6 +1415,7 @@ export async function reassessObservation(
       return {
         vernacularName,
         scientificName,
+        scientificNameSource: scientificNameSource as "model" | "gbif_backbone" | null,
         matchName: scientificName || vernacularName,
         rankHint: normalizedRank === "unknown" ? null : normalizedRank,
         rank: normalizedRank,
@@ -1419,6 +1436,20 @@ export async function reassessObservation(
       matchTaxon({ name: primaryMatchName, rank: primaryRankHint }),
       matchTaxonBatch(preparedCandidates.map((candidate) => ({ name: candidate.matchName, rank: candidate.rankHint }))),
     ]);
+    preparedCandidates = preparedCandidates.map((candidate, index) => {
+      const gbif = coexistingGbifMatches[index];
+      const canonicalName = canonicalScientificNameFromGbif(candidate, gbif);
+      if (!canonicalName) return candidate;
+      const gbifRank = normalizeRank(gbif?.rank ?? undefined);
+      return {
+        ...candidate,
+        scientificName: canonicalName,
+        scientificNameSource: "gbif_backbone" as const,
+        matchName: canonicalName,
+        rank: candidate.rank === "unknown" && gbifRank !== "unknown" ? gbifRank : candidate.rank,
+        rankHint: candidate.rankHint ?? (gbifRank === "unknown" ? null : gbifRank),
+      };
+    });
     const gbifMatchedPrimary = primaryGbifMatch.usageKey !== null;
     const gbifMatchedCoexistingCount = coexistingGbifMatches.reduce((count, match) => (match.usageKey !== null ? count + 1 : count), 0);
     const primaryRegions = Array.isArray(parsed.recommended_media_regions)
@@ -1872,6 +1903,7 @@ export async function reassessObservation(
           JSON.stringify({
             sourceTag,
             candidateReading: candidate.candidateReading ?? null,
+            scientificNameSource: candidate.scientificNameSource,
             aiJudgement: {
               materialized: aiJudgementRecord.materialized,
               matchedExisting: aiJudgementRecord.matchedExisting,
@@ -1907,6 +1939,7 @@ export async function reassessObservation(
           JSON.stringify({
             sourceTag,
             candidateReading: candidate.candidateReading ?? null,
+            scientificNameSource: candidate.scientificNameSource,
             gbif: {
               usageKey: gbif?.usageKey ?? null,
               matchType: gbif?.matchType ?? "NONE",

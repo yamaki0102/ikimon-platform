@@ -11,6 +11,14 @@ test("local taxon dictionary fills scientific names for current AI candidate gap
   });
   assert.equal(lookupLocalTaxonName("トベラ")?.scientificName, "Pittosporum tobira");
   assert.equal(lookupLocalTaxonName("カワラヒワ")?.scientificName, "Chloris sinica");
+  assert.equal(lookupLocalTaxonName("ナワシロイチゴ")?.scientificName, "Rubus parvifolius");
+  assert.equal(lookupLocalTaxonName("アカメガシワ")?.scientificName, "Mallotus japonicus");
+  assert.deepEqual(lookupLocalTaxonName("カタバミ属"), {
+    vernacularName: "カタバミ属",
+    scientificName: "Oxalis",
+    rank: "genus",
+    source: "local_dictionary",
+  });
   assert.equal(lookupLocalTaxonName("イネ科")?.rank, "family");
 });
 
