@@ -63,6 +63,17 @@ test("AI candidate scientific-name backfill updates all materialized read surfac
   assert.match(migration, /migration_0111_ai_candidate_scientific_name_backfill/);
 });
 
+test("primary AI scientific-name backfill updates recommendation read surfaces", async () => {
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0112_backfill_primary_ai_scientific_names.sql"), "utf8");
+
+  assert.match(migration, /observation_ai_assessments/);
+  assert.match(migration, /visual_subject_candidates/);
+  assert.match(migration, /occurrences/);
+  assert.match(migration, /recommended_scientific_name/);
+  assert.match(migration, /ナワシロイチゴ[^]*Rubus parvifolius/);
+  assert.match(migration, /migration_0112_primary_ai_scientific_name_backfill/);
+});
+
 test("observation reassess records candidate materialization telemetry", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "observationReassess.ts"), "utf8");
 
