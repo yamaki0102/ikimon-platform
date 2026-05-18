@@ -288,6 +288,7 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const observations = await loadLegacyObservations(options);
   const importableObservations = observations.filter((observation) => !shouldQuarantineLegacyNoPhoto(observation));
+  const importableObservationIds = importableObservations.map((observation) => observation.id);
   const quarantinedNoPhotoObservations = observations.length - importableObservations.length;
   const tokens = await loadLegacyAuthTokens(options);
   const tracks = await loadLegacyTracks(options);
@@ -351,13 +352,17 @@ async function main(): Promise<void> {
              where v.visit_id = vtp.visit_id
                and v.source_kind = 'legacy_track_session'
            )) as track_points,
-          (select count(*)::text from visits where source_kind = 'legacy_observation') as observation_visits,
+          (select count(*)::text
+           from visits
+           where source_kind = 'legacy_observation'
+             and legacy_observation_id = any($2::text[])) as observation_visits,
           (select count(*)::text
            from occurrences o
            where exists (
              select 1 from visits v
              where v.visit_id = o.visit_id
                and v.source_kind = 'legacy_observation'
+               and v.legacy_observation_id = any($2::text[])
            )
              and coalesce(o.subject_index, 0) = 0) as observation_occurrences,
           (select count(*)::text
@@ -366,6 +371,7 @@ async function main(): Promise<void> {
              select 1 from visits v
              where v.visit_id = o.visit_id
                and v.source_kind = 'legacy_observation'
+               and v.legacy_observation_id = any($2::text[])
            )
              and coalesce(o.subject_index, 0) <> 0) as additional_observation_occurrences,
           (select count(*)::text
@@ -376,6 +382,7 @@ async function main(): Promise<void> {
              join visits v on v.visit_id = o.visit_id
              where o.occurrence_id = ident.occurrence_id
                and v.source_kind = 'legacy_observation'
+               and v.legacy_observation_id = any($2::text[])
                and coalesce(o.subject_index, 0) = 0
            )) as identifications_linked,
           (select count(*)::text
@@ -387,16 +394,18 @@ async function main(): Promise<void> {
                join visits v on v.visit_id = o.visit_id
                where o.occurrence_id = ea.occurrence_id
                  and v.source_kind = 'legacy_observation'
+                 and v.legacy_observation_id = any($2::text[])
                  and coalesce(o.subject_index, 0) = 0
            )) as evidence_assets_linked`,
-      [sourceTokenHashes],
+      [sourceTokenHashes, importableObservationIds],
     );
 
     const visitRows = await pool.query<{ legacy_observation_id: string; source_payload: JsonRecord | null }>(
       `select legacy_observation_id, source_payload
        from visits
        where source_kind = 'legacy_observation'
-         and legacy_observation_id is not null`,
+         and legacy_observation_id = any($1::text[])`,
+      [importableObservationIds],
     );
 
     const checksumMismatches: Array<{ legacyId: string; expected: string; actual: string | null }> = [];
