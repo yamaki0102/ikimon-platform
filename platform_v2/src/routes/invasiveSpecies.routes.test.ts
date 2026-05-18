@@ -41,8 +41,11 @@ test("invasive species detail renders legal caution and source link", async () =
     assert.match(response.body, /投稿地点で確認する/);
     assert.match(response.body, /data-inv-reporting-check/);
     assert.match(response.body, /\/api\/v1\/invasive-reporting\/recipients/);
-    assert.match(response.body, /受信連携を相談する/);
-    assert.match(response.body, /\/ja\/for-business\/invasive-reporting/);
+    assert.match(response.body, /data-inv-partner-form/);
+    assert.match(response.body, /\/api\/v1\/contact\/submit/);
+    assert.match(response.body, /この内容で相談する/);
+    assert.match(response.body, /対象地域、対象種、受け取りたい情報をこの場で送れます/);
+    assert.doesNotMatch(response.body, /\/ja\/for-business\/invasive-reporting/);
   } finally {
     await app.close();
   }

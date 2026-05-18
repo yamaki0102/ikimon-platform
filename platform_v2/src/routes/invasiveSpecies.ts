@@ -58,8 +58,7 @@ function renderCommonSafety(): string {
   </section>`;
 }
 
-function renderActionSources(basePath: string, lang: SiteLang, item: InvasiveSpeciesCatalogItem): string {
-  const partnershipHref = appendLangToHref(withBasePath(basePath, "/for-business/invasive-reporting"), lang);
+function renderActionSources(item: InvasiveSpeciesCatalogItem): string {
   const actionSources = [
     {
       source: "国のルール",
@@ -93,13 +92,13 @@ function renderActionSources(basePath: string, lang: SiteLang, item: InvasiveSpe
         <p>${escapeHtml(entry.action)}</p>
       </article>`).join("")}
     </div>
-    <a class="invasive-source-link" href="${escapeHtml(partnershipHref)}">自治体・団体向けの受け取り相談</a>
+    <a class="invasive-source-link" href="#invasive-partner-form">自治体・団体向けの受け取り相談</a>
   </section>`;
 }
 
-function renderReportingVisibility(basePath: string, lang: SiteLang, item: InvasiveSpeciesCatalogItem): string {
-  const partnershipHref = appendLangToHref(withBasePath(basePath, "/for-business/invasive-reporting"), lang);
+function renderReportingVisibility(basePath: string, item: InvasiveSpeciesCatalogItem): string {
   const apiPath = withBasePath(basePath, "/api/v1/invasive-reporting/recipients");
+  const submitEndpoint = withBasePath(basePath, "/api/v1/contact/submit");
   return `<section class="invasive-reporting-visibility" aria-label="自動通報連携団体">
     <div class="invasive-section-head">
       <span>投稿したあと</span>
@@ -139,12 +138,28 @@ function renderReportingVisibility(basePath: string, lang: SiteLang, item: Invas
       </form>
       <div class="invasive-region-result" aria-live="polite">地域を入力すると、自動で届く団体があるかをここに表示します。</div>
     </div>
-    <div class="invasive-partner-cta">
+    <div class="invasive-partner-cta" id="invasive-partner-form">
       <div>
         <strong>自治体・研究機関・管理団体の方へ</strong>
-        <p>対象地域、対象種、受け取りたい情報、停止条件を確認したうえで、受信先として登録できます。</p>
+        <p>対象地域、対象種、受け取りたい情報をこの場で送れます。確認後、受信方法や停止条件を一緒に整理します。</p>
       </div>
-      <a class="invasive-source-link" href="${escapeHtml(partnershipHref)}">受信連携を相談する</a>
+      <form class="invasive-partner-form" data-inv-partner-form data-submit-path="${escapeHtml(submitEndpoint)}" data-species='${escapeHtml(scriptJson({
+        scientificName: item.scientificName,
+        vernacularName: item.vernacularName,
+        invasiveStatus: item.category,
+      }))}'>
+        <label>団体名<input name="organization" autocomplete="organization" required maxlength="200" placeholder="例: 浜松市 環境政策課"></label>
+        <label>担当者名<input name="name" autocomplete="name" maxlength="200" placeholder="例: 山田 太郎"></label>
+        <label>メールアドレス<input name="email" type="email" autocomplete="email" required maxlength="200" placeholder="example@example.jp"></label>
+        <label>対象地域<input name="area" required maxlength="300" placeholder="例: 静岡県浜松市、管理している公園名など"></label>
+        <label class="is-wide">受け取りたい情報<textarea name="request" required minlength="5" maxlength="3000" placeholder="例: ヌートリアの写真、発見場所、日時を受け取りたい。対象地域は浜松市内。"></textarea></label>
+        <label class="is-wide">補足<textarea name="note" maxlength="3000" placeholder="公式窓口URL、対象種、停止条件、電話連絡の可否など"></textarea></label>
+        <div class="invasive-partner-form-actions">
+          <button type="submit">この内容で相談する</button>
+          <span class="invasive-partner-form-status" aria-live="polite"></span>
+        </div>
+        <noscript><p class="invasive-partner-form-status is-error">送信には JavaScript が必要です。</p></noscript>
+      </form>
     </div>
   </section>`;
 }
@@ -153,57 +168,121 @@ function renderReportingVisibilityScript(): string {
   return `<script>
 (function(){
   var root = document.querySelector("[data-inv-reporting-check]");
-  if (!root || !window.fetch) return;
-  var form = root.querySelector(".invasive-region-form");
-  var result = root.querySelector(".invasive-region-result");
-  var apiPath = root.getAttribute("data-api-path") || "/api/v1/invasive-reporting/recipients";
-  var species = {};
-  try { species = JSON.parse(root.getAttribute("data-species") || "{}"); } catch (_) { species = {}; }
+  var partnerForm = document.querySelector("[data-inv-partner-form]");
+  if (!window.fetch) return;
   function esc(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
       return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","'":"&#39;"}[ch] || ch;
     });
   }
-  function statusLabel(status, enabled) {
-    if (enabled) return "自動共有あり";
-    if (status === "external_only") return "公式フォーム案内";
-    if (status === "pending") return "確認中";
-    if (status === "approved") return "条件不足";
-    if (status === "denied" || status === "revoked") return "停止中";
-    return "自動送信なし";
-  }
-  function render(data) {
-    if (!data || data.available === false) {
-      result.innerHTML = "<strong>連携情報を確認できません</strong><p>現在は公式窓口の案内だけを表示します。</p>";
-      return;
+  if (root) {
+    var form = root.querySelector(".invasive-region-form");
+    var result = root.querySelector(".invasive-region-result");
+    var apiPath = root.getAttribute("data-api-path") || "/api/v1/invasive-reporting/recipients";
+    var species = {};
+    try { species = JSON.parse(root.getAttribute("data-species") || "{}"); } catch (_) { species = {}; }
+    function statusLabel(status, enabled) {
+      if (enabled) return "自動共有あり";
+      if (status === "external_only") return "公式フォーム案内";
+      if (status === "pending") return "確認中";
+      if (status === "approved") return "条件不足";
+      if (status === "denied" || status === "revoked") return "停止中";
+      return "自動送信なし";
     }
-    if (!data.contacts || data.contacts.length === 0) {
-      var copy = data.reason === "location_required" ? "都道府県または市区町村を入力してください。" : "一致する連携先はまだ登録されていません。";
-      result.innerHTML = "<strong>この地域で自動送信される団体はまだありません</strong><p>" + esc(copy) + " 自治体・研究機関・管理団体の方は、下の相談窓口から受信連携を相談できます。</p>";
-      return;
+    function render(data) {
+      if (!data || data.available === false) {
+        result.innerHTML = "<strong>連携情報を確認できません</strong><p>現在は公式窓口の案内だけを表示します。</p>";
+        return;
+      }
+      if (!data.contacts || data.contacts.length === 0) {
+        var copy = data.reason === "location_required" ? "都道府県または市区町村を入力してください。" : "一致する連携先はまだ登録されていません。";
+        result.innerHTML = "<strong>この地域で自動送信される団体はまだありません</strong><p>" + esc(copy) + " 自治体・研究機関・管理団体の方は、下の相談窓口から受信連携を相談できます。</p>";
+        return;
+      }
+      var cards = data.contacts.map(function(contact) {
+        var label = statusLabel(contact.sendPermissionStatus, contact.autoDeliveryEnabled);
+        var locality = contact.jurisdiction && contact.jurisdiction.localityLabel ? contact.jurisdiction.localityLabel : "";
+        var fields = (contact.requiredFields || []).slice(0, 4).join(" / ");
+        return '<article><span>' + esc(label) + '</span><strong>' + esc(contact.organizationName) + '</strong><p>' + esc([contact.departmentName, locality].filter(Boolean).join(" / ")) + '</p><p>' + esc(contact.userGuidanceJa || fields || "写真・場所・日時が判断材料になります。") + '</p></article>';
+      }).join("");
+      result.innerHTML = '<strong>' + esc(String(data.autoDeliveryCount || 0)) + '件へ自動送信されます</strong><div class="invasive-region-result-grid">' + cards + '</div>';
     }
-    var cards = data.contacts.map(function(contact) {
-      var label = statusLabel(contact.sendPermissionStatus, contact.autoDeliveryEnabled);
-      var locality = contact.jurisdiction && contact.jurisdiction.localityLabel ? contact.jurisdiction.localityLabel : "";
-      var fields = (contact.requiredFields || []).slice(0, 4).join(" / ");
-      return '<article><span>' + esc(label) + '</span><strong>' + esc(contact.organizationName) + '</strong><p>' + esc([contact.departmentName, locality].filter(Boolean).join(" / ")) + '</p><p>' + esc(contact.userGuidanceJa || fields || "写真・場所・日時が判断材料になります。") + '</p></article>';
-    }).join("");
-    result.innerHTML = '<strong>' + esc(String(data.autoDeliveryCount || 0)) + '件へ自動送信されます</strong><div class="invasive-region-result-grid">' + cards + '</div>';
+    form && form.addEventListener("submit", function(event) {
+      event.preventDefault();
+      var params = new URLSearchParams();
+      Object.keys(species).forEach(function(key) { if (species[key]) params.set(key, species[key]); });
+      var prefecture = String(new FormData(form).get("prefecture") || "").trim();
+      var municipality = String(new FormData(form).get("municipality") || "").trim();
+      if (prefecture) params.set("prefecture", prefecture);
+      if (municipality) params.set("municipality", municipality);
+      result.textContent = "確認しています。";
+      fetch(apiPath + "?" + params.toString(), { headers: { "Accept": "application/json" } })
+        .then(function(response) { return response.ok ? response.json() : Promise.reject(new Error("request_failed")); })
+        .then(render)
+        .catch(function(){ render({ available: false, contacts: [] }); });
+    });
   }
-  form && form.addEventListener("submit", function(event) {
-    event.preventDefault();
-    var params = new URLSearchParams();
-    Object.keys(species).forEach(function(key) { if (species[key]) params.set(key, species[key]); });
-    var prefecture = String(new FormData(form).get("prefecture") || "").trim();
-    var municipality = String(new FormData(form).get("municipality") || "").trim();
-    if (prefecture) params.set("prefecture", prefecture);
-    if (municipality) params.set("municipality", municipality);
-    result.textContent = "確認しています。";
-    fetch(apiPath + "?" + params.toString(), { headers: { "Accept": "application/json" } })
-      .then(function(response) { return response.ok ? response.json() : Promise.reject(new Error("request_failed")); })
-      .then(render)
-      .catch(function(){ render({ available: false, contacts: [] }); });
-  });
+  if (partnerForm) {
+    var partnerStatus = partnerForm.querySelector(".invasive-partner-form-status");
+    var partnerButton = partnerForm.querySelector("button[type=submit]");
+    var partnerSpecies = {};
+    try { partnerSpecies = JSON.parse(partnerForm.getAttribute("data-species") || "{}"); } catch (_) { partnerSpecies = {}; }
+    partnerForm.addEventListener("submit", function(event) {
+      event.preventDefault();
+      var fd = new FormData(partnerForm);
+      var organization = String(fd.get("organization") || "").trim();
+      var name = String(fd.get("name") || "").trim();
+      var email = String(fd.get("email") || "").trim();
+      var area = String(fd.get("area") || "").trim();
+      var request = String(fd.get("request") || "").trim();
+      var note = String(fd.get("note") || "").trim();
+      var lines = [
+        "外来種情報の受信連携相談",
+        "",
+        "対象種: " + [partnerSpecies.vernacularName, partnerSpecies.scientificName].filter(Boolean).join(" / "),
+        "外来種区分: " + (partnerSpecies.invasiveStatus || ""),
+        "団体名: " + organization,
+        "担当者: " + name,
+        "メール: " + email,
+        "対象地域: " + area,
+        "",
+        "受け取りたい情報:",
+        request,
+        "",
+        "補足:",
+        note || "なし"
+      ];
+      partnerStatus.className = "invasive-partner-form-status";
+      partnerStatus.textContent = "送信しています。";
+      partnerButton.disabled = true;
+      fetch(partnerForm.getAttribute("data-submit-path") || "/api/v1/contact/submit", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: "partnership",
+          organization: organization,
+          name: name,
+          email: email,
+          message: lines.join("\\n"),
+          sourceUrl: location.href,
+          userAgent: navigator.userAgent
+        })
+      }).then(function(response) {
+        return response.json().catch(function(){ return {}; }).then(function(data) {
+          if (!response.ok || !data.ok) throw new Error(data && data.error ? data.error : "send_failed");
+          partnerStatus.className = "invasive-partner-form-status is-ok";
+          partnerStatus.textContent = "送信しました。内容を確認して連絡します。";
+          partnerForm.reset();
+        });
+      }).catch(function(error) {
+        partnerStatus.className = "invasive-partner-form-status is-error";
+        partnerStatus.textContent = "送信できませんでした。入力内容を確認して、時間をおいてもう一度お試しください。";
+      }).finally(function() {
+        partnerButton.disabled = false;
+      });
+    });
+  }
 })();
 </script>`;
 }
@@ -261,8 +340,8 @@ function renderDetailPage(basePath: string, lang: SiteLang, item: InvasiveSpecie
       </dl>
       <a class="invasive-source-link" href="${escapeHtml(sourceHref)}" target="_blank" rel="noreferrer">出典を開く</a>
     </section>
-    ${renderActionSources(basePath, lang, item)}
-    ${renderReportingVisibility(basePath, lang, item)}
+    ${renderActionSources(item)}
+    ${renderReportingVisibility(basePath, item)}
     ${renderOfficialSources()}
     ${renderReportingVisibilityScript()}
   </div>`;
@@ -342,16 +421,29 @@ const INVASIVE_SPECIES_STYLES = `
   .invasive-region-result article { display: grid; gap: 5px; padding: 10px; border: 1px solid rgba(15,23,42,.08); border-radius: 8px; background: #fff; }
   .invasive-region-result article span { color: #047857; font-size: 11px; font-weight: 950; }
   .invasive-region-result article p { margin: 0; font-size: 12px; }
-  .invasive-partner-cta { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px; border-radius: 8px; background: #10251a; }
+  .invasive-partner-cta { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); align-items: start; gap: 14px; padding: 14px; border-radius: 8px; background: #10251a; }
   .invasive-partner-cta strong { color: #fff; }
   .invasive-partner-cta p { margin-top: 4px; color: rgba(255,255,255,.78); }
-  .invasive-partner-cta .invasive-source-link { flex-shrink: 0; border-color: rgba(255,255,255,.24); background: #fff; color: #10251a; }
+  .invasive-partner-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,.96); }
+  .invasive-partner-form label { display: grid; gap: 5px; color: #10251a; font-size: 12px; font-weight: 950; }
+  .invasive-partner-form label.is-wide,
+  .invasive-partner-form-actions { grid-column: 1 / -1; }
+  .invasive-partner-form input,
+  .invasive-partner-form textarea { width: 100%; min-height: 40px; border: 1px solid rgba(15,23,42,.14); border-radius: 8px; padding: 8px 10px; color: #10251a; background: #fff; font: inherit; font-size: 13px; }
+  .invasive-partner-form textarea { min-height: 82px; resize: vertical; }
+  .invasive-partner-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .invasive-partner-form button { min-height: 40px; border: 0; border-radius: 999px; padding: 8px 14px; background: #10251a; color: #fff; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .invasive-partner-form button:disabled { opacity: .56; cursor: wait; }
+  .invasive-partner-form-status { color: #475569; font-size: 12px; line-height: 1.6; font-weight: 800; }
+  .invasive-partner-form-status.is-ok { color: #047857; }
+  .invasive-partner-form-status.is-error { color: #dc2626; }
   @media (max-width: 560px) {
     .invasive-grid { grid-template-columns: 1fr; }
     .invasive-action-source-grid,
     .invasive-reporting-board { grid-template-columns: 1fr; }
     .invasive-region-form { grid-template-columns: 1fr; }
-    .invasive-partner-cta { display: grid; }
+    .invasive-partner-cta { grid-template-columns: 1fr; }
+    .invasive-partner-form { grid-template-columns: 1fr; }
     .invasive-official-sources { align-items: stretch; }
     .invasive-official-sources a,
     .invasive-partner-cta .invasive-source-link { width: 100%; justify-content: center; }
