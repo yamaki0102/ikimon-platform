@@ -61,6 +61,7 @@ export type CandidateReading = {
   weakPoints: string[];
   shootingTips: string[];
   regionalRead: string;
+  sizeAssessment: SizeAssessment | null;
 };
 
 export type SizeClass = "tiny" | "small" | "typical" | "large" | "exceptional";
@@ -403,6 +404,7 @@ export function normalizeCandidateReadingsFromRaw(raw: unknown): CandidateReadin
       weakPoints: stringArray(obj["weak_points"]).slice(0, 4),
       shootingTips: stringArray(obj["shooting_tips"]).slice(0, 4),
       regionalRead: trimStr(obj["regional_read"]).slice(0, 140),
+      sizeAssessment: normalizeSizeAssessmentFromRaw(obj["size_assessment"]),
     };
     const key = reading.name.toLowerCase();
     if (seen.has(key)) continue;

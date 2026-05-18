@@ -233,6 +233,7 @@ test("observation detail hero readout keeps scene candidates out of identificati
   assert.match(readoutSource, /sourceReading\.visibleFeatures/);
   assert.match(readoutSource, /sourceReading\.weakPoints/);
   assert.match(readoutSource, /sourceReading\.shootingTips/);
+  assert.match(readoutSource, /renderAiSizeSummary\(sourceReading\.sizeAssessment\)/);
   assert.match(readoutSource, /確かめる点/);
   assert.match(readoutSource, /追加で見る点/);
   assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
