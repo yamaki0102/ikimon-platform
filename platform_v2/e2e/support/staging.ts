@@ -66,8 +66,10 @@ export type SeededRallyFixtureBundle = {
 export type ViewportProfile = {
   slug: string;
   viewport: { width: number; height: number };
+  deviceScaleFactor?: number;
   isMobile?: boolean;
   hasTouch?: boolean;
+  userAgent?: string;
 };
 
 export const MAP_VIEWPORTS: ViewportProfile[] = [
@@ -116,8 +118,10 @@ export async function newStagingContext(
   return browser.newContext(
     stagingContextOptions({
       viewport: profile.viewport,
+      deviceScaleFactor: profile.deviceScaleFactor,
       isMobile: profile.isMobile,
       hasTouch: profile.hasTouch,
+      userAgent: profile.userAgent,
     }),
   );
 }
