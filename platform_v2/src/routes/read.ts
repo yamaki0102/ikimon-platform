@@ -3383,7 +3383,9 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   const band = aiAssessment.confidenceBand;
   const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
   const bandLabel = confidenceLabel(band);
-  const candidateName = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中");
+  const directCandidateName = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "名前確認中");
+  const identificationName = subjectIdentificationName(subject);
+  const candidateName = isWeakIdentificationCandidateName(directCandidateName) && identificationName ? identificationName : directCandidateName;
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
   const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
   const localNameCandidates = renderLocalNameCandidatePanel(subject);
