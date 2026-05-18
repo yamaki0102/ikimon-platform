@@ -229,6 +229,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /track\.getCapabilities/);
   assert.match(html, /capabilities && capabilities\.zoom/);
   assert.match(html, /applyConstraints\(\{ advanced: \[\{ zoom: next \}\] \}\)/);
+  assert.match(html, /const applyCameraFocusAt = async \(clientX, clientY\)/);
+  assert.match(html, /pointsOfInterest: \[point\]/);
+  assert.match(html, /focusMode: 'single-shot'/);
   assert.match(html, /zoomMaxButton\.addEventListener\('click'/);
   assert.match(html, /applyCameraZoom\(cameraZoomMax\)/);
   assert.match(html, /cameraPinchDistance/);
@@ -265,6 +268,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-photo-remove/);
   assert.match(html, /data-global-record-photo-move/);
   assert.doesNotMatch(html, /AIは全体を見て主役と周囲を判断します/);
+  assert.doesNotMatch(html, /一緒に残せます/);
   assert.match(html, /photoDraftSubmitLabel/);
   assert.match(html, /global_photo_tray/);
   assert.match(html, /directPostInFlight/);

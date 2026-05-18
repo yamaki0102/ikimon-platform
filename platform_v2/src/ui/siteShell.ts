@@ -971,7 +971,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       guide: "ガイド",
       sheetLabel: "撮影して記録する",
       sheetTitle: "撮影して記録",
-      sheetHelp: "主役を1つ決めつつ、周囲の様子も同じ記録の手がかりとして残せます。",
+      sheetHelp: "",
       close: "閉じる",
       previewAlt: "撮影プレビュー",
       empty: "カメラを起動すると、ここにプレビューが出ます。",
@@ -1169,6 +1169,7 @@ function globalRecordEntryScript(basePath: string): string {
   let cameraZoomCurrent = 1;
   let cameraPinchStartDistance = 0;
   let cameraPinchStartZoom = 1;
+  let cameraPinchActive = false;
   const cameraPreviewPointers = new Map();
   let capturedReviewFile = null;
   let capturedPhotoFiles = [];
@@ -1205,13 +1206,13 @@ function globalRecordEntryScript(basePath: string): string {
   const labels = {
     photo: {
       title: '写真を撮る',
-      help: '主役を1つ決めて撮ります。周囲の様子も、あとでAIと人が見る手がかりになります。',
+      help: '',
       start: 'カメラを起動',
       capture: '写真を撮る',
     },
     video: {
       title: '動画を撮る',
-      help: '動画記録は最大60秒です。主役の動きや鳴き声と、周囲の様子を一緒に残せます。',
+      help: '',
       start: 'カメラを起動',
       capture: '録画開始',
     },
@@ -1366,6 +1367,7 @@ function globalRecordEntryScript(basePath: string): string {
     cameraZoomCurrent = 1;
     cameraPinchStartDistance = 0;
     cameraPinchStartZoom = 1;
+    cameraPinchActive = false;
     cameraPreviewPointers.clear();
     if (zoomWrap) zoomWrap.hidden = true;
     if (zoomRange) {
@@ -1424,6 +1426,30 @@ function globalRecordEntryScript(basePath: string): string {
     if (!distance || !cameraPinchStartDistance) return;
     const ratio = distance / cameraPinchStartDistance;
     void applyCameraZoom(cameraPinchStartZoom * ratio);
+  };
+  const applyCameraFocusAt = async (clientX, clientY) => {
+    const track = cameraZoomTrack || (activeStream && activeStream.getVideoTracks ? activeStream.getVideoTracks()[0] : null);
+    if (!track || !track.applyConstraints || !cameraPreview) return false;
+    const rect = cameraPreview.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    const point = {
+      x: clamp((Number(clientX) - rect.left) / rect.width, 0, 1),
+      y: clamp((Number(clientY) - rect.top) / rect.height, 0, 1),
+    };
+    const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+    const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
+    const attempts = [];
+    if (modes.indexOf('single-shot') >= 0) attempts.push({ focusMode: 'single-shot', pointsOfInterest: [point] });
+    attempts.push({ pointsOfInterest: [point] });
+    if (modes.indexOf('continuous') >= 0) attempts.push({ focusMode: 'continuous', pointsOfInterest: [point] });
+    for (const constraint of attempts) {
+      try {
+        await track.applyConstraints({ advanced: [constraint] });
+        setStatus('タップした位置にフォーカスを合わせました。');
+        return true;
+      } catch (_) {}
+    }
+    return false;
   };
   const photoDraftSubmitLabel = () => {
     const count = selectedPhotoDraftFiles().length;
@@ -2686,12 +2712,14 @@ function globalRecordEntryScript(basePath: string): string {
   }
   if (cameraPreview) {
     cameraPreview.addEventListener('pointerdown', (event) => {
-      if (!cameraZoomTrack || cameraZoomMax <= cameraZoomMin) return;
-      cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (event.target instanceof Element && event.target.closest('.global-record-camera-zoom')) return;
+      if (!activeStream) return;
+      cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY });
       if (cameraPreview.setPointerCapture) {
         try { cameraPreview.setPointerCapture(event.pointerId); } catch (_) {}
       }
-      if (cameraPreviewPointers.size === 2) {
+      if (cameraPreviewPointers.size === 2 && cameraZoomTrack && cameraZoomMax > cameraZoomMin) {
+        cameraPinchActive = true;
         cameraPinchStartDistance = cameraPinchDistance();
         cameraPinchStartZoom = cameraZoomCurrent;
       }
@@ -2699,18 +2727,26 @@ function globalRecordEntryScript(basePath: string): string {
     });
     cameraPreview.addEventListener('pointermove', (event) => {
       if (!cameraPreviewPointers.has(event.pointerId)) return;
-      cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (cameraPreviewPointers.size >= 2) {
+      const previous = cameraPreviewPointers.get(event.pointerId) || {};
+      cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: previous.startX || event.clientX, startY: previous.startY || event.clientY });
+      if (cameraPreviewPointers.size >= 2 && cameraZoomTrack && cameraZoomMax > cameraZoomMin) {
+        cameraPinchActive = true;
         updateCameraPinchZoom();
         event.preventDefault();
       }
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => {
       cameraPreview.addEventListener(type, (event) => {
+        const previous = cameraPreviewPointers.get(event.pointerId) || null;
+        if (type === 'pointerup' && previous && cameraPreviewPointers.size === 1 && !cameraPinchActive) {
+          const moved = Math.hypot(Number(event.clientX) - Number(previous.startX || event.clientX), Number(event.clientY) - Number(previous.startY || event.clientY));
+          if (moved < 12) void applyCameraFocusAt(event.clientX, event.clientY);
+        }
         cameraPreviewPointers.delete(event.pointerId);
         if (cameraPreviewPointers.size < 2) {
           cameraPinchStartDistance = 0;
           cameraPinchStartZoom = cameraZoomCurrent;
+          cameraPinchActive = false;
         }
       });
     });
@@ -5263,11 +5299,7 @@ ${alternateLinks}
       line-height: 1.35;
     }
     .global-record-camera-head p {
-      margin: 2px 0 0;
-      color: #64748b;
-      font-size: 11px;
-      line-height: 1.45;
-      font-weight: 750;
+      display: none;
     }
     .global-record-camera-close {
       position: fixed;
