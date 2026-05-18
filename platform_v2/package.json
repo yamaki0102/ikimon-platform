@@ -40,6 +40,7 @@
     "import:observations:identifications": "tsx src/scripts/importObservationIdentification.ts",
     "import:observations:conditions": "tsx src/scripts/importObservationPlaceCondition.ts",
     "import:admin-global": "tsx src/scripts/importGlobalAdministrativeAreas.ts",
+    "import:n03-admin": "tsx src/scripts/importN03Administrative.ts",
     "import:remember-tokens": "tsx src/scripts/importRememberTokens.ts",
     "sync:legacy-auth": "tsx src/scripts/syncLegacyUserAuth.ts",
     "import:tracks": "tsx src/scripts/importTrackSessions.ts",
