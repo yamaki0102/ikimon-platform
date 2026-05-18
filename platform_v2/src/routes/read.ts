@@ -3229,31 +3229,29 @@ function isLatinScientificName(value: string | null | undefined): boolean {
   return /\b[A-Z][a-z]+(?: [a-z][a-z-]+)?\b/u.test(String(value ?? "").trim());
 }
 
-function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackName: string): string {
-  if (!insight || (!insight.etymology && !insight.ecologyNote && !insight.rarityNote)) return "";
+function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackName: string, fallbackScientificName?: string | null): string {
   if (isWeakIdentificationCandidateName(fallbackName)) return "";
-  const rows = [
-    insight.etymology ? `<li><strong>名前の由来</strong><span>${escapeHtml(friendlyObservationText(insight.etymology, 110))}</span></li>` : "",
-    insight.ecologyNote ? `<li><strong>生き方</strong><span>${escapeHtml(friendlyObservationText(insight.ecologyNote, 112))}</span></li>` : "",
-    insight.rarityNote ? `<li><strong>出会いやすさ</strong><span>${escapeHtml(friendlyObservationText(insight.rarityNote, 108))}</span></li>` : "",
-  ].filter(Boolean).join("");
-  if (!rows) return "";
-  const scientificName = /カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${insight.scientificName ?? ""}`)
+  const scientificName = /カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${insight?.scientificName ?? fallbackScientificName ?? ""}`)
     ? "Chloris sinica"
-    : insight.scientificName;
+    : (insight?.scientificName || fallbackScientificName || "");
   if (!isLatinScientificName(scientificName) || scientificName === fallbackName) return "";
+  const rows = [
+    insight?.etymology ? `<li><strong>名前の由来</strong><span>${escapeHtml(friendlyObservationText(insight.etymology, 110))}</span></li>` : "",
+    insight?.ecologyNote ? `<li><strong>生き方</strong><span>${escapeHtml(friendlyObservationText(insight.ecologyNote, 112))}</span></li>` : "",
+    insight?.rarityNote ? `<li><strong>出会いやすさ</strong><span>${escapeHtml(friendlyObservationText(insight.rarityNote, 108))}</span></li>` : "",
+  ].filter(Boolean).join("");
   const readText = [
     `${fallbackName}。学名、${scientificNamePronunciation(scientificName) || scientificName}。`,
-    insight.etymology ? `名前の由来。${friendlyObservationText(insight.etymology, 110)}` : "",
-    insight.ecologyNote ? `生き方。${friendlyObservationText(insight.ecologyNote, 112)}` : "",
-    insight.rarityNote ? `出会いやすさ。${friendlyObservationText(insight.rarityNote, 108)}` : "",
+    insight?.etymology ? `名前の由来。${friendlyObservationText(insight.etymology, 110)}` : "",
+    insight?.ecologyNote ? `生き方。${friendlyObservationText(insight.ecologyNote, 112)}` : "",
+    insight?.rarityNote ? `出会いやすさ。${friendlyObservationText(insight.rarityNote, 108)}` : "",
   ].filter(Boolean).join(" ");
   const headLabel = scientificName
     ? `<span class="obs-local-story-title">${escapeHtml(fallbackName)}を知る <b class="obs-local-story-separator">-</b> <i class="obs-local-scientific-name">${escapeHtml(scientificName)}</i></span>`
     : `<span class="obs-local-story-title">${escapeHtml(fallbackName)}を知る</span>`;
-  return `<div class="obs-ai-story" aria-label="${escapeHtml(fallbackName)}の解説">
+  return `<div class="obs-ai-story${rows ? "" : " is-minimal"}" aria-label="${escapeHtml(fallbackName)}の解説">
     <div class="obs-ai-story-head">${headLabel}${renderLocalStoryTools(scientificName, readText)}</div>
-    <ul class="obs-ai-story-list">${rows}</ul>
+    ${rows ? `<ul class="obs-ai-story-list">${rows}</ul>` : ""}
   </div>`;
 }
 
@@ -3335,6 +3333,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     .filter(Boolean)
     .slice(0, 3);
   const sizeCard = renderAiSizeSummary(sourceReading.sizeAssessment);
+  const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || subject.scientificName);
   const evidenceRows = weakPoints.length > 0
     ? weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")
     : `<li><span>${escapeHtml(candidateName)} は同じ場面内の名前候補として残っています。写真と人の確認で補います。</span></li>`;
@@ -3362,6 +3361,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
       ${sizeCard}
+      ${story}
       <div class="obs-ai-detail-grid">
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">確かめる点</div>
@@ -3409,7 +3409,7 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   ].filter(Boolean).join("。");
   const compareList = renderAiCompareList(subject);
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
-  const story = renderAiTaxonStory(insight, candidateName);
+  const story = renderAiTaxonStory(insight, candidateName, subject.scientificName);
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";

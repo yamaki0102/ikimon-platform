@@ -234,6 +234,7 @@ test("observation detail hero readout keeps scene candidates out of identificati
   assert.match(readoutSource, /sourceReading\.weakPoints/);
   assert.match(readoutSource, /sourceReading\.shootingTips/);
   assert.match(readoutSource, /renderAiSizeSummary\(sourceReading\.sizeAssessment\)/);
+  assert.match(readoutSource, /renderAiTaxonStory\(null, candidateName, sourceReading\.scientificName \|\| subject\.scientificName\)/);
   assert.match(readoutSource, /確かめる点/);
   assert.match(readoutSource, /追加で見る点/);
   assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
@@ -664,6 +665,9 @@ test("AI taxon story requires a real scientific name", () => {
   assert.match(storySource, /isWeakIdentificationCandidateName\(fallbackName\)/);
   assert.match(storySource, /isLatinScientificName\(scientificName\)/);
   assert.match(storySource, /scientificName === fallbackName/);
+  assert.doesNotMatch(storySource, /!insight \|\| \(!insight\.etymology && !insight\.ecologyNote && !insight\.rarityNote\)/);
+  assert.match(storySource, /fallbackScientificName/);
+  assert.match(storySource, /is-minimal/);
   assert.match(storySource, /obs-local-story-title/);
   assert.doesNotMatch(storySource, /<em>\$\{escapeHtml\(scientificName\)\}<\/em>/);
   assert.match(storySource, /renderLocalStoryTools\(scientificName, readText\)/);
