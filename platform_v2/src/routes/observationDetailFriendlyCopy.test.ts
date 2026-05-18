@@ -658,11 +658,19 @@ test("AI readout tabs only expose taxon-like identification subjects", () => {
 
 test("AI taxon story requires a real scientific name", () => {
   const storySource = sourceBetween("function renderAiTaxonStory", "function renderAiCompareList");
+  const toolSource = sourceBetween("function renderLocalStoryTools", "function isLatinScientificName");
+  const scriptSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
 
   assert.match(storySource, /isWeakIdentificationCandidateName\(fallbackName\)/);
   assert.match(storySource, /isLatinScientificName\(scientificName\)/);
   assert.match(storySource, /scientificName === fallbackName/);
-  assert.match(storySource, /renderLocalStoryTools\(fallbackName, scientificName\)/);
+  assert.match(storySource, /obs-local-story-title/);
+  assert.doesNotMatch(storySource, /<em>\$\{escapeHtml\(scientificName\)\}<\/em>/);
+  assert.match(storySource, /renderLocalStoryTools\(scientificName, readText\)/);
+  assert.match(toolSource, /data-local-read-aloud-text/);
+  assert.match(toolSource, /scientificNamePronunciation\(scientificName\)/);
+  assert.match(scriptSource, /button\.getAttribute\('data-local-read-aloud-text'\)/);
+  assert.doesNotMatch(scriptSource, /カワラヒワ。学名、クロリス・シニカ。/);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {

@@ -1120,9 +1120,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-size-main b { color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
   .obs-ai-size-card p { margin: 0; color: #475569; font-size: 10.5px; line-height: 1.5; font-weight: 720; }
   .obs-ai-story { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,251,235,.78), rgba(255,255,255,.9)); border: 1px solid rgba(245,158,11,.18); }
-  .obs-ai-story-head { display: flex; align-items: center; justify-content: flex-start; gap: 0; min-width: 0; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
-  .obs-ai-story-head em { color: #92400e; font-size: 10.5px; line-height: 1.2; font-style: italic; font-weight: 850; }
+  .obs-ai-story-head { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: wrap; min-width: 0; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
   .obs-ai-story-head span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+  .obs-ai-story-head .obs-local-story-title { flex: 1 1 auto; min-width: 180px; }
   .obs-ai-story-head .obs-local-scientific-name { color: #92400e; font-size: 10.5px; line-height: 1.2; font-style: italic; font-weight: 850; white-space: nowrap; }
   .obs-ai-story-head .obs-local-story-separator { color: #cbd5e1; font-weight: 900; }
   .obs-local-story-tools { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; margin: 0 0 0 8px; min-width: 0; }
@@ -3210,11 +3210,18 @@ function renderLocalNameCandidatePanel(subject: ObservationVisitSubject): string
   </div>`;
 }
 
-function renderLocalStoryTools(fallbackName: string, scientificName: string | null | undefined): string {
-  if (!/カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${scientificName ?? ""}`)) return "";
+function scientificNamePronunciation(scientificName: string | null | undefined): string {
+  const normalized = String(scientificName ?? "").trim().toLowerCase();
+  if (normalized === "chloris sinica") return "クロリス・シニカ";
+  return "";
+}
+
+function renderLocalStoryTools(scientificName: string | null | undefined, readText: string): string {
+  if (!isLatinScientificName(scientificName) || !readText.trim()) return "";
+  const pronunciation = scientificNamePronunciation(scientificName);
   return `<div class="obs-local-story-tools">
-    <span class="obs-local-pronunciation">読み: クロリス・シニカ</span>
-    <button class="obs-local-read-aloud" type="button" data-local-read-aloud>端末の声で読む</button>
+    ${pronunciation ? `<span class="obs-local-pronunciation">読み: ${escapeHtml(pronunciation)}</span>` : ""}
+    <button class="obs-local-read-aloud" type="button" data-local-read-aloud data-local-read-aloud-text="${escapeHtml(readText)}">端末の声で読む</button>
   </div>`;
 }
 
@@ -3235,11 +3242,17 @@ function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackNa
     ? "Chloris sinica"
     : insight.scientificName;
   if (!isLatinScientificName(scientificName) || scientificName === fallbackName) return "";
+  const readText = [
+    `${fallbackName}。学名、${scientificNamePronunciation(scientificName) || scientificName}。`,
+    insight.etymology ? `名前の由来。${friendlyObservationText(insight.etymology, 110)}` : "",
+    insight.ecologyNote ? `生き方。${friendlyObservationText(insight.ecologyNote, 112)}` : "",
+    insight.rarityNote ? `出会いやすさ。${friendlyObservationText(insight.rarityNote, 108)}` : "",
+  ].filter(Boolean).join(" ");
   const headLabel = scientificName
-    ? `<span>${escapeHtml(fallbackName)}を知る <b class="obs-local-story-separator">-</b> <i class="obs-local-scientific-name">${escapeHtml(scientificName)}</i></span>`
-    : `<span>${escapeHtml(fallbackName)}を知る</span>`;
+    ? `<span class="obs-local-story-title">${escapeHtml(fallbackName)}を知る <b class="obs-local-story-separator">-</b> <i class="obs-local-scientific-name">${escapeHtml(scientificName)}</i></span>`
+    : `<span class="obs-local-story-title">${escapeHtml(fallbackName)}を知る</span>`;
   return `<div class="obs-ai-story" aria-label="${escapeHtml(fallbackName)}の解説">
-    <div class="obs-ai-story-head">${headLabel}${scientificName ? `<em>${escapeHtml(scientificName)}</em>` : ""}${renderLocalStoryTools(fallbackName, scientificName)}</div>
+    <div class="obs-ai-story-head">${headLabel}${renderLocalStoryTools(scientificName, readText)}</div>
     <ul class="obs-ai-story-list">${rows}</ul>
   </div>`;
 }
@@ -6784,12 +6797,12 @@ function renderLocalObservationPolishScript(): string {
             return;
           }
           window.speechSynthesis.cancel();
-          var utterance = new SpeechSynthesisUtterance([
-            'カワラヒワ。学名、クロリス・シニカ。',
-            '名前の由来。属名クロリスはギリシャ語で緑、種小名シニカは中国の、という意味です。',
-            '生き方。春はキリリ、コロロと独特の声でさえずる季節。木の実を割って食べるための、太いクチバシが特徴です。',
-            '出会いやすさ。全国の平地から低山まで一年中見られます。公園や街路樹でも出会いやすい野鳥です。'
-          ].join(' '));
+          var text = button.getAttribute('data-local-read-aloud-text') || '';
+          if (!text.trim()) {
+            button.textContent = '未対応';
+            return;
+          }
+          var utterance = new SpeechSynthesisUtterance(text);
           utterance.lang = 'ja-JP';
           var voice = pickJapaneseVoice();
           if (voice) utterance.voice = voice;
