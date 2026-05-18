@@ -193,6 +193,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-camera-sheet/);
   assert.match(html, /data-global-record-camera-video/);
   assert.match(html, /data-global-record-camera-image/);
+  assert.match(html, /data-global-record-camera-zoom/);
+  assert.match(html, /data-global-record-camera-zoom-range/);
+  assert.match(html, /data-global-record-camera-zoom-max/);
   assert.match(html, /data-global-record-photo-tray/);
   assert.match(html, /data-global-record-photo-grid/);
   assert.match(html, /data-photo-draft="true"/);
@@ -205,8 +208,13 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /global-record-camera-preview video\[hidden\]/);
   assert.match(html, /\.global-record-camera-actions \{/);
   assert.match(html, /global-record-camera-sheet\[data-active-kind="photo"\] \.global-record-photo-tray/);
+  assert.match(html, /global-record-camera-sheet\[data-camera-active="true"\] \.global-record-photo-tray/);
   assert.match(html, /global-record-camera-sheet\[data-photo-draft="true"\] \.global-record-camera-preview/);
   assert.match(html, /global-record-camera-sheet\[data-photo-draft="true"\] \{\s+grid-template-rows: auto auto auto auto auto;/);
+  assert.match(html, /\.global-record-camera-preview \{[\s\S]+touch-action: none;/);
+  assert.match(html, /\.global-record-camera-zoom \{/);
+  assert.match(html, /\.global-record-camera-zoom button \{/);
+  assert.match(html, /--global-record-visual-bottom/);
   assert.match(html, /\.global-record-photo-cell img \{\s+position: absolute;\s+inset: 0;/);
   assert.match(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
   assert.match(html, /もう一度押すと記録/);
@@ -216,6 +224,13 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /height: min\(72dvh, calc\(100dvh - 178px\)\)/);
   assert.match(html, /height: min\(70dvh, calc\(100dvh - 176px\)\)/);
   assert.match(html, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(html, /track\.getCapabilities/);
+  assert.match(html, /capabilities && capabilities\.zoom/);
+  assert.match(html, /applyConstraints\(\{ advanced: \[\{ zoom: next \}\] \}\)/);
+  assert.match(html, /zoomMaxButton\.addEventListener\('click'/);
+  assert.match(html, /applyCameraZoom\(cameraZoomMax\)/);
+  assert.match(html, /cameraPinchDistance/);
+  assert.match(html, /window\.visualViewport\.addEventListener\('resize', syncVisualViewportVars\)/);
   assert.match(html, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(html, /const metadata = buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);[\s\S]+fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
@@ -273,6 +288,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /動画記録は最大60秒/);
   assert.match(html, /createSheetTrimmedVideoFile/);
   assert.doesNotMatch(html, /YouTube標準画質/);
+  assert.doesNotMatch(html, /名前、メモを整えられます/);
   assert.match(html, /この内容で記録画面へ/);
   assert.match(html, /撮り直す/);
 });

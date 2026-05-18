@@ -1090,10 +1090,17 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       </div>
       <button type="button" class="global-record-camera-close" data-global-record-camera-close aria-label="${escapeHtml(copy.close)}">×</button>
     </div>
-    <div class="global-record-camera-preview">
+    <div class="global-record-camera-preview" data-global-record-camera-preview>
       <video data-global-record-camera-video playsinline muted></video>
       <img data-global-record-camera-image alt="${escapeHtml(copy.previewAlt)}" hidden />
       <div class="global-record-camera-empty" data-global-record-camera-empty>${escapeHtml(copy.empty)}</div>
+      <div class="global-record-camera-zoom" data-global-record-camera-zoom hidden>
+        <label>
+          <span>ズーム <output data-global-record-camera-zoom-value>1.0x</output></span>
+          <input data-global-record-camera-zoom-range type="range" min="1" max="1" step="0.1" value="1" />
+        </label>
+        <button type="button" data-global-record-camera-zoom-max>最大</button>
+      </div>
     </div>
     <div class="global-record-photo-tray" data-global-record-photo-tray hidden>
       <div class="global-record-photo-tray-head">
@@ -1155,6 +1162,14 @@ function globalRecordEntryScript(basePath: string): string {
   let photoDraftSubmitConfirmUntil = 0;
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
+  let cameraZoomTrack = null;
+  let cameraZoomMin = 1;
+  let cameraZoomMax = 1;
+  let cameraZoomStep = 0.1;
+  let cameraZoomCurrent = 1;
+  let cameraPinchStartDistance = 0;
+  let cameraPinchStartZoom = 1;
+  const cameraPreviewPointers = new Map();
   let capturedReviewFile = null;
   let capturedPhotoFiles = [];
   let capturedPhotoObjectUrls = [];
@@ -1165,6 +1180,7 @@ function globalRecordEntryScript(basePath: string): string {
   let capturePressedAt = 0;
   const sheet = document.querySelector('[data-global-record-camera-sheet]');
   const backdrop = document.querySelector('[data-global-record-camera-close].global-record-camera-backdrop');
+  const cameraPreview = document.querySelector('[data-global-record-camera-preview]');
   const cameraVideo = document.querySelector('[data-global-record-camera-video]');
   const cameraImage = document.querySelector('[data-global-record-camera-image]');
   const empty = document.querySelector('[data-global-record-camera-empty]');
@@ -1176,6 +1192,10 @@ function globalRecordEntryScript(basePath: string): string {
   const photoGrid = document.querySelector('[data-global-record-photo-grid]');
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
+  const zoomWrap = document.querySelector('[data-global-record-camera-zoom]');
+  const zoomRange = document.querySelector('[data-global-record-camera-zoom-range]');
+  const zoomValue = document.querySelector('[data-global-record-camera-zoom-value]');
+  const zoomMaxButton = document.querySelector('[data-global-record-camera-zoom-max]');
   const trimWrap = document.querySelector('[data-global-record-video-trim]');
   const trimStart = document.querySelector('[data-global-record-video-trim-start]');
   const trimEnd = document.querySelector('[data-global-record-video-trim-end]');
@@ -1303,6 +1323,104 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
+  };
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const formatZoom = (value) => {
+    const number = Number(value);
+    return (Number.isFinite(number) ? number : 1).toFixed(1) + 'x';
+  };
+  const syncVisualViewportVars = () => {
+    if (!document.documentElement) return;
+    const viewport = window.visualViewport;
+    const layoutWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const layoutHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const left = viewport ? Math.max(0, viewport.offsetLeft || 0) : 0;
+    const right = viewport ? Math.max(0, layoutWidth - ((viewport.offsetLeft || 0) + (viewport.width || layoutWidth))) : 0;
+    const bottom = viewport ? Math.max(0, layoutHeight - ((viewport.offsetTop || 0) + (viewport.height || layoutHeight))) : 0;
+    document.documentElement.style.setProperty('--global-record-visual-left', left.toFixed(1) + 'px');
+    document.documentElement.style.setProperty('--global-record-visual-right', right.toFixed(1) + 'px');
+    document.documentElement.style.setProperty('--global-record-visual-bottom', bottom.toFixed(1) + 'px');
+  };
+  const resetVisualViewportVars = () => {
+    document.documentElement.style.removeProperty('--global-record-visual-left');
+    document.documentElement.style.removeProperty('--global-record-visual-right');
+    document.documentElement.style.removeProperty('--global-record-visual-bottom');
+  };
+  const setCameraLiveLayout = (enabled) => {
+    if (!sheet) return;
+    if (enabled) {
+      sheet.setAttribute('data-camera-active', 'true');
+      syncVisualViewportVars();
+    } else {
+      sheet.removeAttribute('data-camera-active');
+    }
+  };
+  const resetCameraZoomUi = () => {
+    cameraZoomTrack = null;
+    cameraZoomMin = 1;
+    cameraZoomMax = 1;
+    cameraZoomStep = 0.1;
+    cameraZoomCurrent = 1;
+    cameraPinchStartDistance = 0;
+    cameraPinchStartZoom = 1;
+    cameraPreviewPointers.clear();
+    if (zoomWrap) zoomWrap.hidden = true;
+    if (zoomRange) {
+      zoomRange.min = '1';
+      zoomRange.max = '1';
+      zoomRange.step = '0.1';
+      zoomRange.value = '1';
+    }
+    if (zoomValue) zoomValue.textContent = '1.0x';
+    if (zoomMaxButton) zoomMaxButton.disabled = true;
+  };
+  const updateCameraZoomUi = (value) => {
+    cameraZoomCurrent = clamp(Number(value) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
+    if (zoomRange) zoomRange.value = String(cameraZoomCurrent);
+    if (zoomValue) zoomValue.textContent = formatZoom(cameraZoomCurrent);
+  };
+  const applyCameraZoom = async (value) => {
+    if (!cameraZoomTrack || !cameraZoomTrack.applyConstraints) return;
+    const next = clamp(Number(value) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
+    updateCameraZoomUi(next);
+    try {
+      await cameraZoomTrack.applyConstraints({ advanced: [{ zoom: next }] });
+    } catch (_) {}
+  };
+  const setupCameraZoom = async (stream) => {
+    resetCameraZoomUi();
+    const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
+    const zoom = capabilities && capabilities.zoom ? capabilities.zoom : null;
+    if (!track || !zoom || !Number.isFinite(Number(zoom.max)) || Number(zoom.max) <= 1) return;
+    const settings = track.getSettings ? track.getSettings() : {};
+    cameraZoomTrack = track;
+    cameraZoomMin = Number.isFinite(Number(zoom.min)) ? Number(zoom.min) : 1;
+    cameraZoomMax = Number(zoom.max);
+    cameraZoomStep = Number.isFinite(Number(zoom.step)) && Number(zoom.step) > 0 ? Number(zoom.step) : 0.1;
+    cameraZoomCurrent = clamp(Number(settings.zoom) || cameraZoomMin, cameraZoomMin, cameraZoomMax);
+    if (zoomRange) {
+      zoomRange.min = String(cameraZoomMin);
+      zoomRange.max = String(cameraZoomMax);
+      zoomRange.step = String(cameraZoomStep);
+      zoomRange.value = String(cameraZoomCurrent);
+    }
+    updateCameraZoomUi(cameraZoomCurrent);
+    if (zoomWrap) zoomWrap.hidden = false;
+    if (zoomMaxButton) zoomMaxButton.disabled = false;
+  };
+  const cameraPinchDistance = () => {
+    const points = Array.from(cameraPreviewPointers.values());
+    if (points.length < 2) return 0;
+    const [a, b] = points;
+    return Math.hypot(Number(a.x || 0) - Number(b.x || 0), Number(a.y || 0) - Number(b.y || 0));
+  };
+  const updateCameraPinchZoom = () => {
+    if (!cameraZoomTrack || cameraZoomMax <= cameraZoomMin) return;
+    const distance = cameraPinchDistance();
+    if (!distance || !cameraPinchStartDistance) return;
+    const ratio = distance / cameraPinchStartDistance;
+    void applyCameraZoom(cameraPinchStartZoom * ratio);
   };
   const photoDraftSubmitLabel = () => {
     const count = selectedPhotoDraftFiles().length;
@@ -1559,6 +1677,8 @@ function globalRecordEntryScript(basePath: string): string {
   };
   const stopActiveStream = () => {
     stopRecordingTimer();
+    resetCameraZoomUi();
+    setCameraLiveLayout(false);
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       discardRecording = true;
       try { mediaRecorder.stop(); } catch (_) {}
@@ -1988,6 +2108,7 @@ function globalRecordEntryScript(basePath: string): string {
     document.documentElement.classList.remove('global-record-camera-open');
     activeKind = '';
     setSheetKind('');
+    resetVisualViewportVars();
     setStatus('');
   };
   const openSheet = (kind, options) => {
@@ -2054,6 +2175,8 @@ function globalRecordEntryScript(basePath: string): string {
       if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) {
         activeStream.getTracks().forEach((track) => track.stop());
         activeStream = null;
+        setCameraLiveLayout(false);
+        resetCameraZoomUi();
         return;
       }
       if (cameraVideo) {
@@ -2062,6 +2185,8 @@ function globalRecordEntryScript(basePath: string): string {
         cameraVideo.playsInline = true;
         await cameraVideo.play().catch(() => undefined);
       }
+      setCameraLiveLayout(true);
+      await setupCameraZoom(activeStream);
       if (empty) empty.hidden = true;
       if (captureButton) {
         captureButton.hidden = false;
@@ -2069,12 +2194,17 @@ function globalRecordEntryScript(basePath: string): string {
       }
       if (startButton) startButton.hidden = true;
       setFooterActionMode('capture');
-      setStatus(activeKind === 'video' ? '動画記録は最大60秒。録画後に見せたい区間を選べます。' : '構図を確認してから撮影できます。');
+      const zoomHelp = cameraZoomTrack ? ' ピンチまたはスライダーで最大' + formatZoom(cameraZoomMax) + 'まで使えます。' : '';
+      setStatus(activeKind === 'video'
+        ? '動画記録は最大60秒。録画後に見せたい区間を選べます。' + zoomHelp
+        : '構図を確認してから撮影できます。' + zoomHelp);
       sendGlobalRecordKpi('camera_start_ms', durationSince(cameraStartedAt), {
         fromSheetOpenMs: sheetOpenedAt ? durationSince(sheetOpenedAt) : null,
         constraintsKind: activeKind,
       });
     } catch (_) {
+      setCameraLiveLayout(false);
+      resetCameraZoomUi();
       setStatus('カメラを起動できませんでした。ブラウザのカメラ許可を確認してください。');
       sendGlobalRecordErrorKpi('camera_start_failed', 'get_user_media_failed', {
         durationMs: durationSince(cameraStartedAt),
@@ -2420,8 +2550,8 @@ function globalRecordEntryScript(basePath: string): string {
       }
       fillCaptureLocationLater(
         metadata,
-        '撮影地点も保存しました。下で区間、名前、メモを整えられます。',
-        '下で区間、名前、メモを整えられます。位置は記録画面で指定できます。',
+        '撮影地点も保存しました。必要なら使う区間だけ選べます。',
+        '必要なら使う区間だけ選べます。位置は記録画面で確認します。',
       );
     };
     recordingStartedAt = Date.now();
@@ -2540,6 +2670,51 @@ function globalRecordEntryScript(basePath: string): string {
         movePhotoDraft(moveIndex, target.getAttribute('data-direction') || '0');
       }
     });
+  }
+  if (zoomRange) {
+    zoomRange.addEventListener('input', () => {
+      void applyCameraZoom(zoomRange.value);
+    });
+  }
+  if (zoomMaxButton) {
+    zoomMaxButton.addEventListener('click', () => {
+      void applyCameraZoom(cameraZoomMax);
+    });
+  }
+  if (cameraPreview) {
+    cameraPreview.addEventListener('pointerdown', (event) => {
+      if (!cameraZoomTrack || cameraZoomMax <= cameraZoomMin) return;
+      cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (cameraPreview.setPointerCapture) {
+        try { cameraPreview.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+      if (cameraPreviewPointers.size === 2) {
+        cameraPinchStartDistance = cameraPinchDistance();
+        cameraPinchStartZoom = cameraZoomCurrent;
+      }
+      event.preventDefault();
+    });
+    cameraPreview.addEventListener('pointermove', (event) => {
+      if (!cameraPreviewPointers.has(event.pointerId)) return;
+      cameraPreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (cameraPreviewPointers.size >= 2) {
+        updateCameraPinchZoom();
+        event.preventDefault();
+      }
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => {
+      cameraPreview.addEventListener(type, (event) => {
+        cameraPreviewPointers.delete(event.pointerId);
+        if (cameraPreviewPointers.size < 2) {
+          cameraPinchStartDistance = 0;
+          cameraPinchStartZoom = cameraZoomCurrent;
+        }
+      });
+    });
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncVisualViewportVars);
+    window.visualViewport.addEventListener('scroll', syncVisualViewportVars);
   }
   if (trimStart) trimStart.addEventListener('input', () => syncSheetVideoTrim('start'));
   if (trimEnd) trimEnd.addEventListener('input', () => syncSheetVideoTrim('end'));
@@ -5110,6 +5285,7 @@ ${alternateLinks}
       min-height: 0;
       height: min(72dvh, calc(100dvh - 178px));
       overflow: hidden;
+      touch-action: none;
       border-radius: 12px;
       background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
       border: 1px solid rgba(15,23,42,.08);
@@ -5132,6 +5308,15 @@ ${alternateLinks}
     }
     .global-record-camera-sheet[data-active-kind="photo"] .global-record-photo-tray {
       order: 2;
+    }
+    .global-record-camera-sheet[data-camera-active="true"] {
+      overflow: hidden;
+    }
+    .global-record-camera-sheet[data-camera-active="true"] .global-record-photo-tray {
+      display: none;
+    }
+    .global-record-camera-sheet[data-camera-active="true"] .global-record-camera-preview {
+      height: min(76dvh, calc(100dvh - 148px));
     }
     .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
       order: 3;
@@ -5160,6 +5345,58 @@ ${alternateLinks}
     }
     .global-record-camera-empty[hidden] {
       display: none;
+    }
+    .global-record-camera-zoom {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(15,23,42,.72);
+      color: #fff;
+      box-shadow: 0 12px 34px rgba(15,23,42,.28);
+      backdrop-filter: blur(14px);
+    }
+    .global-record-camera-zoom[hidden] {
+      display: none;
+    }
+    .global-record-camera-zoom label {
+      display: grid;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 950;
+      line-height: 1.25;
+    }
+    .global-record-camera-zoom label span {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .global-record-camera-zoom input {
+      width: 100%;
+      accent-color: #34d399;
+    }
+    .global-record-camera-zoom button {
+      min-width: 58px;
+      min-height: 42px;
+      border: 0;
+      border-radius: 12px;
+      background: #34d399;
+      color: #052e16;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .global-record-camera-zoom button:disabled {
+      opacity: .58;
+      cursor: default;
     }
     .global-record-photo-tray {
       display: grid;
@@ -5389,10 +5626,10 @@ ${alternateLinks}
     }
     .global-record-camera-actions {
       position: fixed;
-      left: 12px;
-      right: 12px;
-      bottom: max(10px, env(safe-area-inset-bottom));
-      z-index: 39;
+      left: calc(12px + var(--global-record-visual-left, 0px));
+      right: calc(12px + var(--global-record-visual-right, 0px));
+      bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--global-record-visual-bottom, 0px));
+      z-index: 60;
       display: flex;
       gap: 10px;
       padding: 10px;
@@ -5440,8 +5677,8 @@ ${alternateLinks}
         height: min(70dvh, calc(100dvh - 176px));
       }
       .global-record-camera-actions {
-        left: 8px;
-        right: 8px;
+        left: calc(8px + var(--global-record-visual-left, 0px));
+        right: calc(8px + var(--global-record-visual-right, 0px));
         padding: 8px;
         gap: 8px;
       }
