@@ -824,6 +824,9 @@ test("AI taxon story requires a real scientific name", () => {
   assert.match(storySource, /renderLocalStoryTools\(scientificName, readText\)/);
   assert.match(toolSource, /data-local-read-aloud-text/);
   assert.match(toolSource, /scientificNamePronunciation\(scientificName\)/);
+  assert.match(routeSource, /\.obs-ai-story-head \{ display: grid; grid-template-columns: minmax\(0, 1fr\) auto;/);
+  assert.match(routeSource, /\.obs-ai-story-head \.obs-local-story-title \{[^}]*flex-wrap: wrap;/);
+  assert.match(routeSource, /@media \(max-width: 640px\) \{ \.obs-ai-story-head \{ grid-template-columns: 1fr; \}/);
   assert.match(scriptSource, /button\.getAttribute\('data-local-read-aloud-text'\)/);
   assert.doesNotMatch(scriptSource, /カワラヒワ。学名、クロリス・シニカ。/);
 });
@@ -1015,7 +1018,7 @@ function buildKawarahiwaVideoReadoutFixture(): {
     visitId: "record-1778829649026",
     subjectIndex: 0,
     displayName: "カワラヒワ",
-    scientificName: null,
+    scientificName: "Chloris sinica",
     vernacularName: "カワラヒワ",
     rank: "species",
     roleHint: "primary",
@@ -1246,6 +1249,7 @@ test("AI readout rendered contract covers the kawarahiwa video classification la
   ]);
   assert.match(html, /data-local-name-candidates="1"/);
   assert.match(html, /href="\?subject=occ%3Arecord-1778829649026%3A3" data-subject-switch="1" data-subject-id="occ:record-1778829649026:3"/);
+  assert.equal((html.match(/class="obs-local-scientific-name">Chloris sinica<\/i>/gu) ?? []).length, 1);
   assert.match(html, /data-local-read-aloud-text="カワラヒワ。学名、クロリス・シニカ。/);
   assert.doesNotMatch(visibleText, /Chloris sinica\s+Chloris sinica/);
   assert.doesNotMatch(visibleText, /イネ科植物/);

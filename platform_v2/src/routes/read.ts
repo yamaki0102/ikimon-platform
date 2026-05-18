@@ -1121,15 +1121,16 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-size-main b { color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
   .obs-ai-size-card p { margin: 0; color: #475569; font-size: 10.5px; line-height: 1.5; font-weight: 720; }
   .obs-ai-story { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,251,235,.78), rgba(255,255,255,.9)); border: 1px solid rgba(245,158,11,.18); }
-  .obs-ai-story-head { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: wrap; min-width: 0; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
+  .obs-ai-story-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-content: flex-start; gap: 6px 8px; min-width: 0; color: #0f172a; font-size: 12px; line-height: 1.3; font-weight: 950; }
   .obs-ai-story-head span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
-  .obs-ai-story-head .obs-local-story-title { flex: 1 1 auto; min-width: 180px; }
+  .obs-ai-story-head .obs-local-story-title { display: inline-flex; align-items: baseline; flex-wrap: wrap; flex: 1 1 auto; gap: 2px 6px; min-width: 0; white-space: normal; }
   .obs-ai-story-head .obs-local-scientific-name { color: #92400e; font-size: 10.5px; line-height: 1.2; font-style: italic; font-weight: 850; white-space: nowrap; }
   .obs-ai-story-head .obs-local-story-separator { color: #cbd5e1; font-weight: 900; }
-  .obs-local-story-tools { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; margin: 0 0 0 8px; min-width: 0; }
+  .obs-local-story-tools { display: inline-flex; align-items: center; justify-self: end; gap: 6px; flex-wrap: nowrap; margin: 0; min-width: 0; }
   .obs-local-pronunciation { color: #64748b; font-size: 10px; line-height: 1; font-weight: 850; white-space: nowrap; }
   .obs-local-read-aloud { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font-size: 10px; line-height: 1; font-weight: 950; cursor: pointer; }
   .obs-local-read-aloud:hover { border-color: rgba(15,118,110,.24); background: #f0fdfa; color: #0f766e; }
+  @media (max-width: 640px) { .obs-ai-story-head { grid-template-columns: 1fr; } .obs-local-story-tools { justify-self: start; flex-wrap: wrap; } }
   .obs-ai-story-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
   .obs-ai-story-list li { display: grid; gap: 2px; color: #334155; font-size: 11px; line-height: 1.55; font-weight: 740; }
   .obs-ai-story-list strong { color: #0f172a; font-size: 10.5px; line-height: 1.25; font-weight: 950; }
