@@ -20,6 +20,7 @@
 import { readFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { getPool } from "../db.js";
 import { computeBbox } from "../services/geoJsonBbox.js";
 
@@ -51,6 +52,7 @@ type N03Feature = {
     N03_001?: string; // 都道府県名
     N03_003?: string; // 郡・政令市名
     N03_004?: string; // 市区町村名
+    N03_005?: string; // 政令指定都市の行政区名
     N03_007?: string; // 行政区域コード
   };
   geometry: {
@@ -131,7 +133,9 @@ function buildJobsForFeature(feature: N03Feature): UpsertJob[] {
   const center = centroidOfBbox(bbox);
   const code = safeStr(feature.properties?.N03_007);
   const pref = safeStr(feature.properties?.N03_001);
-  const city = safeStr(feature.properties?.N03_004) || safeStr(feature.properties?.N03_003);
+  const municipality = safeStr(feature.properties?.N03_004) || safeStr(feature.properties?.N03_003);
+  const ward = safeStr(feature.properties?.N03_005);
+  const city = ward ? `${municipality}${ward}` : municipality;
 
   const jobs: UpsertJob[] = [];
   if (code && city) {
@@ -400,7 +404,13 @@ async function main() {
   await pool.end();
 }
 
-main().catch((err) => {
-  console.error("[importN03] failed", err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error("[importN03] failed", err);
+    process.exit(1);
+  });
+}
+
+export const __test__ = {
+  buildJobsForFeature,
+};

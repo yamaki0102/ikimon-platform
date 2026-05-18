@@ -227,6 +227,24 @@ stop_legacy_pm2() {
   fi
 }
 
+import_shizuoka_admin_areas() {
+  local tmp zip geojson
+  tmp="$(mktemp -d)"
+  zip="${tmp}/N03-20250101_22_GML.zip"
+  curl -fsSL --retry 3 --connect-timeout 20 \
+    "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_22_GML.zip" \
+    -o "${zip}"
+  python3 -m zipfile -e "${zip}" "${tmp}"
+  geojson="$(find "${tmp}" -maxdepth 2 -type f -name "*.geojson" | head -n 1)"
+  if [[ -z "${geojson}" ]]; then
+    rm -rf "${tmp}"
+    echo "N03 Shizuoka GeoJSON was not found in downloaded archive" >&2
+    exit 1
+  fi
+  npm run import:n03-admin -- --geojson "${geojson}" --publish-date 2025-01-01
+  rm -rf "${tmp}"
+}
+
 prepare_release() {
   local release_id="$1"
   local active inactive port release_root release_platform
@@ -258,6 +276,7 @@ prepare_release() {
   export IKIMON_MIGRATION_REPAIR_CHECKSUMS="${IKIMON_MIGRATION_REPAIR_CHECKSUMS:-0012_contact_submissions.sql,0013_video_upload_requests.sql,0014_audio_segments.sql,0015_observation_reactions_and_insights.sql,0016_observation_ai_assessments.sql,0075_normalize_shizuoka_locality_labels.sql}"
   npx tsx src/scripts/repairObservationFieldSourcePolicy.ts
   npm run migrate
+  import_shizuoka_admin_areas
   npm run import:observation-fields:aikan-renri
   npm run import:invasive-reporting:shizuoka
   npm run compile:knowledge-navigation
@@ -273,6 +292,7 @@ prepare_release() {
 
   npm run sync:legacy -- --force --source-name=production_legacy_fs --import-version=production_shadow_live
   npm run repair:location-labels
+  npm run repair:hamamatsu-ward-labels -- --apply
   npm run verify:production-shadow -- --import-version=production_shadow_live
   npm run report:legacy-drift -- --json
   npm run smoke:v2-lane -- --base-url="http://127.0.0.1:${port}"
