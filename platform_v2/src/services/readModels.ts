@@ -4,6 +4,11 @@ import {
   buildPublicLocationSummary,
   type PublicLocationSummary,
 } from "./publicLocation.js";
+import {
+  loadHamamatsuWardFields,
+  resolveHamamatsuWardLabel,
+  type HamamatsuWardField,
+} from "./hamamatsuWardLabels.js";
 import { deriveVisitDisplayState } from "./visitDisplayState.js";
 import {
   getReviewerAccessContext,
@@ -19,6 +24,24 @@ import {
 import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole.js";
 import type { RegionalStoryCue } from "./regionalStory.js";
 import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
+
+function publicMunicipalityLabel(input: {
+  municipality?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}, wardFields: HamamatsuWardField[]): string | null {
+  return resolveHamamatsuWardLabel(input, wardFields) ?? input.municipality ?? null;
+}
+
+async function safeLoadHamamatsuWardFields(queryable: Parameters<typeof loadHamamatsuWardFields>[0]): Promise<HamamatsuWardField[]> {
+  const now = Date.now();
+  if (hamamatsuWardFieldsCache && hamamatsuWardFieldsCache.expiresAt > now) return hamamatsuWardFieldsCache.value;
+  const value = await loadHamamatsuWardFields(queryable).catch(() => []);
+  hamamatsuWardFieldsCache = { value, expiresAt: now + 5 * 60 * 1000 };
+  return value;
+}
+
+let hamamatsuWardFieldsCache: { value: HamamatsuWardField[]; expiresAt: number } | null = null;
 
 type RecentObservation = {
   occurrenceId: string;
@@ -679,10 +702,17 @@ async function loadVisitSummaryObservations(
     subjectsByVisit.set(row.visit_id, list);
   }
 
+  const wardFields = await safeLoadHamamatsuWardFields(pool);
+
   // Notes/profile stay visit-first on purpose. If a manual field note visit
   // temporarily has no occurrence rows, UI can still render it here while
   // integrity scripts detect and repair the gap for /map.
   return visitRows.rows.map((visitRow) => {
+    const municipality = publicMunicipalityLabel({
+      municipality: visitRow.municipality,
+      latitude: visitRow.latitude,
+      longitude: visitRow.longitude,
+    }, wardFields);
     const subjects = subjectsByVisit.get(visitRow.visit_id) ?? [];
     const stored = storedStateMap.get(visitRow.visit_id);
     const derived = deriveVisitDisplayState(visitRow.visit_id, subjects, stored?.derived_from_ai_run_id ?? null);
@@ -726,9 +756,9 @@ async function loadVisitSummaryObservations(
       observedAt: visitRow.observed_at,
       observerName: visitRow.observer_name ?? "",
       placeName: visitRow.place_name ?? "",
-      municipality: visitRow.municipality,
+      municipality,
       publicLocation: buildPublicLocationSummary({
-        municipality: visitRow.municipality,
+        municipality,
         prefecture: visitRow.prefecture,
         latitude: visitRow.latitude,
         longitude: visitRow.longitude,
@@ -1310,6 +1340,12 @@ export async function getObservationDetailSnapshot(
       organTarget: string | null;
       mediaRole: string | null;
     } & MediaRoleSuggestion => Boolean(row));
+  const wardFields = await safeLoadHamamatsuWardFields(pool);
+  const municipality = publicMunicipalityLabel({
+    municipality: base.municipality,
+    latitude: base.latitude,
+    longitude: base.longitude,
+  }, wardFields);
 
   return {
     occurrenceId: base.occurrence_id,
@@ -1336,9 +1372,9 @@ export async function getObservationDetailSnapshot(
     revisitReason,
     observerName: base.observer_name ?? "",
     placeName: base.place_name ?? "",
-    municipality: base.municipality,
+    municipality,
     publicLocation: buildPublicLocationSummary({
-      municipality: base.municipality,
+      municipality,
       prefecture: base.prefecture,
       latitude: base.latitude,
       longitude: base.longitude,
@@ -1797,8 +1833,14 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
     [limit, candidateLimit],
   );
 
+  const wardFields = await safeLoadHamamatsuWardFields(pool);
   return result.rows.map((row) => {
     const subjectCount = Number(row.subject_count);
+    const municipality = publicMunicipalityLabel({
+      municipality: row.municipality,
+      latitude: row.latitude,
+      longitude: row.longitude,
+    }, wardFields);
     return {
       occurrenceId: row.occurrence_id,
       visitId: row.visit_id,
@@ -1819,9 +1861,9 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
       observedAt: row.observed_at,
       observerName: row.observer_name ?? "",
       placeName: row.place_name ?? "",
-      municipality: row.municipality,
+      municipality,
       publicLocation: buildPublicLocationSummary({
-        municipality: row.municipality,
+        municipality,
         prefecture: row.prefecture,
         latitude: row.latitude,
         longitude: row.longitude,
