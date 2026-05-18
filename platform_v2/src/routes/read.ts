@@ -10778,6 +10778,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           return raw;
         };
 
+        const normalizeSubMunicipalityLabel = (value) => {
+          const raw = String(value || '').trim();
+          const lower = raw.toLowerCase().replace(/[-\\s]+/g, ' ');
+          if (!raw) return '';
+          if (raw === '浜松市' || lower === 'hamamatsu' || lower === 'hamamatsu city' || lower === 'hamamatsu shi') return '';
+          if (raw === '静岡市' || lower === 'shizuoka city' || lower === 'shizuoka shi') return '';
+          if (raw === '静岡県' || lower === 'shizuoka' || lower === 'shizuoka prefecture') return '';
+          return raw;
+        };
+
+        const combineMunicipalityAndSubArea = (municipalityValue, subAreaValue) => {
+          const municipality = normalizeMunicipalityLabel(municipalityValue);
+          const subArea = normalizeSubMunicipalityLabel(subAreaValue);
+          if (!municipality) return subArea;
+          if (!subArea || subArea === municipality) return municipality;
+          if (subArea.startsWith(municipality)) return normalizeMunicipalityLabel(subArea);
+          if (municipality.includes(subArea)) return municipality;
+          if (/市$/.test(municipality) && /区$/.test(subArea)) return municipality + subArea;
+          return municipality;
+        };
+
         const inferLocalityFromCoords = (lat, lng) => {
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return {};
           if (lat >= 34.55 && lat <= 35.32 && lng >= 137.45 && lng <= 138.08) {
@@ -10792,8 +10813,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const localityFromAddress = (address) => {
           const source = address && typeof address === 'object' ? address : {};
           const prefecture = normalizePrefectureLabel(source.state || source.province || source.region || '');
-          const municipality = normalizeMunicipalityLabel(
+          const municipality = combineMunicipalityAndSubArea(
             source.city || source.town || source.village || source.municipality || source.county || '',
+            source.city_district || source.borough || source.district || source.ward || '',
           );
           return { prefecture, municipality };
         };

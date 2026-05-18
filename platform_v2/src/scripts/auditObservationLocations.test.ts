@@ -52,3 +52,13 @@ test("detectLocationAnomalies catches English labels on Hamamatsu coordinates", 
   assert.ok(anomalies[0]?.reasons.includes("hamamatsu_coordinate_label_mismatch"));
 });
 
+test("detectLocationAnomalies accepts ward-level municipality labels", () => {
+  const anomalies = detectLocationAnomalies([
+    row({
+      municipality: "浜松市浜名区",
+      place_name: "浜松市浜名区",
+    }),
+  ]);
+
+  assert.equal(anomalies.length, 0);
+});

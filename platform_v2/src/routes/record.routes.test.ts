@@ -170,6 +170,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /if \(!latRaw \|\| !lngRaw\) return null;/);
         assert.match(response.body, /nominatim\.openstreetmap\.org\/reverse/);
         assert.match(response.body, /inferLocalityFromCoords/);
+        assert.match(response.body, /combineMunicipalityAndSubArea/);
+        assert.match(response.body, /source\.city_district \|\| source\.borough \|\| source\.district \|\| source\.ward/);
+        assert.match(response.body, /municipality \+ subArea/);
         assert.match(response.body, /recordLocationProvenance/);
         assert.match(response.body, /location_provenance: recordLocationProvenance/);
         assert.match(response.body, /photo_exif_gps/);
