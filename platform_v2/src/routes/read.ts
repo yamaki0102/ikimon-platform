@@ -39,6 +39,7 @@ import { getIdentificationConsensus, type IdentificationConsensusResult } from "
 import { getObserverStats } from "../services/observerStats.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
 import { getTaxonInsight, type TaxonInsight } from "../services/taxonInsights.js";
+import { lookupLocalTaxonName } from "../services/taxonNameNormalizer.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getPlaceManagementPolicy, type PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
 import { getPlaceVegetationTrend, type PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
@@ -3409,7 +3410,8 @@ function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = 
   ].filter(Boolean).join("。");
   const compareList = renderAiCompareList(subject);
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
-  const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName);
+  const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
+  const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";
