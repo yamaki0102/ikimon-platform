@@ -22,6 +22,25 @@ function sourceBetween(startMarker: string, endMarker: string): string {
   return routeSource.slice(start, end);
 }
 
+function visibleTextFromHtml(html: string): string {
+  return html
+    .replace(/<script\b[\s\S]*?<\/script>/giu, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/giu, " ")
+    .replace(/<[^>]+>/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function assertVisibleTermsInOrder(html: string, terms: string[]): void {
+  const text = visibleTextFromHtml(html);
+  let cursor = -1;
+  for (const term of terms) {
+    const index = text.indexOf(term, cursor + 1);
+    assert.ok(index > cursor, `expected "${term}" after ${cursor} in: ${text}`);
+    cursor = index;
+  }
+}
+
 const detailCopySource = [
   sourceBetween("function mediaSceneNoun", "function renderAiCandidateLearningPanel"),
   sourceBetween("function renderVisibleRecordCard", "export function renderVisibleRecordItemsPanel"),
@@ -754,7 +773,41 @@ test("AI readout keeps scientific-name fallback when cached insight has an inval
       },
       managementActionCandidates: [],
       shotSuggestions: [],
-      candidateReadings: [],
+      candidateReadings: [
+        {
+          name: "ナワシロイチゴ",
+          scientificName: "Rubus parvifolius",
+          rank: "species",
+          role: "赤い集合果",
+          visibleFeatures: ["鮮やかな赤色の集合果", "葉のギザギザのある3出複葉", "5月の果実形成"],
+          weakPoints: ["近縁種との比較には葉裏と茎の毛をもう少し見たいです。"],
+          shootingTips: ["葉の表裏と茎の毛を近くで撮る"],
+          regionalRead: "浜松市周辺で初夏に果実が目立つ場面として読めます。",
+          sizeAssessment: null,
+        },
+        {
+          name: "アカメガシワ",
+          scientificName: "Mallotus japonicus",
+          rank: "species",
+          role: "同じ場面の樹木",
+          visibleFeatures: ["大きな葉の形状", "特徴的な脈"],
+          weakPoints: ["全景が不明瞭です。", "樹皮・花の集まりの未確認です。"],
+          shootingTips: ["葉の全体像と枝の付き方を撮る"],
+          regionalRead: "浜松市の二次林縁でよく見られるパイオニア種です。",
+          sizeAssessment: null,
+        },
+        {
+          name: "カタバミ属",
+          scientificName: "Oxalis",
+          rank: "genus",
+          role: "地表の草本",
+          visibleFeatures: ["地表の小さな3出複葉"],
+          weakPoints: ["花や果実の未確認です。", "種レベルの同定に不足します。"],
+          shootingTips: ["花の色彩と形を近くからで撮る"],
+          regionalRead: "道端や管理地で一般的です。",
+          sizeAssessment: null,
+        },
+      ],
       sizeAssessment: {
         typicalSizeCm: 1,
         observedSizeEstimateCm: 1.2,
@@ -829,6 +882,235 @@ test("AI readout keeps scientific-name fallback when cached insight has an inval
   assert.match(html, /アカメガシワ/);
   assert.match(html, /カタバミ属/);
   assert.doesNotMatch(html, /ナワシロイチゴを知る[\s\S]{0,80}<i class="obs-local-scientific-name">ナワシロイチゴ<\/i>/);
+});
+
+test("AI readout rendered contract follows the snapshot-like candidate order", () => {
+  const nawashiroSubject = {
+    occurrenceId: "occ:record-1778828697689:0",
+    visitId: "record-1778828697689",
+    subjectIndex: 0,
+    displayName: "ナワシロイチゴ",
+    scientificName: null,
+    vernacularName: "ナワシロイチゴ",
+    rank: "species",
+    roleHint: "primary",
+    confidence: null,
+    identificationCount: 0,
+    latestAssessmentBand: "high",
+    latestAssessmentGeneratedAt: "2026-05-17T00:00:00.000Z",
+    isPrimary: true,
+    priorityScore: 100,
+    focusReason: "鮮やかな赤色の集合果",
+    roleLabel: "主対象",
+    evidenceTier: 0,
+    aiAssessmentStatus: null,
+    aiReviewAgreeCount: 0,
+    aiReviewDisagreeCount: 0,
+    aiCandidateName: null,
+    aiCandidateRank: null,
+    adoptedFromAiCandidate: false,
+    adoptedCandidateId: null,
+    adoptedCandidateNote: null,
+    subjectSource: null,
+    proposedByUserId: null,
+    isAiCandidate: false,
+    hasSpecialistApproval: false,
+    identifications: [],
+    lineage: [],
+    regions: [],
+    previousAiAssessment: null,
+    aiAssessment: {
+      assessmentId: "assess-nawashiro",
+      aiRunId: "run-nawashiro",
+      pipelineVersion: "test",
+      taxonomyVersion: "test",
+      interpretationStatus: "completed",
+      confidenceBand: "high",
+      modelUsed: "gemini-3.1-flash-image-preview+gemini-3.1-flash-lite",
+      recommendedRank: "species",
+      recommendedTaxonName: "ナワシロイチゴ",
+      recommendedScientificName: "Rubus parvifolius",
+      bestSpecificTaxonName: "ナワシロイチゴ",
+      narrative: "",
+      simpleSummary: "赤い実と3枚の葉っぱが特徴的な、ナワシロイチゴのようです。",
+      observerBoost: "",
+      nextStepText: "",
+      stopReason: "",
+      funFact: "",
+      funFactGrounded: false,
+      diagnosticFeaturesSeen: ["鮮やかな赤色の集合果", "葉のギザギザのある3出複葉", "5月の果実形成"],
+      missingEvidence: [],
+      similarTaxa: [],
+      distinguishingTips: [],
+      confirmMore: [],
+      geographicContext: "",
+      seasonalContext: "",
+      areaInference: {
+        vegetationStructureCandidates: [],
+        successionStageCandidates: [],
+        humanInfluenceCandidates: [],
+        moistureRegimeCandidates: [],
+        managementHintCandidates: [],
+      },
+      managementActionCandidates: [],
+      shotSuggestions: [],
+      candidateReadings: [
+        {
+          name: "ナワシロイチゴ",
+          scientificName: "Rubus parvifolius",
+          rank: "species",
+          role: "赤い集合果",
+          visibleFeatures: ["鮮やかな赤色の集合果", "葉のギザギザのある3出複葉", "5月の果実形成"],
+          weakPoints: ["近縁種との比較には葉裏と茎の毛をもう少し見たいです。"],
+          shootingTips: ["葉の表裏と茎の毛を近くで撮る"],
+          regionalRead: "浜松市周辺で初夏に果実が目立つ場面として読めます。",
+          sizeAssessment: null,
+        },
+        {
+          name: "アカメガシワ",
+          scientificName: "Mallotus japonicus",
+          rank: "species",
+          role: "同じ場面の樹木",
+          visibleFeatures: ["大きな葉の形状", "特徴的な脈"],
+          weakPoints: ["全景が不明瞭です。", "樹皮・花の集まりの未確認です。"],
+          shootingTips: ["葉の全体像と枝の付き方を撮る"],
+          regionalRead: "浜松市の二次林縁でよく見られるパイオニア種です。",
+          sizeAssessment: null,
+        },
+        {
+          name: "カタバミ属",
+          scientificName: "Oxalis",
+          rank: "genus",
+          role: "地表の草本",
+          visibleFeatures: ["地表の小さな3出複葉"],
+          weakPoints: ["花や果実の未確認です。", "種レベルの同定に不足します。"],
+          shootingTips: ["花の色彩と形を近くからで撮る"],
+          regionalRead: "道端や管理地で一般的です。",
+          sizeAssessment: null,
+        },
+      ],
+      sizeAssessment: {
+        typicalSizeCm: 1,
+        observedSizeEstimateCm: 1.2,
+        sizeClass: "typical",
+        rankingHint: "この種としては平均的な果実サイズ",
+        basis: "手指から推定のAI目測。",
+        hedge: "誤差大です",
+      },
+      noveltyHint: null,
+      invasiveResponse: null,
+      claimRefsUsed: [],
+      navigableOs: null,
+      generatedAt: "2026-05-17T00:00:00.000Z",
+    },
+  } as ObservationVisitSubject;
+  const akamigashiwaSubject = {
+    ...nawashiroSubject,
+    occurrenceId: "occ:record-1778828697689:1",
+    subjectIndex: 1,
+    displayName: "アカメガシワ",
+    vernacularName: "アカメガシワ",
+    scientificName: null,
+    rank: "species",
+    isPrimary: false,
+    roleHint: "coexisting",
+    aiAssessment: null,
+  } as ObservationVisitSubject;
+  const katabamiSubject = {
+    ...nawashiroSubject,
+    occurrenceId: "occ:record-1778828697689:2",
+    subjectIndex: 2,
+    displayName: "カタバミ属",
+    vernacularName: "カタバミ属",
+    scientificName: null,
+    rank: "genus",
+    isPrimary: false,
+    roleHint: "coexisting",
+    aiAssessment: null,
+  } as ObservationVisitSubject;
+  const bundle = {
+    visitId: "record-1778828697689",
+    canonicalSubjectId: nawashiroSubject.occurrenceId,
+    featuredOccurrenceId: nawashiroSubject.occurrenceId,
+    selectedReason: "fixture",
+    selectionSource: "latest_ai_default",
+    lockedByHuman: false,
+    displayStability: "adaptive",
+    selectedRun: null,
+    previousRun: null,
+    subjects: [nawashiroSubject, akamigashiwaSubject, katabamiSubject],
+    aiCandidates: [],
+  } as ObservationVisitBundle;
+  const invalidInsight = {
+    scientificName: "ナワシロイチゴ",
+    vernacularName: "ナワシロイチゴ",
+    etymology: "属名の Rubus は赤い実に関係します。",
+    ecologyNote: "",
+    lookAlikeNote: "",
+    rarityNote: "",
+    generatedAt: "2026-05-17T00:00:00.000Z",
+    source: "cache",
+  } as TaxonInsight;
+
+  const primaryHtml = renderHeroAiReadout(nawashiroSubject, false, invalidInsight, bundle);
+  const akamigashiwaHtml = renderHeroAiReadout(akamigashiwaSubject, false, null, bundle);
+  const katabamiHtml = renderHeroAiReadout(katabamiSubject, false, null, bundle);
+
+  assertVisibleTermsInOrder(primaryHtml, [
+    "ナワシロイチゴ",
+    "確認待ち",
+    "アカメガシワ",
+    "確認待ち",
+    "カタバミ属",
+    "確認待ち",
+    "根拠",
+    "鮮やかな赤色の集合果",
+    "大きさの目安",
+    "平均サイズ",
+    "ナワシロイチゴを知る",
+    "Rubus parvifolius",
+    "端末の声で読む",
+  ]);
+  assert.match(primaryHtml, /<button class="obs-ai-target-chip" type="button" data-ai-target="occ:record-1778828697689:0" aria-pressed="true">/);
+  assert.match(primaryHtml, /<a class="obs-ai-target-chip" href="\?subject=occ%3Arecord-1778828697689%3A1" data-subject-switch="1" data-subject-id="occ:record-1778828697689:1" aria-pressed="false">/);
+  assert.match(primaryHtml, /<a class="obs-ai-target-chip" href="\?subject=occ%3Arecord-1778828697689%3A2" data-subject-switch="1" data-subject-id="occ:record-1778828697689:2" aria-pressed="false">/);
+  assert.match(primaryHtml, /data-local-read-aloud-text="ナワシロイチゴ。学名、Rubus parvifolius。/);
+  assert.doesNotMatch(visibleTextFromHtml(primaryHtml), /Rubus parvifolius\s+Rubus parvifolius/);
+
+  assertVisibleTermsInOrder(akamigashiwaHtml, [
+    "ナワシロイチゴ",
+    "確認待ち",
+    "アカメガシワ",
+    "確認待ち",
+    "カタバミ属",
+    "確認待ち",
+    "根拠",
+    "大きな葉の形状",
+    "アカメガシワを知る",
+    "Mallotus japonicus",
+    "端末の声で読む",
+    "確かめる点",
+    "全景が不明瞭",
+    "追加で見る点",
+    "葉の全体像と枝の付き方を撮る",
+  ]);
+  assertVisibleTermsInOrder(katabamiHtml, [
+    "ナワシロイチゴ",
+    "確認待ち",
+    "アカメガシワ",
+    "確認待ち",
+    "カタバミ属",
+    "確認待ち",
+    "根拠",
+    "地表の小さな3出複葉",
+    "カタバミ属を知る",
+    "Oxalis",
+    "端末の声で読む",
+    "確かめる点",
+    "花や果実の未確認",
+    "追加で見る点",
+    "花の色彩と形を近くからで撮る",
+  ]);
 });
 
 test("identity evidence stays usable when AI returns many candidates", () => {
