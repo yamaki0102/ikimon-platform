@@ -3232,9 +3232,10 @@ function isLatinScientificName(value: string | null | undefined): boolean {
 
 function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackName: string, fallbackScientificName?: string | null): string {
   if (isWeakIdentificationCandidateName(fallbackName)) return "";
-  const scientificName = /カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${insight?.scientificName ?? fallbackScientificName ?? ""}`)
+  const insightScientificName = isLatinScientificName(insight?.scientificName) ? insight?.scientificName : "";
+  const scientificName = /カワラヒワ|Chloris sinica/i.test(`${fallbackName} ${insightScientificName || fallbackScientificName || ""}`)
     ? "Chloris sinica"
-    : (insight?.scientificName || fallbackScientificName || "");
+    : (insightScientificName || fallbackScientificName || "");
   if (!isLatinScientificName(scientificName) || scientificName === fallbackName) return "";
   const rows = [
     insight?.etymology ? `<li><strong>名前の由来</strong><span>${escapeHtml(friendlyObservationText(insight.etymology, 110))}</span></li>` : "",
