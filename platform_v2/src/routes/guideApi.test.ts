@@ -42,5 +42,12 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.match(source, /bbox_min_lat/);
   assert.match(source, /privacy: "exact_route_private_public_area_or_100m_mesh"/);
   assert.match(source, /absenceState: "non_detection_note"/);
+  assert.match(source, /次に見る指示は出さず/);
+  assert.match(source, /移動中の通過ログ/);
+  assert.match(source, /shouldRetainSkippedGuideScene/);
+  assert.match(source, /retainedForOutcomeReview/);
+  assert.match(source, /deliveryState: "archived"/);
+  assert.match(source, /seenState: "dismissed"/);
   assert.doesNotMatch(source, /absenceState: "confirmed_absence"/);
+  assert.doesNotMatch(source, /停車後/);
 });

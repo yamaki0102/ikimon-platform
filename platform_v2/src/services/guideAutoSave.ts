@@ -16,6 +16,7 @@ type AutoSaveInput = {
 
 const PRIVACY_OR_INDOOR_RE = /(?:室内|屋内|部屋|自室|家の中|店内|車内|天井|蛍光灯|照明|机|テーブル|椅子|壁|床|モニター|パソコン|キーボード|人物|人間|人の顔|顔|自撮り|indoor|room|ceiling|fluorescent|desk|table|chair|wall|floor|monitor|keyboard|person|people|human|face|selfie)/i;
 const NATURE_WORD_RE = /(?:草|木|葉|花|実|樹|林|竹|苔|藻|菌|虫|鳥|魚|哺乳|爬虫|両生|貝|水辺|川|池|湿地|土|砂|岩|風|鳴き声|vegetation|plant|leaf|flower|tree|grass|moss|insect|bird|fish|mammal|reptile|amphibian|water|river|pond|wetland|soil|rock|natural)/i;
+const NON_DETECTION_WORD_RE = /(?:未検出|見つからな|確認できな|写っていな|何もいな|何も写|探したが|不在候補|non[-_ ]?detection|not found|no organism|nothing visible|absence candidate)/i;
 
 function sceneText(result: SceneResult): string {
   return [
@@ -28,6 +29,9 @@ function sceneText(result: SceneResult): string {
     ...(result.detectedFeatures ?? []).flatMap((feature) => [feature.type, feature.name, feature.note ?? ""]),
     result.saveRecommendation?.note,
     ...(result.saveRecommendation?.reasonCodes ?? []),
+    ...(result.coverageHints ?? []),
+    result.absenceBoundary?.state,
+    result.absenceBoundary?.note,
   ].filter(Boolean).join(" ");
 }
 
@@ -46,6 +50,24 @@ function hasNatureSignal(result: SceneResult): boolean {
   });
   if (natureFeature) return true;
   return NATURE_WORD_RE.test(sceneText(result));
+}
+
+function hasUsefulNonDetectionSignal(result: SceneResult): boolean {
+  const absence = result.absenceBoundary;
+  if (absence && (absence.state === "searched_not_found" || absence.state === "absence_candidate") && absence.note.trim()) {
+    return true;
+  }
+  return Boolean((result.coverageHints ?? []).length) && NON_DETECTION_WORD_RE.test(sceneText(result));
+}
+
+function hasDetectedFieldFeature(result: SceneResult): boolean {
+  if ((result.detectedSpecies ?? []).length > 0) return true;
+  return (result.detectedFeatures ?? []).some((feature) => {
+    if (feature.type !== "species" && feature.type !== "vegetation" && feature.type !== "landform" && feature.type !== "sound") {
+      return false;
+    }
+    return (feature.confidence ?? 0.5) >= 0.35;
+  });
 }
 
 function hasVehicleModeFieldSignal(result: SceneResult): boolean {
@@ -87,6 +109,15 @@ export function decideGuideAutoSave(input: AutoSaveInput): GuideAutoSaveDecision
       confidence: 0.92,
       reasonCodes: ["privacy_or_indoor_scene"],
       note: "人物・室内・生活空間らしい要素があるため自動保存しません。",
+    };
+  }
+
+  if (!hasDetectedFieldFeature(result) && hasUsefulNonDetectionSignal(result)) {
+    return {
+      decision: "save",
+      confidence: 0.66,
+      reasonCodes: ["non_detection_record", "field_effort_without_detection"],
+      note: "何も確認できなかったことも、努力量つきの未検出記録として保存します。",
     };
   }
 

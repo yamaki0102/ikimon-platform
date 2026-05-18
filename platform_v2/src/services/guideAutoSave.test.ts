@@ -83,6 +83,27 @@ test("guide auto-save skips duplicate scene hashes", () => {
   assert.match(decision.reasonCodes.join(","), /duplicate_scene/);
 });
 
+test("guide auto-save keeps useful non-detection records", () => {
+  const decision = decideGuideAutoSave({
+    result: scene({
+      summary: "水路沿いを探したが、生きものはこのフレーム束では確認できない",
+      detectedSpecies: [],
+      detectedFeatures: [],
+      primarySubject: undefined,
+      coverageHints: ["水路沿いを20m通過、AI未検出"],
+      absenceBoundary: {
+        state: "searched_not_found",
+        note: "水路沿いを探したが、この代表フレーム束では魚や鳥は確認できない。",
+      },
+      saveRecommendation: { decision: "skip", confidence: 0.5, reasonCodes: ["no_field_nature_signal"] },
+    }),
+    siteBrief: grasslandBrief,
+  });
+
+  assert.equal(decision.decision, "save");
+  assert.match(decision.reasonCodes.join(","), /non_detection_record/);
+});
+
 test("vehicle guide auto-save skips structure-only scenes", () => {
   const decision = decideGuideAutoSave({
     result: scene({
