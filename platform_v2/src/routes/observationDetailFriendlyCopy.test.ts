@@ -667,6 +667,8 @@ test("AI taxon story requires a real scientific name", () => {
   const scriptSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
 
   assert.match(storySource, /isWeakIdentificationCandidateName\(fallbackName\)/);
+  assert.match(storySource, /isLatinScientificName\(insight\?\.scientificName\)/);
+  assert.match(storySource, /insightScientificName \|\| fallbackScientificName/);
   assert.match(storySource, /isLatinScientificName\(scientificName\)/);
   assert.match(storySource, /scientificName === fallbackName/);
   assert.doesNotMatch(storySource, /!insight \|\| \(!insight\.etymology && !insight\.ecologyNote && !insight\.rarityNote\)/);
