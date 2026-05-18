@@ -70,3 +70,22 @@ test("multi-subject guard drops unhelpful unidentified labels without a scientif
   assert.equal(result.promoted, 1);
   assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["アメリカシャクナゲ", "ツツジ類"]);
 });
+
+test("multi-subject guard enriches known Japanese taxon names before materialization", () => {
+  const result = promoteCandidateReadingsToCoexistingTaxa({
+    primaryVernacularName: "植栽低木",
+    primaryScientificName: "",
+    coexistingTaxa: [
+      { name: "トウネズミモチ", scientific_name: "", rank: "lifeform", confidence: 0.45 },
+    ],
+    candidateReadings: [
+      { name: "トベラ", scientific_name: "", rank: "lifeform", role: "比較候補" },
+    ],
+  });
+
+  assert.equal(result.promoted, 1);
+  assert.deepEqual(result.candidates.map((candidate) => [candidate.name, candidate.scientific_name, candidate.rank]), [
+    ["トウネズミモチ", "Ligustrum lucidum", "species"],
+    ["トベラ", "Pittosporum tobira", "species"],
+  ]);
+});
