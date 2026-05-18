@@ -1339,16 +1339,19 @@ function globalRecordEntryScript(basePath: string): string {
     const right = viewport ? Math.max(0, layoutWidth - ((viewport.offsetLeft || 0) + (viewport.width || layoutWidth))) : 0;
     const top = viewport ? Math.max(0, viewport.offsetTop || 0) : 0;
     const bottom = viewport ? Math.max(0, layoutHeight - ((viewport.offsetTop || 0) + (viewport.height || layoutHeight))) : 0;
+    const height = viewport ? Math.max(320, viewport.height || layoutHeight) : layoutHeight;
     document.documentElement.style.setProperty('--global-record-visual-left', left.toFixed(1) + 'px');
     document.documentElement.style.setProperty('--global-record-visual-right', right.toFixed(1) + 'px');
     document.documentElement.style.setProperty('--global-record-visual-top', top.toFixed(1) + 'px');
     document.documentElement.style.setProperty('--global-record-visual-bottom', bottom.toFixed(1) + 'px');
+    document.documentElement.style.setProperty('--global-record-visual-height', height.toFixed(1) + 'px');
   };
   const resetVisualViewportVars = () => {
     document.documentElement.style.removeProperty('--global-record-visual-left');
     document.documentElement.style.removeProperty('--global-record-visual-right');
     document.documentElement.style.removeProperty('--global-record-visual-top');
     document.documentElement.style.removeProperty('--global-record-visual-bottom');
+    document.documentElement.style.removeProperty('--global-record-visual-height');
   };
   const setCameraLiveLayout = (enabled) => {
     if (!sheet) return;
@@ -2165,6 +2168,7 @@ function globalRecordEntryScript(basePath: string): string {
     if (sheet) sheet.hidden = false;
     if (backdrop) backdrop.hidden = false;
     document.documentElement.classList.add('global-record-camera-open');
+    syncVisualViewportVars();
     setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');
     if (!(options && options.reviewOnly)) void startCamera();
   };
@@ -5254,7 +5258,7 @@ ${alternateLinks}
     .global-record-camera-backdrop {
       position: fixed;
       inset: 0;
-      z-index: 37;
+      z-index: 130;
       background: rgba(15,23,42,.22);
       backdrop-filter: blur(3px);
     }
@@ -5269,15 +5273,16 @@ ${alternateLinks}
     }
     .global-record-camera-sheet {
       position: fixed;
-      left: 12px;
-      right: 12px;
-      top: max(12px, env(safe-area-inset-top));
-      bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
-      z-index: 38;
+      --global-record-camera-actions-space: 104px;
+      left: calc(12px + var(--global-record-visual-left, 0px));
+      right: calc(12px + var(--global-record-visual-right, 0px));
+      top: calc(max(12px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+      bottom: calc(max(12px, calc(env(safe-area-inset-bottom) + 12px)) + var(--global-record-visual-bottom, 0px));
+      z-index: 131;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
       gap: 10px;
-      padding: 10px;
+      padding: 10px 10px calc(10px + var(--global-record-camera-actions-space));
       overflow-y: auto;
       overscroll-behavior: contain;
       border-radius: 18px;
@@ -5305,7 +5310,7 @@ ${alternateLinks}
       position: fixed;
       top: calc(max(18px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
       right: calc(18px + var(--global-record-visual-right, 0px));
-      z-index: 80;
+      z-index: 133;
       width: 38px;
       height: 38px;
       flex: 0 0 38px;
@@ -5325,7 +5330,7 @@ ${alternateLinks}
     .global-record-camera-preview {
       position: relative;
       min-height: 0;
-      height: min(72dvh, calc(100dvh - 178px));
+      height: clamp(260px, min(72dvh, calc(var(--global-record-visual-height, 100dvh) - 212px)), 760px);
       overflow: hidden;
       touch-action: none;
       border-radius: 12px;
@@ -5358,7 +5363,7 @@ ${alternateLinks}
       display: none;
     }
     .global-record-camera-sheet[data-camera-active="true"] .global-record-camera-preview {
-      height: min(76dvh, calc(100dvh - 148px));
+      height: clamp(300px, min(76dvh, calc(var(--global-record-visual-height, 100dvh) - 188px)), 780px);
     }
     .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
       order: 3;
@@ -5671,7 +5676,7 @@ ${alternateLinks}
       left: calc(12px + var(--global-record-visual-left, 0px));
       right: calc(12px + var(--global-record-visual-right, 0px));
       bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--global-record-visual-bottom, 0px));
-      z-index: 60;
+      z-index: 132;
       display: flex;
       gap: 10px;
       padding: 10px;
@@ -5708,12 +5713,13 @@ ${alternateLinks}
     }
     @media (max-width: 520px) {
       .global-record-camera-sheet {
-        left: 8px;
-        right: 8px;
-        top: max(8px, env(safe-area-inset-top));
-        bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px));
+        --global-record-camera-actions-space: 108px;
+        left: calc(8px + var(--global-record-visual-left, 0px));
+        right: calc(8px + var(--global-record-visual-right, 0px));
+        top: calc(max(8px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+        bottom: calc(max(8px, calc(env(safe-area-inset-bottom) + 8px)) + var(--global-record-visual-bottom, 0px));
         gap: 10px;
-        padding: 10px;
+        padding: 10px 10px calc(10px + var(--global-record-camera-actions-space));
       }
       .global-record-camera-head {
         padding-right: 46px;
@@ -5723,7 +5729,7 @@ ${alternateLinks}
         right: calc(12px + var(--global-record-visual-right, 0px));
       }
       .global-record-camera-preview {
-        height: min(70dvh, calc(100dvh - 176px));
+        height: clamp(240px, min(70dvh, calc(var(--global-record-visual-height, 100dvh) - 214px)), 640px);
       }
       .global-record-camera-actions {
         left: calc(8px + var(--global-record-visual-left, 0px));

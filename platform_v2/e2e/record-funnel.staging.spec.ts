@@ -12,6 +12,27 @@ const VIEWPORTS: ViewportProfile[] = [
   { slug: "mobile-390", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ];
 
+const CAMERA_DEVICE_VIEWPORTS: ViewportProfile[] = [
+  {
+    slug: "iphone-safari-390x844",
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1",
+  },
+  {
+    slug: "android-chrome-412x915",
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 2.75,
+    isMobile: true,
+    hasTouch: true,
+    userAgent:
+      "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+  },
+];
+
 const MOCK_VISIT_ID = "record-funnel-visit";
 const MOCK_OCCURRENCE_ID = "record-funnel-occurrence";
 const MOCK_PLACE_ID = "geo:34.710800:137.726100";
@@ -129,6 +150,117 @@ function actions(payloads: KpiPayload[]): string[] {
   return payloads.map((payload) => String(payload.actionKey ?? ""));
 }
 
+async function installFakeCamera(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const globalWindow = window as unknown as { __ikimonCameraConstraints?: unknown[] };
+    const cameraConstraints: unknown[] = [];
+    globalWindow.__ikimonCameraConstraints = cameraConstraints;
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1280;
+          canvas.height = 720;
+          const context = canvas.getContext("2d");
+          if (context) {
+            context.fillStyle = "#052e16";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = "#34d399";
+            context.fillRect(220, 120, 840, 420);
+          }
+          const stream = canvas.captureStream(30);
+          const [track] = stream.getVideoTracks();
+          let zoom = 1;
+          Object.defineProperty(track, "getCapabilities", {
+            configurable: true,
+            value: () => ({
+              focusMode: ["single-shot", "continuous"],
+              zoom: { min: 1, max: 5, step: 0.1 },
+            }),
+          });
+          Object.defineProperty(track, "getSettings", {
+            configurable: true,
+            value: () => ({ zoom }),
+          });
+          Object.defineProperty(track, "applyConstraints", {
+            configurable: true,
+            value: async (constraints: { advanced?: Array<Record<string, unknown>> }) => {
+              cameraConstraints.push(constraints);
+              const nextZoom = Number(constraints?.advanced?.[0]?.zoom);
+              if (Number.isFinite(nextZoom)) zoom = nextZoom;
+            },
+          });
+          return stream;
+        },
+      },
+    });
+  });
+}
+
+async function expectCameraControlsClearOfViewportChrome(page: Page): Promise<void> {
+  const layout = await page.evaluate(() => {
+    const rectFor = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      };
+    };
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      sheet: rectFor("[data-global-record-camera-sheet]"),
+      close: rectFor(".global-record-camera-close"),
+      preview: rectFor("[data-global-record-camera-preview]"),
+      zoom: rectFor("[data-global-record-camera-zoom]"),
+      actions: rectFor(".global-record-camera-actions"),
+      helpText: document.querySelector("[data-global-record-camera-help]")?.textContent ?? "",
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+
+  expect(layout.overflow).toBeLessThanOrEqual(1);
+  expect(layout.helpText).toBe("");
+  expect(layout.sheet).toBeTruthy();
+  expect(layout.close).toBeTruthy();
+  expect(layout.preview).toBeTruthy();
+  expect(layout.zoom).toBeTruthy();
+  expect(layout.actions).toBeTruthy();
+
+  const { viewport, sheet, close, preview, zoom, actions } = layout;
+  expect(sheet!.top).toBeGreaterThanOrEqual(0);
+  expect(sheet!.bottom).toBeLessThanOrEqual(viewport.height);
+  expect(close!.top).toBeGreaterThanOrEqual(0);
+  expect(close!.right).toBeLessThanOrEqual(viewport.width);
+  expect(preview!.top).toBeGreaterThanOrEqual(sheet!.top);
+  expect(zoom!.bottom).toBeLessThanOrEqual(actions!.top - 4);
+  expect(actions!.bottom).toBeLessThanOrEqual(viewport.height);
+  expect(actions!.top).toBeGreaterThan(zoom!.bottom);
+}
+
+async function expectCameraConstraint(page: Page, marker: "zoom" | "pointsOfInterest"): Promise<void> {
+  await expect
+    .poll(async () => {
+      return page.evaluate((markerName) => {
+        const constraints = ((window as unknown as { __ikimonCameraConstraints?: unknown[] }).__ikimonCameraConstraints ?? []) as Array<{
+          advanced?: Array<Record<string, unknown>>;
+        }>;
+        return constraints.some((entry) => {
+          const first = entry.advanced?.[0] ?? {};
+          return markerName === "zoom" ? first.zoom === 5 : Array.isArray(first.pointsOfInterest);
+        });
+      }, marker);
+    })
+    .toBe(true);
+}
+
 test.describe("record funnel staging QA", () => {
   let api: APIRequestContext;
   let sessionCookie: string;
@@ -207,5 +339,53 @@ test.describe("record funnel staging QA", () => {
         await context.close();
       }
     });
+  }
+});
+
+const cameraDeviceQaDescribe = process.env.IKIMON_CAMERA_DEVICE_QA === "1" ? test.describe : test.describe.skip;
+
+cameraDeviceQaDescribe("global record camera mobile controls QA", () => {
+  for (const profile of CAMERA_DEVICE_VIEWPORTS) {
+    for (const kind of ["photo", "video"] as const) {
+      test(`keeps ${kind} camera controls clear on ${profile.slug}`, async ({ browser }) => {
+        const context = await newStagingContext(browser, profile);
+        const page = await context.newPage();
+
+        try {
+          await installFakeCamera(page);
+          await suppressMapLibreForSmoke(page);
+          await page.goto("/?lang=ja", { waitUntil: "domcontentloaded" });
+          await expectNoHorizontalOverflow(page);
+
+          await page.locator(`[data-global-record-trigger="${kind}"]`).click();
+          const sheet = page.locator("[data-global-record-camera-sheet]");
+          await expect(sheet).toBeVisible();
+          await expect(sheet).toHaveAttribute("data-camera-active", "true");
+          await expect(page.locator("[data-global-record-camera-zoom]")).toBeVisible();
+          await expect(page.locator("[data-global-record-camera-capture]")).toBeVisible();
+
+          await expectCameraControlsClearOfViewportChrome(page);
+
+          await page.locator("[data-global-record-camera-zoom-max]").click();
+          await expectCameraConstraint(page, "zoom");
+
+          const preview = page.locator("[data-global-record-camera-preview]");
+          const previewBox = await preview.boundingBox();
+          expect(previewBox).toBeTruthy();
+          await preview.click({
+            position: {
+              x: Math.round(previewBox!.width * 0.48),
+              y: Math.round(previewBox!.height * 0.38),
+            },
+          });
+          await expectCameraConstraint(page, "pointsOfInterest");
+
+          await page.locator(".global-record-camera-close").click();
+          await expect(sheet).toBeHidden();
+        } finally {
+          await context.close();
+        }
+      });
+    }
   }
 });
