@@ -3427,7 +3427,7 @@ function renderAiVisualGrounding(options: {
     <div class="obs-ai-grounding-rail">
       ${regions.map((region) => {
         const label = assetLabelById.get(region.assetId) ?? "参照画像";
-        const location = friendlyObservationText(region.note || normalizedRectLocationLabel(region.rect), 26);
+        const location = normalizedRectLocationLabel(region.rect);
         const confidence = typeof region.confidenceScore === "number" ? `枠の確度 ${Math.round(region.confidenceScore * 100)}%` : "注視枠あり";
         const frame = typeof region.frameTimeMs === "number" ? ` / ${Math.round(region.frameTimeMs / 1000)}秒付近` : "";
         return `<button type="button"

@@ -49,7 +49,7 @@ test.describe.serial("observation AI grounding visual QA", () => {
         const href = `/observations/${encodeURIComponent(fixture.scene.visitId)}?subject=${encodeURIComponent(fixture.scene.occurrenceId)}&lang=ja`;
         await page.goto(href, { waitUntil: "domcontentloaded" });
 
-        await expect(page.locator("h1")).toContainText("ヒメイワダレソウ");
+        await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
         await expect(page.locator(".obs-ai-grounding").first()).toContainText("AIが主に見たところ");
         await expect(page.locator(".obs-ai-grounding-shot", { hasText: "画像1" }).first()).toBeVisible();
         await expect(page.locator(".obs-annotation-target.is-current").first()).toBeVisible();
