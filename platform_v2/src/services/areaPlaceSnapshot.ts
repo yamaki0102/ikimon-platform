@@ -214,7 +214,7 @@ async function loadRepresentativePhoto(
               from visits v
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and v.visit_id = any($1::uuid[])
+               and v.visit_id = any($1::text[])
           ),
           candidates as (
             select
@@ -315,7 +315,7 @@ async function loadObservationGallery(
               from visits v
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and v.visit_id = any($1::uuid[])
+               and v.visit_id = any($1::text[])
           ),
           field_occ as (
             select
@@ -432,7 +432,7 @@ async function loadYearlyTimeline(
             select v.*
               from visits v
              where v.observed_at is not null
-               and v.visit_id = any($1::uuid[])
+               and v.visit_id = any($1::text[])
           ),
           field_occ as (
             select o.*, fv.observed_at
@@ -484,7 +484,7 @@ async function loadSeasonalCoverage(
               from visits v
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and v.visit_id = any($1::uuid[])
+               and v.visit_id = any($1::text[])
           ),
           seasonal as (
             select case
@@ -530,7 +530,7 @@ async function loadEffortIndicators(
         `with field_visits as (
             select v.*
               from visits v
-             where v.visit_id = any($1::uuid[])
+             where v.visit_id = any($1::text[])
           ),
           observer_counts as (
             select coalesce(user_id, source_payload->>'observer_id', source_payload->>'recorded_by', 'anonymous') as observer_id,
@@ -553,7 +553,7 @@ async function loadEffortIndicators(
         `with field_visits as (
             select v.*
               from visits v
-             where v.visit_id = any($1::uuid[])
+             where v.visit_id = any($1::text[])
           )
           select array(select distinct extract(month from observed_at)::int from field_visits where observed_at is not null order by 1) as months,
                  array(select distinct extract(year from observed_at)::int from field_visits where observed_at is not null order by 1) as years`,
@@ -563,7 +563,7 @@ async function loadEffortIndicators(
         `with field_visits as (
             select v.*
               from visits v
-             where v.visit_id = any($1::uuid[])
+             where v.visit_id = any($1::text[])
           ),
           observer_share as (
             select coalesce(user_id, source_payload->>'observer_id', source_payload->>'recorded_by', 'anonymous') as observer_id,
@@ -650,7 +650,7 @@ async function loadSensitiveMasking(
         `with field_visits as (
             select v.*
               from visits v
-             where v.visit_id = any($1::uuid[])
+             where v.visit_id = any($1::text[])
           )
           select distinct lower(coalesce(o.scientific_name, '')) as scientific_name,
                  (select max(c.public_precision)
@@ -715,7 +715,7 @@ async function loadAreaWatchEvidenceStats(scopedVisitIds: string[]): Promise<Are
               from visits v
              where v.observed_at is not null
                and ${PUBLIC_OBSERVATION_QUALITY_SQL}
-               and v.visit_id = any($1::uuid[])
+               and v.visit_id = any($1::text[])
           ),
           field_occ as (
             select o.*, fv.observed_at
