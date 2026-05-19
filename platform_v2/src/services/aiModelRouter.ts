@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { logAiCost, type AiCostLayer } from "./aiCostLogger.js";
 import { estimateAiCostUsd } from "./aiModelPricing.js";
@@ -22,6 +22,9 @@ export type AiRouterGenerateRequest = {
   parts?: AiRouterPart[];
   text?: string;
   systemInstruction?: string;
+  thinkingConfig?: {
+    thinkingLevel?: "minimal" | "low" | "medium" | "high";
+  };
   responseMimeType?: "application/json" | "text/plain";
   responseJsonSchema?: unknown;
   temperature?: number;
@@ -45,6 +48,7 @@ export type AiRouterGenerateResult = {
   text: string;
   inputTokens: number;
   outputTokens: number;
+  thoughtsTokens?: number;
   costUsd: number;
 };
 
@@ -82,6 +86,16 @@ function estimateCostOrZero(model: string, inputTokens: number, outputTokens: nu
   }
 }
 
+function googleThinkingConfig(request: AiRouterGenerateRequest): { thinkingLevel?: ThinkingLevel } | undefined {
+  const level = request.thinkingConfig?.thinkingLevel;
+  if (!level) return undefined;
+  if (level === "minimal") return { thinkingLevel: ThinkingLevel.MINIMAL };
+  if (level === "low") return { thinkingLevel: ThinkingLevel.LOW };
+  if (level === "medium") return { thinkingLevel: ThinkingLevel.MEDIUM };
+  if (level === "high") return { thinkingLevel: ThinkingLevel.HIGH };
+  return undefined;
+}
+
 async function logCost(
   request: AiRouterGenerateRequest,
   result: AiRouterGenerateResult,
@@ -111,6 +125,7 @@ async function logCost(
       aiModelFallbackUsed: fallbackIndex > 0,
       aiModelChainLength: chain.length,
       aiModelChainModels: chain.map((ref) => `${ref.provider}:${ref.model}`),
+      aiModelThoughtsTokens: result.thoughtsTokens ?? 0,
     },
   }).catch(() => undefined);
 }
@@ -144,15 +159,24 @@ async function callGoogleGenAi(
     contents: [{ role: "user", parts: requestParts(request) }],
     config: {
       systemInstruction: request.systemInstruction,
+      thinkingConfig: googleThinkingConfig(request),
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
       responseMimeType: request.responseMimeType === "text/plain" ? undefined : request.responseMimeType,
       responseJsonSchema: request.responseJsonSchema,
     },
   });
-  const usage = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }).usageMetadata;
+  const usage = (response as {
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      thoughtsTokenCount?: number;
+    };
+  }).usageMetadata;
   const inputTokens = Number(usage?.promptTokenCount ?? 0);
-  const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
+  const candidateTokens = Number(usage?.candidatesTokenCount ?? 0);
+  const thoughtsTokens = Number(usage?.thoughtsTokenCount ?? 0);
+  const outputTokens = candidateTokens + thoughtsTokens;
   const text = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   return {
     provider,
@@ -160,6 +184,7 @@ async function callGoogleGenAi(
     text,
     inputTokens,
     outputTokens,
+    thoughtsTokens,
     costUsd: estimateCostOrZero(ref.model, inputTokens, outputTokens),
   };
 }

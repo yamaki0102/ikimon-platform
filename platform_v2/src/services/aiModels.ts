@@ -8,6 +8,7 @@ export type AiModelRef = {
 export const AI_MODELS = {
   geminiFlashLite: "gemini-3.1-flash-lite",
   geminiFlashImage: "gemini-3.1-flash-image-preview",
+  gemini35Flash: "gemini-3.5-flash",
   geminiFlash: "gemini-2.5-flash",
   deepseekFlash: "deepseek-v4-flash",
 } as const;
@@ -15,6 +16,7 @@ export const AI_MODELS = {
 export const AI_MODEL_CATALOG = {
   geminiFlashLite: { provider: "gemini", model: AI_MODELS.geminiFlashLite },
   geminiFlashImage: { provider: "gemini", model: AI_MODELS.geminiFlashImage },
+  gemini35Flash: { provider: "gemini", model: AI_MODELS.gemini35Flash },
   vertexFlashLite: { provider: "vertex", model: AI_MODELS.geminiFlashLite },
   vertexFlashImage: { provider: "vertex", model: AI_MODELS.geminiFlashImage },
   geminiFlash: { provider: "gemini", model: AI_MODELS.geminiFlash },
@@ -36,7 +38,7 @@ export const AI_MODEL_ROLES = {
   guideTtsTextFallback: AI_MODELS.geminiFlashLite,
   observationReassessPrimary: AI_MODELS.geminiFlashLite,
   observationReassessFallback: AI_MODELS.geminiFlashLite,
-  observationVisualExtractPrimary: AI_MODELS.geminiFlashImage,
+  observationVisualExtractPrimary: AI_MODELS.gemini35Flash,
   observationVisualExtractFallback: AI_MODELS.geminiFlashImage,
   observationVisualSummaryPrimary: AI_MODELS.geminiFlashLite,
   observationVisualSummaryFallback: AI_MODELS.geminiFlashLite,
@@ -67,7 +69,7 @@ export const AI_MODEL_ROLE_REFS = {
   guideTtsTextFallback: AI_MODEL_CATALOG.geminiFlashLite,
   observationReassessPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   observationReassessFallback: AI_MODEL_CATALOG.geminiFlashLite,
-  observationVisualExtractPrimary: AI_MODEL_CATALOG.geminiFlashImage,
+  observationVisualExtractPrimary: AI_MODEL_CATALOG.gemini35Flash,
   observationVisualExtractFallback: AI_MODEL_CATALOG.geminiFlashImage,
   observationVisualSummaryPrimary: AI_MODEL_CATALOG.geminiFlashLite,
   observationVisualSummaryFallback: AI_MODEL_CATALOG.geminiFlashLite,
@@ -90,7 +92,7 @@ export const AI_MODEL_ROLE_CHAINS = {
   guideSceneText: [AI_MODEL_ROLE_REFS.guideSceneTextPrimary],
   guideTtsText: [AI_MODEL_ROLE_REFS.guideTtsTextPrimary],
   observationReassess: [AI_MODEL_ROLE_REFS.observationReassessPrimary],
-  observationVisualExtract: [AI_MODEL_ROLE_REFS.observationVisualExtractPrimary],
+  observationVisualExtract: [AI_MODEL_ROLE_REFS.observationVisualExtractPrimary, AI_MODEL_ROLE_REFS.observationVisualExtractFallback],
   observationVisualSummary: [AI_MODEL_ROLE_REFS.observationVisualSummaryPrimary],
   observationEventQuest: [AI_MODEL_ROLE_REFS.observationEventQuestPrimary],
   observationEventArea: [AI_MODEL_ROLE_REFS.observationEventAreaPrimary],

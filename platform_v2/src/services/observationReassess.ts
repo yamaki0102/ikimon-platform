@@ -78,8 +78,17 @@ export type ReassessImageInput = {
   qualityScore?: number | null;
 };
 
+export type ReassessAudioInput = {
+  mime: string;
+  b64: string;
+  assetId?: string | null;
+  source?: string | null;
+  durationSec?: number | null;
+};
+
 export type ReassessObservationOptions = {
   photos?: ReassessImageInput[];
+  audioInputs?: ReassessAudioInput[];
   promptVersion?: string;
   sourceTag?: string;
   triggeredBy?: string | null;
@@ -180,6 +189,22 @@ type GeminiJson = {
     note?: string;
     media_regions?: GeminiRegion[];
   }>;
+  audio_events?: Array<{
+    label?: string;
+    taxon_name?: string;
+    scientific_name?: string;
+    confidence?: number;
+    time_range_sec?: [number, number];
+    evidence_note?: string;
+  }>;
+  heard_taxa?: Array<{
+    name?: string;
+    scientific_name?: string;
+    rank?: string;
+    confidence?: number;
+    evidence_note?: string;
+  }>;
+  audio_privacy_risk?: boolean;
 };
 
 type GeminiCoexistingTaxon = NonNullable<GeminiJson["coexisting_taxa"]>[number];
@@ -493,6 +518,10 @@ type LoadedPhotoInput = ReassessImageInput & {
   assetId: string | null;
 };
 
+type LoadedAudioInput = ReassessAudioInput & {
+  assetId: string | null;
+};
+
 type ResolvedObservationTarget = {
   visitId: string;
   visitLegacyObservationId: string | null;
@@ -547,9 +576,9 @@ function guessSeason(iso: string | null): string {
   return "冬";
 }
 
-function normalizeRank(r: string | undefined): "species" | "genus" | "family" | "order" | "lifeform" | "unknown" {
+function normalizeRank(r: string | undefined): "species" | "genus" | "family" | "order" | "class" | "lifeform" | "unknown" {
   const v = String(r ?? "").toLowerCase().trim();
-  if (v === "species" || v === "genus" || v === "family" || v === "order" || v === "lifeform") return v;
+  if (v === "species" || v === "genus" || v === "family" || v === "order" || v === "class" || v === "lifeform") return v;
   return "unknown";
 }
 
@@ -772,7 +801,7 @@ export function promoteCandidateReadingsToCoexistingTaxa(
   return { candidates: merged.candidates, promoted: merged.added };
 }
 
-function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[]): string {
+function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[], audioInputs: LoadedAudioInput[] = []): string {
   const hash = createHash("sha256");
   hash.update(sourceTag);
   for (const photo of photos) {
@@ -784,6 +813,18 @@ function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[]): s
     hash.update(String(photo.b64.length));
     hash.update(":");
     hash.update(photo.b64.slice(0, 64));
+  }
+  for (const audio of audioInputs) {
+    hash.update("|audio:");
+    hash.update(audio.assetId ?? "inline");
+    hash.update(":");
+    hash.update(audio.mime);
+    hash.update(":");
+    hash.update(String(audio.durationSec ?? ""));
+    hash.update(":");
+    hash.update(String(audio.b64.length));
+    hash.update(":");
+    hash.update(audio.b64.slice(0, 64));
   }
   return hash.digest("hex");
 }
@@ -811,6 +852,18 @@ function formatInputMediaSummaryForPrompt(sourceTag: string, photos: LoadedPhoto
   return `\n\n入力画像メタデータ:\n${lines.join("\n")}\n動画由来の複数フレームです。フレームはAIなしの差分・明るさ・輪郭スコアで可変選抜されています。時間差で見える対象・動き・周辺環境を総合し、領域を返す場合は該当する asset_index と frame_time_ms を使ってください。`;
 }
 
+function formatAudioEvidenceSummaryForPrompt(audioInputs: LoadedAudioInput[]): string {
+  if (audioInputs.length === 0) return "";
+  const lines = audioInputs.map((audio, index) => {
+    const duration = typeof audio.durationSec === "number" && Number.isFinite(audio.durationSec)
+      ? ` duration=${audio.durationSec.toFixed(1).replace(/\.0$/, "")}s`
+      : "";
+    const source = audio.source ? ` source=${audio.source}` : "";
+    return `- audio_index ${index}: ${audio.mime}${duration}${source}`;
+  });
+  return `\n\n入力音声メタデータ:\n${lines.join("\n")}\n音声は「聞こえる証拠」として扱い、画像に写る副対象とは混ぜないでください。聞こえた可能性のある分類群は heard_taxa / audio_events に分け、人の声や個人情報が含まれそうなら audio_privacy_risk を true にしてください。`;
+}
+
 function triggerKindForSourceTag(sourceTag: string): string {
   if (sourceTag === "video_thumb" || sourceTag === "video_frames" || sourceTag === "video_adaptive_frames") {
     return "video_ready_reassess";
@@ -834,7 +887,7 @@ async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<Load
       WHERE ea.visit_id = $1
         AND ea.asset_role = 'observation_photo'
       ORDER BY ea.created_at ASC
-      LIMIT 3`,
+      LIMIT 6`,
     [visitId],
   );
 
@@ -949,11 +1002,15 @@ function parseGeminiJson(rawText: string): GeminiJson {
 async function runSingleGeminiReassess(
   prompt: string,
   photos: ReassessImageInput[],
+  audioInputs: ReassessAudioInput[] = [],
   meta: GeminiCostMeta = {},
 ): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
   const parts: AiRouterPart[] = photos.map((photo) => ({
     inlineData: { mimeType: photo.mime, data: photo.b64 },
   }));
+  for (const audio of audioInputs) {
+    parts.push({ inlineData: { mimeType: audio.mime, data: audio.b64 } });
+  }
   parts.push({ text: prompt });
 
   const response = await generateAiTextWithRoleChain({
@@ -975,18 +1032,39 @@ async function runSingleGeminiReassess(
 async function runVisualTwoStageGemini(
   prompt: string,
   photos: ReassessImageInput[],
+  audioInputs: ReassessAudioInput[] = [],
   meta: GeminiCostMeta = {},
 ): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
   const parts: AiRouterPart[] = photos.map((photo) => ({
     inlineData: { mimeType: photo.mime, data: photo.b64 },
   }));
+  for (const audio of audioInputs) {
+    parts.push({ inlineData: { mimeType: audio.mime, data: audio.b64 } });
+  }
   parts.push({
-    text: `${prompt}\n\nまず画像・動画フレームから見える事実を最大限細かく抽出し、同じJSONスキーマで返してください。断定できない点は保留として書いてください。`,
+    text: `${prompt}
+
+ここでは保存文の完成ではなく、画像・動画フレーム・音声から読み取れる「分類インベントリ」と「根拠」だけをJSONで返してください。
+- primary は主対象として最も妥当な分類を1つ。断定しない場合も recommended_taxon_name / recommended_rank は最も有用な上位分類まで出す。
+- recommended_media_regions は主対象が見える矩形。各矩形は asset_index と rect(x,y,width,height 0-1) を必ず含める。動画フレームなら frame_time_ms も使う。
+- candidate_readings は同じ主対象の代替同定候補。副対象をここに混ぜない。
+- coexisting_taxa は主対象とは別に写る対象だけ。各対象に media_regions をできるだけ付ける。
+- audio_events / heard_taxa は音声だけで得た証拠。画像に写る副対象 coexisting_taxa に混ぜない。
+- 音声入力がある場合は、何が聞こえたかを audio_events / heard_taxa に必ず入れる。聞き取れない場合も空配列を返す。鳥声・人声・環境音を区別し、人声や個人情報が疑われる場合は audio_privacy_risk を true にする。
+- narrative / observer_boost / next_step_text / management_action_candidates は空または最小限でよい。分類と根拠領域を優先する。
+- 各説明は短くする。diagnostic_features_seen / missing_evidence は各5件まで、candidate_readings / coexisting_taxa は各6件まで。
+- トップレベルキー名は既存スキーマに合わせ、recommended_taxon_name / recommended_scientific_name / recommended_rank / confidence_band / recommended_media_regions を必ず使う。別名の primary や taxon は使わない。
+JSONのみ出力。`,
   });
   const extract = await generateAiTextWithRoleChain({
     chainName: "observationVisualExtract",
     parts,
-    retriesPerModel: 1,
+    responseMimeType: "application/json",
+    thinkingConfig: { thinkingLevel: "minimal" },
+    temperature: 0.1,
+    maxOutputTokens: 4096,
+    retriesPerModel: 2,
+    retryDelayMs: 900,
     cost: {
       layer: "hot",
       endpoint: "observation_visual_extract",
@@ -996,20 +1074,34 @@ async function runVisualTwoStageGemini(
       metadata: { sourceTag: meta.sourceTag ?? "photo" },
     },
   });
+  const audioExtract = audioInputs.length > 0
+    ? await runAudioEvidenceGemini(audioInputs, meta).catch(() => null)
+    : null;
   const summaryPrompt = `${prompt}
 
-以下は画像読取モデルが抽出した視覚証拠JSONです。この情報だけを使って、最終的な観察ページ保存用JSONを同じスキーマで作ってください。
+以下は3.5 Flashが抽出した分類・視覚・音声証拠JSONです。この情報だけを使って、最終的な観察ページ保存用JSONを同じスキーマで作ってください。
 AI単独で確定同定せず、根拠・保留点・次に撮るべき写真を明確に分けてください。
+主対象の recommended_media_regions と、副対象の media_regions は可能な限りそのまま維持してください。
+同じ主対象の代替候補は candidate_readings、別個体や背景植生は coexisting_taxa、音声だけで聞こえた対象は heard_taxa / audio_events に分離してください。
+分類名は証拠JSONにないものを新しく増やさないでください。地域文脈は補助に留め、画像・音声証拠を優先してください。
+トップレベルキー recommended_taxon_name / recommended_scientific_name / recommended_rank / confidence_band / recommended_media_regions は必ず含めてください。
+recommended_media_regions と coexisting_taxa[].media_regions は、証拠JSONにある asset_index / frame_time_ms / rect を維持してください。
+証拠JSONに audio_events / heard_taxa がある場合、最終JSONにも必ず残してください。音声入力がある場合、missing_evidence に「音声データ不足」と書かないでください。
+保存用JSONは短くしてください。narrative は日本語160字以内、simple_summary は80字以内、diagnostic_features_seen / missing_evidence / distinguishing_tips / confirm_more は各5件以内、candidate_readings / coexisting_taxa は各6件以内。根拠領域以外の長文説明は増やさないでください。
 
-視覚証拠JSON:
+証拠JSON:
 ${extract.text.slice(0, 18000)}
+${audioExtract?.rawText ? `\n\n音声専用証拠JSON:\n${audioExtract.rawText.slice(0, 6000)}` : ""}
 
 JSONのみ出力。`;
   const summary = await generateAiTextWithRoleChain({
     chainName: "observationVisualSummary",
     text: summaryPrompt,
     responseMimeType: "application/json",
-    retriesPerModel: 1,
+    temperature: 0.15,
+    maxOutputTokens: 4096,
+    retriesPerModel: 2,
+    retryDelayMs: 900,
     cost: {
       layer: "hot",
       endpoint: "observation_visual_summary",
@@ -1019,6 +1111,7 @@ JSONのみ出力。`;
       metadata: {
         sourceTag: meta.sourceTag ?? "photo",
         visualExtractModel: `${extract.provider}:${extract.model}`,
+        audioExtractModel: audioExtract ? audioExtract.modelUsed : null,
       },
     },
   });
@@ -1028,9 +1121,52 @@ JSONのみ出力。`;
     modelUsed: `${extract.model}+${summary.model}`,
     rawText: JSON.stringify({
       visual_extract: extract.text.slice(0, 12000),
+      audio_extract: audioExtract?.rawText.slice(0, 6000) ?? null,
       visual_summary: rawText.slice(0, 12000),
     }),
   };
+}
+
+async function runAudioEvidenceGemini(
+  audioInputs: ReassessAudioInput[],
+  meta: GeminiCostMeta = {},
+): Promise<{ modelUsed: string; rawText: string }> {
+  const parts: AiRouterPart[] = audioInputs.map((audio) => ({
+    inlineData: { mimeType: audio.mime, data: audio.b64 },
+  }));
+  parts.push({
+    text: `音声だけから、将来の再解析に残す証拠を短いJSONで返してください。
+- 鳥声・虫の声・カエル声・哺乳類・人声・機械音・水音・風などを分ける。
+- taxon_name / scientific_name は確信がある場合だけ。上位分類や「鳥類の鳴き声」でもよい。
+- audio_events は聞こえたイベントを時系列で最大6件。
+- heard_taxa は分類群候補を最大5件。音だけなので confidence は控えめに。
+- 人の声や個人情報が疑われる場合は audio_privacy_risk を true。
+JSONのみ:
+{
+  "audio_events": [{"label": "鳥のさえずり", "taxon_name": "", "scientific_name": "", "confidence": 0.5, "time_range_sec": [0, 3], "evidence_note": "短い説明"}],
+  "heard_taxa": [{"name": "鳥類", "scientific_name": "Aves", "rank": "class", "confidence": 0.5, "evidence_note": "短い説明"}],
+  "audio_privacy_risk": false
+}`,
+  });
+  const response = await generateAiTextWithRoleChain({
+    chainName: "observationVisualExtract",
+    parts,
+    responseMimeType: "application/json",
+    thinkingConfig: { thinkingLevel: "minimal" },
+    temperature: 0.1,
+    maxOutputTokens: 2048,
+    retriesPerModel: 2,
+    retryDelayMs: 900,
+    cost: {
+      layer: "hot",
+      endpoint: "observation_audio_extract",
+      userId: meta.userId ?? null,
+      visitId: meta.visitId ?? null,
+      occurrenceId: meta.occurrenceId ?? null,
+      metadata: { sourceTag: meta.sourceTag ?? "audio" },
+    },
+  });
+  return { modelUsed: response.model, rawText: response.text || "{}" };
 }
 
 async function runVisualSubjectRescue(
@@ -1107,14 +1243,15 @@ JSONのみ:
 async function runGemini(
   prompt: string,
   photos: ReassessImageInput[],
+  audioInputs: ReassessAudioInput[] = [],
   meta: GeminiCostMeta = {},
 ): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
   // Hot-layer budget gate: throws AiBudgetExceededError when monthly cap reached.
   await assertAiBudgetAllowed("hot");
-  if (photos.length > 0) {
-    return runVisualTwoStageGemini(prompt, photos, meta);
+  if (photos.length > 0 || audioInputs.length > 0) {
+    return runVisualTwoStageGemini(prompt, photos, audioInputs, meta);
   }
-  return runSingleGeminiReassess(prompt, photos, meta);
+  return runSingleGeminiReassess(prompt, photos, audioInputs, meta);
 }
 
 /**
@@ -1185,8 +1322,25 @@ export async function reassessObservation(
     const photos = overridePhotos.length > 0
       ? overridePhotos
       : await loadPhotoBytes(client, target.visitId);
-    if (photos.length === 0) {
-      throw new Error("no_photo_for_reassess");
+    const audioInputs: LoadedAudioInput[] = Array.isArray(options.audioInputs)
+      ? options.audioInputs
+          .filter((audio) =>
+            typeof audio?.mime === "string" &&
+            (audio.mime.trim().startsWith("audio/") || audio.mime.trim().startsWith("video/")) &&
+            typeof audio.b64 === "string" &&
+            audio.b64.trim().length > 0,
+          )
+          .map((audio) => ({
+            ...audio,
+            assetId: audio.assetId ?? null,
+            source: audio.source ?? null,
+            durationSec: typeof audio.durationSec === "number" && Number.isFinite(audio.durationSec)
+              ? audio.durationSec
+              : null,
+          }))
+      : [];
+    if (photos.length === 0 && audioInputs.length === 0) {
+      throw new Error("no_media_for_reassess");
     }
 
     const hasCoordinates = typeof vctx.latitude === "number" &&
@@ -1231,6 +1385,7 @@ export async function reassessObservation(
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
       .map((p) => p.assetId ?? null)
+      .concat(audioInputs.map((audio) => audio.assetId ?? null))
       .filter((id): id is string => typeof id === "string" && id.length > 0)
       .slice()
       .sort();
@@ -1248,6 +1403,7 @@ export async function reassessObservation(
     const cacheEligible =
       cacheUserId !== null &&
       overridePhotos.length === 0 &&
+      audioInputs.length === 0 &&
       cacheAssetIds.length > 0;
     const cacheKey = cacheEligible
       ? buildCacheKey({
@@ -1294,9 +1450,9 @@ export async function reassessObservation(
       profileDigestSummary: profileDigest.summary,
       observationPackageSummary,
       knowledgeClaimsContext: formatClaimRefsForPrompt(branchClaimRefs),
-    }) + formatInputMediaSummaryForPrompt(sourceTag, photos);
+    }) + formatInputMediaSummaryForPrompt(sourceTag, photos) + formatAudioEvidenceSummaryForPrompt(audioInputs);
 
-    const { parsed, modelUsed, rawText } = await runGemini(prompt, photos, {
+    const { parsed, modelUsed, rawText } = await runGemini(prompt, photos, audioInputs, {
       userId: options.triggeredBy ?? null,
       visitId: target.visitId,
       occurrenceId: target.primaryOccurrenceId,
@@ -1509,7 +1665,7 @@ export async function reassessObservation(
       modelVersion: modelUsed,
       promptVersion,
       taxonomyVersion: TAXONOMY_VERSION,
-      inputAssetFingerprint: buildAssetFingerprint(sourceTag, photos),
+      inputAssetFingerprint: buildAssetFingerprint(sourceTag, photos, audioInputs),
       triggerKind: triggerKindForSourceTag(sourceTag),
       triggeredBy: options.triggeredBy ?? null,
       supersedesRunId: previousRun?.aiRunId ?? null,
@@ -1518,6 +1674,7 @@ export async function reassessObservation(
         sourceTag,
         selectedOccurrenceId: target.selectedOccurrenceId,
         photoCount: photos.length,
+        audioCount: audioInputs.length,
         visualEvidence: photos
           .filter((photo) => photo.frameTimeMs != null || photo.selectionScore != null || photo.selectionReason)
           .map((photo, index) => ({
@@ -1529,6 +1686,14 @@ export async function reassessObservation(
             differenceScore: photo.differenceScore ?? null,
             qualityScore: photo.qualityScore ?? null,
           })),
+        audioEvidence: audioInputs.map((audio, index) => ({
+          audioIndex: index,
+          assetId: audio.assetId ?? null,
+          mime: audio.mime,
+          source: audio.source ?? null,
+          durationSec: audio.durationSec ?? null,
+          byteLengthApprox: Math.round((audio.b64.length * 3) / 4),
+        })),
         knowledgeVersionSet,
         navigableOs: {
           branch: "feedback_contract",

@@ -1,12 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AI_MODEL_PRICING, CURATOR_DEFAULT_MODEL, estimateAiCostUsd } from "./aiModelPricing.js";
-import { CURATOR_DEEPSEEK_MODEL } from "./aiModels.js";
+import { AI_MODELS, CURATOR_DEEPSEEK_MODEL } from "./aiModels.js";
 
 test("curator default pricing uses Gemini 3.1 Flash-Lite official rate", () => {
   assert.equal(CURATOR_DEFAULT_MODEL, "gemini-3.1-flash-lite");
   assert.equal(AI_MODEL_PRICING[CURATOR_DEFAULT_MODEL]?.inputUsdPer1M, 0.25);
   assert.equal(AI_MODEL_PRICING[CURATOR_DEFAULT_MODEL]?.outputUsdPer1M, 1.5);
+});
+
+test("Gemini 3.5 Flash pricing counts thoughts as output-priced tokens", () => {
+  assert.equal(AI_MODEL_PRICING[AI_MODELS.gemini35Flash]?.inputUsdPer1M, 1.5);
+  assert.equal(AI_MODEL_PRICING[AI_MODELS.gemini35Flash]?.outputUsdPer1M, 9);
+  assert.equal(estimateAiCostUsd({
+    model: AI_MODELS.gemini35Flash,
+    inputTokens: 1_000_000,
+    outputTokens: 1_000_000,
+  }), 10.5);
 });
 
 test("DeepSeek V4 Flash pricing uses cache miss and cache hit rates separately", () => {

@@ -1,3 +1,9 @@
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 import { getPool } from "../db.js";
 import { reassessObservation, type ReassessResult } from "./observationReassess.js";
 import {
@@ -13,6 +19,7 @@ type VideoThumbTarget = {
   occurrenceId: string;
   assetId: string;
   thumbnailUrl: string;
+  streamUid: string | null;
   durationMs: number | null;
 };
 
@@ -23,6 +30,8 @@ export type ReassessFromVideoThumbResult = ReassessResult & {
   frameCount: number;
   frameTimesMs: number[];
   selectionStrategy: "adaptive" | "fallback";
+  audioTrackIncluded: boolean;
+  audioTrackError: string | null;
   selectedFrames: Array<{
     frameTimeMs: number;
     selectionScore: number;
@@ -31,6 +40,8 @@ export type ReassessFromVideoThumbResult = ReassessResult & {
     qualityScore: number;
   }>;
 };
+
+const execFileAsync = promisify(execFile);
 
 function normalizeImageMime(value: string | null): string {
   const normalized = (String(value ?? "").split(";")[0] ?? "")
@@ -76,6 +87,19 @@ export function buildVideoFrameUrl(thumbnailUrl: string, frameTimeMs: number, he
     url.searchParams.set("height", "720");
   }
   return url.toString();
+}
+
+export function buildCloudflareStreamManifestUrl(thumbnailUrl: string, streamUid: string | null = null): string | null {
+  let url: URL;
+  try {
+    url = new URL(thumbnailUrl);
+  } catch {
+    return null;
+  }
+  const parts = url.pathname.split("/").filter(Boolean);
+  const parsedUid = streamUid || parts[0] || null;
+  if (!parsedUid) return null;
+  return `${url.origin}/${parsedUid}/manifest/video.m3u8`;
 }
 
 async function fetchVideoFrame(thumbnailUrl: string, frameTimeMs: number, height: number): Promise<{
@@ -153,6 +177,7 @@ async function resolveVideoThumbTarget(observationId: string): Promise<VideoThum
     occurrence_id: string;
     asset_id: string;
     thumbnail_url: string | null;
+    stream_uid: string | null;
     duration_ms: string | number | null;
   }>(
     `select
@@ -163,6 +188,11 @@ async function resolveVideoThumbTarget(observationId: string): Promise<VideoThum
           video.blob_source_payload ->> 'thumbnail_url',
           nullif(video.public_url, '')
         ) as thumbnail_url,
+        coalesce(
+          video.asset_source_payload ->> 'stream_uid',
+          video.blob_source_payload ->> 'stream_uid',
+          vur.stream_uid
+        ) as stream_uid,
         coalesce(
           case when (video.asset_source_payload ->> 'duration_ms') ~ '^[0-9]+$'
             then (video.asset_source_payload ->> 'duration_ms')::bigint
@@ -209,8 +239,64 @@ async function resolveVideoThumbTarget(observationId: string): Promise<VideoThum
     occurrenceId: row.occurrence_id,
     assetId: row.asset_id,
     thumbnailUrl: row.thumbnail_url,
+    streamUid: row.stream_uid,
     durationMs: row.duration_ms == null ? null : Number(row.duration_ms),
   };
+}
+
+async function extractAudioTrackForGemini(target: VideoThumbTarget): Promise<{
+  mime: string;
+  b64: string;
+  durationSec: number | null;
+  error: string | null;
+}> {
+  const manifestUrl = buildCloudflareStreamManifestUrl(target.thumbnailUrl, target.streamUid);
+  if (!manifestUrl) {
+    return { mime: "", b64: "", durationSec: null, error: "stream_manifest_unavailable" };
+  }
+  const dir = path.join(tmpdir(), "ikimon-video-audio");
+  await mkdir(dir, { recursive: true });
+  const outPath = path.join(dir, `${randomUUID()}.wav`);
+  try {
+    const maxSec = Math.max(3, Math.min(20, Math.ceil(Number(target.durationMs ?? 20_000) / 1000)));
+    await execFileAsync(process.env.FFMPEG_PATH?.trim() || "ffmpeg", [
+      "-y",
+      "-loglevel",
+      "error",
+      "-i",
+      manifestUrl,
+      "-vn",
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-t",
+      String(maxSec),
+      outPath,
+    ], { timeout: 45_000, maxBuffer: 512 * 1024 });
+    const bytes = await readFile(outPath);
+    if (bytes.byteLength <= 0) {
+      return { mime: "", b64: "", durationSec: null, error: "audio_track_empty" };
+    }
+    if (bytes.byteLength > 8 * 1024 * 1024) {
+      return { mime: "", b64: "", durationSec: null, error: "audio_track_too_large" };
+    }
+    return {
+      mime: "audio/wav",
+      b64: bytes.toString("base64"),
+      durationSec: maxSec,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      mime: "",
+      b64: "",
+      durationSec: null,
+      error: error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160),
+    };
+  } finally {
+    await rm(outPath, { force: true }).catch(() => undefined);
+  }
 }
 
 export async function reassessFromVideoThumb(observationId: string): Promise<ReassessFromVideoThumbResult> {
@@ -240,6 +326,21 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
   if (frames.length === 0) {
     throw new Error("video_frame_fetch_failed");
   }
+  const audioTrack = await extractAudioTrackForGemini(target).catch((error) => ({
+    mime: "",
+    b64: "",
+    durationSec: null,
+    error: error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160),
+  }));
+  const audioInputs = audioTrack.b64
+    ? [{
+        mime: audioTrack.mime,
+        b64: audioTrack.b64,
+        assetId: target.assetId,
+        source: "video_audio_track",
+        durationSec: audioTrack.durationSec,
+      }]
+    : [];
 
   const reassess = await reassessObservation(target.occurrenceId, {
     photos: frames.map((frame) => ({
@@ -252,7 +353,8 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
       differenceScore: Math.max(frame.selection.diffScore, frame.selection.colorDiffScore),
       qualityScore: frame.selection.qualityScore,
     })),
-    promptVersion: "observation_reassess.md/v5.4+video_adaptive_frames",
+    audioInputs,
+    promptVersion: "observation_reassess.md/v5.6+video_adaptive_frames_audio",
     sourceTag: "video_adaptive_frames",
   });
 
@@ -264,6 +366,8 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
     frameCount: frames.length,
     frameTimesMs: frames.map((frame) => frame.frameTimeMs),
     selectionStrategy: selected.strategy,
+    audioTrackIncluded: audioInputs.length > 0,
+    audioTrackError: audioInputs.length > 0 ? null : audioTrack.error,
     selectedFrames: frames.map((frame) => ({
       frameTimeMs: frame.frameTimeMs,
       selectionScore: frame.selection.selectionScore,
