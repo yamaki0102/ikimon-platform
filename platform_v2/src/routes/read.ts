@@ -1563,7 +1563,12 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-frame-identify-candidates { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 1px; scrollbar-width: none; }
   .obs-frame-identify-candidates::-webkit-scrollbar { display: none; }
   .obs-frame-candidate { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 6px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(16,185,129,.24); color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 950; }
+  .obs-frame-candidate strong { min-width: 0; color: #0f172a; font: inherit; overflow-wrap: anywhere; }
   .obs-frame-candidate span { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: #fff7ed; border: 1px solid rgba(245,158,11,.22); color: #92400e; font-size: 9.5px; font-weight: 950; }
+  .obs-frame-candidate-current { display: none; align-items: center; min-height: 19px; padding: 2px 7px; border-radius: 999px; background: #047857; color: #fff; font-size: 9.5px; line-height: 1; font-weight: 950; white-space: nowrap; }
+  .obs-frame-candidate.is-current { border-color: rgba(4,120,87,.7); background: #ecfdf5; box-shadow: inset 0 0 0 2px rgba(4,120,87,.18), 0 8px 18px rgba(4,120,87,.11); }
+  .obs-frame-candidate.is-current span { background: #fff; border-color: rgba(4,120,87,.22); color: #065f46; }
+  .obs-frame-candidate.is-current .obs-frame-candidate-current { display: inline-flex; }
   .obs-frame-identify-card .obs-ai-actions { padding: 9px; border-radius: 12px; background: rgba(255,255,255,.72); }
   .obs-ai-actions { display: grid; gap: 7px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.07); }
   .obs-ai-actions-label { color: #64748b; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .06em; text-transform: uppercase; }
@@ -2028,6 +2033,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-frame-candidate-meter { display: none !important; }
   .obs-frame-identify-candidates { display: flex !important; flex-wrap: wrap !important; min-width: 0 !important; max-width: 100% !important; gap: 6px !important; overflow: hidden !important; padding: 0 !important; }
   .obs-frame-candidate { flex: 1 1 min(100%, 150px) !important; min-width: 0 !important; max-width: 100% !important; min-height: 34px !important; padding: 7px 10px !important; border-radius: 12px !important; border-color: rgba(15,118,110,.22) !important; background: #fff !important; font-size: 12px !important; white-space: normal !important; overflow-wrap: anywhere !important; text-align: left !important; }
+  .obs-frame-candidate.is-current { border-color: rgba(4,120,87,.72) !important; background: #ecfdf5 !important; box-shadow: inset 0 0 0 2px rgba(4,120,87,.2), 0 8px 18px rgba(4,120,87,.11) !important; }
   .obs-frame-candidate span { flex: 0 0 auto !important; min-height: 18px !important; padding: 2px 6px !important; font-size: 9.5px !important; white-space: nowrap !important; }
   .obs-frame-identify-card .obs-ai-actions { display: grid !important; grid-template-columns: auto minmax(0,1fr) !important; align-items: center !important; gap: 9px !important; padding: 9px !important; border-radius: 14px !important; background: rgba(255,255,255,.86) !important; border: 1px solid rgba(15,23,42,.07) !important; }
   .obs-frame-identify-card .obs-ai-actions-label { display: none !important; }
@@ -5844,7 +5850,7 @@ function renderIdentificationCandidateSwitch(options: {
 
   const chips = candidates.map((candidate, index) => {
     const className = `obs-frame-candidate${candidate.isCurrent ? " is-current" : ""}${candidate.isWeak ? " is-weak" : ""}`;
-    const body = `${escapeHtml(candidate.label)}<span>${escapeHtml(candidate.status)}</span>`;
+    const body = `<strong>${escapeHtml(candidate.label)}</strong><span>${escapeHtml(candidate.status)}</span><small class="obs-frame-candidate-current">選択中</small>`;
     if (candidate.href && !candidate.isCurrent) {
       const subjectAttrs = candidate.subjectId
         ? ` data-subject-switch="1" data-subject-id="${escapeHtml(candidate.subjectId)}"`
@@ -5854,7 +5860,7 @@ function renderIdentificationCandidateSwitch(options: {
     const targetAttrs = candidate.panelKey
       ? ` data-ai-target="${escapeHtml(candidate.panelKey)}" data-ai-candidate-index="${escapeHtml(String(index + 1))}" data-ai-candidate-total="${escapeHtml(String(candidates.length))}"`
       : "";
-    return `<button class="${className}" type="button"${targetAttrs} aria-pressed="${candidate.isCurrent ? "true" : "false"}">${body}</button>`;
+    return `<button class="${className}" type="button"${targetAttrs} aria-pressed="${candidate.isCurrent ? "true" : "false"}"${candidate.isCurrent ? ' aria-current="true"' : ""}>${body}</button>`;
   }).join("");
 
   return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}">
@@ -6962,6 +6968,7 @@ export function renderLocalObservationPolishScript(): string {
       Array.prototype.slice.call(document.querySelectorAll('[data-ai-target]')).forEach(function(item){
         var isActive = item.getAttribute('data-ai-target') === key;
         item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        if (isActive) item.setAttribute('aria-current', 'true'); else item.removeAttribute('aria-current');
         item.classList.toggle('is-current', isActive);
         if (isActive && (!activeButton || (!activeButton.getAttribute('data-ai-candidate-index') && item.getAttribute('data-ai-candidate-index')))) activeButton = item;
       });

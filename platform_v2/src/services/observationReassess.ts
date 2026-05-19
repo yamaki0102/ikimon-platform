@@ -624,6 +624,24 @@ function isUnhelpfulGenericCandidateName(value: unknown): boolean {
   return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|構成種[:：]?|植栽低木$/iu.test(text);
 }
 
+function isAlternativeIdentificationRole(value: unknown): boolean {
+  const text = normalizeCandidateName(value);
+  if (!text) return false;
+  return /比較候補|別候補|代替候補|類似候補|同定候補|分類候補|混同|似ている|同じ対象|同一対象|same subject|alternative/i.test(text);
+}
+
+function isSeparateVisualSubjectRole(value: unknown): boolean {
+  const text = normalizeCandidateName(value);
+  if (!text) return false;
+  return /副対象|別対象|別個体|一緒に写|同場面|背景|植生|草本|木本|地表|足元|周囲|花に来た虫|訪花|昆虫|ハチ|ハエ|甲虫|チョウ|クモ|幼虫|食痕|虫こぶ|寄生|摂食|写り込|グランドカバー/u.test(text);
+}
+
+function looksLikeAlternativeIdentificationCandidate(candidate: GeminiCoexistingTaxon): boolean {
+  const roleText = [candidate.note, candidate.name].map(normalizeCandidateName).filter(Boolean).join(" / ");
+  if (!isAlternativeIdentificationRole(roleText)) return false;
+  return !Array.isArray(candidate.media_regions) || candidate.media_regions.length === 0;
+}
+
 function coexistingCandidateKey(candidate: GeminiCoexistingTaxon): string {
   const rank = normalizeRank(candidate.rank);
   return buildCandidateKey(
@@ -649,6 +667,8 @@ function isSameAsPrimaryCandidate(candidate: {
 
 function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): GeminiCoexistingTaxon | null {
   const name = normalizeCandidateName(reading.name);
+  const role = normalizeCandidateName(reading.role);
+  if (!isSeparateVisualSubjectRole(role) || isAlternativeIdentificationRole(role)) return null;
   const local = lookupLocalTaxonName(name);
   const scientificName = normalizeCandidateName(reading.scientific_name) || local?.scientificName || "";
   if (!name && !scientificName) return null;
@@ -665,7 +685,7 @@ function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): Gem
     scientific_name: scientificName,
     rank: rank === "unknown" || (rank === "lifeform" && local) ? local?.rank ?? "lifeform" : rank,
     confidence: 0.45,
-    note: [normalizeCandidateName(reading.role), ...visible, ...weak].filter(Boolean).join(" / ").slice(0, 240),
+    note: [role, ...visible, ...weak].filter(Boolean).join(" / ").slice(0, 240),
     media_regions: [],
   };
 }
@@ -713,6 +733,7 @@ function mergeCoexistingCandidates(
     const scientificName = normalizeCandidateName(enriched.scientific_name);
     if (!name && !scientificName) return false;
     if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
+    if (looksLikeAlternativeIdentificationCandidate(enriched)) return false;
     if (isSameAsPrimaryCandidate(enriched, primary)) return false;
     const key = coexistingCandidateKey(enriched) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
     if (!key || seen.has(key)) return false;
