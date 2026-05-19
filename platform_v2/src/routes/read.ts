@@ -3659,23 +3659,9 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
         var subjectId = button.getAttribute('data-ai-grounding-subject') || '';
         var candidateId = button.getAttribute('data-ai-grounding-candidate') || '';
         if (!assetId) return;
-        var thumb = document.querySelector('.obs-hero-thumb[data-obs-thumb-asset-id="' + cssEscape(assetId) + '"]');
-        if (thumb && !thumb.classList.contains('is-active')) thumb.click();
-        window.setTimeout(function(){
-          var selector = subjectId
-            ? '[data-annotation-subject-id="' + cssEscape(subjectId) + '"]'
-            : candidateId
-              ? '[data-annotation-candidate-id="' + cssEscape(candidateId) + '"]'
-              : '';
-          if (!selector) return;
-          document.querySelectorAll('.obs-annotation-target.is-annotation-focus').forEach(function(node){
-            node.classList.remove('is-annotation-focus');
-          });
-          var target = document.querySelector(selector);
-          if (!target) return;
-          target.classList.add('is-annotation-focus');
-          if (typeof target.focus === 'function') target.focus({ preventScroll: true });
-        }, 80);
+        window.dispatchEvent(new CustomEvent('ikimon:focus-media-annotation', {
+          detail: { assetId: assetId, subjectId: subjectId, candidateId: candidateId }
+        }));
       };
       root.addEventListener('click', function(event){
         var groundingButton = event.target && event.target.closest ? event.target.closest('[data-ai-grounding-asset]') : null;

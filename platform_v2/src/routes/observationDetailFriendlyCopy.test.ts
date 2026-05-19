@@ -837,12 +837,14 @@ test("media annotations can be focused from AI evidence without taking over the 
   assert.match(mediaSource, /data-annotation-candidate-id/);
   assert.match(mediaSource, /obs-video-annotation-rail/);
   assert.match(mediaSource, /summary\.hidden = true/);
-  assert.match(mediaSource, /firstAnnotationHtml/);
+  assert.match(mediaSource, /templatesHtml/);
+  assert.match(mediaSource, /setPreviewAnnotations/);
   assert.match(mediaSource, /previewAnnotations\.hidden = !annotationHtml/);
   assert.match(routeSource, /buildObservationMediaAnnotationTargets/);
   assert.match(routeSource, /renderObservationMedia\(snapshot,\s*currentSubject,\s*mediaAnnotationTargets/s);
   assert.match(routeSource, /data-ai-grounding-asset/);
   assert.match(routeSource, /focusGrounding/);
+  assert.match(routeSource, /ikimon:focus-media-annotation/);
   assert.match(routeSource, /data-proposal-focus/);
   assert.match(routeSource, /regionSummary\.hidden = true/);
 });
