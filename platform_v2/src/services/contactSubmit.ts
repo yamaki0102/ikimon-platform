@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { getPool } from "../db.js";
 
 export type ContactSubmitInput = {
@@ -14,6 +14,7 @@ export type ContactSubmitInput = {
   userId?: string | null;
   website?: string;
   spamTrap?: string;
+  contactProof?: string;
 };
 
 export type ContactSubmitResult = {
@@ -24,6 +25,9 @@ export type ContactSubmitResult = {
 
 const ADMIN_TO = "yamaki0102@gmail.com";
 const NOREPLY_FROM = "ikimon <noreply@ikimon.life>";
+const CONTACT_PROOF_VERSION = "v1";
+const CONTACT_PROOF_MIN_AGE_MS = 2_500;
+const CONTACT_PROOF_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 const CATEGORY_LABELS: Record<string, { icon: string; label: string; reply: string }> = {
   bug:         { icon: "🐛", label: "バグ報告",   reply: "バグ報告をいただきありがとうございます。\n詳細を確認し、修正に向けて取り組みます。" },
@@ -40,6 +44,51 @@ const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS);
 function sanitize(value: string | undefined | null, maxLength = 4000): string {
   if (!value) return "";
   return String(value).replace(/\u0000/g, "").slice(0, maxLength).trim();
+}
+
+function contactProofSecret(): string {
+  return (
+    process.env.CONTACT_FORM_SECRET?.trim()
+    || process.env.V2_OAUTH_STATE_SECRET?.trim()
+    || process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim()
+    || "ikimon-contact-form-local-dev-secret"
+  );
+}
+
+function signContactProof(issuedAtMs: number, nonce: string): string {
+  return createHmac("sha256", contactProofSecret())
+    .update(`${CONTACT_PROOF_VERSION}.${issuedAtMs}.${nonce}`)
+    .digest("base64url");
+}
+
+function signaturesMatch(actual: string, expected: string): boolean {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+export function createContactProof(nowMs = Date.now()): string {
+  const nonce = randomBytes(12).toString("base64url");
+  const signature = signContactProof(nowMs, nonce);
+  return `${CONTACT_PROOF_VERSION}.${nowMs}.${nonce}.${signature}`;
+}
+
+export function verifyContactProof(rawProof: string | undefined | null, nowMs = Date.now()): boolean {
+  const proof = sanitize(rawProof, 300);
+  const [version, issuedAtRaw, nonce, signature, extra] = proof.split(".");
+  if (extra !== undefined || version !== CONTACT_PROOF_VERSION || !issuedAtRaw || !nonce || !signature) {
+    return false;
+  }
+  const issuedAtMs = Number.parseInt(issuedAtRaw, 10);
+  if (!Number.isFinite(issuedAtMs)) {
+    return false;
+  }
+  const ageMs = nowMs - issuedAtMs;
+  if (ageMs < CONTACT_PROOF_MIN_AGE_MS || ageMs > CONTACT_PROOF_MAX_AGE_MS) {
+    return false;
+  }
+  const expected = signContactProof(issuedAtMs, nonce);
+  return signaturesMatch(signature, expected);
 }
 
 function sanitizeHeaderValue(value: string): string {

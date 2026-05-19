@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, langFromPathPrefix, type SiteLang } from "../i18n.js";
 import { getShortCopy, renderLongformPage } from "../content/index.js";
+import { createContactProof } from "../services/contactSubmit.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import {
   legacyRedirectEntries,
@@ -117,6 +118,7 @@ function renderAfterActions(basePath: string, lang: SiteLang, actions?: Array<{ 
 function renderContactForm(basePath: string, lang: SiteLang): string {
   const copy = getShortCopy<ContactFormCopy>(lang, "public", "contactForm");
   const submitEndpoint = withBasePath(basePath, "/api/v1/contact/submit");
+  const contactProof = createContactProof();
   const optionsHtml = copy.categories
     .map((category) => `<option value="${escapeHtml(category.value)}">${escapeHtml(category.label)}</option>`)
     .join("");
@@ -135,8 +137,14 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
       .cf-form .cf-status { font-size: 13px; color: #4b5563; }
       .cf-form .cf-status.cf-err { color: #dc2626; font-weight: 700; }
       .cf-form .cf-status.cf-ok { color: #16a34a; font-weight: 700; }
+      .cf-form .cf-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
     </style>
     <form class="cf-form" id="cf-form" onsubmit="return false;">
+      <div class="cf-trap" aria-hidden="true">
+        <label>Website <input name="website" type="text" tabindex="-1" autocomplete="off" /></label>
+        <label>Leave this empty <input name="spamTrap" type="text" tabindex="-1" autocomplete="off" /></label>
+      </div>
+      <input name="contactProof" type="hidden" value="${escapeHtml(contactProof)}" />
       <label><span class="cf-required">${escapeHtml(copy.fields.category)}</span>
         <select name="category" required>${optionsHtml}</select>
       </label>
@@ -179,7 +187,10 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
             organization: fd.get('organization') || '',
             email: fd.get('email') || '',
             sourceUrl: location.href,
-            userAgent: navigator.userAgent
+            userAgent: navigator.userAgent,
+            website: fd.get('website') || '',
+            spamTrap: fd.get('spamTrap') || '',
+            contactProof: fd.get('contactProof') || ''
           };
           try {
             var res = await fetch(${JSON.stringify(submitEndpoint)}, {
@@ -1302,8 +1313,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       if (isLanguagePrefixedRequest(url) && !availableLangs.includes(lang)) {
         return reply.redirect(appendLangToHref(withBasePath(basePath, "/"), lang), 302);
       }
-      const prependHtml = page.marketing?.prepend === "contactForm" ? renderContactForm(basePath, lang) : "";
+      const hasContactForm = page.marketing?.prepend === "contactForm";
+      const prependHtml = hasContactForm ? renderContactForm(basePath, lang) : "";
       reply.type("text/html; charset=utf-8");
+      if (hasContactForm) {
+        reply.header("Cache-Control", "no-store");
+      }
       return renderPageDocument(
         basePath,
         lang,

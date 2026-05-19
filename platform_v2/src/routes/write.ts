@@ -36,7 +36,7 @@ import {
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { updateOwnProfile, upsertUser, type ProfileSelfUpdateInput, type UserUpsertInput } from "../services/userWrite.js";
-import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
+import { submitContact, verifyContactProof, type ContactSubmitInput } from "../services/contactSubmit.js";
 import {
   createVideoDirectUpload,
   finalizeVideoUpload,
@@ -1216,6 +1216,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           notificationSent: false,
           autoReplySent: false,
         };
+      }
+      if (!verifyContactProof(body.contactProof)) {
+        reply.code(400);
+        return { ok: false, error: "contact_antispam_failed" };
       }
       const result = await submitContact({
         category: body.category,
