@@ -625,7 +625,7 @@ export async function seedStagingRegressionFixtures(
           candidateKey: "surrounding-grass",
           vernacularName: "イネ科の一種",
           scientificName: null,
-          taxonRank: "lifeform",
+          taxonRank: "family",
           confidenceScore: 0.56,
           note: "群落の周囲に細い葉の草が混じる",
         },
