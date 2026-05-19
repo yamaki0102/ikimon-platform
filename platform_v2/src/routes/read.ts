@@ -2198,6 +2198,7 @@ function visibleRecordRead(item: VisibleRecordItem): { role: string; badge: stri
 function observationDetailUiName(value: string | null | undefined): string {
   const name = String(value ?? "").trim();
   if (name === ["イネ科", "植物"].join("")) return "イネ科";
+  if (name === "倍脚綱 (ヤスデ網)") return "倍脚綱 (ヤスデ綱)";
   return name;
 }
 
@@ -2209,6 +2210,11 @@ function subjectIdentificationRank(subject: ObservationVisitSubject): string {
 
 function subjectIdentificationName(subject: ObservationVisitSubject): string {
   return observationDetailUiName(subject.aiAssessment?.recommendedTaxonName || subject.displayName || subject.vernacularName || subject.scientificName || "");
+}
+
+function candidateStatusWithRank(rank: string | null | undefined, status: string): string {
+  const rankLabel = rank ? rankLabelJa(rank) : "";
+  return rankLabel ? `${rankLabel} / ${status}` : status;
 }
 
 function looksLikeTaxonName(value: string): boolean {
@@ -3290,7 +3296,7 @@ function renderHeroSceneCandidateTargets(currentSubject: ObservationVisitSubject
   const chips = tabSubjects.map((subject) => {
     const name = subjectIdentificationName(subject) || "名前確認中";
     const statusClass = subject.identificationCount > 0 ? " is-confirmed" : "";
-    const status = subject.identificationCount > 0 ? "確認あり" : "確認待ち";
+    const status = candidateStatusWithRank(subjectIdentificationRank(subject), subject.identificationCount > 0 ? "確認あり" : "確認待ち");
     const isCurrent = subject.occurrenceId === currentSubject.occurrenceId;
     const href = `?subject=${encodeURIComponent(subject.occurrenceId)}`;
     const body = `<span>${escapeHtml(name)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(status)}</span>`;
@@ -3316,16 +3322,88 @@ function renderHeroAiCandidateTargets(bundle: ObservationVisitBundle | null): st
     )
     .slice(0, 4);
   if (candidates.length === 0) return "";
-  const chips = candidates.map((candidate) => {
-    const status = typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補";
+  const chips = candidates.map((candidate, index) => {
+    const status = candidateStatusWithRank(candidate.rank, typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補");
     const body = `<span>${escapeHtml(observationDetailUiName(candidate.displayName))}</span><span class="obs-ai-target-status">${escapeHtml(status)}</span>`;
     if (candidate.suggestedOccurrenceId && bundle.subjects.some((subject) => subject.occurrenceId === candidate.suggestedOccurrenceId)) {
       const href = `?subject=${encodeURIComponent(candidate.suggestedOccurrenceId)}`;
       return `<a class="obs-ai-target-chip" href="${escapeHtml(href)}" data-subject-switch="1" data-subject-id="${escapeHtml(candidate.suggestedOccurrenceId)}" aria-pressed="false">${body}</a>`;
     }
-    return `<button class="obs-ai-target-chip" type="button" aria-pressed="false">${body}</button>`;
+    return `<button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(aiCandidatePanelKey(candidate))}" data-ai-candidate-index="${escapeHtml(String(index + 2))}" data-ai-candidate-total="${escapeHtml(String(candidates.length + 1))}" aria-pressed="false">${body}</button>`;
   }).join("");
   return `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">${chips}</div>`;
+}
+
+function aiCandidatePanelKey(candidate: Pick<ObservationVisitCandidate, "candidateId">): string {
+  return `candidate:${candidate.candidateId}`;
+}
+
+function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, readingMap: Map<string, CandidateReading>): string {
+  const candidateName = observationDetailUiName(candidate.displayName);
+  const sourceReading = findCandidateReading(readingMap, [candidate.displayName, candidateName, candidate.scientificName])
+    ?? fallbackCandidateReadingForSubject({
+      name: candidateName,
+      rank: candidate.rank,
+      focusReason: candidate.note,
+    });
+  const features = (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [candidate.note || "写真内の形や位置から候補として残っています。"])
+    .map((item) => friendlyObservationText(item, 54))
+    .filter(Boolean)
+    .slice(0, 3);
+  const weakPoints = (sourceReading.weakPoints?.length
+    ? sourceReading.weakPoints
+    : [candidate.rank ? `${publicRankHint(candidate.rank) || rankLabelJa(candidate.rank)}までの候補です。細部が増えると人が確認しやすくなります。` : "細部が見える写真が増えると、人が確認しやすくなります。"])
+    .map((item) => friendlyObservationText(item, 92))
+    .filter(Boolean)
+    .slice(0, 3);
+  const shootingTips = (sourceReading.shootingTips?.length ? sourceReading.shootingTips : ["全体が分かる引き写真", "形や模様が分かる近景", "周囲との位置関係"])
+    .map((item) => friendlyObservationText(item, 72))
+    .filter(Boolean)
+    .slice(0, 3);
+  const statusLabel = typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補";
+  const rankHint = publicRankHint(candidate.rank) || (candidate.rank ? rankLabelJa(candidate.rank) : "分類候補");
+  const summary = sourceReading.regionalRead
+    ? friendlyObservationText(sourceReading.regionalRead, 96)
+    : `${candidateName} は同じ対象を読むための別候補です。${rankHint}として、人の確認で扱います。`;
+  const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || candidate.scientificName);
+  return `<div class="obs-ai-detail" data-ai-panel="${escapeHtml(aiCandidatePanelKey(candidate))}" hidden>
+      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      ${renderAiSizeSummary(sourceReading.sizeAssessment)}
+      ${story}
+      <div class="obs-ai-detail-grid">
+        <div class="obs-ai-detail-box">
+          <div class="obs-ai-detail-label">確かめる点</div>
+          <ul class="obs-ai-detail-list">${features.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+        </div>
+        <div class="obs-ai-detail-box">
+          <div class="obs-ai-detail-label">弱い点</div>
+          <ul class="obs-ai-detail-list">${weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+        </div>
+        <div class="obs-ai-detail-box">
+          <div class="obs-ai-detail-label">追加で見る点</div>
+          <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null): string {
+  if (!bundle || bundle.aiCandidates.length === 0) return "";
+  const subjectNames = new Set(bundle.subjects.map((subject) => observationDetailUiName(subject.displayName)));
+  const readingMap = candidateReadingMap(bundle);
+  return bundle.aiCandidates
+    .filter((candidate) =>
+      !candidate.suggestedOccurrenceId
+      && !subjectNames.has(observationDetailUiName(candidate.displayName))
+      && isIdentificationCandidateLike({
+        name: candidate.displayName,
+        rank: candidate.rank,
+        scientificName: candidate.scientificName,
+      })
+    )
+    .slice(0, 4)
+    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap))
+    .join("");
 }
 
 function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null): string {
@@ -3399,6 +3477,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
         ${shootingRows}
       </div>
     </div>
+    ${renderAiCandidateDetailPanels(bundle)}
   </section>`;
 }
 
@@ -3457,6 +3536,7 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
       ${compareList ? `<div class="obs-ai-detail-grid">${compareList}</div>` : ""}
       ${note}
     </div>
+    ${renderAiCandidateDetailPanels(bundle)}
   </section><script>(function(){
     document.querySelectorAll('[data-obs-switch-ai-readout]').forEach(function(root){
       if (root.getAttribute('data-ai-readout-bound') === '1') return;
@@ -5647,6 +5727,8 @@ function renderIdentificationCandidateSwitch(options: {
     label: string;
     status: string;
     href: string | null;
+    panelKey: string | null;
+    subjectId: string | null;
     isCurrent: boolean;
     isWeak: boolean;
   }> = [];
@@ -5657,6 +5739,8 @@ function renderIdentificationCandidateSwitch(options: {
     rank?: string | null;
     scientificName?: string | null;
     href?: string | null;
+    panelKey?: string | null;
+    subjectId?: string | null;
     isCurrent?: boolean;
   }) => {
     const label = observationDetailUiName(candidate.label);
@@ -5668,6 +5752,8 @@ function renderIdentificationCandidateSwitch(options: {
       label,
       status: candidate.status,
       href: candidate.href ?? null,
+      panelKey: candidate.panelKey ?? null,
+      subjectId: candidate.subjectId ?? null,
       isCurrent: Boolean(candidate.isCurrent),
       isWeak: false,
     });
@@ -5682,11 +5768,13 @@ function renderIdentificationCandidateSwitch(options: {
         label: display,
         rank: subjectIdentificationRank(subject),
         scientificName: subject.scientificName,
-        status: subject.identificationCount > 0 ? "確認あり" : "確認待ち",
+        status: candidateStatusWithRank(subjectIdentificationRank(subject), subject.identificationCount > 0 ? "確認あり" : "確認待ち"),
         href: appendLangToHref(
           withBasePath(options.basePath, buildObservationDetailPath(options.bundle.visitId, subject.occurrenceId)),
           options.lang,
         ),
+        panelKey: subject.occurrenceId,
+        subjectId: subject.occurrenceId,
         isCurrent: subject.occurrenceId === options.currentSubject?.occurrenceId,
       });
     }
@@ -5702,8 +5790,10 @@ function renderIdentificationCandidateSwitch(options: {
         label: candidate.displayName,
         rank: candidate.rank,
         scientificName: candidate.scientificName,
-        status: candidate.suggestedOccurrenceId ? "記録済み" : typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補",
+        status: candidateStatusWithRank(candidate.rank, candidate.suggestedOccurrenceId ? "記録済み" : typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補"),
         href: occurrenceHref,
+        panelKey: occurrenceHref ? candidate.suggestedOccurrenceId : aiCandidatePanelKey(candidate),
+        subjectId: occurrenceHref ? candidate.suggestedOccurrenceId : null,
         isCurrent: false,
       });
     }
@@ -5714,6 +5804,8 @@ function renderIdentificationCandidateSwitch(options: {
       key: "current",
       label: options.targetLabel,
       status: options.candidateStatus,
+      panelKey: options.currentSubject?.occurrenceId ?? null,
+      subjectId: options.currentSubject?.occurrenceId ?? null,
       isCurrent: true,
     });
   }
@@ -5723,6 +5815,8 @@ function renderIdentificationCandidateSwitch(options: {
       label: options.targetLabel,
       status: options.candidateStatus,
       href: null,
+      panelKey: options.currentSubject?.occurrenceId ?? null,
+      subjectId: options.currentSubject?.occurrenceId ?? null,
       isCurrent: true,
       isWeak: false,
     });
@@ -5738,17 +5832,23 @@ function renderIdentificationCandidateSwitch(options: {
     ? `<p class="obs-frame-candidate-warning">今の自動候補は「未同定」や植栽構造の粗いラベルだけです。名前候補としては不足しているため、別候補か追加証拠を足す前提で扱います。</p>`
     : "";
 
-  const chips = candidates.map((candidate) => {
+  const chips = candidates.map((candidate, index) => {
     const className = `obs-frame-candidate${candidate.isCurrent ? " is-current" : ""}${candidate.isWeak ? " is-weak" : ""}`;
     const body = `${escapeHtml(candidate.label)}<span>${escapeHtml(candidate.status)}</span>`;
     if (candidate.href && !candidate.isCurrent) {
-      return `<a class="${className}" href="${escapeHtml(candidate.href)}">${body}</a>`;
+      const subjectAttrs = candidate.subjectId
+        ? ` data-subject-switch="1" data-subject-id="${escapeHtml(candidate.subjectId)}"`
+        : "";
+      return `<a class="${className}" href="${escapeHtml(candidate.href)}"${subjectAttrs}>${body}</a>`;
     }
-    return `<button class="${className}" type="button" aria-pressed="${candidate.isCurrent ? "true" : "false"}">${body}</button>`;
+    const targetAttrs = candidate.panelKey
+      ? ` data-ai-target="${escapeHtml(candidate.panelKey)}" data-ai-candidate-index="${escapeHtml(String(index + 1))}" data-ai-candidate-total="${escapeHtml(String(candidates.length))}"`
+      : "";
+    return `<button class="${className}" type="button"${targetAttrs} aria-pressed="${candidate.isCurrent ? "true" : "false"}">${body}</button>`;
   }).join("");
 
   return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}">
-      <div class="obs-frame-candidate-meter"><span>${escapeHtml(meterLabel)}</span><strong>${escapeHtml(meterValue)}</strong></div>
+      <div class="obs-frame-candidate-meter"><span>${escapeHtml(meterLabel)}</span><strong data-ai-candidate-meter-value>${escapeHtml(meterValue)}</strong></div>
       <div class="obs-frame-identify-candidates" aria-label="AI候補">
         ${chips}
       </div>
@@ -6752,7 +6852,7 @@ function renderNearbyAreaRecords(options: {
   </section>`;
 }
 
-function renderLocalObservationPolishScript(): string {
+export function renderLocalObservationPolishScript(): string {
   return `<script>(function(){
     function bindQualityDraftEditing(){
       var draft = document.querySelector('[data-quality-draft]');
@@ -6846,7 +6946,41 @@ function renderLocalObservationPolishScript(): string {
         });
       });
     }
-    function run(){ bindQualityDraftEditing(); bindStoryReadAloud(); }
+    function selectAiCandidateTarget(key){
+      if (!key) return;
+      var activeButton = null;
+      Array.prototype.slice.call(document.querySelectorAll('[data-ai-target]')).forEach(function(item){
+        var isActive = item.getAttribute('data-ai-target') === key;
+        item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        item.classList.toggle('is-current', isActive);
+        if (isActive && (!activeButton || (!activeButton.getAttribute('data-ai-candidate-index') && item.getAttribute('data-ai-candidate-index')))) activeButton = item;
+      });
+      Array.prototype.slice.call(document.querySelectorAll('[data-ai-panel]')).forEach(function(panel){
+        panel.hidden = panel.getAttribute('data-ai-panel') !== key;
+      });
+      if (activeButton) {
+        var index = activeButton.getAttribute('data-ai-candidate-index') || '';
+        var total = activeButton.getAttribute('data-ai-candidate-total') || '';
+        if (index && total) {
+          Array.prototype.slice.call(document.querySelectorAll('[data-ai-candidate-meter-value]')).forEach(function(meter){
+            meter.textContent = index + '/' + total;
+          });
+        }
+      }
+    }
+    function bindAiCandidateTabs(){
+      if (document.documentElement.getAttribute('data-ai-candidate-tabs-bound') === '1') return;
+      document.documentElement.setAttribute('data-ai-candidate-tabs-bound', '1');
+      document.addEventListener('click', function(event){
+        var target = event.target && event.target.closest ? event.target.closest('[data-ai-target]') : null;
+        if (!target) return;
+        if (target.closest('[data-subject-switch][data-subject-id]')) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        selectAiCandidateTarget(target.getAttribute('data-ai-target') || '');
+      });
+    }
+    function run(){ bindQualityDraftEditing(); bindStoryReadAloud(); bindAiCandidateTabs(); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
     window.addEventListener('ikimon:subject-rendered', function(){ window.setTimeout(run, 0); });
   })();</script>`;
