@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { ObservationVisitBundle, ObservationVisitSubject } from "../services/observationVisitBundle.js";
 import type { TaxonInsight } from "../services/taxonInsights.js";
-import { buildVisibleRecordItems } from "../services/observationSceneReadModel.js";
-import { renderHeroAiReadout, renderVisibleRecordItemsPanel } from "./read.js";
+import { buildVisibleRecordItems, type VisibleRecordItem } from "../services/observationSceneReadModel.js";
+import { renderHeroAiReadout, renderObservationRecordInsightText, renderVisibleRecordItemsPanel } from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
@@ -886,6 +886,105 @@ test("AI activity ledger exposes the model used for auditability", () => {
   assert.match(routeSource, /options\.subject\?\.aiAssessment/);
   assert.match(routeSource, /options\.subject\?\.previousAiAssessment/);
   assert.match(routeSource, /<time>\$\{escapeHtml\(aiActivityMeta\)\}<\/time>/);
+});
+
+function visibleRecordItemFixture(overrides: Partial<VisibleRecordItem>): VisibleRecordItem {
+  return {
+    key: "item:test",
+    source: "candidate",
+    occurrenceId: null,
+    candidateId: "candidate:test",
+    displayName: "周囲の草地",
+    roleLabel: "周囲の草地",
+    rankLabel: null,
+    confidence: null,
+    trustLevel: "reference",
+    trustLabel: "参考",
+    bucket: "reference",
+    href: null,
+    note: "草地と裸地が一緒に写る",
+    historyLabel: null,
+    historyDetail: null,
+    isCurrent: false,
+    isFeatured: false,
+    adoptEndpoint: null,
+    adoptLabel: null,
+    proposalKind: "none",
+    ...overrides,
+  };
+}
+
+test("record insight does not turn arthropods into plants because surrounding grass is visible", () => {
+  const text = renderObservationRecordInsightText({
+    snapshot: {
+      observedAt: "2026-05-18T03:25:00.000Z",
+      municipality: "浜松市浜名区",
+      publicLocation: { label: "浜松市浜名区" },
+    } as any,
+    subject: {
+      displayName: "同定待ち",
+      scientificName: null,
+      vernacularName: null,
+      rank: "class",
+      aiCandidateName: null,
+      aiCandidateRank: null,
+      aiAssessment: {
+        recommendedTaxonName: "ヤスデ綱（またはムカデ綱）",
+        recommendedScientificName: "Diplopoda or Chilopoda",
+        recommendedRank: "class",
+      },
+    } as any,
+    recordItems: [
+      visibleRecordItemFixture({
+        displayName: "周囲の草地",
+        roleLabel: "周囲の草地",
+        note: "裸地と草地、踏圧が見える",
+      }),
+    ],
+    placeLabel: "浜松市浜名区",
+  });
+
+  assert.match(text, /ヤスデ綱/);
+  assert.match(text, /小さな動物/);
+  assert.match(text, /足元/);
+  assert.doesNotMatch(text, /植物|どこに生え|花の量/);
+});
+
+test("record insight uses a concrete AI candidate instead of unresolved subject wording", () => {
+  const text = renderObservationRecordInsightText({
+    snapshot: {
+      observedAt: "2026-05-18T03:25:00.000Z",
+      municipality: "浜松市浜名区",
+      publicLocation: { label: "浜松市浜名区" },
+    } as any,
+    subject: {
+      displayName: "同定待ち",
+      scientificName: null,
+      vernacularName: null,
+      rank: null,
+      aiCandidateName: null,
+      aiCandidateRank: null,
+      aiAssessment: null,
+    } as any,
+    recordItems: [
+      visibleRecordItemFixture({
+        displayName: "シロツメクサ",
+        roleLabel: "AI候補",
+        rankLabel: "種",
+        confidence: 0.86,
+        trustLevel: "strong",
+        trustLabel: "かなり近そう",
+        bucket: "main",
+        note: "白い花と三小葉が見える",
+        isFeatured: true,
+        proposalKind: "ai_candidate",
+      }),
+    ],
+    placeLabel: "浜松市浜名区",
+  });
+
+  assert.match(text, /シロツメクサらしい植物/);
+  assert.doesNotMatch(text, /同定待ちらしい/);
 });
 
 test("AI readout tabs only expose taxon-like identification subjects", () => {
