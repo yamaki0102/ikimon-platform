@@ -76,7 +76,7 @@ function toCount(value: string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function collectRecentTargets(args: Args): Promise<RecentTargetRow[]> {
+async function collectRecentTargets(args: Args, candidateLimit = args.limit): Promise<RecentTargetRow[]> {
   const pool = getPool();
   const visibilitySql = args.includeHidden
     ? "true"
@@ -119,7 +119,7 @@ async function collectRecentTargets(args: Args): Promise<RecentTargetRow[]> {
       having count(*) filter (where ea.asset_role in ('observation_photo', 'observation_video')) > 0
       order by v.observed_at desc, v.created_at desc
       limit $1`,
-    [args.limit],
+    [candidateLimit],
   );
   return result.rows;
 }
@@ -154,37 +154,64 @@ async function refreshTarget(row: RecentTargetRow, dryRun: boolean): Promise<Ref
     return { ...base, mode, status: "dry_run" };
   }
   try {
-    const result = mode === "video"
+    let result = mode === "video"
       ? await reassessFromVideoThumb(row.occurrence_id)
       : await reassessObservation(row.occurrence_id);
+    let recommendedTaxonName = String(result.recommendedTaxonName ?? "").trim();
+    if (!recommendedTaxonName) {
+      result = mode === "video"
+        ? await reassessFromVideoThumb(row.occurrence_id)
+        : await reassessObservation(row.occurrence_id);
+      recommendedTaxonName = String(result.recommendedTaxonName ?? "").trim();
+    }
+    if (!recommendedTaxonName) {
+      throw new Error("empty_recommended_taxon_name");
+    }
     return {
       ...base,
       mode,
       status: "ok",
-      recommendedTaxonName: result.recommendedTaxonName ?? null,
+      recommendedTaxonName,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === "no_media_for_reassess") {
+      return {
+        ...base,
+        mode,
+        status: "skipped",
+        message,
+      };
+    }
     return {
       ...base,
       mode,
       status: "failed",
-      message: error instanceof Error ? error.message : String(error),
+      message,
     };
   }
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
-  const targets = await collectRecentTargets(args);
-  console.log(`[collect] targets=${targets.length} limit=${args.limit} dryRun=${args.dryRun} includeReview=${args.includeReview} includeHidden=${args.includeHidden}`);
+  const candidateLimit = args.dryRun ? args.limit : Math.min(args.limit + 10, 20);
+  const targets = await collectRecentTargets(args, candidateLimit);
+  console.log(`[collect] targets=${targets.length} limit=${args.limit} candidateLimit=${candidateLimit} dryRun=${args.dryRun} includeReview=${args.includeReview} includeHidden=${args.includeHidden}`);
   for (const target of targets) {
     console.log(`[target] ${summarizeTarget(target)}`);
   }
 
   const outcomes: RefreshOutcome[] = [];
+  let refreshedCount = 0;
   for (const target of targets) {
+    if (!args.dryRun && refreshedCount >= args.limit) {
+      break;
+    }
     const outcome = await refreshTarget(target, args.dryRun);
     outcomes.push(outcome);
+    if (outcome.status === "ok" || outcome.status === "dry_run") {
+      refreshedCount += 1;
+    }
     const suffix = outcome.status === "ok"
       ? ` -> ${outcome.recommendedTaxonName ?? "(no name)"}`
       : outcome.message
@@ -200,7 +227,7 @@ async function main(): Promise<void> {
   console.log(JSON.stringify({ summary, outcomes }, null, 2));
 
   await getPool().end();
-  if (outcomes.some((row) => row.status === "failed")) {
+  if (outcomes.some((row) => row.status === "failed") || (!args.dryRun && refreshedCount < args.limit)) {
     process.exitCode = 1;
   }
 }
