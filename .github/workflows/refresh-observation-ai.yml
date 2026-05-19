@@ -27,6 +27,16 @@ on:
         required: false
         default: false
         type: boolean
+      report_only:
+        description: 'Only print observation AI cost telemetry; do not refresh records'
+        required: false
+        default: false
+        type: boolean
+      report_window_minutes:
+        description: 'Cost telemetry window in minutes'
+        required: false
+        default: '120'
+        type: string
 
 jobs:
   refresh:
@@ -41,24 +51,32 @@ jobs:
           INPUT_LIMIT: ${{ github.event.inputs.limit }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
           INPUT_PUBLIC_ONLY: ${{ github.event.inputs.public_only }}
+          INPUT_REPORT_ONLY: ${{ github.event.inputs.report_only }}
+          INPUT_REPORT_WINDOW_MINUTES: ${{ github.event.inputs.report_window_minutes }}
         run: |
           set -euo pipefail
           target="${INPUT_TARGET:-staging}"
           limit="${INPUT_LIMIT:-5}"
           dry_run="${INPUT_DRY_RUN:-true}"
           public_only="${INPUT_PUBLIC_ONLY:-false}"
+          report_only="${INPUT_REPORT_ONLY:-false}"
+          report_window_minutes="${INPUT_REPORT_WINDOW_MINUTES:-120}"
 
           case "$target" in staging|production) ;; *) echo "invalid target: $target"; exit 1 ;; esac
           printf '%s' "$limit" | grep -qE '^[0-9]{1,2}$' || { echo "limit must be numeric"; exit 1; }
           if [ "$limit" -lt 1 ] || [ "$limit" -gt 20 ]; then echo "limit must be 1..20"; exit 1; fi
           case "$dry_run" in true|false) ;; *) echo "dry_run must be true or false"; exit 1 ;; esac
           case "$public_only" in true|false) ;; *) echo "public_only must be true or false"; exit 1 ;; esac
+          case "$report_only" in true|false) ;; *) echo "report_only must be true or false"; exit 1 ;; esac
+          printf '%s' "$report_window_minutes" | grep -qE '^[0-9]{1,4}$' || { echo "report_window_minutes must be numeric"; exit 1; }
 
           {
             echo "target=$target"
             echo "limit=$limit"
             echo "dry_run=$dry_run"
             echo "public_only=$public_only"
+            echo "report_only=$report_only"
+            echo "report_window_minutes=$report_window_minutes"
           } >> "$GITHUB_OUTPUT"
 
       - name: Configure SSH key
@@ -74,16 +92,20 @@ jobs:
           LIMIT: ${{ steps.vars.outputs.limit }}
           DRY_RUN: ${{ steps.vars.outputs.dry_run }}
           PUBLIC_ONLY: ${{ steps.vars.outputs.public_only }}
+          REPORT_ONLY: ${{ steps.vars.outputs.report_only }}
+          REPORT_WINDOW_MINUTES: ${{ steps.vars.outputs.report_window_minutes }}
         run: |
           set -euo pipefail
           b64() { printf '%s' "$1" | base64 -w 0; }
           ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
-            "TARGET_B64='$(b64 "$TARGET")' LIMIT_B64='$(b64 "$LIMIT")' DRY_RUN_B64='$(b64 "$DRY_RUN")' PUBLIC_ONLY_B64='$(b64 "$PUBLIC_ONLY")' bash -s" <<'REMOTE'
+            "TARGET_B64='$(b64 "$TARGET")' LIMIT_B64='$(b64 "$LIMIT")' DRY_RUN_B64='$(b64 "$DRY_RUN")' PUBLIC_ONLY_B64='$(b64 "$PUBLIC_ONLY")' REPORT_ONLY_B64='$(b64 "$REPORT_ONLY")' REPORT_WINDOW_MINUTES_B64='$(b64 "$REPORT_WINDOW_MINUTES")' bash -s" <<'REMOTE'
           set -euo pipefail
           TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
           LIMIT="$(printf '%s' "$LIMIT_B64" | base64 -d)"
           DRY_RUN="$(printf '%s' "$DRY_RUN_B64" | base64 -d)"
           PUBLIC_ONLY="$(printf '%s' "$PUBLIC_ONLY_B64" | base64 -d)"
+          REPORT_ONLY="$(printf '%s' "$REPORT_ONLY_B64" | base64 -d)"
+          REPORT_WINDOW_MINUTES="$(printf '%s' "$REPORT_WINDOW_MINUTES_B64" | base64 -d)"
 
           case "$TARGET" in
             production)
@@ -110,10 +132,90 @@ jobs:
           [ -n "${GEMINI_API_KEY:-}" ] || { echo "GEMINI_API_KEY missing in $ENV_FILE"; exit 1; }
 
           npm ci --include=dev --silent
-          args=(-- --limit="$LIMIT")
-          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
-          if [ "$PUBLIC_ONLY" = "true" ]; then args+=(--public-only); fi
-          npm run refresh:recent-observation-ai "${args[@]}"
+          if [ "$REPORT_ONLY" != "true" ]; then
+            args=(-- --limit="$LIMIT")
+            if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+            if [ "$PUBLIC_ONLY" = "true" ]; then args+=(--public-only); fi
+            npm run refresh:recent-observation-ai "${args[@]}"
+          fi
+
+          REPORT_WINDOW_MINUTES="$REPORT_WINDOW_MINUTES" node --input-type=module <<'NODE'
+          import pg from "pg";
+          const minutes = Number.parseInt(process.env.REPORT_WINDOW_MINUTES || "120", 10);
+          const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+          const endpoints = ["observation_visual_extract", "observation_visual_summary", "observation_audio_extract"];
+          const recent = await pool.query(
+            `SELECT endpoint,
+                    model,
+                    COUNT(*)::int AS calls,
+                    COUNT(DISTINCT visit_id)::int AS visits,
+                    COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+                    COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+                    COALESCE(SUM(cost_usd), 0)::float8 AS cost_usd,
+                    COALESCE(SUM(cost_jpy), 0)::float8 AS cost_jpy,
+                    MIN(occurred_at)::text AS first_at,
+                    MAX(occurred_at)::text AS last_at
+               FROM ai_cost_log
+              WHERE occurred_at >= NOW() - ($1::int * INTERVAL '1 minute')
+                AND endpoint = ANY($2::text[])
+              GROUP BY endpoint, model
+              ORDER BY endpoint, model`,
+            [minutes, endpoints],
+          );
+          const byVisit = await pool.query(
+            `SELECT visit_id,
+                    COUNT(*)::int AS calls,
+                    COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+                    COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+                    COALESCE(SUM(cost_usd), 0)::float8 AS cost_usd,
+                    STRING_AGG(DISTINCT endpoint || ':' || model, ', ' ORDER BY endpoint || ':' || model) AS models
+               FROM ai_cost_log
+              WHERE occurred_at >= NOW() - ($1::int * INTERVAL '1 minute')
+                AND endpoint = ANY($2::text[])
+                AND visit_id IS NOT NULL
+              GROUP BY visit_id
+              ORDER BY MAX(occurred_at) DESC
+              LIMIT 20`,
+            [minutes, endpoints],
+          );
+          const thirty = await pool.query(
+            `SELECT endpoint,
+                    model,
+                    COUNT(*)::int AS calls,
+                    COUNT(DISTINCT visit_id)::int AS visits,
+                    COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+                    COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+                    COALESCE(SUM(cost_usd), 0)::float8 AS cost_usd,
+                    COALESCE(SUM(cost_jpy), 0)::float8 AS cost_jpy
+               FROM ai_cost_log
+              WHERE occurred_at >= NOW() - INTERVAL '30 days'
+                AND endpoint = ANY($1::text[])
+              GROUP BY endpoint, model
+              ORDER BY endpoint, model`,
+            [endpoints],
+          );
+          const tokenRatio = await pool.query(
+            `SELECT endpoint,
+                    COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+                    COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+                    COALESCE(SUM(input_tokens + output_tokens), 0)::int AS total_tokens,
+                    COALESCE(SUM(cost_usd), 0)::float8 AS cost_usd
+               FROM ai_cost_log
+              WHERE occurred_at >= NOW() - INTERVAL '30 days'
+                AND endpoint IN ('observation_visual_extract', 'observation_visual_summary')
+              GROUP BY endpoint
+              ORDER BY endpoint`,
+          );
+          await pool.end();
+          console.log("== observation_ai_cost_report ==");
+          console.log(JSON.stringify({
+            windowMinutes: minutes,
+            recent: recent.rows,
+            recentByVisit: byVisit.rows,
+            last30d: thirty.rows,
+            tokenRatio30d: tokenRatio.rows,
+          }, null, 2));
+          NODE
           REMOTE
 
       - name: Summary
