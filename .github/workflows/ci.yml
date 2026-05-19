@@ -254,16 +254,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: platform_v2/package-lock.json
-
-      - name: Install platform_v2 dependencies
-        working-directory: platform_v2
-        run: npm ci
+      - name: Setup platform_v2 browser smoke runtime
+        uses: ./.github/actions/setup-platform-v2-browser
 
       - name: Build platform_v2
         working-directory: platform_v2
@@ -322,6 +314,14 @@ jobs:
           IKIMON_SCENE_READ_FORBIDDEN_MARKERS="\"status\":\"bootstrapping\"|AI 主役 100%|訪花中の候補|この映像で読む対象を切り替える|候補を確かめる材料|AIが写真・動画から拾った候補です" \
           npm run smoke:v2-read-lane -- --base-url=http://127.0.0.1:3200
 
+      - name: Run observation candidate tab browser QA
+        working-directory: platform_v2
+        run: |
+          STAGING_BASE_URL=http://127.0.0.1:3200 \
+          IKIMON_SCENE_READ_VISIT_ID="${SCENE_READ_FIXTURE_PREFIX}-scene" \
+          IKIMON_SCENE_READ_SUBJECT_ID="occ:${SCENE_READ_FIXTURE_PREFIX}-scene:0" \
+          npm run e2e:local:observation-candidates
+
       - name: Cleanup local scene fixture
         if: always()
         run: |
@@ -341,7 +341,10 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: scene-read-smoke-runtime-log
-          path: platform-v2-scene-read-smoke.log
+          path: |
+            platform-v2-scene-read-smoke.log
+            platform_v2/playwright-report/staging/
+            platform_v2/test-results/
           if-no-files-found: ignore
 
   record-funnel-browser-qa:
