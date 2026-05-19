@@ -644,7 +644,7 @@ async function loadStewardshipWindow(
               from visits v
              where v.observed_at >= $1
                and v.observed_at < $2
-               and v.visit_id = any($3::uuid[])
+               and v.visit_id = any($3::text[])
           ),
           field_occ as (
             select o.*
@@ -832,7 +832,7 @@ async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null
         `with field_visits as (
             select v.*
               from visits v
-             where v.visit_id = any($1::uuid[])
+             where v.visit_id = any($1::text[])
           ),
           field_occ as (
             select o.*
@@ -910,7 +910,7 @@ async function loadMachineObservationSummary(scopedVisitIds: string[]): Promise<
         `with field_visits as (
             select v.*
               from visits v
-             where v.visit_id = any($1::uuid[])
+             where v.visit_id = any($1::text[])
           ),
           machine_occ as (
             select o.*,
@@ -1021,7 +1021,7 @@ async function loadLocalityHint(scopedVisitIds: string[]): Promise<{ municipalit
         `select nullif(observed_municipality, '') as municipality,
                 nullif(observed_prefecture, '') as prefecture
            from visits
-          where visit_id = any($1::uuid[])
+          where visit_id = any($1::text[])
             and (nullif(observed_municipality, '') is not null or nullif(observed_prefecture, '') is not null)
           group by nullif(observed_municipality, ''), nullif(observed_prefecture, '')
           order by count(*) desc, municipality asc nulls last, prefecture asc nulls last

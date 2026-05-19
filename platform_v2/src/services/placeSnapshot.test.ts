@@ -472,3 +472,12 @@ test("public landing copy is not polluted by digital twin wording", async () => 
   assert.doesNotMatch(landingTop, /デジタルツイン|digital twin/i);
   assert.doesNotMatch(siteMap, /デジタルツイン|digital twin/i);
 });
+
+test("place snapshot SQL treats visit ids as text ids", async () => {
+  const files = [
+    await readFile(path.join(process.cwd(), "src", "services", "placeSnapshot.ts"), "utf8"),
+    await readFile(path.join(process.cwd(), "src", "services", "areaPlaceSnapshot.ts"), "utf8"),
+  ].join("\n");
+
+  assert.doesNotMatch(files, /visit_id\s*=\s*any\(\$\d+::uuid\[\]\)/);
+});
