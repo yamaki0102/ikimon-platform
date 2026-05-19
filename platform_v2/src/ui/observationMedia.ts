@@ -97,7 +97,8 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-region-box.is-large-region { background: transparent; border-color: rgba(15,23,42,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.42); }
   .obs-region-box-label { display: none; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
-  .obs-annotation-layer { display: none; }
+  .obs-annotation-layer { display: block; position: absolute; inset: 0; pointer-events: none; }
+  .obs-annotation-layer[hidden] { display: none; }
   .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 34px; min-height: 34px; padding: 0; border: 1px solid rgba(16,185,129,.34); border-radius: 12px; background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.32); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease, box-shadow .14s ease; }
   .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,.82); background: rgba(236,253,245,.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 10px 22px rgba(15,23,42,.12); outline: none; }
   .obs-annotation-target.is-current { border-color: rgba(13,148,136,.5); background: transparent; }
@@ -410,6 +411,7 @@ function renderPhotoGallery(
   const firstDisplayUrl = photoDisplayUrl(first, "lg");
   const firstFullUrl = first.url;
   const firstRegionHtml = renderObservationRegionBoxes(currentSubject, first.assetId);
+  const firstAnnotationHtml = renderObservationAnnotationButtons(annotationTargets, first.assetId, currentSubject.occurrenceId);
   const firstRoleBadge = `<span class="obs-media-role-badge" data-obs-media-role-badge hidden></span>`;
   const firstSuggestionBadge = `<span class="obs-media-ai-role" data-obs-media-role-suggestion hidden></span>`;
   const thumbsHtml = snapshot.photoAssets.length >= 2
@@ -439,7 +441,7 @@ function renderPhotoGallery(
       <span class="obs-hero-image-frame" data-obs-image-frame>
         <img src="${escapeHtml(firstDisplayUrl)}" data-obs-full-src="${escapeHtml(firstFullUrl)}" alt="${escapeHtml(snapshot.displayName)}" loading="eager" data-obs-preview-img${photoSizeAttrs(first)} />
         <span class="obs-region-layer" data-region-layer="${escapeHtml(first.assetId)}" data-obs-preview-regions${firstRegionHtml ? "" : " hidden"}>${firstRegionHtml}</span>
-        <span class="obs-annotation-layer" data-obs-preview-annotations hidden></span>
+        <span class="obs-annotation-layer" data-obs-preview-annotations${firstAnnotationHtml ? "" : " hidden"}>${firstAnnotationHtml}</span>
       </span>
       <button type="button" class="obs-hero-zoom" data-obs-zoom aria-label="画像を拡大">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
@@ -662,7 +664,9 @@ function renderObservationGalleryScript(options: { hasPhotoAssets: boolean; hasV
          updateRegionSummary(regionHtml);
        }
        if (previewAnnotations) {
-         previewAnnotations.innerHTML = annotations ? annotations.innerHTML : '';
+         var annotationHtml = annotations ? annotations.innerHTML : '';
+         previewAnnotations.innerHTML = annotationHtml;
+         previewAnnotations.hidden = !annotationHtml;
        }
        window.dispatchEvent(new CustomEvent('ikimon:media-asset-selected', { detail: { assetId: assetId || '' } }));
      };

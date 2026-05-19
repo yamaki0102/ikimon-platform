@@ -244,7 +244,7 @@ test("observation detail hero readout keeps scene candidates out of identificati
 
   assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
   assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
-  assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle\)/);
+  assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle, groundingAssets\)/);
   assert.match(readoutSource, /obs-ai-detail-box/);
   assert.match(readoutSource, /candidateReadingMap\(bundle\)/);
   assert.match(readoutSource, /findCandidateReading\(readingMap/);
@@ -266,8 +266,8 @@ test("observation detail hero readout keeps scene candidates out of identificati
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
   assert.match(readoutSource, /同じ場面内の名前候補として残っています/);
   assert.doesNotMatch(readoutSource, /<p class="obs-hint-eyebrow">名前のいま/);
-  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle\)/);
-  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle\)/);
+  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle, groundingAssets\)/);
+  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle, groundingAssets\)/);
 });
 
 test("vegetation care advice is cautious and grounded in management context", () => {
@@ -415,7 +415,18 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
         confidence: 0.45,
         candidateStatus: "proposed",
         note: "葉脈が候補",
-        regions: [],
+        regions: [{
+          regionId: "region-ligustrum",
+          occurrenceId: null,
+          candidateId: "candidate-ligustrum",
+          assetId: "asset-main-photo",
+          rect: { x: 0.08, y: 0.12, width: 0.24, height: 0.22 },
+          frameTimeMs: null,
+          confidenceScore: 0.86,
+          sourceKind: "vision",
+          sourceModel: "fixture",
+          note: null,
+        }],
       },
       {
         candidateId: "candidate-tobira",
@@ -431,7 +442,7 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
     ],
   } as ObservationVisitBundle;
 
-  const html = renderHeroAiReadout(subject, false, null, bundle);
+  const html = renderHeroAiReadout(subject, false, null, bundle, [{ assetId: "asset-main-photo", label: "画像1" }]);
 
   assert.match(html, /トウネズミモチ/);
   assert.match(html, /トベラ/);
@@ -440,6 +451,11 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
   assert.match(html, /data-ai-panel="candidate:candidate-ligustrum" hidden/);
   assert.match(html, /data-ai-candidate-index="2" data-ai-candidate-total="3"/);
   assert.match(html, /Ligustrum lucidum/);
+  assert.match(html, /AIが主に見たところ/);
+  assert.match(html, /data-ai-grounding-asset="asset-main-photo"/);
+  assert.match(html, /画像1/);
+  assert.match(html, /左上/);
+  assert.match(html, /枠の確度 86%/);
 });
 
 test("AI candidate tabs have synchronized hero and identification targets", () => {
@@ -449,7 +465,7 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
 
   assert.match(readoutSource, /data-ai-target="\$\{escapeHtml\(aiCandidatePanelKey\(candidate\)\)\}"/);
-  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle\)/);
+  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle, groundingAssets\)/);
   assert.match(identifySource, /panelKey: occurrenceHref \? candidate\.suggestedOccurrenceId : aiCandidatePanelKey\(candidate\)/);
   assert.match(identifySource, /data-ai-candidate-meter-value/);
   assert.match(identifySource, /obs-frame-candidate-current/);
@@ -814,16 +830,19 @@ test("community subject proposal is separated from owner-only candidate adoption
   assert.doesNotMatch(subjectProposalSource, /candidate\.user_id\s*!==\s*input\.actorUserId/);
 });
 
-test("media annotations are moved out of the photo surface", () => {
+test("media annotations can be focused from AI evidence without taking over the photo surface", () => {
   assert.match(mediaSource, /ObservationMediaAnnotationTarget/);
   assert.match(mediaSource, /data-annotation-target/);
   assert.match(mediaSource, /data-annotation-subject-id/);
   assert.match(mediaSource, /data-annotation-candidate-id/);
   assert.match(mediaSource, /obs-video-annotation-rail/);
   assert.match(mediaSource, /summary\.hidden = true/);
-  assert.match(mediaSource, /<span class="obs-annotation-layer" data-obs-preview-annotations hidden><\/span>/);
+  assert.match(mediaSource, /firstAnnotationHtml/);
+  assert.match(mediaSource, /previewAnnotations\.hidden = !annotationHtml/);
   assert.match(routeSource, /buildObservationMediaAnnotationTargets/);
   assert.match(routeSource, /renderObservationMedia\(snapshot,\s*currentSubject,\s*mediaAnnotationTargets/s);
+  assert.match(routeSource, /data-ai-grounding-asset/);
+  assert.match(routeSource, /focusGrounding/);
   assert.match(routeSource, /data-proposal-focus/);
   assert.match(routeSource, /regionSummary\.hidden = true/);
 });
@@ -848,6 +867,15 @@ test("subject query parameters are treated as internal tabs, not canonical pages
   assert.match(routeSource, /event\.target[\s\S]*?closest\('\[data-subject-switch\]\[data-subject-id\]'\)/);
   assert.match(routeSource, /var getSubjectLinks = function\(\)/);
   assert.doesNotMatch(routeSource, /history\.pushState\(\{ subject: subjectId \}, '', active\.href\)/);
+});
+
+test("subject switching reserves panel height before replacing candidate content", () => {
+  assert.match(routeSource, /var switchRegions = \[/);
+  assert.match(routeSource, /templateAttr: 'data-subject-ai-readout-template'/);
+  assert.match(routeSource, /templateAttr: 'data-subject-identify-template'/);
+  assert.match(routeSource, /measureSwitchTemplateHeight/);
+  assert.match(routeSource, /root\.style\.minHeight = maxHeight \+ 'px'/);
+  assert.match(routeSource, /stabilizeSwitchHeights\(\);\s*renderSubject\(currentSubjectId, false\)/);
 });
 
 test("AI activity ledger exposes the model used for auditability", () => {
@@ -1350,5 +1378,5 @@ test("identity evidence fallback keeps common planted-scene subjects specific", 
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
   assert.match(routeSource, /確認中/);
-  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle\)/s);
+  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle,\s*groundingAssets\)/s);
 });

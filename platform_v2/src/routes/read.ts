@@ -1110,6 +1110,17 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-merged-label { color: #64748b; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; }
   .obs-ai-merged-pills { display: flex; flex-wrap: wrap; gap: 5px; }
   .obs-ai-merged-pills span { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11px; line-height: 1.25; font-weight: 850; }
+  .obs-ai-grounding { display: grid; gap: 7px; padding: 9px; border-radius: 13px; background: linear-gradient(135deg, rgba(240,253,250,.9), rgba(255,255,255,.92)); border: 1px solid rgba(20,184,166,.16); }
+  .obs-ai-grounding-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #0f172a; font-size: 11px; line-height: 1.25; font-weight: 950; }
+  .obs-ai-grounding-head span { color: #0f766e; font-size: 10px; font-weight: 950; white-space: nowrap; }
+  .obs-ai-grounding-rail { display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-ai-grounding-shot { flex: 1 1 150px; min-width: 0; display: grid; gap: 2px; align-items: start; min-height: 50px; padding: 8px 9px; border-radius: 11px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: inherit; text-align: left; font: inherit; cursor: pointer; }
+  .obs-ai-grounding-shot:hover, .obs-ai-grounding-shot:focus-visible { border-color: rgba(20,184,166,.36); box-shadow: 0 8px 18px rgba(15,23,42,.08); outline: none; }
+  .obs-ai-grounding-shot em { color: #0f766e; font-size: 9.5px; line-height: 1.15; font-style: normal; font-weight: 950; }
+  .obs-ai-grounding-shot strong { min-width: 0; color: #0f172a; font-size: 11px; line-height: 1.25; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .obs-ai-grounding-shot small { color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 820; }
+  .obs-ai-grounding.is-empty { background: rgba(248,250,252,.8); border-color: rgba(15,23,42,.08); }
+  .obs-ai-grounding-empty { margin: 0; color: #64748b; font-size: 10.8px; line-height: 1.45; font-weight: 760; }
   .obs-ai-detail { display: grid; gap: 8px; padding-top: 1px; }
   .obs-ai-detail[hidden] { display: none; }
   .obs-ai-detail-lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin: 0; color: #334155; font-size: 11.5px; line-height: 1.5; font-weight: 760; white-space: normal; }
@@ -3359,7 +3370,81 @@ function aiCandidatePanelKey(candidate: Pick<ObservationVisitCandidate, "candida
   return `candidate:${candidate.candidateId}`;
 }
 
-function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, readingMap: Map<string, CandidateReading>): string {
+type AiGroundingAsset = {
+  assetId: string;
+  label: string;
+};
+
+function aiGroundingAssets(snapshot: ObservationDetailSnapshot): AiGroundingAsset[] {
+  return [
+    ...snapshot.photoAssets.map((asset, index) => ({ assetId: asset.assetId, label: `画像${index + 1}` })),
+    ...snapshot.videoAssets.map((asset, index) => ({ assetId: asset.assetId, label: `動画${index + 1}` })),
+  ];
+}
+
+function normalizedRectLocationLabel(rect: ObservationVisitSubject["regions"][number]["rect"]): string {
+  if (!rect) return "注視位置";
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  const horizontal = centerX < 0.36 ? "左" : centerX > 0.64 ? "右" : "中央";
+  const vertical = centerY < 0.36 ? "上" : centerY > 0.64 ? "下" : "中央";
+  if (horizontal === "中央" && vertical === "中央") return "中央付近";
+  if (horizontal === "中央") return `${vertical}側`;
+  if (vertical === "中央") return `${horizontal}側`;
+  return `${horizontal}${vertical}`;
+}
+
+function bestGroundingRegions(regions: ObservationVisitSubject["regions"] | undefined): ObservationVisitSubject["regions"] {
+  const byAsset = new Map<string, ObservationVisitSubject["regions"][number]>();
+  for (const region of Array.isArray(regions) ? regions : []) {
+    if (!region.rect || (region.confidenceScore ?? 1) < REGION_DISPLAY_CONF_MIN) continue;
+    const current = byAsset.get(region.assetId);
+    if (!current || (region.confidenceScore ?? 0) > (current.confidenceScore ?? 0)) {
+      byAsset.set(region.assetId, region);
+    }
+  }
+  return [...byAsset.values()]
+    .sort((a, b) => (b.confidenceScore ?? 0) - (a.confidenceScore ?? 0))
+    .slice(0, 3);
+}
+
+function renderAiVisualGrounding(options: {
+  regions: ObservationVisitSubject["regions"];
+  assets: AiGroundingAsset[];
+  subjectId?: string | null;
+  candidateId?: string | null;
+}): string {
+  const regions = bestGroundingRegions(options.regions);
+  if (regions.length === 0) {
+    return `<div class="obs-ai-grounding is-empty">
+      <div class="obs-ai-grounding-head"><strong>AIが主に見たところ</strong><span>位置未保存</span></div>
+      <p class="obs-ai-grounding-empty">画像上の注視枠はまだ保存されていません。下の特徴メモと人の確認で補います。</p>
+    </div>`;
+  }
+  const assetLabelById = new Map(options.assets.map((asset) => [asset.assetId, asset.label]));
+  return `<div class="obs-ai-grounding">
+    <div class="obs-ai-grounding-head"><strong>AIが主に見たところ</strong><span>${escapeHtml(`${regions.length}か所`)}</span></div>
+    <div class="obs-ai-grounding-rail">
+      ${regions.map((region) => {
+        const label = assetLabelById.get(region.assetId) ?? "参照画像";
+        const location = friendlyObservationText(region.note || normalizedRectLocationLabel(region.rect), 26);
+        const confidence = typeof region.confidenceScore === "number" ? `枠の確度 ${Math.round(region.confidenceScore * 100)}%` : "注視枠あり";
+        const frame = typeof region.frameTimeMs === "number" ? ` / ${Math.round(region.frameTimeMs / 1000)}秒付近` : "";
+        return `<button type="button"
+          class="obs-ai-grounding-shot"
+          data-ai-grounding-asset="${escapeHtml(region.assetId)}"
+          ${options.subjectId ? `data-ai-grounding-subject="${escapeHtml(options.subjectId)}"` : ""}
+          ${options.candidateId ? `data-ai-grounding-candidate="${escapeHtml(options.candidateId)}"` : ""}>
+          <em>${escapeHtml(label)}</em>
+          <strong>${escapeHtml(location)}</strong>
+          <small>${escapeHtml(`${confidence}${frame}`)}</small>
+        </button>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, readingMap: Map<string, CandidateReading>, groundingAssets: AiGroundingAsset[] = []): string {
   const candidateName = observationDetailUiName(candidate.displayName);
   const sourceReading = findCandidateReading(readingMap, [candidate.displayName, candidateName, candidate.scientificName])
     ?? fallbackCandidateReadingForSubject({
@@ -3389,6 +3474,7 @@ function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, read
   const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || candidate.scientificName);
   return `<div class="obs-ai-detail" data-ai-panel="${escapeHtml(aiCandidatePanelKey(candidate))}" hidden>
       <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      ${renderAiVisualGrounding({ regions: candidate.regions, assets: groundingAssets, candidateId: candidate.candidateId })}
       ${renderAiSizeSummary(sourceReading.sizeAssessment)}
       ${story}
       <div class="obs-ai-detail-grid">
@@ -3408,7 +3494,7 @@ function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, read
     </div>`;
 }
 
-function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null): string {
+function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null, groundingAssets: AiGroundingAsset[] = []): string {
   if (!bundle || bundle.aiCandidates.length === 0) return "";
   const subjectNames = new Set(bundle.subjects.map((subject) => observationDetailUiName(subject.displayName)));
   const readingMap = candidateReadingMap(bundle);
@@ -3423,11 +3509,11 @@ function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null): s
       })
     )
     .slice(0, 4)
-    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap))
+    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap, groundingAssets))
     .join("");
 }
 
-function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null): string {
+function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null, groundingAssets: AiGroundingAsset[] = []): string {
   const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle) || renderHeroAiCandidateTargets(bundle);
   const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
@@ -3488,6 +3574,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
       <div class="obs-ai-detail-grid">
@@ -3498,14 +3585,14 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
         ${shootingRows}
       </div>
     </div>
-    ${renderAiCandidateDetailPanels(bundle)}
+    ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
   </section>`;
 }
 
-export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null): string {
+export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null, groundingAssets: AiGroundingAsset[] = []): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
-    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle);
+    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle, groundingAssets);
   }
 
   const band = aiAssessment.confidenceBand;
@@ -3552,17 +3639,51 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
+      ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
       ${compareList ? `<div class="obs-ai-detail-grid">${compareList}</div>` : ""}
       ${note}
     </div>
-    ${renderAiCandidateDetailPanels(bundle)}
+    ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
   </section><script>(function(){
     document.querySelectorAll('[data-obs-switch-ai-readout]').forEach(function(root){
       if (root.getAttribute('data-ai-readout-bound') === '1') return;
       root.setAttribute('data-ai-readout-bound', '1');
+      var cssEscape = function(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+        return String(value).replace(/["\\\\]/g, '\\\\$&');
+      };
+      var focusGrounding = function(button) {
+        var assetId = button.getAttribute('data-ai-grounding-asset') || '';
+        var subjectId = button.getAttribute('data-ai-grounding-subject') || '';
+        var candidateId = button.getAttribute('data-ai-grounding-candidate') || '';
+        if (!assetId) return;
+        var thumb = document.querySelector('.obs-hero-thumb[data-obs-thumb-asset-id="' + cssEscape(assetId) + '"]');
+        if (thumb && !thumb.classList.contains('is-active')) thumb.click();
+        window.setTimeout(function(){
+          var selector = subjectId
+            ? '[data-annotation-subject-id="' + cssEscape(subjectId) + '"]'
+            : candidateId
+              ? '[data-annotation-candidate-id="' + cssEscape(candidateId) + '"]'
+              : '';
+          if (!selector) return;
+          document.querySelectorAll('.obs-annotation-target.is-annotation-focus').forEach(function(node){
+            node.classList.remove('is-annotation-focus');
+          });
+          var target = document.querySelector(selector);
+          if (!target) return;
+          target.classList.add('is-annotation-focus');
+          if (typeof target.focus === 'function') target.focus({ preventScroll: true });
+        }, 80);
+      };
       root.addEventListener('click', function(event){
+        var groundingButton = event.target && event.target.closest ? event.target.closest('[data-ai-grounding-asset]') : null;
+        if (groundingButton && root.contains(groundingButton)) {
+          event.preventDefault();
+          focusGrounding(groundingButton);
+          return;
+        }
         var button = event.target && event.target.closest ? event.target.closest('[data-ai-target]') : null;
         if (!button || !root.contains(button)) return;
         var key = button.getAttribute('data-ai-target');
@@ -14796,6 +14917,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       canProposeSubject: Boolean(viewerUserId),
     });
     const mediaAnnotationTargets = buildObservationMediaAnnotationTargets(visibleRecordItems, bundle);
+    const groundingAssets = aiGroundingAssets(snapshot);
     const currentSubjectDisplay = formatTaxonDisplayName(currentSubject, lang);
     const snapshotDisplay = formatTaxonDisplayName(snapshot, lang);
     const observerDisplay = formatActorDisplay(snapshot.observerName, lang);
@@ -15058,7 +15180,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       summaryStrip: "",
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
       sceneOverviewBlock: "",
-      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle),
+      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle, groundingAssets),
       nextActionRail,
       trustStageLabel,
       trustLead,
@@ -15193,7 +15315,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
-      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle)}</template>
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
@@ -15262,6 +15384,47 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var currentBadge = document.querySelector('[data-current-subject-badge]');
            var selectTemplate = function(attr, subjectId){
              return document.querySelector('template[' + attr + '="' + subjectId.replace(/"/g, '\\"') + '"]');
+           };
+           var switchRegions = [
+             { root: firstReadRoot, templateAttr: 'data-subject-first-read-template' },
+             { root: aiReadoutRoot, templateAttr: 'data-subject-ai-readout-template' },
+             { root: hintRoot, templateAttr: 'data-subject-hint-template' },
+             { root: taxonomyRoot, templateAttr: 'data-subject-taxonomy-template' },
+             { root: identifyRoot, templateAttr: 'data-subject-identify-template' }
+           ];
+           var measureSwitchTemplateHeight = function(root, template){
+             if (!root || !template || !document.body) return 0;
+             var width = Math.max(1, Math.round(root.getBoundingClientRect().width || root.clientWidth || 1));
+             var probe = document.createElement('div');
+             probe.style.position = 'absolute';
+             probe.style.left = '-10000px';
+             probe.style.top = '0';
+             probe.style.visibility = 'hidden';
+             probe.style.pointerEvents = 'none';
+             probe.style.boxSizing = 'border-box';
+             probe.style.width = width + 'px';
+             probe.innerHTML = template.innerHTML;
+             document.body.appendChild(probe);
+             var height = Math.ceil(probe.getBoundingClientRect().height);
+             probe.remove();
+             return height;
+           };
+           var stabilizeSwitchHeights = function(){
+             switchRegions.forEach(function(region){
+               var root = region.root;
+               if (!root) return;
+               root.style.minHeight = '';
+               var maxHeight = Math.ceil(root.getBoundingClientRect().height);
+               Array.prototype.slice.call(document.querySelectorAll('template[' + region.templateAttr + ']')).forEach(function(template){
+                 maxHeight = Math.max(maxHeight, measureSwitchTemplateHeight(root, template));
+               });
+               if (maxHeight > 0) root.style.minHeight = maxHeight + 'px';
+             });
+           };
+           var stabilizeTimer = null;
+           var requestSwitchHeightStabilize = function(){
+             if (stabilizeTimer) window.clearTimeout(stabilizeTimer);
+             stabilizeTimer = window.setTimeout(stabilizeSwitchHeights, 80);
            };
            var renderRegions = function(subjectId){
              Array.prototype.slice.call(document.querySelectorAll('[data-region-layer]')).forEach(function(layer){
@@ -15360,6 +15523,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            window.addEventListener('ikimon:media-asset-selected', function(){
              renderRegions(currentSubjectId);
            });
+           window.addEventListener('resize', requestSwitchHeightStabilize);
+           stabilizeSwitchHeights();
            renderSubject(currentSubjectId, false);
          })();</script>`
       : "";
