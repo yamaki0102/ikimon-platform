@@ -454,6 +454,10 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(identifySource, /data-ai-candidate-meter-value/);
   assert.match(identifySource, /obs-frame-candidate-current/);
   assert.match(identifySource, /aria-current="true"/);
+  assert.match(identifySource, /initialCurrentIndex > 0/);
+  assert.match(identifySource, /isDenseCandidateList = candidates\.length >= 5/);
+  assert.match(routeSource, /\.obs-frame-candidate-switch\.is-dense \.obs-frame-identify-candidates/);
+  assert.match(routeSource, /text-overflow: ellipsis !important/);
   assert.match(polishSource, /function selectAiCandidateTarget/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-target\]'\)/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-panel\]'\)/);
