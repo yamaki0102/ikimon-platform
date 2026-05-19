@@ -49,6 +49,15 @@ async function expectCandidateSelection(page: Page, label: string, expectedMeter
 
 test.describe("observation detail candidate tabs", () => {
   test("clicking AI candidate chips keeps readout and identification panels synchronized", async ({ page }) => {
+    const hasExplicitTarget = Boolean(
+      process.env.OBSERVATION_CANDIDATE_TABS_TARGET_PATH?.trim() ||
+      process.env.IKIMON_SCENE_READ_VISIT_ID?.trim(),
+    );
+    test.skip(
+      Boolean(process.env.CI) && !hasExplicitTarget,
+      "local candidate-tab fixture is not seeded in staging full E2E by default",
+    );
+
     await page.setViewportSize({ width: 1440, height: 900 });
     const response = await page.goto(candidateTabsTargetPath(), { waitUntil: "domcontentloaded" });
     expect(response?.status(), "candidate tab target status").toBeLessThan(500);
