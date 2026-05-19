@@ -13,6 +13,14 @@ function envText(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
 
+function hasExplicitCandidateTabsTarget(): boolean {
+  return Boolean(
+    process.env.OBSERVATION_CANDIDATE_TABS_TARGET_PATH?.trim()
+      || process.env.IKIMON_SCENE_READ_VISIT_ID?.trim()
+      || process.env.IKIMON_SCENE_READ_SUBJECT_ID?.trim(),
+  );
+}
+
 async function expectCandidateSelection(page: Page, label: string, expectedMeter: string): Promise<void> {
   const candidate = page.locator("[data-ai-target]", { hasText: label }).first();
   await expect(candidate, `${label} candidate tab should be present`).toBeVisible();
@@ -48,6 +56,11 @@ async function expectCandidateSelection(page: Page, label: string, expectedMeter
 }
 
 test.describe("observation detail candidate tabs", () => {
+  test.skip(
+    Boolean(process.env.STAGING_BASE_URL) && !hasExplicitCandidateTabsTarget(),
+    "local candidate-tab repro needs an explicit observation target before running against staging",
+  );
+
   test("clicking AI candidate chips keeps readout and identification panels synchronized", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const response = await page.goto(candidateTabsTargetPath(), { waitUntil: "domcontentloaded" });
