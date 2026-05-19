@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "./app.js";
+import { createContactProof } from "./services/contactSubmit.js";
 
 test("app accepts photo upload JSON bodies up to the v2 photo preflight envelope", async () => {
   const app = buildApp();
@@ -85,6 +86,72 @@ test("contact submit endpoint is rate-limited before mail or database work", asy
       payload: { category: "invalid", message: "hello contact" },
     });
     assert.equal(limited.statusCode, 429);
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact page renders bot traps and a signed contact proof", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/contact?lang=ja" });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["cache-control"], "no-store");
+    assert.match(response.body, /name="website"/);
+    assert.match(response.body, /name="spamTrap"/);
+    assert.match(response.body, /name="contactProof" type="hidden" value="v1\./);
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact submit endpoint rejects direct posts without a contact proof", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/contact/submit",
+      remoteAddress: "203.0.113.11",
+      payload: { category: "question", message: "hello contact" },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), { ok: false, error: "contact_antispam_failed" });
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact submit endpoint rejects freshly minted bot-speed contact proofs", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/contact/submit",
+      remoteAddress: "203.0.113.12",
+      payload: { category: "question", message: "hello contact", contactProof: createContactProof() },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), { ok: false, error: "contact_antispam_failed" });
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact submit endpoint accepts aged contact proofs before normal validation", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/contact/submit",
+      remoteAddress: "203.0.113.13",
+      payload: {
+        category: "invalid",
+        message: "hello contact",
+        contactProof: createContactProof(Date.now() - 3_000),
+      },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), { ok: false, error: "invalid_category" });
   } finally {
     await app.close();
   }
