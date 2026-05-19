@@ -31,6 +31,11 @@ import {
   VALID_OBSERVATION_PHOTO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { loadAreaSnapshotVisitIds } from "./areaSnapshotVisitScope.js";
+import {
+  buildAreaWatch,
+  type AreaWatch,
+  type AreaWatchEvidenceStats,
+} from "./areaWatch.js";
 
 export type AreaCoverSource = "admin_curated" | "community_curated" | "auto_observation";
 
@@ -52,6 +57,7 @@ export type AreaObservationGalleryItem = {
   localityLabel: string | null;
   observationCount: number;
   recentObservationCount: number;
+  likeCount: number;
   season: AreaSeasonKey | null;
   seasonLabel: string | null;
   isCurrentSeason: boolean;
@@ -104,6 +110,7 @@ export type AreaPlaceSnapshot = PlaceSnapshot & {
   sensitiveMasking: AreaSensitiveMasking;
   firstSeenSpecies: Array<{ year: number; scientificName: string; vernacularName: string | null }>;
   environmentChange: null;
+  areaWatch: AreaWatch;
 };
 
 const EMPTY_INDICATORS: AreaEffortIndicators = {
@@ -118,6 +125,19 @@ const EMPTY_INDICATORS: AreaEffortIndicators = {
   yearsCovered: 0,
   monthsCovered: 0,
   seasonsCovered: 0,
+};
+
+const EMPTY_AREA_WATCH_EVIDENCE_STATS: AreaWatchEvidenceStats = {
+  totalOccurrences: 0,
+  photoOccurrences: 0,
+  contextPhotoOccurrences: 0,
+  primarySubjectPhotoOccurrences: 0,
+  recent90Occurrences: 0,
+  recent180Occurrences: 0,
+  reviewedOccurrences: 0,
+  aiCandidateOccurrences: 0,
+  methodContextVisits: 0,
+  latestObservedAt: null,
 };
 
 function fieldBbox(field: { lat: number; lng: number; radiusM: number }): {
@@ -288,6 +308,7 @@ async function loadObservationGallery(
         photo_url: string | null;
         observation_count: string;
         recent_observation_count: string;
+        like_count: string;
       }>(
         `with field_visits as (
             select v.*
@@ -343,6 +364,12 @@ async function loadObservationGallery(
               count(*) over (partition by fo.taxon_key)::text as observation_count,
               count(*) filter (where fo.observed_at::timestamptz >= now() - interval '90 days')
                 over (partition by fo.taxon_key)::text as recent_observation_count,
+              (
+                select count(*)::text
+                  from observation_reactions rx
+                 where rx.occurrence_id = fo.occurrence_id
+                   and rx.reaction_type = 'like'
+              ) as like_count,
               row_number() over (
                 partition by fo.taxon_key
                 order by case when fo.photo_url is null then 1 else 0 end,
@@ -352,7 +379,7 @@ async function loadObservationGallery(
             from field_occ fo
           )
           select occurrence_id, visit_id, display_name, observed_at,
-                 nullif(locality_label, '') as locality_label, photo_url, observation_count, recent_observation_count
+                 nullif(locality_label, '') as locality_label, photo_url, observation_count, recent_observation_count, like_count
             from ranked
            where representative_rank = 1
            order by recent_observation_count::int desc, observation_count::int desc, observed_at desc
@@ -375,6 +402,7 @@ async function loadObservationGallery(
           localityLabel: row.locality_label,
           observationCount: Number(row.observation_count) || 1,
           recentObservationCount: Number(row.recent_observation_count) || 0,
+          likeCount: Number(row.like_count) || 0,
           season,
           seasonLabel: season ? seasonLabel(season) : null,
           isCurrentSeason: season === current,
@@ -665,6 +693,116 @@ async function loadSensitiveMasking(
   );
 }
 
+async function loadAreaWatchEvidenceStats(scopedVisitIds: string[]): Promise<AreaWatchEvidenceStats> {
+  const pool = getPool();
+  return safeQuery(
+    "area_watch_evidence_stats",
+    async () => {
+      const result = await pool.query<{
+        total_occurrences: string;
+        photo_occurrences: string;
+        context_photo_occurrences: string;
+        primary_subject_photo_occurrences: string;
+        recent_90_occurrences: string;
+        recent_180_occurrences: string;
+        reviewed_occurrences: string;
+        ai_candidate_occurrences: string;
+        method_context_visits: string;
+        latest_observed_at: string | null;
+      }>(
+        `with field_visits as (
+            select v.*
+              from visits v
+             where v.observed_at is not null
+               and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+               and v.visit_id = any($1::uuid[])
+          ),
+          field_occ as (
+            select o.*, fv.observed_at
+              from occurrences o
+              join field_visits fv on fv.visit_id = o.visit_id
+          )
+          select
+            count(distinct o.occurrence_id)::text as total_occurrences,
+            count(distinct o.occurrence_id) filter (
+              where exists (
+                select 1
+                  from evidence_assets ea
+                  join asset_blobs ab on ab.blob_id = ea.blob_id
+                 where ea.occurrence_id = o.occurrence_id
+                   and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+              )
+            )::text as photo_occurrences,
+            count(distinct o.occurrence_id) filter (
+              where exists (
+                select 1
+                  from evidence_assets ea
+                  join asset_blobs ab on ab.blob_id = ea.blob_id
+                  left join evidence_asset_media_roles mr on mr.asset_id = ea.asset_id
+                 where ea.occurrence_id = o.occurrence_id
+                   and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+                   and (
+                     ea.role_tag in ('habitat_wide', 'substrate', 'scale_reference')
+                     or mr.media_role = 'context'
+                     or ea.source_payload->>'media_role' = 'context'
+                   )
+              )
+            )::text as context_photo_occurrences,
+            count(distinct o.occurrence_id) filter (
+              where exists (
+                select 1
+                  from evidence_assets ea
+                  join asset_blobs ab on ab.blob_id = ea.blob_id
+                  left join evidence_asset_media_roles mr on mr.asset_id = ea.asset_id
+                 where ea.occurrence_id = o.occurrence_id
+                   and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+                   and (
+                     ea.role_tag in ('full_body', 'close_up_organ')
+                     or mr.media_role = 'primary_subject'
+                     or ea.source_payload->>'media_role' = 'primary_subject'
+                   )
+              )
+            )::text as primary_subject_photo_occurrences,
+            count(distinct o.occurrence_id) filter (where o.observed_at >= now() - interval '90 days')::text as recent_90_occurrences,
+            count(distinct o.occurrence_id) filter (where o.observed_at >= now() - interval '180 days')::text as recent_180_occurrences,
+            count(distinct o.occurrence_id) filter (where coalesce(o.evidence_tier, 0) >= 2)::text as reviewed_occurrences,
+            count(distinct o.occurrence_id) filter (
+              where exists (
+                select 1 from observation_ai_assessments ai where ai.occurrence_id = o.occurrence_id
+              )
+            )::text as ai_candidate_occurrences,
+            (select count(distinct fv.visit_id)::text
+               from field_visits fv
+              where exists (
+                select 1
+                  from observation_method_contexts omc
+                 where omc.visit_id = fv.visit_id
+              )
+                 or fv.source_kind in ('fieldscan', 'passive_audio', 'mobile_field_session')
+                 or fv.visit_mode in ('track', 'guided_survey')
+            ) as method_context_visits,
+            max(o.observed_at)::text as latest_observed_at
+          from field_occ o`,
+        [scopedVisitIds],
+      );
+      const row = result.rows[0];
+      return {
+        totalOccurrences: Number(row?.total_occurrences ?? 0),
+        photoOccurrences: Number(row?.photo_occurrences ?? 0),
+        contextPhotoOccurrences: Number(row?.context_photo_occurrences ?? 0),
+        primarySubjectPhotoOccurrences: Number(row?.primary_subject_photo_occurrences ?? 0),
+        recent90Occurrences: Number(row?.recent_90_occurrences ?? 0),
+        recent180Occurrences: Number(row?.recent_180_occurrences ?? 0),
+        reviewedOccurrences: Number(row?.reviewed_occurrences ?? 0),
+        aiCandidateOccurrences: Number(row?.ai_candidate_occurrences ?? 0),
+        methodContextVisits: Number(row?.method_context_visits ?? 0),
+        latestObservedAt: row?.latest_observed_at ?? null,
+      };
+    },
+    EMPTY_AREA_WATCH_EVIDENCE_STATS,
+  );
+}
+
 type OccurrenceForMaskingPrecision = "exact_private" | "site" | "mesh" | "municipality" | "hidden";
 
 export async function getAreaPlaceSnapshot(
@@ -678,14 +816,25 @@ export async function getAreaPlaceSnapshot(
   const placeId = base.relationshipScore.placeId ?? null;
   const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
   const fieldForEffort = { createdAt: field.createdAt };
-  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking] = await Promise.all([
+  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking, areaWatchEvidenceStats] = await Promise.all([
     loadRepresentativePhoto(scopedVisitIds),
     loadObservationGallery(scopedVisitIds),
     loadSeasonalCoverage(scopedVisitIds),
     loadYearlyTimeline(scopedVisitIds),
     loadEffortIndicators(fieldForEffort, scopedVisitIds),
     loadSensitiveMasking(scopedVisitIds, options.viewer),
+    loadAreaWatchEvidenceStats(scopedVisitIds),
   ]);
+  const areaWatch = buildAreaWatch({
+    totalObservations: base.observationSummary.totalObservations,
+    totalVisits: base.observationSummary.totalVisits,
+    uniqueTaxa: base.observationSummary.uniqueTaxa,
+    seasonalCoverage,
+    yearlyTimeline,
+    effortIndicators,
+    sensitiveMasking,
+    evidenceStats: areaWatchEvidenceStats,
+  });
   return {
     ...base,
     representativePhoto,
@@ -696,6 +845,7 @@ export async function getAreaPlaceSnapshot(
     sensitiveMasking,
     firstSeenSpecies: [],
     environmentChange: null,
+    areaWatch,
   };
 }
 

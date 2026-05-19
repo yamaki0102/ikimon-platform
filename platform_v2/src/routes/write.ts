@@ -45,6 +45,10 @@ import {
 } from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
+import {
+  emitAreaWatchNotificationForObservation,
+  ensureAreaWatchParticipationForVisit,
+} from "../services/areaWatchNotifications.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
 import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
@@ -359,6 +363,15 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           occurrenceIds: result.occurrenceIds,
         },
       }).catch(() => undefined);
+      void ensureAreaWatchParticipationForVisit({ visitId: result.visitId }).catch((error) => {
+        request.log.warn({ err: error, visitId: result.visitId }, "area watch participation failed");
+      });
+      void emitAreaWatchNotificationForObservation({
+        occurrenceId: result.occurrenceId,
+        visitId: result.visitId,
+      }).catch((error) => {
+        request.log.warn({ err: error, occurrenceId: result.occurrenceId, visitId: result.visitId }, "area watch notification failed");
+      });
       return {
         ok: true,
         ...result,
@@ -390,6 +403,12 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           base64Data: request.body.base64Data,
           mediaRole: request.body.mediaRole,
           facePrivacy: request.body.facePrivacy,
+        });
+        void emitAreaWatchNotificationForObservation({
+          occurrenceId: result.occurrenceId,
+          visitId: result.visitId,
+        }).catch((error) => {
+          request.log.warn({ err: error, occurrenceId: result.occurrenceId, visitId: result.visitId }, "area watch notification failed");
         });
         return {
           ok: true,
