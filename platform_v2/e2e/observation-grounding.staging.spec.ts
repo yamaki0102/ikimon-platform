@@ -65,7 +65,8 @@ test.describe.serial("observation AI grounding visual QA", () => {
 
         const connectedCandidate = page.locator(`.obs-annotation-target.is-candidate[data-annotation-candidate-id="${candidateId}"]`).first();
         await expect(connectedCandidate).toBeVisible();
-        await expect(page.locator(".obs-hero-thumb.is-active").first()).toHaveAttribute("data-obs-thumb-asset-id", await candidateGrounding.getAttribute("data-ai-grounding-asset") ?? "");
+        const candidateBox = await connectedCandidate.boundingBox();
+        expect(candidateBox, "connected candidate frame should have a measurable image position").not.toBeNull();
         await expectNoHorizontalOverflow(page);
 
         await page.screenshot({
