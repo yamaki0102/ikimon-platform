@@ -30,6 +30,12 @@ export const AI_MODEL_PRICING: Record<string, AiModelPricing> = {
     outputUsdPer1M: 2.5,
     source: "https://ai.google.dev/gemini-api/docs/pricing",
   },
+  [AI_MODELS.gemini35Flash]: {
+    provider: "gemini",
+    inputUsdPer1M: 1.5,
+    outputUsdPer1M: 9,
+    source: "https://ai.google.dev/gemini-api/docs/pricing",
+  },
   // DeepSeek V4 Flash OpenAI-compatible API pricing, checked 2026-04-29.
   [CURATOR_DEEPSEEK_MODEL]: {
     provider: "deepseek",

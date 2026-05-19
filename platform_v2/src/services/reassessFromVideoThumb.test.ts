@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildVideoFrameUrl, selectVideoFrameTimesMs } from "./reassessFromVideoThumb.js";
+import {
+  buildCloudflareStreamManifestUrl,
+  buildVideoFrameUrl,
+  selectVideoFrameTimesMs,
+} from "./reassessFromVideoThumb.js";
 import {
   adaptiveCandidateFrameTimesMs,
   selectAdaptiveVideoFramesFromFeatures,
@@ -23,6 +27,17 @@ test("video frame URLs replace thumbnail time and set requested height", () => {
   const url = buildVideoFrameUrl("https://customer.example/abc/thumbnails/thumbnail.jpg?time=1s&height=360", 2500);
 
   assert.equal(url, "https://customer.example/abc/thumbnails/thumbnail.jpg?time=2.5s&height=720");
+});
+
+test("Cloudflare Stream manifest URL is derived from thumbnail URL or stored stream uid", () => {
+  assert.equal(
+    buildCloudflareStreamManifestUrl("https://customer.example/abc/thumbnails/thumbnail.jpg?time=1s"),
+    "https://customer.example/abc/manifest/video.m3u8",
+  );
+  assert.equal(
+    buildCloudflareStreamManifestUrl("https://customer.example/not-a-uid/thumbnails/thumbnail.jpg", "stored_uid"),
+    "https://customer.example/stored_uid/manifest/video.m3u8",
+  );
 });
 
 test("adaptive video sampling scores a variable number of changed scenes", () => {
