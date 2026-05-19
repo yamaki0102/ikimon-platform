@@ -2033,6 +2033,11 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-frame-candidate-meter { display: none !important; }
   .obs-frame-identify-candidates { display: flex !important; flex-wrap: wrap !important; min-width: 0 !important; max-width: 100% !important; gap: 6px !important; overflow: hidden !important; padding: 0 !important; }
   .obs-frame-candidate { flex: 1 1 min(100%, 150px) !important; min-width: 0 !important; max-width: 100% !important; min-height: 34px !important; padding: 7px 10px !important; border-radius: 12px !important; border-color: rgba(15,118,110,.22) !important; background: #fff !important; font-size: 12px !important; white-space: normal !important; overflow-wrap: anywhere !important; text-align: left !important; }
+  .obs-frame-candidate-switch.is-dense .obs-frame-identify-candidates { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important; align-items: stretch !important; }
+  .obs-frame-candidate-switch.is-dense .obs-frame-candidate { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: 4px 7px !important; align-content: center !important; align-items: center !important; min-height: 46px !important; padding: 7px 9px !important; }
+  .obs-frame-candidate-switch.is-dense .obs-frame-candidate strong { display: block !important; min-width: 0 !important; max-width: 100% !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; word-break: keep-all !important; overflow-wrap: normal !important; }
+  .obs-frame-candidate-switch.is-dense .obs-frame-candidate span { grid-column: 1 / -1 !important; width: fit-content !important; }
+  .obs-frame-candidate-switch.is-dense .obs-frame-candidate-current { grid-column: 2 !important; grid-row: 1 !important; justify-self: end !important; }
   .obs-frame-candidate.is-current { border-color: rgba(4,120,87,.72) !important; background: #ecfdf5 !important; box-shadow: inset 0 0 0 2px rgba(4,120,87,.2), 0 8px 18px rgba(4,120,87,.11) !important; }
   .obs-frame-candidate span { flex: 0 0 auto !important; min-height: 18px !important; padding: 2px 6px !important; font-size: 9.5px !important; white-space: nowrap !important; }
   .obs-frame-identify-card .obs-ai-actions { display: grid !important; grid-template-columns: auto minmax(0,1fr) !important; align-items: center !important; gap: 9px !important; padding: 9px !important; border-radius: 14px !important; background: rgba(255,255,255,.86) !important; border: 1px solid rgba(15,23,42,.07) !important; }
@@ -5839,7 +5844,13 @@ function renderIdentificationCandidateSwitch(options: {
   }
 
   const usefulCount = candidates.filter((candidate) => !candidate.isWeak).length;
+  const initialCurrentIndex = candidates.findIndex((candidate) => candidate.isCurrent);
+  if (initialCurrentIndex > 0) {
+    const [currentCandidate] = candidates.splice(initialCurrentIndex, 1);
+    if (currentCandidate) candidates.unshift(currentCandidate);
+  }
   const currentIndex = Math.max(0, candidates.findIndex((candidate) => candidate.isCurrent));
+  const isDenseCandidateList = candidates.length >= 5;
   const meterLabel = usefulCount > 0 ? "AI候補" : "候補名が弱い";
   const meterValue = usefulCount > 0
     ? (candidates.some((candidate) => candidate.isCurrent) ? `${currentIndex + 1}/${candidates.length}` : `${usefulCount}件`)
@@ -5863,7 +5874,7 @@ function renderIdentificationCandidateSwitch(options: {
     return `<button class="${className}" type="button"${targetAttrs} aria-pressed="${candidate.isCurrent ? "true" : "false"}"${candidate.isCurrent ? ' aria-current="true"' : ""}>${body}</button>`;
   }).join("");
 
-  return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}">
+  return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}${isDenseCandidateList ? " is-dense" : ""}">
       <div class="obs-frame-candidate-meter"><span>${escapeHtml(meterLabel)}</span><strong data-ai-candidate-meter-value>${escapeHtml(meterValue)}</strong></div>
       <div class="obs-frame-identify-candidates" aria-label="AI候補">
         ${chips}
