@@ -3662,6 +3662,22 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
         window.dispatchEvent(new CustomEvent('ikimon:focus-media-annotation', {
           detail: { assetId: assetId, subjectId: subjectId, candidateId: candidateId }
         }));
+        window.setTimeout(function(){
+          var selector = subjectId
+            ? '[data-annotation-subject-id="' + cssEscape(subjectId) + '"]'
+            : candidateId
+              ? '[data-annotation-candidate-id="' + cssEscape(candidateId) + '"]'
+              : '';
+          if (!selector) return;
+          document.querySelectorAll('[data-annotation-target].is-annotation-focus').forEach(function(node){
+            node.classList.remove('is-annotation-focus');
+          });
+          var target = document.querySelector(selector);
+          if (!target) return;
+          target.classList.add('is-annotation-focus');
+          if (typeof target.focus === 'function') target.focus({ preventScroll: true });
+          if (typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        }, 120);
       };
       root.addEventListener('click', function(event){
         var groundingButton = event.target && event.target.closest ? event.target.closest('[data-ai-grounding-asset]') : null;

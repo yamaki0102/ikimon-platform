@@ -248,6 +248,8 @@ test("observation lightbox opens the full uploaded image instead of the lg thumb
 });
 
 test("observation media renders video media role badges", () => {
+  assert.match(OBSERVATION_MEDIA_STYLES, /\.obs-video-annotation-button\.is-annotation-focus/);
+
   const videoSnapshot = {
     ...snapshot,
     photoAssets: [],
