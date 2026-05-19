@@ -115,6 +115,7 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-video-annotation-button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; color: #0f172a; font: inherit; font-size: 11.5px; line-height: 1.25; font-weight: 900; cursor: pointer; }
   .obs-video-annotation-button:hover, .obs-video-annotation-button:focus-visible { background: #ecfdf5; border-color: rgba(16,185,129,.28); outline: none; }
   .obs-video-annotation-button.is-candidate { background: #fffbeb; border-color: rgba(245,158,11,.24); }
+  .obs-video-annotation-button.is-annotation-focus { border-color: rgba(16,185,129,.62); box-shadow: 0 0 0 4px rgba(16,185,129,.18), 0 10px 22px rgba(15,23,42,.1); }
   .obs-video-annotation-button small { color: #64748b; font-weight: 850; }
   @keyframes obsAnnotationPulse { 0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 12px 28px rgba(15,23,42,.18); } 50% { box-shadow: 0 0 0 5px rgba(16,185,129,.28), 0 16px 32px rgba(15,23,42,.2); } }
   @media (max-width: 640px) {
