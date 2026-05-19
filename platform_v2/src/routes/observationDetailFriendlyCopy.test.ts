@@ -435,6 +435,25 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
   assert.match(html, /トウネズミモチ/);
   assert.match(html, /トベラ/);
   assert.match(html, /45%/);
+  assert.match(html, /data-ai-target="candidate:candidate-ligustrum"/);
+  assert.match(html, /data-ai-panel="candidate:candidate-ligustrum" hidden/);
+  assert.match(html, /data-ai-candidate-index="2" data-ai-candidate-total="3"/);
+  assert.match(html, /Ligustrum lucidum/);
+});
+
+test("AI candidate tabs have synchronized hero and identification targets", () => {
+  const readoutSource = sourceBetween("function renderHeroAiCandidateTargets", "function renderNoAssessmentCandidateReadout");
+  const identifySource = sourceBetween("function renderIdentificationCandidateSwitch", "function normalizeCandidateReadingKey");
+  const heroSource = sourceBetween("function renderNoAssessmentCandidateReadout", "type ObservationMediaCopyContext");
+  const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
+
+  assert.match(readoutSource, /data-ai-target="\$\{escapeHtml\(aiCandidatePanelKey\(candidate\)\)\}"/);
+  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle\)/);
+  assert.match(identifySource, /panelKey: occurrenceHref \? candidate\.suggestedOccurrenceId : aiCandidatePanelKey\(candidate\)/);
+  assert.match(identifySource, /data-ai-candidate-meter-value/);
+  assert.match(polishSource, /function selectAiCandidateTarget/);
+  assert.match(polishSource, /querySelectorAll\('\[data-ai-target\]'\)/);
+  assert.match(polishSource, /querySelectorAll\('\[data-ai-panel\]'\)/);
 });
 
 test("owner-only controls stay compact and avoid support-card copy", () => {
