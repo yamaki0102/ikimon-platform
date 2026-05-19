@@ -1,6 +1,10 @@
 name: Deploy to Staging
 run-name: Staging ${{ github.event.inputs.verify_level || 'auto-preview' }} · ${{ github.event.inputs.branch || github.ref_name }}
 
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
 on:
   workflow_dispatch:
     inputs:
@@ -52,6 +56,16 @@ jobs:
       run_browser_smoke: ${{ steps.plan.outputs.run_browser_smoke }}
       run_full_browser_e2e: ${{ steps.plan.outputs.run_full_browser_e2e }}
     steps:
+      - name: Guard workflow ref matches target branch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TARGET_BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
+          WORKFLOW_REF='${{ github.ref_name }}'
+          if [ "$WORKFLOW_REF" != "$TARGET_BRANCH" ]; then
+            echo "::error::Deploy target branch '$TARGET_BRANCH' must match workflow ref '$WORKFLOW_REF'. Rerun with: gh workflow run deploy-staging.yml --ref '$TARGET_BRANCH' -f branch='$TARGET_BRANCH' ..."
+            exit 1
+          fi
+
       - name: Validate and export branch name
         run: |
           BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
