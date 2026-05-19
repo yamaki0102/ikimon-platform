@@ -6883,29 +6883,89 @@ function seasonPhraseFromObservedAt(observedAt: string): string {
   return `${month}月${ten}`;
 }
 
-function renderObservationRecordInsightText(options: {
+function isUnresolvedObservationDisplayName(value: string | null | undefined): boolean {
+  const name = observationDetailUiName(value);
+  if (!name) return true;
+  return /同定待ち|名前待ち|未同定|名前確認中|名前を確認中|名前不明|不明/iu.test(name);
+}
+
+function recordInsightSubjectName(subject: ObservationVisitSubject, recordItems: VisibleRecordItem[]): string {
+  const directCandidates = [
+    subject.aiAssessment?.recommendedTaxonName,
+    subject.vernacularName,
+    subject.scientificName,
+  ];
+  const currentRecordName = recordItems.find((item) => item.isCurrent && !isUnresolvedObservationDisplayName(item.displayName))?.displayName;
+  const featuredRecordName = recordItems.find((item) => item.isFeatured && !isUnresolvedObservationDisplayName(item.displayName))?.displayName;
+  const aiCandidateName = recordItems.find((item) =>
+    item.proposalKind === "ai_candidate"
+    && item.bucket === "main"
+    && !isUnresolvedObservationDisplayName(item.displayName)
+  )?.displayName;
+  const candidates = [
+    ...directCandidates,
+    currentRecordName,
+    featuredRecordName,
+    aiCandidateName,
+    subject.displayName,
+    "名前を確認中の対象",
+  ];
+  return observationDetailUiName(candidates.find((name) => !isUnresolvedObservationDisplayName(name)) ?? "名前を確認中の対象");
+}
+
+function recordInsightSubjectText(subject: ObservationVisitSubject, subjectName: string): string {
+  return [
+    subjectName,
+    subject.displayName,
+    subject.vernacularName,
+    subject.scientificName,
+    subject.rank,
+    subject.aiAssessment?.recommendedTaxonName,
+    subject.aiAssessment?.recommendedScientificName,
+    subject.aiAssessment?.recommendedRank,
+    subject.aiCandidateName,
+    subject.aiCandidateRank,
+  ].filter(Boolean).join(" ");
+}
+
+function recordInsightLifeform(subject: ObservationVisitSubject, subjectName: string): "bird" | "arthropod" | "plant" | "unknown" {
+  const text = recordInsightSubjectText(subject, subjectName);
+  if (/鳥|カワラヒワ|スズメ|ハト|鳩|カラス|aves|bird/i.test(text)) return "bird";
+  if (/ヤスデ|ムカデ|ジムカデ|倍脚|唇脚|多足|節足|昆虫|クモ|蜘蛛|ダンゴムシ|甲虫|チョウ|蝶|ガ|蛾|ハチ|蜂|アリ|蟻|arthropod|diplopoda|chilopoda|insect|arachnid|centipede|millipede/i.test(text)) {
+    return "arthropod";
+  }
+  if (/植物|草|花|葉|茎|木|樹|イネ科|ツメクサ|クローバー|ユウゲショウ|ナワシロイチゴ|サンゴジュ|ノゲシ|ハナニラ|poaceae|plant|trifolium|rubus/i.test(text)) {
+    return "plant";
+  }
+  return "unknown";
+}
+
+export function renderObservationRecordInsightText(options: {
   snapshot: ObservationDetailSnapshot;
   subject: ObservationVisitSubject;
   recordItems: VisibleRecordItem[];
   placeLabel: string;
 }): string {
-  const subjectName = observationDetailUiName(options.subject.aiAssessment?.recommendedTaxonName || options.subject.displayName || "名前を確認中の対象");
-  const text = `${subjectName} ${options.subject.scientificName ?? ""} ${options.recordItems.map((item) => `${item.displayName} ${item.roleLabel} ${item.note ?? ""}`).join(" ")}`;
+  const subjectName = recordInsightSubjectName(options.subject, options.recordItems);
+  const contextText = `${subjectName} ${recordInsightSubjectText(options.subject, subjectName)} ${options.recordItems.map((item) => `${item.displayName} ${item.roleLabel} ${item.note ?? ""}`).join(" ")}`;
+  const lifeform = recordInsightLifeform(options.subject, subjectName);
   const place = options.placeLabel || options.snapshot.municipality || options.snapshot.publicLocation?.label || "この場所";
   const season = seasonPhraseFromObservedAt(options.snapshot.observedAt);
-  const hasLowGrass = /低い草丈|草地|草|イネ科|芝/.test(text);
+  const hasLowGrass = /低い草丈|草地|草|イネ科|芝/.test(contextText);
   const envParts = [
-    /裸地/.test(text) ? "裸地" : "",
-    /礫|砂礫/.test(text) ? "礫" : "",
-    /踏圧|踏まれ/.test(text) ? "踏圧" : "",
+    /裸地/.test(contextText) ? "裸地" : "",
+    /礫|砂礫/.test(contextText) ? "礫" : "",
+    /踏圧|踏まれ/.test(contextText) ? "踏圧" : "",
   ].filter(Boolean);
-  const isBird = /鳥|カワラヒワ|スズメ|ハト|鳩|カラス|aves|bird/i.test(text);
-  const isPlant = /植物|草|花|葉|茎|イネ科|poaceae|plant/i.test(text);
-  if (isBird && (hasLowGrass || envParts.length > 0)) {
+  if (lifeform === "bird" && (hasLowGrass || envParts.length > 0)) {
     const foot = [hasLowGrass ? "低い草丈" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
     return `${subjectName}らしい鳥が、${foot}の近くに写っています。周辺・環境としては${envParts.length > 0 ? envParts.join("・") : "草地の状態"}が読み取れ、${place}${season ? `の草地・${season}` : "の草地"}という条件も、分布や季節感として自然です。踏まれた感じのある草地を季節ごとに重ねて見ると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。`;
   }
-  if (isPlant) {
+  if (lifeform === "arthropod") {
+    const foot = [hasLowGrass ? "草地" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
+    return `${subjectName}らしい小さな動物が、${foot}の状態と一緒に写っています。名前だけでなく、どの場所にいて、まわりの裸地や草地、礫、踏圧とどう接していたかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、足元の湿り気や草地管理の変化と、そこにいる小動物の出方を比べられます。`;
+  }
+  if (lifeform === "plant") {
     return `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
   }
   return `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
