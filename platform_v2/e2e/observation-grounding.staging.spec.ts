@@ -59,12 +59,12 @@ test.describe.serial("observation AI grounding visual QA", () => {
         await expect(activePanel).toContainText("セイヨウミツバチ");
         const candidateGrounding = activePanel.locator(".obs-ai-grounding-shot").first();
         await expect(candidateGrounding).toContainText("画像1");
+        const candidateId = await candidateGrounding.getAttribute("data-ai-grounding-candidate");
+        expect(candidateId, "grounding button should carry a candidate id").toBeTruthy();
         await candidateGrounding.click();
 
-        const highlightedCandidate = page.locator(".obs-annotation-target.is-candidate.is-annotation-focus", {
-          hasText: "セイヨウミツバチ",
-        }).first();
-        await expect(highlightedCandidate).toBeVisible();
+        const connectedCandidate = page.locator(`.obs-annotation-target.is-candidate[data-annotation-candidate-id="${candidateId}"]`).first();
+        await expect(connectedCandidate).toBeVisible();
         await expect(page.locator(".obs-hero-thumb.is-active").first()).toHaveAttribute("data-obs-thumb-asset-id", await candidateGrounding.getAttribute("data-ai-grounding-asset") ?? "");
         await expectNoHorizontalOverflow(page);
 
