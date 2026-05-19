@@ -55,7 +55,9 @@ test.describe.serial("observation AI grounding visual QA", () => {
         await expect(page.locator(".obs-annotation-target.is-current").first()).toBeVisible();
 
         await page.locator("[data-ai-target]", { hasText: "セイヨウミツバチ" }).first().click();
-        const candidateGrounding = page.locator("[data-ai-panel]:not([hidden]) .obs-ai-grounding-shot", { hasText: "セイヨウミツバチ" }).first();
+        const activePanel = page.locator("[data-ai-panel]:not([hidden])").first();
+        await expect(activePanel).toContainText("セイヨウミツバチ");
+        const candidateGrounding = activePanel.locator(".obs-ai-grounding-shot").first();
         await expect(candidateGrounding).toContainText("画像1");
         await candidateGrounding.click();
 
