@@ -78,7 +78,7 @@ test("observation media renders boxes only for displayable regions", () => {
   assert.doesNotMatch(mediaBlock, new RegExp(OBSERVATION_REGION_SUMMARY_TEXT));
 });
 
-test("observation media keeps annotation data out of the photo surface", () => {
+test("observation media keeps annotation targets templated until evidence focus", () => {
   const annotationTargets: ObservationMediaAnnotationTarget[] = [
     {
       key: "subject:occ:media-regression:0",
@@ -94,9 +94,12 @@ test("observation media keeps annotation data out of the photo surface", () => {
   ];
   const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, subject, annotationTargets);
 
-  assert.doesNotMatch(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
-  assert.doesNotMatch(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
+  assert.match(mediaBlock, /<span class="obs-annotation-layer" data-obs-preview-annotations hidden><\/span>/);
+  assert.match(mediaBlock, /<template data-obs-thumb-annotations="asset-vertical">/);
+  assert.match(mediaBlock, /data-annotation-target="subject:occ:media-regression:0"/);
+  assert.match(mediaBlock, /data-annotation-subject-id="occ:media-regression:0"/);
   assert.doesNotMatch(mediaBlock, /枠をタップすると対象を切り替えられます/);
+  assert.match(galleryScript, /ikimon:focus-media-annotation/);
   assert.match(galleryScript, /closest\('\[data-annotation-target\]'\)/);
 });
 
@@ -162,7 +165,8 @@ test("observation media avoids strong blue fills on large current regions", () =
   ]);
 
   assert.match(mediaBlock, /class="obs-region-box is-large-region"/);
-  assert.doesNotMatch(mediaBlock, /class="obs-annotation-target is-current is-large-region"/);
+  assert.match(mediaBlock, /class="obs-annotation-target is-current is-large-region"/);
+  assert.match(OBSERVATION_MEDIA_STYLES, /\.obs-annotation-target\.is-large-region\.is-current \{ background: transparent;/);
   assert.doesNotMatch(OBSERVATION_MEDIA_STYLES, /rgba\(37,99,235,\.13\)/);
 });
 

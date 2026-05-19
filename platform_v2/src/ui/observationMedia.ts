@@ -97,7 +97,8 @@ export const OBSERVATION_MEDIA_STYLES = `
   .obs-region-box.is-large-region { background: transparent; border-color: rgba(15,23,42,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.42); }
   .obs-region-box-label { display: none; }
   .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
-  .obs-annotation-layer { display: none; }
+  .obs-annotation-layer { display: block; position: absolute; inset: 0; pointer-events: none; }
+  .obs-annotation-layer[hidden] { display: none; }
   .obs-annotation-target { position: absolute; display: inline-flex; align-items: flex-start; justify-content: flex-start; min-width: 34px; min-height: 34px; padding: 0; border: 1px solid rgba(16,185,129,.34); border-radius: 12px; background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.32); color: #0f172a; cursor: pointer; pointer-events: auto; transition: transform .14s ease, border-color .14s ease, background .14s ease, box-shadow .14s ease; }
   .obs-annotation-target:hover, .obs-annotation-target:focus-visible { transform: translateY(-1px); border-color: rgba(5,150,105,.82); background: rgba(236,253,245,.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 10px 22px rgba(15,23,42,.12); outline: none; }
   .obs-annotation-target.is-current { border-color: rgba(13,148,136,.5); background: transparent; }
@@ -412,6 +413,12 @@ function renderPhotoGallery(
   const firstRegionHtml = renderObservationRegionBoxes(currentSubject, first.assetId);
   const firstRoleBadge = `<span class="obs-media-role-badge" data-obs-media-role-badge hidden></span>`;
   const firstSuggestionBadge = `<span class="obs-media-ai-role" data-obs-media-role-suggestion hidden></span>`;
+  const templatesHtml = snapshot.photoAssets.map((asset) => {
+    const regionTemplate = renderObservationRegionBoxes(currentSubject, asset.assetId);
+    const annotationTemplate = renderObservationAnnotationButtons(annotationTargets, asset.assetId, currentSubject.occurrenceId);
+    return `<template data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${regionTemplate}</template>
+         <template data-obs-thumb-annotations="${escapeHtml(asset.assetId)}">${annotationTemplate}</template>`;
+  }).join("");
   const thumbsHtml = snapshot.photoAssets.length >= 2
     ? `<div class="obs-hero-thumbs">${snapshot.photoAssets.map((asset, i) => {
       const previewUrl = photoDisplayUrl(asset, "lg");
@@ -420,16 +427,12 @@ function renderPhotoGallery(
       const suggestedRole = normalizeMediaRoleView(asset.suggestedMediaRole);
       const suggestedConfidence = typeof asset.suggestedMediaRoleConfidence === "number" ? asset.suggestedMediaRoleConfidence.toFixed(4) : "";
       const suggestedSource = asset.suggestedMediaRoleSource ?? "";
-      const regionTemplate = renderObservationRegionBoxes(currentSubject, asset.assetId);
-      const annotationTemplate = renderObservationAnnotationButtons(annotationTargets, asset.assetId, currentSubject.occurrenceId);
       return `
          <button type="button" class="obs-hero-thumb${i === 0 ? " is-active" : ""}" data-obs-thumb-index="${i}" data-obs-thumb-src="${escapeHtml(previewUrl)}" data-obs-thumb-full-src="${escapeHtml(asset.url)}" data-obs-thumb-asset-id="${escapeHtml(asset.assetId)}" data-obs-thumb-media-role="${escapeHtml(role ?? "")}" data-obs-thumb-suggested-role="${escapeHtml(suggestedRole ?? "")}" data-obs-thumb-suggested-confidence="${escapeHtml(suggestedConfidence)}" data-obs-thumb-suggested-source="${escapeHtml(suggestedSource)}"${photoSizeDataAttrs(asset)} aria-label="画像 ${i + 1}">
            <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy"${photoSizeAttrs(asset)} />
            <span class="obs-hero-thumb-ring" aria-hidden="true"></span>
            <span class="obs-hero-thumb-active-label" aria-hidden="true">表示中</span>
-         </button>
-         <template data-obs-thumb-regions="${escapeHtml(asset.assetId)}">${regionTemplate}</template>
-         <template data-obs-thumb-annotations="${escapeHtml(asset.assetId)}">${annotationTemplate}</template>`;
+         </button>`;
     }).join("")}</div>`
     : "";
   return `<div class="obs-hero-gallery" data-obs-gallery>
@@ -446,6 +449,7 @@ function renderPhotoGallery(
       </button>
     </div>
     ${thumbsHtml}
+    ${templatesHtml}
   </div>`;
 }
 
@@ -606,15 +610,40 @@ function renderObservationGalleryScript(options: { hasPhotoAssets: boolean; hasV
        return gallery.querySelector('template[' + attr + '="' + cssEscape(assetId) + '"]');
      };
 
-     var selectThumb = function(t){
+     var setPreviewAnnotations = function(assetId, showAnnotations){
+       if (!previewAnnotations) return '';
+       var annotations = templateFor('data-obs-thumb-annotations', assetId || '');
+       var annotationHtml = showAnnotations && annotations ? annotations.innerHTML : '';
+       previewAnnotations.innerHTML = annotationHtml;
+       previewAnnotations.hidden = !annotationHtml;
+       return annotationHtml;
+     };
+
+     var focusPreviewAnnotation = function(subjectId, candidateId) {
+       var selector = subjectId
+         ? '[data-annotation-subject-id="' + cssEscape(subjectId) + '"]'
+         : candidateId
+           ? '[data-annotation-candidate-id="' + cssEscape(candidateId) + '"]'
+           : '';
+       if (!selector) return;
+       Array.prototype.slice.call(document.querySelectorAll('.obs-annotation-target.is-annotation-focus')).forEach(function(node){
+         node.classList.remove('is-annotation-focus');
+       });
+       var target = document.querySelector(selector);
+       if (!target) return;
+       target.classList.add('is-annotation-focus');
+       if (typeof target.focus === 'function') target.focus({ preventScroll: true });
+     };
+
+     var selectThumb = function(t, opts){
        if (!t || t.classList.contains('is-active')) return;
+       opts = opts || {};
        var src = t.getAttribute('data-obs-thumb-src');
        var fullSrc = t.getAttribute('data-obs-thumb-full-src');
        var assetId = t.getAttribute('data-obs-thumb-asset-id');
        var imageWidth = t.getAttribute('data-obs-thumb-width');
        var imageHeight = t.getAttribute('data-obs-thumb-height');
        var regions = templateFor('data-obs-thumb-regions', assetId || '');
-       var annotations = templateFor('data-obs-thumb-annotations', assetId || '');
        thumbs.forEach(function(x){ x.classList.remove('is-active'); });
        t.classList.add('is-active');
        if (previewImg && imageWidth && imageHeight) {
@@ -661,14 +690,28 @@ function renderObservationGalleryScript(options: { hasPhotoAssets: boolean; hasV
          previewRegions.setAttribute('data-region-layer', assetId || '');
          updateRegionSummary(regionHtml);
        }
-       if (previewAnnotations) {
-         previewAnnotations.innerHTML = annotations ? annotations.innerHTML : '';
-       }
+       setPreviewAnnotations(assetId || '', !!opts.showAnnotations);
        window.dispatchEvent(new CustomEvent('ikimon:media-asset-selected', { detail: { assetId: assetId || '' } }));
      };
 
      thumbs.forEach(function(t){
        t.addEventListener('click', function(e){ e.preventDefault(); selectThumb(t); });
+     });
+
+     window.addEventListener('ikimon:focus-media-annotation', function(event){
+       var detail = event && event.detail ? event.detail : {};
+       var assetId = detail.assetId || '';
+       var subjectId = detail.subjectId || '';
+       var candidateId = detail.candidateId || '';
+       if (!assetId) return;
+       var thumb = gallery.querySelector('.obs-hero-thumb[data-obs-thumb-asset-id="' + cssEscape(assetId) + '"]');
+       if (thumb && !thumb.classList.contains('is-active')) {
+         selectThumb(thumb, { showAnnotations: true });
+       } else {
+         if (preview) preview.setAttribute('data-obs-preview-asset-id', assetId);
+         setPreviewAnnotations(assetId, true);
+       }
+       window.setTimeout(function(){ focusPreviewAnnotation(subjectId, candidateId); }, 30);
      });
 
      var toggleBtn = lightbox && lightbox.querySelector('[data-obs-lightbox-toggle]');
