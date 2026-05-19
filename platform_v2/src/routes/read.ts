@@ -2212,8 +2212,18 @@ function subjectIdentificationName(subject: ObservationVisitSubject): string {
   return observationDetailUiName(subject.aiAssessment?.recommendedTaxonName || subject.displayName || subject.vernacularName || subject.scientificName || "");
 }
 
-function candidateStatusWithRank(rank: string | null | undefined, status: string): string {
+function displayRankLabelForCandidate(name: string | null | undefined, rank: string | null | undefined): string {
+  const normalizedName = observationDetailUiName(name);
+  if (/綱/u.test(normalizedName)) return "綱";
+  if (/目/u.test(normalizedName)) return "目";
+  if (/科/u.test(normalizedName)) return "科";
+  if (/属/u.test(normalizedName)) return "属";
   const rankLabel = rank ? rankLabelJa(rank) : "";
+  return /^[A-Za-z_ -]+$/u.test(rankLabel) ? "" : rankLabel;
+}
+
+function candidateStatusWithRank(name: string | null | undefined, rank: string | null | undefined, status: string): string {
+  const rankLabel = displayRankLabelForCandidate(name, rank);
   return rankLabel ? `${rankLabel} / ${status}` : status;
 }
 
@@ -3296,7 +3306,7 @@ function renderHeroSceneCandidateTargets(currentSubject: ObservationVisitSubject
   const chips = tabSubjects.map((subject) => {
     const name = subjectIdentificationName(subject) || "名前確認中";
     const statusClass = subject.identificationCount > 0 ? " is-confirmed" : "";
-    const status = candidateStatusWithRank(subjectIdentificationRank(subject), subject.identificationCount > 0 ? "確認あり" : "確認待ち");
+    const status = candidateStatusWithRank(name, subjectIdentificationRank(subject), subject.identificationCount > 0 ? "確認あり" : "確認待ち");
     const isCurrent = subject.occurrenceId === currentSubject.occurrenceId;
     const href = `?subject=${encodeURIComponent(subject.occurrenceId)}`;
     const body = `<span>${escapeHtml(name)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(status)}</span>`;
@@ -3323,7 +3333,7 @@ function renderHeroAiCandidateTargets(bundle: ObservationVisitBundle | null): st
     .slice(0, 4);
   if (candidates.length === 0) return "";
   const chips = candidates.map((candidate, index) => {
-    const status = candidateStatusWithRank(candidate.rank, typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補");
+    const status = candidateStatusWithRank(candidate.displayName, candidate.rank, typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補");
     const body = `<span>${escapeHtml(observationDetailUiName(candidate.displayName))}</span><span class="obs-ai-target-status">${escapeHtml(status)}</span>`;
     if (candidate.suggestedOccurrenceId && bundle.subjects.some((subject) => subject.occurrenceId === candidate.suggestedOccurrenceId)) {
       const href = `?subject=${encodeURIComponent(candidate.suggestedOccurrenceId)}`;
@@ -5768,7 +5778,7 @@ function renderIdentificationCandidateSwitch(options: {
         label: display,
         rank: subjectIdentificationRank(subject),
         scientificName: subject.scientificName,
-        status: candidateStatusWithRank(subjectIdentificationRank(subject), subject.identificationCount > 0 ? "確認あり" : "確認待ち"),
+        status: candidateStatusWithRank(display, subjectIdentificationRank(subject), subject.identificationCount > 0 ? "確認あり" : "確認待ち"),
         href: appendLangToHref(
           withBasePath(options.basePath, buildObservationDetailPath(options.bundle.visitId, subject.occurrenceId)),
           options.lang,
@@ -5790,7 +5800,7 @@ function renderIdentificationCandidateSwitch(options: {
         label: candidate.displayName,
         rank: candidate.rank,
         scientificName: candidate.scientificName,
-        status: candidateStatusWithRank(candidate.rank, candidate.suggestedOccurrenceId ? "記録済み" : typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補"),
+        status: candidateStatusWithRank(candidate.displayName, candidate.rank, candidate.suggestedOccurrenceId ? "記録済み" : typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : "候補"),
         href: occurrenceHref,
         panelKey: occurrenceHref ? candidate.suggestedOccurrenceId : aiCandidatePanelKey(candidate),
         subjectId: occurrenceHref ? candidate.suggestedOccurrenceId : null,
