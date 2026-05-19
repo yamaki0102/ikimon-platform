@@ -53,7 +53,7 @@ test("multi-subject guard deduplicates existing coexisting taxa", () => {
   assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["カタバミ類", "常緑低木"]);
 });
 
-test("multi-subject guard drops unhelpful unidentified labels without a scientific name", () => {
+test("multi-subject guard drops unhelpful unidentified labels and same-subject comparisons", () => {
   const result = promoteCandidateReadingsToCoexistingTaxa({
     primaryVernacularName: "植栽低木",
     primaryScientificName: "",
@@ -67,11 +67,11 @@ test("multi-subject guard drops unhelpful unidentified labels without a scientif
     ],
   });
 
-  assert.equal(result.promoted, 1);
-  assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["アメリカシャクナゲ", "ツツジ類"]);
+  assert.equal(result.promoted, 0);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["アメリカシャクナゲ"]);
 });
 
-test("multi-subject guard enriches known Japanese taxon names before materialization", () => {
+test("multi-subject guard enriches known Japanese taxon names only for separate subjects", () => {
   const result = promoteCandidateReadingsToCoexistingTaxa({
     primaryVernacularName: "植栽低木",
     primaryScientificName: "",
@@ -83,10 +83,9 @@ test("multi-subject guard enriches known Japanese taxon names before materializa
     ],
   });
 
-  assert.equal(result.promoted, 1);
+  assert.equal(result.promoted, 0);
   assert.deepEqual(result.candidates.map((candidate) => [candidate.name, candidate.scientific_name, candidate.rank]), [
     ["トウネズミモチ", "Ligustrum lucidum", "species"],
-    ["トベラ", "Pittosporum tobira", "species"],
   ]);
 });
 
@@ -101,10 +100,24 @@ test("multi-subject guard enriches berry record candidates before materializatio
     ],
   });
 
-  assert.equal(result.promoted, 3);
+  assert.equal(result.promoted, 2);
   assert.deepEqual(result.candidates.map((candidate) => [candidate.name, candidate.scientific_name, candidate.rank]), [
-    ["ナワシロイチゴ", "Rubus parvifolius", "species"],
     ["アカメガシワ", "Mallotus japonicus", "species"],
     ["カタバミ属", "Oxalis", "genus"],
   ]);
+});
+
+test("multi-subject guard does not turn same-subject millipede alternatives into extra records", () => {
+  const result = promoteCandidateReadingsToCoexistingTaxa({
+    primaryVernacularName: "倍脚綱 (ヤスデ綱)",
+    primaryScientificName: "Diplopoda",
+    candidateReadings: [
+      { name: "倍脚綱 (ヤスデ綱)", scientific_name: "Diplopoda", rank: "class", role: "代表候補" },
+      { name: "オビヤスデ目の一種", scientific_name: "Polydesmida", rank: "order", role: "比較候補" },
+      { name: "クシヤスデ目などの細長いヤスデ", scientific_name: "", rank: "order", role: "分類候補" },
+    ],
+  });
+
+  assert.equal(result.promoted, 0);
+  assert.deepEqual(result.candidates, []);
 });

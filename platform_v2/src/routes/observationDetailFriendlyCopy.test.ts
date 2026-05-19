@@ -13,6 +13,7 @@ const mediaSource = readFileSync(new URL("../ui/observationMedia.ts", import.met
 const subjectProposalSource = readFileSync(new URL("../services/observationSubjectProposal.ts", import.meta.url), "utf8");
 const candidateAdoptionSource = readFileSync(new URL("../services/observationCandidateAdoption.ts", import.meta.url), "utf8");
 const identificationParticipationSource = readFileSync(new URL("../services/identificationParticipation.ts", import.meta.url), "utf8");
+const observationVisitBundleSource = readFileSync(new URL("../services/observationVisitBundle.ts", import.meta.url), "utf8");
 
 function sourceBetween(startMarker: string, endMarker: string): string {
   const start = routeSource.indexOf(startMarker);
@@ -451,9 +452,12 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle\)/);
   assert.match(identifySource, /panelKey: occurrenceHref \? candidate\.suggestedOccurrenceId : aiCandidatePanelKey\(candidate\)/);
   assert.match(identifySource, /data-ai-candidate-meter-value/);
+  assert.match(identifySource, /obs-frame-candidate-current/);
+  assert.match(identifySource, /aria-current="true"/);
   assert.match(polishSource, /function selectAiCandidateTarget/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-target\]'\)/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-panel\]'\)/);
+  assert.match(polishSource, /setAttribute\('aria-current', 'true'\)/);
 });
 
 test("candidate tab status rank follows the visible candidate name", () => {
@@ -825,6 +829,10 @@ test("identification and dispute writes refresh the visit display state", () => 
   assert.match(identificationParticipationSource, /deriveVisitDisplayState/);
   assert.match(identificationParticipationSource, /upsertVisitDisplayState/);
   assert.match(identificationParticipationSource, /await refreshVisitDisplayStateAfterIdentification\(client, visitId\);/);
+});
+
+test("dismissed AI subject candidates are not exposed in the observation bundle", () => {
+  assert.match(observationVisitBundleSource, /candidate_status <> 'dismissed'/);
 });
 
 test("subject query parameters are treated as internal tabs, not canonical pages", () => {

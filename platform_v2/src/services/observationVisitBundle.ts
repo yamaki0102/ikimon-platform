@@ -474,6 +474,7 @@ export async function getObservationVisitBundle(
                   note
              FROM observation_ai_subject_candidates
             WHERE ai_run_id = $1::uuid
+              AND candidate_status <> 'dismissed'
             ORDER BY confidence_score DESC NULLS LAST, created_at DESC`,
           [selectedRun.aiRunId],
         )
