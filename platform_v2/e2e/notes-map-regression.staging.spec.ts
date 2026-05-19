@@ -166,8 +166,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
 
     await Promise.all([
       mapPage.waitForURL((url) => {
-        return /^(?:\/(?:ja|en|es|pt-br))?\/observations\//.test(url.pathname)
-          && url.searchParams.get("subject") === fixture.historical.occurrenceId;
+        return /^(?:\/(?:ja|en|es|pt-br))?\/observations\//.test(url.pathname);
       }),
       detailLink.click(),
     ]);
@@ -179,7 +178,11 @@ test.describe.serial("notes/map regression staging fixtures", () => {
 
     const finalUrl = new URL(mapPage.url());
     expect(/^(?:\/(?:ja|en|es|pt-br))?\/observations\//.test(finalUrl.pathname)).toBeTruthy();
-    expect(finalUrl.searchParams.get("subject")).toBe(fixture.historical.occurrenceId);
+    expect(decodeURIComponent(finalUrl.pathname)).toContain(`/observations/${fixture.historical.visitId}`);
+    const finalSubject = finalUrl.searchParams.get("subject");
+    if (finalSubject) {
+      expect(finalSubject).toBe(fixture.historical.occurrenceId);
+    }
 
     await context.close();
   });

@@ -33,12 +33,21 @@ function albumCard(item: AreaObservationGalleryItem): string {
   const photo = item.photoUrl
     ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async" />`
     : `<span class="ps-album-placeholder" aria-hidden="true">✦</span>`;
-  return `<a class="ps-album-card" href="${escapeHtml(href)}">
-    ${photo}
-    ${seasonBadge(item)}
-    <strong>${escapeHtml(item.displayName || "同定待ち")}</strong>
-    <small>${escapeHtml(meta)}</small>
-  </a>`;
+  return `<article class="ps-album-card">
+    <a class="ps-album-card-main" href="${escapeHtml(href)}">
+      ${photo}
+      ${seasonBadge(item)}
+      <strong>${escapeHtml(item.displayName || "同定待ち")}</strong>
+      <small>${escapeHtml(meta)}</small>
+    </a>
+    <div class="ps-album-actions" data-occurrence-id="${escapeHtml(item.occurrenceId)}">
+      <button type="button" class="ps-album-like obs-reaction" data-reaction-type="like" aria-label="${escapeHtml(item.displayName || "この記録")}にいいね">
+        <span aria-hidden="true">💚</span>
+        <span class="obs-reaction-label">いいね</span>
+        <span class="obs-reaction-count">${fmtNumber(item.likeCount)}</span>
+      </button>
+    </div>
+  </article>`;
 }
 
 function renderAreaAlbum(snapshot: PlaceSnapshot): string {
@@ -76,6 +85,65 @@ function renderAreaAlbum(snapshot: PlaceSnapshot): string {
       <section><h3>今の季節に見えるもの</h3><div class="ps-album-grid ps-album-grid-compact">${currentHtml}</div></section>
       <section><h3>最近増えた記録</h3><div class="ps-album-grid ps-album-grid-compact">${recentHtml}</div></section>
     </div>
+  </section>`;
+}
+
+function areaWatchStatusClass(status: string): string {
+  return status === "well_watched" || status === "watched" || status === "growing" || status === "sprout"
+    ? status
+    : "sprout";
+}
+
+function renderAreaWatch(snapshot: PlaceSnapshot): string {
+  if (!isAreaSnapshot(snapshot)) return "";
+  const watch = snapshot.areaWatch;
+  if (!watch) return "";
+  const dimensions = watch.dimensions.map((item) => `<article class="ps-watch-dim is-${escapeHtml(areaWatchStatusClass(item.status))}">
+    <div class="ps-watch-dim-head">
+      <span>${escapeHtml(item.label)}</span>
+      <strong>${item.score}</strong>
+    </div>
+    <div class="ps-watch-bar"><i style="width:${Math.max(0, Math.min(100, item.score))}%"></i></div>
+    <p>${escapeHtml(item.childText)}</p>
+    <small>${escapeHtml(item.nextAction)}</small>
+  </article>`).join("");
+  const celebrations = watch.celebrations.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const gaps = watch.gaps.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  return `<section class="ps-section ps-watch" aria-label="エリアの見守りメーター">
+    <div class="ps-watch-hero is-${escapeHtml(areaWatchStatusClass(watch.status))}">
+      <div>
+        <div class="ps-eyebrow">Area Watch</div>
+        <h2>エリアの見守りメーター</h2>
+        <p>${escapeHtml(watch.childSummary)}</p>
+      </div>
+      <div class="ps-watch-score">
+        <span>${escapeHtml(watch.label)}</span>
+        <strong>${watch.score}</strong>
+        <small>見守り材料</small>
+      </div>
+    </div>
+    <p class="ps-section-lead">${escapeHtml(watch.stewardSummary)}</p>
+    <div class="ps-watch-next">
+      <span class="ps-badge">次の一手</span>
+      <strong>${escapeHtml(watch.nextAction.title)}</strong>
+      <p>${escapeHtml(watch.nextAction.body)}</p>
+    </div>
+    <div class="ps-watch-community">
+      <strong>参加したエリアをフォローすると、あとから誰かが写真・effort・季節の記録を足した時に通知で戻ってこられます。</strong>
+      <span>見守りは個人の宿題ではなく、同じ場所を見ている仲間の共同作業として育ちます。</span>
+    </div>
+    <div class="ps-watch-grid">${dimensions}</div>
+    <div class="ps-watch-notes">
+      <div>
+        <h3>育っているところ</h3>
+        <ul>${celebrations}</ul>
+      </div>
+      <div>
+        <h3>次に足すと強いところ</h3>
+        <ul>${gaps || "<li>大きな不足はありません。次は同じ場所を続けて見ます。</li>"}</ul>
+      </div>
+    </div>
+    <p class="ps-watch-researcher">${escapeHtml(watch.researcherNote)}</p>
   </section>`;
 }
 
@@ -476,6 +544,7 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot, options: {
       ${metric("季節", seasonText)}
     </section>
 
+    ${renderAreaWatch(snapshot)}
     ${renderAreaAlbum(snapshot)}
     ${renderAccessGuidance(snapshot)}
     ${renderSchoolAlbumProfiles(snapshot)}
@@ -698,6 +767,152 @@ export const PLACE_SNAPSHOT_STYLES = `
 .ps-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ps-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ps-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.ps-watch {
+  border-color: rgba(16,185,129,.22);
+  background: linear-gradient(135deg, rgba(236,253,245,.82), rgba(255,255,255,.96) 48%, rgba(239,246,255,.7));
+}
+.ps-watch-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 16px;
+  align-items: center;
+}
+.ps-watch-hero h2 { margin: 0; }
+.ps-watch-hero p {
+  margin: 8px 0 0;
+  color: #334155;
+}
+.ps-watch-score {
+  min-height: 132px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.1);
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  text-align: center;
+}
+.ps-watch-score span,
+.ps-watch-score small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ps-watch-score strong {
+  color: #064e3b;
+  font-size: clamp(38px, 5vw, 58px);
+  line-height: 1;
+}
+.ps-watch-next {
+  margin: 16px 0;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.84);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.ps-watch-next strong {
+  display: block;
+  margin: 8px 0 4px;
+  color: #0f172a;
+}
+.ps-watch-next p {
+  margin: 0;
+  color: #475569;
+}
+.ps-watch-community {
+  display: grid;
+  gap: 4px;
+  margin: -2px 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(20,184,166,.20);
+  background: rgba(240,253,250,.82);
+}
+.ps-watch-community strong {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ps-watch-community span {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ps-watch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.ps-watch-dim {
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.09);
+  padding: 12px;
+  min-height: 148px;
+}
+.ps-watch-dim-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  font-weight: 900;
+}
+.ps-watch-dim-head span { color: #0f172a; }
+.ps-watch-dim-head strong { color: #047857; }
+.ps-watch-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.ps-watch-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #10b981, #0ea5e9);
+}
+.ps-watch-dim p {
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.ps-watch-dim small {
+  display: block;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ps-watch-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.ps-watch-notes > div {
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+.ps-watch-notes h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.ps-watch-notes ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  line-height: 1.7;
+}
+.ps-watch-researcher {
+  margin: 14px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.65;
+}
 .ps-metric,
 .ps-card,
 .ps-axis {
@@ -955,7 +1170,14 @@ export const PLACE_SNAPSHOT_STYLES = `
   border: 1px solid rgba(15,23,42,.08);
   box-shadow: 0 8px 22px rgba(15,23,42,.06);
   color: #0f172a;
+}
+.ps-album-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   text-decoration: none;
+  color: inherit;
 }
 .ps-album-card img,
 .ps-album-placeholder {
@@ -980,6 +1202,34 @@ export const PLACE_SNAPSHOT_STYLES = `
   font-size: 11px;
   line-height: 1.35;
   font-weight: 760;
+}
+.ps-album-actions {
+  display: flex;
+  justify-content: flex-start;
+  min-height: 34px;
+}
+.ps-album-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+}
+.ps-album-like:hover {
+  background: #ecfdf5;
+  border-color: rgba(16,185,129,.24);
+}
+.ps-album-like.is-reacted {
+  background: rgba(16,185,129,.14);
+  border-color: rgba(16,185,129,.34);
+  color: #047857;
 }
 .ps-album-season {
   width: fit-content;
@@ -1106,9 +1356,14 @@ export const PLACE_SNAPSHOT_STYLES = `
   .ps-grid-3,
   .ps-grid-4,
   .ps-grid-5,
+  .ps-watch-grid,
   .ps-album-grid,
   .ps-album-grid-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ps-watch-hero,
+  .ps-watch-notes {
+    grid-template-columns: 1fr;
   }
   .ps-album-tabs {
     grid-template-columns: 1fr;
@@ -1132,7 +1387,9 @@ export const PLACE_SNAPSHOT_STYLES = `
   }
   .ps-grid-3,
   .ps-grid-4,
-  .ps-grid-5 {
+  .ps-grid-5,
+  .ps-watch-grid,
+  .ps-watch-notes {
     grid-template-columns: 1fr;
   }
   .ps-album-grid,

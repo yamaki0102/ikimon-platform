@@ -113,7 +113,7 @@ test("guide queues a camera scene offline and syncs it after reconnect", async (
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
     await expect(page.locator("#guide-offline-queued")).toBeHidden({ timeout: 20_000 });
-    await expect(page.locator("#guide-discovery-list")).toContainText("自動保存済み");
+    await expect(page.locator("#guide-discovery-list .gdi-autosave.is-saved").first()).toContainText("記録済み");
   } finally {
     await context.close();
   }

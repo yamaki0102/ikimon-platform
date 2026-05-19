@@ -124,6 +124,14 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /observation_upsert_success/);
         assert.match(response.body, /record_success_rendered/);
         assert.match(response.body, /record_saved/);
+        assert.match(response.body, /buildContributionReceiptsHtml/);
+        assert.match(response.body, /observationJson\.contributionReceipts/);
+        assert.match(response.body, /観察インパクト・レシート/);
+        assert.match(response.body, /data-contribution-receipts/);
+        assert.match(response.body, /data-contribution-receipt-kind/);
+        assert.match(response.body, /contributionReceiptKinds/);
+        assert.match(response.body, /contributionReceiptCount/);
+        assert.match(response.body, /contribution_receipt_/);
         assert.match(response.body, /record_submit_error/);
         assert.match(response.body, /photo_upload_error/);
         assert.match(response.body, /video_upload_error/);

@@ -11,6 +11,7 @@ import { issueRememberToken, revokeRememberToken } from "../services/rememberTok
 import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../services/observationPhotoUpload.js";
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
 import { refreshProfileNoteDigestForObservation } from "../services/profileNoteDigest.js";
+import { buildContributionReceipts } from "../services/contributionReceipts.js";
 import { hookObservationToEvent } from "../services/observationEventDualWrite.js";
 import {
   addReviewerAuthorityEvidence,
@@ -45,6 +46,10 @@ import {
 } from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
+import {
+  emitAreaWatchNotificationForObservation,
+  ensureAreaWatchParticipationForVisit,
+} from "../services/areaWatchNotifications.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import { adoptObservationCandidate } from "../services/observationCandidateAdoption.js";
 import { proposeObservationSubjectFromCandidate } from "../services/observationSubjectProposal.js";
@@ -331,6 +336,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const session = await getSessionFromCookie(request.headers.cookie);
       assertSessionUser(session, request.body.userId);
       const result = await upsertObservation(request.body);
+      const contributionReceipts = buildContributionReceipts({
+        input: request.body,
+        result,
+      });
       void recordUiKpiEvent({
         eventName: "task_completion",
         eventSource: "api",
@@ -345,6 +354,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           placeId: result.placeId,
           compatibilityAttempted: result.compatibility?.attempted ?? false,
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,
+          contributionReceiptKinds: contributionReceipts.map((item) => item.kind),
         },
       }).catch(() => undefined);
       void refreshProfileNoteDigestForObservation({
@@ -359,9 +369,19 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           occurrenceIds: result.occurrenceIds,
         },
       }).catch(() => undefined);
+      void ensureAreaWatchParticipationForVisit({ visitId: result.visitId }).catch((error) => {
+        request.log.warn({ err: error, visitId: result.visitId }, "area watch participation failed");
+      });
+      void emitAreaWatchNotificationForObservation({
+        occurrenceId: result.occurrenceId,
+        visitId: result.visitId,
+      }).catch((error) => {
+        request.log.warn({ err: error, occurrenceId: result.occurrenceId, visitId: result.visitId }, "area watch notification failed");
+      });
       return {
         ok: true,
         ...result,
+        contributionReceipts,
       };
     } catch (error) {
       reply.code(errorStatus(error, 400));
@@ -390,6 +410,12 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           base64Data: request.body.base64Data,
           mediaRole: request.body.mediaRole,
           facePrivacy: request.body.facePrivacy,
+        });
+        void emitAreaWatchNotificationForObservation({
+          occurrenceId: result.occurrenceId,
+          visitId: result.visitId,
+        }).catch((error) => {
+          request.log.warn({ err: error, occurrenceId: result.occurrenceId, visitId: result.visitId }, "area watch notification failed");
         });
         return {
           ok: true,

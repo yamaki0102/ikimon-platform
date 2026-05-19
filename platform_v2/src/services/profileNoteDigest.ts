@@ -160,11 +160,11 @@ function buildLocalDigest(userId: string, context: DigestContext, sourceObservat
     learningHighlight: stats.supportedCount > 0
       ? `${stats.supportedCount} 件で名前や同定の手がかりが育っています。分かる範囲が少しずつ広がっています。`
       : `${stats.openQuestionCount} 件の名前が揺れています。分からなさも、次に見返す理由として残っています。`,
-    localContribution: `${stats.observationCount} ページ、${stats.placeCount} か所、${stats.lifeListCount} 種の範囲で、この地域を読み返す材料が増えています。`,
+    localContribution: `${stats.observationCount} ページ分の観察が、地域・再訪・同定の手がかりとして読み返せます。`,
     growthStory: firstPlace
       ? `${firstPlace.placeName} を何度も読むほど、同じ場所の季節差や見落としていた対象が見えやすくなります。`
       : "ページが増えるほど、自分が何をよく見ているか、次に何を確かめたいかが見えます。",
-    contributionStory: "大げさな成果ではなく、キミの一つひとつの観察が、地域の自然をあとから読める形で少し厚くしています。",
+    contributionStory: "観察インパクト・レシートは、場所・不明さ・次の確認にどう効いたかを投稿後すぐに返します。",
     placeChapters: chapters,
     sourceStats: {
       observationCount: stats.observationCount,
@@ -185,6 +185,7 @@ function buildDigestPrompt(context: DigestContext, localDigest: ProfileNoteDiges
       "Do not encourage posting or writing",
       "Make the user's history feel worth rereading",
       "Use only the provided statistics; do not overclaim scientific impact",
+      "Contribution wording may mention observation impact receipts, but only as immediate rereading or follow-up value",
       "Treat the model output as copywriting draft only; facts come from stats and latestVisits",
       "Do not mention exact coordinates or private location details",
       "Return compact JSON only",
