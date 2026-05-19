@@ -11,6 +11,7 @@ import { issueRememberToken, revokeRememberToken } from "../services/rememberTok
 import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../services/observationPhotoUpload.js";
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
 import { refreshProfileNoteDigestForObservation } from "../services/profileNoteDigest.js";
+import { buildContributionReceipts } from "../services/contributionReceipts.js";
 import { hookObservationToEvent } from "../services/observationEventDualWrite.js";
 import {
   addReviewerAuthorityEvidence,
@@ -335,6 +336,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const session = await getSessionFromCookie(request.headers.cookie);
       assertSessionUser(session, request.body.userId);
       const result = await upsertObservation(request.body);
+      const contributionReceipts = buildContributionReceipts({
+        input: request.body,
+        result,
+      });
       void recordUiKpiEvent({
         eventName: "task_completion",
         eventSource: "api",
@@ -349,6 +354,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           placeId: result.placeId,
           compatibilityAttempted: result.compatibility?.attempted ?? false,
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,
+          contributionReceiptKinds: contributionReceipts.map((item) => item.kind),
         },
       }).catch(() => undefined);
       void refreshProfileNoteDigestForObservation({
@@ -375,6 +381,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: true,
         ...result,
+        contributionReceipts,
       };
     } catch (error) {
       reply.code(errorStatus(error, 400));

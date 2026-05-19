@@ -11733,6 +11733,39 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           return notes.map((line) => '<div class="meta" style="margin-top:6px">' + escapeHtmlText(line) + '</div>').join('');
         };
 
+        const normalizeContributionReceiptHref = (href) => {
+          const value = String(href || '').trim();
+          if (!value) return '';
+          if (value.charAt(0) === '/') return withBasePath(value);
+          return value;
+        };
+
+        const buildContributionReceiptsHtml = (receipts) => {
+          if (!Array.isArray(receipts) || receipts.length === 0) return '';
+          const items = receipts.slice(0, 3).map((receipt) => {
+            if (!receipt || typeof receipt !== 'object') return '';
+            const action = receipt.nextAction && typeof receipt.nextAction === 'object' ? receipt.nextAction : {};
+            const kind = String(receipt.kind || 'receipt').replace(/[^a-z0-9_-]/gi, '_');
+            const actionKey = String(action.actionKey || kind).replace(/[^a-z0-9_-]/gi, '_');
+            const href = normalizeContributionReceiptHref(action.href);
+            const label = String(action.label || '確認する');
+            const actionHtml = href
+              ? '<a href="' + escapeHtmlText(href) + '" data-record-success-cta="contribution_receipt_' + escapeHtmlText(actionKey) + '">' + escapeHtmlText(label) + '</a>'
+              : '';
+            return '<article class="record-impact-receipt" data-contribution-receipt-kind="' + escapeHtmlText(kind) + '" data-claim-level="' + escapeHtmlText(receipt.claimLevel || 'immediate') + '">' +
+              '<span>immediate</span>' +
+              '<strong>' + escapeHtmlText(receipt.title || '記録の手がかり') + '</strong>' +
+              '<p>' + escapeHtmlText(receipt.body || '') + '</p>' +
+              actionHtml +
+              '</article>';
+          }).filter(Boolean).join('');
+          if (!items) return '';
+          return '<section class="record-impact-receipts" data-contribution-receipts aria-label="観察インパクト・レシート">' +
+            '<div class="record-impact-receipts-head"><span>観察インパクト・レシート</span><strong>この記録で増えた手がかり</strong></div>' +
+            '<div class="record-impact-receipt-grid">' + items + '</div>' +
+            '</section>';
+        };
+
         const applyPrefillFromQuery = () => {
           if (!form) return;
           const params = new URLSearchParams(window.location.search);
@@ -13594,15 +13627,24 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? extraStatus
                 : '';
               const impactHtml = buildImpactHtml(observationJson.impact || null, suffix);
+              const contributionReceipts = Array.isArray(observationJson.contributionReceipts)
+                ? observationJson.contributionReceipts.slice(0, 3)
+                : [];
+              const contributionReceiptsHtml = buildContributionReceiptsHtml(contributionReceipts);
+              const contributionReceiptKinds = contributionReceipts
+                .map((receipt) => receipt && typeof receipt === 'object' ? String(receipt.kind || '') : '')
+                .filter(Boolean);
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + contributionReceiptsHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
                 placeId: observationJson.placeId || null,
-                successCtas: ['observation_detail', 'revisit_same_place', 'notes'],
+                successCtas: ['observation_detail', 'revisit_same_place', 'notes'].concat(contributionReceiptKinds.map((kind) => 'contribution_receipt_' + kind)),
+                contributionReceiptCount: contributionReceipts.length,
+                contributionReceiptKinds,
               });
               sendRecordTaskCompletion('record_saved', {
                 visitId,
@@ -13888,6 +13930,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-video-publication-help a { color: #0369a1; text-decoration: underline; text-underline-offset: 3px; font-weight: 950; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
         .record-status-inline { grid-column: 1 / -1; margin: 14px 0 0 16px; }
+        .record-impact-receipts { margin: 12px 0 10px; padding: 14px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+        .record-impact-receipts-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .record-impact-receipts-head span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+        .record-impact-receipts-head strong { color: #0f172a; font-size: 13px; line-height: 1.35; }
+        .record-impact-receipt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-impact-receipt { min-height: 132px; display: grid; align-content: start; gap: 6px; padding: 11px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+        .record-impact-receipt span { width: fit-content; padding: 3px 7px; border-radius: 999px; background: rgba(16,185,129,.1); color: #047857; font-size: 10px; line-height: 1.2; font-weight: 950; text-transform: uppercase; }
+        .record-impact-receipt strong { color: #0f172a; font-size: 13px; line-height: 1.35; }
+        .record-impact-receipt p { margin: 0; color: #475569; font-size: 12px; line-height: 1.55; font-weight: 700; }
+        .record-impact-receipt a { align-self: end; color: #0369a1; font-size: 12px; font-weight: 950; text-decoration: underline; text-underline-offset: 3px; }
         .record-sidebar { display: grid; gap: 18px; }
         .record-preview-card h2, .record-guide-card h2 { margin: 10px 0 0; font-size: 22px; line-height: 1.3; }
         .record-preview {
@@ -13947,6 +13999,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-submit-panel { align-items: flex-start; flex-direction: column; }
           .record-submit-panel .btn { width: 100%; }
           .record-capture-result { margin-left: 0; align-items: flex-start; flex-direction: column; }
+          .record-status-inline { margin-left: 0; }
+          .record-impact-receipts-head { align-items: flex-start; flex-direction: column; }
+          .record-impact-receipt-grid { grid-template-columns: 1fr; }
+          .record-impact-receipt { min-height: auto; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
           .record-video-guide-head { flex-direction: column; }
           .record-video-guide-head > span { width: 100%; }
