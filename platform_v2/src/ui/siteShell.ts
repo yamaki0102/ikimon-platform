@@ -2781,6 +2781,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const personalizedEndpoint = withBasePath(basePath, "/api/v1/me/personalized-menu?limit=8");
   const alertsEndpoint = withBasePath(basePath, "/api/v1/me/alerts");
   const alertsReadEndpoint = withBasePath(basePath, "/api/v1/me/alerts/read");
+  const reactionEndpointBase = withBasePath(basePath, "/api/v1/observations/");
   const profileHref = appendLangToHref(withBasePath(basePath, "/profile"), lang);
   const settingsHref = appendLangToHref(withBasePath(basePath, "/profile/settings"), lang);
   const notificationsHomeHref = appendLangToHref(withBasePath(basePath, "/home"), lang);
@@ -2791,6 +2792,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const personalizedEndpoint = ${JSON.stringify(personalizedEndpoint)};
   const alertsEndpoint = ${JSON.stringify(alertsEndpoint)};
   const alertsReadEndpoint = ${JSON.stringify(alertsReadEndpoint)};
+  const reactionEndpointBase = ${JSON.stringify(reactionEndpointBase)};
   const profileHref = ${JSON.stringify(profileHref)};
   const settingsHref = ${JSON.stringify(settingsHref)};
   const notificationsHomeHref = ${JSON.stringify(notificationsHomeHref)};
@@ -2814,6 +2816,9 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     return String(payload.body || payload.summary || payload.message || item.deliveryStatus || '').trim().slice(0, 110);
   };
   const alertHref = (item) => {
+    const payload = item && typeof item.payload === 'object' && item.payload ? item.payload : {};
+    const payloadHref = String(payload.href || '').trim();
+    if (payloadHref && payloadHref.charAt(0) === '/' && payloadHref.indexOf('//') !== 0) return payloadHref;
     const occurrenceId = item && item.occurrenceId ? String(item.occurrenceId) : '';
     return occurrenceId ? observationHrefBase + encodeURIComponent(occurrenceId) : notificationsHomeHref;
   };
@@ -2955,6 +2960,44 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     if (signedIn) hydratePersonalizedMenu();
   });
   document.addEventListener('click', (event) => {
+    const reactionButton = event.target instanceof Element ? event.target.closest('[data-reaction-type]') : null;
+    if (reactionButton) {
+      event.preventDefault();
+      const bar = reactionButton.closest('[data-occurrence-id]');
+      const occurrenceId = bar ? String(bar.getAttribute('data-occurrence-id') || '') : '';
+      const reactionType = String(reactionButton.getAttribute('data-reaction-type') || '');
+      if (!occurrenceId || !reactionType) return;
+      if (!signedIn) {
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+      reactionButton.setAttribute('disabled', 'disabled');
+      fetch(reactionEndpointBase + encodeURIComponent(occurrenceId) + '/reactions/' + encodeURIComponent(reactionType), {
+        method: 'POST',
+        headers: { accept: 'application/json' },
+        credentials: 'same-origin'
+      })
+        .then((response) => {
+          if (response.status === 401) {
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return null;
+          }
+          return response.ok ? response.json() : null;
+        })
+        .then((payload) => {
+          if (!payload || payload.ok === false) return;
+          reactionButton.classList.toggle('is-reacted', payload.added === true);
+          const count = reactionButton.querySelector('.obs-reaction-count');
+          if (count) {
+            const current = Number(String(count.textContent || '0').replace(/,/g, '')) || 0;
+            const next = Math.max(0, current + (payload.added === true ? 1 : -1));
+            count.textContent = next.toLocaleString('ja-JP');
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => reactionButton.removeAttribute('disabled'));
+      return;
+    }
     const toggle = event.target instanceof Element ? event.target.closest('[data-notification-toggle]') : null;
     const panel = document.querySelector('[data-notification-panel]');
     if (toggle) {

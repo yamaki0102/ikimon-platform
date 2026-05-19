@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import type { ObservationField, FieldStats } from "./observationFieldRegistry.js";
+import { buildAreaWatch } from "./areaWatch.js";
 import { composePlaceSnapshot, __test__ } from "./placeSnapshot.js";
 import { renderPlaceSnapshotBody, renderPlaceSnapshotTeaser } from "../ui/placeSnapshot.js";
 
@@ -315,6 +316,7 @@ test("area place snapshot renders a public place album", () => {
       localityLabel: "浜松市 / 静岡県",
       observationCount: 2,
       recentObservationCount: 1,
+      likeCount: 4,
       season: "spring",
       seasonLabel: "春",
       isCurrentSeason: true,
@@ -342,12 +344,56 @@ test("area place snapshot renders a public place album", () => {
     sensitiveMasking: { totalRare: 0, maskedSpecies: 0, viewerCanSeeExact: false },
     firstSeenSpecies: [],
     environmentChange: null,
+    areaWatch: buildAreaWatch({
+      totalObservations: snapshot.observationSummary.totalObservations,
+      totalVisits: snapshot.observationSummary.totalVisits,
+      uniqueTaxa: snapshot.observationSummary.uniqueTaxa,
+      seasonalCoverage: [
+        { season: "spring", label: "春", observations: 3, isCurrentSeason: true },
+        { season: "summer", label: "夏", observations: 0, isCurrentSeason: false },
+        { season: "autumn", label: "秋", observations: 0, isCurrentSeason: false },
+        { season: "winter", label: "冬", observations: 0, isCurrentSeason: false },
+      ],
+      yearlyTimeline: [],
+      effortIndicators: {
+        effortReportedRate: 0,
+        completeChecklistRate: 0,
+        temporalSpreadIndex: 0,
+        observerDiversity: 0,
+        nonDetectionRate: 0,
+        effortIndex: 0,
+        observerCount: 0,
+        topObserverShare: 0,
+        yearsCovered: 0,
+        monthsCovered: 0,
+        seasonsCovered: 1,
+      },
+      sensitiveMasking: { totalRare: 0, maskedSpecies: 0, viewerCanSeeExact: false },
+      evidenceStats: {
+        totalOccurrences: 3,
+        photoOccurrences: 1,
+        contextPhotoOccurrences: 0,
+        primarySubjectPhotoOccurrences: 1,
+        recent90Occurrences: 1,
+        recent180Occurrences: 1,
+        reviewedOccurrences: 0,
+        aiCandidateOccurrences: 1,
+        methodContextVisits: 0,
+        latestObservedAt: new Date().toISOString(),
+      },
+    }),
   } as const;
   const html = renderPlaceSnapshotBody(areaSnapshot);
+  assert.match(html, /エリアの見守りメーター/);
+  assert.match(html, /見守り材料/);
+  assert.match(html, /次に足すと強いところ/);
   assert.match(html, /地域の生きものアルバム/);
   assert.match(html, /今の季節・春/);
   assert.match(html, /未記録季節: 夏・秋・冬/);
   assert.match(html, /ガマズミ/);
+  assert.match(html, /data-reaction-type="like"/);
+  assert.match(html, /いいね/);
+  assert.match(html, /あとから誰かが写真・effort・季節の記録を足した時に通知/);
 });
 
 test("place snapshot separates machine AI candidates from reviewer verified records", () => {
