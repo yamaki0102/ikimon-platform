@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ObservationVisitBundle, ObservationVisitSubject } from "../services/observationVisitBundle.js";
 import type { TaxonInsight } from "../services/taxonInsights.js";
 import { buildVisibleRecordItems, type VisibleRecordItem } from "../services/observationSceneReadModel.js";
-import { renderHeroAiReadout, renderObservationRecordInsightText, renderVisibleRecordItemsPanel } from "./read.js";
+import { renderHeroAiReadout, renderIdentificationCandidateSwitch, renderObservationRecordInsightText, renderVisibleRecordItemsPanel } from "./read.js";
 
 const routeSource = readFileSync(new URL("./read.ts", import.meta.url), "utf8");
 const writeRouteSource = readFileSync(new URL("./write.ts", import.meta.url), "utf8");
@@ -470,9 +470,13 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(identifySource, /data-ai-candidate-meter-value/);
   assert.match(identifySource, /obs-frame-candidate-current/);
   assert.match(identifySource, /aria-current="true"/);
-  assert.match(identifySource, /initialCurrentIndex > 0/);
+  assert.doesNotMatch(identifySource, /splice\(initialCurrentIndex/);
+  assert.doesNotMatch(identifySource, /candidates\.unshift\(currentCandidate\)/);
   assert.match(identifySource, /isDenseCandidateList = candidates\.length >= 5/);
+  assert.match(identifySource, /data-ai-candidate-list="1"/);
   assert.match(routeSource, /\.obs-frame-candidate-switch\.is-dense \.obs-frame-identify-candidates/);
+  assert.match(routeSource, /max-height: 156px !important/);
+  assert.match(routeSource, /overflow-y: auto !important/);
   assert.match(routeSource, /text-overflow: ellipsis !important/);
   assert.match(polishSource, /function selectAiCandidateTarget/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-target\]'\)/);
@@ -876,6 +880,8 @@ test("subject switching reserves panel height before replacing candidate content
   assert.match(routeSource, /templateAttr: 'data-subject-ai-readout-template'/);
   assert.match(routeSource, /templateAttr: 'data-subject-identify-template'/);
   assert.match(routeSource, /measureSwitchTemplateHeight/);
+  assert.match(routeSource, /captureCandidateListScroll/);
+  assert.match(routeSource, /restoreCandidateListScroll\(candidateListScroll\)/);
   assert.match(routeSource, /root\.style\.minHeight = maxHeight \+ 'px'/);
   assert.match(routeSource, /stabilizeSwitchHeights\(\);\s*renderSubject\(currentSubjectId, false\)/);
 });
@@ -1349,6 +1355,31 @@ test("AI readout keeps scientific-name fallback when cached insight has an inval
   assert.match(html, /アカメガシワ/);
   assert.match(html, /カタバミ属/);
   assert.doesNotMatch(html, /ナワシロイチゴを知る[\s\S]{0,80}<i class="obs-local-scientific-name">ナワシロイチゴ<\/i>/);
+});
+
+test("identification candidate switch keeps canonical order when another candidate is selected", () => {
+  const { akamigashiwaSubject, bundle } = buildObservationReadoutFixture();
+
+  const html = renderIdentificationCandidateSwitch({
+    basePath: "",
+    lang: "ja",
+    bundle,
+    currentSubject: akamigashiwaSubject,
+    targetLabel: "アカメガシワ",
+    candidateStatus: "確認待ち",
+  });
+
+  assertVisibleTermsInOrder(html, [
+    "ナワシロイチゴ",
+    "確認待ち",
+    "アカメガシワ",
+    "確認待ち",
+    "選択中",
+    "カタバミ属",
+    "確認待ち",
+  ]);
+  assert.match(html, /class="obs-frame-candidate is-current"/);
+  assert.match(html, /data-ai-candidate-list="1"/);
 });
 
 test("AI readout rendered contract follows the snapshot-like candidate order", () => {

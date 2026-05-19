@@ -2044,7 +2044,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-frame-candidate-meter { display: none !important; }
   .obs-frame-identify-candidates { display: flex !important; flex-wrap: wrap !important; min-width: 0 !important; max-width: 100% !important; gap: 6px !important; overflow: hidden !important; padding: 0 !important; }
   .obs-frame-candidate { flex: 1 1 min(100%, 150px) !important; min-width: 0 !important; max-width: 100% !important; min-height: 34px !important; padding: 7px 10px !important; border-radius: 12px !important; border-color: rgba(15,118,110,.22) !important; background: #fff !important; font-size: 12px !important; white-space: normal !important; overflow-wrap: anywhere !important; text-align: left !important; }
-  .obs-frame-candidate-switch.is-dense .obs-frame-identify-candidates { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important; align-items: stretch !important; }
+  .obs-frame-candidate-switch.is-dense .obs-frame-identify-candidates { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important; align-items: stretch !important; max-height: 156px !important; overflow-y: auto !important; overflow-x: hidden !important; padding-right: 2px !important; scrollbar-width: thin !important; overscroll-behavior: contain !important; }
   .obs-frame-candidate-switch.is-dense .obs-frame-candidate { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: 4px 7px !important; align-content: center !important; align-items: center !important; min-height: 46px !important; padding: 7px 9px !important; }
   .obs-frame-candidate-switch.is-dense .obs-frame-candidate strong { display: block !important; min-width: 0 !important; max-width: 100% !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; word-break: keep-all !important; overflow-wrap: normal !important; }
   .obs-frame-candidate-switch.is-dense .obs-frame-candidate span { grid-column: 1 / -1 !important; width: fit-content !important; }
@@ -5857,7 +5857,7 @@ function renderAiCandidates(bundle: ObservationVisitBundle): string {
   </details>`;
 }
 
-function renderIdentificationCandidateSwitch(options: {
+export function renderIdentificationCandidateSwitch(options: {
   basePath: string;
   lang: SiteLang;
   bundle?: ObservationVisitBundle | null;
@@ -5967,11 +5967,6 @@ function renderIdentificationCandidateSwitch(options: {
   }
 
   const usefulCount = candidates.filter((candidate) => !candidate.isWeak).length;
-  const initialCurrentIndex = candidates.findIndex((candidate) => candidate.isCurrent);
-  if (initialCurrentIndex > 0) {
-    const [currentCandidate] = candidates.splice(initialCurrentIndex, 1);
-    if (currentCandidate) candidates.unshift(currentCandidate);
-  }
   const currentIndex = Math.max(0, candidates.findIndex((candidate) => candidate.isCurrent));
   const isDenseCandidateList = candidates.length >= 5;
   const meterLabel = usefulCount > 0 ? "AI候補" : "候補名が弱い";
@@ -5999,7 +5994,7 @@ function renderIdentificationCandidateSwitch(options: {
 
   return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}${isDenseCandidateList ? " is-dense" : ""}">
       <div class="obs-frame-candidate-meter"><span>${escapeHtml(meterLabel)}</span><strong data-ai-candidate-meter-value>${escapeHtml(meterValue)}</strong></div>
-      <div class="obs-frame-identify-candidates" aria-label="AI候補">
+      <div class="obs-frame-identify-candidates" aria-label="AI候補" data-ai-candidate-list="1">
         ${chips}
       </div>
       ${warning}
@@ -15494,6 +15489,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var getSubjectLinks = function(){
              return Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
            };
+           var captureCandidateListScroll = function(){
+             var list = identifyRoot ? identifyRoot.querySelector('[data-ai-candidate-list]') : null;
+             return list ? { left: list.scrollLeft || 0, top: list.scrollTop || 0 } : null;
+           };
+           var restoreCandidateListScroll = function(state){
+             if (!state || !identifyRoot) return;
+             var list = identifyRoot.querySelector('[data-ai-candidate-list]');
+             if (!list) return;
+             list.scrollLeft = state.left || 0;
+             list.scrollTop = state.top || 0;
+           };
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
@@ -15605,6 +15611,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              }
            };
            var renderSubject = function(subjectId, push){
+             var candidateListScroll = captureCandidateListScroll();
              var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
              var firstReadTemplate = selectTemplate('data-subject-first-read-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
@@ -15615,6 +15622,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
              if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
+             restoreCandidateListScroll(candidateListScroll);
              renderRegions(subjectId);
              updateStateLabels(subjectId);
              window.dispatchEvent(new CustomEvent('ikimon:identify-panel-replaced'));
