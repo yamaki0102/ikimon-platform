@@ -85,6 +85,7 @@
     "smoke:feedback-knowledge": "tsx src/scripts/smokeObservationFeedbackKnowledge.ts",
     "import:observation-fields": "tsx src/scripts/importObservationFields.ts",
     "import:observation-fields:aikan-renri": "tsx src/scripts/importObservationFields.ts --source=nature_symbiosis_site --file=src/scripts/data/nature_symbiosis_sites.seed.json --certification-id=aikan-renri-ikan-hq",
+    "import:osm-parks": "tsx src/scripts/importOsmLeisureParks.ts",
     "import:schools": "tsx src/scripts/importObservationFields.ts --source=school",
     "import:schools:shizuoka": "tsx src/scripts/importObservationFields.ts --source=school --prefecture-code=22 --prefecture=静岡県",
     "enhance:school-boundaries": "tsx src/scripts/enhanceSchoolFieldBoundaries.ts",

@@ -1,0 +1,177 @@
+name: Import OSM Parks
+run-name: Import OSM parks · ${{ github.event.inputs.target || 'staging' }} · ${{ github.event.inputs.region_key || 'JP-22-Hamamatsu' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target database'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      region_key:
+        description: 'Import region key'
+        required: true
+        default: 'JP-22-Hamamatsu'
+        type: string
+      bbox:
+        description: 'Overpass bbox as south,west,north,east'
+        required: true
+        default: '34.60,137.55,34.85,137.95'
+        type: string
+      dry_run:
+        description: 'Only parse and preview records'
+        required: false
+        default: false
+        type: boolean
+      sweep:
+        description: 'Close current OSM park rows missing from this import bbox'
+        required: false
+        default: true
+        type: boolean
+      limit:
+        description: 'Optional maximum records'
+        required: false
+        default: ''
+        type: string
+  schedule:
+    # Weekly JST Monday morning for staging. Production imports stay manual so
+    # DB-affecting production updates require an explicit operator action.
+    - cron: "20 15 * * 0"
+
+jobs:
+  import:
+    name: Import OSM park polygons
+    runs-on: ubuntu-latest
+    environment: ${{ (github.event.inputs.target || 'staging') == 'production' && 'production' || 'staging' }}
+    steps:
+      - name: Resolve inputs
+        id: vars
+        env:
+          INPUT_TARGET: ${{ github.event.inputs.target }}
+          INPUT_REGION_KEY: ${{ github.event.inputs.region_key }}
+          INPUT_BBOX: ${{ github.event.inputs.bbox }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_SWEEP: ${{ github.event.inputs.sweep }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          set -euo pipefail
+          target="${INPUT_TARGET:-staging}"
+          region_key="${INPUT_REGION_KEY:-JP-22-Hamamatsu}"
+          bbox="${INPUT_BBOX:-34.60,137.55,34.85,137.95}"
+          dry_run="${INPUT_DRY_RUN:-false}"
+          sweep="${INPUT_SWEEP:-true}"
+          limit="${INPUT_LIMIT:-}"
+
+          case "$target" in staging|production) ;; *) echo "invalid target: $target"; exit 1 ;; esac
+          printf '%s' "$region_key" | grep -qE '^[A-Za-z0-9._:-]{2,80}$' || { echo "region_key contains unsupported characters"; exit 1; }
+          printf '%s' "$bbox" | grep -qE '^-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?,-?[0-9]+(\.[0-9]+)?$' || { echo "bbox must be south,west,north,east"; exit 1; }
+          case "$dry_run" in true|false) ;; *) echo "dry_run must be true or false"; exit 1 ;; esac
+          case "$sweep" in true|false) ;; *) echo "sweep must be true or false"; exit 1 ;; esac
+          if [ -n "$limit" ]; then printf '%s' "$limit" | grep -qE '^[0-9]{1,6}$' || { echo "limit must be numeric"; exit 1; }; fi
+
+          {
+            echo "target=$target"
+            echo "region_key=$region_key"
+            echo "bbox=$bbox"
+            echo "dry_run=$dry_run"
+            echo "sweep=$sweep"
+            echo "limit=$limit"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Run remote OSM park import
+        env:
+          TARGET: ${{ steps.vars.outputs.target }}
+          REGION_KEY: ${{ steps.vars.outputs.region_key }}
+          BBOX: ${{ steps.vars.outputs.bbox }}
+          DRY_RUN: ${{ steps.vars.outputs.dry_run }}
+          SWEEP: ${{ steps.vars.outputs.sweep }}
+          LIMIT: ${{ steps.vars.outputs.limit }}
+        run: |
+          set -euo pipefail
+          b64() { printf '%s' "$1" | base64 -w 0; }
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "TARGET_B64='$(b64 "$TARGET")' REGION_KEY_B64='$(b64 "$REGION_KEY")' BBOX_B64='$(b64 "$BBOX")' DRY_RUN_B64='$(b64 "$DRY_RUN")' SWEEP_B64='$(b64 "$SWEEP")' LIMIT_B64='$(b64 "$LIMIT")' bash -s" <<'REMOTE'
+          set -euo pipefail
+          TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
+          REGION_KEY="$(printf '%s' "$REGION_KEY_B64" | base64 -d)"
+          BBOX="$(printf '%s' "$BBOX_B64" | base64 -d)"
+          DRY_RUN="$(printf '%s' "$DRY_RUN_B64" | base64 -d)"
+          SWEEP="$(printf '%s' "$SWEEP_B64" | base64 -d)"
+          LIMIT="$(printf '%s' "$LIMIT_B64" | base64 -d)"
+
+          case "$TARGET" in
+            production)
+              V2_DIR=/var/www/ikimon.life/repo/platform_v2
+              ENV_FILE=/etc/ikimon/production-v2.env
+              ;;
+            staging)
+              V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+              ENV_FILE=/etc/ikimon/staging-v2.env
+              ;;
+            *)
+              echo "invalid target: $TARGET"
+              exit 1
+              ;;
+          esac
+          [ -d "$V2_DIR" ] || { echo "missing platform_v2 dir: $V2_DIR"; exit 1; }
+          [ -f "$ENV_FILE" ] || { echo "missing env file: $ENV_FILE"; exit 1; }
+          cd "$V2_DIR"
+          set -a
+          . "$ENV_FILE"
+          set +a
+          [ -n "${DATABASE_URL:-}" ] || { echo "DATABASE_URL missing in $ENV_FILE"; exit 1; }
+
+          npm ci --include=dev --silent
+          npm run migrate
+          args=(-- --bbox "$BBOX" --region-key "$REGION_KEY")
+          if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
+          if [ "${SWEEP:-true}" = "true" ]; then args+=(--sweep); fi
+          if [ -n "${LIMIT:-}" ]; then args+=(--limit "$LIMIT"); fi
+          npm run import:osm-parks "${args[@]}"
+          npm run audit:field-entity-keys -- --fail-on-error
+
+          REGION_KEY="$REGION_KEY" node <<'NODE'
+          const { Pool } = require("pg");
+          const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+          (async () => {
+            const { rows } = await pool.query(`
+              SELECT
+                COUNT(*) FILTER (
+                  WHERE admin_level = 'osm_park'
+                    AND valid_to IS NULL
+                )::int AS active_osm_park_count,
+                COUNT(*) FILTER (
+                  WHERE admin_level = 'osm_park'
+                    AND valid_to IS NULL
+                    AND entity_key IS NOT NULL
+                    AND entity_key <> ''
+                )::int AS active_entity_key_count
+              FROM observation_fields
+            `);
+            console.log(JSON.stringify(rows[0]));
+          })().finally(() => pool.end());
+          NODE
+          REMOTE
+
+      - name: Summary
+        run: |
+          {
+            echo "## OSM park import"
+            echo ""
+            echo "- target: \`${{ steps.vars.outputs.target }}\`"
+            echo "- region: \`${{ steps.vars.outputs.region_key }}\`"
+            echo "- bbox: \`${{ steps.vars.outputs.bbox }}\`"
+            echo "- dry_run: \`${{ steps.vars.outputs.dry_run }}\`"
+            echo "- sweep: \`${{ steps.vars.outputs.sweep }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
