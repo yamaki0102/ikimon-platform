@@ -29,6 +29,7 @@ const explicitAllowlist = [
   "platform_v2/src/routes/observationEventApi.ts",
   "platform_v2/src/routes/observationEventPages.ts",
   "platform_v2/src/routes/observationFieldsApi.ts",
+  "platform_v2/src/routes/placeSnapshotLab.ts",
   "platform_v2/src/routes/pwa.ts",
   "platform_v2/src/routes/read.ts",
   "platform_v2/src/routes/references.ts",
