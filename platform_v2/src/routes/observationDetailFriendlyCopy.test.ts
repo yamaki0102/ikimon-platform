@@ -456,6 +456,46 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(polishSource, /querySelectorAll\('\[data-ai-panel\]'\)/);
 });
 
+test("candidate tab status rank follows the visible candidate name", () => {
+  const subject = {
+    occurrenceId: "occ-millipede-class",
+    displayName: "倍脚綱 (ヤスデ網)",
+    vernacularName: null,
+    scientificName: "Diplopoda",
+    rank: "order",
+    aiCandidateRank: null,
+    identifications: [],
+    identificationCount: 0,
+    aiAssessment: null,
+    focusReason: "丸まった小さなヤスデ",
+  } as unknown as ObservationVisitSubject;
+  const peer = {
+    occurrenceId: "occ-polydesmida",
+    displayName: "オビヤスデ目の一種",
+    vernacularName: null,
+    scientificName: null,
+    rank: "order",
+    aiCandidateRank: null,
+    identifications: [],
+    identificationCount: 0,
+    aiAssessment: null,
+    focusReason: "細長い体",
+  } as unknown as ObservationVisitSubject;
+  const bundle = {
+    visitId: "record-1779074761133",
+    canonicalSubjectId: subject.occurrenceId,
+    featuredOccurrenceId: subject.occurrenceId,
+    subjects: [subject, peer],
+    aiCandidates: [],
+  } as unknown as ObservationVisitBundle;
+
+  const html = renderHeroAiReadout(subject, false, null, bundle);
+
+  assert.match(html, /倍脚綱 \(ヤスデ綱\)<\/span><span class="obs-ai-target-status">綱 \/ 確認待ち<\/span>/);
+  assert.match(html, /オビヤスデ目の一種<\/span><span class="obs-ai-target-status">目 \/ 確認待ち<\/span>/);
+  assert.doesNotMatch(html, /倍脚綱 \(ヤスデ綱\)<\/span><span class="obs-ai-target-status">目 \/ 確認待ち<\/span>/);
+});
+
 test("owner-only controls stay compact and avoid support-card copy", () => {
   const ownerSource = [
     sourceBetween("function renderObservationPhotoRecoveryPanel", "function renderObservationPhotoRecoveryScript"),
