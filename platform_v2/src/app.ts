@@ -40,6 +40,7 @@ import { registerObservationEventRecapRoutes } from "./routes/observationEventRe
 import { registerObservationEventPagesRoutes } from "./routes/observationEventPages.js";
 import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
 import { registerObservationPackageApiRoutes } from "./routes/observationPackageApi.js";
+import { registerPlaceSnapshotLabRoutes } from "./routes/placeSnapshotLab.js";
 import { registerPlaceManagementPolicyApiRoutes } from "./routes/placeManagementPolicyApi.js";
 import { registerReferenceRoutes } from "./routes/references.js";
 import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
@@ -598,6 +599,9 @@ export function buildApp() {
   void registerObservationEventApiRoutes(app);
   void registerObservationEventRecapRoutes(app);
   void registerObservationEventPagesRoutes(app);
+  if (config.nodeEnv !== "production" || process.env.IKIMON_ENABLE_DEV_ROUTES === "1") {
+    void registerPlaceSnapshotLabRoutes(app);
+  }
   void registerObservationFieldsApiRoutes(app);
   void registerObservationPackageApiRoutes(app);
   void registerPlaceManagementPolicyApiRoutes(app);
