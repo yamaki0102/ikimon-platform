@@ -87,6 +87,7 @@ test("observation detail implementation keeps the snapshot visual order contract
   assert.match(styleSource, /\.obs-reading-panel > \.obs-media-ledger \{ order: 2;/);
   assert.match(styleSource, /\.obs-reading-media \{ order: 3;/);
   assert.match(styleSource, /\.obs-hero-video \.obs-record-insight \{ order: 3;/);
+  assert.match(styleSource, /\.obs-reading-panel \.obs-record-insight-desktop \{ order: 5; display: grid; \}/);
   assert.match(styleSource, /\.obs-reading-panel \[data-obs-switch-ai-readout\] \{ order: 5;/);
   assert.match(styleSource, /\.obs-local-quality-inline, \.obs-local-quality-inline\.is-full-width \{ order: 7;/);
   assert.match(styleSource, /#place\.obs-area-records \{ width: auto !important; max-width: none !important; justify-self: stretch !important; margin-left: 0 !important; \}/);
