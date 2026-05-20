@@ -1244,6 +1244,9 @@ function globalRecordEntryScript(basePath: string): string {
         keepalive: true,
         credentials: 'same-origin',
       }).catch(() => undefined);
+      if (window.ikimonExternalAnalytics && typeof window.ikimonExternalAnalytics.track === 'function') {
+        window.ikimonExternalAnalytics.track(payload.eventName, payload);
+      }
     } catch (_) {}
   };
   const sendGlobalRecordErrorKpi = (actionKey, message, metadata) => {
@@ -1269,6 +1272,9 @@ function globalRecordEntryScript(basePath: string): string {
         keepalive: true,
         credentials: 'same-origin',
       }).catch(() => undefined);
+      if (window.ikimonExternalAnalytics && typeof window.ikimonExternalAnalytics.track === 'function') {
+        window.ikimonExternalAnalytics.track(payload.eventName, payload);
+      }
     } catch (_) {}
   };
   const cameraVideoConstraints = () => activeKind === 'video'
@@ -3273,10 +3279,47 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   if (host !== 'ikimon.life' && host !== 'www.ikimon.life') return;
 
   const googleTagId = 'G-NCL0M1VJZ2';
+  const sanitizeDimension = (value, fallback) => {
+    const normalized = String(value || fallback || '')
+      .replace(/[^a-zA-Z0-9_:\\/\\-.?=&]+/g, '_')
+      .slice(0, 100);
+    if (normalized) return normalized;
+    return fallback === undefined ? 'unknown' : String(fallback || '').slice(0, 100);
+  };
+  const normalizeEventName = (eventName) => {
+    const normalized = String(eventName || 'ui_action')
+      .replace(/[^a-zA-Z0-9_]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 40);
+    return /^[a-zA-Z]/.test(normalized) ? normalized : 'ikimon_' + (normalized || 'ui_action');
+  };
+  const trackExternalAnalytics = (eventName, payload) => {
+    try {
+      const metadata = payload && payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};
+      const params = {
+        action_key: sanitizeDimension(payload && payload.actionKey, 'unknown_action'),
+        route_key: sanitizeDimension(payload && payload.routeKey, ''),
+        page_path: sanitizeDimension(payload && payload.pagePath, window.location.pathname + window.location.search),
+        funnel: sanitizeDimension(metadata.funnel, ''),
+        target: sanitizeDimension(metadata.target, ''),
+        lang: sanitizeDimension(metadata.lang || document.documentElement.lang || 'ja', 'ja'),
+      };
+      const name = normalizeEventName(eventName);
+      if (typeof window.gtag === 'function') window.gtag('event', name, params);
+      if (typeof window.clarity === 'function') {
+        window.clarity('set', 'ikimon_event', name);
+        window.clarity('set', 'ikimon_action', params.action_key);
+        if (params.funnel) window.clarity('set', 'ikimon_funnel', params.funnel);
+        if (params.route_key) window.clarity('set', 'ikimon_route', params.route_key);
+        window.clarity('event', name);
+      }
+    } catch (_) {}
+  };
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
   window.gtag('js', new Date());
   window.gtag('config', googleTagId);
+  window.ikimonExternalAnalytics = { track: trackExternalAnalytics };
 
   const googleScript = document.createElement('script');
   googleScript.async = true;
@@ -3547,6 +3590,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
         keepalive: true,
         credentials: 'same-origin',
       }).catch(() => undefined);
+      if (window.ikimonExternalAnalytics && typeof window.ikimonExternalAnalytics.track === 'function') {
+        window.ikimonExternalAnalytics.track(eventName, payload);
+      }
     };
     const sendFirstAction = (actionKey, routeKey) => {
       if (sent) return;
