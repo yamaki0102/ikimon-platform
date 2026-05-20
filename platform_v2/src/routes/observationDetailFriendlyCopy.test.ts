@@ -474,13 +474,19 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.doesNotMatch(identifySource, /candidates\.unshift\(currentCandidate\)/);
   assert.match(identifySource, /isDenseCandidateList = candidates\.length >= 5/);
   assert.match(identifySource, /data-ai-candidate-list="1"/);
+  assert.match(identifySource, /data-ai-candidate-search/);
+  assert.match(identifySource, /data-ai-candidate-chip="1"/);
+  assert.match(identifySource, /data-ai-candidate-search-text/);
   assert.match(routeSource, /\.obs-frame-candidate-switch\.is-dense \.obs-frame-identify-candidates/);
   assert.match(routeSource, /max-height: 156px !important/);
   assert.match(routeSource, /overflow-y: auto !important/);
+  assert.match(routeSource, /\.obs-frame-candidate-search/);
   assert.match(routeSource, /text-overflow: ellipsis !important/);
   assert.match(polishSource, /function selectAiCandidateTarget/);
+  assert.match(polishSource, /function filterAiCandidateList/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-target\]'\)/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-panel\]'\)/);
+  assert.match(polishSource, /closest\('\[data-ai-candidate-search\]'\)/);
   assert.match(polishSource, /setAttribute\('aria-current', 'true'\)/);
 });
 
@@ -1380,6 +1386,64 @@ test("identification candidate switch keeps canonical order when another candida
   ]);
   assert.match(html, /class="obs-frame-candidate is-current"/);
   assert.match(html, /data-ai-candidate-list="1"/);
+});
+
+test("identification candidate switch adds lightweight search for dense candidate lists", () => {
+  const { nawashiroSubject, bundle } = buildObservationReadoutFixture();
+  const denseBundle = {
+    ...bundle,
+    aiCandidates: [
+      {
+        candidateId: "candidate-clover",
+        suggestedOccurrenceId: null,
+        displayName: "シロツメクサ",
+        scientificName: "Trifolium repens",
+        rank: "species",
+        confidence: 0.42,
+        candidateStatus: "proposed",
+        note: "白い花の候補",
+        regions: [],
+      },
+      {
+        candidateId: "candidate-gnaphalium",
+        suggestedOccurrenceId: null,
+        displayName: "チチコグサモドキ属",
+        scientificName: "Gamochaeta",
+        rank: "genus",
+        confidence: 0.38,
+        candidateStatus: "proposed",
+        note: "綿毛のある葉の候補",
+        regions: [],
+      },
+    ],
+  } as ObservationVisitBundle;
+
+  const html = renderIdentificationCandidateSwitch({
+    basePath: "",
+    lang: "ja",
+    bundle: denseBundle,
+    currentSubject: nawashiroSubject,
+    targetLabel: "ナワシロイチゴ",
+    candidateStatus: "確認待ち",
+  });
+
+  assert.match(html, /class="obs-frame-candidate-switch is-dense"/);
+  assert.match(html, /placeholder="候補名で絞り込み"/);
+  assert.match(html, /data-ai-candidate-search/);
+  assert.match(html, /data-ai-candidate-empty hidden>該当する候補がありません/);
+  assert.match(html, /data-ai-candidate-search-text="シロツメクサ 種 \/ 42%"/);
+  assertVisibleTermsInOrder(html, [
+    "ナワシロイチゴ",
+    "確認待ち",
+    "アカメガシワ",
+    "確認待ち",
+    "カタバミ属",
+    "確認待ち",
+    "シロツメクサ",
+    "42%",
+    "チチコグサモドキ属",
+    "38%",
+  ]);
 });
 
 test("AI readout rendered contract follows the snapshot-like candidate order", () => {
