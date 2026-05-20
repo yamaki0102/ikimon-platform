@@ -1234,11 +1234,12 @@ const OBSERVATION_DETAIL_STYLES = `
     .obs-record-brief-compact { order: 1; display: grid; gap: 7px; padding: 9px 10px; }
     .obs-reading-panel > .obs-media-ledger { order: 2; }
     .obs-reading-media { order: 3; }
-    .obs-reading-panel .obs-record-insight-desktop { order: 5; }
+    .obs-reading-panel .obs-record-insight-desktop { order: 5; display: grid; }
     .obs-reading-panel .obs-scene-overview { order: 6; display: none !important; }
     .obs-reading-panel .obs-local-switch-guide { order: 7; display: none !important; }
     .obs-reading-panel > .obs-visible-records { order: 8; display: none !important; }
     .obs-hero-video .obs-record-insight { order: 3; }
+    .obs-hero-video > .obs-record-insight:not(.obs-record-insight-desktop) { display: none; }
     .obs-reading-panel [data-obs-switch-ai-readout] { order: 5; }
     .obs-reading-panel .obs-record-use-status { order: 6; display: none !important; }
     .obs-identify-quality-layout { grid-template-columns: 1fr; order: 11; gap: 10px; }
