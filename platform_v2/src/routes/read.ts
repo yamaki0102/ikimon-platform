@@ -2042,7 +2042,12 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-merged-row { display: flex !important; align-items: center !important; gap: 8px !important; min-width: 0 !important; padding: 7px 9px !important; border-radius: 12px !important; background: rgba(248,250,252,.82) !important; border: 1px solid rgba(15,23,42,.07) !important; }
   .obs-frame-candidate-switch { grid-template-columns: minmax(0,1fr) !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; border-radius: 14px !important; }
   .obs-frame-candidate-meter { display: none !important; }
+  .obs-frame-candidate-search { display: grid !important; grid-template-columns: auto minmax(0,1fr) !important; align-items: center !important; gap: 7px !important; margin-bottom: 6px !important; padding: 6px 8px !important; border-radius: 12px !important; background: rgba(248,250,252,.82) !important; border: 1px solid rgba(15,23,42,.07) !important; }
+  .obs-frame-candidate-search span { color: #64748b !important; font-size: 10px !important; line-height: 1.2 !important; font-weight: 950 !important; white-space: nowrap !important; }
+  .obs-frame-candidate-search input { min-width: 0 !important; width: 100% !important; min-height: 30px !important; padding: 5px 8px !important; border-radius: 10px !important; border: 1px solid rgba(15,118,110,.16) !important; background: #fff !important; color: #0f172a !important; font: inherit !important; font-size: 11px !important; font-weight: 800 !important; outline: none !important; }
+  .obs-frame-candidate-search input:focus { border-color: rgba(15,118,110,.44) !important; box-shadow: 0 0 0 3px rgba(20,184,166,.11) !important; }
   .obs-frame-identify-candidates { display: flex !important; flex-wrap: wrap !important; min-width: 0 !important; max-width: 100% !important; gap: 6px !important; overflow: hidden !important; padding: 0 !important; }
+  .obs-frame-candidate-empty { margin: 6px 0 0 !important; padding: 8px 10px !important; border-radius: 11px !important; background: rgba(248,250,252,.86) !important; color: #64748b !important; font-size: 11px !important; line-height: 1.35 !important; font-weight: 850 !important; }
   .obs-frame-candidate { flex: 1 1 min(100%, 150px) !important; min-width: 0 !important; max-width: 100% !important; min-height: 34px !important; padding: 7px 10px !important; border-radius: 12px !important; border-color: rgba(15,118,110,.22) !important; background: #fff !important; font-size: 12px !important; white-space: normal !important; overflow-wrap: anywhere !important; text-align: left !important; }
   .obs-frame-candidate-switch.is-dense .obs-frame-identify-candidates { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)) !important; align-items: stretch !important; max-height: 156px !important; overflow-y: auto !important; overflow-x: hidden !important; padding-right: 2px !important; scrollbar-width: thin !important; overscroll-behavior: contain !important; }
   .obs-frame-candidate-switch.is-dense .obs-frame-candidate { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: 4px 7px !important; align-content: center !important; align-items: center !important; min-height: 46px !important; padding: 7px 9px !important; }
@@ -5980,23 +5985,30 @@ export function renderIdentificationCandidateSwitch(options: {
   const chips = candidates.map((candidate, index) => {
     const className = `obs-frame-candidate${candidate.isCurrent ? " is-current" : ""}${candidate.isWeak ? " is-weak" : ""}`;
     const body = `<strong>${escapeHtml(candidate.label)}</strong><span>${escapeHtml(candidate.status)}</span><small class="obs-frame-candidate-current">選択中</small>`;
+    const searchText = `${candidate.label} ${candidate.status}`;
+    const searchAttrs = ` data-ai-candidate-chip="1" data-ai-candidate-search-text="${escapeHtml(searchText)}"`;
     if (candidate.href && !candidate.isCurrent) {
       const subjectAttrs = candidate.subjectId
         ? ` data-subject-switch="1" data-subject-id="${escapeHtml(candidate.subjectId)}"`
         : "";
-      return `<a class="${className}" href="${escapeHtml(candidate.href)}"${subjectAttrs}>${body}</a>`;
+      return `<a class="${className}" href="${escapeHtml(candidate.href)}"${subjectAttrs}${searchAttrs}>${body}</a>`;
     }
     const targetAttrs = candidate.panelKey
       ? ` data-ai-target="${escapeHtml(candidate.panelKey)}" data-ai-candidate-index="${escapeHtml(String(index + 1))}" data-ai-candidate-total="${escapeHtml(String(candidates.length))}"`
       : "";
-    return `<button class="${className}" type="button"${targetAttrs} aria-pressed="${candidate.isCurrent ? "true" : "false"}"${candidate.isCurrent ? ' aria-current="true"' : ""}>${body}</button>`;
+    return `<button class="${className}" type="button"${targetAttrs}${searchAttrs} aria-pressed="${candidate.isCurrent ? "true" : "false"}"${candidate.isCurrent ? ' aria-current="true"' : ""}>${body}</button>`;
   }).join("");
+  const search = isDenseCandidateList
+    ? `<label class="obs-frame-candidate-search"><span>候補名検索</span><input type="search" placeholder="候補名で絞り込み" autocomplete="off" data-ai-candidate-search></label>`
+    : "";
 
   return `<div class="obs-frame-candidate-switch${usefulCount === 0 ? " is-weak" : ""}${isDenseCandidateList ? " is-dense" : ""}">
       <div class="obs-frame-candidate-meter"><span>${escapeHtml(meterLabel)}</span><strong data-ai-candidate-meter-value>${escapeHtml(meterValue)}</strong></div>
+      ${search}
       <div class="obs-frame-identify-candidates" aria-label="AI候補" data-ai-candidate-list="1">
         ${chips}
       </div>
+      ${isDenseCandidateList ? `<div class="obs-frame-candidate-empty" data-ai-candidate-empty hidden>該当する候補がありません</div>` : ""}
       ${warning}
     </div>`;
 }
@@ -7174,6 +7186,25 @@ export function renderLocalObservationPolishScript(): string {
         }
       }
     }
+    function normalizeAiCandidateSearch(value){
+      return String(value || '').trim().toLowerCase();
+    }
+    function filterAiCandidateList(input){
+      if (!input) return;
+      var root = input.closest ? input.closest('.obs-frame-candidate-switch') : null;
+      if (!root) return;
+      var query = normalizeAiCandidateSearch(input.value || '');
+      var chips = Array.prototype.slice.call(root.querySelectorAll('[data-ai-candidate-chip]'));
+      var visibleCount = 0;
+      chips.forEach(function(chip){
+        var haystack = normalizeAiCandidateSearch(chip.getAttribute('data-ai-candidate-search-text') || chip.textContent || '');
+        var visible = !query || haystack.indexOf(query) !== -1;
+        chip.hidden = !visible;
+        if (visible) visibleCount += 1;
+      });
+      var empty = root.querySelector('[data-ai-candidate-empty]');
+      if (empty) empty.hidden = !query || visibleCount > 0;
+    }
     function bindAiCandidateTabs(){
       if (document.documentElement.getAttribute('data-ai-candidate-tabs-bound') === '1') return;
       document.documentElement.setAttribute('data-ai-candidate-tabs-bound', '1');
@@ -7184,6 +7215,11 @@ export function renderLocalObservationPolishScript(): string {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         selectAiCandidateTarget(target.getAttribute('data-ai-target') || '');
+      });
+      document.addEventListener('input', function(event){
+        var search = event.target && event.target.closest ? event.target.closest('[data-ai-candidate-search]') : null;
+        if (!search) return;
+        filterAiCandidateList(search);
       });
     }
     function run(){ bindQualityDraftEditing(); bindStoryReadAloud(); bindAiCandidateTabs(); }
