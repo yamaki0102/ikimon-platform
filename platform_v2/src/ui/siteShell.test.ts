@@ -77,6 +77,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /G-NCL0M1VJZ2/);
   assert.match(html, /googletagmanager\.com\/gtag\/js/);
   assert.match(html, /window\.gtag\('config', googleTagId\)/);
+  assert.match(html, /window\.ikimonExternalAnalytics = \{ track: trackExternalAnalytics \}/);
+  assert.match(html, /window\.gtag\('event', name, params\)/);
+  assert.match(html, /window\.clarity\('event', name\)/);
+  assert.match(html, /window\.clarity\('set', 'ikimon_action', params\.action_key\)/);
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
