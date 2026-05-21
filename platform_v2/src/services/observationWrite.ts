@@ -47,6 +47,7 @@ import {
   type ObservationGovernanceContextInput,
   type ObservationPackageEventInput,
 } from "./observationPackageDataChain.js";
+import { resolveAdminLocalityForPoint } from "./adminLocalityResolver.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -468,9 +469,13 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const publicVisibility = hasPhoto ? "public" : "review";
   const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
+  const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude).catch((err) => {
+    console.warn("[observationWrite] resolveAdminLocalityForPoint failed", err);
+    return null;
+  });
   const locality = normalizeObservationLocality({
-    prefecture: input.prefecture,
-    municipality: input.municipality,
+    prefecture: input.prefecture ?? adminLocality?.prefecture,
+    municipality: input.municipality ?? adminLocality?.municipality,
     latitude: input.latitude,
     longitude: input.longitude,
   });

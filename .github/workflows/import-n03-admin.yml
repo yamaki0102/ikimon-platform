@@ -1,0 +1,157 @@
+name: Import N03 Administrative Areas
+run-name: Import N03 admin · ${{ github.event.inputs.target || 'staging' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target database'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      dataset_url:
+        description: 'MLIT N03 nationwide zip URL'
+        required: true
+        default: 'https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_GML.zip'
+        type: string
+      publish_date:
+        description: 'N03 publish date'
+        required: true
+        default: '2025-01-01'
+        type: string
+      backfill_observations:
+        description: 'Backfill missing visit municipality labels after import'
+        required: false
+        default: true
+        type: boolean
+      backfill_limit:
+        description: 'Maximum visits to backfill'
+        required: false
+        default: '20000'
+        type: string
+
+jobs:
+  import:
+    name: Import N03 admin boundaries
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target == 'production' && 'production' || 'staging' }}
+    steps:
+      - name: Validate inputs
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DATASET_URL: ${{ github.event.inputs.dataset_url }}
+          PUBLISH_DATE: ${{ github.event.inputs.publish_date }}
+          BACKFILL_LIMIT: ${{ github.event.inputs.backfill_limit }}
+        run: |
+          set -euo pipefail
+          case "$TARGET" in staging|production) ;; *) echo "invalid target: $TARGET"; exit 1 ;; esac
+          case "$DATASET_URL" in https://nlftp.mlit.go.jp/ksj/gml/data/N03/*) ;; *) echo "dataset_url must point to MLIT N03"; exit 1 ;; esac
+          printf '%s' "$PUBLISH_DATE" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' || { echo "publish_date must be YYYY-MM-DD"; exit 1; }
+          printf '%s' "$BACKFILL_LIMIT" | grep -qE '^[0-9]{1,6}$' || { echo "backfill_limit must be numeric"; exit 1; }
+
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Run remote import
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DATASET_URL: ${{ github.event.inputs.dataset_url }}
+          PUBLISH_DATE: ${{ github.event.inputs.publish_date }}
+          BACKFILL_OBSERVATIONS: ${{ github.event.inputs.backfill_observations }}
+          BACKFILL_LIMIT: ${{ github.event.inputs.backfill_limit }}
+        run: |
+          set -euo pipefail
+          b64() { printf '%s' "$1" | base64 -w 0; }
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=30 root@162.43.44.131 \
+            "TARGET_B64='$(b64 "$TARGET")' DATASET_URL_B64='$(b64 "$DATASET_URL")' PUBLISH_DATE_B64='$(b64 "$PUBLISH_DATE")' BACKFILL_OBSERVATIONS_B64='$(b64 "$BACKFILL_OBSERVATIONS")' BACKFILL_LIMIT_B64='$(b64 "$BACKFILL_LIMIT")' bash -s" <<'REMOTE'
+          set -euo pipefail
+          TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
+          DATASET_URL="$(printf '%s' "$DATASET_URL_B64" | base64 -d)"
+          PUBLISH_DATE="$(printf '%s' "$PUBLISH_DATE_B64" | base64 -d)"
+          BACKFILL_OBSERVATIONS="$(printf '%s' "$BACKFILL_OBSERVATIONS_B64" | base64 -d)"
+          BACKFILL_LIMIT="$(printf '%s' "$BACKFILL_LIMIT_B64" | base64 -d)"
+          case "$TARGET" in
+            production)
+              V2_DIR=/var/www/ikimon.life/repo/platform_v2
+              ENV_FILE=/etc/ikimon/production-v2.env
+              ;;
+            staging)
+              V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+              ENV_FILE=/etc/ikimon/staging-v2.env
+              ;;
+            *)
+              echo "invalid target: $TARGET"
+              exit 1
+              ;;
+          esac
+          [ -d "$V2_DIR" ] || { echo "missing platform_v2 dir: $V2_DIR"; exit 1; }
+          [ -f "$ENV_FILE" ] || { echo "missing env file: $ENV_FILE"; exit 1; }
+          cd "$V2_DIR"
+          set -a
+          . "$ENV_FILE"
+          set +a
+          [ -n "${DATABASE_URL:-}" ] || { echo "DATABASE_URL missing in $ENV_FILE"; exit 1; }
+
+          npm ci --include=dev --silent
+          npm run migrate
+
+          work="$(mktemp -d)"
+          zip_path="$work/n03.zip"
+          python3 - "$DATASET_URL" "$zip_path" <<'PY'
+          import sys, urllib.request
+          url, out = sys.argv[1], sys.argv[2]
+          with urllib.request.urlopen(url, timeout=120) as res:
+              if res.status != 200:
+                  raise SystemExit(f"download failed: {res.status}")
+              with open(out, "wb") as f:
+                  while True:
+                      chunk = res.read(1024 * 1024)
+                      if not chunk:
+                          break
+                      f.write(chunk)
+          print(f"downloaded={out}")
+          PY
+          python3 -m zipfile -e "$zip_path" "$work/extracted"
+          geojson="$(find "$work/extracted" -type f -name '*.geojson' | sort | head -n 1)"
+          [ -n "$geojson" ] || { echo "N03 geojson not found"; exit 1; }
+
+          npm run import:n03-admin -- --geojson "$geojson" --publish-date "$PUBLISH_DATE" --stream --batch-size 500
+          if [ "${BACKFILL_OBSERVATIONS:-true}" = "true" ]; then
+            npm run backfill:admin-locality -- --limit "$BACKFILL_LIMIT"
+          fi
+          npm run audit:field-entity-keys -- --fail-on-error
+
+          node <<'NODE'
+          const { Pool } = require("pg");
+          const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+          (async () => {
+            const { rows } = await pool.query(`
+              select
+                count(*) filter (where coalesce(admin_level, source) = 'admin_municipality')::int as municipalities,
+                count(*) filter (where coalesce(admin_level, source) = 'admin_municipality' and prefecture = '沖縄県')::int as okinawa_municipalities
+              from observation_fields
+              where valid_to is null
+            `);
+            console.log(JSON.stringify(rows[0] || {}));
+          })().finally(() => pool.end());
+          NODE
+          rm -rf "$work"
+          REMOTE
+
+      - name: Summary
+        run: |
+          {
+            echo "## N03 administrative area import"
+            echo ""
+            echo "- target: \`${{ github.event.inputs.target }}\`"
+            echo "- dataset: [MLIT N03](${{ github.event.inputs.dataset_url }})"
+            echo "- publish_date: \`${{ github.event.inputs.publish_date }}\`"
+            echo "- backfill_observations: \`${{ github.event.inputs.backfill_observations }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
