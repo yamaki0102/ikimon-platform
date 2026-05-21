@@ -17,6 +17,7 @@ import {
   VALID_OBSERVATION_VIDEO_ASSET_SQL,
 } from "./observationQualityGate.js";
 import { getRegionalStoryCue } from "./regionalStory.js";
+import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 import type {
   AmbientObserver,
   LandingDailyCard,
@@ -70,7 +71,7 @@ function normalizeDisplayName(value: string | null | undefined): string | null {
   if (lowered === "unresolved" || lowered === "awaiting id" || trimmed === "同定待ち") {
     return null;
   }
-  return trimmed;
+  return normalizeTaxonDisplayLabel(trimmed);
 }
 
 export function resolveLandingDisplayName(
@@ -172,6 +173,7 @@ type FeedRow = {
   observer_name: string | null;
   observer_avatar_url: string | null;
   place_name: string | null;
+  country: string | null;
   municipality: string | null;
   prefecture: string | null;
   latitude: string | number | null;
@@ -292,6 +294,7 @@ const FEED_SQL_BASE = `
     ${FEED_OBSERVER_NAME_SQL} as observer_name,
     avatar.public_url as observer_avatar_url,
     p.canonical_name as place_name,
+    coalesce(v.observed_country, p.country_code) as country,
     coalesce(v.observed_municipality, p.municipality) as municipality,
     coalesce(v.observed_prefecture, p.prefecture) as prefecture,
     coalesce(v.point_latitude, p.center_latitude) as latitude,
@@ -583,6 +586,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     placeName: row.place_name ?? "",
     municipality: row.municipality,
     publicLocation: buildPublicLocationSummary({
+      country: row.country,
       municipality: row.municipality,
       prefecture: row.prefecture,
       latitude: safeLat,

@@ -93,3 +93,17 @@ test("renderObservationCard shows video thumbnail as a video card", () => {
   assert.match(html, /customer\.example\/video-thumbnail\.jpg/);
   assert.match(html, /aria-label="動画"/);
 });
+
+test("renderObservationCard does not show non-taxon scene labels as species", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    displayName: "芝生",
+    vernacularName: null,
+    scientificName: null,
+    aiCandidateName: "芝生",
+    isAiCandidate: true,
+  }, { locationMode: "public" });
+
+  assert.match(html, /同定待ち/);
+  assert.doesNotMatch(html, /芝生/);
+});

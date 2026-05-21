@@ -24,6 +24,7 @@ import {
 import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole.js";
 import type { RegionalStoryCue } from "./regionalStory.js";
 import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
+import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -325,6 +326,7 @@ type VisitCardRow = {
   observed_at: string;
   observer_name: string | null;
   place_name: string | null;
+  country: string | null;
   municipality: string | null;
   prefecture: string | null;
   latitude: number | null;
@@ -353,6 +355,7 @@ type ObservationListCardRow = {
   observed_at: string;
   observer_name: string | null;
   place_name: string | null;
+  country: string | null;
   municipality: string | null;
   prefecture: string | null;
   latitude: number | null;
@@ -510,6 +513,7 @@ async function loadVisitSummaryObservations(
               v.observed_at::text AS observed_at,
               ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
               p.canonical_name AS place_name,
+              coalesce(v.observed_country, p.country_code) AS country,
               coalesce(v.observed_municipality, p.municipality) AS municipality,
               coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
               coalesce(v.point_latitude, p.center_latitude) AS latitude,
@@ -557,6 +561,7 @@ async function loadVisitSummaryObservations(
             observed_at,
             observer_name,
             place_name,
+            country,
             municipality,
             prefecture,
             latitude,
@@ -682,15 +687,17 @@ async function loadVisitSummaryObservations(
     const specialistPayload = ((row.source_payload ?? {}) as { specialist_review?: { decision?: string } }).specialist_review;
     const v2SubjectPayload = ((row.source_payload ?? {}) as { v2_subject?: { role_hint?: string } }).v2_subject;
     const list = subjectsByVisit.get(row.visit_id) ?? [];
+    const aiCandidateName = normalizeTaxonDisplayLabel(row.ai_candidate_name);
+    const displayName = normalizeTaxonDisplayLabel(row.display_name) ?? aiCandidateName ?? "同定待ち";
     list.push({
       occurrenceId: row.occurrence_id,
       subjectIndex: row.subject_index,
-      displayName: row.display_name ?? "同定待ち",
+      displayName,
       scientificName: row.scientific_name,
       vernacularName: row.vernacular_name,
-      aiCandidateName: row.ai_candidate_name,
+      aiCandidateName,
       aiCandidateRank: row.ai_candidate_rank,
-      isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(row.ai_candidate_name),
+      isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(aiCandidateName),
       rank: row.taxon_rank,
       roleHint: String(v2SubjectPayload?.role_hint ?? (row.subject_index === 0 ? "primary" : "coexisting")),
       confidence: row.confidence_score != null ? Number(row.confidence_score) : null,
@@ -759,6 +766,7 @@ async function loadVisitSummaryObservations(
       municipality,
       publicLocation: buildPublicLocationSummary({
         municipality,
+        country: visitRow.country,
         prefecture: visitRow.prefecture,
         latitude: visitRow.latitude,
         longitude: visitRow.longitude,
@@ -1776,6 +1784,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
             v.observed_at::text AS observed_at,
             ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
             p.canonical_name AS place_name,
+            coalesce(v.observed_country, p.country_code) AS country,
             coalesce(v.observed_municipality, p.municipality) AS municipality,
             coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
             coalesce(v.point_latitude, p.center_latitude) AS latitude,
@@ -1836,6 +1845,8 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
   const wardFields = await safeLoadHamamatsuWardFields(pool);
   return result.rows.map((row) => {
     const subjectCount = Number(row.subject_count);
+    const aiCandidateName = normalizeTaxonDisplayLabel(row.ai_candidate_name);
+    const displayName = normalizeTaxonDisplayLabel(row.display_name) ?? aiCandidateName ?? "同定待ち";
     const municipality = publicMunicipalityLabel({
       municipality: row.municipality,
       latitude: row.latitude,
@@ -1851,18 +1862,19 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
       isMultiSubject: subjectCount > 1,
       featuredConfidenceBand: null,
       displayStability: null,
-      displayName: row.display_name ?? "同定待ち",
+      displayName,
       scientificName: row.scientific_name,
       vernacularName: row.vernacular_name,
       featuredTaxonRank: row.taxon_rank,
-      aiCandidateName: row.ai_candidate_name,
+      aiCandidateName,
       aiCandidateRank: row.ai_candidate_rank,
-      isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(row.ai_candidate_name),
+      isAiCandidate: !row.vernacular_name && !row.scientific_name && Boolean(aiCandidateName),
       observedAt: row.observed_at,
       observerName: row.observer_name ?? "",
       placeName: row.place_name ?? "",
       municipality,
       publicLocation: buildPublicLocationSummary({
+        country: row.country,
         municipality,
         prefecture: row.prefecture,
         latitude: row.latitude,

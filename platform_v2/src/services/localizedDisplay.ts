@@ -28,6 +28,24 @@ export function isLikelyScientificName(value: string | null | undefined): boolea
   return /^[A-Z][a-z-]+(?:\s+(?:[a-z][a-z-]+|x|×|subsp\.?|var\.?|f\.?)){0,4}$/.test(trimmed);
 }
 
+function looksLikeRankedTaxonName(value: string): boolean {
+  if (isLikelyScientificName(value)) return true;
+  return /(?:科|属|目|綱|門|界)$/u.test(value.trim());
+}
+
+export function isNonTaxonGenericLabel(value: string | null | undefined): boolean {
+  const label = clean(value);
+  if (!label || looksLikeRankedTaxonName(label)) return false;
+  return /^(?:芝生|芝|草|草地|雑草|裸地|地面|土|砂|砂地|礫|石|岩|グランドカバー|植栽|低木|樹木|背景|周囲|群落|植物|花|葉|茎)$/u.test(label)
+    || /(?:分類不能|未分類|構成種[:：]|複数の|他の植栽|植栽低木|背景|周囲|裸地|踏圧|芝生|グランドカバー|lawn|turf|grassland|bare ground|ground cover|background|surrounding|vegetation|plant community)/iu.test(label);
+}
+
+export function normalizeTaxonDisplayLabel(value: string | null | undefined): string | null {
+  const label = clean(value);
+  if (!label || isNonTaxonGenericLabel(label)) return null;
+  return label;
+}
+
 export type TaxonDisplayName = {
   primaryLabel: string;
   qualifier: "ai" | "scientific" | null;
@@ -45,11 +63,11 @@ export function formatTaxonDisplayName(
   lang: SiteLang,
 ): TaxonDisplayName {
   const awaiting = lang === "ja" ? "同定待ち" : "Awaiting ID";
-  const vernacular = clean(input.vernacularName);
+  const vernacular = normalizeTaxonDisplayLabel(input.vernacularName);
   const scientific = clean(input.scientificName);
-  const display = clean(input.displayName);
-  const aiCandidate = clean(input.aiCandidateName);
-  const fallback = clean(input.fallback);
+  const display = normalizeTaxonDisplayLabel(input.displayName);
+  const aiCandidate = normalizeTaxonDisplayLabel(input.aiCandidateName);
+  const fallback = normalizeTaxonDisplayLabel(input.fallback);
 
   if (lang === "ja") {
     if (vernacular) return { primaryLabel: vernacular, qualifier: null, isAwaitingId: false };

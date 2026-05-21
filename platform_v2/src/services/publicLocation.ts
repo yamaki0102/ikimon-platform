@@ -1,7 +1,9 @@
+import { countryLabelJaFromCode, inferCoordinateLocality } from "./coordinateLocality.js";
+
 const EARTH_RADIUS_M = 6378137;
 const MAX_MERCATOR_LAT = 85.05112878;
 
-export type PublicLocalityScope = "municipality" | "prefecture" | "blurred";
+export type PublicLocalityScope = "municipality" | "prefecture" | "country" | "blurred";
 export type PublicLocationDisplayMode = "area";
 
 export type PublicCellKeyParts = {
@@ -29,8 +31,11 @@ export type PublicCellGeometry = {
 };
 
 type PublicLocalityInput = {
+  country?: string | null;
   municipality?: string | null;
   prefecture?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 function normalizeLocalityValue(value: string | null | undefined): string | null {
@@ -40,6 +45,16 @@ function normalizeLocalityValue(value: string | null | undefined): string | null
 
 function clampMercatorLatitude(lat: number): number {
   return Math.max(-MAX_MERCATOR_LAT, Math.min(MAX_MERCATOR_LAT, lat));
+}
+
+function inferPublicLocalityByCoordinate(input: PublicLocalityInput): {
+  label: string;
+  scope: PublicLocalityScope;
+} | null {
+  const inferred = inferCoordinateLocality(input.latitude, input.longitude);
+  if (!inferred) return null;
+  if (inferred.prefecture) return { label: inferred.prefecture, scope: "prefecture" };
+  return { label: inferred.countryLabelJa, scope: "country" };
 }
 
 function mercatorXFromLng(lng: number): number {
@@ -80,6 +95,10 @@ export function resolvePublicLocalityLabel(input: PublicLocalityInput): {
   if (municipality) return { label: municipality, scope: "municipality" };
   const prefecture = normalizeLocalityValue(input.prefecture);
   if (prefecture) return { label: prefecture, scope: "prefecture" };
+  const inferred = inferPublicLocalityByCoordinate(input);
+  if (inferred) return inferred;
+  const country = countryLabelJaFromCode(input.country);
+  if (country) return { label: country, scope: "country" };
   return { label: "位置をぼかしています", scope: "blurred" };
 }
 

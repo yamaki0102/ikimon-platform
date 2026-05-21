@@ -22,6 +22,7 @@ import {
 } from "./observationQualityGate.js";
 import {
   hasUsableObservationCoordinates,
+  normalizeObservationCountry,
   normalizeObservationLocality,
   type NormalizedObservationLocality,
 } from "./localityNormalization.js";
@@ -408,6 +409,7 @@ function normalizeOptionalNumber(value: number | null | undefined): number | nul
 function buildServerLocationAuditPayload(
   input: ObservationUpsertInput,
   locality: NormalizedObservationLocality,
+  observedCountry: string,
 ): Record<string, unknown> {
   const clientPayload = input.sourcePayload && typeof input.sourcePayload === "object"
     ? input.sourcePayload
@@ -419,7 +421,7 @@ function buildServerLocationAuditPayload(
       longitude: input.longitude,
     },
     savedLocality: {
-      country: input.country ?? "JP",
+      country: observedCountry,
       prefecture: locality.prefecture,
       municipality: locality.municipality,
       localityNote: input.localityNote ?? null,
@@ -472,6 +474,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     latitude: input.latitude,
     longitude: input.longitude,
   });
+  const observedCountry = normalizeObservationCountry(input.country, input.latitude, input.longitude);
   const completeChecklistFlag = visitMode === "survey" ? Boolean(input.completeChecklistFlag) : false;
   const targetTaxaScope = visitMode === "survey"
     ? normalizeOptionalText(input.targetTaxaScope)
@@ -643,7 +646,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           prefecture: locality.prefecture,
         }),
         input.siteName ?? input.localityNote ?? null,
-        input.country ?? "JP",
+        observedCountry,
         locality.prefecture,
         locality.municipality,
         input.latitude,
@@ -658,7 +661,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       ],
     );
 
-    const locationAudit = buildServerLocationAuditPayload(input, locality);
+    const locationAudit = buildServerLocationAuditPayload(input, locality, observedCountry);
     const visitSourcePayload = {
       ...(input.sourcePayload ?? {}),
       location_audit: locationAudit,
@@ -711,7 +714,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         distanceMeters,
         input.latitude,
         input.longitude,
-        input.country ?? "JP",
+        observedCountry,
         locality.prefecture,
         locality.municipality,
         input.localityNote ?? null,

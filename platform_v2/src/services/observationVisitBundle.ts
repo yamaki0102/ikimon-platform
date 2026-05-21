@@ -15,6 +15,7 @@ import { ensureLegacyAiRunsForVisit, listObservationAiRunsForVisit, type Observa
 import { rankVisitSubjects, type RankedSubject } from "./subjectRanking.js";
 import { deriveVisitDisplayState, getStoredVisitDisplayState, type VisitDisplayStateRecord } from "./visitDisplayState.js";
 import { getVisitSubjectSummaries, type VisitSubjectSummary } from "./visitSubjects.js";
+import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 
 export type ObservationVisitAssessment = AiAssessment & {
   aiRunId: string | null;
@@ -580,17 +581,22 @@ export async function getObservationVisitBundle(
       regions: regionsByOccurrence.get(subject.occurrenceId) ?? [],
     }));
 
-    const aiCandidates = candidateRows.rows.map((row) => ({
-      candidateId: row.candidate_id,
-      suggestedOccurrenceId: row.suggested_occurrence_id,
-      displayName: row.vernacular_name || row.scientific_name || "AI 候補",
-      scientificName: row.scientific_name,
-      rank: row.taxon_rank,
-      confidence: row.confidence_score != null ? Number(row.confidence_score) : null,
-      candidateStatus: row.candidate_status,
-      note: row.note,
-      regions: regionsByCandidate.get(row.candidate_id) ?? [],
-    }));
+    const aiCandidates = candidateRows.rows.flatMap((row) => {
+      const displayName = normalizeTaxonDisplayLabel(row.vernacular_name)
+        ?? normalizeTaxonDisplayLabel(row.scientific_name);
+      if (!displayName) return [];
+      return [{
+        candidateId: row.candidate_id,
+        suggestedOccurrenceId: row.suggested_occurrence_id,
+        displayName,
+        scientificName: row.scientific_name,
+        rank: row.taxon_rank,
+        confidence: row.confidence_score != null ? Number(row.confidence_score) : null,
+        candidateStatus: row.candidate_status,
+        note: row.note,
+        regions: regionsByCandidate.get(row.candidate_id) ?? [],
+      }];
+    });
 
     return {
       visitId: resolvedVisit.visitId,

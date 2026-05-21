@@ -2265,7 +2265,7 @@ function looksLikeTaxonName(value: string): boolean {
 function isWeakIdentificationCandidateName(value: string | null | undefined): boolean {
   const text = String(value ?? "").trim();
   if (!text) return true;
-  return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|植栽低木|構成種[:：]|不明|群落|グランドカバー|背景|周囲|裸地|踏圧/iu.test(text);
+  return /未同定|同定待ち|名前待ち|AI\s*候補|他の植栽|複数の低木|植栽低木|構成種[:：]|不明|群落|グランドカバー|背景|周囲|裸地|踏圧|芝生|芝地|lawn|turf|grassland/iu.test(text);
 }
 
 function isIdentificationCandidateLike(input: { name: string | null | undefined; rank?: string | null; scientificName?: string | null }): boolean {
