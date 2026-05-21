@@ -13,6 +13,7 @@ import type {
   LandingTopShelfItem,
   LandingTopShelfKind,
 } from "../services/readModels.js";
+import { publicRegisteredAreaLine, type PublicAreaFieldRef } from "../services/publicAreaLabel.js";
 import { toThumbnailUrl, type ThumbnailPreset } from "../services/thumbnailUrl.js";
 import { renderMapMini, toMapMiniCells } from "./mapMini.js";
 import { escapeHtml } from "./siteShell.js";
@@ -88,11 +89,15 @@ function landingItemHref(basePath: string, lang: SiteLang, item: LandingTopShelf
   return observationDetailHref(basePath, lang, item);
 }
 
-function landingItemPlaceLabel(item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality">): string {
-  return item.publicLocation?.label || [item.placeName, item.municipality].filter(Boolean).join(" · ");
+function landingItemPlaceLabel(item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality"> & { fieldRefs?: PublicAreaFieldRef[] | null }): string {
+  return publicRegisteredAreaLine({
+    fieldRefs: item.fieldRefs,
+    municipality: item.municipality,
+    publicLocation: item.publicLocation,
+  }) || item.publicLocation?.label || [item.placeName, item.municipality].filter(Boolean).join(" · ");
 }
 
-function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality" | "observedAt" | "observerName">): string {
+function landingItemMeta(lang: SiteLang, item: Pick<LandingTopShelfItem, "publicLocation" | "placeName" | "municipality" | "observedAt" | "observerName"> & { fieldRefs?: PublicAreaFieldRef[] | null }): string {
   return [item.observerName, landingItemPlaceLabel(item), formatLandingObservedAt(lang, item.observedAt)].filter(Boolean).join(" · ");
 }
 

@@ -81,6 +81,7 @@ type RecentObservation = {
     fieldId: string;
     name: string;
     source: string | null;
+    adminLevel?: string | null;
   }>;
 };
 
@@ -375,21 +376,23 @@ type ObservationListCardRow = {
   field_refs: unknown;
 };
 
-function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs"] {
+export function normalizeFieldRefs(value: unknown): RecentObservation["fieldRefs"] {
   if (!Array.isArray(value)) return [];
   const refs: NonNullable<RecentObservation["fieldRefs"]> = [];
   const seen = new Set<string>();
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
-    const raw = item as { fieldId?: unknown; field_id?: unknown; name?: unknown; source?: unknown };
+    const raw = item as { fieldId?: unknown; field_id?: unknown; name?: unknown; source?: unknown; adminLevel?: unknown; admin_level?: unknown };
     const fieldId = String(raw.fieldId ?? raw.field_id ?? "").trim();
     const name = String(raw.name ?? "").trim();
+    const adminLevel = raw.adminLevel ?? raw.admin_level;
     if (!fieldId || !name || seen.has(fieldId)) continue;
     seen.add(fieldId);
     refs.push({
       fieldId,
       name,
       source: raw.source == null ? null : String(raw.source),
+      adminLevel: adminLevel == null ? null : String(adminLevel),
     });
   }
   return refs;
@@ -547,7 +550,8 @@ async function loadVisitSummaryObservations(
            SELECT jsonb_agg(jsonb_build_object(
                     'fieldId', f.field_id::text,
                     'name', f.name,
-                    'source', f.source
+                    'source', f.source,
+                    'adminLevel', f.admin_level
                   ) ORDER BY f.source, f.name) AS field_refs
              FROM observation_fields f
             WHERE f.valid_to IS NULL
@@ -1772,7 +1776,8 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
               jsonb_agg(jsonb_build_object(
                 'fieldId', f.field_id::text,
                 'name', f.name,
-                'source', f.source
+                'source', f.source,
+                'adminLevel', f.admin_level
               ) ORDER BY f.source, f.name) AS field_refs
          FROM candidate_field_refs refs
          JOIN observation_fields f ON f.field_id = refs.field_id

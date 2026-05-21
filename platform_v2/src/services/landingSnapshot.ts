@@ -1,5 +1,5 @@
 import { getPool } from "../db.js";
-import { getHomeSnapshot } from "./readModels.js";
+import { getHomeSnapshot, normalizeFieldRefs } from "./readModels.js";
 import { buildObserverNameSql } from "./observerNameSql.js";
 import {
   buildPublicCellGeometry,
@@ -193,6 +193,7 @@ type FeedRow = {
   confidence_score: string | number | null;
   evidence_tier: number | null;
   quality_grade: string | null;
+  field_refs: unknown;
 };
 
 type GuideTopRow = {
@@ -317,7 +318,8 @@ const FEED_SQL_BASE = `
     ) as identification_count,
     o.confidence_score::text as confidence_score,
     o.evidence_tier,
-    o.quality_grade
+    o.quality_grade,
+    coalesce(fields.field_refs, '[]'::jsonb) as field_refs
   from occurrences o
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
@@ -382,6 +384,20 @@ const FEED_SQL_BASE = `
     where ea.asset_id = u.avatar_asset_id
     limit 1
   ) avatar on true
+  left join lateral (
+    select jsonb_agg(jsonb_build_object(
+      'fieldId', f.field_id::text,
+      'name', f.name,
+      'source', f.source,
+      'adminLevel', f.admin_level
+    ) order by f.source, f.name) as field_refs
+    from observation_fields f
+    where f.valid_to is null
+      and (
+        f.field_id = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
+        or f.field_id::text = v.source_payload->>'field_id'
+      )
+  ) fields on true
 `;
 
 function landingLibrarySourceKind(row: FeedRow): LandingObservation["librarySourceKind"] {
@@ -606,6 +622,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "observation",
     evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
+    fieldRefs: normalizeFieldRefs(row.field_refs),
   };
 }
 
