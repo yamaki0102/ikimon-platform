@@ -18,7 +18,7 @@ on:
         default: 'https://nlftp.mlit.go.jp/ksj/gml/data/P29/P29-23/P29-23_22_GML.zip'
         type: string
       prefecture_code:
-        description: 'JIS prefecture code filter'
+        description: 'JIS prefecture code filter, or all'
         required: true
         default: '22'
         type: string
@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           case "$TARGET" in staging|production) ;; *) echo "invalid target: $TARGET"; exit 1 ;; esac
           case "$DATASET_URL" in https://nlftp.mlit.go.jp/ksj/gml/data/P29/*) ;; *) echo "dataset_url must point to MLIT P29"; exit 1 ;; esac
-          printf '%s' "$PREF_CODE" | grep -qE '^[0-9]{2}$' || { echo "prefecture_code must be 2 digits"; exit 1; }
+          printf '%s' "$PREF_CODE" | grep -qE '^([0-9]{2}|all)$' || { echo "prefecture_code must be 2 digits or all"; exit 1; }
           [ -n "$PREFECTURE" ] && [ "${#PREFECTURE}" -le 40 ] || { echo "prefecture must be 1-40 characters"; exit 1; }
           if [ -n "$LIMIT" ]; then printf '%s' "$LIMIT" | grep -qE '^[0-9]{1,6}$' || { echo "limit must be numeric"; exit 1; }; fi
 
@@ -108,11 +108,32 @@ jobs:
           set +a
           [ -n "${DATABASE_URL:-}" ] || { echo "DATABASE_URL missing in $ENV_FILE"; exit 1; }
 
-          work="$(mktemp -d)"
-          cleanup() { rm -rf "$work"; }
-          trap cleanup EXIT
-          zip_path="$work/p29.zip"
-          python3 - "$DATASET_URL" "$zip_path" <<'PY'
+          npm ci --include=dev --silent
+          npm run migrate
+
+          pref_name() {
+            case "$1" in
+              01) echo "北海道" ;; 02) echo "青森県" ;; 03) echo "岩手県" ;; 04) echo "宮城県" ;;
+              05) echo "秋田県" ;; 06) echo "山形県" ;; 07) echo "福島県" ;; 08) echo "茨城県" ;;
+              09) echo "栃木県" ;; 10) echo "群馬県" ;; 11) echo "埼玉県" ;; 12) echo "千葉県" ;;
+              13) echo "東京都" ;; 14) echo "神奈川県" ;; 15) echo "新潟県" ;; 16) echo "富山県" ;;
+              17) echo "石川県" ;; 18) echo "福井県" ;; 19) echo "山梨県" ;; 20) echo "長野県" ;;
+              21) echo "岐阜県" ;; 22) echo "静岡県" ;; 23) echo "愛知県" ;; 24) echo "三重県" ;;
+              25) echo "滋賀県" ;; 26) echo "京都府" ;; 27) echo "大阪府" ;; 28) echo "兵庫県" ;;
+              29) echo "奈良県" ;; 30) echo "和歌山県" ;; 31) echo "鳥取県" ;; 32) echo "島根県" ;;
+              33) echo "岡山県" ;; 34) echo "広島県" ;; 35) echo "山口県" ;; 36) echo "徳島県" ;;
+              37) echo "香川県" ;; 38) echo "愛媛県" ;; 39) echo "高知県" ;; 40) echo "福岡県" ;;
+              41) echo "佐賀県" ;; 42) echo "長崎県" ;; 43) echo "熊本県" ;; 44) echo "大分県" ;;
+              45) echo "宮崎県" ;; 46) echo "鹿児島県" ;; 47) echo "沖縄県" ;;
+              *) return 1 ;;
+            esac
+          }
+
+          import_one_prefecture() {
+            local code="$1" label="$2" url="$3" work zip_path geojson
+            work="$(mktemp -d)"
+            zip_path="$work/p29-${code}.zip"
+            python3 - "$url" "$zip_path" <<'PY'
           import sys, urllib.request
           url, out = sys.argv[1], sys.argv[2]
           with urllib.request.urlopen(url, timeout=60) as res:
@@ -124,24 +145,33 @@ jobs:
           open(out, "wb").write(data)
           print(f"downloaded={len(data)}")
           PY
-          python3 -m zipfile -e "$zip_path" "$work/extracted"
-          geojson="$(find "$work/extracted" -type f -name '*.geojson' | head -n 1)"
-          [ -n "$geojson" ] || { echo "P29 geojson not found"; exit 1; }
+            python3 -m zipfile -e "$zip_path" "$work/extracted"
+            geojson="$(find "$work/extracted" -type f -name '*.geojson' | head -n 1)"
+            [ -n "$geojson" ] || { echo "P29 geojson not found for ${code}"; rm -rf "$work"; exit 1; }
+            args=(-- --file="$geojson" --prefecture-code="$code" --prefecture="$label")
+            if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
+            if [ -n "${LIMIT:-}" ]; then args+=(--limit="$LIMIT"); fi
+            npm run import:schools "${args[@]}"
+            rm -rf "$work"
+          }
 
-          npm ci --include=dev --silent
-          npm run migrate
-          args=(-- --file="$geojson" --prefecture-code="$PREFECTURE_CODE" --prefecture="$PREFECTURE")
-          if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
-          if [ -n "${LIMIT:-}" ]; then args+=(--limit="$LIMIT"); fi
-          npm run import:schools "${args[@]}"
+          if [ "$PREFECTURE_CODE" = "all" ]; then
+            for code in $(seq -w 1 47); do
+              label="$(pref_name "$code")"
+              import_one_prefecture "$code" "$label" "https://nlftp.mlit.go.jp/ksj/gml/data/P29/P29-23/P29-23_${code}_GML.zip"
+            done
+          else
+            import_one_prefecture "$PREFECTURE_CODE" "$PREFECTURE" "$DATASET_URL"
+          fi
           npm run audit:field-entity-keys -- --fail-on-error
 
-          node <<'NODE'
+          PREFECTURE_CODE="$PREFECTURE_CODE" PREFECTURE="$PREFECTURE" node <<'NODE'
           const { Pool } = require("pg");
           const pool = new Pool({ connectionString: process.env.DATABASE_URL });
           (async () => {
             const { rows } = await pool.query(`
               SELECT
+                prefecture,
                 COUNT(*) FILTER (WHERE source = 'school')::int AS school_count,
                 COUNT(*) FILTER (
                   WHERE source = 'school'
@@ -153,9 +183,12 @@ jobs:
                     AND (entity_key IS NULL OR entity_key = '')
                 )::int AS missing_entity_key_count
               FROM observation_fields
-              WHERE prefecture = $1
-            `, [process.env.PREFECTURE || "静岡県"]);
-            console.log(JSON.stringify(rows[0]));
+              WHERE source = 'school'
+                AND ($1::text = 'all' OR prefecture = $2::text)
+              GROUP BY prefecture
+              ORDER BY prefecture
+            `, [process.env.PREFECTURE_CODE || "22", process.env.PREFECTURE || "静岡県"]);
+            console.log(JSON.stringify(rows));
           })().finally(() => pool.end());
           NODE
           REMOTE

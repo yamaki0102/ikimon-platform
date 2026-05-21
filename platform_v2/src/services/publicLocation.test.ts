@@ -107,3 +107,45 @@ test("buildPublicLocationSummary keeps label but drops geometry when coordinates
   assert.equal(summary.centroidLat, null);
   assert.equal(summary.centroidLng, null);
 });
+
+test("buildPublicLocationSummary infers Okinawa prefecture from coordinates when locality is missing", () => {
+  const summary = buildPublicLocationSummary({
+    latitude: 26.2124,
+    longitude: 127.6809,
+    zoom: 13,
+  });
+
+  assert.equal(summary.label, "沖縄県");
+  assert.equal(summary.scope, "prefecture");
+  assert.ok(summary.cellId);
+  assert.ok(typeof summary.centroidLat === "number");
+  assert.ok(typeof summary.centroidLng === "number");
+});
+
+test("buildPublicLocationSummary infers other prefectures and overseas countries from coordinates", () => {
+  assert.deepEqual(
+    resolvePublicLocalityLabel({ latitude: 35.6812, longitude: 139.7671 }),
+    { label: "東京都", scope: "prefecture" },
+  );
+
+  assert.deepEqual(
+    resolvePublicLocalityLabel({ latitude: 48.8566, longitude: 2.3522 }),
+    { label: "フランス", scope: "country" },
+  );
+
+  assert.deepEqual(
+    resolvePublicLocalityLabel({ latitude: -17.7, longitude: -149.4 }),
+    { label: "海外", scope: "country" },
+  );
+});
+
+test("buildPublicLocationSummary uses explicit overseas country when coordinates are missing", () => {
+  const summary = buildPublicLocationSummary({
+    country: "US",
+    latitude: null,
+    longitude: null,
+  });
+
+  assert.equal(summary.label, "アメリカ合衆国");
+  assert.equal(summary.scope, "country");
+});

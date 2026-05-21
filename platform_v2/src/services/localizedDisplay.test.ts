@@ -39,6 +39,17 @@ test("formatTaxonDisplayName normalizes unresolved labels", () => {
   );
 });
 
+test("formatTaxonDisplayName rejects scene labels as taxon names", () => {
+  assert.deepEqual(
+    formatTaxonDisplayName({ displayName: "芝生", aiCandidateName: "芝生" }, "ja"),
+    { primaryLabel: "同定待ち", qualifier: null, isAwaitingId: true },
+  );
+  assert.deepEqual(
+    formatTaxonDisplayName({ displayName: "イネ科", aiCandidateName: "芝生" }, "ja"),
+    { primaryLabel: "イネ科", qualifier: null, isAwaitingId: false },
+  );
+});
+
 test("formatPlaceDisplay removes unknown fallbacks in Japanese owner and public modes", () => {
   const publicLocation = {
     label: "浜松市",

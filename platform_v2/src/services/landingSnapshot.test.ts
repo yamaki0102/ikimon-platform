@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { resolveLandingDisplayName } from "./landingSnapshot.js";
 
 test("viewer own landing feed excludes staging smoke fixtures", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
@@ -42,4 +43,9 @@ test("landing nearby shelf uses named registered fields instead of municipality 
   assert.match(nearbyQuery, /admin_municipality/);
   assert.match(nearbyQuery, /lower\(btrim\(f\.name\)\) <> lower\(btrim\(coalesce\(f\.city/);
   assert.doesNotMatch(nearbyQuery, /mapPreviewCells/);
+});
+
+test("landing display name does not promote non-taxon scene labels", () => {
+  assert.equal(resolveLandingDisplayName("芝生", null, "芝生"), "同定待ち");
+  assert.equal(resolveLandingDisplayName(null, null, "イネ科"), "イネ科");
 });

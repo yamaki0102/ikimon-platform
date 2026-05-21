@@ -1,3 +1,5 @@
+import { inferCoordinateLocality, normalizeCountryCode } from "./coordinateLocality.js";
+
 export type NormalizedObservationLocality = {
   prefecture: string | null;
   municipality: string | null;
@@ -36,7 +38,9 @@ function normalizePrefecture(value: string | null | undefined): string | null {
   if (!raw) return null;
   const k = key(raw);
   if (k === "shizuoka" || k === "shizuoka prefecture" || raw === "静岡") return "静岡県";
+  if (k === "okinawa" || k === "okinawa prefecture" || raw === "沖縄") return "沖縄県";
   if (raw === "静岡県") return raw;
+  if (raw === "沖縄県") return raw;
   return raw;
 }
 
@@ -53,6 +57,15 @@ function normalizeMunicipality(value: string | null | undefined): string | null 
   if (k === "shizuoka" || k === "shizuoka prefecture" || raw === "静岡県") {
     return null;
   }
+  if (k === "okinawa" || k === "okinawa prefecture" || raw === "沖縄県") {
+    return null;
+  }
+  if (k === "naha" || k === "naha city" || k === "naha-shi" || raw === "那覇") {
+    return "那覇市";
+  }
+  if (k === "okinawa city" || k === "okinawa-shi" || raw === "沖縄") {
+    return "沖縄市";
+  }
   return raw;
 }
 
@@ -62,6 +75,9 @@ function prefectureFromMunicipalityLikeValue(value: string | null | undefined): 
   const k = key(raw);
   if (k === "shizuoka" || k === "shizuoka prefecture" || raw === "静岡県") {
     return "静岡県";
+  }
+  if (k === "okinawa" || k === "okinawa prefecture" || raw === "沖縄県") {
+    return "沖縄県";
   }
   return null;
 }
@@ -80,6 +96,10 @@ function inferByCoordinate(input: LocalityInput): NormalizedObservationLocality 
   if (inBox(input, { minLat: 34.82, maxLat: 35.36, minLng: 138.15, maxLng: 138.72 })) {
     return { prefecture: "静岡県", municipality: "静岡市" };
   }
+  const inferred = inferCoordinateLocality(input.latitude, input.longitude);
+  if (inferred?.countryCode === "JP") {
+    return { prefecture: inferred.prefecture, municipality: null };
+  }
   return null;
 }
 
@@ -97,4 +117,15 @@ export function normalizeObservationLocality(input: LocalityInput): NormalizedOb
     prefecture,
     municipality,
   };
+}
+
+export function normalizeObservationCountry(
+  country: string | null | undefined,
+  latitude?: number | null,
+  longitude?: number | null,
+): string {
+  const explicit = normalizeCountryCode(country);
+  if (explicit) return explicit;
+  const inferred = inferCoordinateLocality(latitude, longitude)?.countryCode;
+  return inferred ?? "JP";
 }

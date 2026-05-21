@@ -1,0 +1,132 @@
+name: Import OSM Area Parks
+run-name: Import OSM parks · ${{ github.event.inputs.target || 'staging' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target database'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      manifest:
+        description: 'Repository manifest path'
+        required: true
+        default: 'ops/osm_area_import_regions.jp_prefectures.json'
+        type: string
+      max_regions:
+        description: 'Optional maximum regions'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Only fetch and preview records'
+        required: false
+        default: false
+        type: boolean
+      sweep:
+        description: 'Close stale OSM park versions in imported regions'
+        required: false
+        default: true
+        type: boolean
+      delay_ms:
+        description: 'Delay between Overpass region requests'
+        required: false
+        default: '1500'
+        type: string
+
+jobs:
+  import:
+    name: Import OSM park registry
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target == 'production' && 'production' || 'staging' }}
+    steps:
+      - name: Validate inputs
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          MANIFEST: ${{ github.event.inputs.manifest }}
+          MAX_REGIONS: ${{ github.event.inputs.max_regions }}
+          DELAY_MS: ${{ github.event.inputs.delay_ms }}
+        run: |
+          set -euo pipefail
+          case "$TARGET" in staging|production) ;; *) echo "invalid target: $TARGET"; exit 1 ;; esac
+          case "$MANIFEST" in ops/*.json) ;; *) echo "manifest must be under ops/"; exit 1 ;; esac
+          if [ -n "$MAX_REGIONS" ]; then printf '%s' "$MAX_REGIONS" | grep -qE '^[0-9]{1,3}$' || { echo "max_regions must be numeric"; exit 1; }; fi
+          printf '%s' "$DELAY_MS" | grep -qE '^[0-9]{1,6}$' || { echo "delay_ms must be numeric"; exit 1; }
+
+      - name: Configure SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/ikimon_vps
+          chmod 600 ~/.ssh/ikimon_vps
+          ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
+
+      - name: Run remote import
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          MANIFEST: ${{ github.event.inputs.manifest }}
+          MAX_REGIONS: ${{ github.event.inputs.max_regions }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          SWEEP: ${{ github.event.inputs.sweep }}
+          DELAY_MS: ${{ github.event.inputs.delay_ms }}
+        run: |
+          set -euo pipefail
+          b64() { printf '%s' "$1" | base64 -w 0; }
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "TARGET_B64='$(b64 "$TARGET")' MANIFEST_B64='$(b64 "$MANIFEST")' MAX_REGIONS_B64='$(b64 "$MAX_REGIONS")' DRY_RUN_B64='$(b64 "$DRY_RUN")' SWEEP_B64='$(b64 "$SWEEP")' DELAY_MS_B64='$(b64 "$DELAY_MS")' bash -s" <<'REMOTE'
+          set -euo pipefail
+          TARGET="$(printf '%s' "$TARGET_B64" | base64 -d)"
+          MANIFEST="$(printf '%s' "$MANIFEST_B64" | base64 -d)"
+          MAX_REGIONS="$(printf '%s' "$MAX_REGIONS_B64" | base64 -d)"
+          DRY_RUN="$(printf '%s' "$DRY_RUN_B64" | base64 -d)"
+          SWEEP="$(printf '%s' "$SWEEP_B64" | base64 -d)"
+          DELAY_MS="$(printf '%s' "$DELAY_MS_B64" | base64 -d)"
+          case "$TARGET" in
+            production)
+              REPO_DIR=/var/www/ikimon.life/repo
+              ENV_FILE=/etc/ikimon/production-v2.env
+              ;;
+            staging)
+              REPO_DIR=/var/www/ikimon.life-staging/repo
+              ENV_FILE=/etc/ikimon/staging-v2.env
+              ;;
+            *)
+              echo "invalid target: $TARGET"
+              exit 1
+              ;;
+          esac
+          V2_DIR="${REPO_DIR}/platform_v2"
+          MANIFEST_PATH="${REPO_DIR}/${MANIFEST}"
+          [ -d "$V2_DIR" ] || { echo "missing platform_v2 dir: $V2_DIR"; exit 1; }
+          [ -f "$ENV_FILE" ] || { echo "missing env file: $ENV_FILE"; exit 1; }
+          [ -f "$MANIFEST_PATH" ] || { echo "missing manifest: $MANIFEST_PATH"; exit 1; }
+          cd "$V2_DIR"
+          set -a
+          . "$ENV_FILE"
+          set +a
+          [ -n "${DATABASE_URL:-}" ] || { echo "DATABASE_URL missing in $ENV_FILE"; exit 1; }
+
+          npm ci --include=dev --silent
+          npm run migrate
+          args=(-- --manifest="$MANIFEST_PATH" --delay-ms="$DELAY_MS")
+          if [ -n "${MAX_REGIONS:-}" ]; then args+=(--max-regions="$MAX_REGIONS"); fi
+          if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
+          if [ "${SWEEP:-true}" = "true" ]; then args+=(--sweep); fi
+          npm run import:osm-parks "${args[@]}"
+          npm run audit:field-entity-keys -- --fail-on-error
+          REMOTE
+
+      - name: Summary
+        run: |
+          {
+            echo "## OSM park registry import"
+            echo ""
+            echo "- target: \`${{ github.event.inputs.target }}\`"
+            echo "- manifest: \`${{ github.event.inputs.manifest }}\`"
+            echo "- max_regions: \`${{ github.event.inputs.max_regions }}\`"
+            echo "- dry_run: \`${{ github.event.inputs.dry_run }}\`"
+            echo "- sweep: \`${{ github.event.inputs.sweep }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
