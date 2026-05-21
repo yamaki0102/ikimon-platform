@@ -306,7 +306,8 @@ async function applyJob(client: any, job: UpsertJob, publishDate: string): Promi
   const cur = await client.query(
     `SELECT field_id, valid_from::text AS valid_from
        FROM observation_fields
-      WHERE entity_key = $1 AND valid_to IS NULL
+      WHERE entity_key = $1
+      ORDER BY (valid_to IS NULL) DESC, valid_from DESC NULLS LAST, created_at DESC
       LIMIT 1`,
     [job.entityKey],
   );
@@ -334,6 +335,7 @@ async function applyJob(client: any, job: UpsertJob, publishDate: string): Promi
           bbox_max_lat = $7,
           bbox_min_lng = $8,
           bbox_max_lng = $9,
+          valid_to = NULL,
           updated_at = NOW()
         WHERE field_id = $1`,
       [existing.field_id, JSON.stringify(job.polygon), JSON.stringify(job.payload), job.officialUrl, job.name,
