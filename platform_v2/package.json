@@ -68,6 +68,7 @@
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
     "repair:location-labels": "tsx src/scripts/repairObservationLocationLabels.ts",
     "repair:hamamatsu-ward-labels": "tsx src/scripts/repairHamamatsuWardLabels.ts",
+    "backfill:admin-locality": "tsx src/scripts/backfillObservationLocalityFromAdminAreas.ts",
     "report:missing-photos": "tsx src/scripts/reportMissingObservationPhotos.ts",
     "audit:locations": "tsx src/scripts/auditObservationLocations.ts",
     "audit:field-entity-keys": "tsx src/scripts/auditObservationFieldEntityKeys.ts",
