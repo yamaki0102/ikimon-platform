@@ -111,8 +111,8 @@ jobs:
 
           npm ci --include=dev --silent
           npm run migrate
-          args=(-- --manifest="$MANIFEST_PATH" --delay-ms="$DELAY_MS")
-          if [ -n "${MAX_REGIONS:-}" ]; then args+=(--max-regions="$MAX_REGIONS"); fi
+          args=(-- --manifest "$MANIFEST_PATH" --delay-ms "$DELAY_MS")
+          if [ -n "${MAX_REGIONS:-}" ]; then args+=(--max-regions "$MAX_REGIONS"); fi
           if [ "${DRY_RUN:-false}" = "true" ]; then args+=(--dry-run); fi
           if [ "${SWEEP:-true}" = "true" ]; then args+=(--sweep); fi
           npm run import:osm-parks "${args[@]}"
