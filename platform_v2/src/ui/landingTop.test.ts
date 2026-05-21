@@ -288,6 +288,35 @@ test("landing top renders real observation photos and detail CTAs", () => {
   assert.doesNotMatch(html, /data-kpi-action="landing:library:identification"/);
 });
 
+test("landing top uses public registered area labels in card metadata", () => {
+  const areaObservation: LandingObservation = {
+    ...photoObservation,
+    fieldRefs: [{
+      fieldId: "field-1",
+      name: "浜松城公園",
+      source: "user_defined",
+      adminLevel: "osm_park",
+    }],
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    feed: [areaObservation],
+    dailyDashboard: {
+      ...photoSnapshot.dailyDashboard!,
+      featuredObservation: {
+        ...areaObservation,
+        score: 84,
+        reasonKey: "vividPhoto",
+        scoreBreakdown: photoSnapshot.dailyDashboard!.featuredObservation!.scoreBreakdown,
+      },
+      seasonalStrip: [{ observation: areaObservation, score: 84, reasonKey: "vividPhoto" }],
+    },
+  });
+
+  assert.match(html, /<small>浜松市 · 浜松城公園<\/small>/);
+  assert.doesNotMatch(html, /浜松城公園 共生エリア/);
+});
+
 test("landing top renders signed-in own and community posts as thumbnail content", () => {
   const communityObservation: LandingObservation = {
     ...photoObservation,

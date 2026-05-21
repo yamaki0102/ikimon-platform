@@ -35,6 +35,37 @@ test("renderObservationCard hides exact place name in public mode", () => {
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
 });
 
+test("renderObservationCard shows public registered area subline only for safe area fields", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    fieldRefs: [{
+      fieldId: "field-1",
+      name: "浜松城公園",
+      source: "user_defined",
+      adminLevel: "osm_park",
+    }],
+  }, { locationMode: "public" });
+
+  assert.match(html, /obs-card-area/);
+  assert.match(html, /浜松市 · 浜松城公園/);
+  assert.doesNotMatch(html, /浜松城公園 共生エリア/);
+});
+
+test("renderObservationCard does not show admin boundary fields as area sublines", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    fieldRefs: [{
+      fieldId: "field-2",
+      name: "静岡県 浜松市",
+      source: "user_defined",
+      adminLevel: "admin_municipality",
+    }],
+  }, { locationMode: "public" });
+
+  assert.doesNotMatch(html, /obs-card-area/);
+  assert.doesNotMatch(html, /浜松市 · 静岡県 浜松市/);
+});
+
 test("renderObservationCard keeps canonical place line in owner mode", () => {
   const html = renderObservationCard("", "ja", observation, { locationMode: "owner" });
   assert.match(html, /浜松城公園 共生エリア/);

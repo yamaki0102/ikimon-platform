@@ -8,6 +8,7 @@ import {
 } from "../services/localizedDisplay.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import { buildObserverProfileHref } from "../services/observerProfileLink.js";
+import { publicRegisteredAreaLine } from "../services/publicAreaLabel.js";
 import type { LandingObservation } from "../services/readModels.js";
 import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml } from "./siteShell.js";
@@ -103,6 +104,13 @@ export function renderObservationCard(
     municipality: obs.municipality,
     publicLocation: obs.publicLocation,
   }, lang, locationMode);
+  const areaLine = locationMode === "public"
+    ? publicRegisteredAreaLine({
+      fieldRefs: obs.fieldRefs,
+      municipality: obs.municipality,
+      publicLocation: obs.publicLocation,
+    })
+    : null;
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
   const attribution = kind.attribution(observerLabel);
   const multiBadge = obs.isMultiSubject
@@ -150,6 +158,7 @@ export function renderObservationCard(
         <time class="obs-card-when">${escapeHtml(formatObservedAt(timestamp, lang))}</time>
       </div>
       <div class="obs-card-place">${escapeHtml(placeLine)}</div>
+      ${areaLine ? `<div class="obs-card-area">${escapeHtml(areaLine)}</div>` : ""}
       ${focusMeta}
       <div class="obs-card-actions">
         <a href="${escapeHtml(identifyHref)}">同定する</a>
@@ -231,6 +240,7 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-when { font-size: 11.5px; color: #475569; letter-spacing: .02em; flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
   .obs-card-place { font-size: 12.5px; color: #475569; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-weight: 650; }
   .obs-card-place::before { content: "📍 "; opacity: .7; }
+  .obs-card-area { margin-top: -3px; font-size: 12px; color: #047857; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
   .obs-card.is-compact .obs-card-media { aspect-ratio: 4 / 3; }
   .obs-card.is-compact .obs-card-meta { padding: 10px 12px 12px; }
   .obs-card-kind { position: absolute; left: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 11px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 4px 10px rgba(15,23,42,.08); backdrop-filter: blur(6px); }
