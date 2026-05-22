@@ -10,8 +10,13 @@ const {
   tileForLngLat,
   tilesForBbox,
   featureTouchesBbox,
+  isCompleteFreshLiveCache,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  toBiodiversityGroups,
+  BIODIVERSITY_BADGE_WINDOW_MONTHS,
+  LIVE_OSM_EMPTY_TTL_HOURS,
+  LIVE_OSM_ENDPOINTS,
   SOURCE_LABEL,
 } = __test__;
 
@@ -137,6 +142,30 @@ test("featureTouchesBbox keeps cached tile features local to the current viewpor
   });
   assert.equal(feature ? featureTouchesBbox(feature, [137.40, 34.73, 137.42, 34.75]) : false, true);
   assert.equal(feature ? featureTouchesBbox(feature, [138.00, 35.00, 138.02, 35.02]) : true, false);
+});
+
+test("empty live OSM tile cache is not treated as complete park evidence", () => {
+  assert.equal(isCompleteFreshLiveCache(4, 4, 0), false);
+  assert.equal(isCompleteFreshLiveCache(3, 4, 12), false);
+  assert.equal(isCompleteFreshLiveCache(4, 4, 12), true);
+});
+
+test("live OSM fetch has fallback endpoints and short empty-cache TTL", () => {
+  assert.ok(LIVE_OSM_ENDPOINTS.includes("https://overpass-api.de/api/interpreter"));
+  assert.ok(LIVE_OSM_ENDPOINTS.includes("https://z.overpass-api.de/api/interpreter"));
+  assert.ok(LIVE_OSM_EMPTY_TTL_HOURS <= 6);
+});
+
+test("toBiodiversityGroups exposes presence-only groups inside the 24 month badge window", () => {
+  const groups = toBiodiversityGroups([
+    { scientific_name: "Parus minor", vernacular_name: "シジュウカラ" },
+    { scientific_name: "Papilio xuthus", vernacular_name: "アゲハ" },
+    { scientific_name: "Quercus serrata", vernacular_name: "コナラ" },
+    { scientific_name: "Parus minor", vernacular_name: "シジュウカラ" },
+  ]);
+  assert.deepEqual(groups.map((item) => item.group), ["bird", "insect", "plant"]);
+  assert.ok(groups.every((item) => item.window_months === BIODIVERSITY_BADGE_WINDOW_MONTHS));
+  assert.ok(groups.every((item) => !("count" in item)));
 });
 
 test("SOURCE_LABEL covers every supported source", () => {

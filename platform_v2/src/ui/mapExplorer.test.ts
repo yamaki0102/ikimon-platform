@@ -52,3 +52,12 @@ test("area sheet includes contribution feedback surface", () => {
   assert.match(script, /記録の手応え/);
   assert.match(script, /自分の記録を見返す/);
 });
+
+test("area biodiversity badges render as presence-only map markers", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /me-area-badge-marker/);
+  assert.match(script, /biodiversity_groups/);
+  assert.match(script, /function refreshAreaBadgeMarkers/);
+  assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
+});

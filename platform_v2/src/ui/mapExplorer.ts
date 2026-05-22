@@ -1504,7 +1504,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     waterwayAbort: null,
     waterwayDebounce: null,
     waterwaySearchKey: '',
+    areaPolygonFeatures: [],
     discoveryPreviewMarkers: [],
+    areaBadgeMarkers: [],
     _cellsRequestSeq: 0,
     _cellsAppliedSeq: 0,
     _recordsRequestSeq: 0,
@@ -1972,6 +1974,80 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         .setLngLat([item.center.lng, item.center.lat])
         .addTo(state.map);
       state.discoveryPreviewMarkers.push(marker);
+    });
+  }
+
+  function clearAreaBadgeMarkers() {
+    (state.areaBadgeMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.areaBadgeMarkers = [];
+  }
+
+  function areaBadgeGroups(feature) {
+    var props = feature && feature.properties ? feature.properties : {};
+    var raw = props.biodiversity_groups || props.biodiversityGroups || [];
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (_) { raw = []; }
+    }
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(function (group) {
+      return group && group.label;
+    }).slice(0, 5);
+  }
+
+  function areaBadgeCenter(feature) {
+    var props = feature && feature.properties ? feature.properties : {};
+    var center = props.center;
+    if (typeof center === 'string') {
+      try { center = JSON.parse(center); } catch (_) { center = null; }
+    }
+    if (Array.isArray(center) && center.length >= 2) {
+      var lng = Number(center[0]);
+      var lat = Number(center[1]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat: lat, lng: lng };
+    }
+    var fallback = areaFeatureCenter(feature);
+    return fallback && Number.isFinite(fallback.lat) && Number.isFinite(fallback.lng) ? fallback : null;
+  }
+
+  function renderAreaBadgeGroup(group) {
+    var key = String(group.group || group.icon || 'other').replace(/[^a-z0-9_-]/gi, '') || 'other';
+    return '<span class="me-area-badge-chip me-area-badge-chip-' + escapeHtml(key) + '">' +
+      escapeHtml(group.label) +
+    '</span>';
+  }
+
+  function refreshAreaBadgeMarkers() {
+    clearAreaBadgeMarkers();
+    if (!state.map || !window.maplibregl || state.tab !== 'places') return;
+    var zoom = state.map.getZoom();
+    if (!Number.isFinite(zoom) || zoom < 10.2) return;
+    var features = (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
+      .map(function (feature) {
+        return { feature: feature, groups: areaBadgeGroups(feature), center: areaBadgeCenter(feature) };
+      })
+      .filter(function (item) { return item.groups.length > 0 && item.center; })
+      .slice(0, 80);
+    features.forEach(function (item) {
+      var props = item.feature && item.feature.properties ? item.feature.properties : {};
+      var name = String(props.name || COPY.selectedFieldLabel);
+      var el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'me-area-badge-marker';
+      el.setAttribute('aria-label', name + ' ' + item.groups.map(function (group) { return group.label; }).join(' '));
+      el.innerHTML =
+        '<strong>' + escapeHtml(name) + '</strong>' +
+        '<span class="me-area-badge-chips">' + item.groups.map(renderAreaBadgeGroup).join('') + '</span>';
+      el.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        openAreaFeatureSheet(item.feature, item.center.lat, item.center.lng);
+      });
+      var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+        .setLngLat([item.center.lng, item.center.lat])
+        .addTo(state.map);
+      state.areaBadgeMarkers.push(marker);
     });
   }
 
@@ -3971,6 +4047,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       hideLegend();
     }
     refreshDiscoveryPreviewMarkers();
+    refreshAreaBadgeMarkers();
   }
 
   function ensureHeatmap(map) {
@@ -4258,6 +4335,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       // Phase 1: nothing to render under z8 (admin_country/prefecture land in Phase 2).
       var src = state.map.getSource('area-polygons');
       if (src) src.setData({ type: 'FeatureCollection', features: [] });
+      state.areaPolygonFeatures = [];
+      clearAreaBadgeMarkers();
       return;
     }
     if (state.areaPolygonsAbort) { try { state.areaPolygonsAbort.abort(); } catch (_) {} }
@@ -4271,6 +4350,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (collection) {
         if (!collection) return;
         ensureAreaPolygons(state.map);
+        state.areaPolygonFeatures = Array.isArray(collection.features) ? collection.features : [];
         var src = state.map.getSource('area-polygons');
         if (src) src.setData(collection);
         applyTab(state.map, state.tab);
@@ -6005,6 +6085,63 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(255,255,255,.96);
     box-shadow: 4px 4px 8px rgba(15,23,42,.08);
   }
+  .me-area-badge-marker {
+    border: 1px solid rgba(13,148,136,.28);
+    background: rgba(255,255,255,.94);
+    color: #0f172a;
+    border-radius: 8px;
+    padding: 7px 9px 8px;
+    min-width: 126px;
+    max-width: 188px;
+    box-shadow: 0 12px 30px rgba(15,23,42,.16);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    display: grid;
+    gap: 5px;
+    text-align: left;
+    transform-origin: bottom center;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .me-area-badge-marker:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(15,23,42,.2);
+    border-color: rgba(13,148,136,.46);
+  }
+  .me-area-badge-marker strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .me-area-badge-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .me-area-badge-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 18px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0;
+    background: rgba(100,116,139,.12);
+    color: #334155;
+  }
+  .me-area-badge-chip-bird { background: rgba(14,165,233,.14); color: #075985; }
+  .me-area-badge-chip-insect { background: rgba(245,158,11,.16); color: #92400e; }
+  .me-area-badge-chip-plant { background: rgba(16,185,129,.16); color: #065f46; }
+  .me-area-badge-chip-amphibian_reptile { background: rgba(20,184,166,.16); color: #0f766e; }
+  .me-area-badge-chip-mammal { background: rgba(168,85,247,.14); color: #6b21a8; }
+  .me-area-badge-chip-fungi { background: rgba(217,119,6,.14); color: #78350f; }
+  .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
 
   .me-search-icon { font-size: 13px; color: #475569; }
   .me-search-input {
@@ -7088,6 +7225,17 @@ export const MAP_EXPLORER_STYLES = `
       bottom: 54px;
       top: auto;
       max-width: calc(100% - 96px);
+    }
+    .me-area-badge-marker {
+      min-width: 112px;
+      max-width: 154px;
+      padding: 6px 7px 7px;
+    }
+    .me-area-badge-marker strong { font-size: 10.5px; }
+    .me-area-badge-chip {
+      min-height: 17px;
+      padding: 2px 5px;
+      font-size: 9.5px;
     }
     .me-locate-fab { bottom: 96px; }
     .me-bottom-sheet {
