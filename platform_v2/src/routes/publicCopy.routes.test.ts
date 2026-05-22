@@ -134,29 +134,25 @@ test("home page uses the current content-first top surface", async () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /Enjoy Life/);
     assert.match(response.body, /<title>ikimon \| Enjoy Life/);
-    assert.match(response.body, /fast-hero/);
-    assert.match(response.body, /data-landing-lower/);
-    assert.match(response.body, /\/api\/v1\/landing\/sections\?lang=ja/);
-    assert.doesNotMatch(response.body, /prototype-content-wall/);
+    assert.match(response.body, /prototype-content-wall/);
+    assert.match(response.body, /EVERYONE&#39;S RECORDS/);
+    assert.match(response.body, /みんなの記録/);
+    assert.match(response.body, /育つ観察エリア/);
+    assert.match(response.body, /FIELD EVENTS/);
+    assert.match(response.body, /近くの観察会/);
     assert.match(response.body, /記録する/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
-    assert.match(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
+    assert.match(response.body, /選ぶ/);
+    assert.match(response.body, /ガイド/);
+    assert.match(response.body, /同定待ち/);
+    assert.doesNotMatch(response.body, /今日見つけた生きものを、名前が分からなくても残せる。/);
+    assert.doesNotMatch(response.body, /散歩中でも旅先でも、写真・動画・音・場所・ひとこと/);
     assert.doesNotMatch(response.body, /今日は、どこを見に行く？/);
     assert.doesNotMatch(response.body, /見つける、確かめる、地図で見る。/);
     assert.doesNotMatch(response.body, /フィールドループ/);
     assert.doesNotMatch(response.body, /今日のikimon\.life/);
     assert.doesNotMatch(response.body, /信頼と安全/);
-
-    const lower = await app.inject({ method: "GET", url: "/api/v1/landing/sections?lang=ja", headers: { accept: "application/json" } });
-    assert.equal(lower.statusCode, 200);
-    const payload = JSON.parse(lower.body) as { html: string };
-    assert.match(payload.html, /prototype-content-wall/);
-    assert.match(payload.html, /EVERYONE&#39;S RECORDS/);
-    assert.match(payload.html, /みんなの記録/);
-    assert.match(payload.html, /育つ観察エリア/);
-    assert.match(payload.html, /FIELD EVENTS/);
-    assert.match(payload.html, /近くの観察会/);
   } finally {
     await app.close();
   }
