@@ -103,8 +103,69 @@ type QASiteMapCopy = {
   footerNote: string;
 };
 
+const LANDING_SNAPSHOT_CACHE_TTL_MS = 45_000;
+const LANDING_SNAPSHOT_TIMEOUT_MS = 1_200;
+const landingSnapshotCache = new Map<string, { expiresAt: number; snapshot: LandingSnapshot }>();
+const landingSnapshotInflight = new Map<string, Promise<LandingSnapshot>>();
+
 function requestUrl(request: { url?: string; raw?: { url?: string; originalUrl?: string } }): string {
   return String(request.raw?.originalUrl ?? request.raw?.url ?? request.url ?? "");
+}
+
+function emptyLandingSnapshot(userId: string | null): LandingSnapshot {
+  return {
+    viewerUserId: userId,
+    stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
+    feed: [],
+    myFeed: [],
+    topShelves: [],
+    guideOutcomes: [],
+    guideOutcomeSummaries: [],
+    overflowSummaries: [],
+    myPlaces: [],
+    nearbyFields: [],
+    nearbyEvents: [],
+    mapPreviewCells: [],
+    ambient: [],
+    habit: null,
+    dailyDashboard: null,
+    regionalStory: null,
+  };
+}
+
+function timeoutAfter(ms: number): Promise<null> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(null), ms);
+  });
+}
+
+async function getLandingSnapshotForRoot(userId: string | null): Promise<LandingSnapshot> {
+  const cacheKey = userId ?? "__public__";
+  const now = Date.now();
+  const cached = landingSnapshotCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.snapshot;
+  }
+
+  let inflight = landingSnapshotInflight.get(cacheKey);
+  if (!inflight) {
+    inflight = getLandingSnapshot(userId)
+      .then((snapshot) => {
+        landingSnapshotCache.set(cacheKey, {
+          expiresAt: Date.now() + LANDING_SNAPSHOT_CACHE_TTL_MS,
+          snapshot,
+        });
+        return snapshot;
+      })
+      .catch(() => cached?.snapshot ?? emptyLandingSnapshot(userId))
+      .finally(() => {
+        landingSnapshotInflight.delete(cacheKey);
+      });
+    landingSnapshotInflight.set(cacheKey, inflight);
+  }
+
+  const snapshot = await Promise.race([inflight, timeoutAfter(LANDING_SNAPSHOT_TIMEOUT_MS)]);
+  return snapshot ?? cached?.snapshot ?? emptyLandingSnapshot(userId);
 }
 
 function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string | null {
@@ -538,9 +599,9 @@ export function buildApp() {
     const lang = detectLangFromUrl(requestUrl(request));
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
-    const snapshot = await getLandingSnapshot(viewerUserId);
+    const snapshot = await getLandingSnapshotForRoot(viewerUserId);
     reply.type("text/html; charset=utf-8");
-    reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
     return buildLandingRootHtml(
       context,
       lang,
