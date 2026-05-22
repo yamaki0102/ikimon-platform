@@ -198,12 +198,13 @@ test("records workbench unifies personal library and public observations", async
     assert.match(response.body, /data-testid="records-workbench"/);
     assert.match(response.body, /記録を見る/);
     assert.match(response.body, /自分/);
-    assert.match(response.body, /近く/);
+    assert.match(response.body, /みんな/);
     assert.match(response.body, /確認待ち/);
-    assert.match(response.body, /動画\/ガイド/);
+    assert.match(response.body, /メディア/);
     assert.match(response.body, /場所/);
     assert.match(response.body, /data-library-search/);
     assert.match(response.body, /records-view-tabs/);
+    assert.match(response.body, /records-post-grid/);
     assert.doesNotMatch(response.body, /data-testid="observations-index"/);
   } finally {
     await app.close();
@@ -218,7 +219,7 @@ test("records workbench localizes the unified chrome in English", async () => {
     assert.match(response.body, /<html lang="en">/);
     assert.match(response.body, /Records/);
     assert.match(response.body, /Mine/);
-    assert.match(response.body, /Nearby/);
+    assert.match(response.body, /Everyone/);
     assert.match(response.body, /Needs ID/);
     assert.match(response.body, /Search by name or place/);
     assert.doesNotMatch(response.body, /記録を見る/);
@@ -284,11 +285,13 @@ test("records mine tab keeps source lanes and library controls", async () => {
     const response = await app.inject({ method: "GET", url: "/records?view=mine&lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
     assert.match(response.body, /記録を見る/);
+    assert.match(response.body, /探す\/絞る/);
     assert.match(response.body, /場所・気づきで探す/);
     assert.match(response.body, /写真/);
     assert.match(response.body, /動画/);
     assert.match(response.body, /ガイド/);
     assert.match(response.body, /スキャン/);
+    assert.match(response.body, /records-post-grid/);
     assert.match(response.body, /data-testid="records-workbench"/);
     assert.doesNotMatch(response.body, /ノートを書く/);
     assert.doesNotMatch(response.body, /最初のノートを書く/);
@@ -298,7 +301,7 @@ test("records mine tab keeps source lanes and library controls", async () => {
   }
 });
 
-test("records mine tab frames personal history as an observation story", async () => {
+test("records mine tab opens directly into the card grid instead of a story hero", async () => {
   await withEnv(
     {
       ALLOW_QUERY_USER_ID: "1",
@@ -312,10 +315,10 @@ test("records mine tab frames personal history as an observation story", async (
           headers: { accept: "text/html" },
         });
         assert.equal(response.statusCode, 200);
-        assert.match(response.body, /自分の自然観察ストーリー/);
-        assert.match(response.body, /最初の章を始める。/);
-        assert.match(response.body, /data-kpi-action="records:story:first_record"/);
-        assert.match(response.body, /data-kpi-funnel="landing_record"/);
+        assert.match(response.body, /records-post-grid/);
+        assert.doesNotMatch(response.body, /自分の自然観察ストーリー/);
+        assert.doesNotMatch(response.body, /最初の章を始める。/);
+        assert.doesNotMatch(response.body, /data-kpi-action="records:story:first_record"/);
         assert.match(response.body, /data-testid="records-workbench"/);
       } finally {
         await app.close();

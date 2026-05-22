@@ -9793,9 +9793,9 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       empty: "表示できる記録がまだありません。",
       tabs: {
         mine: "自分",
-        public: "近く",
+        public: "みんな",
         needs_id: "確認待ち",
-        media: "動画/ガイド",
+        media: "メディア",
         places: "場所",
       },
       side: {
@@ -9815,9 +9815,9 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       empty: "No records are ready to show yet.",
       tabs: {
         mine: "Mine",
-        public: "Nearby",
+        public: "Everyone",
         needs_id: "Needs ID",
-        media: "Video/Guide",
+        media: "Media",
         places: "Places",
       },
       side: {
@@ -9837,9 +9837,9 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       empty: "Aun no hay registros listos para mostrar.",
       tabs: {
         mine: "Mios",
-        public: "Cerca",
+        public: "Todos",
         needs_id: "Por revisar",
-        media: "Video/Guia",
+        media: "Medios",
         places: "Lugares",
       },
       side: {
@@ -9859,9 +9859,9 @@ function recordsWorkbenchCopy(lang: SiteLang): RecordsWorkbenchCopy {
       empty: "Ainda nao ha registros prontos para mostrar.",
       tabs: {
         mine: "Meus",
-        public: "Perto",
+        public: "Todos",
         needs_id: "Revisar",
-        media: "Video/Guia",
+        media: "Midia",
         places: "Lugares",
       },
       side: {
@@ -10002,6 +10002,183 @@ function recordWorkbenchEntriesForView(
   return all;
 }
 
+type RecordsPostCard = LandingObservation & {
+  postRecordCount: number;
+  postSubjectNames: string[];
+  postNeedsId: boolean;
+  postCandidateName: string | null;
+};
+
+function recordsPostGroupKey(entry: LandingObservation): string {
+  if ((entry.entryType ?? "observation") === "identification") {
+    return `identification:${entry.occurrenceId}`;
+  }
+  return `observation:${entry.visitId || entry.detailId || entry.occurrenceId}`;
+}
+
+function recordsPostSubjectName(entry: LandingObservation, lang: SiteLang): string {
+  return formatTaxonDisplayName({
+    vernacularName: entry.vernacularName,
+    scientificName: entry.scientificName,
+    displayName: entry.displayName,
+    aiCandidateName: entry.aiCandidateName,
+    fallback: entry.proposedName ?? notesLibraryCopy(lang).card.fallbackName,
+  }, lang).primaryLabel;
+}
+
+function recordsEntryTimestamp(entry: LandingObservation): number {
+  const time = new Date(notesEntryDate(entry)).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function recordsRepresentativeMediaUrl(entry: LandingObservation): string | null {
+  const photoUrls = Array.isArray(entry.photoUrls) ? entry.photoUrls.filter(Boolean) : [];
+  const latestPhoto = photoUrls.length > 0 ? photoUrls[photoUrls.length - 1] : entry.photoUrl;
+  const sourceUrl = entry.mediaUrl || latestPhoto || null;
+  return sourceUrl ? (toThumbnailUrl(sourceUrl, "md") ?? sourceUrl) : null;
+}
+
+function buildRecordsPostCards(entries: LandingObservation[], lang: SiteLang): RecordsPostCard[] {
+  const groups = new Map<string, LandingObservation[]>();
+  for (const entry of entries) {
+    const key = recordsPostGroupKey(entry);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(entry);
+  }
+  return Array.from(groups.values()).map((group) => {
+    const sorted = group.slice().sort((a, b) => recordsEntryTimestamp(b) - recordsEntryTimestamp(a));
+    const representative = sorted.find((entry) => recordsRepresentativeMediaUrl(entry)) ?? sorted[0]!;
+    const subjectNames = Array.from(new Set(sorted.map((entry) => recordsPostSubjectName(entry, lang)).filter(Boolean)));
+    const candidateName = sorted.find((entry) => recordsNeedsId(entry))?.aiCandidateName
+      ?? sorted.find((entry) => recordsNeedsId(entry))?.displayName
+      ?? null;
+    return {
+      ...representative,
+      displayName: subjectNames[0] ?? representative.displayName,
+      postRecordCount: sorted.length,
+      postSubjectNames: subjectNames,
+      postNeedsId: sorted.some(recordsNeedsId),
+      postCandidateName: candidateName,
+    };
+  });
+}
+
+function recordsPostSourceKind(card: RecordsPostCard): NonNullable<LandingObservation["librarySourceKind"]> {
+  if (card.hasVideo || card.mediaUrl) return "video";
+  return notesLibrarySourceKind(card);
+}
+
+function recordsPostSubjectsHtml(card: RecordsPostCard): string {
+  const second = card.postSubjectNames[1];
+  if (!second) return "";
+  const rest = Math.max(0, card.postRecordCount - 2);
+  return `<span class="records-post-subjects"><span>${escapeHtml(second)}</span>${rest > 0 ? `<em>+${escapeHtml(String(rest))}</em>` : ""}</span>`;
+}
+
+function recordsNeedsIdBadge(lang: SiteLang, card: RecordsPostCard): string {
+  if (!card.postNeedsId) return "";
+  const label = lang === "ja" ? "確認待ち" : lang === "es" ? "Por revisar" : lang === "pt-BR" ? "Revisar" : "Needs ID";
+  const candidate = card.postCandidateName?.trim();
+  return `<span class="records-post-needs-id"><b>${escapeHtml(label)}</b>${candidate ? `<small>${escapeHtml(candidate)}</small>` : ""}</span>`;
+}
+
+function renderRecordsPostCard(
+  basePath: string,
+  lang: SiteLang,
+  view: RecordsWorkbenchView,
+  card: RecordsPostCard,
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+): string {
+  const copy = notesLibraryCopy(lang);
+  const href = notesDetailHref(basePath, lang, card);
+  const sourceKind = recordsPostSourceKind(card);
+  const sourceLabel = notesLibrarySourceLabel(sourceKind, lang);
+  const mediaUrl = recordsRepresentativeMediaUrl(card);
+  const displayName = recordsPostSubjectName(card, lang);
+  const placeLine = notesPlaceLine(card, lang, options.locationMode) || copy.card.fallbackPlace;
+  const dateLabel = notesLibraryDateLabel(card, lang);
+  const isUncertain = card.postNeedsId || notesLibraryIsUncertain(card);
+  const civicContext = options.civicContexts?.get(card.visitId);
+  const civicLabel = civicContext ? notesCivicContextLabel(civicContext, lang) : "";
+  const filters = [
+    "all",
+    sourceKind,
+    notesPhotoCount(card) > 0 ? "photos" : "no-photo",
+    isUncertain ? "uncertain" : "named",
+    card.identificationCount > 0 || card.entryType === "identification" ? "identified" : "needs-id",
+  ].join(" ");
+  const metaLine = view === "mine"
+    ? `${placeLine} · ${dateLabel}`
+    : `${card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : ""}${placeLine} · ${dateLabel}`;
+  const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
+  const thumbHtml = mediaUrl
+    ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`
+    : `<span class="records-post-empty-thumb" aria-hidden="true"></span>`;
+  const canOwnerHide = options.locationMode === "owner" && card.entryType !== "identification";
+  const hideEndpoint = withBasePath(basePath, `/api/v1/observations/${encodeURIComponent(card.visitId)}/hide`);
+  const ownerMenu = canOwnerHide
+    ? `<details class="notes-library-card-menu records-post-menu">
+        <summary aria-label="${escapeHtml(copy.card.menuAria)}"><span aria-hidden="true"></span></summary>
+        <div class="notes-library-card-menu-panel">
+          <a href="${escapeHtml(href)}">${escapeHtml(copy.card.detail)}</a>
+          <button type="button" data-owner-hide-observation data-hide-endpoint="${escapeHtml(hideEndpoint)}">${escapeHtml(copy.card.delete)}</button>
+        </div>
+      </details>`
+    : "";
+  return `<article class="records-post-card is-source-${escapeHtml(sourceKind)}${mediaUrl ? "" : " is-media-missing"}" data-library-card data-filter="${escapeHtml(filters)}" data-search="${escapeHtml(searchable)}">
+    <a class="records-post-card-link" href="${escapeHtml(href)}" aria-label="${escapeHtml(displayName)}">
+      <span class="records-post-thumb">
+        ${thumbHtml}
+        <span class="records-post-icon is-${escapeHtml(sourceKind)}" aria-hidden="true"></span>
+        ${view === "needs_id" ? recordsNeedsIdBadge(lang, card) : ""}
+      </span>
+      <span class="records-post-body">
+        <span class="records-post-title-line">
+          <strong>${escapeHtml(displayName)}</strong>
+          ${recordsPostSubjectsHtml(card)}
+        </span>
+        <span class="records-post-meta">${escapeHtml(metaLine)}</span>
+      </span>
+    </a>
+    ${ownerMenu}
+  </article>`;
+}
+
+function renderRecordsPostMonths(
+  basePath: string,
+  lang: SiteLang,
+  view: RecordsWorkbenchView,
+  entries: LandingObservation[],
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+): string {
+  const cards = buildRecordsPostCards(entries, lang);
+  if (cards.length === 0) {
+    return `<div class="notes-library-empty">${escapeHtml(notesLibraryCopy(lang).emptyLibrary)}</div>`;
+  }
+  const groups = new Map<string, RecordsPostCard[]>();
+  for (const card of cards) {
+    const key = notesLibraryMonthKey(card);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(card);
+  }
+  return Array.from(groups.entries()).map(([key, items]) => `<section class="records-post-month" data-library-month>
+    <div class="records-post-month-head">
+      <span>${escapeHtml(notesLibraryMonthLabel(key, lang))}</span>
+    </div>
+    <div class="records-post-grid">
+      ${items.map((card) => renderRecordsPostCard(basePath, lang, view, card, options)).join("")}
+    </div>
+  </section>`).join("");
+}
+
+function renderRecordsCollapsedControls(lang: SiteLang): string {
+  const label = lang === "ja" ? "探す/絞る" : lang === "es" ? "Buscar/filtrar" : lang === "pt-BR" ? "Buscar/filtrar" : "Search/filter";
+  return `<details class="records-tools">
+    <summary>${escapeHtml(label)}</summary>
+    ${renderNotesLibraryControls(lang)}
+  </details>`;
+}
+
 function recordsStoryCopy(lang: SiteLang): {
   eyebrow: string;
   title: string;
@@ -10125,9 +10302,6 @@ function renderRecordsWorkbench(
   const ownEntries = snapshot.viewerUserId ? snapshot.myFeed : [];
   const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
-  const storyHtml = view === "mine" && snapshot.viewerUserId
-    ? renderRecordsStoryStrip(basePath, lang, snapshot, ownEntries)
-    : "";
   return `<div class="records-workbench" data-testid="records-workbench">
     <header class="records-topbar">
       <div class="records-topbar-brand">
@@ -10140,11 +10314,10 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <main class="records-main">
-      ${storyHtml}
       <section class="records-grid-panel" data-notes-library>
-        ${renderNotesLibraryControls(lang)}
+        ${renderRecordsCollapsedControls(lang)}
         ${entries.length > 0
-          ? renderNotesLibraryMonths(basePath, lang, entries, { locationMode, civicContexts, showMonthCount: false })
+          ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
       </section>
     </main>
@@ -10349,10 +10522,229 @@ const RECORDS_WORKBENCH_STYLES = `
     align-content: start;
     gap: 12px;
   }
-  .records-workbench .notes-library-controls {
+  .records-tools {
+    justify-self: start;
     position: sticky;
-    top: 114px;
-    z-index: 10;
+    top: 124px;
+    z-index: 12;
+  }
+  .records-tools summary {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,23,42,.1);
+    color: #10251a;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 950;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(15,23,42,.06);
+    list-style: none;
+  }
+  .records-tools summary::-webkit-details-marker { display: none; }
+  .records-tools[open] {
+    width: min(100%, 860px);
+    justify-self: stretch;
+  }
+  .records-post-month { display: grid; gap: 10px; }
+  .records-post-month[hidden],
+  .records-post-card[hidden] { display: none; }
+  .records-post-month-head {
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+    padding: 4px 2px 0;
+    border-top: 1px solid rgba(15,23,42,.06);
+  }
+  .records-post-month:first-of-type .records-post-month-head { border-top: 0; padding-top: 0; }
+  .records-post-month-head span {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 900;
+  }
+  .records-post-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 18px 14px;
+  }
+  .records-post-card {
+    position: relative;
+    min-width: 0;
+    display: grid;
+    gap: 9px;
+    color: inherit;
+  }
+  .records-post-card-link {
+    min-width: 0;
+    display: grid;
+    gap: 9px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .records-post-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+      #f8fffc;
+    background-size: 22px 22px, 22px 22px, auto;
+    box-shadow: 0 10px 24px rgba(15,23,42,.07);
+  }
+  .records-post-thumb img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
+    transition: transform .18s ease;
+  }
+  .records-post-card:hover .records-post-thumb img { transform: scale(1.025); }
+  .records-post-empty-thumb {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: #e7f5ef;
+  }
+  .records-post-icon {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(16,37,26,.86);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(15,23,42,.16);
+  }
+  .records-post-icon::before {
+    content: "";
+    width: 13px;
+    height: 13px;
+    display: block;
+    background: currentColor;
+    mask: var(--records-post-icon-mask) center / contain no-repeat;
+    -webkit-mask: var(--records-post-icon-mask) center / contain no-repeat;
+  }
+  .records-post-icon.is-photo { --records-post-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M5 5h14v14H5V5Zm2 2v8.6l3.2-3.2 2.6 2.6 1.7-1.7L17 15.8V7H7Zm2.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z'/%3E%3C/svg%3E"); }
+  .records-post-icon.is-video { --records-post-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 6h11v12H4V6Zm13 4.2 4-2.4v8.4l-4-2.4v-3.6Z'/%3E%3C/svg%3E"); }
+  .records-post-icon.is-guide,
+  .records-post-icon.is-scan,
+  .records-post-icon.is-note { --records-post-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 5v3h3v2h-3v3h-2v-3H8v-2h3V8h2Z'/%3E%3C/svg%3E"); }
+  .records-post-needs-id {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: #10251a;
+    box-shadow: 0 8px 18px rgba(15,23,42,.14);
+  }
+  .records-post-needs-id b {
+    flex: 0 0 auto;
+    color: #047857;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .records-post-needs-id small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #334155;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 850;
+  }
+  .records-post-body {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+  }
+  .records-post-title-line {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .records-post-title-line > strong {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #10251a;
+    font-size: 15px;
+    line-height: 1.38;
+    font-weight: 950;
+  }
+  .records-post-subjects {
+    min-width: 0;
+    max-width: 48%;
+    flex: 0 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+  .records-post-subjects span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .records-post-subjects em {
+    flex: 0 0 auto;
+    min-width: 20px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(15,23,42,.06);
+    color: #475569;
+    font-size: 10px;
+    line-height: 1;
+    font-style: normal;
+    font-weight: 950;
+  }
+  .records-post-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+  .records-post-menu { top: 8px; right: 8px; }
+  .records-workbench .notes-library-controls {
+    margin-top: 8px;
     display: grid;
     grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
     gap: 6px;
@@ -10389,6 +10781,11 @@ const RECORDS_WORKBENCH_STYLES = `
     .records-actions a { min-width: 34px; min-height: 34px; padding: 0 11px; font-size: 12px; }
     .records-actions a.is-primary { font-size: 21px; }
     .records-main { grid-template-columns: 1fr; padding: 6px 8px 10px; }
+    .records-tools {
+      position: static;
+      justify-self: start;
+    }
+    .records-tools[open] { width: 100%; }
     .records-story {
       grid-template-columns: 1fr;
       align-items: start;
@@ -10446,6 +10843,8 @@ const RECORDS_WORKBENCH_STYLES = `
   @media (max-width: 620px) {
     .records-topbar-brand strong { font-size: 14px; }
     .records-actions a { min-width: 34px; min-height: 34px; }
+    .records-post-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 8px; }
+    .records-post-meta { font-size: 10px; }
     .records-workbench .notes-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   }
 `;
