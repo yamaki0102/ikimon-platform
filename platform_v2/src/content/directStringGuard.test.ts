@@ -42,6 +42,7 @@ const explicitAllowlist = [
   "platform_v2/src/ui/fieldNoteMain.ts",
   "platform_v2/src/ui/fixedPointStation.ts",
   "platform_v2/src/ui/guideFlow.ts",
+  "platform_v2/src/ui/landingFast.ts",
   "platform_v2/src/ui/landingTop.ts",
   "platform_v2/src/ui/mapExplorer.ts",
   "platform_v2/src/ui/mapMini.ts",
