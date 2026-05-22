@@ -105,6 +105,7 @@ type QASiteMapCopy = {
 
 const LANDING_SNAPSHOT_CACHE_TTL_MS = 300_000;
 const LANDING_SNAPSHOT_TIMEOUT_MS = 1_200;
+const LANDING_PUBLIC_CACHE_KEY = "__public__";
 const landingSnapshotCache = new Map<string, { expiresAt: number; snapshot: LandingSnapshot }>();
 const landingSnapshotInflight = new Map<string, Promise<LandingSnapshot>>();
 
@@ -150,14 +151,32 @@ function timeoutAfter(ms: number): Promise<null> {
   });
 }
 
-async function getLandingSnapshotForRoot(userId: string | null): Promise<LandingSnapshot> {
-  const cacheKey = userId ?? "__public__";
-  const now = Date.now();
-  const cached = landingSnapshotCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
-    return cached.snapshot;
-  }
+function hasLandingVisibleData(snapshot: LandingSnapshot): boolean {
+  return snapshot.feed.length > 0 ||
+    (snapshot.topShelves ?? []).some((shelf) => shelf.items.length > 0) ||
+    snapshot.nearbyFields.length > 0 ||
+    snapshot.mapPreviewCells.length > 0 ||
+    snapshot.ambient.length > 0 ||
+    Boolean(snapshot.dailyDashboard);
+}
 
+function publicSnapshotForSignedInFallback(snapshot: LandingSnapshot, userId: string): LandingSnapshot {
+  return {
+    ...snapshot,
+    viewerUserId: userId,
+    myFeed: [],
+    guideOutcomes: [],
+    guideOutcomeSummaries: [],
+    myPlaces: [],
+    habit: null,
+  };
+}
+
+function ensureLandingSnapshotInflight(
+  cacheKey: string,
+  userId: string | null,
+  cached: { expiresAt: number; snapshot: LandingSnapshot } | undefined,
+): Promise<LandingSnapshot> {
   let inflight = landingSnapshotInflight.get(cacheKey);
   if (!inflight) {
     inflight = getLandingSnapshot(userId)
@@ -171,15 +190,51 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
       .catch(() => cached?.snapshot ?? emptyLandingSnapshot(userId))
       .finally(() => {
         landingSnapshotInflight.delete(cacheKey);
-    });
+      });
     landingSnapshotInflight.set(cacheKey, inflight);
   }
+  return inflight;
+}
+
+async function getPublicLandingFallbackForSignedIn(userId: string): Promise<LandingSnapshot | null> {
+  const now = Date.now();
+  const cached = landingSnapshotCache.get(LANDING_PUBLIC_CACHE_KEY);
+  if (cached && cached.expiresAt > now && hasLandingVisibleData(cached.snapshot)) {
+    return publicSnapshotForSignedInFallback(cached.snapshot, userId);
+  }
+
+  const inflight = ensureLandingSnapshotInflight(LANDING_PUBLIC_CACHE_KEY, null, cached);
+  const snapshot = await Promise.race([inflight, timeoutAfter(LANDING_SNAPSHOT_TIMEOUT_MS)]);
+  if (snapshot && hasLandingVisibleData(snapshot)) {
+    return publicSnapshotForSignedInFallback(snapshot, userId);
+  }
+  if (cached && hasLandingVisibleData(cached.snapshot)) {
+    return publicSnapshotForSignedInFallback(cached.snapshot, userId);
+  }
+  return null;
+}
+
+async function getLandingSnapshotForRoot(userId: string | null): Promise<LandingSnapshot> {
+  const cacheKey = userId ?? LANDING_PUBLIC_CACHE_KEY;
+  const now = Date.now();
+  const cached = landingSnapshotCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.snapshot;
+  }
+
+  const inflight = ensureLandingSnapshotInflight(cacheKey, userId, cached);
 
   if (cached) {
     return cached.snapshot;
   }
 
   const snapshot = await Promise.race([inflight, timeoutAfter(LANDING_SNAPSHOT_TIMEOUT_MS)]);
+  if (snapshot && (!userId || hasLandingVisibleData(snapshot))) {
+    return snapshot;
+  }
+  if (userId) {
+    return await getPublicLandingFallbackForSignedIn(userId) ?? emptyLandingSnapshot(userId);
+  }
   return snapshot ?? emptyLandingSnapshot(userId);
 }
 
