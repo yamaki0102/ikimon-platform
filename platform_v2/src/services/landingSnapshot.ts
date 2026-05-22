@@ -41,6 +41,14 @@ import type {
 } from "./readModels.js";
 import { refreshGuideSessionPublicSummaries, type GuideSessionSummarySourceRow } from "./guideSessionPublicSummary.js";
 
+const LANDING_HOME_SNAPSHOT_TIMEOUT_MS = 250;
+
+function timeoutAfterNull<T>(ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(null), ms);
+  });
+}
+
 function normalizeAssetUrl(value: string | null | undefined): string | null {
   if (!value) {
     return null;
@@ -1693,8 +1701,11 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let myPlaces: LandingSnapshot["myPlaces"] = [];
   if (userId) {
     try {
-      const home = await getHomeSnapshot(userId);
-      myPlaces = home.myPlaces;
+      const home = await Promise.race([
+        getHomeSnapshot(userId),
+        timeoutAfterNull<Awaited<ReturnType<typeof getHomeSnapshot>>>(LANDING_HOME_SNAPSHOT_TIMEOUT_MS),
+      ]);
+      myPlaces = home?.myPlaces ?? [];
     } catch {
       myPlaces = [];
     }
