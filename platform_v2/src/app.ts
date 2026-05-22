@@ -60,10 +60,9 @@ import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import { buildObserverProfileHref } from "./services/observerProfileLink.js";
 import { getStrings } from "./i18n/index.js";
-import type { LandingSnapshot } from "./services/readModels.js";
-import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
-import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
-import { MAP_MINI_STYLES, mapMiniBootScript } from "./ui/mapMini.js";
+import type { LandingSnapshot, LandingStats } from "./services/readModels.js";
+import { renderLandingFastDocument } from "./ui/landingFast.js";
+import { renderLandingTopSections } from "./ui/landingTop.js";
 import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 
 type PreviewContext = {
@@ -149,6 +148,111 @@ function localizedNavHome(lang: SiteLang): string {
   return getShortCopy<string>(lang, "shared", "shell.nav.home");
 }
 
+const LANDING_CACHE_TTL_MS = 45_000;
+
+type LandingShellSnapshot = {
+  viewerUserId: string | null;
+  stats: LandingStats;
+};
+
+type LandingCacheEntry<T> = {
+  expiresAt: number;
+  value?: T;
+  promise?: Promise<T>;
+};
+
+const landingShellCache = new Map<string, LandingCacheEntry<LandingShellSnapshot>>();
+const landingFullSnapshotCache = new Map<string, LandingCacheEntry<LandingSnapshot>>();
+
+function landingCacheKey(kind: "public" | "user", userId: string | null): string {
+  return kind === "public" || !userId ? "public" : `user:${userId}`;
+}
+
+async function cachedLandingValue<T>(
+  cache: Map<string, LandingCacheEntry<T>>,
+  key: string,
+  factory: () => Promise<T>,
+): Promise<T> {
+  const now = Date.now();
+  const cached = cache.get(key);
+  if (cached?.value && cached.expiresAt > now) {
+    return cached.value;
+  }
+  if (cached?.promise) {
+    return cached.promise;
+  }
+  const promise = factory()
+    .then((value) => {
+      cache.set(key, { value, expiresAt: Date.now() + LANDING_CACHE_TTL_MS });
+      return value;
+    })
+    .catch((error) => {
+      cache.delete(key);
+      throw error;
+    });
+  cache.set(key, { promise, expiresAt: now + LANDING_CACHE_TTL_MS });
+  return promise;
+}
+
+async function getLandingShellSnapshot(userId: string | null): Promise<LandingShellSnapshot> {
+  const emptyStats: LandingStats = { observationCount: 0, speciesCount: 0, placeCount: 0 };
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return { viewerUserId: userId, stats: emptyStats };
+  }
+
+  try {
+    const result = await pool.query<{
+      observation_count: string | number;
+      species_count: string | number;
+      place_count: string | number;
+    }>(
+      `select
+         (select count(*) from occurrences) as observation_count,
+         (select count(distinct scientific_name) from occurrences where scientific_name is not null and scientific_name <> '') as species_count,
+         (select count(*) from places) as place_count`,
+    );
+    const row = result.rows[0];
+    return {
+      viewerUserId: userId,
+      stats: {
+        observationCount: Number(row?.observation_count ?? 0) || 0,
+        speciesCount: Number(row?.species_count ?? 0) || 0,
+        placeCount: Number(row?.place_count ?? 0) || 0,
+      },
+    };
+  } catch {
+    return { viewerUserId: userId, stats: emptyStats };
+  }
+}
+
+function landingResponseCacheControl(viewerUserId: string | null): string {
+  if (viewerUserId) {
+    return "private, max-age=30, stale-while-revalidate=30";
+  }
+  return "public, max-age=30, stale-while-revalidate=30";
+}
+
+function cachedLandingShellSnapshot(viewerUserId: string | null): Promise<LandingShellSnapshot> {
+  const kind = viewerUserId ? "user" : "public";
+  return cachedLandingValue(
+    landingShellCache,
+    landingCacheKey(kind, viewerUserId),
+    () => getLandingShellSnapshot(viewerUserId),
+  );
+}
+
+function cachedLandingFullSnapshot(viewerUserId: string | null): Promise<LandingSnapshot> {
+  const kind = viewerUserId ? "user" : "public";
+  return cachedLandingValue(
+    landingFullSnapshotCache,
+    landingCacheKey(kind, viewerUserId),
+    () => getLandingSnapshot(viewerUserId),
+  );
+}
+
 
 function buildFlowLink(basePath: string, href: string, label: string, note: string): string {
   return `<a class="card" href="${escapeHtml(withBasePath(basePath, href))}">
@@ -228,50 +332,6 @@ function qaStatusNote(page: SitePageDefinition, lang: SiteLang): string {
     default:
       return note;
   }
-}
-
-function buildLandingRootHtml(
-  options: PreviewContext,
-  lang: SiteLang,
-  currentPath: string,
-  snapshot: LandingSnapshot,
-  isDemoView: boolean,
-): string {
-  const strings = getStrings(lang);
-  const copy = strings.landing;
-  const fieldLoop = strings.fieldLoop;
-  const isLoggedIn = Boolean(snapshot.viewerUserId);
-
-  const landingTop = renderLandingTopSections({
-    basePath: options.basePath,
-    lang,
-    copy,
-    fieldLoop,
-    snapshot,
-    isLoggedIn,
-  });
-
-  const extraStyles = [
-    MAP_MINI_STYLES,
-    LANDING_TOP_STYLES,
-    DEMO_LOGIN_BANNER_STYLES,
-  ].join("\n");
-
-  return renderSiteDocument({
-    basePath: options.basePath,
-    title: copy.title,
-    description: copy.heroLead,
-    activeNav: localizedNavHome(lang),
-    lang,
-    currentPath,
-    extraStyles,
-    shellClassName: "shell-bleed prototype-shell",
-    body: `${landingTop.heroHtml}
-${landingTop.dailyDashboardHtml}
-${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}
-${mapMiniBootScript("ikimon-topa-map-mini")}`,
-    footerNote: copy.footerNote,
-  });
 }
 
 function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath: string): string {
@@ -532,22 +592,51 @@ export function buildApp() {
       .send(bytes);
   });
 
-  app.get("/", async (request, reply) => {
-    const context = await getPreviewContext();
-    context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
+  app.get("/api/v1/landing/sections", async (request, reply) => {
+    const basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
     const lang = detectLangFromUrl(requestUrl(request));
     const session = await getSessionFromCookie(request.headers.cookie);
-    const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
-    const snapshot = await getLandingSnapshot(viewerUserId);
-    reply.type("text/html; charset=utf-8");
-    reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    return buildLandingRootHtml(
-      context,
+    const { viewerUserId } = resolveViewer(request.query, session);
+    const snapshot = await cachedLandingFullSnapshot(viewerUserId);
+    const strings = getStrings(lang);
+    const landingTop = renderLandingTopSections({
+      basePath,
       lang,
-      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      copy: strings.landing,
+      fieldLoop: strings.fieldLoop,
       snapshot,
-      queryOverrideHonored,
-    );
+      isLoggedIn: Boolean(snapshot.viewerUserId),
+    });
+    reply.header("Cache-Control", landingResponseCacheControl(viewerUserId));
+    return {
+      html: landingTop.dailyDashboardHtml,
+      scripts: "",
+      generatedAt: new Date().toISOString(),
+      ttlMs: LANDING_CACHE_TTL_MS,
+    };
+  });
+
+  app.get("/", async (request, reply) => {
+    const basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
+    const lang = detectLangFromUrl(requestUrl(request));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const { viewerUserId } = resolveViewer(request.query, session);
+    const shell = await cachedLandingShellSnapshot(viewerUserId);
+    const strings = getStrings(lang);
+    const currentPath = requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } });
+    const lowerContentEndpoint = withBasePath(basePath, `/api/v1/landing/sections?lang=${encodeURIComponent(lang)}`);
+    reply.type("text/html; charset=utf-8");
+    reply.header("Cache-Control", landingResponseCacheControl(viewerUserId));
+    return renderLandingFastDocument({
+      basePath,
+      lang,
+      currentPath,
+      title: strings.landing.title,
+      description: strings.landing.heroLead,
+      stats: shell.stats,
+      isLoggedIn: Boolean(shell.viewerUserId),
+      lowerContentEndpoint,
+    });
   });
 
   app.get("/qa/site-map", async (request, reply) => {
