@@ -168,7 +168,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     async (request, reply) => {
       const lang = langOf(request);
       const viewer = await areaSnapshotViewer(request, request.params.fieldId);
-      const snapshot = await getAreaPlaceSnapshot(request.params.fieldId, { viewer }).catch(() => null);
+      const snapshot = await getAreaPlaceSnapshot(request.params.fieldId, { viewer, viewerUserId: viewer.userId }).catch(() => null);
       if (!snapshot) {
         reply.code(404);
         reply.type("text/html; charset=utf-8");
@@ -328,7 +328,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
       const [stats, snapshot] = await Promise.all([
         getFieldStats(field.fieldId).catch(() => null),
         areaSnapshotViewer(request, field.fieldId)
-          .then((viewer) => getAreaPlaceSnapshot(field.fieldId, { viewer }))
+          .then((viewer) => getAreaPlaceSnapshot(field.fieldId, { viewer, viewerUserId: viewer.userId }))
           .catch(() => null),
       ]);
       if (!stats) {
@@ -348,7 +348,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
         title: `${field.name} — フィールド DB — ikimon.life`,
         currentPath: currentPathOf(request),
         body: renderFieldDetailBody({ field, stats, snapshot }),
-        extraStyles: PLACE_SNAPSHOT_STYLES,
+        extraStyles: `${PLACE_SNAPSHOT_STYLES}\n${FIELD_DETAIL_ALBUM_STYLES}`,
         extraScript: fieldDetailScript(),
         lang,
       });

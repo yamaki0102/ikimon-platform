@@ -384,7 +384,7 @@ test("area place snapshot renders a public place album", () => {
     }),
   } as const;
   const html = renderPlaceSnapshotBody(areaSnapshot);
-  assert.match(html, /エリアの見守りメーター/);
+  assert.match(html, /見守り材料が育っている/);
   assert.match(html, /見守り材料/);
   assert.match(html, /次に足すと強いところ/);
   assert.match(html, /地域の生きものアルバム/);
@@ -394,6 +394,145 @@ test("area place snapshot renders a public place album", () => {
   assert.match(html, /data-reaction-type="like"/);
   assert.match(html, /いいね/);
   assert.match(html, /あとから誰かが写真・effort・季節の記録を足した時に通知/);
+});
+
+test("area place snapshot marks viewer-only memories without public sharing actions", () => {
+  const snapshot = composePlaceSnapshot({
+    field: field(),
+    stats: stats({ totalObservations: 1, uniqueSpeciesCount: 1 }),
+    canonical: {
+      totalObservations: 1,
+      totalVisits: 1,
+      uniqueTaxa: 1,
+      taxonRankCount: 1,
+      months: [5],
+      effortFilled: 0,
+      effortTotal: 1,
+      acceptedCount: 0,
+      reviewTotal: 1,
+      nativeCount: 0,
+      exoticCount: 0,
+      unknownOriginCount: 1,
+      stewardshipActionCount: 0,
+    },
+  });
+  const areaSnapshot = {
+    ...snapshot,
+    representativePhoto: null,
+    observationGallery: [],
+    seasonalCoverage: [
+      { season: "spring", label: "春", observations: 1, isCurrentSeason: true },
+      { season: "summer", label: "夏", observations: 0, isCurrentSeason: false },
+      { season: "autumn", label: "秋", observations: 0, isCurrentSeason: false },
+      { season: "winter", label: "冬", observations: 0, isCurrentSeason: false },
+    ],
+    yearlyTimeline: [],
+    effortIndicators: {
+      effortReportedRate: 0,
+      completeChecklistRate: 0,
+      temporalSpreadIndex: 0,
+      observerDiversity: 0,
+      nonDetectionRate: 0,
+      effortIndex: 0,
+      observerCount: 1,
+      topObserverShare: 1,
+      yearsCovered: 0,
+      monthsCovered: 1,
+      seasonsCovered: 1,
+    },
+    sensitiveMasking: { totalRare: 1, maskedSpecies: 1, viewerCanSeeExact: false },
+    firstSeenSpecies: [],
+    environmentChange: null,
+    areaWatch: buildAreaWatch({
+      totalObservations: 1,
+      totalVisits: 1,
+      uniqueTaxa: 1,
+      seasonalCoverage: [
+        { season: "spring", label: "春", observations: 1, isCurrentSeason: true },
+        { season: "summer", label: "夏", observations: 0, isCurrentSeason: false },
+        { season: "autumn", label: "秋", observations: 0, isCurrentSeason: false },
+        { season: "winter", label: "冬", observations: 0, isCurrentSeason: false },
+      ],
+      yearlyTimeline: [],
+      effortIndicators: {
+        effortReportedRate: 0,
+        completeChecklistRate: 0,
+        temporalSpreadIndex: 0,
+        observerDiversity: 0,
+        nonDetectionRate: 0,
+        effortIndex: 0,
+        observerCount: 1,
+        topObserverShare: 1,
+        yearsCovered: 0,
+        monthsCovered: 1,
+        seasonsCovered: 1,
+      },
+      sensitiveMasking: { totalRare: 1, maskedSpecies: 1, viewerCanSeeExact: false },
+      evidenceStats: {
+        totalOccurrences: 1,
+        photoOccurrences: 1,
+        contextPhotoOccurrences: 0,
+        primarySubjectPhotoOccurrences: 1,
+        recent90Occurrences: 1,
+        recent180Occurrences: 1,
+        reviewedOccurrences: 0,
+        aiCandidateOccurrences: 0,
+        methodContextVisits: 0,
+        latestObservedAt: "2026-05-06T00:00:00.000Z",
+      },
+    }),
+    viewerContribution: {
+      hasViewerRecords: true,
+      recordCount: 1,
+      visitCount: 1,
+      seasonsCovered: ["spring"],
+      revisitCount: 0,
+      photoCount: 1,
+      audioOrScanCount: 0,
+      dominantPerspective: { key: "mixed", label: "いろいろな視点", count: 1, line: "あなたはいろいろな角度から、このエリアを見ています。" },
+      secondaryPerspective: null,
+      positiveFeedbackLine: "あなたの1件で、このエリアをあとから見返せる手がかりが増えています。",
+      recordCards: [{
+        occurrenceId: "private-occ-1",
+        visitId: "private-visit-1",
+        displayName: "大切な生きもの",
+        observedAt: "2026-05-06T00:00:00.000Z",
+        photoUrl: "/uploads/private/memory.jpg",
+        localityLabel: null,
+        observationCount: 1,
+        recentObservationCount: 1,
+        likeCount: 0,
+        season: "spring",
+        seasonLabel: "春",
+        isCurrentSeason: true,
+        visibility: "viewer_private",
+        privacyLabel: "自分だけ",
+        privacyReason: "位置を守るため自分だけ表示",
+        shareAllowed: false,
+      }],
+    },
+    communityPerspective: {
+      observerCount: 1,
+      dominantPerspective: { key: "mixed", label: "いろいろな視点", count: 0, line: "みんなの記録で、このエリアの見え方が少しずつ育っています。" },
+      secondaryPerspective: null,
+      seasonCoverageLine: "みんなの記録で、春の顔が見え始めています。",
+      recentMomentumLine: "最近90日で1件、見返せる手がかりが増えています。",
+      recordCards: [],
+    },
+    overlapInsight: {
+      viewerPerspective: "mixed",
+      communityPerspective: "mixed",
+      line: "同じエリアの記録が重なるほど、ひとりでは見えない季節差や場所の癖が読めます。",
+      detailHref: null,
+    },
+  } as const;
+
+  const html = renderPlaceSnapshotBody(areaSnapshot);
+  assert.match(html, /あなたがこの場所で見つけたもの/);
+  assert.match(html, /自分だけ/);
+  assert.match(html, /位置を守るため自分だけ表示/);
+  assert.match(html, /公開アルバムには出ていません/);
+  assert.doesNotMatch(html, /data-occurrence-id="private-occ-1"[\s\S]*data-reaction-type="like"/);
 });
 
 test("place snapshot separates machine AI candidates from reviewer verified records", () => {

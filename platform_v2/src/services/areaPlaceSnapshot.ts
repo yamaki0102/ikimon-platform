@@ -61,6 +61,10 @@ export type AreaObservationGalleryItem = {
   season: AreaSeasonKey | null;
   seasonLabel: string | null;
   isCurrentSeason: boolean;
+  visibility?: "public" | "viewer_private" | "restricted_public";
+  privacyLabel?: string | null;
+  privacyReason?: string | null;
+  shareAllowed?: boolean;
 };
 
 export type AreaSeasonKey = "spring" | "summer" | "autumn" | "winter";
@@ -238,6 +242,10 @@ function perspectiveLabel(key: AreaPerspectiveKey): string {
   return PERSPECTIVE_LABELS[key] ?? PERSPECTIVE_LABELS.mixed;
 }
 
+function looksLikeScientificName(value: string): boolean {
+  return /^[A-Z][a-z]+(?:\s+[a-z][a-z-]+)?(?:\s+[a-z-]+)?$/.test(value.trim());
+}
+
 function inferPerspective(input: {
   kingdom?: string | null;
   className?: string | null;
@@ -267,6 +275,36 @@ function inferPerspective(input: {
   if (/魚|水生|両生|カエル|湿地|水辺|川|池|湖|トンボ/u.test(ja) || haystack.includes("amphibia") || haystack.includes("actinopterygii")) return "aquatic";
   if (haystack.includes("fungi") || /キノコ|菌|カビ/u.test(ja)) return "fungi";
   return "mixed";
+}
+
+function friendlyObservationName(input: {
+  displayName?: string | null;
+  vernacularName?: string | null;
+  kingdom?: string | null;
+  className?: string | null;
+  orderName?: string | null;
+  family?: string | null;
+  scientificName?: string | null;
+  sourceKind?: string | null;
+  roleTag?: string | null;
+  sensitive?: boolean;
+}): string {
+  if (input.sensitive) return "大切な生きもの";
+  const vernacular = String(input.vernacularName ?? "").trim();
+  if (vernacular) return vernacular;
+  const display = String(input.displayName ?? "").trim();
+  if (display && display !== "同定待ち" && !looksLikeScientificName(display)) return display;
+  const key = inferPerspective(input);
+  switch (key) {
+    case "plant": return "道ばたの草花";
+    case "bird": return "鳥のなかま";
+    case "insect": return "小さな虫";
+    case "aquatic": return "水辺の生きもの";
+    case "fungi": return "きのこのなかま";
+    case "habitat": return "この場所の風景";
+    case "audio": return "音の記録";
+    default: return "見つけたもの";
+  }
 }
 
 function rankPerspectives(counts: Map<AreaPerspectiveKey, number>): AreaPerspectiveSummary[] {
@@ -446,6 +484,14 @@ async function loadObservationGallery(
         observed_at: string | null;
         locality_label: string | null;
         photo_url: string | null;
+        kingdom: string | null;
+        class_name: string | null;
+        order_name: string | null;
+        family: string | null;
+        scientific_name: string | null;
+        vernacular_name: string | null;
+        source_kind: string | null;
+        role_tag: string | null;
         observation_count: string;
         recent_observation_count: string;
         like_count: string;
@@ -470,7 +516,15 @@ async function loadObservationGallery(
               lower(coalesce(nullif(o.scientific_name, ''), nullif(o.vernacular_name, ''), o.occurrence_id::text)) as taxon_key,
               fv.observed_at::text as observed_at,
               concat_ws(' / ', nullif(fv.observed_municipality, ''), nullif(fv.observed_prefecture, '')) as locality_label,
-              photo.public_url as photo_url
+              photo.public_url as photo_url,
+              o.kingdom,
+              o.class_name,
+              o.order_name,
+              o.family,
+              o.scientific_name,
+              o.vernacular_name,
+              fv.source_kind,
+              photo.role_tag
             from occurrences o
             join field_visits fv on fv.visit_id = o.visit_id
             left join lateral (
@@ -481,7 +535,8 @@ async function loadObservationGallery(
                limit 1
             ) ai on true
             left join lateral (
-              select coalesce(ab.public_url, ab.storage_path) as public_url
+              select coalesce(ab.public_url, ab.storage_path) as public_url,
+                     ea.role_tag
                 from evidence_assets ea
                 join asset_blobs ab on ab.blob_id = ea.blob_id
                where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
@@ -520,7 +575,9 @@ async function loadObservationGallery(
             from field_occ fo
           )
           select occurrence_id, visit_id, display_name, observed_at,
-                 nullif(locality_label, '') as locality_label, photo_url, observation_count, recent_observation_count, like_count
+                 nullif(locality_label, '') as locality_label, photo_url,
+                 kingdom, class_name, order_name, family, scientific_name, vernacular_name, source_kind, role_tag,
+                 observation_count, recent_observation_count, like_count
             from ranked
            where representative_rank = 1
            order by recent_observation_count::int desc, observation_count::int desc, observed_at desc
@@ -537,7 +594,17 @@ async function loadObservationGallery(
         return {
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,
-          displayName: row.display_name || "同定待ち",
+          displayName: friendlyObservationName({
+            displayName: row.display_name,
+            vernacularName: row.vernacular_name,
+            kingdom: row.kingdom,
+            className: row.class_name,
+            orderName: row.order_name,
+            family: row.family,
+            scientificName: row.scientific_name,
+            sourceKind: row.source_kind,
+            roleTag: row.role_tag,
+          }),
           observedAt: row.observed_at,
           photoUrl: normalizeAssetUrl(row.photo_url),
           localityLabel: row.locality_label,
@@ -547,6 +614,10 @@ async function loadObservationGallery(
           season,
           seasonLabel: season ? seasonLabel(season) : null,
           isCurrentSeason: season === current,
+          visibility: "public",
+          privacyLabel: null,
+          privacyReason: null,
+          shareAllowed: true,
         };
       });
     },
@@ -850,6 +921,9 @@ type AreaPerspectiveRow = {
   vernacular_name: string | null;
   source_kind: string | null;
   role_tag: string | null;
+  visibility: "public" | "viewer_private" | "restricted_public";
+  privacy_reason: string | null;
+  share_allowed: boolean;
 };
 
 async function loadAreaPerspectiveRows(scopedVisitIds: string[]): Promise<AreaPerspectiveRow[]> {
@@ -885,7 +959,10 @@ async function loadAreaPerspectiveRows(scopedVisitIds: string[]): Promise<AreaPe
             o.scientific_name,
             o.vernacular_name,
             fv.source_kind,
-            photo.role_tag
+            photo.role_tag,
+            'public' as visibility,
+            null::text as privacy_reason,
+            true as share_allowed
           from occurrences o
           join field_visits fv on fv.visit_id = o.visit_id
           left join lateral (
@@ -918,6 +995,104 @@ async function loadAreaPerspectiveRows(scopedVisitIds: string[]): Promise<AreaPe
           order by fv.observed_at desc, o.created_at desc
           limit 240`,
         [scopedVisitIds],
+      );
+      return result.rows;
+    },
+    [] as AreaPerspectiveRow[],
+  );
+}
+
+async function loadViewerMemoryRows(scopedVisitIds: string[], viewerUserId: string | null | undefined): Promise<AreaPerspectiveRow[]> {
+  if (!viewerUserId) return [];
+  const pool = getPool();
+  return safeQuery(
+    "viewer_memory_rows",
+    async () => {
+      const result = await pool.query<AreaPerspectiveRow>(
+        `with field_visits as (
+            select v.*,
+                   (select max(c.risk_lane) from civic_observation_contexts c where c.visit_id = v.visit_id) as risk_lane,
+                   (select max(c.public_precision) from civic_observation_contexts c where c.visit_id = v.visit_id) as context_precision
+              from visits v
+             where v.observed_at is not null
+               and v.visit_id = any($1::text[])
+               and v.user_id = $2
+               and not (
+                 ${PUBLIC_OBSERVATION_QUALITY_SQL}
+                 and not exists (
+                   select 1
+                     from civic_observation_contexts public_c
+                    where public_c.visit_id = v.visit_id
+                      and public_c.risk_lane = 'rare_sensitive'
+                 )
+               )
+          )
+          select
+            o.occurrence_id::text,
+            fv.visit_id::text,
+            fv.user_id,
+            case
+              when fv.risk_lane = 'rare_sensitive' or fv.context_precision in ('exact_private', 'hidden')
+                then '大切な生きもの'
+              else coalesce(
+                nullif(o.vernacular_name, ''),
+                nullif(o.scientific_name, ''),
+                nullif(ai.recommended_taxon_name, ''),
+                '同定待ち'
+              )
+            end as display_name,
+            fv.observed_at::text as observed_at,
+            case
+              when fv.risk_lane = 'rare_sensitive' or fv.context_precision in ('exact_private', 'hidden')
+                then null
+              else nullif(concat_ws(' / ', nullif(fv.observed_municipality, ''), nullif(fv.observed_prefecture, '')), '')
+            end as locality_label,
+            photo.public_url as photo_url,
+            o.kingdom,
+            o.class_name,
+            o.order_name,
+            o.family,
+            o.scientific_name,
+            o.vernacular_name,
+            fv.source_kind,
+            photo.role_tag,
+            'viewer_private' as visibility,
+            case
+              when fv.risk_lane = 'rare_sensitive' then '大切な場所を守るため公開範囲を小さくしています'
+              when fv.context_precision in ('exact_private', 'hidden') then '位置を守るため自分だけ表示'
+              when photo.has_face then '人が写っているため公開していません'
+              when coalesce(fv.public_visibility, 'public') <> 'public' then '公開設定により自分だけ表示'
+              when coalesce(fv.quality_review_status, 'accepted') <> 'accepted' then 'くわしい確認が必要なため自分だけ表示'
+              else '公開アルバムには出ていません'
+            end as privacy_reason,
+            false as share_allowed
+          from occurrences o
+          join field_visits fv on fv.visit_id = o.visit_id
+          left join lateral (
+            select recommended_taxon_name
+              from observation_ai_assessments a
+             where a.occurrence_id = o.occurrence_id
+             order by generated_at desc
+             limit 1
+          ) ai on true
+          left join lateral (
+            select coalesce(ab.public_url, ab.storage_path) as public_url,
+                   ea.role_tag,
+                   (
+                     coalesce(lower(ea.source_payload->'facePrivacy'->>'hasFace'), 'false') in ('true', '1', 'yes')
+                     or coalesce(lower(ab.source_payload->'facePrivacy'->>'hasFace'), 'false') in ('true', '1', 'yes')
+                   ) as has_face
+              from evidence_assets ea
+              join asset_blobs ab on ab.blob_id = ea.blob_id
+             where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+               and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+             order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+                      ea.created_at asc
+             limit 1
+          ) photo on true
+          order by fv.observed_at desc, o.created_at desc
+          limit 24`,
+        [scopedVisitIds, viewerUserId],
       );
       return result.rows;
     },
@@ -958,7 +1133,18 @@ function rowsToGalleryCards(rows: AreaPerspectiveRow[], limit = 6): AreaObservat
     cards.push({
       occurrenceId: row.occurrence_id,
       visitId: row.visit_id,
-      displayName: row.display_name || "同定待ち",
+      displayName: friendlyObservationName({
+        displayName: row.display_name,
+        vernacularName: row.vernacular_name,
+        kingdom: row.kingdom,
+        className: row.class_name,
+        orderName: row.order_name,
+        family: row.family,
+        scientificName: row.scientific_name,
+        sourceKind: row.source_kind,
+        roleTag: row.role_tag,
+        sensitive: row.privacy_reason === "大切な場所を守るため公開範囲を小さくしています",
+      }),
       observedAt: row.observed_at,
       photoUrl: normalizeAssetUrl(row.photo_url),
       localityLabel: row.locality_label,
@@ -968,6 +1154,10 @@ function rowsToGalleryCards(rows: AreaPerspectiveRow[], limit = 6): AreaObservat
       season,
       seasonLabel: season ? seasonLabel(season) : null,
       isCurrentSeason: season === current,
+      visibility: row.visibility,
+      privacyLabel: row.visibility === "viewer_private" ? "自分だけ" : null,
+      privacyReason: row.privacy_reason,
+      shareAllowed: row.share_allowed,
     });
     if (cards.length >= limit) break;
   }
@@ -1178,7 +1368,7 @@ export async function getAreaPlaceSnapshot(
   const placeId = base.relationshipScore.placeId ?? null;
   const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
   const fieldForEffort = { createdAt: field.createdAt };
-  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking, areaWatchEvidenceStats, perspectiveRows] = await Promise.all([
+  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking, areaWatchEvidenceStats, perspectiveRows, viewerMemoryRows] = await Promise.all([
     loadRepresentativePhoto(scopedVisitIds),
     loadObservationGallery(scopedVisitIds),
     loadSeasonalCoverage(scopedVisitIds),
@@ -1187,8 +1377,9 @@ export async function getAreaPlaceSnapshot(
     loadSensitiveMasking(scopedVisitIds, options.viewer),
     loadAreaWatchEvidenceStats(scopedVisitIds),
     loadAreaPerspectiveRows(scopedVisitIds),
+    loadViewerMemoryRows(scopedVisitIds, options.viewerUserId),
   ]);
-  const viewerContribution = buildViewerContribution(perspectiveRows, options.viewerUserId ?? null);
+  const viewerContribution = buildViewerContribution([...viewerMemoryRows, ...perspectiveRows], options.viewerUserId ?? null);
   const communityPerspective = buildCommunityPerspective(perspectiveRows, options.viewerUserId ?? null, seasonalCoverage);
   const overlapInsight = buildOverlapInsight(viewerContribution, communityPerspective);
   const areaWatch = buildAreaWatch({
