@@ -219,12 +219,18 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
   const now = Date.now();
   const cached = landingSnapshotCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
+    if (userId && !hasLandingVisibleData(cached.snapshot)) {
+      return await getPublicLandingFallbackForSignedIn(userId) ?? cached.snapshot;
+    }
     return cached.snapshot;
   }
 
   const inflight = ensureLandingSnapshotInflight(cacheKey, userId, cached);
 
   if (cached) {
+    if (userId && !hasLandingVisibleData(cached.snapshot)) {
+      return await getPublicLandingFallbackForSignedIn(userId) ?? cached.snapshot;
+    }
     return cached.snapshot;
   }
 
@@ -677,7 +683,12 @@ export function buildApp() {
     ]);
     context.basePath = basePath;
     reply.type("text/html; charset=utf-8");
-    reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
+    if (viewerUserId) {
+      reply.header("Cache-Control", "private, no-cache, must-revalidate");
+      reply.header("Vary", "Cookie");
+    } else {
+      reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
+    }
     return buildLandingRootHtml(
       context,
       lang,
