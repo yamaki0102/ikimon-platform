@@ -12,6 +12,8 @@
  */
 import { getPool } from "../db.js";
 import type { FieldSource } from "./observationFieldRegistry.js";
+import { inferTaxonGroup, type TaxonGroup } from "./mapSnapshot.js";
+import { PUBLIC_OBSERVATION_QUALITY_SQL } from "./observationQualityGate.js";
 
 export type AreaPolygonSource =
   | FieldSource
@@ -42,6 +44,14 @@ export interface AreaPolygonFeatureProps {
   entity_key?: string;
   osm_type?: string;
   osm_id?: number;
+  biodiversity_groups?: AreaBiodiversityGroup[];
+}
+
+export interface AreaBiodiversityGroup {
+  group: TaxonGroup;
+  label: string;
+  icon: string;
+  window_months: number;
 }
 
 export interface AreaPolygonFeature {
@@ -76,6 +86,17 @@ const SOURCE_LABEL: Record<AreaPolygonSource, string> = {
   admin_country: "国",
 };
 
+const BIODIVERSITY_BADGE_WINDOW_MONTHS = 24;
+const TAXON_GROUP_LABELS: Record<TaxonGroup, { label: string; icon: string; order: number }> = {
+  bird: { label: "鳥", icon: "bird", order: 10 },
+  insect: { label: "昆虫", icon: "bug", order: 20 },
+  plant: { label: "植物", icon: "leaf", order: 30 },
+  amphibian_reptile: { label: "両爬", icon: "amphibian", order: 40 },
+  mammal: { label: "ほ乳類", icon: "paw", order: 50 },
+  fungi: { label: "菌類", icon: "fungi", order: 60 },
+  other: { label: "その他", icon: "sparkle", order: 70 },
+};
+
 const DEFAULT_LIMIT = 250;
 const MAX_LIMIT = 1000;
 const CACHE_TTL_MS = 60_000;
@@ -87,6 +108,12 @@ const LIVE_OSM_TILE_Z = 14;
 const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
 const LIVE_OSM_TILE_SOURCE = "overpass";
 const LIVE_OSM_SUCCESS_TTL_DAYS = 7;
+const LIVE_OSM_EMPTY_TTL_HOURS = 6;
+const LIVE_OSM_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://z.overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
 const ADMIN_LAYER_LEVELS = [
   "osm_park",
   "admin_municipality",
@@ -392,6 +419,77 @@ function normalizeFeatureContract(feature: AreaPolygonFeature): AreaPolygonFeatu
   };
 }
 
+function isCompleteFreshLiveCache(freshTileCount: number, totalTileCount: number, freshFeatureCount: number): boolean {
+  return freshTileCount === totalTileCount && freshFeatureCount > 0;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function toBiodiversityGroups(rows: Array<{ scientific_name: string | null; vernacular_name: string | null }>): AreaBiodiversityGroup[] {
+  const seen = new Set<TaxonGroup>();
+  for (const row of rows) {
+    seen.add(inferTaxonGroup(row.scientific_name, row.vernacular_name));
+  }
+  return Array.from(seen)
+    .sort((a, b) => TAXON_GROUP_LABELS[a].order - TAXON_GROUP_LABELS[b].order)
+    .map((group) => ({
+      group,
+      label: TAXON_GROUP_LABELS[group].label,
+      icon: TAXON_GROUP_LABELS[group].icon,
+      window_months: BIODIVERSITY_BADGE_WINDOW_MONTHS,
+    }));
+}
+
+async function loadRecentBiodiversityGroups(fieldIds: string[]): Promise<Map<string, AreaBiodiversityGroup[]>> {
+  const validFieldIds = Array.from(new Set(fieldIds.filter(isUuid)));
+  const empty = new Map<string, AreaBiodiversityGroup[]>();
+  if (validFieldIds.length === 0) return empty;
+
+  try {
+    const pool = getPool();
+    const result = await pool.query<{
+      field_id: string;
+      scientific_name: string | null;
+      vernacular_name: string | null;
+    }>(
+      `with requested as (
+         select unnest($1::uuid[]) as field_id
+       )
+       select distinct
+              requested.field_id::text as field_id,
+              o.scientific_name,
+              o.vernacular_name
+         from requested
+         join visits v
+           on (
+                v.source_payload->>'field_id' = requested.field_id::text
+             or requested.field_id = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
+           )
+         join occurrences o on o.visit_id = v.visit_id
+        where v.observed_at >= now() - interval '${BIODIVERSITY_BADGE_WINDOW_MONTHS} months'
+          and ${PUBLIC_OBSERVATION_QUALITY_SQL}`,
+      [validFieldIds],
+    );
+    const byField = new Map<string, Array<{ scientific_name: string | null; vernacular_name: string | null }>>();
+    for (const row of result.rows) {
+      const bucket = byField.get(row.field_id) ?? [];
+      bucket.push(row);
+      byField.set(row.field_id, bucket);
+    }
+    const groupsByField = new Map<string, AreaBiodiversityGroup[]>();
+    for (const [fieldId, rows] of byField.entries()) {
+      const groups = toBiodiversityGroups(rows);
+      if (groups.length > 0) groupsByField.set(fieldId, groups);
+    }
+    return groupsByField;
+  } catch (error) {
+    console.warn("[areaPolygons] recent biodiversity groups failed", error);
+    return empty;
+  }
+}
+
 async function readLiveOsmTileCache(
   bbox: [number, number, number, number],
   limit: number,
@@ -436,7 +534,9 @@ async function readLiveOsmTileCache(
       }
     }
     return {
-      freshComplete: freshTileKeys.size === tiles.length,
+      // Empty live tiles are a weak negative signal: Overpass outages, too-small
+      // prior bboxes, or transient API errors can otherwise hide parks for days.
+      freshComplete: isCompleteFreshLiveCache(freshTileKeys.size, tiles.length, freshFeatures.length),
       freshFeatures: dedupeAreaFeatures(freshFeatures, limit, bbox),
       staleFeatures: dedupeAreaFeatures(staleFeatures, limit, bbox),
       tiles,
@@ -454,7 +554,10 @@ async function writeLiveOsmTileCache(
   try {
     const pool = getPool();
     const payload = JSON.stringify({ type: "FeatureCollection", features });
-    const expiresAt = new Date(Date.now() + LIVE_OSM_SUCCESS_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const ttlMs = features.length > 0
+      ? LIVE_OSM_SUCCESS_TTL_DAYS * 24 * 60 * 60 * 1000
+      : LIVE_OSM_EMPTY_TTL_HOURS * 60 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + ttlMs).toISOString();
     for (const tile of tiles) {
       await pool.query(
         `INSERT INTO osm_area_tile_cache (
@@ -483,39 +586,51 @@ async function writeLiveOsmTileCache(
 
 async function fetchLiveOsmAreaPolygons(query: AreaPolygonsQuery, remainingLimit: number): Promise<LiveOsmFetchResult> {
   if (remainingLimit <= 0) return { ok: true, features: [] };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), LIVE_OSM_TIMEOUT_MS);
-  try {
-    const response = await fetch(process.env.OVERPASS_API_URL ?? "https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-        "User-Agent": "ikimon.life-area-polygons (https://ikimon.life)",
-      },
-      body: `data=${encodeURIComponent(buildLiveOsmAreaQuery(query.bbox))}`,
-      signal: controller.signal,
-    });
-    if (!response.ok) return { ok: false, features: [], error: `overpass_${response.status}` };
-    const json = (await response.json()) as { elements?: OverpassElement[] };
-    const features: AreaPolygonFeature[] = [];
-    const seen = new Set<string>();
-    for (const element of json.elements ?? []) {
-      const feature = liveElementToFeature(element);
-      if (!feature) continue;
-      const key = feature.properties.entity_key ?? feature.properties.field_id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      features.push(feature);
-      if (features.length >= remainingLimit) break;
+  const configuredEndpoint = process.env.OVERPASS_API_URL?.trim();
+  const endpoints = Array.from(new Set([
+    ...(configuredEndpoint ? [configuredEndpoint] : []),
+    ...LIVE_OSM_ENDPOINTS,
+  ]));
+  const body = `data=${encodeURIComponent(buildLiveOsmAreaQuery(query.bbox))}`;
+  let lastError = "overpass_failed";
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LIVE_OSM_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+          "User-Agent": "ikimon.life-area-polygons (https://ikimon.life)",
+        },
+        body,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        lastError = `overpass_${response.status}`;
+        continue;
+      }
+      const json = (await response.json()) as { elements?: OverpassElement[] };
+      const features: AreaPolygonFeature[] = [];
+      const seen = new Set<string>();
+      for (const element of json.elements ?? []) {
+        const feature = liveElementToFeature(element);
+        if (!feature) continue;
+        const key = feature.properties.entity_key ?? feature.properties.field_id;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        features.push(feature);
+        if (features.length >= remainingLimit) break;
+      }
+      return { ok: true, features };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "overpass_failed";
+    } finally {
+      clearTimeout(timeout);
     }
-    return { ok: true, features };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "overpass_failed";
-    return { ok: false, features: [], error: message };
-  } finally {
-    clearTimeout(timeout);
   }
+  return { ok: false, features: [], error: lastError };
 }
 
 export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise<AreaPolygonCollection> {
@@ -631,9 +746,21 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     }
   }
 
+  const dedupedFeatures = dedupeAreaFeatures(features, limit);
+  const biodiverseFieldIds = dedupedFeatures
+    .map((feature) => feature.properties.field_id)
+    .filter((fieldId) => isUuid(fieldId));
+  const biodiversityGroups = await loadRecentBiodiversityGroups(biodiverseFieldIds);
+  for (const feature of dedupedFeatures) {
+    const groups = biodiversityGroups.get(feature.properties.field_id);
+    if (groups && groups.length > 0) {
+      feature.properties.biodiversity_groups = groups;
+    }
+  }
+
   const payload: AreaPolygonCollection = {
     type: "FeatureCollection",
-    features: dedupeAreaFeatures(features, limit),
+    features: dedupedFeatures,
     truncated: result.rows.length > limit || features.length >= limit,
   };
   cache.set(key, { expires: now + CACHE_TTL_MS, payload });
@@ -656,7 +783,12 @@ export const __test__ = {
   tileForLngLat,
   tilesForBbox,
   featureTouchesBbox,
+  isCompleteFreshLiveCache,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  toBiodiversityGroups,
+  BIODIVERSITY_BADGE_WINDOW_MONTHS,
+  LIVE_OSM_EMPTY_TTL_HOURS,
+  LIVE_OSM_ENDPOINTS,
   SOURCE_LABEL,
 };
