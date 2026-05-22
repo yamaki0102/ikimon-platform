@@ -76,20 +76,38 @@ function isAreaSnapshot(snapshot: PlaceSnapshot | null | undefined): snapshot is
 }
 
 function renderAlbumCard(item: AreaObservationGalleryItem): string {
+  const isPrivate = item.visibility === "viewer_private";
   const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
   const meta = [
     item.isCurrentSeason && item.seasonLabel ? `今の季節・${item.seasonLabel}` : item.seasonLabel ?? "",
-    `${item.observationCount}件`,
+    isPrivate ? "" : `${item.observationCount}件`,
     item.observedAt ? item.observedAt.slice(0, 10) : "",
   ].filter(Boolean).join(" / ");
   const media = item.photoUrl
     ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async" />`
     : `<span aria-hidden="true">✦</span>`;
-  return `<a class="field-album-card" href="${escapeHtml(href)}">
+  const privacy = isPrivate
+    ? `<em class="field-album-private"><small>${escapeHtml(item.privacyReason ?? "公開アルバムには出ていません")}</small></em>`
+    : "";
+  return `<a class="field-album-card${isPrivate ? " is-private" : ""}" href="${escapeHtml(href)}">
     ${media}
-    <strong>${escapeHtml(item.displayName || "同定待ち")}</strong>
+    ${privacy}
+    <strong>${escapeHtml(item.displayName || "見つけたもの")}</strong>
     <small>${escapeHtml(meta)}</small>
   </a>`;
+}
+
+function renderFieldViewerMemory(snapshot: PlaceSnapshot | null | undefined): string {
+  if (!isAreaSnapshot(snapshot) || !snapshot.viewerContribution?.hasViewerRecords) return "";
+  const cards = snapshot.viewerContribution.recordCards.slice(0, 4).map(renderAlbumCard).join("");
+  return `<section class="field-memory">
+    <header>
+      <div><span class="evt-eyebrow">My Memory</span><h2 class="evt-heading">あなたがこの場所で見つけたもの</h2></div>
+      <span class="evt-badge evt-mode-discovery">${snapshot.viewerContribution.recordCount}件</span>
+    </header>
+    <p class="evt-lead">${escapeHtml(snapshot.viewerContribution.positiveFeedbackLine)}</p>
+    <div class="field-album-grid field-album-grid-compact">${cards}</div>
+  </section>`;
 }
 
 function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
@@ -170,9 +188,11 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     </div>
   </article>
 
-  ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
+  ${renderFieldViewerMemory(snapshot)}
 
   ${renderFieldAlbum(snapshot)}
+
+  ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
 
   <section>
     <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
@@ -327,6 +347,10 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   color: #0f172a;
   text-decoration: none;
 }
+.field-album-card.is-private {
+  border-color: rgba(14,165,233,.26);
+  background: linear-gradient(180deg, #fff, rgba(240,249,255,.92));
+}
 .field-album-card img,
 .field-album-card > span {
   width: 100%;
@@ -351,12 +375,49 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   line-height: 1.35;
   font-weight: 760;
 }
+.field-album-private {
+  display: grid;
+  gap: 3px;
+  font-style: normal;
+  color: #075985;
+  font-size: 11px;
+  font-weight: 900;
+}
+.field-album-private::before {
+  content: "自分だけ";
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(14,165,233,.12);
+  border: 1px solid rgba(14,165,233,.22);
+  padding: 3px 8px;
+}
+.field-album-private small {
+  color: #64748b;
+}
+.field-memory {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,251,235,.78), rgba(240,249,255,.90));
+  border: 1px solid rgba(245,158,11,.20);
+}
+.field-memory > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 @media (max-width: 920px) {
   .field-album-grid,
   .field-album-grid-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .field-album > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .field-memory > header {
     align-items: flex-start;
     flex-direction: column;
   }

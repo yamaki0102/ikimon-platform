@@ -24,30 +24,81 @@ function seasonBadge(item: AreaObservationGalleryItem): string {
 }
 
 function albumCard(item: AreaObservationGalleryItem): string {
+  const isPrivate = item.visibility === "viewer_private";
   const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
   const meta = [
-    `${fmtNumber(item.observationCount)}件`,
+    isPrivate ? "" : `${fmtNumber(item.observationCount)}件`,
     item.observedAt ? item.observedAt.slice(0, 10) : "",
-    item.localityLabel ?? "",
+    isPrivate ? "" : item.localityLabel ?? "",
   ].filter(Boolean).join(" / ");
   const photo = item.photoUrl
     ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async" />`
     : `<span class="ps-album-placeholder" aria-hidden="true">✦</span>`;
-  return `<article class="ps-album-card">
-    <a class="ps-album-card-main" href="${escapeHtml(href)}">
-      ${photo}
-      ${seasonBadge(item)}
-      <strong>${escapeHtml(item.displayName || "同定待ち")}</strong>
-      <small>${escapeHtml(meta)}</small>
-    </a>
-    <div class="ps-album-actions" data-occurrence-id="${escapeHtml(item.occurrenceId)}">
+  const privacy = isPrivate
+    ? `<div class="ps-private-note"><span>${escapeHtml(item.privacyLabel ?? "自分だけ")}</span><small>${escapeHtml(item.privacyReason ?? "公開アルバムには出ていません")}</small></div>`
+    : "";
+  const actions = isPrivate || item.shareAllowed === false
+    ? `<div class="ps-album-private-actions">公開アルバムには出ていません</div>`
+    : `<div class="ps-album-actions" data-occurrence-id="${escapeHtml(item.occurrenceId)}">
       <button type="button" class="ps-album-like obs-reaction" data-reaction-type="like" aria-label="${escapeHtml(item.displayName || "この記録")}にいいね">
         <span aria-hidden="true">💚</span>
         <span class="obs-reaction-label">いいね</span>
         <span class="obs-reaction-count">${fmtNumber(item.likeCount)}</span>
       </button>
-    </div>
+    </div>`;
+  return `<article class="ps-album-card${isPrivate ? " is-private" : ""}">
+    <a class="ps-album-card-main" href="${escapeHtml(href)}">
+      ${photo}
+      ${seasonBadge(item)}
+      ${privacy}
+      <strong>${escapeHtml(item.displayName || "見つけたもの")}</strong>
+      <small>${escapeHtml(meta)}</small>
+    </a>
+    ${actions}
   </article>`;
+}
+
+function renderViewerMemory(snapshot: PlaceSnapshot): string {
+  if (!isAreaSnapshot(snapshot)) return "";
+  const viewer = snapshot.viewerContribution;
+  if (!viewer?.hasViewerRecords) return "";
+  const cards = viewer.recordCards.slice(0, 4).map(albumCard).join("");
+  const seasons = viewer.seasonsCovered.length > 0
+    ? viewer.seasonsCovered.map((season) => {
+        if (season === "spring") return "春";
+        if (season === "summer") return "夏";
+        if (season === "autumn") return "秋";
+        return "冬";
+      }).join("・")
+    : "この場所";
+  return `<section class="ps-section ps-memory" aria-label="自分の思い出">
+    <div class="ps-section-head">
+      <div>
+        <div class="ps-eyebrow">My Memory</div>
+        <h2>あなたがこの場所で見つけたもの</h2>
+      </div>
+      <span class="ps-source">${fmtNumber(viewer.recordCount)}件 / ${escapeHtml(seasons)}</span>
+    </div>
+    <p class="ps-section-lead">${escapeHtml(viewer.positiveFeedbackLine)}</p>
+    <div class="ps-album-grid ps-album-grid-compact">${cards}</div>
+  </section>`;
+}
+
+function renderTrustBadges(snapshot: PlaceSnapshot): string {
+  const badges = [
+    snapshot.field.sourceLabel,
+    snapshot.field.verificationLabel || "",
+    snapshot.field.accessGuidance.status === "public_access" ? "公開アクセス" : "",
+    snapshot.field.visibility === "public" ? "公開フィールド" : "公開範囲に注意",
+  ].filter((item, index, list) => item && list.indexOf(item) === index);
+  if (badges.length === 0) return "";
+  return `<section class="ps-trust-strip" aria-label="この場所の背景">
+    <div>
+      <span class="ps-eyebrow">Place Trust</span>
+      <strong>この場所の背景</strong>
+    </div>
+    <div class="ps-chip-row">${badges.map((item) => `<span class="ps-chip">${escapeHtml(item)}</span>`).join("")}</div>
+  </section>`;
 }
 
 function renderAreaAlbum(snapshot: PlaceSnapshot): string {
@@ -109,11 +160,11 @@ function renderAreaWatch(snapshot: PlaceSnapshot): string {
   </article>`).join("");
   const celebrations = watch.celebrations.slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   const gaps = watch.gaps.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-  return `<section class="ps-section ps-watch" aria-label="エリアの見守りメーター">
+  return `<section class="ps-section ps-watch" aria-label="見守り材料が育っている">
     <div class="ps-watch-hero is-${escapeHtml(areaWatchStatusClass(watch.status))}">
       <div>
         <div class="ps-eyebrow">Area Watch</div>
-        <h2>エリアの見守りメーター</h2>
+        <h2>見守り材料が育っている</h2>
         <p>${escapeHtml(watch.childSummary)}</p>
       </div>
       <div class="ps-watch-score">
@@ -537,17 +588,20 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot, options: {
       </div>
     </section>
 
-    <section class="ps-grid ps-grid-4" aria-label="summary metrics">
+    ${renderViewerMemory(snapshot)}
+    ${renderAreaAlbum(snapshot)}
+    ${renderTrustBadges(snapshot)}
+
+    <section class="ps-grid ps-grid-4 ps-summary-metrics" aria-label="summary metrics">
       ${metric("観察", fmtNumber(s.totalObservations))}
       ${metric("訪問・観察会", fmtNumber(s.totalVisits), `${fmtNumber(s.totalEvents)} events`)}
       ${metric("分類群", fmtNumber(s.uniqueTaxa))}
       ${metric("季節", seasonText)}
     </section>
 
-    ${renderAreaWatch(snapshot)}
-    ${renderAreaAlbum(snapshot)}
     ${renderAccessGuidance(snapshot)}
     ${renderSchoolAlbumProfiles(snapshot)}
+    ${renderAreaWatch(snapshot)}
 
     <section class="ps-section">
       <div class="ps-section-head">
@@ -1171,6 +1225,10 @@ export const PLACE_SNAPSHOT_STYLES = `
   box-shadow: 0 8px 22px rgba(15,23,42,.06);
   color: #0f172a;
 }
+.ps-album-card.is-private {
+  border-color: rgba(14,165,233,.26);
+  background: linear-gradient(180deg, #fff, rgba(240,249,255,.92));
+}
 .ps-album-card-main {
   min-width: 0;
   display: flex;
@@ -1207,6 +1265,33 @@ export const PLACE_SNAPSHOT_STYLES = `
   display: flex;
   justify-content: flex-start;
   min-height: 34px;
+}
+.ps-private-note {
+  display: grid;
+  gap: 3px;
+  margin-top: -2px;
+}
+.ps-private-note span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(14,165,233,.12);
+  border: 1px solid rgba(14,165,233,.22);
+  color: #075985;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.ps-private-note small,
+.ps-album-private-actions {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 760;
+}
+.ps-album-private-actions {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
 }
 .ps-album-like {
   display: inline-flex;
@@ -1254,6 +1339,32 @@ export const PLACE_SNAPSHOT_STYLES = `
 .ps-album-tabs h3 {
   margin: 0 0 10px;
   font-size: 17px;
+}
+.ps-memory {
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,251,235,.78), rgba(240,249,255,.90));
+  border: 1px solid rgba(245,158,11,.20);
+}
+.ps-trust-strip {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 8px 22px rgba(15,23,42,.05);
+}
+.ps-trust-strip strong {
+  display: block;
+  margin-top: 2px;
+  color: #0f172a;
+}
+.ps-summary-metrics {
+  margin-top: 20px;
 }
 .ps-steward-card {
   border: 1px solid rgba(15,23,42,.08);
@@ -1367,6 +1478,10 @@ export const PLACE_SNAPSHOT_STYLES = `
   }
   .ps-album-tabs {
     grid-template-columns: 1fr;
+  }
+  .ps-trust-strip {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .ps-management-policy-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
