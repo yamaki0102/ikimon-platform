@@ -391,12 +391,21 @@ const FEED_SQL_BASE = `
       'source', f.source,
       'adminLevel', f.admin_level
     ) order by f.source, f.name) as field_refs
-    from observation_fields f
-    where f.valid_to is null
-      and (
-        f.field_id = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
-        or f.field_id::text = v.source_payload->>'field_id'
-      )
+    from (
+      select f.field_id, f.name, f.source, f.admin_level
+        from observation_fields f
+       where f.valid_to is null
+         and f.field_id = any(coalesce(v.resolved_field_ids, array[]::uuid[]))
+      union
+      select f.field_id, f.name, f.source, f.admin_level
+        from observation_fields f
+       where f.valid_to is null
+         and f.field_id = case
+           when (v.source_payload->>'field_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+             then (v.source_payload->>'field_id')::uuid
+           else null::uuid
+         end
+    ) f
   ) fields on true
 `;
 
