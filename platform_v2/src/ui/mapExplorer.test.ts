@@ -37,3 +37,18 @@ test("map explorer localizes English fallback and failure chrome", () => {
   assert.doesNotMatch(script, /AI候補/);
   assert.doesNotMatch(html, /詳細を広げる/);
 });
+
+test("area sheet includes contribution feedback surface", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function renderAreaPositiveFeedback/);
+  assert.match(script, /viewerContribution/);
+  assert.match(script, /communityPerspective/);
+  assert.match(script, /overlapInsight/);
+  assert.match(script, /あなたの視点/);
+  assert.match(script, /あなたのおかげで/);
+  assert.match(script, /みんなの視点/);
+  assert.match(script, /重なると見えること/);
+  assert.match(script, /記録の手応え/);
+  assert.match(script, /自分の記録を見返す/);
+});

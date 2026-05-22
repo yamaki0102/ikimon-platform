@@ -217,7 +217,7 @@ export async function registerObservationFieldsApiRoutes(app: FastifyInstance): 
       ? await getFieldManagerRole(session.userId, request.params.fieldId).catch(() => null)
       : null;
     const viewer = { isAdminOrAnalyst, fieldRole } as const;
-    const snapshot = await getAreaPlaceSnapshot(request.params.fieldId, { viewer });
+    const snapshot = await getAreaPlaceSnapshot(request.params.fieldId, { viewer, viewerUserId: session?.userId ?? null });
     if (!snapshot) return reply.status(404).send({ error: "field not found" });
     reply.header("Cache-Control", "no-store");
     return reply.send({ snapshot });

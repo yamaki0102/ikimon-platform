@@ -1378,6 +1378,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
     areaEventCreateLabel: props.lang === "ja" ? "このエリアで観察会" : props.lang === "es" ? "Crear salida aquí" : props.lang === "pt-BR" ? "Criar saída aqui" : "Create event here",
     areaEventCreateHint: props.lang === "ja" ? "この範囲を開催エリアにして、観察会と図鑑を育てる" : props.lang === "es" ? "Usa esta área para la salida y su álbum." : props.lang === "pt-BR" ? "Use esta área para a saída e o álbum." : "Use this area for an event and its album.",
+    areaPositiveTitleMine: props.lang === "ja" ? "このエリアで見えてきたこと" : props.lang === "es" ? "Lo que se va viendo aquí" : props.lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
+    areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
+    areaPositiveViewer: props.lang === "ja" ? "あなたの視点" : props.lang === "es" ? "Tu mirada" : props.lang === "pt-BR" ? "Seu olhar" : "Your perspective",
+    areaPositiveViewerGuest: props.lang === "ja" ? "このエリアの視点" : props.lang === "es" ? "Miradas de esta zona" : props.lang === "pt-BR" ? "Olhares desta área" : "Area perspective",
+    areaPositiveThanks: props.lang === "ja" ? "あなたのおかげで" : props.lang === "es" ? "Gracias a tus registros" : props.lang === "pt-BR" ? "Graças aos seus registros" : "Because of your records",
+    areaPositiveThanksGuest: props.lang === "ja" ? "みんなのおかげで" : props.lang === "es" ? "Gracias a todos" : props.lang === "pt-BR" ? "Graças a todos" : "Because of everyone",
+    areaPositiveCommunity: props.lang === "ja" ? "みんなの視点" : props.lang === "es" ? "Mirada colectiva" : props.lang === "pt-BR" ? "Olhar coletivo" : "Everyone's perspective",
+    areaPositiveOverlap: props.lang === "ja" ? "重なると見えること" : props.lang === "es" ? "Lo que aparece al combinarse" : props.lang === "pt-BR" ? "O que aparece quando se junta" : "What overlap reveals",
+    areaPositiveMineRecords: props.lang === "ja" ? "自分の記録を見返す" : props.lang === "es" ? "Revisar mis registros" : props.lang === "pt-BR" ? "Rever meus registros" : "Review my records",
+    areaPositiveCommunityRecords: props.lang === "ja" ? "みんなの記録を見る" : props.lang === "es" ? "Ver registros de todos" : props.lang === "pt-BR" ? "Ver registros de todos" : "Browse community records",
+    areaPositiveEyebrow: props.lang === "ja" ? "記録の手応え" : props.lang === "es" ? "Eco de tus registros" : props.lang === "pt-BR" ? "Sinal dos registros" : "Record feedback",
+    areaPositivePeopleSuffix: props.lang === "ja" ? "人" : props.lang === "es" ? " personas" : props.lang === "pt-BR" ? " pessoas" : " people",
+    areaPositiveVisitSuffix: props.lang === "ja" ? "回" : props.lang === "es" ? " visitas" : props.lang === "pt-BR" ? " visitas" : " visits",
     placeActionRecord: props.lang === "ja" ? "この場所で記録" : props.lang === "es" ? "Registrar aquí" : props.lang === "pt-BR" ? "Registrar aqui" : "Record here",
     placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
     placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
@@ -3428,6 +3441,93 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</div>';
   }
 
+  function renderAreaPositiveFeedback(snapshot, fieldId) {
+    var viewer = snapshot && snapshot.viewerContribution ? snapshot.viewerContribution : null;
+    var community = snapshot && snapshot.communityPerspective ? snapshot.communityPerspective : null;
+    var overlap = snapshot && snapshot.overlapInsight ? snapshot.overlapInsight : null;
+    if (!viewer && !community && !overlap) return '';
+    var hasViewer = !!(viewer && viewer.hasViewerRecords);
+    var title = hasViewer ? COPY.areaPositiveTitleMine : COPY.areaPositiveTitleGuest;
+    var viewerLine = hasViewer && viewer.dominantPerspective
+      ? String(viewer.dominantPerspective.line || '')
+      : (community && community.dominantPerspective ? String(community.dominantPerspective.line || '') : '');
+    var thanksLine = hasViewer && viewer
+      ? String(viewer.positiveFeedbackLine || '')
+      : (community ? String(community.seasonCoverageLine || '') : '');
+    var communityLine = community && community.dominantPerspective
+      ? String(community.dominantPerspective.line || '')
+      : '';
+    var overlapLineText = overlap && overlap.line ? String(overlap.line) : '';
+    var cards = [
+      {
+        label: hasViewer ? COPY.areaPositiveViewer : COPY.areaPositiveViewerGuest,
+        body: viewerLine,
+        stat: hasViewer && viewer ? String(viewer.recordCount || 0) + COPY.areaGalleryCountSuffix : (community ? String(community.observerCount || 0) + COPY.areaPositivePeopleSuffix : ''),
+      },
+      {
+        label: hasViewer ? COPY.areaPositiveThanks : COPY.areaPositiveThanksGuest,
+        body: thanksLine,
+        stat: hasViewer && viewer ? String(viewer.visitCount || 0) + COPY.areaPositiveVisitSuffix : '',
+      },
+      {
+        label: COPY.areaPositiveCommunity,
+        body: communityLine || (community ? community.recentMomentumLine : ''),
+        stat: community && community.secondaryPerspective ? community.secondaryPerspective.label : '',
+      },
+      {
+        label: COPY.areaPositiveOverlap,
+        body: overlapLineText,
+        stat: '',
+      },
+    ].filter(function (card) { return card.body; });
+    if (!cards.length) return '';
+    var recordRows = [];
+    if (hasViewer && viewer && Array.isArray(viewer.recordCards)) {
+      recordRows = viewer.recordCards.slice(0, 3);
+    } else if (community && Array.isArray(community.recordCards)) {
+      recordRows = community.recordCards.slice(0, 3);
+    }
+    var recordHtml = recordRows.length
+      ? '<div class="me-area-positive-records">'
+        + recordRows.map(function (item) {
+          var occurrenceId = String(item && item.occurrenceId || '');
+          var href = occurrenceId ? OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(occurrenceId)) : NOTES_HREF;
+          var photo = item && item.photoUrl
+            ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
+            : '<span aria-hidden="true">✦</span>';
+          var meta = [item && item.seasonLabel, item && item.observedAt ? String(item.observedAt).slice(0, 10) : ''].filter(Boolean).join(' / ');
+          return '<a class="me-area-positive-record" href="' + escapeHtml(href) + '">'
+            + photo
+            + '<strong>' + escapeHtml(localizedDisplayName(item && item.displayName, '同定待ち')) + '</strong>'
+            + '<small>' + escapeHtml(meta) + '</small>'
+            + '</a>';
+        }).join('')
+        + '</div>'
+      : '';
+    var albumHref = fieldId ? FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId)) : '';
+    var actions = ''
+      + '<div class="me-area-positive-actions">'
+      + (hasViewer ? '<a href="' + escapeHtml(NOTES_HREF) + '">' + escapeHtml(COPY.areaPositiveMineRecords) + '</a>' : '')
+      + (albumHref ? '<a href="' + escapeHtml(albumHref) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>' : '')
+      + '<a href="' + escapeHtml(NOTES_HREF.replace('view=mine', 'view=public')) + '">' + escapeHtml(COPY.areaPositiveCommunityRecords) + '</a>'
+      + '</div>';
+    return ''
+      + '<section class="me-area-positive" aria-label="' + escapeHtml(title) + '">'
+      +   '<div class="me-area-positive-head"><span>' + escapeHtml(COPY.areaPositiveEyebrow) + '</span><strong>' + escapeHtml(title) + '</strong></div>'
+      +   '<div class="me-area-positive-grid">'
+      + cards.map(function (card) {
+        return '<article class="me-area-positive-card">'
+          + '<span>' + escapeHtml(card.label) + '</span>'
+          + (card.stat ? '<em>' + escapeHtml(card.stat) + '</em>' : '')
+          + '<strong>' + escapeHtml(card.body) + '</strong>'
+          + '</article>';
+      }).join('')
+      +   '</div>'
+      +   recordHtml
+      +   actions
+      + '</section>';
+  }
+
   function renderAreaSheet(snapshot) {
     var f = (snapshot && snapshot.field) || {};
     var summary = (snapshot && snapshot.observationSummary) || {};
@@ -3485,10 +3585,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var schoolAlbumHtml = renderSchoolAlbumEntrypoints(f);
     var accessHtml = renderAreaAccessGuidance(f.accessGuidance);
     var storyTabsHtml = renderAreaStoryTabs(snapshot);
+    var positiveHtml = renderAreaPositiveFeedback(snapshot, fieldId);
     var publicPageHtml = fieldId
       ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
       : '';
-    return heroHtml + ctaHtml + accessHtml + followHtml + publicPageHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    return heroHtml + positiveHtml + accessHtml + followHtml + publicPageHtml + ctaHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -7017,6 +7118,23 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-sheet-url { font-size: 11px; font-weight: 700; color: #0f766e; text-decoration: none; align-self: center; padding: 6px 10px; border-radius: 8px; background: rgba(20,184,166,.08); white-space: nowrap; }
   .me-area-sheet-url:hover { background: rgba(20,184,166,.18); }
   .me-area-sheet-source-trust { font-size: 11px; font-weight: 800; color: #334155; align-self: center; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.06); white-space: nowrap; }
+  .me-area-positive { display: grid; gap: 10px; margin: 0 0 12px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.98) 58%, rgba(240,249,255,.9)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 24px rgba(15,23,42,.055); }
+  .me-area-positive-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .me-area-positive-head span { color: #047857; font-size: 10px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .me-area-positive-head strong { color: #10251a; font-size: 14px; line-height: 1.35; font-weight: 950; text-align: right; overflow-wrap: anywhere; }
+  .me-area-positive-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .me-area-positive-card { min-width: 0; min-height: 98px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,.86); border: 1px solid rgba(16,185,129,.13); overflow-wrap: anywhere; }
+  .me-area-positive-card span { display: block; color: #047857; font-size: 10.5px; line-height: 1.25; font-weight: 950; }
+  .me-area-positive-card em { display: inline-flex; margin-top: 6px; min-height: 22px; align-items: center; padding: 3px 7px; border-radius: 999px; background: rgba(20,184,166,.12); color: #0f766e; font-size: 10px; line-height: 1.2; font-style: normal; font-weight: 900; }
+  .me-area-positive-card strong { display: block; margin-top: 7px; color: #10251a; font-size: 12px; line-height: 1.55; font-weight: 850; }
+  .me-area-positive-records { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .me-area-positive-record { min-width: 0; display: grid; grid-template-rows: 70px auto auto; gap: 5px; padding: 7px; border-radius: 10px; background: rgba(255,255,255,.82); border: 1px solid rgba(15,23,42,.07); color: inherit; text-decoration: none; overflow: hidden; }
+  .me-area-positive-record img, .me-area-positive-record > span { width: 100%; height: 70px; object-fit: cover; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #f8fafc); display: grid; place-items: center; color: #047857; font-weight: 950; }
+  .me-area-positive-record strong { color: #10251a; font-size: 11px; line-height: 1.3; font-weight: 900; overflow-wrap: anywhere; }
+  .me-area-positive-record small { color: #64748b; font-size: 9.5px; line-height: 1.25; font-weight: 750; overflow-wrap: anywhere; }
+  .me-area-positive-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+  .me-area-positive-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #10251a; color: #fff; font-size: 11px; line-height: 1.2; font-weight: 900; text-decoration: none; }
+  .me-area-positive-actions a:nth-child(n+2) { background: rgba(255,255,255,.9); color: #0f766e; border: 1px solid rgba(16,185,129,.18); }
   .me-area-sheet-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
   .me-area-sheet-summary > div { padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 2px; }
   .me-area-sheet-summary span { font-size: 10px; color: #64748b; font-weight: 600; }
@@ -7125,6 +7243,10 @@ export const MAP_EXPLORER_STYLES = `
       padding: 5px 4px;
       font-size: 10px;
       line-height: 1.2;
+    }
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-positive-grid,
+    .me-bottom-sheet.me-bottom-sheet--area .me-area-positive-records {
+      grid-template-columns: 1fr;
     }
   }
 `;

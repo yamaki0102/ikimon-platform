@@ -101,6 +101,45 @@ export type AreaSensitiveMasking = {
   viewerCanSeeExact: boolean;
 };
 
+export type AreaPerspectiveKey = "plant" | "bird" | "insect" | "aquatic" | "fungi" | "habitat" | "audio" | "mixed";
+
+export type AreaPerspectiveSummary = {
+  key: AreaPerspectiveKey;
+  label: string;
+  count: number;
+  line: string;
+};
+
+export type ViewerAreaContribution = {
+  hasViewerRecords: boolean;
+  recordCount: number;
+  visitCount: number;
+  seasonsCovered: AreaSeasonKey[];
+  revisitCount: number;
+  photoCount: number;
+  audioOrScanCount: number;
+  dominantPerspective: AreaPerspectiveSummary;
+  secondaryPerspective: AreaPerspectiveSummary | null;
+  positiveFeedbackLine: string;
+  recordCards: AreaObservationGalleryItem[];
+};
+
+export type CommunityAreaPerspective = {
+  observerCount: number;
+  dominantPerspective: AreaPerspectiveSummary;
+  secondaryPerspective: AreaPerspectiveSummary | null;
+  seasonCoverageLine: string;
+  recentMomentumLine: string;
+  recordCards: AreaObservationGalleryItem[];
+};
+
+export type AreaOverlapInsight = {
+  viewerPerspective: AreaPerspectiveKey | null;
+  communityPerspective: AreaPerspectiveKey | null;
+  line: string;
+  detailHref: string | null;
+};
+
 export type AreaPlaceSnapshot = PlaceSnapshot & {
   representativePhoto: AreaRepresentativePhoto | null;
   observationGallery: AreaObservationGalleryItem[];
@@ -111,6 +150,9 @@ export type AreaPlaceSnapshot = PlaceSnapshot & {
   firstSeenSpecies: Array<{ year: number; scientificName: string; vernacularName: string | null }>;
   environmentChange: null;
   areaWatch: AreaWatch;
+  viewerContribution: ViewerAreaContribution;
+  communityPerspective: CommunityAreaPerspective;
+  overlapInsight: AreaOverlapInsight;
 };
 
 const EMPTY_INDICATORS: AreaEffortIndicators = {
@@ -138,6 +180,17 @@ const EMPTY_AREA_WATCH_EVIDENCE_STATS: AreaWatchEvidenceStats = {
   aiCandidateOccurrences: 0,
   methodContextVisits: 0,
   latestObservedAt: null,
+};
+
+const PERSPECTIVE_LABELS: Record<AreaPerspectiveKey, string> = {
+  plant: "植物の変化",
+  bird: "鳥の気配",
+  insect: "虫の動き",
+  aquatic: "水辺の手がかり",
+  fungi: "菌類や林床",
+  habitat: "足元の環境写真",
+  audio: "音の記録",
+  mixed: "いろいろな視点",
 };
 
 function fieldBbox(field: { lat: number; lng: number; radiusM: number }): {
@@ -179,6 +232,92 @@ function seasonLabel(key: AreaSeasonKey): string {
 
 function currentSeasonKey(now = new Date()): AreaSeasonKey {
   return monthToSeasonKey(now.getMonth() + 1);
+}
+
+function perspectiveLabel(key: AreaPerspectiveKey): string {
+  return PERSPECTIVE_LABELS[key] ?? PERSPECTIVE_LABELS.mixed;
+}
+
+function inferPerspective(input: {
+  kingdom?: string | null;
+  className?: string | null;
+  orderName?: string | null;
+  family?: string | null;
+  scientificName?: string | null;
+  vernacularName?: string | null;
+  sourceKind?: string | null;
+  roleTag?: string | null;
+}): AreaPerspectiveKey {
+  const haystack = [
+    input.kingdom,
+    input.className,
+    input.orderName,
+    input.family,
+    input.scientificName,
+    input.vernacularName,
+  ].map((v) => String(v ?? "").toLowerCase()).join(" ");
+  const ja = String(input.vernacularName ?? "");
+  const roleTag = String(input.roleTag ?? "");
+  const sourceKind = String(input.sourceKind ?? "");
+  if (sourceKind === "passive_audio" || sourceKind === "fieldscan" || sourceKind === "mobile_field_session") return "audio";
+  if (roleTag === "habitat_wide" || roleTag === "substrate" || roleTag === "scale_reference") return "habitat";
+  if (haystack.includes("plantae") || /草|花|木|樹|葉|実|種子|植物|苔|コケ|イネ科|キク科/u.test(ja)) return "plant";
+  if (haystack.includes("aves") || /鳥|カモ|サギ|スズメ|ツバメ|ヒヨドリ|カラス|メジロ|シジュウカラ|ムクドリ|カワセミ/u.test(ja)) return "bird";
+  if (haystack.includes("insecta") || /虫|昆虫|チョウ|蝶|ガ|蛾|トンボ|セミ|バッタ|コオロギ|ハチ|蜂|アリ|甲虫|カメムシ/u.test(ja)) return "insect";
+  if (/魚|水生|両生|カエル|湿地|水辺|川|池|湖|トンボ/u.test(ja) || haystack.includes("amphibia") || haystack.includes("actinopterygii")) return "aquatic";
+  if (haystack.includes("fungi") || /キノコ|菌|カビ/u.test(ja)) return "fungi";
+  return "mixed";
+}
+
+function rankPerspectives(counts: Map<AreaPerspectiveKey, number>): AreaPerspectiveSummary[] {
+  const entries = Array.from(counts.entries())
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1] || perspectiveLabel(a[0]).localeCompare(perspectiveLabel(b[0]), "ja-JP"));
+  if (entries.length === 0) {
+    return [{ key: "mixed", label: perspectiveLabel("mixed"), count: 0, line: "このエリアの見え方は、これから育っていきます。" }];
+  }
+  return entries.map(([key, count]) => ({
+    key,
+    label: perspectiveLabel(key),
+    count,
+    line: `${perspectiveLabel(key)}が多めです。`,
+  }));
+}
+
+function viewerPerspectiveLine(summary: AreaPerspectiveSummary): string {
+  switch (summary.key) {
+    case "plant": return "あなたはこのエリアで、植物の変化をよく拾っています。";
+    case "bird": return "あなたはこのエリアで、鳥の気配をよく拾っています。";
+    case "insect": return "あなたはこのエリアで、虫の動きをよく拾っています。";
+    case "aquatic": return "あなたはこのエリアで、水辺の手がかりをよく拾っています。";
+    case "fungi": return "あなたはこのエリアで、菌類や林床の変化をよく拾っています。";
+    case "habitat": return "あなたの目は、足元や周辺環境の変化に強いみたいです。";
+    case "audio": return "あなたはこのエリアで、音の記録をよく残しています。";
+    default: return "あなたはいろいろな角度から、このエリアを見ています。";
+  }
+}
+
+function communityPerspectiveLine(summary: AreaPerspectiveSummary): string {
+  switch (summary.key) {
+    case "plant": return "ほかの人は、植物の変化を多めに残しています。";
+    case "bird": return "ほかの人は、鳥の記録を多めに残しています。";
+    case "insect": return "ほかの人は、虫の記録を多めに残しています。";
+    case "aquatic": return "ほかの人は、水辺の手がかりを多めに残しています。";
+    case "fungi": return "ほかの人は、菌類や林床の記録を多めに残しています。";
+    case "habitat": return "ほかの人は、足元や周辺環境の写真を多めに残しています。";
+    case "audio": return "ほかの人は、音の記録を多めに残しています。";
+    default: return "みんなの記録で、このエリアの見え方が少しずつ育っています。";
+  }
+}
+
+function overlapLine(viewerKey: AreaPerspectiveKey | null, communityKey: AreaPerspectiveKey | null): string {
+  if (viewerKey === "plant" && communityKey === "insect") return "植物と虫の記録が重なると、食草や季節のつながりが見えやすくなります。";
+  if (viewerKey === "insect" && communityKey === "plant") return "虫と植物の記録が重なると、発生時期や食草の関係が読みやすくなります。";
+  if (viewerKey === "bird" && (communityKey === "aquatic" || communityKey === "habitat")) return "鳥の記録と水辺・環境写真が重なると、この場所の休息地としての役割が読めます。";
+  if (viewerKey === "habitat" || communityKey === "habitat") return "環境写真と生きものの記録が重なると、草刈りや水分条件の変化を比べやすくなります。";
+  if (viewerKey === "audio" || communityKey === "audio") return "音の記録と写真が重なると、姿が見えない時間帯の気配まで読み返せます。";
+  if (viewerKey && communityKey && viewerKey !== communityKey) return `${perspectiveLabel(viewerKey)}と${perspectiveLabel(communityKey)}が重なると、この場所の見え方が立体的になります。`;
+  return "同じエリアの記録が重なるほど、ひとりでは見えない季節差や場所の癖が読めます。";
 }
 
 function normalizeAssetUrl(value: string | null | undefined): string | null {
@@ -695,6 +834,227 @@ async function loadSensitiveMasking(
   );
 }
 
+type AreaPerspectiveRow = {
+  occurrence_id: string;
+  visit_id: string;
+  user_id: string | null;
+  display_name: string | null;
+  observed_at: string | null;
+  locality_label: string | null;
+  photo_url: string | null;
+  kingdom: string | null;
+  class_name: string | null;
+  order_name: string | null;
+  family: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  source_kind: string | null;
+  role_tag: string | null;
+};
+
+async function loadAreaPerspectiveRows(scopedVisitIds: string[]): Promise<AreaPerspectiveRow[]> {
+  const pool = getPool();
+  return safeQuery(
+    "area_perspective_rows",
+    async () => {
+      const result = await pool.query<AreaPerspectiveRow>(
+        `with field_visits as (
+            select v.*
+              from visits v
+             where v.observed_at is not null
+               and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+               and v.visit_id = any($1::text[])
+          )
+          select
+            o.occurrence_id::text,
+            fv.visit_id::text,
+            fv.user_id,
+            coalesce(
+              nullif(o.vernacular_name, ''),
+              nullif(o.scientific_name, ''),
+              nullif(ai.recommended_taxon_name, ''),
+              '同定待ち'
+            ) as display_name,
+            fv.observed_at::text as observed_at,
+            concat_ws(' / ', nullif(fv.observed_municipality, ''), nullif(fv.observed_prefecture, '')) as locality_label,
+            photo.public_url as photo_url,
+            o.kingdom,
+            o.class_name,
+            o.order_name,
+            o.family,
+            o.scientific_name,
+            o.vernacular_name,
+            fv.source_kind,
+            photo.role_tag
+          from occurrences o
+          join field_visits fv on fv.visit_id = o.visit_id
+          left join lateral (
+            select recommended_taxon_name
+              from observation_ai_assessments a
+             where a.occurrence_id = o.occurrence_id
+             order by generated_at desc
+             limit 1
+          ) ai on true
+          left join lateral (
+            select coalesce(ab.public_url, ab.storage_path) as public_url,
+                   ea.role_tag
+              from evidence_assets ea
+              join asset_blobs ab on ab.blob_id = ea.blob_id
+             where (ea.occurrence_id = o.occurrence_id or ea.visit_id = o.visit_id)
+               and ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
+               and coalesce(lower(ea.source_payload->'facePrivacy'->>'hasFace'), 'false') not in ('true', '1', 'yes')
+               and coalesce(lower(ab.source_payload->'facePrivacy'->>'hasFace'), 'false') not in ('true', '1', 'yes')
+             order by case when ea.occurrence_id = o.occurrence_id then 0 else 1 end,
+                      case when ea.role_tag in ('habitat_wide', 'substrate', 'scale_reference') then 0 else 1 end,
+                      ea.created_at asc
+             limit 1
+          ) photo on true
+          where not exists (
+            select 1
+              from civic_observation_contexts c
+             where c.visit_id = fv.visit_id
+               and c.risk_lane = 'rare_sensitive'
+          )
+          order by fv.observed_at desc, o.created_at desc
+          limit 240`,
+        [scopedVisitIds],
+      );
+      return result.rows;
+    },
+    [] as AreaPerspectiveRow[],
+  );
+}
+
+function perspectiveCounts(rows: AreaPerspectiveRow[]): Map<AreaPerspectiveKey, number> {
+  const counts = new Map<AreaPerspectiveKey, number>();
+  for (const row of rows) {
+    const key = inferPerspective({
+      kingdom: row.kingdom,
+      className: row.class_name,
+      orderName: row.order_name,
+      family: row.family,
+      scientificName: row.scientific_name,
+      vernacularName: row.vernacular_name,
+      sourceKind: row.source_kind,
+      roleTag: row.role_tag,
+    });
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function rowsToGalleryCards(rows: AreaPerspectiveRow[], limit = 6): AreaObservationGalleryItem[] {
+  const current = currentSeasonKey();
+  const seen = new Set<string>();
+  const cards: AreaObservationGalleryItem[] = [];
+  for (const row of rows) {
+    const key = row.occurrence_id || row.visit_id;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const observed = row.observed_at ? new Date(row.observed_at) : null;
+    const season = observed && !Number.isNaN(observed.getTime())
+      ? monthToSeasonKey(observed.getUTCMonth() + 1)
+      : null;
+    cards.push({
+      occurrenceId: row.occurrence_id,
+      visitId: row.visit_id,
+      displayName: row.display_name || "同定待ち",
+      observedAt: row.observed_at,
+      photoUrl: normalizeAssetUrl(row.photo_url),
+      localityLabel: row.locality_label,
+      observationCount: 1,
+      recentObservationCount: row.observed_at ? (new Date(row.observed_at).getTime() >= Date.now() - 90 * 86400000 ? 1 : 0) : 0,
+      likeCount: 0,
+      season,
+      seasonLabel: season ? seasonLabel(season) : null,
+      isCurrentSeason: season === current,
+    });
+    if (cards.length >= limit) break;
+  }
+  return cards;
+}
+
+function buildViewerContribution(rows: AreaPerspectiveRow[], viewerUserId: string | null | undefined): ViewerAreaContribution {
+  const viewerRows = viewerUserId ? rows.filter((row) => row.user_id === viewerUserId) : [];
+  const ranked = rankPerspectives(perspectiveCounts(viewerRows));
+  const seasons = new Set<AreaSeasonKey>();
+  const visits = new Set<string>();
+  let photoCount = 0;
+  let audioOrScanCount = 0;
+  for (const row of viewerRows) {
+    if (row.visit_id) visits.add(row.visit_id);
+    if (row.photo_url) photoCount += 1;
+    if (row.source_kind === "passive_audio" || row.source_kind === "fieldscan" || row.source_kind === "mobile_field_session") audioOrScanCount += 1;
+    if (row.observed_at) {
+      const d = new Date(row.observed_at);
+      if (!Number.isNaN(d.getTime())) seasons.add(monthToSeasonKey(d.getUTCMonth() + 1));
+    }
+  }
+  const recordCount = viewerRows.length;
+  const visitCount = visits.size;
+  const dominant = ranked[0]!;
+  const positiveFeedbackLine = recordCount === 0
+    ? "自分の記録が重なると、このエリアの見え方にあなたの視点が加わります。"
+    : seasons.size > 0
+      ? `あなたの${recordCount}件で、このエリアの${Array.from(seasons).map(seasonLabel).join("・")}の見え方が少し厚くなりました。`
+      : `あなたの${recordCount}件で、このエリアをあとから見返せる手がかりが増えています。`;
+  return {
+    hasViewerRecords: recordCount > 0,
+    recordCount,
+    visitCount,
+    seasonsCovered: Array.from(seasons),
+    revisitCount: Math.max(0, visitCount - 1),
+    photoCount,
+    audioOrScanCount,
+    dominantPerspective: {
+      ...dominant,
+      line: recordCount > 0 ? viewerPerspectiveLine(dominant) : "ログインすると、このエリアでの自分の視点が見えるようになります。",
+    },
+    secondaryPerspective: ranked[1] ? { ...ranked[1]!, line: viewerPerspectiveLine(ranked[1]!) } : null,
+    positiveFeedbackLine,
+    recordCards: rowsToGalleryCards(viewerRows),
+  };
+}
+
+function buildCommunityPerspective(rows: AreaPerspectiveRow[], viewerUserId: string | null | undefined, seasonalCoverage: AreaSeasonCoverage[]): CommunityAreaPerspective {
+  const communityRows = viewerUserId ? rows.filter((row) => row.user_id !== viewerUserId) : rows;
+  const sourceRows = communityRows.length > 0 ? communityRows : rows;
+  const ranked = rankPerspectives(perspectiveCounts(sourceRows));
+  const observers = new Set<string>();
+  for (const row of rows) {
+    observers.add(row.user_id || "anonymous");
+  }
+  const covered = seasonalCoverage.filter((row) => row.observations > 0).map((row) => row.label);
+  const recentCount = rows.filter((row) => row.observed_at && new Date(row.observed_at).getTime() >= Date.now() - 90 * 86400000).length;
+  const dominant = ranked[0]!;
+  return {
+    observerCount: observers.size,
+    dominantPerspective: {
+      ...dominant,
+      line: communityPerspectiveLine(dominant),
+    },
+    secondaryPerspective: ranked[1] ? { ...ranked[1]!, line: communityPerspectiveLine(ranked[1]!) } : null,
+    seasonCoverageLine: covered.length > 0
+      ? `みんなの記録で、${covered.join("・")}の顔が見え始めています。`
+      : "みんなの記録で、このエリアの季節の入口をこれから作れます。",
+    recentMomentumLine: recentCount > 0
+      ? `最近90日で${recentCount}件、見返せる手がかりが増えています。`
+      : "最近の記録が増えると、このエリアの今の顔を比べやすくなります。",
+    recordCards: rowsToGalleryCards(sourceRows),
+  };
+}
+
+function buildOverlapInsight(viewer: ViewerAreaContribution, community: CommunityAreaPerspective): AreaOverlapInsight {
+  const viewerKey = viewer.hasViewerRecords ? viewer.dominantPerspective.key : null;
+  const communityKey = community.dominantPerspective.key;
+  return {
+    viewerPerspective: viewerKey,
+    communityPerspective: communityKey,
+    line: overlapLine(viewerKey, communityKey),
+    detailHref: null,
+  };
+}
+
 async function loadAreaWatchEvidenceStats(scopedVisitIds: string[]): Promise<AreaWatchEvidenceStats> {
   const pool = getPool();
   return safeQuery(
@@ -809,7 +1169,7 @@ type OccurrenceForMaskingPrecision = "exact_private" | "site" | "mesh" | "munici
 
 export async function getAreaPlaceSnapshot(
   fieldId: string,
-  options: { viewer: ViewerContext },
+  options: { viewer: ViewerContext; viewerUserId?: string | null },
 ): Promise<AreaPlaceSnapshot | null> {
   const base = await getPlaceSnapshot(fieldId);
   if (!base) return null;
@@ -818,7 +1178,7 @@ export async function getAreaPlaceSnapshot(
   const placeId = base.relationshipScore.placeId ?? null;
   const scopedVisitIds = await loadAreaSnapshotVisitIds(field, placeId);
   const fieldForEffort = { createdAt: field.createdAt };
-  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking, areaWatchEvidenceStats] = await Promise.all([
+  const [representativePhoto, observationGallery, seasonalCoverage, yearlyTimeline, effortIndicators, sensitiveMasking, areaWatchEvidenceStats, perspectiveRows] = await Promise.all([
     loadRepresentativePhoto(scopedVisitIds),
     loadObservationGallery(scopedVisitIds),
     loadSeasonalCoverage(scopedVisitIds),
@@ -826,7 +1186,11 @@ export async function getAreaPlaceSnapshot(
     loadEffortIndicators(fieldForEffort, scopedVisitIds),
     loadSensitiveMasking(scopedVisitIds, options.viewer),
     loadAreaWatchEvidenceStats(scopedVisitIds),
+    loadAreaPerspectiveRows(scopedVisitIds),
   ]);
+  const viewerContribution = buildViewerContribution(perspectiveRows, options.viewerUserId ?? null);
+  const communityPerspective = buildCommunityPerspective(perspectiveRows, options.viewerUserId ?? null, seasonalCoverage);
+  const overlapInsight = buildOverlapInsight(viewerContribution, communityPerspective);
   const areaWatch = buildAreaWatch({
     totalObservations: base.observationSummary.totalObservations,
     totalVisits: base.observationSummary.totalVisits,
@@ -848,12 +1212,17 @@ export async function getAreaPlaceSnapshot(
     firstSeenSpecies: [],
     environmentChange: null,
     areaWatch,
+    viewerContribution,
+    communityPerspective,
+    overlapInsight,
   };
 }
 
 export const __test__ = {
   monthToSeason,
   fieldBbox,
+  inferPerspective,
+  overlapLine,
 };
 
 // Re-export for the test suite to compose AreaPlaceSnapshot manually.
