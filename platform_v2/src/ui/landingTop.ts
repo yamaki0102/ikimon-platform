@@ -524,7 +524,10 @@ function compareLandingContentSubjects(a: LandingContentWallSubject, b: LandingC
 
 function landingContentWallItems(snapshot: LandingSnapshot, source: LandingContentWallItem["contentSource"]): LandingContentWallItem[] {
   const items = (source === "mine"
-    ? snapshot.myFeed.map((obs) => ({ ...obs, contentSource: "mine" as const }))
+    ? (snapshot.myFeed.length > 0
+      ? snapshot.myFeed
+      : snapshot.feed.filter((obs) => snapshot.viewerUserId && obs.observerUserId === snapshot.viewerUserId)
+    ).map((obs) => ({ ...obs, contentSource: "mine" as const }))
     : snapshot.feed
       .filter((obs) => !snapshot.viewerUserId || obs.observerUserId !== snapshot.viewerUserId)
       .map((obs) => ({ ...obs, contentSource: "community" as const }))
