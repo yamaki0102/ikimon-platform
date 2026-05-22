@@ -153,17 +153,22 @@ function timeoutAfter(ms: number): Promise<null> {
 
 function hasLandingVisibleData(snapshot: LandingSnapshot): boolean {
   return snapshot.feed.length > 0 ||
+    snapshot.myFeed.length > 0 ||
     (snapshot.topShelves ?? []).some((shelf) => shelf.items.length > 0) ||
     snapshot.nearbyFields.length > 0 ||
     snapshot.mapPreviewCells.length > 0 ||
-    snapshot.ambient.length > 0 ||
-    Boolean(snapshot.dailyDashboard);
+    snapshot.ambient.length > 0;
 }
 
-function publicSnapshotForSignedInFallback(snapshot: LandingSnapshot, userId: string): LandingSnapshot {
+function hasLandingContentWallData(snapshot: LandingSnapshot, userId: string | null): boolean {
+  return snapshot.myFeed.length > 0 ||
+    snapshot.feed.some((obs) => !userId || obs.observerUserId !== userId);
+}
+
+function publicSnapshotForSignedInFallback(snapshot: LandingSnapshot): LandingSnapshot {
   return {
     ...snapshot,
-    viewerUserId: userId,
+    viewerUserId: null,
     myFeed: [],
     guideOutcomes: [],
     guideOutcomeSummaries: [],
@@ -196,20 +201,20 @@ function ensureLandingSnapshotInflight(
   return inflight;
 }
 
-async function getPublicLandingFallbackForSignedIn(userId: string): Promise<LandingSnapshot | null> {
+async function getPublicLandingFallbackForSignedIn(): Promise<LandingSnapshot | null> {
   const now = Date.now();
   const cached = landingSnapshotCache.get(LANDING_PUBLIC_CACHE_KEY);
-  if (cached && cached.expiresAt > now && hasLandingVisibleData(cached.snapshot)) {
-    return publicSnapshotForSignedInFallback(cached.snapshot, userId);
+  if (cached && cached.expiresAt > now && hasLandingContentWallData(cached.snapshot, null)) {
+    return publicSnapshotForSignedInFallback(cached.snapshot);
   }
 
   const inflight = ensureLandingSnapshotInflight(LANDING_PUBLIC_CACHE_KEY, null, cached);
   const snapshot = await Promise.race([inflight, timeoutAfter(LANDING_SNAPSHOT_TIMEOUT_MS)]);
-  if (snapshot && hasLandingVisibleData(snapshot)) {
-    return publicSnapshotForSignedInFallback(snapshot, userId);
+  if (snapshot && hasLandingContentWallData(snapshot, null)) {
+    return publicSnapshotForSignedInFallback(snapshot);
   }
-  if (cached && hasLandingVisibleData(cached.snapshot)) {
-    return publicSnapshotForSignedInFallback(cached.snapshot, userId);
+  if (cached && hasLandingContentWallData(cached.snapshot, null)) {
+    return publicSnapshotForSignedInFallback(cached.snapshot);
   }
   return null;
 }
@@ -219,8 +224,8 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
   const now = Date.now();
   const cached = landingSnapshotCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
-    if (userId && !hasLandingVisibleData(cached.snapshot)) {
-      return await getPublicLandingFallbackForSignedIn(userId) ?? cached.snapshot;
+    if (userId && !hasLandingContentWallData(cached.snapshot, userId)) {
+      return await getPublicLandingFallbackForSignedIn() ?? cached.snapshot;
     }
     return cached.snapshot;
   }
@@ -228,18 +233,18 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
   const inflight = ensureLandingSnapshotInflight(cacheKey, userId, cached);
 
   if (cached) {
-    if (userId && !hasLandingVisibleData(cached.snapshot)) {
-      return await getPublicLandingFallbackForSignedIn(userId) ?? cached.snapshot;
+    if (userId && !hasLandingContentWallData(cached.snapshot, userId)) {
+      return await getPublicLandingFallbackForSignedIn() ?? cached.snapshot;
     }
     return cached.snapshot;
   }
 
   const snapshot = await Promise.race([inflight, timeoutAfter(LANDING_SNAPSHOT_TIMEOUT_MS)]);
-  if (snapshot && (!userId || hasLandingVisibleData(snapshot))) {
+  if (snapshot && (!userId || hasLandingContentWallData(snapshot, userId))) {
     return snapshot;
   }
   if (userId) {
-    return await getPublicLandingFallbackForSignedIn(userId) ?? emptyLandingSnapshot(userId);
+    return await getPublicLandingFallbackForSignedIn() ?? emptyLandingSnapshot(userId);
   }
   return snapshot ?? emptyLandingSnapshot(userId);
 }
