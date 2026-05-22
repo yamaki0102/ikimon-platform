@@ -104,7 +104,7 @@ type QASiteMapCopy = {
 };
 
 const LANDING_SNAPSHOT_CACHE_TTL_MS = 300_000;
-const LANDING_SNAPSHOT_TIMEOUT_MS = 1_200;
+const LANDING_SNAPSHOT_TIMEOUT_MS = 1_800;
 const LANDING_PUBLIC_CACHE_KEY = "__public__";
 const landingSnapshotCache = new Map<string, { expiresAt: number; snapshot: LandingSnapshot }>();
 const landingSnapshotInflight = new Map<string, Promise<LandingSnapshot>>();
