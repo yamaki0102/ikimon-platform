@@ -387,6 +387,38 @@ test("landing top balances signed-in own posts against twelve community posts", 
   assert.match(html, /href="\/ja\/records\?view=public"[^>]*>もっと見る<\/a>/);
 });
 
+test("landing top keeps signed-in fallback records split by owner", () => {
+  const ownObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-fallback-own",
+    visitId: "visit-fallback-own",
+    displayName: "自分のfallback記録",
+    observerUserId: "user-1",
+    observerName: "テスト観察者",
+    photoUrl: "/uploads/fallback-own.jpg",
+  };
+  const communityObservation: LandingObservation = {
+    ...photoObservation,
+    occurrenceId: "occ-fallback-community",
+    visitId: "visit-fallback-community",
+    displayName: "みんなのfallback記録",
+    observerUserId: "user-2",
+    observerName: "別の観察者",
+    photoUrl: "/uploads/fallback-community.jpg",
+  };
+  const html = renderTop({
+    ...photoSnapshot,
+    viewerUserId: "user-1",
+    myFeed: [],
+    feed: [ownObservation, communityObservation],
+  });
+
+  assert.match(html, /prototype-content-lanes is-split/);
+  assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?自分のfallback記録/);
+  assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?みんなのfallback記録/);
+  assert.doesNotMatch(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?自分のfallback記録/);
+});
+
 test("landing top groups multiple occurrences from the same visit into one content card", () => {
   const sameVisitSecondOccurrence: LandingObservation = {
     ...photoObservation,
