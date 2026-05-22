@@ -939,18 +939,18 @@ function buildLandingInvasiveWatchItems(snapshot: LandingSnapshot): LandingInvas
 }
 
 const invasiveThumbByMotif: Record<LandingInvasiveWatchItem["motif"], string> = {
-  plant: "/assets/img/invasive/invasive-plant.png",
-  aquaticPlant: "/assets/img/invasive/invasive-aquatic-plant.png",
-  insect: "/assets/img/invasive/invasive-insect.png",
-  spider: "/assets/img/invasive/invasive-spider.png",
-  reptile: "/assets/img/invasive/invasive-reptile.png",
-  fish: "/assets/img/invasive/invasive-fish.png",
-  mammal: "/assets/img/invasive/invasive-mammal.png",
-  bird: "/assets/img/invasive/invasive-bird.png",
+  plant: "/assets/img/invasive/invasive-plant-thumb.webp",
+  aquaticPlant: "/assets/img/invasive/invasive-aquatic-plant-thumb.webp",
+  insect: "/assets/img/invasive/invasive-insect-thumb.webp",
+  spider: "/assets/img/invasive/invasive-spider-thumb.webp",
+  reptile: "/assets/img/invasive/invasive-reptile-thumb.webp",
+  fish: "/assets/img/invasive/invasive-fish-thumb.webp",
+  mammal: "/assets/img/invasive/invasive-mammal-thumb.webp",
+  bird: "/assets/img/invasive/invasive-bird-thumb.webp",
 };
 
 function renderInvasiveThumb(motif: LandingInvasiveWatchItem["motif"]): string {
-  return `<i class="prototype-invasive-thumb is-${escapeHtml(motif)}"><img src="${escapeHtml(invasiveThumbByMotif[motif])}" alt="" loading="lazy" decoding="async" /></i>`;
+  return `<i class="prototype-invasive-thumb is-${escapeHtml(motif)}"><img src="${escapeHtml(invasiveThumbByMotif[motif])}" alt="" width="128" height="128" loading="lazy" decoding="async" fetchpriority="low" /></i>`;
 }
 
 function formatNearbyEventWhen(raw: string): string {

@@ -639,8 +639,9 @@ test("landing top adds local invasive watch and resilient empty nearby events", 
   assert.match(html, /許可なく捕獲しない/);
   assert.doesNotMatch(html, /カミツキガメ・ゴケグモ類/);
   assert.match(html, /prototype-invasive-thumb/);
-  assert.match(html, /\/assets\/img\/invasive\/invasive-plant\.png/);
-  assert.match(html, /\/assets\/img\/invasive\/invasive-mammal\.png/);
+  assert.match(html, /\/assets\/img\/invasive\/invasive-plant-thumb\.webp/);
+  assert.match(html, /\/assets\/img\/invasive\/invasive-mammal-thumb\.webp/);
+  assert.match(html, /fetchpriority="low"/);
   assert.match(html, /href="\/ja\/learn\/invasive-species"/);
   assert.match(html, /href="\/ja\/learn\/invasive-species\/coreopsis-lanceolata"/);
   assert.match(html, /href="\/ja\/learn\/invasive-species\/alternanthera-philoxeroides"/);

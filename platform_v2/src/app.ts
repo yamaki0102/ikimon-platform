@@ -103,7 +103,7 @@ type QASiteMapCopy = {
   footerNote: string;
 };
 
-const LANDING_SNAPSHOT_CACHE_TTL_MS = 45_000;
+const LANDING_SNAPSHOT_CACHE_TTL_MS = 300_000;
 const LANDING_SNAPSHOT_TIMEOUT_MS = 1_200;
 const landingSnapshotCache = new Map<string, { expiresAt: number; snapshot: LandingSnapshot }>();
 const landingSnapshotInflight = new Map<string, Promise<LandingSnapshot>>();
@@ -130,6 +130,17 @@ function emptyLandingSnapshot(userId: string | null): LandingSnapshot {
     habit: null,
     dailyDashboard: null,
     regionalStory: null,
+  };
+}
+
+function emptyPreviewContext(basePath: string = ""): PreviewContext {
+  return {
+    basePath,
+    userId: "",
+    visitId: "",
+    occurrenceId: "",
+    usesDemoFixture: false,
+    stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
   };
 }
 
@@ -160,12 +171,16 @@ async function getLandingSnapshotForRoot(userId: string | null): Promise<Landing
       .catch(() => cached?.snapshot ?? emptyLandingSnapshot(userId))
       .finally(() => {
         landingSnapshotInflight.delete(cacheKey);
-      });
+    });
     landingSnapshotInflight.set(cacheKey, inflight);
   }
 
+  if (cached) {
+    return cached.snapshot;
+  }
+
   const snapshot = await Promise.race([inflight, timeoutAfter(LANDING_SNAPSHOT_TIMEOUT_MS)]);
-  return snapshot ?? cached?.snapshot ?? emptyLandingSnapshot(userId);
+  return snapshot ?? emptyLandingSnapshot(userId);
 }
 
 function canonicalHostRedirectUrl(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }): string | null {
@@ -594,12 +609,18 @@ export function buildApp() {
   });
 
   app.get("/", async (request, reply) => {
-    const context = await getPreviewContext();
-    context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
+    const basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
     const lang = detectLangFromUrl(requestUrl(request));
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
-    const snapshot = await getLandingSnapshotForRoot(viewerUserId);
+    const contextPromise = process.env.ALLOW_QUERY_USER_ID === "1"
+      ? getPreviewContext()
+      : Promise.resolve(emptyPreviewContext(basePath));
+    const [context, snapshot] = await Promise.all([
+      contextPromise,
+      getLandingSnapshotForRoot(viewerUserId),
+    ]);
+    context.basePath = basePath;
     reply.type("text/html; charset=utf-8");
     reply.header("Cache-Control", "public, max-age=30, stale-while-revalidate=30");
     return buildLandingRootHtml(
