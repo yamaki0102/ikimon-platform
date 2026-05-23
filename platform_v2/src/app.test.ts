@@ -25,7 +25,14 @@ test("app sends browser security headers on every response", async () => {
       response.headers["permissions-policy"],
       "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=()",
     );
-    assert.equal(response.headers["content-security-policy"], "base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+    const csp = String(response.headers["content-security-policy"] ?? "");
+    assert.match(csp, /default-src 'self'/);
+    assert.match(csp, /script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net https:\/\/unpkg\.com/);
+    assert.match(csp, /object-src 'none'/);
+    assert.match(csp, /frame-ancestors 'none'/);
+    assert.match(csp, /form-action 'self'/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/nominatim\.openstreetmap\.org/);
+    assert.match(csp, /frame-src 'self' https:\/\/iframe\.videodelivery\.net/);
     assert.equal(response.headers["strict-transport-security"], undefined);
   } finally {
     await app.close();
@@ -39,6 +46,7 @@ test("app sends HSTS in production", async () => {
   try {
     const response = await app.inject({ method: "GET", url: "/sw.js" });
     assert.equal(response.headers["strict-transport-security"], "max-age=31536000; includeSubDomains");
+    assert.match(String(response.headers["content-security-policy"] ?? ""), /upgrade-insecure-requests/);
   } finally {
     await app.close();
     if (previousNodeEnv === undefined) {

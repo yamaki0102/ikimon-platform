@@ -21,10 +21,12 @@ function readBearerToken(headerValue: string | string[] | undefined): string | n
 }
 
 function readPrivilegedWriteToken(request: FastifyRequest): string | null {
-  const headerValue = request.headers["x-ikimon-write-key"];
-  const direct = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  if (typeof direct === "string" && direct.trim() !== "") {
-    return direct.trim();
+  for (const headerName of ["x-ikimon-write-key", "x-v2-privileged-write-api-key", "x-api-key"]) {
+    const headerValue = request.headers[headerName];
+    const direct = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+    if (typeof direct === "string" && direct.trim() !== "") {
+      return direct.trim();
+    }
   }
   return readBearerToken(request.headers.authorization);
 }

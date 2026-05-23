@@ -7,9 +7,12 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
 
   assert.match(source, /normalizeObservationImage/);
+  assert.match(source, /ALLOWED_OBSERVATION_IMAGE_MIME_TYPES/);
   assert.match(source, /width: 2560/);
   assert.match(source, /height: 2560/);
   assert.match(source, /fit: "inside"/);
+  assert.match(source, /throw new Error\("image_normalization_failed"\)/);
+  assert.doesNotMatch(source, /normalizedMime === "image\/gif"[\s\S]*return \{ buffer/);
   assert.match(source, /widthPx: normalizedImage\.widthPx/);
   assert.match(source, /heightPx: normalizedImage\.heightPx/);
   assert.match(source, /normalizeFacePrivacy/);

@@ -51,7 +51,7 @@ test.describe.serial("observation AI grounding visual QA", () => {
 
         await expect(page.locator("body")).toContainText("ヒメイワダレソウ");
         await expect(page.locator(".obs-ai-grounding").first()).toContainText("AIが主に見たところ");
-        await expect(page.locator(".obs-ai-grounding-shot", { hasText: "画像1" }).first()).toBeVisible();
+        await page.locator(".obs-ai-grounding-shot", { hasText: "画像1" }).first().click();
         await expect(page.locator(".obs-annotation-target.is-current").first()).toBeVisible();
 
         await page.locator("[data-ai-target]", { hasText: "セイヨウミツバチ" }).first().click();

@@ -3592,7 +3592,58 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
       </div>
     </div>
     ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
-  </section>`;
+  </section>${renderAiReadoutInteractionScript()}`;
+}
+
+function renderAiReadoutInteractionScript(): string {
+  return `<script>(function(){
+    document.querySelectorAll('[data-obs-switch-ai-readout]').forEach(function(root){
+      if (root.getAttribute('data-ai-readout-bound') === '1') return;
+      root.setAttribute('data-ai-readout-bound', '1');
+      var cssEscape = function(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+        return String(value).replace(/["\\\\]/g, '\\\\$&');
+      };
+      var focusGrounding = function(button) {
+        var assetId = button.getAttribute('data-ai-grounding-asset') || '';
+        var subjectId = button.getAttribute('data-ai-grounding-subject') || '';
+        var candidateId = button.getAttribute('data-ai-grounding-candidate') || '';
+        if (!assetId) return;
+        window.dispatchEvent(new CustomEvent('ikimon:focus-media-annotation', {
+          detail: { assetId: assetId, subjectId: subjectId, candidateId: candidateId }
+        }));
+        window.setTimeout(function(){
+          var selector = subjectId
+            ? '[data-annotation-subject-id="' + cssEscape(subjectId) + '"]'
+            : candidateId
+              ? '[data-annotation-candidate-id="' + cssEscape(candidateId) + '"]'
+              : '';
+          if (!selector) return;
+          document.querySelectorAll('[data-annotation-target].is-annotation-focus').forEach(function(node){
+            node.classList.remove('is-annotation-focus');
+          });
+          var target = document.querySelector(selector);
+          if (!target) return;
+          target.classList.add('is-annotation-focus');
+          if (typeof target.focus === 'function') target.focus({ preventScroll: true });
+          if (typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        }, 120);
+      };
+      root.addEventListener('click', function(event){
+        var groundingButton = event.target && event.target.closest ? event.target.closest('[data-ai-grounding-asset]') : null;
+        if (groundingButton && root.contains(groundingButton)) {
+          event.preventDefault();
+          focusGrounding(groundingButton);
+          return;
+        }
+        var button = event.target && event.target.closest ? event.target.closest('[data-ai-target]') : null;
+        if (!button || !root.contains(button)) return;
+        var key = button.getAttribute('data-ai-target');
+        root.querySelectorAll('[data-ai-target]').forEach(function(item){ item.setAttribute('aria-pressed', item === button ? 'true' : 'false'); });
+        root.querySelectorAll('[data-ai-panel]').forEach(function(panel){ panel.hidden = panel.getAttribute('data-ai-panel') !== key; });
+      });
+    });
+  })();</script>`;
 }
 
 export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null, groundingAssets: AiGroundingAsset[] = []): string {
@@ -8323,8 +8374,8 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
               ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" onerror="this.remove();this.parentElement.textContent=${escapeHtml(JSON.stringify(avatarFallback))}" />` : escapeHtml(avatarFallback)}
             </div>
             <div class="profile-settings-avatar-control">
-              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-              <p class="profile-settings-help">5MBまで。JPG / PNG / WebP / GIF を使えます。</p>
+              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" />
+              <p class="profile-settings-help">5MBまで。JPG / PNG / WebP を使えます。</p>
             </div>
           </div>
         </div>
@@ -8365,7 +8416,7 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     avatar_invalid: 'アイコン画像を読み込めませんでした。',
     avatar_empty: 'アイコン画像が空です。',
     avatar_too_large: 'アイコン画像は5MB以内にしてください。',
-    avatar_invalid_type: 'アイコンは JPG / PNG / WebP / GIF を選んでください。',
+    avatar_invalid_type: 'アイコンは JPG / PNG / WebP を選んでください。',
     session_required: 'ログインし直してください。'
   };
   const setStatus = (message, kind) => {

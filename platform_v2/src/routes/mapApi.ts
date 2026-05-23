@@ -12,7 +12,7 @@ import {
 } from "../services/mapSnapshot.js";
 import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
 import { listAreaPolygonsForBbox, flushAreaPolygonCache, type AreaPolygonSource } from "../services/areaPolygons.js";
-import { loadConfig } from "../config.js";
+import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
 const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
   "user_defined", "nature_symbiosis_site", "tsunag", "protected_area", "oecm",
@@ -241,14 +241,12 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
   // OSM / N03 polygons surface immediately. Guarded by the privileged
   // write API key (same secret the importer scripts already need).
   app.post("/api/v1/internal/flush-area-cache", async (request, reply) => {
-    const cfg = loadConfig();
-    const expected = cfg.privilegedWriteApiKey;
-    const got = request.headers["x-v2-privileged-write-api-key"];
-    if (!expected || expected.length < 8) {
-      return reply.code(503).send({ error: "privileged_write_disabled" });
-    }
-    if (got !== expected) {
-      return reply.code(403).send({ error: "invalid_key" });
+    try {
+      assertPrivilegedWriteAccess(request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "forbidden_privileged_write";
+      const status = message === "privileged_write_api_key_not_configured" ? 503 : 403;
+      return reply.code(status).send({ error: message });
     }
     const cleared = flushAreaPolygonCache();
     return reply.send({ flushed_entries: cleared });

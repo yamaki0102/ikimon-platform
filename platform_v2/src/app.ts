@@ -267,6 +267,24 @@ function setHeaderIfMissing(reply: { getHeader(name: string): unknown; header(na
 }
 
 function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(name: string, value: string): unknown }, isProduction: boolean): void {
+  const contentSecurityPolicy = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms",
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org",
+    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com",
+    "frame-src 'self' https://iframe.videodelivery.net",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    ...(isProduction ? ["upgrade-insecure-requests"] : []),
+  ].join("; ");
+
   setHeaderIfMissing(reply, "X-Content-Type-Options", "nosniff");
   setHeaderIfMissing(reply, "X-Frame-Options", "SAMEORIGIN");
   setHeaderIfMissing(reply, "Referrer-Policy", "strict-origin-when-cross-origin");
@@ -277,7 +295,7 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
     "Permissions-Policy",
     "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), serial=(), bluetooth=(), browsing-topics=()",
   );
-  setHeaderIfMissing(reply, "Content-Security-Policy", "base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+  setHeaderIfMissing(reply, "Content-Security-Policy", contentSecurityPolicy);
   if (isProduction) {
     setHeaderIfMissing(reply, "Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }

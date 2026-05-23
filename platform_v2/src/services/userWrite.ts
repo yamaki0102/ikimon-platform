@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PoolClient } from "pg";
+import sharp from "sharp";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyUser } from "../legacy/compatibilityWriter.js";
@@ -94,22 +95,28 @@ function normalizeAvatarMimeType(value: unknown): string {
     throw new Error("avatar_invalid");
   }
   const mimeType = value.trim().toLowerCase();
-  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mimeType)) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
     throw new Error("avatar_invalid_type");
   }
   return mimeType;
 }
 
-function avatarExtension(mimeType: string): string {
-  switch (mimeType) {
-    case "image/png":
-      return ".png";
-    case "image/webp":
-      return ".webp";
-    case "image/gif":
-      return ".gif";
-    default:
-      return ".jpg";
+async function normalizeProfileAvatarImage(buffer: Buffer): Promise<{ buffer: Buffer; mimeType: string }> {
+  try {
+    const normalized = await sharp(buffer, { failOn: "none" })
+      .rotate()
+      .resize({ width: 512, height: 512, fit: "cover", withoutEnlargement: true })
+      .webp({ quality: 82, effort: 4 })
+      .toBuffer();
+    if (normalized.byteLength === 0) {
+      throw new Error("avatar_empty");
+    }
+    return { buffer: normalized, mimeType: "image/webp" };
+  } catch (error) {
+    if (error instanceof Error && error.message === "avatar_empty") {
+      throw error;
+    }
+    throw new Error("avatar_invalid");
   }
 }
 
@@ -122,22 +129,23 @@ async function persistProfileAvatar(
   if (!buffer) {
     return null;
   }
-  const mimeType = normalizeAvatarMimeType(avatar?.mimeType);
-  const sha256 = createHash("sha256").update(buffer).digest("hex");
+  normalizeAvatarMimeType(avatar?.mimeType);
+  const normalizedAvatar = await normalizeProfileAvatarImage(buffer);
+  const sha256 = createHash("sha256").update(normalizedAvatar.buffer).digest("hex");
   const config = loadConfig();
-  const relativePath = path.posix.join("uploads", "avatars", `${userId}_${sha256.slice(0, 12)}${avatarExtension(mimeType)}`);
+  const relativePath = path.posix.join("uploads", "avatars", `${userId}_${sha256.slice(0, 12)}.webp`);
   const absolutePath = path.join(config.legacyPublicRoot, ...relativePath.split("/"));
   await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, buffer);
+  await writeFile(absolutePath, normalizedAvatar.buffer);
 
   const blobId = await upsertAssetBlob(client, {
     storageBackend: "local_fs",
     storagePath: relativePath,
     mediaType: "image",
-    mimeType,
+    mimeType: normalizedAvatar.mimeType,
     publicUrl: `/${relativePath}`,
     sha256,
-    bytes: buffer.byteLength,
+    bytes: normalizedAvatar.buffer.byteLength,
     sourcePayload: {
       source: "profile_settings",
       filename: typeof avatar?.filename === "string" ? avatar.filename : null,
