@@ -201,6 +201,24 @@ test("guide outcome section groups full guide outcome pool instead of the shelf 
   assert.doesNotMatch(html, /街路樹の若葉が見えてきた/);
 });
 
+test("guide outcome fallback links to the guide session outcome page", () => {
+  const unsummarizedGuide: LandingTopGuideItem = {
+    ...guideItem,
+    guideRecordId: "guide-record-photo",
+    sessionId: "home-guide-shelf-session",
+    promotionAction: "add_photo",
+    href: "/record?source=guide&guideRecordId=guide-record-photo",
+  };
+  const html = renderTop({
+    ...emptySnapshot,
+    viewerUserId: "guide-user-1",
+    guideOutcomes: [unsummarizedGuide],
+  });
+
+  assert.match(html, /\/guide\/outcomes\?session=home-guide-shelf-session/);
+  assert.doesNotMatch(html, /\/record\?source=guide&amp;guideRecordId=guide-record-photo/);
+});
+
 test("guide outcome section prefers public session summaries when available", () => {
   const html = renderTop({
     ...emptySnapshot,
