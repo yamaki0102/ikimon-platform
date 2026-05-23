@@ -130,6 +130,44 @@ test("legacy asset routes fall back to public/uploads when uploads root env is s
   });
 });
 
+test("legacy upload routes do not serve active content types from public uploads", async () => {
+  const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-upload-active-content-"));
+  const publicRoot = path.join(sandboxRoot, "public");
+  const uploadsRoot = path.join(sandboxRoot, "uploads");
+  await mkdir(path.join(publicRoot, "assets"), { recursive: true });
+  await mkdir(path.join(uploadsRoot, "photos"), { recursive: true });
+  await writeFile(path.join(publicRoot, "assets", "mark.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>");
+  await writeFile(path.join(uploadsRoot, "photos", "payload.svg"), "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>");
+  await writeFile(path.join(uploadsRoot, "photos", "payload.html"), "<script>alert(1)</script>");
+
+  try {
+    await withEnv(
+      {
+        LEGACY_PUBLIC_ROOT: publicRoot,
+        LEGACY_UPLOADS_ROOT: uploadsRoot,
+      },
+      async () => {
+        const app = buildApp();
+        try {
+          const assetSvg = await app.inject({ method: "GET", url: "/assets/mark.svg" });
+          assert.equal(assetSvg.statusCode, 200);
+          assert.match(String(assetSvg.headers["content-type"] ?? ""), /^image\/svg\+xml/);
+
+          const uploadSvg = await app.inject({ method: "GET", url: "/uploads/photos/payload.svg" });
+          assert.equal(uploadSvg.statusCode, 404);
+
+          const uploadHtml = await app.inject({ method: "GET", url: "/data/uploads/photos/payload.html" });
+          assert.equal(uploadHtml.statusCode, 404);
+        } finally {
+          await app.close();
+        }
+      },
+    );
+  } finally {
+    await rm(sandboxRoot, { recursive: true, force: true });
+  }
+});
+
 test("thumb route resizes image and blocks invalid preset / traversal", async () => {
   const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-thumb-"));
   const uploadsRoot = path.join(sandboxRoot, "uploads");

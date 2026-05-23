@@ -10,7 +10,7 @@ import {
   type AudioPrivacyCallbackInput,
 } from "../services/fieldscanAudio.js";
 import { findSimilarSegments } from "../services/audioEmbedding.js";
-import { getSessionFromCookie } from "../services/authSession.js";
+import { getSessionFromCookie, getSessionFromMobileAuth, type SessionSnapshot } from "../services/authSession.js";
 import { hookFieldScanAudioToEvent, type ObservationEventSourcePayload } from "../services/observationEventDualWrite.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
@@ -21,6 +21,9 @@ const AUDIO_SUBMIT_BAD_REQUEST_ERRORS = new Set([
 ]);
 
 function audioSubmitStatusCode(message: string): number {
+  if (message.startsWith("forbidden")) {
+    return 403;
+  }
   if (message.startsWith("audio_quarantined_")) {
     return 400;
   }
@@ -49,6 +52,21 @@ function privilegedAudioStatusCode(message: string): number {
   return 500;
 }
 
+function requestedUserId(body: AudioSegmentSubmitInput): string | null {
+  return typeof body.userId === "string" && body.userId.trim() ? body.userId.trim() : null;
+}
+
+function resolveTrustedAudioUserId(body: AudioSegmentSubmitInput, session: SessionSnapshot | null): string | null {
+  const requested = requestedUserId(body);
+  if (session?.userId) {
+    if (requested && requested !== session.userId) {
+      throw new Error("forbidden_user_mismatch");
+    }
+    return session.userId;
+  }
+  return null;
+}
+
 /**
  * FieldScan (Phase E) 音声パイプライン。
  *
@@ -64,18 +82,19 @@ export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<
     "/api/v1/fieldscan/audio/submit",
     async (request, reply) => {
       try {
-        const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+        const session = await getSessionFromMobileAuth(request).catch(() => null);
         const body = request.body ?? ({} as AudioSegmentSubmitInput);
+        const userId = resolveTrustedAudioUserId(body, session);
         const result = await submitAudioSegment({
           ...body,
-          userId: body.userId ?? session?.userId ?? null,
+          userId,
         });
         const eventSource = body as AudioSegmentSubmitInput & ObservationEventSourcePayload;
         await hookFieldScanAudioToEvent({
           body: eventSource,
           segmentId: result.segmentId,
           fieldscanSessionId: body.sessionId,
-          userId: body.userId ?? session?.userId ?? null,
+          userId,
           lat: body.lat ?? null,
           lng: body.lng ?? null,
           recordedAt: body.recordedAt,

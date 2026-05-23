@@ -26,6 +26,8 @@ export type FacePrivacySummary = {
   error?: string | null;
 };
 
+const ALLOWED_OBSERVATION_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
 export type ObservationPhotoUploadResult = {
   visitId: string;
   occurrenceId: string;
@@ -51,8 +53,6 @@ function extensionForMime(mimeType: string): string {
       return ".png";
     case "image/webp":
       return ".webp";
-    case "image/gif":
-      return ".gif";
     default:
       return ".jpg";
   }
@@ -74,7 +74,8 @@ function assertInput(input: ObservationPhotoUploadInput): void {
   if (!input.filename.trim()) {
     throw new Error("filename is required");
   }
-  if (!input.mimeType.trim() || !input.mimeType.startsWith("image/")) {
+  const mimeType = input.mimeType.trim().toLowerCase();
+  if (!ALLOWED_OBSERVATION_IMAGE_MIME_TYPES.has(mimeType)) {
     throw new Error("image mimeType is required");
   }
   if (!input.base64Data.trim()) {
@@ -98,9 +99,6 @@ function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
 
 async function normalizeObservationImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string; widthPx: number | null; heightPx: number | null }> {
   const normalizedMime = mimeType.trim().toLowerCase();
-  if (normalizedMime === "image/gif") {
-    return { buffer, mimeType: normalizedMime, widthPx: null, heightPx: null };
-  }
   try {
     const image = sharp(buffer, { failOn: "none" }).rotate().resize({
       width: 2560,
@@ -122,7 +120,7 @@ async function normalizeObservationImage(buffer: Buffer, mimeType: string): Prom
       heightPx: typeof metadata.height === "number" ? metadata.height : null,
     };
   } catch {
-    return { buffer, mimeType: normalizedMime, widthPx: null, heightPx: null };
+    throw new Error("image_normalization_failed");
   }
 }
 

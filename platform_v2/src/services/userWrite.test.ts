@@ -10,3 +10,14 @@ test("user upsert preserves existing privileged roles unless incoming role is pr
   assert.match(source, /role_name = case[\s\S]*lower\(coalesce\(users\.role_name, ''\)\) in \('admin', 'analyst'\)[\s\S]*then users\.role_name/);
   assert.match(source, /rank_label = case[\s\S]*coalesce\(users\.rank_label, ''\) in \('管理者', '分析担当'\)[\s\S]*then users\.rank_label/);
 });
+
+test("profile avatar uploads are re-encoded before public storage", async () => {
+  const source = await readFile(path.join(process.cwd(), "src/services/userWrite.ts"), "utf8");
+
+  assert.match(source, /import sharp from "sharp"/);
+  assert.match(source, /normalizeProfileAvatarImage/);
+  assert.match(source, /\.webp\(\{ quality: 82, effort: 4 \}\)/);
+  assert.match(source, /mimeType: "image\/webp"/);
+  assert.doesNotMatch(source, /"image\/gif"/);
+  assert.doesNotMatch(source, /return "\.gif"/);
+});

@@ -20,6 +20,7 @@ import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbn
  */
 
 const ALLOWED_PREFIXES = ["assets/", "favicon.ico", "favicon.svg"];
+const BLOCKED_PUBLIC_UPLOAD_EXTENSIONS = new Set([".svg", ".html", ".htm", ".xml", ".js", ".mjs"]);
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -51,6 +52,12 @@ function allowPath(rel: string): boolean {
   return ALLOWED_PREFIXES.some((prefix) => rel === prefix || rel.startsWith(prefix));
 }
 
+function allowPublicUploadPath(rel: string): boolean {
+  if (!rel || rel.includes("..")) return false;
+  const ext = path.extname(rel).toLowerCase();
+  return !BLOCKED_PUBLIC_UPLOAD_EXTENSIONS.has(ext);
+}
+
 async function serveFileFromRoot(rootDir: string, rel: string): Promise<{ data: Buffer; mime: string } | null> {
   if (!rel || rel.includes("..")) return null;
   const root = path.resolve(rootDir);
@@ -65,6 +72,7 @@ async function serveFileFromRoot(rootDir: string, rel: string): Promise<{ data: 
 }
 
 async function serveUploadFile(rel: string): Promise<{ data: Buffer; mime: string } | null> {
+  if (!allowPublicUploadPath(rel)) return null;
   const config = loadConfig();
   const candidateRoots = [
     config.legacyUploadsRoot,

@@ -8231,8 +8231,8 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
               ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" onerror="this.remove();this.parentElement.textContent=${escapeHtml(JSON.stringify(avatarFallback))}" />` : escapeHtml(avatarFallback)}
             </div>
             <div class="profile-settings-avatar-control">
-              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-              <p class="profile-settings-help">5MBまで。JPG / PNG / WebP / GIF を使えます。</p>
+              <input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" />
+              <p class="profile-settings-help">5MBまで。JPG / PNG / WebP を使えます。</p>
             </div>
           </div>
         </div>
@@ -8273,7 +8273,7 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
     avatar_invalid: 'アイコン画像を読み込めませんでした。',
     avatar_empty: 'アイコン画像が空です。',
     avatar_too_large: 'アイコン画像は5MB以内にしてください。',
-    avatar_invalid_type: 'アイコンは JPG / PNG / WebP / GIF を選んでください。',
+    avatar_invalid_type: 'アイコンは JPG / PNG / WebP を選んでください。',
     session_required: 'ログインし直してください。'
   };
   const setStatus = (message, kind) => {
