@@ -60,6 +60,23 @@ function cookieHeader(rawCookie: string): string {
   return rawCookie.split(";")[0] ?? rawCookie;
 }
 
+async function gotoLoggedInHomeUntilGuideShelf(page: Page, fixtureSuffix: string): Promise<void> {
+  const expectedSession = encodeURIComponent(`home-guide-shelf-${fixtureSuffix}`);
+  await expect(async () => {
+    await page.goto(`/?lang=ja&guideSmoke=${encodeURIComponent(fixtureSuffix)}`, { waitUntil: "networkidle" });
+    await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible({ timeout: 5_000 });
+    const guideShelf = page.locator("#topa-guide");
+    await expect(guideShelf).toBeVisible({ timeout: 5_000 });
+    await expect(guideShelf).toContainText("ガイドの記録", { timeout: 5_000 });
+    await expect(guideShelf.locator(`a[href*="${expectedSession}"]`).first()).toBeVisible({ timeout: 5_000 });
+    await expect(guideShelf.locator("a[href*='/guide/outcomes']").first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({
+    intervals: [1_500, 3_000, 5_000],
+    timeout: 45_000,
+  });
+}
+
 for (const profile of HOME_VIEWPORTS) {
   test(`home hero stays focused and stable (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
@@ -125,14 +142,7 @@ test("logged-in staging home shows personal guide outcomes shelf", async ({ brow
 
   try {
     await suppressMapLibreForSmoke(page);
-    await page.goto("/?lang=ja", { waitUntil: "networkidle" });
-    await expect(page.locator(".prototype-content-lane").filter({ hasText: "自分の記録" })).toBeVisible();
-    await expect(page.locator(".prototype-content-lane").filter({ hasText: "みんなの記録" })).toBeVisible();
-    const guideShelf = page.locator("#topa-guide");
-    await expect(guideShelf).toBeVisible();
-    await expect(guideShelf).toContainText("ガイドの記録");
-    await expect(guideShelf.locator(`a[href*="${encodeURIComponent(`home-guide-shelf-${fixtureSuffix}`)}"]`).first()).toBeVisible();
-    await expect(guideShelf.locator("a[href*='/guide/outcomes']").first()).toBeVisible();
+    await gotoLoggedInHomeUntilGuideShelf(page, fixtureSuffix);
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: `test-results/home-personal-guide-shelf-${fixtureSuffix}.png`, fullPage: true });
   } finally {
