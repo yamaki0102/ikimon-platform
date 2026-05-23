@@ -71,8 +71,38 @@ function formatDate(iso: string | null): string {
   return d.toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
 }
 
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("ja-JP").format(Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
+function formatObservationDate(iso: string | null | undefined): string {
+  if (!iso) return "まだ記録なし";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "まだ記録なし";
+  return new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "short", day: "numeric" }).format(d);
+}
+
 function isAreaSnapshot(snapshot: PlaceSnapshot | null | undefined): snapshot is AreaPlaceSnapshot {
   return Boolean(snapshot && Array.isArray((snapshot as Partial<AreaPlaceSnapshot>).observationGallery));
+}
+
+function fieldHeroMetrics(stats: FieldStats, snapshot: PlaceSnapshot | null | undefined): Array<{ value: number; label: string }> {
+  const summary = snapshot?.observationSummary;
+  const hasPlaceObservations = Boolean(
+    summary && (summary.totalObservations > 0 || summary.uniqueTaxa > 0 || summary.totalVisits > 0),
+  );
+  if (hasPlaceObservations && summary) {
+    return [
+      { value: summary.totalVisits, label: "記録回数" },
+      { value: summary.uniqueTaxa, label: "累計種数" },
+      { value: summary.totalObservations, label: "累計観察" },
+    ];
+  }
+  return [
+    { value: stats.totalSessions, label: "開催回数" },
+    { value: stats.uniqueSpeciesCount, label: "累計種数" },
+    { value: stats.totalObservations, label: "累計観察" },
+  ];
 }
 
 function renderAlbumCard(item: AreaObservationGalleryItem): string {
@@ -137,6 +167,8 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
 export function renderFieldDetailBody(args: { field: ObservationField; stats: FieldStats; snapshot?: PlaceSnapshot | null }): string {
   const { field, stats, snapshot } = args;
   const sourceLabel = SOURCE_LABEL[field.source] ?? field.source;
+  const heroMetrics = fieldHeroMetrics(stats, snapshot);
+  const latestObservedAt = snapshot?.observationSummary.latestObservedAt ?? null;
 
   const sessionRows = stats.recentSessions.length === 0
     ? `<p class="evt-lead">まだこのフィールドでの観察会はありません。</p>`
@@ -165,7 +197,7 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
   const polygonJson = field.polygon ? JSON.stringify(field.polygon) : "null";
 
   return `
-<section class="evt-recap-shell" data-field-id="${escapeHtml(field.fieldId)}"
+<section class="evt-recap-shell field-detail-shell" data-field-id="${escapeHtml(field.fieldId)}"
          data-lat="${escapeHtml(String(field.lat))}"
          data-lng="${escapeHtml(String(field.lng))}"
          data-radius="${escapeHtml(String(field.radiusM))}"
@@ -176,11 +208,10 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     <h2>${escapeHtml(field.name)}</h2>
     ${field.summary ? `<p style="margin:0; color:rgba(236,253,245,.86);">${escapeHtml(field.summary)}</p>` : ""}
     <div class="evt-result-stats evt-stagger">
-      <div><strong>${stats.totalSessions}</strong><span>開催回数</span></div>
-      <div><strong>${stats.uniqueSpeciesCount}</strong><span>累計種数</span></div>
-      <div><strong>${stats.totalObservations}</strong><span>累計観察</span></div>
+      ${heroMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:18px;">
+    <div class="field-detail-freshness"><span>最終観察</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
+    <div class="field-detail-actions">
       <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">✨ ここで観察会を作る</a>
       <a class="evt-btn evt-btn-on-dark" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
       ${renderSourceButtons(field)}
@@ -313,6 +344,47 @@ export function fieldDetailScript(): string {
 }
 
 export const FIELD_DETAIL_ALBUM_STYLES = `
+.field-detail-shell {
+  max-width: 1240px;
+}
+.field-detail-shell .evt-result-card {
+  padding: clamp(24px, 3vw, 40px);
+}
+.field-detail-shell .evt-result-card h2 {
+  max-width: 22ch;
+}
+.field-detail-shell .evt-result-stats {
+  max-width: 900px;
+}
+.field-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.field-detail-freshness {
+  width: fit-content;
+  max-width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.18);
+  color: #d1fae5;
+}
+.field-detail-freshness span {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+.field-detail-freshness strong {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+}
 .field-album {
   display: grid;
   gap: 12px;
@@ -409,6 +481,9 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   gap: 12px;
 }
 @media (max-width: 920px) {
+  .field-detail-shell {
+    max-width: 1080px;
+  }
   .field-album-grid,
   .field-album-grid-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
