@@ -69,6 +69,12 @@ import {
   type ObservationVisitSubject,
 } from "../services/observationVisitBundle.js";
 import {
+  getRecordReadingAvailability,
+  listRecordReadingCards,
+  type RecordReadingCard,
+  type RecordReadingAxis,
+} from "../services/recordReadingCards.js";
+import {
   buildVisibleRecordItems,
   formatObservationRecordTitle,
   visibleRecordMeta,
@@ -1097,6 +1103,22 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-record-insight { display: grid; gap: 8px; padding: 13px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(240,253,244,.92), rgba(255,255,255,.96)); border: 1px solid rgba(16,185,129,.16); }
   .obs-record-insight p { margin: 0; color: #334155; font-size: 12.5px; line-height: 1.72; font-weight: 740; text-align: start; }
   .obs-record-insight-desktop { display: none; }
+  .obs-record-reading { display: grid; gap: 10px; margin-top: 2px; }
+  .obs-record-reading summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 900; color: #0f172a; }
+  .obs-record-reading summary::-webkit-details-marker { display: none; }
+  .obs-record-reading-summary-sub { color: #64748b; font-size: 10px; font-weight: 800; white-space: nowrap; }
+  .obs-record-reading-body { display: grid; gap: 10px; padding-top: 8px; }
+  .obs-record-reading-card { display: grid; gap: 7px; padding: 12px; border: 1px solid rgba(15,23,42,.08); border-radius: 12px; background: rgba(255,255,255,.78); }
+  .obs-record-reading-card h3 { margin: 0; color: #0f172a; font-size: 13px; line-height: 1.4; letter-spacing: 0; }
+  .obs-record-reading-card p { font-size: 12px; line-height: 1.72; font-weight: 650; color: #334155; }
+  .obs-record-reading-axis { width: fit-content; padding: 3px 7px; border-radius: 999px; background: rgba(14,165,233,.10); color: #0369a1; font-size: 10px; font-weight: 900; }
+  .obs-record-reading-sources { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .obs-record-reading-sources a { display: inline-flex; min-height: 28px; align-items: center; padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(15,23,42,.10); color: #0f766e; background: rgba(240,253,250,.86); font-size: 10px; font-weight: 850; text-decoration: none; }
+  .obs-record-reading-note { color: #64748b; font-size: 10.5px; line-height: 1.55; font-weight: 750; }
+  .obs-record-reading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .obs-record-reading-button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 6px; padding: 7px 11px; border-radius: 999px; border: 1px solid rgba(16,185,129,.22); background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 900; cursor: pointer; }
+  .obs-record-reading-button:disabled { cursor: wait; opacity: .68; }
+  .obs-record-reading-status { min-height: 18px; color: #64748b; font-size: 10.5px; font-weight: 800; }
   .obs-record-use-status { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding: 8px 9px; border-radius: 12px; background: rgba(248,250,252,.82); border: 1px solid rgba(15,23,42,.06); }
   .obs-record-use-status span { display: inline-flex; align-items: center; min-height: 22px; padding: 3px 7px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #475569; font-size: 10px; line-height: 1.2; font-weight: 950; }
   .obs-record-use-status span:first-child { background: #fff7ed; border-color: rgba(245,158,11,.24); color: #92400e; }
@@ -7030,8 +7052,62 @@ export function renderObservationRecordInsightText(options: {
   return `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
 }
 
-function renderObservationRecordInsight(text: string, className = ""): string {
-  return `<div class="obs-record-insight${className ? ` ${className}` : ""}" aria-label="この記録から言えること"><p>${escapeHtml(text)}</p></div>`;
+function recordReadingAxisLabel(axis: RecordReadingAxis): string {
+  if (axis === "organism") return "生きもの";
+  if (axis === "environment") return "環境";
+  return "人との関係";
+}
+
+function renderRecordReadingCard(card: RecordReadingCard, options: { isOwner: boolean; hideEndpoint: string }): string {
+  const sources = card.sources.slice(0, 3).map((source, index) => {
+    const label = source.title.replace(/\s+-\s+/gu, " - ");
+    return `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">出典${index + 1}: ${escapeHtml(label)}</a></li>`;
+  }).join("");
+  const ownerAction = options.isOwner
+    ? `<button class="obs-record-reading-button" type="button" data-record-reading-hide data-endpoint="${escapeHtml(options.hideEndpoint)}">非表示</button>`
+    : "";
+  return `<article class="obs-record-reading-card" data-record-reading-card="${escapeHtml(card.cardId)}">
+    <span class="obs-record-reading-axis">${escapeHtml(recordReadingAxisLabel(card.axis))}</span>
+    <h3>${escapeHtml(card.title)}</h3>
+    <p>${escapeHtml(card.body)}</p>
+    <ul class="obs-record-reading-sources" aria-label="出典">${sources}</ul>
+    ${ownerAction ? `<div class="obs-record-reading-actions">${ownerAction}</div>` : ""}
+  </article>`;
+}
+
+function renderObservationRecordInsight(
+  text: string,
+  className = "",
+  reading?: {
+    cards: RecordReadingCard[];
+    canGenerate: boolean;
+    generateEndpoint: string;
+    isOwner: boolean;
+  },
+): string {
+  const cards = reading?.cards ?? [];
+  const readingBlock = reading && (cards.length > 0 || reading.canGenerate)
+    ? `<details class="obs-record-reading"${cards.length > 0 ? " open" : ""}>
+      <summary>
+        <span>この記録を読み解く</span>
+        <span class="obs-record-reading-summary-sub">${cards.length > 0 ? `${cards.length}件` : "出典つき"}</span>
+      </summary>
+      <div class="obs-record-reading-body">
+        ${cards.map((card) => renderRecordReadingCard(card, {
+          isOwner: reading.isOwner,
+          hideEndpoint: `/api/v1/record-reading-cards/${encodeURIComponent(card.cardId)}`,
+        })).join("")}
+        ${reading.isOwner && (reading.canGenerate || cards.length > 0)
+          ? `<div class="obs-record-reading-actions">
+              <button class="obs-record-reading-button" type="button" data-record-reading-generate data-endpoint="${escapeHtml(reading.generateEndpoint)}">${cards.length > 0 ? "作り直す" : "もっと知る"}</button>
+              <span class="obs-record-reading-status" data-record-reading-status></span>
+            </div>`
+          : ""}
+        <small class="obs-record-reading-note">公開情報をもとに作成。内容は出典で確認できます。</small>
+      </div>
+    </details>`
+    : "";
+  return `<div class="obs-record-insight${className ? ` ${className}` : ""}" aria-label="この記録から言えること"><p>${escapeHtml(text)}</p>${readingBlock}</div>`;
 }
 
 function renderObservationUseStatus(snapshot: ObservationDetailSnapshot, consensus: IdentificationConsensusResult | null): string {
@@ -7274,7 +7350,52 @@ export function renderLocalObservationPolishScript(): string {
         filterAiCandidateList(search);
       });
     }
-    function run(){ bindQualityDraftEditing(); bindStoryReadAloud(); bindAiCandidateTabs(); }
+    function setRecordReadingStatus(root, text){
+      var status = root && root.querySelector ? root.querySelector('[data-record-reading-status]') : null;
+      if (status) status.textContent = text || '';
+    }
+    function bindRecordReadingCards(){
+      if (document.documentElement.getAttribute('data-record-reading-bound') === '1') return;
+      document.documentElement.setAttribute('data-record-reading-bound', '1');
+      document.addEventListener('click', function(event){
+        var generate = event.target && event.target.closest ? event.target.closest('[data-record-reading-generate]') : null;
+        if (generate) {
+          event.preventDefault();
+          var endpoint = generate.getAttribute('data-endpoint') || '';
+          var root = generate.closest('.obs-record-reading');
+          if (!endpoint || generate.disabled) return;
+          generate.disabled = true;
+          setRecordReadingStatus(root, '公開情報を確認しています');
+          fetch(endpoint, { method: 'POST', credentials: 'same-origin', headers: { 'accept': 'application/json' } })
+            .then(function(response){ return response.json().catch(function(){ return {}; }).then(function(body){ return { ok: response.ok, body: body }; }); })
+            .then(function(result){
+              if (result.ok && result.body && result.body.cards && result.body.cards.length > 0) {
+                setRecordReadingStatus(root, '読み解きを保存しました');
+                window.setTimeout(function(){ window.location.reload(); }, 350);
+                return;
+              }
+              setRecordReadingStatus(root, 'この記録から読み解ける公開情報をまだ見つけられませんでした');
+              generate.disabled = false;
+            })
+            .catch(function(){
+              setRecordReadingStatus(root, '生成に失敗しました。時間を置いてもう一度試してください');
+              generate.disabled = false;
+            });
+          return;
+        }
+        var hide = event.target && event.target.closest ? event.target.closest('[data-record-reading-hide]') : null;
+        if (!hide) return;
+        event.preventDefault();
+        var hideEndpoint = hide.getAttribute('data-endpoint') || '';
+        var card = hide.closest('[data-record-reading-card]');
+        if (!hideEndpoint || hide.disabled) return;
+        hide.disabled = true;
+        fetch(hideEndpoint, { method: 'DELETE', credentials: 'same-origin', headers: { 'accept': 'application/json' } })
+          .then(function(response){ if (!response.ok) throw new Error('hide_failed'); if (card) card.remove(); })
+          .catch(function(){ hide.disabled = false; hide.textContent = '失敗'; });
+      });
+    }
+    function run(){ bindQualityDraftEditing(); bindStoryReadAloud(); bindAiCandidateTabs(); bindRecordReadingCards(); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
     window.addEventListener('ikimon:subject-rendered', function(){ window.setTimeout(run, 0); });
   })();</script>`;
@@ -15584,8 +15705,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       recordItems: visibleRecordItems,
       placeLabel: heroPlaceLabel,
     });
+    const [recordReadingCards, recordReadingAvailability] = await Promise.all([
+      listRecordReadingCards({ visitId: bundle.visitId, viewerUserId }).catch(() => []),
+      getRecordReadingAvailability({ observationId: bundle.visitId, viewerUserId }).catch(() => ({
+        canGenerate: false,
+        reason: "not_grounded" as const,
+        candidateCount: 0,
+      })),
+    ]);
+    const recordReadingInsightOptions = {
+      cards: recordReadingCards,
+      canGenerate: isOwner && recordReadingAvailability.canGenerate,
+      generateEndpoint: withBasePath(basePath, `/api/v1/observations/${encodeURIComponent(bundle.visitId)}/reading-cards`),
+      isOwner,
+    };
     const { mediaBlock, galleryScript } = renderObservationMedia(snapshot, currentSubject, mediaAnnotationTargets, {
-      afterVideoHtml: renderObservationRecordInsight(recordInsightText),
+      afterVideoHtml: renderObservationRecordInsight(recordInsightText, "", recordReadingInsightOptions),
     });
     const publicMapHref = buildPublicMapCellHref(withBasePath(basePath, "/map"), snapshot.publicLocation);
     const detailMapHref = canSeeCanonicalLocation
@@ -15766,7 +15901,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       focusRailBlock: "",
       mediaDiscoveryBlock,
       mediaLedgerBlock: renderObservationMediaLedger(snapshot, heavy?.nearby.length ?? 0),
-      recordInsightBlock: renderObservationRecordInsight(recordInsightText, "obs-record-insight-desktop"),
+      recordInsightBlock: renderObservationRecordInsight(recordInsightText, "obs-record-insight-desktop", recordReadingInsightOptions),
       useStatusBlock: "",
       identifyBlock,
       qualityBlock: renderObservationQualityCard({
