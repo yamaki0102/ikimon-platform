@@ -1062,7 +1062,7 @@ function landingGuideOutcomeGroups(snapshot: LandingSnapshot): LandingGuideOutco
     groups.set(key, {
       sessionId: key,
       observerName: item.observerName || "誰か",
-      href: item.href,
+      href: item.sessionId ? `/guide/outcomes?session=${encodeURIComponent(item.sessionId)}` : item.href,
       photoUrl: item.photoUrl,
       items: [item],
     });
