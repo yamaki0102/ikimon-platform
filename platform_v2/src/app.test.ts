@@ -33,6 +33,7 @@ test("app sends browser security headers on every response", async () => {
     assert.match(csp, /form-action 'self'/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/nominatim\.openstreetmap\.org/);
     assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/upload\.videodelivery\.net/);
+    assert.match(csp, /connect-src 'self'[\s\S]*https:\/\/upload\.cloudflarestream\.com/);
     assert.match(csp, /frame-src 'self' https:\/\/iframe\.videodelivery\.net/);
     assert.equal(response.headers["strict-transport-security"], undefined);
   } finally {

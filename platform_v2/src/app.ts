@@ -278,7 +278,7 @@ function applySecurityHeaders(reply: { getHeader(name: string): unknown; header(
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data: https://cdn.jsdelivr.net https://unpkg.com https://demotiles.maplibre.org",
-    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net",
+    "connect-src 'self' https://ikimon.life https://www.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://tile.openstreetmap.org https://nominatim.openstreetmap.org https://overpass-api.de https://demotiles.maplibre.org https://cyberjapandata.gsi.go.jp https://server.arcgisonline.com https://upload.videodelivery.net https://upload.cloudflarestream.com",
     "frame-src 'self' https://iframe.videodelivery.net",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
