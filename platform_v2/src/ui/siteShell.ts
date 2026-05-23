@@ -3169,6 +3169,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const mainClassName = ["shell", shellLayoutClassName, shellClassName].filter(Boolean).map(escapeHtml).join(" ");
   const shouldRenderFooter = false;
   const isReadingPage = isReadingSurface(currentPath);
+  const prefersCollapsedSideNav = isReadingPage || isImmersiveSurface || /\bshell-records-workbench\b/.test(shellClassName);
   const siteShellClassName = `site-shell${globalRecordNav ? " has-global-record-launcher" : ""}${isReadingPage ? " is-reading-surface" : ""}${isImmersiveSurface ? " is-immersive-surface" : ""}`;
   const appLaunchHeadScript = `<script>
 (function () {
@@ -3461,7 +3462,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 
   const desktopSideNavToggle = document.querySelector('[data-desktop-side-nav-toggle]');
   const isImmersiveSurface = Boolean(document.querySelector('.site-shell.is-immersive-surface'));
-  const prefersCollapsedSideNav = Boolean(document.querySelector('.site-shell.is-reading-surface'));
+  const prefersCollapsedSideNav = Boolean(document.querySelector('.site-shell.is-reading-surface, .shell-records-workbench'));
   function setDesktopSideNavCollapsed(collapsed) {
     document.body.classList.toggle('is-desktop-side-nav-collapsed', collapsed);
     if (desktopSideNavToggle) {
@@ -6478,7 +6479,7 @@ ${alternateLinks}
     ${options.extraStyles ?? ""}
   </style>
 </head>
-<body${isReadingPage || isImmersiveSurface ? ' class="is-desktop-side-nav-collapsed"' : ""}>
+<body${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   ${appLaunchScreenHtml}
   ${languageSuggestionHtml}

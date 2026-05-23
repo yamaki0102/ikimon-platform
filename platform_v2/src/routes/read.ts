@@ -22,7 +22,7 @@ import {
   type AuthorityRecommendationStatus,
 } from "../services/authorityRecommendations.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
-import { getLandingSnapshot } from "../services/landingSnapshot.js";
+import { getLandingOwnFeedPage, getLandingSnapshot, type LandingFeedPage } from "../services/landingSnapshot.js";
 import {
   formatActorDisplay,
   formatIdentificationCount,
@@ -8992,11 +8992,11 @@ function renderNotesLibraryScript(lang: SiteLang): string {
   if (!root) return;
   const search = root.querySelector('[data-library-search]');
   const count = root.querySelector('[data-library-visible-count]');
-  const cards = Array.from(root.querySelectorAll('[data-library-card]'));
-  const months = Array.from(root.querySelectorAll('[data-library-month]'));
   const filterButtons = Array.from(root.querySelectorAll('[data-library-filter]'));
   let activeFilter = 'all';
   function apply() {
+    const cards = Array.from(root.querySelectorAll('[data-library-card]'));
+    const months = Array.from(root.querySelectorAll('[data-library-month]'));
     const query = search ? String(search.value || '').trim().toLowerCase() : '';
     let visible = 0;
     cards.forEach(function (card) {
@@ -10333,14 +10333,124 @@ function renderRecordsPostMonths(
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(card);
   }
-  return Array.from(groups.entries()).map(([key, items]) => `<section class="records-post-month" data-library-month>
+  return Array.from(groups.entries()).map(([key, items]) => `<section class="records-post-month" data-library-month data-month-key="${escapeHtml(key)}">
     <div class="records-post-month-head">
       <span>${escapeHtml(notesLibraryMonthLabel(key, lang))}</span>
     </div>
-    <div class="records-post-grid">
+    <div class="records-post-grid" data-library-grid>
       ${items.map((card) => renderRecordsPostCard(basePath, lang, view, card, options)).join("")}
     </div>
   </section>`).join("");
+}
+
+function renderRecordsPostMonthPayload(
+  basePath: string,
+  lang: SiteLang,
+  view: RecordsWorkbenchView,
+  entries: LandingObservation[],
+  options: { locationMode: "owner" | "public"; civicContexts?: Map<string, CivicObservationContext> },
+): Array<{ key: string; label: string; cardsHtml: string; sectionHtml: string }> {
+  const cards = buildRecordsPostCards(entries, lang);
+  const groups = new Map<string, RecordsPostCard[]>();
+  for (const card of cards) {
+    const key = notesLibraryMonthKey(card);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(card);
+  }
+  return Array.from(groups.entries()).map(([key, items]) => {
+    const cardsHtml = items.map((card) => renderRecordsPostCard(basePath, lang, view, card, options)).join("");
+    return {
+      key,
+      label: notesLibraryMonthLabel(key, lang),
+      cardsHtml,
+      sectionHtml: `<section class="records-post-month" data-library-month data-month-key="${escapeHtml(key)}">
+        <div class="records-post-month-head">
+          <span>${escapeHtml(notesLibraryMonthLabel(key, lang))}</span>
+        </div>
+        <div class="records-post-grid" data-library-grid>${cardsHtml}</div>
+      </section>`,
+    };
+  });
+}
+
+function recordsLazyCopy(lang: SiteLang): { more: string; loading: string; done: string; error: string } {
+  if (lang === "en") return { more: "Load more", loading: "Loading...", done: "All records loaded", error: "Could not load more. Try again." };
+  if (lang === "es") return { more: "Cargar mas", loading: "Cargando...", done: "Todo cargado", error: "No se pudo cargar mas." };
+  if (lang === "pt-BR") return { more: "Carregar mais", loading: "Carregando...", done: "Tudo carregado", error: "Nao foi possivel carregar mais." };
+  return { more: "さらに読み込む", loading: "読み込み中...", done: "すべて読み込みました", error: "追加読み込みに失敗しました。もう一度試してください。" };
+}
+
+function renderRecordsLazyFooter(lang: SiteLang, nextCursor: string | null | undefined): string {
+  const copy = recordsLazyCopy(lang);
+  return `<div class="records-lazy-footer" data-records-lazy-footer${nextCursor ? "" : " hidden"}>
+    <button type="button" data-records-load-more data-next-cursor="${escapeHtml(nextCursor ?? "")}">${escapeHtml(copy.more)}</button>
+    <span data-records-lazy-status aria-live="polite"></span>
+  </div>`;
+}
+
+function renderRecordsLazyScript(lang: SiteLang): string {
+  const copy = recordsLazyCopy(lang);
+  return `<script>
+(function () {
+  var copy = ${JSON.stringify(copy)};
+  document.querySelectorAll('[data-records-lazy-root]').forEach(function (root) {
+    var endpoint = root.getAttribute('data-records-lazy-endpoint') || '';
+    var button = root.querySelector('[data-records-load-more]');
+    var status = root.querySelector('[data-records-lazy-status]');
+    var footer = root.querySelector('[data-records-lazy-footer]');
+    if (!endpoint || !button) return;
+    function setStatus(message) {
+      if (status) status.textContent = message || '';
+    }
+    function appendMonth(month) {
+      var months = Array.prototype.slice.call(root.querySelectorAll('[data-library-month]'));
+      var existing = months.find(function (node) { return node.getAttribute('data-month-key') === month.key; });
+      if (existing) {
+        var grid = existing.querySelector('[data-library-grid]');
+        if (grid) grid.insertAdjacentHTML('beforeend', month.cardsHtml || '');
+        return;
+      }
+      if (footer) footer.insertAdjacentHTML('beforebegin', month.sectionHtml || '');
+      else root.insertAdjacentHTML('beforeend', month.sectionHtml || '');
+    }
+    button.addEventListener('click', function () {
+      var cursor = button.getAttribute('data-next-cursor') || '';
+      if (!cursor || button.disabled) return;
+      button.disabled = true;
+      button.textContent = copy.loading;
+      setStatus('');
+      var url = endpoint + (endpoint.indexOf('?') >= 0 ? '&' : '?') + 'cursor=' + encodeURIComponent(cursor) + '&lang=${escapeHtml(lang)}';
+      fetch(url, { headers: { accept: 'application/json' }, credentials: 'same-origin' })
+        .then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (json) {
+            if (!response.ok || !json || json.ok === false) throw new Error(String((json && json.error) || response.status || 'load_failed'));
+            return json;
+          });
+        })
+        .then(function (json) {
+          (json.months || []).forEach(appendMonth);
+          if (json.nextCursor) {
+            button.setAttribute('data-next-cursor', json.nextCursor);
+            button.disabled = false;
+            button.textContent = copy.more;
+          } else {
+            button.removeAttribute('data-next-cursor');
+            if (footer) footer.hidden = true;
+            setStatus(copy.done);
+          }
+          root.dispatchEvent(new Event('input', { bubbles: true }));
+          var search = root.querySelector('[data-library-search]');
+          if (search) search.dispatchEvent(new Event('input', { bubbles: true }));
+        })
+        .catch(function () {
+          button.disabled = false;
+          button.textContent = copy.more;
+          setStatus(copy.error);
+        });
+    });
+  });
+})();
+</script>`;
 }
 
 function renderRecordsCollapsedControls(lang: SiteLang): string {
@@ -10469,11 +10579,14 @@ function renderRecordsWorkbench(
   snapshot: LandingSnapshot,
   publicEntries: LandingObservation[],
   civicContexts: Map<string, CivicObservationContext>,
+  options: { ownPage?: LandingFeedPage | null } = {},
 ): string {
   const copy = recordsWorkbenchCopy(lang);
-  const ownEntries = snapshot.viewerUserId ? snapshot.myFeed : [];
+  const ownEntries = snapshot.viewerUserId ? (options.ownPage?.entries ?? snapshot.myFeed) : [];
   const entries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
   const locationMode = view === "mine" && snapshot.viewerUserId ? "owner" : "public";
+  const lazyEndpoint = withBasePath(basePath, "/api/v1/records/mine-page");
+  const canLazyLoadMine = view === "mine" && Boolean(snapshot.viewerUserId);
   return `<div class="records-workbench" data-testid="records-workbench">
     <header class="records-topbar">
       <div class="records-topbar-brand">
@@ -10486,14 +10599,16 @@ function renderRecordsWorkbench(
       </div>
     </header>
     <main class="records-main">
-      <section class="records-grid-panel" data-notes-library>
+      <section class="records-grid-panel" data-notes-library${canLazyLoadMine ? ` data-records-lazy-root data-records-lazy-endpoint="${escapeHtml(lazyEndpoint)}"` : ""}>
         ${renderRecordsCollapsedControls(lang)}
         ${entries.length > 0
           ? renderRecordsPostMonths(basePath, lang, view, entries, { locationMode, civicContexts })
           : `<div class="notes-library-empty">${escapeHtml(copy.empty)}</div>`}
+        ${canLazyLoadMine ? renderRecordsLazyFooter(lang, options.ownPage?.nextCursor ?? null) : ""}
       </section>
     </main>
     ${renderNotesLibraryScript(lang)}
+    ${canLazyLoadMine ? renderRecordsLazyScript(lang) : ""}
   </div>`;
 }
 
@@ -10914,6 +11029,30 @@ const RECORDS_WORKBENCH_STYLES = `
     line-height: 1.35;
     font-weight: 850;
   }
+  .records-lazy-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 0 8px;
+  }
+  .records-lazy-footer[hidden] { display: none; }
+  .records-lazy-footer button {
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(15,23,42,.1);
+    background: #fff;
+    color: #10251a;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 950;
+    cursor: pointer;
+    box-shadow: 0 10px 22px rgba(15,23,42,.06);
+  }
+  .records-lazy-footer button:hover { background: #f8fafc; }
+  .records-lazy-footer button[disabled] { cursor: progress; opacity: .72; }
+  .records-lazy-footer span { color: #64748b; font-size: 12px; font-weight: 800; }
   .records-post-menu { top: 8px; right: 8px; }
   .records-workbench .notes-library-controls {
     margin-top: 8px;
@@ -14821,7 +14960,30 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return reply.redirect(appendLangToHref(withBasePath(basePath, `/records?view=public${query ? `&${query}` : ""}`), lang), 308);
   });
 
-  app.get<{ Querystring: { view?: string; filter?: string } }>("/records", async (request, reply) => {
+  app.get<{ Querystring: { cursor?: string; limit?: string; lang?: string; userId?: string } }>("/api/v1/records/mine-page", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String(request.query.lang ? `?lang=${request.query.lang}` : (request as unknown as { url?: string }).url ?? ""));
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const { viewerUserId } = resolveViewer(request.query, session);
+    if (!viewerUserId) {
+      reply.code(401);
+      return { ok: false, error: "session_required" };
+    }
+    const limit = Number.parseInt(request.query.limit ?? "36", 10);
+    const page = await getLandingOwnFeedPage(viewerUserId, { cursor: request.query.cursor, limit });
+    const civicContexts = await listCivicObservationContexts(page.entries.map((obs) => obs.visitId));
+    return {
+      ok: true,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      months: renderRecordsPostMonthPayload(basePath, lang, "mine", page.entries, {
+        locationMode: "owner",
+        civicContexts,
+      }),
+    };
+  });
+
+  app.get<{ Querystring: { view?: string; filter?: string; userId?: string } }>("/records", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
@@ -14839,8 +15001,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         },
       } satisfies ObservationListSnapshot)),
     ]);
+    const ownPage = view === "mine" && snapshot.viewerUserId
+      ? await getLandingOwnFeedPage(snapshot.viewerUserId, { limit: 36 }).catch(() => null)
+      : null;
     const publicEntries = observationSnapshot.observations.map(publicObservationToLandingObservation);
-    const activeEntries = recordWorkbenchEntriesForView(view, snapshot.viewerUserId ? snapshot.myFeed : [], publicEntries);
+    const ownEntries = snapshot.viewerUserId ? (ownPage?.entries ?? snapshot.myFeed) : [];
+    const activeEntries = recordWorkbenchEntriesForView(view, ownEntries, publicEntries);
     const civicContexts = await listCivicObservationContexts(activeEntries.map((obs) => obs.visitId));
     const copy = recordsWorkbenchCopy(lang);
 
@@ -14854,7 +15020,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       shellClassName: "shell-bleed shell-records-workbench",
       extraStyles: `${NOTES_LIBRARY_STYLES}\n${RECORDS_WORKBENCH_STYLES}`,
       hideFooter: true,
-      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts),
+      body: renderRecordsWorkbench(basePath, lang, view, snapshot, publicEntries, civicContexts, { ownPage }),
       footerNote: notesLibraryCopy(lang).footerNote,
     });
   });

@@ -195,6 +195,7 @@ test("records workbench unifies personal library and public observations", async
   try {
     const response = await app.inject({ method: "GET", url: "/records?lang=ja", headers: { accept: "text/html" } });
     assert.equal(response.statusCode, 200);
+    assert.match(response.body, /<body class="is-desktop-side-nav-collapsed">/);
     assert.match(response.body, /data-testid="records-workbench"/);
     assert.match(response.body, /記録を見る/);
     assert.match(response.body, /自分/);
@@ -316,6 +317,8 @@ test("records mine tab opens directly into the card grid instead of a story hero
         });
         assert.equal(response.statusCode, 200);
         assert.match(response.body, /records-post-grid/);
+        assert.match(response.body, /data-records-lazy-root/);
+        assert.match(response.body, /data-records-lazy-endpoint="\/api\/v1\/records\/mine-page"/);
         assert.doesNotMatch(response.body, /自分の自然観察ストーリー/);
         assert.doesNotMatch(response.body, /最初の章を始める。/);
         assert.doesNotMatch(response.body, /data-kpi-action="records:story:first_record"/);
