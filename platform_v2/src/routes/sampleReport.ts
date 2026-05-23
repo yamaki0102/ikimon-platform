@@ -185,8 +185,19 @@ const TAB_STYLES = `
   padding: 6px 4px;
 }
 .rs-tabs-list .rs-tab { font-size: 11px; padding: 5px 10px; }
+.rs-monitoring-cta{max-width:920px;margin:18px auto 0;padding:16px;border:1px solid #cbd5e1;border-radius:8px;background:#ffffff;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.rs-monitoring-cta strong{display:block;color:#0f172a;font-size:15px}
+.rs-monitoring-cta span{display:block;color:#475569;font-size:12px;margin-top:3px}
+.rs-monitoring-cta a{min-height:38px;display:inline-flex;align-items:center;border-radius:7px;background:#0f766e;color:#fff;text-decoration:none;font-weight:800;padding:0 13px;font-size:13px}
 @media print { .rs-tabs { display: none; } }
 `;
+
+function monitoringApplyCta(basePath: string): string {
+  return `<div class="rs-monitoring-cta">
+    <div><strong>IKIMON Monitoring の先行相談</strong><span>提供準備中です。年100万円、地域育成価格候補50万円。契約前に価格と適用条件を確認します。</span></div>
+    <a href="${escapeHtml(withBasePath(basePath, "/for-business/monitoring/apply"))}">先行相談へ</a>
+  </div>`;
+}
 
 export async function registerSampleReportRoute(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { place_id?: string; demo?: string; narrative?: string; lang?: string; window?: string } }>(
@@ -280,6 +291,7 @@ export async function registerSampleReportRoute(app: FastifyInstance): Promise<v
         },
         body: `<div class="lower-page">
           ${tabs}
+          ${monitoringApplyCta(basePath)}
           ${panel}
         </div>`,
       });

@@ -981,6 +981,17 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     legacyRedirects: ["/for-business/apply.php", "/for-business/create.php"],
   },
   {
+    path: "/for-business/monitoring/apply",
+    lane: "business",
+    layout: "reading",
+    audience: "business",
+    auth: "public",
+    navVisibility: ["footer", "qa", "xml"],
+    title: { ja: "IKIMON Monitoring 先行相談", en: "IKIMON Monitoring early consultation" },
+    summary: { ja: "地域・企業・自治体向けのモニタリングサービス提供準備中ページ。", en: "Preparation-stage consultation page for IKIMON Monitoring." },
+    primaryAction: { href: "/for-business/monitoring/apply", label: { ja: "先行相談する", en: "Request consultation" } },
+  },
+  {
     path: "/for-researcher/apply",
     lane: "research",
     layout: "reading",

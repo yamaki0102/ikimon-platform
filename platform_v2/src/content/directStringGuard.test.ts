@@ -26,6 +26,7 @@ const explicitAllowlist = [
   "platform_v2/src/routes/invasiveSpecies.ts",
   "platform_v2/src/routes/marketing.ts",
   "platform_v2/src/routes/meSubscriptionsApi.ts",
+  "platform_v2/src/routes/monitoringBusiness.ts",
   "platform_v2/src/routes/observationEventApi.ts",
   "platform_v2/src/routes/observationEventPages.ts",
   "platform_v2/src/routes/observationFieldsApi.ts",
