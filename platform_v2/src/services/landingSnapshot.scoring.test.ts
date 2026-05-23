@@ -343,3 +343,18 @@ test("landing top uses a separate personal guide shelf when guide records exist"
   assert.deepEqual(guideShelf.items.map((item) => "guideRecordId" in item ? item.guideRecordId : item.occurrenceId), [ownGuideItem.guideRecordId]);
   assert.equal(todayShelf.items.some((item) => "guideRecordId" in item && item.guideRecordId === ownGuideItem.guideRecordId), false);
 });
+
+test("landing top keeps personal guide records for fixture-named QA users", () => {
+  const ownGuideItem = topGuideItem(31, {
+    observerName: "staging-regression qa user",
+  });
+
+  const { shelves } = buildLandingTopShelves([], {
+    now: new Date("2026-04-24T00:00:00.000Z"),
+    extraItems: [ownGuideItem],
+  });
+
+  const guideShelf = shelves.find((shelf) => shelf.kind === "guide");
+  assert.ok(guideShelf);
+  assert.deepEqual(guideShelf.items.map((item) => "guideRecordId" in item ? item.guideRecordId : item.occurrenceId), [ownGuideItem.guideRecordId]);
+});
