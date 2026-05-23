@@ -43,6 +43,7 @@ export type PlaceSnapshotObservationSummary = {
   totalEvents: number;
   liveEvents: number;
   uniqueTaxa: number;
+  latestObservedAt: string | null;
   taxonRankCount: number;
   seasonsCovered: number;
   seasonCoverageCap: number;
@@ -147,6 +148,7 @@ type CanonicalAgg = {
   totalObservations: number;
   totalVisits: number;
   uniqueTaxa: number;
+  latestObservedAt: string | null;
   taxonRankCount: number;
   months: number[];
   effortFilled: number;
@@ -356,6 +358,7 @@ function buildObservationSummary(args: {
     totalEvents: stats.totalSessions,
     liveEvents: stats.liveSessions,
     uniqueTaxa,
+    latestObservedAt: canonical.latestObservedAt,
     taxonRankCount: canonical.taxonRankCount,
     seasonsCovered: seasonLabels.length,
     seasonCoverageCap: 4,
@@ -799,6 +802,7 @@ async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null
     totalObservations: 0,
     totalVisits: 0,
     uniqueTaxa: 0,
+    latestObservedAt: null,
     taxonRankCount: 0,
     months: [],
     effortFilled: 0,
@@ -818,6 +822,7 @@ async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null
         visit_count: string;
         occurrence_count: string;
         unique_taxa: string;
+        latest_observed_at: string | null;
         taxon_rank_count: string;
         months: number[] | null;
         effort_filled: string;
@@ -848,6 +853,7 @@ async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null
             (select count(distinct visit_id)::text from field_visits) as visit_count,
             (select count(*)::text from field_occ) as occurrence_count,
             (select count(distinct coalesce(nullif(scientific_name, ''), nullif(vernacular_name, ''), occurrence_id))::text from field_occ) as unique_taxa,
+            (select max(observed_at)::text from field_visits) as latest_observed_at,
             (select count(distinct taxon_rank)::text from field_occ where taxon_rank is not null and taxon_rank <> '') as taxon_rank_count,
             (select array(select distinct extract(month from observed_at)::int from field_visits order by 1)) as months,
             (select count(*) filter (where effort_minutes is not null or distance_meters is not null)::text from field_visits) as effort_filled,
@@ -866,6 +872,7 @@ async function loadCanonicalAgg(scopedVisitIds: string[], placeId: string | null
         totalObservations: Number(row.occurrence_count ?? 0),
         totalVisits: Number(row.visit_count ?? 0),
         uniqueTaxa: Number(row.unique_taxa ?? 0),
+        latestObservedAt: row.latest_observed_at ?? null,
         taxonRankCount: Number(row.taxon_rank_count ?? 0),
         months: row.months ?? [],
         effortFilled: Number(row.effort_filled ?? 0),

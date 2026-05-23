@@ -426,6 +426,7 @@ test("major routes keep route-metadata layout contracts", () => {
     { path: "/community", layout: "wide", className: "shell-layout-wide" },
     { path: "/community/events", layout: "wide", className: "shell-layout-wide" },
     { path: "/community/fields", layout: "wide", className: "shell-layout-wide" },
+    { path: "/community/fields/demo-field", layout: "wide", className: "shell-layout-wide" },
     { path: "/for-business", layout: "wide", className: "shell-layout-wide" },
     { path: "/for-business/demo", layout: "wide", className: "shell-layout-wide" },
   ] as const;

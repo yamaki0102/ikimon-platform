@@ -871,6 +871,20 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "フィールド DB" }, readySelector: ".evt-hero", screenshot: { baselineName: "registry-observation-fields" } },
   },
   {
+    path: "/community/fields/:fieldId",
+    lane: "group",
+    layout: "wide",
+    audience: "public",
+    auth: "public",
+    navVisibility: ["footer", "qa", "xml"],
+    title: { ja: "フィールド詳細", en: "Field detail" },
+    summary: {
+      ja: "登録フィールドの観察実績、季節、場所スナップショットを見る。",
+      en: "Review observations, seasons, and the place snapshot for a registered field.",
+    },
+    primaryAction: { href: "/community/fields", label: { ja: "フィールドを探す", en: "Browse fields" } },
+  },
+  {
     path: "/for-business",
     lane: "business",
     layout: "wide",

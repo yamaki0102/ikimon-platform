@@ -64,6 +64,7 @@ test("empty place snapshot keeps claims modest and points to first event", () =>
       totalObservations: 0,
       totalVisits: 0,
       uniqueTaxa: 0,
+      latestObservedAt: null,
       taxonRankCount: 0,
       months: [],
       effortFilled: 0,
@@ -101,6 +102,7 @@ test("place snapshot aggregates multi-season evidence without certainty claims",
       totalObservations: 8,
       totalVisits: 4,
       uniqueTaxa: 4,
+      latestObservedAt: "2026-04-18T09:00:00.000Z",
       taxonRankCount: 3,
       months: [4, 7, 10],
       effortFilled: 3,
@@ -151,6 +153,7 @@ test("place snapshot aggregates multi-season evidence without certainty claims",
   });
 
   assert.equal(snapshot.observationSummary.totalObservations, 8);
+  assert.equal(snapshot.observationSummary.latestObservedAt, "2026-04-18T09:00:00.000Z");
   assert.deepEqual(snapshot.observationSummary.seasonLabels, ["春", "夏", "秋"]);
   assert.equal(snapshot.observationSummary.effortCompletionRate, 0.75);
   assert.ok(snapshot.claimBoundary.canSay.some((claim) => claim.includes("地域仮説は断定ではなく")));
@@ -173,6 +176,7 @@ test("place snapshot surfaces vegetation priority tasks and editable site policy
       totalObservations: 6,
       totalVisits: 3,
       uniqueTaxa: 3,
+      latestObservedAt: null,
       taxonRankCount: 2,
       months: [4, 5],
       effortFilled: 2,
@@ -230,6 +234,7 @@ test("place snapshot teaser embeds a light field-detail entry point", () => {
       totalObservations: 3,
       totalVisits: 2,
       uniqueTaxa: 2,
+      latestObservedAt: null,
       taxonRankCount: 1,
       months: [5],
       effortFilled: 1,
@@ -261,6 +266,7 @@ test("school place snapshot exposes education-specific album profiles", () => {
       totalObservations: 0,
       totalVisits: 0,
       uniqueTaxa: 0,
+      latestObservedAt: null,
       taxonRankCount: 0,
       months: [],
       effortFilled: 0,
@@ -292,6 +298,7 @@ test("area place snapshot renders a public place album", () => {
       totalObservations: 3,
       totalVisits: 2,
       uniqueTaxa: 2,
+      latestObservedAt: null,
       taxonRankCount: 1,
       months: [5],
       effortFilled: 1,
@@ -404,6 +411,7 @@ test("area place snapshot marks viewer-only memories without public sharing acti
       totalObservations: 1,
       totalVisits: 1,
       uniqueTaxa: 1,
+      latestObservedAt: null,
       taxonRankCount: 1,
       months: [5],
       effortFilled: 0,
@@ -543,6 +551,7 @@ test("place snapshot separates machine AI candidates from reviewer verified reco
       totalObservations: 2,
       totalVisits: 1,
       uniqueTaxa: 1,
+      latestObservedAt: null,
       taxonRankCount: 1,
       months: [5],
       effortFilled: 1,
