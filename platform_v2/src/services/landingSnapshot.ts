@@ -446,6 +446,59 @@ const PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL = `
   and coalesce(o.source_payload->>'source', '') !~* '^(dummy|seed|sample[-_])'
 `;
 
+const LANDING_PUBLIC_FEED_SQL = `
+  with other_public_feed as materialized (
+    ${FEED_SQL_BASE}
+    where ($1::text is null or v.user_id is distinct from $1::text)
+      and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
+      and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
+      and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+      and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
+    order by v.observed_at desc
+    limit 720
+  ),
+  viewer_public_feed as materialized (
+    ${FEED_SQL_BASE}
+    where $1::text is not null
+      and v.user_id = $1::text
+      and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
+      and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
+      and ${PUBLIC_OBSERVATION_QUALITY_SQL}
+      and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL}
+    order by v.observed_at desc
+    limit 120
+  ),
+  recent_public_feed as (
+    select other_public_feed.*, false as viewer_owned
+    from other_public_feed
+    union all
+    select viewer_public_feed.*, true as viewer_owned
+    from viewer_public_feed
+  ),
+  ranked_public_feed as (
+    select
+      recent_public_feed.*,
+      row_number() over (
+        partition by coalesce(
+          nullif(observer_user_id::text, ''),
+          nullif(observer_name, ''),
+          'visit:' || visit_id
+        )
+        order by observed_at::timestamptz desc, occurrence_id
+      ) as observer_rank
+    from recent_public_feed
+  )
+  select *
+  from ranked_public_feed
+  where observer_rank <= 12
+  order by
+    viewer_owned asc,
+    case when observer_rank = 1 then 0 else 1 end,
+    observed_at::timestamptz desc,
+    occurrence_id
+  limit 180
+`;
+
 const LANDING_NEARBY_FIELD_ACTIVITY_SQL = `
   with recent_public_observations as (
     select
@@ -1500,9 +1553,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   // before rendering shelves.
   let feedRows: FeedRow[] = [];
   try {
-    const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL} and ${PUBLIC_OBSERVATION_QUALITY_SQL} and ${PUBLIC_OBSERVATION_HAS_VALID_MEDIA_SQL} order by v.observed_at desc limit 120`,
-    );
+    const result = await pool.query<FeedRow>(LANDING_PUBLIC_FEED_SQL, [userId]);
     feedRows = result.rows;
   } catch {
     feedRows = [];
