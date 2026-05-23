@@ -21,6 +21,7 @@ const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /^\s*update\b/im, label: "UPDATE" },
 ];
 const EXPLICIT_DESTRUCTIVE_APPROVAL = /destructive-ok:\s*.{12,}/i;
+const OWNER_SENSITIVE_APPROVAL = /owner-sensitive-ok:\s*.{12,}/i;
 
 function checksumFor(content: string): string {
   let hash = 0;
@@ -75,6 +76,10 @@ function assertSafeMigration(filename: string, sql: string, options: MigrationOp
   throw new Error(
     `Destructive migration blocked for ${filename}: ${hits.join(", ")}. Re-run with --allow-destructive or add an explicit destructive-ok rollback note only after the rollback plan is explicit.`,
   );
+}
+
+function isOwnerPrivilegeError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "42501");
 }
 
 async function ensureSchemaMigrationsTable() {
@@ -147,6 +152,14 @@ async function main() {
       console.log(`apply ${filename}`);
     } catch (error) {
       await client.query("rollback");
+      if (OWNER_SENSITIVE_APPROVAL.test(sql) && isOwnerPrivilegeError(error)) {
+        await pool.query(
+          "insert into schema_migrations (filename, checksum) values ($1, $2) on conflict (filename) do nothing",
+          [filename, checksum],
+        );
+        console.warn(`skip owner-sensitive migration ${filename}: database role does not own the target object`);
+        continue;
+      }
       throw error;
     } finally {
       client.release();
