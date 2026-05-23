@@ -1120,36 +1120,51 @@ function perspectiveCounts(rows: AreaPerspectiveRow[]): Map<AreaPerspectiveKey, 
 
 function rowsToGalleryCards(rows: AreaPerspectiveRow[], limit = 6): AreaObservationGalleryItem[] {
   const current = currentSeasonKey();
-  const seen = new Set<string>();
-  const cards: AreaObservationGalleryItem[] = [];
+  const groupedRows = new Map<string, AreaPerspectiveRow[]>();
   for (const row of rows) {
-    const key = row.occurrence_id || row.visit_id;
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
+    const key = row.visit_id || row.occurrence_id;
+    if (!key) continue;
+    const group = groupedRows.get(key);
+    if (group) {
+      group.push(row);
+    } else {
+      groupedRows.set(key, [row]);
+    }
+  }
+  const cards: AreaObservationGalleryItem[] = [];
+  for (const groupRows of groupedRows.values()) {
+    const row = groupRows.find((candidate) => candidate.photo_url) ?? groupRows[0];
+    if (!row) continue;
     const observed = row.observed_at ? new Date(row.observed_at) : null;
     const season = observed && !Number.isNaN(observed.getTime())
       ? monthToSeasonKey(observed.getUTCMonth() + 1)
       : null;
+    const displayName = friendlyObservationName({
+      displayName: row.display_name,
+      vernacularName: row.vernacular_name,
+      kingdom: row.kingdom,
+      className: row.class_name,
+      orderName: row.order_name,
+      family: row.family,
+      scientificName: row.scientific_name,
+      sourceKind: row.source_kind,
+      roleTag: row.role_tag,
+      sensitive: row.privacy_reason === "大切な場所を守るため公開範囲を小さくしています",
+    });
+    const recentObservationCount = groupRows.filter((candidate) => (
+      candidate.observed_at
+        ? new Date(candidate.observed_at).getTime() >= Date.now() - 90 * 86400000
+        : false
+    )).length;
     cards.push({
       occurrenceId: row.occurrence_id,
       visitId: row.visit_id,
-      displayName: friendlyObservationName({
-        displayName: row.display_name,
-        vernacularName: row.vernacular_name,
-        kingdom: row.kingdom,
-        className: row.class_name,
-        orderName: row.order_name,
-        family: row.family,
-        scientificName: row.scientific_name,
-        sourceKind: row.source_kind,
-        roleTag: row.role_tag,
-        sensitive: row.privacy_reason === "大切な場所を守るため公開範囲を小さくしています",
-      }),
+      displayName: groupRows.length > 1 ? `${displayName} ほか${groupRows.length - 1}件` : displayName,
       observedAt: row.observed_at,
       photoUrl: normalizeAssetUrl(row.photo_url),
       localityLabel: row.locality_label,
-      observationCount: 1,
-      recentObservationCount: row.observed_at ? (new Date(row.observed_at).getTime() >= Date.now() - 90 * 86400000 ? 1 : 0) : 0,
+      observationCount: groupRows.length,
+      recentObservationCount,
       likeCount: 0,
       season,
       seasonLabel: season ? seasonLabel(season) : null,

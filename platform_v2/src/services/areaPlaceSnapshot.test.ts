@@ -36,3 +36,12 @@ test("area snapshot keeps viewer-only memories separate from public album cards"
   assert.match(source, /位置を守るため自分だけ表示/);
   assert.match(source, /大切な場所を守るため公開範囲を小さくしています/);
 });
+
+test("area snapshot gallery cards collapse multiple observations from the same visit", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "areaPlaceSnapshot.ts"), "utf8");
+
+  assert.match(source, /const groupedRows = new Map<string, AreaPerspectiveRow\[\]>\(\);/);
+  assert.match(source, /const key = row\.visit_id \|\| row\.occurrence_id;/);
+  assert.match(source, /displayName: groupRows\.length > 1 \? `\$\{displayName\} ほか\$\{groupRows\.length - 1\}件` : displayName,/);
+  assert.match(source, /observationCount: groupRows\.length,/);
+});
