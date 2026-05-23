@@ -10398,6 +10398,7 @@ function renderRecordsLazyScript(lang: SiteLang): string {
     var button = root.querySelector('[data-records-load-more]');
     var status = root.querySelector('[data-records-lazy-status]');
     var footer = root.querySelector('[data-records-lazy-footer]');
+    var loading = false;
     if (!endpoint || !button) return;
     function setStatus(message) {
       if (status) status.textContent = message || '';
@@ -10413,9 +10414,10 @@ function renderRecordsLazyScript(lang: SiteLang): string {
       if (footer) footer.insertAdjacentHTML('beforebegin', month.sectionHtml || '');
       else root.insertAdjacentHTML('beforeend', month.sectionHtml || '');
     }
-    button.addEventListener('click', function () {
+    function loadMore() {
       var cursor = button.getAttribute('data-next-cursor') || '';
-      if (!cursor || button.disabled) return;
+      if (!cursor || button.disabled || loading) return;
+      loading = true;
       button.disabled = true;
       button.textContent = copy.loading;
       setStatus('');
@@ -10446,8 +10448,18 @@ function renderRecordsLazyScript(lang: SiteLang): string {
           button.disabled = false;
           button.textContent = copy.more;
           setStatus(copy.error);
+        })
+        .finally(function () {
+          loading = false;
         });
-    });
+    }
+    button.addEventListener('click', loadMore);
+    if ('IntersectionObserver' in window && footer) {
+      var observer = new IntersectionObserver(function (entries) {
+        if (entries.some(function (entry) { return entry.isIntersecting; })) loadMore();
+      }, { rootMargin: '640px 0px 640px 0px' });
+      observer.observe(footer);
+    }
   });
 })();
 </script>`;
