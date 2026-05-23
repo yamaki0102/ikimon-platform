@@ -46,6 +46,7 @@ import {
 } from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
+import { generateRecordReadingCards, hideRecordReadingCard } from "../services/recordReadingCards.js";
 import {
   emitAreaWatchNotificationForObservation,
   ensureAreaWatchParticipationForVisit,
@@ -97,6 +98,7 @@ function errorStatus(error: unknown, fallback = 400): number {
   }
   if (
     error.message === "observation_not_found" ||
+    error.message === "record_reading_card_not_found" ||
     error.message === "dispute_not_found" ||
     error.message === "video_not_found" ||
     error.message === "observation_video_not_found" ||
@@ -1159,6 +1161,56 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return { ok: true, ...result };
       } catch (error) {
         const message = error instanceof Error ? error.message : "reassess_failed";
+        reply.code(errorStatus(error, 500));
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  // 記録詳細の「この記録を読み解く」カード生成。session + owner only。
+  // 保存するのは本文・出典・生成条件のみで、展示文や検索本文は保持しない。
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/observations/:id/reading-cards",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const result = await generateRecordReadingCards({
+          observationId: request.params.id,
+          actorUserId: session.userId,
+        });
+        if (result.cards.length === 0) {
+          reply.code(422);
+        }
+        return { ok: result.cards.length > 0, ...result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "record_reading_cards_failed";
+        reply.code(errorStatus(error, 500));
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  app.delete<{ Params: { cardId: string } }>(
+    "/api/v1/record-reading-cards/:cardId",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        const result = await hideRecordReadingCard({
+          cardId: request.params.cardId,
+          actorUserId: session.userId,
+        });
+        return { ok: true, ...result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "record_reading_card_hide_failed";
         reply.code(errorStatus(error, 500));
         return { ok: false, error: message };
       }
