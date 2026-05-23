@@ -30,6 +30,27 @@ test("landing public feed keeps enough records for the content wall", async () =
   assert.doesNotMatch(feedAssembly, /const publicFeed = selectedFeed\.length/);
 });
 
+test("landing public feed ranks by observer so one active poster cannot monopolize everyone records", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
+  const publicFeedQuery = source.slice(
+    source.indexOf("const LANDING_PUBLIC_FEED_SQL"),
+    source.indexOf("const LANDING_NEARBY_FIELD_ACTIVITY_SQL"),
+  );
+
+  assert.match(publicFeedQuery, /other_public_feed as materialized/);
+  assert.match(publicFeedQuery, /\(\$1::text is null or v\.user_id is distinct from \$1::text\)/);
+  assert.match(publicFeedQuery, /viewer_public_feed as materialized/);
+  assert.match(publicFeedQuery, /v\.user_id = \$1::text/);
+  assert.match(publicFeedQuery, /select other_public_feed\.\*, false as viewer_owned/);
+  assert.match(publicFeedQuery, /row_number\(\) over \(/);
+  assert.match(publicFeedQuery, /partition by coalesce\(/);
+  assert.match(publicFeedQuery, /nullif\(observer_user_id::text, ''\)/);
+  assert.match(publicFeedQuery, /where observer_rank <= 12/);
+  assert.match(publicFeedQuery, /viewer_owned asc/);
+  assert.match(publicFeedQuery, /case when observer_rank = 1 then 0 else 1 end/);
+  assert.match(publicFeedQuery, /limit 180/);
+});
+
 test("landing nearby shelf uses named registered fields instead of municipality cells", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
   const nearbyQuery = source.slice(
