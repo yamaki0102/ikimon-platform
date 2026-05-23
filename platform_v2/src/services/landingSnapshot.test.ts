@@ -16,6 +16,24 @@ test("viewer own landing feed excludes staging smoke fixtures", async () => {
   assert.match(source, /smoke\[-_\]\?regression/);
 });
 
+test("records workbench own feed uses cursor pagination by visit", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
+  const pageSource = source.slice(
+    source.indexOf("const LANDING_FEED_PAGE_DEFAULT_LIMIT"),
+    source.indexOf("export async function getLandingSnapshot"),
+  );
+  const pageFunctionSource = source.slice(
+    source.indexOf("export async function getLandingOwnFeedPage"),
+    source.indexOf("export async function getLandingSnapshot"),
+  );
+
+  assert.match(pageSource, /LANDING_FEED_PAGE_DEFAULT_LIMIT = 36/);
+  assert.match(pageFunctionSource, /select v\.visit_id::text as visit_id/);
+  assert.match(pageFunctionSource, /and \(v\.observed_at, v\.visit_id\) < \(\$3::timestamptz, \$4::uuid\)/);
+  assert.match(pageFunctionSource, /o\.visit_id = any\(\$2::uuid\[\]\)/);
+  assert.doesNotMatch(pageFunctionSource, /limit 72/);
+});
+
 test("landing public feed keeps enough records for the content wall", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "landingSnapshot.ts"), "utf8");
   const feedAssembly = source.slice(

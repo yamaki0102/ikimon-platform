@@ -257,6 +257,41 @@ type NearbyEventRow = {
   participant_count: string | number | null;
 };
 
+export type LandingFeedPage = {
+  entries: LandingObservation[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+const LANDING_FEED_PAGE_DEFAULT_LIMIT = 36;
+const LANDING_FEED_PAGE_MAX_LIMIT = 72;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizeLandingFeedPageLimit(limit: number | null | undefined): number {
+  if (!Number.isFinite(Number(limit))) return LANDING_FEED_PAGE_DEFAULT_LIMIT;
+  return Math.max(12, Math.min(LANDING_FEED_PAGE_MAX_LIMIT, Math.trunc(Number(limit))));
+}
+
+function encodeLandingFeedCursor(input: { observedAt: string; visitId: string }): string {
+  return Buffer.from(JSON.stringify(input), "utf8").toString("base64url");
+}
+
+function decodeLandingFeedCursor(cursor: string | null | undefined): { observedAt: string; visitId: string } | null {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
+      observedAt?: unknown;
+      visitId?: unknown;
+    };
+    const observedAt = typeof parsed.observedAt === "string" ? parsed.observedAt : "";
+    const visitId = typeof parsed.visitId === "string" ? parsed.visitId : "";
+    if (!observedAt || !UUID_RE.test(visitId) || Number.isNaN(new Date(observedAt).getTime())) return null;
+    return { observedAt, visitId };
+  } catch {
+    return null;
+  }
+}
+
 const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
   userIdExpr: "v.user_id",
   displayNameExpr: "u.display_name",
@@ -1521,6 +1556,67 @@ function computeStreakFromDays(days: string[], todayIso: string, yesterdayIso: s
     cursor = prev.toISOString().slice(0, 10);
   }
   return streak;
+}
+
+export async function getLandingOwnFeedPage(
+  userId: string,
+  options: { limit?: number; cursor?: string | null } = {},
+): Promise<LandingFeedPage> {
+  const pool = getPool();
+  const limit = normalizeLandingFeedPageLimit(options.limit);
+  const cursor = decodeLandingFeedCursor(options.cursor);
+  const visitParams: unknown[] = [userId, limit + 1];
+  let cursorSql = "";
+  if (cursor) {
+    visitParams.push(cursor.observedAt, cursor.visitId);
+    cursorSql = `and (v.observed_at, v.visit_id) < ($3::timestamptz, $4::uuid)`;
+  }
+
+  const visitResult = await pool.query<{ visit_id: string; observed_at: string }>(
+    `select v.visit_id::text as visit_id,
+            v.observed_at::text as observed_at
+       from visits v
+       left join users u on u.user_id = v.user_id
+      where v.user_id = $1
+        and coalesce(v.public_visibility, 'public') <> 'hidden'
+        ${cursorSql}
+        and exists (
+          select 1
+            from occurrences o
+           where o.visit_id = v.visit_id
+             and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
+             and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
+        )
+      order by v.observed_at desc, v.visit_id desc
+      limit $2`,
+    visitParams,
+  );
+
+  const pageVisits = visitResult.rows.slice(0, limit);
+  const hasMore = visitResult.rows.length > limit;
+  if (pageVisits.length === 0) {
+    return { entries: [], nextCursor: null, hasMore: false };
+  }
+
+  const visitIds = pageVisits.map((row) => row.visit_id);
+  const feedResult = await pool.query<FeedRow>(
+    `${FEED_SQL_BASE}
+      where v.user_id = $1
+        and o.visit_id = any($2::uuid[])
+        and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
+        and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
+        and coalesce(v.public_visibility, 'public') <> 'hidden'
+      order by v.observed_at desc, v.visit_id desc, o.subject_index asc nulls last, o.created_at asc`,
+    [userId, visitIds],
+  );
+
+  const entries = filterLandingDummyObservations(feedResult.rows.map(toLandingObservation));
+  const lastVisit = pageVisits[pageVisits.length - 1]!;
+  return {
+    entries,
+    hasMore,
+    nextCursor: hasMore ? encodeLandingFeedCursor({ observedAt: lastVisit.observed_at, visitId: lastVisit.visit_id }) : null,
+  };
 }
 
 export async function getLandingSnapshot(userId: string | null): Promise<LandingSnapshot> {
