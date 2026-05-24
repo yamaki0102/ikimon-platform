@@ -49,6 +49,7 @@ import { registerSampleReportRoute } from "./routes/sampleReport.js";
 import { registerStewardshipActionRoutes } from "./routes/stewardshipActions.js";
 import { registerMonitoringBusinessRoutes } from "./routes/monitoringBusiness.js";
 import { registerMonitoringWorkspaceApiRoutes } from "./routes/monitoringWorkspaceApi.js";
+import { registerPitchRoutes } from "./routes/pitch.js";
 import {
   listPagesByLane,
   listPagesByVisibility,
@@ -744,6 +745,7 @@ export function buildApp() {
   void registerSampleReportRoute(app);
   void registerMonitoringBusinessRoutes(app);
   void registerMonitoringWorkspaceApiRoutes(app);
+  void registerPitchRoutes(app);
   void registerStewardshipActionRoutes(app);
   void registerReferenceRoutes(app);
   void registerReadRoutes(app);
