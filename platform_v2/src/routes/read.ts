@@ -11136,6 +11136,18 @@ const RECORDS_WORKBENCH_STYLES = `
     grid-row: auto;
     border-radius: 10px;
   }
+  @media (min-width: 1161px) {
+    .records-post-grid {
+      grid-template-columns: var(--ikimon-record-card-grid-desktop);
+      gap: var(--ikimon-record-card-grid-gap-desktop);
+    }
+  }
+  @media (max-width: 1020px) {
+    .records-post-grid {
+      grid-template-columns: var(--ikimon-record-card-grid-tablet);
+      gap: var(--ikimon-record-card-grid-gap-tablet);
+    }
+  }
   @media (max-width: 980px) {
     .records-topbar {
       top: 56px;
