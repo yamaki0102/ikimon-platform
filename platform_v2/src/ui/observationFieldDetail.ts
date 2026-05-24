@@ -113,13 +113,13 @@ function fieldHeroMetrics(stats: FieldStats, snapshot: PlaceSnapshot | null | un
     return [
       { value: summary.totalVisits, label: "記録回数" },
       { value: summary.uniqueTaxa, label: "累計種数" },
-      { value: summary.totalObservations, label: "累計観察" },
+      { value: summary.totalObservations, label: "累計記録" },
     ];
   }
   return [
     { value: stats.totalSessions, label: "開催回数" },
     { value: stats.uniqueSpeciesCount, label: "累計種数" },
-    { value: stats.totalObservations, label: "累計観察" },
+    { value: stats.totalObservations, label: "累計記録" },
   ];
 }
 
@@ -185,7 +185,7 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
   const missingText = missing.length > 0 ? missing.map((row) => row.label).join("・") : "四季の入口あり";
   const galleryHtml = gallery.length > 0
     ? gallery.map(renderAlbumCard).join("")
-    : `<article class="evt-card"><span class="evt-eyebrow">Area Album</span><h3 class="evt-heading">まだ観察カードはありません</h3><p class="evt-lead">この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
+    : `<article class="evt-card"><span class="evt-eyebrow">Area Album</span><h3 class="evt-heading">まだ記録カードはありません</h3><p class="evt-lead">この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
   const currentHtml = current.length > 0
     ? current.map(renderAlbumCard).join("")
     : `<article class="evt-card"><span class="evt-eyebrow">Season</span><h3 class="evt-heading">今の季節の記録を足す</h3><p class="evt-lead">季節の顔が見えると、地図からこの場所を選ぶ理由が強くなります。</p></article>`;
@@ -194,7 +194,7 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
       <div><span class="evt-eyebrow">Area Album</span><h2 class="evt-heading">地域の生きものアルバム</h2></div>
       <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(snapshot.field.fieldId)}/snapshot">公開図鑑ページ</a>
     </header>
-    <p class="evt-lead">未記録季節: ${escapeHtml(missingText)}。公園や水辺を見に来た人が、ここで何が観察されているかを写真から眺められる入口です。</p>
+    <p class="evt-lead">未記録季節: ${escapeHtml(missingText)}。公園や水辺を見に来た人が、ここにどんな記録があるかを写真から眺められる入口です。</p>
     <div class="field-album-grid">${galleryHtml}</div>
     <h3 class="evt-heading" style="font-size:18px;margin:18px 0 10px;">今の季節に見えるもの</h3>
     <div class="field-album-grid field-album-grid-compact">${currentHtml}</div>
@@ -228,7 +228,7 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
       }).join("");
 
   const topTaxa = stats.topTaxa.length === 0
-    ? `<p class="evt-lead">観察記録はまだありません。</p>`
+    ? `<p class="evt-lead">記録はまだありません。</p>`
     : stats.topTaxa.map((t) => `<span class="evt-badge evt-mode-discovery">${escapeHtml(t.name)} ×${t.count}</span>`).join(" ");
 
   const polygonJson = field.polygon ? JSON.stringify(field.polygon) : "null";
@@ -282,7 +282,7 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     <div class="evt-result-stats evt-stagger">
       ${heroMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
-    <div class="field-detail-freshness"><span>最終観察</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
+    <div class="field-detail-freshness"><span>最終記録</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
   </section>
 
   ${renderFieldTrustInfo(field)}

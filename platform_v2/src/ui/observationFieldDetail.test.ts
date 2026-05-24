@@ -100,8 +100,9 @@ test("field detail metrics use place snapshot observations when event stats are 
 
   assert.match(html, /<strong>19<\/strong><span>記録回数<\/span>/);
   assert.match(html, /<strong>43<\/strong><span>累計種数<\/span>/);
-  assert.match(html, /<strong>50<\/strong><span>累計観察<\/span>/);
-  assert.match(html, /<span>最終観察<\/span><strong>2026年5月8日<\/strong>/);
+  assert.match(html, /<strong>50<\/strong><span>累計記録<\/span>/);
+  assert.match(html, /<span>最終記録<\/span><strong>2026年5月8日<\/strong>/);
+  assert.doesNotMatch(html, /観察レコード|観察記録はまだありません|累計観察|最終観察/);
   assert.doesNotMatch(html, /<strong>0<\/strong><span>開催回数<\/span>/);
 });
 

@@ -115,7 +115,7 @@ function renderAreaAlbum(snapshot: PlaceSnapshot): string {
     : "四季の入口あり";
   const galleryHtml = gallery.length > 0
     ? gallery.map(albumCard).join("")
-    : `<article class="ps-card"><span class="ps-badge">最初の発見</span><h3>まだ観察カードはありません</h3><p>この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
+    : `<article class="ps-card"><span class="ps-badge">最初の発見</span><h3>まだ記録カードはありません</h3><p>この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
   const currentHtml = currentSeason.length > 0
     ? currentSeason.map(albumCard).join("")
     : `<article class="ps-card"><span class="ps-badge">今の季節</span><h3>今の季節の記録を足す</h3><p>春夏秋冬の同じ時期を比べられると、この場所の顔が見えやすくなります。</p></article>`;
@@ -130,7 +130,7 @@ function renderAreaAlbum(snapshot: PlaceSnapshot): string {
       </div>
       <span class="ps-source">未記録季節: ${escapeHtml(missingText)}</span>
     </div>
-    <p class="ps-section-lead">公園や水辺をクリックした人が、この場所で何が観察されているかを写真から眺められる公開図鑑です。</p>
+    <p class="ps-section-lead">公園や水辺をクリックした人が、この場所にどんな記録があるかを写真から眺められる公開図鑑です。</p>
     <div class="ps-album-grid">${galleryHtml}</div>
     <div class="ps-album-tabs">
       <section><h3>今の季節に見えるもの</h3><div class="ps-album-grid ps-album-grid-compact">${currentHtml}</div></section>
@@ -579,7 +579,7 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot, options: {
       <div>
         <div class="ps-eyebrow">${escapeHtml(snapshot.framing.publicLabel)} / ${escapeHtml(snapshot.field.sourceLabel)}</div>
         <h1>${escapeHtml(snapshot.field.name)}</h1>
-        <p>${escapeHtml(snapshot.field.locationLabel)}。観察データ、季節、仮説、次の一手を1枚で読む場所のスナップショットです。</p>
+        <p>${escapeHtml(snapshot.field.locationLabel)}。記録データ、季節、仮説、次の一手を1枚で読む場所のスナップショットです。</p>
       </div>
       <div class="ps-hero-side">
         <span>${escapeHtml(areaText)}</span>
@@ -593,7 +593,7 @@ export function renderPlaceSnapshotBody(snapshot: PlaceSnapshot, options: {
     ${renderTrustBadges(snapshot)}
 
     <section class="ps-grid ps-grid-4 ps-summary-metrics" aria-label="summary metrics">
-      ${metric("観察", fmtNumber(s.totalObservations))}
+      ${metric("記録", fmtNumber(s.totalObservations))}
       ${metric("訪問・観察会", fmtNumber(s.totalVisits), `${fmtNumber(s.totalEvents)} events`)}
       ${metric("分類群", fmtNumber(s.uniqueTaxa))}
       ${metric("季節", seasonText)}
@@ -696,10 +696,10 @@ export function renderPlaceSnapshotTeaser(snapshot: PlaceSnapshot): string {
     <div>
       <span class="evt-eyebrow">この場所のいま</span>
       <h2 class="evt-heading">場所の状態を1枚で見る</h2>
-      <p class="evt-lead">観察、季節、仮説、手入れ後の変化の兆しをまとめたスナップショットです。</p>
+      <p class="evt-lead">記録、季節、仮説、手入れ後の変化の兆しをまとめたスナップショットです。</p>
     </div>
     <div class="ps-teaser-metrics">
-      <div><strong>${fmtNumber(s.totalObservations)}</strong><span>観察</span></div>
+      <div><strong>${fmtNumber(s.totalObservations)}</strong><span>記録</span></div>
       <div><strong>${escapeHtml(seasons)}</strong><span>季節</span></div>
       <div><strong>${snapshot.relationshipScore.score.totalScore}</strong><span>関係指標</span></div>
     </div>
