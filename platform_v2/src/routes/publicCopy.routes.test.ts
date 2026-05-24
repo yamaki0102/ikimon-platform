@@ -319,6 +319,9 @@ test("records mine tab opens directly into the card grid instead of a story hero
         assert.match(response.body, /records-post-grid/);
         assert.match(response.body, /data-records-lazy-root/);
         assert.match(response.body, /data-records-lazy-endpoint="\/api\/v1\/records\/mine-page"/);
+        assert.match(response.body, /detectRecordsScrollRoot/);
+        assert.match(response.body, /addEventListener\('scroll', scheduleNearBottomCheck/);
+        assert.match(response.body, /\{ root: scroller, rootMargin: '640px 0px 640px 0px' \}/);
         assert.doesNotMatch(response.body, /自分の自然観察ストーリー/);
         assert.doesNotMatch(response.body, /最初の章を始める。/);
         assert.doesNotMatch(response.body, /data-kpi-action="records:story:first_record"/);
