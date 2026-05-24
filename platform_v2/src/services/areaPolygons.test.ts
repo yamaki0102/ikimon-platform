@@ -133,6 +133,7 @@ test("stored school point-buffer circles stay hidden even if metadata says bound
     boundary_approximation: "point_buffer",
     school_boundary: { source: "osm", matched_name: "静岡県立浜松商業高等学校" },
   }, { type: "Polygon", coordinates: [ring] }), false);
+  assert.equal(isRenderableStoredAreaPolygon("school", null, { type: "Polygon", coordinates: [ring] }), false);
 });
 
 test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {

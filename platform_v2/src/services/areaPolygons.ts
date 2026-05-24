@@ -212,8 +212,8 @@ function isGeneratedPointBufferGeometry(geometry: Record<string, unknown> | null
 
 function isRenderableStoredAreaPolygon(source: AreaPolygonSource, payload: Record<string, unknown> | null, geometry?: Record<string, unknown> | null): boolean {
   if (source !== "school") return true;
-  if (!payload || payload.boundary_approximation !== "point_buffer") return true;
   if (isGeneratedPointBufferGeometry(geometry ?? null)) return false;
+  if (!payload || payload.boundary_approximation !== "point_buffer") return true;
   return typeof payload.school_boundary === "object" && payload.school_boundary !== null;
 }
 
