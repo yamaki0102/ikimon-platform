@@ -16,6 +16,7 @@ import type {
 import { publicRegisteredAreaLine, type PublicAreaFieldRef } from "../services/publicAreaLabel.js";
 import { toThumbnailUrl, type ThumbnailPreset } from "../services/thumbnailUrl.js";
 import { renderMapMini, toMapMiniCells } from "./mapMini.js";
+import { RECORD_CARD_SIZING_TOKENS } from "./recordCardSizing.js";
 import { escapeHtml } from "./siteShell.js";
 
 export type LandingTopRenderOptions = {
@@ -1774,6 +1775,7 @@ export function renderLandingTopSections(options: LandingTopRenderOptions): Land
 }
 
 export const LANDING_TOP_STYLES = `
+  ${RECORD_CARD_SIZING_TOKENS}
   body {
     background:
       linear-gradient(90deg, rgba(16,185,129,.038) 1px, transparent 1px),
@@ -2154,8 +2156,8 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-content-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-    gap: 18px 14px;
+    grid-template-columns: var(--ikimon-record-card-grid-fluid);
+    gap: var(--ikimon-record-card-grid-gap-fluid);
   }
   .prototype-content-lanes {
     display: grid;
@@ -2239,25 +2241,25 @@ export const LANDING_TOP_STYLES = `
   .prototype-content-card {
     min-width: 0;
     display: grid;
-    gap: 9px;
+    gap: var(--ikimon-record-card-inner-gap);
     color: inherit;
     text-decoration: none;
   }
   .prototype-content-thumb {
     position: relative;
     width: 100%;
-    aspect-ratio: 4 / 5;
+    aspect-ratio: var(--ikimon-record-card-thumb-ratio);
     display: grid;
     place-items: center;
     overflow: hidden;
     border: 1px solid rgba(15,23,42,.08);
-    border-radius: 8px;
+    border-radius: var(--ikimon-record-card-thumb-radius);
     background:
       linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
       linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
       #f8fffc;
     background-size: 22px 22px, 22px 22px, auto;
-    box-shadow: 0 10px 24px rgba(15,23,42,.07);
+    box-shadow: var(--ikimon-record-card-thumb-shadow);
   }
   .prototype-content-thumb img {
     width: 100%;
@@ -2314,7 +2316,7 @@ export const LANDING_TOP_STYLES = `
   .prototype-content-body {
     min-width: 0;
     display: grid;
-    gap: 7px;
+    gap: var(--ikimon-record-card-body-gap);
   }
   .prototype-content-title-line {
     min-width: 0;
@@ -2329,8 +2331,8 @@ export const LANDING_TOP_STYLES = `
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #10251a;
-    font-size: 15px;
-    line-height: 1.38;
+    font-size: var(--ikimon-record-card-title-size);
+    line-height: var(--ikimon-record-card-title-line-height);
     font-weight: 950;
   }
   .prototype-content-subjects {
@@ -3875,8 +3877,8 @@ export const LANDING_TOP_STYLES = `
       margin-right: var(--ikimon-shell-margin-right);
     }
     .prototype-content-grid {
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 20px 14px;
+      grid-template-columns: var(--ikimon-record-card-grid-desktop);
+      gap: var(--ikimon-record-card-grid-gap-desktop);
     }
     .prototype-content-lane-head h3 {
       font-size: 19px;
@@ -3933,7 +3935,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-topa-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .prototype-topa-trust { grid-template-columns: 1fr; }
     .prototype-content-lanes.is-split { grid-template-columns: 1fr; }
-    .prototype-content-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; }
+    .prototype-content-grid { grid-template-columns: var(--ikimon-record-card-grid-tablet); gap: var(--ikimon-record-card-grid-gap-tablet); }
     .prototype-topa-map-shelf { grid-template-columns: 1fr; }
     .prototype-sound-os { grid-template-columns: 1fr; }
     .prototype-hero,
@@ -4024,13 +4026,13 @@ export const LANDING_TOP_STYLES = `
       font-size: 11px;
     }
     .prototype-content-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px 13px;
+      grid-template-columns: var(--ikimon-record-card-grid-mobile);
+      gap: var(--ikimon-record-card-grid-gap-mobile);
     }
-    .prototype-content-card { gap: 8px; }
+    .prototype-content-card { gap: var(--ikimon-record-card-inner-gap-mobile); }
     .prototype-content-thumb {
-      border-radius: 7px;
-      box-shadow: 0 8px 18px rgba(15,23,42,.07);
+      border-radius: var(--ikimon-record-card-thumb-radius-mobile);
+      box-shadow: var(--ikimon-record-card-thumb-shadow-mobile);
     }
     .prototype-content-icon-row {
       left: 7px;
@@ -4044,13 +4046,13 @@ export const LANDING_TOP_STYLES = `
       width: 12px;
       height: 12px;
     }
-    .prototype-content-body { gap: 8px; }
+    .prototype-content-body { gap: var(--ikimon-record-card-body-gap-mobile); }
     .prototype-content-title-line {
       gap: 5px;
     }
     .prototype-content-title-line > strong {
-      font-size: 13px;
-      line-height: 1.34;
+      font-size: var(--ikimon-record-card-title-size-mobile);
+      line-height: var(--ikimon-record-card-title-line-height-mobile);
     }
     .prototype-content-subjects {
       max-width: 46%;
@@ -4452,7 +4454,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-empty-actions { display: grid; grid-template-columns: 1fr; }
     .prototype-btn { width: 100%; white-space: normal; text-align: center; }
     .prototype-hero-visual { min-height: 700px; }
-    .prototype-content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 21px 12px; }
+    .prototype-content-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-compact); }
     .prototype-content-author {
       grid-template-columns: 20px minmax(0, 1fr) auto;
       column-gap: 4px;

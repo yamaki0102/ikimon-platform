@@ -33,6 +33,7 @@ import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { isOpenCandidate, rankProminentAiCandidates } from "../ui/observationCandidatePresentation.js";
+import { RECORD_CARD_SIZING_TOKENS } from "../ui/recordCardSizing.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
 import { getIdentificationConsensus, type IdentificationConsensusResult } from "../services/identificationConsensus.js";
@@ -10661,6 +10662,7 @@ function renderRecordsWorkbench(
 }
 
 const RECORDS_WORKBENCH_STYLES = `
+  ${RECORD_CARD_SIZING_TOKENS}
   .shell.shell-records-workbench {
     width: min(100%, var(--ikimon-shell-effective-w, 100%), calc(100% - var(--ikimon-shell-margin-left, 0px) - var(--ikimon-shell-margin-right, 0px)));
     max-width: none;
@@ -10914,38 +10916,38 @@ const RECORDS_WORKBENCH_STYLES = `
     max-width: 100%;
     min-width: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-    gap: 18px 14px;
+    grid-template-columns: var(--ikimon-record-card-grid-fluid);
+    gap: var(--ikimon-record-card-grid-gap-fluid);
   }
   .records-post-card {
     position: relative;
     min-width: 0;
     display: grid;
-    gap: 9px;
+    gap: var(--ikimon-record-card-inner-gap);
     color: inherit;
   }
   .records-post-card-link {
     min-width: 0;
     display: grid;
-    gap: 9px;
+    gap: var(--ikimon-record-card-inner-gap);
     color: inherit;
     text-decoration: none;
   }
   .records-post-thumb {
     position: relative;
     width: 100%;
-    aspect-ratio: 4 / 5;
+    aspect-ratio: var(--ikimon-record-card-thumb-ratio);
     display: grid;
     place-items: center;
     overflow: hidden;
     border: 1px solid rgba(15,23,42,.08);
-    border-radius: 8px;
+    border-radius: var(--ikimon-record-card-thumb-radius);
     background:
       linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
       linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
       #f8fffc;
     background-size: 22px 22px, 22px 22px, auto;
-    box-shadow: 0 10px 24px rgba(15,23,42,.07);
+    box-shadow: var(--ikimon-record-card-thumb-shadow);
   }
   .records-post-thumb img {
     width: 100%;
@@ -11025,7 +11027,7 @@ const RECORDS_WORKBENCH_STYLES = `
   .records-post-body {
     min-width: 0;
     display: grid;
-    gap: 7px;
+    gap: var(--ikimon-record-card-body-gap);
   }
   .records-post-title-line {
     min-width: 0;
@@ -11040,8 +11042,8 @@ const RECORDS_WORKBENCH_STYLES = `
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #10251a;
-    font-size: 15px;
-    line-height: 1.38;
+    font-size: var(--ikimon-record-card-title-size);
+    line-height: var(--ikimon-record-card-title-line-height);
     font-weight: 950;
   }
   .records-post-subjects {
@@ -11083,8 +11085,8 @@ const RECORDS_WORKBENCH_STYLES = `
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #64748b;
-    font-size: 11px;
-    line-height: 1.35;
+    font-size: var(--ikimon-record-card-meta-size);
+    line-height: var(--ikimon-record-card-meta-line-height);
     font-weight: 850;
   }
   .records-lazy-footer {
@@ -11212,9 +11214,26 @@ const RECORDS_WORKBENCH_STYLES = `
   @media (max-width: 620px) {
     .records-topbar-brand strong { font-size: 14px; }
     .records-actions a { min-width: 34px; min-height: 34px; }
-    .records-post-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 8px; }
-    .records-post-meta { font-size: 10px; }
+    .records-post-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-mobile); }
+    .records-post-card,
+    .records-post-card-link { gap: var(--ikimon-record-card-inner-gap-mobile); }
+    .records-post-thumb {
+      border-radius: var(--ikimon-record-card-thumb-radius-mobile);
+      box-shadow: var(--ikimon-record-card-thumb-shadow-mobile);
+    }
+    .records-post-body { gap: var(--ikimon-record-card-body-gap-mobile); }
+    .records-post-title-line > strong {
+      font-size: var(--ikimon-record-card-title-size-mobile);
+      line-height: var(--ikimon-record-card-title-line-height-mobile);
+    }
+    .records-post-meta {
+      font-size: var(--ikimon-record-card-meta-size);
+      line-height: var(--ikimon-record-card-meta-line-height);
+    }
     .records-workbench .notes-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  }
+  @media (max-width: 480px) {
+    .records-post-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-compact); }
   }
 `;
 
