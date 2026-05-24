@@ -520,9 +520,9 @@ async function loadVisitSummaryObservations(
               coalesce(v.observed_municipality, p.municipality) AS municipality,
               coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
               coalesce(v.point_latitude, p.center_latitude) AS latitude,
-              coalesce(v.point_longitude, p.center_longitude) AS longitude,
-              photo.public_url AS photo_url,
-              coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
+            coalesce(v.point_longitude, p.center_longitude) AS longitude,
+            photo.public_url AS photo_url,
+            coalesce(fields.field_refs, '[]'::jsonb) AS field_refs
          FROM candidate_visits cv
          JOIN visits v ON v.visit_id = cv.visit_id
          LEFT JOIN users u ON u.user_id = v.user_id
@@ -531,8 +531,9 @@ async function loadVisitSummaryObservations(
            SELECT o.occurrence_id
              FROM occurrences o
              JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
-             JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-            WHERE o.visit_id = v.visit_id
+            JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+           WHERE o.visit_id = v.visit_id
+              AND coalesce(o.occurrence_status, 'present') <> 'absent'
               AND ${VALID_OBSERVATION_PHOTO_ASSET_SQL}
             ORDER BY o.subject_index ASC, o.created_at ASC
             LIMIT 1
@@ -602,6 +603,7 @@ async function loadVisitSummaryObservations(
           LIMIT 1
        ) ai ON true
       WHERE o.visit_id = ANY($1::text[])
+        AND coalesce(o.occurrence_status, 'present') <> 'absent'
       ORDER BY o.visit_id ASC, o.subject_index ASC, o.created_at ASC`,
     [visitIds],
   );
@@ -1729,6 +1731,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
          JOIN evidence_assets ea ON ea.occurrence_id = o.occurrence_id
          JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
         WHERE ea.occurrence_id IS NOT NULL
+          AND coalesce(o.occurrence_status, 'present') <> 'absent'
           AND (${VALID_OBSERVATION_PHOTO_ASSET_SQL} OR ${VALID_OBSERVATION_VIDEO_ASSET_SQL})
      ),
      media_flags AS (
@@ -1821,21 +1824,23 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
                 o.taxon_rank,
                 ai.recommended_taxon_name AS ai_candidate_name,
                 ai.recommended_rank AS ai_candidate_rank
-           FROM occurrences o
+          FROM occurrences o
            LEFT JOIN LATERAL (
              SELECT recommended_taxon_name, recommended_rank
                FROM observation_ai_assessments a
               WHERE a.occurrence_id = o.occurrence_id
               ORDER BY generated_at DESC
               LIMIT 1
-           ) ai ON true
-          WHERE o.occurrence_id = pm.occurrence_id
+          ) ai ON true
+         WHERE o.occurrence_id = pm.occurrence_id
+           AND coalesce(o.occurrence_status, 'present') <> 'absent'
           LIMIT 1
        ) featured ON true
        LEFT JOIN LATERAL (
          SELECT count(*)::int AS subject_count
            FROM occurrences o
           WHERE o.visit_id = v.visit_id
+            AND coalesce(o.occurrence_status, 'present') <> 'absent'
        ) subjects ON true
        LEFT JOIN LATERAL (
          SELECT count(*)::int AS identification_count
@@ -1862,7 +1867,7 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
       visitId: row.visit_id,
       detailId: row.visit_id,
       featuredOccurrenceId: row.occurrence_id,
-      featuredSubjectName: row.display_name ?? "同定待ち",
+      featuredSubjectName: displayName,
       subjectCount,
       isMultiSubject: subjectCount > 1,
       featuredConfidenceBand: null,

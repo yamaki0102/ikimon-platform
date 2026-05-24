@@ -46,6 +46,7 @@ import {
   materializeAiJudgementObservationRecord,
 } from "./aiJudgementObservationRecords.js";
 import { lookupLocalTaxonName } from "./taxonNameNormalizer.js";
+import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -699,9 +700,14 @@ function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): Gem
   const role = normalizeCandidateName(reading.role);
   if (!isSeparateVisualSubjectRole(role) || isAlternativeIdentificationRole(role)) return null;
   const local = lookupLocalTaxonName(name);
-  const scientificName = normalizeCandidateName(reading.scientific_name) || local?.scientificName || "";
-  if (!name && !scientificName) return null;
-  if (!scientificName && isUnhelpfulGenericCandidateName(name)) return null;
+  const gated = normalizeBiologicalSubjectCandidate({
+    vernacularName: name,
+    scientificName: normalizeCandidateName(reading.scientific_name) || local?.scientificName || "",
+  });
+  if (!gated) return null;
+  const scientificName = gated.scientificName || "";
+  const vernacularName = gated.vernacularName || "";
+  if (!scientificName && isUnhelpfulGenericCandidateName(vernacularName)) return null;
   const rank = normalizeRank(reading.rank);
   const visible = Array.isArray(reading.visible_features)
     ? reading.visible_features.filter((value) => typeof value === "string" && value.trim()).slice(0, 3)
@@ -710,7 +716,7 @@ function candidateReadingToCoexistingTaxon(reading: GeminiCandidateReading): Gem
     ? reading.weak_points.filter((value) => typeof value === "string" && value.trim()).slice(0, 2)
     : [];
   return {
-    name,
+    name: vernacularName,
     scientific_name: scientificName,
     rank: rank === "unknown" || (rank === "lifeform" && local) ? local?.rank ?? "lifeform" : rank,
     confidence: 0.45,
@@ -758,16 +764,26 @@ function mergeCoexistingCandidates(
   const seen = new Set<string>();
   const push = (candidate: GeminiCoexistingTaxon): boolean => {
     const enriched = enrichCoexistingTaxonName(candidate);
-    const name = normalizeCandidateName(enriched.name);
-    const scientificName = normalizeCandidateName(enriched.scientific_name);
+    const gated = normalizeBiologicalSubjectCandidate({
+      vernacularName: normalizeCandidateName(enriched.name),
+      scientificName: normalizeCandidateName(enriched.scientific_name),
+    });
+    if (!gated) return false;
+    const name = gated.vernacularName || "";
+    const scientificName = gated.scientificName || "";
     if (!name && !scientificName) return false;
     if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
     if (looksLikeAlternativeIdentificationCandidate(enriched)) return false;
-    if (isSameAsPrimaryCandidate(enriched, primary)) return false;
-    const key = coexistingCandidateKey(enriched) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
+    const normalizedCandidate = {
+      ...enriched,
+      name,
+      scientific_name: scientificName,
+    };
+    if (isSameAsPrimaryCandidate(normalizedCandidate, primary)) return false;
+    const key = coexistingCandidateKey(normalizedCandidate) || `${scientificName.toLowerCase()}|${name.toLowerCase()}`;
     if (!key || seen.has(key)) return false;
     seen.add(key);
-    candidates.push(enriched);
+    candidates.push(normalizedCandidate);
     return true;
   };
   for (const candidate of base) push(candidate);
@@ -1475,7 +1491,28 @@ export async function reassessObservation(
       parsed.recommended_scientific_name = recommendedScientificName;
       parsed.recommended_rank = rank;
     }
-    const bestSpecific = String(parsed.best_specific_taxon_name ?? "").trim();
+    const primaryGate = normalizeBiologicalSubjectCandidate({
+      vernacularName: recommendedName,
+      scientificName: recommendedScientificName,
+    });
+    if (primaryGate) {
+      recommendedName = primaryGate.vernacularName || primaryGate.scientificName || "";
+      recommendedScientificName = primaryGate.scientificName || "";
+      parsed.recommended_taxon_name = recommendedName;
+      parsed.recommended_scientific_name = recommendedScientificName || undefined;
+    } else {
+      recommendedName = "";
+      recommendedScientificName = "";
+      rank = "unknown";
+      parsed.recommended_taxon_name = undefined;
+      parsed.recommended_scientific_name = undefined;
+      parsed.recommended_rank = "unknown";
+    }
+    const bestSpecificGate = normalizeBiologicalSubjectCandidate({
+      vernacularName: String(parsed.best_specific_taxon_name ?? "").trim(),
+      scientificName: null,
+    });
+    const bestSpecific = bestSpecificGate?.vernacularName ?? bestSpecificGate?.scientificName ?? "";
     const narrative = String(parsed.narrative ?? "").trim();
     const simple = String(parsed.simple_summary ?? "").trim();
     const diagFeatures = Array.isArray(parsed.diagnostic_features_seen) ? parsed.diagnostic_features_seen.filter((value) => typeof value === "string") : [];

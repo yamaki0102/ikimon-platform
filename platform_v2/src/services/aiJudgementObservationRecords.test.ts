@@ -74,6 +74,18 @@ test("primary AI scientific-name backfill updates recommendation read surfaces",
   assert.match(migration, /migration_0112_primary_ai_scientific_name_backfill/);
 });
 
+test("non-biological subject repair migration is audit-backed and non-deleting", async () => {
+  const migration = await readFile(path.join(process.cwd(), "db", "migrations", "0114_repair_non_biological_subject_labels.sql"), "utf8");
+
+  assert.match(migration, /non_biological_subject_repairs/);
+  assert.match(migration, /before_payload/);
+  assert.match(migration, /candidate_status = 'dismissed'/);
+  assert.match(migration, /occurrence_status = 'absent'/);
+  assert.match(migration, /城壁/);
+  assert.doesNotMatch(migration, /\bDELETE\s+FROM\b/i);
+  assert.doesNotMatch(migration, /\bDROP\s+TABLE\b/i);
+});
+
 test("observation reassess records candidate materialization telemetry", async () => {
   const source = await readFile(path.join(process.cwd(), "src", "services", "observationReassess.ts"), "utf8");
 

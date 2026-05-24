@@ -74,6 +74,7 @@ export async function getVisitSubjectSummaries(
           LIMIT 1
        ) ai ON true
       WHERE o.visit_id = $1
+        AND coalesce(o.occurrence_status, 'present') <> 'absent'
       ORDER BY o.subject_index ASC, o.created_at ASC`,
     [visitId],
   );
