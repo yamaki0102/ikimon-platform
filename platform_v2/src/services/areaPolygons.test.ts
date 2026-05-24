@@ -114,6 +114,43 @@ test("stored school polygons enriched with an actual boundary still render", () 
   }), true);
 });
 
+test("stored school point-buffer circles stay hidden even if metadata says boundary matched", () => {
+  const center = { lat: 34.7235934, lng: 137.7120329 };
+  const radiusM = 160;
+  const ring: number[][] = [];
+  const metersPerDegreeLat = 111_320;
+  const metersPerDegreeLng = 111_320 * Math.cos(center.lat * Math.PI / 180);
+  for (let i = 0; i < 28; i += 1) {
+    const angle = (2 * Math.PI * i) / 28;
+    ring.push([
+      Number((center.lng + (Math.cos(angle) * radiusM) / metersPerDegreeLng).toFixed(7)),
+      Number((center.lat + (Math.sin(angle) * radiusM) / metersPerDegreeLat).toFixed(7)),
+    ]);
+  }
+  ring.push(ring[0]!.slice());
+
+  assert.equal(isRenderableStoredAreaPolygon("school", {
+    boundary_approximation: "point_buffer",
+    school_boundary: { source: "osm", matched_name: "静岡県立浜松商業高等学校" },
+  }, { type: "Polygon", coordinates: [ring] }), false);
+});
+
+test("stored school point-buffer rows render when the geometry is no longer a generated circle", () => {
+  assert.equal(isRenderableStoredAreaPolygon("school", {
+    boundary_approximation: "point_buffer",
+    school_boundary: { source: "osm", matched_name: "浜松第一小学校" },
+  }, {
+    type: "Polygon",
+    coordinates: [[
+      [137.39, 34.73],
+      [137.401, 34.731],
+      [137.402, 34.738],
+      [137.394, 34.739],
+      [137.39, 34.73],
+    ]],
+  }), true);
+});
+
 test("non-school stored polygons are unaffected by point-buffer payload metadata", () => {
   assert.equal(isRenderableStoredAreaPolygon("osm_park", {
     boundary_approximation: "point_buffer",

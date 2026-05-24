@@ -178,9 +178,42 @@ function normalizeAreaLayerSource(source: string | null, adminLevel: string | nu
   return (source as AreaPolygonSource | null) ?? "user_defined";
 }
 
-function isRenderableStoredAreaPolygon(source: AreaPolygonSource, payload: Record<string, unknown> | null): boolean {
+function ringLooksLikeGeneratedPointBuffer(ring: unknown): boolean {
+  if (!Array.isArray(ring) || ring.length < 20 || ring.length > 40) return false;
+  const points = ring
+    .map((point) => Array.isArray(point) && point.length >= 2 ? [Number(point[0]), Number(point[1])] : null)
+    .filter((point): point is [number, number] => point !== null && Number.isFinite(point[0]) && Number.isFinite(point[1]));
+  if (points.length !== ring.length) return false;
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  if (Math.abs(first[0] - last[0]) > 1e-9 || Math.abs(first[1] - last[1]) > 1e-9) return false;
+
+  const unique = points.slice(0, -1);
+  const centerLng = unique.reduce((sum, point) => sum + point[0], 0) / unique.length;
+  const centerLat = unique.reduce((sum, point) => sum + point[1], 0) / unique.length;
+  const cosLat = Math.max(0.05, Math.cos(centerLat * Math.PI / 180));
+  const distances = unique.map((point) => {
+    const dx = (point[0] - centerLng) * cosLat;
+    const dy = point[1] - centerLat;
+    return Math.sqrt(dx * dx + dy * dy);
+  });
+  const mean = distances.reduce((sum, distance) => sum + distance, 0) / distances.length;
+  if (!Number.isFinite(mean) || mean <= 0) return false;
+  const maxDeviation = Math.max(...distances.map((distance) => Math.abs(distance - mean)));
+  return maxDeviation / mean <= 0.03;
+}
+
+function isGeneratedPointBufferGeometry(geometry: Record<string, unknown> | null): boolean {
+  if (!geometry || geometry.type !== "Polygon" || !Array.isArray(geometry.coordinates)) return false;
+  const coordinates = geometry.coordinates as unknown[];
+  if (coordinates.length !== 1) return false;
+  return ringLooksLikeGeneratedPointBuffer(coordinates[0]);
+}
+
+function isRenderableStoredAreaPolygon(source: AreaPolygonSource, payload: Record<string, unknown> | null, geometry?: Record<string, unknown> | null): boolean {
   if (source !== "school") return true;
   if (!payload || payload.boundary_approximation !== "point_buffer") return true;
+  if (isGeneratedPointBufferGeometry(geometry ?? null)) return false;
   return typeof payload.school_boundary === "object" && payload.school_boundary !== null;
 }
 
@@ -696,10 +729,11 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
   const rows = result.rows.slice(0, limit);
   const features: AreaPolygonFeature[] = rows.flatMap((row) => {
     const source = normalizeAreaLayerSource(row.source, row.admin_level);
-    if (!isRenderableStoredAreaPolygon(source, row.payload)) return [];
     const areaHa = row.area_ha == null ? null : Number(row.area_ha);
     // 行政界 (面積 1000 ha 超) は GeoJSON が重いので、間引いた版があれば優先。
-    const useSimplified = areaHa != null && areaHa > 1000 && row.polygon_simplified;
+    const useSimplified = Boolean(areaHa != null && areaHa > 1000 && row.polygon_simplified);
+    const geometry = useSimplified ? row.polygon_simplified : row.polygon;
+    if (!isRenderableStoredAreaPolygon(source, row.payload, geometry)) return [];
     return [{
       type: "Feature",
       properties: {
@@ -721,7 +755,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         center: [Number(row.lng), Number(row.lat)],
         entity_key: row.entity_key ?? undefined,
       },
-      geometry: useSimplified ? row.polygon_simplified : row.polygon,
+      geometry,
     }];
   });
 
