@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderFieldDetailBody } from "./observationFieldDetail.js";
+import { FIELD_DETAIL_ALBUM_STYLES, renderFieldDetailBody } from "./observationFieldDetail.js";
 import type { ObservationField, FieldStats } from "../services/observationFieldRegistry.js";
 import type { AreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
 
@@ -172,4 +172,15 @@ test("field album links cards to the record instead of the subject occurrence", 
   assert.match(html, /href="\/observations\/record-1778828354813"/);
   assert.doesNotMatch(html, /href="\/observations\/occ%3Arecord-1778828354813%3A1"/);
   assert.match(html, /ツルニチニチソウ ほか1件/);
+});
+
+test("field album cards keep the same sizing contract as the landing content wall", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshotWithAlbumRecord() });
+
+  assert.match(html, /class="field-album-thumb"/);
+  assert.match(html, /class="field-album-body"/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-album-grid \{[\s\S]*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-album-thumb \{[\s\S]*aspect-ratio: 4 \/ 5/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 920px\) \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 });

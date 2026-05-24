@@ -152,15 +152,17 @@ function renderAlbumCard(item: AreaObservationGalleryItem): string {
   ].filter(Boolean).join(" / ");
   const media = item.photoUrl
     ? `<img src="${escapeHtml(item.photoUrl)}" alt="" loading="lazy" decoding="async" />`
-    : `<span aria-hidden="true">✦</span>`;
+    : `<span class="field-album-empty-thumb" aria-hidden="true"></span>`;
   const privacy = isPrivate
     ? `<em class="field-album-private"><small>${escapeHtml(item.privacyReason ?? "公開アルバムには出ていません")}</small></em>`
     : "";
   return `<a class="field-album-card${isPrivate ? " is-private" : ""}" href="${escapeHtml(href)}">
-    ${media}
+    <span class="field-album-thumb">${media}</span>
     ${privacy}
-    <strong>${escapeHtml(item.displayName || "見つけたもの")}</strong>
-    <small>${escapeHtml(meta)}</small>
+    <span class="field-album-body">
+      <strong>${escapeHtml(item.displayName || "見つけたもの")}</strong>
+      <small>${escapeHtml(meta)}</small>
+    </span>
   </a>`;
 }
 
@@ -630,51 +632,80 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
 }
 .field-album-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 20px 14px;
 }
 .field-album-grid-compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 .field-album-card {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.94);
-  border: 1px solid rgba(15,23,42,.08);
-  color: #0f172a;
+  display: grid;
+  gap: 9px;
+  color: inherit;
   text-decoration: none;
 }
 .field-album-card.is-private {
-  border-color: rgba(14,165,233,.26);
-  background: linear-gradient(180deg, #fff, rgba(240,249,255,.92));
+  color: #0f172a;
 }
-.field-album-card img,
-.field-album-card > span {
+.field-album-thumb {
+  position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  border-radius: 11px;
-  object-fit: cover;
+  aspect-ratio: 4 / 5;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #e0f2fe, #dcfce7);
-  color: #0f766e;
-  font-size: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(16,185,129,.1) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(14,165,233,.08) 1px, transparent 1px),
+    #f8fffc;
+  background-size: 22px 22px, 22px 22px, auto;
+  box-shadow: 0 10px 24px rgba(15,23,42,.07);
 }
-.field-album-card strong {
-  font-size: 13px;
+.field-album-thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  transition: transform .18s ease;
+}
+.field-album-card:hover .field-album-thumb img {
+  transform: scale(1.025);
+}
+.field-album-empty-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: #e7f5ef;
+  color: #047857;
+}
+.field-album-body {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+.field-album-body strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #10251a;
+  font-size: 15px;
   line-height: 1.35;
-  font-weight: 900;
-  overflow-wrap: anywhere;
+  font-weight: 950;
 }
-.field-album-card small {
+.field-album-body small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #64748b;
-  font-size: 11px;
-  line-height: 1.35;
-  font-weight: 760;
+  font-size: 10px;
+  line-height: 1.25;
+  font-weight: 850;
 }
 .field-album-private {
   display: grid;
@@ -722,7 +753,8 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   }
   .field-album-grid,
   .field-album-grid-compact {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 12px;
   }
   .field-album > header {
     align-items: flex-start;
@@ -744,7 +776,7 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
     flex-direction: column;
   }
 }
-@media (max-width: 560px) {
+@media (max-width: 720px) {
   .field-map-hero {
     min-height: 680px;
     border-radius: 18px;
@@ -758,7 +790,25 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   }
   .field-album-grid,
   .field-album-grid-compact {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 13px;
+  }
+  .field-album-card {
+    gap: 8px;
+  }
+  .field-album-thumb {
+    border-radius: 7px;
+    box-shadow: 0 8px 18px rgba(15,23,42,.07);
+  }
+  .field-album-body {
+    gap: 8px;
+  }
+  .field-album-body strong {
+    font-size: 13px;
+    line-height: 1.34;
+  }
+  .field-album-body small {
+    font-size: 10px;
   }
 }
 `;
