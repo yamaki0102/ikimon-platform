@@ -265,7 +265,7 @@ export type LandingFeedPage = {
 
 const LANDING_FEED_PAGE_DEFAULT_LIMIT = 36;
 const LANDING_FEED_PAGE_MAX_LIMIT = 72;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LANDING_FEED_CURSOR_VISIT_ID_RE = /^[A-Za-z0-9:_-]{1,160}$/;
 
 function normalizeLandingFeedPageLimit(limit: number | null | undefined): number {
   if (!Number.isFinite(Number(limit))) return LANDING_FEED_PAGE_DEFAULT_LIMIT;
@@ -285,7 +285,7 @@ function decodeLandingFeedCursor(cursor: string | null | undefined): { observedA
     };
     const observedAt = typeof parsed.observedAt === "string" ? parsed.observedAt : "";
     const visitId = typeof parsed.visitId === "string" ? parsed.visitId : "";
-    if (!observedAt || !UUID_RE.test(visitId) || Number.isNaN(new Date(observedAt).getTime())) return null;
+    if (!observedAt || !LANDING_FEED_CURSOR_VISIT_ID_RE.test(visitId) || Number.isNaN(new Date(observedAt).getTime())) return null;
     return { observedAt, visitId };
   } catch {
     return null;
