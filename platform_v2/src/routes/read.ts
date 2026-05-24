@@ -10662,7 +10662,7 @@ function renderRecordsWorkbench(
 
 const RECORDS_WORKBENCH_STYLES = `
   .shell.shell-records-workbench {
-    width: min(100%, var(--ikimon-shell-effective-w, 100%));
+    width: min(100%, var(--ikimon-shell-effective-w, 100%), calc(100% - var(--ikimon-shell-margin-left, 0px) - var(--ikimon-shell-margin-right, 0px)));
     max-width: none;
     min-width: 0;
     padding: 0;
