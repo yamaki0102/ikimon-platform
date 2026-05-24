@@ -322,7 +322,7 @@ test("records mine tab opens directly into the card grid instead of a story hero
         assert.match(response.body, /detectRecordsScrollRoot/);
         assert.match(response.body, /addEventListener\('scroll', scheduleNearBottomCheck/);
         assert.match(response.body, /\{ root: scroller, rootMargin: '640px 0px 640px 0px' \}/);
-        assert.match(response.body, /\.shell\.shell-records-workbench \{[\s\S]*width: min\(100%, var\(--ikimon-shell-effective-w, 100%\)\);[\s\S]*overflow-x: clip;/);
+        assert.match(response.body, /\.shell\.shell-records-workbench \{[\s\S]*width: min\(100%, var\(--ikimon-shell-effective-w, 100%\), calc\(100% - var\(--ikimon-shell-margin-left, 0px\) - var\(--ikimon-shell-margin-right, 0px\)\)\);[\s\S]*overflow-x: clip;/);
         assert.match(response.body, /\.records-post-grid \{[\s\S]*max-width: 100%;[\s\S]*min-width: 0;/);
         assert.doesNotMatch(response.body, /自分の自然観察ストーリー/);
         assert.doesNotMatch(response.body, /最初の章を始める。/);
