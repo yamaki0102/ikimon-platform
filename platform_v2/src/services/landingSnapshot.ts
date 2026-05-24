@@ -1569,7 +1569,7 @@ export async function getLandingOwnFeedPage(
   let cursorSql = "";
   if (cursor) {
     visitParams.push(cursor.observedAt, cursor.visitId);
-    cursorSql = `and (v.observed_at, v.visit_id) < ($3::timestamptz, $4::uuid)`;
+    cursorSql = `and (v.observed_at, v.visit_id) < ($3::timestamptz, $4::text)`;
   }
 
   const visitResult = await pool.query<{ visit_id: string; observed_at: string }>(
@@ -1602,7 +1602,7 @@ export async function getLandingOwnFeedPage(
   const feedResult = await pool.query<FeedRow>(
     `${FEED_SQL_BASE}
       where v.user_id = $1
-        and o.visit_id = any($2::uuid[])
+        and o.visit_id = any($2::text[])
         and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL}
         and ${PUBLIC_READ_SYNTHETIC_EXCLUSION_SQL}
         and coalesce(v.public_visibility, 'public') <> 'hidden'
