@@ -144,7 +144,7 @@ function renderFieldHeroSignals(snapshot: PlaceSnapshot | null | undefined): str
 
 function renderAlbumCard(item: AreaObservationGalleryItem): string {
   const isPrivate = item.visibility === "viewer_private";
-  const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
+  const href = `/observations/${encodeURIComponent(item.visitId || item.occurrenceId)}`;
   const meta = [
     item.isCurrentSeason && item.seasonLabel ? `今の季節・${item.seasonLabel}` : item.seasonLabel ?? "",
     isPrivate ? "" : `${item.observationCount}件`,

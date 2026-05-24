@@ -25,7 +25,7 @@ function seasonBadge(item: AreaObservationGalleryItem): string {
 
 function albumCard(item: AreaObservationGalleryItem): string {
   const isPrivate = item.visibility === "viewer_private";
-  const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
+  const href = `/observations/${encodeURIComponent(item.visitId || item.occurrenceId)}`;
   const meta = [
     isPrivate ? "" : `${fmtNumber(item.observationCount)}件`,
     item.observedAt ? item.observedAt.slice(0, 10) : "",

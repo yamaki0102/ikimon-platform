@@ -513,7 +513,6 @@ async function loadObservationGallery(
                 nullif(ai.recommended_taxon_name, ''),
                 '同定待ち'
               ) as display_name,
-              lower(coalesce(nullif(o.scientific_name, ''), nullif(o.vernacular_name, ''), o.occurrence_id::text)) as taxon_key,
               fv.observed_at::text as observed_at,
               concat_ws(' / ', nullif(fv.observed_municipality, ''), nullif(fv.observed_prefecture, '')) as locality_label,
               photo.public_url as photo_url,
@@ -557,9 +556,9 @@ async function loadObservationGallery(
           ranked as (
             select
               fo.*,
-              count(*) over (partition by fo.taxon_key)::text as observation_count,
+              count(*) over (partition by fo.visit_id)::text as observation_count,
               count(*) filter (where fo.observed_at::timestamptz >= now() - interval '90 days')
-                over (partition by fo.taxon_key)::text as recent_observation_count,
+                over (partition by fo.visit_id)::text as recent_observation_count,
               (
                 select count(*)::text
                   from observation_reactions rx
@@ -567,7 +566,7 @@ async function loadObservationGallery(
                    and rx.reaction_type = 'like'
               ) as like_count,
               row_number() over (
-                partition by fo.taxon_key
+                partition by fo.visit_id
                 order by case when fo.photo_url is null then 1 else 0 end,
                          fo.observed_at desc,
                          fo.occurrence_id
@@ -580,7 +579,7 @@ async function loadObservationGallery(
                  observation_count, recent_observation_count, like_count
             from ranked
            where representative_rank = 1
-           order by recent_observation_count::int desc, observation_count::int desc, observed_at desc
+           order by observed_at desc, recent_observation_count::int desc, observation_count::int desc
            limit 12`,
         [scopedVisitIds],
       );
@@ -591,24 +590,26 @@ async function loadObservationGallery(
         const season = observed && !Number.isNaN(observed.getTime())
           ? monthToSeasonKey(observed.getUTCMonth() + 1)
           : null;
+        const subjectCount = Number(row.observation_count) || 1;
+        const displayName = friendlyObservationName({
+          displayName: row.display_name,
+          vernacularName: row.vernacular_name,
+          kingdom: row.kingdom,
+          className: row.class_name,
+          orderName: row.order_name,
+          family: row.family,
+          scientificName: row.scientific_name,
+          sourceKind: row.source_kind,
+          roleTag: row.role_tag,
+        });
         return {
           occurrenceId: row.occurrence_id,
           visitId: row.visit_id,
-          displayName: friendlyObservationName({
-            displayName: row.display_name,
-            vernacularName: row.vernacular_name,
-            kingdom: row.kingdom,
-            className: row.class_name,
-            orderName: row.order_name,
-            family: row.family,
-            scientificName: row.scientific_name,
-            sourceKind: row.source_kind,
-            roleTag: row.role_tag,
-          }),
+          displayName: subjectCount > 1 ? `${displayName} ほか${subjectCount - 1}件` : displayName,
           observedAt: row.observed_at,
           photoUrl: normalizeAssetUrl(row.photo_url),
           localityLabel: row.locality_label,
-          observationCount: Number(row.observation_count) || 1,
+          observationCount: subjectCount,
           recentObservationCount: Number(row.recent_observation_count) || 0,
           likeCount: Number(row.like_count) || 0,
           season,

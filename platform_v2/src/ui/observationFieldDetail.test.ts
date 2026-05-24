@@ -95,6 +95,33 @@ function snapshot(): AreaPlaceSnapshot {
   } as unknown as AreaPlaceSnapshot;
 }
 
+function snapshotWithAlbumRecord(): AreaPlaceSnapshot {
+  const base = snapshot();
+  return {
+    ...base,
+    observationGallery: [
+      {
+        occurrenceId: "occ:record-1778828354813:1",
+        visitId: "record-1778828354813",
+        displayName: "ツルニチニチソウ ほか1件",
+        observedAt: "2026-05-20T10:30:00.000Z",
+        photoUrl: "/uploads/photos/sample.jpg",
+        localityLabel: "静岡市 / 静岡県",
+        observationCount: 2,
+        recentObservationCount: 2,
+        likeCount: 0,
+        season: "spring",
+        seasonLabel: "春",
+        isCurrentSeason: true,
+        visibility: "public",
+        privacyLabel: null,
+        privacyReason: null,
+        shareAllowed: true,
+      },
+    ],
+  } as unknown as AreaPlaceSnapshot;
+}
+
 test("field detail metrics use place snapshot observations when event stats are empty", () => {
   const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
 
@@ -137,4 +164,12 @@ test("field detail keeps the hero to two primary actions and moves trust links l
   assert.match(html.slice(trustIndex), /認定情報 ↗/);
   assert.match(html.slice(trustIndex), /事例 ↗/);
   assert.match(html.slice(trustIndex), /認定情報と一致/);
+});
+
+test("field album links cards to the record instead of the subject occurrence", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshotWithAlbumRecord() });
+
+  assert.match(html, /href="\/observations\/record-1778828354813"/);
+  assert.doesNotMatch(html, /href="\/observations\/occ%3Arecord-1778828354813%3A1"/);
+  assert.match(html, /ツルニチニチソウ ほか1件/);
 });
