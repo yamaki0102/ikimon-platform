@@ -53,6 +53,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /class="shell shell-layout-home"/);
   assert.match(html, /href="\/ja\/records">記録を見る/);
   assert.match(html, /href="\/ja\/records" title="記録を見る"/);
+  assert.match(html, /href="\/ja\/records\?view=needs_id">名前を待つ記録/);
+  assert.doesNotMatch(html, /名前を待つ観察レコード/);
   assert.doesNotMatch(html, /href="\/ja\/observations\?filter=needs_id" title="同定"/);
   assert.match(html, /href="\/ja\/learn\/updates"/);
   assert.doesNotMatch(html, /desktop-side-nav-section-title">今日使う/);
