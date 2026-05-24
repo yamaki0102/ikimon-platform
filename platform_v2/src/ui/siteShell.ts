@@ -6092,7 +6092,7 @@ ${alternateLinks}
       }
       .shell,
       .footer-inner {
-        --ikimon-shell-available-w: calc(100vw - var(--ikimon-desktop-sidebar-w));
+        --ikimon-shell-available-w: calc(100% - var(--ikimon-desktop-sidebar-w));
         --ikimon-shell-effective-w: min(var(--ikimon-shell-target-max), calc(var(--ikimon-shell-available-w) - var(--ikimon-page-inline)));
         --ikimon-shell-side-space: max(48px, calc((var(--ikimon-shell-available-w) - var(--ikimon-shell-effective-w)) / 2));
         width: var(--ikimon-shell-effective-w);
