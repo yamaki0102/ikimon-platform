@@ -33,7 +33,7 @@ function sourceConfidenceLabel(field: ObservationField): string {
   return "一次情報: 未確認";
 }
 
-function renderSourceButtons(field: ObservationField): string {
+function sourceLinkItems(field: ObservationField): Array<{ label: string; url: string }> {
   const items = [
     { label: "公式", url: field.ownerUrl },
     { label: "認定情報", url: field.certificationUrl },
@@ -43,16 +43,34 @@ function renderSourceButtons(field: ObservationField): string {
     items.push({ label: isIkimonUrl(field.officialUrl) ? "事例" : "公式", url: field.officialUrl });
   }
   const seen = new Set<string>();
-  const links = items
+  return items
+    .map((item) => ({ label: item.label, url: item.url.trim() }))
     .filter((item) => {
       const url = item.url.trim();
       if (!url || seen.has(url)) return false;
       seen.add(url);
       return true;
-    })
+    });
+}
+
+function renderSourceButtons(field: ObservationField): string {
+  return sourceLinkItems(field)
     .map((item) => `<a class="evt-btn evt-btn-on-dark" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.label)} ↗</a>`)
     .join("");
-  return `${links}<span class="evt-btn evt-btn-on-dark" aria-label="一次情報の確認状況">${escapeHtml(sourceConfidenceLabel(field))}</span>`;
+}
+
+function renderFieldTrustInfo(field: ObservationField): string {
+  const buttons = renderSourceButtons(field);
+  return `<section class="field-trust-info" aria-label="信頼情報">
+    <header>
+      <div>
+        <span class="evt-eyebrow">Source</span>
+        <h2 class="evt-heading">信頼情報</h2>
+      </div>
+      <span class="field-trust-status">${escapeHtml(sourceConfidenceLabel(field))}</span>
+    </header>
+    ${buttons ? `<div class="field-trust-links">${buttons}</div>` : ""}
+  </section>`;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -95,13 +113,13 @@ function fieldHeroMetrics(stats: FieldStats, snapshot: PlaceSnapshot | null | un
     return [
       { value: summary.totalVisits, label: "記録回数" },
       { value: summary.uniqueTaxa, label: "累計種数" },
-      { value: summary.totalObservations, label: "累計観察" },
+      { value: summary.totalObservations, label: "累計記録" },
     ];
   }
   return [
     { value: stats.totalSessions, label: "開催回数" },
     { value: stats.uniqueSpeciesCount, label: "累計種数" },
-    { value: stats.totalObservations, label: "累計観察" },
+    { value: stats.totalObservations, label: "累計記録" },
   ];
 }
 
@@ -167,7 +185,7 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
   const missingText = missing.length > 0 ? missing.map((row) => row.label).join("・") : "四季の入口あり";
   const galleryHtml = gallery.length > 0
     ? gallery.map(renderAlbumCard).join("")
-    : `<article class="evt-card"><span class="evt-eyebrow">Area Album</span><h3 class="evt-heading">まだ観察カードはありません</h3><p class="evt-lead">この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
+    : `<article class="evt-card"><span class="evt-eyebrow">Area Album</span><h3 class="evt-heading">まだ記録カードはありません</h3><p class="evt-lead">この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
   const currentHtml = current.length > 0
     ? current.map(renderAlbumCard).join("")
     : `<article class="evt-card"><span class="evt-eyebrow">Season</span><h3 class="evt-heading">今の季節の記録を足す</h3><p class="evt-lead">季節の顔が見えると、地図からこの場所を選ぶ理由が強くなります。</p></article>`;
@@ -176,7 +194,7 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
       <div><span class="evt-eyebrow">Area Album</span><h2 class="evt-heading">地域の生きものアルバム</h2></div>
       <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(snapshot.field.fieldId)}/snapshot">公開図鑑ページ</a>
     </header>
-    <p class="evt-lead">未記録季節: ${escapeHtml(missingText)}。公園や水辺を見に来た人が、ここで何が観察されているかを写真から眺められる入口です。</p>
+    <p class="evt-lead">未記録季節: ${escapeHtml(missingText)}。公園や水辺を見に来た人が、ここにどんな記録があるかを写真から眺められる入口です。</p>
     <div class="field-album-grid">${galleryHtml}</div>
     <h3 class="evt-heading" style="font-size:18px;margin:18px 0 10px;">今の季節に見えるもの</h3>
     <div class="field-album-grid field-album-grid-compact">${currentHtml}</div>
@@ -210,7 +228,7 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
       }).join("");
 
   const topTaxa = stats.topTaxa.length === 0
-    ? `<p class="evt-lead">観察記録はまだありません。</p>`
+    ? `<p class="evt-lead">記録はまだありません。</p>`
     : stats.topTaxa.map((t) => `<span class="evt-badge evt-mode-discovery">${escapeHtml(t.name)} ×${t.count}</span>`).join(" ");
 
   const polygonJson = field.polygon ? JSON.stringify(field.polygon) : "null";
@@ -234,13 +252,11 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
       ${field.summary ? `<p>${escapeHtml(field.summary)}</p>` : ""}
       <div class="field-map-hero-tags">
         <span>${escapeHtml(fieldSeasonLabel(snapshot))}</span>
-        <span>${escapeHtml(sourceConfidenceLabel(field))}</span>
       </div>
       ${renderFieldHeroSignals(snapshot)}
       <div class="field-detail-actions">
         <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
         <a class="evt-btn evt-btn-on-dark" href="#field-album">地域のアルバム</a>
-        ${renderSourceButtons(field)}
       </div>
     </div>
   </article>
@@ -266,8 +282,10 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     <div class="evt-result-stats evt-stagger">
       ${heroMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
-    <div class="field-detail-freshness"><span>最終観察</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
+    <div class="field-detail-freshness"><span>最終記録</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
   </section>
+
+  ${renderFieldTrustInfo(field)}
 
   <section>
     <h2 class="evt-heading">よく見つかる種</h2>
@@ -557,6 +575,45 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
 .field-detail-metrics .field-detail-freshness strong {
   color: #064e3b;
 }
+.field-trust-info {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(248,250,252,.94);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.field-trust-info > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-trust-info .evt-heading {
+  margin: 0;
+}
+.field-trust-status {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(16,185,129,.10);
+  border: 1px solid rgba(16,185,129,.18);
+  color: #047857;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+.field-trust-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.field-trust-links .evt-btn-on-dark {
+  background: #0f766e;
+  color: #ffffff;
+  border-color: rgba(15,118,110,.28);
+}
 .field-album {
   display: grid;
   gap: 12px;
@@ -681,6 +738,10 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   }
   .field-detail-metrics-actions {
     justify-content: flex-start;
+  }
+  .field-trust-info > header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 @media (max-width: 560px) {

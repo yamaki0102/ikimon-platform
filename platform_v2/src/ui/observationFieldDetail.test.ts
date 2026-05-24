@@ -41,6 +41,17 @@ function field(): ObservationField {
   };
 }
 
+function sourcedField(): ObservationField {
+  return {
+    ...field(),
+    source: "nature_symbiosis_site",
+    ownerUrl: "https://example.com/owner",
+    certificationUrl: "https://example.com/cert",
+    storyUrl: "https://ikimon.life/stories/field",
+    verificationLabel: "認定情報と一致",
+  };
+}
+
 function stats(): FieldStats {
   return {
     fieldId: "5133aea8-7b1d-49b2-950e-b3c9ac74bc79",
@@ -89,8 +100,9 @@ test("field detail metrics use place snapshot observations when event stats are 
 
   assert.match(html, /<strong>19<\/strong><span>記録回数<\/span>/);
   assert.match(html, /<strong>43<\/strong><span>累計種数<\/span>/);
-  assert.match(html, /<strong>50<\/strong><span>累計観察<\/span>/);
-  assert.match(html, /<span>最終観察<\/span><strong>2026年5月8日<\/strong>/);
+  assert.match(html, /<strong>50<\/strong><span>累計記録<\/span>/);
+  assert.match(html, /<span>最終記録<\/span><strong>2026年5月8日<\/strong>/);
+  assert.doesNotMatch(html, /観察レコード|観察記録はまだありません|累計観察|最終観察/);
   assert.doesNotMatch(html, /<strong>0<\/strong><span>開催回数<\/span>/);
 });
 
@@ -106,4 +118,23 @@ test("field detail starts with the map hero before numeric record metrics", () =
   assert.ok(mapCanvasIndex > mapHeroIndex);
   assert.ok(metricsIndex > mapHeroIndex);
   assert.ok(numericIndex > metricsIndex);
+});
+
+test("field detail keeps the hero to two primary actions and moves trust links lower", () => {
+  const html = renderFieldDetailBody({ field: sourcedField(), stats: stats(), snapshot: snapshot() });
+
+  const heroStart = html.indexOf('<article class="field-map-hero">');
+  const heroEnd = html.indexOf("</article>", heroStart);
+  const metricsIndex = html.indexOf('<section class="field-detail-metrics"');
+  const trustIndex = html.indexOf('<section class="field-trust-info"');
+  const heroHtml = html.slice(heroStart, heroEnd);
+  const heroButtonCount = (heroHtml.match(/class="evt-btn/g) ?? []).length;
+
+  assert.equal(heroButtonCount, 2);
+  assert.doesNotMatch(heroHtml, /公式 ↗|認定情報 ↗|事例 ↗|認定情報と一致/);
+  assert.ok(trustIndex > metricsIndex);
+  assert.match(html.slice(trustIndex), /公式 ↗/);
+  assert.match(html.slice(trustIndex), /認定情報 ↗/);
+  assert.match(html.slice(trustIndex), /事例 ↗/);
+  assert.match(html.slice(trustIndex), /認定情報と一致/);
 });
