@@ -33,7 +33,7 @@ function sourceConfidenceLabel(field: ObservationField): string {
   return "一次情報: 未確認";
 }
 
-function renderSourceButtons(field: ObservationField): string {
+function sourceLinkItems(field: ObservationField): Array<{ label: string; url: string }> {
   const items = [
     { label: "公式", url: field.ownerUrl },
     { label: "認定情報", url: field.certificationUrl },
@@ -43,16 +43,34 @@ function renderSourceButtons(field: ObservationField): string {
     items.push({ label: isIkimonUrl(field.officialUrl) ? "事例" : "公式", url: field.officialUrl });
   }
   const seen = new Set<string>();
-  const links = items
+  return items
+    .map((item) => ({ label: item.label, url: item.url.trim() }))
     .filter((item) => {
       const url = item.url.trim();
       if (!url || seen.has(url)) return false;
       seen.add(url);
       return true;
-    })
+    });
+}
+
+function renderSourceButtons(field: ObservationField): string {
+  return sourceLinkItems(field)
     .map((item) => `<a class="evt-btn evt-btn-on-dark" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.label)} ↗</a>`)
     .join("");
-  return `${links}<span class="evt-btn evt-btn-on-dark" aria-label="一次情報の確認状況">${escapeHtml(sourceConfidenceLabel(field))}</span>`;
+}
+
+function renderFieldTrustInfo(field: ObservationField): string {
+  const buttons = renderSourceButtons(field);
+  return `<section class="field-trust-info" aria-label="信頼情報">
+    <header>
+      <div>
+        <span class="evt-eyebrow">Source</span>
+        <h2 class="evt-heading">信頼情報</h2>
+      </div>
+      <span class="field-trust-status">${escapeHtml(sourceConfidenceLabel(field))}</span>
+    </header>
+    ${buttons ? `<div class="field-trust-links">${buttons}</div>` : ""}
+  </section>`;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -234,13 +252,11 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
       ${field.summary ? `<p>${escapeHtml(field.summary)}</p>` : ""}
       <div class="field-map-hero-tags">
         <span>${escapeHtml(fieldSeasonLabel(snapshot))}</span>
-        <span>${escapeHtml(sourceConfidenceLabel(field))}</span>
       </div>
       ${renderFieldHeroSignals(snapshot)}
       <div class="field-detail-actions">
         <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
         <a class="evt-btn evt-btn-on-dark" href="#field-album">地域のアルバム</a>
-        ${renderSourceButtons(field)}
       </div>
     </div>
   </article>
@@ -268,6 +284,8 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     </div>
     <div class="field-detail-freshness"><span>最終観察</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
   </section>
+
+  ${renderFieldTrustInfo(field)}
 
   <section>
     <h2 class="evt-heading">よく見つかる種</h2>
@@ -557,6 +575,45 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
 .field-detail-metrics .field-detail-freshness strong {
   color: #064e3b;
 }
+.field-trust-info {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(248,250,252,.94);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.field-trust-info > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-trust-info .evt-heading {
+  margin: 0;
+}
+.field-trust-status {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(16,185,129,.10);
+  border: 1px solid rgba(16,185,129,.18);
+  color: #047857;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+.field-trust-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.field-trust-links .evt-btn-on-dark {
+  background: #0f766e;
+  color: #ffffff;
+  border-color: rgba(15,118,110,.28);
+}
 .field-album {
   display: grid;
   gap: 12px;
@@ -681,6 +738,10 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   }
   .field-detail-metrics-actions {
     justify-content: flex-start;
+  }
+  .field-trust-info > header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 @media (max-width: 560px) {
