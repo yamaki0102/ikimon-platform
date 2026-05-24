@@ -23,6 +23,9 @@ test("production shadow parity counts only the legacy primary occurrence", async
     /as evidence_assets_linked[\s\S]*actualCounts\?\.evidence_assets_linked/,
   );
   assert.match(source, /const importableObservationIds = importableObservations\.map/);
+  assert.match(source, /const importableSourceTokenHashes =/);
+  assert.match(source, /skippedRememberTokens: sourceTokenHashes\.length - importableSourceTokenHashes\.length/);
+  assert.match(source, /where user_id = any\(\$1::text\[\]\)/);
   assert.match(source, /legacy_observation_id = any\(\$2::text\[\]\)/);
   assert.match(source, /legacy_observation_id = any\(\$1::text\[\]\)/);
   assert.equal((source.match(/coalesce\(o\.subject_index, 0\) = 0/g) ?? []).length, 3);

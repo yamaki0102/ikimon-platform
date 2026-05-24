@@ -324,11 +324,25 @@ async function main(): Promise<void> {
       }
     }
 
-    const sourceTokenHashes = [
+    const sourceTokenRows = tokens.filter(
+      (token): token is LegacyAuthToken & { user_id: string; token_hash: string } =>
+        typeof token.user_id === "string" &&
+        token.user_id !== "" &&
+        typeof token.token_hash === "string" &&
+        token.token_hash !== "",
+    );
+    const sourceTokenHashes = [...new Set(sourceTokenRows.map((token) => token.token_hash))];
+    const sourceTokenUserIds = [...new Set(sourceTokenRows.map((token) => token.user_id))];
+    const existingTokenUsersResult = await pool.query<{ user_id: string }>(
+      `select user_id from users where user_id = any($1::text[])`,
+      [sourceTokenUserIds],
+    );
+    const existingTokenUserIds = new Set(existingTokenUsersResult.rows.map((row) => row.user_id));
+    const importableSourceTokenHashes = [
       ...new Set(
-        tokens
-          .map((token) => token.token_hash)
-          .filter((tokenHash): tokenHash is string => typeof tokenHash === "string" && tokenHash !== ""),
+        sourceTokenRows
+          .filter((token) => existingTokenUserIds.has(token.user_id))
+          .map((token) => token.token_hash),
       ),
     ];
 
@@ -397,7 +411,7 @@ async function main(): Promise<void> {
                  and v.legacy_observation_id = any($2::text[])
                  and coalesce(o.subject_index, 0) = 0
            )) as evidence_assets_linked`,
-      [sourceTokenHashes, importableObservationIds],
+      [importableSourceTokenHashes, importableObservationIds],
     );
 
     const visitRows = await pool.query<{ legacy_observation_id: string; source_payload: JsonRecord | null }>(
@@ -432,7 +446,8 @@ async function main(): Promise<void> {
         observationsSampled: observations.length,
         observationsImportable: importableObservations.length,
         quarantinedNoPhotoObservations,
-        rememberTokens: sourceTokenHashes.length,
+        rememberTokens: importableSourceTokenHashes.length,
+        skippedRememberTokens: sourceTokenHashes.length - importableSourceTokenHashes.length,
         trackVisits: tracks.length,
         trackPoints: countImportableTrackPoints(tracks),
         identificationCandidates: countIdentificationCandidates(observations),
