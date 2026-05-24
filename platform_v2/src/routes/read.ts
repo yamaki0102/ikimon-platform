@@ -10662,10 +10662,15 @@ function renderRecordsWorkbench(
 
 const RECORDS_WORKBENCH_STYLES = `
   .shell.shell-records-workbench {
+    width: min(100%, var(--ikimon-shell-effective-w, 100%));
     max-width: none;
+    min-width: 0;
     padding: 0;
+    overflow-x: clip;
   }
   .records-workbench {
+    max-width: 100%;
+    min-width: 0;
     min-height: calc(100dvh - 56px);
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -10722,6 +10727,8 @@ const RECORDS_WORKBENCH_STYLES = `
   }
   .records-actions a.is-primary { background: #064e3b; border-color: #064e3b; color: #fff; font-size: 24px; line-height: 1; }
   .records-main {
+    max-width: 100%;
+    min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
@@ -10852,6 +10859,7 @@ const RECORDS_WORKBENCH_STYLES = `
     border: 1px solid rgba(15,23,42,.08);
   }
   .records-grid-panel {
+    max-width: 100%;
     min-width: 0;
     display: grid;
     align-content: start;
@@ -10903,6 +10911,8 @@ const RECORDS_WORKBENCH_STYLES = `
     font-weight: 900;
   }
   .records-post-grid {
+    max-width: 100%;
+    min-width: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
     gap: 18px 14px;
