@@ -3,6 +3,7 @@ import { ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from ".
 import { deriveVisitDisplayState, getStoredVisitDisplayState, upsertVisitDisplayState } from "./visitDisplayState.js";
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { makeOccurrenceId } from "./writeSupport.js";
+import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
 
 export type ProposeObservationSubjectFromCandidateInput = {
   visitId: string;
@@ -80,6 +81,13 @@ export async function proposeObservationSubjectFromCandidate(
         alreadyProposed: true,
       };
     }
+    const gatedCandidate = normalizeBiologicalSubjectCandidate({
+      vernacularName: candidate.vernacular_name,
+      scientificName: candidate.scientific_name,
+    });
+    if (!gatedCandidate) {
+      throw new Error("candidate_not_biological_subject");
+    }
 
     const confidence = numericConfidence(candidate.confidence_score);
     const nextSubjectIndex = Math.max(0, Number(candidate.max_subject_index ?? -1) + 1);
@@ -126,8 +134,8 @@ export async function proposeObservationSubjectFromCandidate(
         candidate.visit_id,
         candidate.visit_legacy_observation_id ?? candidate.visit_id,
         nextSubjectIndex,
-        candidate.scientific_name,
-        candidate.vernacular_name,
+        gatedCandidate.scientificName,
+        gatedCandidate.vernacularName,
         candidate.taxon_rank,
         confidence,
         JSON.stringify(sourcePayload),
@@ -152,7 +160,7 @@ export async function proposeObservationSubjectFromCandidate(
     );
 
     if (candidate.observer_user_id && candidate.observer_user_id !== input.actorUserId) {
-      const proposedName = candidate.vernacular_name || candidate.scientific_name || "別の対象";
+      const proposedName = gatedCandidate.vernacularName || gatedCandidate.scientificName || "別の対象";
       await client.query(
         `insert into alert_deliveries (
             occurrence_id, user_id, trigger_kind, channel,

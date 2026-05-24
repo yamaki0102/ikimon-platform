@@ -3,6 +3,7 @@ import { ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from ".
 import { deriveVisitDisplayState, getStoredVisitDisplayState, upsertVisitDisplayState } from "./visitDisplayState.js";
 import { getVisitSubjectSummaries } from "./visitSubjects.js";
 import { makeOccurrenceId } from "./writeSupport.js";
+import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
 
 export type AdoptObservationCandidateInput = {
   visitId: string;
@@ -85,6 +86,13 @@ export async function adoptObservationCandidate(
         alreadyAdopted: true,
       };
     }
+    const gatedCandidate = normalizeBiologicalSubjectCandidate({
+      vernacularName: candidate.vernacular_name,
+      scientificName: candidate.scientific_name,
+    });
+    if (!gatedCandidate) {
+      throw new Error("candidate_not_biological_subject");
+    }
 
     const confidence = numericConfidence(candidate.confidence_score);
     const nextSubjectIndex = Math.max(0, Number(candidate.max_subject_index ?? -1) + 1);
@@ -128,8 +136,8 @@ export async function adoptObservationCandidate(
         candidate.visit_id,
         candidate.visit_legacy_observation_id ?? candidate.visit_id,
         nextSubjectIndex,
-        candidate.scientific_name,
-        candidate.vernacular_name,
+        gatedCandidate.scientificName,
+        gatedCandidate.vernacularName,
         candidate.taxon_rank,
         confidence,
         JSON.stringify(sourcePayload),

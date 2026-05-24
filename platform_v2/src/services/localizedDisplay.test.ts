@@ -37,6 +37,10 @@ test("formatTaxonDisplayName normalizes unresolved labels", () => {
     formatTaxonDisplayName({ displayName: "Awaiting ID" }, "ja"),
     { primaryLabel: "同定待ち", qualifier: null, isAwaitingId: true },
   );
+  assert.deepEqual(
+    formatTaxonDisplayName({ displayName: "同定待ち", aiCandidateName: "シロツメクサ" }, "ja"),
+    { primaryLabel: "シロツメクサ", qualifier: "ai", isAwaitingId: false },
+  );
 });
 
 test("formatTaxonDisplayName rejects scene labels as taxon names", () => {
@@ -47,6 +51,10 @@ test("formatTaxonDisplayName rejects scene labels as taxon names", () => {
   assert.deepEqual(
     formatTaxonDisplayName({ displayName: "イネ科", aiCandidateName: "芝生" }, "ja"),
     { primaryLabel: "イネ科", qualifier: null, isAwaitingId: false },
+  );
+  assert.deepEqual(
+    formatTaxonDisplayName({ displayName: "城壁と周辺植生", aiCandidateName: "石垣・城壁の植生" }, "ja"),
+    { primaryLabel: "同定待ち", qualifier: null, isAwaitingId: true },
   );
 });
 

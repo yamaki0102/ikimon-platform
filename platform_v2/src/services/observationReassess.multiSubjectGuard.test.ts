@@ -71,6 +71,25 @@ test("multi-subject guard drops unhelpful unidentified labels and same-subject c
   assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["アメリカシャクナゲ"]);
 });
 
+test("multi-subject guard keeps scene descriptions out of persisted subject candidates", () => {
+  const result = promoteCandidateReadingsToCoexistingTaxa({
+    primaryVernacularName: "ガジュマル",
+    primaryScientificName: "Ficus microcarpa",
+    coexistingTaxa: [
+      { name: "城壁と周辺植生", scientific_name: "", rank: "lifeform", confidence: 0.7 },
+      { name: "石垣・城壁の植生", scientific_name: "", rank: "lifeform", confidence: 0.7 },
+      { name: "カタバミ属", scientific_name: "Oxalis", rank: "genus", confidence: 0.52 },
+    ],
+    candidateReadings: [
+      { name: "人工構造物と植栽景観", scientific_name: "", rank: "lifeform", role: "背景の植生" },
+      { name: "シロツメクサ", scientific_name: "Trifolium repens", rank: "species", role: "足元の草本" },
+    ],
+  });
+
+  assert.equal(result.promoted, 1);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["カタバミ属", "シロツメクサ"]);
+});
+
 test("multi-subject guard enriches known Japanese taxon names only for separate subjects", () => {
   const result = promoteCandidateReadingsToCoexistingTaxa({
     primaryVernacularName: "植栽低木",

@@ -1,3 +1,5 @@
+import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
+
 export type AssessmentBand = "high" | "medium" | "low" | "unknown" | null;
 
 export type SubjectRankInput = {
@@ -40,6 +42,7 @@ export function subjectRoleLabel(roleHint: string | null | undefined, isPrimary:
 }
 
 export function subjectPriorityScore(subject: SubjectRankInput): number {
+  const labelWeight = normalizeTaxonDisplayLabel(subject.displayName) ? 0 : -40;
   const idWeight = subject.identificationCount * 100;
   const aiWeight = subject.latestAssessmentBand === "high"
     ? 30
@@ -58,7 +61,7 @@ export function subjectPriorityScore(subject: SubjectRankInput): number {
     : String(subject.roleHint ?? "").toLowerCase() === "vegetation"
       ? 8
       : 0;
-  return idWeight + aiWeight + numericConfidence + specificity + primaryBias - rolePenalty;
+  return idWeight + aiWeight + numericConfidence + specificity + primaryBias + labelWeight - rolePenalty;
 }
 
 export function subjectFocusReason(subject: SubjectRankInput): string {
