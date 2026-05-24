@@ -28,9 +28,11 @@ test("records workbench own feed uses cursor pagination by visit", async () => {
   );
 
   assert.match(pageSource, /LANDING_FEED_PAGE_DEFAULT_LIMIT = 36/);
+  assert.match(pageSource, /LANDING_FEED_CURSOR_VISIT_ID_RE = \/\^\[A-Za-z0-9:_-\]\{1,160\}\$\//);
   assert.match(pageFunctionSource, /select v\.visit_id::text as visit_id/);
   assert.match(pageFunctionSource, /and \(v\.observed_at, v\.visit_id\) < \(\$3::timestamptz, \$4::text\)/);
   assert.match(pageFunctionSource, /o\.visit_id = any\(\$2::text\[\]\)/);
+  assert.doesNotMatch(pageSource, /UUID_RE/);
   assert.doesNotMatch(pageFunctionSource, /visit_id\) < \(\$3::timestamptz, \$4::uuid\)/);
   assert.doesNotMatch(pageFunctionSource, /o\.visit_id = any\(\$2::uuid\[\]\)/);
   assert.doesNotMatch(pageFunctionSource, /limit 72/);
