@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FIELD_DETAIL_ALBUM_STYLES, renderFieldDetailBody } from "./observationFieldDetail.js";
+import { RECORD_CARD_SIZING_TOKENS } from "./recordCardSizing.js";
 import type { ObservationField, FieldStats } from "../services/observationFieldRegistry.js";
 import type { AreaPlaceSnapshot } from "../services/areaPlaceSnapshot.js";
 
@@ -179,8 +180,10 @@ test("field album cards keep the same sizing contract as the landing content wal
 
   assert.match(html, /class="field-album-thumb"/);
   assert.match(html, /class="field-album-body"/);
-  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-album-grid \{[\s\S]*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
-  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-album-thumb \{[\s\S]*aspect-ratio: 4 \/ 5/);
-  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 920px\) \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-grid-desktop: repeat\(6, minmax\(0, 1fr\)\);/);
+  assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-thumb-ratio: 4 \/ 5;/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-album-grid \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-desktop\)/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-album-thumb \{[\s\S]*aspect-ratio: var\(--ikimon-record-card-thumb-ratio\)/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 1020px\) \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-tablet\)/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-mobile\)/);
 });

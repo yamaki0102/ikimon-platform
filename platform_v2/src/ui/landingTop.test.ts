@@ -3,6 +3,7 @@ import test from "node:test";
 import { getStrings } from "../i18n/index.js";
 import type { LandingObservation, LandingSnapshot, LandingTopGuideItem } from "../services/readModels.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./landingTop.js";
+import { RECORD_CARD_SIZING_TOKENS } from "./recordCardSizing.js";
 
 function renderTop(snapshot: LandingSnapshot, lang: "ja" | "en" = "ja"): string {
   const strings = getStrings(lang);
@@ -788,9 +789,11 @@ test("landing top has medium desktop width relief", () => {
   assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.shell\.shell-bleed\.prototype-shell \{[\s\S]*width: var\(--ikimon-landing-effective-w\);[\s\S]*margin-left: var\(--ikimon-shell-margin-left\);/);
   assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) and \(max-width: 1380px\) \{[\s\S]*\.prototype-topa h1 \{[\s\S]*max-width: none;[\s\S]*white-space: normal;/);
   assert.match(LANDING_TOP_STYLES, /\.prototype-topa-card-grid,\s*\.prototype-topa-card-grid\.is-primary \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
-  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.prototype-content-grid \{[\s\S]*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
-  assert.match(LANDING_TOP_STYLES, /\.prototype-content-thumb \{[\s\S]*aspect-ratio: 4 \/ 5;/);
-  assert.match(LANDING_TOP_STYLES, /@media \(max-width: 480px\) \{[\s\S]*\.prototype-content-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-grid-desktop: repeat\(6, minmax\(0, 1fr\)\);/);
+  assert.match(RECORD_CARD_SIZING_TOKENS, /--ikimon-record-card-thumb-ratio: 4 \/ 5;/);
+  assert.match(LANDING_TOP_STYLES, /@media \(min-width: 1161px\) \{[\s\S]*\.prototype-content-grid \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-desktop\);/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-thumb \{[\s\S]*aspect-ratio: var\(--ikimon-record-card-thumb-ratio\);/);
+  assert.match(LANDING_TOP_STYLES, /@media \(max-width: 480px\) \{[\s\S]*\.prototype-content-grid \{ grid-template-columns: var\(--ikimon-record-card-grid-mobile\); gap: var\(--ikimon-record-card-grid-gap-compact\);/);
 });
 
 test("landing top no longer renders separate guide shelf blocks", () => {
