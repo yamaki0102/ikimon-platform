@@ -105,6 +105,25 @@ function fieldHeroMetrics(stats: FieldStats, snapshot: PlaceSnapshot | null | un
   ];
 }
 
+function fieldSeasonLabel(snapshot: PlaceSnapshot | null | undefined): string {
+  const labels = snapshot?.observationSummary.seasonLabels?.filter(Boolean) ?? [];
+  return labels.length > 0 ? labels.join("・") : "季節の記録を募集中";
+}
+
+function renderFieldHeroSignals(snapshot: PlaceSnapshot | null | undefined): string {
+  if (!isAreaSnapshot(snapshot)) return "";
+  const names = snapshot.observationGallery
+    .filter((item) => item.isCurrentSeason)
+    .map((item) => item.displayName || "見つけたもの")
+    .filter(Boolean);
+  const uniqueNames = Array.from(new Set(names)).slice(0, 6);
+  if (uniqueNames.length === 0) return "";
+  return `<div class="field-map-signals" aria-label="今の季節に見えるもの">
+    <span>今見えるもの</span>
+    ${uniqueNames.map((name) => `<b>${escapeHtml(name)}</b>`).join("")}
+  </div>`;
+}
+
 function renderAlbumCard(item: AreaObservationGalleryItem): string {
   const isPrivate = item.visibility === "viewer_private";
   const href = `/observations/${encodeURIComponent(item.occurrenceId)}`;
@@ -152,7 +171,7 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
   const currentHtml = current.length > 0
     ? current.map(renderAlbumCard).join("")
     : `<article class="evt-card"><span class="evt-eyebrow">Season</span><h3 class="evt-heading">今の季節の記録を足す</h3><p class="evt-lead">季節の顔が見えると、地図からこの場所を選ぶ理由が強くなります。</p></article>`;
-  return `<section class="field-album">
+  return `<section class="field-album" id="field-album">
     <header>
       <div><span class="evt-eyebrow">Area Album</span><h2 class="evt-heading">地域の生きものアルバム</h2></div>
       <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(snapshot.field.fieldId)}/snapshot">公開図鑑ページ</a>
@@ -195,6 +214,8 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
     : stats.topTaxa.map((t) => `<span class="evt-badge evt-mode-discovery">${escapeHtml(t.name)} ×${t.count}</span>`).join(" ");
 
   const polygonJson = field.polygon ? JSON.stringify(field.polygon) : "null";
+  const locationLabel = [field.prefecture, field.city].filter(Boolean).join(" / ");
+  const areaLabel = field.areaHa ? `${field.areaHa.toFixed(2)} ha` : `半径 ${field.radiusM} m`;
 
   return `
 <section class="evt-recap-shell field-detail-shell" data-field-id="${escapeHtml(field.fieldId)}"
@@ -203,19 +224,24 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
          data-radius="${escapeHtml(String(field.radiusM))}"
          data-polygon='${polygonJson.replace(/'/g, "&#39;")}'>
 
-  <article class="evt-result-card">
-    <span class="evt-result-eyebrow">${escapeHtml(sourceLabel)} • ${escapeHtml([field.prefecture, field.city].filter(Boolean).join(" / "))}</span>
-    <h2>${escapeHtml(field.name)}</h2>
-    ${field.summary ? `<p style="margin:0; color:rgba(236,253,245,.86);">${escapeHtml(field.summary)}</p>` : ""}
-    <div class="evt-result-stats evt-stagger">
-      ${heroMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
+  <article class="field-map-hero">
+    <div class="field-map-hero-map">
+      <div class="evt-live-map-canvas" data-evt-field-map></div>
     </div>
-    <div class="field-detail-freshness"><span>最終観察</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
-    <div class="field-detail-actions">
-      <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">✨ ここで観察会を作る</a>
-      <a class="evt-btn evt-btn-on-dark" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
-      ${renderSourceButtons(field)}
-      <a class="evt-btn evt-btn-on-dark" href="/community/fields">フィールド一覧へ</a>
+    <div class="field-map-hero-copy">
+      <span class="evt-result-eyebrow">${escapeHtml(sourceLabel)}${locationLabel ? ` • ${escapeHtml(locationLabel)}` : ""}</span>
+      <h2>${escapeHtml(field.name)}</h2>
+      ${field.summary ? `<p>${escapeHtml(field.summary)}</p>` : ""}
+      <div class="field-map-hero-tags">
+        <span>${escapeHtml(fieldSeasonLabel(snapshot))}</span>
+        <span>${escapeHtml(sourceConfidenceLabel(field))}</span>
+      </div>
+      ${renderFieldHeroSignals(snapshot)}
+      <div class="field-detail-actions">
+        <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
+        <a class="evt-btn evt-btn-on-dark" href="#field-album">地域のアルバム</a>
+        ${renderSourceButtons(field)}
+      </div>
     </div>
   </article>
 
@@ -225,14 +251,22 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
 
   ${snapshot ? renderPlaceSnapshotTeaser(snapshot) : ""}
 
-  <section>
-    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-      <h2 class="evt-heading" style="margin:0;">エリア</h2>
-      <span class="evt-eyebrow">${field.areaHa ? `${field.areaHa.toFixed(2)} ha` : `半径 ${field.radiusM} m`}</span>
+  <section class="field-detail-metrics" aria-label="記録の厚み">
+    <header>
+      <div>
+        <span class="evt-eyebrow">Field Record</span>
+        <h2 class="evt-heading">記録の厚み</h2>
+      </div>
+      <div class="field-detail-metrics-actions">
+        <a class="evt-btn evt-btn-primary" href="/community/events/new?field_id=${encodeURIComponent(field.fieldId)}">ここで観察会を作る</a>
+        <a class="evt-btn evt-btn-ghost" href="/community/fields">フィールド一覧へ</a>
+      </div>
     </header>
-    <div class="evt-live-map" style="position:relative; height:300px;">
-      <div class="evt-live-map-canvas" data-evt-field-map></div>
+    <p class="evt-lead">エリア: ${escapeHtml(areaLabel)}</p>
+    <div class="evt-result-stats evt-stagger">
+      ${heroMetrics.map((item) => `<div><strong>${formatNumber(item.value)}</strong><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
+    <div class="field-detail-freshness"><span>最終観察</span><strong>${escapeHtml(formatObservationDate(latestObservedAt))}</strong></div>
   </section>
 
   <section>
@@ -324,6 +358,9 @@ export function fieldDetailScript(): string {
       const polyFeature = (polygon && polygon.type === "Polygon" || polygon && polygon.type === "MultiPolygon")
         ? { type: "Feature", geometry: polygon, properties: {} }
         : buildCircle(lat, lng, radius);
+      const pin = document.createElement("div");
+      pin.className = "field-map-pin";
+      new ml.Marker({ element: pin, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
       map.addSource("evt-field", { type: "geojson", data: polyFeature });
       map.addLayer({
         id: "evt-field-fill",
@@ -337,6 +374,17 @@ export function fieldDetailScript(): string {
         source: "evt-field",
         paint: { "line-color": "#0ea5e9", "line-width": 3 },
       });
+      const bounds = new ml.LngLatBounds();
+      const collect = (coords) => {
+        if (!Array.isArray(coords)) return;
+        if (typeof coords[0] === "number" && typeof coords[1] === "number") {
+          bounds.extend(coords);
+          return;
+        }
+        coords.forEach(collect);
+      };
+      collect(polyFeature.geometry.coordinates);
+      if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 56, maxZoom: 16, duration: 0 });
     });
   })();
 })();
@@ -347,20 +395,113 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
 .field-detail-shell {
   max-width: 1240px;
 }
-.field-detail-shell .evt-result-card {
-  padding: clamp(24px, 3vw, 40px);
-}
-.field-detail-shell .evt-result-card h2 {
-  max-width: 22ch;
-}
 .field-detail-shell .evt-result-stats {
   max-width: 900px;
+}
+.field-map-hero {
+  min-height: clamp(480px, 58vw, 660px);
+  overflow: hidden;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  border-radius: 24px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: #dbeafe;
+  box-shadow: 0 24px 70px rgba(15,23,42,.14);
+}
+.field-map-hero-map {
+  position: absolute;
+  inset: 0;
+}
+.field-map-hero-map::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(15,23,42,.04) 0%, rgba(15,23,42,.10) 42%, rgba(15,23,42,.72) 100%);
+}
+.field-map-hero-map .evt-live-map-canvas {
+  width: 100%;
+  height: 100%;
+}
+.field-map-pin {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px 999px 999px 4px;
+  transform: rotate(-45deg);
+  background: #f97316;
+  border: 3px solid #ffffff;
+  box-shadow: 0 12px 28px rgba(15,23,42,.30);
+}
+.field-map-pin::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+.field-map-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  width: min(720px, calc(100% - 32px));
+  margin: 16px;
+  padding: clamp(20px, 3vw, 34px);
+  border-radius: 20px;
+  background: rgba(6,78,59,.88);
+  color: #ffffff;
+  box-shadow: 0 18px 46px rgba(15,23,42,.28);
+  backdrop-filter: blur(12px);
+}
+.field-map-hero-copy h2 {
+  max-width: 24ch;
+  margin: 0;
+  font-size: clamp(27px, 4vw, 48px);
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.field-map-hero-copy p {
+  max-width: 64ch;
+  margin: 0;
+  color: rgba(236,253,245,.90);
+}
+.field-map-hero-tags,
+.field-map-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.field-map-hero-tags span,
+.field-map-signals b,
+.field-map-signals > span {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.12);
+  color: #ecfdf5;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+.field-map-signals > span {
+  background: rgba(255,255,255,.20);
+}
+.field-map-signals b {
+  overflow-wrap: anywhere;
 }
 .field-detail-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 18px;
+}
+.field-map-hero-copy .field-detail-actions {
+  margin-top: 2px;
 }
 .field-detail-freshness {
   width: fit-content;
@@ -384,6 +525,37 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   color: #ffffff;
   font-size: 13px;
   font-weight: 900;
+}
+.field-detail-metrics {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(15,23,42,.08);
+}
+.field-detail-metrics > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-detail-metrics-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.field-detail-metrics .evt-heading {
+  margin: 0;
+}
+.field-detail-metrics .field-detail-freshness {
+  background: rgba(16,185,129,.10);
+  border-color: rgba(16,185,129,.18);
+  color: #047857;
+}
+.field-detail-metrics .field-detail-freshness strong {
+  color: #064e3b;
 }
 .field-album {
   display: grid;
@@ -484,6 +656,13 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
   .field-detail-shell {
     max-width: 1080px;
   }
+  .field-map-hero {
+    min-height: 620px;
+  }
+  .field-map-hero-copy {
+    width: calc(100% - 24px);
+    margin: 12px;
+  }
   .field-album-grid,
   .field-album-grid-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -496,8 +675,26 @@ export const FIELD_DETAIL_ALBUM_STYLES = `
     align-items: flex-start;
     flex-direction: column;
   }
+  .field-detail-metrics > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .field-detail-metrics-actions {
+    justify-content: flex-start;
+  }
 }
 @media (max-width: 560px) {
+  .field-map-hero {
+    min-height: 680px;
+    border-radius: 18px;
+  }
+  .field-map-hero-copy {
+    padding: 18px;
+    border-radius: 16px;
+  }
+  .field-map-hero-copy h2 {
+    font-size: 28px;
+  }
   .field-album-grid,
   .field-album-grid-compact {
     grid-template-columns: 1fr;

@@ -84,7 +84,7 @@ function snapshot(): AreaPlaceSnapshot {
   } as unknown as AreaPlaceSnapshot;
 }
 
-test("field detail hero uses place snapshot observations when event stats are empty", () => {
+test("field detail metrics use place snapshot observations when event stats are empty", () => {
   const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
 
   assert.match(html, /<strong>19<\/strong><span>記録回数<\/span>/);
@@ -92,4 +92,18 @@ test("field detail hero uses place snapshot observations when event stats are em
   assert.match(html, /<strong>50<\/strong><span>累計観察<\/span>/);
   assert.match(html, /<span>最終観察<\/span><strong>2026年5月8日<\/strong>/);
   assert.doesNotMatch(html, /<strong>0<\/strong><span>開催回数<\/span>/);
+});
+
+test("field detail starts with the map hero before numeric record metrics", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
+
+  const mapHeroIndex = html.indexOf('<article class="field-map-hero">');
+  const mapCanvasIndex = html.indexOf("data-evt-field-map");
+  const metricsIndex = html.indexOf('<section class="field-detail-metrics"');
+  const numericIndex = html.indexOf("<span>記録回数</span>");
+
+  assert.ok(mapHeroIndex >= 0);
+  assert.ok(mapCanvasIndex > mapHeroIndex);
+  assert.ok(metricsIndex > mapHeroIndex);
+  assert.ok(numericIndex > metricsIndex);
 });
