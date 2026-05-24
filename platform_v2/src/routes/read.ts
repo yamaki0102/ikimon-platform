@@ -10393,12 +10393,24 @@ function renderRecordsLazyScript(lang: SiteLang): string {
   return `<script>
 (function () {
   var copy = ${JSON.stringify(copy)};
+  function detectRecordsScrollRoot(node) {
+    var current = node && node.parentElement;
+    while (current && current !== document.body && current !== document.documentElement) {
+      var style = window.getComputedStyle ? window.getComputedStyle(current) : null;
+      var overflowY = style ? style.overflowY : '';
+      if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight + 8) return current;
+      current = current.parentElement;
+    }
+    return null;
+  }
   document.querySelectorAll('[data-records-lazy-root]').forEach(function (root) {
     var endpoint = root.getAttribute('data-records-lazy-endpoint') || '';
     var button = root.querySelector('[data-records-load-more]');
     var status = root.querySelector('[data-records-lazy-status]');
     var footer = root.querySelector('[data-records-lazy-footer]');
+    var scroller = detectRecordsScrollRoot(root);
     var loading = false;
+    var scheduled = false;
     if (!endpoint || !button) return;
     function setStatus(message) {
       if (status) status.textContent = message || '';
@@ -10451,15 +10463,39 @@ function renderRecordsLazyScript(lang: SiteLang): string {
         })
         .finally(function () {
           loading = false;
+          scheduleNearBottomCheck();
         });
+    }
+    function isFooterNearViewport() {
+      if (!footer || footer.hidden || !button.getAttribute('data-next-cursor')) return false;
+      var rect = footer.getBoundingClientRect();
+      var viewportTop = 0;
+      var viewportBottom = window.innerHeight || document.documentElement.clientHeight || 0;
+      if (scroller) {
+        var rootRect = scroller.getBoundingClientRect();
+        viewportTop = rootRect.top;
+        viewportBottom = rootRect.bottom;
+      }
+      return rect.top <= viewportBottom + 720 && rect.bottom >= viewportTop - 720;
+    }
+    function scheduleNearBottomCheck() {
+      if (scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(function () {
+        scheduled = false;
+        if (isFooterNearViewport()) loadMore();
+      });
     }
     button.addEventListener('click', loadMore);
     if ('IntersectionObserver' in window && footer) {
       var observer = new IntersectionObserver(function (entries) {
         if (entries.some(function (entry) { return entry.isIntersecting; })) loadMore();
-      }, { rootMargin: '640px 0px 640px 0px' });
+      }, { root: scroller, rootMargin: '640px 0px 640px 0px' });
       observer.observe(footer);
     }
+    (scroller || window).addEventListener('scroll', scheduleNearBottomCheck, { passive: true });
+    window.addEventListener('resize', scheduleNearBottomCheck);
+    window.setTimeout(scheduleNearBottomCheck, 160);
   });
 })();
 </script>`;
