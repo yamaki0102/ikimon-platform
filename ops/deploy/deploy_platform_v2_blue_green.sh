@@ -113,6 +113,7 @@ materialize_env() {
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 env_file = Path(sys.argv[1])
@@ -165,10 +166,22 @@ missing = [key for key in ("DATABASE_URL", "V2_PRIVILEGED_WRITE_API_KEY") if not
 if missing:
     raise SystemExit(f"Missing required production v2 env keys: {', '.join(missing)}")
 
-tmp = env_file.with_suffix(".env.tmp")
-tmp.write_text("".join(f"{key}={values[key]}\n" for key in sorted(values)), encoding="utf-8")
-os.chmod(tmp, 0o600)
-tmp.replace(env_file)
+env_file.parent.mkdir(parents=True, exist_ok=True)
+fd, tmp_name = tempfile.mkstemp(
+    prefix=f".{env_file.name}.",
+    suffix=".tmp",
+    dir=str(env_file.parent),
+    text=True,
+)
+tmp = Path(tmp_name)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write("".join(f"{key}={values[key]}\n" for key in sorted(values)))
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, env_file)
+finally:
+    if tmp.exists():
+        tmp.unlink()
 print("production-v2.env materialized")
 PY
 }
