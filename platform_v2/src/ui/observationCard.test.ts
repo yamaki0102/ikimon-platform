@@ -51,6 +51,34 @@ test("renderObservationCard shows public registered area subline only for safe a
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
 });
 
+test("renderObservationCard shows boundary park candidates without declaring one area", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    municipality: "静岡市葵区",
+    publicLocation: {
+      ...observation.publicLocation,
+      label: "静岡市葵区",
+    },
+    fieldRefs: [
+      {
+        fieldId: "field-aoba",
+        name: "青葉緑地",
+        source: "user_defined",
+        adminLevel: "osm_park",
+      },
+      {
+        fieldId: "field-tokiwa",
+        name: "常磐公園",
+        source: "user_defined",
+        adminLevel: "osm_park",
+      },
+    ],
+  }, { locationMode: "public" });
+
+  assert.match(html, /静岡市葵区 · 常磐公園 \/ 青葉緑地 付近/);
+  assert.doesNotMatch(html, /静岡市葵区 · 青葉緑地<\/div>/);
+});
+
 test("renderObservationCard does not show admin boundary fields as area sublines", () => {
   const html = renderObservationCard("", "ja", {
     ...observation,

@@ -59,15 +59,21 @@ export function publicRegisteredAreaLine(input: {
   const locationLabel = String(input.publicLocation?.label || input.municipality || "").trim();
   if (!locationLabel) return null;
 
-  for (const candidate of candidates) {
-    const areaName = stripLocationPrefix(candidate.name, [
+  const topPriority = candidates[0]?.priority;
+  const topAreaNames = candidates
+    .filter((candidate) => candidate.priority === topPriority)
+    .map((candidate) => stripLocationPrefix(candidate.name, [
       locationLabel,
       input.municipality ?? "",
       input.publicLocation?.label ?? "",
-    ]);
-    if (!areaName || areaName === locationLabel) continue;
-    return `${locationLabel} · ${areaName}`;
+    ]))
+    .filter((areaName) => areaName && areaName !== locationLabel)
+    .filter((areaName, index, all) => all.indexOf(areaName) === index);
+
+  if (topAreaNames.length >= 2) {
+    return `${locationLabel} · ${topAreaNames.slice(0, 2).join(" / ")} 付近`;
   }
+  if (topAreaNames.length === 1) return `${locationLabel} · ${topAreaNames[0]}`;
 
   return null;
 }

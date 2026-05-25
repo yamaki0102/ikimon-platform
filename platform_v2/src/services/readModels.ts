@@ -579,6 +579,16 @@ async function loadVisitSummaryObservations(
               AND (
                 f.field_id = ANY(coalesce(v.resolved_field_ids, ARRAY[]::uuid[]))
                 OR f.field_id::text = v.source_payload->>'field_id'
+                OR (
+                  f.admin_level IN ('osm_park', 'park')
+                  AND v.point_latitude IS NOT NULL
+                  AND v.point_longitude IS NOT NULL
+                  AND f.bbox_min_lat IS NOT NULL
+                  AND f.bbox_min_lat <= v.point_latitude + (35.0 / 111320.0)
+                  AND f.bbox_max_lat >= v.point_latitude - (35.0 / 111320.0)
+                  AND f.bbox_min_lng <= v.point_longitude + (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+                  AND f.bbox_max_lng >= v.point_longitude - (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+                )
               )
          ) fields ON true
      )
@@ -1820,6 +1830,20 @@ async function loadObservationListCards(limit: number): Promise<RecentObservatio
              FROM candidate_visits cv
              JOIN visits v ON v.visit_id = cv.visit_id
             WHERE coalesce(v.source_payload->>'field_id', '') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           UNION ALL
+           SELECT v.visit_id,
+                  f.field_id
+             FROM candidate_visits cv
+             JOIN visits v ON v.visit_id = cv.visit_id
+             JOIN observation_fields f ON f.valid_to IS NULL
+            WHERE f.admin_level IN ('osm_park', 'park')
+              AND v.point_latitude IS NOT NULL
+              AND v.point_longitude IS NOT NULL
+              AND f.bbox_min_lat IS NOT NULL
+              AND f.bbox_min_lat <= v.point_latitude + (35.0 / 111320.0)
+              AND f.bbox_max_lat >= v.point_latitude - (35.0 / 111320.0)
+              AND f.bbox_min_lng <= v.point_longitude + (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
+              AND f.bbox_max_lng >= v.point_longitude - (35.0 / (111320.0 * greatest(0.2, abs(cos(radians(v.point_latitude))))))
          ) refs
      ),
      field_refs_by_visit AS (
