@@ -391,7 +391,7 @@ function buildFallbackDigest(input: BuildCapsuleInput, clusters: CapsuleSourceCl
   const label = placeLabel(input.session);
   const topTaxa = clusters.topTaxa.slice(0, 5).map((taxon) => taxon.label);
   const notes = [
-    `${counts.participants}名が参加し、通常記録${counts.observations}件、ガイド場面${counts.guideScenes}件、フィールドスキャン${counts.fieldScans}件が集まりました。`,
+    `${counts.participants}名が参加し、通常記録${counts.observations}件、ガイド場面${counts.guideScenes}件、センサースキャン${counts.fieldScans}件が集まりました。`,
     topTaxa.length > 0 ? `候補として目立つ生き物: ${topTaxa.join("、")}` : "種名候補はまだ少ないため、写真・音・場所状態の確認が必要です。",
   ];
   return {
@@ -400,7 +400,7 @@ function buildFallbackDigest(input: BuildCapsuleInput, clusters: CapsuleSourceCl
     organizerNotes: notes,
     nextActions: [
       counts.guideScenes === 0 ? "次回はガイド導線を1人以上に使ってもらい、気づきと未検出も残す。" : "ガイド場面から、次回見るべき環境手がかりを選ぶ。",
-      counts.fieldScans === 0 ? "次回は定点または周辺一周のフィールドスキャンを追加する。" : "同じ地点・同じ画角で再スキャンして季節差を比較する。",
+      counts.fieldScans === 0 ? "次回は定点または周辺一周のセンサースキャンを追加する。" : "同じ地点・同じ画角で再スキャンして季節差を比較する。",
       "公開前に人物、声、未成年、希少種位置を確認する。",
     ],
     sourceRefs: clusters.sourceRefs.slice(0, 20).map((ref) => ref.sourceRef),
@@ -415,7 +415,7 @@ function buildFallbackPublicStory(input: BuildCapsuleInput, clusters: CapsuleSou
   const topTaxa = clusters.topTaxa.slice(0, 6).map((taxon) => taxon.label);
   return {
     title: `${label}の一日`,
-    lead: `${label}で、参加者の記録・ガイド・フィールドスキャンから、その日の自然の手がかりを整理しました。`,
+    lead: `${label}で、参加者の記録・ガイド・センサースキャンから、その日の自然の手がかりを整理しました。`,
     sections: [
       {
         heading: "見つかったもの",
@@ -427,7 +427,7 @@ function buildFallbackPublicStory(input: BuildCapsuleInput, clusters: CapsuleSou
       {
         heading: "場所の状態",
         body: counts.fieldScans > 0
-          ? "フィールドスキャンにより、同じ場所を次回見返すための状態記録が残りました。"
+          ? "センサースキャンにより、同じ場所を次回見返すための状態記録が残りました。"
           : "次回は定点写真や周辺スキャンを足すと、季節変化を比べやすくなります。",
         sourceRefs: scanRefs,
       },

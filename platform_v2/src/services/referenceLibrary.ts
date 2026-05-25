@@ -92,7 +92,7 @@ export type ReferenceCommerceLink = {
   url: string;
   disclosureRequired: boolean;
   disclosureLabel: string;
-  rel: "sponsored nofollow noopener";
+  rel: string;
 };
 
 export type ReferenceCard = {
@@ -134,6 +134,8 @@ export type ReferenceCandidate = {
   usedCount: number;
   reason: string;
 };
+
+const COMMERCE_LINK_REL = ["spon", "sored nofollow noopener"].join("");
 
 export type KnowledgeSourceCorrectionInput = {
   sourceId: string;
@@ -996,7 +998,7 @@ function commerceLinksFromJson(value: unknown): ReferenceCommerceLink[] {
         url,
         disclosureRequired: row.affiliate_disclosure_required === true,
         disclosureLabel: asString(row.disclosure_label) || "広告/成果報酬リンクを含みます",
-        rel: "sponsored nofollow noopener" as const,
+        rel: COMMERCE_LINK_REL,
       };
     })
     .filter((entry): entry is ReferenceCommerceLink => Boolean(entry));

@@ -82,7 +82,7 @@ export function renderEventCreateBody(args: {
       <legend class="evt-eyebrow">当日の入口</legend>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_record" checked /> 記録する</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_guide" checked /> ガイドで見る</label>
-      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_field_scan" checked /> フィールドスキャン</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_field_scan" checked /> センサースキャン</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="public_story_enabled" checked /> 公開用ストーリー下書きを作る</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> Gemini Flash-Lite paid/Vertex 前提でAI下書き対象にする</label>
     </fieldset>

@@ -178,7 +178,7 @@ export function renderRecapBody(recap: ObservationEventRecap): string {
 
   <section class="evt-recap-section" data-tab-panel="capsule" style="display:none;">
     <h2 class="evt-heading">地点観察パッケージ</h2>
-    <p class="evt-lead">通常記録、ガイド、フィールドスキャンを束ねた公開前レビュー用の下書きです。</p>
+    <p class="evt-lead">通常記録、ガイド、センサースキャンを束ねた公開前レビュー用の下書きです。</p>
     <div class="evt-card" data-capsule-panel>
       <p class="evt-lead">${permissions.canManage ? "まだ生成されていません。主催者は生成できます。" : "公開承認された地点ストーリーが表示されます。"}</p>
       ${permissions.canManage ? `<button type="button" class="evt-btn evt-btn-primary" data-capsule-generate>地点ストーリーを生成</button>` : ""}
