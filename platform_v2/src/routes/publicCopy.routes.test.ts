@@ -325,6 +325,8 @@ test("records mine tab opens directly into the card grid instead of a story hero
         assert.match(response.body, /\.shell\.shell-records-workbench \{[\s\S]*width: min\(100%, var\(--ikimon-shell-effective-w, 100%\), calc\(100% - var\(--ikimon-shell-margin-left, 0px\) - var\(--ikimon-shell-margin-right, 0px\)\)\);[\s\S]*overflow-x: clip;/);
         assert.match(response.body, /--ikimon-record-card-grid-desktop: repeat\(6, minmax\(0, 1fr\)\);/);
         assert.match(response.body, /\.records-post-grid \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-fluid\);/);
+        assert.match(response.body, /@media \(min-width: 1161px\) \{[\s\S]*\.records-post-grid \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-desktop\);/);
+        assert.match(response.body, /@media \(max-width: 1020px\) \{[\s\S]*\.records-post-grid \{[\s\S]*grid-template-columns: var\(--ikimon-record-card-grid-tablet\);/);
         assert.match(response.body, /\.records-post-thumb \{[\s\S]*aspect-ratio: var\(--ikimon-record-card-thumb-ratio\);/);
         assert.doesNotMatch(response.body, /自分の自然観察ストーリー/);
         assert.doesNotMatch(response.body, /最初の章を始める。/);
