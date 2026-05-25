@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import sharp, { type Metadata } from "sharp";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import { writeLegacyObservation } from "../legacy/compatibilityWriter.js";
@@ -97,9 +97,34 @@ function normalizeFacePrivacy(input: unknown): FacePrivacySummary | null {
   };
 }
 
+function canKeepPreparedJpeg(buffer: Buffer, mimeType: string, metadata: Metadata): boolean {
+  const width = typeof metadata.width === "number" ? metadata.width : 0;
+  const height = typeof metadata.height === "number" ? metadata.height : 0;
+  const extraMetadata = metadata as Metadata & { iptc?: unknown; xmp?: unknown };
+  const hasSensitiveMetadata = Boolean(metadata.exif || extraMetadata.iptc || extraMetadata.xmp);
+  return mimeType === "image/jpeg"
+    && metadata.format === "jpeg"
+    && width > 0
+    && height > 0
+    && width <= 2560
+    && height <= 2560
+    && (!metadata.orientation || metadata.orientation === 1)
+    && !hasSensitiveMetadata
+    && buffer.byteLength <= 10 * 1024 * 1024;
+}
+
 async function normalizeObservationImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string; widthPx: number | null; heightPx: number | null }> {
   const normalizedMime = mimeType.trim().toLowerCase();
   try {
+    const inputMetadata = await sharp(buffer, { failOn: "none" }).metadata();
+    if (canKeepPreparedJpeg(buffer, normalizedMime, inputMetadata)) {
+      return {
+        buffer,
+        mimeType: "image/jpeg",
+        widthPx: inputMetadata.width ?? null,
+        heightPx: inputMetadata.height ?? null,
+      };
+    }
     const image = sharp(buffer, { failOn: "none" }).rotate().resize({
       width: 2560,
       height: 2560,
