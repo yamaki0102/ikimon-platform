@@ -1,5 +1,6 @@
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
 
 const DEEPSEEK_V4_FLASH_INPUT_MISS_USD_PER_MILLION = 0.14;
 const DEEPSEEK_V4_FLASH_OUTPUT_USD_PER_MILLION = 0.28;
@@ -298,7 +299,28 @@ async function loadDigestContext(userId: string): Promise<DigestContext> {
       latest_display_name: string | null;
       previous_observed_at: string | null;
     }>(
-      `with place_visits as (
+      `with ordered_place_visits as (
+          select
+            v.*,
+            lag(v.observed_at) over (partition by v.place_id order by v.observed_at asc, v.visit_id asc) as previous_observed_at
+          from visits v
+         where v.user_id = $1
+           and v.place_id is not null
+        ),
+        visit_windows as (
+          select
+            *,
+            sum(
+              case
+                when previous_observed_at is null
+                  or observed_at - previous_observed_at > ${CONTINUOUS_VISIT_GAP_INTERVAL_SQL}
+                then 1
+                else 0
+              end
+            ) over (partition by place_id order by observed_at asc, visit_id asc) as visit_window_index
+          from ordered_place_visits
+        ),
+        place_visits as (
           select
             v.place_id,
             coalesce(p.canonical_name, v.observed_municipality, 'いつもの場所') as place_name,
@@ -306,22 +328,36 @@ async function loadDigestContext(userId: string): Promise<DigestContext> {
             v.observed_at,
             coalesce(nullif(o.vernacular_name, ''), nullif(o.scientific_name, ''), '名前を確かめているページ') as display_name,
             row_number() over (partition by v.place_id order by v.observed_at desc, v.visit_id desc) as rn,
-            count(*) over (partition by v.place_id) as visit_count
-          from visits v
+            v.visit_window_index
+          from visit_windows v
           left join places p on p.place_id = v.place_id
           left join occurrences o on o.visit_id = v.visit_id and coalesce(o.subject_index, 0) = 0
-         where v.user_id = $1
-           and v.place_id is not null
+        ),
+        place_window_stats as (
+          select
+            place_id,
+            visit_window_index,
+            max(observed_at) as last_observed_at
+          from place_visits
+          group by place_id, visit_window_index
         )
         select
-          place_name,
-          municipality,
-          max(visit_count)::text as visit_count,
-          max(display_name) filter (where rn = 1) as latest_display_name,
-          (max(observed_at) filter (where rn = 2))::text as previous_observed_at
+          pv.place_name,
+          pv.municipality,
+          count(distinct pv.visit_window_index)::text as visit_count,
+          max(pv.display_name) filter (where pv.rn = 1) as latest_display_name,
+          previous_window.last_observed_at::text as previous_observed_at
         from place_visits
-        group by place_id, place_name, municipality
-        order by max(observed_at) desc
+        left join lateral (
+          select pws.last_observed_at
+          from place_window_stats pws
+          where pws.place_id = pv.place_id
+          order by pws.last_observed_at desc
+          offset 1
+          limit 1
+        ) previous_window on true
+        group by pv.place_id, pv.place_name, pv.municipality, previous_window.last_observed_at
+        order by max(pv.observed_at) desc
         limit 6`,
       [userId],
     ),
