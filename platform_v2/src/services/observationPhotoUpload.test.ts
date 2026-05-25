@@ -7,7 +7,11 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   const source = readFileSync(path.join(process.cwd(), "src/services/observationPhotoUpload.ts"), "utf8");
 
   assert.match(source, /normalizeObservationImage/);
+  assert.match(source, /canKeepPreparedJpeg/);
   assert.match(source, /ALLOWED_OBSERVATION_IMAGE_MIME_TYPES/);
+  assert.match(source, /metadata\.format === "jpeg"/);
+  assert.match(source, /!metadata\.orientation \|\| metadata\.orientation === 1/);
+  assert.match(source, /!hasSensitiveMetadata/);
   assert.match(source, /width: 2560/);
   assert.match(source, /height: 2560/);
   assert.match(source, /fit: "inside"/);
