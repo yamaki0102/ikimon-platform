@@ -63,10 +63,15 @@ import {
   type KnowledgeSourceCorrectionInput,
   type ReferenceCaptureItemInput,
 } from "../services/referenceLibrary.js";
-import { assertSameOriginRequest } from "../services/authSecurity.js";
+import { assertAuthRateLimit, assertSameOriginRequest } from "../services/authSecurity.js";
 import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
 import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
 import { seedStagingRegressionFixtures } from "../services/stagingRegressionFixtures.js";
+import {
+  generateRecordPhotoFeedback,
+  normalizeRecordPhotoFeedbackContext,
+  normalizeRecordPhotoFeedbackImages,
+} from "../services/recordPhotoFeedback.js";
 import { seedStagingRallyFixtures } from "../services/stagingRallyFixtures.js";
 import {
   assertObservationOwnedByUser,
@@ -112,6 +117,12 @@ function errorStatus(error: unknown, fallback = 400): number {
     error.message === "authority_recommendation_not_pending"
   ) {
     return 409;
+  }
+  if (error.message === "rate_limited") {
+    return 429;
+  }
+  if (error.message === "record_feedback_image_required") {
+    return 400;
   }
   return fallback;
 }
@@ -278,6 +289,36 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "profile_update_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Body: {
+      images?: unknown;
+      context?: unknown;
+    };
+  }>("/api/v1/record/photo-feedback", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSessionUser(session, session?.userId ?? "");
+      assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
+      const images = normalizeRecordPhotoFeedbackImages(request.body?.images);
+      const context = normalizeRecordPhotoFeedbackContext(request.body?.context);
+      const result = await generateRecordPhotoFeedback({
+        userId: resolvedSession.userId,
+        images,
+        context,
+      });
+      return {
+        ok: true,
+        feedback: result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 503));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "record_photo_feedback_failed",
       };
     }
   });
