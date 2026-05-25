@@ -96,6 +96,23 @@ function googleThinkingConfig(request: AiRouterGenerateRequest): { thinkingLevel
   return undefined;
 }
 
+export function googleResponseText(response: {
+  text?: string;
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}): string {
+  const partText = response.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text ?? "")
+    .filter(Boolean)
+    .join("") ?? "";
+  return partText || response.text || "";
+}
+
 async function logCost(
   request: AiRouterGenerateRequest,
   result: AiRouterGenerateResult,
@@ -177,7 +194,7 @@ async function callGoogleGenAi(
   const candidateTokens = Number(usage?.candidatesTokenCount ?? 0);
   const thoughtsTokens = Number(usage?.thoughtsTokenCount ?? 0);
   const outputTokens = candidateTokens + thoughtsTokens;
-  const text = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const text = googleResponseText(response);
   return {
     provider,
     model: ref.model,

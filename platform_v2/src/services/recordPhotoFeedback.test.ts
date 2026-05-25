@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   fallbackRecordPhotoFeedbackSentence,
@@ -58,4 +59,11 @@ test("record photo feedback fallback can acknowledge already-good photos", () =>
     fallbackRecordPhotoFeedbackSentence("already_good", ["花と葉の形"]),
     /花と葉の形/,
   );
+});
+
+test("record photo feedback keeps Gemini thinking from consuming the reply budget", () => {
+  const source = readFileSync(new URL("./recordPhotoFeedback.ts", import.meta.url), "utf8");
+
+  assert.match(source, /thinkingConfig:\s*\{\s*thinkingLevel:\s*"minimal"\s*\}/);
+  assert.match(source, /maxOutputTokens:\s*640/);
 });
