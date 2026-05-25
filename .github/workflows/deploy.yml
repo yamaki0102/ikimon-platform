@@ -79,6 +79,12 @@ jobs:
           chmod 600 ~/.ssh/ikimon_vps
           ssh-keyscan -H 162.43.44.131 >> ~/.ssh/known_hosts
 
+      - name: Ensure production repo uses public HTTPS remote
+        run: |
+          repo_url="https://github.com/${GITHUB_REPOSITORY}.git"
+          ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 \
+            "git -C /var/www/ikimon.life/repo remote set-url origin '${repo_url}'"
+
       - name: Deploy legacy lane via SSH
         run: ssh -i ~/.ssh/ikimon_vps -o ServerAliveInterval=30 -o ServerAliveCountMax=20 root@162.43.44.131 /var/www/ikimon.life/deploy.sh
 
