@@ -1539,6 +1539,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sources = normalizeAreaSources(state.areaSources);
     return sources.length ? sources.join(',') : '';
   }
+  function areaSourcesQueryValueForMap() {
+    var sources = normalizeAreaSources(state.areaSources);
+    if (state.tab === 'heatmap' && sources.length && sources.indexOf('osm_park') < 0) {
+      sources.push('osm_park');
+    }
+    return sources.length ? sources.join(',') : '';
+  }
   function switchToPlacesForAreaFilter() {
     if (state.tab !== 'places') state.tab = 'places';
     syncUiFromState();
@@ -4350,7 +4357,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     state.areaPolygonsAbort = controller;
     var qs = '?bbox=' + encodeURIComponent(bbox) + '&zoom=' + encodeURIComponent(zoom.toFixed(2));
-    var selectedSources = areaSourcesQueryValue();
+    var selectedSources = areaSourcesQueryValueForMap();
     if (selectedSources) qs += '&sources=' + encodeURIComponent(selectedSources);
     fetch(apiAreaPolygons + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : null; })

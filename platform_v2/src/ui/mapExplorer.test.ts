@@ -77,3 +77,12 @@ test("heatmap tab keeps area polygons selectable", () => {
 
   assert.match(script, /show\(areaLayers, tab === 'markers' \|\| tab === 'heatmap' \|\| tab === 'places'\);/);
 });
+
+test("heatmap area filters keep osm parks as selectable anchors", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function areaSourcesQueryValueForMap\(\)/);
+  assert.match(script, /state\.tab === 'heatmap' && sources\.length && sources\.indexOf\('osm_park'\) < 0/);
+  assert.match(script, /sources\.push\('osm_park'\);/);
+  assert.match(script, /var selectedSources = areaSourcesQueryValueForMap\(\);/);
+});
