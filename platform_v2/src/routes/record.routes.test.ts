@@ -62,6 +62,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /場所と時間が残る/);
         assert.match(response.body, /周囲も手がかり/);
         assert.match(response.body, /対象はあとで分ける/);
+        assert.match(response.body, /buildRecordFeedbackSentence/);
+        assert.match(response.body, /次の撮り方/);
+        assert.doesNotMatch(response.body, /対象が大きく写る1枚と周囲が分かる1枚/);
         assert.match(response.body, /自動下書き/);
         assert.match(response.body, /あとで補完する項目/);
         assert.match(response.body, /記録を保存/);

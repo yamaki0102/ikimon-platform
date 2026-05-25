@@ -11841,6 +11841,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let selectedMediaRole = 'primary_subject';
         let selectedOriginalVideoFile = null;
         let selectedVideoWasTrimmed = false;
+        let currentCaptureNoticeText = '';
         let mediaAutofillSequence = 0;
         let pendingMediaRetryObservationId = '';
         let videoTrimState = null;
@@ -12235,6 +12236,40 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const hasNoteDraft = () => selectedCaptureKind === 'note';
         const hasRecordDraft = () => hasSelectedMedia() || hasNoteDraft();
         const isVideoSimpleMode = () => selectedVideoFile instanceof File && isVideoFile(selectedVideoFile) && selectedPhotoFiles().length === 0;
+        const buildRecordFeedbackSentence = () => {
+          if (!form) return '';
+          const data = new FormData(form);
+          const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
+          const hasVideo = selectedVideoFile instanceof File && isVideoFile(selectedVideoFile);
+          const hasLocation = !coordsMissing();
+          const hasName = Boolean(String(data.get('vernacularName') || data.get('scientificName') || '').trim());
+          const hasNote = Boolean(String(data.get('localityNote') || data.get('nextLookFor') || data.get('revisitReason') || '').trim());
+          const quickCaptureState = String(data.get('quickCaptureState') || 'present');
+          if (hasNoteDraft() && !hasSelectedMedia()) {
+            return hasLocation
+              ? 'メモと場所は残っています。次に同じ場所へ行ったら、見たものを1枚足すと比較しやすくなります。'
+              : 'メモだけの記録です。次は現在地か場所メモを足すと、あとから見返しやすくなります。';
+          }
+          if (hasVideo && photoCount === 0) {
+            return '動画で動きは残っています。名前を確かめやすくするなら、主役が止まって見える写真を1枚足すのが効きます。';
+          }
+          if (hasVideo && photoCount > 0) {
+            return hasLocation
+              ? '写真・動画・場所がそろっています。次は気になった特徴をメモに足すと、見分け直しやすくなります。'
+              : '写真と動画はそろっています。次は場所を入れると、同じ地点での再記録につなげやすくなります。';
+          }
+          if (photoCount >= 2) {
+            return hasLocation
+              ? '複数の写真と場所がそろっています。次は何が気になったかを一言足すと、確認の精度が上がります。'
+              : '複数の写真があります。次は場所を入れると、周辺環境まで含めて見返しやすくなります。';
+          }
+          if (photoCount === 1) {
+            if (!hasLocation) return '写真は入っています。次は現在地か場所メモを足すと、記録として使いやすくなります。';
+            if (!hasName && !hasNote && quickCaptureState !== 'unknown') return '写真と場所は残っています。分からない点を一言メモすると、あとで確認しやすくなります。';
+            return '写真と場所が残っています。次は別角度や周囲の様子を足すと、見分ける手がかりが増えます。';
+          }
+          return '';
+        };
         const selectedMediaSummaryText = () => {
           const parts = [];
           const photoCount = selectedPhotoFiles().length + (selectedPrimaryPhotoFile instanceof File ? 1 : 0);
@@ -13553,8 +13588,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             ? (hasMedia ? '下書き作成済み - ' + mediaSummary : label.title)
             : '未選択';
           const noticeText = [...(notices || []), ...normalized.notices].filter(Boolean).join(' ');
+          currentCaptureNoticeText = noticeText;
           if (captureResultHelp) captureResultHelp.textContent = hasDraft
-            ? (noticeText || label.help)
+            ? (noticeText || buildRecordFeedbackSentence() || label.help)
             : '写真を選ぶと、日時と地点だけで保存できます。';
           captureButtons.forEach((button) => {
             const active = button.getAttribute('data-capture-action') === selectedCaptureKind;
@@ -13587,6 +13623,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           selectedMediaFiles = [];
           selectedVideoFile = null;
           selectedCaptureKind = kind;
+          currentCaptureNoticeText = '';
           if (form) form.hidden = true;
           if (captureResult) captureResult.hidden = false;
           document.documentElement.classList.remove('record-has-media');
@@ -13612,6 +13649,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           selectedPrimaryPhotoFile = null;
           pendingMediaRetryObservationId = '';
           selectedCaptureKind = '';
+          currentCaptureNoticeText = '';
           mediaInputs.forEach((input) => { input.value = ''; });
           if (videoPrimaryPhotoInput) videoPrimaryPhotoInput.value = '';
           if (form) form.hidden = true;
@@ -13708,6 +13746,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             previewDate.textContent = observedAtValue
               ? new Date(observedAtValue).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
               : '今日';
+          }
+          if (captureResultHelp && hasRecordDraft() && !currentCaptureNoticeText) {
+            captureResultHelp.textContent = buildRecordFeedbackSentence() || captureResultHelp.textContent;
           }
           syncLocationNudge();
         };
@@ -14658,10 +14699,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const contributionReceiptKinds = contributionReceipts
                 .map((receipt) => receipt && typeof receipt === 'object' ? String(receipt.kind || '') : '')
                 .filter(Boolean);
+              const uploadFeedback = buildRecordFeedbackSentence();
+              const uploadFeedbackHtml = uploadFeedback
+                ? '<div class="record-upload-feedback"><strong>次の撮り方</strong><span>' + escapeHtmlText(uploadFeedback) + '</span></div>'
+                : '';
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + impactHtml + contributionReceiptsHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + contributionReceiptsHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -14954,6 +14999,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-video-publication-help a { color: #0369a1; text-decoration: underline; text-underline-offset: 3px; font-weight: 950; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
         .record-status-inline { grid-column: 1 / -1; margin: 14px 0 0 16px; }
+        .record-upload-feedback { margin: 10px 0 8px; padding: 12px 14px; border-radius: 8px; background: #ecfdf5; border: 1px solid rgba(16,185,129,.24); display: grid; gap: 4px; }
+        .record-upload-feedback strong { color: #065f46; font-size: 12px; line-height: 1.35; }
+        .record-upload-feedback span { color: #0f172a; font-size: 13px; line-height: 1.7; font-weight: 750; }
         .record-impact-receipts { margin: 12px 0 10px; padding: 14px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
         .record-impact-receipts-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
         .record-impact-receipts-head span { color: #047857; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
