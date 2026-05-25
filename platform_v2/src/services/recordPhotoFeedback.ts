@@ -160,7 +160,8 @@ export async function generateRecordPhotoFeedback(input: RecordPhotoFeedbackInpu
     chainName: "observationVisualExtract",
     parts,
     responseMimeType: "application/json",
-    maxOutputTokens: 420,
+    thinkingConfig: { thinkingLevel: "minimal" },
+    maxOutputTokens: 640,
     temperature: 0.2,
     retriesPerModel: 1,
     cost: {
