@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { promoteCandidateReadingsToCoexistingTaxa } from "./observationReassess.js";
+import { applyTaxonomicRankGuardrail, promoteCandidateReadingsToCoexistingTaxa } from "./observationReassess.js";
 
 test("multi-subject guard promotes non-primary candidate_readings into coexisting taxa", () => {
   const result = promoteCandidateReadingsToCoexistingTaxa({
@@ -139,4 +139,71 @@ test("multi-subject guard does not turn same-subject millipede alternatives into
 
   assert.equal(result.promoted, 0);
   assert.deepEqual(result.candidates, []);
+});
+
+test("taxonomic rank guard downgrades close species candidates to genus", () => {
+  const result = applyTaxonomicRankGuardrail({
+    recommendedName: "ユウマダラエダシャク",
+    recommendedScientificName: "Abraxas miranda",
+    rank: "species",
+    confidenceBand: "medium",
+    parsed: {
+      taxonomic_candidates: [
+        { taxon_name: "ユウマダラエダシャク", scientific_name: "Abraxas miranda", rank: "species", probability: 0.45 },
+        { taxon_name: "ウメエダシャク", scientific_name: "Abraxas grossulariata", rank: "species", probability: 0.35 },
+        { taxon_name: "キハラゴマダラヒトリ", scientific_name: "Spilosoma lubricipeda", rank: "species", probability: 0.05 },
+      ],
+      diagnostic_features_missing: ["前翅基部の斑紋境界"],
+      confusable_groups: [{ group_name: "ヒトリガ亜科", distinction_point: "静止姿勢と胸部毛束" }],
+    },
+  });
+
+  assert.equal(result.downgraded, true);
+  assert.equal(result.rank, "genus");
+  assert.equal(result.recommendedScientificName, "Abraxas");
+  assert.equal(result.recommendedName, "Abraxas属の一種");
+});
+
+test("taxonomic rank guard downgrades close cross-genus candidates to order", () => {
+  const result = applyTaxonomicRankGuardrail({
+    recommendedName: "ユウマダラエダシャク",
+    recommendedScientificName: "Abraxas miranda",
+    rank: "species",
+    confidenceBand: "medium",
+    parsed: {
+      taxonomic_candidates: [
+        { taxon_name: "ユウマダラエダシャク", scientific_name: "Abraxas miranda", rank: "species", probability: 0.45 },
+        { taxon_name: "キハラゴマダラヒトリ", scientific_name: "Spilosoma lubricipeda", rank: "species", probability: 0.39 },
+      ],
+      diagnostic_features_missing: ["胸部の毛束と静止姿勢の確認が不足"],
+      confusable_groups: [{ group_name: "ヒトリガ亜科", distinction_point: "静止姿勢と胸部毛束" }],
+    },
+  });
+
+  assert.equal(result.downgraded, true);
+  assert.equal(result.rank, "order");
+  assert.equal(result.recommendedScientificName, "Lepidoptera");
+  assert.equal(result.recommendedName, "チョウ目の一種");
+});
+
+test("taxonomic rank guard keeps species when decisive features are present", () => {
+  const result = applyTaxonomicRankGuardrail({
+    recommendedName: "ナワシロイチゴ",
+    recommendedScientificName: "Rubus parvifolius",
+    rank: "species",
+    confidenceBand: "high",
+    parsed: {
+      taxonomic_candidates: [
+        { taxon_name: "ナワシロイチゴ", scientific_name: "Rubus parvifolius", rank: "species", probability: 0.89 },
+        { taxon_name: "キイチゴ属", scientific_name: "Rubus", rank: "genus", probability: 0.12 },
+      ],
+      diagnostic_features_observed: ["赤い集合果", "低く這う枝"],
+      diagnostic_features_missing: [],
+      visual_contradictions: [],
+    },
+  });
+
+  assert.equal(result.downgraded, false);
+  assert.equal(result.rank, "species");
+  assert.equal(result.recommendedScientificName, "Rubus parvifolius");
 });
