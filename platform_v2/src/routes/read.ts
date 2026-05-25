@@ -11821,6 +11821,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const MAX_PHOTO_FILES = 6;
         const PHOTO_UPLOAD_MAX_EDGE = 2560;
         const PHOTO_UPLOAD_JPEG_QUALITY = 0.88;
+        const PHOTO_FEEDBACK_MAX_EDGE = 1024;
+        const PHOTO_FEEDBACK_JPEG_QUALITY = 0.72;
         const PHOTO_UPLOAD_CONCURRENCY = 2;
         const PHOTO_EXIF_READ_MAX_BYTES = 8 * 1024 * 1024;
         const FRESH_MEDIA_LOCATION_WINDOW_MS = 10 * 60 * 1000;
@@ -11842,6 +11844,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         let selectedOriginalVideoFile = null;
         let selectedVideoWasTrimmed = false;
         let currentCaptureNoticeText = '';
+        let visualRecordFeedbackSentence = '';
+        let visualRecordFeedbackMediaKey = '';
+        let visualRecordFeedbackSequence = 0;
+        let visualRecordFeedbackPending = false;
         let mediaAutofillSequence = 0;
         let pendingMediaRetryObservationId = '';
         let videoTrimState = null;
@@ -12236,6 +12242,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const hasNoteDraft = () => selectedCaptureKind === 'note';
         const hasRecordDraft = () => hasSelectedMedia() || hasNoteDraft();
         const isVideoSimpleMode = () => selectedVideoFile instanceof File && isVideoFile(selectedVideoFile) && selectedPhotoFiles().length === 0;
+        const resetVisualRecordFeedback = () => {
+          visualRecordFeedbackSentence = '';
+          visualRecordFeedbackMediaKey = '';
+          visualRecordFeedbackPending = false;
+          visualRecordFeedbackSequence += 1;
+        };
+        const selectedFeedbackPhotoFiles = () => [
+          ...selectedPhotoFiles(),
+          ...(selectedPrimaryPhotoFile instanceof File ? [selectedPrimaryPhotoFile] : []),
+        ].slice(0, 3);
+        const recordFeedbackMediaKey = () => selectedFeedbackPhotoFiles()
+          .map((file) => [file.name || 'photo', String(file.size || 0), String(file.lastModified || 0)].join(':'))
+          .join('|');
         const buildRecordFeedbackSentence = () => {
           if (!form) return '';
           const data = new FormData(form);
@@ -12245,6 +12264,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const hasName = Boolean(String(data.get('vernacularName') || data.get('scientificName') || '').trim());
           const hasNote = Boolean(String(data.get('localityNote') || data.get('nextLookFor') || data.get('revisitReason') || '').trim());
           const quickCaptureState = String(data.get('quickCaptureState') || 'present');
+          if (visualRecordFeedbackSentence && photoCount > 0) return visualRecordFeedbackSentence;
           if (hasNoteDraft() && !hasSelectedMedia()) {
             return hasLocation
               ? 'メモと場所は残っています。次に同じ場所へ行ったら、見たものを1枚足すと比較しやすくなります。'
@@ -13567,6 +13587,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           selectedMediaFiles = normalized.photos;
           selectedVideoFile = normalized.video;
           selectedCaptureKind = kind || '';
+          resetVisualRecordFeedback();
           const hasMedia = hasSelectedMedia();
           const hasDraft = hasRecordDraft();
           if (hasMedia && !selectedMediaRole) setSelectedMediaRole('primary_subject');
@@ -13624,6 +13645,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           selectedVideoFile = null;
           selectedCaptureKind = kind;
           currentCaptureNoticeText = '';
+          resetVisualRecordFeedback();
           if (form) form.hidden = true;
           if (captureResult) captureResult.hidden = false;
           document.documentElement.classList.remove('record-has-media');
@@ -13650,6 +13672,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           pendingMediaRetryObservationId = '';
           selectedCaptureKind = '';
           currentCaptureNoticeText = '';
+          resetVisualRecordFeedback();
           mediaInputs.forEach((input) => { input.value = ''; });
           if (videoPrimaryPhotoInput) videoPrimaryPhotoInput.value = '';
           if (form) form.hidden = true;
@@ -13846,6 +13869,79 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               base64Data: await readFileAsDataUrl(file),
               facePrivacy: { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: 'photo_canvas_fallback' },
             };
+          }
+        };
+        const preparePhotoFeedbackImage = async (file) => {
+          const image = await loadImageForUpload(file);
+          const width = Number(image.naturalWidth || image.width || 0);
+          const height = Number(image.naturalHeight || image.height || 0);
+          if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error('photo_feedback_decode_failed');
+          const scale = Math.min(1, PHOTO_FEEDBACK_MAX_EDGE / Math.max(width, height));
+          const targetWidth = Math.max(1, Math.round(width * scale));
+          const targetHeight = Math.max(1, Math.round(height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('photo_feedback_canvas_unavailable');
+          context.drawImage(image, 0, 0, targetWidth, targetHeight);
+          if (image && typeof image.close === 'function') image.close();
+          const dataUrl = await canvasToJpegDataUrl(canvas, PHOTO_FEEDBACK_JPEG_QUALITY);
+          return {
+            mimeType: 'image/jpeg',
+            base64Data: String(dataUrl || '').replace(/^data:[^,]+,/, ''),
+          };
+        };
+        const requestVisualRecordFeedback = async () => {
+          const files = selectedFeedbackPhotoFiles();
+          const mediaKey = recordFeedbackMediaKey();
+          if (!files.length || !mediaKey) {
+            resetVisualRecordFeedback();
+            return;
+          }
+          if (visualRecordFeedbackMediaKey === mediaKey && (visualRecordFeedbackSentence || visualRecordFeedbackPending)) return;
+          const sequence = visualRecordFeedbackSequence + 1;
+          visualRecordFeedbackSequence = sequence;
+          visualRecordFeedbackMediaKey = mediaKey;
+          visualRecordFeedbackSentence = '';
+          visualRecordFeedbackPending = true;
+          if (captureResultHelp && hasRecordDraft() && !currentCaptureNoticeText) {
+            captureResultHelp.textContent = '写真を見て、次の撮り方のヒントを作っています...';
+          }
+          try {
+            const images = await Promise.all(files.map((file) => preparePhotoFeedbackImage(file)));
+            const data = form ? new FormData(form) : new FormData();
+            const taxonName = String(data.get('vernacularName') || data.get('scientificName') || '').trim();
+            const userNote = String(data.get('localityNote') || data.get('nextLookFor') || data.get('revisitReason') || '').trim();
+            const response = await fetch(withBasePath('/api/v1/record/photo-feedback'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify({
+                images,
+                context: {
+                  hasVideo: selectedVideoFile instanceof File && isVideoFile(selectedVideoFile),
+                  hasLocation: !coordsMissing(),
+                  photoCount: files.length,
+                  taxonName,
+                  userNote,
+                },
+              }),
+            });
+            const json = await response.json().catch(() => ({}));
+            const sentence = String(json && json.feedback && json.feedback.sentence || '').trim();
+            if (sequence !== visualRecordFeedbackSequence || mediaKey !== recordFeedbackMediaKey()) return;
+            visualRecordFeedbackPending = false;
+            visualRecordFeedbackSentence = response.ok && sentence ? sentence.slice(0, 140) : '';
+            if (captureResultHelp && hasRecordDraft() && !currentCaptureNoticeText) {
+              captureResultHelp.textContent = buildRecordFeedbackSentence() || captureResultHelp.textContent;
+            }
+          } catch (_) {
+            if (sequence !== visualRecordFeedbackSequence) return;
+            visualRecordFeedbackPending = false;
+            if (captureResultHelp && hasRecordDraft() && !currentCaptureNoticeText) {
+              captureResultHelp.textContent = buildRecordFeedbackSentence() || captureResultHelp.textContent;
+            }
           }
         };
         const sha256Hex = async (value) => {
@@ -14143,6 +14239,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (!files.length || (!normalized.photos.length && !normalized.video)) {
               selectedMediaFiles = [];
               selectedVideoFile = null;
+              resetVisualRecordFeedback();
               renderPreviewFile(null);
               showRecordFormForMedia([], '');
               resetVideoProgress();
@@ -14154,11 +14251,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               renderPreviewSelection();
               resetVideoProgress();
               resetVideoTrim();
+              void requestVisualRecordFeedback();
               scheduleMediaAutofill(normalized.photos[0] || null, {}, { autoLocateFreshCapture: kind === 'photo' || kind === 'gallery' });
             } else if (videoProgressWrap) {
               setSelectedMediaRole(kind === 'video' ? 'sound_motion' : 'primary_subject');
               showRecordFormForMedia(files, kind);
               renderPreviewSelection();
+              void requestVisualRecordFeedback();
               scheduleMediaAutofill(normalized.photos[0] || normalized.video, {}, { autoLocateFreshCapture: kind === 'video' });
               let trimReady = true;
               try {
@@ -14191,6 +14290,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             }
             selectedPrimaryPhotoFile = file;
             syncVideoPrimaryPhotoUi();
+            visualRecordFeedbackSentence = '';
+            visualRecordFeedbackMediaKey = '';
+            void requestVisualRecordFeedback();
             scheduleMediaAutofill(file, {}, { autoLocateFreshCapture: false });
           });
         }
@@ -14199,6 +14301,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             selectedPrimaryPhotoFile = null;
             if (videoPrimaryPhotoInput) videoPrimaryPhotoInput.value = '';
             syncVideoPrimaryPhotoUi();
+            resetVisualRecordFeedback();
+            void requestVisualRecordFeedback();
           });
         }
         if (captureChange) {

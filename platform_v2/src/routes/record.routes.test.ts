@@ -63,6 +63,9 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /周囲も手がかり/);
         assert.match(response.body, /対象はあとで分ける/);
         assert.match(response.body, /buildRecordFeedbackSentence/);
+        assert.match(response.body, /requestVisualRecordFeedback/);
+        assert.match(response.body, /\/api\/v1\/record\/photo-feedback/);
+        assert.match(response.body, /写真を見て、次の撮り方のヒントを作っています/);
         assert.match(response.body, /次の撮り方/);
         assert.doesNotMatch(response.body, /対象が大きく写る1枚と周囲が分かる1枚/);
         assert.match(response.body, /自動下書き/);
@@ -330,6 +333,30 @@ test("guide route redacts face regions before scene analysis", async () => {
     assert.match(response.body, /redactCanvasFaces\(canvas, \{ blocksPerFace: 10 \}\)/);
     assert.match(response.body, /facePrivacy: framePayload\.facePrivacy/);
     assert.match(response.body, /\/api\/v1\/guide\/scene/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("record photo feedback API requires a signed-in session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/record/photo-feedback",
+      headers: {
+        "content-type": "application/json",
+      },
+      payload: {
+        images: [{ mimeType: "image/jpeg", base64Data: "a".repeat(120) }],
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(response.json(), {
+      ok: false,
+      error: "session_required",
+    });
   } finally {
     await app.close();
   }
