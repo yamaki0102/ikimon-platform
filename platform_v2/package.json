@@ -66,6 +66,7 @@
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
     "ingest:place-environment": "tsx src/scripts/ingestPlaceEnvironmentSnapshots.ts",
     "process:video-jobs": "tsx src/scripts/processVideoProcessingJobs.ts",
+    "process:place-memory-photos": "tsx src/scripts/processPlaceMemoryPhotos.ts",
     "process:audio-segments": "tsx src/scripts/processAudioSegments.ts",
     "repair:manual-occurrences": "tsx src/scripts/repairMissingManualOccurrences.ts",
     "repair:location-labels": "tsx src/scripts/repairObservationLocationLabels.ts",

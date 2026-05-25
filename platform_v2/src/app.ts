@@ -42,6 +42,7 @@ import { registerObservationEventPagesRoutes } from "./routes/observationEventPa
 import { registerObservationFieldsApiRoutes } from "./routes/observationFieldsApi.js";
 import { registerObservationPackageApiRoutes } from "./routes/observationPackageApi.js";
 import { registerPlaceManagementPolicyApiRoutes } from "./routes/placeManagementPolicyApi.js";
+import { registerPlaceMemoryApiRoutes } from "./routes/placeMemoryApi.js";
 import { registerReferenceRoutes } from "./routes/references.js";
 import { startQuestScheduler } from "./services/observationEventQuestEngine.js";
 import { registerSiteMapRoutes } from "./routes/siteMapRoutes.js";
@@ -752,6 +753,7 @@ export function buildApp() {
       global: false,
     });
     await registerWriteRoutes(writeScope);
+    await registerPlaceMemoryApiRoutes(writeScope);
   });
   void registerUiKpiRoutes(app);
   void registerOpsRoutes(app);

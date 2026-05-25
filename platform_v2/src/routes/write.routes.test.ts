@@ -17,5 +17,6 @@ test("observation upsert returns contribution receipts with the ok contract", ()
   assert.match(source, /buildContributionReceipts/);
   assert.match(source, /const contributionReceipts = buildContributionReceipts\(/);
   assert.match(source, /contributionReceiptKinds: contributionReceipts\.map/);
-  assert.match(source, /return \{\s+ok: true,\s+\.\.\.result,\s+contributionReceipts,\s+\};/);
+  assert.match(source, /return \{\s+ok: true,\s+\.\.\.result,[\s\S]+contributionReceipts,[\s\S]+\};/);
+  assert.match(source, /placeMemorySample/);
 });

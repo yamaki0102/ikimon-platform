@@ -21,6 +21,7 @@ type CleanupCounts = {
   oauthAccounts: number;
   identifications: number;
   observationReactions: number;
+  placeMemoryAuditEvents: number;
   evidenceAssets: number;
   assetBlobs: number;
   files: number;
@@ -51,6 +52,7 @@ function emptyCounts(): CleanupCounts {
     oauthAccounts: 0,
     identifications: 0,
     observationReactions: 0,
+    placeMemoryAuditEvents: 0,
     evidenceAssets: 0,
     assetBlobs: 0,
     files: 0,
@@ -215,6 +217,18 @@ export async function cleanupStagingFixtures(
          join visits v on v.visit_id = o.visit_id
         where ${occurrencePredicate}`,
     );
+    const candidatePlaceMemoryEntryIds = await tableExists(client, "place_memory_entries")
+      ? await queryTextArray(
+          client,
+          `select distinct pme.entry_id::text as value
+             from place_memory_entries pme
+            where ($1::text[] <> '{}'::text[] and pme.visit_id = any($1::text[]))
+               or ($2::text[] <> '{}'::text[] and pme.occurrence_id = any($2::text[]))
+               or ($3::text[] <> '{}'::text[] and pme.user_id = any($3::text[]))
+               or ($4::text is not null and pme.source_payload::text like '%' || $4 || '%')`,
+          [candidateVisitIds, candidateOccurrenceIds, candidateUserIds, fixturePrefix],
+        )
+      : [];
     const candidateAssets = await queryCandidateAssets(client, fixturePrefix);
     const candidatePlaceIdsByPattern = await queryTextArray(
       client,
@@ -300,6 +314,20 @@ export async function cleanupStagingFixtures(
         }
       }
     }
+    if (candidatePlaceMemoryEntryIds.length > 0 || candidateUserIds.length > 0 || fixturePrefix) {
+      const result = await client.query<{ c: string }>(
+        `select count(*)::text as c
+           from place_memory_audit_events
+          where ($1::uuid[] <> '{}'::uuid[] and entry_id = any($1::uuid[]))
+             or ($2::text[] <> '{}'::text[] and actor_user_id = any($2::text[]))
+             or ($3::text is not null and event_payload::text like '%' || $3 || '%')`,
+        [candidatePlaceMemoryEntryIds, candidateUserIds, fixturePrefix],
+      ).catch((error) => {
+        if (isUndefinedTableError(error)) return { rows: [{ c: "0" }] };
+        throw error;
+      });
+      matched.placeMemoryAuditEvents = Number(result.rows[0]?.c ?? 0);
+    }
     matched.evidenceAssets = candidateAssets.length;
     matched.assetBlobs = candidateBlobIds.length;
     matched.files = storagePaths.length;
@@ -349,6 +377,18 @@ export async function cleanupStagingFixtures(
             where ($1::text[] <> '{}'::text[] and occurrence_id = any($1::text[]))
                or ($2::text[] <> '{}'::text[] and user_id = any($2::text[]))`,
           [candidateOccurrenceIds, candidateUserIds],
+        );
+      }
+
+      if (candidatePlaceMemoryEntryIds.length > 0 || candidateUserIds.length > 0 || fixturePrefix) {
+        deleted.placeMemoryAuditEvents = await deleteCountIfTableExists(
+          client,
+          "place_memory_audit_events",
+          `delete from place_memory_audit_events
+            where ($1::uuid[] <> '{}'::uuid[] and entry_id = any($1::uuid[]))
+               or ($2::text[] <> '{}'::text[] and actor_user_id = any($2::text[]))
+               or ($3::text is not null and event_payload::text like '%' || $3 || '%')`,
+          [candidatePlaceMemoryEntryIds, candidateUserIds, fixturePrefix],
         );
       }
 

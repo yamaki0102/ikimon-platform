@@ -40,6 +40,12 @@ import {
   type WaterRecordExtensionInput,
 } from "./waterRecordExtension.js";
 import {
+  kickPlaceMemoryPhotoProcessingForVisit,
+  upsertPlaceMemoryForVisit,
+  type PlaceMemoryInput,
+  type PlaceMemoryWriteResult,
+} from "./placeMemory.js";
+import {
   appendObservationPackageEvent,
   upsertFieldScanContext,
   upsertObservationGovernanceContext,
@@ -124,6 +130,7 @@ export type ObservationUpsertInput = {
   civicContext?: Partial<CivicObservationContextInput> | null;
   dataRights?: ObservationDataRightsInput | null;
   waterRecord?: WaterRecordExtensionInput | null;
+  placeMemory?: PlaceMemoryInput | null;
   fieldScan?: FieldScanContextInput | null;
   governanceContext?: ObservationGovernanceContextInput | null;
   packageEvents?: ObservationPackageEventInput[];
@@ -152,6 +159,7 @@ export type ObservationWriteResult = {
     clientSubmissionId: string;
     reused: boolean;
   };
+  placeMemory?: PlaceMemoryWriteResult | null;
 };
 
 /**
@@ -569,6 +577,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const pendingWaterRecord = input.waterRecord && typeof input.waterRecord === "object"
     ? input.waterRecord
     : null;
+  let placeMemory: PlaceMemoryWriteResult | null = null;
   const pendingFieldScan = input.fieldScan && typeof input.fieldScan === "object"
     ? input.fieldScan
     : null;
@@ -1041,6 +1050,16 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       }, client);
     }
 
+    placeMemory = await upsertPlaceMemoryForVisit(client, {
+      visitId,
+      occurrenceId,
+      userId: input.userId,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      placeMemory: input.placeMemory,
+      source: "v2_observation_write",
+    });
+
     if (pendingFieldScan?.scanMode) {
       await upsertFieldScanContext({
         ...pendingFieldScan,
@@ -1145,6 +1164,10 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   // Non-blocking: try Tier 1 → 1.5 auto-promotion (AI conf ≥ 0.8 × regional record)
   void tryAutoPromoteToTier1_5(occurrenceId).catch(() => undefined);
 
+  if (placeMemory?.photoEchoEnabled) {
+    void kickPlaceMemoryPhotoProcessingForVisit(visitId).catch(() => undefined);
+  }
+
   const config = loadConfig();
   const compatibility = {
     attempted: config.compatibilityWriteEnabled,
@@ -1179,6 +1202,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     placeId,
     impact,
     compatibility,
+    placeMemory,
     idempotency: clientSubmissionId
       ? {
           clientSubmissionId,

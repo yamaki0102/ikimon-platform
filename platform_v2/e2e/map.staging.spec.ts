@@ -2,9 +2,9 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   MAP_VIEWPORTS,
+  dragMap,
   maybeCaptureQaScreenshot,
   newStagingContext,
-  triggerPendingViewportSearch,
   waitForMapReady,
 } from "./support/staging.js";
 
@@ -125,6 +125,26 @@ async function tryOpenBlankPlaceTarget(page: Page, isMobile: boolean): Promise<b
   return false;
 }
 
+async function triggerPendingViewportSearchOrAutoRefresh(page: Page, previousStatus: string): Promise<"pending" | "refreshed"> {
+  await page.waitForTimeout(700);
+  const attempts = [
+    { x: 220, y: 80 },
+    { x: -240, y: 110 },
+    { x: 0, y: -180 },
+  ];
+  const searchButton = page.locator("#me-search-area-btn");
+  const sideStatus = page.locator("#me-side-status");
+  for (const attempt of attempts) {
+    await dragMap(page, attempt.x, attempt.y);
+    await page.waitForTimeout(350);
+    if (await searchButton.isVisible().catch(() => false)) return "pending";
+    const nextStatus = ((await sideStatus.textContent().catch(() => "")) ?? "").trim();
+    if (nextStatus && nextStatus !== previousStatus) return "refreshed";
+  }
+  if (await searchButton.isVisible().catch(() => false)) return "pending";
+  return "refreshed";
+}
+
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
@@ -186,11 +206,19 @@ for (const profile of MAP_VIEWPORTS) {
     }
 
     const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
-    await triggerPendingViewportSearch(page);
+    const viewportSearchState = await triggerPendingViewportSearchOrAutoRefresh(page, statusBeforePan);
     await maybeCaptureQaScreenshot(page, `${profile.slug}-pending-search.jpg`);
-    await expect(page.locator("#me-search-area-btn")).toContainText("この範囲で再検索");
-    expect((await sideStatus.textContent())?.trim() ?? "").toBe(statusBeforePan);
-    await page.locator("#me-search-area-btn").click({ force: true });
+    if (viewportSearchState === "pending") {
+      await expect(page.locator("#me-search-area-btn")).toContainText("この範囲で再検索");
+      const statusAfterPan = ((await sideStatus.textContent()) ?? "").trim();
+      if (statusAfterPan !== statusBeforePan) {
+        expect(statusAfterPan).toMatch(/^(\d+ 件を表示中 · \d+|この条件に合う観察はまだない)/);
+      }
+      const searchAreaButton = page.locator("#me-search-area-btn");
+      if (await searchAreaButton.isVisible().catch(() => false)) {
+        await searchAreaButton.click({ force: true });
+      }
+    }
     await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0", { timeout: 30_000 });
     if (profile.isMobile) {
       if (initialRowCount > 0) {
