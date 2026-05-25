@@ -3792,6 +3792,18 @@ function mediaContextForSnapshot(snapshot: ObservationDetailSnapshot): Observati
   };
 }
 
+function sanitizeAiGeographicContext(value: string | null | undefined, verifiedPlaceLabel: string | null | undefined): string | null {
+  const text = typeof value === "string" ? value.trim() : "";
+  const label = typeof verifiedPlaceLabel === "string" ? verifiedPlaceLabel.trim() : "";
+  if (!text) return null;
+  if (!label) return text;
+  return text
+    .replace(/静岡県静岡市/g, label)
+    .replace(/静岡市/g, label)
+    .replace(/静岡県浜松市/g, `静岡県${label}`)
+    .replace(/浜松市(?![^\s。、]*区)/g, label);
+}
+
 function observationMediaCopy(context: ObservationMediaCopyContext): {
   clueHeading: string;
   missingHeading: string;
@@ -3879,6 +3891,7 @@ function renderSubjectHint(
     canEditPolicy?: boolean;
     placeId?: string | null;
   } = {},
+  verifiedPlaceLabel: string | null = null,
 ): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
@@ -3922,8 +3935,9 @@ function renderSubjectHint(
   const stop = aiAssessment.stopReason
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">まだ決めない理由</div><p>${escapeHtml(friendlyObservationText(aiAssessment.stopReason, 110))}</p></div>`
     : "";
-  const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(friendlyObservationText(aiAssessment.geographicContext, 90))}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(friendlyObservationText(aiAssessment.seasonalContext, 90))}</p>` : ""}</div>`
+  const geographicContext = sanitizeAiGeographicContext(aiAssessment.geographicContext, verifiedPlaceLabel);
+  const placeSeason = (geographicContext || aiAssessment.seasonalContext)
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${geographicContext ? `<p>📍 ${escapeHtml(friendlyObservationText(geographicContext, 90))}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(friendlyObservationText(aiAssessment.seasonalContext, 90))}</p>` : ""}</div>`
     : "";
   const areaInference = renderAreaInferenceCard(aiAssessment.areaInference, siteBrief, mediaContext);
   const managementActions = renderManagementActionCandidateCard(
@@ -16302,7 +16316,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
