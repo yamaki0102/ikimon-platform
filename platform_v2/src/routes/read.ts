@@ -11475,6 +11475,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <summary>${escapeHtml(recordForm.laterSummary)}</summary>
                 <div class="record-later-grid">
                   <label class="record-field record-field-wide"><span class="record-label">${escapeHtml(recordForm.localityNoteLabel)}</span><input name="localityNote" type="text" placeholder="${escapeHtml(recordForm.localityNotePlaceholder)}" /></label>
+                  <section class="record-field record-field-wide record-place-memory" aria-label="場所の記憶">
+                    <div class="record-place-memory-head">
+                      <div>
+                        <span class="record-label">場所の記憶</span>
+                        <p class="record-help">同じ小さな区画で記録した人にだけ、匿名の残響として開きます。</p>
+                      </div>
+                      <label class="record-place-memory-photo"><input type="checkbox" name="placeMemoryPhotoEchoEnabled" checked /> 写真も使う</label>
+                    </div>
+                    <div class="record-place-memory-tags" role="group" aria-label="場所の記憶タグ">
+                      <label><input type="checkbox" name="placeMemoryTags" value="refresh_walk" />気分転換</label>
+                      <label><input type="checkbox" name="placeMemoryTags" value="walked_with_someone" />誰かと歩いた</label>
+                      <label><input type="checkbox" name="placeMemoryTags" value="first_visit" />初めて来た</label>
+                      <label><input type="checkbox" name="placeMemoryTags" value="looked_for_life" />生きものを探した</label>
+                      <label><input type="checkbox" name="placeMemoryTags" value="revisit_compare" />前と比べた</label>
+                      <label><input type="checkbox" name="placeMemoryTags" value="season_change" />季節の変化</label>
+                    </div>
+                    <div class="record-place-memory-notes">
+                      <label class="record-field"><span class="record-label">同じ場所の人に見える一言</span><input name="placeMemoryEchoNote" maxlength="80" type="text" placeholder="例: 春の夕方、誰かと歩きながら見つけた" /></label>
+                      <label class="record-field"><span class="record-label">自分だけのメモ</span><textarea name="placeMemoryPrivateNote" maxlength="600" rows="3" placeholder="あとで自分だけが読み返すメモ"></textarea></label>
+                    </div>
+                  </section>
                   <div class="record-field record-field-wide record-media-role">
                     <span class="record-label">${escapeHtml(recordForm.mediaRoleLabel)}</span>
                     <div class="record-media-role-grid" role="radiogroup" aria-label="${escapeHtml(recordForm.mediaRoleLabel)}">
@@ -14457,6 +14478,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const eventSessionId = String(recordStartParams.get('eventSessionId') || '').trim();
               const eventTeamId = String(recordStartParams.get('teamId') || '').trim();
               const eventParticipantRole = String(recordStartParams.get('participantRole') || participantRole || '').trim();
+              const placeMemoryTags = data.getAll('placeMemoryTags')
+                .map((value) => String(value || '').trim())
+                .filter(Boolean);
+              const placeMemoryEchoNote = String(data.get('placeMemoryEchoNote') || '').trim().slice(0, 80);
+              const placeMemoryPrivateNote = String(data.get('placeMemoryPrivateNote') || '').trim().slice(0, 600);
+              const hasPlaceMemory = placeMemoryTags.length > 0 || placeMemoryEchoNote || placeMemoryPrivateNote;
               if (recordMode === 'survey') {
                 if (!targetTaxaScope) {
                   throw new Error('survey_target_scope_required');
@@ -14608,6 +14635,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                         source: 'record_form_water_fields',
                         no_catch_semantics: catchOutcome === 'no_catch' ? 'capture_attempt_not_species_absence' : null,
                       },
+                    }
+                  : null,
+                placeMemory: hasPlaceMemory
+                  ? {
+                      tags: placeMemoryTags,
+                      echoNote: placeMemoryEchoNote,
+                      privateNote: placeMemoryPrivateNote,
+                      photoEchoEnabled: data.get('placeMemoryPhotoEchoEnabled') !== null,
                     }
                   : null,
                 eventCode: eventCode || null,
@@ -14800,6 +14835,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 ? observationJson.contributionReceipts.slice(0, 3)
                 : [];
               const contributionReceiptsHtml = buildContributionReceiptsHtml(contributionReceipts);
+              const placeMemorySample = Array.isArray(observationJson.placeMemorySample)
+                ? observationJson.placeMemorySample.slice(0, 3)
+                : [];
+              const placeMemoryHtml = placeMemorySample.length > 0
+                ? '<div class="record-place-memory-sample"><div class="record-impact-receipts-head"><span>場所の記憶</span><strong>同じ場所の残響</strong></div>' +
+                  placeMemorySample.map((item) => {
+                    const tags = Array.isArray(item.tags) ? item.tags.slice(0, 3).join(' / ') : '';
+                    const note = String(item.echoNote || '').trim();
+                    const ym = String(item.observedYearMonth || '').trim();
+                    const photo = item.photoUrl ? '<img src="' + escapeHtmlText(String(item.photoUrl)) + '" alt="" loading="lazy" />' : '';
+                    return '<article class="record-place-memory-echo">' + photo + '<div><strong>' + escapeHtmlText(note || 'タグだけの記憶') + '</strong><span>' + escapeHtmlText([ym, tags].filter(Boolean).join(' · ')) + '</span></div></article>';
+                  }).join('') +
+                  '</div>'
+                : '';
               const contributionReceiptKinds = contributionReceipts
                 .map((receipt) => receipt && typeof receipt === 'object' ? String(receipt.kind || '') : '')
                 .filter(Boolean);
@@ -14810,7 +14859,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const observationHref = withBasePath('/observations/' + encodeURIComponent(detailId));
               const notesHref = withBasePath('/records?view=mine');
               const revisitHref = withBasePath('/record?start=gallery&revisitObservationId=' + encodeURIComponent(visitId));
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + contributionReceiptsHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + uploadFeedbackHtml + impactHtml + contributionReceiptsHtml + placeMemoryHtml + '<div class="meta"><a href="' + notesHref + '" data-record-success-cta="notes">記録を見る</a> · <a href="' + observationHref + '" data-record-success-cta="observation_detail">見つけたものを確認する</a> · <a href="' + revisitHref + '" data-record-success-cta="revisit_same_place">同じ場所でもう1件記録する</a></div></div></div>');
               sendRecordFunnelStep('record_success_rendered', {
                 visitId,
                 occurrenceId: detailId,
@@ -15042,6 +15091,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-media-role-chip span { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 750; }
         .record-media-role-chip:has(input:checked) { border-color: rgba(16,185,129,.34); background: #ecfdf5; box-shadow: 0 8px 18px rgba(16,185,129,.1); }
         .record-media-role-chip:has(input:focus-visible) { outline: 3px solid #0284c7; outline-offset: 2px; }
+        .record-place-memory { display: grid; gap: 12px; padding: 16px; border-radius: 8px; background: #fff7ed; border: 1px solid rgba(234,88,12,.2); }
+        .record-place-memory-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .record-place-memory-head p { margin: 4px 0 0; }
+        .record-place-memory-photo { flex: 0 0 auto; min-height: 36px; display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 999px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #7c2d12; font-size: 12px; line-height: 1.2; font-weight: 900; }
+        .record-place-memory-photo input { accent-color: #ea580c; }
+        .record-place-memory-tags { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .record-place-memory-tags label { min-height: 38px; display: inline-flex; align-items: center; justify-content: flex-start; gap: 7px; padding: 7px 10px; border-radius: 999px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 12px; line-height: 1.2; font-weight: 850; cursor: pointer; white-space: nowrap; word-break: keep-all; }
+        .record-place-memory-tags input { accent-color: #ea580c; }
+        .record-place-memory-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .record-place-memory-notes textarea { min-height: 82px; resize: vertical; }
+        .record-place-memory-sample { margin: 12px 0 10px; padding: 14px; border-radius: 8px; background: #fff7ed; border: 1px solid rgba(234,88,12,.18); display: grid; gap: 9px; }
+        .record-place-memory-echo { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 72px; padding: 8px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.07); }
+        .record-place-memory-echo img { width: 64px; height: 56px; object-fit: cover; border-radius: 6px; background: #f1f5f9; }
+        .record-place-memory-echo strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; }
+        .record-place-memory-echo span { display: block; margin-top: 4px; color: #64748b; font-size: 11px; line-height: 1.35; font-weight: 800; }
+        .record-place-memory-sample > a { width: fit-content; color: #9a3412; font-size: 12px; font-weight: 950; text-decoration: underline; text-underline-offset: 3px; }
         .record-survey-box { display: grid; gap: 14px; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.18); }
         .record-survey-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
         .record-survey-pill { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.08); color: #0f172a; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
@@ -15194,7 +15259,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           .record-video-publication-steps { grid-template-columns: 1fr; }
           .record-video-publication-steps li { min-height: auto; grid-template-columns: auto 1fr; align-items: center; }
           .record-video-publication-steps small { grid-column: 2; }
-          .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-later-grid, .record-media-role-grid { grid-template-columns: 1fr; }
+          .record-mode-grid, .record-survey-grid, .record-advanced-grid, .record-later-grid, .record-media-role-grid, .record-place-memory-notes { grid-template-columns: 1fr; }
+          .record-place-memory-head { flex-direction: column; }
+          .record-place-memory-photo { width: 100%; justify-content: center; white-space: nowrap; }
+          .record-place-memory-tags { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .record-place-memory-tags label { min-width: 0; justify-content: center; padding: 8px 7px; font-size: 11px; }
+          .record-place-memory-echo { grid-template-columns: 1fr; }
+          .record-place-memory-echo img { width: 100%; height: 132px; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }
         }

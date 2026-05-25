@@ -47,6 +47,7 @@ import {
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { generateRecordReadingCards, hideRecordReadingCard } from "../services/recordReadingCards.js";
+import { getPostSavePlaceMemorySample, kickPlaceMemoryPhotoProcessingForVisit } from "../services/placeMemory.js";
 import {
   emitAreaWatchNotificationForObservation,
   ensureAreaWatchParticipationForVisit,
@@ -379,6 +380,9 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       const session = await getSessionFromCookie(request.headers.cookie);
       assertSessionUser(session, request.body.userId);
       const result = await upsertObservation(request.body);
+      const placeMemorySample = result.placeMemory
+        ? await getPostSavePlaceMemorySample({ userId: request.body.userId, visitId: result.visitId, limit: 3 }).catch(() => [])
+        : [];
       const contributionReceipts = buildContributionReceipts({
         input: request.body,
         result,
@@ -424,6 +428,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: true,
         ...result,
+        placeMemorySample,
         contributionReceipts,
       };
     } catch (error) {
@@ -459,6 +464,9 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           visitId: result.visitId,
         }).catch((error) => {
           request.log.warn({ err: error, occurrenceId: result.occurrenceId, visitId: result.visitId }, "area watch notification failed");
+        });
+        void kickPlaceMemoryPhotoProcessingForVisit(result.visitId).catch((error) => {
+          request.log.warn({ err: error, visitId: result.visitId }, "place memory photo processing failed");
         });
         return {
           ok: true,

@@ -30,6 +30,19 @@ const smokeVideoBase64 =
 
 type JsonPayload = Record<string, unknown>;
 type SmokeAccount = { email: string; userId: string; sessionCookie: string };
+type PlaceMemorySmokeRecord = {
+  ok?: boolean;
+  error?: string;
+  visitId?: string;
+  occurrenceId?: string;
+  placeMemory?: {
+    entryId: string;
+    cellId: string;
+    echoNote: string;
+    hasPrivateNote: boolean;
+  } | null;
+  placeMemorySample?: JsonPayload[];
+};
 
 function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
@@ -214,6 +227,42 @@ async function fillRequiredRecordFields(page: Page): Promise<void> {
   await page.locator("summary", { hasText: "座標を直接編集" }).click();
   await page.locator("input[name='latitude']").fill("34.710800");
   await page.locator("input[name='longitude']").fill("137.726100");
+}
+
+async function postPlaceMemorySmokeRecord(
+  api: APIRequestContext,
+  baseUrl: string,
+  account: SmokeAccount,
+  prefix: string,
+  suffix: string,
+  input: { latitude: number; longitude: number; echoNote: string; privateNote: string },
+): Promise<PlaceMemorySmokeRecord> {
+  const response = await api.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
+    headers: jsonHeaders(baseUrl, account),
+    data: {
+      observationId: `${prefix}-place-memory-${suffix}`,
+      clientSubmissionId: `${prefix}-place-memory-${suffix}-${Date.now()}`,
+      userId: account.userId,
+      observedAt: "2026-05-25T09:00:00.000Z",
+      latitude: input.latitude,
+      longitude: input.longitude,
+      localityNote: `production place memory smoke ${prefix}`,
+      note: `production place memory smoke record ${prefix} ${suffix}`,
+      taxon: { vernacularName: "クスノキ", scientificName: "Cinnamomum camphora", rank: "species" },
+      sourcePayload: { source: "production_place_memory_smoke", fixturePrefix: prefix },
+      placeMemory: {
+        tags: ["refresh_walk", "walked_with_someone"],
+        echoNote: input.echoNote,
+        privateNote: input.privateNote,
+        photoEchoEnabled: false,
+      },
+    },
+  });
+  const payload = (await response.json().catch(() => null)) as PlaceMemorySmokeRecord | null;
+  expect(response.ok(), payload?.error ?? `place memory record ${suffix}`).toBeTruthy();
+  expect(payload?.ok, payload?.error ?? `place memory record ${suffix}`).toBeTruthy();
+  expect(payload?.placeMemory?.entryId, `place memory entry ${suffix}`).toBeTruthy();
+  return payload!;
 }
 
 async function thumbUrlsOnPage(page: import("@playwright/test").Page): Promise<string[]> {
@@ -463,6 +512,93 @@ test.describe("production candidate smoke", () => {
     } finally {
       await context.close();
     }
+  });
+
+  test("place memory unlocks same-cell echoes without leaking private notes", async ({ request }) => {
+    test.setTimeout(120_000);
+
+    test.skip(
+      !process.env.PRODUCTION_SMOKE_BASE_URL?.trim(),
+      "requires a production candidate base URL or SSH tunnel",
+    );
+
+    const baseUrl = productionSmokeBaseUrl();
+    const prefix = productionSmokePrefix();
+    const accountA = await registerSmokeUser(request, baseUrl, prefix, "place-memory-a");
+    const accountB = await registerSmokeUser(request, baseUrl, prefix, "place-memory-b");
+
+    const first = await postPlaceMemorySmokeRecord(request, baseUrl, accountA, prefix, "a", {
+      latitude: 34.7108,
+      longitude: 137.7261,
+      echoNote: "春の夕方に歩いた",
+      privateNote: "private production memo should never leak",
+    });
+    const cellId = first.placeMemory!.cellId;
+    expect(first.placeMemory?.hasPrivateNote).toBe(true);
+    expect(JSON.stringify(first)).not.toContain("private production memo");
+
+    const lockedResponse = await request.get(joinUrl(baseUrl, `/api/v1/place-memory?cellId=${encodeURIComponent(cellId)}`), {
+      headers: authHeaders(baseUrl, accountB),
+    });
+    const locked = await jsonFromResponse(lockedResponse, "locked place memory list") as {
+      unlocked?: boolean;
+      items?: unknown[];
+    };
+    expect(lockedResponse.ok(), String(locked.error ?? "locked place memory list failed")).toBeTruthy();
+    expect(locked.unlocked).toBe(false);
+    expect(locked.items ?? []).toHaveLength(0);
+
+    const second = await postPlaceMemorySmokeRecord(request, baseUrl, accountB, prefix, "b", {
+      latitude: 34.71082,
+      longitude: 137.72612,
+      echoNote: "同じ木陰で見つけた",
+      privateNote: "second private production memo should never leak",
+    });
+    expect(JSON.stringify(second.placeMemorySample ?? [])).not.toContain("second private production memo");
+
+    const listResponse = await request.get(joinUrl(baseUrl, `/api/v1/place-memory?cellId=${encodeURIComponent(cellId)}&limit=12`), {
+      headers: authHeaders(baseUrl, accountB),
+    });
+    const list = await jsonFromResponse(listResponse, "unlocked place memory list") as {
+      unlocked?: boolean;
+      items?: Array<{ entryId: string; echoNote: string; observedYearMonth: string; ownEntry: boolean; likeCount: number }>;
+    };
+    expect(listResponse.ok(), String(list.error ?? "unlocked place memory list failed")).toBeTruthy();
+    expect(list.unlocked).toBe(true);
+    expect((list.items ?? []).map((item) => item.echoNote)).toEqual(expect.arrayContaining(["春の夕方に歩いた", "同じ木陰で見つけた"]));
+    expect(JSON.stringify(list)).not.toContain("private production memo");
+    expect((list.items ?? []).every((item) => /^\d{4}-\d{2}$/.test(item.observedYearMonth))).toBe(true);
+
+    const firstEntry = (list.items ?? []).find((item) => item.echoNote === "春の夕方に歩いた");
+    expect(firstEntry).toBeTruthy();
+    const likeResponse = await request.post(joinUrl(baseUrl, `/api/v1/place-memory/${encodeURIComponent(firstEntry!.entryId)}/like`), {
+      headers: authHeaders(baseUrl, accountB),
+    });
+    const liked = await jsonFromResponse(likeResponse, "place memory like") as { liked?: boolean; likeCount?: number; error?: string };
+    expect(likeResponse.ok(), String(liked.error ?? "place memory like failed")).toBeTruthy();
+    expect(liked.liked).toBe(true);
+    expect(liked.likeCount).toBe(1);
+
+    const selfLikeResponse = await request.post(joinUrl(baseUrl, `/api/v1/place-memory/${encodeURIComponent(second.placeMemory!.entryId)}/like`), {
+      headers: authHeaders(baseUrl, accountB),
+    });
+    expect(selfLikeResponse.status()).toBe(403);
+
+    const reportResponse = await request.post(joinUrl(baseUrl, `/api/v1/place-memory/${encodeURIComponent(firstEntry!.entryId)}/report`), {
+      headers: jsonHeaders(baseUrl, accountB),
+      data: { reasonCode: "qa_hide", reasonNote: "production self-hide check" },
+    });
+    const reported = await jsonFromResponse(reportResponse, "place memory report") as { hiddenForMe?: boolean; moderationStatus?: string; error?: string };
+    expect(reportResponse.ok(), String(reported.error ?? "place memory report failed")).toBeTruthy();
+    expect(reported.hiddenForMe).toBe(true);
+    expect(reported.moderationStatus).toBe("visible");
+
+    await recordSmokeCheckpoint("place_memory_same_cell_echo", {
+      cellId,
+      firstEntryId: firstEntry!.entryId,
+      firstUserId: accountA.userId,
+      secondUserId: accountB.userId,
+    });
   });
 
   test("place event capsule flow works with organizer, recorder, guide, and scanner accounts", async ({ browser }) => {

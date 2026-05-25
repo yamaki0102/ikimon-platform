@@ -143,6 +143,28 @@ async function cleanupProductionUiSmoke(options: CleanupOptions): Promise<Cleanu
     const occurrenceIds = occurrences.rows.map((row) => row.occurrence_id);
     matched.occurrences = occurrenceIds.length;
 
+    const placeMemoryEntries = await client.query<{ entry_id: string }>(
+      `select entry_id::text
+         from place_memory_entries
+        where ($1::text[] <> '{}'::text[] and visit_id = any($1::text[]))
+           or ($2::text[] <> '{}'::text[] and occurrence_id = any($2::text[]))
+           or ($3::text[] <> '{}'::text[] and user_id = any($3::text[]))
+           or source_payload::text like $4`,
+      [visitIds, occurrenceIds, userIds, `%${options.fixturePrefix}%`],
+    );
+    const placeMemoryEntryIds = placeMemoryEntries.rows.map((row) => row.entry_id);
+    matched.placeMemoryEntries = placeMemoryEntryIds.length;
+
+    const placeMemoryAuditEvents = await client.query<{ c: string }>(
+      `select count(*)::text as c
+         from place_memory_audit_events
+        where ($1::uuid[] <> '{}'::uuid[] and entry_id = any($1::uuid[]))
+           or ($2::text[] <> '{}'::text[] and actor_user_id = any($2::text[]))
+           or event_payload::text like $3`,
+      [placeMemoryEntryIds, userIds, `%${options.fixturePrefix}%`],
+    );
+    matched.placeMemoryAuditEvents = Number(placeMemoryAuditEvents.rows[0]?.c ?? 0);
+
     const assets = await client.query<{ asset_id: string; blob_id: string | null; legacy_relative_path: string | null; storage_path: string | null }>(
       `select ea.asset_id::text, ea.blob_id::text, ea.legacy_relative_path, ab.storage_path
          from evidence_assets ea
@@ -225,6 +247,19 @@ async function cleanupProductionUiSmoke(options: CleanupOptions): Promise<Cleanu
             where canonical_id = any($1::text[])
                or details::text like $2`,
           [visitIds, `%${options.fixturePrefix}%`],
+        );
+        deleted.placeMemoryAuditEvents = await deleteCount(
+          client,
+          `delete from place_memory_audit_events
+            where ($1::uuid[] <> '{}'::uuid[] and entry_id = any($1::uuid[]))
+               or ($2::text[] <> '{}'::text[] and actor_user_id = any($2::text[]))
+               or event_payload::text like $3`,
+          [placeMemoryEntryIds, userIds, `%${options.fixturePrefix}%`],
+        );
+        deleted.placeMemoryEntries = await deleteCount(
+          client,
+          `delete from place_memory_entries where entry_id = any($1::uuid[])`,
+          [placeMemoryEntryIds],
         );
         deleted.rememberTokens = await deleteCount(client, `delete from remember_tokens where user_id = any($1::text[])`, [userIds]);
         deleted.identifications = await deleteCount(
