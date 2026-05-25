@@ -303,6 +303,17 @@ test("no-ai plant detail can still surface site management policy controls", () 
   assert.match(noAiSource, /basePath/);
 });
 
+test("stored AI geographic hints are sanitized with the verified public place label", () => {
+  const sanitizeSource = sourceBetween("function sanitizeAiGeographicContext", "function observationMediaCopy");
+  const subjectHintSource = sourceBetween("function renderSubjectHint", "function renderCivicContextBlock");
+  const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
+
+  assert.match(sanitizeSource, /静岡県静岡市/);
+  assert.match(sanitizeSource, /静岡市/);
+  assert.match(subjectHintSource, /sanitizeAiGeographicContext\(aiAssessment\.geographicContext, verifiedPlaceLabel\)/);
+  assert.match(registrationSource, /renderSubjectHint\(subject, siteBriefResult \?\? null, snapshot\.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel\)/);
+});
+
 test("identification candidate switch uses real bundle candidates instead of hardcoded 1 of 1", () => {
   const identifySource = sourceBetween("function renderIdentificationCandidateSwitch", "function normalizeCandidateReadingKey");
   const participationSource = sourceBetween("function renderIdentificationParticipation", "function observationEvidenceLabel");
