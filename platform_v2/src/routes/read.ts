@@ -10280,9 +10280,8 @@ function renderRecordsPostCard(
     isUncertain ? "uncertain" : "named",
     card.identificationCount > 0 || card.entryType === "identification" ? "identified" : "needs-id",
   ].join(" ");
-  const metaLine = view === "mine"
-    ? `${placeLine} · ${dateLabel}`
-    : `${card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : ""}${placeLine} · ${dateLabel}`;
+  const observerLine = card.observerName ? `${formatActorDisplay(card.observerName, lang)} · ` : "";
+  const metaLine = `${observerLine}${placeLine} · ${dateLabel}`;
   const searchable = `${displayName} ${card.postSubjectNames.join(" ")} ${placeLine} ${card.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const thumbHtml = mediaUrl
     ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`

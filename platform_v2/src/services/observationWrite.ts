@@ -48,6 +48,7 @@ import {
   type ObservationPackageEventInput,
 } from "./observationPackageDataChain.js";
 import { resolveAdminLocalityForPoint } from "./adminLocalityResolver.js";
+import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -291,25 +292,49 @@ async function buildObservationImpact(input: ObservationUpsertInput, placeId: st
     visit_count: string;
     previous_observed_at: string | null;
   }>(
-    `select
+    `with ordered_visits as (
+        select
+          v.visit_id,
+          v.observed_at,
+          lag(v.observed_at) over (order by v.observed_at asc, v.visit_id asc) as previous_observed_at
+        from visits v
+        where v.user_id = $1
+          and v.place_id = $2
+     ),
+     visit_windows as (
+        select
+          visit_id,
+          observed_at,
+          sum(
+            case
+              when previous_observed_at is null
+                or observed_at - previous_observed_at > ${CONTINUOUS_VISIT_GAP_INTERVAL_SQL}
+              then 1
+              else 0
+            end
+          ) over (order by observed_at asc, visit_id asc) as visit_window_index
+        from ordered_visits
+     ),
+     window_summary as (
+        select
+          visit_window_index,
+          max(observed_at) as ended_at
+        from visit_windows
+        group by visit_window_index
+     )
+     select
         p.canonical_name as place_name,
-        count(v.visit_id)::text as visit_count,
-        previous_visit.previous_observed_at
+        coalesce((select count(*)::text from window_summary), '0') as visit_count,
+        (
+          select ended_at::text
+          from window_summary
+          order by ended_at desc
+          offset 1
+          limit 1
+        ) as previous_observed_at
      from places p
-     left join visits v
-       on v.place_id = p.place_id
-      and v.user_id = $1
-     left join lateral (
-       select v2.observed_at::text as previous_observed_at
-       from visits v2
-       where v2.user_id = $1
-         and v2.place_id = p.place_id
-       order by v2.observed_at desc, v2.visit_id desc
-       offset 1
-       limit 1
-     ) previous_visit on true
      where p.place_id = $2
-     group by p.canonical_name, previous_visit.previous_observed_at`,
+     group by p.canonical_name`,
     [input.userId, placeId],
   );
   const impactRow = impactResult.rows[0];

@@ -25,6 +25,7 @@ import { deriveMediaRoleSuggestion, type MediaRoleSuggestion } from "./mediaRole
 import type { RegionalStoryCue } from "./regionalStory.js";
 import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
 import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
+import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -807,15 +808,44 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
       latitude: number | null;
       longitude: number | null;
     }>(
-      `with place_stats as (
+      `with ordered_place_visits as (
           select
-            v.place_id,
-            count(*)::text as visit_count,
-            min(v.observed_at)::text as first_observed_at,
-            max(v.observed_at)::text as last_observed_at
+            v.*,
+            lag(v.observed_at) over (partition by v.place_id order by v.observed_at asc, v.visit_id asc) as previous_observed_at
           from visits v
           where v.user_id = $1
-          group by v.place_id
+            and v.place_id is not null
+       ),
+       visit_windows as (
+          select
+            *,
+            sum(
+              case
+                when previous_observed_at is null
+                  or observed_at - previous_observed_at > ${CONTINUOUS_VISIT_GAP_INTERVAL_SQL}
+                then 1
+                else 0
+              end
+            ) over (partition by place_id order by observed_at asc, visit_id asc) as visit_window_index
+          from ordered_place_visits
+       ),
+       place_window_stats as (
+          select
+            place_id,
+            visit_window_index,
+            min(observed_at) as first_observed_at,
+            max(observed_at) as last_observed_at
+          from visit_windows
+          group by place_id, visit_window_index
+       ),
+       place_stats as (
+          select
+            place_id,
+            count(*)::text as visit_count,
+            min(first_observed_at)::text as first_observed_at,
+            max(last_observed_at)::text as last_observed_at
+          from place_window_stats
+          group by place_id
        )
        select
           p.place_id,
@@ -851,11 +881,10 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
          limit 1
        ) latest_visit on true
        left join lateral (
-         select v.observed_at::text as previous_observed_at
-         from visits v
-         where v.user_id = $1
-           and v.place_id = stats.place_id
-         order by v.observed_at desc, v.visit_id desc
+         select window_stats.last_observed_at::text as previous_observed_at
+         from place_window_stats window_stats
+         where window_stats.place_id = stats.place_id
+         order by window_stats.last_observed_at desc
          offset 1
          limit 1
        ) previous_visit on true
