@@ -12003,11 +12003,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const inferLocalityFromCoords = (lat, lng) => {
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return {};
-          if (lat >= 34.55 && lat <= 35.32 && lng >= 137.45 && lng <= 138.08) {
-            return { prefecture: '静岡県', municipality: '浜松市' };
-          }
-          if (lat >= 34.82 && lat <= 35.36 && lng >= 138.15 && lng <= 138.72) {
-            return { prefecture: '静岡県', municipality: '静岡市' };
+          if (lat >= 34.55 && lat <= 35.40 && lng >= 137.45 && lng <= 139.20) {
+            return { prefecture: '静岡県' };
           }
           return {};
         };

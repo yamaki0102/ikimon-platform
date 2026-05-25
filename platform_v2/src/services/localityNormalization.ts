@@ -82,20 +82,7 @@ function prefectureFromMunicipalityLikeValue(value: string | null | undefined): 
   return null;
 }
 
-function inBox(input: LocalityInput, box: { minLat: number; maxLat: number; minLng: number; maxLng: number }): boolean {
-  if (!hasUsableObservationCoordinates(input.latitude, input.longitude)) return false;
-  const lat = input.latitude as number;
-  const lng = input.longitude as number;
-  return lat >= box.minLat && lat <= box.maxLat && lng >= box.minLng && lng <= box.maxLng;
-}
-
 function inferByCoordinate(input: LocalityInput): NormalizedObservationLocality | null {
-  if (inBox(input, { minLat: 34.55, maxLat: 35.32, minLng: 137.45, maxLng: 138.08 })) {
-    return { prefecture: "静岡県", municipality: "浜松市" };
-  }
-  if (inBox(input, { minLat: 34.82, maxLat: 35.36, minLng: 138.15, maxLng: 138.72 })) {
-    return { prefecture: "静岡県", municipality: "静岡市" };
-  }
   const inferred = inferCoordinateLocality(input.latitude, input.longitude);
   if (inferred?.countryCode === "JP") {
     return { prefecture: inferred.prefecture, municipality: null };

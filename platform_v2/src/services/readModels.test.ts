@@ -42,3 +42,27 @@ test("public observation quality gate excludes production smoke fixtures from ev
   assert.match(qualityGate, /public_quality_user\.display_name/);
   assert.doesNotMatch(qualityGate, /coalesce\(v\.source_payload::text, ''\) !~\* '\$\{PUBLIC_FIXTURE_ASSET_MARKER_PATTERN_SQL\}'/);
 });
+
+test("observation detail revalidates public municipality labels against admin polygons", async () => {
+  const readModels = await readFile(path.join(process.cwd(), "src", "services", "readModels.ts"), "utf8");
+  const detailSnapshot = readModels.slice(
+    readModels.indexOf("export async function getObservationDetailSnapshot"),
+    readModels.indexOf("export async function getProfileSnapshot"),
+  );
+
+  assert.match(readModels, /resolveAdminLocalityForPoint/);
+  assert.match(detailSnapshot, /verifiedPublicMunicipalityLabel/);
+  assert.match(detailSnapshot, /publicLocation: buildPublicLocationSummary\(\{/);
+});
+
+test("record form coordinate fallback does not guess Shizuoka municipalities from rectangles", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const localityFallback = readRoute.slice(
+    readRoute.indexOf("const inferLocalityFromCoords"),
+    readRoute.indexOf("const localityFromAddress"),
+  );
+
+  assert.match(localityFallback, /prefecture: '静岡県'/);
+  assert.doesNotMatch(localityFallback, /municipality: '静岡市'/);
+  assert.doesNotMatch(localityFallback, /municipality: '浜松市'/);
+});
