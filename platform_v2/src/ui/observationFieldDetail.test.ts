@@ -148,6 +148,13 @@ test("field detail starts with the map hero before numeric record metrics", () =
   assert.ok(numericIndex > metricsIndex);
 });
 
+test("field detail map hero stays compact on desktop", () => {
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /max-width: 1160px;/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(340px, 36vw, 430px\);/);
+  assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(480px, 58vw, 660px\);/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /width: min\(600px, calc\(100% - 32px\)\);/);
+});
+
 test("field detail keeps the hero to two primary actions and moves trust links lower", () => {
   const html = renderFieldDetailBody({ field: sourcedField(), stats: stats(), snapshot: snapshot() });
 
