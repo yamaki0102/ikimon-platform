@@ -72,6 +72,17 @@ test("map viewport movement refreshes stale result panels automatically", () => 
   assert.match(script, /searchAreaBtnEl\.addEventListener\('click', function \(\) \{\s+refreshViewportSearchData\(\);/);
 });
 
+test("map opens near current location instead of restoring stale local viewport", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function applyRestoredParams\(params, options\)/);
+  assert.match(script, /var restoreViewport = !options \|\| options\.restoreViewport !== false;/);
+  assert.match(script, /params = parseStateString\(localStorage\.getItem\(STATE_STORAGE_KEY\) \|\| ''\);[\s\S]*restoreViewport = false;/);
+  assert.match(script, /applyRestoredParams\(params, \{ restoreViewport: restoreViewport \}\);/);
+  assert.match(script, /if \(restoreViewport && params\.lng && params\.lat && params\.z\)/);
+  assert.match(script, /if \(state\._restoredCenter \|\| state\._restoredCellId\) return;/);
+});
+
 test("heatmap tab keeps area polygons selectable", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 

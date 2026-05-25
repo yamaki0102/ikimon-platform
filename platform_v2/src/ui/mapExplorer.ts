@@ -4707,8 +4707,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return params;
   }
 
-  function applyRestoredParams(params) {
+  function applyRestoredParams(params, options) {
     if (!params || !Object.keys(params).length) return;
+    var restoreViewport = !options || options.restoreViewport !== false;
     if (params.tab) state.tab = params.tab === 'coverage' ? 'frontier' : params.tab;
     if (params.role) state.role = params.role;
     if (params.actor) state.actorClass = params.actor;
@@ -4719,8 +4720,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
     state.tracesVisible = params.traces === '1' || params.traces === 'true';
     if (params.areas) setAreaSources(String(params.areas).split(','));
-    if (params.cell) state._restoredCellId = params.cell;
-    if (params.lng && params.lat && params.z) {
+    if (restoreViewport && params.cell) state._restoredCellId = params.cell;
+    if (restoreViewport && params.lng && params.lat && params.z) {
       var lng2 = parseFloat(params.lng);
       var lat2 = parseFloat(params.lat);
       var z2 = parseFloat(params.z);
@@ -4807,17 +4808,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
-  // Restore from query string, then hash, then localStorage.
+  // Restore explicit shared viewport from query/hash. Local storage may restore
+  // filters, but not the old viewport; opening /map should bias toward here-now.
   (function () {
     var params = parseStateString(window.location.search);
+    var restoreViewport = true;
     if (!Object.keys(params).length) {
       var hash = window.location.hash;
       params = hash ? parseStateString(hash) : {};
     }
     if (!Object.keys(params).length) {
       try { params = parseStateString(localStorage.getItem(STATE_STORAGE_KEY) || ''); } catch (_) {}
+      restoreViewport = false;
     }
-    applyRestoredParams(params);
+    applyRestoredParams(params, { restoreViewport: restoreViewport });
     syncUiFromState();
   })();
 
@@ -5390,8 +5394,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
   }
 
-  // First-open auto-locate: zoom into the user's location only when no
-  // explicit location was restored from URL/hash/localStorage. Silent on
+  // First-open auto-locate: zoom into the user's location unless an explicit
+  // shared location was restored from URL/hash. Silent on
   // permission denial or any failure — falls back to the default view.
   var _autoLocateAttempted = false;
   function maybeAutoLocateOnFirstOpen() {
