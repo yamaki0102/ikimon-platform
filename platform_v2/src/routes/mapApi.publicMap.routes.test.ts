@@ -52,3 +52,18 @@ test("public map observations expose list items instead of point features", asyn
     await app.close();
   }
 });
+
+test("map my-places endpoint is private-by-session and safe for guests", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/my-places",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { signedIn: false, items: [] });
+  } finally {
+    await app.close();
+  }
+});

@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { getEffortSummary, getFrontierMap, type EffortActorClass, type EffortRole } from "../services/mapEffort.js";
+import { listMapVisitedPlaces } from "../services/mapVisitedPlaces.js";
+import { normalizePlaceMemoryVisitSort } from "../services/placeMemory.js";
 import {
   getCoverageMesh,
   getMapCells,
@@ -270,5 +272,20 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "no-store");
     return summary;
+  });
+
+  app.get("/api/v1/map/my-places", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const limit = parseInt32(q.limit);
+    const sort = normalizePlaceMemoryVisitSort(q.sort);
+    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "no-store");
+    if (!session?.userId || session.banned) {
+      return { signedIn: false, items: [] };
+    }
+    const items = await listMapVisitedPlaces(session.userId, { limit: limit ?? 12, sort });
+    return { signedIn: true, sort, items };
   });
 }
