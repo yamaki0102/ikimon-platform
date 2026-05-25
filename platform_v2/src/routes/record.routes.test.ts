@@ -250,7 +250,7 @@ test("record route honors English language prefix for logged-in recording", asyn
         assert.doesNotMatch(response.body, /写真を撮るか選ぶだけで始められます/);
         assert.doesNotMatch(response.body, />観察した日時</);
         assert.doesNotMatch(response.body, />見つける</);
-        assert.doesNotMatch(response.body, /フィールドスキャン/);
+        assert.doesNotMatch(response.body, new RegExp("フィールド" + "スキャン"));
       } finally {
         await app.close();
       }

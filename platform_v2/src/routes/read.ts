@@ -5305,7 +5305,7 @@ function recordFormCopy(lang: SiteLang): RecordFormCopy {
       },
       revisitReasonLabel: "また見に行きたい理由",
       revisitReasonPlaceholder: "例: 先月と比べたい / 同じ水路の変化を見たい",
-      fieldScanTitle: "フィールドスキャン",
+      fieldScanTitle: "センサースキャン",
       fieldScanHelp: "場所の状態、定点、ルート、面、較正証拠を分けて残します。",
       fieldScanPill: "スキャン",
       fieldScanTypeLabel: "種類",
