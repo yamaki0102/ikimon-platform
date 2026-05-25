@@ -11,6 +11,7 @@ const {
   tilesForBbox,
   featureTouchesBbox,
   isCompleteFreshLiveCache,
+  filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
   toBiodiversityGroups,
@@ -98,6 +99,38 @@ test("liveElementToFeature converts OSM schools into transient school areas", ()
   assert.equal(feature?.properties.source_confidence, 0.45);
   assert.equal(feature?.properties.verification_level, "unverified");
   assert.equal(feature?.properties.verification_label, "未確認");
+});
+
+test("live OSM fallback respects selected area sources", () => {
+  const park = liveElementToFeature({
+    type: "way",
+    id: 123,
+    tags: { name: "亀城公園", leisure: "park" },
+    geometry: [
+      { lat: 34.73, lon: 137.39 },
+      { lat: 34.73, lon: 137.40 },
+      { lat: 34.74, lon: 137.40 },
+    ],
+  });
+  const school = liveElementToFeature({
+    type: "way",
+    id: 456,
+    tags: { name: "浜松小学校", amenity: "school" },
+    geometry: [
+      { lat: 34.71, lon: 137.72 },
+      { lat: 34.71, lon: 137.73 },
+      { lat: 34.72, lon: 137.73 },
+    ],
+  });
+
+  assert.deepEqual(
+    filterAreaFeaturesBySources([park!, school!], ["school"]).map((feature) => feature.properties.source),
+    ["school"],
+  );
+  assert.deepEqual(
+    filterAreaFeaturesBySources([park!, school!], ["protected_area", "oecm", "osm_park", "user_defined"]).map((feature) => feature.properties.source),
+    ["osm_park"],
+  );
 });
 
 test("stored school point-buffer fallbacks are not rendered as real area polygons", () => {
