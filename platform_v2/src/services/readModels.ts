@@ -36,16 +36,22 @@ function publicMunicipalityLabel(input: {
   return resolveHamamatsuWardLabel(input, wardFields) ?? input.municipality ?? null;
 }
 
+function normalizedMunicipalityLabel(value: string | null | undefined): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed === "" ? null : trimmed;
+}
+
 async function verifiedPublicMunicipalityLabel(input: {
   municipality?: string | null;
   latitude?: number | null;
   longitude?: number | null;
 }, wardFields: HamamatsuWardField[]): Promise<string | null> {
+  const normalizedInputMunicipality = normalizedMunicipalityLabel(input.municipality);
   const wardLabel = resolveHamamatsuWardLabel(input, wardFields);
-  if (wardLabel) return wardLabel;
+  if (wardLabel && wardLabel !== normalizedInputMunicipality) return wardLabel;
   const pool = getPool();
   const adminLocality = await resolveAdminLocalityForPoint(pool, input.latitude, input.longitude).catch(() => null);
-  return adminLocality?.municipality ?? input.municipality ?? null;
+  return adminLocality?.municipality ?? normalizedInputMunicipality;
 }
 
 async function safeLoadHamamatsuWardFields(queryable: Parameters<typeof loadHamamatsuWardFields>[0]): Promise<HamamatsuWardField[]> {

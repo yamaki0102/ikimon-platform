@@ -51,6 +51,7 @@ test("observation detail revalidates public municipality labels against admin po
   );
 
   assert.match(readModels, /resolveAdminLocalityForPoint/);
+  assert.match(readModels, /wardLabel && wardLabel !== normalizedInputMunicipality/);
   assert.match(detailSnapshot, /verifiedPublicMunicipalityLabel/);
   assert.match(detailSnapshot, /publicLocation: buildPublicLocationSummary\(\{/);
 });
