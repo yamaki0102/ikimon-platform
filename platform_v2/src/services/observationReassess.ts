@@ -570,7 +570,7 @@ export function applyTaxonomicRankGuardrail(input: TaxonomicRankGuardrailInput):
 
   const primaryGenus = scientificGenus(top?.scientificName || input.recommendedScientificName);
   const runnerGenus = scientificGenus(runnerUp?.scientificName || "");
-  if (primaryGenus && (!runnerUp || primaryGenus === runnerGenus || closeRace)) {
+  if (primaryGenus && (!runnerUp || primaryGenus === runnerGenus)) {
     return {
       recommendedName: `${primaryGenus}属の一種`,
       recommendedScientificName: primaryGenus,

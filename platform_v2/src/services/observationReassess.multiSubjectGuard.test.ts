@@ -164,6 +164,28 @@ test("taxonomic rank guard downgrades close species candidates to genus", () => 
   assert.equal(result.recommendedName, "Abraxas属の一種");
 });
 
+test("taxonomic rank guard downgrades close cross-genus candidates to order", () => {
+  const result = applyTaxonomicRankGuardrail({
+    recommendedName: "ユウマダラエダシャク",
+    recommendedScientificName: "Abraxas miranda",
+    rank: "species",
+    confidenceBand: "medium",
+    parsed: {
+      taxonomic_candidates: [
+        { taxon_name: "ユウマダラエダシャク", scientific_name: "Abraxas miranda", rank: "species", probability: 0.45 },
+        { taxon_name: "キハラゴマダラヒトリ", scientific_name: "Spilosoma lubricipeda", rank: "species", probability: 0.39 },
+      ],
+      diagnostic_features_missing: ["胸部の毛束と静止姿勢の確認が不足"],
+      confusable_groups: [{ group_name: "ヒトリガ亜科", distinction_point: "静止姿勢と胸部毛束" }],
+    },
+  });
+
+  assert.equal(result.downgraded, true);
+  assert.equal(result.rank, "order");
+  assert.equal(result.recommendedScientificName, "Lepidoptera");
+  assert.equal(result.recommendedName, "チョウ目の一種");
+});
+
 test("taxonomic rank guard keeps species when decisive features are present", () => {
   const result = applyTaxonomicRankGuardrail({
     recommendedName: "ナワシロイチゴ",
