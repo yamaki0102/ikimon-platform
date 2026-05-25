@@ -415,13 +415,13 @@ export function fieldDetailScript(): string {
 export const FIELD_DETAIL_ALBUM_STYLES = `
 ${RECORD_CARD_SIZING_TOKENS}
 .field-detail-shell {
-  max-width: 1240px;
+  max-width: 1160px;
 }
 .field-detail-shell .evt-result-stats {
   max-width: 900px;
 }
 .field-map-hero {
-  min-height: clamp(480px, 58vw, 660px);
+  min-height: clamp(340px, 36vw, 430px);
   overflow: hidden;
   position: relative;
   display: grid;
@@ -467,11 +467,11 @@ ${RECORD_CARD_SIZING_TOKENS}
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 14px;
-  width: min(720px, calc(100% - 32px));
+  gap: 10px;
+  width: min(600px, calc(100% - 32px));
   margin: 16px;
-  padding: clamp(20px, 3vw, 34px);
-  border-radius: 20px;
+  padding: clamp(18px, 2.4vw, 26px);
+  border-radius: 18px;
   background: rgba(6,78,59,.88);
   color: #ffffff;
   box-shadow: 0 18px 46px rgba(15,23,42,.28);
@@ -480,7 +480,7 @@ ${RECORD_CARD_SIZING_TOKENS}
 .field-map-hero-copy h2 {
   max-width: 24ch;
   margin: 0;
-  font-size: clamp(27px, 4vw, 48px);
+  font-size: clamp(26px, 2.8vw, 38px);
   line-height: 1.1;
   font-weight: 900;
   letter-spacing: 0;
@@ -501,7 +501,7 @@ ${RECORD_CARD_SIZING_TOKENS}
 .field-map-signals > span {
   width: fit-content;
   max-width: 100%;
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(255,255,255,.12);
@@ -523,7 +523,7 @@ ${RECORD_CARD_SIZING_TOKENS}
   margin-top: 18px;
 }
 .field-map-hero-copy .field-detail-actions {
-  margin-top: 2px;
+  margin-top: 0;
 }
 .field-detail-freshness {
   width: fit-content;
