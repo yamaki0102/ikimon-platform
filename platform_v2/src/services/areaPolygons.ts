@@ -103,7 +103,7 @@ const CACHE_TTL_MS = 60_000;
 const LIVE_OSM_TIMEOUT_MS = 4_500;
 const LIVE_OSM_MAX_SPAN_DEGREES = 0.18;
 const LIVE_OSM_MIN_ZOOM = 13;
-const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school", "user_defined"]);
+const LIVE_OSM_SOURCES = new Set<AreaPolygonSource>(["osm_park", "school"]);
 const LIVE_OSM_TILE_Z = 14;
 const LIVE_OSM_TILE_SCHEMA = "osm-area-live-v2";
 const LIVE_OSM_TILE_SOURCE = "overpass";
@@ -224,6 +224,12 @@ function shouldFetchLiveOsm(query: AreaPolygonsQuery, sources: AreaPolygonSource
   const [minLng, minLat, maxLng, maxLat] = query.bbox;
   if (maxLng <= minLng || maxLat <= minLat) return false;
   return (maxLng - minLng) <= LIVE_OSM_MAX_SPAN_DEGREES && (maxLat - minLat) <= LIVE_OSM_MAX_SPAN_DEGREES;
+}
+
+function filterAreaFeaturesBySources(features: AreaPolygonFeature[], sources: AreaPolygonSource[]): AreaPolygonFeature[] {
+  if (sources.length === 0) return features;
+  const allowed = new Set<AreaPolygonSource>(sources);
+  return features.filter((feature) => allowed.has(feature.properties.source));
 }
 
 function buildLiveOsmAreaQuery(bbox: [number, number, number, number]): string {
@@ -761,21 +767,20 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
 
   const shouldUseLiveOsm = shouldFetchLiveOsm(query, sources) && (
     (sources.includes("osm_park") && !features.some((feature) => feature.properties.source === "osm_park")) ||
-    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school")) ||
-    sources.includes("user_defined")
+    (sources.includes("school") && !features.some((feature) => feature.properties.source === "school"))
   );
   if (shouldUseLiveOsm && features.length < limit) {
     const cached = await readLiveOsmTileCache(query.bbox, limit - features.length);
-    const cachedFeatures = cached.freshComplete ? cached.freshFeatures : [];
+    const cachedFeatures = cached.freshComplete ? filterAreaFeaturesBySources(cached.freshFeatures, sources) : [];
     if (cached.freshComplete) {
       features.push(...cachedFeatures);
     } else {
       const live = await fetchLiveOsmAreaPolygons(query, limit - features.length);
       if (live.ok) {
         await writeLiveOsmTileCache(cached.tiles, live.features);
-        features.push(...live.features);
+        features.push(...filterAreaFeaturesBySources(live.features, sources));
       } else {
-        features.push(...cached.staleFeatures);
+        features.push(...filterAreaFeaturesBySources(cached.staleFeatures, sources));
       }
     }
   }
@@ -818,6 +823,7 @@ export const __test__ = {
   tilesForBbox,
   featureTouchesBbox,
   isCompleteFreshLiveCache,
+  filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
   toBiodiversityGroups,
