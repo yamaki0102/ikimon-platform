@@ -97,3 +97,21 @@ test("heatmap area filters keep osm parks as selectable anchors", () => {
   assert.match(script, /sources\.push\('osm_park'\);/);
   assert.match(script, /var selectedSources = areaSourcesQueryValueForMap\(\);/);
 });
+
+test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(html, /id="me-visited-panel"/);
+  assert.match(html, /data-api-my-places="\/api\/v1\/map\/my-places"/);
+  assert.match(script, /function loadVisitedPlaces\(force\)/);
+  assert.match(script, /function jumpToVisitedPlace\(place\)/);
+  assert.match(script, /sort='\s\+ encodeURIComponent\(state\.visitedPlacesSort\)/);
+  assert.match(script, /最近/);
+  assert.match(script, /よく行く/);
+  assert.match(script, /季節で再訪/);
+  assert.match(script, /function buildPlaceMemoryRecordHref\(place\)/);
+  assert.match(script, /revisitObservationId/);
+  assert.match(script, /setSideRailMode\(false\);/);
+  assert.match(script, /行った場所へ/);
+});
