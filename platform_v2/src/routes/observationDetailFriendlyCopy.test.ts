@@ -492,7 +492,8 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(routeSource, /max-height: 156px !important/);
   assert.match(routeSource, /overflow-y: auto !important/);
   assert.match(routeSource, /\.obs-frame-candidate-search/);
-  assert.match(routeSource, /text-overflow: ellipsis !important/);
+  assert.match(routeSource, /text-overflow: clip !important/);
+  assert.match(routeSource, /overflow-wrap: anywhere !important/);
   assert.match(polishSource, /function selectAiCandidateTarget/);
   assert.match(polishSource, /function filterAiCandidateList/);
   assert.match(polishSource, /querySelectorAll\('\[data-ai-target\]'\)/);
