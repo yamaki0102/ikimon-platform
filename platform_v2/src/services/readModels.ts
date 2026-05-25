@@ -9,6 +9,7 @@ import {
   resolveHamamatsuWardLabel,
   type HamamatsuWardField,
 } from "./hamamatsuWardLabels.js";
+import { resolveAdminLocalityForPoint } from "./adminLocalityResolver.js";
 import { deriveVisitDisplayState } from "./visitDisplayState.js";
 import {
   getReviewerAccessContext,
@@ -33,6 +34,18 @@ function publicMunicipalityLabel(input: {
   longitude?: number | null;
 }, wardFields: HamamatsuWardField[]): string | null {
   return resolveHamamatsuWardLabel(input, wardFields) ?? input.municipality ?? null;
+}
+
+async function verifiedPublicMunicipalityLabel(input: {
+  municipality?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}, wardFields: HamamatsuWardField[]): Promise<string | null> {
+  const wardLabel = resolveHamamatsuWardLabel(input, wardFields);
+  if (wardLabel) return wardLabel;
+  const pool = getPool();
+  const adminLocality = await resolveAdminLocalityForPoint(pool, input.latitude, input.longitude).catch(() => null);
+  return adminLocality?.municipality ?? input.municipality ?? null;
 }
 
 async function safeLoadHamamatsuWardFields(queryable: Parameters<typeof loadHamamatsuWardFields>[0]): Promise<HamamatsuWardField[]> {
@@ -1384,7 +1397,7 @@ export async function getObservationDetailSnapshot(
       mediaRole: string | null;
     } & MediaRoleSuggestion => Boolean(row));
   const wardFields = await safeLoadHamamatsuWardFields(pool);
-  const municipality = publicMunicipalityLabel({
+  const municipality = await verifiedPublicMunicipalityLabel({
     municipality: base.municipality,
     latitude: base.latitude,
     longitude: base.longitude,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hasUsableObservationCoordinates, normalizeObservationCountry, normalizeObservationLocality } from "./localityNormalization.js";
 
-test("normalizes the old hard-coded Shizuoka prefecture and infers Hamamatsu from coordinates", () => {
+test("normalizes the old hard-coded Shizuoka prefecture without guessing municipality from a bbox", () => {
   assert.deepEqual(
     normalizeObservationLocality({
       prefecture: "Shizuoka",
@@ -10,7 +10,19 @@ test("normalizes the old hard-coded Shizuoka prefecture and infers Hamamatsu fro
       latitude: 34.8142588,
       longitude: 137.7330983,
     }),
-    { prefecture: "静岡県", municipality: "浜松市" },
+    { prefecture: "静岡県", municipality: null },
+  );
+});
+
+test("does not infer Shizuoka City from a broad coordinate bbox", () => {
+  assert.deepEqual(
+    normalizeObservationLocality({
+      prefecture: null,
+      municipality: null,
+      latitude: 35.12,
+      longitude: 138.61,
+    }),
+    { prefecture: "静岡県", municipality: null },
   );
 });
 
