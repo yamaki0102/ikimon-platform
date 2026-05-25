@@ -97,14 +97,30 @@ export type ReassessObservationOptions = {
 
 type GeminiRegion = {
   asset_index?: number;
+  assetIndex?: number;
+  image_index?: number;
+  imageIndex?: number;
   rect?: {
     x?: number;
     y?: number;
     width?: number;
     height?: number;
+    w?: number;
+    h?: number;
+    left?: number;
+    top?: number;
+    x_min?: number;
+    y_min?: number;
+    x_max?: number;
+    y_max?: number;
   };
+  normalized_rect?: GeminiRegion["rect"];
+  bbox?: unknown;
+  bounding_box?: unknown;
   frame_time_ms?: number;
+  frameTimeMs?: number;
   confidence?: number;
+  confidence_score?: number;
   note?: string;
 };
 
@@ -547,6 +563,10 @@ type NormalizedRegion = {
   };
 };
 
+type PhotoAssetRef = {
+  assetId: string;
+};
+
 const PIPELINE_VERSION = "observation-reassess/v2-durable";
 const TAXONOMY_VERSION = "gbif-backbone/current";
 
@@ -596,30 +616,77 @@ function confidenceFromBand(band: "high" | "medium" | "low" | "unknown"): number
   return 0.25;
 }
 
-function normalizeRectCandidate(region: GeminiRegion): NormalizedRegion | null {
-  const assetIndex = Number(region.asset_index);
-  if (!Number.isInteger(assetIndex) || assetIndex < 0) {
-    return null;
+function firstFiniteNumber(values: unknown[]): number | null {
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
   }
-  const rect = region.rect ?? {};
-  const x = Number(rect.x);
-  const y = Number(rect.y);
-  const width = Number(rect.width);
-  const height = Number(rect.height);
-  if (![x, y, width, height].every((value) => Number.isFinite(value))) {
-    return null;
-  }
-  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) {
-    return null;
-  }
-  const frameTimeMs = region.frame_time_ms == null ? null : Number(region.frame_time_ms);
-  const confidence = region.confidence == null ? null : Math.min(1, Math.max(0, Number(region.confidence)));
+  return null;
+}
+
+function normalizeCoordinateValue(value: number, scale: number): number {
+  const normalized = scale === 100 ? value / 100 : value;
+  return Math.max(0, Math.min(1, normalized));
+}
+
+function normalizeRectValue(value: unknown): NormalizedRegion["rect"] | null {
+  const source = Array.isArray(value)
+    ? { x: value[0], y: value[1], width: value[2], height: value[3] }
+    : value && typeof value === "object"
+      ? value as Record<string, unknown>
+      : null;
+  if (!source) return null;
+  const rect = source as Record<string, unknown>;
+
+  const x = firstFiniteNumber([rect.x, rect.left, rect.x_min, rect.xMin]);
+  const y = firstFiniteNumber([rect.y, rect.top, rect.y_min, rect.yMin]);
+  let width = firstFiniteNumber([rect.width, rect.w]);
+  let height = firstFiniteNumber([rect.height, rect.h]);
+  const xMax = firstFiniteNumber([rect.x_max, rect.xMax, rect.right]);
+  const yMax = firstFiniteNumber([rect.y_max, rect.yMax, rect.bottom]);
+  if (x == null || y == null) return null;
+  if (width == null && xMax != null) width = xMax - x;
+  if (height == null && yMax != null) height = yMax - y;
+  if (width == null || height == null) return null;
+
+  const rawValues = [x, y, width, height, xMax, yMax].filter((item): item is number => item != null);
+  const scale = rawValues.some((item) => Math.abs(item) > 1.001) ? 100 : 1;
+  const nx = normalizeCoordinateValue(x, scale);
+  const ny = normalizeCoordinateValue(y, scale);
+  const nw = normalizeCoordinateValue(width, scale);
+  const nh = normalizeCoordinateValue(height, scale);
+  if (nw <= 0 || nh <= 0 || nx + nw > 1.001 || ny + nh > 1.001) return null;
   return {
-    assetIndex,
+    x: nx,
+    y: ny,
+    width: Math.min(nw, 1 - nx),
+    height: Math.min(nh, 1 - ny),
+  };
+}
+
+function normalizeRectCandidate(region: GeminiRegion, assetCount?: number): NormalizedRegion | null {
+  let assetIndex = firstFiniteNumber([region.asset_index, region.assetIndex, region.image_index, region.imageIndex]);
+  if (assetIndex == null && assetCount === 1) assetIndex = 0;
+  if (assetIndex == null || !Number.isInteger(assetIndex) || assetIndex < 0) {
+    return null;
+  }
+  if (assetCount != null && assetIndex >= assetCount) {
+    return null;
+  }
+  const normalizedAssetIndex: number = assetIndex;
+  const rect = normalizeRectValue(region.rect ?? region.normalized_rect ?? region.bbox ?? region.bounding_box);
+  if (!rect) {
+    return null;
+  }
+  const frameTimeMs = region.frame_time_ms == null ? region.frameTimeMs == null ? null : Number(region.frameTimeMs) : Number(region.frame_time_ms);
+  const rawConfidence = region.confidence == null ? region.confidence_score : region.confidence;
+  const confidence = rawConfidence == null ? null : Math.min(1, Math.max(0, Number(rawConfidence)));
+  return {
+    assetIndex: normalizedAssetIndex,
     frameTimeMs: Number.isFinite(frameTimeMs ?? NaN) ? Math.max(0, Math.round(frameTimeMs ?? 0)) : null,
     confidence: confidence != null && Number.isFinite(confidence) ? confidence : null,
     note: typeof region.note === "string" && region.note.trim() ? region.note.trim() : null,
-    rect: { x, y, width, height },
+    rect,
   };
 }
 
@@ -817,6 +884,10 @@ export function promoteCandidateReadingsToCoexistingTaxa(
   return { candidates: merged.candidates, promoted: merged.added };
 }
 
+export const __test__ = {
+  normalizeRectCandidate,
+};
+
 function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[], audioInputs: LoadedAudioInput[] = []): string {
   const hash = createHash("sha256");
   hash.update(sourceTag);
@@ -934,6 +1005,19 @@ async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<Load
     }
   }
   return out;
+}
+
+async function loadPhotoAssetRefs(client: PoolClient, visitId: string): Promise<PhotoAssetRef[]> {
+  const rows = await client.query<{ asset_id: string }>(
+    `SELECT ea.asset_id::text
+       FROM evidence_assets ea
+      WHERE ea.visit_id = $1
+        AND ea.asset_role = 'observation_photo'
+      ORDER BY ea.created_at ASC
+      LIMIT 24`,
+    [visitId],
+  );
+  return rows.rows.map((row) => ({ assetId: row.asset_id }));
 }
 
 async function resolveObservationTarget(client: PoolClient, observationId: string): Promise<ResolvedObservationTarget | null> {
@@ -1338,6 +1422,7 @@ export async function reassessObservation(
     const photos = overridePhotos.length > 0
       ? overridePhotos
       : await loadPhotoBytes(client, target.visitId);
+    const photoAssetRefs = await loadPhotoAssetRefs(client, target.visitId);
     const audioInputs: LoadedAudioInput[] = Array.isArray(options.audioInputs)
       ? options.audioInputs
           .filter((audio) =>
@@ -1636,7 +1721,7 @@ export async function reassessObservation(
         confidence,
         note: typeof candidate.note === "string" ? candidate.note.trim() : null,
         regions: Array.isArray(candidate.media_regions)
-          ? candidate.media_regions.map(normalizeRectCandidate).filter((region): region is NormalizedRegion => Boolean(region))
+          ? candidate.media_regions.map((region) => normalizeRectCandidate(region, photos.length)).filter((region): region is NormalizedRegion => Boolean(region))
           : [],
         candidateReading: findCandidateReadingFor({
           vernacularName,
@@ -1667,8 +1752,9 @@ export async function reassessObservation(
     const gbifMatchedPrimary = primaryGbifMatch.usageKey !== null;
     const gbifMatchedCoexistingCount = coexistingGbifMatches.reduce((count, match) => (match.usageKey !== null ? count + 1 : count), 0);
     const primaryRegions = Array.isArray(parsed.recommended_media_regions)
-      ? parsed.recommended_media_regions.map(normalizeRectCandidate).filter((region): region is NormalizedRegion => Boolean(region))
+      ? parsed.recommended_media_regions.map((region) => normalizeRectCandidate(region, photos.length)).filter((region): region is NormalizedRegion => Boolean(region))
       : [];
+    const photoAssetIdAt = (index: number): string | null => photos[index]?.assetId ?? photoAssetRefs[index]?.assetId ?? null;
 
     const invasiveLookupTerms = buildInvasiveLookupTerms({
       primaryName: recommendedScientificName || recommendedName,
@@ -1731,6 +1817,7 @@ export async function reassessObservation(
           durationSec: audio.durationSec ?? null,
           byteLengthApprox: Math.round((audio.b64.length * 3) / 4),
         })),
+        photoAssetRefCount: photoAssetRefs.length,
         knowledgeVersionSet,
         navigableOs: {
           branch: "feedback_contract",
@@ -1890,6 +1977,7 @@ export async function reassessObservation(
     for (let index = 0; index < photos.length; index += 1) {
       const photo = photos[index];
       if (!photo) continue;
+      const assetId = photoAssetIdAt(index);
       await client.query(
         `INSERT INTO visual_evidence_extracts (
            ai_run_id, assessment_id, visit_id, occurrence_id, asset_id, asset_index,
@@ -1904,7 +1992,7 @@ export async function reassessObservation(
           assessmentId,
           target.visitId,
           target.primaryOccurrenceId,
-          photo.assetId,
+          assetId,
           index,
           photo.frameTimeMs != null || sourceTag.startsWith("video") ? "video_frame" : "image",
           photo.frameTimeMs ?? null,
@@ -2172,8 +2260,9 @@ export async function reassessObservation(
       );
 
       for (const region of candidate.regions) {
-        const photo = photos[region.assetIndex];
-        if (!photo?.assetId) continue;
+        const assetId = photoAssetIdAt(region.assetIndex);
+        if (!assetId) continue;
+        const photoFrameTimeMs = photos[region.assetIndex]?.frameTimeMs ?? null;
         await client.query(
           `INSERT INTO subject_media_regions (
              region_id,
@@ -2204,9 +2293,9 @@ export async function reassessObservation(
             aiRun.aiRunId,
             candidateOccurrenceId,
             candidateId,
-            photo.assetId,
+            assetId,
             JSON.stringify(region.rect),
-            region.frameTimeMs ?? photo.frameTimeMs ?? null,
+            region.frameTimeMs ?? photoFrameTimeMs,
             region.confidence,
             modelUsed,
             JSON.stringify({
@@ -2230,9 +2319,9 @@ export async function reassessObservation(
             target.visitId,
             candidateOccurrenceId,
             candidateId,
-            photo.assetId,
+            assetId,
             region.assetIndex,
-            region.frameTimeMs ?? photo.frameTimeMs ?? null,
+            region.frameTimeMs ?? photoFrameTimeMs,
             JSON.stringify(region.rect),
             region.confidence,
             region.note,
@@ -2245,8 +2334,9 @@ export async function reassessObservation(
     }
 
     for (const region of primaryRegions) {
-      const photo = photos[region.assetIndex];
-      if (!photo?.assetId) continue;
+      const assetId = photoAssetIdAt(region.assetIndex);
+      if (!assetId) continue;
+      const photoFrameTimeMs = photos[region.assetIndex]?.frameTimeMs ?? null;
       await client.query(
         `INSERT INTO subject_media_regions (
            region_id,
@@ -2274,9 +2364,9 @@ export async function reassessObservation(
         [
           aiRun.aiRunId,
           target.primaryOccurrenceId,
-          photo.assetId,
+          assetId,
           JSON.stringify(region.rect),
-          region.frameTimeMs ?? photo.frameTimeMs ?? null,
+          region.frameTimeMs ?? photoFrameTimeMs,
           region.confidence,
           modelUsed,
           JSON.stringify({
@@ -2299,9 +2389,9 @@ export async function reassessObservation(
           assessmentId,
           target.visitId,
           target.primaryOccurrenceId,
-          photo.assetId,
+          assetId,
           region.assetIndex,
-          region.frameTimeMs ?? photo.frameTimeMs ?? null,
+          region.frameTimeMs ?? photoFrameTimeMs,
           JSON.stringify(region.rect),
           region.confidence,
           region.note,
@@ -2317,24 +2407,25 @@ export async function reassessObservation(
     // area ≥ 0.55 → full_body / 0.05-0.55 → close_up_organ / region なし → habitat_wide
     const roleAreaByAsset = new Map<string, number>();
     for (const region of primaryRegions) {
-      const photo = photos[region.assetIndex];
-      if (!photo?.assetId || !region.rect) continue;
+      const assetId = photoAssetIdAt(region.assetIndex);
+      if (!assetId || !region.rect) continue;
       const area = Math.max(0, Math.min(1, region.rect.width * region.rect.height));
-      const prev = roleAreaByAsset.get(photo.assetId) ?? 0;
-      if (area > prev) roleAreaByAsset.set(photo.assetId, area);
+      const prev = roleAreaByAsset.get(assetId) ?? 0;
+      if (area > prev) roleAreaByAsset.set(assetId, area);
     }
-    for (const photo of photos) {
-      if (!photo?.assetId) continue;
-      const maxArea = roleAreaByAsset.get(photo.assetId) ?? 0;
+    for (let index = 0; index < photos.length; index += 1) {
+      const assetId = photoAssetIdAt(index);
+      if (!assetId) continue;
+      const maxArea = roleAreaByAsset.get(assetId) ?? 0;
       const roleTag = maxArea >= 0.55 ? "full_body"
         : maxArea > 0 && maxArea < 0.55 ? "close_up_organ"
-        : "habitat_wide";
+          : "habitat_wide";
       await client.query(
         `UPDATE evidence_assets
            SET role_tag = $1, role_tag_source = 'ai'
          WHERE asset_id = $2::uuid
            AND (role_tag IS NULL OR role_tag_source = 'ai')`,
-        [roleTag, photo.assetId],
+        [roleTag, assetId],
       );
     }
 
@@ -2352,6 +2443,13 @@ export async function reassessObservation(
             candidateOnlyCount,
             occurrenceBackedCandidateCount: materializedCandidateRecordCount + matchedCandidateRecordCount,
             proposalUiFallbackRiskCount: candidateOnlyCount,
+          },
+          visualRegionMaterialization: {
+            primaryRegionInputCount: primaryRegions.length,
+            candidateRegionInputCount: preparedCandidates.reduce((count, candidate) => count + candidate.regions.length, 0),
+            storedRegionCount: regionCount,
+            photoCount: photos.length,
+            photoAssetRefCount: photoAssetRefs.length,
           },
         }),
       ],
