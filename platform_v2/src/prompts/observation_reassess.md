@@ -42,9 +42,17 @@
 
 特に、花・葉・樹皮・地表の写真に写るハチ、ハエ、甲虫、チョウ、クモ、幼虫、食痕、虫こぶ、寄生・訪花・摂食などの相互作用は見落とすな。種まで自信がなければ `family` または `order` で止めてよいので、別 subject に昇格しうる副対象として `coexisting_taxa` に残す。小さく写る昆虫でも、画像内の位置が概ね分かる場合は `media_regions` に粗い矩形を必ず返し、分からない場合は `note` に「位置は要確認」と書く。
 
+白黒模様で黄色い腹部を持つ蛾は、黄色い腹部だけで `キハラゴマダラヒトリ` / `Spilosoma` に決め打ちしない。翅に大きな黒褐色帯・黄褐色斑・白黒の大きなパッチがある場合は、`ユウマダラエダシャク` / `Abraxas miranda` などシャクガ科も必ず比較し、前脚付け根の色・胸部の毛束・細かい点状斑・静止姿勢まで見えないなら `チョウ目の一種`、`シャクガ科の一種`、または `Abraxas属の一種` で止める。
+
 `未同定`、`他の植栽`、`複数の低木`、`AI候補` のような汎用ラベルだけを候補名として返してはいけない。そこまでしか言えない場合でも、`candidate_readings` と `similar_taxa` には、写真から比較すべき具体的な候補名を 2〜4 件出すこと。例: 植栽低木なら `アメリカシャクナゲ（カルミア）`、`ツツジ類`、`シャリンバイ属` のように、確定ではなく比較候補として返し、弱い点に「花・葉裏・枝先が不足」と書く。
 
 - `recommended_taxon_name` と `recommended_rank` — 現時点のベスト推定。rank は `species|genus|family|order|lifeform` のいずれか。
+- `taxonomic_candidates` — 同じ主対象の候補を最大5件。別科・別属の紛らわしい候補も省略しない。各要素は `{taxon_name, scientific_name, rank, probability, diagnostic_features_observed, diagnostic_features_missing, visual_contradictions}`。
+- `rank_decision_reason` — なぜそのrankで止めた/踏み込んだか。種まで出す場合は、種特有の決定形質が何かを書く。
+- `diagnostic_features_observed` — 推奨rankを支える決定形質。一般特徴ではなく、その分類群で意味のある形質を書く。
+- `diagnostic_features_missing` — 種・属の確定に必要だが画像から見えない形質。
+- `confusable_groups` — 誤認しやすい別分類群。例: ヒトリガ亜科、シャクガ科など。
+- `visual_contradictions` — 候補種の特徴と画像が矛盾する点。矛盾があるなら species を避ける。
 - `best_specific_taxon_name` — もし species まで踏み込めるなら、そうでなければ空文字。
 - `confidence_band` — `high`（ほぼ確定）/ `medium`（絞れているが他の可能性あり）/ `low`（科・属レベル）のどれか。
 - `narrative` — 200字前後の日本語で「何を根拠に、どこまで絞れて、何が残課題か」を述べる。研究・学習に役立つ質感で。
@@ -162,6 +170,24 @@
   "recommended_rank": "species|genus|family|order|lifeform",
   "recommended_taxon_name": "<主対象の表示名>",
   "recommended_scientific_name": "<主対象の学名>",
+  "taxonomic_candidates": [
+    {
+      "taxon_name": "<候補名>",
+      "scientific_name": "<候補学名>",
+      "rank": "species",
+      "probability": 0.62,
+      "diagnostic_features_observed": ["<候補を支持する形質>"],
+      "diagnostic_features_missing": ["<候補確定に足りない形質>"],
+      "visual_contradictions": ["<画像と矛盾する点>"]
+    }
+  ],
+  "rank_decision_reason": "<このrankにした理由>",
+  "diagnostic_features_observed": ["<推奨rankを支える形質>"],
+  "diagnostic_features_missing": ["<種・属確定に足りない形質>"],
+  "confusable_groups": [
+    {"group_name":"<紛らわしい分類群>","distinction_point":"<見分けるための要点>"}
+  ],
+  "visual_contradictions": ["<推奨候補や棄却候補との矛盾>"],
   "best_specific_taxon_name": "<最も細かい候補名>",
   "narrative": "...",
   "simple_summary": "...",

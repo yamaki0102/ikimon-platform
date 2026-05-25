@@ -67,8 +67,13 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(prompt, /候補ごとに\*\*その分類群でなければ意味が薄い特徴\*\*/);
   assert.match(prompt, /ツルニチニチソウなら/);
   assert.match(prompt, /草本|イネ科|植栽|花|樹木/);
+  assert.match(prompt, /黄色い腹部だけで `キハラゴマダラヒトリ`/);
+  assert.match(prompt, /`ユウマダラエダシャク` \/ `Abraxas miranda`/);
+  assert.match(prompt, /visual_contradictions/);
   assert.match(prompt, /coexisting_taxa/);
   assert.match(service, /observation_reassess\.md\/v5\.5/);
+  assert.match(service, /上流AIが species と言っていても/);
+  assert.match(service, /applyTaxonomicRankGuardrail/);
   assert.match(service, /candidateReading: primaryCandidateReading \?\? null/);
   assert.match(service, /candidateReading: candidate\.candidateReading \?\? null/);
 });

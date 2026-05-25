@@ -155,11 +155,35 @@ type GeminiManagementActionCandidate = {
   confirm_state?: string;
 };
 
+type GeminiTaxonomicCandidate = {
+  taxon_name?: string;
+  name?: string;
+  scientific_name?: string;
+  rank?: string;
+  probability?: number;
+  confidence?: number;
+  diagnostic_features_observed?: string[];
+  diagnostic_features_missing?: string[];
+  visual_contradictions?: string[];
+};
+
+type GeminiConfusableGroup = {
+  group_name?: string;
+  name?: string;
+  distinction_point?: string;
+};
+
 type GeminiJson = {
   confidence_band?: string;
   recommended_rank?: string;
   recommended_taxon_name?: string;
   recommended_scientific_name?: string;
+  taxonomic_candidates?: GeminiTaxonomicCandidate[];
+  rank_decision_reason?: string;
+  diagnostic_features_observed?: string[];
+  diagnostic_features_missing?: string[];
+  confusable_groups?: GeminiConfusableGroup[];
+  visual_contradictions?: string[];
   best_specific_taxon_name?: string;
   narrative?: string;
   simple_summary?: string;
@@ -452,6 +476,127 @@ function applyThreeLensGates(
     });
   }
   return out;
+}
+
+type TaxonomicRankGuardrailInput = {
+  recommendedName: string;
+  recommendedScientificName: string;
+  rank: ReturnType<typeof normalizeRank>;
+  confidenceBand: ReturnType<typeof normalizeBand>;
+  parsed: GeminiJson;
+};
+
+type TaxonomicRankGuardrailResult = {
+  recommendedName: string;
+  recommendedScientificName: string;
+  rank: ReturnType<typeof normalizeRank>;
+  downgraded: boolean;
+  reason: string | null;
+};
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item) => typeof item === "string" && item.trim().length > 0).map((item) => item.trim())
+    : [];
+}
+
+function scientificGenus(value: string): string | null {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^([A-Z][a-z-]+)(?:\s|$)/);
+  return match?.[1] ?? null;
+}
+
+function candidateProbability(candidate: GeminiTaxonomicCandidate): number | null {
+  const raw = typeof candidate.probability === "number" ? candidate.probability : candidate.confidence;
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
+  return Math.max(0, Math.min(1, raw));
+}
+
+function normalizedTaxonomicCandidates(raw: unknown): Array<{
+  name: string;
+  scientificName: string;
+  rank: ReturnType<typeof normalizeRank>;
+  probability: number | null;
+}> {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((candidate) => {
+      const item = candidate as GeminiTaxonomicCandidate;
+      const name = normalizeCandidateName(item.taxon_name ?? item.name);
+      const scientificName = normalizeCandidateName(item.scientific_name);
+      const rank = normalizeRank(item.rank);
+      if (!name && !scientificName) return null;
+      return { name, scientificName, rank, probability: candidateProbability(item) };
+    })
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+    .sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0))
+    .slice(0, 5);
+}
+
+export function applyTaxonomicRankGuardrail(input: TaxonomicRankGuardrailInput): TaxonomicRankGuardrailResult {
+  if (input.rank !== "species") {
+    return {
+      recommendedName: input.recommendedName,
+      recommendedScientificName: input.recommendedScientificName,
+      rank: input.rank,
+      downgraded: false,
+      reason: null,
+    };
+  }
+
+  const candidates = normalizedTaxonomicCandidates(input.parsed.taxonomic_candidates);
+  const missing = [
+    ...stringArray(input.parsed.diagnostic_features_missing),
+    ...stringArray(input.parsed.diagnostic_features_seen).filter((feature) => /見えない|不明|不足|確認できない/u.test(feature)),
+  ];
+  const contradictions = stringArray(input.parsed.visual_contradictions);
+  const hasConfusableGroups = Array.isArray(input.parsed.confusable_groups) && input.parsed.confusable_groups.length > 0;
+  const top = candidates[0] ?? null;
+  const runnerUp = candidates[1] ?? null;
+  const topProbability = top?.probability ?? null;
+  const runnerProbability = runnerUp?.probability ?? null;
+  const closeRace = topProbability != null && runnerProbability != null && topProbability - runnerProbability <= 0.2;
+  const weakSpecies = input.confidenceBand === "low" || missing.length > 0 || contradictions.length > 0 || (hasConfusableGroups && closeRace);
+
+  if (!weakSpecies) {
+    return {
+      recommendedName: input.recommendedName,
+      recommendedScientificName: input.recommendedScientificName,
+      rank: input.rank,
+      downgraded: false,
+      reason: null,
+    };
+  }
+
+  const primaryGenus = scientificGenus(top?.scientificName || input.recommendedScientificName);
+  const runnerGenus = scientificGenus(runnerUp?.scientificName || "");
+  if (primaryGenus && (!runnerUp || primaryGenus === runnerGenus || closeRace)) {
+    return {
+      recommendedName: `${primaryGenus}属の一種`,
+      recommendedScientificName: primaryGenus,
+      rank: "genus",
+      downgraded: true,
+      reason: [
+        "species_guardrail",
+        closeRace ? "close_candidates" : "",
+        missing.length > 0 ? "diagnostic_missing" : "",
+        contradictions.length > 0 ? "visual_contradiction" : "",
+      ].filter(Boolean).join(":"),
+    };
+  }
+
+  return {
+    recommendedName: "チョウ目の一種",
+    recommendedScientificName: "Lepidoptera",
+    rank: "order",
+    downgraded: true,
+    reason: [
+      "species_guardrail",
+      "cross_group_uncertainty",
+      missing.length > 0 ? "diagnostic_missing" : "",
+      contradictions.length > 0 ? "visual_contradiction" : "",
+    ].filter(Boolean).join(":"),
+  };
 }
 
 /**
@@ -1147,6 +1292,8 @@ async function runVisualTwoStageGemini(
 ここでは保存文の完成ではなく、画像・動画フレーム・音声から読み取れる「分類インベントリ」と「根拠」だけをJSONで返してください。
 - primary は主対象として最も妥当な分類を1つ。断定しない場合も recommended_taxon_name / recommended_rank は最も有用な上位分類まで出す。
 - recommended_media_regions は主対象が見える矩形。各矩形は asset_index と rect(x,y,width,height 0-1) を必ず含める。動画フレームなら frame_time_ms も使う。
+- taxonomic_candidates / rank_decision_reason / diagnostic_features_observed / diagnostic_features_missing / confusable_groups / visual_contradictions を必ず使い、種確定に必要な形質が欠ける場合は species ではなく genus/family/order で止める。
+- 白黒模様で黄色い腹部を持つ蛾は、キハラゴマダラヒトリ等のヒトリガ類だけでなく、Abraxas などシャクガ科も比較する。
 - candidate_readings は同じ主対象の代替同定候補。副対象をここに混ぜない。
 - coexisting_taxa は主対象とは別に写る対象だけ。各対象に media_regions をできるだけ付ける。
 - audio_events / heard_taxa は音声だけで得た証拠。画像に写る副対象 coexisting_taxa に混ぜない。
@@ -1181,6 +1328,8 @@ JSONのみ出力。`,
 
 以下は3.5 Flashが抽出した分類・視覚・音声証拠JSONです。この情報だけを使って、最終的な観察ページ保存用JSONを同じスキーマで作ってください。
 AI単独で確定同定せず、根拠・保留点・次に撮るべき写真を明確に分けてください。
+上流AIが species と言っていても、taxonomic_candidates が拮抗している、diagnostic_features_missing がある、visual_contradictions がある、または confusable_groups が残る場合は recommended_rank を genus/family/order に下げてください。
+上流AIの taxonomic_candidates / rank_decision_reason / diagnostic_features_observed / diagnostic_features_missing / confusable_groups / visual_contradictions は省略せず、最終JSONにも残してください。
 主対象の recommended_media_regions と、副対象の media_regions は可能な限りそのまま維持してください。
 同じ主対象の代替候補は candidate_readings、別個体や背景植生は coexisting_taxa、音声だけで聞こえた対象は heard_taxa / audio_events に分離してください。
 分類名は証拠JSONにないものを新しく増やさないでください。地域文脈は補助に留め、画像・音声証拠を優先してください。
@@ -1593,6 +1742,25 @@ export async function reassessObservation(
       parsed.recommended_scientific_name = undefined;
       parsed.recommended_rank = "unknown";
     }
+    const rankGuard = applyTaxonomicRankGuardrail({
+      recommendedName,
+      recommendedScientificName,
+      rank,
+      confidenceBand: band,
+      parsed,
+    });
+    if (rankGuard.downgraded) {
+      recommendedName = rankGuard.recommendedName;
+      recommendedScientificName = rankGuard.recommendedScientificName;
+      rank = rankGuard.rank;
+      parsed.recommended_taxon_name = recommendedName;
+      parsed.recommended_scientific_name = recommendedScientificName;
+      parsed.recommended_rank = rank;
+      parsed.rank_decision_reason = [
+        String(parsed.rank_decision_reason ?? "").trim(),
+        `保存前ガード: ${rankGuard.reason}`,
+      ].filter(Boolean).join(" / ");
+    }
     const bestSpecificGate = normalizeBiologicalSubjectCandidate({
       vernacularName: String(parsed.best_specific_taxon_name ?? "").trim(),
       scientificName: null,
@@ -1943,6 +2111,13 @@ export async function reassessObservation(
           parsed: {
             ...gatedParsed,
             claim_refs_used: claimRefsUsed,
+            taxonomic_rank_guard: {
+              downgraded: rankGuard.downgraded,
+              reason: rankGuard.reason,
+              final_rank: rank === "unknown" ? null : rank,
+              final_name: recommendedName || null,
+              final_scientific_name: recommendedScientificName || null,
+            },
             multi_subject_guard: {
               promoted_from_candidate_readings: multiSubjectGuard.promotedFromCandidateReadings,
               rescue_triggered: multiSubjectGuard.rescueTriggered,
@@ -2032,6 +2207,10 @@ export async function reassessObservation(
           sourceTag,
           candidateReading: primaryCandidateReading ?? null,
           gbifMatched: gbifMatchedPrimary,
+          taxonomicRankGuard: {
+            downgraded: rankGuard.downgraded,
+            reason: rankGuard.reason,
+          },
         }),
       ],
     );
