@@ -61,3 +61,19 @@ test("area biodiversity badges render as presence-only map markers", () => {
   assert.match(script, /function refreshAreaBadgeMarkers/);
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
 });
+
+test("map viewport movement refreshes stale result panels automatically", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /viewportRefreshTimer: null/);
+  assert.match(script, /function refreshViewportSearchData\(\)/);
+  assert.match(script, /function scheduleViewportRefresh\(\)/);
+  assert.match(script, /scheduleViewportRefresh\(\);\s+refreshDiscoveryPreviewMarkers/);
+  assert.match(script, /searchAreaBtnEl\.addEventListener\('click', function \(\) \{\s+refreshViewportSearchData\(\);/);
+});
+
+test("heatmap tab keeps area polygons selectable", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /show\(areaLayers, tab === 'markers' \|\| tab === 'heatmap' \|\| tab === 'places'\);/);
+});

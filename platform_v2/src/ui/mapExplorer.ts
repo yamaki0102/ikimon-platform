@@ -1501,6 +1501,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     effortAbort: null,
     areaPolygonsAbort: null,
     areaPolygonsDebounce: null,
+    viewportRefreshTimer: null,
     waterwayAbort: null,
     waterwayDebounce: null,
     waterwaySearchKey: '',
@@ -1684,6 +1685,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!searchAreaBtnEl) return;
     searchAreaBtnEl.classList.toggle('is-hidden', !state.pendingViewportSearch);
     searchAreaBtnEl.textContent = state.pendingViewportSearch ? COPY.searchArea : COPY.searchArea;
+  }
+
+  function clearViewportRefreshTimer() {
+    if (!state.viewportRefreshTimer) return;
+    clearTimeout(state.viewportRefreshTimer);
+    state.viewportRefreshTimer = null;
   }
 
   function hasPendingMapResults() {
@@ -4017,7 +4024,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     show(markerLayers, tab === 'markers');
     show(heatLayers, tab === 'heatmap');
     show(frontierLayers, tab === 'frontier');
-    show(areaLayers, tab === 'markers' || tab === 'places');
+    show(areaLayers, tab === 'markers' || tab === 'heatmap' || tab === 'places');
     if (map.getLayer('waterway-hint-line')) {
       map.setLayoutProperty('waterway-hint-line', 'visibility', tab === 'places' ? 'visible' : 'none');
     }
@@ -4552,6 +4559,32 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     loadRecords(null);
   }
 
+  function refreshViewportSearchData() {
+    if (!state.map) return;
+    clearViewportRefreshTimer();
+    var bbox = currentBboxString();
+    if (bbox) state.lastSearchedBbox = bbox;
+    state.pendingViewportSearch = false;
+    updateSearchAreaUi();
+    refreshMapData();
+    loadFrontier(state.map);
+    loadEffortSummary();
+  }
+
+  function scheduleViewportRefresh() {
+    if (!state.map || !state.pendingViewportSearch) return;
+    clearViewportRefreshTimer();
+    state.viewportRefreshTimer = setTimeout(function () {
+      state.viewportRefreshTimer = null;
+      if (!state.pendingViewportSearch) return;
+      if (hasPendingMapResults()) {
+        scheduleViewportRefresh();
+        return;
+      }
+      refreshViewportSearchData();
+    }, 700);
+  }
+
   function refreshYearDependentData() {
     state.frontier = null;
     if (state.map && state.map.getSource('frontier')) {
@@ -4889,6 +4922,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var bbox = currentBboxString();
       state.pendingViewportSearch = !!bbox && bbox !== state.lastSearchedBbox;
       updateSearchAreaUi();
+      scheduleViewportRefresh();
       refreshDiscoveryPreviewMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
@@ -5119,14 +5153,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   });
   if (searchAreaBtnEl) {
     searchAreaBtnEl.addEventListener('click', function () {
-      if (!state.map) return;
-      var bbox = currentBboxString();
-      if (bbox) state.lastSearchedBbox = bbox;
-      state.pendingViewportSearch = false;
-      updateSearchAreaUi();
-      refreshMapData();
-      loadFrontier(state.map);
-      loadEffortSummary();
+      refreshViewportSearchData();
     });
   }
 
