@@ -377,6 +377,8 @@ jobs:
             mkdir -p "$STAGING_ENV_DIR"
             TMP_ENV="$(mktemp)"
             printf 'ALLOW_QUERY_USER_ID=1\n' >> "$TMP_ENV"
+            printf 'AI_OBSERVATION_IMAGE_MAX_EDGE=1024\n' >> "$TMP_ENV"
+            printf 'AI_OBSERVATION_VISUAL_LITE_FIRST=1\n' >> "$TMP_ENV"
             printf 'DATABASE_URL=%s\n' "$V2_STAGING_DATABASE_URL" >> "$TMP_ENV"
             printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$TMP_ENV"
             if [ -n "$DEEPSEEK_API_KEY" ]; then

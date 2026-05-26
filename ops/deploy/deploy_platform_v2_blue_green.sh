@@ -122,6 +122,8 @@ pm2_dump = Path("/root/.pm2/dump.pm2")
 fixed = {
     "NODE_ENV": "production",
     "ALLOW_QUERY_USER_ID": "0",
+    "AI_OBSERVATION_IMAGE_MAX_EDGE": "1024",
+    "AI_OBSERVATION_VISUAL_LITE_FIRST": "1",
     "COMPATIBILITY_WRITE_ENABLED": "1",
     "LEGACY_DATA_ROOT": "/var/www/ikimon.life/repo/upload_package/data",
     "LEGACY_PUBLIC_ROOT": "/var/www/ikimon.life/repo/upload_package/public_html",

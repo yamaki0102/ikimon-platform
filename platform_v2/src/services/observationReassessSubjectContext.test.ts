@@ -78,6 +78,37 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(service, /candidateReading: candidate\.candidateReading \?\? null/);
 });
 
+test("visual reassess keeps Lite-first behind an environment-aware escalation gate", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /AI_OBSERVATION_VISUAL_LITE_FIRST/);
+  assert.match(service, /runVisualExtractWithOptionalLiteFirst/);
+  assert.match(service, /visualExtractEscalationReasons/);
+  assert.match(service, /non_biological_in_coexisting_taxa/);
+  assert.match(service, /environment_context_sparse/);
+  assert.match(service, /visualLiteFirstEscalationReasons/);
+});
+
+test("visual extract prompt separates biological coexisting taxa from environment context", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /非生物は coexisting_taxa に入れず/);
+  assert.match(service, /area_inference は写真から読める植生構造/);
+  assert.match(service, /area_inference は必ず次の5キーを持つJSONオブジェクト/);
+  assert.match(service, /環境文脈を捨てない/);
+  assert.match(service, /area_inference \/ management_action_candidates に環境・場・人為管理/);
+});
+
+test("visual reassess can downscale stored photos before Gemini behind an env gate", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /import sharp from "sharp"/);
+  assert.match(service, /AI_OBSERVATION_IMAGE_MAX_EDGE/);
+  assert.match(service, /preparePhotoBytesForGemini/);
+  assert.match(service, /resize\(\{ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true \}\)/);
+  assert.match(service, /mime: "image\/jpeg"/);
+});
+
 test("reassess JSON schema avoids concrete taxon examples that can leak into output", () => {
   const prompt = readFileSync(new URL("../prompts/observation_reassess.md", import.meta.url), "utf8");
   const schema = prompt.slice(prompt.indexOf("## 出力 JSON スキーマ"));
