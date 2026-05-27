@@ -1639,8 +1639,7 @@ function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
-  return `${renderCrewFeature(options.basePath, options.lang)}
-  <section class="prototype-topa-shelves" aria-label="トップページの観察棚">
+  return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
     ${renderLandingContentWall(options)}
     ${renderLandingNearbySection(options)}
     ${renderLandingGuideOutcomes(options)}

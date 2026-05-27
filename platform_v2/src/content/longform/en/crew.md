@@ -1,40 +1,47 @@
 # IKIMON CREW
 
-Bird calls, roadside plants, insects on the way to school.
+Please support IKIMON.
 
-We want a place where small findings can remain for the future.
+ikimon.life is a place for enjoying nearby nature and keeping those records for the future.
 
-IKIMON CREW is an annual membership for that work.
+Photographing street trees. Walking through parks. Meeting people through observation events. IKIMON turns small experiences like these into local records and pride.
 
-No gifts. No locked content, priority support, discounts, or name listing. The difference by support amount is not what you receive, but how much strength you give IKIMON to keep going.
+It is still a small challenge, and we are serious about building it.
+
+IKIMON CREW supports that challenge.
 
 ## Annual support amounts
 
 - 10k JPY, tax excluded
 - 30k JPY, tax excluded
 - 50k JPY, tax excluded
+- 100k JPY, tax excluded
 
-The return is the same at every amount. Choose the amount that feels sustainable.
+The 10k, 30k, and 50k JPY memberships are support-only. No locked content, priority support, discounts, or name listing.
 
-## What it supports
+The 100k JPY CREW tier can include website production and operation as a return gift.
+
+## What membership fees support
 
 - Development and operation of ikimon.life
 - Better records, maps, identification, and learning pages
 - Easier ways to save photos, sounds, and place context
 - Observation records that can support communities and research
 
-## Why no benefits
+## Why we ask for support even without return gifts
 
-When benefits differ by amount, people compare what they get.
+The more people enjoy nearby nature, the more interesting communities become.
 
-IKIMON CREW is not a purchase.
+The more people record what they find, the more local memory remains for the future.
 
-It is not for receiving something. It is for keeping something worth keeping. That is why we do not create benefit differences by support amount.
+We want to connect those records to education, research, community action, and nature-positive business activity.
 
-## If you need website operation
+IKIMON is not yet a large business. We need people who are willing to support this work even without a return gift.
 
-The 100k JPY CREW tier can include website operation only for those who want it.
+## Return gift for the 100k JPY CREW tier
 
-One website, monthly operation, an AI-enabled response workflow, and Mythos-compatible security updates can be included. If you do not need a website, there is nothing else to do.
+The 100k JPY CREW tier can include website production and operation as a return gift.
+
+One website, monthly operation included, an AI-enabled response workflow, and Mythos-compatible security updates can be included. If you do not need a website, you can join without building one.
 
 [View the IKIMON Inc. page](https://ikimon.co.jp/service.php?lang=en)
