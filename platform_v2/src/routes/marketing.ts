@@ -647,6 +647,199 @@ function renderMarketingPageAppendix(meta: MarketingPageMeta, basePath: string, 
   return "";
 }
 
+function renderCrewSupportPage(basePath: string, lang: SiteLang): string {
+  const href = (path: string) => escapeHtml(appendLangToHref(withBasePath(basePath, path), lang));
+  const copy = lang === "ja"
+    ? {
+        fee: { title: "会費", label: "Annual Support" },
+        usage: { title: "会費を何に使うか", label: "For ikimon.life" },
+        gift: { title: "WEBサイト制作・運用の返礼", label: "Return Gift" },
+        ai: { title: "HP専用AIエージェント", label: "Website Agent" },
+        security: { title: "セキュリティアップデート", label: "Security" },
+        recommend: { title: "こんな方におすすめ", label: "Good Fit" },
+        closing: { title: "返礼なしでも、応援してほしい理由", label: "Why Support" },
+        tiers: [
+          { amount: "1万円", note: "返礼なし" },
+          { amount: "3万円", note: "返礼なし" },
+          { amount: "5万円", note: "返礼なし" },
+          { amount: "10万円", note: "希望者にWEBサイト制作・運用の返礼" },
+        ],
+        tierNote: "1万円・3万円・5万円に特典の違いはありません。限定コンテンツ、優先対応、割引もありません。応援したい金額で選んでください。",
+        usageItems: [
+          "ikimon.life の開発と運用",
+          "記録、地図、同定、学習ページの改善",
+          "写真、音、場所の記録を残しやすくする仕組み",
+          "地域や研究に使える観察レコードの整備",
+          "観察会、企業・自治体連携、学校利用へ広げる準備",
+        ],
+        giftLead: "年額10万円のCREWには、希望する方へWEBサイト制作・運用の返礼があります。WEBサイトが不要な方は、制作なしで参加できます。",
+        giftBody: "HP 1サイトの制作と運用、月額運用費、軽微な更新対応、セキュリティアップデートまで含みます。作って終わりではなく、公開後に情報を直し続ける前提です。",
+        aiLead: "修正依頼はLINEまたはメールで24時間365日受付。正月でも夏休みでも、お知らせ追加、文言修正、営業時間変更、写真差し替えなどを送れます。",
+        aiItems: [
+          "その時点で最もふさわしいAIを使い、下書きや反映作業を進めます。",
+          "基本的な更新は24時間以内を目安に対応します。",
+          "重たい変更や判断が難しい内容は、AIだけで進めず八巻が確認します。",
+        ],
+        securityLead: "WordPress や Movable Type などのCMSは便利ですが、放置すると危険です。管理画面、プラグイン、テーマ、古いPHPなどに弱点が残ると、そこを狙われることがあります。",
+        securityItems: [
+          "ページの改ざん",
+          "問い合わせフォームの悪用",
+          "迷惑メールの踏み台",
+          "検索結果での警告表示",
+          "復旧対応による営業機会の損失",
+        ],
+        mythos: "ミュトス級のAIが当たり前になる時代を前提に、CMSやサーバーまわりの弱点を定期的に見直します。小さな会社やお店のサイトでも、古いまま放置しないことが大事です。",
+        recommendItems: [
+          "WordPress や Movable Type を使っているが、保守をほとんどしていない",
+          "ホームページの修正を業者に頼んでも、返事や反映が遅い",
+          "お知らせ追加、営業時間変更、写真差し替えを気軽に頼める先がない",
+          "AIで運用を速くする仕組みに関心がある",
+          "事業用サイトを、月額費を抑えながらきちんと持ちたい",
+          "ikimon.life の活動も応援したい",
+        ],
+        closingBody: "自然を楽しむ人が増えるほど、地域はもっと面白くなります。記録する人が増えるほど、あとから見返せる地域の記憶が増えます。ikimon.life は、その積み重ねを教育、研究、地域活動、企業の自然共生活動へつなげるための場所です。",
+        membersLink: "IKIMON CREW紹介を見る",
+        companyLink: "IKIMON株式会社のCREW案内",
+      }
+    : {
+        fee: { title: "Annual fee", label: "Annual Support" },
+        usage: { title: "How support is used", label: "For ikimon.life" },
+        gift: { title: "Website production and operation return gift", label: "Return Gift" },
+        ai: { title: "Website AI agent", label: "Website Agent" },
+        security: { title: "Security updates", label: "Security" },
+        recommend: { title: "Good fit", label: "Good Fit" },
+        closing: { title: "Why support without a return gift", label: "Why Support" },
+        tiers: [
+          { amount: "JPY 10k", note: "Support only" },
+          { amount: "JPY 30k", note: "Support only" },
+          { amount: "JPY 50k", note: "Support only" },
+          { amount: "JPY 100k", note: "Website production and operation available" },
+        ],
+        tierNote: "The 10k, 30k, and 50k tiers have no difference in benefits. Choose the amount you want to support.",
+        usageItems: [
+          "Development and operation of ikimon.life",
+          "Improvements to records, maps, identification, and learning pages",
+          "Tools that make photos, sounds, and places easier to record",
+          "Observation records useful for communities and research",
+          "Preparation for events, schools, companies, and local governments",
+        ],
+        giftLead: "The JPY 100k/year tier can include website production and operation as a return gift. Members who do not need a website can join without it.",
+        giftBody: "It includes one website, operation, light updates, monthly operation cost, and security updates.",
+        aiLead: "Website update requests are accepted by LINE or email 24/7, including holidays.",
+        aiItems: [
+          "The most suitable AI is used for drafts and update work.",
+          "Basic updates are handled within roughly 24 hours.",
+          "Heavy or ambiguous changes are reviewed by Yamaki instead of being left only to AI.",
+        ],
+        securityLead: "WordPress and Movable Type are useful, but outdated admin screens, plugins, themes, or PHP versions can become risks.",
+        securityItems: [
+          "Page tampering",
+          "Contact form abuse",
+          "Spam relay abuse",
+          "Search result warnings",
+          "Lost opportunities during recovery",
+        ],
+        mythos: "As AI systems become stronger at finding weaknesses, regularly reviewing CMS and server risks becomes more important.",
+        recommendItems: [
+          "You use WordPress or Movable Type but rarely maintain it",
+          "Website update requests take too long",
+          "You want easier updates for notices, hours, and photos",
+          "You are interested in faster operation with AI",
+          "You want a practical business website with controlled monthly cost",
+          "You also want to support ikimon.life",
+        ],
+        closingBody: "More people enjoying nature means more local discoveries. More records mean more memories that can be revisited later.",
+        membersLink: "Meet IKIMON CREW",
+        companyLink: "IKIMON corporate CREW page",
+      };
+
+  const tiers = copy.tiers.map((tier) => `<article class="crew-tier-card">
+    <strong>${escapeHtml(tier.amount)}</strong>
+    <span>${escapeHtml(tier.note)}</span>
+  </article>`).join("");
+  const usageItems = copy.usageItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const aiItems = copy.aiItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const securityItems = copy.securityItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const recommendItems = copy.recommendItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+
+  return `<div class="lower-page crew-showcase-page crew-support-page">
+    <section class="crew-showcase-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.fee.title)}</h2>
+        <p>${escapeHtml(copy.fee.label)}</p>
+      </div>
+      <div class="crew-tier-grid">${tiers}</div>
+      <p class="crew-support-note">${escapeHtml(copy.tierNote)}</p>
+    </section>
+
+    <section class="crew-showcase-section crew-list-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.usage.title)}</h2>
+        <p>${escapeHtml(copy.usage.label)}</p>
+      </div>
+      <ul class="crew-support-list crew-support-list-compact">${usageItems}</ul>
+    </section>
+
+    <section class="crew-gift-panel">
+      <div class="crew-gift-copy">
+        <span>${escapeHtml(copy.gift.label)}</span>
+        <h2>${escapeHtml(copy.gift.title)}</h2>
+        <p>${escapeHtml(copy.giftLead)}</p>
+        <small>${escapeHtml(copy.giftBody)}</small>
+      </div>
+      <div class="crew-site-mock" aria-hidden="true">
+        <div class="crew-browser">
+          <div class="crew-browser-bar"><i></i><i></i><i></i></div>
+          <div class="crew-browser-hero"><b></b><span></span><span></span></div>
+          <div class="crew-browser-cards"><span></span><span></span></div>
+          <p>Website operation support</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="crew-showcase-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.ai.title)}</h2>
+        <p>${escapeHtml(copy.ai.label)}</p>
+      </div>
+      <div class="crew-support-feature">
+        <p>${escapeHtml(copy.aiLead)}</p>
+        <ul class="crew-support-list">${aiItems}</ul>
+      </div>
+    </section>
+
+    <section class="crew-showcase-section crew-risk-panel">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.security.title)}</h2>
+        <p>${escapeHtml(copy.security.label)}</p>
+      </div>
+      <div class="crew-risk-grid">
+        <p>${escapeHtml(copy.securityLead)}</p>
+        <ul class="crew-risk-list">${securityItems}</ul>
+      </div>
+      <p class="crew-support-note">${escapeHtml(copy.mythos)}</p>
+    </section>
+
+    <section class="crew-showcase-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.recommend.title)}</h2>
+        <p>${escapeHtml(copy.recommend.label)}</p>
+      </div>
+      <ul class="crew-support-list crew-recommend-list">${recommendItems}</ul>
+    </section>
+
+    <section class="crew-closing">
+      <span>${escapeHtml(copy.closing.label)}</span>
+      <h2>${escapeHtml(copy.closing.title)}</h2>
+      <p>${escapeHtml(copy.closingBody)}</p>
+      <div class="crew-closing-links">
+        <a href="${href("/crew/members")}">${escapeHtml(copy.membersLink)}</a>
+        <a href="https://ikimon.co.jp/crew.php">${escapeHtml(copy.companyLink)}</a>
+      </div>
+    </section>
+  </div>`;
+}
+
 function renderCrewMembersShowcase(basePath: string, lang: SiteLang): string {
   const crewHref = (href: string) => href.startsWith("http://") || href.startsWith("https://")
     ? href
@@ -958,6 +1151,32 @@ const LOWER_PAGE_STYLES = `
   .crew-section-head::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 42px; height: 1px; transform: translateX(-50%); background: rgba(4,120,87,.35); }
   .crew-section-head h2 { margin: 0; color: #10231f; font-size: clamp(22px, 2.8vw, 30px); line-height: 1.25; font-weight: 700; letter-spacing: 0; }
   .crew-section-head p { margin: 0; color: #8b9791; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .crew-support-page { max-width: 1040px; }
+  .crew-tier-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .crew-tier-card { display: grid; align-content: center; justify-items: center; gap: 8px; min-height: 142px; padding: 18px 14px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-align: center; box-shadow: 0 16px 42px rgba(15,23,42,.04); }
+  .crew-tier-card strong { color: #10231f; font-size: clamp(25px, 3vw, 34px); line-height: 1.1; font-weight: 850; letter-spacing: 0; }
+  .crew-tier-card span { color: #65746e; font-size: 12px; line-height: 1.55; font-weight: 750; }
+  .crew-tier-card:nth-child(4) { background: #10231f; border-color: rgba(255,255,255,.14); }
+  .crew-tier-card:nth-child(4) strong { color: #fff; }
+  .crew-tier-card:nth-child(4) span { color: rgba(248,250,252,.72); }
+  .crew-support-note { max-width: 760px; margin: -8px auto 0; color: #5c6b65; font-size: 14px; line-height: 1.9; text-align: center; }
+  .crew-support-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 0; padding: 0; list-style: none; }
+  .crew-support-list li { min-width: 0; padding: 14px 16px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; color: #40504a; font-size: 14px; line-height: 1.75; }
+  .crew-support-list-compact { max-width: 860px; margin: 0 auto; }
+  .crew-support-feature { display: grid; gap: 18px; max-width: 860px; margin: 0 auto; }
+  .crew-support-feature > p { margin: 0; color: #40504a; font-size: 15px; line-height: 1.95; text-align: center; }
+  .crew-risk-panel { max-width: 900px; margin-left: auto; margin-right: auto; padding: 34px clamp(18px, 3vw, 34px); border-radius: 8px; background: rgba(255,255,255,.64); border: 1px solid rgba(15,23,42,.07); }
+  .crew-risk-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr); gap: 18px; align-items: start; }
+  .crew-risk-grid > p { margin: 0; color: #40504a; font-size: 14px; line-height: 1.9; }
+  .crew-risk-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .crew-risk-list li { padding: 10px 12px; border-radius: 8px; background: #f6faf8; color: #2b3b35; font-size: 13px; line-height: 1.55; font-weight: 800; }
+  .crew-recommend-list { max-width: 920px; margin: 0 auto; }
+  .crew-closing { display: grid; justify-items: center; gap: 12px; max-width: 780px; margin: 0 auto; padding: 42px 0 0; text-align: center; border-top: 1px solid rgba(15,23,42,.08); }
+  .crew-closing span { color: #08745f; font-size: 11px; line-height: 1.4; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+  .crew-closing h2 { margin: 0; color: #10231f; font-size: clamp(22px, 3vw, 30px); line-height: 1.35; font-weight: 750; }
+  .crew-closing p { margin: 0; color: #40504a; font-size: 14px; line-height: 1.95; }
+  .crew-closing-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 18px; margin-top: 8px; }
+  .crew-closing-links a { color: #08745f; font-size: 13px; line-height: 1.6; font-weight: 850; text-decoration: underline; text-underline-offset: 4px; }
   .crew-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
   .crew-feature-card { display: grid; grid-template-rows: 112px auto auto 1fr auto; gap: 10px; min-width: 0; min-height: 292px; padding: 18px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-decoration: none; box-shadow: 0 16px 42px rgba(15,23,42,.045); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
   .crew-feature-card:hover { transform: translateY(-3px); box-shadow: 0 20px 46px rgba(15,23,42,.07); border-color: rgba(4,120,87,.22); }
@@ -1024,8 +1243,10 @@ const LOWER_PAGE_STYLES = `
   .learn-wiki-term-cloud a:hover { text-decoration: underline; text-underline-offset: 3px; }
   @media (max-width: 1040px) {
     .crew-feature-grid, .crew-banner-grid { grid-template-columns: 1fr; }
+    .crew-tier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .crew-member-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .crew-gift-panel { grid-template-columns: 1fr; }
+    .crew-risk-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 820px) {
     .doc-reading-layout { grid-template-columns: 1fr; }
@@ -1038,6 +1259,10 @@ const LOWER_PAGE_STYLES = `
     .route-gateway-card span:last-child { grid-column: 1; grid-row: auto; }
     .crew-showcase-page { padding-bottom: 56px; }
     .crew-showcase-section { margin-bottom: 54px; gap: 22px; }
+    .crew-tier-grid, .crew-support-list { grid-template-columns: 1fr; }
+    .crew-tier-card { min-height: 118px; }
+    .crew-support-note { text-align: left; }
+    .crew-risk-panel { padding: 26px 16px; }
     .crew-feature-card { grid-template-rows: 96px auto auto 1fr auto; min-height: 0; padding: 16px; }
     .crew-feature-logo { height: 96px; }
     .crew-member-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
@@ -1555,7 +1780,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const plainLearnReader = lang === "ja" && page.lane === "learn" && page.layout === "reading";
   const isLearnIndexHub = meta.bodyPageId === "learn-index";
 
-  if (meta.bodyPageId === "crew-members") {
+  if (meta.bodyPageId === "crew" || meta.bodyPageId === "crew-members") {
     const canonicalPath = appendLangToHref(page.path, "ja");
     return renderSiteDocument({
       basePath,
@@ -1575,7 +1800,9 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
         tone: "light" as const,
         align: "center" as const,
       },
-      body: renderCrewMembersShowcase(basePath, lang),
+      body: meta.bodyPageId === "crew"
+        ? renderCrewSupportPage(basePath, lang)
+        : renderCrewMembersShowcase(basePath, lang),
       footerNote: meta.footerNote ?? getShortCopy<string>(lang, "shared", "footerNotes.public"),
     });
   }

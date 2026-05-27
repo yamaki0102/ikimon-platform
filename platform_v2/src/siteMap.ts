@@ -828,7 +828,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/crew",
     lane: "trust",
-    layout: "reading",
+    layout: "wide",
     audience: "public",
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
@@ -842,7 +842,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     visualQa: {
       smoke: true,
       viewports: ["desktop-1440", "mobile-390"],
-      expectedText: { ja: "WEBサイト制作の返礼", en: "Website return gift" },
+      expectedText: { ja: "会費", en: "Annual fee" },
       readySelector: "body",
       screenshot: { baselineName: "registry-crew" },
     },
