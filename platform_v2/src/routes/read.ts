@@ -5854,13 +5854,60 @@ function normalizeShotFeedbackKey(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function shotFeedbackBenefitText(options: {
+  role: string;
+  target: string;
+  rationale?: string | null;
+}): string {
+  const role = normalizeShotFeedbackKey(options.role);
+  const target = normalizeShotFeedbackKey(options.target);
+  const rationale = normalizeShotFeedbackKey(options.rationale ?? "");
+  const combined = `${role} ${target} ${rationale}`;
+
+  if (role.includes("生息環境") || role.includes("広角") || role.includes("habitat") || rationale.includes("文脈")) {
+    return "周りの草、水辺、日当たりなどが残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなります。";
+  }
+  if (role.includes("基質") || role.includes("substrate") || combined.includes("土") || combined.includes("石") || combined.includes("樹皮")) {
+    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から読み返せます。";
+  }
+  if (role.includes("スケール") || role.includes("scale") || combined.includes("大きさ")) {
+    return "大きさの手がかりがあると、写真だけでは迷いやすいサイズ感を後から確認できます。";
+  }
+  if (role.includes("全景") || role.includes("全身") || role.includes("full")) {
+    return "全体の形と周りとの位置関係が残ると、アップだけでは分からない姿や広がりを見直せます。";
+  }
+  if (role.includes("部位") || role.includes("close") || rationale.includes("詳細")) {
+    if (combined.includes("花") || combined.includes("花弁") || combined.includes("裂片") || combined.includes("萼")) {
+      return "花の形や割れ方を後から見比べられて、似た花との違いや季節ごとの姿を説明しやすくなります。";
+    }
+    if (combined.includes("葉") || combined.includes("茎") || combined.includes("毛")) {
+      return "葉や茎の付き方、毛の有無が残ると、同じ仲間の違いや成長段階を後から見直せます。";
+    }
+    if (combined.includes("翅") || combined.includes("触角") || combined.includes("脚") || combined.includes("昆虫")) {
+      return "細部の形を後から拡大して見直せるので、その場では気づかなかった手がかりを拾いやすくなります。";
+    }
+    return "細部が残ると、後から見直したときに何が写っていて何が足りないかを判断しやすくなります。";
+  }
+  if (rationale.includes("特定") || rationale.includes("同定")) {
+    return "後から見返す人が、見えている手がかりと保留すべき点を分けて考えやすくなります。";
+  }
+  if (options.rationale && !/詳細|文脈記録|記録するため/.test(options.rationale)) {
+    return friendlyObservationText(options.rationale, 86);
+  }
+  return "その場の見え方がもう少し残ると、あとで読み返したときに場面や変化を思い出しやすくなります。";
+}
+
 function shotSuggestionFeedbackItem(suggestion: ShotSuggestion): ObservationShotFeedbackItem {
   const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
   return {
     role: meta.label,
     icon: meta.icon,
     target: suggestion.target,
-    rationale: suggestion.rationale ?? "",
+    rationale: shotFeedbackBenefitText({
+      role: meta.label,
+      target: suggestion.target,
+      rationale: suggestion.rationale,
+    }),
     priority: suggestion.priority,
   };
 }
@@ -5871,7 +5918,7 @@ function candidateReadingFeedbackItems(reading: CandidateReading): ObservationSh
     role,
     icon: "💡",
     target: tip,
-    rationale: "",
+    rationale: shotFeedbackBenefitText({ role, target: tip }),
     priority: null,
   }));
 }

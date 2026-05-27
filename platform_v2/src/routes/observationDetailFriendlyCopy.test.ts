@@ -908,9 +908,12 @@ test("subject switching reserves panel height before replacing candidate content
 test("observation detail surfaces shot feedback outside hidden subject hints", () => {
   assert.match(routeSource, /function renderObservationShotFeedbackSurface/);
   assert.match(routeSource, /function collectObservationShotFeedbackGroups/);
+  assert.match(routeSource, /function shotFeedbackBenefitText/);
   assert.match(routeSource, /obs-shot-group-list/);
   assert.match(routeSource, /candidateReadings/);
   assert.match(routeSource, /renderObservationShotFeedbackSurface\(bundle,\s*mediaContext\)/);
+  assert.match(routeSource, /季節や別地点の記録と比べやすくなります/);
+  assert.match(routeSource, /似た花との違いや季節ごとの姿を説明しやすくなります/);
   assert.doesNotMatch(routeSource, /data-obs-switch-shot-feedback/);
   assert.doesNotMatch(routeSource, /data-subject-shot-feedback-template/);
   assert.match(routeSource, /\$\{heroBlock\}\$\{shotFeedbackBlock\}/);
