@@ -1,8 +1,12 @@
 # IKIMON CREW
 
-IKIMON CREW is a participation program that supports the development and operation of ikimon.life and related IKIMON projects.
+Bird calls, roadside plants, insects on the way to school.
 
-There are no benefits. No member-only content, priority support, discounts, or name listing is promised. The amount changes the scale of participation, not what you receive.
+We want a place where small findings can remain for the future.
+
+IKIMON CREW is an annual membership for that work.
+
+No gifts. No locked content, priority support, discounts, or name listing. The difference by support amount is not what you receive, but how much strength you give IKIMON to keep going.
 
 ## Annual support amounts
 
@@ -10,7 +14,7 @@ There are no benefits. No member-only content, priority support, discounts, or n
 - 30k JPY, tax excluded
 - 50k JPY, tax excluded
 
-All options have the same benefits: none. Choose the amount that feels sustainable.
+The return is the same at every amount. Choose the amount that feels sustainable.
 
 ## What it supports
 
@@ -23,12 +27,14 @@ All options have the same benefits: none. Choose the amount that feels sustainab
 
 When benefits differ by amount, people compare what they get.
 
-IKIMON CREW is not a purchase. It is a way to help build future nature records together. That is why we do not create benefit differences by support amount.
+IKIMON CREW is not a purchase.
 
-## For people who need a website
+It is not for receiving something. It is for keeping something worth keeping. That is why we do not create benefit differences by support amount.
 
-For website production, operation, AI-enabled response workflows, and security updates, IKIMON Inc. offers a separate option called GROWING SITE.
+## If you need website operation
 
-Joining CREW and building a website are separate choices. Use GROWING SITE only if you need it.
+The 100k JPY CREW tier can include website operation only for those who want it.
+
+One website, monthly operation, an AI-enabled response workflow, and Mythos-compatible security updates can be included. If you do not need a website, there is nothing else to do.
 
 [View the IKIMON Inc. page](https://ikimon.co.jp/service.php?lang=en)

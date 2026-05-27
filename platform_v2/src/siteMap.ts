@@ -834,8 +834,8 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     navVisibility: ["header", "footer", "qa", "xml"],
     title: { ja: "IKIMON CREW", en: "IKIMON CREW" },
     summary: {
-      ja: "特典なしで ikimon.life の開発と運営を支える参加制度。",
-      en: "A no-benefits participation program supporting ikimon.life development and operation.",
+      ja: "返礼品なしで、いきものの記録を残す場所を支えるCREW。",
+      en: "A no-gifts CREW membership that helps keep nature records alive.",
     },
     primaryAction: { href: "/contact?category=partnership", label: { ja: "CREWについて相談する", en: "Ask about CREW" } },
     marketing: { pageKey: "crew" },

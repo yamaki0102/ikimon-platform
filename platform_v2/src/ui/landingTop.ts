@@ -1585,17 +1585,17 @@ function renderCrewFeature(basePath: string, lang: SiteLang): string {
   }> = {
     ja: {
       eyebrow: "IKIMON CREW",
-      title: "特典はありません。ただ、IKIMONを育てる仲間になります。",
-      body: "年額1万円、3万円、5万円から選べる、特典なしの支援制度です。会費は ikimon.life の開発・運営に使います。",
-      note: "金額による特典の違いはありません。",
+      title: "特典はありません。それでも、残したい記録があります。",
+      body: "鳥の声、足もとの草、通学路の虫。小さな発見を未来に残せる場所にしたい。会費は ikimon.life の開発・運営に使います。",
+      note: "1万円、3万円、5万円。お返しは同じです。",
       cta: "CREWを見る",
       amounts: ["年1万円", "年3万円", "年5万円"],
     },
     en: {
       eyebrow: "IKIMON CREW",
-      title: "No benefits. Just join the crew building IKIMON.",
-      body: "A no-benefits support program with annual options of 10k, 30k, and 50k JPY. Membership fees support ikimon.life development and operation.",
-      note: "Benefits do not differ by amount.",
+      title: "No benefits. Still, there are records worth keeping.",
+      body: "Bird calls, roadside plants, insects on the way to school. We want a place where small findings can remain for the future. Membership fees support ikimon.life.",
+      note: "10k, 30k, or 50k JPY. The return is the same.",
       cta: "View CREW",
       amounts: ["10k JPY/year", "30k JPY/year", "50k JPY/year"],
     },
