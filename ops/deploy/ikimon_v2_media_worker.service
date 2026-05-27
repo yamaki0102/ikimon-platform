@@ -6,5 +6,5 @@ After=network-online.target
 Type=oneshot
 User=root
 WorkingDirectory=/var/www/ikimon.life/repo
-ExecStart=/var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh processMediaProcessingJobs --limit=10 --stale-seconds=900
+ExecStart=/var/www/ikimon.life/repo/ops/cron/run_v2_node_script.sh processMediaProcessingJobs --limit=10 --stale-seconds=900 --photo-debounce-seconds=45
 Nice=5

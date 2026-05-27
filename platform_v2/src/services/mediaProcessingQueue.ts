@@ -22,7 +22,8 @@ export type MediaProcessingRunResult = {
   oldestPendingSeconds: number | null;
 };
 
-async function takePendingJobs(limit: number): Promise<MediaProcessingJob[]> {
+async function takePendingJobs(limit: number, photoDebounceSeconds: number): Promise<MediaProcessingJob[]> {
+  const photoDebounce = Math.max(0, Math.trunc(photoDebounceSeconds));
   const result = await getPool().query<{
     job_id: string;
     media_kind: string;
@@ -40,6 +41,10 @@ async function takePendingJobs(limit: number): Promise<MediaProcessingJob[]> {
          select job_id
            from media_processing_jobs
           where job_status = 'pending'
+            and (
+              job_type <> 'photo_ready_reassess'
+              or created_at <= now() - ($2::int * interval '1 second')
+            )
           order by created_at asc
           limit $1
           for update skip locked
@@ -52,7 +57,7 @@ async function takePendingJobs(limit: number): Promise<MediaProcessingJob[]> {
                 picked.occurrence_id,
                 picked.job_type,
                 picked.attempts`,
-    [Math.max(1, Math.min(50, Math.trunc(limit)))],
+    [Math.max(1, Math.min(50, Math.trunc(limit))), photoDebounce],
   );
   return result.rows.map((row) => ({
     jobId: row.job_id,
@@ -106,8 +111,12 @@ async function queueStats(staleSeconds: number): Promise<Pick<MediaProcessingRun
   };
 }
 
-export async function processMediaProcessingJobs(limit = 10, staleSeconds = 15 * 60): Promise<MediaProcessingRunResult> {
-  const jobs = await takePendingJobs(limit);
+export async function processMediaProcessingJobs(
+  limit = 10,
+  staleSeconds = 15 * 60,
+  photoDebounceSeconds = 0,
+): Promise<MediaProcessingRunResult> {
+  const jobs = await takePendingJobs(limit, photoDebounceSeconds);
   const result: MediaProcessingRunResult = {
     processed: jobs.length,
     succeeded: 0,
