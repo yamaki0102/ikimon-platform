@@ -896,20 +896,23 @@ test("subject query parameters are treated as internal tabs, not canonical pages
 test("subject switching reserves panel height before replacing candidate content", () => {
   assert.match(routeSource, /var switchRegions = \[/);
   assert.match(routeSource, /templateAttr: 'data-subject-ai-readout-template'/);
-  assert.match(routeSource, /templateAttr: 'data-subject-shot-feedback-template'/);
   assert.match(routeSource, /templateAttr: 'data-subject-identify-template'/);
   assert.match(routeSource, /measureSwitchTemplateHeight/);
   assert.match(routeSource, /captureCandidateListScroll/);
   assert.match(routeSource, /restoreCandidateListScroll\(candidateListScroll\)/);
   assert.match(routeSource, /root\.style\.minHeight = maxHeight \+ 'px'/);
   assert.match(routeSource, /stabilizeSwitchHeights\(\);\s*renderSubject\(currentSubjectId, false\)/);
+  assert.doesNotMatch(routeSource, /templateAttr: 'data-subject-shot-feedback-template'/);
 });
 
 test("observation detail surfaces shot feedback outside hidden subject hints", () => {
-  assert.match(routeSource, /function renderSubjectShotFeedbackSurface/);
-  assert.match(routeSource, /data-obs-switch-shot-feedback/);
-  assert.match(routeSource, /renderSubjectShotFeedbackSurface\(currentSubject,\s*snapshot\.photoAssets,\s*mediaContext\)/);
-  assert.match(routeSource, /data-subject-shot-feedback-template/);
+  assert.match(routeSource, /function renderObservationShotFeedbackSurface/);
+  assert.match(routeSource, /function collectObservationShotFeedbackGroups/);
+  assert.match(routeSource, /obs-shot-group-list/);
+  assert.match(routeSource, /candidateReadings/);
+  assert.match(routeSource, /renderObservationShotFeedbackSurface\(bundle,\s*mediaContext\)/);
+  assert.doesNotMatch(routeSource, /data-obs-switch-shot-feedback/);
+  assert.doesNotMatch(routeSource, /data-subject-shot-feedback-template/);
   assert.match(routeSource, /\$\{heroBlock\}\$\{shotFeedbackBlock\}/);
 });
 
