@@ -3996,7 +3996,7 @@ ${alternateLinks}
       min-height: 44px;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
       padding: 3px 8px 3px 2px;
       border-radius: 999px;
       color: #0f172a;
@@ -4019,8 +4019,8 @@ ${alternateLinks}
       display: inline-flex;
       align-items: center;
       min-width: 0;
-      width: 84px;
-      height: 26px;
+      width: 52px;
+      height: 16px;
       line-height: 1;
       white-space: nowrap;
       letter-spacing: 0;
@@ -6506,13 +6506,13 @@ ${alternateLinks}
         max-width: none;
       }
       .brand-logo-lockup {
-        gap: 7px;
+        gap: 6px;
         padding-right: 6px;
       }
       .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
       .brand-wordmark {
-        width: 72px;
-        height: 22px;
+        width: 48px;
+        height: 15px;
       }
       .brand-name { font-size: 16px; }
       .brand-domain { font-size: 11px; }

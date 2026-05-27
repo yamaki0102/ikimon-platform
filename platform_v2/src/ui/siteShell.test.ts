@@ -92,6 +92,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<span class="brand-wordmark" aria-label="ikimon">/);
   assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/ikimon-wordmark-black\.png" alt="" \/>/);
   assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/app-icon-192\.png" alt="" \/><\/span>/);
+  assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
+  assert.match(html, /\.brand-wordmark \{[\s\S]*width: 52px;[\s\S]*height: 16px;/);
+  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: 48px;[\s\S]*height: 15px;/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ikimon" \/>/);
