@@ -29,6 +29,9 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /credentials: 'same-origin'/);
   assert.match(html, /マイページ/);
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest\?lang=ja"/);
+  assert.match(html, /rel="apple-touch-icon" href="\/assets\/brand\/apple-touch-icon\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="32x32" href="\/assets\/brand\/favicon-32\.png"/);
+  assert.match(html, /rel="icon" type="image\/png" sizes="192x192" href="\/assets\/brand\/app-icon-192\.png"/);
   assert.match(html, /navigator\.languages/);
   assert.match(html, /beforeinstallprompt/);
   assert.match(html, /navigator\.serviceWorker\.register\('\/app-sw\.js'/);
@@ -87,9 +90,15 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
   assert.match(html, /<span class="brand-wordmark" aria-label="ikimon">/);
+  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/ikimon-wordmark-black\.png" alt="" \/>/);
+  assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/app-icon-192\.png" alt="" \/><\/span>/);
+  assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ikimon" \/>/);
   assert.match(html, /<meta property="og:site_name" content="ikimon" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
+  assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/);
+  assert.match(html, /<meta name="twitter:image" content="https:\/\/ikimon\.life\/assets\/brand\/ikimon-ogp-default\.png" \/>/);
   assert.match(html, /<span>ikimon<\/span>\s*<span>Enjoy Life<\/span>/);
 });
 
