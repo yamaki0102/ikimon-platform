@@ -2043,8 +2043,11 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-pri-medium { background: rgba(234,179,8,.18); color: #713f12; }
   .term-hint { position: relative; display: inline-flex; align-items: center; gap: 2px; color: #075985; font-weight: 900; text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; outline: none; }
   .term-hint::after { content: "?"; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 999px; background: rgba(14,165,233,.14); color: #0369a1; font-size: 10px; line-height: 1; font-weight: 900; }
-  .term-hint-pop { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: min(280px, 78vw); padding: 9px 10px; border-radius: 10px; background: #0f172a; color: #f8fafc; box-shadow: 0 14px 30px rgba(15,23,42,.2); font-size: 12px; line-height: 1.55; font-weight: 700; white-space: normal; opacity: 0; visibility: hidden; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease, visibility .12s ease; pointer-events: none; }
-  .term-hint:hover .term-hint-pop, .term-hint:focus .term-hint-pop, .term-hint:focus-visible .term-hint-pop { opacity: 1; visibility: visible; transform: translateY(0); }
+  .term-hint-pop { display: none; position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: min(260px, calc(100vw - 24px)); padding: 9px 10px; border-radius: 10px; background: #0f172a; color: #f8fafc; box-shadow: 0 14px 30px rgba(15,23,42,.2); font-size: 12px; line-height: 1.55; font-weight: 700; white-space: normal; pointer-events: none; }
+  .term-hint:hover .term-hint-pop, .term-hint:focus .term-hint-pop, .term-hint:focus-visible .term-hint-pop { display: block; }
+  @media (max-width: 480px) {
+    .term-hint-pop { position: fixed; left: 12px; right: 12px; bottom: 16px; width: auto; max-height: 42vh; overflow: auto; }
+  }
 
   .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
   .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
