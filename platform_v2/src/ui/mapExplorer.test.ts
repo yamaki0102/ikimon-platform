@@ -98,6 +98,28 @@ test("heatmap area filters keep osm parks as selectable anchors", () => {
   assert.match(script, /var selectedSources = areaSourcesQueryValueForMap\(\);/);
 });
 
+test("observation cell clicks are not swallowed by administrative area polygons", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function pickConcreteAreaHit\(areaHits\)/);
+  assert.match(script, /isAdministrativeAreaFeature\(feature\)/);
+  assert.match(script, /source === 'admin_municipality' \|\| source === 'admin_prefecture' \|\| source === 'admin_country'/);
+  assert.match(script, /showCellAreaChoice\(selectedFeature, pick, e\.lngLat, \{ focusMap: false, openSheet: true \}\);/);
+  assert.doesNotMatch(script, /var pick = areaHits\[0\];[\s\S]{0,500}openAreaFeatureSheet\(pick, e\.lngLat\.lat, e\.lngLat\.lng\);/);
+});
+
+test("overlapping observation cells and concrete areas show an explicit chooser", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function showCellAreaChoice\(cellFeature, areaFeature, lngLat, options\)/);
+  assert.match(script, /me-overlap-choice/);
+  assert.match(script, /どちらを開く？/);
+  assert.match(script, /四角を選ぶ/);
+  assert.match(script, /エリアを開く/);
+  assert.match(script, /selectCell\(cellFeature, options \|\| \{\}\);/);
+  assert.match(script, /openAreaFeatureSheet\(areaFeature, lngLat\.lat, lngLat\.lng\);/);
+});
+
 test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
