@@ -1,4 +1,5 @@
 import { langFromBrowserLocale, langToUrlSegment, type SiteLang } from "./i18n.js";
+import { BRAND_ASSETS } from "./brandAssets.js";
 
 type AppInstallCopy = {
   name: string;
@@ -105,15 +106,15 @@ export function buildWebManifest(lang: SiteLang): Record<string, unknown> {
     categories: ["education", "lifestyle", "utilities"],
     prefer_related_applications: false,
     icons: [
-      { src: "/assets/img/icon-192-v2.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/assets/img/icon-512-v2.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/assets/img/icon-192-maskable-v2.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-      { src: "/assets/img/icon-512-maskable-v2.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: BRAND_ASSETS.mark192, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: BRAND_ASSETS.mark512, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: BRAND_ASSETS.mark192Maskable, sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: BRAND_ASSETS.mark512Maskable, sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Guide", short_name: "Guide", url: `${prefix}/guide`, icons: [{ src: "/assets/img/icon-192-v2.png", sizes: "192x192" }] },
-      { name: "Record", short_name: "Record", url: `${prefix}/record`, icons: [{ src: "/assets/img/icon-192-v2.png", sizes: "192x192" }] },
-      { name: "Map", short_name: "Map", url: `${prefix}/map`, icons: [{ src: "/assets/img/icon-192-v2.png", sizes: "192x192" }] },
+      { name: "Guide", short_name: "Guide", url: `${prefix}/guide`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192" }] },
+      { name: "Record", short_name: "Record", url: `${prefix}/record`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192" }] },
+      { name: "Map", short_name: "Map", url: `${prefix}/map`, icons: [{ src: BRAND_ASSETS.mark192, sizes: "192x192" }] },
     ],
     orientation: "portrait-primary",
   };
@@ -167,10 +168,10 @@ const STATIC_ASSETS = [
   OFFLINE_URLS.en,
   OFFLINE_URLS.es,
   OFFLINE_URLS['pt-br'],
-  '/assets/img/icon-192-v2.png',
-  '/assets/img/icon-192-maskable-v2.png',
-  '/assets/img/icon-512-v2.png',
-  '/assets/img/favicon-32.png'
+  '${BRAND_ASSETS.mark192}',
+  '${BRAND_ASSETS.mark192Maskable}',
+  '${BRAND_ASSETS.mark512}',
+  '${BRAND_ASSETS.favicon32}'
 ];
 const APP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|guide\\/?$|record\\/?$|map\\/?$)/;
 

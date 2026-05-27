@@ -29,7 +29,7 @@ test("manifest is app-first and localized from device or query language", async 
     assert.equal(manifest.background_color, "#f5fbf7");
     assert.equal(manifest.theme_color, "#d8efe3");
     assert.deepEqual(manifest.shortcuts.map((shortcut) => shortcut.url), ["/en/guide", "/en/record", "/en/map"]);
-    assert.ok(manifest.icons.some((icon) => icon.src === "/assets/img/icon-512-maskable-v2.png" && icon.purpose === "maskable"));
+    assert.ok(manifest.icons.some((icon) => icon.src === "/assets/brand/app-icon-512-maskable.png" && icon.purpose === "maskable"));
   } finally {
     await app.close();
   }
@@ -46,6 +46,8 @@ test("app service worker is separate from legacy cleanup worker and caches app s
     assert.match(response.body, /networkFirstNavigation/);
     assert.match(response.body, /OFFLINE_URLS/);
     assert.match(response.body, /offline\.html\?lang=en/);
+    assert.match(response.body, /\/assets\/brand\/app-icon-192\.png/);
+    assert.match(response.body, /\/assets\/brand\/favicon-32\.png/);
     assert.match(response.body, /APP_NAV_RE/);
     assert.match(response.body, /ikimon-app-outbox-sync/);
     assert.match(response.body, /self\.addEventListener\('sync'/);
