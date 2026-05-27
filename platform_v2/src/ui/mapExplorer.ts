@@ -1349,6 +1349,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
     movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
     selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
+    overlapChoiceTitle: props.lang === "ja" ? "どちらを開く？" : props.lang === "es" ? "¿Qué abrir?" : props.lang === "pt-BR" ? "O que abrir?" : "What should open?",
+    overlapChoiceCell: props.lang === "ja" ? "四角を選ぶ" : props.lang === "es" ? "Elegir celda" : props.lang === "pt-BR" ? "Escolher célula" : "Select cell",
+    overlapChoiceArea: props.lang === "ja" ? "エリアを開く" : props.lang === "es" ? "Abrir área" : props.lang === "pt-BR" ? "Abrir área" : "Open area",
     placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
     selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
     identifyLabel: props.lang === "ja" ? "同定する" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
@@ -1524,6 +1527,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPolygonFeatures: [],
     discoveryPreviewMarkers: [],
     areaBadgeMarkers: [],
+    overlapChoicePopup: null,
     _cellsRequestSeq: 0,
     _cellsAppliedSeq: 0,
     _recordsRequestSeq: 0,
@@ -2838,6 +2842,66 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     fitToCellSet([feature], { openSheet: false });
   }
 
+  function closeOverlapChoice() {
+    if (!state.overlapChoicePopup) return;
+    try { state.overlapChoicePopup.remove(); } catch (_) {}
+    state.overlapChoicePopup = null;
+  }
+
+  function areaChoiceLabel(areaFeature) {
+    var props = areaFeature && areaFeature.properties ? areaFeature.properties : {};
+    return String(props.name || props.source_label || COPY.osmAreaFallbackName);
+  }
+
+  function cellChoiceLabel(cellFeature) {
+    var props = cellFeature && cellFeature.properties ? cellFeature.properties : {};
+    var count = Number(props.count || 0);
+    var countLabel = count > 0 ? String(count) + ' ' + COPY.resultCountLabel : '';
+    return [props.albumName || props.label || COPY.selectedFieldLabel, countLabel].filter(Boolean).join(' · ');
+  }
+
+  function showCellAreaChoice(cellFeature, areaFeature, lngLat, options) {
+    if (!state.map || !window.maplibregl || !cellFeature || !areaFeature || !lngLat) {
+      selectCell(cellFeature, options || {});
+      return;
+    }
+    closeOverlapChoice();
+    var node = document.createElement('div');
+    node.className = 'me-overlap-choice';
+    node.innerHTML =
+      '<div class="me-overlap-choice-title">' + escapeHtml(COPY.overlapChoiceTitle) + '</div>' +
+      '<button type="button" class="me-overlap-choice-btn me-overlap-choice-cell">' +
+        '<strong>' + escapeHtml(COPY.overlapChoiceCell) + '</strong>' +
+        '<span>' + escapeHtml(cellChoiceLabel(cellFeature)) + '</span>' +
+      '</button>' +
+      '<button type="button" class="me-overlap-choice-btn me-overlap-choice-area">' +
+        '<strong>' + escapeHtml(COPY.overlapChoiceArea) + '</strong>' +
+        '<span>' + escapeHtml(areaChoiceLabel(areaFeature)) + '</span>' +
+      '</button>';
+    node.querySelector('.me-overlap-choice-cell').addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeOverlapChoice();
+      selectCell(cellFeature, options || {});
+    });
+    node.querySelector('.me-overlap-choice-area').addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeOverlapChoice();
+      openAreaFeatureSheet(areaFeature, lngLat.lat, lngLat.lng);
+    });
+    state.overlapChoicePopup = new window.maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      className: 'me-overlap-choice-popup',
+      offset: 12,
+      maxWidth: '260px',
+    })
+      .setLngLat([lngLat.lng, lngLat.lat])
+      .setDOMContent(node)
+      .addTo(state.map);
+  }
+
   function highlightSelectedCell() {
     if (!state.map) return;
     var filter = state.selectedCellId
@@ -2850,6 +2914,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function selectCell(feature, options) {
     if (!feature || !feature.properties) return;
+    closeOverlapChoice();
     state.selectedCellId = feature.properties.cellId || null;
     state._restoredCellId = null;
     state.selectedOccurrenceId = null;
@@ -2872,6 +2937,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function selectRecord(record, options) {
     if (!record) return;
+    closeOverlapChoice();
     state.selectedOccurrenceId = record.occurrenceId || null;
     state.selectedCellId = record.cellId || null;
     var feature = findSelectableCellFeatureById(state.selectedCellId);
@@ -3214,6 +3280,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function openTransientAreaSheet(feature, lat, lng) {
     if (!sheetEl || !sheetInnerEl || !feature) return;
+    closeOverlapChoice();
     var props = feature.properties || {};
     var center = areaFeatureCenter(feature, lat, lng);
     if (!center) return;
@@ -3245,6 +3312,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function openAreaFeatureSheet(feature, lat, lng) {
     if (!feature || !feature.properties) return;
+    closeOverlapChoice();
     if (isTransientAreaFeature(feature)) {
       openTransientAreaSheet(feature, lat, lng);
       return;
@@ -4130,29 +4198,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'obs-cell-heat'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
         if (hasPendingMapResults()) return;
-        // 公園ポリゴンが下に重なっているなら、そちらを優先 (西伊場第1公園のような
-        // 小さな OSM polygon を heatmap セル経由でも開けるようにする)。
-        if (state.map && state.map.getLayer('area-polygon-fill')) {
-          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
-          if (areaHits && areaHits.length > 0) {
-            var pick = areaHits[0];
-            var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
-            for (var i = 1; i < areaHits.length; i += 1) {
-              var f = areaHits[i];
-              var area = (f.properties && Number(f.properties.area_ha));
-              if (Number.isFinite(area) && area < pickArea) {
-                pick = f;
-                pickArea = area;
-              }
-            }
-            openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
-            return;
-          }
-        }
         if (!e.features || !e.features[0]) return;
         var selectedFeature = e.features[0];
         if (selectedFeature.geometry && selectedFeature.geometry.type === 'Point') {
           selectedFeature = findCellFeatureById(selectedFeature.properties && selectedFeature.properties.cellId) || selectedFeature;
+        }
+        // 公園・登録エリアのような具体的な場所が下に重なっているなら、選択肢を出す。
+        // 行政区域はセルクリックを横取りさせない。
+        if (state.map && state.map.getLayer('area-polygon-fill')) {
+          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
+          var pick = pickConcreteAreaHit(areaHits);
+          if (pick) {
+            showCellAreaChoice(selectedFeature, pick, e.lngLat, { focusMap: false, openSheet: true });
+            return;
+          }
         }
         selectCell(selectedFeature, { focusMap: false, openSheet: true });
       });
@@ -4258,20 +4317,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       map.on('click', 'frontier-fill', function (e) {
         // Frontier cells can cover small park polygons. If the click also hits
         // a registered area, open the concrete area so the event creator keeps
-        // its field_id instead of falling back to a generic coordinate.
+        // its field_id instead of falling back to a generic coordinate. Broad
+        // administrative areas should not swallow frontier-cell clicks.
         if (state.map && state.map.getLayer('area-polygon-fill')) {
           var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
-          if (areaHits && areaHits.length > 0) {
-            var pick = areaHits[0];
-            var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
-            for (var i = 1; i < areaHits.length; i += 1) {
-              var f = areaHits[i];
-              var area = (f.properties && Number(f.properties.area_ha));
-              if (Number.isFinite(area) && area < pickArea) {
-                pick = f;
-                pickArea = area;
-              }
-            }
+          var pick = pickConcreteAreaHit(areaHits);
+          if (pick) {
             openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
             return;
           }
@@ -4358,6 +4409,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         name: tags.name || tags.waterway || tags.natural || '',
       },
     };
+  }
+
+  function isAdministrativeAreaFeature(feature) {
+    var source = String((feature && feature.properties && feature.properties.source) || '');
+    return source === 'admin_municipality' || source === 'admin_prefecture' || source === 'admin_country';
+  }
+
+  function pickConcreteAreaHit(areaHits) {
+    if (!areaHits || !areaHits.length) return null;
+    var pick = null;
+    var pickArea = Infinity;
+    for (var i = 0; i < areaHits.length; i += 1) {
+      var feature = areaHits[i];
+      if (!feature || !feature.properties || isAdministrativeAreaFeature(feature)) continue;
+      var area = Number(feature.properties.area_ha);
+      var comparableArea = Number.isFinite(area) ? area : Infinity;
+      if (!pick || comparableArea < pickArea) {
+        pick = feature;
+        pickArea = comparableArea;
+      }
+    }
+    return pick;
   }
 
   function loadWaterwayHints() {
@@ -7435,6 +7508,66 @@ export const MAP_EXPLORER_STYLES = `
     font-size: 13px;
     color: #64748b;
   }
+  .me-overlap-choice-popup .maplibregl-popup-content {
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 14px 34px rgba(15,23,42,.18);
+  }
+  .me-overlap-choice-popup .maplibregl-popup-close-button {
+    width: 24px;
+    height: 24px;
+    color: #64748b;
+    font-size: 18px;
+  }
+  .me-overlap-choice {
+    display: grid;
+    gap: 6px;
+    min-width: 220px;
+    padding-top: 10px;
+  }
+  .me-overlap-choice-title {
+    padding: 0 24px 2px 4px;
+    font-size: 12px;
+    font-weight: 900;
+    color: #0f172a;
+  }
+  .me-overlap-choice-btn {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    min-height: 48px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(15,23,42,.08);
+    background: #fff;
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-overlap-choice-btn:hover {
+    border-color: rgba(14,165,233,.38);
+    background: #f8fafc;
+  }
+  .me-overlap-choice-btn strong {
+    font-size: 12.5px;
+    font-weight: 950;
+    line-height: 1.25;
+  }
+  .me-overlap-choice-btn span {
+    max-width: 210px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 750;
+  }
+  .me-overlap-choice-cell {
+    background: rgba(240,249,255,.9);
+    border-color: rgba(14,165,233,.24);
+  }
   .me-selected-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; margin-bottom: 2px; }
   .me-selected-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
   .me-selected-ambient { margin-top: 2px; }
@@ -7449,6 +7582,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-side-toggle:focus-visible,
   .me-visited-chip:focus-visible,
   .me-visited-sort button:focus-visible,
+  .me-overlap-choice-btn:focus-visible,
   .me-year-range:focus-visible,
   .me-result-row:focus-visible,
   .me-filter-toggle:focus-visible,
