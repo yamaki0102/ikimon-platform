@@ -244,7 +244,7 @@ test("observation detail hero readout keeps scene candidates out of identificati
 
   assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
   assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
-  assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle, groundingAssets\)/);
+  assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle, groundingAssets, glossaryTerms\)/);
   assert.match(readoutSource, /obs-ai-detail-box/);
   assert.match(readoutSource, /candidateReadingMap\(bundle\)/);
   assert.match(readoutSource, /findCandidateReading\(readingMap/);
@@ -266,8 +266,8 @@ test("observation detail hero readout keeps scene candidates out of identificati
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
   assert.match(readoutSource, /同じ場面内の名前候補として残っています/);
   assert.doesNotMatch(readoutSource, /<p class="obs-hint-eyebrow">名前のいま/);
-  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle, groundingAssets\)/);
-  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle, groundingAssets\)/);
+  assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle, groundingAssets, glossaryTerms\)/);
+  assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle, groundingAssets, glossaryTerms\)/);
 });
 
 test("vegetation care advice is cautious and grounded in management context", () => {
@@ -311,7 +311,7 @@ test("stored AI geographic hints are sanitized with the verified public place la
   assert.match(sanitizeSource, /静岡県静岡市/);
   assert.match(sanitizeSource, /静岡市/);
   assert.match(subjectHintSource, /sanitizeAiGeographicContext\(aiAssessment\.geographicContext, verifiedPlaceLabel\)/);
-  assert.match(registrationSource, /renderSubjectHint\(subject, siteBriefResult \?\? null, snapshot\.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel\)/);
+  assert.match(registrationSource, /renderSubjectHint\(subject, siteBriefResult \?\? null, snapshot\.photoAssets, basePath, mediaContext, glossaryTerms, fieldAdviceContext, heroPlaceLabel\)/);
 });
 
 test("identification candidate switch uses real bundle candidates instead of hardcoded 1 of 1", () => {
@@ -476,7 +476,7 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
 
   assert.match(readoutSource, /data-ai-target="\$\{escapeHtml\(aiCandidatePanelKey\(candidate\)\)\}"/);
-  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle, groundingAssets\)/);
+  assert.match(heroSource, /renderAiCandidateDetailPanels\(bundle, groundingAssets, glossaryTerms\)/);
   assert.match(identifySource, /panelKey: occurrenceHref \? candidate\.suggestedOccurrenceId : aiCandidatePanelKey\(candidate\)/);
   assert.match(identifySource, /data-ai-candidate-meter-value/);
   assert.match(identifySource, /obs-frame-candidate-current/);
@@ -910,8 +910,11 @@ test("observation detail surfaces shot feedback outside hidden subject hints", (
   assert.match(routeSource, /function collectObservationShotFeedbackGroups/);
   assert.match(routeSource, /function shotFeedbackBenefitText/);
   assert.match(routeSource, /obs-shot-group-list/);
+  assert.match(routeSource, /getGlossaryTermsForScope\(\{ lang, scopeTags: \["observation"\] \}\)/);
+  assert.match(routeSource, /renderGlossaryText/);
+  assert.match(routeSource, /term-hint-pop/);
   assert.match(routeSource, /candidateReadings/);
-  assert.match(routeSource, /renderObservationShotFeedbackSurface\(bundle,\s*mediaContext\)/);
+  assert.match(routeSource, /renderObservationShotFeedbackSurface\(bundle,\s*mediaContext,\s*glossaryTerms\)/);
   assert.match(routeSource, /季節や別地点の記録と比べやすくなります/);
   assert.match(routeSource, /似た花との違いや季節ごとの姿を説明しやすくなります/);
   assert.doesNotMatch(routeSource, /data-obs-switch-shot-feedback/);
@@ -1601,5 +1604,5 @@ test("identity evidence fallback keeps common planted-scene subjects specific", 
 test("open disputes pause assertive more-about copy", () => {
   assert.match(routeSource, /hasOpenNameDispute/);
   assert.match(routeSource, /確認中/);
-  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle,\s*groundingAssets\)/s);
+  assert.match(routeSource, /renderHeroAiReadout\(currentSubject,\s*consensus\?\.hasOpenDispute === true,\s*insight,\s*bundle,\s*groundingAssets,\s*glossaryTerms\)/s);
 });
