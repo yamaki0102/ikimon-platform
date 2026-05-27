@@ -44,6 +44,7 @@ import { lookupLocalTaxonName } from "../services/taxonNameNormalizer.js";
 import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { getPlaceManagementPolicy, type PlaceManagementPolicy } from "../services/placeManagementPolicy.js";
 import { getPlaceVegetationTrend, type PlaceVegetationTrend } from "../services/placeVegetationTrend.js";
+import { getGlossaryTermsForScope, renderGlossaryText, type GlossaryTermHint } from "../services/glossaryTerms.js";
 import {
   civicContextLabel,
   getCivicObservationContext,
@@ -2040,6 +2041,10 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-pri { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; letter-spacing: .04em; flex-shrink: 0; }
   .obs-shot-pri-high { background: rgba(239,68,68,.12); color: #991b1b; }
   .obs-shot-pri-medium { background: rgba(234,179,8,.18); color: #713f12; }
+  .term-hint { position: relative; display: inline-flex; align-items: center; gap: 2px; color: #075985; font-weight: 900; text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; outline: none; }
+  .term-hint::after { content: "?"; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 999px; background: rgba(14,165,233,.14); color: #0369a1; font-size: 10px; line-height: 1; font-weight: 900; }
+  .term-hint-pop { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: min(280px, 78vw); padding: 9px 10px; border-radius: 10px; background: #0f172a; color: #f8fafc; box-shadow: 0 14px 30px rgba(15,23,42,.2); font-size: 12px; line-height: 1.55; font-weight: 700; white-space: normal; opacity: 0; visibility: hidden; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease, visibility .12s ease; pointer-events: none; }
+  .term-hint:hover .term-hint-pop, .term-hint:focus .term-hint-pop, .term-hint:focus-visible .term-hint-pop { opacity: 1; visibility: visible; transform: translateY(0); }
 
   .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
   .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
@@ -3321,7 +3326,7 @@ function renderAiTaxonStory(insight: TaxonInsight | null | undefined, fallbackNa
   </div>`;
 }
 
-function renderAiCompareList(subject: ObservationVisitSubject): string {
+function renderAiCompareList(subject: ObservationVisitSubject, glossaryTerms: GlossaryTermHint[] = []): string {
   const ai = subject.aiAssessment;
   const nameText = `${subject.displayName} ${subject.vernacularName ?? ""} ${subject.scientificName ?? ""} ${ai?.recommendedTaxonName ?? ""}`;
   if (/カワラヒワ|Chloris sinica/i.test(nameText)) {
@@ -3338,8 +3343,8 @@ function renderAiCompareList(subject: ObservationVisitSubject): string {
   const tips = (ai?.distinguishingTips ?? ai?.confirmMore ?? []).map((item) => friendlyObservationText(item, 84)).filter(Boolean).slice(0, 3);
   if (similar.length === 0 && tips.length === 0) return "";
   const rows = similar.length > 0
-    ? similar.map((item, index) => `<li><span><strong>${escapeHtml(item.name)}と比べる</strong><br>${escapeHtml(tips[index] ?? "形・色・写っている部位を見比べると判断しやすくなります。")}</span></li>`).join("")
-    : tips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("");
+    ? similar.map((item, index) => `<li><span><strong>${escapeHtml(item.name)}と比べる</strong><br>${renderGlossaryText(tips[index] ?? "形・色・写っている部位を見比べると判断しやすくなります。", glossaryTerms)}</span></li>`).join("")
+    : tips.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("");
   return `<div class="obs-ai-detail-box">
     <div class="obs-ai-detail-label">似た仲間との見分け</div>
     <ul class="obs-ai-compare-list">${rows}</ul>
@@ -3469,7 +3474,12 @@ function renderAiVisualGrounding(options: {
   </div>`;
 }
 
-function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, readingMap: Map<string, CandidateReading>, groundingAssets: AiGroundingAsset[] = []): string {
+function renderAiCandidateDetailPanel(
+  candidate: ObservationVisitCandidate,
+  readingMap: Map<string, CandidateReading>,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   const candidateName = observationDetailUiName(candidate.displayName);
   const sourceReading = findCandidateReading(readingMap, [candidate.displayName, candidateName, candidate.scientificName])
     ?? fallbackCandidateReadingForSubject({
@@ -3498,28 +3508,32 @@ function renderAiCandidateDetailPanel(candidate: ObservationVisitCandidate, read
     : `${candidateName} は同じ対象を読むための別候補です。${rankHint}として、人の確認で扱います。`;
   const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || candidate.scientificName);
   return `<div class="obs-ai-detail" data-ai-panel="${escapeHtml(aiCandidatePanelKey(candidate))}" hidden>
-      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${renderGlossaryText(summary, glossaryTerms)}</span></p>
       ${renderAiVisualGrounding({ regions: candidate.regions, assets: groundingAssets, candidateId: candidate.candidateId })}
       ${renderAiSizeSummary(sourceReading.sizeAssessment)}
       ${story}
       <div class="obs-ai-detail-grid">
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">確かめる点</div>
-          <ul class="obs-ai-detail-list">${features.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+          <ul class="obs-ai-detail-list">${features.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
         </div>
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">弱い点</div>
-          <ul class="obs-ai-detail-list">${weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+          <ul class="obs-ai-detail-list">${weakPoints.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
         </div>
         <div class="obs-ai-detail-box">
           <div class="obs-ai-detail-label">追加で見る点</div>
-          <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+          <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
         </div>
       </div>
     </div>`;
 }
 
-function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null, groundingAssets: AiGroundingAsset[] = []): string {
+function renderAiCandidateDetailPanels(
+  bundle: ObservationVisitBundle | null,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   if (!bundle || bundle.aiCandidates.length === 0) return "";
   const subjectNames = new Set(bundle.subjects.map((subject) => observationDetailUiName(subject.displayName)));
   const readingMap = candidateReadingMap(bundle);
@@ -3534,11 +3548,17 @@ function renderAiCandidateDetailPanels(bundle: ObservationVisitBundle | null, gr
       })
     )
     .slice(0, 4)
-    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap, groundingAssets))
+    .map((candidate) => renderAiCandidateDetailPanel(candidate, readingMap, groundingAssets, glossaryTerms))
     .join("");
 }
 
-function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, hasOpenDispute: boolean, bundle: ObservationVisitBundle | null, groundingAssets: AiGroundingAsset[] = []): string {
+function renderNoAssessmentCandidateReadout(
+  subject: ObservationVisitSubject,
+  hasOpenDispute: boolean,
+  bundle: ObservationVisitBundle | null,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle) || renderHeroAiCandidateTargets(bundle);
   const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
   const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
@@ -3561,7 +3581,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     .filter(Boolean)
     .slice(0, 3);
   const cluePills = clues.length > 0
-    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${escapeHtml(feature.replace(/（.*?）/gu, ""))}</span>`).join("")}</div></div>`
+    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${renderGlossaryText(feature.replace(/（.*?）/gu, ""), glossaryTerms)}</span>`).join("")}</div></div>`
     : "";
   const weakPoints = (sourceReading.weakPoints ?? [])
     .map((item) => friendlyObservationText(item, 92))
@@ -3574,12 +3594,12 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
   const sizeCard = renderAiSizeSummary(sourceReading.sizeAssessment);
   const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || subject.scientificName);
   const evidenceRows = weakPoints.length > 0
-    ? weakPoints.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")
+    ? weakPoints.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")
     : `<li><span>${escapeHtml(candidateName)} は同じ場面内の名前候補として残っています。写真と人の確認で補います。</span></li>`;
   const shootingRows = shootingTips.length > 0
     ? `<div class="obs-ai-detail-box">
         <div class="obs-ai-detail-label">追加で見る点</div>
-        <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${escapeHtml(item)}</span></li>`).join("")}</ul>
+        <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
       </div>`
     : "";
   const currentTarget = !sceneTargets && isIdentificationTabSubject(subject)
@@ -3598,7 +3618,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
     ${sceneTargets || currentTarget}
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
-      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${escapeHtml(summary)}</span></p>
+      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${renderGlossaryText(summary, glossaryTerms)}</span></p>
       ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
@@ -3610,7 +3630,7 @@ function renderNoAssessmentCandidateReadout(subject: ObservationVisitSubject, ha
         ${shootingRows}
       </div>
     </div>
-    ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
+    ${renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms)}
   </section>${renderAiReadoutInteractionScript()}`;
 }
 
@@ -3665,10 +3685,17 @@ function renderAiReadoutInteractionScript(): string {
   })();</script>`;
 }
 
-export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDispute = false, insight: TaxonInsight | null = null, bundle: ObservationVisitBundle | null = null, groundingAssets: AiGroundingAsset[] = []): string {
+export function renderHeroAiReadout(
+  subject: ObservationVisitSubject,
+  hasOpenDispute = false,
+  insight: TaxonInsight | null = null,
+  bundle: ObservationVisitBundle | null = null,
+  groundingAssets: AiGroundingAsset[] = [],
+  glossaryTerms: GlossaryTermHint[] = [],
+): string {
   const aiAssessment = subject.aiAssessment;
   if (!aiAssessment) {
-    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle, groundingAssets);
+    return renderNoAssessmentCandidateReadout(subject, hasOpenDispute, bundle, groundingAssets, glossaryTerms);
   }
 
   const band = aiAssessment.confidenceBand;
@@ -3693,7 +3720,7 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     .filter(Boolean)
     .slice(0, 3);
   const cluePills = clues.length > 0
-    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${escapeHtml(feature.replace(/（.*?）/gu, ""))}</span>`).join("")}</div></div>`
+    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${renderGlossaryText(feature.replace(/（.*?）/gu, ""), glossaryTerms, 2)}</span>`).join("")}</div></div>`
     : "";
   const leadSource = aiAssessment.simpleSummary || aiAssessment.narrative || clues[0] || "";
   const seasonal = aiAssessment.seasonalContext ? stripCandidateNameFromCopy(friendlyObservationText(aiAssessment.seasonalContext, 64), candidateName) : "";
@@ -3701,7 +3728,7 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     stripCandidateNameFromCopy(friendlyObservationText(leadSource, 72), candidateName),
     seasonal && !/季節|繁殖|春|夏|秋|冬|月/.test(leadSource) ? seasonal : "",
   ].filter(Boolean).join("。");
-  const compareList = renderAiCompareList(subject);
+  const compareList = renderAiCompareList(subject, glossaryTerms);
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
   const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
   const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
@@ -3714,14 +3741,14 @@ export function renderHeroAiReadout(subject: ObservationVisitSubject, hasOpenDis
     ${sceneTargets || currentTarget}
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
-      ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${escapeHtml(leadText)}</span></p>` : ""}
+      ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${renderGlossaryText(leadText, glossaryTerms)}</span></p>` : ""}
       ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
       ${compareList ? `<div class="obs-ai-detail-grid">${compareList}</div>` : ""}
       ${note}
     </div>
-    ${renderAiCandidateDetailPanels(bundle, groundingAssets)}
+    ${renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms)}
   </section><script>(function(){
     document.querySelectorAll('[data-obs-switch-ai-readout]').forEach(function(root){
       if (root.getAttribute('data-ai-readout-bound') === '1') return;
@@ -3881,6 +3908,7 @@ function renderSubjectHint(
   _photoAssets: { roleTag: string | null }[] | null = null,
   basePath = "",
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+  glossaryTerms: GlossaryTermHint[] = [],
   fieldAdviceContext: {
     policy?: PlaceManagementPolicy | null;
     trend?: PlaceVegetationTrend | null;
@@ -3923,10 +3951,10 @@ function renderSubjectHint(
     : "";
   const mediaCopy = observationMediaCopy(mediaContext);
   const clues = !mediaContext.hasVideos && aiAssessment.diagnosticFeaturesSeen.length > 0
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.clueHeading)}</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${escapeHtml(friendlyObservationText(feature, 48))}</li>`).join("")}</ul></div>`
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.clueHeading)}</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${renderGlossaryText(friendlyObservationText(feature, 48), glossaryTerms, 2)}</li>`).join("")}</ul></div>`
     : "";
   const missingPhoto = aiAssessment.missingEvidence.length > 0
-    ? `<div class="obs-hint-sub obs-hint-missing"><div class="obs-hint-eye">${escapeHtml(mediaCopy.missingHeading)} <span class="obs-hint-eye-note">自動メモ</span></div><ul class="obs-hint-tags is-muted">${aiAssessment.missingEvidence.map((item) => `<li>${escapeHtml(friendlyObservationText(item, 48))}</li>`).join("")}</ul></div>`
+    ? `<div class="obs-hint-sub obs-hint-missing"><div class="obs-hint-eye">${escapeHtml(mediaCopy.missingHeading)} <span class="obs-hint-eye-note">自動メモ</span></div><ul class="obs-hint-tags is-muted">${aiAssessment.missingEvidence.map((item) => `<li>${renderGlossaryText(friendlyObservationText(item, 48), glossaryTerms, 2)}</li>`).join("")}</ul></div>`
     : "";
   const stop = aiAssessment.stopReason
     ? `<div class="obs-hint-sub"><div class="obs-hint-eye">まだ決めない理由</div><p>${escapeHtml(friendlyObservationText(aiAssessment.stopReason, 110))}</p></div>`
@@ -3948,7 +3976,7 @@ function renderSubjectHint(
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);
   aiAssessment.confirmMore.forEach((tip) => { if (tip) nextShotItems.push(tip); });
   const nextStep = !hasShotSuggestionsCard && nextShotItems.length > 0
-    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.nextEvidenceHeading)}</div>${nextShotItems.length === 1 ? `<p>${escapeHtml(friendlyObservationText(nextShotItems[0], 90))}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${escapeHtml(friendlyObservationText(tip, 78))}</li>`).join("")}</ul>`}</div>`
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">${escapeHtml(mediaCopy.nextEvidenceHeading)}</div>${nextShotItems.length === 1 ? `<p>${renderGlossaryText(friendlyObservationText(nextShotItems[0], 90), glossaryTerms)}</p>` : `<ul class="obs-hint-bul">${nextShotItems.map((tip) => `<li>${renderGlossaryText(friendlyObservationText(tip, 78), glossaryTerms)}</li>`).join("")}</ul>`}</div>`
     : "";
   const funFact = aiAssessment.funFact
     ? `<div class="obs-hint-fun"><div class="obs-hint-eye">ちょっとした豆知識</div><p>${escapeHtml(friendlyObservationText(aiAssessment.funFact, 120))}</p></div>`
@@ -3959,7 +3987,7 @@ function renderSubjectHint(
     ? `<div class="obs-hint-similar">
          <div class="obs-hint-eye">まぎらわしい仲間 <span class="obs-hint-eye-note">自動メモ</span></div>
          ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((taxon) => `<li>${escapeHtml(taxon.name)}${taxon.rank ? ` <small>(${escapeHtml(publicRankHint(taxon.rank) || rankLabelJa(taxon.rank))})</small>` : ""}</li>`).join("")}</ul>` : ""}
-         ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((tip) => `<li>${escapeHtml(friendlyObservationText(tip, 78))}</li>`).join("")}</ul></div>` : ""}
+         ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((tip) => `<li>${renderGlossaryText(friendlyObservationText(tip, 78), glossaryTerms)}</li>`).join("")}</ul></div>` : ""}
          <p class="obs-hint-reminder">※ 自動メモです。図鑑や詳しい人の確認も合わせて見てください。</p>
        </div>`
     : "";
@@ -5970,7 +5998,7 @@ function collectObservationShotFeedbackGroups(bundle: ObservationVisitBundle): O
   return groups.filter((group) => group.items.length > 0);
 }
 
-function renderShotFeedbackItem(item: ObservationShotFeedbackItem): string {
+function renderShotFeedbackItem(item: ObservationShotFeedbackItem, glossaryTerms: GlossaryTermHint[] = []): string {
   const priorityBadge = item.priority === "high"
     ? `<span class="obs-shot-pri obs-shot-pri-high">優先して残す</span>`
     : item.priority === "medium"
@@ -5978,8 +6006,8 @@ function renderShotFeedbackItem(item: ObservationShotFeedbackItem): string {
       : "";
   return `<li class="obs-shot-item">
     <span class="obs-shot-role"><span class="obs-shot-icon">${escapeHtml(item.icon)}</span>${escapeHtml(item.role)}</span>
-    <span class="obs-shot-target">${escapeHtml(item.target)}</span>
-    ${item.rationale ? `<span class="obs-shot-rationale">${escapeHtml(item.rationale)}</span>` : ""}
+    <span class="obs-shot-target">${renderGlossaryText(item.target, glossaryTerms)}</span>
+    ${item.rationale ? `<span class="obs-shot-rationale">${renderGlossaryText(item.rationale, glossaryTerms)}</span>` : ""}
     ${priorityBadge}
   </li>`;
 }
@@ -5987,6 +6015,7 @@ function renderShotFeedbackItem(item: ObservationShotFeedbackItem): string {
 function renderObservationShotFeedbackSurface(
   bundle: ObservationVisitBundle,
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+  glossaryTerms: GlossaryTermHint[] = [],
 ): string {
   const groups = collectObservationShotFeedbackGroups(bundle);
   if (groups.length === 0) return "";
@@ -5996,7 +6025,7 @@ function renderObservationShotFeedbackSurface(
       <span class="obs-shot-group-name">${escapeHtml(group.name)}</span>
       <span class="obs-shot-group-count">${group.items.length}件</span>
     </div>
-    <ul class="obs-shot-list">${group.items.map(renderShotFeedbackItem).join("")}</ul>
+    <ul class="obs-shot-list">${group.items.map((item) => renderShotFeedbackItem(item, glossaryTerms)).join("")}</ul>
   </li>`).join("");
   return `<section class="section obs-surface-shot-feedback" data-obs-section="shot-feedback">
     <section class="obs-shot-card" aria-label="${escapeHtml(mediaCopy.shotAriaLabel)}">
@@ -6955,6 +6984,7 @@ function renderObservationQualityCard(options: {
   consensus: IdentificationConsensusResult | null;
   placeLabel: string;
   mediaContext: ObservationMediaCopyContext;
+  glossaryTerms?: GlossaryTermHint[];
 }): string {
   const mediaCount = options.snapshot.photoAssets.length + options.snapshot.videoAssets.length + options.snapshot.audioAssets.length;
   const hasEvidence = mediaCount > 0;
@@ -6969,6 +6999,7 @@ function renderObservationQualityCard(options: {
         : "未追加";
   const sceneNoun = mediaSceneNoun(options.mediaContext);
   const isGreenfinchSnapshot = /カワラヒワ|Chloris sinica/i.test(`${subjectName} ${options.subject.scientificName ?? ""}`);
+  const glossaryTerms = options.glossaryTerms ?? [];
   return `<section class="obs-local-quality-card" aria-label="研究利用に向けた記録品質">
     <div class="obs-local-quality-head">
       <div>
@@ -7012,13 +7043,13 @@ function renderObservationQualityCard(options: {
     <div class="obs-local-quality-draft" data-quality-draft>
       <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
       <div class="obs-local-quality-draft-grid">
-        ${[
+        ${([
           ["場所の型", "草地、市街地、林内、海岸、湿地など、観察が起きた大きな場を残す。", /鳥|カワラヒワ|イネ科|草/i.test(`${subjectName} ${options.subject.focusReason}`) ? "草地と市街地の縁" : "観察場所の周辺"],
           ["接している面", "対象が触れている・立っている・浮いている面を残す。", "土、礫、枯れ草が混じる足元"],
           ["周辺の被覆", "まわりを覆う植物、水、雪、岩、構造物などを残す。", isGreenfinchSnapshot ? "低い草地とイネ科らしい草本" : "低い草地と周辺の植生"],
           ["環境条件", "乾湿、明るさ、流れ、深さ、開け方など、その場の状態を残す。", isGreenfinchSnapshot ? "乾きやすそうな開けた足元" : "開けた足元"],
           ["人為・変化", "草刈り、踏圧、造成、放流、管理、攪乱など、人や時間の影響を残す。", isGreenfinchSnapshot ? "踏圧と草刈り後のような跡" : "踏圧や管理の跡"],
-        ].map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${escapeHtml(title)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${escapeHtml(help)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${escapeHtml(value)}</em><button class="obs-local-quality-field-edit" type="button">変更</button></div></div>`).join("")}
+        ] satisfies Array<[string, string, string]>).map(([title, help, value]) => `<div class="obs-local-quality-chip" data-quality-chip><div class="obs-local-quality-chip-title"><strong>${renderGlossaryText(title, glossaryTerms, 1)}</strong><details class="obs-local-quality-help"><summary aria-label="見る観点">?</summary><p>${renderGlossaryText(help, glossaryTerms, 2)}</p></details></div><div class="obs-local-quality-chip-value-row"><em>${renderGlossaryText(value, glossaryTerms, 2)}</em><button class="obs-local-quality-field-edit" type="button">変更</button></div></div>`).join("")}
       </div>
     </div>
     <div class="obs-local-quality-history"><div class="obs-local-quality-history-head"><strong>編集履歴</strong></div><ul class="obs-local-quality-history-log" data-quality-history><li>AIが環境レコードを入力しました</li></ul></div>
@@ -16474,6 +16505,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       visibleRecordItems,
       formatObservationRecordTitle(snapshot.observedAt, heroPlaceLabel),
     );
+    const glossaryTerms = await getGlossaryTermsForScope({ lang, scopeTags: ["observation"] });
     const identifyBlock = `<div data-obs-section="identify" data-obs-switch-identify>${renderIdentificationParticipation({
       basePath,
       lang,
@@ -16508,12 +16540,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         consensus,
         placeLabel: heroPlaceLabel,
         mediaContext,
+        glossaryTerms,
       }),
       visibleRecordCount: visibleRecordItems.length,
       summaryStrip: "",
       firstReadBlock: renderPhotoFirstRead(currentSubject, visibleRecordItems, consensus?.hasOpenDispute === true, mediaContext),
       sceneOverviewBlock: "",
-      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle, groundingAssets),
+      nameStatusBlock: renderHeroAiReadout(currentSubject, consensus?.hasOpenDispute === true, insight, bundle, groundingAssets, glossaryTerms),
       nextActionRail,
       trustStageLabel,
       trustLead,
@@ -16522,7 +16555,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       recordModeLabel: observationRecordModeLabel(snapshot),
       mediaSceneLabel: mediaSceneNoun(mediaContext),
     });
-    const shotFeedbackBlock = renderObservationShotFeedbackSurface(bundle, mediaContext);
+    const shotFeedbackBlock = renderObservationShotFeedbackSurface(bundle, mediaContext, glossaryTerms);
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
     const readProgressBlock = renderObservationReadProgress({
@@ -16649,8 +16682,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
-      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
-      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel)}</template>
+      <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets, glossaryTerms)}</template>
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, glossaryTerms, fieldAdviceContext, heroPlaceLabel)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
         basePath,
