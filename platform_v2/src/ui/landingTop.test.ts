@@ -336,6 +336,14 @@ test("landing top uses public registered area labels in card metadata", () => {
   assert.doesNotMatch(html, /浜松城公園 共生エリア/);
 });
 
+test("landing top keeps observer avatar separate from long area metadata", () => {
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author \{[\s\S]*?grid-template-columns: 24px minmax\(0, 1fr\);/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author-copy \{[\s\S]*?display: grid;/);
+  assert.match(LANDING_TOP_STYLES, /\.prototype-content-author-copy small \{[\s\S]*?display: block;[\s\S]*?max-width: 100%;/);
+  assert.doesNotMatch(LANDING_TOP_STYLES, /\.prototype-content-author-copy \{[\s\S]*?display: contents;/);
+  assert.doesNotMatch(LANDING_TOP_STYLES, /grid-template-columns: 24px minmax\(0, 1fr\) auto;/);
+});
+
 test("landing top renders signed-in own and community posts as thumbnail content", () => {
   const communityObservation: LandingObservation = {
     ...photoObservation,
