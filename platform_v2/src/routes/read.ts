@@ -5901,6 +5901,16 @@ function renderShotSuggestionsCard(
   </section>`;
 }
 
+function renderSubjectShotFeedbackSurface(
+  subject: ObservationVisitSubject,
+  photoAssets: { roleTag: string | null }[] | null | undefined = null,
+  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
+): string {
+  const card = renderShotSuggestionsCard(subject.aiAssessment?.shotSuggestions, photoAssets, mediaContext);
+  if (!card) return "";
+  return `<section class="section obs-surface-shot-feedback" data-obs-section="shot-feedback">${card}</section>`;
+}
+
 function renderSubjectComparison(bundle: ObservationVisitBundle, subject: ObservationVisitSubject): string {
   if (!bundle.selectedRun && !bundle.previousRun) {
     return "";
@@ -16412,6 +16422,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       recordModeLabel: observationRecordModeLabel(snapshot),
       mediaSceneLabel: mediaSceneNoun(mediaContext),
     });
+    const shotFeedbackBlock = `<div data-obs-switch-shot-feedback>${renderSubjectShotFeedbackSurface(currentSubject, snapshot.photoAssets, mediaContext)}</div>`;
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
     const readProgressBlock = renderObservationReadProgress({
@@ -16539,6 +16550,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
+      <template data-subject-shot-feedback-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectShotFeedbackSurface(subject, snapshot.photoAssets, mediaContext)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
@@ -16612,6 +16624,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            };
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
+           var shotFeedbackRoot = document.querySelector('[data-obs-switch-shot-feedback]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
            var identifyRoot = document.querySelector('[data-obs-switch-identify]');
@@ -16622,6 +16635,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var switchRegions = [
              { root: firstReadRoot, templateAttr: 'data-subject-first-read-template' },
              { root: aiReadoutRoot, templateAttr: 'data-subject-ai-readout-template' },
+             { root: shotFeedbackRoot, templateAttr: 'data-subject-shot-feedback-template' },
              { root: hintRoot, templateAttr: 'data-subject-hint-template' },
              { root: taxonomyRoot, templateAttr: 'data-subject-taxonomy-template' },
              { root: identifyRoot, templateAttr: 'data-subject-identify-template' }
@@ -16724,11 +16738,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var candidateListScroll = captureCandidateListScroll();
              var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
              var firstReadTemplate = selectTemplate('data-subject-first-read-template', subjectId);
+             var shotFeedbackTemplate = selectTemplate('data-subject-shot-feedback-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
              var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
              if (firstReadRoot && firstReadTemplate) firstReadRoot.innerHTML = firstReadTemplate.innerHTML;
              if (aiReadoutRoot && aiReadoutTemplate) aiReadoutRoot.innerHTML = aiReadoutTemplate.innerHTML;
+             if (shotFeedbackRoot && shotFeedbackTemplate) shotFeedbackRoot.innerHTML = shotFeedbackTemplate.innerHTML;
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
              if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
@@ -17074,7 +17090,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
+    const detailBody = `${heroBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
