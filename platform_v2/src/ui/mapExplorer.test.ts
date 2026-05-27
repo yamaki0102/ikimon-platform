@@ -120,6 +120,17 @@ test("overlapping observation cells and concrete areas show an explicit chooser"
   assert.match(script, /openAreaFeatureSheet\(areaFeature, lngLat\.lat, lngLat\.lng\);/);
 });
 
+test("small area outlines have a stable click hitbox across zoom levels", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /id: 'area-polygon-hitbox'/);
+  assert.match(script, /'line-width': 14/);
+  assert.match(script, /function areaPolygonHitLayers\(\)/);
+  assert.match(script, /'area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-selected'/);
+  assert.match(script, /\['area-polygon-fill', 'area-polygon-outline', 'area-polygon-hitbox'\]\.forEach/);
+  assert.match(script, /map\.queryRenderedFeatures\(e\.point, \{ layers: hitLayers \}\)/);
+});
+
 test("map explorer exposes visited place shortcuts and a clickable side collapse control", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });

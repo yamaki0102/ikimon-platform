@@ -4205,8 +4205,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         }
         // 公園・登録エリアのような具体的な場所が下に重なっているなら、選択肢を出す。
         // 行政区域はセルクリックを横取りさせない。
-        if (state.map && state.map.getLayer('area-polygon-fill')) {
-          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
+        var areaLayers = areaPolygonHitLayers();
+        if (state.map && areaLayers.length) {
+          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: areaLayers });
           var pick = pickConcreteAreaHit(areaHits);
           if (pick) {
             showCellAreaChoice(selectedFeature, pick, e.lngLat, { focusMap: false, openSheet: true });
@@ -4233,7 +4234,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-bloom', 'observation-cell-dot', 'observation-cell-count', 'observation-cell-label', 'observation-cell-selected'];
     var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
-    var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-selected'];
+    var areaLayers = ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-hitbox', 'area-polygon-selected'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
@@ -4319,8 +4320,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         // a registered area, open the concrete area so the event creator keeps
         // its field_id instead of falling back to a generic coordinate. Broad
         // administrative areas should not swallow frontier-cell clicks.
-        if (state.map && state.map.getLayer('area-polygon-fill')) {
-          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: ['area-polygon-fill'] });
+        var areaLayers = areaPolygonHitLayers();
+        if (state.map && areaLayers.length) {
+          var areaHits = state.map.queryRenderedFeatures(e.point, { layers: areaLayers });
           var pick = pickConcreteAreaHit(areaHits);
           if (pick) {
             openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
@@ -4433,6 +4435,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return pick;
   }
 
+  function areaPolygonHitLayers() {
+    if (!state.map) return [];
+    return ['area-polygon-hitbox', 'area-polygon-fill', 'area-polygon-outline', 'area-polygon-selected'].filter(function (id) {
+      return state.map.getLayer(id);
+    });
+  }
+
+  function pickSmallestAreaFeature(features) {
+    if (!features || !features.length) return null;
+    var pick = features[0];
+    var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
+    for (var i = 1; i < features.length; i += 1) {
+      var feature = features[i];
+      var area = (feature.properties && Number(feature.properties.area_ha));
+      if (Number.isFinite(area) && area < pickArea) {
+        pick = feature;
+        pickArea = area;
+      }
+    }
+    return pick;
+  }
+
   function loadWaterwayHints() {
     if (!state.map || state.tab !== 'places') return;
     if (state.map.getZoom() < 12.8) {
@@ -4535,6 +4559,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       },
     }, beforeId);
     map.addLayer({
+      id: 'area-polygon-hitbox',
+      type: 'line',
+      source: 'area-polygons',
+      minzoom: 8,
+      paint: {
+        'line-color': 'rgba(15,23,42,0)',
+        'line-opacity': 0.01,
+        'line-width': 14,
+      },
+    }, beforeId);
+    map.addLayer({
       id: 'area-polygon-selected',
       type: 'line',
       source: 'area-polygons',
@@ -4544,25 +4579,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         'line-width': 2.6,
       },
     });
-    map.on('click', 'area-polygon-fill', function (e) {
-      if (!e.features || e.features.length === 0) return;
-      // 重なりがあるとき、面積最小 (= より具体的な公園) を優先する。
-      // 大きな行政界に被さった小さな公園をクリックしたつもりが、
-      // 行政界のほうが選ばれる事故を防ぐ。
-      var pick = e.features[0];
-      var pickArea = (pick.properties && Number(pick.properties.area_ha)) || Infinity;
-      for (var i = 1; i < e.features.length; i += 1) {
-        var f = e.features[i];
-        var area = (f.properties && Number(f.properties.area_ha));
-        if (Number.isFinite(area) && area < pickArea) {
-          pick = f;
-          pickArea = area;
-        }
-      }
-      openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
+    ['area-polygon-fill', 'area-polygon-outline', 'area-polygon-hitbox'].forEach(function (layerId) {
+      map.on('click', layerId, function (e) {
+        var hitLayers = areaPolygonHitLayers();
+        var hits = hitLayers.length ? map.queryRenderedFeatures(e.point, { layers: hitLayers }) : e.features;
+        var pick = pickSmallestAreaFeature(hits);
+        if (!pick) return;
+        openAreaFeatureSheet(pick, e.lngLat.lat, e.lngLat.lng);
+      });
+      map.on('mouseenter', layerId, function () { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', layerId, function () { map.getCanvas().style.cursor = ''; });
     });
-    map.on('mouseenter', 'area-polygon-fill', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'area-polygon-fill', function () { map.getCanvas().style.cursor = ''; });
   }
 
   function loadAreaPolygons() {
@@ -5174,7 +5201,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (state.map.getLayer(id)) layers.push(id);
       });
       if (state.map.getLayer('frontier-fill')) layers.push('frontier-fill');
-      if (state.map.getLayer('area-polygon-fill')) layers.push('area-polygon-fill');
+      areaPolygonHitLayers().forEach(function (id) { layers.push(id); });
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
