@@ -61,6 +61,7 @@ import {
   type InvasiveResponse,
   type ManagementActionCandidate,
   type NoveltyHint,
+  type ShotSuggestion,
   type SizeAssessment,
 } from "../services/observationAiAssessment.js";
 import {
@@ -2025,6 +2026,11 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-card { margin-top: 14px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(254,252,232,.85), rgba(255,237,213,.6)); border: 1px solid rgba(234,179,8,.24); display: flex; flex-direction: column; gap: 10px; }
   .obs-shot-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .obs-shot-head .obs-hint-reminder { margin: 4px 0 0; color: #713f12; }
+  .obs-shot-group-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .obs-shot-group { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .obs-shot-group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .obs-shot-group-name { color: #422006; font-size: 13px; font-weight: 900; }
+  .obs-shot-group-count { flex-shrink: 0; color: #713f12; font-size: 11px; font-weight: 800; }
   .obs-shot-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
   .obs-shot-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; background: rgba(255,255,255,.86); border-radius: 12px; border: 1px solid rgba(234,179,8,.2); }
   .obs-shot-role { display: inline-flex; align-items: center; gap: 6px; font-weight: 900; font-size: 12.5px; color: #422006; min-width: 140px; }
@@ -2034,16 +2040,6 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-shot-pri { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; letter-spacing: .04em; flex-shrink: 0; }
   .obs-shot-pri-high { background: rgba(239,68,68,.12); color: #991b1b; }
   .obs-shot-pri-medium { background: rgba(234,179,8,.18); color: #713f12; }
-  .obs-role-cov { margin-bottom: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.78); border: 1px solid rgba(234,179,8,.22); display: flex; flex-direction: column; gap: 8px; }
-  .obs-role-cov-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .obs-role-cov-eye { font-size: 11.5px; font-weight: 900; color: #713f12; letter-spacing: .04em; text-transform: uppercase; }
-  .obs-role-cov-count { font-size: 11.5px; font-weight: 800; color: #64748b; }
-  .obs-role-cov-count.is-met { color: #065f46; background: rgba(16,185,129,.14); padding: 2px 9px; border-radius: 999px; }
-  .obs-role-cov-bar { position: relative; height: 6px; border-radius: 999px; background: rgba(234,179,8,.15); overflow: hidden; }
-  .obs-role-cov-bar span { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #f59e0b, #10b981); transition: width .3s ease; }
-  .obs-role-cov-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-  .obs-role-chip { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(148,163,184,.15); color: #64748b; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
-  .obs-role-chip.is-covered { background: rgba(16,185,129,.16); color: #065f46; font-weight: 900; }
 
   .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
   .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
@@ -3882,7 +3878,7 @@ function observationMediaCopy(context: ObservationMediaCopyContext): {
 function renderSubjectHint(
   subject: ObservationVisitSubject,
   siteBrief: SiteBrief | null = null,
-  photoAssets: { roleTag: string | null }[] | null = null,
+  _photoAssets: { roleTag: string | null }[] | null = null,
   basePath = "",
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
   fieldAdviceContext: {
@@ -3945,7 +3941,6 @@ function renderSubjectHint(
     subject.occurrenceId,
     basePath,
   );
-  const shotSuggestions = renderShotSuggestionsCard(aiAssessment.shotSuggestions, photoAssets, mediaContext);
   const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
   const boost = "";
   // 構造化された shotSuggestions カードがある時は、自由文 nextStep をたたみ重複を避ける
@@ -3991,7 +3986,6 @@ function renderSubjectHint(
     ${careAdvice}
     ${managementActions}
     ${areaInference}
-    ${shotSuggestions}
     ${funFact}
     ${similar}
     ${runMeta}
@@ -4391,36 +4385,6 @@ const SHOT_ROLE_META: Record<string, { icon: string; label: string }> = {
   substrate: { icon: "🪨", label: "基質 / 止まっている物" },
   scale_reference: { icon: "📏", label: "スケール参照" },
 };
-
-const SHOT_ROLE_ORDER: Array<{ key: string; label: string; icon: string }> = [
-  { key: "full_body", label: "全景/全身", icon: "🖼" },
-  { key: "close_up_organ", label: "部位アップ", icon: "🔍" },
-  { key: "habitat_wide", label: "生息環境", icon: "🌄" },
-  { key: "substrate", label: "基質", icon: "🪨" },
-  { key: "scale_reference", label: "スケール", icon: "📏" },
-];
-
-function renderRoleCoverageStrip(photoAssets: { roleTag: string | null }[] | null | undefined): string {
-  if (!photoAssets || photoAssets.length === 0) return "";
-  const covered = new Set<string>();
-  for (const p of photoAssets) if (p.roleTag && p.roleTag !== "unknown") covered.add(p.roleTag);
-  const chips = SHOT_ROLE_ORDER.map(({ key, label, icon }) => {
-    const hit = covered.has(key);
-    return `<span class="obs-role-chip${hit ? " is-covered" : ""}" title="${escapeHtml(label)}">${icon} ${escapeHtml(label)}${hit ? " ✓" : ""}</span>`;
-  }).join("");
-  const hitCount = covered.size;
-  const threshold = 3;
-  const pct = Math.min(100, Math.round((hitCount / SHOT_ROLE_ORDER.length) * 100));
-  const pastThreshold = hitCount >= threshold;
-  return `<div class="obs-role-cov">
-    <div class="obs-role-cov-head">
-      <div class="obs-role-cov-eye">組写真カバレッジ</div>
-      <div class="obs-role-cov-count ${pastThreshold ? "is-met" : ""}">${hitCount} / ${SHOT_ROLE_ORDER.length} role${pastThreshold ? " · Tier 1.5 条件OK" : ""}</div>
-    </div>
-    <div class="obs-role-cov-bar"><span style="width:${pct}%"></span></div>
-    <div class="obs-role-cov-chips">${chips}</div>
-    </div>`;
-}
 
 function renderObservationPhotoRecoveryPanel(options: {
   basePath: string;
@@ -5868,47 +5832,136 @@ function renderRecordStartGuide(basePath: string, lang: SiteLang, currentUrl = "
   });
 }
 
-function renderShotSuggestionsCard(
-  shotSuggestions: import("../services/observationAiAssessment.js").ShotSuggestion[] | null | undefined,
-  photoAssets: { roleTag: string | null }[] | null | undefined = null,
-  mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
-): string {
-  const hasSuggestions = shotSuggestions && shotSuggestions.length > 0;
-  const coverageStrip = renderRoleCoverageStrip(photoAssets);
-  if (!hasSuggestions && !coverageStrip) return "";
-  const mediaCopy = observationMediaCopy(mediaContext);
-  const items = hasSuggestions ? (shotSuggestions as import("../services/observationAiAssessment.js").ShotSuggestion[]).map((suggestion) => {
-    const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
-    const priorityBadge = suggestion.priority === "high"
-      ? `<span class="obs-shot-pri obs-shot-pri-high">必須級</span>`
-      : `<span class="obs-shot-pri obs-shot-pri-medium">余裕があれば</span>`;
-    return `<li class="obs-shot-item">
-      <span class="obs-shot-role"><span class="obs-shot-icon">${meta.icon}</span>${escapeHtml(meta.label)}</span>
-      <span class="obs-shot-target">${escapeHtml(friendlyObservationText(suggestion.target, 38))}</span>
-      ${suggestion.rationale ? `<span class="obs-shot-rationale">${escapeHtml(friendlyObservationText(suggestion.rationale, 60))}</span>` : ""}
-      ${priorityBadge}
-    </li>`;
-  }).join("") : "";
-  return `<section class="obs-shot-card" aria-label="${escapeHtml(mediaCopy.shotAriaLabel)}">
-    <div class="obs-shot-head">
-      <div>
-        <div class="obs-hint-eyebrow">${escapeHtml(mediaCopy.shotHeading)}</div>
-        <p class="obs-hint-reminder">${escapeHtml(mediaCopy.shotReminder)}</p>
-      </div>
-    </div>
-    ${coverageStrip}
-    ${items ? `<ul class="obs-shot-list">${items}</ul>` : ""}
-  </section>`;
+type ObservationShotFeedbackItem = {
+  role: string;
+  icon: string;
+  target: string;
+  rationale: string;
+  priority: "high" | "medium" | null;
+};
+
+type ObservationShotFeedbackGroup = {
+  key: string;
+  name: string;
+  items: ObservationShotFeedbackItem[];
+};
+
+function shotFeedbackGroupName(subject: ObservationVisitSubject): string {
+  return observationDetailUiName(subject.aiAssessment?.recommendedTaxonName ?? subject.displayName ?? subject.scientificName ?? "この対象");
 }
 
-function renderSubjectShotFeedbackSurface(
-  subject: ObservationVisitSubject,
-  photoAssets: { roleTag: string | null }[] | null | undefined = null,
+function normalizeShotFeedbackKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function shotSuggestionFeedbackItem(suggestion: ShotSuggestion): ObservationShotFeedbackItem {
+  const meta = SHOT_ROLE_META[suggestion.role] ?? { icon: "📸", label: suggestion.role };
+  return {
+    role: meta.label,
+    icon: meta.icon,
+    target: suggestion.target,
+    rationale: suggestion.rationale ?? "",
+    priority: suggestion.priority,
+  };
+}
+
+function candidateReadingFeedbackItems(reading: CandidateReading): ObservationShotFeedbackItem[] {
+  const role = friendlyObservationText(reading.role || "次の見方", 22);
+  return reading.shootingTips.map((tip) => ({
+    role,
+    icon: "💡",
+    target: tip,
+    rationale: "",
+    priority: null,
+  }));
+}
+
+function collectObservationShotFeedbackGroups(bundle: ObservationVisitBundle): ObservationShotFeedbackGroup[] {
+  const groups: ObservationShotFeedbackGroup[] = [];
+  const itemKeys = new Set<string>();
+  const ensureGroup = (key: string, name: string): ObservationShotFeedbackGroup => {
+    const normalized = normalizeShotFeedbackKey(key || name);
+    const existing = groups.find((group) => group.key === normalized);
+    if (existing) return existing;
+    const group = { key: normalized, name: observationDetailUiName(name), items: [] };
+    groups.push(group);
+    return group;
+  };
+  const pushItem = (group: ObservationShotFeedbackGroup, item: ObservationShotFeedbackItem): void => {
+    const target = friendlyObservationText(item.target, 64);
+    if (!target) return;
+    const rationale = friendlyObservationText(item.rationale, 80);
+    const key = normalizeShotFeedbackKey(`${group.key}:${item.role}:${target}:${rationale}`);
+    if (itemKeys.has(key)) return;
+    itemKeys.add(key);
+    group.items.push({ ...item, target, rationale });
+  };
+
+  for (const subject of bundle.subjects) {
+    const group = ensureGroup(subject.occurrenceId, shotFeedbackGroupName(subject));
+    for (const suggestion of subject.aiAssessment?.shotSuggestions ?? []) {
+      pushItem(group, shotSuggestionFeedbackItem(suggestion));
+    }
+    for (const reading of subject.aiAssessment?.candidateReadings ?? []) {
+      const readingGroup = ensureGroup(reading.scientificName || reading.name, reading.name);
+      for (const item of candidateReadingFeedbackItems(reading)) {
+        pushItem(readingGroup, item);
+      }
+    }
+  }
+
+  const readings = candidateReadingMap(bundle);
+  for (const candidate of bundle.aiCandidates) {
+    const reading = findCandidateReading(readings, [candidate.displayName, candidate.scientificName]);
+    if (!reading || reading.shootingTips.length === 0) continue;
+    const group = ensureGroup(reading.scientificName || reading.name || candidate.displayName, candidate.displayName);
+    for (const item of candidateReadingFeedbackItems(reading)) {
+      pushItem(group, item);
+    }
+  }
+
+  return groups.filter((group) => group.items.length > 0);
+}
+
+function renderShotFeedbackItem(item: ObservationShotFeedbackItem): string {
+  const priorityBadge = item.priority === "high"
+    ? `<span class="obs-shot-pri obs-shot-pri-high">優先して残す</span>`
+    : item.priority === "medium"
+      ? `<span class="obs-shot-pri obs-shot-pri-medium">余裕があれば</span>`
+      : "";
+  return `<li class="obs-shot-item">
+    <span class="obs-shot-role"><span class="obs-shot-icon">${escapeHtml(item.icon)}</span>${escapeHtml(item.role)}</span>
+    <span class="obs-shot-target">${escapeHtml(item.target)}</span>
+    ${item.rationale ? `<span class="obs-shot-rationale">${escapeHtml(item.rationale)}</span>` : ""}
+    ${priorityBadge}
+  </li>`;
+}
+
+function renderObservationShotFeedbackSurface(
+  bundle: ObservationVisitBundle,
   mediaContext: ObservationMediaCopyContext = photoOnlyMediaContext(),
 ): string {
-  const card = renderShotSuggestionsCard(subject.aiAssessment?.shotSuggestions, photoAssets, mediaContext);
-  if (!card) return "";
-  return `<section class="section obs-surface-shot-feedback" data-obs-section="shot-feedback">${card}</section>`;
+  const groups = collectObservationShotFeedbackGroups(bundle);
+  if (groups.length === 0) return "";
+  const mediaCopy = observationMediaCopy(mediaContext);
+  const groupList = groups.map((group) => `<li class="obs-shot-group">
+    <div class="obs-shot-group-head">
+      <span class="obs-shot-group-name">${escapeHtml(group.name)}</span>
+      <span class="obs-shot-group-count">${group.items.length}件</span>
+    </div>
+    <ul class="obs-shot-list">${group.items.map(renderShotFeedbackItem).join("")}</ul>
+  </li>`).join("");
+  return `<section class="section obs-surface-shot-feedback" data-obs-section="shot-feedback">
+    <section class="obs-shot-card" aria-label="${escapeHtml(mediaCopy.shotAriaLabel)}">
+      <div class="obs-shot-head">
+        <div>
+          <div class="obs-hint-eyebrow">${escapeHtml(mediaCopy.shotHeading)}</div>
+          <p class="obs-hint-reminder">${escapeHtml(mediaCopy.shotReminder)}</p>
+        </div>
+      </div>
+      <ul class="obs-shot-group-list">${groupList}</ul>
+    </section>
+  </section>`;
 }
 
 function renderSubjectComparison(bundle: ObservationVisitBundle, subject: ObservationVisitSubject): string {
@@ -16422,7 +16475,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       recordModeLabel: observationRecordModeLabel(snapshot),
       mediaSceneLabel: mediaSceneNoun(mediaContext),
     });
-    const shotFeedbackBlock = `<div data-obs-switch-shot-feedback>${renderSubjectShotFeedbackSurface(currentSubject, snapshot.photoAssets, mediaContext)}</div>`;
+    const shotFeedbackBlock = renderObservationShotFeedbackSurface(bundle, mediaContext);
     // 下部の旧要約ブロックは廃止: hero に summaryStrip / trust panel が既に表示されており重複のため
     const summaryBlock = "";
     const readProgressBlock = renderObservationReadProgress({
@@ -16550,7 +16603,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const subjectTemplates = bundle.subjects.map((subject) => `
       <template data-subject-first-read-template="${escapeHtml(subject.occurrenceId)}">${renderPhotoFirstRead(subject, visibleRecordItems, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, mediaContext)}</template>
       <template data-subject-ai-readout-template="${escapeHtml(subject.occurrenceId)}">${renderHeroAiReadout(subject, subjectIdentifyMap.get(subject.occurrenceId)?.consensus?.hasOpenDispute === true, subject.occurrenceId === currentSubject.occurrenceId ? insight : null, bundle, groundingAssets)}</template>
-      <template data-subject-shot-feedback-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectShotFeedbackSurface(subject, snapshot.photoAssets, mediaContext)}</template>
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject, siteBriefResult ?? null, snapshot.photoAssets, basePath, mediaContext, fieldAdviceContext, heroPlaceLabel)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>
       <template data-subject-identify-template="${escapeHtml(subject.occurrenceId)}">${renderIdentificationParticipation({
@@ -16624,7 +16676,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            };
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
-           var shotFeedbackRoot = document.querySelector('[data-obs-switch-shot-feedback]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
            var identifyRoot = document.querySelector('[data-obs-switch-identify]');
@@ -16635,7 +16686,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var switchRegions = [
              { root: firstReadRoot, templateAttr: 'data-subject-first-read-template' },
              { root: aiReadoutRoot, templateAttr: 'data-subject-ai-readout-template' },
-             { root: shotFeedbackRoot, templateAttr: 'data-subject-shot-feedback-template' },
              { root: hintRoot, templateAttr: 'data-subject-hint-template' },
              { root: taxonomyRoot, templateAttr: 'data-subject-taxonomy-template' },
              { root: identifyRoot, templateAttr: 'data-subject-identify-template' }
@@ -16738,13 +16788,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var candidateListScroll = captureCandidateListScroll();
              var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
              var firstReadTemplate = selectTemplate('data-subject-first-read-template', subjectId);
-             var shotFeedbackTemplate = selectTemplate('data-subject-shot-feedback-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
              var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
              if (firstReadRoot && firstReadTemplate) firstReadRoot.innerHTML = firstReadTemplate.innerHTML;
              if (aiReadoutRoot && aiReadoutTemplate) aiReadoutRoot.innerHTML = aiReadoutTemplate.innerHTML;
-             if (shotFeedbackRoot && shotFeedbackTemplate) shotFeedbackRoot.innerHTML = shotFeedbackTemplate.innerHTML;
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
              if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
