@@ -294,6 +294,49 @@ type NormalizedShotSuggestion = {
   priority: "high" | "medium";
 };
 
+function normalizeShotSuggestionKey(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeShotSuggestionRationale(options: {
+  role: string;
+  target: string;
+  rationale: string;
+}): string {
+  const role = normalizeShotSuggestionKey(options.role);
+  const target = normalizeShotSuggestionKey(options.target);
+  const rationale = normalizeShotSuggestionKey(options.rationale);
+  const combined = `${role} ${target} ${rationale}`;
+  const isBoilerplate = !rationale || /詳細|文脈記録|記録するため|判断材料|識別に必須|同定に必須/.test(options.rationale);
+
+  if (!isBoilerplate && options.rationale.length >= 24) return options.rationale;
+  if (role.includes("habitat") || role.includes("広角") || rationale.includes("文脈")) {
+    return "周りの草、水辺、日当たりなどが残ると、その場所でどう現れていたかを季節や別地点の記録と比べやすくなります。";
+  }
+  if (role.includes("substrate") || combined.includes("土") || combined.includes("石") || combined.includes("樹皮")) {
+    return "接している土、石、樹皮などが残ると、その生きものが使っていた場所の条件を後から読み返せます。";
+  }
+  if (role.includes("scale") || combined.includes("大きさ")) {
+    return "大きさの手がかりがあると、写真だけでは迷いやすいサイズ感を後から確認できます。";
+  }
+  if (role.includes("full_body") || combined.includes("全景") || combined.includes("全身")) {
+    return "全体の形と周りとの位置関係が残ると、アップだけでは分からない姿や広がりを見直せます。";
+  }
+  if (role.includes("close_up") || rationale.includes("詳細")) {
+    if (combined.includes("花") || combined.includes("花弁") || combined.includes("裂片") || combined.includes("萼")) {
+      return "花の形や割れ方を後から見比べられて、似た花との違いや季節ごとの姿を説明しやすくなります。";
+    }
+    if (combined.includes("葉") || combined.includes("茎") || combined.includes("毛")) {
+      return "葉や茎の付き方、毛の有無が残ると、同じ仲間の違いや成長段階を後から見直せます。";
+    }
+    if (combined.includes("翅") || combined.includes("触角") || combined.includes("脚") || combined.includes("昆虫")) {
+      return "細部の形を後から拡大して見直せるので、その場では気づかなかった手がかりを拾いやすくなります。";
+    }
+    return "細部が残ると、後から見直したときに何が写っていて何が足りないかを判断しやすくなります。";
+  }
+  return "その場の見え方がもう少し残ると、あとで読み返したときに場面や変化を思い出しやすくなります。";
+}
+
 function normalizeAreaCandidate(raw: unknown): NormalizedAreaCandidate | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as GeminiAreaCandidate;
@@ -346,7 +389,7 @@ function normalizeShotSuggestions(raw: GeminiShotSuggestion[] | undefined): Norm
     out.push({
       role,
       target: target.slice(0, 60),
-      rationale: rationale.slice(0, 120),
+      rationale: normalizeShotSuggestionRationale({ role, target, rationale }).slice(0, 140),
       priority,
     });
     if (out.length >= 5) break;
@@ -1774,7 +1817,7 @@ export async function reassessObservation(
     // Skip when the caller forced a refresh via overridePhotos or explicit
     // sourceTag != "photo". Otherwise build the cache key from the canonical
     // inputs and try to short-circuit the Gemini call entirely.
-    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.5";
+    const cachePromptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.6";
     const sourceTag = options.sourceTag?.trim() || "photo";
     const cacheUserId = options.triggeredBy ?? null;
     const cacheAssetIds = photos
@@ -1852,7 +1895,7 @@ export async function reassessObservation(
       occurrenceId: target.primaryOccurrenceId,
       sourceTag,
     });
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.5";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v5.6";
 
     const band = normalizeBand(parsed.confidence_band);
     let rank = normalizeRank(parsed.recommended_rank);
