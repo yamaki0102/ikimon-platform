@@ -37,6 +37,6 @@ The more people record what they find, the more local memory remains for later.
 
 ikimon.life is a place for turning those small records into material for learning, local activity, research, and nature-related business action.
 
-[View the CREW introduction page concept](/crew/members)
+[View IKIMON CREW](/crew/members)
 
 [View the IKIMON Inc. CREW page](https://ikimon.co.jp/crew.php?lang=en)

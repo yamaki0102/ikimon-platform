@@ -1,6 +1,6 @@
-# IKIMON CREW Introduction Page Concept
+# IKIMON CREW
 
-This is a concept page for introducing CREW members on ikimon.life.
+This page introduces CREW members on ikimon.life.
 
 The goal is not to make support look loud. It is to show, clearly and quietly, who supports ikimon.life and why.
 
@@ -17,7 +17,7 @@ Listing is optional. A CREW member can use a company name, a project name, a nic
 
 Support amount is optional. Personal contact details are not listed.
 
-## Layout concept
+## Layout
 
 1. A short introduction: "Meet IKIMON CREW"
 2. Featured CREW members
@@ -27,7 +27,7 @@ Support amount is optional. Personal contact details are not listed.
 
 The list should not strongly rank members by support amount. Information can vary naturally by photo, comment, and whether a website return gift exists.
 
-## Banner concepts
+## Link banners
 
 These banners are for pages, email, social posts, and CREW websites.
 

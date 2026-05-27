@@ -647,6 +647,180 @@ function renderMarketingPageAppendix(meta: MarketingPageMeta, basePath: string, 
   return "";
 }
 
+function renderCrewMembersShowcase(basePath: string, lang: SiteLang): string {
+  const crewHref = (href: string) => href.startsWith("http://") || href.startsWith("https://")
+    ? href
+    : appendLangToHref(withBasePath(basePath, href), lang);
+  const copy = lang === "ja"
+    ? {
+        featured: { title: "Featured", label: "ピックアップ" },
+        list: { title: "All CREW", label: "すべてのサポーター" },
+        gift: { title: "WEBサイト制作・運用サポート", label: "Special Thanks" },
+        banners: { title: "リンク用バナー", label: "For sharing" },
+        guide: { title: "掲載について", label: "Information" },
+        open: "WEBサイトへ",
+        detail: "支援の詳細を見る",
+        featuredMembers: [
+          {
+            logo: "G",
+            name: "GrowUp Academy",
+            area: "教育・地域",
+            body: "WEBサイト制作・運用返礼の利用例。更新依頼をLINEやメールで受け、HP専用AIエージェントがたたき台を作成し、必要に応じて人が確認します。",
+            href: "https://growupacademy.jp/",
+          },
+          {
+            logo: "T",
+            name: "T. Tanaka",
+            area: "個人",
+            body: "個人名、屋号、匿名など、出し方は選べます。短い応援コメントだけの掲載にもできます。",
+            href: "/crew",
+          },
+          {
+            logo: "+",
+            name: "あなたの活動を掲載",
+            area: "掲載例",
+            body: "名称、ロゴ、リンク、短いメッセージを掲載できます。支援額や個人情報を出す必要はありません。",
+            href: "/crew",
+          },
+        ],
+        members: [
+          { logo: "LOGO", name: "NPO法人 〇〇環境保全", area: "環境保全" },
+          { logo: "Studio", name: "Studio YAMA", area: "写真 / デザイン" },
+          { logo: "匿名", name: "匿名希望 様", area: "個人" },
+          { logo: "A", name: "Company A", area: "地域企業" },
+          { logo: "B", name: "Organization B", area: "団体" },
+          { logo: "C", name: "Project C", area: "プロジェクト" },
+          { logo: "D", name: "Group D", area: "地域活動" },
+          { logo: "JOIN", name: "掲載準備中", area: "IKIMON CREW" },
+        ],
+        giftLead: "年額10万円のCREWには、返礼としてWEBサイトの制作・運用サポートがあります。活動の記録、お知らせ、事業案内など、必要な人だけが使える返礼です。",
+        giftNote: "制作したサイトは、希望がある場合にこのページで事例として紹介します。",
+        siteExample: "事例: GrowUp Academy 様",
+        steps: [
+          "掲載名、ロゴ、リンク先を確認します。",
+          "個人名・支援額・コメントの公開有無を選べます。",
+          "掲載許可をいただいたCREWから順に追加します。",
+        ],
+      }
+    : {
+        featured: { title: "Featured", label: "Picked up" },
+        list: { title: "All CREW", label: "Supporters" },
+        gift: { title: "Website production and operation support", label: "Special Thanks" },
+        banners: { title: "Link banners", label: "For sharing" },
+        guide: { title: "Listing information", label: "Information" },
+        open: "Website",
+        detail: "Support details",
+        featuredMembers: [
+          {
+            logo: "G",
+            name: "GrowUp Academy",
+            area: "Education / Local",
+            body: "A sample use of the website production and operation return gift, including AI-assisted update requests by LINE or email.",
+            href: "https://growupacademy.jp/",
+          },
+          {
+            logo: "T",
+            name: "T. Tanaka",
+            area: "Individual",
+            body: "Individuals may appear by name, trade name, anonymously, or with only a short support comment.",
+            href: "/crew",
+          },
+          {
+            logo: "+",
+            name: "Your activity here",
+            area: "Sample",
+            body: "Name, logo, link, and a short message can be listed. Support amount and personal details are optional.",
+            href: "/crew",
+          },
+        ],
+        members: [
+          { logo: "LOGO", name: "Nature conservation NPO", area: "Conservation" },
+          { logo: "Studio", name: "Studio YAMA", area: "Photo / Design" },
+          { logo: "Anon", name: "Anonymous supporter", area: "Individual" },
+          { logo: "A", name: "Company A", area: "Local business" },
+          { logo: "B", name: "Organization B", area: "Organization" },
+          { logo: "C", name: "Project C", area: "Project" },
+          { logo: "D", name: "Group D", area: "Community" },
+          { logo: "JOIN", name: "Preparing listing", area: "IKIMON CREW" },
+        ],
+        giftLead: "The JPY 100,000/year CREW tier includes website production and operation support as a return gift for those who want it.",
+        giftNote: "With permission, created websites may be introduced here as examples.",
+        siteExample: "Example: GrowUp Academy",
+        steps: [
+          "Confirm display name, logo, and link.",
+          "Choose whether to show a name, support amount, or comment.",
+          "Add approved CREW members one by one.",
+        ],
+      };
+
+  const featureCards = copy.featuredMembers.map((member) => `<a class="crew-feature-card" href="${escapeHtml(crewHref(member.href))}">
+    <span class="crew-feature-logo">${escapeHtml(member.logo)}</span>
+    <span class="crew-feature-meta">${escapeHtml(member.area)}</span>
+    <strong>${escapeHtml(member.name)}</strong>
+    <span>${escapeHtml(member.body)}</span>
+    <em>${escapeHtml(member.logo === "+" ? copy.detail : copy.open)}</em>
+  </a>`).join("");
+
+  const memberCards = copy.members.map((member) => `<article class="crew-member-card">
+    <div class="crew-member-logo"><span>${escapeHtml(member.logo)}</span></div>
+    <h2>${escapeHtml(member.name)}</h2>
+    <p>${escapeHtml(member.area)}</p>
+  </article>`).join("");
+
+  const stepCards = copy.steps.map((step, index) => `<li><span>${index + 1}</span>${escapeHtml(step)}</li>`).join("");
+
+  return `<div class="lower-page crew-showcase-page">
+    <section class="crew-showcase-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.featured.title)}</h2>
+        <p>${escapeHtml(copy.featured.label)}</p>
+      </div>
+      <div class="crew-feature-grid">${featureCards}</div>
+    </section>
+
+    <section class="crew-showcase-section crew-list-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.list.title)}</h2>
+        <p>${escapeHtml(copy.list.label)}</p>
+      </div>
+      <div class="crew-member-grid">${memberCards}</div>
+    </section>
+
+    <section class="crew-gift-panel">
+      <div class="crew-gift-copy">
+        <span>${escapeHtml(copy.gift.label)}</span>
+        <h2>${escapeHtml(copy.gift.title)}</h2>
+        <p>${escapeHtml(copy.giftLead)}</p>
+        <small>${escapeHtml(copy.giftNote)}</small>
+      </div>
+      <div class="crew-site-mock" aria-hidden="true">
+        <div class="crew-browser">
+          <div class="crew-browser-bar"><i></i><i></i><i></i></div>
+          <div class="crew-browser-hero"><b></b><span></span><span></span></div>
+          <div class="crew-browser-cards"><span></span><span></span></div>
+          <p>${escapeHtml(copy.siteExample)}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="crew-showcase-section crew-banner-section">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.banners.title)}</h2>
+        <p>${escapeHtml(copy.banners.label)}</p>
+      </div>
+      ${renderCrewBannerIdeas(basePath, lang)}
+    </section>
+
+    <section class="crew-showcase-section crew-listing-guide">
+      <div class="crew-section-head">
+        <h2>${escapeHtml(copy.guide.title)}</h2>
+        <p>${escapeHtml(copy.guide.label)}</p>
+      </div>
+      <ol>${stepCards}</ol>
+    </section>
+  </div>`;
+}
+
 function scriptJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
@@ -765,20 +939,64 @@ const LOWER_PAGE_STYLES = `
   .doc-toc-l3 { padding-left: 14px; font-size: 12px; color: #64748b; }
   .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 14px; margin-top: 16px; }
   .doc-link-strip .link-arrow { color: #047857; font-size: 14px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
-  .crew-banner-panel { margin: 38px 0 8px; padding: 24px 0 0; border-top: 1px solid rgba(15,23,42,.1); }
-  .crew-banner-head { display: grid; gap: 6px; margin-bottom: 14px; }
-  .crew-banner-head h2 { margin: 0; padding: 0; border: 0; color: #0f172a; font-size: 22px; line-height: 1.35; }
-  .crew-banner-head p { margin: 0; color: #475569; font-size: 14px; line-height: 1.8; }
-  .crew-banner-grid { display: grid; gap: 12px; }
-  .crew-banner { position: relative; display: grid; gap: 8px; min-height: 132px; padding: 18px 20px; border-radius: 8px; text-decoration: none; overflow: hidden; border: 1px solid rgba(15,23,42,.1); }
-  .crew-banner::after { content: ""; position: absolute; inset: auto 18px 16px auto; width: 56px; height: 56px; border-radius: 50%; opacity: .16; background: currentColor; }
-  .crew-banner-eyebrow { color: inherit; font-size: 11px; line-height: 1.4; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-  .crew-banner strong { position: relative; z-index: 1; max-width: 560px; color: inherit; font-size: clamp(20px, 3vw, 28px); line-height: 1.25; font-weight: 950; }
-  .crew-banner span:not(.crew-banner-eyebrow) { position: relative; z-index: 1; max-width: 560px; color: inherit; font-size: 14px; line-height: 1.75; opacity: .84; }
-  .crew-banner em { position: relative; z-index: 1; justify-self: start; margin-top: 2px; color: inherit; font-size: 12px; font-style: normal; font-weight: 900; border-bottom: 1px solid currentColor; }
-  .crew-banner-forest { color: #ecfdf5; background: linear-gradient(135deg, #064e3b, #047857); border-color: rgba(255,255,255,.18); }
-  .crew-banner-ink { color: #f8fafc; background: linear-gradient(135deg, #0f172a, #334155); border-color: rgba(255,255,255,.14); }
-  .crew-banner-light { color: #0f172a; background: linear-gradient(135deg, #ffffff, #eefcf6); border-color: rgba(4,120,87,.18); }
+  .crew-banner-panel { margin: 0; padding: 0; border: 0; }
+  .crew-banner-head { display: none; }
+  .crew-banner-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .crew-banner { position: relative; display: grid; align-content: center; gap: 5px; min-height: 124px; padding: 18px; border-radius: 8px; text-align: center; text-decoration: none; overflow: hidden; border: 1px solid rgba(15,23,42,.1); transition: border-color .16s ease, transform .16s ease; }
+  .crew-banner:hover { transform: translateY(-2px); border-color: rgba(4,120,87,.28); }
+  .crew-banner::after { content: ""; position: absolute; inset: auto 14px 14px auto; width: 42px; height: 42px; border-radius: 50%; opacity: .12; background: currentColor; }
+  .crew-banner-eyebrow { color: inherit; font-size: 11px; line-height: 1.35; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .crew-banner strong { position: relative; z-index: 1; color: inherit; font-size: 15px; line-height: 1.35; font-weight: 950; }
+  .crew-banner span:not(.crew-banner-eyebrow) { position: relative; z-index: 1; color: inherit; font-size: 11px; line-height: 1.55; opacity: .78; }
+  .crew-banner em { position: relative; z-index: 1; justify-self: center; margin-top: 2px; color: inherit; font-size: 11px; font-style: normal; font-weight: 900; border-bottom: 1px solid currentColor; }
+  .crew-banner-forest { color: #ecfdf5; background: linear-gradient(135deg, #075e54, #0f8f72); border-color: rgba(255,255,255,.18); }
+  .crew-banner-ink { color: #f8fafc; background: #10231f; border-color: rgba(255,255,255,.14); }
+  .crew-banner-light { color: #0f2f28; background: #f4fbf8; border-color: rgba(4,120,87,.18); }
+  .crew-showcase-page { max-width: 1120px; margin: 0 auto; padding: 8px clamp(16px, 3vw, 28px) 76px; color: #17211d; }
+  .crew-showcase-section { display: grid; gap: 28px; margin: 0 0 68px; }
+  .crew-section-head { display: grid; justify-items: center; gap: 6px; padding: 0 0 24px; text-align: center; position: relative; }
+  .crew-section-head::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 42px; height: 1px; transform: translateX(-50%); background: rgba(4,120,87,.35); }
+  .crew-section-head h2 { margin: 0; color: #10231f; font-size: clamp(22px, 2.8vw, 30px); line-height: 1.25; font-weight: 700; letter-spacing: 0; }
+  .crew-section-head p { margin: 0; color: #8b9791; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .crew-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .crew-feature-card { display: grid; grid-template-rows: 112px auto auto 1fr auto; gap: 10px; min-width: 0; min-height: 292px; padding: 18px; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-decoration: none; box-shadow: 0 16px 42px rgba(15,23,42,.045); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .crew-feature-card:hover { transform: translateY(-3px); box-shadow: 0 20px 46px rgba(15,23,42,.07); border-color: rgba(4,120,87,.22); }
+  .crew-feature-logo { display: grid; place-items: center; width: 100%; height: 112px; border-radius: 6px; background: #f6faf8; color: #6b7f77; font-size: clamp(16px, 2.1vw, 21px); line-height: 1.1; font-weight: 850; text-align: center; overflow-wrap: anywhere; }
+  .crew-feature-meta { justify-self: start; max-width: 100%; padding: 4px 8px; border-radius: 999px; background: #eefaf5; color: #08745f; font-size: 11px; line-height: 1.4; font-weight: 850; }
+  .crew-feature-card strong { color: #17211d; font-size: 18px; line-height: 1.35; font-weight: 850; overflow-wrap: anywhere; }
+  .crew-feature-card span:not(.crew-feature-logo):not(.crew-feature-meta) { color: #5c6b65; font-size: 13px; line-height: 1.75; }
+  .crew-feature-card em { align-self: end; justify-self: start; color: #08745f; font-size: 12px; font-style: normal; font-weight: 850; border-bottom: 1px solid rgba(8,116,95,.42); }
+  .crew-list-section { padding: 54px clamp(16px, 3vw, 28px); border-top: 1px solid rgba(15,23,42,.07); border-bottom: 1px solid rgba(15,23,42,.07); }
+  .crew-member-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px 14px; }
+  .crew-member-card { display: grid; align-content: start; justify-items: center; gap: 8px; min-width: 0; text-align: center; }
+  .crew-member-logo { display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 2; border-radius: 6px; border: 1px solid rgba(15,23,42,.07); background: #f7faf8; transition: background .16s ease, border-color .16s ease; }
+  .crew-member-card:hover .crew-member-logo { background: #eefaf5; border-color: rgba(4,120,87,.18); }
+  .crew-member-logo span { max-width: 82%; color: #73817b; font-size: 12px; line-height: 1.25; font-weight: 850; letter-spacing: .02em; overflow-wrap: anywhere; }
+  .crew-member-card h2 { margin: 0; color: #17211d; font-size: 13px; line-height: 1.45; font-weight: 800; overflow-wrap: anywhere; }
+  .crew-member-card p { margin: 0; color: #7a8580; font-size: 11px; line-height: 1.45; }
+  .crew-gift-panel { display: grid; grid-template-columns: minmax(0, .95fr) minmax(280px, 1.05fr); align-items: stretch; margin: 0 0 68px; border-radius: 8px; overflow: hidden; background: #10231f; color: #f8fafc; }
+  .crew-gift-copy { display: grid; align-content: center; gap: 12px; padding: clamp(28px, 4vw, 46px); }
+  .crew-gift-copy span { color: #8ee0c5; font-size: 11px; line-height: 1.4; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+  .crew-gift-copy h2 { margin: 0; color: #fff; font-size: clamp(22px, 3vw, 30px); line-height: 1.35; font-weight: 750; letter-spacing: 0; }
+  .crew-gift-copy p { margin: 0; color: rgba(248,250,252,.76); font-size: 14px; line-height: 1.85; }
+  .crew-gift-copy small { color: rgba(248,250,252,.56); font-size: 12px; line-height: 1.7; }
+  .crew-site-mock { display: grid; place-items: center; min-height: 312px; padding: 30px; background: #1a312b; }
+  .crew-browser { width: min(100%, 360px); border-radius: 7px; overflow: hidden; background: #fff; box-shadow: 0 24px 54px rgba(0,0,0,.24); transform: rotate(1.5deg); }
+  .crew-browser-bar { display: flex; gap: 6px; align-items: center; height: 24px; padding: 0 12px; background: #eef2f1; border-bottom: 1px solid rgba(15,23,42,.08); }
+  .crew-browser-bar i { width: 7px; height: 7px; border-radius: 50%; background: #c8d0cc; }
+  .crew-browser-hero { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 128px; background: #f7faf8; border-bottom: 1px solid rgba(15,23,42,.06); }
+  .crew-browser-hero b { width: 42px; height: 42px; border-radius: 50%; background: #dff5ec; }
+  .crew-browser-hero span { display: block; height: 8px; border-radius: 999px; background: #d8e0dc; }
+  .crew-browser-hero span:nth-child(2) { width: 132px; }
+  .crew-browser-hero span:nth-child(3) { width: 84px; }
+  .crew-browser-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+  .crew-browser-cards span { min-height: 60px; border-radius: 6px; background: #edf2ef; }
+  .crew-browser p { margin: 0; padding: 0 14px 14px; color: #8b9791; font-size: 10px; text-align: center; }
+  .crew-banner-section { max-width: 860px; margin-left: auto; margin-right: auto; padding-top: 8px; }
+  .crew-listing-guide { max-width: 860px; margin-left: auto; margin-right: auto; }
+  .crew-listing-guide ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .crew-listing-guide li { display: grid; align-content: start; gap: 10px; min-height: 112px; padding: 16px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.08); color: #4f5f59; font-size: 13px; line-height: 1.7; }
+  .crew-listing-guide li span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #08745f; color: #fff; font-size: 12px; font-weight: 900; }
   .route-gateway { max-width: 760px; margin: 6px auto 0; border-top: 1px solid rgba(15,23,42,.08); padding-top: 24px; }
   .route-gateway .section-header p { max-width: 620px; }
   .route-gateway-grid { display: grid; gap: 10px; }
@@ -804,6 +1022,11 @@ const LOWER_PAGE_STYLES = `
   .learn-wiki-term-cloud { column-count: 2; column-gap: 22px; }
   .learn-wiki-term-cloud a { display: block; break-inside: avoid; padding: 2px 0; color: #047857; font-size: 14px; line-height: 1.9; font-weight: 750; text-decoration: none; }
   .learn-wiki-term-cloud a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  @media (max-width: 1040px) {
+    .crew-feature-grid, .crew-banner-grid { grid-template-columns: 1fr; }
+    .crew-member-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .crew-gift-panel { grid-template-columns: 1fr; }
+  }
   @media (max-width: 820px) {
     .doc-reading-layout { grid-template-columns: 1fr; }
     .is-learn-hub .doc-reading-layout { grid-template-columns: 1fr; }
@@ -813,6 +1036,16 @@ const LOWER_PAGE_STYLES = `
     .doc-toc { grid-template-columns: 1fr; }
     .route-gateway-card { grid-template-columns: 1fr; }
     .route-gateway-card span:last-child { grid-column: 1; grid-row: auto; }
+    .crew-showcase-page { padding-bottom: 56px; }
+    .crew-showcase-section { margin-bottom: 54px; gap: 22px; }
+    .crew-feature-card { grid-template-rows: 96px auto auto 1fr auto; min-height: 0; padding: 16px; }
+    .crew-feature-logo { height: 96px; }
+    .crew-member-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+    .crew-list-section { padding-top: 54px; padding-bottom: 54px; }
+    .crew-gift-panel { margin-bottom: 54px; }
+    .crew-gift-copy { padding: 26px 20px; }
+    .crew-site-mock { min-height: 260px; padding: 22px; }
+    .crew-banner-grid, .crew-listing-guide ol { grid-template-columns: 1fr; }
     .learn-wiki { gap: 26px; }
     .learn-wiki-list { grid-template-columns: 1fr; gap: 0; }
     .learn-wiki-term-cloud { column-count: 1; }
@@ -1321,6 +1554,31 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
   const plainLearnReader = lang === "ja" && page.lane === "learn" && page.layout === "reading";
   const isLearnIndexHub = meta.bodyPageId === "learn-index";
+
+  if (meta.bodyPageId === "crew-members") {
+    const canonicalPath = appendLangToHref(page.path, "ja");
+    return renderSiteDocument({
+      basePath,
+      title: meta.title,
+      description: meta.lead,
+      activeNav: activeNavLabel(meta.activeNav, lang),
+      lang,
+      currentPath,
+      canonicalPath,
+      alternateLangs: availableLangs,
+      noindex: lang !== "ja" || !hasLocalizedSeoPage,
+      extraStyles: LOWER_PAGE_STYLES,
+      hero: {
+        eyebrow: meta.eyebrow,
+        heading: meta.heading,
+        lead: meta.lead,
+        tone: "light" as const,
+        align: "center" as const,
+      },
+      body: renderCrewMembersShowcase(basePath, lang),
+      footerNote: meta.footerNote ?? getShortCopy<string>(lang, "shared", "footerNotes.public"),
+    });
+  }
 
   const rawBodyHtml = isLearnIndexHub
     ? renderLearnIndexHub(basePath, lang)

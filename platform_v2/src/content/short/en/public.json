@@ -133,24 +133,15 @@
         "heading": "Support the work behind nearby nature records.",
         "lead": "IKIMON CREW is an annual support program for ikimon.life and IKIMON. The 10k / 30k / 50k JPY tiers are support-only. The 100k JPY tier can include website production and operation as a return gift.",
         "activeNav": "community",
-        "bodyPageId": "crew",
-        "afterActions": [
-          { "href": "/contact", "label": "Ask about CREW" },
-          { "href": "/crew/members", "label": "View CREW introduction concept" },
-          { "href": "https://ikimon.co.jp/crew.php?lang=en", "label": "View IKIMON Inc. page" }
-        ]
+        "bodyPageId": "crew"
       },
       "crewMembers": {
-        "title": "IKIMON CREW Introduction Page Concept | ikimon.life",
+        "title": "IKIMON CREW | ikimon.life",
         "eyebrow": "CREW Introduction",
-        "heading": "A quiet page for introducing CREW members.",
-        "lead": "A concept page for introducing people, companies, and groups that support ikimon.life. Listing is optional, and banner concepts are included.",
+        "heading": "Meet IKIMON CREW.",
+        "lead": "People, companies, and groups quietly supporting ikimon.life and its nearby nature records.",
         "activeNav": "community",
-        "bodyPageId": "crew-members",
-        "afterActions": [
-          { "href": "/crew", "label": "Back to IKIMON CREW" },
-          { "href": "/contact", "label": "Ask about listing" }
-        ]
+        "bodyPageId": "crew-members"
       }
     }
   },

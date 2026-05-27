@@ -72,6 +72,6 @@ Claude、ChatGPT、Gemini は、文章を書いたり調べものを手伝った
 
 ikimon.life は、その積み重ねを、教育、研究、地域活動、企業の自然共生活動へつなげるための場所です。大きな制度になる前の今から、支えてくれるCREWを募集しています。
 
-[CREW紹介ページ案を見る](/crew/members)
+[IKIMON CREW紹介を見る](/crew/members)
 
-[IKIMON株式会社のCREW案内を見る](https://ikimon.co.jp/crew.php)
+[IKIMON株式会社のCREW案内](https://ikimon.co.jp/crew.php)
