@@ -93,8 +93,12 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/ikimon-wordmark-black\.png" alt="" \/>/);
   assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/app-icon-192\.png" alt="" \/><\/span>/);
   assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
-  assert.match(html, /\.brand-wordmark \{[\s\S]*width: 52px;[\s\S]*height: 16px;/);
-  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: 48px;[\s\S]*height: 15px;/);
+  assert.match(html, /\.brand-wordmark \{[\s\S]*flex: 0 0 auto;[\s\S]*width: auto;[\s\S]*height: 16px;[\s\S]*aspect-ratio: 711 \/ 222;/);
+  assert.match(html, /\.brand-wordmark-img \{[\s\S]*width: auto;[\s\S]*height: 100%;[\s\S]*max-width: none;/);
+  assert.match(html, /--ikimon-header-brand-w: max\(var\(--ikimon-desktop-sidebar-w\), 154px\);/);
+  assert.match(html, /body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-header-brand-w: 154px;/);
+  assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) auto;/);
+  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ikimon" \/>/);

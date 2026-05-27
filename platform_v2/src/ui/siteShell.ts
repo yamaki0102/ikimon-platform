@@ -3996,6 +3996,7 @@ ${alternateLinks}
       min-height: 44px;
       display: inline-flex;
       align-items: center;
+      flex: 0 0 auto;
       gap: 7px;
       padding: 3px 8px 3px 2px;
       border-radius: 999px;
@@ -4018,17 +4019,20 @@ ${alternateLinks}
     .brand-wordmark {
       display: inline-flex;
       align-items: center;
+      flex: 0 0 auto;
       min-width: 0;
-      width: 52px;
+      width: auto;
       height: 16px;
+      aspect-ratio: 711 / 222;
       line-height: 1;
       white-space: nowrap;
       letter-spacing: 0;
     }
     .brand-wordmark-img {
       display: block;
-      width: 100%;
+      width: auto;
       height: 100%;
+      max-width: none;
       object-fit: contain;
       object-position: left center;
     }
@@ -6112,11 +6116,13 @@ ${alternateLinks}
     @media (min-width: 1161px) {
       :root {
         --ikimon-desktop-sidebar-w: 204px;
+        --ikimon-header-brand-w: max(var(--ikimon-desktop-sidebar-w), 154px);
         --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
         --ikimon-shell-margin-right: 24px;
       }
       body.is-desktop-side-nav-collapsed {
         --ikimon-desktop-sidebar-w: 72px;
+        --ikimon-header-brand-w: 154px;
         --ikimon-shell-margin-left: calc(var(--ikimon-desktop-sidebar-w) + 48px);
       }
       .site-header {
@@ -6128,12 +6134,12 @@ ${alternateLinks}
         margin: 0 16px;
         padding: 7px 0;
         display: grid;
-        grid-template-columns: var(--ikimon-desktop-sidebar-w) minmax(280px, 640px) auto;
+        grid-template-columns: var(--ikimon-header-brand-w) minmax(280px, 640px) auto;
         gap: 18px;
         justify-content: stretch;
       }
       .site-brand-cluster {
-        width: var(--ikimon-desktop-sidebar-w);
+        width: var(--ikimon-header-brand-w);
       }
       .desktop-side-nav-toggle {
         display: grid;
@@ -6511,8 +6517,9 @@ ${alternateLinks}
       }
       .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
       .brand-wordmark {
-        width: 48px;
+        width: auto;
         height: 15px;
+        aspect-ratio: 711 / 222;
       }
       .brand-name { font-size: 16px; }
       .brand-domain { font-size: 11px; }
