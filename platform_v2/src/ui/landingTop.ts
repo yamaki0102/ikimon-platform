@@ -2371,7 +2371,7 @@ export const LANDING_TOP_STYLES = `
   .prototype-content-author {
     min-width: 0;
     display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-columns: 24px minmax(0, 1fr);
     gap: 6px;
     align-items: center;
   }
@@ -2401,10 +2401,12 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-content-author-copy {
     min-width: 0;
-    display: contents;
+    display: grid;
+    gap: 1px;
   }
   .prototype-content-author-copy em {
     min-width: 0;
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2416,7 +2418,9 @@ export const LANDING_TOP_STYLES = `
   }
   .prototype-content-author-copy small {
     min-width: 0;
-    justify-self: end;
+    justify-self: start;
+    display: block;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2424,7 +2428,7 @@ export const LANDING_TOP_STYLES = `
     font-size: 10px;
     line-height: 1.25;
     font-weight: 850;
-    text-align: right;
+    text-align: left;
   }
   .prototype-content-empty {
     min-height: 160px;
@@ -4068,7 +4072,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-content-author {
       max-width: 100%;
       width: 100%;
-      grid-template-columns: 22px minmax(0, 1fr) auto;
+      grid-template-columns: 22px minmax(0, 1fr);
       column-gap: 5px;
       row-gap: 1px;
       justify-self: start;
@@ -4456,7 +4460,7 @@ export const LANDING_TOP_STYLES = `
     .prototype-hero-visual { min-height: 700px; }
     .prototype-content-grid { grid-template-columns: var(--ikimon-record-card-grid-mobile); gap: var(--ikimon-record-card-grid-gap-compact); }
     .prototype-content-author {
-      grid-template-columns: 20px minmax(0, 1fr) auto;
+      grid-template-columns: 20px minmax(0, 1fr);
       column-gap: 4px;
     }
     .prototype-content-avatar { width: 20px; height: 20px; }
