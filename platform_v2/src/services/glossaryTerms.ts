@@ -414,7 +414,7 @@ export function renderGlossaryText(
     html += escapeHtml(text.slice(cursor, match.start));
     const label = escapeHtml(match.text);
     const hint = escapeHtml(match.term.shortHint);
-    html += `<span class="term-hint" tabindex="0" role="note" aria-label="${hint}">${label}<span class="term-hint-pop">${hint}</span></span>`;
+    html += `<span class="term-hint" tabindex="0" role="button" aria-expanded="false" aria-label="${hint}">${label}<span class="term-hint-pop">${hint}</span></span>`;
     cursor = match.end;
   }
   html += escapeHtml(text.slice(cursor));

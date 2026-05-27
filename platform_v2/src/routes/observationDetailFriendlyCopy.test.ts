@@ -913,6 +913,10 @@ test("observation detail surfaces shot feedback outside hidden subject hints", (
   assert.match(routeSource, /getGlossaryTermsForScope\(\{ lang, scopeTags: \["observation"\] \}\)/);
   assert.match(routeSource, /renderGlossaryText/);
   assert.match(routeSource, /term-hint-pop/);
+  assert.match(routeSource, /function renderGlossaryHintScript/);
+  assert.match(routeSource, /closeHints\(null\)/);
+  assert.match(routeSource, /term-hint\.is-open \.term-hint-pop/);
+  assert.doesNotMatch(routeSource, /term-hint:hover \.term-hint-pop/);
   assert.match(routeSource, /candidateReadings/);
   assert.match(routeSource, /renderObservationShotFeedbackSurface\(bundle,\s*mediaContext,\s*glossaryTerms\)/);
   assert.match(routeSource, /季節や別地点の記録と比べやすくなります/);
