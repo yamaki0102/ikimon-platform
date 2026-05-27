@@ -1,47 +1,42 @@
 # IKIMON CREW
 
-Please support IKIMON.
+IKIMON CREW is an annual support program for ikimon.life and IKIMON.
 
-ikimon.life is a place for enjoying nearby nature and keeping those records for the future.
+It is not built around special benefits. The support keeps development and operation moving: better observation records, maps, identification flows, learning pages, and ways to keep nearby nature visible.
 
-Photographing street trees. Walking through parks. Meeting people through observation events. IKIMON turns small experiences like these into local records and pride.
+CREW members can be introduced on ikimon.life if they want. Listing is optional, and names can be kept private.
 
-It is still a small challenge, and we are serious about building it.
+## Annual support
 
-IKIMON CREW supports that challenge.
+- JPY 10,000 per year, excluding tax
+- JPY 30,000 per year, excluding tax
+- JPY 50,000 per year, excluding tax
+- JPY 100,000 per year, excluding tax
 
-## Annual support amounts
+The 10,000 / 30,000 / 50,000 yen tiers are support-only. There is no limited content, priority support, or discount.
 
-- 10k JPY, tax excluded
-- 30k JPY, tax excluded
-- 50k JPY, tax excluded
-- 100k JPY, tax excluded
+The 100,000 yen CREW tier can include website production and operation as a return gift for those who want it.
 
-The 10k, 30k, and 50k JPY memberships are support-only. No locked content, priority support, discounts, or name listing.
+## Website return gift
 
-The 100k JPY CREW tier can include website production and operation as a return gift.
+For the 100,000 yen tier, IKIMON can create and operate one website, including monthly operation, update support, and security maintenance.
 
-## What membership fees support
+Website update requests can be sent by LINE or email, 24 hours a day. A dedicated AI agent receives requests and uses the most suitable AI available at that time. Basic updates are handled with a 24-hour target. When a request needs human judgment, Yamaki checks it before publication.
 
-- Development and operation of ikimon.life
-- Better records, maps, identification, and learning pages
-- Easier ways to save photos, sounds, and place context
-- Observation records that can support communities and research
+## Security maintenance
 
-## Why we ask for support even without return gifts
+CMS tools such as WordPress and Movable Type are useful, but unattended sites become risky. Old plugins, themes, admin screens, and PHP versions can leave weak points behind.
 
-The more people enjoy nearby nature, the more interesting communities become.
+If a site is exploited, it can be defaced, abused through contact forms, used for spam, flagged in search results, or take time and money to recover. For a business website, leaving it old is a real operational risk.
 
-The more people record what they find, the more local memory remains for the future.
+## Why support
 
-We want to connect those records to education, research, community action, and nature-positive business activity.
+The more people enjoy nearby nature, the more interesting each place becomes.
 
-IKIMON is not yet a large business. We need people who are willing to support this work even without a return gift.
+The more people record what they find, the more local memory remains for later.
 
-## Return gift for the 100k JPY CREW tier
+ikimon.life is a place for turning those small records into material for learning, local activity, research, and nature-related business action.
 
-The 100k JPY CREW tier can include website production and operation as a return gift.
+[View the CREW introduction page concept](/crew/members)
 
-One website, monthly operation included, an AI-enabled response workflow, and Mythos-compatible security updates can be included. If you do not need a website, you can join without building one.
-
-[View the IKIMON Inc. page](https://ikimon.co.jp/service.php?lang=en)
+[View the IKIMON Inc. CREW page](https://ikimon.co.jp/crew.php?lang=en)

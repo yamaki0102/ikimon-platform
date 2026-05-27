@@ -565,6 +565,88 @@ function renderDocToc(headings: DocHeading[], meta: MarketingPageMeta, page: Sit
   </aside>`;
 }
 
+function renderCrewBannerIdeas(basePath: string, lang: SiteLang): string {
+  const copy = lang === "ja"
+    ? {
+        title: "リンク用バナー案",
+        lead: "ページ内リンク、メール、SNS、CREWのWEBサイトから使う想定のバナーです。",
+        open: "開く",
+        banners: [
+          {
+            href: "/crew",
+            eyebrow: "IKIMON CREW",
+            title: "身近な自然記録を、続ける力に。",
+            body: "ikimon.life と IKIMON の活動を、年会費で支えるCREWを募集しています。",
+            tone: "forest",
+          },
+          {
+            href: "/crew",
+            eyebrow: "年額10万円",
+            title: "WEBサイト制作・運用の返礼つき。",
+            body: "更新依頼はLINEやメールで24時間365日受付。HP専用AIエージェントが対応します。",
+            tone: "ink",
+          },
+          {
+            href: "/crew/members",
+            eyebrow: "CREW紹介",
+            title: "IKIMON CREWを紹介します。",
+            body: "ikimon.life を支えてくれている人、会社、団体を紹介するページです。",
+            tone: "light",
+          },
+        ],
+      }
+    : {
+        title: "Banner concepts",
+        lead: "Reusable banners for pages, email, social posts, and CREW websites.",
+        open: "Open",
+        banners: [
+          {
+            href: "/crew",
+            eyebrow: "IKIMON CREW",
+            title: "Support nearby nature records.",
+            body: "Annual support for ikimon.life and IKIMON.",
+            tone: "forest",
+          },
+          {
+            href: "/crew",
+            eyebrow: "JPY 100,000/year",
+            title: "Website production and operation included.",
+            body: "Update requests accepted by LINE or email, 24/7.",
+            tone: "ink",
+          },
+          {
+            href: "/crew/members",
+            eyebrow: "CREW Introduction",
+            title: "Meet IKIMON CREW.",
+            body: "A page introducing people, companies, and groups that support ikimon.life.",
+            tone: "light",
+          },
+        ],
+      };
+
+  return `<section class="crew-banner-panel" aria-label="${escapeHtml(copy.title)}">
+    <div class="crew-banner-head">
+      <h2>${escapeHtml(copy.title)}</h2>
+      <p>${escapeHtml(copy.lead)}</p>
+    </div>
+    <div class="crew-banner-grid">
+      ${copy.banners.map((banner) => `<a class="crew-banner crew-banner-${escapeHtml(banner.tone)}" href="${escapeHtml(appendLangToHref(withBasePath(basePath, banner.href), lang))}">
+        <span class="crew-banner-eyebrow">${escapeHtml(banner.eyebrow)}</span>
+        <strong>${escapeHtml(banner.title)}</strong>
+        <span>${escapeHtml(banner.body)}</span>
+        <em>${escapeHtml(copy.open)}</em>
+      </a>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderMarketingPageAppendix(meta: MarketingPageMeta, basePath: string, lang: SiteLang): string {
+  if (meta.bodyPageId === "crew-members") {
+    return renderCrewBannerIdeas(basePath, lang);
+  }
+  return "";
+}
+
 function scriptJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
@@ -683,6 +765,20 @@ const LOWER_PAGE_STYLES = `
   .doc-toc-l3 { padding-left: 14px; font-size: 12px; color: #64748b; }
   .doc-link-strip { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px 14px; margin-top: 16px; }
   .doc-link-strip .link-arrow { color: #047857; font-size: 14px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
+  .crew-banner-panel { margin: 38px 0 8px; padding: 24px 0 0; border-top: 1px solid rgba(15,23,42,.1); }
+  .crew-banner-head { display: grid; gap: 6px; margin-bottom: 14px; }
+  .crew-banner-head h2 { margin: 0; padding: 0; border: 0; color: #0f172a; font-size: 22px; line-height: 1.35; }
+  .crew-banner-head p { margin: 0; color: #475569; font-size: 14px; line-height: 1.8; }
+  .crew-banner-grid { display: grid; gap: 12px; }
+  .crew-banner { position: relative; display: grid; gap: 8px; min-height: 132px; padding: 18px 20px; border-radius: 8px; text-decoration: none; overflow: hidden; border: 1px solid rgba(15,23,42,.1); }
+  .crew-banner::after { content: ""; position: absolute; inset: auto 18px 16px auto; width: 56px; height: 56px; border-radius: 50%; opacity: .16; background: currentColor; }
+  .crew-banner-eyebrow { color: inherit; font-size: 11px; line-height: 1.4; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .crew-banner strong { position: relative; z-index: 1; max-width: 560px; color: inherit; font-size: clamp(20px, 3vw, 28px); line-height: 1.25; font-weight: 950; }
+  .crew-banner span:not(.crew-banner-eyebrow) { position: relative; z-index: 1; max-width: 560px; color: inherit; font-size: 14px; line-height: 1.75; opacity: .84; }
+  .crew-banner em { position: relative; z-index: 1; justify-self: start; margin-top: 2px; color: inherit; font-size: 12px; font-style: normal; font-weight: 900; border-bottom: 1px solid currentColor; }
+  .crew-banner-forest { color: #ecfdf5; background: linear-gradient(135deg, #064e3b, #047857); border-color: rgba(255,255,255,.18); }
+  .crew-banner-ink { color: #f8fafc; background: linear-gradient(135deg, #0f172a, #334155); border-color: rgba(255,255,255,.14); }
+  .crew-banner-light { color: #0f172a; background: linear-gradient(135deg, #ffffff, #eefcf6); border-color: rgba(4,120,87,.18); }
   .route-gateway { max-width: 760px; margin: 6px auto 0; border-top: 1px solid rgba(15,23,42,.08); padding-top: 24px; }
   .route-gateway .section-header p { max-width: 620px; }
   .route-gateway-grid { display: grid; gap: 10px; }
@@ -1233,7 +1329,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const articleHtml = isLearnIndexHub
     ? withHeadingIds(rawBodyHtml, headings)
     : withHeadingIds(normalizeArticleHeading(rawBodyHtml, meta, plainLearnReader), headings);
-  const bodyHtml = shouldShowTermHints(meta) ? applyTermHints(articleHtml, basePath, lang) : articleHtml;
+  const bodyHtml = `${shouldShowTermHints(meta) ? applyTermHints(articleHtml, basePath, lang) : articleHtml}${renderMarketingPageAppendix(meta, basePath, lang)}`;
   const canonicalPath = appendLangToHref(page.path, "ja");
   const structuredDataHtml = lang === "ja" ? renderStructuredData(meta, page, lang, canonicalPath, headings) : "";
   const heroConfig = plainLearnReader

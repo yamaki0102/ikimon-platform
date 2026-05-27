@@ -130,13 +130,26 @@
       "crew": {
         "title": "IKIMON CREW | ikimon.life",
         "eyebrow": "IKIMON CREW",
-        "heading": "Please support IKIMON.",
-        "lead": "ikimon.life is a place for enjoying nearby nature and keeping those records for the future. It is still a small challenge, and we are serious about building it. We are looking for CREW members who will support it.",
+        "heading": "Support the work behind nearby nature records.",
+        "lead": "IKIMON CREW is an annual support program for ikimon.life and IKIMON. The 10k / 30k / 50k JPY tiers are support-only. The 100k JPY tier can include website production and operation as a return gift.",
         "activeNav": "community",
         "bodyPageId": "crew",
         "afterActions": [
           { "href": "/contact", "label": "Ask about CREW" },
-          { "href": "https://ikimon.co.jp/service.php?lang=en", "label": "View IKIMON Inc. page" }
+          { "href": "/crew/members", "label": "View CREW introduction concept" },
+          { "href": "https://ikimon.co.jp/crew.php?lang=en", "label": "View IKIMON Inc. page" }
+        ]
+      },
+      "crewMembers": {
+        "title": "IKIMON CREW Introduction Page Concept | ikimon.life",
+        "eyebrow": "CREW Introduction",
+        "heading": "A quiet page for introducing CREW members.",
+        "lead": "A concept page for introducing people, companies, and groups that support ikimon.life. Listing is optional, and banner concepts are included.",
+        "activeNav": "community",
+        "bodyPageId": "crew-members",
+        "afterActions": [
+          { "href": "/crew", "label": "Back to IKIMON CREW" },
+          { "href": "/contact", "label": "Ask about listing" }
         ]
       }
     }
