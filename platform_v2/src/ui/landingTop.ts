@@ -488,6 +488,9 @@ type LandingContentWallSubject = {
   evidenceTier: number | null;
 };
 
+const LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT = 12;
+const LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT = 18;
+
 function landingContentWallGroupKey(obs: LandingContentWallItem): string {
   return obs.visitId
     || obs.detailId
@@ -672,11 +675,18 @@ function renderLandingContentWall(options: LandingTopRenderOptions): string {
   const wallCopy = landingContentWallCopy(lang);
   const mineItems = snapshot.viewerUserId ? landingContentWallItems(snapshot, "mine") : [];
   const communityItems = landingContentWallItems(snapshot, "community");
-  const mineLimit = Math.min(6, Math.max(4, communityItems.length));
-  const communityLimit = 12;
   const laneHtml = [
-    snapshot.viewerUserId ? renderLandingContentWallLane(basePath, lang, copy, wallCopy, "mine", mineItems.slice(0, mineLimit)) : "",
-    renderLandingContentWallLane(basePath, lang, copy, wallCopy, "community", communityItems.slice(0, snapshot.viewerUserId ? communityLimit : 18)),
+    snapshot.viewerUserId
+      ? renderLandingContentWallLane(basePath, lang, copy, wallCopy, "mine", mineItems.slice(0, LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT))
+      : "",
+    renderLandingContentWallLane(
+      basePath,
+      lang,
+      copy,
+      wallCopy,
+      "community",
+      communityItems.slice(0, snapshot.viewerUserId ? LANDING_CONTENT_WALL_SIGNED_IN_LANE_LIMIT : LANDING_CONTENT_WALL_GUEST_COMMUNITY_LIMIT),
+    ),
   ].filter(Boolean).join("");
   const splitClass = snapshot.viewerUserId ? " is-split" : "";
 

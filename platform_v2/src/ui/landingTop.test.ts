@@ -387,7 +387,7 @@ test("landing top renders signed-in own and community posts as thumbnail content
   assert.match(html, /別の観察者/);
 });
 
-test("landing top balances signed-in own posts against twelve community posts", () => {
+test("landing top gives signed-in own and community posts two desktop rows each", () => {
   const makeObservation = (index: number, observerUserId: string): LandingObservation => ({
     ...photoObservation,
     occurrenceId: `occ-balanced-${observerUserId}-${index}`,
@@ -401,11 +401,11 @@ test("landing top balances signed-in own posts against twelve community posts", 
   const html = renderTop({
     ...photoSnapshot,
     viewerUserId: "user-1",
-    myFeed: Array.from({ length: 10 }, (_, index) => makeObservation(index, "user-1")),
+    myFeed: Array.from({ length: 14 }, (_, index) => makeObservation(index, "user-1")),
     feed: Array.from({ length: 12 }, (_, index) => makeObservation(index, `user-${index + 2}`)),
   });
 
-  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 6);
+  assert.equal((html.match(/data-kpi-action="landing:content_wall:mine"/g) ?? []).length, 12);
   assert.equal((html.match(/data-kpi-action="landing:content_wall:community"/g) ?? []).length, 12);
   assert.match(html, /<section class="prototype-content-lane is-mine" aria-label="自分の記録">[\s\S]*?<h3>自分の記録<\/h3>/);
   assert.match(html, /<section class="prototype-content-lane is-community" aria-label="みんなの記録">[\s\S]*?<h3>みんなの記録<\/h3>/);
