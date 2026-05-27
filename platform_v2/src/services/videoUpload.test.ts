@@ -42,6 +42,8 @@ test("video upload supports official tus direct uploads and ready webhooks", asy
   assert.match(source, /video_ready_reassess/);
   assert.match(source, /enqueueMediaProcessingJobs/);
   assert.match(queueSource, /processMediaProcessingJobs/);
+  assert.match(queueSource, /photoDebounceSeconds/);
+  assert.match(queueSource, /job_type <> 'photo_ready_reassess'/);
   assert.match(queueSource, /reassessFromVideoThumb/);
   assert.match(queueSource, /markVideoReady/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS video_processing_jobs/);

@@ -109,6 +109,21 @@ test("visual reassess can downscale stored photos before Gemini behind an env ga
   assert.match(service, /mime: "image\/jpeg"/);
 });
 
+test("subject rescue follows the same Lite-first cost path before 3.5 escalation", () => {
+  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+
+  assert.match(service, /parseSubjectRescueCandidates/);
+  assert.match(service, /subjectRescueLiteFirst/);
+  assert.match(service, /subjectRescueEscalationReasons/);
+  assert.match(service, /no_coexisting_taxa_from_lite/);
+  assert.match(service, /chainName: options\.liteFirst \? "observationVisualSummary" : "observationVisualExtract"/);
+  assert.match(service, /buildVisualSubjectRescuePrompt/);
+  assert.match(service, /副対象抽出だけ/);
+  assert.match(service, /rank を lifeform/);
+  assert.match(service, /parts\.push\(\{ text: buildVisualSubjectRescuePrompt\(primary\) \}\)/);
+  assert.doesNotMatch(service, /text: `\$\{_?prompt\}[\s\S]*追加の品質ゲート/);
+});
+
 test("reassess JSON schema avoids concrete taxon examples that can leak into output", () => {
   const prompt = readFileSync(new URL("../prompts/observation_reassess.md", import.meta.url), "utf8");
   const schema = prompt.slice(prompt.indexOf("## 出力 JSON スキーマ"));

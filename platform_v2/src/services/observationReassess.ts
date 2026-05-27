@@ -1314,6 +1314,52 @@ function parseGeminiJson(rawText: string): GeminiJson {
   return parsed;
 }
 
+function parseSubjectRescueCandidates(rawText: string): GeminiCoexistingTaxon[] {
+  const parsed = parseGeminiJson(rawText || "{}");
+  return Array.isArray(parsed.coexisting_taxa)
+    ? parsed.coexisting_taxa.filter((value) => {
+        if (!value) return false;
+        const name = normalizeCandidateName(value.name);
+        const scientificName = normalizeCandidateName(value.scientific_name);
+        if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
+        return Boolean(name || scientificName);
+      })
+    : [];
+}
+
+function buildVisualSubjectRescuePrompt(primary: { vernacularName: string; scientificName: string }): string {
+  return `あなたは生物観察写真の副対象抽出だけを行います。通常の同定レポート、主対象の再同定、説明文は返さないでください。
+
+主対象として既に扱うもの:
+- 和名/表示名: ${primary.vernacularName || "不明"}
+- 学名: ${primary.scientificName || "不明"}
+
+タスク:
+写真内で主対象とは別に写る生物だけを拾ってください。植物、つる、低木、草本、昆虫、菌類、明確な生活形を最大6件。足元の草、低い草丈、植栽、花、樹木など実体のある植生は背景扱いで捨てないでください。
+
+精度ルール:
+種・属・科名は、葉形、花、果実、翅、体形などの根拠が写真で十分に見える場合だけ使う。三出複葉や細長い葉など形だけで科が断定できない場合は rank を lifeform、scientific_name を空文字にし、name は「三出複葉の草本」「細長い葉の草本」のように見える形で書く。背景植生や一部だけ見える対象の confidence は原則 0.3-0.7 に抑える。
+
+除外:
+主対象の別名・代替候補、裸地、礫、舗装、石碑、看板、建物、影、ピンボケだけの形は coexisting_taxa に入れない。
+
+出力はJSONのみ。このトップレベルキー以外を返さないでください:
+{
+  "coexisting_taxa": [
+    {
+      "name": "細長い葉の草本",
+      "scientific_name": "",
+      "rank": "lifeform",
+      "confidence": 0.5,
+      "note": "主対象の周囲に細長い葉の草本が写る",
+      "media_regions": [
+        {"asset_index": 0, "rect": {"x": 0.1, "y": 0.1, "width": 0.3, "height": 0.3}, "confidence": 0.5, "note": "おおよその位置"}
+      ]
+    }
+  ]
+}`;
+}
+
 async function runVisualExtractGemini(
   parts: AiRouterPart[],
   meta: GeminiCostMeta,
@@ -1530,7 +1576,7 @@ JSONのみ:
 }
 
 async function runVisualSubjectRescue(
-  prompt: string,
+  _prompt: string,
   photos: ReassessImageInput[],
   primary: { vernacularName: string; scientificName: string },
   meta: GeminiCostMeta = {},
@@ -1539,65 +1585,52 @@ async function runVisualSubjectRescue(
   const parts: AiRouterPart[] = photos.map((photo) => ({
     inlineData: { mimeType: photo.mime, data: photo.b64 },
   }));
-  parts.push({
-    text: `${prompt}
+  parts.push({ text: buildVisualSubjectRescuePrompt(primary) });
+  const runRescue = (options: { liteFirst: boolean; escalationReasons?: string[] }): Promise<AiRouterGenerateResult | null> =>
+    generateAiTextWithRoleChain({
+      chainName: options.liteFirst ? "observationVisualSummary" : "observationVisualExtract",
+      parts,
+      responseMimeType: "application/json",
+      thinkingConfig: { thinkingLevel: "minimal" },
+      temperature: 0.1,
+      maxOutputTokens: options.liteFirst ? 1536 : 2048,
+      retriesPerModel: options.liteFirst ? 2 : 1,
+      cost: {
+        layer: "hot",
+        endpoint: "observation_subject_rescue",
+        userId: meta.userId ?? null,
+        visitId: meta.visitId ?? null,
+        occurrenceId: meta.occurrenceId ?? null,
+        metadata: {
+          sourceTag: meta.sourceTag ?? "photo",
+          subjectRescueLiteFirst: options.liteFirst,
+          subjectRescueEscalationReasons: options.escalationReasons ?? [],
+        },
+      },
+    }).catch(() => null);
 
-追加の品質ゲートです。前段の解析が副対象を 0 件にしたため、写真内の「主対象以外」を拾い直してください。
-このプロダクトの価値は、1つの観察シーンから複数の同定候補を分けて残せることです。主対象だけで終えないでください。
-
-主対象として既に扱うもの:
-- 和名/表示名: ${primary.vernacularName || "不明"}
-- 学名: ${primary.scientificName || "不明"}
-
-返す対象:
-- 主対象とは別に写る植物、つる、低木、草本、昆虫、菌類、明確な生活形を最大 6 件。
-- 種や属まで分からなければ family/order/lifeform でよい。
-- 足元の草、イネ科草本、低い草丈、植栽、花、樹木など実体のある植生は背景扱いで捨てず、種名不明なら lifeform/family で返す。
-- 「未同定」「他の植栽」「複数の低木」だけの汎用名は返さない。確信が低くても、比較候補名か上位分類名にする。
-- 裸地・礫・踏圧・人工物だけの非生物は coexisting_taxa に入れず、note に環境文脈として短く含める。
-- 主対象の重複候補は返さない。
-
-JSONのみ:
-{
-  "coexisting_taxa": [
-    {
-      "name": "常緑つる植物",
-      "scientific_name": "",
-      "rank": "lifeform",
-      "confidence": 0.5,
-      "note": "主対象の背後に光沢のある常緑葉が別群として写る",
-      "media_regions": [
-        {"asset_index": 0, "rect": {"x": 0.1, "y": 0.1, "width": 0.3, "height": 0.3}, "confidence": 0.5, "note": "おおよその位置"}
-      ]
+  if (isObservationVisualLiteFirstEnabled()) {
+    const lite = await runRescue({ liteFirst: true });
+    if (!lite) return { candidates: [], modelUsed: "" };
+    const candidates = parseSubjectRescueCandidates(lite.text || "{}");
+    if (candidates.length > 0 || lite.model.includes("3.5")) {
+      return { candidates, modelUsed: lite.model };
     }
-  ]
-}`,
-  });
-  const response = await generateAiTextWithRoleChain({
-    chainName: "observationVisualExtract",
-    parts,
-    retriesPerModel: 1,
-    cost: {
-      layer: "hot",
-      endpoint: "observation_subject_rescue",
-      userId: meta.userId ?? null,
-      visitId: meta.visitId ?? null,
-      occurrenceId: meta.occurrenceId ?? null,
-      metadata: { sourceTag: meta.sourceTag ?? "photo" },
-    },
-  }).catch(() => null);
+
+    const rescue = await runRescue({
+      liteFirst: false,
+      escalationReasons: ["no_coexisting_taxa_from_lite"],
+    });
+    if (!rescue) return { candidates, modelUsed: lite.model };
+    return {
+      candidates: parseSubjectRescueCandidates(rescue.text || "{}"),
+      modelUsed: rescue.model,
+    };
+  }
+
+  const response = await runRescue({ liteFirst: false });
   if (!response) return { candidates: [], modelUsed: "" };
-  const parsed = parseGeminiJson(response.text || "{}");
-  const candidates = Array.isArray(parsed.coexisting_taxa)
-    ? parsed.coexisting_taxa.filter((value) => {
-        if (!value) return false;
-        const name = normalizeCandidateName(value.name);
-        const scientificName = normalizeCandidateName(value.scientific_name);
-        if (!scientificName && isUnhelpfulGenericCandidateName(name)) return false;
-        return Boolean(name || scientificName);
-      })
-    : [];
-  return { candidates, modelUsed: response.model };
+  return { candidates: parseSubjectRescueCandidates(response.text || "{}"), modelUsed: response.model };
 }
 
 async function runGemini(

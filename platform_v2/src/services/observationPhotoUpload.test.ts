@@ -34,4 +34,10 @@ test("photo upload promotes native no-photo reviews after adding evidence", () =
   assert.match(source, /review_status = 'accepted'/);
   assert.match(source, /enqueueMediaProcessingJobsStandalone/);
   assert.match(source, /photo_ready_reassess/);
+
+  const worker = readFileSync(path.join(process.cwd(), "src/scripts/processMediaProcessingJobs.ts"), "utf8");
+  const service = readFileSync(path.join(process.cwd(), "../ops/deploy/ikimon_v2_media_worker.service"), "utf8");
+  assert.match(worker, /AI_PHOTO_REASSESS_DEBOUNCE_SECONDS/);
+  assert.match(worker, /photo-debounce-seconds/);
+  assert.match(service, /--photo-debounce-seconds=45/);
 });
