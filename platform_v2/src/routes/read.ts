@@ -2044,7 +2044,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .term-hint { position: relative; display: inline-flex; align-items: center; gap: 2px; color: #075985; font-weight: 900; text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; outline: none; }
   .term-hint::after { content: "?"; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 999px; background: rgba(14,165,233,.14); color: #0369a1; font-size: 10px; line-height: 1; font-weight: 900; }
   .term-hint-pop { display: none; position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: min(260px, calc(100vw - 24px)); padding: 9px 10px; border-radius: 10px; background: #0f172a; color: #f8fafc; box-shadow: 0 14px 30px rgba(15,23,42,.2); font-size: 12px; line-height: 1.55; font-weight: 700; white-space: normal; pointer-events: none; }
-  .term-hint:hover .term-hint-pop, .term-hint:focus .term-hint-pop, .term-hint:focus-visible .term-hint-pop { display: block; }
+  .term-hint.is-open .term-hint-pop, .term-hint:focus-visible .term-hint-pop { display: block; }
   @media (max-width: 480px) {
     .term-hint-pop { position: fixed; left: 12px; right: 12px; bottom: 16px; width: auto; max-height: 42vh; overflow: auto; }
   }
@@ -3685,6 +3685,40 @@ function renderAiReadoutInteractionScript(): string {
         root.querySelectorAll('[data-ai-panel]').forEach(function(panel){ panel.hidden = panel.getAttribute('data-ai-panel') !== key; });
       });
     });
+  })();</script>`;
+}
+
+function renderGlossaryHintScript(): string {
+  return `<script>(function(){
+    if (document.documentElement.getAttribute('data-term-hint-bound') === '1') return;
+    document.documentElement.setAttribute('data-term-hint-bound', '1');
+    var closeHints = function(except) {
+      document.querySelectorAll('.term-hint.is-open').forEach(function(node) {
+        if (except && node === except) return;
+        node.classList.remove('is-open');
+        node.setAttribute('aria-expanded', 'false');
+      });
+    };
+    document.addEventListener('click', function(event) {
+      var target = event.target && event.target.closest ? event.target.closest('.term-hint') : null;
+      if (!target) {
+        closeHints(null);
+        return;
+      }
+      event.preventDefault();
+      var willOpen = !target.classList.contains('is-open');
+      closeHints(target);
+      target.classList.toggle('is-open', willOpen);
+      target.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') closeHints(null);
+      if ((event.key === 'Enter' || event.key === ' ') && event.target && event.target.classList && event.target.classList.contains('term-hint')) {
+        event.preventDefault();
+        event.target.click();
+      }
+    });
+    window.addEventListener('scroll', function(){ closeHints(null); }, { passive: true });
   })();</script>`;
 }
 
@@ -17221,7 +17255,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}`;
+    const detailBody = `${heroBlock}${shotFeedbackBlock}${readProgressBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
