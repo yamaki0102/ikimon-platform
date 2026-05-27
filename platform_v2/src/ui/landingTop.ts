@@ -1574,13 +1574,73 @@ function renderEmptyDailyState(basePath: string, lang: SiteLang, copy: LandingSt
   </div>`;
 }
 
+function renderCrewFeature(basePath: string, lang: SiteLang): string {
+  const localized: Record<SiteLang, {
+    eyebrow: string;
+    title: string;
+    body: string;
+    note: string;
+    cta: string;
+    amounts: string[];
+  }> = {
+    ja: {
+      eyebrow: "IKIMON CREW",
+      title: "特典はありません。ただ、IKIMONを育てる仲間になります。",
+      body: "年額1万円、3万円、5万円から選べる、特典なしの支援制度です。会費は ikimon.life の開発・運営に使います。",
+      note: "金額による特典の違いはありません。",
+      cta: "CREWを見る",
+      amounts: ["年1万円", "年3万円", "年5万円"],
+    },
+    en: {
+      eyebrow: "IKIMON CREW",
+      title: "No benefits. Just join the crew building IKIMON.",
+      body: "A no-benefits support program with annual options of 10k, 30k, and 50k JPY. Membership fees support ikimon.life development and operation.",
+      note: "Benefits do not differ by amount.",
+      cta: "View CREW",
+      amounts: ["10k JPY/year", "30k JPY/year", "50k JPY/year"],
+    },
+    es: {
+      eyebrow: "IKIMON CREW",
+      title: "Sin beneficios. Solo unirte a quienes construyen IKIMON.",
+      body: "Un programa de apoyo sin beneficios, con opciones anuales de 10k, 30k y 50k JPY. Las cuotas apoyan el desarrollo y la operacion de ikimon.life.",
+      note: "Los beneficios no cambian segun el monto.",
+      cta: "Ver CREW",
+      amounts: ["10k JPY/ano", "30k JPY/ano", "50k JPY/ano"],
+    },
+    "pt-BR": {
+      eyebrow: "IKIMON CREW",
+      title: "Sem beneficios. Apenas fazer parte de quem constroi IKIMON.",
+      body: "Um programa de apoio sem beneficios, com opcoes anuais de 10k, 30k e 50k JPY. As contribuicoes apoiam o desenvolvimento e a operacao do ikimon.life.",
+      note: "Os beneficios nao mudam conforme o valor.",
+      cta: "Ver CREW",
+      amounts: ["10k JPY/ano", "30k JPY/ano", "50k JPY/ano"],
+    },
+  };
+  const copy = localized[lang] ?? localized.ja;
+  return `<aside class="prototype-crew-feature" aria-labelledby="prototype-crew-heading">
+    <div class="prototype-crew-copy">
+      <span>${escapeHtml(copy.eyebrow)}</span>
+      <h2 id="prototype-crew-heading">${escapeHtml(copy.title)}</h2>
+      <p>${escapeHtml(copy.body)}</p>
+    </div>
+    <div class="prototype-crew-side">
+      <div class="prototype-crew-amounts" aria-label="${escapeHtml(copy.note)}">
+        ${copy.amounts.map((amount, index) => `<b class="${index === 1 ? "is-primary" : ""}">${escapeHtml(amount)}</b>`).join("")}
+      </div>
+      <small>${escapeHtml(copy.note)}</small>
+      <a class="prototype-btn prototype-btn-dark" href="${escapeHtml(landingHref(basePath, lang, "/crew"))}" data-kpi-action="landing:crew:open">${escapeHtml(copy.cta)}</a>
+    </div>
+  </aside>`;
+}
+
 function renderLandingHeroHtml(options: LandingTopRenderOptions): string {
   void options;
   return "";
 }
 
 function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
-  return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
+  return `${renderCrewFeature(options.basePath, options.lang)}
+  <section class="prototype-topa-shelves" aria-label="トップページの観察棚">
     ${renderLandingContentWall(options)}
     ${renderLandingNearbySection(options)}
     ${renderLandingGuideOutcomes(options)}
@@ -1813,6 +1873,81 @@ export const LANDING_TOP_STYLES = `
   .prototype-btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 18px 44px rgba(16,185,129,.18); }
   .prototype-btn-secondary { background: rgba(255,255,255,.78); color: #1a2e1f; border-color: rgba(16,185,129,.28); }
   .prototype-btn-dark { background: #10251a; color: #fff; box-shadow: 0 18px 44px rgba(16,37,26,.18); }
+  .prototype-crew-feature {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+    gap: 22px;
+    align-items: center;
+    margin: 26px 0 18px;
+    padding: clamp(20px, 3vw, 34px);
+    border: 1px solid rgba(16,185,129,.2);
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 92% 12%, rgba(250,204,21,.2), transparent 26%),
+      linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.94) 52%, rgba(240,249,255,.9));
+    box-shadow: 0 24px 70px rgba(15,23,42,.1);
+  }
+  .prototype-crew-copy { display: grid; gap: 12px; }
+  .prototype-crew-copy span {
+    color: #047857;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: .18em;
+  }
+  .prototype-crew-copy h2 {
+    margin: 0;
+    max-width: 16em;
+    color: #10251a;
+    font-size: clamp(26px, 3vw, 42px);
+    line-height: 1.12;
+    letter-spacing: 0;
+  }
+  .prototype-crew-copy p {
+    margin: 0;
+    max-width: 58em;
+    color: #475569;
+    font-size: 15px;
+    line-height: 1.75;
+    font-weight: 680;
+  }
+  .prototype-crew-side {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+    padding: 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(15,23,42,.08);
+  }
+  .prototype-crew-amounts {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .prototype-crew-amounts b {
+    min-height: 64px;
+    display: grid;
+    place-items: center;
+    padding: 10px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.08);
+    color: #10251a;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.25;
+  }
+  .prototype-crew-amounts b.is-primary {
+    border-color: rgba(16,185,129,.38);
+    background: #ecfdf5;
+    color: #047857;
+  }
+  .prototype-crew-side small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+  }
   .prototype-topa {
     padding: clamp(10px, 2vw, 22px) 0 10px;
     display: grid;
@@ -3917,6 +4052,9 @@ export const LANDING_TOP_STYLES = `
     }
   }
   @media (max-width: 1020px) {
+    .prototype-crew-feature {
+      grid-template-columns: 1fr;
+    }
     .prototype-topa-story {
       grid-template-columns: 92px minmax(0, 1fr);
     }
@@ -3949,6 +4087,32 @@ export const LANDING_TOP_STYLES = `
   }
   @media (max-width: 720px) {
     .shell.shell-bleed.prototype-shell { padding-top: 14px; }
+    .prototype-crew-feature {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 18px;
+    }
+    .prototype-crew-copy h2 {
+      font-size: 24px;
+      line-height: 1.16;
+    }
+    .prototype-crew-copy p {
+      font-size: 13px;
+      line-height: 1.62;
+    }
+    .prototype-crew-side {
+      padding: 12px;
+      border-radius: 14px;
+    }
+    .prototype-crew-amounts {
+      grid-template-columns: 1fr;
+    }
+    .prototype-crew-amounts b {
+      min-height: 46px;
+    }
+    .prototype-crew-side .prototype-btn {
+      width: 100%;
+    }
     .prototype-topa { padding-top: 12px; }
     .prototype-topa h1 { font-size: 34px; line-height: 1.1; white-space: normal; }
     .prototype-topa p { font-size: 14px; line-height: 1.55; }

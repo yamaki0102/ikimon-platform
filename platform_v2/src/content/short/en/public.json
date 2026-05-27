@@ -126,6 +126,18 @@
         "lead": "One topic per page: how to start observing, check names, and keep records useful later.",
         "activeNav": "learn",
         "bodyPageId": "learn-index"
+      },
+      "crew": {
+        "title": "IKIMON CREW | ikimon.life",
+        "eyebrow": "IKIMON CREW",
+        "heading": "No benefits. Just join the crew building IKIMON.",
+        "lead": "A no-benefits support program with annual options of 10k, 30k, and 50k JPY. Membership fees support the development and operation of ikimon.life and related IKIMON projects.",
+        "activeNav": "community",
+        "bodyPageId": "crew",
+        "afterActions": [
+          { "href": "/contact", "label": "Ask about CREW" },
+          { "href": "https://ikimon.co.jp/service.php?lang=en", "label": "View IKIMON Inc. page" }
+        ]
       }
     }
   },

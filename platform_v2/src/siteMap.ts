@@ -826,6 +826,28 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     legacyRedirects: ["/contact.php"],
   },
   {
+    path: "/crew",
+    lane: "trust",
+    layout: "reading",
+    audience: "public",
+    auth: "public",
+    navVisibility: ["header", "footer", "qa", "xml"],
+    title: { ja: "IKIMON CREW", en: "IKIMON CREW" },
+    summary: {
+      ja: "特典なしで ikimon.life の開発と運営を支える参加制度。",
+      en: "A no-benefits participation program supporting ikimon.life development and operation.",
+    },
+    primaryAction: { href: "/contact?category=partnership", label: { ja: "CREWについて相談する", en: "Ask about CREW" } },
+    marketing: { pageKey: "crew" },
+    visualQa: {
+      smoke: true,
+      viewports: ["desktop-1440", "mobile-390"],
+      expectedText: { ja: "特典はありません", en: "No benefits" },
+      readySelector: "body",
+      screenshot: { baselineName: "registry-crew" },
+    },
+  },
+  {
     path: "/community",
     lane: "group",
     layout: "wide",
