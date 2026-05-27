@@ -1,5 +1,6 @@
 import { escapeHtml } from "../ui/siteShell.js";
 import { getPool } from "../db.js";
+import type { PoolClient } from "pg";
 
 export type GlossaryTermHint = {
   id: string;
@@ -9,6 +10,17 @@ export type GlossaryTermHint = {
   href: string;
   scopeTags: string[];
   priority: number;
+};
+
+export type GlossaryTermCandidate = {
+  label: string;
+  normalizedLabel: string;
+  exampleText: string;
+};
+
+export type GlossaryCandidateLogResult = {
+  candidateCount: number;
+  labels: string[];
 };
 
 export const BUILTIN_GLOSSARY_TERMS_JA: GlossaryTermHint[] = [
@@ -142,6 +154,31 @@ export const BUILTIN_GLOSSARY_TERMS_JA: GlossaryTermHint[] = [
 
 const glossaryCache = new Map<string, { loadedAt: number; terms: GlossaryTermHint[] }>();
 const GLOSSARY_CACHE_TTL_MS = 5 * 60 * 1000;
+const JAPANESE_TERM_PATTERN =
+  /[一-龯々ヵヶぁ-んァ-ヶー]{0,8}(?:胞子嚢群|胞子嚢|葉柄基部|葉柄|鱗片|裂片|冠毛|頭花|花冠|萼片|托葉|小葉|葉脈|鋸歯|腺毛|総苞|葯|柱頭|花序|小穂|苞|節間|基質|植生|被覆|攪乱|遷移|踏圧|湿性|乾性)[一-龯々ヵヶぁ-んァ-ヶー]{0,4}/gu;
+const PAREN_TERM_PATTERN = /([一-龯々ヵヶぁ-んァ-ヶー]{2,18})（([一-龯々ヵヶぁ-んァ-ヶーA-Za-z0-9-]{2,28})）/gu;
+const GLOSSARY_CANDIDATE_STOP_WORDS = new Set([
+  "写真",
+  "動画",
+  "場所",
+  "季節",
+  "環境",
+  "対象",
+  "候補",
+  "特徴",
+  "状態",
+  "記録",
+  "確認",
+  "全体",
+  "周辺",
+  "生息環境",
+  "観察場所",
+  "分類",
+  "名前",
+  "形状",
+]);
+
+type GlossaryQueryable = Pick<PoolClient, "query">;
 
 export async function getGlossaryTermsForScope(options: {
   lang?: string;
@@ -189,6 +226,146 @@ export async function getGlossaryTermsForScope(options: {
   } catch {
     glossaryCache.set(cacheKey, { loadedAt: now, terms: fallbackTerms });
     return fallbackTerms;
+  }
+}
+
+export function normalizeGlossaryCandidateLabel(label: string): string {
+  return label
+    .normalize("NFKC")
+    .replace(/[「」『』【】\[\](),.、。・\s]/gu, "")
+    .replace(/^(?:その|この|同じ|周辺の|対象の)/u, "")
+    .replace(/(?:の有無|の形状|の形|の配置|の並び方|の色|の反り|を見る|を確認|が見える)$/u, "")
+    .trim()
+    .toLowerCase();
+}
+
+function knownGlossaryLabels(terms: GlossaryTermHint[]): Set<string> {
+  return new Set(
+    terms.flatMap((term) => [term.label, ...term.aliases])
+      .filter(Boolean)
+      .map(normalizeGlossaryCandidateLabel)
+      .filter(Boolean),
+  );
+}
+
+function cleanupGlossaryCandidateLabel(label: string): string {
+  return label
+    .normalize("NFKC")
+    .replace(/[「」『』【】\[\](),.、。]/gu, "")
+    .replace(/^(?:その|この|同じ|周辺の|対象の)/u, "")
+    .replace(/(?:の有無|の形状|の形|の配置|の並び方|の色|の反り|を見る|を確認|が見える)$/u, "")
+    .trim();
+}
+
+function shouldKeepGlossaryCandidate(label: string, knownLabels: Set<string>): boolean {
+  const normalized = normalizeGlossaryCandidateLabel(label);
+  if (normalized.length < 2 || normalized.length > 40) return false;
+  if (knownLabels.has(normalized)) return false;
+  if (GLOSSARY_CANDIDATE_STOP_WORDS.has(label) || GLOSSARY_CANDIDATE_STOP_WORDS.has(normalized)) return false;
+  if (/^[0-9a-z]+$/iu.test(normalized)) return false;
+  if (/属$|科$|目$|種$|sp$/iu.test(normalized)) return false;
+  return /[一-龯々ァ-ヶ]/u.test(label);
+}
+
+export function extractGlossaryTermCandidatesFromText(
+  text: string,
+  terms: GlossaryTermHint[] = BUILTIN_GLOSSARY_TERMS_JA,
+  maxCandidates = 12,
+): GlossaryTermCandidate[] {
+  const knownLabels = knownGlossaryLabels(terms);
+  const found = new Map<string, GlossaryTermCandidate>();
+  const push = (rawLabel: string, exampleText: string): void => {
+    const parts = rawLabel.split(/[とや、・]/u).map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      parts.forEach((part) => push(part, exampleText));
+      return;
+    }
+    const label = cleanupGlossaryCandidateLabel(rawLabel);
+    if (!shouldKeepGlossaryCandidate(label, knownLabels)) return;
+    const normalizedLabel = normalizeGlossaryCandidateLabel(label);
+    if (!found.has(normalizedLabel)) {
+      found.set(normalizedLabel, {
+        label,
+        normalizedLabel,
+        exampleText: exampleText.trim().slice(0, 240),
+      });
+    }
+  };
+  for (const match of text.matchAll(PAREN_TERM_PATTERN)) {
+    push(match[1] ?? "", text);
+    push(match[2] ?? "", text);
+  }
+  for (const match of text.matchAll(JAPANESE_TERM_PATTERN)) {
+    push(match[0] ?? "", text);
+  }
+  return Array.from(found.values()).slice(0, Math.max(0, maxCandidates));
+}
+
+export async function logGlossaryTermCandidatesFromAiOutput(options: {
+  textBlocks: string[];
+  lang?: string;
+  scopeTags?: string[];
+  sourceKind?: string;
+  sourceId?: string;
+  visitId?: string | null;
+  occurrenceId?: string | null;
+  aiRunId?: string | null;
+  assessmentId?: string | null;
+  client?: GlossaryQueryable;
+}): Promise<GlossaryCandidateLogResult> {
+  const lang = options.lang ?? "ja";
+  if (lang !== "ja") return { candidateCount: 0, labels: [] };
+  const text = options.textBlocks
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .join("\n");
+  if (!text) return { candidateCount: 0, labels: [] };
+  const scopeTags = options.scopeTags?.length ? options.scopeTags : ["observation"];
+  const knownTerms = await getGlossaryTermsForScope({ lang, scopeTags });
+  const candidates = extractGlossaryTermCandidatesFromText(text, knownTerms);
+  if (candidates.length === 0) return { candidateCount: 0, labels: [] };
+  const db = options.client ?? getPool();
+  try {
+    for (const candidate of candidates) {
+      await db.query(
+        `INSERT INTO glossary_term_candidates (
+           lang, label, normalized_label, example_text, source_kind, source_id,
+           visit_id, occurrence_id, ai_run_id, assessment_id, scope_tags
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6,
+           $7, $8, $9::uuid, $10::uuid, $11::text[]
+         )
+         ON CONFLICT (lang, normalized_label) DO UPDATE
+         SET label = EXCLUDED.label,
+             example_text = EXCLUDED.example_text,
+             source_kind = EXCLUDED.source_kind,
+             source_id = EXCLUDED.source_id,
+             visit_id = EXCLUDED.visit_id,
+             occurrence_id = EXCLUDED.occurrence_id,
+             ai_run_id = EXCLUDED.ai_run_id,
+             assessment_id = EXCLUDED.assessment_id,
+             scope_tags = EXCLUDED.scope_tags,
+             seen_count = glossary_term_candidates.seen_count + 1,
+             last_seen_at = NOW()
+         WHERE glossary_term_candidates.status = 'pending'`,
+        [
+          lang,
+          candidate.label,
+          candidate.normalizedLabel,
+          candidate.exampleText,
+          options.sourceKind ?? "ai_observation",
+          options.sourceId ?? options.assessmentId ?? "",
+          options.visitId ?? null,
+          options.occurrenceId ?? null,
+          options.aiRunId ?? null,
+          options.assessmentId ?? null,
+          scopeTags,
+        ],
+      );
+    }
+    return { candidateCount: candidates.length, labels: candidates.map((candidate) => candidate.label) };
+  } catch {
+    return { candidateCount: 0, labels: [] };
   }
 }
 

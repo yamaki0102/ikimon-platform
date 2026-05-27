@@ -48,6 +48,7 @@ import {
 } from "./aiJudgementObservationRecords.js";
 import { lookupLocalTaxonName } from "./taxonNameNormalizer.js";
 import { normalizeBiologicalSubjectCandidate } from "./biologicalSubjectGate.js";
+import { logGlossaryTermCandidatesFromAiOutput } from "./glossaryTerms.js";
 
 export type ReassessResult = {
   aiRunId: string;
@@ -1983,6 +1984,32 @@ export async function reassessObservation(
       parsed.candidate_readings = parsed.candidate_readings.map(enrichCandidateReadingName);
     }
     const candidateReadings = Array.isArray(parsed.candidate_readings) ? parsed.candidate_readings : [];
+    const glossaryCandidateTextBlocks = [
+      narrative,
+      simple,
+      String(parsed.observer_boost ?? "").trim(),
+      String(parsed.next_step_text ?? "").trim(),
+      String(parsed.stop_reason ?? "").trim(),
+      String(parsed.fun_fact ?? "").trim(),
+      String(parsed.geographic_context ?? "").trim(),
+      String(parsed.seasonal_context ?? "").trim(),
+      ...diagFeatures,
+      ...missing,
+      ...distinguishing,
+      ...confirmMore,
+      ...AREA_INFERENCE_KEYS.flatMap((key) => (areaInference[key] ?? []).flatMap((candidate) => [candidate.label, candidate.why])),
+      ...managementActionCandidates.flatMap((candidate) => [candidate.label, candidate.why]),
+      ...shotSuggestions.flatMap((suggestion) => [suggestion.target, suggestion.rationale]),
+      ...candidateReadings.flatMap((reading) => [
+        ...(Array.isArray(reading.visible_features) ? reading.visible_features : []),
+        ...(Array.isArray(reading.weak_points) ? reading.weak_points : []),
+        ...(Array.isArray(reading.shooting_tips) ? reading.shooting_tips : []),
+        String(reading.regional_read ?? "").trim(),
+        String(reading.size_assessment?.ranking_hint ?? "").trim(),
+        String(reading.size_assessment?.basis ?? "").trim(),
+        String(reading.size_assessment?.hedge ?? "").trim(),
+      ]),
+    ].filter((value) => typeof value === "string" && value.trim().length > 0);
     const candidateReadingByKey = new Map<string, GeminiCandidateReading>();
     const registerCandidateReading = (reading: GeminiCandidateReading): void => {
       const rank = normalizeRank(reading.rank);
@@ -2830,6 +2857,18 @@ export async function reassessObservation(
     }
 
     await client.query("commit");
+
+    await logGlossaryTermCandidatesFromAiOutput({
+      textBlocks: glossaryCandidateTextBlocks,
+      lang: "ja",
+      scopeTags: ["observation"],
+      sourceKind: "observation_reassess",
+      sourceId: assessmentId,
+      visitId: target.visitId,
+      occurrenceId: target.primaryOccurrenceId,
+      aiRunId: aiRun.aiRunId,
+      assessmentId,
+    }).catch(() => ({ candidateCount: 0, labels: [] }));
 
     const result: ReassessResult = {
       aiRunId: aiRun.aiRunId,
