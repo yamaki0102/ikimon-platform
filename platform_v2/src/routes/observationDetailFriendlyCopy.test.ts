@@ -74,7 +74,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "写真・動画",
     "写っているもの",
     "候補を確かめる材料",
-    "この記録のいいところ",
+    "AI解説を作成中です",
     "見えている特徴",
     "弱い点",
     "地域との読み",
@@ -178,6 +178,7 @@ test("observation detail primary copy does not expose internal record terms", ()
     "映像フレームから拾えている手がかり",
     "名前の記録",
     "現場アドバイス",
+    "この記録のいいところ",
   ]) {
     assert.doesNotMatch(detailCopySource, new RegExp(term));
   }
@@ -244,28 +245,20 @@ test("observation detail hero readout keeps scene candidates out of identificati
   const registrationSource = sourceBetween("export async function registerReadRoutes", "const canonicalDetailPath");
 
   assert.match(readoutSource, /bundle: ObservationVisitBundle \| null = null/);
-  assert.match(readoutSource, /renderHeroSceneCandidateTargets\(subject, bundle\)/);
   assert.match(readoutSource, /renderNoAssessmentCandidateReadout\(subject, hasOpenDispute, bundle, groundingAssets, glossaryTerms\)/);
-  assert.match(readoutSource, /obs-ai-detail-box/);
-  assert.match(readoutSource, /candidateReadingMap\(bundle\)/);
-  assert.match(readoutSource, /findCandidateReading\(readingMap/);
-  assert.match(readoutSource, /fallbackCandidateReadingForSubject/);
-  assert.match(readoutSource, /obs-ai-merged-row/);
-  assert.match(readoutSource, /obs-ai-merged-label">根拠/);
-  assert.match(readoutSource, /sourceReading\.visibleFeatures/);
-  assert.match(readoutSource, /sourceReading\.weakPoints/);
-  assert.match(readoutSource, /sourceReading\.shootingTips/);
-  assert.match(readoutSource, /renderAiSizeSummary\(sourceReading\.sizeAssessment\)/);
-  assert.match(readoutSource, /renderAiTaxonStory\(null, candidateName, sourceReading\.scientificName \|\| subject\.scientificName\)/);
+  assert.match(readoutSource, /AI解説を作成中です/);
+  assert.match(readoutSource, /写真・動画を読み込んでいます/);
+  assert.doesNotMatch(readoutSource, /candidateReadingMap\(bundle\)/);
+  assert.doesNotMatch(readoutSource, /findCandidateReading\(readingMap/);
+  assert.doesNotMatch(readoutSource, /fallbackCandidateReadingForSubject/);
+  assert.doesNotMatch(readoutSource, /obs-ai-detail-box/);
+  assert.doesNotMatch(readoutSource, /同じ場面内の名前候補として残っています/);
   assert.match(readoutSource, /subjectIdentificationName\(subject\)/);
   assert.match(readoutSource, /isWeakIdentificationCandidateName\(directCandidateName\) && identificationName \? identificationName : directCandidateName/);
   assert.match(readoutSource, /lookupLocalTaxonName\(candidateName\)\?\.scientificName/);
   assert.match(readoutSource, /renderAiTaxonStory\(insight, candidateName, subject\.scientificName \|\| aiAssessment\.recommendedScientificName \|\| fallbackScientificName\)/);
-  assert.match(readoutSource, /確かめる点/);
-  assert.match(readoutSource, /追加で見る点/);
   assert.match(readoutSource, /sceneTargets \|\| currentTarget/);
   assert.match(readoutSource, /!localNameCandidates && isIdentificationTabSubject\(subject\)/);
-  assert.match(readoutSource, /同じ場面内の名前候補として残っています/);
   assert.doesNotMatch(readoutSource, /<p class="obs-hint-eyebrow">名前のいま/);
   assert.match(registrationSource, /nameStatusBlock: renderHeroAiReadout\(currentSubject,[\s\S]*?insight, bundle, groundingAssets, glossaryTerms\)/);
   assert.match(registrationSource, /data-subject-ai-readout-template=[\s\S]*?renderHeroAiReadout\(subject,[\s\S]*?bundle, groundingAssets, glossaryTerms\)/);
@@ -464,7 +457,7 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
   assert.match(html, /data-ai-candidate-index="2" data-ai-candidate-total="3"/);
   assert.match(html, /Ligustrum lucidum/);
   assert.match(html, /AIが主に見たところ/);
-  assert.match(html, /この記録のいいところ/);
+  assert.doesNotMatch(html, /この記録のいいところ/);
   assert.match(html, /つやのある緑色の葉が見えていて、次に比べる手がかりになります。/);
   assert.match(html, /data-ai-grounding-asset="asset-main-photo"/);
   assert.match(html, /画像1/);
@@ -483,6 +476,20 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
 
   assert.match(twoClueHtml, /つやのある緑色の葉、明るい葉脈が写っていて、あとで比べる手がかりが残っています。/);
   assert.doesNotMatch(twoClueHtml, /候補を確かめる材料/);
+
+  const mergedInsight = renderObservationRecordInsightText({
+    snapshot: {
+      observedAt: "2026-05-29T19:12:00.000Z",
+      municipality: "浜松市浜名区",
+      publicLocation: null,
+    } as never,
+    subject: twoClueSubject,
+    recordItems: [],
+    placeLabel: "浜松市浜名区",
+  });
+
+  assert.match(mergedInsight, /つやのある緑色の葉、明るい葉脈が写っていて、あとで比べる手がかりが残っています。/);
+  assert.doesNotMatch(mergedInsight, /この記録のいいところ/);
 });
 
 test("AI candidate tabs have synchronized hero and identification targets", () => {
@@ -518,7 +525,7 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(polishSource, /setAttribute\('aria-current', 'true'\)/);
 });
 
-test("candidate tab status rank follows the visible candidate name", () => {
+test("AI readout stays simple while the assessment is still being created", () => {
   const subject = {
     occurrenceId: "occ-millipede-class",
     displayName: "倍脚綱 (ヤスデ網)",
@@ -553,9 +560,11 @@ test("candidate tab status rank follows the visible candidate name", () => {
 
   const html = renderHeroAiReadout(subject, false, null, bundle);
 
-  assert.match(html, /倍脚綱 \(ヤスデ綱\)<\/span><span class="obs-ai-target-status">綱 \/ 確認待ち<\/span>/);
-  assert.match(html, /オビヤスデ目の一種<\/span><span class="obs-ai-target-status">目 \/ 確認待ち<\/span>/);
-  assert.doesNotMatch(html, /倍脚綱 \(ヤスデ綱\)<\/span><span class="obs-ai-target-status">目 \/ 確認待ち<\/span>/);
+  assert.match(html, /AI解説を作成中です/);
+  assert.match(html, /写真・動画を読み込んでいます/);
+  assert.doesNotMatch(html, /同じ場面内の名前候補として残っています/);
+  assert.doesNotMatch(html, /data-ai-target/);
+  assert.doesNotMatch(html, /obs-ai-detail-box/);
 });
 
 test("owner-only controls stay compact and avoid support-card copy", () => {
@@ -1531,39 +1540,15 @@ test("AI readout rendered contract follows the snapshot-like candidate order", (
   assert.doesNotMatch(visibleTextFromHtml(primaryHtml), /Rubus parvifolius\s+Rubus parvifolius/);
 
   assertVisibleTermsInOrder(akamigashiwaHtml, [
-    "ナワシロイチゴ",
-    "確認待ち",
-    "アカメガシワ",
-    "確認待ち",
-    "カタバミ属",
-    "確認待ち",
-    "根拠",
-    "大きな葉の形状",
-    "アカメガシワを知る",
-    "Mallotus japonicus",
-    "端末の声で読む",
-    "確かめる点",
-    "全景が不明瞭",
-    "追加で見る点",
-    "葉の全体像と枝の付き方を撮る",
+    "AI解説を作成中です",
+    "写真・動画を読み込んでいます",
   ]);
   assertVisibleTermsInOrder(katabamiHtml, [
-    "ナワシロイチゴ",
-    "確認待ち",
-    "アカメガシワ",
-    "確認待ち",
-    "カタバミ属",
-    "確認待ち",
-    "根拠",
-    "地表の小さな3出複葉",
-    "カタバミ属を知る",
-    "Oxalis",
-    "端末の声で読む",
-    "確かめる点",
-    "花や果実の未確認",
-    "追加で見る点",
-    "花の色彩と形を近くからで撮る",
+    "AI解説を作成中です",
+    "写真・動画を読み込んでいます",
   ]);
+  assert.doesNotMatch(akamigashiwaHtml, /同じ場面内の名前候補として残っています|確かめる点|追加で見る点/);
+  assert.doesNotMatch(katabamiHtml, /同じ場面内の名前候補として残っています|確かめる点|追加で見る点/);
 });
 
 test("AI readout rendered contract covers the kawarahiwa video classification lane", () => {
