@@ -354,7 +354,7 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
       qualityScore: frame.selection.qualityScore,
     })),
     audioInputs,
-    promptVersion: "observation_reassess.md/v5.6+video_adaptive_frames_audio",
+    promptVersion: "observation_reassess.md/v5.7+video_adaptive_frames_audio",
     sourceTag: "video_adaptive_frames",
   });
 

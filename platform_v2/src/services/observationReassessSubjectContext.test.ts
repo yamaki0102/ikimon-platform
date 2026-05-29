@@ -74,7 +74,7 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
   assert.match(prompt, /shot_suggestions\.rationale は成果で書く/);
   assert.match(prompt, /残ると何ができるか/);
   assert.match(prompt, /季節や別地点の記録と比べやすくなる/);
-  assert.match(service, /observation_reassess\.md\/v5\.6/);
+  assert.match(service, /observation_reassess\.md\/v5\.7/);
   assert.match(service, /function normalizeShotSuggestionRationale/);
   assert.match(service, /花の形や割れ方を後から見比べられて/);
   assert.match(service, /上流AIが species と言っていても/);

@@ -74,6 +74,7 @@ test("observation detail page keeps the friendly observation vocabulary", () => 
     "写真・動画",
     "写っているもの",
     "候補を確かめる材料",
+    "この記録のいいところ",
     "見えている特徴",
     "弱い点",
     "地域との読み",
@@ -463,6 +464,8 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
   assert.match(html, /data-ai-candidate-index="2" data-ai-candidate-total="3"/);
   assert.match(html, /Ligustrum lucidum/);
   assert.match(html, /AIが主に見たところ/);
+  assert.match(html, /この記録のいいところ/);
+  assert.match(html, /つやのある緑色の葉が見えていて、次に比べる手がかりになります。/);
   assert.match(html, /data-ai-grounding-asset="asset-main-photo"/);
   assert.match(html, /画像1/);
   assert.match(html, /左上/);
