@@ -1146,9 +1146,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-grounding-shot small { color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 820; }
   .obs-ai-grounding.is-empty { background: rgba(248,250,252,.8); border-color: rgba(15,23,42,.08); }
   .obs-ai-grounding-empty { margin: 0; color: #64748b; font-size: 10.8px; line-height: 1.45; font-weight: 760; }
-  .obs-ai-positive { margin: 0; display: grid; gap: 3px; padding: 10px 11px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f0fdfa); border: 1px solid rgba(16,185,129,.18); }
-  .obs-ai-positive strong { color: #047857; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; }
-  .obs-ai-positive span { color: #0f172a; font-size: 12.2px; line-height: 1.55; font-weight: 820; }
+  .obs-ai-pending { margin: 0; display: grid; gap: 3px; padding: 10px 11px; border-radius: 13px; background: rgba(248,250,252,.84); border: 1px solid rgba(15,23,42,.08); }
+  .obs-ai-pending strong { color: #0f766e; font-size: 11.5px; line-height: 1.25; font-weight: 950; }
+  .obs-ai-pending span { color: #475569; font-size: 12px; line-height: 1.55; font-weight: 760; }
   .obs-ai-detail { display: grid; gap: 8px; padding-top: 1px; }
   .obs-ai-detail[hidden] { display: none; }
   .obs-ai-detail-lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin: 0; color: #334155; font-size: 11.5px; line-height: 1.5; font-weight: 760; white-space: normal; }
@@ -3560,84 +3560,18 @@ function renderAiCandidateDetailPanels(
 
 function renderNoAssessmentCandidateReadout(
   subject: ObservationVisitSubject,
-  hasOpenDispute: boolean,
+  _hasOpenDispute: boolean,
   bundle: ObservationVisitBundle | null,
   groundingAssets: AiGroundingAsset[] = [],
   glossaryTerms: GlossaryTermHint[] = [],
 ): string {
-  const sceneTargets = renderHeroSceneCandidateTargets(subject, bundle) || renderHeroAiCandidateTargets(bundle);
-  const candidateName = observationDetailUiName(subject.displayName || subject.vernacularName || subject.scientificName || "名前確認中");
-  const statusLabel = hasOpenDispute ? "確認中" : subject.identifications.length > 0 ? "確認あり" : "確認待ち";
-  const statusClass = subject.identifications.length > 0 ? " is-confirmed" : "";
-  const readingMap = bundle ? candidateReadingMap(bundle) : new Map<string, CandidateReading>();
-  const sourceReading = findCandidateReading(readingMap, [
-    candidateName,
-    subject.displayName,
-    subject.vernacularName,
-    subject.scientificName,
-    subject.aiCandidateName,
-  ]) ?? fallbackCandidateReadingForSubject({
-    name: candidateName,
-    roleLabel: subject.roleLabel,
-    rank: subject.rank ?? subject.aiCandidateRank,
-    focusReason: subject.focusReason,
-  });
-  const clues = (sourceReading.visibleFeatures?.length ? sourceReading.visibleFeatures : [subject.focusReason || ""])
-    .map((feature) => friendlyObservationText(feature, 48))
-    .filter(Boolean)
-    .slice(0, 3);
-  const cluePills = clues.length > 0
-    ? `<div class="obs-ai-merged-row"><div class="obs-ai-merged-label">根拠</div><div class="obs-ai-merged-pills">${clues.map((feature) => `<span>${renderGlossaryText(feature.replace(/（.*?）/gu, ""), glossaryTerms)}</span>`).join("")}</div></div>`
-    : "";
-  const weakPoints = (sourceReading.weakPoints ?? [])
-    .map((item) => friendlyObservationText(item, 92))
-    .filter(Boolean)
-    .slice(0, 3);
-  const shootingTips = (sourceReading.shootingTips ?? [])
-    .map((item) => friendlyObservationText(item, 72))
-    .filter(Boolean)
-    .slice(0, 3);
-  const sizeCard = renderAiSizeSummary(sourceReading.sizeAssessment);
-  const story = renderAiTaxonStory(null, candidateName, sourceReading.scientificName || subject.scientificName);
-  const evidenceRows = weakPoints.length > 0
-    ? weakPoints.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")
-    : `<li><span>${escapeHtml(candidateName)} は同じ場面内の名前候補として残っています。写真と人の確認で補います。</span></li>`;
-  const shootingRows = shootingTips.length > 0
-    ? `<div class="obs-ai-detail-box">
-        <div class="obs-ai-detail-label">追加で見る点</div>
-        <ul class="obs-ai-detail-list">${shootingTips.map((item) => `<li><span>${renderGlossaryText(item, glossaryTerms)}</span></li>`).join("")}</ul>
-      </div>`
-    : "";
-  const currentTarget = !sceneTargets && isIdentificationTabSubject(subject)
-    ? `<div class="obs-ai-target-list obs-ai-primary-targets" aria-label="AIが見ている候補">
-      <button class="obs-ai-target-chip" type="button" data-ai-target="${escapeHtml(subject.occurrenceId)}" aria-pressed="true">
-        <span>${escapeHtml(candidateName)}</span><span class="obs-ai-target-status${statusClass}">${escapeHtml(statusLabel)}</span>
-      </button>
-    </div>`
-    : "";
-  const summary = hasOpenDispute
-    ? "別の名前の提案があるため、候補が固まるまで断定しません。"
-    : sourceReading.regionalRead
-      ? friendlyObservationText(sourceReading.regionalRead, 96)
-      : `${candidateName} は同じ場面内の名前候補として残っています。詳しい根拠は写真と人の確認で補います。`;
+  const candidatePanels = renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms);
   return `<section class="obs-ai-readout obs-ai-readout-merged is-tent">
-    ${sceneTargets || currentTarget}
-    ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
-      <p class="obs-ai-detail-lead"><strong>${escapeHtml(statusLabel)}</strong><span>${renderGlossaryText(summary, glossaryTerms)}</span></p>
-      ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
-      ${sizeCard}
-      ${story}
-      <div class="obs-ai-detail-grid">
-        <div class="obs-ai-detail-box">
-          <div class="obs-ai-detail-label">確かめる点</div>
-          <ul class="obs-ai-detail-list">${evidenceRows}</ul>
-        </div>
-        ${shootingRows}
-      </div>
+      <p class="obs-ai-pending"><strong>AI解説を作成中です</strong><span>写真・動画を読み込んでいます。少し待つと、この記録の読みがここに出ます。</span></p>
     </div>
-    ${renderAiCandidateDetailPanels(bundle, groundingAssets, glossaryTerms)}
-  </section>${renderAiReadoutInteractionScript()}`;
+    ${candidatePanels}
+  </section>${candidatePanels ? renderAiReadoutInteractionScript() : ""}`;
 }
 
 function renderAiReadoutInteractionScript(): string {
@@ -3728,7 +3662,7 @@ function renderGlossaryHintScript(): string {
 function positiveObservationFeedbackText(subject: ObservationVisitSubject, aiAssessment: AiAssessment): string {
   const explicit = friendlyObservationText(aiAssessment.observerBoost, 78);
   if (explicit) return explicit;
-  const clues = aiAssessment.diagnosticFeaturesSeen
+  const clues = (aiAssessment.diagnosticFeaturesSeen ?? [])
     .map((feature) => friendlyObservationText(feature.replace(/（.*?）/gu, ""), 24))
     .filter(Boolean)
     .slice(0, 2);
@@ -3743,6 +3677,15 @@ function positiveObservationFeedbackText(subject: ObservationVisitSubject, aiAss
     return `${name}として読み始められる材料があり、同じ場所で比べ直しやすい記録です。`;
   }
   return "";
+}
+
+function appendPositiveObservationFeedback(baseText: string, positiveFeedback: string): string {
+  const base = baseText.trim();
+  const positive = positiveFeedback.trim();
+  if (!positive) return base;
+  if (!base) return positive;
+  if (base.includes(positive) || positive.includes(base)) return base;
+  return `${base}${/[。！？!?]$/u.test(base) ? "" : "。"}${positive}`;
 }
 
 export function renderHeroAiReadout(
@@ -3784,18 +3727,14 @@ export function renderHeroAiReadout(
     : "";
   const leadSource = aiAssessment.simpleSummary || aiAssessment.narrative || clues[0] || "";
   const seasonal = aiAssessment.seasonalContext ? stripCandidateNameFromCopy(friendlyObservationText(aiAssessment.seasonalContext, 64), candidateName) : "";
-  const leadText = [
+  const leadText = appendPositiveObservationFeedback([
     stripCandidateNameFromCopy(friendlyObservationText(leadSource, 72), candidateName),
     seasonal && !/季節|繁殖|春|夏|秋|冬|月/.test(leadSource) ? seasonal : "",
-  ].filter(Boolean).join("。");
+  ].filter(Boolean).join("。"), positiveObservationFeedbackText(subject, aiAssessment));
   const compareList = renderAiCompareList(subject, glossaryTerms);
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
   const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
   const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
-  const positiveFeedback = positiveObservationFeedbackText(subject, aiAssessment);
-  const positiveFeedbackBlock = positiveFeedback
-    ? `<p class="obs-ai-positive"><strong>この記録のいいところ</strong><span>${renderGlossaryText(positiveFeedback, glossaryTerms)}</span></p>`
-    : "";
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";
@@ -3806,7 +3745,6 @@ export function renderHeroAiReadout(
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${renderGlossaryText(leadText, glossaryTerms)}</span></p>` : ""}
-      ${positiveFeedbackBlock}
       ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
@@ -7256,24 +7194,28 @@ export function renderObservationRecordInsightText(options: {
   const lifeform = recordInsightLifeform(options.subject, subjectName);
   const place = options.placeLabel || options.snapshot.municipality || options.snapshot.publicLocation?.label || "この場所";
   const season = seasonPhraseFromObservedAt(options.snapshot.observedAt);
+  const positiveFeedback = options.subject.aiAssessment
+    ? positiveObservationFeedbackText(options.subject, options.subject.aiAssessment)
+    : "";
   const hasLowGrass = /低い草丈|草地|草|イネ科|芝/.test(contextText);
   const envParts = [
     /裸地/.test(contextText) ? "裸地" : "",
     /礫|砂礫/.test(contextText) ? "礫" : "",
     /踏圧|踏まれ/.test(contextText) ? "踏圧" : "",
   ].filter(Boolean);
+  let text: string;
   if (lifeform === "bird" && (hasLowGrass || envParts.length > 0)) {
     const foot = [hasLowGrass ? "低い草丈" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
-    return `${subjectName}らしい鳥が、${foot}の近くに写っています。周辺・環境としては${envParts.length > 0 ? envParts.join("・") : "草地の状態"}が読み取れ、${place}${season ? `の草地・${season}` : "の草地"}という条件も、分布や季節感として自然です。踏まれた感じのある草地を季節ごとに重ねて見ると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。`;
-  }
-  if (lifeform === "arthropod") {
+    text = `${subjectName}らしい鳥が、${foot}の近くに写っています。周辺・環境としては${envParts.length > 0 ? envParts.join("・") : "草地の状態"}が読み取れ、${place}${season ? `の草地・${season}` : "の草地"}という条件も、分布や季節感として自然です。踏まれた感じのある草地を季節ごとに重ねて見ると、花の量、虫の来方、草地の保たれ方が地域の変化として見えてきます。`;
+  } else if (lifeform === "arthropod") {
     const foot = [hasLowGrass ? "草地" : "", envParts.length > 0 ? `${envParts.join("・")}が混じる足元` : "足元"].filter(Boolean).join("と");
-    return `${subjectName}らしい小さな動物が、${foot}の状態と一緒に写っています。名前だけでなく、どの場所にいて、まわりの裸地や草地、礫、踏圧とどう接していたかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、足元の湿り気や草地管理の変化と、そこにいる小動物の出方を比べられます。`;
+    text = `${subjectName}らしい小さな動物が、${foot}の状態と一緒に写っています。名前だけでなく、どの場所にいて、まわりの裸地や草地、礫、踏圧とどう接していたかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、足元の湿り気や草地管理の変化と、そこにいる小動物の出方を比べられます。`;
+  } else if (lifeform === "plant") {
+    text = `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
+  } else {
+    text = `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
   }
-  if (lifeform === "plant") {
-    return `${subjectName}らしい植物が、周囲の草や足元の状態と一緒に写っています。名前だけでなく、どこに生え、どのくらい広がり、まわりの裸地や草地とどう接しているかが残る記録です。${place}${season ? `・${season}` : ""}の同じエリアで重ねて見ると、花の量や草地の保たれ方の変化を比べられます。`;
-  }
-  return `${subjectName}らしい対象が、まわりの状態と一緒に残っています。名前だけでなく、${place}${season ? `・${season}` : ""}にどんな場面として現れていたかを後から読み返せる記録です。`;
+  return appendPositiveObservationFeedback(text, positiveFeedback);
 }
 
 function recordReadingAxisLabel(axis: RecordReadingAxis): string {
