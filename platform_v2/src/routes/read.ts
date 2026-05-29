@@ -3733,7 +3733,7 @@ function positiveObservationFeedbackText(subject: ObservationVisitSubject, aiAss
     .filter(Boolean)
     .slice(0, 2);
   if (clues.length >= 2) {
-    return `${clues.join("、")}が写っていて、候補を確かめる材料が残っています。`;
+    return `${clues.join("、")}が写っていて、あとで比べる手がかりが残っています。`;
   }
   if (clues.length === 1) {
     return `${clues[0]}が見えていて、次に比べる手がかりになります。`;

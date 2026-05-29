@@ -470,6 +470,19 @@ test("hero AI readout surfaces concrete taxon candidates when the primary label 
   assert.match(html, /画像1/);
   assert.match(html, /左上/);
   assert.match(html, /枠の確度 86%/);
+
+  const twoClueSubject = {
+    ...subject,
+    aiAssessment: {
+      ...(subject.aiAssessment as NonNullable<ObservationVisitSubject["aiAssessment"]>),
+      assessmentId: "assess-weak-two-clues",
+      diagnosticFeaturesSeen: ["つやのある緑色の葉", "明るい葉脈"],
+    },
+  } as ObservationVisitSubject;
+  const twoClueHtml = renderHeroAiReadout(twoClueSubject, false, null, bundle, [{ assetId: "asset-main-photo", label: "画像1" }]);
+
+  assert.match(twoClueHtml, /つやのある緑色の葉、明るい葉脈が写っていて、あとで比べる手がかりが残っています。/);
+  assert.doesNotMatch(twoClueHtml, /候補を確かめる材料/);
 });
 
 test("AI candidate tabs have synchronized hero and identification targets", () => {
