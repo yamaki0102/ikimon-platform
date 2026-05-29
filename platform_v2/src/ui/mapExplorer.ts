@@ -1392,6 +1392,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaCompleteSeasonLead: props.lang === "ja" ? "四季の入口があります。次は同じ季節の再訪で厚みを出せます。" : props.lang === "es" ? "Ya hay entrada para las cuatro temporadas. Ahora conviene revisitar." : props.lang === "pt-BR" ? "Já há entrada para as quatro estações. Agora vale revisitar." : "All seasons have an entry. Revisit to add depth.",
     areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
     areaEventCreateLabel: props.lang === "ja" ? "このエリアで観察会" : props.lang === "es" ? "Crear salida aquí" : props.lang === "pt-BR" ? "Criar saída aqui" : "Create event here",
+    areaBadgeEventLabel: props.lang === "ja" ? "観察会" : props.lang === "es" ? "Salida" : props.lang === "pt-BR" ? "Saída" : "Event",
+    areaBadgeAlbumLabel: props.lang === "ja" ? "エリア図鑑" : props.lang === "es" ? "Álbum" : props.lang === "pt-BR" ? "Álbum" : "Area album",
     areaEventCreateHint: props.lang === "ja" ? "この範囲を開催エリアにして、観察会と図鑑を育てる" : props.lang === "es" ? "Usa esta área para la salida y su álbum." : props.lang === "pt-BR" ? "Use esta área para a saída e o álbum." : "Use this area for an event and its album.",
     areaPositiveTitleMine: props.lang === "ja" ? "このエリアで見えてきたこと" : props.lang === "es" ? "Lo que se va viendo aquí" : props.lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
     areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
@@ -2174,17 +2176,37 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     features.forEach(function (item) {
       var props = item.feature && item.feature.properties ? item.feature.properties : {};
       var name = String(props.name || COPY.selectedFieldLabel);
-      var el = document.createElement('button');
-      el.type = 'button';
+      var fieldId = String(props.field_id || '');
+      var eventHref = fieldId && eventsNewHrefTemplate
+        ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
+        : '';
+      var albumHref = fieldId
+        ? FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))
+        : '';
+      var actionsHtml = eventHref && albumHref
+        ? '<span class="me-area-badge-actions">' +
+            '<a href="' + escapeHtml(eventHref) + '">' + escapeHtml(COPY.areaBadgeEventLabel) + '</a>' +
+            '<a href="' + escapeHtml(albumHref) + '">' + escapeHtml(COPY.areaBadgeAlbumLabel) + '</a>' +
+          '</span>'
+        : '';
+      var el = document.createElement('div');
       el.className = 'me-area-badge-marker';
       el.setAttribute('aria-label', name + ' ' + item.groups.map(function (group) { return group.label; }).join(' '));
       el.innerHTML =
-        '<strong>' + escapeHtml(name) + '</strong>' +
-        '<span class="me-area-badge-chips">' + item.groups.map(renderAreaBadgeGroup).join('') + '</span>';
-      el.addEventListener('click', function (event) {
+        '<button type="button" class="me-area-badge-main">' +
+          '<strong>' + escapeHtml(name) + '</strong>' +
+          '<span class="me-area-badge-chips">' + item.groups.map(renderAreaBadgeGroup).join('') + '</span>' +
+        '</button>' +
+        actionsHtml;
+      el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
         openAreaFeatureSheet(item.feature, item.center.lat, item.center.lng);
+      });
+      el.querySelectorAll('.me-area-badge-actions a').forEach(function (anchor) {
+        anchor.addEventListener('click', function (event) {
+          event.stopPropagation();
+        });
       });
       var marker = new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
         .setLngLat([item.center.lng, item.center.lat])
@@ -3838,6 +3860,30 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       + '</section>';
   }
 
+  function renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml) {
+    if (!fieldId) return '';
+    var eventHref = eventsNewHrefTemplate
+      ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
+      : '';
+    var albumHref = FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId));
+    if (!eventHref || !albumHref) return '';
+    var metaHtml = sourceLinksHtml || sourceTrustHtml
+      ? '<div class="me-area-primary-actions-meta">' + sourceLinksHtml + sourceTrustHtml + '</div>'
+      : '';
+    return ''
+      + '<div class="me-area-primary-actions">'
+      +   '<a class="me-area-primary-action me-area-primary-action-event" href="' + escapeHtml(eventHref) + '">'
+      +     '<span aria-hidden="true">＋</span>'
+      +     escapeHtml(COPY.areaEventCreateLabel)
+      +   '</a>'
+      +   '<a class="me-area-primary-action me-area-primary-action-album" href="' + escapeHtml(albumHref) + '">'
+      +     '<span aria-hidden="true">□</span>'
+      +     escapeHtml(COPY.areaPublicPageLabel)
+      +   '</a>'
+      +   metaHtml
+      + '</div>';
+  }
+
   function renderAreaSheet(snapshot) {
     var f = (snapshot && snapshot.field) || {};
     var summary = (snapshot && snapshot.observationSummary) || {};
@@ -3856,9 +3902,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sourceLinksHtml = renderAreaSourceLinks(f);
     var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence, f.verificationLabel, f.verificationLevel);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
-    var ctaHref = fieldId && eventsNewHrefTemplate
-      ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
-      : '';
     var followHtml = renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId }));
     var areaMeta = rawLocationLabel + (areaHa ? ' / ' + areaHa : '');
     var heroHtml = renderAreaHero({
@@ -3867,19 +3910,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       meta: areaMeta,
       photo: representativePhoto,
     });
-    // CTA を上に置いて、スクロールせずに「ここで観察会を開く」が見える状態に。
-    var ctaHtml = ctaHref
-      ? ''
-        + '<div class="me-area-sheet-cta">'
-        +   '<a class="me-area-sheet-cta-btn" href="' + escapeHtml(ctaHref) + '">'
-      +     '<span class="me-area-sheet-cta-icon" aria-hidden="true">＋</span>'
-      +     escapeHtml(COPY.areaEventCreateLabel)
-      +   '</a>'
-      +   sourceLinksHtml
-      +   sourceTrustHtml
-      +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
-        + '</div>'
-      : '';
+    var primaryActionsHtml = renderAreaPrimaryActions(fieldId, sourceLinksHtml, sourceTrustHtml);
     var summaryHtml = ''
       + '<div class="me-area-sheet-summary">'
       +   '<div><span>' + escapeHtml(COPY.placeStoryRecent) + '</span><strong>' + escapeHtml(String(summary.totalObservations || 0)) + '</strong></div>'
@@ -3896,10 +3927,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var accessHtml = renderAreaAccessGuidance(f.accessGuidance);
     var storyTabsHtml = renderAreaStoryTabs(snapshot);
     var positiveHtml = renderAreaPositiveFeedback(snapshot, fieldId);
-    var publicPageHtml = fieldId
-      ? '<a class="me-area-public-page" href="' + escapeHtml(FIELDS_ALBUM_TPL.replace('__FIELD_ID__', encodeURIComponent(fieldId))) + '">' + escapeHtml(COPY.areaPublicPageLabel) + '</a>'
-      : '';
-    return heroHtml + positiveHtml + accessHtml + followHtml + publicPageHtml + ctaHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    return heroHtml + primaryActionsHtml + positiveHtml + accessHtml + followHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -6386,7 +6414,7 @@ export const MAP_EXPLORER_STYLES = `
     max-width: 188px;
     box-shadow: 0 12px 30px rgba(15,23,42,.16);
     backdrop-filter: blur(10px);
-    cursor: pointer;
+    cursor: default;
     display: grid;
     gap: 5px;
     text-align: left;
@@ -6397,6 +6425,17 @@ export const MAP_EXPLORER_STYLES = `
     transform: translateY(-2px);
     box-shadow: 0 16px 34px rgba(15,23,42,.2);
     border-color: rgba(13,148,136,.46);
+  }
+  .me-area-badge-main {
+    display: grid;
+    gap: 5px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
   .me-area-badge-marker strong {
     display: -webkit-box;
@@ -6433,6 +6472,43 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-badge-chip-mammal { background: rgba(168,85,247,.14); color: #6b21a8; }
   .me-area-badge-chip-fungi { background: rgba(217,119,6,.14); color: #78350f; }
   .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
+  .me-area-badge-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding-top: 1px;
+  }
+  .me-area-badge-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 4px 6px;
+    border-radius: 7px;
+    border: 1px solid rgba(13,148,136,.18);
+    background: rgba(240,253,250,.92);
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .me-area-badge-actions a:first-child {
+    background: #0f9f7a;
+    border-color: #0f9f7a;
+    color: #fff;
+  }
+  .me-area-badge-actions a:hover {
+    border-color: rgba(13,148,136,.42);
+    background: #ecfdf5;
+    color: #0f766e;
+  }
+  .me-area-badge-actions a:first-child:hover {
+    background: #0f766e;
+    color: #fff;
+  }
 
   .me-search-icon { font-size: 13px; color: #475569; }
   .me-search-input {
@@ -6861,6 +6937,67 @@ export const MAP_EXPLORER_STYLES = `
     text-decoration: none;
     font-size: 12px;
     font-weight: 950;
+  }
+  .me-area-primary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: -2px 0 12px;
+  }
+  .me-area-primary-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(15,118,110,.16);
+    background: #fff;
+    color: #0f766e !important;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 950;
+    letter-spacing: 0;
+    text-align: center;
+  }
+  .me-area-primary-action span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: rgba(15,118,110,.12);
+    font-weight: 950;
+  }
+  .me-area-primary-action-event {
+    border-color: #0f9f7a;
+    background: #0f9f7a;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(15,118,110,.2);
+  }
+  .me-area-primary-action-event span {
+    background: rgba(255,255,255,.2);
+  }
+  .me-area-primary-action:hover {
+    border-color: rgba(15,118,110,.34);
+    background: #ecfdf5;
+    color: #0f766e !important;
+  }
+  .me-area-primary-action-event:hover {
+    background: #0f766e;
+    color: #fff !important;
+  }
+  .me-area-primary-actions-meta {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
   }
   .me-area-story-tabs {
     display: grid;
@@ -7610,6 +7747,9 @@ export const MAP_EXPLORER_STYLES = `
   .me-visited-chip:focus-visible,
   .me-visited-sort button:focus-visible,
   .me-overlap-choice-btn:focus-visible,
+  .me-area-badge-main:focus-visible,
+  .me-area-badge-actions a:focus-visible,
+  .me-area-primary-action:focus-visible,
   .me-year-range:focus-visible,
   .me-result-row:focus-visible,
   .me-filter-toggle:focus-visible,
@@ -7706,6 +7846,11 @@ export const MAP_EXPLORER_STYLES = `
     .me-area-badge-chip {
       min-height: 17px;
       padding: 2px 5px;
+      font-size: 9.5px;
+    }
+    .me-area-badge-actions a {
+      min-height: 22px;
+      padding: 4px 5px;
       font-size: 9.5px;
     }
     .me-locate-fab { bottom: 96px; }

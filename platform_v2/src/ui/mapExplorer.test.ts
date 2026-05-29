@@ -62,6 +62,22 @@ test("area biodiversity badges render as presence-only map markers", () => {
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
 });
 
+test("area map labels and side cards expose event and encyclopedia shortcuts", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /areaBadgeEventLabel/);
+  assert.match(script, /areaBadgeAlbumLabel/);
+  assert.match(script, /観察会/);
+  assert.match(script, /エリア図鑑/);
+  assert.match(script, /me-area-badge-actions/);
+  assert.match(script, /function renderAreaPrimaryActions\(fieldId, sourceLinksHtml, sourceTrustHtml\)/);
+  assert.match(script, /me-area-primary-actions/);
+  assert.match(script, /eventsNewHrefTemplate\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
+  assert.match(script, /FIELDS_ALBUM_TPL\.replace\('__FIELD_ID__', encodeURIComponent\(fieldId\)\)/);
+  assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml/);
+  assert.match(script, /event\.stopPropagation\(\);/);
+});
+
 test("map viewport movement refreshes stale result panels automatically", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
