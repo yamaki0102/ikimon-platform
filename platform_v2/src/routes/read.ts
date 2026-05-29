@@ -1146,6 +1146,9 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-ai-grounding-shot small { color: #64748b; font-size: 9.5px; line-height: 1.2; font-weight: 820; }
   .obs-ai-grounding.is-empty { background: rgba(248,250,252,.8); border-color: rgba(15,23,42,.08); }
   .obs-ai-grounding-empty { margin: 0; color: #64748b; font-size: 10.8px; line-height: 1.45; font-weight: 760; }
+  .obs-ai-positive { margin: 0; display: grid; gap: 3px; padding: 10px 11px; border-radius: 13px; background: linear-gradient(135deg, #ecfdf5, #f0fdfa); border: 1px solid rgba(16,185,129,.18); }
+  .obs-ai-positive strong { color: #047857; font-size: 10.5px; line-height: 1.2; font-weight: 950; letter-spacing: .08em; }
+  .obs-ai-positive span { color: #0f172a; font-size: 12.2px; line-height: 1.55; font-weight: 820; }
   .obs-ai-detail { display: grid; gap: 8px; padding-top: 1px; }
   .obs-ai-detail[hidden] { display: none; }
   .obs-ai-detail-lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; margin: 0; color: #334155; font-size: 11.5px; line-height: 1.5; font-weight: 760; white-space: normal; }
@@ -3722,6 +3725,26 @@ function renderGlossaryHintScript(): string {
   })();</script>`;
 }
 
+function positiveObservationFeedbackText(subject: ObservationVisitSubject, aiAssessment: AiAssessment): string {
+  const explicit = friendlyObservationText(aiAssessment.observerBoost, 78);
+  if (explicit) return explicit;
+  const clues = aiAssessment.diagnosticFeaturesSeen
+    .map((feature) => friendlyObservationText(feature.replace(/（.*?）/gu, ""), 24))
+    .filter(Boolean)
+    .slice(0, 2);
+  if (clues.length >= 2) {
+    return `${clues.join("、")}が写っていて、候補を確かめる材料が残っています。`;
+  }
+  if (clues.length === 1) {
+    return `${clues[0]}が見えていて、次に比べる手がかりになります。`;
+  }
+  const name = observationDetailUiName(aiAssessment.recommendedTaxonName || subject.displayName || "");
+  if (name && !isWeakIdentificationCandidateName(name)) {
+    return `${name}として読み始められる材料があり、同じ場所で比べ直しやすい記録です。`;
+  }
+  return "";
+}
+
 export function renderHeroAiReadout(
   subject: ObservationVisitSubject,
   hasOpenDispute = false,
@@ -3769,6 +3792,10 @@ export function renderHeroAiReadout(
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
   const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
   const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
+  const positiveFeedback = positiveObservationFeedbackText(subject, aiAssessment);
+  const positiveFeedbackBlock = positiveFeedback
+    ? `<p class="obs-ai-positive"><strong>この記録のいいところ</strong><span>${renderGlossaryText(positiveFeedback, glossaryTerms)}</span></p>`
+    : "";
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";
@@ -3779,6 +3806,7 @@ export function renderHeroAiReadout(
     ${cluePills}
     <div class="obs-ai-detail" data-ai-panel="${escapeHtml(subject.occurrenceId)}">
       ${leadText ? `<p class="obs-ai-detail-lead"><strong>${escapeHtml(bandLabel)}</strong><span>${renderGlossaryText(leadText, glossaryTerms)}</span></p>` : ""}
+      ${positiveFeedbackBlock}
       ${renderAiVisualGrounding({ regions: subject.regions, assets: groundingAssets, subjectId: subject.occurrenceId })}
       ${sizeCard}
       ${story}
@@ -4007,7 +4035,10 @@ function renderSubjectHint(
     basePath,
   );
   const hasShotSuggestionsCard = (aiAssessment.shotSuggestions ?? []).length > 0;
-  const boost = "";
+  const boostText = positiveObservationFeedbackText(subject, aiAssessment);
+  const boost = boostText
+    ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">よく残っている点</div><p>${renderGlossaryText(boostText, glossaryTerms)}</p></div>`
+    : "";
   // 構造化された shotSuggestions カードがある時は、自由文 nextStep をたたみ重複を避ける
   const nextShotItems: string[] = [];
   if (aiAssessment.nextStepText) nextShotItems.push(aiAssessment.nextStepText);

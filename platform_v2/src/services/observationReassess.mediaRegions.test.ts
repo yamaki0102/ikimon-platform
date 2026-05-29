@@ -42,3 +42,16 @@ test("reassess media region normalizer defaults missing asset index only for one
     rect: { x: 0.2, y: 0.2, width: 0.2, height: 0.2 },
   }, 1)?.assetIndex, 0);
 });
+
+test("reassess labels each visual part with the asset index before image bytes", () => {
+  const parts = __test__.buildVisualInputParts([
+    { mime: "image/jpeg", b64: "aaa", assetId: "asset-a" },
+    { mime: "image/jpeg", b64: "bbb", assetId: "asset-b" },
+  ]);
+
+  assert.equal(parts.length, 4);
+  assert.deepEqual(parts[0], { text: "入力画像 asset_index=0 asset_id=asset-a" });
+  assert.deepEqual(parts[1], { inlineData: { mimeType: "image/jpeg", data: "aaa" } });
+  assert.deepEqual(parts[2], { text: "入力画像 asset_index=1 asset_id=asset-b" });
+  assert.deepEqual(parts[3], { inlineData: { mimeType: "image/jpeg", data: "bbb" } });
+});
