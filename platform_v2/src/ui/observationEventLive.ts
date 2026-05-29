@@ -18,6 +18,14 @@ const MODE_LABEL: Record<string, string> = {
   ai_quest: "AI クエスト",
 };
 
+function isSoloMicroSession(session: ObservationEventSessionRow): boolean {
+  const config = session.config ?? {};
+  const placeEvent = typeof config.place_event === "object" && config.place_event !== null
+    ? config.place_event as Record<string, unknown>
+    : {};
+  return config.solo_observation === true || placeEvent.event_kind === "solo_micro_observation";
+}
+
 export interface RenderLiveArgs {
   session: ObservationEventSessionRow;
   participantSelfId: string | null;
@@ -28,6 +36,10 @@ export interface RenderLiveArgs {
 export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
   const { session, isOrganizer, guestToken } = args;
   const meter = MODE_METERS[session.primaryMode] ?? MODE_METERS.discovery;
+  const isSolo = isSoloMicroSession(session);
+  const hasTargets = (session.targetSpecies ?? []).length > 0;
+  const meterLabel = isSolo && !hasTargets ? "現地ループ" : meter.label;
+  const meterInitialValue = isSolo && !hasTargets ? "0 / 3 アクション" : `0 / ${hasTargets ? (session.targetSpecies ?? []).length : "—"} ${meter.unit}`;
   const modeBadgeClass = `evt-badge evt-mode-${session.primaryMode === "effort_maximize" ? "effort" : session.primaryMode === "absence_confirm" ? "absence" : session.primaryMode === "ai_quest" ? "quest" : session.primaryMode}`;
 
   const modeSwitcher = EVENT_MODES.map((mode) => {
@@ -42,7 +54,7 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
     : "";
 
   return `
-<section class="evt-live-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-guest-token="${escapeHtml(guestToken ?? "")}" data-primary-mode="${escapeHtml(session.primaryMode)}" data-target-species="${escapeHtml(JSON.stringify(session.targetSpecies ?? []))}">
+<section class="evt-live-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-guest-token="${escapeHtml(guestToken ?? "")}" data-primary-mode="${escapeHtml(session.primaryMode)}" data-target-species="${escapeHtml(JSON.stringify(session.targetSpecies ?? []))}" data-solo-observation="${isSolo ? "true" : "false"}">
 
   <header class="evt-live-topbar">
     <div>
@@ -51,8 +63,8 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
     </div>
     <div class="evt-live-topbar-progress">
       <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--evt-ink-soft);">
-        <span data-evt-meter-label>${escapeHtml(meter.label)}</span>
-        <span data-evt-meter-value>0 / ${(session.targetSpecies ?? []).length || "—"} ${escapeHtml(meter.unit)}</span>
+        <span data-evt-meter-label>${escapeHtml(meterLabel)}</span>
+        <span data-evt-meter-value>${escapeHtml(meterInitialValue)}</span>
       </div>
       <div class="evt-live-progress-bar"><span data-evt-meter-bar style="width:0%"></span></div>
     </div>
@@ -70,6 +82,12 @@ export function renderObservationEventLiveBody(args: RenderLiveArgs): string {
            data-radius-m="${escapeHtml(String(session.locationRadiusM ?? 1000))}"
            data-field-id="${escapeHtml(session.fieldId ?? "")}">
       </div>
+      ${isSolo ? `
+      <div class="evt-solo-cockpit" data-evt-solo-cockpit>
+        <span class="evt-eyebrow">一人観察会 / 半径 ${escapeHtml(String(session.locationRadiusM ?? 80))}メートル</span>
+        <strong>3分止まる → 写真 → 名前不明でも記録</strong>
+        <span>狭い場所では移動量より、同じ地点の見方を変える。</span>
+      </div>` : ""}
       <div class="evt-live-map-overlay">
         <span class="evt-badge evt-mode-discovery">目標: ${targets}</span>
         <div style="margin-left:auto; display:flex; gap:6px;">
@@ -222,6 +240,7 @@ export function observationEventLiveScript(): string {
   if (!root) return;
   const sessionId = root.dataset.sessionId;
   const guestToken = root.dataset.guestToken || null;
+  const isSolo = root.dataset.soloObservation === "true";
   const targetSpeciesRaw = root.dataset.targetSpecies || "[]";
   let targetSpecies = [];
   try { targetSpecies = JSON.parse(targetSpeciesRaw) || []; } catch (_) {}
@@ -279,6 +298,12 @@ export function observationEventLiveScript(): string {
     if (statSpecies) statSpecies.textContent = String(obsState.species.size);
     if (statAbsence) statAbsence.textContent = String(obsState.absence);
     if (meterBar && meterValueEl){
+      if (isSolo && targetSpecies.length === 0) {
+        const done = Math.min(3, obsState.obs + obsState.absence);
+        meterBar.style.width = ((done / 3) * 100) + "%";
+        meterValueEl.textContent = done + " / 3 アクション";
+        return;
+      }
       const total = targetSpecies.length || 1;
       const got = Array.from(obsState.hits).filter(t => targetSpecies.includes(t)).length;
       const pct = Math.min(100, (got / total) * 100);
@@ -383,10 +408,12 @@ export function observationEventLiveScript(): string {
   }
   async function initMap(){
     if (!mapEl) return;
-    const lat = Number(mapEl.dataset.centerLat || 35.0);
-    const lng = Number(mapEl.dataset.centerLng || 138.0);
-    const ml = await ensureMaplibre();
-    if (!ml) return;
+      const lat = Number(mapEl.dataset.centerLat || 35.0);
+      const lng = Number(mapEl.dataset.centerLng || 138.0);
+      const radiusM = Number(mapEl.dataset.radiusM || 1000);
+      const zoom = radiusM <= 100 ? 18 : radiusM <= 250 ? 17 : radiusM <= 700 ? 16 : radiusM <= 1500 ? 15 : 14;
+      const ml = await ensureMaplibre();
+      if (!ml) return;
     map = new ml.Map({
       container: mapEl,
       style: {
@@ -402,7 +429,7 @@ export function observationEventLiveScript(): string {
         layers: [{ id: "gsi", type: "raster", source: "gsi" }]
       },
       center: [lng, lat],
-      zoom: 14,
+      zoom,
       attributionControl: { compact: true },
     });
     map.on("load", async () => {
@@ -641,7 +668,21 @@ export function observationEventLiveScript(): string {
         const pos = await new Promise((res, rej) =>
           navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000 }));
         lat = pos.coords.latitude; lng = pos.coords.longitude;
-      } catch(_) { lat = 35.0; lng = 138.0; }
+      } catch(_) {
+        const fallbackLat = Number(mapEl?.dataset.centerLat);
+        const fallbackLng = Number(mapEl?.dataset.centerLng);
+        lat = Number.isFinite(fallbackLat) ? fallbackLat : null;
+        lng = Number.isFinite(fallbackLng) ? fallbackLng : null;
+      }
+    } else {
+      const fallbackLat = Number(mapEl?.dataset.centerLat);
+      const fallbackLng = Number(mapEl?.dataset.centerLng);
+      lat = Number.isFinite(fallbackLat) ? fallbackLat : null;
+      lng = Number.isFinite(fallbackLng) ? fallbackLng : null;
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      alert("位置を決められませんでした。記録画面から写真つきで残してください。");
+      return;
     }
     const payload = {
       searched_taxon: fd.get("searched_taxon"),
@@ -670,6 +711,8 @@ export function observationEventLiveScript(): string {
     const params = new URLSearchParams();
     if (code) params.set("event", code);
     if (session) params.set("eventSessionId", session);
+    params.set("activityIntent", "share");
+    params.set("start", "photo");
     const url = "/record" + (params.toString() ? "?" + params.toString() : "");
     window.location.href = url;
   });
@@ -687,6 +730,7 @@ export function observationEventLiveScript(): string {
     const params = new URLSearchParams();
     params.set("fieldScanMode", "site_snapshot");
     params.set("activityIntent", "share");
+    params.set("start", "photo");
     if (code) params.set("event", code);
     if (session) params.set("eventSessionId", session);
     const url = "/record?" + params.toString();
