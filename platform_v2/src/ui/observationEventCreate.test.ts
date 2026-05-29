@@ -114,6 +114,20 @@ test("event create flow generates announcement copy from selected place and AI a
   assert.match(script, /suggestTitleFromPlace/);
 });
 
+test("event create flow exposes a solo micro observation preset for narrow field sessions", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+
+  assert.match(html, /data-evt-solo-preset/);
+  assert.match(html, /name="solo_observation"/);
+  assert.match(html, /半径 80m/);
+  assert.match(html, /name="location_radius_m" type="number" min="30"/);
+  assert.match(script, /applySoloPreset/);
+  assert.match(script, /solo_micro_observation/);
+  assert.match(script, /stand_still_3min/);
+  assert.match(script, /location_radius_m.*80/s);
+});
+
 test("event area map keeps a fixed height after MapLibre CSS loads", () => {
   assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-map-shell\s*\{[^}]*height: 360px/s);
   assert.match(OBSERVATION_EVENT_STYLES, /\.evt-area-map-shell > \.evt-area-map\.maplibregl-map\s*\{[^}]*height: 100%/s);

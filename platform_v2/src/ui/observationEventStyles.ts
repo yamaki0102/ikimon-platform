@@ -176,6 +176,21 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-card:hover { transform: translateY(-2px); box-shadow: var(--evt-shadow-md); }
 
+.evt-solo-preset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(16,185,129,.28);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(240,249,255,.86));
+}
+.evt-solo-preset.is-active {
+  border-color: rgba(16,185,129,.52);
+  box-shadow: 0 14px 30px rgba(16,185,129,.14);
+}
+
 .evt-stagger > * { animation: evt-rise var(--evt-motion-slow) both; }
 .evt-stagger > *:nth-child(1) { animation-delay:   0ms; }
 .evt-stagger > *:nth-child(2) { animation-delay:  60ms; }
@@ -287,6 +302,28 @@ export const OBSERVATION_EVENT_STYLES = `
   display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none;
 }
 .evt-live-map-overlay > * { pointer-events: auto; }
+.evt-solo-cockpit {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(16,185,129,.26);
+  box-shadow: 0 10px 28px rgba(15,23,42,.12);
+}
+.evt-solo-cockpit strong {
+  color: var(--evt-ink);
+  font-size: 15px;
+}
+.evt-solo-cockpit span:last-child {
+  color: var(--evt-ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
 
 .evt-live-feed {
   display: flex; flex-direction: column;
@@ -377,6 +414,32 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-live-action-btn[data-mood="absent"]   { background: rgba(15,23,42,.04); color: #1f2937; }
 .evt-live-action-btn[data-mood="role"]     { background: rgba(236,72,153,.08); border-color: rgba(236,72,153,.32); color: #9d174d; }
 .evt-live-action-btn:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+
+.evt-solo-loop-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.evt-solo-loop-grid article {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid rgba(16,185,129,.18);
+  border-radius: 14px;
+  background: rgba(236,253,245,.62);
+}
+.evt-solo-loop-grid span {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #10b981;
+  color: #fff;
+  font-weight: 850;
+}
+.evt-solo-loop-grid strong { color: var(--evt-ink); font-size: 14px; }
+.evt-solo-loop-grid p { margin: 0; color: var(--evt-ink-soft); font-size: 12px; line-height: 1.45; }
 
 /* === Quest カード（中段オーバーレイ） === */
 .evt-quest-card {
@@ -502,6 +565,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-recap-tab {
   padding: 8px 14px; min-height: 40px;
+  min-width: 44px;
   border-radius: 999px;
   background: transparent; border: 0;
   font-weight: 700; font-size: 13px; color: var(--evt-ink-soft);
@@ -771,6 +835,27 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 
 @media (max-width: 720px) {
+  .evt-solo-preset { grid-template-columns: 1fr; }
+  .evt-solo-preset .evt-btn { width: 100%; }
+  .evt-live-topbar {
+    grid-template-columns: 1fr auto;
+  }
+  .evt-live-topbar-progress {
+    grid-column: 1 / -1;
+  }
+  .evt-live-main {
+    grid-template-rows: minmax(240px, 48%) minmax(130px, 26%) auto;
+  }
+  .evt-live-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .evt-live-action-btn {
+    min-height: 58px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+  .evt-solo-loop-grid { grid-template-columns: 1fr; }
   .evt-area-head { grid-template-columns: 1fr; }
   .evt-area-map-shell { height: 320px; min-height: 320px; }
   .evt-area-toolbar .evt-btn { flex: 1 1 auto; }

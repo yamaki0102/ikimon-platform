@@ -43,6 +43,16 @@ export function renderEventCreateBody(args: {
   </article>
 
   <form class="evt-checkin-form" data-evt-create-form>
+    <section class="evt-solo-preset" data-evt-solo-preset-card>
+      <div>
+        <span class="evt-eyebrow">明日の一人観察会</span>
+        <h2 class="evt-heading" style="margin:4px 0 0;">狭い公園を、半径 80m で静かに回る</h2>
+        <p class="evt-lead">タイトル・開始時刻・小さな開催範囲・当日の導線をまとめて整えます。現地では写真記録を最優先にします。</p>
+      </div>
+      <button type="button" class="evt-btn evt-btn-primary" data-evt-solo-preset>一人用に整える</button>
+      <input type="hidden" name="solo_observation" value="" data-evt-solo-observation />
+    </section>
+
     <label>タイトル
       <input name="title" required maxlength="80" placeholder="例: 春の里山観察会" />
     </label>
@@ -84,7 +94,7 @@ export function renderEventCreateBody(args: {
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_guide" checked /> ガイドで見る</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="source_mode_field_scan" checked /> センサースキャン</label>
       <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="public_story_enabled" checked /> 公開用ストーリー下書きを作る</label>
-      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> Gemini Flash-Lite paid/Vertex 前提でAI下書き対象にする</label>
+      <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" name="ai_recap_enabled" checked /> AIで振り返り下書きを作る</label>
     </fieldset>
 
     <fieldset class="evt-area-planner">
@@ -179,7 +189,7 @@ export function renderEventCreateBody(args: {
           </label>
         </div>
         <label>半径(m)
-          <input name="location_radius_m" type="number" min="100" max="50000" value="1000" />
+          <input name="location_radius_m" type="number" min="30" max="50000" value="1000" />
         </label>
         <label>このエリアに名前をつけてフィールド DB に保存
           <input name="new_field_name" placeholder="例: 鎌倉広町緑地（北側エントランス）" />
@@ -227,6 +237,44 @@ export function eventCreateScript(): string {
     startInput.value = d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate())
       + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
+  const soloInput = form.querySelector("[data-evt-solo-observation]");
+  const soloPresetCard = form.querySelector("[data-evt-solo-preset-card]");
+  function formatLocalDateTime(d){
+    const pad = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate())
+      + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function applySoloPreset(){
+    if (soloInput) soloInput.value = "1";
+    soloPresetCard?.classList.add("is-active");
+    const titleI = form.querySelector('[name="title"]');
+    const placeI = form.querySelector('[name="place_label"]');
+    const meetingI = form.querySelector('[name="meeting_point"]');
+    const startI = form.querySelector('[name="started_at"]');
+    const endI = form.querySelector('[name="ended_at"]');
+    const modeI = form.querySelector('[name="primary_mode"]');
+    const radiusI = form.querySelector('[name="location_radius_m"]');
+    const targetI = form.querySelector('[name="target_species"]');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const end = new Date(tomorrow.getTime() + 60 * 60 * 1000);
+    if (titleI && !String(titleI.value || "").trim()) titleI.value = "明日の一人観察会";
+    if (placeI && !String(placeI.value || "").trim()) placeI.value = "近くの公園";
+    if (meetingI && !String(meetingI.value || "").trim()) meetingI.value = "入口付近で開始";
+    if (startI) startI.value = formatLocalDateTime(tomorrow);
+    if (endI) endI.value = formatLocalDateTime(end);
+    if (modeI) modeI.value = "discovery";
+    if (radiusI) radiusI.value = "80";
+    if (targetI && !String(targetI.value || "").trim()) targetI.value = "";
+    if (areaState.center) {
+      setArea(areaState.center, circlePolygon(areaState.center.lat, areaState.center.lng, 80));
+    }
+    refreshAnnouncementDraft(true);
+    setAreaStatus("一人観察会用に半径80mへ寄せました。現在地か地図で中心を決めてください。");
+    if (window.evtFanfare) window.evtFanfare("一人用に整えた");
+  }
+  form.querySelector("[data-evt-solo-preset]")?.addEventListener("click", applySoloPreset);
 
   // ============ field picker ============
   const fieldIdInput = form.querySelector("[data-evt-field-id]");
@@ -1205,7 +1253,9 @@ export function eventCreateScript(): string {
       modeLine,
       safety,
       "",
-      "持ち物: 歩きやすい靴、飲み物、スマートフォン。"
+      (soloInput?.value === "1"
+        ? "当日の流れ: 3分立ち止まる → 1枚撮る → 名前が不明でも記録 → 5分後に少し視点を変える。"
+        : "持ち物: 歩きやすい靴、飲み物、スマートフォン。")
     ].join("\\n");
   }
   function refreshAnnouncementDraft(force){
@@ -1250,6 +1300,7 @@ export function eventCreateScript(): string {
     const templateFrom = pageParams.get("template_from");
     const suggestion = areaState.selectedSuggestion;
     const announcementText = String(form.querySelector("[data-evt-announcement]")?.value || fd.get("announcement_text") || "").trim();
+    const soloObservation = fd.get("solo_observation") === "1";
 
     const payload = {
       title: fd.get("title"),
@@ -1266,6 +1317,7 @@ export function eventCreateScript(): string {
       field_id: fieldResolution.fieldId,
       template_source_session_id: templateFrom || null,
       config: {
+        solo_observation: soloObservation,
         area_plan_source: suggestion?.source || (areaState.polygon ? "manual" : "none"),
         area_plan_variant: suggestion?.id || null,
         area_plan_warnings: suggestion?.warnings || [],
@@ -1275,8 +1327,9 @@ export function eventCreateScript(): string {
         place_event: {
           place_label: String(fd.get("place_label") || "").trim() || null,
           meeting_point: String(fd.get("meeting_point") || "").trim() || null,
-          event_kind: "fixed_place_observation",
+          event_kind: soloObservation ? "solo_micro_observation" : "fixed_place_observation",
           audience: "event_participants",
+          field_loop: soloObservation ? ["stand_still_3min", "photo_first", "unknown_ok", "micro_revisit"] : [],
           consent_policy_version: "place_event_capsule/v1",
           source_modes: [
             fd.get("source_mode_record") === "on" ? "record" : null,

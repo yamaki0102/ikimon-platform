@@ -9,12 +9,21 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function isSoloMicroSession(session: ObservationEventSessionRow): boolean {
+  const config = session.config ?? {};
+  const placeEvent = typeof config.place_event === "object" && config.place_event !== null
+    ? config.place_event as Record<string, unknown>
+    : {};
+  return config.solo_observation === true || placeEvent.event_kind === "solo_micro_observation";
+}
+
 export function renderObservationRallyBody(args: {
   session: ObservationEventSessionRow;
   guestToken: string | null;
   isOrganizer: boolean;
 }): string {
   const { session, guestToken, isOrganizer } = args;
+  const isSolo = isSoloMicroSession(session);
   const consoleLink = isOrganizer
     ? `<a class="evt-btn evt-btn-ghost" href="./console">主催者管制塔</a>`
     : "";
@@ -23,12 +32,14 @@ export function renderObservationRallyBody(args: {
          data-rally-root
          data-session-id="${escapeHtml(session.sessionId)}"
          data-event-code="${escapeHtml(session.eventCode ?? "")}"
-         data-guest-token="${escapeHtml(guestToken ?? "")}">
+         data-guest-token="${escapeHtml(guestToken ?? "")}"
+         data-solo-observation="${isSolo ? "true" : "false"}"
+         data-radius-m="${escapeHtml(String(session.locationRadiusM ?? 80))}">
   <article class="evt-hero" style="display:grid; gap:14px;">
     <div>
-      <span class="evt-hero-eyebrow">観察ラリー</span>
+      <span class="evt-hero-eyebrow">${isSolo ? "一人観察会" : "観察ラリー"}</span>
       <h1>${escapeHtml(session.title || "観察ラリー")}</h1>
-      <p>地点でやることも、どこでも貢献できることも、同じ画面で追えます。</p>
+      <p>${isSolo ? "狭い範囲で、写真・気づき・見つからなかったことを迷わず残します。" : "地点でやることも、どこでも貢献できることも、同じ画面で追えます。"}</p>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       ${consoleLink}
@@ -95,6 +106,8 @@ export function observationRallyScript(): string {
   const sessionId = root.dataset.sessionId;
   const guestToken = root.dataset.guestToken || localStorage.getItem("evt-guest-token") || "";
   const eventCode = root.dataset.eventCode || "";
+  const isSolo = root.dataset.soloObservation === "true";
+  const radiusM = Number(root.dataset.radiusM || 80);
   const liveBars = root.querySelector("[data-rally-live-bars]");
   const missionList = root.querySelector("[data-rally-missions]");
   const stationList = root.querySelector("[data-rally-stations]");
@@ -147,6 +160,32 @@ export function observationRallyScript(): string {
   }
   function render(){
     const missions = (snapshot.missions || []).filter(m => (m.status || "") === "published");
+    if (missions.length === 0 && isSolo) {
+      if (topPercent) topPercent.textContent = "solo";
+      if (nextAction) nextAction.textContent = "まず1枚、名前不明のまま写真で記録する";
+      if (momentum) momentum.textContent = "半径" + Math.round(radiusM) + "mの中で、移動より観察角度を変える。";
+      if (liveBars) {
+        liveBars.innerHTML =
+          '<div class="evt-solo-loop-grid">' +
+            '<article><span>1</span><strong>3分止まる</strong><p>ベンチ・木陰・水辺など、動かずに音と動きを拾う。</p></article>' +
+            '<article><span>2</span><strong>写真を1枚</strong><p>名前が不明でも、対象・周辺・足元のどれかを残す。</p></article>' +
+            '<article><span>3</span><strong>見つからないも記録</strong><p>探した対象がいなければ不在確認で残す。</p></article>' +
+          '</div>';
+      }
+      if (missionList) {
+        missionList.innerHTML =
+          '<article class="evt-card" style="padding:12px; display:grid; gap:8px;">' +
+            '<span class="evt-eyebrow">一人用チェックリスト</span>' +
+            '<h3 class="evt-heading" style="font-size:18px; margin:0;">同じ場所を3つの目で見る</h3>' +
+            '<p class="evt-lead">上・横・足元の順に見て、1つでも気づいたら記録へ進みます。</p>' +
+            '<button type="button" class="evt-btn evt-btn-primary" data-rally-action="record" style="justify-self:start; min-height:38px; padding:7px 14px;">写真記録へ</button>' +
+          '</article>';
+      }
+      if (stationList) {
+        stationList.innerHTML = '<p class="evt-lead">地点固定ミッションがなくても、この画面だけで現地ループを回せます。</p>';
+      }
+      return;
+    }
     const top = missions
       .map(m => ({ m, p: progressFor(missionIdOf(m)) }))
       .sort((a,b) => Number(b.p?.percent || 0) - Number(a.p?.percent || 0))[0];
@@ -221,6 +260,11 @@ export function observationRallyScript(): string {
   root.addEventListener("click", (ev) => {
     const target = ev.target instanceof Element ? ev.target.closest("[data-rally-submit]") : null;
     if (target) void submitMission(target.getAttribute("data-rally-submit"));
+    const actionBtn = ev.target instanceof Element ? ev.target.closest("[data-rally-action]") : null;
+    if (actionBtn) {
+      ev.preventDefault();
+      runRallyAction(actionBtn.getAttribute("data-rally-action"));
+    }
   });
   root.querySelector("[data-rally-refresh]")?.addEventListener("click", () => void loadSnapshot());
   root.querySelector("[data-rally-location-start]")?.addEventListener("click", () => {
@@ -245,19 +289,22 @@ export function observationRallyScript(): string {
     }, () => undefined, { enableHighAccuracy: false, maximumAge: 30000, timeout: 8000 });
     if (window.evtFanfare) window.evtFanfare("開催中の位置共有を開始");
   });
-  root.querySelectorAll("[data-rally-action]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const action = btn.getAttribute("data-rally-action");
+  function runRallyAction(action){
       const params = new URLSearchParams();
       if (eventCode) params.set("event", eventCode);
       params.set("eventSessionId", sessionId);
       params.set("rally", "1");
+      params.set("activityIntent", "share");
       if (action === "guide") window.location.href = "/guide?" + params.toString();
       else if (action === "scan") {
         params.set("fieldScanMode", "site_snapshot");
-        params.set("activityIntent", "share");
+        params.set("start", "photo");
         window.location.href = "/record?" + params.toString();
       } else if (action === "help") {
+        if (isSolo) {
+          alert("一人観察会では、迷ったら同じ場所で3分止まってから写真記録に戻る。危険なら中止してください。");
+          return;
+        }
         fetch("/api/v1/observation-events/" + sessionId + "/announce", {
           method: "POST",
           credentials: "include",
@@ -265,10 +312,10 @@ export function observationRallyScript(): string {
           body: JSON.stringify({ message: "ヘルプ要請がありました" }),
         }).catch(() => undefined);
       } else {
+        params.set("start", "photo");
         window.location.href = "/record?" + params.toString();
       }
-    });
-  });
+  }
   function handleLive(row){
     if (String(row.type || "").startsWith("rally_")) {
       void loadSnapshot();

@@ -39,4 +39,24 @@ test("rally participant screen mixes bound and unbound missions without navigati
   assert.match(script, /none: "どこでも"/);
   assert.match(script, /rally_goal_exceeded/);
   assert.match(script, /\/api\/v1\/observation-events\/" \+ sessionId \+ "\/location/);
+  assert.match(script, /params\.set\("start", "photo"\)/);
+});
+
+test("rally participant screen has a solo fallback loop when no missions exist", () => {
+  const html = renderObservationRallyBody({
+    session: {
+      ...session,
+      config: { solo_observation: true, place_event: { event_kind: "solo_micro_observation" } },
+      locationRadiusM: 80,
+    },
+    guestToken: "guest-1",
+    isOrganizer: false,
+  });
+  const script = observationRallyScript();
+
+  assert.match(html, /data-solo-observation="true"/);
+  assert.match(html, /一人観察会/);
+  assert.match(script, /まず1枚、名前不明のまま写真で記録する/);
+  assert.match(script, /evt-solo-loop-grid/);
+  assert.match(script, /危険なら中止/);
 });

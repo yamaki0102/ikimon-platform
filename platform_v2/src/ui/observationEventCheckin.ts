@@ -14,6 +14,14 @@ const MODE_LABEL: Record<string, string> = {
   ai_quest: "AI クエスト",
 };
 
+function isSoloMicroSession(session: ObservationEventSessionRow): boolean {
+  const config = session.config ?? {};
+  const placeEvent = typeof config.place_event === "object" && config.place_event !== null
+    ? config.place_event as Record<string, unknown>
+    : {};
+  return config.solo_observation === true || placeEvent.event_kind === "solo_micro_observation";
+}
+
 interface TeamLite {
   teamId: string;
   name: string;
@@ -29,12 +37,13 @@ export interface RenderCheckinArgs {
 
 export function renderCheckinBody(args: RenderCheckinArgs): string {
   const { session, teams, isAuthenticated } = args;
+  const isSolo = isSoloMicroSession(session);
   const targets = (session.targetSpecies ?? []).slice(0, 8).map(escapeHtml).join("、") || "未設定";
 
   const teamCards = teams.length === 0
-    ? `<div class="evt-card">
-         <span class="evt-eyebrow">班</span>
-         <p class="evt-lead" style="margin-top:4px;">主催者がまだ班を作成していません。後で参加できます。</p>
+    ? `<div class="evt-card ${isSolo ? "evt-solo-empty-team" : ""}">
+         <span class="evt-eyebrow">${isSolo ? "一人観察会" : "班"}</span>
+         <p class="evt-lead" style="margin-top:4px;">${isSolo ? "班分けなしで開始します。現地では写真記録と不明メモを優先します。" : "主催者がまだ班を作成していません。後で参加できます。"}</p>
        </div>`
     : teams.map((t) => `
         <label class="evt-checkin-team-card" data-team-card>
@@ -47,9 +56,9 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
         </label>`).join("");
 
   return `
-<section class="evt-checkin-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}">
+<section class="evt-checkin-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-solo-observation="${isSolo ? "true" : "false"}">
   <header>
-    <span class="evt-eyebrow">チェックイン</span>
+    <span class="evt-eyebrow">${isSolo ? "一人観察会チェックイン" : "チェックイン"}</span>
     <h1 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "観察会に参加")}</h1>
     <p class="evt-lead">「${escapeHtml(MODE_LABEL[session.primaryMode] ?? "発見")}」モードで進行中。目標: ${targets}</p>
   </header>
@@ -67,8 +76,8 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
     </fieldset>
 
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
-      <input type="checkbox" name="share_location" checked />
-      <span>開催中だけ、主催者に現在地を共有</span>
+      <input type="checkbox" name="share_location" ${isSolo ? "" : "checked"} />
+      <span>${isSolo ? "開催範囲の補助として現在地を使う" : "開催中だけ、主催者に現在地を共有"}</span>
     </label>
     <label style="display:flex; gap:8px; align-items:center; min-height:44px;">
       <input type="checkbox" name="is_minor" />
@@ -97,6 +106,7 @@ export function checkinScript(): string {
   const root = document.querySelector(".evt-checkin-shell");
   if (!root) return;
   const sessionId = root.dataset.sessionId;
+  const isSolo = root.dataset.soloObservation === "true";
   const teamCards = root.querySelectorAll("[data-team-card]");
   teamCards.forEach(card => {
     const input = card.querySelector('input[name="team_id"]');
@@ -147,7 +157,7 @@ export function checkinScript(): string {
     }
     if (window.evtFanfare) window.evtFanfare("ようこそ!");
     setTimeout(() => {
-      window.location.href = "../../events/" + sessionId + "/rally";
+      window.location.href = "/events/" + sessionId + (isSolo ? "/live" : "/rally") + (guestToken ? "?token=" + encodeURIComponent(guestToken) : "");
     }, 600);
   });
 })();
