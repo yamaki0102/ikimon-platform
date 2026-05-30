@@ -123,6 +123,31 @@ function snapshotWithAlbumRecord(): AreaPlaceSnapshot {
   } as unknown as AreaPlaceSnapshot;
 }
 
+function snapshotWithManyCurrentSignals(): AreaPlaceSnapshot {
+  const base = snapshotWithAlbumRecord();
+  return {
+    ...base,
+    observationGallery: ["ツルニチニチソウ", "ヤマトシジミ", "スズメ", "シロツメクサ", "ヒメジョオン", "カタバミ"].map((name, index) => ({
+      occurrenceId: `occ:record-${index}:1`,
+      visitId: `record-${index}`,
+      displayName: name,
+      observedAt: "2026-05-20T10:30:00.000Z",
+      photoUrl: "/uploads/photos/sample.jpg",
+      localityLabel: "静岡市 / 静岡県",
+      observationCount: 1,
+      recentObservationCount: 1,
+      likeCount: 0,
+      season: "spring",
+      seasonLabel: "春",
+      isCurrentSeason: true,
+      visibility: "public",
+      privacyLabel: null,
+      privacyReason: null,
+      shareAllowed: true,
+    })),
+  } as unknown as AreaPlaceSnapshot;
+}
+
 test("field detail metrics use place snapshot observations when event stats are empty", () => {
   const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshot() });
 
@@ -153,6 +178,28 @@ test("field detail map hero stays compact on desktop", () => {
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(340px, 36vw, 430px\);/);
   assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: clamp\(480px, 58vw, 660px\);/);
   assert.match(FIELD_DETAIL_ALBUM_STYLES, /width: min\(600px, calc\(100% - 32px\)\);/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /\.field-map-hero-copy \{[\s\S]*box-sizing: border-box;/);
+});
+
+test("field detail mobile hero splits map and place copy without taking the full viewport", () => {
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 1020px\) \{[\s\S]*min-height: clamp\(420px, 58vw, 500px\);/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*min-height: 0;[\s\S]*grid-template-rows: clamp\(156px, 42vw, 208px\) auto;/);
+  assert.match(FIELD_DETAIL_ALBUM_STYLES, /@media \(max-width: 720px\) \{[\s\S]*\.field-map-hero-map \{[\s\S]*position: relative;/);
+  assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: 680px;/);
+  assert.doesNotMatch(FIELD_DETAIL_ALBUM_STYLES, /min-height: 620px;/);
+});
+
+test("field detail hero limits current-season signals so place actions stay visible", () => {
+  const html = renderFieldDetailBody({ field: field(), stats: stats(), snapshot: snapshotWithManyCurrentSignals() });
+  const signalsStart = html.indexOf('<div class="field-map-signals"');
+  const signalsEnd = html.indexOf("</div>", signalsStart);
+  const signalsHtml = html.slice(signalsStart, signalsEnd);
+
+  assert.ok(signalsStart >= 0);
+  assert.match(signalsHtml, /ツルニチニチソウ/);
+  assert.match(signalsHtml, /シロツメクサ/);
+  assert.doesNotMatch(signalsHtml, /ヒメジョオン/);
+  assert.doesNotMatch(signalsHtml, /カタバミ/);
 });
 
 test("field detail keeps the hero to two primary actions and moves trust links lower", () => {
