@@ -502,7 +502,8 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const publicVisibility = hasPhoto ? "public" : "review";
   const qualityReviewStatus = hasPhoto ? "accepted" : "needs_review";
   const visitMode = input.visitMode === "survey" ? "survey" : "manual";
-  const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude).catch((err) => {
+  const observedAt = normalizeTimestamp(input.observedAt);
+  const adminLocality = await resolveAdminLocalityForPoint(client, input.latitude, input.longitude, { observedAt }).catch((err) => {
     console.warn("[observationWrite] resolveAdminLocalityForPoint failed", err);
     return null;
   });
@@ -544,7 +545,6 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     municipality: locality.municipality,
     prefecture: locality.prefecture,
   });
-  const observedAt = normalizeTimestamp(input.observedAt);
   const fingerprint = requestFingerprint(input, subjects, observedAt, locality);
   const eventSessionId = (input as unknown as { eventSessionId?: unknown }).eventSessionId;
   const eventCode = (input as unknown as { eventCode?: unknown }).eventCode;
