@@ -1813,7 +1813,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ? '<div class="me-visited-list">' + places.map(function (place, index) {
           var title = String(place.placeName || place.municipality || COPY.selectedFieldLabel);
           var metaParts = [];
-          if (place.municipality) metaParts.push(String(place.municipality));
+          if (place.municipality && String(place.municipality) !== title) metaParts.push(String(place.municipality));
           if (state.visitedPlacesSort === 'seasonal' && Number(place.seasonalVisitCount || 0) > 0) {
             metaParts.push(COPY.visitedSortSeasonal + ' ' + String(place.seasonalVisitCount) + COPY.visitedPlacesVisitSuffix);
           }
