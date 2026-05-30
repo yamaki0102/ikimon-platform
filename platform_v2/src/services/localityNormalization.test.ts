@@ -98,6 +98,30 @@ test("keeps explicit ward-level Japanese municipality labels", () => {
   );
 });
 
+test("uses known Hamamatsu ward labels before overlapping coordinate bboxes", () => {
+  assert.deepEqual(
+    normalizeObservationLocality({
+      prefecture: null,
+      municipality: "浜松市浜名区",
+      latitude: 34.8134,
+      longitude: 137.7319,
+    }),
+    { prefecture: "静岡県", municipality: "浜松市浜名区" },
+  );
+});
+
+test("does not infer Aichi for Hamamatsu coordinates when locality is missing", () => {
+  assert.deepEqual(
+    normalizeObservationLocality({
+      prefecture: null,
+      municipality: null,
+      latitude: 34.8134,
+      longitude: 137.7319,
+    }),
+    { prefecture: "静岡県", municipality: null },
+  );
+});
+
 test("does not treat zero-zero as usable observation coordinates", () => {
   assert.equal(hasUsableObservationCoordinates(0, 0), false);
   assert.equal(hasUsableObservationCoordinates(34.8142588, 137.7330983), true);

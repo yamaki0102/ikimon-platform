@@ -104,6 +104,12 @@ const COUNTRY_BOXES: CountryBox[] = [
   { code: "ZA", labelJa: "南アフリカ", minLat: -35.0, maxLat: -22.0, minLng: 16.0, maxLng: 33.5 },
 ];
 
+// Some coarse prefecture bboxes overlap around prefecture borders. Keep small
+// product-critical overrides before the generic "smallest bbox wins" fallback.
+const PREFECTURE_PRIORITY_BOXES: PrefectureBox[] = [
+  { prefecture: "静岡県", minLat: 34.55, maxLat: 35.32, minLng: 137.50, maxLng: 138.08 },
+];
+
 const COUNTRY_NAME_TO_CODE = new Map<string, string>([
   ["jp", "JP"], ["jpn", "JP"], ["japan", "JP"], ["日本", "JP"],
   ["kr", "KR"], ["kor", "KR"], ["korea", "KR"], ["south korea", "KR"], ["韓国", "KR"],
@@ -153,6 +159,12 @@ export function inferCoordinateLocality(
   if (!isFiniteLatLng(latitude, longitude)) return null;
   const lat = latitude;
   const lng = longitude as number;
+  const priorityPrefecture = PREFECTURE_PRIORITY_BOXES
+    .filter((box) => contains(box, lat, lng))
+    .sort((left, right) => area(left) - area(right))[0]?.prefecture ?? null;
+  if (priorityPrefecture) {
+    return { countryCode: "JP", countryLabelJa: "日本", prefecture: priorityPrefecture };
+  }
   const prefecture = JP_PREFECTURE_BOXES
     .filter((box) => contains(box, lat, lng))
     .sort((left, right) => area(left) - area(right))[0]?.prefecture ?? null;
