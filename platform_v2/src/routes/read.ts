@@ -7417,7 +7417,13 @@ export function renderLocalObservationPolishScript(): string {
       function handleQualityAction(action, button){
         if (action === 'identification') {
           addHistory('名前の支持を確認: 同定入力へ移動');
-          setActionStatus(openIdentify('support') ? '名前の確認欄を開きました。名前と理由を入れて保存できます。' : '同定欄を見つけられませんでした。', false);
+          var openedIdentify = openIdentify('support');
+          var hasIdentifyForm = Boolean(document.querySelector('#identify [data-identify-form]'));
+          setActionStatus(openedIdentify
+            ? hasIdentifyForm
+              ? '名前の確認欄を開きました。名前と理由を入れて保存できます。'
+              : '名前の確認欄へ移動しました。保存するにはログインが必要です。'
+            : '同定欄を見つけられませんでした。', !openedIdentify);
           return;
         }
         if (action === 'origin') {
@@ -7427,7 +7433,9 @@ export function renderLocalObservationPolishScript(): string {
           var notes = document.querySelector('#identify textarea[name="notes"]');
           if (notes && !String(notes.value || '').trim()) notes.value = '由来メモ: ';
           addHistory('生きものの由来を変更: 由来メモ入力へ移動');
-          setActionStatus('野生・植栽・飼育・放流などの由来を、理由メモとして残せます。', false);
+          setActionStatus(notes
+            ? '野生・植栽・飼育・放流などの由来を、理由メモとして残せます。'
+            : '由来の説明を開きました。保存するにはログインが必要です。', false);
           return;
         }
         if (action === 'evidence') {
