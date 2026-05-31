@@ -525,6 +525,23 @@ test("AI candidate tabs have synchronized hero and identification targets", () =
   assert.match(polishSource, /setAttribute\('aria-current', 'true'\)/);
 });
 
+test("observation quality change buttons are wired to real page targets", () => {
+  const qualitySource = sourceBetween("function renderObservationQualityCard", "type ObservationNextAction");
+  const polishSource = sourceBetween("function renderLocalObservationPolishScript", "const PUBLIC_ORIGIN");
+
+  assert.match(qualitySource, /data-quality-action="date_place"/);
+  assert.match(qualitySource, /data-quality-action="evidence"/);
+  assert.match(qualitySource, /data-quality-action="identification"/);
+  assert.match(qualitySource, /data-quality-action="origin"/);
+  assert.match(qualitySource, /data-quality-action="media"/);
+  assert.match(qualitySource, /data-quality-action-status/);
+  assert.match(polishSource, /function handleQualityAction/);
+  assert.match(polishSource, /event\.target[\s\S]*?closest\('\.obs-local-quality-change\[data-quality-action\]'\)/);
+  assert.match(polishSource, /openIdentify\('support'\)/);
+  assert.match(polishSource, /openIdentify\('needs_more_evidence'\)/);
+  assert.match(polishSource, /querySelector\('\[data-photo-recovery\]'\)/);
+});
+
 test("AI readout stays simple while the assessment is still being created", () => {
   const subject = {
     occurrenceId: "occ-millipede-class",
