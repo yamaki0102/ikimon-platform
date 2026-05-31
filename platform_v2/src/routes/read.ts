@@ -1684,6 +1684,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-local-quality-check em::before, .obs-local-quality-chip em::before { content: "状態: "; color: #0f766e; font-size: 9.5px; font-weight: 950; }
   .obs-local-quality-chip em::before { content: "入力: "; }
   .obs-local-quality-change, button.obs-local-quality-change { align-self: center; padding: 0; border: 0; background: transparent; color: #0369a1; font: inherit; font-size: 10px; line-height: 1.2; font-weight: 950; text-decoration: none; white-space: nowrap; cursor: pointer; }
+  .obs-local-quality-action-status { min-height: 18px; color: #0369a1; font-size: 10px; line-height: 1.35; font-weight: 850; }
+  .obs-local-quality-action-status.is-error { color: #b91c1c; }
   .obs-local-origin-hint { grid-column: 2 / -1; margin-top: -3px; }
   .obs-local-origin-hint summary { cursor: pointer; color: #0369a1; font-size: 10px; line-height: 1.25; font-weight: 950; list-style: none; }
   .obs-local-origin-hint summary::-webkit-details-marker { display: none; }
@@ -7017,28 +7019,28 @@ function renderObservationQualityCard(options: {
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
         <div><strong>日時・場所</strong><span>撮影日時と観察場所が入っているか。</span><em>記録済み</em></div>
-        <button class="obs-local-quality-change" type="button">変更</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="date_place">変更</button>
       </div>
       <div class="obs-local-quality-check${hasEvidence ? "" : " is-warn"}">
         <i class="obs-local-quality-mark">${hasEvidence ? "✓" : "!"}</i>
         <div><strong>証拠</strong><span>後から生物を確認できるメディアがあるか。</span><em>${escapeHtml(mediaState)}</em></div>
-        <button class="obs-local-quality-change" type="button">変更</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="evidence">変更</button>
       </div>
       <div class="obs-local-quality-check${hasHumanSupport ? "" : " is-next"}">
         <i class="obs-local-quality-mark">${hasHumanSupport ? "✓" : "!"}</i>
         <div><strong>名前の支持</strong><span>AI候補に人の確認が加わっているか。</span><em>${hasHumanSupport ? "確認あり" : "人の確認待ち"}</em></div>
-        <button class="obs-local-quality-change" type="button">確認</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="identification">確認</button>
       </div>
       <div class="obs-local-quality-check is-next">
         <i class="obs-local-quality-mark">!</i>
         <div><strong>生きものの由来</strong><span>人に植えられた・飼われた・放されたものか。</span><em>未入力</em></div>
-        <button class="obs-local-quality-change" type="button">変更</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="origin">変更</button>
         <details class="obs-local-origin-hint"><summary>野生・植栽などの違い</summary><dl><dt>野生</dt><dd>人が置いた個体ではなく、その場所に自然にいた・生えたもの。</dd><dt>植栽</dt><dd>人が植えた植物。管理地に自然に生えた雑草とは分けて考えます。</dd><dt>飼育</dt><dd>人に飼われている動物。逃げ出しや放し飼いも確認します。</dd><dt>放流</dt><dd>人が意図して放した魚・昆虫・動物など。定着していても由来は別に残します。</dd></dl></details>
       </div>
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
         <div><strong>メディア整合</strong><span>関係ない画像や場面違いの証拠が混じっていないか。</span><em>${escapeHtml(isGreenfinchSnapshot ? "AI確認済み" : `${sceneNoun}確認済み`)}</em></div>
-        <button class="obs-local-quality-change" type="button">確認</button>
+        <button class="obs-local-quality-change" type="button" data-quality-action="media">確認</button>
       </div>
       <div class="obs-local-quality-check">
         <i class="obs-local-quality-mark">✓</i>
@@ -7046,6 +7048,7 @@ function renderObservationQualityCard(options: {
         <span class="obs-local-quality-change">自動</span>
       </div>
     </div>
+    <div class="obs-local-quality-action-status" data-quality-action-status aria-live="polite"></div>
     <div class="obs-local-quality-draft" data-quality-draft>
       <div class="obs-local-quality-draft-head"><strong>環境レコードの下書き</strong><span data-quality-draft-count>5項目</span></div>
       <div class="obs-local-quality-draft-grid">
@@ -7369,6 +7372,7 @@ export function renderLocalObservationPolishScript(): string {
       var draft = document.querySelector('[data-quality-draft]');
       if (!draft || draft.getAttribute('data-quality-bound') === '1') return;
       draft.setAttribute('data-quality-bound', '1');
+      var card = draft.closest('.obs-local-quality-card') || draft;
       var count = draft.querySelector('[data-quality-draft-count]');
       var history = document.querySelector('[data-quality-history]');
       function chips(){ return Array.prototype.slice.call(draft.querySelectorAll('[data-quality-chip]')); }
@@ -7384,11 +7388,86 @@ export function renderLocalObservationPolishScript(): string {
         li.textContent = text;
         history.appendChild(li);
       }
-      draft.addEventListener('click', function(event){
+      function setActionStatus(text, isError){
+        var status = card.querySelector('[data-quality-action-status]');
+        if (!status) return;
+        status.textContent = text || '';
+        status.classList.toggle('is-error', Boolean(isError));
+      }
+      function focusElement(element){
+        if (!element) return false;
+        if (typeof element.scrollIntoView === 'function') {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (typeof element.focus === 'function') {
+          window.setTimeout(function(){ element.focus({ preventScroll: true }); }, 120);
+        }
+        return true;
+      }
+      function openIdentify(action){
+        var identify = document.getElementById('identify');
+        if (!identify) return false;
+        var fold = identify.querySelector('.obs-identify-fold');
+        if (fold) fold.setAttribute('open', 'open');
+        var target = action === 'needs_more_evidence'
+          ? identify.querySelector('textarea[name="notes"]')
+          : identify.querySelector('input[name="proposedName"]') || identify.querySelector('[data-proposal-focus]');
+        return focusElement(target || identify);
+      }
+      function handleQualityAction(action, button){
+        if (action === 'identification') {
+          addHistory('名前の支持を確認: 同定入力へ移動');
+          setActionStatus(openIdentify('support') ? '名前の確認欄を開きました。名前と理由を入れて保存できます。' : '同定欄を見つけられませんでした。', false);
+          return;
+        }
+        if (action === 'origin') {
+          var details = button.closest('.obs-local-quality-check') && button.closest('.obs-local-quality-check').querySelector('.obs-local-origin-hint');
+          if (details) details.setAttribute('open', 'open');
+          openIdentify('needs_more_evidence');
+          var notes = document.querySelector('#identify textarea[name="notes"]');
+          if (notes && !String(notes.value || '').trim()) notes.value = '由来メモ: ';
+          addHistory('生きものの由来を変更: 由来メモ入力へ移動');
+          setActionStatus('野生・植栽・飼育・放流などの由来を、理由メモとして残せます。', false);
+          return;
+        }
+        if (action === 'evidence') {
+          var recovery = document.querySelector('[data-photo-recovery]');
+          var fileInput = recovery && recovery.querySelector('input[type="file"]');
+          if (focusElement(fileInput || recovery)) {
+            addHistory('証拠を変更: 写真追加へ移動');
+            setActionStatus('投稿者用の写真追加欄を開きました。', false);
+            return;
+          }
+          addHistory('証拠を確認: メディア欄へ移動');
+          setActionStatus('この記録では投稿者用の写真追加欄が見つかりません。表示中のメディアを確認します。', true);
+          focusElement(document.querySelector('[data-observation-media]') || document.querySelector('.obs-media-ledger'));
+          return;
+        }
+        if (action === 'media') {
+          addHistory('メディア整合を確認: メディア欄へ移動');
+          setActionStatus('写真・動画・音の欄へ移動しました。関係ないメディアがあれば投稿者用ツールから差し替えます。', false);
+          focusElement(document.querySelector('[data-observation-media]') || document.querySelector('.obs-media-ledger'));
+          return;
+        }
+        if (action === 'date_place') {
+          addHistory('日時・場所を確認: 記録概要へ移動');
+          setActionStatus('日時・場所は記録概要で確認できます。直接編集欄がない場合は、新しい記録として残すのが安全です。', false);
+          focusElement(document.querySelector('.obs-reading-hero') || document.querySelector('main') || document.body);
+        }
+      }
+      card.addEventListener('click', function(event){
+        var actionButton = event.target && event.target.closest ? event.target.closest('.obs-local-quality-change[data-quality-action]') : null;
+        if (actionButton) {
+          handleQualityAction(actionButton.getAttribute('data-quality-action') || '', actionButton);
+          return;
+        }
         var target = event.target && event.target.closest ? event.target.closest('.obs-local-quality-field-edit') : null;
         if (!target) return;
         var chip = target.closest('[data-quality-chip]');
-        if (chip) addHistory('環境レコードを変更: ' + chipLabel(chip));
+        if (chip) {
+          addHistory('環境レコードを変更: ' + chipLabel(chip));
+          setActionStatus('環境レコードの下書きを確認しました。', false);
+        }
       });
       updateCount();
     }
