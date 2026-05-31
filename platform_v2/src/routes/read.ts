@@ -6951,7 +6951,7 @@ function renderIdentificationParticipation(options: {
       ].join("")
     : [
         `<li><span class="obs-local-name-actor is-system" aria-label="AI">AI</span><div><strong>${escapeHtml(hasOnlyWeakCandidateName ? "候補名が不足" : "候補を下書き")}</strong><p>${escapeHtml(`${targetLabel} / ${candidateStatus}`)}</p><time>${escapeHtml(aiActivityMeta)}</time></div></li>`,
-        ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time></div></li>`),
+        ...snapshot.identifications.slice(0, 3).map((item) => `<li><span class="obs-local-name-actor" aria-label="${escapeHtml(formatActorDisplay(item.actorName, "ja"))}">${escapeHtml((formatActorDisplay(item.actorName, "ja") || "?").slice(0, 1))}</span><div><strong>名前を支持</strong><p>${escapeHtml(item.proposedName)}</p><time>${escapeHtml(formatActorDisplay(item.actorName, "ja"))} · ${escapeHtml(item.createdAt)}</time>${renderIdentificationReferenceChips(item.references)}</div></li>`),
         `<li><span class="obs-local-name-actor is-rule" aria-label="ルール">約</span><div><strong>別案として残す</strong><p>同意・提案・保留を履歴に残し、相手の判断を上書きしません。</p><time>ルール</time></div></li>`,
       ].join("");
   const activityBlock = `<div class="obs-local-name-ledger">

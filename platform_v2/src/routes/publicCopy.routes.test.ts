@@ -307,6 +307,12 @@ test("identification workbench panel keeps continuous actions in the records sur
   assert.match(source, /referenceSourceIds: referenceSourceIds/);
 });
 
+test("observation detail visible identification history includes reference evidence", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  assert.match(source, /obs-local-name-activity-list/);
+  assert.match(source, /名前を支持[\s\S]*renderIdentificationReferenceChips\(item\.references\)/);
+});
+
 test("reference candidate lookup requires an authenticated session", async () => {
   const app = buildApp();
   try {

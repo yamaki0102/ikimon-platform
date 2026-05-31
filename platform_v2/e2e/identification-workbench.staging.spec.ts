@@ -42,7 +42,7 @@ test("identification workbench saves selected reference to the detail history", 
       `/observations/${encodeURIComponent(fixture.scene.visitId)}?subject=${encodeURIComponent(fixture.scene.occurrenceId)}&lang=ja`,
       { waitUntil: "domcontentloaded" },
     );
-    const idHistory = page.locator(".obs-id-list").first();
+    const idHistory = page.locator(".obs-local-name-activity-list").first();
     await expect(idHistory).toContainText(fixture.scene.subjectLabel);
     await expect(idHistory).toContainText(fixture.reference.title);
     await expect(idHistory).toContainText(fixture.reference.locator);

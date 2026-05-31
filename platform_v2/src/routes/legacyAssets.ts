@@ -90,6 +90,32 @@ async function serveUploadFile(rel: string): Promise<{ data: Buffer; mime: strin
   return null;
 }
 
+async function renderMissingThumbnail(width: number, rel: string): Promise<{ data: Buffer; etag: string }> {
+  const label = path.basename(rel).replace(/[<>&"]/g, "").slice(0, 42) || "media";
+  const height = Math.max(144, Math.round(width * 0.75));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <defs>
+      <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0" stop-color="#ecfdf5"/>
+        <stop offset="1" stop-color="#e0f2fe"/>
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg)"/>
+    <rect x="18" y="18" width="${width - 36}" height="${height - 36}" rx="18" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="9 9" opacity=".72"/>
+    <circle cx="${Math.round(width / 2)}" cy="${Math.round(height * 0.38)}" r="${Math.max(22, Math.round(width * 0.055))}" fill="#ffffff" opacity=".8"/>
+    <path d="M${Math.round(width * 0.42)} ${Math.round(height * 0.62)}h${Math.round(width * 0.16)}l-${Math.round(width * 0.05)}-${Math.round(height * 0.10)}h-${Math.round(width * 0.06)}z" fill="#0f766e" opacity=".72"/>
+    <text x="50%" y="${Math.round(height * 0.76)}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${Math.max(16, Math.round(width * 0.035))}" font-weight="700" fill="#334155">Media unavailable</text>
+    <text x="50%" y="${Math.round(height * 0.86)}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${Math.max(11, Math.round(width * 0.022))}" fill="#64748b">${label}</text>
+  </svg>`;
+  const data = await sharp(Buffer.from(svg))
+    .webp({ quality: 72, effort: 4 })
+    .toBuffer();
+  return {
+    data,
+    etag: '"' + createHash("sha1").update(data).digest("base64url") + '"',
+  };
+}
+
 export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<void> {
   // Wildcard route for every path under /assets/*
   app.get<{ Params: { "*": string } }>("/assets/*", async (request, reply) => {
@@ -188,7 +214,12 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
     }
     const src = await serveUploadFile(rel);
     if (!src) {
-      reply.code(404).type("text/plain").send("not found");
+      const fallback = await renderMissingThumbnail(width, rel);
+      reply
+        .type("image/webp")
+        .header("Cache-Control", "public, max-age=300")
+        .header("ETag", fallback.etag)
+        .send(fallback.data);
       return;
     }
     try {
