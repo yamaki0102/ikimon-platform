@@ -27,6 +27,7 @@ import type { RegionalStoryCue } from "./regionalStory.js";
 import { extractNavigableOsFromAssessmentPayload } from "./observationAiAssessment.js";
 import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
 import { listPlaceMemoryVisits } from "./placeMemory.js";
+import { identificationReferencesFromJson, type IdentificationReferenceView } from "./identificationReferencesView.js";
 
 function publicMunicipalityLabel(input: {
   municipality?: string | null;
@@ -220,6 +221,7 @@ export type ObservationDetailSnapshot = {
     notes: string | null;
     actorName: string;
     createdAt: string;
+    references: IdentificationReferenceView[];
   }>;
   disputes: Array<{
     disputeId: string;
@@ -1189,6 +1191,7 @@ export async function getObservationDetailSnapshot(
     notes: string | null;
     actor_name: string | null;
     created_at: string;
+    reference_sources: unknown;
   }>(
     `select
         i.proposed_name,
@@ -1196,9 +1199,27 @@ export async function getObservationDetailSnapshot(
         i.accepted_rank,
         i.notes,
         ${IDENTIFICATION_ACTOR_NAME_SQL} as actor_name,
-        i.created_at::text
+        i.created_at::text,
+        coalesce(refs.reference_sources, '[]'::jsonb) as reference_sources
      from identifications i
      left join users u on u.user_id = i.actor_user_id
+     left join lateral (
+       select jsonb_agg(
+                jsonb_build_object(
+                  'sourceId', ks.source_id::text,
+                  'title', ks.title,
+                  'locator', coalesce(ir.locator, ''),
+                  'referenceRole', ir.reference_role,
+                  'citationText', coalesce(ks.citation_text, ''),
+                  'publisher', coalesce(ks.publisher, ''),
+                  'publicationYear', ks.publication_year
+                )
+                order by ir.created_at asc, ks.title asc
+              ) as reference_sources
+         from identification_references ir
+         join knowledge_sources ks on ks.source_id = ir.source_id
+        where ir.identification_id = i.identification_id
+     ) refs on true
      where i.occurrence_id = $1
      order by i.created_at desc
      limit 8`,
@@ -1410,6 +1431,7 @@ export async function getObservationDetailSnapshot(
       notes: row.notes,
       actorName: row.actor_name ?? "Community",
       createdAt: row.created_at,
+      references: identificationReferencesFromJson(row.reference_sources),
     })),
     disputes: disputesResult.rows.map((row) => ({
       disputeId: row.dispute_id,

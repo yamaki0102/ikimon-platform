@@ -43,7 +43,22 @@ test("same user re-identification keeps only the latest vote", () => {
   assert.equal(result.communityTaxon?.rank, "species");
 });
 
-test("two independent same-species IDs with media can become a Tier 3 candidate when policy allows species", () => {
+test("two independent same-species IDs with media and reference evidence can become a Tier 3 candidate when policy allows species", () => {
+  const result = computeIdentificationConsensus({
+    identifications: [
+      { actorUserId: "u1", proposedName: "Pieris rapae", proposedRank: "species", createdAt: "2026-04-01", gbifMatch: rapae, hasReferenceEvidence: true },
+      { actorUserId: "u2", proposedName: "Pieris rapae", proposedRank: "species", createdAt: "2026-04-02", gbifMatch: rapae },
+    ],
+    hasMedia: true,
+    precisionCeilingRank: "species",
+  });
+
+  assert.equal(result.communityTaxon?.rank, "species");
+  assert.equal(result.canPromoteToTier3, true);
+  assert.equal(result.identificationVerificationStatus, "community_consensus");
+});
+
+test("community consensus without selected reference evidence stays below Tier 3", () => {
   const result = computeIdentificationConsensus({
     identifications: [
       { actorUserId: "u1", proposedName: "Pieris rapae", proposedRank: "species", createdAt: "2026-04-01", gbifMatch: rapae },
@@ -54,8 +69,9 @@ test("two independent same-species IDs with media can become a Tier 3 candidate 
   });
 
   assert.equal(result.communityTaxon?.rank, "species");
-  assert.equal(result.canPromoteToTier3, true);
-  assert.equal(result.identificationVerificationStatus, "community_consensus");
+  assert.equal(result.hasIdentificationReferenceEvidence, false);
+  assert.equal(result.canPromoteToTier3, false);
+  assert.match(result.neededEvidence.join(" / "), /同定に使った資料/);
 });
 
 test("near-species split rolls consensus up to genus instead of species", () => {
@@ -137,4 +153,3 @@ test("GBIF match failure blocks Tier 3 promotion", () => {
   assert.equal(result.canPromoteToTier3, false);
   assert.equal(result.identificationVerificationStatus, "blocked_taxonomy_match");
 });
-

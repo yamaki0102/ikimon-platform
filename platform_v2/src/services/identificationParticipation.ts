@@ -28,6 +28,8 @@ export type OpenObservationDisputeInput = {
   proposedName?: string | null;
   proposedRank?: string | null;
   reason?: string | null;
+  referenceSourceIds?: string[];
+  referenceLocator?: string | null;
 };
 
 export type DisputeResolution = "accept_alternative" | "reject_dispute" | "needs_more_evidence";
@@ -194,13 +196,20 @@ export async function openObservationDispute(input: OpenObservationDisputeInput)
     visitId = occurrence.visitId;
 
     if (input.kind === "alternative_id" && proposedName) {
-      await upsertPublicIdentification(client, {
+      const identificationId = await upsertPublicIdentification(client, {
         occurrenceId,
         actorUserId: input.actorUserId,
         proposedName,
         proposedRank,
         notes: reason,
         stance: "alternative",
+      });
+      await recordIdentificationReferenceSelections(client, {
+        identificationId,
+        selectedByUserId: input.actorUserId,
+        sourceIds: input.referenceSourceIds ?? [],
+        locator: input.referenceLocator ?? null,
+        referenceRole: "primary_basis",
       });
     }
 

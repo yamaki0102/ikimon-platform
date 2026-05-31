@@ -3,13 +3,16 @@ import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
+  listReferenceDuplicateCandidates,
   listKnowledgeSourceCorrections,
   listReferenceLibrary,
   resolveCommerceCountryCode,
+  type ReferenceDuplicateGroup,
   type ReferenceCard,
   type ReferenceLibrarySnapshot,
   type ReferenceTab,
 } from "../services/referenceLibrary.js";
+import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -42,6 +45,20 @@ function tabFromQuery(url: string): ReferenceTab {
   if (raw === "catalog") return "catalog";
   if (raw === "needs_review") return "needs_review";
   return "owned";
+}
+
+function safeRelativePath(value: string | null | undefined, fallback: string): string {
+  const raw = String(value ?? "").trim();
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return fallback;
+  return raw.slice(0, 360);
+}
+
+function captureQuery(url: string): { returnTo: string; taxonHint: string } {
+  const parsed = new URL(url.startsWith("http") ? url : `https://ikimon.local${url}`);
+  return {
+    returnTo: safeRelativePath(parsed.searchParams.get("returnTo"), "/references"),
+    taxonHint: String(parsed.searchParams.get("taxonHint") ?? "").trim().slice(0, 80),
+  };
 }
 
 function tabHref(basePath: string, lang: SiteLang, tab: ReferenceTab): string {
@@ -136,7 +153,93 @@ function renderSummary(snapshot: ReferenceLibrarySnapshot, basePath: string): st
   </section>`;
 }
 
-function renderReferenceLibrary(snapshot: ReferenceLibrarySnapshot, basePath: string, lang: SiteLang): string {
+function renderDuplicateItem(item: ReferenceDuplicateGroup["canonical"], role: "canonical" | "duplicate", canonicalSourceId?: string): string {
+  const taxa = item.taxonLabels.length ? item.taxonLabels.slice(0, 4).join(" / ") : "分類群未整理";
+  const meta = [
+    item.authorText,
+    item.publisher,
+    item.publicationYear ? String(item.publicationYear) : "",
+    item.isbn ? `ISBN ${item.isbn}` : "",
+  ].filter(Boolean).join(" / ");
+  const action = role === "duplicate" && canonicalSourceId
+    ? `<button type="button" data-ref-duplicate-merge data-canonical-source-id="${escapeHtml(canonicalSourceId)}" data-duplicate-source-id="${escapeHtml(item.sourceId)}">canonicalへ統合</button>`
+    : `<span>canonical候補</span>`;
+  return `<div class="ref-duplicate-item is-${role}">
+    <div>
+      <strong>${escapeHtml(item.title)}</strong>
+      <p>${escapeHtml(meta || "資料メタデータ未整理")}</p>
+      <small>${escapeHtml(taxa)} · 同定 ${escapeHtml(String(item.usedCount))}回</small>
+    </div>
+    ${action}
+  </div>`;
+}
+
+function renderDuplicateGroups(groups: ReferenceDuplicateGroup[], basePath: string): string {
+  if (groups.length === 0) {
+    return `<section class="section ref-duplicates"><div class="onboarding-empty"><div class="eyebrow">重複候補</div><h3>統合待ちはありません</h3><p>表記揺れやISBN一致が見つかると、ここに出ます。</p></div></section>`;
+  }
+  const endpoint = withBasePath(basePath, "/api/v1/references/duplicates/merge");
+  return `<section class="section ref-duplicates" data-ref-duplicates data-merge-endpoint="${escapeHtml(endpoint)}">
+    <div class="section-header"><div><div class="eyebrow">重複候補</div><h2>canonicalへ統合</h2></div><span data-ref-duplicate-status></span></div>
+    <div class="ref-duplicate-grid">
+      ${groups.map((group) => `<article class="ref-duplicate-group">
+        <div class="ref-duplicate-head">
+          <strong>${escapeHtml(group.reason)}</strong>
+          <code>${escapeHtml(group.duplicateKey)}</code>
+        </div>
+        ${renderDuplicateItem(group.canonical, "canonical")}
+        <div class="ref-duplicate-candidates">
+          ${group.candidates.map((item) => renderDuplicateItem(item, "duplicate", group.canonical.sourceId)).join("")}
+        </div>
+      </article>`).join("")}
+    </div>
+  </section>
+  <script>
+(function(){
+  var root = document.querySelector('[data-ref-duplicates]');
+  if (!root) return;
+  var endpoint = root.getAttribute('data-merge-endpoint') || '';
+  var status = root.querySelector('[data-ref-duplicate-status]');
+  function setStatus(message, isError) {
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', Boolean(isError));
+  }
+  root.addEventListener('click', function(event){
+    var button = event.target && event.target.closest ? event.target.closest('[data-ref-duplicate-merge]') : null;
+    if (!button || !endpoint) return;
+    var canonicalSourceId = button.getAttribute('data-canonical-source-id') || '';
+    var duplicateSourceId = button.getAttribute('data-duplicate-source-id') || '';
+    button.disabled = true;
+    setStatus('統合中...', false);
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ canonicalSourceId: canonicalSourceId, duplicateSourceId: duplicateSourceId })
+    })
+      .then(function(response){ return response.json().catch(function(){ return {}; }).then(function(json){ return { ok: response.ok && json && json.ok !== false, json: json }; }); })
+      .then(function(result){
+        if (!result.ok) throw new Error(String((result.json && result.json.error) || 'merge_failed'));
+        setStatus('統合しました。再読み込みすると候補から外れます。', false);
+        var item = button.closest('.ref-duplicate-item');
+        if (item) item.classList.add('is-merged');
+      })
+      .catch(function(error){
+        button.disabled = false;
+        setStatus('統合できませんでした: ' + String(error && error.message || 'unknown'), true);
+      });
+  });
+})();
+  </script>`;
+}
+
+function renderReferenceLibrary(
+  snapshot: ReferenceLibrarySnapshot,
+  basePath: string,
+  lang: SiteLang,
+  options: { duplicateGroups?: ReferenceDuplicateGroup[] } = {},
+): string {
   const tabs: ReferenceTab[] = ["owned", "catalog", "needs_review"];
   const tabNav = `<nav class="ref-tabs" aria-label="参照資料">
     ${tabs.map((tab) => `<a class="${tab === snapshot.tab ? "is-active" : ""}" href="${escapeHtml(tabHref(basePath, lang, tab))}">${escapeHtml(tabLabel(tab))}</a>`).join("")}
@@ -144,12 +247,20 @@ function renderReferenceLibrary(snapshot: ReferenceLibrarySnapshot, basePath: st
   const cards = snapshot.cards.length
     ? `<div class="ref-grid">${snapshot.cards.map((card) => renderReferenceCard(card, basePath)).join("")}</div>`
     : `<div class="onboarding-empty"><div class="eyebrow">${escapeHtml(tabLabel(snapshot.tab))}</div><h3>資料はまだありません</h3><p>登録すると、同定フォームの参照候補に出ます。</p></div>`;
-  return `${renderSummary(snapshot, basePath)}<section class="section">${tabNav}${cards}</section>`;
+  const duplicates = options.duplicateGroups ? renderDuplicateGroups(options.duplicateGroups, basePath) : "";
+  return `${renderSummary(snapshot, basePath)}${duplicates}<section class="section">${tabNav}${cards}</section>`;
 }
 
-function renderCapturePage(basePath: string): string {
+function renderCapturePage(basePath: string, options: { returnTo?: string; taxonHint?: string } = {}): string {
   const endpoint = withBasePath(basePath, "/api/v1/references/capture-batches");
+  const returnTo = safeRelativePath(options.returnTo, "/references");
+  const returnHref = withBasePath(basePath, returnTo);
+  const taxonHint = String(options.taxonHint ?? "").trim();
+  const contextNote = taxonHint
+    ? `<p class="ref-capture-context">同定候補: <strong>${escapeHtml(taxonHint)}</strong></p>`
+    : "";
   return `<section class="section ref-capture" data-reference-capture data-endpoint="${escapeHtml(endpoint)}">
+    ${contextNote}
     <div class="ref-capture-shell">
       <div class="ref-camera-panel">
         <video class="ref-camera-video" data-ref-video autoplay muted playsinline></video>
@@ -253,7 +364,7 @@ function renderCapturePage(basePath: string): string {
       renderQueue();
       var items = result.json.items || [];
       resultEl.hidden = false;
-      resultEl.innerHTML = '<div class="section-header"><div><div class="eyebrow">Result</div><h2>登録結果</h2></div><a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/references"))}">一覧へ</a></div>' +
+      resultEl.innerHTML = '<div class="section-header"><div><div class="eyebrow">Result</div><h2>登録結果</h2></div><a class="btn btn-solid" href="${escapeHtml(returnHref)}">同定へ戻る</a><a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/references"))}">一覧へ</a></div>' +
         '<div class="ref-result-grid">' + items.map(function(item){
           var uses = (item.useCases || []).slice(0, 4).map(function(use){ return '<li>' + String(use).replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }) + '</li>'; }).join('');
           return '<div class="ref-result-card"><strong>' + String(item.title || '未整理の参照資料').replace(/[&<>"]/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]; }) + '</strong><span>' + String(item.verificationStatus || '') + '</span><ul>' + uses + '</ul></div>';
@@ -297,7 +408,26 @@ const REFERENCE_STYLES = `
   .ref-tags span { display: inline-flex; min-height: 28px; align-items: center; padding: 5px 9px; border-radius: 999px; background: rgba(14,165,233,.1); color: #0369a1; font-size: 11px; font-weight: 900; }
   .ref-correction, .ref-disclosure { color: #92400e; background: #fffbeb; border: 1px solid rgba(217,119,6,.16); border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 850; }
   .ref-commerce-links a { color: #047857; font-size: 12px; font-weight: 900; }
+  .ref-duplicates .section-header span { color: #047857; font-size: 12px; font-weight: 900; }
+  .ref-duplicates .section-header span.is-error { color: #b91c1c; }
+  .ref-duplicate-grid { display: grid; gap: 12px; }
+  .ref-duplicate-group { display: grid; gap: 10px; padding: 14px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .ref-duplicate-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+  .ref-duplicate-head strong { color: #0f172a; }
+  .ref-duplicate-head code { color: #64748b; font-size: 11px; overflow-wrap: anywhere; }
+  .ref-duplicate-candidates { display: grid; gap: 8px; }
+  .ref-duplicate-item { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px; border-radius: 8px; background: #f8fafc; border: 1px solid rgba(15,23,42,.07); }
+  .ref-duplicate-item.is-canonical { background: #ecfdf5; border-color: rgba(16,185,129,.2); }
+  .ref-duplicate-item.is-merged { opacity: .55; }
+  .ref-duplicate-item strong, .ref-duplicate-item p, .ref-duplicate-item small { display: block; min-width: 0; overflow-wrap: anywhere; }
+  .ref-duplicate-item strong { color: #0f172a; line-height: 1.35; }
+  .ref-duplicate-item p { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 760; line-height: 1.5; }
+  .ref-duplicate-item small { margin-top: 3px; color: #047857; font-size: 11.5px; font-weight: 850; line-height: 1.4; }
+  .ref-duplicate-item button, .ref-duplicate-item span { min-height: 36px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(16,185,129,.22); background: #fff; color: #047857; font: inherit; font-size: 12px; font-weight: 900; }
+  .ref-duplicate-item button { cursor: pointer; }
   .ref-capture-shell { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 14px; padding: 16px; }
+  .ref-capture-context { margin: 0 0 10px; color: #475569; font-weight: 800; }
+  .ref-capture-context strong { color: #047857; }
   .ref-camera-panel, .ref-queue-panel { min-width: 0; display: grid; gap: 12px; align-content: start; }
   .ref-camera-video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: #0f172a; }
   .ref-camera-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -343,6 +473,9 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
       acceptLanguage: String(request.headers["accept-language"] ?? ""),
     });
     const snapshot = await listReferenceLibrary({ userId: session.userId, tab, countryCode });
+    const duplicateGroups = tab === "needs_review" && isAdminOrAnalystRole(session.roleName, session.rankLabel)
+      ? await listReferenceDuplicateCandidates({ limit: 12 })
+      : undefined;
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
@@ -358,7 +491,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
           { href: "/profile", label: "マイページへ", variant: "secondary" },
         ],
       },
-      body: renderReferenceLibrary(snapshot, basePath, lang),
+      body: renderReferenceLibrary(snapshot, basePath, lang, { duplicateGroups }),
       extraStyles: REFERENCE_STYLES,
       currentPath: appendLangToHref(withBasePath(basePath, "/references"), lang),
     });
@@ -367,6 +500,7 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
   app.get("/references/capture", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
+    const query = captureQuery(requestUrl(request));
     const session = await getSessionFromCookie(request.headers.cookie);
     if (!session) {
       reply.type("text/html; charset=utf-8");
@@ -375,8 +509,8 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
         lang,
         activeNav: "ホーム",
         title: "参照資料を登録 | ikimon",
-        body: loginCard(basePath, "/references/capture"),
-        currentPath: appendLangToHref(withBasePath(basePath, "/references/capture"), lang),
+        body: loginCard(basePath, `/references/capture?returnTo=${encodeURIComponent(query.returnTo)}${query.taxonHint ? `&taxonHint=${encodeURIComponent(query.taxonHint)}` : ""}`),
+        currentPath: appendLangToHref(withBasePath(basePath, `/references/capture?returnTo=${encodeURIComponent(query.returnTo)}`), lang),
       });
     }
     reply.type("text/html; charset=utf-8");
@@ -390,12 +524,13 @@ export async function registerReferenceRoutes(app: FastifyInstance): Promise<voi
         heading: "表紙を連続登録",
         lead: "撮影した表紙/ISBNから、AIが資料カタログと対象分類群を整理します。",
         actions: [
-          { href: "/references", label: "一覧へ戻る", variant: "secondary" },
+          { href: query.returnTo, label: "同定へ戻る", variant: "secondary" },
+          { href: "/references", label: "一覧へ", variant: "secondary" },
         ],
       },
-      body: renderCapturePage(basePath),
+      body: renderCapturePage(basePath, query),
       extraStyles: REFERENCE_STYLES,
-      currentPath: appendLangToHref(withBasePath(basePath, "/references/capture"), lang),
+      currentPath: appendLangToHref(withBasePath(basePath, `/references/capture?returnTo=${encodeURIComponent(query.returnTo)}`), lang),
     });
   });
 

@@ -30,6 +30,7 @@ export type ConsensusIdentificationInput = {
   notes?: string | null;
   sourcePayload?: Record<string, unknown> | null;
   gbifMatch?: GbifMatch | null;
+  hasReferenceEvidence?: boolean | null;
 };
 
 export type ConsensusDisputeInput = {
@@ -76,6 +77,8 @@ export type IdentificationConsensusResult = {
   hasGbifMatchFailure: boolean;
   hasLineageConflict: boolean;
   hasAuthorityBackedPublicClaim: boolean;
+  hasIdentificationReferenceEvidence: boolean;
+  referenceBackedSupporterCount: number;
   hasMedia: boolean;
   precisionCeilingRank: TaxonRank;
   canPromoteToTier3: boolean;
@@ -234,6 +237,7 @@ function neededEvidenceFor(result: {
   lineageConflict: boolean;
   communityTaxon: ConsensusTaxon | null;
   authorityBacked: boolean;
+  referenceBacked: boolean;
   communityWithinPolicy: boolean;
 }): string[] {
   const needed: string[] = [];
@@ -245,6 +249,9 @@ function neededEvidenceFor(result: {
   if (result.lineageConflict) needed.push("分類系列の衝突を専門家レビューへ回す");
   if (result.communityTaxon && !result.communityWithinPolicy && !result.authorityBacked) {
     needed.push("この細かさの分類は authority / expert review を通す");
+  }
+  if (!result.authorityBacked && !result.referenceBacked) {
+    needed.push("同定に使った資料を1件紐づける");
   }
   return needed;
 }
@@ -267,6 +274,8 @@ export function computeIdentificationConsensus(input: {
     active.length >= 2
     && (!communityTaxon || !isResearchUsableRank(communityTaxon.rank));
   const hasAuthorityBackedPublicClaim = active.some((id) => hasAuthorityBackedPayload(id.sourcePayload));
+  const referenceBackedSupporterCount = active.filter((id) => id.hasReferenceEvidence === true).length;
+  const hasIdentificationReferenceEvidence = referenceBackedSupporterCount > 0;
   const communityWithinPolicy = Boolean(
     communityTaxon
     && isResearchUsableRank(communityTaxon.rank)
@@ -278,6 +287,7 @@ export function computeIdentificationConsensus(input: {
     && !hasOpenDispute
     && !hasGbifMatchFailure
     && !hasLineageConflict
+    && (hasAuthorityBackedPublicClaim || hasIdentificationReferenceEvidence)
     && (hasAuthorityBackedPublicClaim || communityWithinPolicy);
 
   const consensusStatus: IdentificationConsensusResult["consensusStatus"] =
@@ -321,6 +331,8 @@ export function computeIdentificationConsensus(input: {
     hasGbifMatchFailure,
     hasLineageConflict,
     hasAuthorityBackedPublicClaim,
+    hasIdentificationReferenceEvidence,
+    referenceBackedSupporterCount,
     hasMedia,
     precisionCeilingRank,
     canPromoteToTier3,
@@ -333,12 +345,14 @@ export function computeIdentificationConsensus(input: {
       lineageConflict: hasLineageConflict,
       communityTaxon,
       authorityBacked: hasAuthorityBackedPublicClaim,
+      referenceBacked: hasIdentificationReferenceEvidence,
       communityWithinPolicy,
     }),
   };
 }
 
 type IdentificationRow = {
+  identification_id: string;
   actor_user_id: string | null;
   actor_kind: string | null;
   proposed_name: string;
@@ -348,6 +362,7 @@ type IdentificationRow = {
   notes: string | null;
   source_payload: Record<string, unknown> | null;
   created_at: string;
+  has_reference_evidence: boolean;
 };
 
 type DisputeRow = {
@@ -384,7 +399,8 @@ export async function getIdentificationConsensus(
       [occurrenceId],
     ),
     db.query<IdentificationRow>(
-      `select actor_user_id,
+      `select i.identification_id::text,
+              i.actor_user_id,
               actor_kind,
               proposed_name,
               proposed_rank,
@@ -392,11 +408,16 @@ export async function getIdentificationConsensus(
               is_current,
               notes,
               source_payload,
-              created_at::text
-         from identifications
-        where occurrence_id = $1
-          and coalesce(is_current, true) = true
-        order by created_at desc`,
+              created_at::text,
+              exists(
+                select 1
+                  from identification_references ir
+                 where ir.identification_id = i.identification_id
+              ) as has_reference_evidence
+         from identifications i
+        where i.occurrence_id = $1
+          and coalesce(i.is_current, true) = true
+        order by i.created_at desc`,
       [occurrenceId],
     ),
     db.query<DisputeRow>(
@@ -450,6 +471,7 @@ export async function getIdentificationConsensus(
       sourcePayload: row.source_payload,
       createdAt: row.created_at,
       gbifMatch,
+      hasReferenceEvidence: row.has_reference_evidence,
     });
   }
 
@@ -483,4 +505,3 @@ export async function getIdentificationConsensus(
     precisionCeilingRank,
   });
 }
-

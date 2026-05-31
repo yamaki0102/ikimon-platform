@@ -135,6 +135,34 @@ export type ReferenceCandidate = {
   reason: string;
 };
 
+export type ReferenceDuplicateItem = {
+  sourceId: string;
+  title: string;
+  authorText: string;
+  publisher: string;
+  publicationYear: number | null;
+  isbn: string;
+  catalogStatus: string;
+  usedCount: number;
+  taxonLabels: string[];
+};
+
+export type ReferenceDuplicateGroup = {
+  duplicateKey: string;
+  reason: string;
+  canonical: ReferenceDuplicateItem;
+  candidates: ReferenceDuplicateItem[];
+};
+
+export type ReferenceDuplicateMergeResult = {
+  canonicalSourceId: string;
+  duplicateSourceId: string;
+  identificationReferencesCopied: number;
+  identificationReferencesRemoved: number;
+  accessProofsCopied: number;
+  taxonLinksCopied: number;
+};
+
 const COMMERCE_LINK_REL = ["spon", "sored nofollow noopener"].join("");
 
 export type KnowledgeSourceCorrectionInput = {
@@ -1004,6 +1032,30 @@ function commerceLinksFromJson(value: unknown): ReferenceCommerceLink[] {
     .filter((entry): entry is ReferenceCommerceLink => Boolean(entry));
 }
 
+function duplicateItemsFromJson(value: unknown): ReferenceDuplicateItem[] {
+  if (!Array.isArray(value)) return [];
+  const items: ReferenceDuplicateItem[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const record = item as Record<string, unknown>;
+    const sourceId = asString(record.sourceId ?? record.source_id);
+    const title = asString(record.title);
+    if (!sourceId || !title) continue;
+    items.push({
+      sourceId,
+      title,
+      authorText: asString(record.authorText ?? record.author_text),
+      publisher: asString(record.publisher),
+      publicationYear: normalizeYear(record.publicationYear ?? record.publication_year),
+      isbn: asString(record.isbn),
+      catalogStatus: asString(record.catalogStatus ?? record.catalog_status) || "active",
+      usedCount: Number(record.usedCount ?? record.used_count ?? 0),
+      taxonLabels: toTaxonLabels(record.taxonLabels ?? record.taxon_labels),
+    });
+  }
+  return items;
+}
+
 export async function getReferenceProfileSummary(userId: string): Promise<ReferenceProfileSummary> {
   const pool = getPool();
   const [counts, recent] = await Promise.all([
@@ -1077,10 +1129,10 @@ export async function listReferenceLibrary(input: {
   const pool = getPool();
   const where =
     input.tab === "owned"
-      ? "where owned.owned_status = 'owned_verified' and coalesce(krm.catalog_status, 'active') <> 'withdrawn'"
+      ? "where owned.owned_status = 'owned_verified' and coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')"
       : input.tab === "needs_review"
-        ? "where owned.owned_status = 'needs_review' and coalesce(krm.catalog_status, 'active') <> 'withdrawn'"
-        : "where coalesce(krm.catalog_status, 'active') <> 'withdrawn'";
+        ? "where owned.owned_status = 'needs_review' and coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')"
+        : "where coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')";
   const rows = await pool.query<{
     source_id: string;
     title: string;
@@ -1202,6 +1254,292 @@ export async function listReferenceLibrary(input: {
   };
 }
 
+export async function listReferenceDuplicateCandidates(input: { limit?: number } = {}): Promise<ReferenceDuplicateGroup[]> {
+  const limit = Math.max(1, Math.min(24, Math.floor(input.limit ?? 12)));
+  const pool = getPool();
+  const rows = await pool.query<{
+    duplicate_key: string;
+    reason: string;
+    sources: unknown;
+  }>(
+    `with source_base as (
+        select ks.source_id,
+               ks.title,
+               coalesce(krm.author_text, '') as author_text,
+               ks.publisher,
+               ks.publication_year,
+               coalesce(krm.isbn, '') as isbn,
+               coalesce(krm.catalog_status, 'active') as catalog_status,
+               ks.created_at,
+               ks.updated_at,
+               coalesce(used.n, 0)::int as used_count,
+               coalesce(taxa.labels, '[]'::jsonb) as taxon_labels
+          from knowledge_sources ks
+          left join knowledge_source_reference_metadata krm on krm.source_id = ks.source_id
+          left join lateral (
+            select count(*)::int as n
+              from identification_references ir
+             where ir.source_id = ks.source_id
+          ) used on true
+          left join lateral (
+            select jsonb_agg(distinct kt.taxon_name order by kt.taxon_name) as labels
+              from knowledge_source_taxon_links kt
+             where kt.source_id = ks.source_id
+          ) taxa on true
+         where (ks.source_kind in ('field_guide', 'literature', 'web', 'book', 'unknown')
+             or ks.source_provider = 'user_reference_capture')
+           and coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')
+      ),
+      keyed as (
+        select *,
+               regexp_replace(coalesce(isbn, ''), '[^0-9Xx]', '', 'g') as normalized_isbn,
+               lower(regexp_replace(btrim(coalesce(title, '')), '\\s+', ' ', 'g')) as normalized_title,
+               lower(regexp_replace(btrim(coalesce(publisher, '')), '\\s+', ' ', 'g')) as normalized_publisher
+          from source_base
+      ),
+      keyed_nonempty as (
+        select *,
+               case
+                 when normalized_isbn <> '' then 'isbn:' || normalized_isbn
+                 when normalized_title <> '' then 'title:' || normalized_title || '|' || normalized_publisher || '|' || coalesce(publication_year::text, '')
+                 else ''
+               end as duplicate_key,
+               case
+                 when normalized_isbn <> '' then 'ISBN一致'
+                 else 'タイトル・出版社・年が近い'
+               end as reason
+          from keyed
+         where normalized_isbn <> '' or normalized_title <> ''
+      ),
+      duplicate_keys as (
+        select duplicate_key, max(reason) as reason, count(*)::int as n
+          from keyed_nonempty
+         where duplicate_key <> ''
+         group by duplicate_key
+        having count(*) > 1
+      ),
+      ranked as (
+        select k.*,
+               row_number() over (
+                 partition by k.duplicate_key
+                 order by k.used_count desc, k.catalog_status asc, k.updated_at desc, k.created_at asc
+               ) as canonical_rank
+          from keyed_nonempty k
+          join duplicate_keys d on d.duplicate_key = k.duplicate_key
+      )
+      select ranked.duplicate_key,
+             max(ranked.reason) as reason,
+             jsonb_agg(
+               jsonb_build_object(
+                 'sourceId', ranked.source_id::text,
+                 'title', ranked.title,
+                 'authorText', ranked.author_text,
+                 'publisher', ranked.publisher,
+                 'publicationYear', ranked.publication_year,
+                 'isbn', ranked.isbn,
+                 'catalogStatus', ranked.catalog_status,
+                 'usedCount', ranked.used_count,
+                 'taxonLabels', ranked.taxon_labels
+               )
+               order by ranked.canonical_rank asc, ranked.used_count desc, ranked.title asc
+             ) as sources
+        from ranked
+       group by ranked.duplicate_key
+       order by count(*) desc, max(ranked.updated_at) desc
+       limit $1`,
+    [limit],
+  );
+
+  return rows.rows.flatMap((row) => {
+    const sources = duplicateItemsFromJson(row.sources);
+    const canonical = sources[0];
+    if (!canonical || sources.length < 2) return [];
+    return [{
+      duplicateKey: row.duplicate_key,
+      reason: row.reason,
+      canonical,
+      candidates: sources.slice(1),
+    }];
+  });
+}
+
+export async function confirmReferenceDuplicateMerge(input: {
+  canonicalSourceId: string;
+  duplicateSourceId: string;
+  actorUserId: string;
+}): Promise<ReferenceDuplicateMergeResult> {
+  const canonicalSourceId = input.canonicalSourceId.trim();
+  const duplicateSourceId = input.duplicateSourceId.trim();
+  const actorUserId = input.actorUserId.trim();
+  if (!/^[0-9a-f-]{36}$/i.test(canonicalSourceId) || !/^[0-9a-f-]{36}$/i.test(duplicateSourceId)) {
+    throw new Error("reference_source_id_invalid");
+  }
+  if (canonicalSourceId === duplicateSourceId) {
+    throw new Error("reference_duplicate_same_source");
+  }
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const sourceCheck = await client.query<{ source_id: string }>(
+      `select source_id::text
+         from knowledge_sources
+        where source_id = any($1::uuid[])`,
+      [[canonicalSourceId, duplicateSourceId]],
+    );
+    const found = new Set(sourceCheck.rows.map((row) => row.source_id));
+    if (!found.has(canonicalSourceId) || !found.has(duplicateSourceId)) {
+      throw new Error("reference_source_not_found");
+    }
+
+    const copiedIdentifications = await client.query<{ c: string }>(
+      `with copied as (
+         insert into identification_references (
+             identification_id, source_id, locator, reference_role, selected_by_user_id, source_payload, created_at
+         )
+         select ir.identification_id,
+                $1::uuid,
+                ir.locator,
+                ir.reference_role,
+                ir.selected_by_user_id,
+                coalesce(ir.source_payload, '{}'::jsonb) || jsonb_build_object(
+                  'merged_from_source_id', $2,
+                  'merged_by_user_id', $3
+                ),
+                ir.created_at
+           from identification_references ir
+          where ir.source_id = $2::uuid
+         on conflict do nothing
+         returning 1
+       )
+       select count(*)::text as c from copied`,
+      [canonicalSourceId, duplicateSourceId, actorUserId],
+    );
+    const removedIdentifications = await client.query<{ c: string }>(
+      `with deleted as (
+         delete from identification_references
+          where source_id = $1::uuid
+          returning 1
+       )
+       select count(*)::text as c from deleted`,
+      [duplicateSourceId],
+    );
+
+    const copiedProofs = await client.query<{ c: string }>(
+      `with copied as (
+         insert into user_reference_access_proofs (
+             user_id, source_id, proof_asset_id, batch_id, proof_kind, verification_status,
+             ai_check_payload, private_use_only, created_at, updated_at
+         )
+         select p.user_id,
+                $1::uuid,
+                p.proof_asset_id,
+                p.batch_id,
+                p.proof_kind,
+                p.verification_status,
+                coalesce(p.ai_check_payload, '{}'::jsonb) || jsonb_build_object(
+                  'merged_from_source_id', $2,
+                  'merged_by_user_id', $3
+                ),
+                p.private_use_only,
+                p.created_at,
+                now()
+           from user_reference_access_proofs p
+          where p.source_id = $2::uuid
+         on conflict do nothing
+         returning 1
+       )
+       select count(*)::text as c from copied`,
+      [canonicalSourceId, duplicateSourceId, actorUserId],
+    );
+
+    const copiedTaxonLinks = await client.query<{ c: string }>(
+      `with copied as (
+         insert into knowledge_source_taxon_links (
+             source_id, taxon_name, taxon_rank, link_type, confidence,
+             created_by_user_id, source_payload, created_at, updated_at
+         )
+         select $1::uuid,
+                kt.taxon_name,
+                kt.taxon_rank,
+                kt.link_type,
+                kt.confidence,
+                kt.created_by_user_id,
+                coalesce(kt.source_payload, '{}'::jsonb) || jsonb_build_object(
+                  'merged_from_source_id', $2,
+                  'merged_by_user_id', $3
+                ),
+                kt.created_at,
+                now()
+           from knowledge_source_taxon_links kt
+          where kt.source_id = $2::uuid
+         on conflict do nothing
+         returning 1
+       )
+       select count(*)::text as c from copied`,
+      [canonicalSourceId, duplicateSourceId, actorUserId],
+    );
+
+    await client.query(
+      `update reference_capture_items
+          set source_id = $1::uuid,
+              classification_note = trim(coalesce(classification_note, '') || ' / duplicate merged from ' || $2)
+        where source_id = $2::uuid`,
+      [canonicalSourceId, duplicateSourceId],
+    );
+
+    await client.query(
+      `insert into knowledge_source_reference_metadata (
+          source_id, catalog_status, ai_extract_payload, created_at, updated_at
+       ) values (
+          $1::uuid, 'duplicate', jsonb_build_object(
+            'duplicate_of_source_id', $2,
+            'duplicate_confirmed_by_user_id', $3,
+            'duplicate_confirmed_at', now()
+          ), now(), now()
+       )
+       on conflict (source_id) do update set
+          catalog_status = 'duplicate',
+          ai_extract_payload = coalesce(knowledge_source_reference_metadata.ai_extract_payload, '{}'::jsonb)
+            || jsonb_build_object(
+              'duplicate_of_source_id', $2,
+              'duplicate_confirmed_by_user_id', $3,
+              'duplicate_confirmed_at', now()
+            ),
+          updated_at = now()`,
+      [duplicateSourceId, canonicalSourceId, actorUserId],
+    );
+
+    await client.query(
+      `update knowledge_sources
+          set source_payload = coalesce(source_payload, '{}'::jsonb)
+                || jsonb_build_object(
+                  'duplicate_of_source_id', $2,
+                  'duplicate_confirmed_by_user_id', $3,
+                  'duplicate_confirmed_at', now()
+                ),
+              updated_at = now()
+        where source_id = $1::uuid`,
+      [duplicateSourceId, canonicalSourceId, actorUserId],
+    );
+
+    await client.query("commit");
+    return {
+      canonicalSourceId,
+      duplicateSourceId,
+      identificationReferencesCopied: Number(copiedIdentifications.rows[0]?.c ?? 0),
+      identificationReferencesRemoved: Number(removedIdentifications.rows[0]?.c ?? 0),
+      accessProofsCopied: Number(copiedProofs.rows[0]?.c ?? 0),
+      taxonLinksCopied: Number(copiedTaxonLinks.rows[0]?.c ?? 0),
+    };
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function listReferenceCandidatesForIdentification(input: {
   userId: string;
   occurrenceId: string;
@@ -1315,7 +1653,7 @@ export async function listReferenceCandidatesForIdentification(input: {
             from knowledge_source_taxon_links kt
            where kt.source_id = ks.source_id
         ) taxa on true
-       where coalesce(krm.catalog_status, 'active') <> 'withdrawn'
+       where coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')
        order by
          case when coalesce(owned.owned, false) then 0 else 1 end,
          matched.match_rank asc,
@@ -1358,7 +1696,7 @@ export async function recordIdentificationReferenceSelections(
        from knowledge_sources ks
        left join knowledge_source_reference_metadata krm on krm.source_id = ks.source_id
       where ks.source_id = any($1::uuid[])
-        and coalesce(krm.catalog_status, 'active') <> 'withdrawn'`,
+        and coalesce(krm.catalog_status, 'active') not in ('withdrawn', 'duplicate')`,
     [cleanIds],
   );
   const locator = String(input.locator ?? "").trim().slice(0, 160);

@@ -59,6 +59,7 @@ import { confirmManagementActionCandidate } from "../services/managementActionCo
 import { submitObservationRecordAiReview, type ObservationRecordAiReviewState } from "../services/observationRecordAiReview.js";
 import { hideOwnObservation } from "../services/observationVisibility.js";
 import {
+  confirmReferenceDuplicateMerge,
   createKnowledgeSourceCorrection,
   createReferenceCaptureBatch,
   type KnowledgeSourceCorrectionInput,
@@ -303,7 +304,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
       const resolvedSession = assertSessionUser(session, session?.userId ?? "");
-      assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
+      await assertAuthRateLimit(["record-photo-feedback", resolvedSession.userId, request.ip], 10, 10 * 60 * 1000);
       const images = normalizeRecordPhotoFeedbackImages(request.body?.images);
       const context = normalizeRecordPhotoFeedbackContext(request.body?.context);
       const result = await generateRecordPhotoFeedback({
@@ -350,6 +351,38 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{
+    Body: {
+      canonicalSourceId?: string | null;
+      duplicateSourceId?: string | null;
+    };
+  }>("/api/v1/references/duplicates/merge", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const canonicalSourceId = request.body?.canonicalSourceId?.trim();
+      const duplicateSourceId = request.body?.duplicateSourceId?.trim();
+      if (!canonicalSourceId || !duplicateSourceId) {
+        throw new Error("reference_source_id_required");
+      }
+      const result = await confirmReferenceDuplicateMerge({
+        canonicalSourceId,
+        duplicateSourceId,
+        actorUserId: resolvedSession.userId,
+      });
+      return {
+        ok: true,
+        result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "reference_duplicate_merge_failed",
+      };
+    }
+  });
+
+  app.post<{
     Params: { sourceId: string };
     Body: Omit<KnowledgeSourceCorrectionInput, "sourceId" | "verifiedByUserId">;
   }>("/api/v1/references/:sourceId/corrections", async (request, reply) => {
@@ -358,9 +391,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       if (!session) {
         throw new Error("session_required");
       }
-      if (!/admin|analyst|specialist/i.test(session.roleName)) {
-        throw new Error("specialist_role_required");
-      }
+      await assertSpecialistSession(session, session.userId);
       return await createKnowledgeSourceCorrection({
         ...request.body,
         sourceId: request.params.sourceId,
@@ -620,6 +651,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       proposedName?: string | null;
       proposedRank?: string | null;
       reason?: string | null;
+      referenceSourceIds?: string[];
+      referenceLocator?: string | null;
     };
   }>("/api/v1/observations/:id/disputes", async (request, reply) => {
     try {
@@ -635,6 +668,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         proposedName: request.body?.proposedName ?? null,
         proposedRank: request.body?.proposedRank ?? null,
         reason: request.body?.reason ?? null,
+        referenceSourceIds: Array.isArray(request.body?.referenceSourceIds)
+          ? request.body.referenceSourceIds.map((value) => String(value))
+          : [],
+        referenceLocator: request.body?.referenceLocator ?? null,
       });
     } catch (error) {
       reply.code(errorStatus(error, 400));
