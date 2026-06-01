@@ -565,19 +565,15 @@ test.describe("production candidate smoke", () => {
 
     const baseUrl = productionSmokeBaseUrl();
     const prefix = productionSmokePrefix();
-    const observerContext = await browser.newContext({ ignoreHTTPSErrors: true });
     const identifierContext = await browser.newContext({
       ignoreHTTPSErrors: true,
       viewport: { width: 1280, height: 860 },
     });
 
     try {
-      const [observer, identifier] = await Promise.all([
-        registerSmokeUser(observerContext.request, baseUrl, prefix, "id-observer"),
-        registerSmokeUser(identifierContext.request, baseUrl, prefix, "id-identifier"),
-      ]);
+      const identifier = await registerSmokeUser(identifierContext.request, baseUrl, prefix, "id-identifier");
       const reference = await captureIdentificationSmokeReference(identifierContext.request, baseUrl, identifier, prefix);
-      const record = await postIdentificationSmokeObservation(observerContext.request, baseUrl, observer, prefix);
+      const record = await postIdentificationSmokeObservation(identifierContext.request, baseUrl, identifier, prefix);
 
       await identifierContext.setExtraHTTPHeaders({ cookie: identifier.sessionCookie });
       const page = await identifierContext.newPage();
@@ -618,10 +614,7 @@ test.describe("production candidate smoke", () => {
         identifierUserId: identifier.userId,
       });
     } finally {
-      await Promise.all([
-        observerContext.close(),
-        identifierContext.close(),
-      ]);
+      await identifierContext.close();
     }
   });
 
