@@ -187,6 +187,7 @@ async function registerSmokeUser(
   baseUrl: string,
   prefix: string,
   suffix?: string,
+  options?: { displayName?: string },
 ): Promise<SmokeAccount> {
   const password = `IkimonUiSmoke${prefix.replace(/\W/g, "").slice(-16)}!`;
   const accountKey = suffix ? `${prefix}-${suffix}` : prefix;
@@ -198,7 +199,7 @@ async function registerSmokeUser(
       origin: baseUrl,
     },
     data: {
-      displayName: `候補UIスモーク ${accountKey}`,
+      displayName: options?.displayName ?? `候補UIスモーク ${accountKey}`,
       email,
       password,
       redirect: "/record",
@@ -322,18 +323,21 @@ async function postIdentificationSmokeObservation(
   account: SmokeAccount,
   prefix: string,
 ): Promise<ObservationSmokeRecord> {
-  const observationId = `${prefix}-id-record`;
+  // Public record surfaces suppress smoke-prefixed IDs, media URLs, and observer names.
+  // Cleanup still keys off the smoke user email and source payload fixturePrefix.
+  const neutralId = `prod-id-record-${Date.now().toString(36)}`;
+  const observationId = neutralId;
   const response = await api.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
     headers: jsonHeaders(baseUrl, account),
     data: {
       observationId,
-      clientSubmissionId: `${observationId}-${Date.now()}`,
+      clientSubmissionId: `${neutralId}-submission`,
       userId: account.userId,
       observedAt: new Date().toISOString(),
       latitude: 34.7108,
       longitude: 137.7261,
-      localityNote: `production identification smoke ${prefix}`,
-      note: `production identification smoke record ${prefix}`,
+      localityNote: "production identification verification",
+      note: "production identification verification record",
       taxon: {
         vernacularName: "ハシブトガラス",
         scientificName: "Corvus macrorhynchos",
@@ -362,7 +366,7 @@ async function postIdentificationSmokeObservation(
   const uploadResponse = await api.post(joinUrl(baseUrl, `/api/v1/observations/${encodeURIComponent(visitId)}/photos/upload`), {
     headers: jsonHeaders(baseUrl, account),
     data: {
-      filename: `${prefix}-id-photo.png`,
+      filename: `${neutralId}-photo.png`,
       mimeType: "image/png",
       base64Data: smokePhotoBase64,
       mediaRole: "organism",
@@ -571,7 +575,9 @@ test.describe("production candidate smoke", () => {
     });
 
     try {
-      const identifier = await registerSmokeUser(identifierContext.request, baseUrl, prefix, "id-identifier");
+      const identifier = await registerSmokeUser(identifierContext.request, baseUrl, prefix, "id-identifier", {
+        displayName: "同定確認担当",
+      });
       const reference = await captureIdentificationSmokeReference(identifierContext.request, baseUrl, identifier, prefix);
       const record = await postIdentificationSmokeObservation(identifierContext.request, baseUrl, identifier, prefix);
 
