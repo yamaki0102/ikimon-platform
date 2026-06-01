@@ -91,3 +91,23 @@
 2. project-local preflight を clean worktree で通す。
 3. staging で PC/スマホの導線、資料紐づけ、Tier 3 gate を smoke する。
 4. 合格後に production deploy workflow と production smoke まで進める。
+
+## 2026-06-01 production smoke hardening
+
+production deploy 後の汎用 smoke だけでは、同定ワークベンチの資料根拠保存フローを直接保証できなかったため、`production-smoke.spec.ts` に同定専用ケースを追加した。
+
+- smoke 用の観察者/同定者を登録する。
+- 同定者が ISBN proof 付きの資料を登録し、所有確認済み資料にする。
+- 観察者が `ハシブトガラス` の写真付き記録を作成する。
+- `/records?view=needs_id` で対象カードを開き、資料候補が `この資料で確認` として自動選択されることを確認する。
+- `この候補でよさそう` で保存し、観察詳細の同定履歴に資料名と locator が残ることを確認する。
+- checkpoint `identification_workbench_reference_flow` を production smoke summary に出す。
+
+同時に、production smoke cleanup が `reference_capture_batches` / `reference_capture_items` / `user_reference_access_proofs` / `knowledge_source_*` / `identification_references` を fixture prefix で掃除できるようにした。これにより、本番カタログに smoke 用資料が残らない。
+
+追加検証:
+
+- `npm run typecheck`
+- `npm run build`
+- `npx playwright test -c playwright.production-smoke.config.ts --list`
+- `git diff --check`
