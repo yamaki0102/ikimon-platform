@@ -193,6 +193,7 @@ jobs:
           const cleanupPath = "platform_v2/test-results/production-ui-smoke-cleanup.json";
           const labels = {
             canonical_scene_ai_subject_records: "写真内AI対象の観測レコード化",
+            identification_workbench_reference_flow: "同定ワークベンチ資料根拠保存",
             photo_api_contract: "写真API契約 ok:true",
             photo_ui_post: "写真UI投稿",
             video_ui_post: "動画UI投稿",
@@ -221,6 +222,7 @@ jobs:
             return `| ${label} | ${passed.has(phase) ? "PASS" : "NOT COMPLETED"} |`;
           });
           const matchedVideos = cleanup?.matched?.videos ?? 0;
+          const matchedReferences = cleanup?.matched?.referenceSources ?? 0;
           const cloudflareResults = cleanup?.cloudflare ?? [];
           const cleanupPassed =
             process.env.CLEANUP_SMOKE_OUTCOME === "success" &&
@@ -229,12 +231,14 @@ jobs:
             (cleanup.matched?.users ?? 0) >= 1 &&
             (cleanup.deleted?.users ?? 0) >= 1 &&
             (cleanup.deleted?.visits ?? 0) >= 1 &&
+            matchedReferences >= 1 &&
+            (cleanup.deleted?.knowledgeSources ?? 0) >= 1 &&
             (cleanup.deleted?.videoRequests ?? 0) >= 1 &&
             cloudflareResults.length >= matchedVideos &&
             cloudflareResults.every((item) => item.status === 200 || item.status === 404);
           rows.push(`| cleanup成功 | ${cleanupPassed ? "PASS" : "NOT COMPLETED"} |`);
           const cleanupDetail = cleanup
-            ? `\n\nCleanup matched/deleted: users ${cleanup.matched?.users ?? 0}/${cleanup.deleted?.users ?? 0}, visits ${cleanup.matched?.visits ?? 0}/${cleanup.deleted?.visits ?? 0}, videos ${cleanup.matched?.videos ?? 0}/${cleanup.deleted?.videoRequests ?? 0}, files ${cleanup.matched?.files ?? 0}/${cleanup.deleted?.files ?? 0}.`
+            ? `\n\nCleanup matched/deleted: users ${cleanup.matched?.users ?? 0}/${cleanup.deleted?.users ?? 0}, visits ${cleanup.matched?.visits ?? 0}/${cleanup.deleted?.visits ?? 0}, references ${matchedReferences}/${cleanup.deleted?.knowledgeSources ?? 0}, videos ${cleanup.matched?.videos ?? 0}/${cleanup.deleted?.videoRequests ?? 0}, files ${cleanup.matched?.files ?? 0}/${cleanup.deleted?.files ?? 0}.`
             : "\n\nCleanup detail: cleanup JSON was not available.";
           fs.appendFileSync(summaryPath, [
             "## Production Candidate Media Smoke",
