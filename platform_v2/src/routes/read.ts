@@ -3739,10 +3739,6 @@ export function renderHeroAiReadout(
   const sizeCard = renderAiSizeSummary(aiAssessment.sizeAssessment);
   const fallbackScientificName = lookupLocalTaxonName(candidateName)?.scientificName || null;
   const story = renderAiTaxonStory(insight, candidateName, subject.scientificName || aiAssessment.recommendedScientificName || fallbackScientificName);
-  const positiveFeedback = positiveObservationFeedbackText(subject, aiAssessment);
-  const positiveFeedbackBlock = positiveFeedback
-    ? `<p class="obs-ai-positive"><strong>この記録のいいところ</strong><span>${escapeHtml(positiveFeedback)}</span></p>`
-    : "";
   const note = hasOpenDispute
     ? `<p class="obs-ai-merged-note"><strong>注意</strong>別の名前の提案があるため、候補が固まるまで断定しません。</p>`
     : "";
@@ -17778,7 +17774,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            };
            var firstReadRoot = document.querySelector('[data-obs-switch-first-read]');
            var aiReadoutRoot = document.querySelector('[data-obs-switch-ai-readout]');
-           var shotFeedbackRoot = document.querySelector('[data-obs-switch-shot-feedback]');
            var hintRoot = document.querySelector('[data-obs-switch-hint]');
            var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
            var identifyRoot = document.querySelector('[data-obs-switch-identify]');
@@ -17789,7 +17784,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            var switchRegions = [
              { root: firstReadRoot, templateAttr: 'data-subject-first-read-template' },
              { root: aiReadoutRoot, templateAttr: 'data-subject-ai-readout-template' },
-             { root: shotFeedbackRoot, templateAttr: 'data-subject-shot-feedback-template' },
              { root: hintRoot, templateAttr: 'data-subject-hint-template' },
              { root: taxonomyRoot, templateAttr: 'data-subject-taxonomy-template' },
              { root: identifyRoot, templateAttr: 'data-subject-identify-template' }
@@ -17892,13 +17886,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
              var candidateListScroll = captureCandidateListScroll();
              var aiReadoutTemplate = selectTemplate('data-subject-ai-readout-template', subjectId);
              var firstReadTemplate = selectTemplate('data-subject-first-read-template', subjectId);
-             var shotFeedbackTemplate = selectTemplate('data-subject-shot-feedback-template', subjectId);
              var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
              var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
              var identifyTemplate = selectTemplate('data-subject-identify-template', subjectId);
              if (firstReadRoot && firstReadTemplate) firstReadRoot.innerHTML = firstReadTemplate.innerHTML;
              if (aiReadoutRoot && aiReadoutTemplate) aiReadoutRoot.innerHTML = aiReadoutTemplate.innerHTML;
-             if (shotFeedbackRoot && shotFeedbackTemplate) shotFeedbackRoot.innerHTML = shotFeedbackTemplate.innerHTML;
              if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
              if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
              if (identifyRoot && identifyTemplate) identifyRoot.innerHTML = identifyTemplate.innerHTML;
