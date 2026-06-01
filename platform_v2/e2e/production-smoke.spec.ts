@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 
 const pages = [
   { path: "/", marker: /ikimon/i },
@@ -165,6 +165,23 @@ function sessionCookieFromResponse(response: import("@playwright/test").APIRespo
   const setCookie = response.headers()["set-cookie"] ?? "";
   const match = setCookie.match(/(?:^|,\s*)(ikimon_v2_session=[^;,\s]+)/);
   return match?.[1] ?? "";
+}
+
+async function addSessionCookieToContext(context: BrowserContext, baseUrl: string, sessionCookie: string): Promise<void> {
+  const separatorIndex = sessionCookie.indexOf("=");
+  expect(separatorIndex, "session cookie should include a name/value separator").toBeGreaterThan(0);
+  const url = new URL(baseUrl);
+  await context.addCookies([
+    {
+      name: sessionCookie.slice(0, separatorIndex),
+      value: decodeURIComponent(sessionCookie.slice(separatorIndex + 1)),
+      domain: url.hostname,
+      path: "/",
+      httpOnly: true,
+      secure: url.protocol === "https:",
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 function authHeaders(baseUrl: string, account?: SmokeAccount): Record<string, string> {
@@ -581,7 +598,7 @@ test.describe("production candidate smoke", () => {
       const reference = await captureIdentificationSmokeReference(identifierContext.request, baseUrl, identifier, prefix);
       const record = await postIdentificationSmokeObservation(identifierContext.request, baseUrl, identifier, prefix);
 
-      await identifierContext.setExtraHTTPHeaders({ cookie: identifier.sessionCookie });
+      await addSessionCookieToContext(identifierContext, baseUrl, identifier.sessionCookie);
       const page = await identifierContext.newPage();
       const recordsPath = joinUrl(baseUrl, "/records?view=needs_id&lang=ja");
       let card = page.locator("[data-records-identify-card]", {
