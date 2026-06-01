@@ -214,6 +214,11 @@ test("thumb route resizes image and blocks invalid preset / traversal", async ()
 
           const nonImageExt = await app.inject({ method: "GET", url: "/thumb/sm/photos/big.txt" });
           assert.equal(nonImageExt.statusCode, 404);
+
+          const missingImage = await app.inject({ method: "GET", url: "/thumb/md/photos/missing.jpg" });
+          assert.equal(missingImage.statusCode, 200);
+          assert.equal(missingImage.headers["content-type"], "image/webp");
+          assert.ok(missingImage.rawPayload.length > 512);
         } finally {
           await app.close();
         }

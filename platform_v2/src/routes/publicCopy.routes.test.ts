@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import { JA_PUBLIC_INTERNAL_JARGON } from "../copy/jaPublic.js";
 import { buildApp } from "../app.js";
-import { renderHomePageHtml } from "./read.js";
+import { recordsPostHrefForView, renderHomePageHtml } from "./read.js";
 import type { HomeSnapshot } from "../services/readModels.js";
 
 async function withEnv(
@@ -274,7 +276,49 @@ test("identification queue is a records workbench tab", async () => {
     assert.match(response.body, /records-view-tabs/);
     assert.match(response.body, /確認待ち/);
     assert.match(response.body, /data-library-search/);
+    assert.match(response.body, /data-records-identify-workbench/);
+    assert.match(response.body, /records-identify-panel/);
+    assert.match(response.body, /data-records-identify-panel/);
+    assert.match(response.body, /同定ワークベンチ/);
+    assert.equal(recordsPostHrefForView("needs_id", true, "/ja/observations/record-1"), "/ja/observations/record-1#identify");
+    assert.equal(recordsPostHrefForView("needs_id", false, "/ja/observations/record-1"), "/ja/observations/record-1");
+    assert.equal(recordsPostHrefForView("public", true, "/ja/observations/record-1"), "/ja/observations/record-1");
     assert.doesNotMatch(response.body, /class="hero-panel/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("identification workbench panel keeps continuous actions in the records surface", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  assert.match(source, /data-identify-panel-action="support"/);
+  assert.match(source, /data-identify-panel-action="alternative"/);
+  assert.match(source, /data-identify-panel-action="needs_more_evidence"/);
+  assert.match(source, /data-identify-panel-action="hold"/);
+  assert.match(source, /data-identify-endpoint=/);
+  assert.match(source, /data-dispute-endpoint=/);
+  assert.match(source, /data-identify-panel-restore/);
+  assert.match(source, /data-identify-panel-keep/);
+  assert.match(source, /data-identify-processed/);
+  assert.match(source, /data-reference-candidates-endpoint/);
+  assert.match(source, /data-identify-panel-reference-options/);
+  assert.match(source, /data-identify-panel-reference-capture/);
+  assert.match(source, /taxonHint/);
+  assert.match(source, /referenceSourceIds: referenceSourceIds/);
+});
+
+test("observation detail visible identification history includes reference evidence", async () => {
+  const source = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  assert.match(source, /obs-local-name-activity-list/);
+  assert.match(source, /名前を支持[\s\S]*renderIdentificationReferenceChips\(item\.references\)/);
+});
+
+test("reference candidate lookup requires an authenticated session", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({ method: "GET", url: "/api/v1/observations/occ-1/reference-candidates?proposedName=test", headers: { accept: "application/json" } });
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), { ok: false, error: "session_required" });
   } finally {
     await app.close();
   }

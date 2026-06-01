@@ -16,6 +16,7 @@ import { rankVisitSubjects, type RankedSubject } from "./subjectRanking.js";
 import { deriveVisitDisplayState, getStoredVisitDisplayState, type VisitDisplayStateRecord } from "./visitDisplayState.js";
 import { getVisitSubjectSummaries, type VisitSubjectSummary } from "./visitSubjects.js";
 import { normalizeTaxonDisplayLabel } from "./localizedDisplay.js";
+import { identificationReferencesFromJson, type IdentificationReferenceView } from "./identificationReferencesView.js";
 
 export type ObservationVisitAssessment = AiAssessment & {
   aiRunId: string | null;
@@ -62,6 +63,7 @@ export type ObservationVisitSubject = RankedSubject<VisitSubjectSummary> & {
     notes: string | null;
     actorName: string;
     createdAt: string;
+    references: IdentificationReferenceView[];
   }>;
   lineage: Array<{
     rank: string;
@@ -423,6 +425,7 @@ export async function getObservationVisitBundle(
         notes: string | null;
         actor_name: string | null;
         created_at: string;
+        reference_sources: unknown;
       }>(
         `SELECT i.occurrence_id,
                 i.proposed_name,
@@ -430,9 +433,27 @@ export async function getObservationVisitBundle(
                 i.accepted_rank,
                 i.notes,
                 coalesce(u.display_name, 'Community') AS actor_name,
-                i.created_at::text
+                i.created_at::text,
+                coalesce(refs.reference_sources, '[]'::jsonb) AS reference_sources
            FROM identifications i
            LEFT JOIN users u ON u.user_id = i.actor_user_id
+           LEFT JOIN LATERAL (
+             SELECT jsonb_agg(
+                      jsonb_build_object(
+                        'sourceId', ks.source_id::text,
+                        'title', ks.title,
+                        'locator', coalesce(ir.locator, ''),
+                        'referenceRole', ir.reference_role,
+                        'citationText', coalesce(ks.citation_text, ''),
+                        'publisher', coalesce(ks.publisher, ''),
+                        'publicationYear', ks.publication_year
+                      )
+                      ORDER BY ir.created_at ASC, ks.title ASC
+                    ) AS reference_sources
+               FROM identification_references ir
+               JOIN knowledge_sources ks ON ks.source_id = ir.source_id
+              WHERE ir.identification_id = i.identification_id
+           ) refs ON true
           WHERE i.occurrence_id = ANY($1::text[])
           ORDER BY i.occurrence_id ASC, i.created_at DESC`,
         [occurrenceIds],
@@ -520,6 +541,7 @@ export async function getObservationVisitBundle(
         notes: row.notes,
         actorName: row.actor_name ?? "Community",
         createdAt: row.created_at,
+        references: identificationReferencesFromJson(row.reference_sources),
       });
       idsByOccurrence.set(row.occurrence_id, list);
     }

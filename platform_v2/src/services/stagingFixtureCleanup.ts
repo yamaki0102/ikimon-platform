@@ -20,6 +20,7 @@ type CleanupCounts = {
   rememberTokens: number;
   oauthAccounts: number;
   identifications: number;
+  knowledgeSources: number;
   observationReactions: number;
   placeMemoryAuditEvents: number;
   evidenceAssets: number;
@@ -51,6 +52,7 @@ function emptyCounts(): CleanupCounts {
     rememberTokens: 0,
     oauthAccounts: 0,
     identifications: 0,
+    knowledgeSources: 0,
     observationReactions: 0,
     placeMemoryAuditEvents: 0,
     evidenceAssets: 0,
@@ -236,6 +238,16 @@ export async function cleanupStagingFixtures(
          from places p
         where ${placePredicate}`,
     );
+    const candidateKnowledgeSourceIds = await tableExists(client, "knowledge_sources")
+      ? await queryTextArray(
+          client,
+          `select distinct ks.source_id::text as value
+             from knowledge_sources ks
+            where ks.source_payload->>'source' = 'staging_regression_reference'
+              and ($1::text is null or ks.source_payload->>'fixture_prefix' = $1)`,
+          [fixturePrefix],
+        )
+      : [];
 
     const candidatePlaceIdsFromVisits = candidateVisitIds.length > 0
       ? await queryTextArray(
@@ -330,6 +342,7 @@ export async function cleanupStagingFixtures(
     }
     matched.evidenceAssets = candidateAssets.length;
     matched.assetBlobs = candidateBlobIds.length;
+    matched.knowledgeSources = candidateKnowledgeSourceIds.length;
     matched.files = storagePaths.length;
 
     const deleted = emptyCounts();
@@ -377,6 +390,16 @@ export async function cleanupStagingFixtures(
             where ($1::text[] <> '{}'::text[] and occurrence_id = any($1::text[]))
                or ($2::text[] <> '{}'::text[] and user_id = any($2::text[]))`,
           [candidateOccurrenceIds, candidateUserIds],
+        );
+      }
+
+      if (candidateKnowledgeSourceIds.length > 0) {
+        deleted.knowledgeSources = await deleteCountIfTableExists(
+          client,
+          "knowledge_sources",
+          `delete from knowledge_sources
+            where source_id = any($1::uuid[])`,
+          [candidateKnowledgeSourceIds],
         );
       }
 

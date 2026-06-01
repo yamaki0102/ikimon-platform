@@ -19,9 +19,18 @@ export type SeededRegressionFixture = {
   occurrenceId: string;
   placeId: string;
   subjectLabel: string;
+  scientificName: string;
   observedAt: string;
   sourceKind: string;
   expectedVisibility: "manual_only" | "all_research_artifacts_only" | "excluded";
+};
+
+export type SeededRegressionReferenceFixture = {
+  sourceId: string;
+  title: string;
+  taxonName: string;
+  taxonRank: string;
+  locator: string;
 };
 
 export type SeededRegressionFixtureBundle = {
@@ -34,6 +43,7 @@ export type SeededRegressionFixtureBundle = {
   historical: SeededRegressionFixture;
   smoke: SeededRegressionFixture;
   scene: SeededRegressionFixture;
+  reference: SeededRegressionReferenceFixture;
 };
 
 export type SeededRallyFixtureBundle = {
@@ -164,6 +174,11 @@ type CleanupResponse = {
   error?: string;
 };
 
+type SessionIssueResponse = {
+  ok: boolean;
+  error?: string;
+};
+
 export async function seedRegressionFixtures(
   api: APIRequestContext,
   writeKey: string,
@@ -220,6 +235,29 @@ export async function cleanupFixtures(
   const payload = (await response.json()) as CleanupResponse;
   expect(response.ok(), payload.error ?? "cleanup_fixtures_failed").toBeTruthy();
   expect(payload.ok, payload.error ?? "cleanup_fixtures_failed").toBeTruthy();
+}
+
+export async function issueSessionCookie(
+  api: APIRequestContext,
+  writeKey: string,
+  userId: string,
+): Promise<string> {
+  const response = await api.post("/api/v1/auth/session/issue", {
+    headers: {
+      "x-ikimon-write-key": writeKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: {
+      userId,
+      ttlHours: 24,
+    },
+  });
+  const payload = (await response.json()) as SessionIssueResponse;
+  expect(response.ok(), payload.error ?? "session_issue_failed").toBeTruthy();
+  const rawCookie = response.headers()["set-cookie"];
+  expect(rawCookie).toBeTruthy();
+  return rawCookie;
 }
 
 function parseSetCookie(rawCookie: string): { name: string; value: string } {
