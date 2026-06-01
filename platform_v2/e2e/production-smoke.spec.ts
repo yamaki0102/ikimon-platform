@@ -47,10 +47,6 @@ type ReferenceCaptureSmokeRecord = {
   sourceId: string;
   title: string;
 };
-type ObservationSmokeRecord = {
-  visitId: string;
-  occurrenceId: string;
-};
 
 function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
@@ -301,8 +297,9 @@ async function captureIdentificationSmokeReference(
   baseUrl: string,
   account: SmokeAccount,
   prefix: string,
+  taxonHint: string,
 ): Promise<ReferenceCaptureSmokeRecord> {
-  const title = `Production Smoke Crow Field Guide ${prefix}`;
+  const title = `Production Smoke Field Guide ${prefix}`;
   const response = await api.post(joinUrl(baseUrl, "/api/v1/references/capture-batches"), {
     headers: jsonHeaders(baseUrl, account),
     data: {
@@ -313,7 +310,7 @@ async function captureIdentificationSmokeReference(
         authorText: "IKIMON QA",
         publisher: "IKIMON",
         publicationYear: 2026,
-        taxonHints: ["ハシブトガラス", "鳥類"],
+        taxonHints: [taxonHint],
         proofKind: "isbn",
       }],
     },
@@ -334,78 +331,27 @@ async function captureIdentificationSmokeReference(
   };
 }
 
-async function postIdentificationSmokeObservation(
-  api: APIRequestContext,
-  baseUrl: string,
-  account: SmokeAccount,
-  prefix: string,
-): Promise<ObservationSmokeRecord> {
-  // Public record surfaces suppress smoke-prefixed IDs, media URLs, and observer names.
-  // Cleanup still keys off the smoke user email and source payload fixturePrefix.
-  const neutralId = `prod-id-record-${Date.now().toString(36)}`;
-  const observationId = neutralId;
-  const response = await api.post(joinUrl(baseUrl, "/api/v1/observations/upsert"), {
-    headers: jsonHeaders(baseUrl, account),
-    data: {
-      observationId,
-      clientSubmissionId: `${neutralId}-submission`,
-      userId: account.userId,
-      observedAt: new Date().toISOString(),
-      latitude: 34.7108,
-      longitude: 137.7261,
-      localityNote: "production identification verification",
-      note: "production identification verification record",
-      taxon: {
-        vernacularName: "ハシブトガラス",
-        scientificName: "Corvus macrorhynchos",
-        rank: "species",
-      },
-      sourcePayload: {
-        source: "production_identification_smoke",
-        fixturePrefix: prefix,
-      },
-    },
-  });
-  const payload = (await response.json().catch(() => null)) as {
-    ok?: boolean;
-    error?: string;
-    visitId?: string;
-    occurrenceId?: string;
-    occurrenceIds?: string[];
-  } | null;
-  expect(response.ok(), payload?.error ?? "identification_observation_write_failed").toBeTruthy();
-  expect(payload?.ok, payload?.error ?? "identification_observation_write_failed").toBeTruthy();
-  const visitId = payload?.visitId || observationId;
-  const occurrenceId = payload?.occurrenceId || payload?.occurrenceIds?.[0];
-  expect(visitId, "identification smoke visit id").toBeTruthy();
-  expect(occurrenceId, "identification smoke occurrence id").toBeTruthy();
-
-  const uploadResponse = await api.post(joinUrl(baseUrl, `/api/v1/observations/${encodeURIComponent(visitId)}/photos/upload`), {
-    headers: jsonHeaders(baseUrl, account),
-    data: {
-      filename: `${neutralId}-photo.png`,
-      mimeType: "image/png",
-      base64Data: smokePhotoBase64,
-      mediaRole: "organism",
-      facePrivacy: { detector: "production_smoke", status: "no_faces", faceCount: 0 },
-    },
-  });
-  const uploadPayload = (await uploadResponse.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-  expect(uploadResponse.ok(), uploadPayload?.error ?? "identification_photo_upload_failed").toBeTruthy();
-  expect(uploadPayload?.ok, uploadPayload?.error ?? "identification_photo_upload_failed").toBeTruthy();
-
-  return {
-    visitId,
-    occurrenceId: occurrenceId!,
-  };
-}
-
 async function thumbUrlsOnPage(page: import("@playwright/test").Page): Promise<string[]> {
   return page.locator("img").evaluateAll((imgs) => {
     return Array.from(new Set(imgs
       .map((img) => (img as HTMLImageElement).currentSrc || (img as HTMLImageElement).src || img.getAttribute("src") || "")
       .filter((src) => src.includes("/thumb/"))));
   });
+}
+
+function occurrenceIdFromIdentificationEndpoint(endpoint: string): string {
+  const match = endpoint.match(/\/api\/v1\/observations\/([^/]+)\/identifications(?:$|\?)/);
+  expect(match?.[1], "identification endpoint should include an encoded occurrence id").toBeTruthy();
+  return decodeURIComponent(match![1]!);
+}
+
+function visitIdFromObservationHref(baseUrl: string, href: string): string {
+  const url = new URL(href, baseUrl);
+  const segments = url.pathname.split("/").filter(Boolean);
+  const observationIndex = segments.lastIndexOf("observations");
+  const visitId = observationIndex >= 0 ? segments[observationIndex + 1] : "";
+  expect(visitId, "records card href should include an observation visit id").toBeTruthy();
+  return decodeURIComponent(visitId!);
 }
 
 test.describe("production candidate smoke", () => {
@@ -595,22 +541,27 @@ test.describe("production candidate smoke", () => {
       const identifier = await registerSmokeUser(identifierContext.request, baseUrl, prefix, "id-identifier", {
         displayName: "同定確認担当",
       });
-      const reference = await captureIdentificationSmokeReference(identifierContext.request, baseUrl, identifier, prefix);
-      const record = await postIdentificationSmokeObservation(identifierContext.request, baseUrl, identifier, prefix);
 
       await addSessionCookieToContext(identifierContext, baseUrl, identifier.sessionCookie);
       const page = await identifierContext.newPage();
       const recordsPath = joinUrl(baseUrl, "/records?view=needs_id&lang=ja");
-      let card = page.locator("[data-records-identify-card]", {
-        has: page.locator(`.records-post-card-link[href*="${record.visitId}"]`),
-      }).first();
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        await page.goto(recordsPath, { waitUntil: "domcontentloaded" });
-        await expect(page.locator("[data-records-identify-workbench]")).toBeVisible();
-        if (await card.count()) break;
-        await page.waitForTimeout(2_000);
-      }
-      await expect(card, "new identification smoke record should appear in needs_id workbench").toBeVisible();
+      await page.goto(recordsPath, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("[data-records-identify-workbench]")).toBeVisible();
+      const card = page.locator("[data-records-identify-card]").first();
+      await expect(card, "production needs_id workbench should expose an identification candidate").toBeVisible();
+      const candidateName = (
+        await card.getAttribute("data-identify-default-name") ||
+        await card.getAttribute("data-identify-title") ||
+        ""
+      ).trim();
+      expect(candidateName, "selected production candidate name").toBeTruthy();
+      const identifyEndpoint = await card.getAttribute("data-identify-endpoint");
+      expect(identifyEndpoint, "selected production candidate identify endpoint").toBeTruthy();
+      const occurrenceId = occurrenceIdFromIdentificationEndpoint(identifyEndpoint!);
+      const detailHref = await card.locator(".records-post-card-link").first().getAttribute("href");
+      expect(detailHref, "selected production candidate detail href").toBeTruthy();
+      const visitId = visitIdFromObservationHref(baseUrl, detailHref!);
+      const reference = await captureIdentificationSmokeReference(identifierContext.request, baseUrl, identifier, prefix, candidateName);
       await card.locator(".records-post-card-link").click();
 
       const referenceOption = page.locator(".records-identify-reference-option", { hasText: reference.title }).first();
@@ -623,18 +574,19 @@ test.describe("production candidate smoke", () => {
       await expect(page.locator("[data-identify-panel-status]")).toContainText("保存しました");
 
       await page.goto(
-        joinUrl(baseUrl, `/observations/${encodeURIComponent(record.visitId)}?subject=${encodeURIComponent(record.occurrenceId)}&lang=ja`),
+        joinUrl(baseUrl, `/observations/${encodeURIComponent(visitId)}?subject=${encodeURIComponent(occurrenceId)}&lang=ja`),
         { waitUntil: "domcontentloaded" },
       );
       const idHistory = page.locator(".obs-local-name-activity-list").first();
-      await expect(idHistory).toContainText("ハシブトガラス");
+      await expect(idHistory).toContainText(candidateName);
       await expect(idHistory).toContainText(reference.title);
       await expect(idHistory).toContainText(locator);
       await recordSmokeCheckpoint("identification_workbench_reference_flow", {
-        visitId: record.visitId,
-        occurrenceId: record.occurrenceId,
+        visitId,
+        occurrenceId,
         sourceId: reference.sourceId,
         identifierUserId: identifier.userId,
+        candidateName,
       });
     } finally {
       await identifierContext.close();
