@@ -238,7 +238,9 @@ test("area encyclopedia renders ordinary park guide templates without payload", 
   assert.match(html, /<strong>50<\/strong><span>公開記録<\/span>/);
   assert.match(html, /<strong>0<\/strong><span>近くのスポット<\/span>/);
   assert.match(html, /<strong>3<\/strong><span>ガイド候補<\/span>/);
-  assert.match(html, /近くのスポットはまだありません/);
+  assert.match(html, /園内の見どころ/);
+  assert.match(html, /園内の見どころはこれから/);
+  assert.doesNotMatch(html, /近くのスポットはまだありません|公園・用地/);
   assert.match(html, /現地で聞けるガイド/);
   assert.match(html, /現地で見る入口/);
   assert.match(html, /1分ガイドを見る/);
