@@ -221,13 +221,15 @@ function renderSpotCard(spot: AreaEncyclopediaSpot, actors: Map<string, string>)
 
 function renderAreaSpots(encyclopedia: AreaEncyclopediaPayload): string {
   const actors = actorNameMap(encyclopedia.actors);
-  const spotCards = encyclopedia.spots.length > 0
+  const hasSpots = encyclopedia.spots.length > 0;
+  const sectionLabel = hasSpots ? "近くのスポット" : "園内の見どころ";
+  const spotCards = hasSpots
     ? encyclopedia.spots.map((spot) => renderSpotCard(spot, actors)).join("")
-    : `<article class="evt-card field-empty-card"><h3 class="evt-heading">近くのスポットはまだありません</h3><p class="evt-lead">公開記録が増えると、公園・用地、施設、守る水辺、観察地点、食の入口を追加できます。</p></article>`;
-  return `<section class="field-area-spots" aria-label="近くのスポット">
+    : `<article class="evt-card field-empty-card"><h3 class="evt-heading">園内の見どころはこれから</h3><p class="evt-lead">花壇、木の根元、水たまり、ベンチまわりなど、記録が増えた場所から見どころを育てます。まずは上の1分ガイドから歩き出せます。</p></article>`;
+  return `<section class="field-area-spots" aria-label="${sectionLabel}">
     <header>
-      <div><span class="evt-eyebrow">Area Spots</span><h2 class="evt-heading">近くのスポット</h2></div>
-      ${renderSpotFilters()}
+      <div><span class="evt-eyebrow">${hasSpots ? "Area Spots" : "Park Points"}</span><h2 class="evt-heading">${sectionLabel}</h2></div>
+      ${hasSpots ? renderSpotFilters() : ""}
     </header>
     <div class="field-spot-grid" data-spot-list>${spotCards}</div>
   </section>`;
