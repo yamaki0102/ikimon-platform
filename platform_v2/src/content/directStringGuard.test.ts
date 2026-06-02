@@ -16,6 +16,7 @@ const explicitAllowlist = [
   "platform_v2/src/routes/adminAudioApi.ts",
   "platform_v2/src/routes/adminDataHealth.ts",
   "platform_v2/src/routes/adminGuidePromptImprovements.ts",
+  "platform_v2/src/routes/adminLenriAreaIntelligence.ts",
   "platform_v2/src/routes/adminMonitoringWorkspace.ts",
   "platform_v2/src/routes/adminRegionalKnowledge.ts",
   "platform_v2/src/routes/adminSiteEvidence.ts",
