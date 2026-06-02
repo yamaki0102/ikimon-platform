@@ -25,6 +25,7 @@ test("Lenri area intelligence routes are registered and role gated", () => {
   assert.equal(adminLenriAreaIntelligenceRouteContract.externalCalls, false);
   assert.equal(adminLenriAreaIntelligenceRouteContract.pdiSubscriptionAllowedWithoutBudgetProof, false);
   assert.equal(adminLenriAreaIntelligenceRouteContract.effortReadinessSchema, "lenri_effort_readiness/v0");
+  assert.equal(adminLenriAreaIntelligenceRouteContract.liveEffortSchema, "lenri_live_effort/v0");
   assert.match(appSource, /registerAdminLenriAreaIntelligenceRoutes/);
   assert.match(routeSource, /getSessionFromCookie/);
   assert.match(routeSource, /isAdminOrAnalystRole/);
@@ -46,4 +47,11 @@ test("Lenri area intelligence page exposes effort readiness and survey planning"
   assert.match(routeSource, /effort\.metricDefinitions/);
   assert.match(serviceSource, /non_detection/);
   assert.match(routeSource, /effort guardrails/);
+});
+
+test("Lenri area intelligence page uses live effort ledger for authenticated views", () => {
+  assert.match(routeSource, /getLenriAreaIntelligenceSnapshotWithLiveEffort/);
+  assert.match(routeSource, /live effort ledger/);
+  assert.match(routeSource, /effort filled/);
+  assert.match(routeSource, /non-detection/);
 });

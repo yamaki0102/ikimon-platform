@@ -1,5 +1,8 @@
+import { getPlaceSnapshot, type PlaceSnapshot } from "./placeSnapshot.js";
+
 export const LENRI_AREA_INTELLIGENCE_SCHEMA_VERSION = "lenri_area_intelligence/v0";
 export const LENRI_EFFORT_READINESS_SCHEMA_VERSION = "lenri_effort_readiness/v0";
+export const LENRI_LIVE_EFFORT_SCHEMA_VERSION = "lenri_live_effort/v0";
 
 export type LenriAreaRingId = "core_site" | "walkable_buffer" | "local_context";
 
@@ -76,6 +79,40 @@ export type LenriEffortReadiness = {
   modelSwapIn: string[];
 };
 
+export type LenriLiveEffortSnapshot = {
+  schemaVersion: typeof LENRI_LIVE_EFFORT_SCHEMA_VERSION;
+  status: "loaded" | "unavailable";
+  source: "place_snapshot";
+  fieldId: string;
+  generatedAt: string | null;
+  summary: {
+    totalObservations: number;
+    totalVisits: number;
+    uniqueTaxa: number;
+    latestObservedAt: string | null;
+    effortCompletionRate: number;
+    seasonsCovered: number;
+    seasonCoverageCap: number;
+    seasonLabels: string[];
+    absentRecords: number;
+    reviewAcceptedRate: number;
+    machineEffortMetadata: number;
+    passiveAudioCount: number;
+    methodContextCount: number;
+    topTaxa: Array<{ name: string; count: number }>;
+  };
+  gaps: string[];
+  nextActions: Array<{
+    kind: string;
+    title: string;
+    body: string;
+  }>;
+  claimBoundary: {
+    canSay: string[];
+    cannotSayYet: string[];
+  };
+};
+
 export type LenriAreaIntelligenceSnapshot = {
   schemaVersion: typeof LENRI_AREA_INTELLIGENCE_SCHEMA_VERSION;
   generatedAt: string;
@@ -121,6 +158,7 @@ export type LenriAreaIntelligenceSnapshot = {
     landUseSignals: string[];
   };
   effortReadiness: LenriEffortReadiness;
+  liveEffort?: LenriLiveEffortSnapshot;
   decisionPolicy: {
     adoptWhen: string[];
     doNotAdoptWhen: string[];
@@ -376,6 +414,97 @@ const EFFORT_READINESS: LenriEffortReadiness = {
   ],
 };
 
+const EMPTY_LIVE_EFFORT_SUMMARY: LenriLiveEffortSnapshot["summary"] = {
+  totalObservations: 0,
+  totalVisits: 0,
+  uniqueTaxa: 0,
+  latestObservedAt: null,
+  effortCompletionRate: 0,
+  seasonsCovered: 0,
+  seasonCoverageCap: 4,
+  seasonLabels: [],
+  absentRecords: 0,
+  reviewAcceptedRate: 0,
+  machineEffortMetadata: 0,
+  passiveAudioCount: 0,
+  methodContextCount: 0,
+  topTaxa: [],
+};
+
+function liveEffortGaps(summary: LenriLiveEffortSnapshot["summary"]): string[] {
+  const gaps: string[] = [];
+  if (summary.totalVisits <= 0) gaps.push("visit_missing");
+  if (summary.effortCompletionRate < 0.4) gaps.push("effort_metadata_below_40_percent");
+  if (summary.seasonsCovered < Math.min(summary.seasonCoverageCap, 4)) gaps.push("season_repeat_incomplete");
+  if (summary.absentRecords <= 0) gaps.push("non_detection_missing");
+  if (summary.methodContextCount <= 0) gaps.push("method_context_missing");
+  if (summary.reviewAcceptedRate <= 0) gaps.push("review_accepted_record_missing");
+  return gaps;
+}
+
+export function buildLenriLiveEffortSnapshot(placeSnapshot: PlaceSnapshot | null, fieldId: string): LenriLiveEffortSnapshot {
+  if (!placeSnapshot) {
+    return {
+      schemaVersion: LENRI_LIVE_EFFORT_SCHEMA_VERSION,
+      status: "unavailable",
+      source: "place_snapshot",
+      fieldId,
+      generatedAt: null,
+      summary: EMPTY_LIVE_EFFORT_SUMMARY,
+      gaps: ["place_snapshot_unavailable"],
+      nextActions: [],
+      claimBoundary: {
+        canSay: ["live effort はまだ読み込めないため、proxyの調査設計だけを使う。"],
+        cannotSayYet: ["実DB由来の努力量、季節カバー、非検出が確認済みである。"],
+      },
+    };
+  }
+
+  const human = placeSnapshot.observationSummary;
+  const machine = placeSnapshot.machineObservationSummary;
+  const summary: LenriLiveEffortSnapshot["summary"] = {
+    totalObservations: human.totalObservations,
+    totalVisits: human.totalVisits,
+    uniqueTaxa: human.uniqueTaxa,
+    latestObservedAt: human.latestObservedAt,
+    effortCompletionRate: human.effortCompletionRate,
+    seasonsCovered: human.seasonsCovered,
+    seasonCoverageCap: human.seasonCoverageCap,
+    seasonLabels: human.seasonLabels,
+    absentRecords: human.absentRecords,
+    reviewAcceptedRate: human.reviewAcceptedRate,
+    machineEffortMetadata: machine.effortMetadataCount,
+    passiveAudioCount: machine.passiveAudioCount,
+    methodContextCount: machine.methodCounts.length,
+    topTaxa: human.topTaxa.slice(0, 6),
+  };
+
+  return {
+    schemaVersion: LENRI_LIVE_EFFORT_SCHEMA_VERSION,
+    status: "loaded",
+    source: "place_snapshot",
+    fieldId: placeSnapshot.field.fieldId,
+    generatedAt: placeSnapshot.generatedAt,
+    summary,
+    gaps: liveEffortGaps(summary),
+    nextActions: placeSnapshot.nextActions.slice(0, 4).map((action) => ({
+      kind: action.kind,
+      title: action.title,
+      body: action.body,
+    })),
+    claimBoundary: {
+      canSay: [
+        ...placeSnapshot.claimBoundary.canSay,
+        "実DB由来の訪問数、努力量入力率、季節カバー、非検出数を管理画面で確認できる。",
+      ],
+      cannotSayYet: [
+        ...placeSnapshot.claimBoundary.cannotSayYet,
+        "努力量だけで自然共生サイトの効果や種の増減が証明済みである。",
+      ],
+    },
+  };
+}
+
 const RINGS: LenriAreaRing[] = [
   {
     ringId: "core_site",
@@ -492,5 +621,14 @@ export function getLenriAreaIntelligenceSnapshot(now = new Date()): LenriAreaInt
         "Googleから有料レポート利用が承認済みである。",
       ],
     },
+  };
+}
+
+export async function getLenriAreaIntelligenceSnapshotWithLiveEffort(now = new Date()): Promise<LenriAreaIntelligenceSnapshot> {
+  const snapshot = getLenriAreaIntelligenceSnapshot(now);
+  const placeSnapshot = await getPlaceSnapshot(snapshot.field.certificationId).catch(() => null);
+  return {
+    ...snapshot,
+    liveEffort: buildLenriLiveEffortSnapshot(placeSnapshot, snapshot.field.certificationId),
   };
 }

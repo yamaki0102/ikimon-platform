@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getLenriAreaIntelligenceSnapshot } from "./lenriAreaIntelligence.js";
+import { buildLenriLiveEffortSnapshot, getLenriAreaIntelligenceSnapshot } from "./lenriAreaIntelligence.js";
+import type { PlaceSnapshot } from "./placeSnapshot.js";
 
 test("Lenri area intelligence is scoped to the approved micro POC", () => {
   const snapshot = getLenriAreaIntelligenceSnapshot(new Date("2026-06-03T00:00:00.000Z"));
@@ -51,6 +52,54 @@ test("effort readiness turns Lenri context into a monitoring plan without claimi
   assert.ok(snapshot.effortReadiness.metricDefinitions.some((item) => item.key === "effort_minutes"));
   assert.ok(snapshot.effortReadiness.nextSurveyPlan.some((plan) => plan.effortUnit.includes("30 minutes")));
   assert.ok(snapshot.effortReadiness.modelSwapIn.some((item) => item.includes("monitoring_workspace_read_model")));
+});
+
+test("live effort builder maps place snapshot metrics into Lenri effort ledger", () => {
+  const live = buildLenriLiveEffortSnapshot({
+    generatedAt: "2026-06-03T01:00:00.000Z",
+    field: { fieldId: "aikan-renri-ikan-hq" },
+    observationSummary: {
+      totalObservations: 24,
+      totalVisits: 6,
+      uniqueTaxa: 20,
+      latestObservedAt: "2026-06-01T00:00:00.000Z",
+      effortCompletionRate: 0.5,
+      seasonsCovered: 2,
+      seasonCoverageCap: 4,
+      seasonLabels: ["春", "夏"],
+      absentRecords: 1,
+      reviewAcceptedRate: 0.2,
+      topTaxa: [{ name: "ハシブトガラス", count: 3 }],
+    },
+    machineObservationSummary: {
+      effortMetadataCount: 2,
+      passiveAudioCount: 1,
+      methodCounts: [{ method: "passive_audio", count: 1 }],
+    },
+    nextActions: [{ kind: "revisit", title: "季節を足す", body: "秋と冬の反復を作る。" }],
+    claimBoundary: {
+      canSay: ["努力量を確認できる。"],
+      cannotSayYet: ["増減はまだ言えない。"],
+    },
+  } as unknown as PlaceSnapshot, "aikan-renri-ikan-hq");
+
+  assert.equal(live.schemaVersion, "lenri_live_effort/v0");
+  assert.equal(live.status, "loaded");
+  assert.equal(live.summary.totalVisits, 6);
+  assert.equal(live.summary.effortCompletionRate, 0.5);
+  assert.equal(live.summary.machineEffortMetadata, 2);
+  assert.ok(live.gaps.includes("season_repeat_incomplete"));
+  assert.ok(live.nextActions.some((action) => action.title === "季節を足す"));
+  assert.ok(live.claimBoundary.cannotSayYet.some((claim) => claim.includes("努力量だけで")));
+});
+
+test("live effort builder remains safe when the place snapshot is unavailable", () => {
+  const live = buildLenriLiveEffortSnapshot(null, "aikan-renri-ikan-hq");
+
+  assert.equal(live.status, "unavailable");
+  assert.equal(live.summary.totalVisits, 0);
+  assert.deepEqual(live.gaps, ["place_snapshot_unavailable"]);
+  assert.ok(live.claimBoundary.cannotSayYet.some((claim) => claim.includes("確認済み")));
 });
 
 test("claim boundary does not turn PDI or AI context into biodiversity proof", () => {

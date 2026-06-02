@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import {
-  getLenriAreaIntelligenceSnapshot,
+  getLenriAreaIntelligenceSnapshotWithLiveEffort,
   type LenriAreaIntelligenceSnapshot,
 } from "../services/lenriAreaIntelligence.js";
 import { isAdminOrAnalystRole } from "../services/reviewerAuthorities.js";
@@ -163,6 +163,60 @@ function renderEffortReadiness(snapshot: LenriAreaIntelligenceSnapshot): string 
 </section>`;
 }
 
+function pctLabel(value: number): string {
+  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
+}
+
+function renderLiveEffort(snapshot: LenriAreaIntelligenceSnapshot): string {
+  const live = snapshot.liveEffort;
+  if (!live) return "";
+  const summary = live.summary;
+  const topTaxa = summary.topTaxa.length > 0
+    ? summary.topTaxa.map((taxon) => `<li>${escapeHtml(taxon.name)} <b>${taxon.count}</b></li>`).join("")
+    : `<li>top taxa はまだありません。</li>`;
+  const gaps = live.gaps.length > 0
+    ? live.gaps.map((gap) => `<span>${escapeHtml(gap)}</span>`).join("")
+    : `<span>major gaps not detected</span>`;
+  const actions = live.nextActions.length > 0
+    ? live.nextActions
+      .map(
+        (action) => `
+      <article>
+        <span>${escapeHtml(action.kind)}</span>
+        <h3>${escapeHtml(action.title)}</h3>
+        <p>${escapeHtml(action.body)}</p>
+      </article>`,
+      )
+      .join("")
+    : `<article><span>proxy</span><h3>live action not loaded</h3><p>まずはnext survey planに沿って努力量つき記録を作ります。</p></article>`;
+  return `
+<section class="lai-section lai-live">
+  <div class="lai-section-head">
+    <h2>live effort ledger</h2>
+    <span>${escapeHtml(live.schemaVersion)} / ${escapeHtml(live.status)} / ${escapeHtml(live.fieldId)}</span>
+  </div>
+  <section class="lai-grid">
+    ${metricCard("visits", summary.totalVisits, "実DB由来")}
+    ${metricCard("observations", summary.totalObservations, `${summary.uniqueTaxa} taxa`)}
+    ${metricCard("effort filled", pctLabel(summary.effortCompletionRate), "effort_minutes / distance")}
+    ${metricCard("seasons", `${summary.seasonsCovered}/${summary.seasonCoverageCap}`, summary.seasonLabels.join(" ") || "no season labels")}
+    ${metricCard("non-detection", summary.absentRecords, "absent / complete checklist")}
+    ${metricCard("machine effort", summary.machineEffortMetadata, `${summary.passiveAudioCount} passive audio`)}
+  </section>
+  <div class="lai-gap-row">${gaps}</div>
+  <div class="lai-live-grid">
+    <div>
+      <h3>top taxa</h3>
+      <ul class="lai-list">${topTaxa}</ul>
+    </div>
+    <div>
+      <h3>next actions from place snapshot</h3>
+      <div class="lai-live-actions">${actions}</div>
+    </div>
+  </div>
+</section>`;
+}
+
 function renderBody(snapshot: LenriAreaIntelligenceSnapshot): string {
   const field = snapshot.field;
   const budget = snapshot.budgetGuard;
@@ -199,6 +253,8 @@ function renderBody(snapshot: LenriAreaIntelligenceSnapshot): string {
     <p class="lai-muted">lat ${field.lat} / lng ${field.lng} / bbox ${field.bbox.west},${field.bbox.south} - ${field.bbox.east},${field.bbox.north}</p>
     ${renderRings(snapshot)}
   </section>
+
+  ${renderLiveEffort(snapshot)}
 
   ${renderEffortReadiness(snapshot)}
 
@@ -291,6 +347,16 @@ const LENRI_AREA_INTELLIGENCE_STYLES = `
 .lai-plan p{margin:0;color:#374151;font-size:13px}
 .lai-plan small{color:#6b7280;font-size:12px}
 .lai-plan em{color:#0f766e;font-size:12px;font-style:normal;font-weight:800}
+.lai-live{border-color:#bfdbfe;background:#eff6ff}
+.lai-gap-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.lai-gap-row span{border:1px solid #bfdbfe;border-radius:999px;padding:5px 9px;background:#fff;color:#1d4ed8;font-size:12px;font-weight:800}
+.lai-live-grid{display:grid;grid-template-columns:minmax(180px,0.7fr) minmax(260px,1.3fr);gap:16px}
+.lai-live-grid h3{margin:0 0 8px;font-size:14px}
+.lai-live-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.lai-live-actions article{border:1px solid #dbeafe;border-radius:8px;padding:12px;background:#fff}
+.lai-live-actions span{color:#2563eb;font-size:11px;font-weight:900;text-transform:uppercase}
+.lai-live-actions h3{margin:5px 0;font-size:14px}
+.lai-live-actions p{margin:0;color:#374151;font-size:13px}
 .lai-list{margin:0;padding-left:18px;color:#374151;font-size:13px}
 .lai-list li{margin:6px 0}
 .lai-login{max-width:560px;margin:64px auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -300,6 +366,7 @@ const LENRI_AREA_INTELLIGENCE_STYLES = `
   .lai-hero{align-items:flex-start;flex-direction:column}
   .lai-section-head{align-items:flex-start;flex-direction:column}
   .lai-section-head span{text-align:left}
+  .lai-live-grid{grid-template-columns:1fr}
 }
 `;
 
@@ -322,7 +389,7 @@ export async function registerAdminLenriAreaIntelligenceRoutes(app: FastifyInsta
       basePath: "",
       title: "Lenri area intelligence — ikimon.life",
       extraStyles: LENRI_AREA_INTELLIGENCE_STYLES,
-      body: renderBody(getLenriAreaIntelligenceSnapshot()),
+      body: renderBody(await getLenriAreaIntelligenceSnapshotWithLiveEffort()),
       noindex: true,
     });
   });
@@ -333,7 +400,7 @@ export async function registerAdminLenriAreaIntelligenceRoutes(app: FastifyInsta
       reply.code(403);
       return { ok: false, error: "forbidden" };
     }
-    return { ok: true, model: getLenriAreaIntelligenceSnapshot() };
+    return { ok: true, model: await getLenriAreaIntelligenceSnapshotWithLiveEffort() };
   });
 }
 
@@ -345,4 +412,5 @@ export const adminLenriAreaIntelligenceRouteContract = {
   externalCalls: false,
   pdiSubscriptionAllowedWithoutBudgetProof: false,
   effortReadinessSchema: "lenri_effort_readiness/v0",
+  liveEffortSchema: "lenri_live_effort/v0",
 } as const;
