@@ -82,6 +82,87 @@ function renderNamedSignals(snapshot: LenriAreaIntelligenceSnapshot): string {
 </div>`;
 }
 
+function readinessStatusLabel(status: "ready" | "thin" | "missing"): string {
+  if (status === "ready") return "ready";
+  if (status === "thin") return "thin";
+  return "missing";
+}
+
+function renderEffortReadiness(snapshot: LenriAreaIntelligenceSnapshot): string {
+  const effort = snapshot.effortReadiness;
+  const rows = effort.items
+    .map(
+      (item) => `
+    <tr>
+      <td>
+        <span class="lai-status is-${item.status}">${readinessStatusLabel(item.status)}</span>
+        <code>${escapeHtml(item.dimension)}</code>
+        <b>${escapeHtml(item.label)}</b>
+      </td>
+      <td>${escapeHtml(item.currentEvidence)}</td>
+      <td>${escapeHtml(item.monitoringMinimum)}</td>
+      <td>${escapeHtml(item.gap)}</td>
+      <td>${escapeHtml(item.nextAction)}</td>
+    </tr>`,
+    )
+    .join("");
+  const planCards = effort.nextSurveyPlan
+    .map(
+      (plan) => `
+    <article class="lai-plan">
+      <header>
+        <span>#${plan.priority}</span>
+        <h3>${escapeHtml(plan.target)}</h3>
+      </header>
+      <p><b>${escapeHtml(plan.effortUnit)}</b></p>
+      <p>${escapeHtml(plan.suggestedProtocol)}</p>
+      <small>${escapeHtml(plan.why)}</small>
+      <em>${escapeHtml(plan.claimUnlocked)}</em>
+    </article>`,
+    )
+    .join("");
+  const definitions = effort.metricDefinitions
+    .map((item) => `<li><code>${escapeHtml(item.key)}</code> <b>${escapeHtml(item.label)}</b> ${escapeHtml(item.whyItMatters)}</li>`)
+    .join("");
+  return `
+<section class="lai-section lai-effort">
+  <div class="lai-section-head">
+    <h2>effort readiness</h2>
+    <span>${escapeHtml(effort.schemaVersion)} / ${escapeHtml(effort.summary.monitoringUse)}</span>
+  </div>
+  <section class="lai-grid">
+    ${metricCard("readiness", `${effort.summary.readinessScore}/100`, `status ${effort.summary.status}`)}
+    ${metricCard("trend claim", effort.summary.trendClaimReady ? "ready" : "not ready", "増減・absenceはまだ不可")}
+    ${metricCard("next surveys", effort.nextSurveyPlan.length, "優先順の現地努力量")}
+    ${metricCard("evidence mode", "proxy", effort.summary.currentEvidenceMode)}
+  </section>
+  <p class="lai-muted">${escapeHtml(effort.summary.currentIkimonNotes.join(" / "))}</p>
+  <table class="lai-table lai-effort-table">
+    <thead><tr><th>dimension</th><th>current</th><th>minimum</th><th>gap</th><th>next action</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</section>
+
+<section class="lai-section">
+  <div class="lai-section-head">
+    <h2>next survey plan</h2>
+    <span>effort units for Lenri micro POC</span>
+  </div>
+  <div class="lai-plans">${planCards}</div>
+</section>
+
+<section class="lai-two">
+  <div class="lai-section">
+    <h2>metric definitions</h2>
+    <ul class="lai-list">${definitions}</ul>
+  </div>
+  <div class="lai-section">
+    <h2>effort guardrails</h2>
+    ${renderList(effort.guardrails)}
+  </div>
+</section>`;
+}
+
 function renderBody(snapshot: LenriAreaIntelligenceSnapshot): string {
   const field = snapshot.field;
   const budget = snapshot.budgetGuard;
@@ -118,6 +199,8 @@ function renderBody(snapshot: LenriAreaIntelligenceSnapshot): string {
     <p class="lai-muted">lat ${field.lat} / lng ${field.lng} / bbox ${field.bbox.west},${field.bbox.south} - ${field.bbox.east},${field.bbox.north}</p>
     ${renderRings(snapshot)}
   </section>
+
+  ${renderEffortReadiness(snapshot)}
 
   <section class="lai-section">
     <div class="lai-section-head">
@@ -193,6 +276,21 @@ const LENRI_AREA_INTELLIGENCE_STYLES = `
 .lai-table th,.lai-table td{padding:9px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
 .lai-table th{color:#6b7280;background:#f9fafb;font-size:11px;text-transform:uppercase}
 .lai-table code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.lai-effort{border-color:#99f6e4;background:#f0fdfa}
+.lai-effort-table td:first-child{min-width:170px}
+.lai-effort-table td:first-child b{display:block;margin-top:5px;color:#111827;font-size:13px}
+.lai-status{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;text-transform:uppercase}
+.lai-status.is-ready{background:#dcfce7;color:#166534}
+.lai-status.is-thin{background:#fef3c7;color:#92400e}
+.lai-status.is-missing{background:#fee2e2;color:#991b1b}
+.lai-plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.lai-plan{display:grid;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:14px;background:#fff}
+.lai-plan header{display:flex;gap:10px;align-items:center}
+.lai-plan header span{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#0f766e;color:#fff;font-size:12px;font-weight:900}
+.lai-plan h3{margin:0;font-size:15px}
+.lai-plan p{margin:0;color:#374151;font-size:13px}
+.lai-plan small{color:#6b7280;font-size:12px}
+.lai-plan em{color:#0f766e;font-size:12px;font-style:normal;font-weight:800}
 .lai-list{margin:0;padding-left:18px;color:#374151;font-size:13px}
 .lai-list li{margin:6px 0}
 .lai-login{max-width:560px;margin:64px auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -246,4 +344,5 @@ export const adminLenriAreaIntelligenceRouteContract = {
   writesData: false,
   externalCalls: false,
   pdiSubscriptionAllowedWithoutBudgetProof: false,
+  effortReadinessSchema: "lenri_effort_readiness/v0",
 } as const;

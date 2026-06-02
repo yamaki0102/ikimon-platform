@@ -40,10 +40,24 @@ test("open data proxy keeps the current implementation useful without external r
   assert.ok(snapshot.openDataProxy.landUseSignals.includes("farmland"));
 });
 
+test("effort readiness turns Lenri context into a monitoring plan without claiming trends", () => {
+  const snapshot = getLenriAreaIntelligenceSnapshot(new Date("2026-06-03T00:00:00.000Z"));
+
+  assert.equal(snapshot.effortReadiness.schemaVersion, "lenri_effort_readiness/v0");
+  assert.equal(snapshot.effortReadiness.summary.status, "thin");
+  assert.equal(snapshot.effortReadiness.summary.trendClaimReady, false);
+  assert.ok(snapshot.effortReadiness.items.some((item) => item.dimension === "season" && item.status === "missing"));
+  assert.ok(snapshot.effortReadiness.items.some((item) => item.dimension === "non_detection" && item.nextAction.includes("非検出")));
+  assert.ok(snapshot.effortReadiness.metricDefinitions.some((item) => item.key === "effort_minutes"));
+  assert.ok(snapshot.effortReadiness.nextSurveyPlan.some((plan) => plan.effortUnit.includes("30 minutes")));
+  assert.ok(snapshot.effortReadiness.modelSwapIn.some((item) => item.includes("monitoring_workspace_read_model")));
+});
+
 test("claim boundary does not turn PDI or AI context into biodiversity proof", () => {
   const snapshot = getLenriAreaIntelligenceSnapshot(new Date("2026-06-03T00:00:00.000Z"));
   const serialized = JSON.stringify(snapshot);
 
   assert.ok(snapshot.claimBoundary.cannotSayYet.some((claim) => claim.includes("Googleから有料レポート利用が承認済み")));
-  assert.doesNotMatch(serialized, /TNFD準拠を証明|自然共生サイト認定を証明|生物多様性改善を証明|AIが確定/);
+  assert.ok(snapshot.claimBoundary.cannotSayYet.some((claim) => claim.includes("努力量補正済み")));
+  assert.doesNotMatch(serialized, /TNFD準拠を証明|自然共生サイト認定を証明|生物多様性改善を証明|AIが確定|absenceが確認済み/);
 });
