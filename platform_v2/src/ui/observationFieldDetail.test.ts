@@ -240,10 +240,19 @@ test("area encyclopedia renders ordinary park guide templates without payload", 
   assert.match(html, /<strong>3<\/strong><span>ガイド候補<\/span>/);
   assert.match(html, /近くのスポットはまだありません/);
   assert.match(html, /現地で聞けるガイド/);
+  assert.match(html, /現地で見る入口/);
+  assert.match(html, /1分ガイドを見る/);
+  assert.match(html, /入口ガイド/);
   assert.match(html, /はじめての1分ガイド/);
   assert.match(html, /季節の入口ガイド/);
   assert.match(html, /木のまわりガイド/);
   assert.match(html, /関連する企業・団体はまだありません/);
+
+  const localGuideIndex = html.indexOf('id="field-local-guides"');
+  const albumIndex = html.indexOf('id="field-album"');
+  assert.ok(localGuideIndex > 0);
+  assert.ok(albumIndex > localGuideIndex);
+  assert.doesNotMatch(html, /テンプレ|音声化前/);
 });
 
 test("area encyclopedia renders payload spots, guides, actors, and only public spot coordinates", () => {

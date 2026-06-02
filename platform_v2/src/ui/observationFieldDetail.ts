@@ -268,13 +268,13 @@ function renderGuideCard(guide: AreaLocalGuide): string {
 function renderGuideTemplateCard(template: AreaGuideTemplate): string {
   return `<article class="field-guide-card is-template">
     <header>
-      <span>テンプレ</span>
+      <span>入口ガイド</span>
       <h3>${escapeHtml(template.title)}</h3>
     </header>
     <p>${escapeHtml(template.summary)}</p>
     <div class="field-guide-chips">
-      <span>予定あり</span>
-      <span>音声化前</span>
+      <span>1分</span>
+      <span>見るポイント</span>
     </div>
   </article>`;
 }
@@ -283,12 +283,12 @@ function renderLocalGuides(encyclopedia: AreaEncyclopediaPayload, guideTemplates
   const guideCards = encyclopedia.localGuides.length > 0
     ? encyclopedia.localGuides.map(renderGuideCard).join("")
     : guideTemplates.map(renderGuideTemplateCard).join("");
-  return `<section class="field-local-guides" aria-label="現地で聞けるガイド">
+  return `<section class="field-local-guides" id="field-local-guides" aria-label="現地で聞けるガイド">
     <header>
-      <div><span class="evt-eyebrow">Local Guide</span><h2 class="evt-heading">現地で聞けるガイド</h2></div>
+      <div><span class="evt-eyebrow">Local Guide</span><h2 class="evt-heading">現地で見る入口</h2></div>
       <span class="field-privacy-note">位置情報は保存しない</span>
     </header>
-    ${encyclopedia.localGuides.length === 0 ? `<p class="evt-lead">固有ガイドがない場所では、まずテンプレから観察の入口を置きます。</p>` : ""}
+    ${encyclopedia.localGuides.length === 0 ? `<p class="evt-lead">固有ガイドがない場所でも、足元・季節・木のまわりから歩き出せる入口を置きます。</p>` : ""}
     <div class="field-guide-grid">${guideCards}</div>
   </section>`;
 }
@@ -357,6 +357,29 @@ function renderFieldAlbum(snapshot: PlaceSnapshot | null | undefined): string {
   const current = gallery.filter((item) => item.isCurrentSeason).slice(0, 6);
   const missing = snapshot.seasonalCoverage.filter((row) => row.observations <= 0);
   const missingText = missing.length > 0 ? missing.map((row) => row.label).join("・") : "四季の入口あり";
+  const hasGallery = gallery.length > 0;
+  const hasCurrent = current.length > 0;
+  if (!hasGallery && !hasCurrent) {
+    return `<section class="field-album is-empty" id="field-album">
+      <header>
+        <div><span class="evt-eyebrow">Area Album</span><h2 class="evt-heading">この公園の記録を育てる</h2></div>
+        <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(snapshot.field.fieldId)}/snapshot">公開図鑑ページ</a>
+      </header>
+      <p class="evt-lead">未記録季節: ${escapeHtml(missingText)}。最初の写真や季節の記録が、この場所を選ぶ理由になります。</p>
+      <div class="field-album-empty-grid">
+        <article class="field-album-empty-card">
+          <span class="evt-eyebrow">First Record</span>
+          <h3>最初の一枚を残す</h3>
+          <p>花壇の端、木の幹、足元の小さな動きを記録すると、公園のアルバムが始まります。</p>
+        </article>
+        <article class="field-album-empty-card">
+          <span class="evt-eyebrow">Season</span>
+          <h3>季節の顔を足す</h3>
+          <p>春・夏・秋・冬の違いが見えると、同じ場所をまた見る理由が増えます。</p>
+        </article>
+      </div>
+    </section>`;
+  }
   const galleryHtml = gallery.length > 0
     ? gallery.map(renderAlbumCard).join("")
     : `<article class="evt-card"><span class="evt-eyebrow">Area Album</span><h3 class="evt-heading">まだ記録カードはありません</h3><p class="evt-lead">この場所で最初の写真を残すと、地域の生きものアルバムが始まります。</p></article>`;
@@ -442,18 +465,18 @@ export function renderFieldDetailBody(args: { field: ObservationField; stats: Fi
       ${renderFieldHeroSignals(snapshot)}
       <div class="field-detail-actions">
         <a class="evt-btn evt-btn-primary" href="/places/${encodeURIComponent(field.fieldId)}/snapshot">この場所のいま</a>
-        <a class="evt-btn evt-btn-on-dark" href="#field-album">公開写真 / 季節</a>
+        <a class="evt-btn evt-btn-on-dark" href="#field-local-guides">1分ガイドを見る</a>
       </div>
     </div>
   </article>
 
   ${renderFieldViewerMemory(snapshot)}
 
+  ${renderLocalGuides(encyclopedia, guideTemplates)}
+
   ${renderFieldAlbum(snapshot)}
 
   ${renderAreaSpots(encyclopedia)}
-
-  ${renderLocalGuides(encyclopedia, guideTemplates)}
 
   ${renderAreaActors(encyclopedia)}
 
@@ -867,15 +890,46 @@ ${RECORD_CARD_SIZING_TOKENS}
   display: grid;
   gap: 12px;
   padding: 18px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(236,253,245,.94), rgba(240,249,255,.92));
-  border: 1px solid rgba(16,185,129,.18);
+  border-radius: 14px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(15,23,42,.08);
 }
 .field-album > header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+.field-album.is-empty {
+  background: linear-gradient(135deg, rgba(248,250,252,.98), rgba(240,253,250,.86));
+}
+.field-album-empty-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.field-album-empty-card {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 10px 24px rgba(15,23,42,.045);
+}
+.field-album-empty-card h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 950;
+}
+.field-album-empty-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .field-album-grid {
   display: grid;
@@ -993,9 +1047,17 @@ ${RECORD_CARD_SIZING_TOKENS}
   display: grid;
   gap: 14px;
   padding: 18px;
-  border-radius: 18px;
+  border-radius: 14px;
   background: rgba(255,255,255,.94);
   border: 1px solid rgba(15,23,42,.08);
+}
+.field-local-guides {
+  gap: 16px;
+  padding: 20px;
+  background:
+    linear-gradient(135deg, rgba(236,253,245,.96), rgba(255,255,255,.98) 54%, rgba(240,249,255,.88));
+  border-color: rgba(16,185,129,.22);
+  box-shadow: 0 18px 44px rgba(15,118,110,.08);
 }
 .field-area-spots > header,
 .field-local-guides > header,
@@ -1041,6 +1103,10 @@ ${RECORD_CARD_SIZING_TOKENS}
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
 }
+.field-guide-grid {
+  counter-reset: field-guide-card;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .field-spot-card,
 .field-guide-card,
 .field-actor-card {
@@ -1080,7 +1146,32 @@ ${RECORD_CARD_SIZING_TOKENS}
   line-height: 1.55;
 }
 .field-guide-card.is-template {
-  background: linear-gradient(135deg, rgba(240,253,250,.92), #ffffff);
+  position: relative;
+  min-height: 158px;
+  align-content: start;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15,23,42,.055);
+}
+.field-guide-card.is-template::before {
+  counter-increment: field-guide-card;
+  content: counter(field-guide-card);
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 950;
+  box-shadow: 0 8px 18px rgba(15,118,110,.18);
+}
+.field-guide-card.is-template header {
+  padding-right: 38px;
 }
 .field-spot-type,
 .field-guide-card header span,
@@ -1141,7 +1232,11 @@ ${RECORD_CARD_SIZING_TOKENS}
   font-weight: 850;
 }
 .field-empty-card {
-  min-height: 120px;
+  min-height: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(248,250,252,.82);
+  box-shadow: none;
 }
 @media (max-width: 1020px) {
   .field-detail-shell {
@@ -1221,6 +1316,12 @@ ${RECORD_CARD_SIZING_TOKENS}
   .field-spot-grid,
   .field-guide-grid,
   .field-actor-grid {
+    grid-template-columns: 1fr;
+  }
+  .field-local-guides {
+    padding-top: 74px;
+  }
+  .field-album-empty-grid {
     grid-template-columns: 1fr;
   }
   .field-map-hero-copy p {
