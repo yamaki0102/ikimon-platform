@@ -421,6 +421,7 @@ test("subpages use centered width contracts instead of homepage width", () => {
   assert.match(readingHtml, /\.shell\.shell-layout-reading \{[^}]*--ikimon-shell-target-max: var\(--ikimon-reading-max\);/);
   assert.match(wideHtml, /--ikimon-shell-available-w: calc\(100% - var\(--ikimon-desktop-sidebar-w\)\);/);
   assert.doesNotMatch(wideHtml, /--ikimon-shell-available-w: calc\(100vw - var\(--ikimon-desktop-sidebar-w\)\);/);
+  assert.match(wideHtml, /--ikimon-shell-effective-w: min\(var\(--ikimon-shell-target-max\), calc\(var\(--ikimon-shell-available-w\) - 96px\), calc\(var\(--ikimon-shell-available-w\) - var\(--ikimon-page-inline\)\)\);/);
   assert.match(wideHtml, /--ikimon-shell-side-space: max\(48px, calc\(\(var\(--ikimon-shell-available-w\) - var\(--ikimon-shell-effective-w\)\) \/ 2\)\);/);
   assert.match(wideHtml, /margin-left: calc\(var\(--ikimon-desktop-sidebar-w\) \+ var\(--ikimon-shell-side-space\)\);/);
 });
