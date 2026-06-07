@@ -390,7 +390,9 @@ async function main(): Promise<void> {
              and coalesce(o.subject_index, 0) <> 0) as additional_observation_occurrences,
           (select count(*)::text
            from identifications ident
-           where exists (
+           where ident.legacy_identification_key is not null
+             and ident.identification_method = 'legacy_taxon_snapshot'
+             and exists (
              select 1
              from occurrences o
              join visits v on v.visit_id = o.visit_id

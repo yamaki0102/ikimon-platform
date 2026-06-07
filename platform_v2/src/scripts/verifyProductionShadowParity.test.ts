@@ -16,7 +16,7 @@ test("production shadow parity counts only the legacy primary occurrence", async
   );
   assert.match(
     source,
-    /as identifications_linked[\s\S]*actualCounts\?\.identifications_linked/,
+    /ident\.legacy_identification_key is not null[\s\S]*ident\.identification_method = 'legacy_taxon_snapshot'[\s\S]*as identifications_linked[\s\S]*actualCounts\?\.identifications_linked/,
   );
   assert.match(
     source,
