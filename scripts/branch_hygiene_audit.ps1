@@ -121,14 +121,14 @@ catch {
 
 $remoteRefs = Invoke-Git -GitArgs @(
     "for-each-ref",
-    "--format=%(refname:short)|%(committerdate:iso8601)|%(objectname:short)|%(subject)",
+    "--format=%(refname:short)|%(committerdate:iso8601)|%(objectname:short)|%(objectname)|%(subject)",
     "refs/remotes/origin"
 )
 
 $branches = New-Object System.Collections.Generic.List[object]
 foreach ($line in $remoteRefs) {
-    $parts = [string]$line -split "\|", 4
-    if ($parts.Count -lt 4) {
+    $parts = [string]$line -split "\|", 5
+    if ($parts.Count -lt 5) {
         continue
     }
 
@@ -162,7 +162,8 @@ foreach ($line in $remoteRefs) {
         Ref = $ref
         Date = $date
         Sha = $parts[2]
-        Subject = $parts[3]
+        FullSha = $parts[3]
+        Subject = $parts[4]
         IsProtectedOperational = $protectedNames -contains $name
         IsMergedToDefault = $merged
         IsStale = $date -lt $staleCutoff
@@ -203,6 +204,33 @@ elseif ($null -eq $stagingBranch.AheadDefault -or $null -eq $stagingBranch.Behin
 }
 elseif ($stagingBranch.AheadDefault -gt 0 -or $stagingBranch.BehindDefault -gt 0) {
     $stagingDriftMessages.Add("staging is out of sync with $defaultBranch (ahead=$($stagingBranch.AheadDefault), behind=$($stagingBranch.BehindDefault)).")
+}
+
+$defaultBranchInfo = @($branches | Where-Object { $_.Name -eq $defaultBranch } | Select-Object -First 1)
+$stagingRecoveryBranches = @()
+if ($stagingDriftMessages.Count -gt 0 -and $stagingBranch -and -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha)) {
+    $containingRefs = Invoke-Git -GitArgs @("branch", "--remotes", "--contains", $stagingBranch.FullSha)
+    $stagingRecoveryBranches = @(
+        foreach ($line in $containingRefs) {
+            $remoteName = ([string]$line).Trim() -replace "^\*\s*", ""
+            if ([string]::IsNullOrWhiteSpace($remoteName) -or $remoteName -eq "origin/HEAD") {
+                continue
+            }
+
+            $name = $remoteName -replace "^origin/", ""
+            if ($name -eq "staging" -or $name -eq $defaultBranch) {
+                continue
+            }
+
+            $matchingPr = @($openPrs | Where-Object { $_.headRefName -eq $name } | Select-Object -First 1)
+            if ($matchingPr.Count -gt 0) {
+                "$name (PR #$($matchingPr.number): $($matchingPr.title))"
+            }
+            else {
+                $name
+            }
+        }
+    )
 }
 
 $staleBranches = @(
@@ -292,6 +320,47 @@ else {
     }
 }
 Add-Line $lines ""
+
+if ($stagingDriftMessages.Count -gt 0) {
+    Add-Line $lines "## Staging Drift Recovery"
+    Add-Line $lines ""
+    if ($stagingBranch -and -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha)) {
+        Add-Line $lines "- Current staging head: $($stagingBranch.FullSha) $($stagingBranch.Subject)"
+    }
+    if ($defaultBranchInfo -and -not [string]::IsNullOrWhiteSpace([string]$defaultBranchInfo.FullSha)) {
+        Add-Line $lines "- Target $defaultBranch head: $($defaultBranchInfo.FullSha) $($defaultBranchInfo.Subject)"
+    }
+    Add-Line $lines "- Preserved staging commits:"
+    if ($stagingRecoveryBranches.Count -gt 0) {
+        foreach ($branchName in $stagingRecoveryBranches) {
+            Add-Line $lines "  - $branchName"
+        }
+    }
+    else {
+        Add-Line $lines "  - no non-operational branch currently contains the staging head; create a safety branch before aligning staging."
+        if ($stagingBranch -and -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha)) {
+            $archiveBranchName = "codex/archive-staging-$($now.ToString("yyyyMMdd-HHmmss"))"
+            Add-Line $lines "  - Safety branch command:"
+            Add-Line $lines "    ``````bash"
+            Add-Line $lines "    git push origin $($stagingBranch.FullSha):refs/heads/$archiveBranchName"
+            Add-Line $lines "    ``````"
+        }
+    }
+
+    if ($stagingBranch -and $defaultBranchInfo -and
+        -not [string]::IsNullOrWhiteSpace([string]$stagingBranch.FullSha) -and
+        -not [string]::IsNullOrWhiteSpace([string]$defaultBranchInfo.FullSha)) {
+        Add-Line $lines "- Align staging with ${defaultBranch}:"
+        Add-Line $lines "  ``````bash"
+        Add-Line $lines "  git push --force-with-lease=refs/heads/staging:$($stagingBranch.FullSha) origin $($defaultBranchInfo.FullSha):refs/heads/staging"
+        Add-Line $lines "  ``````"
+        Add-Line $lines "- Redeploy staging after an intentional non-fast-forward alignment:"
+        Add-Line $lines "  ``````bash"
+        Add-Line $lines "  gh workflow run deploy-staging.yml --ref staging -f branch=staging -f allow_non_fast_forward=true -f verify_level=auto"
+        Add-Line $lines "  ``````"
+    }
+    Add-Line $lines ""
+}
 
 Add-Line $lines "## Open PRs"
 Add-Line $lines ""
