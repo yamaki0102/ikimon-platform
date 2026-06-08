@@ -32,6 +32,16 @@
             "LENRIは単なる飲食店ではなく、地域素材や場づくりを通じて人と土地の関係を見せる入口。",
             "地中熱GXや自然共生サイトの活動も、裏側でこの場所の思想を支えている。"
           ],
+          "source_links": [
+            {
+              "label": "愛管株式会社: 生物多様性",
+              "url": "https://i-kan.co.jp/company/biodiversity/"
+            },
+            {
+              "label": "浜松市: 地域遺産認定制度",
+              "url": "https://www.city.hamamatsu.shizuoka.jp/bunkazai/shitei/hamamatsuchiikiisan.html"
+            }
+          ],
           "trigger_radius_m": 90,
           "unlocked_radius_m": 55,
           "approved_by": "愛管株式会社",

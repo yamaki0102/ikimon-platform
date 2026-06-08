@@ -87,6 +87,27 @@ test("guide map badges stay compact at low zoom or high density", () => {
   assert.match(styles, /me-area-badge-marker\.is-guide-compact/);
 });
 
+test("map guide spots render independently from area polygons", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(html, /data-api-guide-spots="\/api\/v1\/map\/guide-spots"/);
+  assert.match(script, /function loadGuideSpots\(\)/);
+  assert.match(script, /openGuideSpotSheet\(feature\)/);
+  assert.match(script, /kind: 'guide_spot'/);
+  assert.match(script, /renderGuideSourceLinks/);
+  assert.match(styles, /me-guide-spot-marker/);
+});
+
+test("area badge clicks reopen the side panel before showing selection", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const openAreaSheetBody = script.slice(script.indexOf("function openAreaSheet("), script.indexOf("function applyAreaSnapshot"));
+
+  assert.match(script, /openAreaFeatureSheet\(item\.feature, item\.center\.lat, item\.center\.lng\)/);
+  assert.match(openAreaSheetBody, /setSideRailMode\(false\);\s+renderSelectedCard\(\);\s+renderSidePanels\(\);\s+setSideTab\('selection'\);/);
+});
+
 test("area map labels and side cards expose event and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 

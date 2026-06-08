@@ -746,6 +746,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
   const apiMyPlaces = withBasePath(props.basePath, "/api/v1/map/my-places");
   const apiAreaPolygons = withBasePath(props.basePath, "/api/v1/map/area-polygons");
+  const apiGuideSpots = withBasePath(props.basePath, "/api/v1/map/guide-spots");
   const apiAreaSnapshotTemplate = withBasePath(props.basePath, "/api/v1/fields/__FIELD_ID__/area-snapshot");
   const apiAreaFollow = withBasePath(props.basePath, "/api/v1/me/area-subscriptions");
   const eventsNewHrefTemplate = appendLangToHref(
@@ -1101,7 +1102,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         </div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-my-places="${escapeHtml(apiMyPlaces)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-events-new-href="${escapeHtml(eventsNewHrefTemplate)}"></div>
         <div class="me-enjoy-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
           <strong>${escapeHtml(copy.enjoyTitle)}</strong>
           <span>${escapeHtml(copy.enjoyLead)}</span>
@@ -1220,6 +1221,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
   var apiMyPlaces = root.getAttribute('data-api-my-places') || '';
   var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
+  var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
   var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
   var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
   var eventsNewHrefTemplate = root.getAttribute('data-events-new-href') || '';
@@ -1535,6 +1537,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     effortAbort: null,
     visitedPlacesAbort: null,
     areaPolygonsAbort: null,
+    guideSpotsAbort: null,
     areaPolygonsDebounce: null,
     viewportRefreshTimer: null,
     waterwayAbort: null,
@@ -1543,6 +1546,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     areaPolygonFeatures: [],
     discoveryPreviewMarkers: [],
     areaBadgeMarkers: [],
+    guideSpotMarkers: [],
     overlapChoicePopup: null,
     _cellsRequestSeq: 0,
     _cellsAppliedSeq: 0,
@@ -1991,7 +1995,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function getSelectedContext() {
-    if (state.selectedPoint && (state.selectedPoint.kind === 'place' || state.selectedPoint.kind === 'area')) return state.selectedPoint;
+    if (state.selectedPoint && (state.selectedPoint.kind === 'place' || state.selectedPoint.kind === 'area' || state.selectedPoint.kind === 'guide_spot')) return state.selectedPoint;
     var cellFeature = getSelectedCellFeature();
     var record = getSelectedRecord();
     if (record && cellFeature) {
@@ -2143,6 +2147,113 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       try { marker.remove(); } catch (_) {}
     });
     state.areaBadgeMarkers = [];
+  }
+
+  function clearGuideSpotMarkers() {
+    (state.guideSpotMarkers || []).forEach(function (marker) {
+      try { marker.remove(); } catch (_) {}
+    });
+    state.guideSpotMarkers = [];
+  }
+
+  function guideSpotCenter(feature) {
+    var coords = feature && feature.geometry && Array.isArray(feature.geometry.coordinates)
+      ? feature.geometry.coordinates
+      : [];
+    var lng = Number(coords[0]);
+    var lat = Number(coords[1]);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat, lng: lng } : null;
+  }
+
+  function guideStopSourceLinks(stop) {
+    var links = stop && (stop.sourceLinks || stop.source_links || stop.sources);
+    if (!Array.isArray(links)) return [];
+    return links.filter(function (item) {
+      return item && item.url && item.label;
+    }).slice(0, 4);
+  }
+
+  function renderGuideSourceLinks(stop) {
+    var links = guideStopSourceLinks(stop);
+    if (!links.length) return '';
+    return '<div class="me-area-guide-sources"><span>出典</span>' +
+      links.map(function (link) {
+        return '<a href="' + escapeHtml(link.url) + '" target="_blank" rel="noreferrer noopener">' + escapeHtml(link.label) + '</a>';
+      }).join('') +
+    '</div>';
+  }
+
+  function renderGuideSpotContent(spot) {
+    var radius = Number(spot.unlockedRadiusM || spot.unlocked_radius_m || 90);
+    if (!Number.isFinite(radius)) radius = 90;
+    var sourceHtml = renderGuideSourceLinks(spot);
+    var points = Array.isArray(spot.storyPoints) ? spot.storyPoints : [];
+    var pointsHtml = points.length
+      ? '<ul class="me-guide-spot-points">' + points.slice(0, 5).map(function (point) { return '<li>' + escapeHtml(point) + '</li>'; }).join('') + '</ul>'
+      : '';
+    return '<article class="me-guide-spot-detail">' +
+      renderDetailHero({
+        title: spot.title || COPY.selectedFieldLabel,
+        meta: spot.subtitle || COPY.guideStopEyebrow,
+        badge: COPY.areaBadgeGuideLabel,
+      }) +
+      '<section class="me-detail-section me-guide-spot-body">' +
+        '<p>' + escapeHtml(spot.script || spot.preview || '') + '</p>' +
+        pointsHtml +
+        '<div class="me-area-guide-stop" data-area-guide-stop data-guide-state="unknown">' +
+          '<div class="me-area-guide-status">' +
+            '<span data-area-guide-status>' + escapeHtml(COPY.guideStopPermissionPrompt) + '</span>' +
+            '<small>' + escapeHtml(COPY.guideStopDistanceTemplate.replace('__DISTANCE__', COPY.guideStopFarLabel).replace('__RADIUS__', radius + 'm')) + '</small>' +
+          '</div>' +
+          '<div class="me-area-guide-actions">' +
+            '<button type="button" class="me-area-guide-locate" data-area-guide-locate>' + escapeHtml(COPY.guideStopLocate) + '</button>' +
+            '<button type="button" class="me-area-guide-play" data-area-guide-play disabled>' + escapeHtml(COPY.guideStopPlay) + '</button>' +
+          '</div>' +
+        '</div>' +
+        sourceHtml +
+      '</section>' +
+    '</article>';
+  }
+
+  function openGuideSpotSheet(feature) {
+    var center = guideSpotCenter(feature);
+    var spot = feature && feature.properties ? feature.properties : null;
+    if (!center || !spot) return;
+    closeOverlapChoice();
+    resetAreaGuideStopSession();
+    state.selectedOccurrenceId = null;
+    state.selectedCellId = null;
+    state.selectedPoint = {
+      lat: center.lat,
+      lng: center.lng,
+      kind: 'guide_spot',
+      guideSpot: spot,
+    };
+    if (!shouldUseBottomSheet()) {
+      if (sheetEl) {
+        sheetEl.classList.remove('is-open');
+        sheetEl.classList.remove('me-bottom-sheet--area');
+        sheetEl.classList.remove('me-bottom-sheet--detail');
+        sheetEl.removeAttribute('data-snap');
+        sheetEl.setAttribute('aria-hidden', 'true');
+      }
+      setSideRailMode(false);
+      renderSelectedCard();
+      renderSidePanels();
+      setSideTab('selection');
+      saveMapState();
+      return;
+    }
+    if (!sheetEl || !sheetInnerEl) return;
+    sheetInnerEl.innerHTML = renderGuideSpotContent(spot);
+    hydrateAreaGuideStopControls(sheetInnerEl);
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.add('is-open');
+    sheetEl.classList.remove('me-bottom-sheet--detail');
+    sheetEl.removeAttribute('data-snap');
+    sheetEl.classList.add('me-bottom-sheet--area');
+    renderSidePanels();
+    saveMapState();
   }
 
   function areaBadgeGroups(feature) {
@@ -2463,6 +2574,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       hydrateAreaGuideStopControls(selectedCardEl);
       return;
     }
+    if (context.kind === 'guide_spot') {
+      resetAreaGuideStopSession();
+      selectedCardEl.innerHTML = renderGuideSpotContent(context.guideSpot || {});
+      selectedCardEl.classList.add('is-visible');
+      markSideSelection();
+      hydrateAreaGuideStopControls(selectedCardEl);
+      return;
+    }
     if (context.kind === 'place') {
       resetAreaGuideStopSession();
       var seq = ++siteBriefSeq;
@@ -2636,6 +2755,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       : [];
     var preview = String(item.preview || '').trim();
     var script = String(item.script || '').trim();
+    var sourceLinks = guideStopSourceLinks(item);
     if (!preview && !script && !points.length) return null;
     var triggerRadius = Number(item.trigger_radius_m || item.triggerRadiusM || 90);
     if (!Number.isFinite(triggerRadius)) triggerRadius = 90;
@@ -2656,6 +2776,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       approved_by: String(item.approved_by || item.approvedBy || '').trim(),
       approval_state: String(item.approval_state || item.approvalState || '').trim(),
       content_version: String(item.content_version || item.contentVersion || '').trim(),
+      source_links: sourceLinks,
     };
   }
 
@@ -2694,12 +2815,38 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +     '<button type="button" class="me-area-guide-locate" data-area-guide-locate>' + escapeHtml(COPY.guideStopLocate) + '</button>'
       +     '<button type="button" class="me-area-guide-play" data-area-guide-play disabled>' + escapeHtml(COPY.guideStopPlay) + '</button>'
       +   '</div>'
+      +   renderGuideSourceLinks(stop)
       +   '<div class="me-area-guide-approval">' + escapeHtml(approval) + '</div>'
       + '</section>';
   }
 
   function currentAreaGuideStopContext() {
     var selected = state.selectedPoint || null;
+    if (selected && selected.kind === 'guide_spot' && selected.guideSpot) {
+      var spot = selected.guideSpot;
+      var trigger = Number(spot.triggerRadiusM || spot.trigger_radius_m || 220);
+      if (!Number.isFinite(trigger)) trigger = 220;
+      trigger = Math.max(20, Math.min(300, Math.round(trigger)));
+      var unlocked = Number(spot.unlockedRadiusM || spot.unlocked_radius_m || trigger);
+      if (!Number.isFinite(unlocked)) unlocked = trigger;
+      unlocked = Math.max(20, Math.min(trigger, Math.round(unlocked)));
+      return {
+        stop: {
+          title: String(spot.title || ''),
+          subtitle: String(spot.subtitle || ''),
+          preview: String(spot.preview || ''),
+          script: String(spot.script || ''),
+          story_points: Array.isArray(spot.storyPoints) ? spot.storyPoints : [],
+          trigger_radius_m: trigger,
+          unlocked_radius_m: unlocked,
+          language: SEARCH_LANG || 'ja',
+        },
+        center: { lat: selected.lat, lng: selected.lng },
+        panel: null,
+        lastDistance: null,
+        unlocked: false,
+      };
+    }
     var feature = selected && selected.areaFeature ? selected.areaFeature : null;
     var source = feature && feature.properties
       ? feature.properties
@@ -3596,8 +3743,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.remove('me-bottom-sheet--detail');
       sheetEl.removeAttribute('data-snap');
       sheetEl.setAttribute('aria-hidden', 'true');
+      setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
+      setSideTab('selection');
       saveMapState();
       return;
     }
@@ -3637,8 +3786,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.remove('me-bottom-sheet--detail');
       sheetEl.removeAttribute('data-snap');
       sheetEl.setAttribute('aria-hidden', 'true');
+      setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
+      setSideTab('selection');
       saveMapState();
       if (!apiAreaSnapshotTemplate) return;
       var sideUrl = apiAreaSnapshotTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId));
@@ -4593,6 +4744,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     refreshDiscoveryPreviewMarkers();
     refreshAreaBadgeMarkers();
+    if (tab === 'markers' || tab === 'places') loadGuideSpots();
+    else clearGuideSpotMarkers();
   }
 
   function ensureHeatmap(map) {
@@ -4941,6 +5094,61 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         applyTab(state.map, state.tab);
       })
       .catch(function (err) { if (err && err.name === 'AbortError') return; });
+  }
+
+  function renderGuideSpotMarker(feature) {
+    var center = guideSpotCenter(feature);
+    var spot = feature && feature.properties ? feature.properties : {};
+    if (!center || !spot.title) return null;
+    var zoom = state.map && state.map.getZoom ? state.map.getZoom() : 12;
+    var compact = !Number.isFinite(zoom) || zoom < 13.4;
+    var el = document.createElement('div');
+    el.className = 'me-guide-spot-marker' + (compact ? ' is-compact' : '');
+    el.setAttribute('aria-label', String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel);
+    el.innerHTML = compact
+      ? '<button type="button" class="me-guide-spot-main" title="' + escapeHtml(String(spot.title || '') + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+          '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
+        '</button>'
+      : '<button type="button" class="me-guide-spot-main">' +
+          '<strong>' + escapeHtml(String(spot.title || '')) + '</strong>' +
+          '<span>' + escapeHtml(String(spot.subtitle || COPY.guideStopEyebrow)) + '</span>' +
+        '</button>';
+    el.querySelector('.me-guide-spot-main').addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      openGuideSpotSheet(feature);
+    });
+    return new window.maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] })
+      .setLngLat([center.lng, center.lat])
+      .addTo(state.map);
+  }
+
+  function refreshGuideSpotMarkers(collection) {
+    clearGuideSpotMarkers();
+    if (!state.map || !window.maplibregl || !collection || !Array.isArray(collection.features)) return;
+    if (state.tab !== 'markers' && state.tab !== 'places') return;
+    collection.features.slice(0, 80).forEach(function (feature) {
+      var marker = renderGuideSpotMarker(feature);
+      if (marker) state.guideSpotMarkers.push(marker);
+    });
+  }
+
+  function loadGuideSpots() {
+    if (!apiGuideSpots || !state.map) return;
+    var bbox = currentBboxString();
+    if (!bbox) return;
+    if (state.guideSpotsAbort) { try { state.guideSpotsAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.guideSpotsAbort = controller;
+    var qs = '?bbox=' + encodeURIComponent(bbox) + '&limit=80';
+    fetch(apiGuideSpots + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (collection) {
+        refreshGuideSpotMarkers(collection);
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+      });
   }
 
   function loadFrontier(map) {
@@ -5492,6 +5700,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       loadTraces();
       ensureAreaPolygons(state.map);
       loadAreaPolygons();
+      loadGuideSpots();
       loadVisitedPlaces();
       maybeAutoLocateOnFirstOpen();
     });
@@ -5509,6 +5718,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       refreshDiscoveryPreviewMarkers();
       if (state.areaPolygonsDebounce) clearTimeout(state.areaPolygonsDebounce);
       state.areaPolygonsDebounce = setTimeout(function () { loadAreaPolygons(); }, 250);
+      loadGuideSpots();
       if (state.waterwayDebounce) clearTimeout(state.waterwayDebounce);
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
     });
@@ -6788,6 +6998,99 @@ export const MAP_EXPLORER_STYLES = `
     padding: 3px 9px;
     border: 2px solid rgba(255,255,255,.88);
     box-shadow: 0 0 0 1px rgba(15,23,42,.16);
+  }
+  .me-guide-spot-marker {
+    color: #0f172a;
+    transform-origin: bottom center;
+  }
+  .me-guide-spot-main {
+    display: grid;
+    gap: 3px;
+    max-width: 178px;
+    padding: 8px 10px;
+    border: 1px solid rgba(15,23,42,.16);
+    border-radius: 8px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 12px 26px rgba(15,23,42,.14);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-guide-spot-main strong {
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .me-guide-spot-main > span:not(.me-area-badge-chip) {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #475569;
+    font-size: 9.5px;
+    line-height: 1.25;
+    font-weight: 800;
+  }
+  .me-guide-spot-marker.is-compact .me-guide-spot-main {
+    display: inline-flex;
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: 0 10px 20px rgba(15,23,42,.18);
+  }
+  .me-guide-spot-marker.is-compact .me-area-badge-chip-guide {
+    min-height: 24px;
+    padding: 3px 9px;
+    border: 2px solid rgba(255,255,255,.88);
+    box-shadow: 0 0 0 1px rgba(15,23,42,.16);
+  }
+  .me-guide-spot-detail,
+  .me-guide-spot-body {
+    display: grid;
+    gap: 12px;
+  }
+  .me-guide-spot-body p {
+    margin: 0;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.75;
+    font-weight: 700;
+  }
+  .me-guide-spot-points {
+    margin: 0;
+    padding-left: 18px;
+    color: #475569;
+    font-size: 12.5px;
+    line-height: 1.65;
+    font-weight: 700;
+  }
+  .me-area-guide-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding-top: 4px;
+    border-top: 1px dashed rgba(15,23,42,.12);
+  }
+  .me-area-guide-sources span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 950;
+  }
+  .me-area-guide-sources a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(15,23,42,.06);
+    color: #0f172a;
+    font-size: 10.5px;
+    font-weight: 850;
+    text-decoration: none;
   }
   .me-area-badge-actions {
     display: grid;

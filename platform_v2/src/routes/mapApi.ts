@@ -14,6 +14,7 @@ import {
 } from "../services/mapSnapshot.js";
 import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
 import { listAreaPolygonsForBbox, flushAreaPolygonCache, type AreaPolygonSource } from "../services/areaPolygons.js";
+import { listMapGuideSpotsForBbox } from "../services/mapGuideSpots.js";
 import { assertPrivilegedWriteAccess } from "../services/writeGuards.js";
 
 const ALLOWED_AREA_SOURCES: readonly AreaPolygonSource[] = [
@@ -236,6 +237,24 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     reply
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "public, max-age=60");
+    return collection;
+  });
+
+  app.get("/api/v1/map/guide-spots", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const bbox = parseBbox(q.bbox);
+    if (!bbox) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "missing_or_invalid_bbox" };
+    }
+    const limit = parseInt32(q.limit);
+    const collection = listMapGuideSpotsForBbox({
+      bbox,
+      limit: limit ?? undefined,
+    });
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "public, max-age=300");
     return collection;
   });
 

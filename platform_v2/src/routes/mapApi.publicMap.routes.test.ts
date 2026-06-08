@@ -67,3 +67,32 @@ test("map my-places endpoint is private-by-session and safe for guests", async (
     await app.close();
   }
 });
+
+test("public map guide spots expose sourced point guides without area registration", async () => {
+  const app = buildApp();
+  try {
+    const invalid = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/guide-spots",
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.deepEqual(invalid.json(), { error: "missing_or_invalid_bbox" });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/map/guide-spots?bbox=137.55,34.67,137.75,34.84&limit=10",
+    });
+
+    assert.equal(response.statusCode, 200);
+    const payload = response.json() as Record<string, unknown>;
+    assert.equal(payload.type, "FeatureCollection");
+    const features = payload.features as Array<Record<string, unknown>>;
+    assert.ok(features.length >= 5);
+    assert.ok(features.some((feature) => {
+      const properties = feature.properties as Record<string, unknown>;
+      return properties.id === "hamamatsu-shijimizuka-site";
+    }));
+  } finally {
+    await app.close();
+  }
+});

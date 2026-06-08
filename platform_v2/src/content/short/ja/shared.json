@@ -4,7 +4,7 @@
       "record": "記録する",
       "startObservation": "記録する",
       "openNotebook": "記録を見る",
-      "openMap": "地域のいのちを見る",
+      "openMap": "生きものと場所を見る",
       "readFaq": "FAQを見る",
       "openGuide": "その場で調べる",
       "openScan": "探索マップを見る",
@@ -80,7 +80,7 @@
       "record": "記録する",
       "lens": "その場で調べる",
       "scan": "次の場所を探す",
-      "map": "地域のいのちを見る"
+      "map": "生きものと場所を見る"
     }
   },
   "footerNotes": {
