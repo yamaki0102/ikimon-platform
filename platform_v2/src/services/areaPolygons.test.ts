@@ -14,6 +14,7 @@ const {
   filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
   LIVE_OSM_EMPTY_TTL_HOURS,
@@ -183,6 +184,31 @@ test("stored school point-buffer rows render when the geometry is no longer a ge
       [137.39, 34.73],
     ]],
   }), true);
+});
+
+test("normalizeGuideStop keeps approved location guide stops bounded for map delivery", () => {
+  const stop = normalizeGuideStop({
+    enabled: true,
+    title: " 連理の木とLENRIの物語 ",
+    preview: " 現地で聞く場所ストーリー ",
+    script: " 連理の木、れんり農園、LENRIのつながりを紹介します。 ",
+    story_points: ["食と農", "", "自然共生", "設備技術"],
+    trigger_radius_m: 900,
+    unlocked_radius_m: 3,
+    approved_by: "愛管株式会社",
+    approval_state: "owner_verified",
+  });
+
+  assert.equal(stop?.title, "連理の木とLENRIの物語");
+  assert.equal(stop?.approval_state, "owner_verified");
+  assert.equal(stop?.trigger_radius_m, 300);
+  assert.equal(stop?.unlocked_radius_m, 20);
+  assert.deepEqual(stop?.story_points, ["食と農", "自然共生", "設備技術"]);
+});
+
+test("normalizeGuideStop rejects disabled or content-empty guide stops", () => {
+  assert.equal(normalizeGuideStop({ enabled: false, title: "x", preview: "x" }), undefined);
+  assert.equal(normalizeGuideStop({ enabled: true, title: "x" }), undefined);
 });
 
 test("non-school stored polygons are unaffected by point-buffer payload metadata", () => {

@@ -42,9 +42,26 @@ export interface AreaPolygonFeatureProps {
   access?: string;
   transient?: boolean;
   entity_key?: string;
+  guide_stop?: AreaGuideStop;
+  guide_stop_json?: string;
   osm_type?: string;
   osm_id?: number;
   biodiversity_groups?: AreaBiodiversityGroup[];
+}
+
+export interface AreaGuideStop {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  language: string;
+  preview: string;
+  script: string;
+  story_points: string[];
+  trigger_radius_m: number;
+  unlocked_radius_m: number;
+  approved_by: string;
+  approval_state: string;
+  content_version: string;
 }
 
 export interface AreaBiodiversityGroup {
@@ -114,6 +131,48 @@ const LIVE_OSM_ENDPOINTS = [
   "https://z.overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];
+
+function cleanGuideStopString(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function cleanGuideStopRadius(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(20, Math.min(300, Math.round(n)));
+}
+
+function normalizeGuideStop(raw: unknown): AreaGuideStop | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const record = raw as Record<string, unknown>;
+  if (record.enabled !== true) return undefined;
+  const title = cleanGuideStopString(record.title, 80);
+  if (!title) return undefined;
+  const storyPoints = Array.isArray(record.story_points)
+    ? record.story_points.map((item) => cleanGuideStopString(item, 160)).filter(Boolean).slice(0, 5)
+    : [];
+  const preview = cleanGuideStopString(record.preview, 220);
+  const script = cleanGuideStopString(record.script, 1200);
+  if (!preview && !script && storyPoints.length === 0) return undefined;
+  const triggerRadius = cleanGuideStopRadius(record.trigger_radius_m, 90);
+  const unlockRadius = Math.min(triggerRadius, cleanGuideStopRadius(record.unlocked_radius_m, triggerRadius));
+  return {
+    enabled: true,
+    title,
+    subtitle: cleanGuideStopString(record.subtitle, 140),
+    language: cleanGuideStopString(record.language, 16) || "ja",
+    preview,
+    script,
+    story_points: storyPoints,
+    trigger_radius_m: triggerRadius,
+    unlocked_radius_m: unlockRadius,
+    approved_by: cleanGuideStopString(record.approved_by, 80),
+    approval_state: cleanGuideStopString(record.approval_state, 48) || "unverified",
+    content_version: cleanGuideStopString(record.content_version, 48),
+  };
+}
+
 const ADMIN_LAYER_LEVELS = [
   "osm_park",
   "admin_municipality",
@@ -740,6 +799,7 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
     const useSimplified = Boolean(areaHa != null && areaHa > 1000 && row.polygon_simplified);
     const geometry = useSimplified ? row.polygon_simplified : row.polygon;
     if (!isRenderableStoredAreaPolygon(source, row.payload, geometry)) return [];
+    const guideStop = normalizeGuideStop(row.payload && row.payload.guide_stop);
     return [{
       type: "Feature",
       properties: {
@@ -760,6 +820,8 @@ export async function listAreaPolygonsForBbox(query: AreaPolygonsQuery): Promise
         verification_label: row.verification_label ?? "",
         center: [Number(row.lng), Number(row.lat)],
         entity_key: row.entity_key ?? undefined,
+        guide_stop: guideStop,
+        guide_stop_json: guideStop ? JSON.stringify(guideStop) : undefined,
       },
       geometry,
     }];
@@ -826,6 +888,7 @@ export const __test__ = {
   filterAreaFeaturesBySources,
   normalizeAreaLayerSource,
   isRenderableStoredAreaPolygon,
+  normalizeGuideStop,
   toBiodiversityGroups,
   BIODIVERSITY_BADGE_WINDOW_MONTHS,
   LIVE_OSM_EMPTY_TTL_HOURS,
