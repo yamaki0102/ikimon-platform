@@ -1387,6 +1387,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     guideStopFarTemplate: props.lang === "ja" ? "あと __DISTANCE__ 近づくと聞けます。" : props.lang === "es" ? "Acércate __DISTANCE__ más para escucharlo." : props.lang === "pt-BR" ? "Aproxime-se mais __DISTANCE__ para ouvir." : "Move __DISTANCE__ closer to listen.",
     guideStopApprovalOwner: props.lang === "ja" ? "管理者承認済み" : props.lang === "es" ? "Aprobado por el gestor" : props.lang === "pt-BR" ? "Aprovado pelo gestor" : "Manager approved",
     guideStopUnsupported: props.lang === "ja" ? "このブラウザでは音声再生に対応していません。" : props.lang === "es" ? "Este navegador no admite reproducción por voz." : props.lang === "pt-BR" ? "Este navegador não oferece reprodução por voz." : "This browser does not support speech playback.",
+    areaBadgeGuideLabel: props.lang === "ja" ? "ガイド" : props.lang === "es" ? "Guía" : props.lang === "pt-BR" ? "Guia" : "Guide",
     coverSourceAdmin: props.lang === "ja" ? "管理者が選んだ代表写真" : props.lang === "es" ? "Foto destacada por el gestor" : props.lang === "pt-BR" ? "Foto escolhida pelo gestor" : "Manager-picked cover photo",
     coverSourceCommunity: props.lang === "ja" ? "みんなが選んだ代表写真" : props.lang === "es" ? "Foto destacada por la comunidad" : props.lang === "pt-BR" ? "Foto escolhida pela comunidade" : "Community-picked cover photo",
     coverSourceAuto: props.lang === "ja" ? "最近の発見から自動選定" : props.lang === "es" ? "Elegida automáticamente de hallazgos recientes" : props.lang === "pt-BR" ? "Escolhida automaticamente de descobertas recentes" : "Auto-picked from recent finds",
@@ -2178,14 +2179,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function refreshAreaBadgeMarkers() {
     clearAreaBadgeMarkers();
-    if (!state.map || !window.maplibregl || state.tab !== 'places') return;
+    if (!state.map || !window.maplibregl || (state.tab !== 'places' && state.tab !== 'markers')) return;
     var zoom = state.map.getZoom();
     if (!Number.isFinite(zoom) || zoom < 10.2) return;
     var features = (Array.isArray(state.areaPolygonFeatures) ? state.areaPolygonFeatures : [])
       .map(function (feature) {
-        return { feature: feature, groups: areaBadgeGroups(feature), center: areaBadgeCenter(feature) };
+        var guideStop = areaGuideStopFrom(feature && feature.properties ? feature.properties : {});
+        return { feature: feature, groups: areaBadgeGroups(feature), guideStop: guideStop, center: areaBadgeCenter(feature) };
       })
-      .filter(function (item) { return item.groups.length > 0 && item.center; })
+      .filter(function (item) {
+        if (!item.center) return false;
+        if (item.guideStop) return true;
+        return state.tab === 'places' && item.groups.length > 0;
+      })
       .slice(0, 80);
     features.forEach(function (item) {
       var props = item.feature && item.feature.properties ? item.feature.properties : {};
@@ -2204,12 +2210,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           '</span>'
         : '';
       var el = document.createElement('div');
-      el.className = 'me-area-badge-marker';
-      el.setAttribute('aria-label', name + ' ' + item.groups.map(function (group) { return group.label; }).join(' '));
+      var badgeChipsHtml = (item.guideStop
+        ? '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>'
+        : '') + item.groups.map(renderAreaBadgeGroup).join('');
+      var ariaBits = item.groups.map(function (group) { return group.label; });
+      if (item.guideStop) ariaBits.unshift(COPY.areaBadgeGuideLabel);
+      el.className = 'me-area-badge-marker' + (item.guideStop ? ' has-guide-stop' : '');
+      el.setAttribute('aria-label', name + ' ' + ariaBits.join(' '));
       el.innerHTML =
         '<button type="button" class="me-area-badge-main">' +
           '<strong>' + escapeHtml(name) + '</strong>' +
-          '<span class="me-area-badge-chips">' + item.groups.map(renderAreaBadgeGroup).join('') + '</span>' +
+          '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' +
         '</button>' +
         actionsHtml;
       el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
@@ -6742,6 +6753,8 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-badge-chip-mammal { background: rgba(168,85,247,.14); color: #6b21a8; }
   .me-area-badge-chip-fungi { background: rgba(217,119,6,.14); color: #78350f; }
   .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
+  .me-area-badge-chip-guide { background: #0f172a; color: #f8fafc; }
+  .me-area-badge-marker.has-guide-stop .me-area-badge-main { border-color: rgba(15,23,42,.22); box-shadow: 0 12px 28px rgba(15,23,42,.16); }
   .me-area-badge-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
