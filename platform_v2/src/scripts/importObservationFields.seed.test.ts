@@ -41,7 +41,22 @@ function collectOfficialUrls(value: unknown, filePath: string, trail = "$"): Arr
 
 test("aikan renri official URL points to the owner primary source, not an ikimon article", async () => {
   const seed = JSON.parse(await readFile(seedPath, "utf8")) as {
-    sites?: Array<{ certification_id?: string; city?: string; official_url?: string }>;
+    sites?: Array<{
+      certification_id?: string;
+      city?: string;
+      official_url?: string;
+      payload?: {
+        guide_stop?: {
+          enabled?: boolean;
+          title?: string;
+          script?: string;
+          trigger_radius_m?: number;
+          unlocked_radius_m?: number;
+          approved_by?: string;
+          approval_state?: string;
+        };
+      };
+    }>;
   };
   const site = seed.sites?.find((entry) => entry.certification_id === "aikan-renri-ikan-hq");
 
@@ -49,6 +64,13 @@ test("aikan renri official URL points to the owner primary source, not an ikimon
   assert.equal(site.city, "浜松市浜名区");
   assert.equal(site.official_url, "https://i-kan.co.jp/company/biodiversity/");
   assert.doesNotMatch(site.official_url ?? "", /^https:\/\/ikimon\.life\//);
+  assert.equal(site.payload?.guide_stop?.enabled, true);
+  assert.match(site.payload?.guide_stop?.title ?? "", /LENRI|連理/);
+  assert.match(site.payload?.guide_stop?.script ?? "", /連理の木/);
+  assert.equal(site.payload?.guide_stop?.approval_state, "owner_verified");
+  assert.equal(site.payload?.guide_stop?.approved_by, "愛管株式会社");
+  assert.ok((site.payload?.guide_stop?.trigger_radius_m ?? 0) <= 300);
+  assert.ok((site.payload?.guide_stop?.unlocked_radius_m ?? 0) <= (site.payload?.guide_stop?.trigger_radius_m ?? 0));
 });
 
 test("all seed official_url values must point outside ikimon.life", async () => {

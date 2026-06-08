@@ -1376,6 +1376,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     placeStoryNoTaxa: props.lang === "ja" ? "まだ代表種は少ない。最初の写真が場所の入口になります。" : props.lang === "es" ? "Aún hay pocos taxones destacados. La primera foto puede abrir este lugar." : props.lang === "pt-BR" ? "Ainda há poucos grupos destacados. A primeira foto pode abrir este local." : "Few featured taxa yet. The first photo can open this place.",
     placeStoryNeedSeason: props.lang === "ja" ? "季節をまたいだ記録が増えると、また行く理由が強くなる。" : props.lang === "es" ? "Más estaciones harán más fuerte el motivo para volver." : props.lang === "pt-BR" ? "Mais estações tornam o motivo para voltar mais forte." : "More seasons make the reason to return stronger.",
     placeStoryNeedGuide: props.lang === "ja" ? "ガイドでその場の手がかりを残すと、次の人が見つけやすい。" : props.lang === "es" ? "La guía deja pistas para que la siguiente persona encuentre más." : props.lang === "pt-BR" ? "O guia deixa pistas para a próxima pessoa encontrar mais." : "Guide clues help the next visitor find more.",
+    guideStopEyebrow: props.lang === "ja" ? "現地ガイド" : props.lang === "es" ? "Guía en sitio" : props.lang === "pt-BR" ? "Guia no local" : "On-site guide",
+    guideStopNearLabel: props.lang === "ja" ? "この場所で聞けます" : props.lang === "es" ? "Disponible aquí" : props.lang === "pt-BR" ? "Disponível aqui" : "Available here",
+    guideStopFarLabel: props.lang === "ja" ? "近づくと聞けます" : props.lang === "es" ? "Acércate para escuchar" : props.lang === "pt-BR" ? "Aproxime-se para ouvir" : "Move closer to listen",
+    guideStopLocate: props.lang === "ja" ? "現在地で確認" : props.lang === "es" ? "Comprobar ubicación" : props.lang === "pt-BR" ? "Verificar localização" : "Check location",
+    guideStopPlay: props.lang === "ja" ? "この場所で聞く" : props.lang === "es" ? "Escuchar aquí" : props.lang === "pt-BR" ? "Ouvir aqui" : "Listen here",
+    guideStopStop: props.lang === "ja" ? "停止" : props.lang === "es" ? "Detener" : props.lang === "pt-BR" ? "Parar" : "Stop",
+    guideStopPermissionPrompt: props.lang === "ja" ? "現在地を許可すると、再生できる距離か確認します。" : props.lang === "es" ? "Permite la ubicación para saber si puedes reproducirlo." : props.lang === "pt-BR" ? "Permita a localização para saber se já pode reproduzir." : "Allow location to check whether this can play.",
+    guideStopDistanceTemplate: props.lang === "ja" ? "現在地から __DISTANCE__ / __RADIUS__以内で再生" : props.lang === "es" ? "A __DISTANCE__ / se reproduce dentro de __RADIUS__" : props.lang === "pt-BR" ? "A __DISTANCE__ / toca dentro de __RADIUS__" : "__DISTANCE__ away / plays within __RADIUS__",
+    guideStopFarTemplate: props.lang === "ja" ? "あと __DISTANCE__ 近づくと聞けます。" : props.lang === "es" ? "Acércate __DISTANCE__ más para escucharlo." : props.lang === "pt-BR" ? "Aproxime-se mais __DISTANCE__ para ouvir." : "Move __DISTANCE__ closer to listen.",
+    guideStopApprovalOwner: props.lang === "ja" ? "管理者承認済み" : props.lang === "es" ? "Aprobado por el gestor" : props.lang === "pt-BR" ? "Aprovado pelo gestor" : "Manager approved",
+    guideStopUnsupported: props.lang === "ja" ? "このブラウザでは音声再生に対応していません。" : props.lang === "es" ? "Este navegador no admite reproducción por voz." : props.lang === "pt-BR" ? "Este navegador não oferece reprodução por voz." : "This browser does not support speech playback.",
     coverSourceAdmin: props.lang === "ja" ? "管理者が選んだ代表写真" : props.lang === "es" ? "Foto destacada por el gestor" : props.lang === "pt-BR" ? "Foto escolhida pelo gestor" : "Manager-picked cover photo",
     coverSourceCommunity: props.lang === "ja" ? "みんなが選んだ代表写真" : props.lang === "es" ? "Foto destacada por la comunidad" : props.lang === "pt-BR" ? "Foto escolhida pela comunidade" : "Community-picked cover photo",
     coverSourceAuto: props.lang === "ja" ? "最近の発見から自動選定" : props.lang === "es" ? "Elegida automáticamente de hallazgos recientes" : props.lang === "pt-BR" ? "Escolhida automaticamente de descobertas recentes" : "Auto-picked from recent finds",
@@ -1540,6 +1551,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     _fittedOnce: false,
     _meMarker: null,
   };
+  var areaGuideWatchId = null;
+  var activeGuideStopContext = null;
+  var activeGuideSpeech = null;
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
@@ -2402,6 +2416,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
       clearSideSelection();
+      resetAreaGuideStopSession();
       return;
     }
     var context = getSelectedContext();
@@ -2409,6 +2424,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
       clearSideSelection();
+      resetAreaGuideStopSession();
       return;
     }
     if (context.kind === 'area') {
@@ -2423,9 +2439,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '</article>';
       selectedCardEl.classList.add('is-visible');
       markSideSelection();
+      hydrateAreaGuideStopControls(selectedCardEl);
       return;
     }
     if (context.kind === 'place') {
+      resetAreaGuideStopSession();
       var seq = ++siteBriefSeq;
       selectedCardEl.innerHTML =
         '<article class="me-detail-panel me-detail-panel-place">' +
@@ -2448,6 +2466,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     if (context.kind === 'cell') {
+      resetAreaGuideStopSession();
       var feature = context.cellFeature;
       var cellProps = feature && feature.properties ? feature.properties : {};
       var countLabel = Number(cellProps.count || 0) + ' ' + COPY.resultCountLabel;
@@ -2574,6 +2593,239 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }).map(function (item) {
       return '<a class="me-area-sheet-url" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener">' + escapeHtml(item.label) + ' ↗</a>';
     }).join('');
+  }
+
+  function parseGuideStopValue(raw) {
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch (_) { return null; }
+    }
+    if (typeof raw === 'object') return raw;
+    return null;
+  }
+
+  function areaGuideStopFrom(source) {
+    var raw = source && (source.guideStop || source.guide_stop || source.guideStopJson || source.guide_stop_json);
+    var item = parseGuideStopValue(raw);
+    if (!item || item.enabled !== true) return null;
+    var title = String(item.title || '').trim();
+    if (!title) return null;
+    var points = Array.isArray(item.story_points)
+      ? item.story_points.map(function (point) { return String(point || '').trim(); }).filter(Boolean).slice(0, 5)
+      : [];
+    var preview = String(item.preview || '').trim();
+    var script = String(item.script || '').trim();
+    if (!preview && !script && !points.length) return null;
+    var triggerRadius = Number(item.trigger_radius_m || item.triggerRadiusM || 90);
+    if (!Number.isFinite(triggerRadius)) triggerRadius = 90;
+    triggerRadius = Math.max(20, Math.min(300, Math.round(triggerRadius)));
+    var unlockRadius = Number(item.unlocked_radius_m || item.unlockedRadiusM || triggerRadius);
+    if (!Number.isFinite(unlockRadius)) unlockRadius = triggerRadius;
+    unlockRadius = Math.max(20, Math.min(triggerRadius, Math.round(unlockRadius)));
+    return {
+      enabled: true,
+      title: title,
+      subtitle: String(item.subtitle || '').trim(),
+      language: String(item.language || SEARCH_LANG || 'ja').trim(),
+      preview: preview,
+      script: script,
+      story_points: points,
+      trigger_radius_m: triggerRadius,
+      unlocked_radius_m: unlockRadius,
+      approved_by: String(item.approved_by || item.approvedBy || '').trim(),
+      approval_state: String(item.approval_state || item.approvalState || '').trim(),
+      content_version: String(item.content_version || item.contentVersion || '').trim(),
+    };
+  }
+
+  function formatGuideDistance(meters) {
+    if (!Number.isFinite(meters)) return '';
+    if (meters < 10) return COPY.nearDistanceImmediate;
+    if (meters < 1000) return COPY.nearDistanceApproxPrefix + Math.round(meters) + 'm';
+    return COPY.nearDistanceApproxPrefix + (meters / 1000).toFixed(1) + 'km';
+  }
+
+  function renderAreaGuideStop(source, center) {
+    var stop = areaGuideStopFrom(source);
+    if (!stop || !center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng)) return '';
+    var points = stop.story_points.length
+      ? '<ul class="me-area-guide-points">' + stop.story_points.map(function (point) { return '<li>' + escapeHtml(point) + '</li>'; }).join('') + '</ul>'
+      : '';
+    var body = stop.subtitle || stop.preview;
+    var radiusLabel = stop.unlocked_radius_m + 'm';
+    var approval = stop.approval_state === 'owner_verified'
+      ? COPY.guideStopApprovalOwner
+      : (stop.approval_state || COPY.guideStopFarLabel);
+    if (stop.approved_by) approval += ' / ' + stop.approved_by;
+    return ''
+      + '<section class="me-area-guide-stop" data-area-guide-stop data-guide-state="unknown" aria-label="' + escapeHtml(COPY.guideStopEyebrow) + '">'
+      +   '<div class="me-area-guide-head">'
+      +     '<span>' + escapeHtml(COPY.guideStopEyebrow) + '</span>'
+      +     '<strong>' + escapeHtml(stop.title) + '</strong>'
+      +   '</div>'
+      +   (body ? '<p class="me-area-guide-lead">' + escapeHtml(body) + '</p>' : '')
+      +   points
+      +   '<div class="me-area-guide-status">'
+      +     '<span data-area-guide-status>' + escapeHtml(COPY.guideStopPermissionPrompt) + '</span>'
+      +     '<small>' + escapeHtml(COPY.guideStopDistanceTemplate.replace('__DISTANCE__', COPY.guideStopFarLabel).replace('__RADIUS__', radiusLabel)) + '</small>'
+      +   '</div>'
+      +   '<div class="me-area-guide-actions">'
+      +     '<button type="button" class="me-area-guide-locate" data-area-guide-locate>' + escapeHtml(COPY.guideStopLocate) + '</button>'
+      +     '<button type="button" class="me-area-guide-play" data-area-guide-play disabled>' + escapeHtml(COPY.guideStopPlay) + '</button>'
+      +   '</div>'
+      +   '<div class="me-area-guide-approval">' + escapeHtml(approval) + '</div>'
+      + '</section>';
+  }
+
+  function currentAreaGuideStopContext() {
+    var selected = state.selectedPoint || null;
+    var feature = selected && selected.areaFeature ? selected.areaFeature : null;
+    var source = feature && feature.properties
+      ? feature.properties
+      : (selected && selected.areaSnapshot && selected.areaSnapshot.field ? selected.areaSnapshot.field : null);
+    var stop = areaGuideStopFrom(source);
+    if (!stop) return null;
+    var center = feature
+      ? areaFeatureCenter(feature, selected && selected.lat, selected && selected.lng)
+      : (selected && Number.isFinite(selected.lat) && Number.isFinite(selected.lng) ? { lat: selected.lat, lng: selected.lng } : null);
+    if (!center) return null;
+    return { stop: stop, center: center, panel: null, lastDistance: null, unlocked: false };
+  }
+
+  function stopAreaGuideStopWatch() {
+    if (areaGuideWatchId == null) return;
+    try {
+      if (navigator.geolocation && navigator.geolocation.clearWatch) navigator.geolocation.clearWatch(areaGuideWatchId);
+    } catch (_) {}
+    areaGuideWatchId = null;
+  }
+
+  function setGuideStopPlaying(panel, playing) {
+    if (!panel) return;
+    var playBtn = panel.querySelector('[data-area-guide-play]');
+    if (playBtn) playBtn.textContent = playing ? COPY.guideStopStop : COPY.guideStopPlay;
+    panel.classList.toggle('is-speaking', !!playing);
+  }
+
+  function stopAreaGuideSpeech() {
+    if (!activeGuideSpeech) return;
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
+    activeGuideSpeech = null;
+    setGuideStopPlaying(activeGuideStopContext && activeGuideStopContext.panel, false);
+  }
+
+  function resetAreaGuideStopSession() {
+    stopAreaGuideStopWatch();
+    stopAreaGuideSpeech();
+    activeGuideStopContext = null;
+  }
+
+  function updateAreaGuideStopStatus(coords) {
+    var context = activeGuideStopContext;
+    if (!context || !context.panel) return;
+    var panel = context.panel;
+    var statusEl = panel.querySelector('[data-area-guide-status]');
+    var playBtn = panel.querySelector('[data-area-guide-play]');
+    var hintEl = panel.querySelector('.me-area-guide-status small');
+    var radius = context.stop.unlocked_radius_m || context.stop.trigger_radius_m || 90;
+    if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) {
+      context.lastDistance = null;
+      context.unlocked = false;
+      panel.setAttribute('data-guide-state', 'unknown');
+      if (statusEl) statusEl.textContent = COPY.guideStopPermissionPrompt;
+      if (hintEl) hintEl.textContent = COPY.guideStopDistanceTemplate.replace('__DISTANCE__', COPY.guideStopFarLabel).replace('__RADIUS__', radius + 'm');
+      if (playBtn) playBtn.setAttribute('disabled', 'disabled');
+      return;
+    }
+    var distance = distanceMeters(coords, context.center);
+    var unlocked = Number.isFinite(distance) && distance <= radius;
+    context.lastDistance = distance;
+    context.unlocked = unlocked;
+    panel.setAttribute('data-guide-state', unlocked ? 'unlocked' : 'locked');
+    if (statusEl) {
+      if (unlocked) {
+        statusEl.textContent = COPY.guideStopNearLabel;
+      } else {
+        statusEl.textContent = COPY.guideStopFarTemplate.replace('__DISTANCE__', formatGuideDistance(Math.max(0, distance - radius)));
+      }
+    }
+    if (hintEl) hintEl.textContent = COPY.guideStopDistanceTemplate.replace('__DISTANCE__', formatGuideDistance(distance)).replace('__RADIUS__', radius + 'm');
+    if (playBtn) {
+      if (unlocked) playBtn.removeAttribute('disabled');
+      else playBtn.setAttribute('disabled', 'disabled');
+    }
+  }
+
+  function startAreaGuideStopWatch() {
+    var context = activeGuideStopContext;
+    if (!context || !context.panel) return;
+    if (!navigator.geolocation || !navigator.geolocation.watchPosition) {
+      var statusEl = context.panel.querySelector('[data-area-guide-status]');
+      if (statusEl) statusEl.textContent = COPY.locateError;
+      return;
+    }
+    if (areaGuideWatchId != null) return;
+    areaGuideWatchId = navigator.geolocation.watchPosition(function (pos) {
+      var coords = pos && pos.coords ? { lat: Number(pos.coords.latitude), lng: Number(pos.coords.longitude) } : null;
+      updateAreaGuideStopStatus(coords);
+    }, function () {
+      var statusEl = context.panel.querySelector('[data-area-guide-status]');
+      if (statusEl) statusEl.textContent = COPY.locateError;
+      updateAreaGuideStopStatus(null);
+    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+  }
+
+  function speakAreaGuideStop() {
+    var context = activeGuideStopContext;
+    if (!context || !context.panel || !context.unlocked) return;
+    if (activeGuideSpeech) {
+      stopAreaGuideSpeech();
+      return;
+    }
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+      var statusEl = context.panel.querySelector('[data-area-guide-status]');
+      if (statusEl) statusEl.textContent = COPY.guideStopUnsupported;
+      return;
+    }
+    var stop = context.stop;
+    var text = [stop.title, stop.script || stop.preview].concat(stop.story_points || []).filter(Boolean).join('。');
+    if (!text) return;
+    var utterance = new window.SpeechSynthesisUtterance(text);
+    utterance.lang = stop.language || (SEARCH_LANG === 'ja' ? 'ja-JP' : SEARCH_LANG);
+    utterance.rate = 0.96;
+    utterance.onend = function () {
+      if (activeGuideSpeech === utterance) activeGuideSpeech = null;
+      setGuideStopPlaying(context.panel, false);
+    };
+    utterance.onerror = utterance.onend;
+    activeGuideSpeech = utterance;
+    setGuideStopPlaying(context.panel, true);
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function hydrateAreaGuideStopControls(scope) {
+    stopAreaGuideStopWatch();
+    var host = scope || document;
+    var panel = host.querySelector ? host.querySelector('[data-area-guide-stop]') : null;
+    if (!panel) {
+      stopAreaGuideSpeech();
+      activeGuideStopContext = null;
+      return;
+    }
+    var context = currentAreaGuideStopContext();
+    if (!context) {
+      stopAreaGuideSpeech();
+      activeGuideStopContext = null;
+      return;
+    }
+    context.panel = panel;
+    activeGuideStopContext = context;
+    updateAreaGuideStopStatus(null);
+    var locateBtn = panel.querySelector('[data-area-guide-locate]');
+    var playBtn = panel.querySelector('[data-area-guide-play]');
+    if (locateBtn) locateBtn.addEventListener('click', function () { startAreaGuideStopWatch(); });
+    if (playBtn) playBtn.addEventListener('click', function () { speakAreaGuideStop(); });
   }
 
   function toThumbUrl(url, preset) {
@@ -2996,6 +3248,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function openBottomSheet(record) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!shouldUseBottomSheet()) return;
+    resetAreaGuideStopSession();
     var feature = getSelectedCellFeature();
     var center = feature ? cellCenter(feature) : { lat: null, lng: null };
     var detailContext = (center.lat != null && center.lng != null)
@@ -3032,6 +3285,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function openCellSheet(feature) {
     if (!sheetEl || !sheetInnerEl || !feature || !feature.properties) return;
     if (!shouldUseBottomSheet()) return;
+    resetAreaGuideStopSession();
     var center = cellCenter(feature);
     var detailContext = { lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature };
     state.selectedPoint = detailContext;
@@ -3089,6 +3343,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function openPlaceSheet(lat, lng, memoryPlace) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    resetAreaGuideStopSession();
     state.selectedOccurrenceId = null;
     state.selectedCellId = null;
     if (!shouldUseBottomSheet()) {
@@ -3293,6 +3548,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       +   sourceTrustHtml
       +   '<span class="me-area-sheet-cta-hint">' + escapeHtml(COPY.areaEventCreateHint) + '</span>'
       + '</div>'
+      + renderAreaGuideStop(props, safeCenter)
       + renderAreaAccessGuidance(transientAccessGuidance(props))
       + renderAreaFollowButton('region', followId, areaName, mapFollowHref({ region: followId }))
       + renderAreaObservationGallery(transientAreaGalleryItems(feature, safeCenter), { label: COPY.areaGalleryTitle })
@@ -3303,6 +3559,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function openTransientAreaSheet(feature, lat, lng) {
     if (!sheetEl || !sheetInnerEl || !feature) return;
     closeOverlapChoice();
+    resetAreaGuideStopSession();
     var props = feature.properties || {};
     var center = areaFeatureCenter(feature, lat, lng);
     if (!center) return;
@@ -3324,6 +3581,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     sheetInnerEl.innerHTML = renderTransientAreaContent(feature, center);
+    hydrateAreaGuideStopControls(sheetInnerEl);
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
     sheetEl.classList.remove('me-bottom-sheet--detail');
@@ -3340,14 +3598,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     var fieldId = feature.properties.field_id || '';
-    if (fieldId) openAreaSheet(fieldId, lat, lng);
+    if (fieldId) openAreaSheet(fieldId, lat, lng, feature);
   }
-  function openAreaSheet(fieldId, lat, lng) {
+  function openAreaSheet(fieldId, lat, lng, feature) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!fieldId) return;
+    resetAreaGuideStopSession();
     state.selectedOccurrenceId = null;
     state.selectedCellId = null;
-    state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId };
+    state.selectedPoint = { lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, kind: 'area', fieldId: fieldId, areaFeature: feature || null };
     if (state.map && state.map.getLayer('area-polygon-selected')) {
       state.map.setFilter('area-polygon-selected', ['==', ['get', 'field_id'], fieldId]);
     }
@@ -3368,6 +3627,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           if (!payload || !payload.snapshot) return;
           if (!state.selectedPoint || state.selectedPoint.kind !== 'area' || state.selectedPoint.fieldId !== fieldId) return;
           state.selectedPoint.areaSnapshot = payload.snapshot;
+          if (feature && !state.selectedPoint.areaFeature) state.selectedPoint.areaFeature = feature;
           renderSelectedCard();
         })
         .catch(function () { /* noop */ });
@@ -3387,13 +3647,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (payload) {
         if (!payload || !payload.snapshot) return;
         if (!state.selectedPoint || state.selectedPoint.kind !== 'area' || state.selectedPoint.fieldId !== fieldId) return;
+        state.selectedPoint.areaSnapshot = payload.snapshot;
+        if (feature && !state.selectedPoint.areaFeature) state.selectedPoint.areaFeature = feature;
         sheetInnerEl.innerHTML = renderAreaSheet(payload.snapshot);
+        hydrateAreaGuideStopControls(sheetInnerEl);
       })
       .catch(function () { /* noop */ });
   }
 
   function closeBottomSheet() {
     if (!sheetEl) return;
+    resetAreaGuideStopSession();
     sheetEl.classList.remove('is-open');
     sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.classList.remove('me-bottom-sheet--detail');
@@ -3903,6 +4167,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var sourceTrustHtml = renderAreaSourceTrust(f.sourceConfidence, f.verificationLabel, f.verificationLevel);
     var fieldId = (state.selectedPoint && state.selectedPoint.fieldId) || '';
     var followHtml = renderAreaFollowButton('field', fieldId, String(f.name || '観察エリア'), mapFollowHref({ field: fieldId }));
+    var selectedAreaFeature = state.selectedPoint && state.selectedPoint.areaFeature ? state.selectedPoint.areaFeature : null;
+    var selectedAreaProps = selectedAreaFeature && selectedAreaFeature.properties ? selectedAreaFeature.properties : f;
+    var selectedAreaCenter = selectedAreaFeature
+      ? areaFeatureCenter(selectedAreaFeature, state.selectedPoint && state.selectedPoint.lat, state.selectedPoint && state.selectedPoint.lng)
+      : (state.selectedPoint && Number.isFinite(state.selectedPoint.lat) && Number.isFinite(state.selectedPoint.lng) ? { lat: state.selectedPoint.lat, lng: state.selectedPoint.lng } : null);
+    var guideStopHtml = renderAreaGuideStop(selectedAreaProps, selectedAreaCenter);
     var areaMeta = rawLocationLabel + (areaHa ? ' / ' + areaHa : '');
     var heroHtml = renderAreaHero({
       title: String(f.name || '観察エリア'),
@@ -3927,7 +4197,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var accessHtml = renderAreaAccessGuidance(f.accessGuidance);
     var storyTabsHtml = renderAreaStoryTabs(snapshot);
     var positiveHtml = renderAreaPositiveFeedback(snapshot, fieldId);
-    return heroHtml + primaryActionsHtml + positiveHtml + accessHtml + followHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
+    return heroHtml + primaryActionsHtml + positiveHtml + guideStopHtml + accessHtml + followHtml + schoolAlbumHtml + galleryHtml + storyTabsHtml + placeStoryHtml + summaryHtml + timelineHtml + indicatorsHtml + maskingHtml;
   }
 
   function renderAreaTimeline(timeline) {
@@ -7224,6 +7494,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-detail-panel-area .me-area-gallery,
   .me-detail-panel-area .me-area-story-tabs,
   .me-detail-panel-area .me-place-story,
+  .me-detail-panel-area .me-area-guide-stop,
   .me-detail-panel-area .me-area-sheet-cta,
   .me-detail-panel-area .me-area-sheet-summary,
   .me-detail-panel-area .me-area-sheet-timeline,
@@ -7359,6 +7630,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-detail-visit { grid-template-columns: 1fr; }
     .me-area-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .me-school-albums-grid { grid-template-columns: 1fr; }
+    .me-area-guide-actions { grid-template-columns: 1fr; }
     .me-area-gallery-card img,
     .me-area-gallery-placeholder { height: 82px; }
     .me-detail-recent-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -7899,6 +8171,23 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-positive-actions { display: flex; flex-wrap: wrap; gap: 7px; }
   .me-area-positive-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #10251a; color: #fff; font-size: 11px; line-height: 1.2; font-weight: 900; text-decoration: none; }
   .me-area-positive-actions a:nth-child(n+2) { background: rgba(255,255,255,.9); color: #0f766e; border: 1px solid rgba(16,185,129,.18); }
+  .me-area-guide-stop { display: grid; gap: 10px; margin: 0 0 12px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(12,74,110,.94)); border: 1px solid rgba(56,189,248,.28); box-shadow: 0 12px 28px rgba(15,23,42,.14); color: #f8fafc; }
+  .me-area-guide-head { display: grid; gap: 3px; }
+  .me-area-guide-head span { color: #7dd3fc; font-size: 10px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .me-area-guide-head strong { font-size: 15px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
+  .me-area-guide-lead { margin: 0; color: rgba(248,250,252,.86); font-size: 12px; line-height: 1.65; font-weight: 760; }
+  .me-area-guide-points { display: grid; gap: 5px; margin: 0; padding-left: 18px; color: rgba(224,242,254,.94); font-size: 11.5px; line-height: 1.55; font-weight: 760; }
+  .me-area-guide-status { display: grid; gap: 3px; padding: 9px 10px; border-radius: 10px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); }
+  .me-area-guide-status span { font-size: 12px; line-height: 1.35; font-weight: 950; color: #f8fafc; }
+  .me-area-guide-status small { font-size: 10.5px; line-height: 1.35; font-weight: 780; color: rgba(224,242,254,.82); }
+  .me-area-guide-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .me-area-guide-actions button { min-height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); padding: 9px 10px; font-size: 12px; line-height: 1.2; font-weight: 950; cursor: pointer; }
+  .me-area-guide-locate { background: rgba(255,255,255,.12); color: #f8fafc; }
+  .me-area-guide-play { background: #f8fafc; color: #0f172a; }
+  .me-area-guide-play[disabled] { opacity: .46; cursor: not-allowed; }
+  .me-area-guide-stop[data-guide-state="unlocked"] { border-color: rgba(134,239,172,.56); box-shadow: 0 12px 28px rgba(20,184,166,.20); }
+  .me-area-guide-stop.is-speaking .me-area-guide-play { background: #bae6fd; color: #0c4a6e; }
+  .me-area-guide-approval { justify-self: start; padding: 4px 8px; border-radius: 999px; background: rgba(125,211,252,.14); color: #bae6fd; font-size: 10px; line-height: 1.2; font-weight: 900; overflow-wrap: anywhere; }
   .me-area-sheet-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
   .me-area-sheet-summary > div { padding: 8px 10px; border-radius: 12px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 2px; }
   .me-area-sheet-summary span { font-size: 10px; color: #64748b; font-weight: 600; }

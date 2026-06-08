@@ -19,6 +19,26 @@
       "story_url": "https://ikimon.life/guide/aikan-renri-report.php",
       "certification_url": "https://www.env.go.jp/nature/biodic/30by30.html",
       "source_confidence": 1,
+      "payload": {
+        "guide_stop": {
+          "enabled": true,
+          "language": "ja",
+          "title": "連理の木とLENRIの物語",
+          "subtitle": "近づくと、愛管の自然共生サイトとLENRIがどう育ったかを聞けます。",
+          "preview": "愛管の敷地にある連理の木、れんり農園、LENRI、地中熱GXの取り組みを、現地でつながる物語として紹介します。",
+          "script": "ここは、愛管株式会社が設備会社としての現場力から、食、農、自然共生、教育を少しずつ結び直してきた場所です。連理の木の下で始まった活動は、れんり農園、LENRI、地域の素材を生かす食の場へ広がりました。形になるまでには時間がかかりましたが、その時間自体が、この土地と人の関係を育てるプロセスでした。訪れたら、建物だけでなく、足元の草地、農園、木陰、水や熱の使い方にも目を向けてください。",
+          "story_points": [
+            "連理の木を中心に、食、農、自然共生、設備技術が同じ場所でつながっている。",
+            "LENRIは単なる飲食店ではなく、地域素材や場づくりを通じて人と土地の関係を見せる入口。",
+            "地中熱GXや自然共生サイトの活動も、裏側でこの場所の思想を支えている。"
+          ],
+          "trigger_radius_m": 90,
+          "unlocked_radius_m": 55,
+          "approved_by": "愛管株式会社",
+          "approval_state": "owner_verified",
+          "content_version": "2026-06-08-v0"
+        }
+      },
       "polygon": {
         "type": "Polygon",
         "coordinates": [[

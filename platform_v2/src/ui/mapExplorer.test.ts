@@ -78,6 +78,21 @@ test("area map labels and side cards expose event and encyclopedia shortcuts", (
   assert.match(script, /event\.stopPropagation\(\);/);
 });
 
+test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /function renderAreaGuideStop\(source, center\)/);
+  assert.match(script, /guide_stop_json/);
+  assert.match(script, /data-area-guide-stop/);
+  assert.match(script, /現地ガイド/);
+  assert.match(script, /近づくと聞けます/);
+  assert.match(script, /この場所で聞く/);
+  assert.match(script, /watchPosition/);
+  assert.match(script, /SpeechSynthesisUtterance/);
+  assert.match(script, /hydrateAreaGuideStopControls\(sheetInnerEl\)/);
+  assert.match(script, /return heroHtml \+ primaryActionsHtml \+ positiveHtml \+ guideStopHtml/);
+});
+
 test("map viewport movement refreshes stale result panels automatically", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
