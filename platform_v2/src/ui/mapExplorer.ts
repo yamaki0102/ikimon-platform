@@ -1450,6 +1450,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
   var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  var GUIDE_BADGE_FULL_ZOOM = 13.2;
+  var GUIDE_BADGE_DENSE_LIMIT = 8;
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
@@ -2193,10 +2195,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return state.tab === 'places' && item.groups.length > 0;
       })
       .slice(0, 80);
+    var guideBadgeCount = features.filter(function (item) { return !!item.guideStop; }).length;
+    var useCompactGuideBadges = zoom < GUIDE_BADGE_FULL_ZOOM || guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT;
     features.forEach(function (item) {
       var props = item.feature && item.feature.properties ? item.feature.properties : {};
       var name = String(props.name || COPY.selectedFieldLabel);
       var fieldId = String(props.field_id || '');
+      var isCompactGuideBadge = !!item.guideStop && useCompactGuideBadges;
       var eventHref = fieldId && eventsNewHrefTemplate
         ? eventsNewHrefTemplate.replace('__FIELD_ID__', encodeURIComponent(fieldId))
         : '';
@@ -2215,14 +2220,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         : '') + item.groups.map(renderAreaBadgeGroup).join('');
       var ariaBits = item.groups.map(function (group) { return group.label; });
       if (item.guideStop) ariaBits.unshift(COPY.areaBadgeGuideLabel);
-      el.className = 'me-area-badge-marker' + (item.guideStop ? ' has-guide-stop' : '');
+      el.className = 'me-area-badge-marker' +
+        (item.guideStop ? ' has-guide-stop' : '') +
+        (isCompactGuideBadge ? ' is-guide-compact' : '');
       el.setAttribute('aria-label', name + ' ' + ariaBits.join(' '));
-      el.innerHTML =
-        '<button type="button" class="me-area-badge-main">' +
-          '<strong>' + escapeHtml(name) + '</strong>' +
-          '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' +
-        '</button>' +
-        actionsHtml;
+      el.innerHTML = isCompactGuideBadge
+        ? '<button type="button" class="me-area-badge-main" title="' + escapeHtml(name + ' ' + COPY.areaBadgeGuideLabel) + '">' +
+            '<span class="me-area-badge-chip me-area-badge-chip-guide">' + escapeHtml(COPY.areaBadgeGuideLabel) + '</span>' +
+          '</button>'
+        : '<button type="button" class="me-area-badge-main">' +
+            '<strong>' + escapeHtml(name) + '</strong>' +
+            '<span class="me-area-badge-chips">' + badgeChipsHtml + '</span>' +
+          '</button>' +
+          actionsHtml;
       el.querySelector('.me-area-badge-main').addEventListener('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -6755,6 +6765,30 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-badge-chip-other { background: rgba(100,116,139,.12); color: #334155; }
   .me-area-badge-chip-guide { background: #0f172a; color: #f8fafc; }
   .me-area-badge-marker.has-guide-stop .me-area-badge-main { border-color: rgba(15,23,42,.22); box-shadow: 0 12px 28px rgba(15,23,42,.16); }
+  .me-area-badge-marker.is-guide-compact {
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .me-area-badge-marker.is-guide-compact:hover {
+    box-shadow: none;
+  }
+  .me-area-badge-marker.is-guide-compact .me-area-badge-main {
+    display: inline-flex;
+    width: auto;
+    border-radius: 999px;
+    box-shadow: 0 10px 20px rgba(15,23,42,.18);
+  }
+  .me-area-badge-marker.is-guide-compact .me-area-badge-chip-guide {
+    min-height: 24px;
+    padding: 3px 9px;
+    border: 2px solid rgba(255,255,255,.88);
+    box-shadow: 0 0 0 1px rgba(15,23,42,.16);
+  }
   .me-area-badge-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;

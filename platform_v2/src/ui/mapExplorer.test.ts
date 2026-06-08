@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
+import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
 
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
@@ -72,6 +72,19 @@ test("guide-enabled areas advertise guide availability before tapping the area",
   assert.match(script, /me-area-badge-chip-guide/);
   assert.match(script, /has-guide-stop/);
   assert.match(script, /ガイド/);
+});
+
+test("guide map badges stay compact at low zoom or high density", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(script, /GUIDE_BADGE_FULL_ZOOM = 13\.2/);
+  assert.match(script, /GUIDE_BADGE_DENSE_LIMIT = 8/);
+  assert.match(script, /guideBadgeCount = features\.filter/);
+  assert.match(script, /zoom < GUIDE_BADGE_FULL_ZOOM \|\| guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT/);
+  assert.match(script, /is-guide-compact/);
+  assert.match(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
+  assert.match(styles, /me-area-badge-marker\.is-guide-compact/);
 });
 
 test("area map labels and side cards expose event and encyclopedia shortcuts", () => {
