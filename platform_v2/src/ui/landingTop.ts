@@ -1593,8 +1593,31 @@ function renderLandingDailyDashboard(options: LandingTopRenderOptions): string {
   return `<section class="prototype-topa-shelves" aria-label="トップページの観察棚">
     ${renderLandingContentWall(options)}
     ${renderLandingNearbySection(options)}
+    ${renderNatureCapitalGoalSection(options)}
     ${renderLandingGuideOutcomes(options)}
     ${renderLandingLocalFollowups(options)}
+  </section>`;
+}
+
+function renderNatureCapitalGoalSection(options: LandingTopRenderOptions): string {
+  const businessHref = landingHref(options.basePath, options.lang, "/for-business");
+  const learnHref = landingHref(options.basePath, options.lang, "/learn/policy-and-business");
+  return `<section class="prototype-nature-os" aria-labelledby="prototype-nature-os-heading">
+    <div class="prototype-nature-os-copy">
+      <span>NATURE CAPITAL OS</span>
+      <h2 id="prototype-nature-os-heading">自然資本を、地図で見て終わりにしない。</h2>
+      <p>衛星、天気、大気質、花粉、既存データは、その場所を読むための外部文脈として重ねます。ikimon.life では、写真・音・場所・人の確認に、草刈りや植栽などの管理行為と再訪をつなぎ、次の判断に使える形で残します。</p>
+      <div class="prototype-nature-os-actions">
+        <a href="${escapeHtml(businessHref)}" data-kpi-action="landing:nature-os:business">企業・地域で使う</a>
+        <a href="${escapeHtml(learnHref)}" data-kpi-action="landing:nature-os:learn">政策との関係を見る</a>
+      </div>
+    </div>
+    <div class="prototype-nature-os-steps" aria-label="自然資本OSの流れ">
+      <article><b>01</b><strong>観察</strong><small>写真、音、場所、時刻を残す</small></article>
+      <article><b>02</b><strong>環境文脈</strong><small>天気、地形、土地利用、衛星指標を後から重ねる</small></article>
+      <article><b>03</b><strong>管理行為</strong><small>草刈り、植栽、外来種対応などを別レイヤーで記録する</small></article>
+      <article><b>04</b><strong>効果検証</strong><small>増減や成果は断定せず、努力量と証拠を添えて比較する</small></article>
+    </div>
   </section>`;
 }
 
@@ -3812,6 +3835,102 @@ export const LANDING_TOP_STYLES = `
   .prototype-flow-card i,
   .prototype-library-card i,
   .prototype-trust-grid i { width: 48px; height: 48px; border-radius: 12px; }
+  .prototype-nature-os {
+    display: grid;
+    grid-template-columns: minmax(0, .88fr) minmax(360px, 1fr);
+    gap: 16px;
+    align-items: stretch;
+    padding: clamp(18px, 3vw, 28px);
+    border: 1px solid rgba(16,185,129,.18);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(16,185,129,.075) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(14,165,233,.055) 1px, transparent 1px),
+      linear-gradient(135deg, #f8fffb 0%, #effdf7 56%, #fff7ed 100%);
+    background-size: 44px 44px, 44px 44px, auto;
+    box-shadow: 0 18px 52px rgba(15,23,42,.075);
+  }
+  .prototype-nature-os-copy {
+    display: grid;
+    align-content: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .prototype-nature-os-copy span {
+    color: #047857;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+  .prototype-nature-os-copy h2 {
+    max-width: 15ch;
+    margin: 0;
+    color: #1a2e1f;
+    font-size: 40px;
+    line-height: 1.12;
+    font-weight: 950;
+  }
+  .prototype-nature-os-copy p {
+    max-width: 58ch;
+    margin: 0;
+    color: #40564a;
+    font-size: 14px;
+    line-height: 1.8;
+    font-weight: 700;
+  }
+  .prototype-nature-os-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .prototype-nature-os-actions a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(16,185,129,.22);
+    background: #fff;
+    color: #047857;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .prototype-nature-os-actions a:first-child {
+    border-color: transparent;
+    background: #103d2a;
+    color: #fff;
+  }
+  .prototype-nature-os-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .prototype-nature-os-steps article {
+    min-height: 154px;
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid rgba(16,185,129,.16);
+    border-radius: 8px;
+    background: rgba(255,255,255,.76);
+  }
+  .prototype-nature-os-steps b {
+    color: rgba(16,185,129,.44);
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 950;
+  }
+  .prototype-nature-os-steps strong {
+    color: #1a2e1f;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+  .prototype-nature-os-steps small {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.7;
+    font-weight: 700;
+  }
   .prototype-flow-body { display: grid; gap: 12px; }
   .prototype-flow-num { order: -1; color: rgba(16,185,129,.36); font-size: 42px; line-height: 1; font-weight: 950; }
   .prototype-map-section {
@@ -4090,6 +4209,28 @@ export const LANDING_TOP_STYLES = `
     .prototype-content-avatar { width: 22px; height: 22px; }
     .prototype-monitoring-areas { gap: 10px; }
     .prototype-monitoring-title h2 { font-size: 18px; }
+    .prototype-nature-os {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 16px;
+    }
+    .prototype-nature-os-copy h2 {
+      max-width: none;
+      font-size: 26px;
+    }
+    .prototype-nature-os-copy p {
+      font-size: 13px;
+    }
+    .prototype-nature-os-actions a {
+      flex: 1 1 180px;
+      min-width: 0;
+    }
+    .prototype-nature-os-steps {
+      grid-template-columns: 1fr;
+    }
+    .prototype-nature-os-steps article {
+      min-height: auto;
+    }
     .prototype-monitoring-grid {
       grid-template-columns: none;
       gap: 12px;

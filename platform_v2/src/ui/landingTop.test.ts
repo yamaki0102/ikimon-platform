@@ -291,6 +291,17 @@ test("landing top localizes the content-first shelves in English", () => {
   assert.doesNotMatch(html, /Photos and videos/);
 });
 
+test("landing top states the nature capital OS goal without overclaiming", () => {
+  const html = renderTop(photoSnapshot);
+
+  assert.match(html, /NATURE CAPITAL OS/);
+  assert.match(html, /自然資本を、地図で見て終わりにしない。/);
+  assert.match(html, /管理行為/);
+  assert.match(html, /効果検証/);
+  assert.match(html, /data-kpi-action="landing:nature-os:business"/);
+  assert.doesNotMatch(html, /TNFD準拠を証明|自然共生サイト認定を保証|保全効果を自動判定|Google Earth AIで確定/);
+});
+
 test("landing top renders real observation photos and detail CTAs", () => {
   const html = renderTop(photoSnapshot);
 
