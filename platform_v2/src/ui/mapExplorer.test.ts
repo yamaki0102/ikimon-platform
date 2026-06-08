@@ -62,6 +62,18 @@ test("area biodiversity badges render as presence-only map markers", () => {
   assert.doesNotMatch(script, /recentObservationCount.*me-area-badge/);
 });
 
+test("guide-enabled areas advertise guide availability before tapping the area", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+
+  assert.match(script, /areaBadgeGuideLabel/);
+  assert.match(script, /state\.tab !== 'places' && state\.tab !== 'markers'/);
+  assert.match(script, /var guideStop = areaGuideStopFrom/);
+  assert.match(script, /if \(item\.guideStop\) return true;/);
+  assert.match(script, /me-area-badge-chip-guide/);
+  assert.match(script, /has-guide-stop/);
+  assert.match(script, /ガイド/);
+});
+
 test("area map labels and side cards expose event and encyclopedia shortcuts", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
