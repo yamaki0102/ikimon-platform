@@ -72,8 +72,10 @@ test("general and group-help pages use the updated ja entry copy", async () => {
 
     const business = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
     assert.equal(business.statusCode, 200);
-    assert.match(business.body, /楽しんで続く観察を、地域のアクションへ/);
+    assert.match(business.body, /自然資本を、現場から見直す/);
+    assert.match(business.body, /観察、管理行為、再訪の記録/);
     assert.match(business.body, /企業で活用する/);
+    assert.doesNotMatch(business.body, /TNFD準拠を証明|自然共生サイト認定を保証|保全効果を自動判定/);
 
     const businessDemo = await app.inject({ method: "GET", url: "/for-business/demo?lang=ja" });
     assert.equal(businessDemo.statusCode, 200);
