@@ -57,6 +57,7 @@ export interface AreaGuideStop {
   preview: string;
   script: string;
   story_points: string[];
+  source_links: Array<{ label: string; url: string }>;
   trigger_radius_m: number;
   unlocked_radius_m: number;
   approved_by: string;
@@ -143,6 +144,21 @@ function cleanGuideStopRadius(value: unknown, fallback: number): number {
   return Math.max(20, Math.min(300, Math.round(n)));
 }
 
+function cleanGuideStopSourceLinks(value: unknown): Array<{ label: string; url: string }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return undefined;
+      const record = item as Record<string, unknown>;
+      const label = cleanGuideStopString(record.label, 80);
+      const url = cleanGuideStopString(record.url, 240);
+      if (!label || !/^https:\/\//.test(url)) return undefined;
+      return { label, url };
+    })
+    .filter((item): item is { label: string; url: string } => Boolean(item))
+    .slice(0, 4);
+}
+
 function normalizeGuideStop(raw: unknown): AreaGuideStop | undefined {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const record = raw as Record<string, unknown>;
@@ -165,6 +181,7 @@ function normalizeGuideStop(raw: unknown): AreaGuideStop | undefined {
     preview,
     script,
     story_points: storyPoints,
+    source_links: cleanGuideStopSourceLinks(record.source_links),
     trigger_radius_m: triggerRadius,
     unlocked_radius_m: unlockRadius,
     approved_by: cleanGuideStopString(record.approved_by, 80),

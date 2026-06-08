@@ -193,6 +193,11 @@ test("normalizeGuideStop keeps approved location guide stops bounded for map del
     preview: " 現地で聞く場所ストーリー ",
     script: " 連理の木、れんり農園、LENRIのつながりを紹介します。 ",
     story_points: ["食と農", "", "自然共生", "設備技術"],
+    source_links: [
+      { label: "愛管株式会社: 生物多様性", url: "https://i-kan.co.jp/company/biodiversity/" },
+      { label: "", url: "https://example.com/empty-label" },
+      { label: "不正なURL", url: "javascript:alert(1)" },
+    ],
     trigger_radius_m: 900,
     unlocked_radius_m: 3,
     approved_by: "愛管株式会社",
@@ -204,6 +209,9 @@ test("normalizeGuideStop keeps approved location guide stops bounded for map del
   assert.equal(stop?.trigger_radius_m, 300);
   assert.equal(stop?.unlocked_radius_m, 20);
   assert.deepEqual(stop?.story_points, ["食と農", "自然共生", "設備技術"]);
+  assert.deepEqual(stop?.source_links, [
+    { label: "愛管株式会社: 生物多様性", url: "https://i-kan.co.jp/company/biodiversity/" },
+  ]);
 });
 
 test("normalizeGuideStop rejects disabled or content-empty guide stops", () => {
