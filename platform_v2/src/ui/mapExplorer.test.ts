@@ -78,13 +78,18 @@ test("guide map badges stay compact at low zoom or high density", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
-  assert.match(script, /GUIDE_BADGE_FULL_ZOOM = 13\.2/);
+  assert.match(script, /GUIDE_BADGE_LABEL_ZOOM = 12\.6/);
+  assert.match(script, /GUIDE_BADGE_FULL_ZOOM = 13\.4/);
   assert.match(script, /GUIDE_BADGE_DENSE_LIMIT = 8/);
   assert.match(script, /guideBadgeCount = features\.filter/);
-  assert.match(script, /zoom < GUIDE_BADGE_FULL_ZOOM \|\| guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT/);
+  assert.match(script, /zoom < GUIDE_BADGE_LABEL_ZOOM \|\| guideBadgeCount > GUIDE_BADGE_DENSE_LIMIT/);
+  assert.match(script, /is-guide-pin/);
   assert.match(script, /is-guide-compact/);
+  assert.match(script, /me-guide-dot/);
   assert.match(script, /title="' \+ escapeHtml\(name \+ ' ' \+ COPY\.areaBadgeGuideLabel\)/);
+  assert.match(styles, /me-area-badge-marker\.is-guide-pin/);
   assert.match(styles, /me-area-badge-marker\.is-guide-compact/);
+  assert.match(styles, /me-guide-dot/);
 });
 
 test("map guide spots render independently from area polygons", () => {
@@ -97,7 +102,20 @@ test("map guide spots render independently from area polygons", () => {
   assert.match(script, /openGuideSpotSheet\(feature\)/);
   assert.match(script, /kind: 'guide_spot'/);
   assert.match(script, /renderGuideSourceLinks/);
+  assert.match(script, /GUIDE_SPOT_LABEL_ZOOM = 12\.6/);
+  assert.match(script, /GUIDE_SPOT_DENSE_LIMIT = 10/);
+  assert.match(script, /guideSpotCount > GUIDE_SPOT_DENSE_LIMIT/);
+  assert.match(script, /is-pin/);
   assert.match(styles, /me-guide-spot-marker/);
+});
+
+test("map legend stays within the map viewport", () => {
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(styles, /max-width: min\(520px, calc\(100% - 24px\)\)/);
+  assert.match(styles, /flex-wrap: wrap/);
+  assert.match(styles, /#me-legend-low,\s+#me-legend-high/);
+  assert.match(styles, /overflow-wrap: anywhere/);
 });
 
 test("area badge clicks reopen the side panel before showing selection", () => {
